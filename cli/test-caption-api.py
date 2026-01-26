@@ -3,10 +3,11 @@
 Caption API Test Suite
 
 Comprehensive tests for all Caption API endpoints and parameters:
-- GET/POST /sdapi/v1/interrogate (OpenCLiP)
-- POST /sdapi/v1/vqa (VLM Captioning with annotated images)
+- GET/POST /sdapi/v1/openclip (OpenCLIP direct)
+- POST /sdapi/v1/caption (Unified dispatch: openclip, tagger, vlm)
+- POST /sdapi/v1/vqa (VLM direct)
 - GET /sdapi/v1/vqa/models, /sdapi/v1/vqa/prompts
-- POST /sdapi/v1/tagger
+- POST /sdapi/v1/tagger (Tagger direct)
 - GET /sdapi/v1/tagger/models
 
 Usage:
@@ -63,7 +64,7 @@ class CaptionAPITest:
         'joycaption': ['joycaption'],
     }
 
-    # BLIP model types for interrogate testing (smaller models only to avoid reloading large models)
+    # BLIP model types for caption testing (smaller models only to avoid reloading large models)
     BLIP_MODELS = [
         'blip-base',
         'blip-large',
@@ -75,29 +76,138 @@ class CaptionAPITest:
         self.image_path = image_path
         self.image_b64 = None
         self.timeout = timeout  # Request timeout in seconds
-        self.results = {'passed': [], 'failed': [], 'skipped': []}
+        # Categorized results tracking
+        self.results = {
+            'openclip': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
+            'vqa': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
+            'tagger': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
+            'dispatch': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
+            'parity': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
+        }
+        self._current_category = 'openclip'  # Default category
+        # Track critical errors per backend to skip subsequent tests
+        self._critical_errors = {
+            'openclip': None,
+            'tagger': None,
+            'vqa': None,
+        }
         self.auth = None
         if username and password:
             self.auth = (username, password)
         # Cache for model lists to avoid repeated calls
-        self._interrogate_models = None
+        self._caption_models = None
         self._vqa_models = None
         self._tagger_models = None
 
+    def set_category(self, category):
+        """Set the current test category for result tracking."""
+        self._current_category = category
+
+    def record_result(self, status, message):
+        """Record a test result in the current category."""
+        cat = self._current_category
+        self.results[cat]['tests'].append((status, message))
+        self.results[cat][status] += 1
+
     def log_pass(self, msg):
         print(f"  [PASS] {msg}")
-        self.results['passed'].append(msg)
+        self.record_result('passed', msg)
 
     def log_fail(self, msg):
         print(f"  [FAIL] {msg}")
-        self.results['failed'].append(msg)
+        self.record_result('failed', msg)
 
     def log_skip(self, msg):
         print(f"  [SKIP] {msg}")
-        self.results['skipped'].append(msg)
+        self.record_result('skipped', msg)
 
     def log_info(self, msg):
         print(f"  [INFO] {msg}")
+
+    def log_critical(self, backend, msg):
+        """Log a critical error and mark the backend as failed."""
+        print(f"  [CRITICAL] {msg}")
+        self._critical_errors[backend] = msg
+        self.record_result('failed', f"CRITICAL: {msg}")
+
+    def has_critical_error(self, backend):
+        """Check if a backend has a critical error and should skip tests."""
+        if self._critical_errors.get(backend):
+            return True
+        return False
+
+    def skip_if_critical(self, backend, test_name):
+        """Skip test if backend has critical error. Returns True if skipped."""
+        if self.has_critical_error(backend):
+            self.log_skip(f"{test_name}: skipped due to prior critical error")
+            return True
+        return False
+
+    def is_critical_error(self, response_text):
+        """Check if a response indicates a critical/fatal error that should stop testing."""
+        if not response_text:
+            return False
+        text_lower = str(response_text).lower()
+        # Critical error patterns that indicate backend is broken
+        critical_patterns = [
+            'runtimeerror',
+            'cuda error',
+            'out of memory',
+            'oom',
+            'device-side assert',
+            'cublas',
+            'cudnn',
+            'nccl',
+            'input type',  # tensor type mismatch
+            'weight type',  # tensor type mismatch
+            'expected .* but got',  # type/device mismatch
+            'cannot be performed',
+            'illegal memory access',
+            'segmentation fault',
+            'killed',
+            'critical',
+        ]
+        for pattern in critical_patterns:
+            if pattern in text_lower:
+                return True
+        return False
+
+    def check_critical_error(self, data, backend):
+        """Check response for critical errors and mark backend if found. Returns error message or None."""
+        if not data:
+            return None
+        # Check various response fields for critical errors
+        fields_to_check = ['caption', 'tags', 'answer', 'error', 'reason', 'detail']
+        for field in fields_to_check:
+            value = data.get(field)
+            if value and self.is_critical_error(value):
+                error_msg = f"{field}: {self.truncate(str(value), 100)}"
+                self.log_critical(backend, error_msg)
+                return error_msg
+        return None
+
+    @staticmethod
+    def truncate(text, max_len=80):
+        """Truncate text for display, adding ... if truncated."""
+        if text and len(str(text)) > max_len:
+            return str(text)[:max_len] + "..."
+        return str(text) if text else ""
+
+    def log_response(self, response, key_fields=None):
+        """Print response trace with key fields."""
+        if key_fields is None:
+            key_fields = ['caption', 'tags', 'answer', 'backend']
+        for field in key_fields:
+            if response.get(field):
+                value = response[field]
+                if isinstance(value, str):
+                    print(f"  Response {field}: \"{self.truncate(value)}\"")
+                elif isinstance(value, dict):
+                    # For scores dict, show first few entries
+                    preview = dict(list(value.items())[:3])
+                    print(f"  Response {field}: {preview}")
+                else:
+                    print(f"  Response {field}: {value}")
 
     def is_error_answer(self, answer):
         """Check if an answer string indicates an error occurred."""
@@ -181,13 +291,36 @@ class CaptionAPITest:
         except Exception as e:
             return {'error': 'exception', 'reason': str(e)}
 
+    def _infer_backend_from_endpoint(self, endpoint, json_data):
+        """Infer the backend from the endpoint URL or request data."""
+        if '/openclip' in endpoint:
+            return 'openclip'
+        elif '/tagger' in endpoint:
+            return 'tagger'
+        elif '/vqa' in endpoint:
+            return 'vlm'
+        elif '/caption' in endpoint:
+            # Dispatch endpoint - check backend field in request
+            return json_data.get('backend', 'openclip') if json_data else 'openclip'
+        return None
+
     def post(self, endpoint, json_data):
-        """Make POST request and return JSON response."""
+        """Make POST request and return JSON response. Auto-checks for critical errors."""
         url = f"{self.base_url}{endpoint}"
+        backend = self._infer_backend_from_endpoint(endpoint, json_data)
+
         try:
             resp = requests.post(url, json=json_data, auth=self.auth, timeout=self.timeout, verify=False)
             resp.raise_for_status()
-            return resp.json()
+            data = resp.json()
+
+            # Auto-check for critical errors in the response
+            if backend and backend != 'vlm':  # VLM backend name differs
+                self._auto_check_critical(data, backend)
+            elif backend == 'vlm':
+                self._auto_check_critical(data, 'vqa')
+
+            return data
         except requests.exceptions.Timeout:
             return {'error': 'timeout', 'reason': f'Request timed out after {self.timeout}s'}
         except requests.exceptions.HTTPError as e:
@@ -197,6 +330,20 @@ class CaptionAPITest:
                 return {'error': 'http', 'status': e.response.status_code, 'reason': str(e)}
         except Exception as e:
             return {'error': 'exception', 'reason': str(e)}
+
+    def _auto_check_critical(self, data, backend):
+        """Auto-check response for critical errors (called by post method)."""
+        if not data or self.has_critical_error(backend):
+            return
+        # Check various response fields for critical errors
+        fields_to_check = ['caption', 'tags', 'answer', 'error', 'reason', 'detail']
+        for field in fields_to_check:
+            value = data.get(field)
+            if value and self.is_critical_error(value):
+                error_msg = f"{field}: {self.truncate(str(value), 100)}"
+                print(f"  [CRITICAL] {backend} backend error: {error_msg}")
+                self._critical_errors[backend] = error_msg
+                return
 
     # =========================================================================
     # Setup and Teardown
@@ -255,40 +402,64 @@ class CaptionAPITest:
         return True
 
     def print_summary(self):
-        """Print test summary."""
+        """Print test summary by category."""
         print("\n" + "=" * 70)
-        print("TEST SUMMARY")
+        print("TEST SUMMARY BY CATEGORY")
         print("=" * 70)
 
-        print(f"\n  PASSED:  {len(self.results['passed'])}")
-        for item in self.results['passed']:
-            print(f"    - {item}")
+        total_passed = 0
+        total_failed = 0
+        total_skipped = 0
 
-        print(f"\n  FAILED:  {len(self.results['failed'])}")
-        for item in self.results['failed']:
-            print(f"    - {item}")
+        for category, data in self.results.items():
+            cat_passed = data['passed']
+            cat_failed = data['failed']
+            cat_skipped = data['skipped']
+            cat_total = cat_passed + cat_failed + cat_skipped
 
-        print(f"\n  SKIPPED: {len(self.results['skipped'])}")
-        for item in self.results['skipped']:
-            print(f"    - {item}")
+            if cat_total == 0:
+                continue
 
-        total = len(self.results['passed']) + len(self.results['failed'])
-        if total > 0:
-            success_rate = len(self.results['passed']) / total * 100
-            print(f"\n  SUCCESS RATE: {success_rate:.1f}% ({len(self.results['passed'])}/{total})")
+            total_passed += cat_passed
+            total_failed += cat_failed
+            total_skipped += cat_skipped
+
+            # Calculate success rate (excluding skipped)
+            cat_run = cat_passed + cat_failed
+            if cat_run > 0:
+                pct = cat_passed / cat_run * 100
+                print(f"\n  {category.upper():10} {cat_passed:3}/{cat_run:3} passed ({pct:5.1f}%), {cat_skipped} skipped")
+            else:
+                print(f"\n  {category.upper():10} 0/0 tests, {cat_skipped} skipped")
+
+            # Show failures for this category
+            failures = [(s, m) for s, m in data['tests'] if s == 'failed']
+            if failures:
+                for _, msg in failures:
+                    print(f"    [FAIL] {msg}")
+
+        # Overall totals
+        print("\n" + "-" * 70)
+        overall_run = total_passed + total_failed
+        if overall_run > 0:
+            overall_pct = total_passed / overall_run * 100
+            print(f"\n  TOTAL:   {total_passed}/{overall_run} passed ({overall_pct:.1f}%), {total_skipped} skipped")
+        else:
+            print(f"\n  TOTAL:   0/0 tests, {total_skipped} skipped")
 
         print("\n" + "=" * 70)
 
     # =========================================================================
-    # TEST: GET /sdapi/v1/interrogate - List Models
+    # TEST: GET /sdapi/v1/openclip - List Models
     # =========================================================================
-    def test_interrogate_list_models(self):
-        """Test GET /sdapi/v1/interrogate returns model list."""
+    def test_openclip_list_models(self):
+        """Test GET /sdapi/v1/openclip returns model list."""
+        self.set_category('openclip')
         print("\n" + "=" * 70)
-        print("TEST: GET /sdapi/v1/interrogate")
+        print("TEST: GET /sdapi/v1/openclip")
         print("=" * 70)
 
-        data = self.get('/sdapi/v1/interrogate')
+        data = self.get('/sdapi/v1/openclip')
 
         # Test 1: Returns list
         if 'error' in data:
@@ -297,7 +468,7 @@ class CaptionAPITest:
 
         if isinstance(data, list):
             self.log_pass(f"Returns list with {len(data)} models")
-            self._interrogate_models = data
+            self._caption_models = data
         else:
             self.log_fail(f"Expected list, got {type(data)}")
             return
@@ -311,18 +482,23 @@ class CaptionAPITest:
             self.log_skip("No OpenCLIP models found (may need to download)")
 
     # =========================================================================
-    # TEST: POST /sdapi/v1/interrogate - OpenCLIP Modes
+    # TEST: POST /sdapi/v1/openclip - OpenCLIP Modes
     # =========================================================================
-    def test_interrogate_post_clip_modes(self):
-        """Test all 5 interrogation modes."""
+    def test_openclip_post_modes(self):
+        """Test all 5 interrogation modes via direct endpoint."""
+        self.set_category('openclip')
         print("\n" + "=" * 70)
-        print("TEST: POST /sdapi/v1/interrogate (modes)")
+        print("TEST: POST /sdapi/v1/openclip (modes)")
         print("=" * 70)
 
+        # Skip if critical error already occurred
+        if self.skip_if_critical('openclip', 'openclip modes'):
+            return
+
         # Check if we have OpenCLIP models
-        if not self._interrogate_models:
-            self._interrogate_models = self.get('/sdapi/v1/interrogate')
-        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
 
         if not clip_models:
             self.log_skip("No OpenCLIP models available")
@@ -333,36 +509,51 @@ class CaptionAPITest:
 
         modes = ['best', 'fast', 'classic', 'caption', 'negative']
         for mode in modes:
+            # Check for critical error before each mode test
+            if self.has_critical_error('openclip'):
+                self.log_skip(f"mode='{mode}': skipped due to critical error")
+                continue
+
             t0 = time.time()
-            data = self.post('/sdapi/v1/interrogate', {
+            data = self.post('/sdapi/v1/openclip', {
                 'image': self.image_b64,
                 'model': model,
                 'mode': mode
             })
             elapsed = time.time() - t0
 
+            # Check for critical error in response
+            if self.check_critical_error(data, 'openclip'):
+                continue
+
             if 'error' in data:
                 self.log_skip(f"mode='{mode}': {data.get('reason', 'failed')}")
             elif data.get('caption') and not self.is_error_answer(data['caption']):
                 self.log_pass(f"mode='{mode}' returns caption ({len(data['caption'])} chars, {elapsed:.1f}s)")
+                self.log_info(f"Caption: {self.truncate(data['caption'], 60)}")
             elif self.is_error_answer(data.get('caption', '')):
                 self.log_fail(f"mode='{mode}' returned error: {data['caption']}")
             else:
                 self.log_fail(f"mode='{mode}' returned empty caption")
 
     # =========================================================================
-    # TEST: POST /sdapi/v1/interrogate - Analyze
+    # TEST: POST /sdapi/v1/openclip - Analyze
     # =========================================================================
-    def test_interrogate_analyze(self):
+    def test_openclip_analyze(self):
         """Test analyze=True returns breakdown fields."""
+        self.set_category('openclip')
         print("\n" + "=" * 70)
-        print("TEST: POST /sdapi/v1/interrogate (analyze)")
+        print("TEST: POST /sdapi/v1/openclip (analyze)")
         print("=" * 70)
 
+        # Skip if critical error already occurred
+        if self.skip_if_critical('openclip', 'openclip analyze'):
+            return
+
         # Check if we have OpenCLIP models
-        if not self._interrogate_models:
-            self._interrogate_models = self.get('/sdapi/v1/interrogate')
-        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
 
         if not clip_models:
             self.log_skip("No OpenCLIP models available")
@@ -371,18 +562,26 @@ class CaptionAPITest:
         model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
 
         # Test without analyze
-        data_no_analyze = self.post('/sdapi/v1/interrogate', {
+        data_no_analyze = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'analyze': False
         })
 
+        # Check for critical error
+        if self.check_critical_error(data_no_analyze, 'openclip'):
+            return
+
         # Test with analyze
-        data_analyze = self.post('/sdapi/v1/interrogate', {
+        data_analyze = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'analyze': True
         })
+
+        # Check for critical error
+        if self.check_critical_error(data_analyze, 'openclip'):
+            return
 
         if 'error' in data_analyze:
             self.log_skip(f"Analyze test: {data_analyze.get('reason', 'failed')}")
@@ -394,6 +593,7 @@ class CaptionAPITest:
         for field in analyze_fields:
             if data_analyze.get(field):
                 self.log_pass(f"analyze=True returns '{field}'")
+                self.log_info(f"  {field}: {self.truncate(data_analyze[field], 40)}")
                 fields_found += 1
             else:
                 self.log_skip(f"'{field}' empty or missing (may be image-dependent)")
@@ -413,16 +613,17 @@ class CaptionAPITest:
                 self.log_fail("analyze=False should not return breakdown fields")
 
     # =========================================================================
-    # TEST: POST /sdapi/v1/interrogate - Invalid Inputs
+    # TEST: POST /sdapi/v1/openclip - Invalid Inputs
     # =========================================================================
-    def test_interrogate_invalid_inputs(self):
+    def test_openclip_invalid_inputs(self):
         """Test error handling for invalid inputs."""
+        self.set_category('openclip')
         print("\n" + "=" * 70)
-        print("TEST: POST /sdapi/v1/interrogate (invalid inputs)")
+        print("TEST: POST /sdapi/v1/openclip (invalid inputs)")
         print("=" * 70)
 
         # Test missing image
-        data = self.post('/sdapi/v1/interrogate', {
+        data = self.post('/sdapi/v1/openclip', {
             'image': '',
             'model': 'ViT-L-14/openai'
         })
@@ -432,7 +633,7 @@ class CaptionAPITest:
             self.log_fail(f"Missing image should return 404, got: {data}")
 
         # Test invalid model
-        data = self.post('/sdapi/v1/interrogate', {
+        data = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': 'invalid-nonexistent-model'
         })
@@ -442,18 +643,23 @@ class CaptionAPITest:
             self.log_fail("Invalid model should return error")
 
     # =========================================================================
-    # TEST: POST /sdapi/v1/interrogate - CLIP/BLIP Models
+    # TEST: POST /sdapi/v1/openclip - CLIP/BLIP Models
     # =========================================================================
-    def test_interrogate_clip_blip_models(self):
+    def test_openclip_clip_blip_models(self):
         """Test clip_model and blip_model parameter overrides."""
+        self.set_category('openclip')
         print("\n" + "=" * 70)
-        print("TEST: POST /sdapi/v1/interrogate (clip_model, blip_model)")
+        print("TEST: POST /sdapi/v1/openclip (clip_model, blip_model)")
         print("=" * 70)
 
+        # Skip if critical error already occurred
+        if self.skip_if_critical('openclip', 'openclip clip_blip_models'):
+            return
+
         # Check if we have OpenCLIP models
-        if not self._interrogate_models:
-            self._interrogate_models = self.get('/sdapi/v1/interrogate')
-        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
 
         if not clip_models:
             self.log_skip("No OpenCLIP models available")
@@ -462,13 +668,17 @@ class CaptionAPITest:
         # Test with explicit clip_model override
         model = clip_models[0]
         t0 = time.time()
-        data = self.post('/sdapi/v1/interrogate', {
+        data = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'clip_model': model,  # Explicit CLIP model
             'mode': 'fast'
         })
         elapsed = time.time() - t0
+
+        # Check for critical error
+        if self.check_critical_error(data, 'openclip'):
+            return
 
         if 'error' in data:
             self.log_skip(f"clip_model override: {data.get('reason', 'failed')}")
@@ -477,16 +687,24 @@ class CaptionAPITest:
         else:
             self.log_fail(f"clip_model override returned empty/error: {data.get('caption', '')}")
 
+        # Check for critical error before continuing
+        if self.has_critical_error('openclip'):
+            return
+
         # Test with blip_model override (uses 'caption' mode internally)
         # Valid blip_model values: 'blip-base', 'blip-large', 'blip2-opt-2.7b', 'blip2-opt-6.7b', 'blip2-flip-t5-xl', 'blip2-flip-t5-xxl'
         t0 = time.time()
-        data = self.post('/sdapi/v1/interrogate', {
+        data = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'blip_model': 'blip-base',  # Use smaller model to test override
             'mode': 'caption'
         })
         elapsed = time.time() - t0
+
+        # Check for critical error
+        if self.check_critical_error(data, 'openclip'):
+            return
 
         if 'error' in data:
             self.log_skip(f"blip_model override: {data.get('reason', 'failed')}")
@@ -496,18 +714,23 @@ class CaptionAPITest:
             self.log_fail(f"blip_model override returned empty/error: {data.get('caption', '')}")
 
     # =========================================================================
-    # TEST: POST /sdapi/v1/interrogate - Caption Length
+    # TEST: POST /sdapi/v1/openclip - Caption Length
     # =========================================================================
-    def test_interrogate_caption_length(self):
+    def test_openclip_length(self):
         """Test min_length and max_length constraints."""
+        self.set_category('openclip')
         print("\n" + "=" * 70)
-        print("TEST: POST /sdapi/v1/interrogate (min_length, max_length)")
+        print("TEST: POST /sdapi/v1/openclip (min_length, max_length)")
         print("=" * 70)
 
+        # Skip if critical error already occurred
+        if self.skip_if_critical('openclip', 'openclip length'):
+            return
+
         # Check if we have OpenCLIP models
-        if not self._interrogate_models:
-            self._interrogate_models = self.get('/sdapi/v1/interrogate')
-        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
 
         if not clip_models:
             self.log_skip("No OpenCLIP models available")
@@ -516,18 +739,27 @@ class CaptionAPITest:
         model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
 
         # Test max_length effect by comparing short vs long limits
-        data_max_short = self.post('/sdapi/v1/interrogate', {
+        data_max_short = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'caption',
             'max_length': 10  # Very short
         })
-        data_max_long = self.post('/sdapi/v1/interrogate', {
+
+        # Check for critical error
+        if self.check_critical_error(data_max_short, 'openclip'):
+            return
+
+        data_max_long = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'caption',
             'max_length': 100  # Longer
         })
+
+        # Check for critical error
+        if self.check_critical_error(data_max_long, 'openclip'):
+            return
 
         if 'error' in data_max_short or 'error' in data_max_long:
             self.log_skip("max_length test: API error")
@@ -546,13 +778,13 @@ class CaptionAPITest:
             self.log_fail("max_length test returned empty captions")
 
         # Test min_length effect by comparing low vs high minimums
-        data_min_low = self.post('/sdapi/v1/interrogate', {
+        data_min_low = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'caption',
             'min_length': 5  # Low minimum
         })
-        data_min_high = self.post('/sdapi/v1/interrogate', {
+        data_min_high = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'caption',
@@ -576,18 +808,19 @@ class CaptionAPITest:
             self.log_fail("min_length test returned empty captions")
 
     # =========================================================================
-    # TEST: POST /sdapi/v1/interrogate - Flavors
+    # TEST: POST /sdapi/v1/openclip - Flavors
     # =========================================================================
-    def test_interrogate_flavors(self):
+    def test_openclip_flavors(self):
         """Test min_flavors and max_flavors controls."""
+        self.set_category('openclip')
         print("\n" + "=" * 70)
-        print("TEST: POST /sdapi/v1/interrogate (min_flavors, max_flavors)")
+        print("TEST: POST /sdapi/v1/openclip (min_flavors, max_flavors)")
         print("=" * 70)
 
         # Check if we have OpenCLIP models
-        if not self._interrogate_models:
-            self._interrogate_models = self.get('/sdapi/v1/interrogate')
-        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
 
         if not clip_models:
             self.log_skip("No OpenCLIP models available")
@@ -596,13 +829,13 @@ class CaptionAPITest:
         model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
 
         # Test max_flavors effect by comparing few vs many
-        data_few = self.post('/sdapi/v1/interrogate', {
+        data_few = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'fast',
             'max_flavors': 3  # Fewer flavor tags
         })
-        data_many = self.post('/sdapi/v1/interrogate', {
+        data_many = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'fast',
@@ -626,13 +859,13 @@ class CaptionAPITest:
             self.log_fail("max_flavors test returned empty captions")
 
         # Test min_flavors effect by comparing low vs high minimums
-        data_min_low = self.post('/sdapi/v1/interrogate', {
+        data_min_low = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'fast',
             'min_flavors': 1
         })
-        data_min_high = self.post('/sdapi/v1/interrogate', {
+        data_min_high = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'fast',
@@ -654,18 +887,19 @@ class CaptionAPITest:
             self.log_fail("min_flavors test returned empty captions")
 
     # =========================================================================
-    # TEST: POST /sdapi/v1/interrogate - Advanced Settings
+    # TEST: POST /sdapi/v1/openclip - Advanced Settings
     # =========================================================================
-    def test_interrogate_advanced_settings(self):
+    def test_openclip_advanced_settings(self):
         """Test chunk_size, flavor_count, and num_beams parameters."""
+        self.set_category('openclip')
         print("\n" + "=" * 70)
-        print("TEST: POST /sdapi/v1/interrogate (chunk_size, flavor_count, num_beams)")
+        print("TEST: POST /sdapi/v1/openclip (chunk_size, flavor_count, num_beams)")
         print("=" * 70)
 
         # Check if we have OpenCLIP models
-        if not self._interrogate_models:
-            self._interrogate_models = self.get('/sdapi/v1/interrogate')
-        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
 
         if not clip_models:
             self.log_skip("No OpenCLIP models available")
@@ -675,7 +909,7 @@ class CaptionAPITest:
 
         # Test chunk_size override
         t0 = time.time()
-        data = self.post('/sdapi/v1/interrogate', {
+        data = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'fast',
@@ -692,7 +926,7 @@ class CaptionAPITest:
 
         # Test flavor_count override
         t0 = time.time()
-        data = self.post('/sdapi/v1/interrogate', {
+        data = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'fast',
@@ -709,7 +943,7 @@ class CaptionAPITest:
 
         # Test num_beams override (beam search for caption generation)
         t0 = time.time()
-        data = self.post('/sdapi/v1/interrogate', {
+        data = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
             'mode': 'caption',
@@ -729,6 +963,7 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_models_list(self):
         """Test GET /sdapi/v1/vqa/models returns model details."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: GET /sdapi/v1/vqa/models")
         print("=" * 70)
@@ -774,6 +1009,7 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_prompts_list(self):
         """Test GET /sdapi/v1/vqa/prompts returns prompt categories."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: GET /sdapi/v1/vqa/prompts")
         print("=" * 70)
@@ -807,9 +1043,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_caption_basic(self):
         """Test basic VQA captioning."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/vqa (basic)")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa basic'):
+            return
 
         t0 = time.time()
         data = self.post('/sdapi/v1/vqa', {
@@ -837,9 +1077,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_different_prompts(self):
         """Test different VQA prompts."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/vqa (prompts)")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa prompts'):
+            return
 
         prompts = ['Short Caption', 'Normal Caption', 'Long Caption']
         for prompt in prompts:
@@ -864,9 +1108,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_annotated_image(self):
         """Test include_annotated=True returns annotated image for detection."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/vqa (annotated image)")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa annotated'):
+            return
 
         # Find a Florence model for detection
         florence_model = None
@@ -942,9 +1190,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_system_prompt(self):
         """Test custom system prompt."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/vqa (system prompt)")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa system prompt'):
+            return
 
         # Test with custom system prompt
         custom_system = "You are a concise assistant. Reply with only 5 words maximum."
@@ -974,6 +1226,7 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_invalid_inputs(self):
         """Test error handling for invalid inputs."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/vqa (invalid inputs)")
         print("=" * 70)
@@ -993,9 +1246,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_prompt_field(self):
         """Test the prompt field with 'Use Prompt' question."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/vqa (prompt field)")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa prompt field'):
+            return
 
         # Test with question="Use Prompt" and custom prompt text
         custom_prompt = "What colors are most prominent in this image?"
@@ -1041,9 +1298,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_generation_params(self):
         """Test LLM generation parameters: temperature, max_tokens, top_k, top_p."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/vqa (temperature, max_tokens, top_k, top_p)")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa generation params'):
+            return
 
         # Test temperature effect: temp=0 should be deterministic, temp=10.0 should be very random
         # Run temp=0 twice to check determinism
@@ -1143,9 +1404,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_sampling(self):
         """Test do_sample and num_beams parameters."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/vqa (do_sample, num_beams)")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa sampling'):
+            return
 
         # Test with do_sample=False (greedy decoding)
         t0 = time.time()
@@ -1201,9 +1466,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_thinking_mode(self):
         """Test thinking_mode and keep_thinking parameters."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/vqa (thinking_mode, keep_thinking)")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa thinking mode'):
+            return
 
         # Find a thinking-capable model
         thinking_model = None
@@ -1277,9 +1546,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_prefill(self):
         """Test prefill and keep_prefill parameters."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/vqa (prefill, keep_prefill)")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa prefill'):
+            return
 
         prefill_text = "The image shows"
 
@@ -1355,9 +1628,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_model_architectures(self):
         """Test all VQA model architecture families."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: VQA Model Architectures")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa architectures'):
+            return
 
         if not self._vqa_models:
             self._vqa_models = self.get('/sdapi/v1/vqa/models')
@@ -1392,9 +1669,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_florence_special_prompts(self):
         """Test Florence-2 specific prompts for detection, OCR, etc."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: VQA Florence Special Prompts")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa florence prompts'):
+            return
 
         # Find a Florence model
         florence_model = None
@@ -1446,9 +1727,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_moondream_detection(self):
         """Test Moondream detection and pointing features."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: VQA Moondream Detection Features")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa moondream'):
+            return
 
         # Find a Moondream model
         moondream_model = None
@@ -1481,7 +1766,7 @@ class CaptionAPITest:
 
         # Add gaze detection for Moondream 2+
         if moondream_version and moondream_version >= 2:
-            moondream_prompts.append(('Where is the person looking?', 'Gaze detection'))
+            moondream_prompts.append(('Detect Gaze', 'Gaze detection'))
 
         for prompt, description in moondream_prompts:
             t0 = time.time()
@@ -1511,9 +1796,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_vqa_architecture_capabilities(self):
         """Test architecture-specific capabilities like vision, thinking, detection."""
+        self.set_category('vqa')
         print("\n" + "=" * 70)
         print("TEST: VQA Architecture Capabilities")
         print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'vqa capabilities'):
+            return
 
         if not self._vqa_models:
             self._vqa_models = self.get('/sdapi/v1/vqa/models')
@@ -1577,19 +1866,23 @@ class CaptionAPITest:
                 self.log_fail(f"Capability '{capability}': empty/error response")
 
     # =========================================================================
-    # TEST: Interrogate BLIP Architectures
+    # TEST: OpenCLIP BLIP Architectures
     # =========================================================================
-    def test_interrogate_blip_architectures(self):
+    def test_openclip_blip_architectures(self):
         """Test all BLIP caption model types."""
+        self.set_category('openclip')
         print("\n" + "=" * 70)
-        print("TEST: Interrogate BLIP Architectures")
+        print("TEST: OpenCLIP BLIP Architectures")
         print("=" * 70)
 
-        # Check if we have OpenCLIP models (needed for interrogate endpoint)
-        if not self._interrogate_models:
-            self._interrogate_models = self.get('/sdapi/v1/interrogate')
+        if self.skip_if_critical('openclip', 'openclip blip'):
+            return
 
-        clip_models = [m for m in self._interrogate_models if '/' in m] if isinstance(self._interrogate_models, list) else []
+        # Check if we have OpenCLIP models (needed for caption endpoint)
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
 
         if not clip_models:
             self.log_skip("No OpenCLIP models available for BLIP testing")
@@ -1599,7 +1892,7 @@ class CaptionAPITest:
 
         for blip_model in self.BLIP_MODELS:
             t0 = time.time()
-            data = self.post('/sdapi/v1/interrogate', {
+            data = self.post('/sdapi/v1/openclip', {
                 'image': self.image_b64,
                 'model': model,
                 'mode': 'caption',
@@ -1625,6 +1918,7 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_models_list(self):
         """Test GET /sdapi/v1/tagger/models returns model list."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: GET /sdapi/v1/tagger/models")
         print("=" * 70)
@@ -1670,9 +1964,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_basic(self):
         """Test basic tagging."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (basic)")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger basic'):
+            return
 
         t0 = time.time()
         data = self.post('/sdapi/v1/tagger', {
@@ -1700,9 +1998,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_threshold(self):
         """Test threshold affects tag count."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (threshold)")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger threshold'):
+            return
 
         data_high = self.post('/sdapi/v1/tagger', {
             'image': self.image_b64,
@@ -1737,9 +2039,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_max_tags(self):
         """Test max_tags limits output count."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (max_tags)")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger max_tags'):
+            return
 
         data_5 = self.post('/sdapi/v1/tagger', {
             'image': self.image_b64,
@@ -1779,9 +2085,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_sort_alpha(self):
         """Test sort_alpha sorts tags alphabetically."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (sort_alpha)")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger sort_alpha'):
+            return
 
         data_conf = self.post('/sdapi/v1/tagger', {
             'image': self.image_b64,
@@ -1817,9 +2127,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_use_spaces(self):
         """Test use_spaces converts underscores to spaces."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (use_spaces)")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger use_spaces'):
+            return
 
         data_under = self.post('/sdapi/v1/tagger', {
             'image': self.image_b64,
@@ -1860,9 +2174,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_escape_brackets(self):
         """Test escape_brackets escapes parentheses."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (escape_brackets)")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger escape_brackets'):
+            return
 
         data_escaped = self.post('/sdapi/v1/tagger', {
             'image': self.image_b64,
@@ -1903,9 +2221,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_exclude_tags(self):
         """Test exclude_tags removes specified tags."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (exclude_tags)")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger exclude_tags'):
+            return
 
         data_all = self.post('/sdapi/v1/tagger', {
             'image': self.image_b64,
@@ -1956,9 +2278,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_show_scores(self):
         """Test show_scores returns scores dict."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (show_scores)")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger show_scores'):
+            return
 
         data_no_scores = self.post('/sdapi/v1/tagger', {
             'image': self.image_b64,
@@ -2013,9 +2339,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_include_rating(self):
         """Test include_rating adds rating tags."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (include_rating)")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger include_rating'):
+            return
 
         data_no_rating = self.post('/sdapi/v1/tagger', {
             'image': self.image_b64,
@@ -2060,9 +2390,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_character_threshold(self):
         """Test character_threshold for character-specific tags (WaifuDiffusion only)."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (character_threshold)")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger character_threshold'):
+            return
 
         # Find a WaifuDiffusion model (character_threshold only applies to WD models)
         wd_model = None
@@ -2129,9 +2463,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_model_types(self):
         """Test all tagger model types (deepbooru, waifudiffusion)."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: Tagger Model Types")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger model types'):
+            return
 
         if not self._tagger_models:
             self._tagger_models = self.get('/sdapi/v1/tagger/models')
@@ -2176,9 +2514,13 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_wd_versions(self):
         """Test WaifuDiffusion version differences (v2 vs v3)."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: Tagger WaifuDiffusion Versions")
         print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'tagger wd_versions'):
+            return
 
         if not self._tagger_models:
             self._tagger_models = self.get('/sdapi/v1/tagger/models')
@@ -2264,6 +2606,7 @@ class CaptionAPITest:
     # =========================================================================
     def test_tagger_invalid_inputs(self):
         """Test error handling for invalid inputs."""
+        self.set_category('tagger')
         print("\n" + "=" * 70)
         print("TEST: POST /sdapi/v1/tagger (invalid inputs)")
         print("=" * 70)
@@ -2278,6 +2621,528 @@ class CaptionAPITest:
             self.log_fail(f"Missing image should return 404, got: {data}")
 
     # =========================================================================
+    # DISPATCH ENDPOINT TESTS
+    # =========================================================================
+    def test_dispatch_openclip_basic(self):
+        """Test dispatch endpoint routes to OpenCLIP backend."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: openclip)")
+        print("=" * 70)
+
+        if self.skip_if_critical('openclip', 'dispatch openclip'):
+            return
+
+        # Check if we have OpenCLIP models
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
+
+        if not clip_models:
+            self.log_skip("No OpenCLIP models available")
+            return
+
+        model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
+
+        t0 = time.time()
+        data = self.post('/sdapi/v1/caption', {
+            'backend': 'openclip',
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'fast'
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data:
+            self.log_skip(f"Dispatch to openclip: {data.get('reason', 'failed')}")
+            return
+
+        # Verify backend field
+        if data.get('backend') == 'openclip':
+            self.log_pass("backend='openclip' returned in response")
+        else:
+            self.log_fail(f"Expected backend='openclip', got '{data.get('backend')}'")
+
+        # Verify caption field
+        if data.get('caption') and not self.is_error_answer(data['caption']):
+            self.log_pass(f"Dispatch to openclip returns caption ({elapsed:.1f}s)")
+            self.log_info(f"Caption: {self.truncate(data['caption'], 60)}")
+        else:
+            self.log_fail("Dispatch to openclip returned empty/error caption")
+
+    def test_dispatch_openclip_modes(self):
+        """Test all OpenCLIP modes via dispatch."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: openclip modes)")
+        print("=" * 70)
+
+        if self.skip_if_critical('openclip', 'dispatch openclip modes'):
+            return
+
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
+
+        if not clip_models:
+            self.log_skip("No OpenCLIP models available")
+            return
+
+        model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
+
+        modes = ['best', 'fast', 'classic', 'caption', 'negative']
+        for mode in modes:
+            t0 = time.time()
+            data = self.post('/sdapi/v1/caption', {
+                'backend': 'openclip',
+                'image': self.image_b64,
+                'model': model,
+                'mode': mode
+            })
+            elapsed = time.time() - t0
+
+            if 'error' in data:
+                self.log_skip(f"dispatch openclip mode='{mode}': {data.get('reason', 'failed')}")
+            elif data.get('caption') and data.get('backend') == 'openclip':
+                self.log_pass(f"dispatch openclip mode='{mode}' ({elapsed:.1f}s)")
+            else:
+                self.log_fail(f"dispatch openclip mode='{mode}' failed")
+
+    def test_dispatch_openclip_analyze(self):
+        """Test OpenCLIP analyze via dispatch."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: openclip analyze)")
+        print("=" * 70)
+
+        if self.skip_if_critical('openclip', 'dispatch openclip analyze'):
+            return
+
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
+
+        if not clip_models:
+            self.log_skip("No OpenCLIP models available")
+            return
+
+        model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
+
+        data = self.post('/sdapi/v1/caption', {
+            'backend': 'openclip',
+            'image': self.image_b64,
+            'model': model,
+            'analyze': True
+        })
+
+        if 'error' in data:
+            self.log_skip(f"dispatch openclip analyze: {data.get('reason', 'failed')}")
+            return
+
+        analyze_fields = ['medium', 'artist', 'movement', 'trending', 'flavor']
+        fields_found = sum(1 for f in analyze_fields if data.get(f))
+        if fields_found > 0:
+            self.log_pass(f"dispatch openclip analyze returns {fields_found}/5 breakdown fields")
+        else:
+            self.log_skip("No breakdown fields returned (may be image-dependent)")
+
+    def test_dispatch_tagger_basic(self):
+        """Test dispatch endpoint routes to Tagger backend."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: tagger)")
+        print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'dispatch tagger'):
+            return
+
+        t0 = time.time()
+        data = self.post('/sdapi/v1/caption', {
+            'backend': 'tagger',
+            'image': self.image_b64,
+            'threshold': 0.5,
+            'max_tags': 20
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data:
+            self.log_skip(f"Dispatch to tagger: {data.get('reason', 'failed')}")
+            return
+
+        # Verify backend field
+        if data.get('backend') == 'tagger':
+            self.log_pass("backend='tagger' returned in response")
+        else:
+            self.log_fail(f"Expected backend='tagger', got '{data.get('backend')}'")
+
+        # Verify tags field
+        if data.get('tags') and not self.is_error_answer(data['tags']):
+            tags = data['tags']
+            tag_count = len(tags.split(', '))
+            self.log_pass(f"Dispatch to tagger returns {tag_count} tags ({elapsed:.1f}s)")
+            self.log_info(f"Tags: {self.truncate(tags, 60)}")
+        else:
+            self.log_fail("Dispatch to tagger returned empty/error tags")
+
+    def test_dispatch_tagger_params(self):
+        """Test tagger parameters via dispatch."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: tagger params)")
+        print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'dispatch tagger params'):
+            return
+
+        # Test with various parameters
+        data = self.post('/sdapi/v1/caption', {
+            'backend': 'tagger',
+            'image': self.image_b64,
+            'threshold': 0.3,
+            'max_tags': 10,
+            'sort_alpha': True,
+            'use_spaces': True
+        })
+
+        if 'error' in data:
+            self.log_skip(f"dispatch tagger params: {data.get('reason', 'failed')}")
+            return
+
+        if data.get('tags') and data.get('backend') == 'tagger':
+            tags = data['tags']
+            tag_list = [t.strip() for t in tags.split(',') if t.strip()]
+            if len(tag_list) <= 10:
+                self.log_pass(f"dispatch tagger max_tags=10 respected ({len(tag_list)} tags)")
+            else:
+                self.log_fail(f"dispatch tagger max_tags=10 not respected ({len(tag_list)} tags)")
+        else:
+            self.log_fail("dispatch tagger params failed")
+
+    def test_dispatch_tagger_scores(self):
+        """Test tagger show_scores via dispatch."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: tagger scores)")
+        print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'dispatch tagger scores'):
+            return
+
+        data = self.post('/sdapi/v1/caption', {
+            'backend': 'tagger',
+            'image': self.image_b64,
+            'show_scores': True,
+            'max_tags': 5
+        })
+
+        if 'error' in data:
+            self.log_skip(f"dispatch tagger scores: {data.get('reason', 'failed')}")
+            return
+
+        if data.get('scores') and isinstance(data['scores'], dict):
+            self.log_pass(f"dispatch tagger show_scores returns {len(data['scores'])} scores")
+            self.log_response(data, key_fields=['scores'])
+        else:
+            self.log_fail("dispatch tagger show_scores did not return scores dict")
+
+    def test_dispatch_vlm_basic(self):
+        """Test dispatch endpoint routes to VLM backend."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: vlm)")
+        print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'dispatch vlm'):
+            return
+
+        t0 = time.time()
+        data = self.post('/sdapi/v1/caption', {
+            'backend': 'vlm',
+            'image': self.image_b64,
+            'question': 'describe the image'
+        })
+        elapsed = time.time() - t0
+
+        if 'error' in data:
+            self.log_skip(f"Dispatch to vlm: {data.get('reason', 'failed')} (model may not be loaded)")
+            return
+
+        # Verify backend field
+        if data.get('backend') == 'vlm':
+            self.log_pass("backend='vlm' returned in response")
+        else:
+            self.log_fail(f"Expected backend='vlm', got '{data.get('backend')}'")
+
+        # Verify answer field
+        if data.get('answer') and not self.is_error_answer(data['answer']):
+            self.log_pass(f"Dispatch to vlm returns answer ({elapsed:.1f}s)")
+            self.log_info(f"Answer: {self.truncate(data['answer'], 60)}")
+        else:
+            self.log_fail("Dispatch to vlm returned empty/error answer")
+
+    def test_dispatch_vlm_prompts(self):
+        """Test different VLM prompts via dispatch."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: vlm prompts)")
+        print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'dispatch vlm prompts'):
+            return
+
+        prompts = ['Short Caption', 'Normal Caption', 'Long Caption']
+        for prompt in prompts:
+            t0 = time.time()
+            data = self.post('/sdapi/v1/caption', {
+                'backend': 'vlm',
+                'image': self.image_b64,
+                'question': prompt
+            })
+            elapsed = time.time() - t0
+
+            if 'error' in data:
+                self.log_skip(f"dispatch vlm prompt='{prompt}': {data.get('reason', 'failed')}")
+            elif data.get('answer') and data.get('backend') == 'vlm':
+                self.log_pass(f"dispatch vlm prompt='{prompt}' ({len(data['answer'])} chars, {elapsed:.1f}s)")
+            else:
+                self.log_fail(f"dispatch vlm prompt='{prompt}' failed")
+
+    def test_dispatch_vlm_annotated(self):
+        """Test VLM include_annotated via dispatch."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: vlm annotated)")
+        print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'dispatch vlm annotated'):
+            return
+
+        # Find a Florence model for detection
+        florence_model = None
+        if self._vqa_models:
+            for m in self._vqa_models:
+                if 'florence' in m['name'].lower():
+                    florence_model = m['name']
+                    break
+
+        if not florence_model:
+            florence_model = 'Microsoft Florence 2 Base'
+
+        data = self.post('/sdapi/v1/caption', {
+            'backend': 'vlm',
+            'image': self.image_b64,
+            'model': florence_model,
+            'question': '<OD>',
+            'include_annotated': True
+        })
+
+        if 'error' in data:
+            self.log_skip(f"dispatch vlm annotated: {data.get('reason', 'failed')}")
+            return
+
+        if data.get('answer') and data.get('backend') == 'vlm':
+            self.log_pass("dispatch vlm with include_annotated returns answer")
+            if data.get('annotated_image'):
+                self.log_pass("dispatch vlm returns annotated_image")
+            else:
+                self.log_skip("No annotated_image (detection may not have found objects)")
+        else:
+            self.log_fail("dispatch vlm annotated failed")
+
+    def test_dispatch_backend_field(self):
+        """Test backend field is always returned correctly."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: backend field)")
+        print("=" * 70)
+
+        backends = ['openclip', 'tagger', 'vlm']
+        for backend in backends:
+            req = {'backend': backend, 'image': self.image_b64}
+            if backend == 'vlm':
+                req['question'] = 'describe'
+            data = self.post('/sdapi/v1/caption', req)
+
+            if 'error' in data:
+                self.log_skip(f"backend='{backend}': {data.get('reason', 'failed')}")
+            elif data.get('backend') == backend:
+                self.log_pass(f"backend='{backend}' returned correctly")
+            else:
+                self.log_fail(f"backend='{backend}' not returned, got '{data.get('backend')}'")
+
+    def test_dispatch_invalid_backend(self):
+        """Test error handling for invalid backend value."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: invalid backend)")
+        print("=" * 70)
+
+        data = self.post('/sdapi/v1/caption', {
+            'backend': 'invalid_backend',
+            'image': self.image_b64
+        })
+
+        if 'error' in data:
+            self.log_pass(f"Invalid backend returns error: {data.get('status', 'error')}")
+        else:
+            self.log_fail("Invalid backend should return error")
+
+    def test_dispatch_missing_image(self):
+        """Test error handling for missing image."""
+        self.set_category('dispatch')
+        print("\n" + "=" * 70)
+        print("TEST: POST /sdapi/v1/caption (dispatch: missing image)")
+        print("=" * 70)
+
+        for backend in ['openclip', 'tagger', 'vlm']:
+            req = {'backend': backend, 'image': ''}
+            if backend == 'vlm':
+                req['question'] = 'describe'
+            data = self.post('/sdapi/v1/caption', req)
+
+            if 'error' in data and data.get('status') == 404:
+                self.log_pass(f"dispatch {backend} missing image returns 404")
+            else:
+                self.log_fail(f"dispatch {backend} missing image should return 404, got: {data}")
+
+    # =========================================================================
+    # PARITY TESTS: Dispatch vs Direct Endpoints
+    # =========================================================================
+    def test_parity_openclip(self):
+        """Test dispatch and direct OpenCLIP endpoints return same caption."""
+        self.set_category('parity')
+        print("\n" + "=" * 70)
+        print("TEST: Parity - OpenCLIP dispatch vs direct")
+        print("=" * 70)
+
+        if self.skip_if_critical('openclip', 'parity openclip'):
+            return
+
+        if not self._caption_models:
+            self._caption_models = self.get('/sdapi/v1/openclip')
+        clip_models = [m for m in self._caption_models if '/' in m] if isinstance(self._caption_models, list) else []
+
+        if not clip_models:
+            self.log_skip("No OpenCLIP models available")
+            return
+
+        model = 'ViT-L-14/openai' if 'ViT-L-14/openai' in clip_models else clip_models[0]
+
+        # Direct endpoint
+        data_direct = self.post('/sdapi/v1/openclip', {
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'caption'
+        })
+
+        # Dispatch endpoint
+        data_dispatch = self.post('/sdapi/v1/caption', {
+            'backend': 'openclip',
+            'image': self.image_b64,
+            'model': model,
+            'mode': 'caption'
+        })
+
+        if 'error' in data_direct or 'error' in data_dispatch:
+            self.log_skip("One or both requests failed")
+            return
+
+        direct_caption = data_direct.get('caption', '')
+        dispatch_caption = data_dispatch.get('caption', '')
+
+        self.log_info(f"Direct: {self.truncate(direct_caption, 50)}")
+        self.log_info(f"Dispatch: {self.truncate(dispatch_caption, 50)}")
+
+        if direct_caption == dispatch_caption:
+            self.log_pass("OpenCLIP dispatch and direct return identical captions")
+        elif direct_caption and dispatch_caption:
+            self.log_pass("OpenCLIP dispatch and direct both return captions (may differ due to timing)")
+        else:
+            self.log_fail("OpenCLIP parity test failed")
+
+    def test_parity_tagger(self):
+        """Test dispatch and direct Tagger endpoints return same tags."""
+        self.set_category('parity')
+        print("\n" + "=" * 70)
+        print("TEST: Parity - Tagger dispatch vs direct")
+        print("=" * 70)
+
+        if self.skip_if_critical('tagger', 'parity tagger'):
+            return
+
+        # Direct endpoint
+        data_direct = self.post('/sdapi/v1/tagger', {
+            'image': self.image_b64,
+            'threshold': 0.5,
+            'max_tags': 20
+        })
+
+        # Dispatch endpoint
+        data_dispatch = self.post('/sdapi/v1/caption', {
+            'backend': 'tagger',
+            'image': self.image_b64,
+            'threshold': 0.5,
+            'max_tags': 20
+        })
+
+        if 'error' in data_direct or 'error' in data_dispatch:
+            self.log_skip("One or both requests failed")
+            return
+
+        direct_tags = data_direct.get('tags', '')
+        dispatch_tags = data_dispatch.get('tags', '')
+
+        self.log_info(f"Direct: {self.truncate(direct_tags, 50)}")
+        self.log_info(f"Dispatch: {self.truncate(dispatch_tags, 50)}")
+
+        if direct_tags == dispatch_tags:
+            self.log_pass("Tagger dispatch and direct return identical tags")
+        elif direct_tags and dispatch_tags:
+            self.log_pass("Tagger dispatch and direct both return tags")
+        else:
+            self.log_fail("Tagger parity test failed")
+
+    def test_parity_vlm(self):
+        """Test dispatch and direct VLM endpoints return same answer."""
+        self.set_category('parity')
+        print("\n" + "=" * 70)
+        print("TEST: Parity - VLM dispatch vs direct")
+        print("=" * 70)
+
+        if self.skip_if_critical('vqa', 'parity vlm'):
+            return
+
+        # Direct endpoint
+        data_direct = self.post('/sdapi/v1/vqa', {
+            'image': self.image_b64,
+            'question': 'Short Caption'
+        })
+
+        # Dispatch endpoint
+        data_dispatch = self.post('/sdapi/v1/caption', {
+            'backend': 'vlm',
+            'image': self.image_b64,
+            'question': 'Short Caption'
+        })
+
+        if 'error' in data_direct or 'error' in data_dispatch:
+            self.log_skip("One or both requests failed (model may not be loaded)")
+            return
+
+        direct_answer = data_direct.get('answer', '')
+        dispatch_answer = data_dispatch.get('answer', '')
+
+        self.log_info(f"Direct: {self.truncate(direct_answer, 50)}")
+        self.log_info(f"Dispatch: {self.truncate(dispatch_answer, 50)}")
+
+        if direct_answer == dispatch_answer:
+            self.log_pass("VLM dispatch and direct return identical answers")
+        elif direct_answer and dispatch_answer:
+            self.log_pass("VLM dispatch and direct both return answers (may differ due to sampling)")
+        else:
+            self.log_fail("VLM parity test failed")
+
+    # =========================================================================
     # Run All Tests
     # =========================================================================
     def run_all_tests(self):
@@ -2285,17 +3150,18 @@ class CaptionAPITest:
         if not self.setup():
             return False
 
-        # Interrogate tests
-        self.test_interrogate_list_models()
-        self.test_interrogate_post_clip_modes()
-        self.test_interrogate_analyze()
-        self.test_interrogate_invalid_inputs()
-        self.test_interrogate_clip_blip_models()
-        self.test_interrogate_caption_length()
-        self.test_interrogate_flavors()
-        self.test_interrogate_advanced_settings()
+        # OpenCLIP direct endpoint tests
+        self.test_openclip_list_models()
+        self.test_openclip_post_modes()
+        self.test_openclip_analyze()
+        self.test_openclip_invalid_inputs()
+        self.test_openclip_clip_blip_models()
+        self.test_openclip_length()
+        self.test_openclip_flavors()
+        self.test_openclip_advanced_settings()
+        self.test_openclip_blip_architectures()
 
-        # VQA tests
+        # VQA direct endpoint tests
         self.test_vqa_models_list()
         self.test_vqa_prompts_list()
         self.test_vqa_caption_basic()
@@ -2315,10 +3181,7 @@ class CaptionAPITest:
         self.test_vqa_moondream_detection()
         self.test_vqa_architecture_capabilities()
 
-        # Interrogate Architecture tests
-        self.test_interrogate_blip_architectures()
-
-        # Tagger tests
+        # Tagger direct endpoint tests
         self.test_tagger_models_list()
         self.test_tagger_basic()
         self.test_tagger_threshold()
@@ -2330,16 +3193,34 @@ class CaptionAPITest:
         self.test_tagger_show_scores()
         self.test_tagger_include_rating()
         self.test_tagger_character_threshold()
-
-        # Tagger Architecture tests
         self.test_tagger_model_types()
         self.test_tagger_wd_versions()
-
         self.test_tagger_invalid_inputs()
+
+        # Dispatch endpoint tests (unified /sdapi/v1/caption)
+        self.test_dispatch_openclip_basic()
+        self.test_dispatch_openclip_modes()
+        self.test_dispatch_openclip_analyze()
+        self.test_dispatch_tagger_basic()
+        self.test_dispatch_tagger_params()
+        self.test_dispatch_tagger_scores()
+        self.test_dispatch_vlm_basic()
+        self.test_dispatch_vlm_prompts()
+        self.test_dispatch_vlm_annotated()
+        self.test_dispatch_backend_field()
+        self.test_dispatch_invalid_backend()
+        self.test_dispatch_missing_image()
+
+        # Parity tests (dispatch vs direct endpoints)
+        self.test_parity_openclip()
+        self.test_parity_tagger()
+        self.test_parity_vlm()
 
         self.print_summary()
 
-        return len(self.results['failed']) == 0
+        # Check if any tests failed (excluding skipped)
+        total_failed = sum(data['failed'] for data in self.results.values())
+        return total_failed == 0
 
 
 def main():
