@@ -116,7 +116,7 @@ class TaggerTest:
 
         # Load models
         print("\nLoading models...")
-        from modules.interrogate import waifudiffusion, deepbooru
+        from modules.caption import waifudiffusion, deepbooru
 
         t0 = time.time()
         self.waifudiffusion_loaded = waifudiffusion.load_model()
@@ -132,7 +132,7 @@ class TaggerTest:
         print("CLEANUP")
         print("=" * 70)
 
-        from modules.interrogate import waifudiffusion, deepbooru
+        from modules.caption import waifudiffusion, deepbooru
         from modules import devices
 
         waifudiffusion.unload_model()
@@ -207,7 +207,7 @@ class TaggerTest:
 
         # Test 5: If WaifuDiffusion loaded, check session providers
         if self.waifudiffusion_loaded:
-            from modules.interrogate import waifudiffusion
+            from modules.caption import waifudiffusion
             if waifudiffusion.tagger.session is not None:
                 session_providers = waifudiffusion.tagger.session.get_providers()
                 self.log_pass(f"WaifuDiffusion session providers: {session_providers}")
@@ -251,7 +251,7 @@ class TaggerTest:
         import torch
         import gc
         from modules import devices
-        from modules.interrogate import waifudiffusion, deepbooru
+        from modules.caption import waifudiffusion, deepbooru
 
         # Memory leak tolerance (MB) - some variance is expected
         GPU_LEAK_TOLERANCE_MB = 50
@@ -473,7 +473,7 @@ class TaggerTest:
             ('tagger_show_scores', bool),
             ('waifudiffusion_model', str),
             ('waifudiffusion_character_threshold', float),
-            ('interrogate_offload', bool),
+            ('caption_offload', bool),
         ]
 
         for setting, _expected_type in settings:
@@ -521,10 +521,10 @@ class TaggerTest:
     def tag(self, tagger, **kwargs):
         """Helper to call the appropriate tagger."""
         if tagger == 'waifudiffusion':
-            from modules.interrogate import waifudiffusion
+            from modules.caption import waifudiffusion
             return waifudiffusion.tagger.predict(self.test_image, **kwargs)
         else:
-            from modules.interrogate import deepbooru
+            from modules.caption import deepbooru
             return deepbooru.model.tag(self.test_image, **kwargs)
 
     # =========================================================================
@@ -794,7 +794,7 @@ class TaggerTest:
         print("TEST: Unified tagger.tag() interface")
         print("=" * 70)
 
-        from modules.interrogate import tagger
+        from modules.caption import tagger
 
         # Test WaifuDiffusion through unified interface
         if self.waifudiffusion_loaded:
