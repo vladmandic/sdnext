@@ -10,8 +10,8 @@ from PIL import Image
 from modules import shared, devices, errors
 
 
-# Debug logging - enable with SD_INTERROGATE_DEBUG environment variable
-debug_enabled = os.environ.get('SD_INTERROGATE_DEBUG', None) is not None
+# Debug logging - enable with SD_CAPTION_DEBUG environment variable
+debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
 debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 
 re_special = re.compile(r'([\\()])')
@@ -405,7 +405,7 @@ def tag(image: Image.Image, model_name: str = None, **kwargs) -> str:
         result = tagger.predict(image, **kwargs)
         shared.log.debug(f'WaifuDiffusion: complete time={time.time()-t0:.2f} tags={len(result.split(", ")) if result else 0}')
         # Offload model if setting enabled
-        if shared.opts.interrogate_offload:
+        if shared.opts.caption_offload:
             tagger.unload()
     except Exception as e:
         result = f"Exception {type(e)}"

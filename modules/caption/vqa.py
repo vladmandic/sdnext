@@ -9,11 +9,11 @@ import transformers
 import transformers.dynamic_module_utils
 from PIL import Image
 from modules import shared, devices, errors, model_quant, sd_models, sd_models_compile, ui_symbols
-from modules.interrogate import vqa_detection
+from modules.caption import vqa_detection
 
 
 # Debug logging - function-based to avoid circular import
-debug_enabled = os.environ.get('SD_INTERROGATE_DEBUG', None) is not None
+debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
 
 def debug(*args, **kwargs):
     if debug_enabled:
@@ -265,7 +265,7 @@ def keep_think_block_open(text_prompt: str) -> str:
     while end_close < len(text_prompt) and text_prompt[end_close] in ('\r', '\n'):
         end_close += 1
     trimmed_prompt = text_prompt[:close_index] + text_prompt[end_close:]
-    debug('VQA interrogate: keep_think_block_open applied to prompt segment near assistant reply')
+    debug('VQA caption: keep_think_block_open applied to prompt segment near assistant reply')
     return trimmed_prompt
 
 
@@ -348,7 +348,7 @@ def get_keep_thinking():
     overrides = _get_overrides()
     if overrides.get('keep_thinking') is not None:
         return overrides['keep_thinking']
-    return shared.opts.interrogate_vlm_keep_thinking
+    return shared.opts.caption_vlm_keep_thinking
 
 
 def get_keep_prefill():
@@ -356,7 +356,7 @@ def get_keep_prefill():
     overrides = _get_overrides()
     if overrides.get('keep_prefill') is not None:
         return overrides['keep_prefill']
-    return shared.opts.interrogate_vlm_keep_prefill
+    return shared.opts.caption_vlm_keep_prefill
 
 
 def get_kwargs():
@@ -370,12 +370,12 @@ def get_kwargs():
     overrides = _get_overrides()
 
     # Get base values from settings, apply overrides if provided
-    max_tokens = overrides.get('max_tokens') if overrides.get('max_tokens') is not None else shared.opts.interrogate_vlm_max_length
-    do_sample = overrides.get('do_sample') if overrides.get('do_sample') is not None else shared.opts.interrogate_vlm_do_sample
-    num_beams = overrides.get('num_beams') if overrides.get('num_beams') is not None else shared.opts.interrogate_vlm_num_beams
-    temperature = overrides.get('temperature') if overrides.get('temperature') is not None else shared.opts.interrogate_vlm_temperature
-    top_k = overrides.get('top_k') if overrides.get('top_k') is not None else shared.opts.interrogate_vlm_top_k
-    top_p = overrides.get('top_p') if overrides.get('top_p') is not None else shared.opts.interrogate_vlm_top_p
+    max_tokens = overrides.get('max_tokens') if overrides.get('max_tokens') is not None else shared.opts.caption_vlm_max_length
+    do_sample = overrides.get('do_sample') if overrides.get('do_sample') is not None else shared.opts.caption_vlm_do_sample
+    num_beams = overrides.get('num_beams') if overrides.get('num_beams') is not None else shared.opts.caption_vlm_num_beams
+    temperature = overrides.get('temperature') if overrides.get('temperature') is not None else shared.opts.caption_vlm_temperature
+    top_k = overrides.get('top_k') if overrides.get('top_k') is not None else shared.opts.caption_vlm_top_k
+    top_p = overrides.get('top_p') if overrides.get('top_p') is not None else shared.opts.caption_vlm_top_p
 
     kwargs = {
         'max_new_tokens': max_tokens,
@@ -419,7 +419,7 @@ class VQA:
 
     def load(self, model_name: str = None):
         """Load VLM model into memory for the specified model name."""
-        model_name = model_name or shared.opts.interrogate_vlm_model
+        model_name = model_name or shared.opts.caption_vlm_model
         if not model_name:
             shared.log.warning('VQA load: no model specified')
             return
@@ -430,7 +430,7 @@ class VQA:
 
         shared.log.debug(f'VQA load: pre-loading model="{model_name}" repo="{repo}"')
 
-        # Dispatch to appropriate loader (same logic as interrogate)
+        # Dispatch to appropriate loader (same logic as caption)
         repo_lower = repo.lower()
         if 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower:
             self._load_qwen(repo)
@@ -459,22 +459,22 @@ class VQA:
         elif 'fastvlm' in repo_lower:
             self._load_fastvlm(repo)
         elif 'moondream3' in repo_lower:
-            from modules.interrogate import moondream3
+            from modules.caption import moondream3
             moondream3.load_model(repo)
             shared.log.info(f'VQA load: model="{model_name}" loaded (external handler)')
             return
         elif 'joytag' in repo_lower:
-            from modules.interrogate import joytag
+            from modules.caption import joytag
             joytag.load()
             shared.log.info(f'VQA load: model="{model_name}" loaded (external handler)')
             return
         elif 'joycaption' in repo_lower:
-            from modules.interrogate import joycaption
+            from modules.caption import joycaption
             joycaption.load(repo)
             shared.log.info(f'VQA load: model="{model_name}" loaded (external handler)')
             return
         elif 'deepseek' in repo_lower:
-            from modules.interrogate import deepseek
+            from modules.caption import deepseek
             deepseek.load(repo)
             shared.log.info(f'VQA load: model="{model_name}" loaded (external handler)')
             return
@@ -488,7 +488,7 @@ class VQA:
     def _load_fastvlm(self, repo: str):
         """Load FastVLM model and tokenizer."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             quant_args = model_quant.create_config(module='LLM')
             self.model = None
             self.processor = transformers.AutoTokenizer.from_pretrained(repo, trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
@@ -503,7 +503,7 @@ class VQA:
             devices.torch_gc()
 
     def _fastvlm(self, question: str, image: Image.Image, repo: str, model_name: str = None):
-        debug(f'VQA interrogate: handler=fastvlm model_name="{model_name}" repo="{repo}" question="{question}" image_size={image.size if image else None}')
+        debug(f'VQA caption: handler=fastvlm model_name="{model_name}" repo="{repo}" question="{question}" image_size={image.size if image else None}')
         self._load_fastvlm(repo)
         sd_models.move_model(self.model, devices.device)
         if len(question) < 2:
@@ -534,7 +534,7 @@ class VQA:
     def _load_qwen(self, repo: str):
         """Load Qwen VL model and processor."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
             if 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
                 cls_name = transformers.Qwen3VLForConditionalGeneration
@@ -562,10 +562,10 @@ class VQA:
         sd_models.move_model(self.model, devices.device)
         # Get model class name for logging
         cls_name = self.model.__class__.__name__
-        debug(f'VQA interrogate: handler=qwen model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
+        debug(f'VQA caption: handler=qwen model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
-        system_prompt = system_prompt or shared.opts.interrogate_vlm_system
+        system_prompt = system_prompt or shared.opts.caption_vlm_system
         conversation = [
             {
                 "role": "system",
@@ -593,9 +593,9 @@ class VQA:
         use_prefill = len(prefill_text) > 0
 
         if debug_enabled:
-            debug(f'VQA interrogate: handler=qwen conversation_roles={[msg["role"] for msg in conversation]}')
-            debug(f'VQA interrogate: handler=qwen full_conversation={truncate_b64_in_conversation(conversation)}')
-            debug(f'VQA interrogate: handler=qwen is_thinking={is_thinking} thinking_mode={thinking_mode} prefill="{prefill_text}"')
+            debug(f'VQA caption: handler=qwen conversation_roles={[msg["role"] for msg in conversation]}')
+            debug(f'VQA caption: handler=qwen full_conversation={truncate_b64_in_conversation(conversation)}')
+            debug(f'VQA caption: handler=qwen is_thinking={is_thinking} thinking_mode={thinking_mode} prefill="{prefill_text}"')
 
         # Generate base prompt using template
         # Qwen-Thinking template automatically adds "<|im_start|>assistant\n<think>\n" when add_generation_prompt=True
@@ -605,7 +605,7 @@ class VQA:
                 add_generation_prompt=True,
             )
         except (TypeError, ValueError) as e:
-            debug(f'VQA interrogate: handler=qwen chat_template fallback add_generation_prompt=True: {e}')
+            debug(f'VQA caption: handler=qwen chat_template fallback add_generation_prompt=True: {e}')
             text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=True)
 
         # Manually handle thinking tags and prefill
@@ -627,23 +627,23 @@ class VQA:
                 text_prompt += prefill_text
 
         if debug_enabled:
-            debug(f'VQA interrogate: handler=qwen text_prompt="{text_prompt}"')
+            debug(f'VQA caption: handler=qwen text_prompt="{text_prompt}"')
         inputs = self.processor(text=[text_prompt], images=[image], padding=True, return_tensors="pt")
         inputs = inputs.to(devices.device, devices.dtype)
         gen_kwargs = get_kwargs()
-        debug(f'VQA interrogate: handler=qwen generation_kwargs={gen_kwargs} input_ids_shape={inputs.input_ids.shape}')
+        debug(f'VQA caption: handler=qwen generation_kwargs={gen_kwargs} input_ids_shape={inputs.input_ids.shape}')
         output_ids = self.model.generate(
             **inputs,
             **gen_kwargs,
         )
-        debug(f'VQA interrogate: handler=qwen output_ids_shape={output_ids.shape}')
+        debug(f'VQA caption: handler=qwen output_ids_shape={output_ids.shape}')
         generated_ids = [
             output_ids[len(input_ids):]
             for input_ids, output_ids in zip(inputs.input_ids, output_ids)
         ]
         response = self.processor.batch_decode(generated_ids, skip_special_tokens=True, clean_up_tokenization_spaces=True)
         if debug_enabled:
-            debug(f'VQA interrogate: handler=qwen response_before_clean="{response}"')
+            debug(f'VQA caption: handler=qwen response_before_clean="{response}"')
         # Clean up thinking tags
         # Note: <think> is in the prompt, not the response - only </think> appears in generated output
         if len(response) > 0:
@@ -672,7 +672,7 @@ class VQA:
     def _load_gemma(self, repo: str):
         """Load Gemma 3 model and processor."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
             if '3n' in repo:
                 cls = transformers.Gemma3nForConditionalGeneration  # pylint: disable=no-member
@@ -696,10 +696,10 @@ class VQA:
         sd_models.move_model(self.model, devices.device)
         # Get model class name for logging
         cls_name = self.model.__class__.__name__
-        debug(f'VQA interrogate: handler=gemma model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
+        debug(f'VQA caption: handler=gemma model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
-        system_prompt = system_prompt or shared.opts.interrogate_vlm_system
+        system_prompt = system_prompt or shared.opts.caption_vlm_system
 
         system_content = []
         if system_prompt is not None and len(system_prompt) > 4:
@@ -726,14 +726,14 @@ class VQA:
                 "role": "assistant",
                 "content": [{"type": "text", "text": prefill_text}],
             })
-            debug(f'VQA interrogate: handler=gemma prefill="{prefill_text}"')
+            debug(f'VQA caption: handler=gemma prefill="{prefill_text}"')
         else:
-            debug('VQA interrogate: handler=gemma prefill disabled (empty), relying on add_generation_prompt')
+            debug('VQA caption: handler=gemma prefill disabled (empty), relying on add_generation_prompt')
         if debug_enabled:
-            debug(f'VQA interrogate: handler=gemma conversation_roles={[msg["role"] for msg in conversation]}')
-            debug(f'VQA interrogate: handler=gemma full_conversation={truncate_b64_in_conversation(conversation)}')
+            debug(f'VQA caption: handler=gemma conversation_roles={[msg["role"] for msg in conversation]}')
+            debug(f'VQA caption: handler=gemma full_conversation={truncate_b64_in_conversation(conversation)}')
             debug_prefill_mode = 'add_generation_prompt=False continue_final_message=True' if use_prefill else 'add_generation_prompt=True'
-            debug(f'VQA interrogate: handler=gemma template_mode={debug_prefill_mode}')
+            debug(f'VQA caption: handler=gemma template_mode={debug_prefill_mode}')
         try:
             if use_prefill:
                 text_prompt = self.processor.apply_chat_template(
@@ -749,7 +749,7 @@ class VQA:
                     tokenize=False,
                 )
         except (TypeError, ValueError) as e:
-            debug(f'VQA interrogate: handler=gemma chat_template fallback add_generation_prompt=True: {e}')
+            debug(f'VQA caption: handler=gemma chat_template fallback add_generation_prompt=True: {e}')
             text_prompt = self.processor.apply_chat_template(
                 conversation,
                 add_generation_prompt=True,
@@ -758,7 +758,7 @@ class VQA:
         if use_prefill and use_thinking:
             text_prompt = keep_think_block_open(text_prompt)
         if debug_enabled:
-            debug(f'VQA interrogate: handler=gemma text_prompt="{text_prompt}"')
+            debug(f'VQA caption: handler=gemma text_prompt="{text_prompt}"')
         inputs = self.processor(
             text=[text_prompt],
             images=[image],
@@ -767,17 +767,17 @@ class VQA:
         ).to(device=devices.device, dtype=devices.dtype)
         input_len = inputs["input_ids"].shape[-1]
         gen_kwargs = get_kwargs()
-        debug(f'VQA interrogate: handler=gemma generation_kwargs={gen_kwargs} input_len={input_len}')
+        debug(f'VQA caption: handler=gemma generation_kwargs={gen_kwargs} input_len={input_len}')
         with devices.inference_context():
             generation = self.model.generate(
                 **inputs,
                 **gen_kwargs,
             )
-        debug(f'VQA interrogate: handler=gemma output_ids_shape={generation.shape}')
+        debug(f'VQA caption: handler=gemma output_ids_shape={generation.shape}')
         generation = generation[0][input_len:]
         response = self.processor.decode(generation, skip_special_tokens=True)
         if debug_enabled:
-            debug(f'VQA interrogate: handler=gemma response_before_clean="{response}"')
+            debug(f'VQA caption: handler=gemma response_before_clean="{response}"')
 
         # Clean up thinking tags (if any remain)
         if get_keep_thinking():
@@ -798,7 +798,7 @@ class VQA:
     def _load_paligemma(self, repo: str):
         """Load PaliGemma model and processor."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             self.processor = transformers.PaliGemmaProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
             self.model = None
             self.model = transformers.PaliGemmaForConditionalGeneration.from_pretrained(
@@ -827,7 +827,7 @@ class VQA:
     def _load_ovis(self, repo: str):
         """Load Ovis model (requires flash-attn)."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
             self.model = transformers.AutoModelForCausalLM.from_pretrained(
                 repo,
@@ -843,7 +843,7 @@ class VQA:
         try:
             import flash_attn  # pylint: disable=unused-import
         except Exception:
-            shared.log.error(f'Interrogate: vlm="{repo}" flash-attn is not available')
+            shared.log.error(f'Caption: vlm="{repo}" flash-attn is not available')
             return ''
         self._load_ovis(repo)
         sd_models.move_model(self.model, devices.device)
@@ -875,7 +875,7 @@ class VQA:
     def _load_smol(self, repo: str):
         """Load SmolVLM model and processor."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
             quant_args = model_quant.create_config(module='LLM')
             self.model = transformers.AutoModelForVision2Seq.from_pretrained(
@@ -895,10 +895,10 @@ class VQA:
         sd_models.move_model(self.model, devices.device)
         # Get model class name for logging
         cls_name = self.model.__class__.__name__
-        debug(f'VQA interrogate: handler=smol model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
+        debug(f'VQA caption: handler=smol model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
-        system_prompt = system_prompt or shared.opts.interrogate_vlm_system
+        system_prompt = system_prompt or shared.opts.caption_vlm_system
         conversation = [
             {
                 "role": "system",
@@ -924,14 +924,14 @@ class VQA:
                 "role": "assistant",
                 "content": [{"type": "text", "text": prefill_text}],
             })
-            debug(f'VQA interrogate: handler=smol prefill="{prefill_text}"')
+            debug(f'VQA caption: handler=smol prefill="{prefill_text}"')
         else:
-            debug('VQA interrogate: handler=smol prefill disabled (empty), relying on add_generation_prompt')
+            debug('VQA caption: handler=smol prefill disabled (empty), relying on add_generation_prompt')
         if debug_enabled:
-            debug(f'VQA interrogate: handler=smol conversation_roles={[msg["role"] for msg in conversation]}')
-            debug(f'VQA interrogate: handler=smol full_conversation={truncate_b64_in_conversation(conversation)}')
+            debug(f'VQA caption: handler=smol conversation_roles={[msg["role"] for msg in conversation]}')
+            debug(f'VQA caption: handler=smol full_conversation={truncate_b64_in_conversation(conversation)}')
             debug_prefill_mode = 'add_generation_prompt=False continue_final_message=True' if use_prefill else 'add_generation_prompt=True'
-            debug(f'VQA interrogate: handler=smol template_mode={debug_prefill_mode}')
+            debug(f'VQA caption: handler=smol template_mode={debug_prefill_mode}')
         try:
             if use_prefill:
                 text_prompt = self.processor.apply_chat_template(
@@ -942,24 +942,24 @@ class VQA:
             else:
                 text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=True)
         except (TypeError, ValueError) as e:
-            debug(f'VQA interrogate: handler=smol chat_template fallback add_generation_prompt=True: {e}')
+            debug(f'VQA caption: handler=smol chat_template fallback add_generation_prompt=True: {e}')
             text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=True)
         if use_prefill and use_thinking:
             text_prompt = keep_think_block_open(text_prompt)
         if debug_enabled:
-            debug(f'VQA interrogate: handler=smol text_prompt="{text_prompt}"')
+            debug(f'VQA caption: handler=smol text_prompt="{text_prompt}"')
         inputs = self.processor(text=text_prompt, images=[image], padding=True, return_tensors="pt")
         inputs = inputs.to(devices.device, devices.dtype)
         gen_kwargs = get_kwargs()
-        debug(f'VQA interrogate: handler=smol generation_kwargs={gen_kwargs}')
+        debug(f'VQA caption: handler=smol generation_kwargs={gen_kwargs}')
         output_ids = self.model.generate(
             **inputs,
             **gen_kwargs,
         )
-        debug(f'VQA interrogate: handler=smol output_ids_shape={output_ids.shape}')
+        debug(f'VQA caption: handler=smol output_ids_shape={output_ids.shape}')
         response = self.processor.batch_decode(output_ids, skip_special_tokens=True)
         if debug_enabled:
-            debug(f'VQA interrogate: handler=smol response_before_clean="{response}"')
+            debug(f'VQA caption: handler=smol response_before_clean="{response}"')
 
         # Clean up thinking tags
         if len(response) > 0:
@@ -981,7 +981,7 @@ class VQA:
     def _load_git(self, repo: str):
         """Load Microsoft GIT model and processor."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
             self.model = transformers.GitForCausalLM.from_pretrained(
                 repo,
@@ -1011,7 +1011,7 @@ class VQA:
     def _load_blip(self, repo: str):
         """Load Salesforce BLIP model and processor."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
             self.model = transformers.BlipForQuestionAnswering.from_pretrained(
                 repo,
@@ -1035,7 +1035,7 @@ class VQA:
     def _load_vilt(self, repo: str):
         """Load ViLT model and processor."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
             self.model = transformers.ViltForQuestionAnswering.from_pretrained(
                 repo,
@@ -1061,7 +1061,7 @@ class VQA:
     def _load_pix(self, repo: str):
         """Load Pix2Struct model and processor."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
             self.model = transformers.Pix2StructForConditionalGeneration.from_pretrained(
                 repo,
@@ -1087,7 +1087,7 @@ class VQA:
     def _load_moondream(self, repo: str):
         """Load Moondream 2 model and tokenizer."""
         if self.model is None or self.loaded != repo:
-            shared.log.debug(f'Interrogate load: vlm="{repo}"')
+            shared.log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
             self.model = transformers.AutoModelForCausalLM.from_pretrained(
                 repo,
@@ -1102,7 +1102,7 @@ class VQA:
             devices.torch_gc()
 
     def _moondream(self, question: str, image: Image.Image, repo: str, model_name: str = None, thinking_mode: bool = False):
-        debug(f'VQA interrogate: handler=moondream model_name="{model_name}" repo="{repo}" question="{question}" thinking_mode={thinking_mode}')
+        debug(f'VQA caption: handler=moondream model_name="{model_name}" repo="{repo}" question="{question}" thinking_mode={thinking_mode}')
         self._load_moondream(repo)
         sd_models.move_model(self.model, devices.device)
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
@@ -1117,9 +1117,9 @@ class VQA:
                 target = question[9:].strip() if question.lower().startswith('point at ') else ''
                 if not target:
                     return "Please specify an object to locate"
-                debug(f'VQA interrogate: handler=moondream method=point target="{target}"')
+                debug(f'VQA caption: handler=moondream method=point target="{target}"')
                 result = self.model.point(image, target)
-                debug(f'VQA interrogate: handler=moondream point_raw_result={result}')
+                debug(f'VQA caption: handler=moondream point_raw_result={result}')
                 points = vqa_detection.parse_points(result)
                 if points:
                     self.last_detection_data = {'points': points}
@@ -1129,35 +1129,35 @@ class VQA:
                 target = question[7:].strip() if question.lower().startswith('detect ') else ''
                 if not target:
                     return "Please specify an object to detect"
-                debug(f'VQA interrogate: handler=moondream method=detect target="{target}"')
+                debug(f'VQA caption: handler=moondream method=detect target="{target}"')
                 result = self.model.detect(image, target)
-                debug(f'VQA interrogate: handler=moondream detect_raw_result={result}')
+                debug(f'VQA caption: handler=moondream detect_raw_result={result}')
                 detections = vqa_detection.parse_detections(result, target)
                 if detections:
                     self.last_detection_data = {'detections': detections}
                     return vqa_detection.format_detections_text(detections, include_confidence=False)
                 return "No objects detected"
             elif question == 'DETECT_GAZE' or question.lower() == 'detect gaze':
-                debug('VQA interrogate: handler=moondream method=detect_gaze')
+                debug('VQA caption: handler=moondream method=detect_gaze')
                 faces = self.model.detect(image, "face")
-                debug(f'VQA interrogate: handler=moondream detect_gaze faces={faces}')
+                debug(f'VQA caption: handler=moondream detect_gaze faces={faces}')
                 if faces.get('objects'):
                     eye_x, eye_y = vqa_detection.calculate_eye_position(faces['objects'][0])
                     result = self.model.detect_gaze(image, eye=(eye_x, eye_y))
-                    debug(f'VQA interrogate: handler=moondream detect_gaze result={result}')
+                    debug(f'VQA caption: handler=moondream detect_gaze result={result}')
                     if result.get('gaze'):
                         gaze = result['gaze']
                         self.last_detection_data = {'points': [(gaze['x'], gaze['y'])]}
                         return f"Gaze direction: ({gaze['x']:.3f}, {gaze['y']:.3f})"
                 return "No face/gaze detected"
             else:
-                debug(f'VQA interrogate: handler=moondream method=query question="{question}" reasoning={thinking_mode}')
+                debug(f'VQA caption: handler=moondream method=query question="{question}" reasoning={thinking_mode}')
                 result = self.model.query(image, question, reasoning=thinking_mode)
                 response = result['answer']
-                debug(f'VQA interrogate: handler=moondream query_result keys={list(result.keys()) if isinstance(result, dict) else "not dict"}')
+                debug(f'VQA caption: handler=moondream query_result keys={list(result.keys()) if isinstance(result, dict) else "not dict"}')
                 if thinking_mode and 'reasoning' in result:
                     reasoning_text = result['reasoning'].get('text', '') if isinstance(result['reasoning'], dict) else str(result['reasoning'])
-                    debug(f'VQA interrogate: handler=moondream reasoning_text="{reasoning_text[:100]}..."')
+                    debug(f'VQA caption: handler=moondream reasoning_text="{reasoning_text[:100]}..."')
                     if get_keep_thinking():
                         response = f"Reasoning:\n{reasoning_text}\n\nAnswer:\n{response}"
                     # When keep_thinking is False, just use the answer (reasoning is discarded)
@@ -1183,7 +1183,7 @@ class VQA:
             effective_revision = revision_from_repo
 
         if self.model is None or self.loaded != cache_key:
-            shared.log.debug(f'Interrogate load: vlm="{repo_name}" revision="{effective_revision}" path="{shared.opts.hfcache_dir}"')
+            shared.log.debug(f'Caption load: vlm="{repo_name}" revision="{effective_revision}" path="{shared.opts.hfcache_dir}"')
             transformers.dynamic_module_utils.get_imports = get_imports
             self.model = None
             quant_args = model_quant.create_config(module='LLM')
@@ -1213,7 +1213,7 @@ class VQA:
         pixel_values = inputs['pixel_values'].to(devices.device, devices.dtype)
         # Florence-2 requires beam search, not sampling - sampling causes probability tensor errors
         overrides = _get_overrides()
-        max_tokens = overrides.get('max_tokens') if overrides.get('max_tokens') is not None else shared.opts.interrogate_vlm_max_length
+        max_tokens = overrides.get('max_tokens') if overrides.get('max_tokens') is not None else shared.opts.caption_vlm_max_length
         with devices.inference_context():
             generated_ids = self.model.generate(
                 input_ids=input_ids,
@@ -1263,9 +1263,9 @@ class VQA:
         response = return_dict["prediction"]  # the text format answer
         return response
 
-    def interrogate(self, question: str = '', system_prompt: str = None, prompt: str = None, image: Image.Image = None, model_name: str = None, prefill: str = None, thinking_mode: bool = None, quiet: bool = False, generation_kwargs: dict = None) -> str:
+    def caption(self, question: str = '', system_prompt: str = None, prompt: str = None, image: Image.Image = None, model_name: str = None, prefill: str = None, thinking_mode: bool = None, quiet: bool = False, generation_kwargs: dict = None) -> str:
         """
-        Main entry point for VQA interrogation. Returns string answer.
+        Main entry point for VQA captioning. Returns string answer.
         Detection data stored in self.last_detection_data for annotated image creation.
 
         Args:
@@ -1283,11 +1283,11 @@ class VQA:
         self.last_annotated_image = None
         self.last_detection_data = None
         self._generation_overrides = generation_kwargs  # Set per-request overrides
-        jobid = shared.state.begin('Interrogate LLM')
+        jobid = shared.state.begin('Caption LLM')
         t0 = time.time()
-        model_name = model_name or shared.opts.interrogate_vlm_model
+        model_name = model_name or shared.opts.caption_vlm_model
         prefill = vlm_prefill if prefill is None else prefill  # Use provided prefill when specified
-        thinking_mode = shared.opts.interrogate_vlm_thinking_mode if thinking_mode is None else thinking_mode  # Resolve from settings if not specified
+        thinking_mode = shared.opts.caption_vlm_thinking_mode if thinking_mode is None else thinking_mode  # Resolve from settings if not specified
         if isinstance(image, list):
             image = image[0] if len(image) > 0 else None
         if isinstance(image, dict) and 'name' in image:
@@ -1298,7 +1298,7 @@ class VQA:
             if image.mode != 'RGB':
                 image = image.convert('RGB')
         if image is None:
-            shared.log.error(f'VQA interrogate: model="{model_name}" error="No input image provided"')
+            shared.log.error(f'VQA caption: model="{model_name}" error="No input image provided"')
             shared.state.end(jobid)
             return 'Error: No input image provided. Please upload or select an image.'
 
@@ -1306,7 +1306,7 @@ class VQA:
         if question == "Use Prompt":
             # Use content from Prompt field directly - requires user input
             if not prompt or len(prompt.strip()) < 2:
-                shared.log.error(f'VQA interrogate: model="{model_name}" error="Please enter a prompt"')
+                shared.log.error(f'VQA caption: model="{model_name}" error="Please enter a prompt"')
                 shared.state.end(jobid)
                 return 'Error: Please enter a question or instruction in the Prompt field.'
             question = prompt
@@ -1316,7 +1316,7 @@ class VQA:
             if raw_mapping in ("POINT_MODE", "DETECT_MODE"):
                 # These modes require user input in the prompt field
                 if not prompt or len(prompt.strip()) < 2:
-                    shared.log.error(f'VQA interrogate: model="{model_name}" error="Please specify what to find in the prompt field"')
+                    shared.log.error(f'VQA caption: model="{model_name}" error="Please specify what to find in the prompt field"')
                     shared.state.end(jobid)
                     return 'Error: Please specify what to find in the prompt field (e.g., "the red car" or "faces").'
             # Convert friendly name to internal token (handles Point/Detect prefix)
@@ -1328,12 +1328,12 @@ class VQA:
 
         try:
             if model_name is None:
-                shared.log.error(f'Interrogate: type=vlm model="{model_name}" no model selected')
+                shared.log.error(f'Caption: type=vlm model="{model_name}" no model selected')
                 shared.state.end(jobid)
                 return ''
             vqa_model = vlm_models.get(model_name, None)
             if vqa_model is None:
-                shared.log.error(f'Interrogate: type=vlm model="{model_name}" unknown')
+                shared.log.error(f'Caption: type=vlm model="{model_name}" unknown')
                 shared.state.end(jobid)
                 return ''
 
@@ -1352,7 +1352,7 @@ class VQA:
                 answer = self._pix(question, image, vqa_model, model_name)
             elif 'moondream3' in vqa_model.lower():
                 handler = 'moondream3'
-                from modules.interrogate import moondream3
+                from modules.caption import moondream3
                 answer = moondream3.predict(question, image, vqa_model, model_name, thinking_mode=thinking_mode)
             elif 'moondream2' in vqa_model.lower():
                 handler = 'moondream'
@@ -1368,15 +1368,15 @@ class VQA:
                 answer = self._smol(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
             elif 'joytag' in vqa_model.lower():
                 handler = 'joytag'
-                from modules.interrogate import joytag
+                from modules.caption import joytag
                 answer = joytag.predict(image)
             elif 'joycaption' in vqa_model.lower():
                 handler = 'joycaption'
-                from modules.interrogate import joycaption
+                from modules.caption import joycaption
                 answer = joycaption.predict(question, image, vqa_model)
             elif 'deepseek' in vqa_model.lower():
                 handler = 'deepseek'
-                from modules.interrogate import deepseek
+                from modules.caption import deepseek
                 answer = deepseek.predict(question, image, vqa_model)
             elif 'paligemma' in vqa_model.lower():
                 handler = 'paligemma'
@@ -1399,7 +1399,7 @@ class VQA:
             errors.display(e, 'VQA')
             answer = 'error'
 
-        if shared.opts.interrogate_offload and self.model is not None:
+        if shared.opts.caption_offload and self.model is not None:
             sd_models.move_model(self.model, devices.cpu, force=True)
         devices.torch_gc(force=True, reason='vqa')
 
@@ -1412,15 +1412,16 @@ class VQA:
             points = self.last_detection_data.get('points', None)
             if detections or points:
                 self.last_annotated_image = vqa_detection.draw_bounding_boxes(image, detections or [], points)
-                debug(f'VQA interrogate: handler={handler} created annotated image detections={len(detections) if detections else 0} points={len(points) if points else 0}')
+                debug(f'VQA caption: handler={handler} created annotated image detections={len(detections) if detections else 0} points={len(points) if points else 0}')
 
-        debug(f'VQA interrogate: handler={handler} response_after_clean="{answer}" has_annotation={self.last_annotated_image is not None}')
+        debug(f'VQA caption: handler={handler} response_after_clean="{answer}" has_annotation={self.last_annotated_image is not None}')
         t1 = time.time()
         if not quiet:
-            shared.log.debug(f'Interrogate: type=vlm model="{model_name}" repo="{vqa_model}" args={get_kwargs()} time={t1-t0:.2f}')
+            shared.log.debug(f'Caption: type=vlm model="{model_name}" repo="{vqa_model}" args={get_kwargs()} time={t1-t0:.2f}')
         self._generation_overrides = None  # Clear per-request overrides
         shared.state.end(jobid)
         return answer
+
 
     def batch(self, model_name, system_prompt, batch_files, batch_folder, batch_str, question, prompt, write, append, recursive, prefill=None, thinking_mode=False):
         class BatchWriter:
@@ -1450,15 +1451,15 @@ class VQA:
             from modules.files_cache import list_files
             files += list(list_files(batch_str, ext_filter=['.png', '.jpg', '.jpeg', '.webp', '.jxl'], recursive=recursive))
         if len(files) == 0:
-            shared.log.warning('Interrogate batch: type=vlm no images')
+            shared.log.warning('Caption batch: type=vlm no images')
             return ''
-        jobid = shared.state.begin('Interrogate batch')
+        jobid = shared.state.begin('Caption batch')
         prompts = []
         if write:
             mode = 'w' if not append else 'a'
             writer = BatchWriter(os.path.dirname(files[0]), mode=mode)
-        orig_offload = shared.opts.interrogate_offload
-        shared.opts.interrogate_offload = False
+        orig_offload = shared.opts.caption_offload
+        shared.opts.caption_offload = False
         import rich.progress as rp
         pbar = rp.Progress(rp.TextColumn('[cyan]Caption:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
         with pbar:
@@ -1469,7 +1470,7 @@ class VQA:
                     if shared.state.interrupted:
                         break
                     img = Image.open(file)
-                    caption = self.interrogate(question, system_prompt, prompt, img, model_name, prefill, thinking_mode, quiet=True)
+                    caption = self.caption(question, system_prompt, prompt, img, model_name, prefill, thinking_mode, quiet=True)
                     # Save annotated image if available
                     if self.last_annotated_image and write:
                         annotated_path = os.path.splitext(file)[0] + "_annotated.png"
@@ -1478,10 +1479,10 @@ class VQA:
                     if write:
                         writer.add(file, caption)
                 except Exception as e:
-                    shared.log.error(f'Interrogate batch: {e}')
+                    shared.log.error(f'Caption batch: {e}')
         if write:
             writer.close()
-        shared.opts.interrogate_offload = orig_offload
+        shared.opts.caption_offload = orig_offload
         shared.state.end(jobid)
         return '\n\n'.join(prompts)
 
@@ -1499,8 +1500,9 @@ def get_instance() -> VQA:
 
 
 # Backwards-compatible module-level functions
-def interrogate(*args, **kwargs):
-    return get_instance().interrogate(*args, **kwargs)
+def caption(*args, **kwargs):
+    return get_instance().caption(*args, **kwargs)
+
 
 
 def unload_model():

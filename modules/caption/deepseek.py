@@ -32,11 +32,11 @@ def load(repo: str):
     """Load DeepSeek VL2 model (experimental)."""
     global vl_gpt, vl_chat_processor, loaded_repo  # pylint: disable=global-statement
     if not shared.cmd_opts.experimental:
-        shared.log.error(f'Interrogate: type=vlm model="DeepSeek VL2" repo="{repo}" is experimental-only')
+        shared.log.error(f'Caption: type=vlm model="DeepSeek VL2" repo="{repo}" is experimental-only')
         return False
     folder = os.path.join(paths.script_path, 'repositories', 'deepseek-vl2')
     if not os.path.exists(folder):
-        shared.log.error(f'Interrogate: type=vlm model="DeepSeek VL2" repo="{repo}" deepseek-vl2 repo not found')
+        shared.log.error(f'Caption: type=vlm model="DeepSeek VL2" repo="{repo}" deepseek-vl2 repo not found')
         return False
     if vl_gpt is None or loaded_repo != repo:
         sys.modules['attrdict'] = fake_attrdict
@@ -53,7 +53,7 @@ def load(repo: str):
         vl_gpt.to(dtype=devices.dtype)
         vl_gpt.eval()
         loaded_repo = repo
-        shared.log.info(f'Interrogate: type=vlm model="DeepSeek VL2" repo="{repo}"')
+        shared.log.info(f'Caption: type=vlm model="DeepSeek VL2" repo="{repo}"')
     sd_models.move_model(vl_gpt, devices.device)
     return True
 
@@ -105,7 +105,7 @@ def predict(question, image, repo):
             pad_token_id=vl_chat_processor.tokenizer.eos_token_id,
             bos_token_id=vl_chat_processor.tokenizer.bos_token_id,
             eos_token_id=vl_chat_processor.tokenizer.eos_token_id,
-            max_new_tokens=shared.opts.interrogate_vlm_max_length,
+            max_new_tokens=shared.opts.caption_vlm_max_length,
             do_sample=False,
             use_cache=True
         )

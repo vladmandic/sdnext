@@ -8,7 +8,7 @@ from PIL import Image
 from modules import devices, shared, errors, sd_models
 
 
-debug_enabled = os.environ.get('SD_INTERROGATE_DEBUG', None) is not None
+debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
 debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 
 # Per-request overrides for API calls
@@ -19,7 +19,7 @@ def get_clip_setting(name):
     """Get CLIP setting with per-request override support.
 
     Args:
-        name: Setting name without 'interrogate_clip_' prefix (e.g., 'min_flavors', 'max_length')
+        name: Setting name without 'caption_openclip_' prefix (e.g., 'min_flavors', 'max_length')
 
     Returns:
         Override value if set, otherwise the value from shared.opts
@@ -28,7 +28,7 @@ def get_clip_setting(name):
         value = _clip_overrides.get(name)
         if value is not None:
             return value
-    return getattr(shared.opts, f'interrogate_clip_{name}')
+    return getattr(shared.opts, f'caption_openclip_{name}')
 
 
 def _apply_blip2_fix(model, processor):
@@ -87,13 +87,14 @@ class BatchWriter:
             self.file.close()
 
 
-def update_interrogate_params():
+def update_caption_params():
     if ci is not None:
         ci.caption_max_length = get_clip_setting('max_length')
         ci.chunk_size = get_clip_setting('chunk_size')
         ci.flavor_intermediate_count = get_clip_setting('flavor_count')
-        ci.clip_offload = shared.opts.interrogate_offload
-        ci.caption_offload = shared.opts.interrogate_offload
+        ci.clip_offload = shared.opts.caption_offload
+        ci.caption_offload = shared.opts.caption_offload
+
 
 
 def get_clip_models():
@@ -104,12 +105,12 @@ def refresh_clip_models():
     global clip_models # pylint: disable=global-statement
     import open_clip
     models = sorted(open_clip.list_pretrained())
-    shared.log.debug(f'Interrogate: pkg=openclip version={open_clip.__version__} models={len(models)}')
+    shared.log.debug(f'Caption: pkg=openclip version={open_clip.__version__} models={len(models)}')
     clip_models = ['/'.join(x) for x in models]
     return clip_models
 
 
-def load_interrogator(clip_model, blip_model):
+def load_captioner(clip_model, blip_model):
     from installer import install
     install('clip_interrogator==0.6.0')
     import clip_interrogator
@@ -120,20 +121,21 @@ def load_interrogator(clip_model, blip_model):
         device = devices.get_optimal_device()
         cache_path = shared.opts.clip_models_path
         shared.log.info(f'CLIP load: clip="{clip_model}" blip="{blip_model}" device={device}')
-        debug_log(f'CLIP load: cache_path="{cache_path}" max_length={shared.opts.interrogate_clip_max_length} chunk_size={shared.opts.interrogate_clip_chunk_size} flavor_count={shared.opts.interrogate_clip_flavor_count} offload={shared.opts.interrogate_offload}')
-        interrogator_config = clip_interrogator.Config(
+        debug_log(f'CLIP load: cache_path="{cache_path}" max_length={shared.opts.caption_openclip_max_length} chunk_size={shared.opts.caption_openclip_chunk_size} flavor_count={shared.opts.caption_openclip_flavor_count} offload={shared.opts.caption_offload}')
+        captioner_config = clip_interrogator.Config(
             device=device,
             cache_path=cache_path,
             clip_model_name=clip_model,
             caption_model_name=blip_model,
             quiet=True,
-            caption_max_length=shared.opts.interrogate_clip_max_length,
-            chunk_size=shared.opts.interrogate_clip_chunk_size,
-            flavor_intermediate_count=shared.opts.interrogate_clip_flavor_count,
-            clip_offload=shared.opts.interrogate_offload,
-            caption_offload=shared.opts.interrogate_offload,
+            caption_max_length=shared.opts.caption_openclip_max_length,
+            chunk_size=shared.opts.caption_openclip_chunk_size,
+            flavor_intermediate_count=shared.opts.caption_openclip_flavor_count,
+            clip_offload=shared.opts.caption_offload,
+            caption_offload=shared.opts.caption_offload,
         )
-        ci = clip_interrogator.Interrogator(interrogator_config)
+        ci = clip_interrogator.Interrogator(captioner_config)
+
         if blip_model.startswith('blip2-'):
             _apply_blip2_fix(ci.caption_model, ci.caption_processor)
         shared.log.debug(f'CLIP load: time={time.time()-t0:.2f}')
@@ -145,12 +147,14 @@ def load_interrogator(clip_model, blip_model):
             ci.config.clip_model_name = clip_model
             ci.config.clip_model = None
             ci.load_clip_model()
+            ci.clip_offloaded = True  # Reset flag so _prepare_clip() will move model to device
         if blip_model != ci.config.caption_model_name:
             shared.log.info(f'CLIP load: blip="{blip_model}" reloading')
             debug_log(f'CLIP load: previous blip="{ci.config.caption_model_name}"')
             ci.config.caption_model_name = blip_model
             ci.config.caption_model = None
             ci.load_caption_model()
+            ci.caption_offloaded = True  # Reset flag so _prepare_caption() will move model to device
             if blip_model.startswith('blip2-'):
                 _apply_blip2_fix(ci.caption_model, ci.caption_processor)
         shared.log.debug(f'CLIP load: time={time.time()-t0:.2f}')
@@ -159,7 +163,7 @@ def load_interrogator(clip_model, blip_model):
 
 
 def unload_clip_model():
-    if ci is not None and shared.opts.interrogate_offload:
+    if ci is not None and shared.opts.caption_offload:
         shared.log.debug('CLIP unload: offloading models to CPU')
         sd_models.move_model(ci.caption_model, devices.cpu)
         sd_models.move_model(ci.clip_model, devices.cpu)
@@ -169,7 +173,7 @@ def unload_clip_model():
         debug_log('CLIP unload: complete')
 
 
-def interrogate(image, mode, caption=None):
+def caption(image, mode, base_caption=None):
     if isinstance(image, list):
         image = image[0] if len(image) > 0 else None
     if isinstance(image, dict) and 'name' in image:
@@ -180,15 +184,17 @@ def interrogate(image, mode, caption=None):
     t0 = time.time()
     min_flavors = get_clip_setting('min_flavors')
     max_flavors = get_clip_setting('max_flavors')
-    debug_log(f'CLIP: mode="{mode}" image_size={image.size} caption={caption is not None} min_flavors={min_flavors} max_flavors={max_flavors}')
+    debug_log(f'CLIP: mode="{mode}" image_size={image.size} caption={base_caption is not None} min_flavors={min_flavors} max_flavors={max_flavors}')
+    # NOTE: Method names like .interrogate(), .interrogate_classic(), etc. come from the external
+    # clip-interrogator library (https://github.com/pharmapsychotic/clip-interrogator) and cannot be renamed.
     if mode == 'best':
-        prompt = ci.interrogate(image, caption=caption, min_flavors=min_flavors, max_flavors=max_flavors)
+        prompt = ci.interrogate(image, caption=base_caption, min_flavors=min_flavors, max_flavors=max_flavors)
     elif mode == 'caption':
-        prompt = ci.generate_caption(image) if caption is None else caption
+        prompt = ci.generate_caption(image) if base_caption is None else base_caption
     elif mode == 'classic':
-        prompt = ci.interrogate_classic(image, caption=caption, max_flavors=max_flavors)
+        prompt = ci.interrogate_classic(image, caption=base_caption, max_flavors=max_flavors)
     elif mode == 'fast':
-        prompt = ci.interrogate_fast(image, caption=caption, max_flavors=max_flavors)
+        prompt = ci.interrogate_fast(image, caption=base_caption, max_flavors=max_flavors)
     elif mode == 'negative':
         prompt = ci.interrogate_negative(image, max_flavors=max_flavors)
     else:
@@ -197,9 +203,10 @@ def interrogate(image, mode, caption=None):
     return prompt
 
 
-def interrogate_image(image, clip_model, blip_model, mode, overrides=None):
+
+def caption_image(image, clip_model, blip_model, mode, overrides=None):
     global _clip_overrides  # pylint: disable=global-statement
-    jobid = shared.state.begin('Interrogate CLiP')
+    jobid = shared.state.begin('Caption CLiP')
     t0 = time.time()
     shared.log.info(f'CLIP: mode="{mode}" clip="{clip_model}" blip="{blip_model}" image_size={image.size if image else None}')
     if overrides:
@@ -211,17 +218,19 @@ def interrogate_image(image, clip_model, blip_model, mode, overrides=None):
             from modules.sd_models import apply_balanced_offload  # prevent circular import
             apply_balanced_offload(shared.sd_model)
             debug_log('CLIP: applied balanced offload to sd_model')
-        load_interrogator(clip_model, blip_model)
-        # Apply overrides to loaded interrogator
-        update_interrogate_params()
+        load_captioner(clip_model, blip_model)
+        # Apply overrides to loaded captioner
+        update_caption_params()
         image = image.convert('RGB')
-        prompt = interrogate(image, mode)
+        prompt = caption(image, mode)
+        if shared.opts.caption_offload:
+            unload_clip_model()
         devices.torch_gc()
         shared.log.debug(f'CLIP: complete time={time.time()-t0:.2f}')
     except Exception as e:
         prompt = f"Exception {type(e)}"
         shared.log.error(f'CLIP: {e}')
-        errors.display(e, 'Interrogate')
+        errors.display(e, 'Caption')
     finally:
         # Clear per-request overrides
         _clip_overrides = None
@@ -229,7 +238,8 @@ def interrogate_image(image, clip_model, blip_model, mode, overrides=None):
     return prompt
 
 
-def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_model, mode, write, append, recursive):
+
+def caption_batch(batch_files, batch_folder, batch_str, clip_model, blip_model, mode, write, append, recursive):
     files = []
     if batch_files is not None:
         files += [f.name for f in batch_files]
@@ -244,10 +254,10 @@ def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_mod
     t0 = time.time()
     shared.log.info(f'CLIP batch: mode="{mode}" images={len(files)} clip="{clip_model}" blip="{blip_model}" write={write} append={append}')
     debug_log(f'CLIP batch: recursive={recursive} files={files[:5]}{"..." if len(files) > 5 else ""}')
-    jobid = shared.state.begin('Interrogate batch')
+    jobid = shared.state.begin('Caption batch')
     prompts = []
 
-    load_interrogator(clip_model, blip_model)
+    load_captioner(clip_model, blip_model)
     if write:
         file_mode = 'w' if not append else 'a'
         writer = BatchWriter(os.path.dirname(files[0]), mode=file_mode)
@@ -263,7 +273,7 @@ def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_mod
                     shared.log.info('CLIP batch: interrupted')
                     break
                 image = Image.open(file).convert('RGB')
-                prompt = interrogate(image, mode)
+                prompt = caption(image, mode)
                 prompts.append(prompt)
                 if write:
                     writer.add(file, prompt)
@@ -278,10 +288,11 @@ def interrogate_batch(batch_files, batch_folder, batch_str, clip_model, blip_mod
     return '\n\n'.join(prompts)
 
 
+
 def analyze_image(image, clip_model, blip_model):
     t0 = time.time()
     shared.log.info(f'CLIP analyze: clip="{clip_model}" blip="{blip_model}" image_size={image.size if image else None}')
-    load_interrogator(clip_model, blip_model)
+    load_captioner(clip_model, blip_model)
     image = image.convert('RGB')
     image_features = ci.image_to_features(image)
     debug_log(f'CLIP analyze: features shape={image_features.shape if hasattr(image_features, "shape") else "unknown"}')

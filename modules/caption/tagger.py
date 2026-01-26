@@ -8,7 +8,7 @@ DEEPBOORU_MODEL = "DeepBooru"
 
 def get_models() -> list:
     """Return combined list: DeepBooru + WaifuDiffusion models."""
-    from modules.interrogate import waifudiffusion
+    from modules.caption import waifudiffusion
     return [DEEPBOORU_MODEL] + waifudiffusion.get_models()
 
 
@@ -25,16 +25,16 @@ def is_deepbooru(model_name: str) -> bool:
 def load_model(model_name: str) -> bool:
     """Load appropriate backend."""
     if is_deepbooru(model_name):
-        from modules.interrogate import deepbooru
+        from modules.caption import deepbooru
         return deepbooru.load_model()
     else:
-        from modules.interrogate import waifudiffusion
+        from modules.caption import waifudiffusion
         return waifudiffusion.load_model(model_name)
 
 
 def unload_model():
     """Unload both backends to ensure memory is freed."""
-    from modules.interrogate import deepbooru, waifudiffusion
+    from modules.caption import deepbooru, waifudiffusion
     deepbooru.unload_model()
     waifudiffusion.unload_model()
 
@@ -54,10 +54,10 @@ def tag(image, model_name: str = None, **kwargs) -> str:
         model_name = shared.opts.waifudiffusion_model
 
     if is_deepbooru(model_name):
-        from modules.interrogate import deepbooru
+        from modules.caption import deepbooru
         return deepbooru.tag(image, **kwargs)
     else:
-        from modules.interrogate import waifudiffusion
+        from modules.caption import waifudiffusion
         return waifudiffusion.tag(image, model_name=model_name, **kwargs)
 
 
@@ -72,8 +72,8 @@ def batch(model_name: str, **kwargs) -> str:
         Combined tag results
     """
     if is_deepbooru(model_name):
-        from modules.interrogate import deepbooru
+        from modules.caption import deepbooru
         return deepbooru.batch(model_name=model_name, **kwargs)
     else:
-        from modules.interrogate import waifudiffusion
+        from modules.caption import waifudiffusion
         return waifudiffusion.batch(model_name=model_name, **kwargs)

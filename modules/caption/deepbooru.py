@@ -19,7 +19,7 @@ class DeepDanbooru:
             if self.model is not None:
                 return
             model_path = os.path.join(shared.opts.clip_models_path, "DeepDanbooru")
-            shared.log.debug(f'Interrogate load: module=DeepDanbooru folder="{model_path}"')
+            shared.log.debug(f'Caption load: module=DeepDanbooru folder="{model_path}"')
             files = modelloader.load_models(
                 model_path=model_path,
                 model_url='https://github.com/AUTOMATIC1111/TorchDeepDanbooru/releases/download/v1/model-resnet_custom_v3.pt',
@@ -27,7 +27,7 @@ class DeepDanbooru:
                 download_name='model-resnet_custom_v3.pt',
             )
 
-            from modules.interrogate.deepbooru_model import DeepDanbooruModel
+            from modules.caption.deepbooru_model import DeepDanbooruModel
             self.model = DeepDanbooruModel()
             self.model.load_state_dict(torch.load(files[0], map_location="cpu"))
             self.model.eval()
@@ -38,7 +38,7 @@ class DeepDanbooru:
         self.model.to(devices.device)
 
     def stop(self):
-        if shared.opts.interrogate_offload:
+        if shared.opts.caption_offload:
             self.model.to(devices.cpu)
         devices.torch_gc()
 

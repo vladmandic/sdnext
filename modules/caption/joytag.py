@@ -1044,7 +1044,7 @@ def load():
         model.eval()
         with open(os.path.join(folder, 'top_tags.txt'), 'r', encoding='utf8') as f:
             tags = [line.strip() for line in f.readlines() if line.strip()]
-        shared.log.info(f'Interrogate: type=vlm model="JoyTag" repo="{MODEL_REPO}" tags={len(tags)}')
+        shared.log.info(f'Caption: type=vlm model="JoyTag" repo="{MODEL_REPO}" tags={len(tags)}')
     sd_models.move_model(model, devices.device)
 
 
@@ -1068,7 +1068,7 @@ def predict(image: Image.Image):
         preds = model({'image': image_tensor})
         tag_preds = preds['tags'].sigmoid().cpu()
     scores = {tags[i]: tag_preds[0][i] for i in range(len(tags))}
-    if shared.opts.interrogate_score:
+    if shared.opts.tagger_show_scores:
         predicted_tags = [f'{tag}:{score:.2f}' for tag, score in scores.items() if score > THRESHOLD]
     else:
         predicted_tags = [tag for tag, score in scores.items() if score > THRESHOLD]
