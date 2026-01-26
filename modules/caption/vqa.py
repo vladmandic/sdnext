@@ -1208,22 +1208,26 @@ class VQA:
             task = question.split('>', 1)[0] + '>'
         else:
             task = '<MORE_DETAILED_CAPTION>'
+        debug(f'VQA caption: handler=florence model_name="{model_name}" repo="{repo}" task="{task}" question="{question}" image_size={image.size}')
         inputs = self.processor(text=task, images=image, return_tensors="pt")
         input_ids = inputs['input_ids'].to(devices.device)
         pixel_values = inputs['pixel_values'].to(devices.device, devices.dtype)
+        debug(f'VQA caption: handler=florence input_ids={input_ids.shape} pixel_values={pixel_values.shape} dtype={pixel_values.dtype}')
         # Florence-2 requires beam search, not sampling - sampling causes probability tensor errors
         overrides = _get_overrides()
         max_tokens = overrides.get('max_tokens') if overrides.get('max_tokens') is not None else shared.opts.caption_vlm_max_length
+        gen_kwargs = {'max_new_tokens': max_tokens, 'num_beams': 3, 'do_sample': False}
+        debug(f'VQA caption: handler=florence generation_kwargs={gen_kwargs}')
         with devices.inference_context():
             generated_ids = self.model.generate(
                 input_ids=input_ids,
                 pixel_values=pixel_values,
-                max_new_tokens=max_tokens,
-                num_beams=3,
-                do_sample=False,
+                **gen_kwargs,
             )
             generated_text = self.processor.batch_decode(generated_ids, skip_special_tokens=False)[0]
+            debug(f'VQA caption: handler=florence generated_text="{generated_text}"')
             response = self.processor.post_process_generation(generated_text, task="task", image_size=(image.width, image.height))
+            debug(f'VQA caption: handler=florence raw_response={response}')
         return response
 
     def _load_sa2(self, repo: str):
