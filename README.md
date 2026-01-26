@@ -35,7 +35,7 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
 - Optimized processing with latest `torch` developments with built-in support for model compile and quantize  
   Compile backends: *Triton | StableFast | DeepCache | OneDiff | TeaCache | etc.*  
   Quantization methods: *SDNQ | BitsAndBytes | Optimum-Quanto | TorchAO / LayerWise*  
-- **Interrogate/Captioning** with 150+ **OpenCLiP** models and 20+ built-in **VLMs**  
+- **Captioning** with 150+ **OpenCLiP** models, **Tagger** with **WaifuDiffusion** and **DeepDanbooru** models, and 20+ built-in **VLMs**  
 - Built in installer with automatic updates and dependency management  
 
 <br>
