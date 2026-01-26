@@ -48,16 +48,16 @@ def initialize():
     scripts_manager.scripts_control.initialize_scripts(is_img2img=False, is_control=True)
 
 
-def interrogate():
+def caption():
     prompt = None
     if input_source is None or len(input_source) == 0:
-        shared.log.warning('Interrogate: no input source')
+        shared.log.warning('Caption: no input source')
         return prompt
     try:
-        from modules.interrogate.interrogate import interrogate as interrogate_fn
-        prompt = interrogate_fn(input_source[0])
+        from modules.caption.caption import caption as caption_fn
+        prompt = caption_fn(input_source[0])
     except Exception as e:
-        shared.log.error(f'Interrogate: {e}')
+        shared.log.error(f'Caption: {e}')
     return prompt
 
 
