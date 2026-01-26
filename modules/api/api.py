@@ -76,7 +76,7 @@ class Api:
         # enumerator api
         self.add_api_route("/sdapi/v1/preprocessors", self.process.get_preprocess, methods=["GET"], response_model=List[process.ItemPreprocess])
         self.add_api_route("/sdapi/v1/masking", self.process.get_mask, methods=["GET"], response_model=process.ItemMask)
-        self.add_api_route("/sdapi/v1/interrogate", endpoints.get_interrogate, methods=["GET"], response_model=List[str], tags=["Caption"])
+        self.add_api_route("/sdapi/v1/openclip", endpoints.get_caption, methods=["GET"], response_model=List[str], tags=["Caption"])
         self.add_api_route("/sdapi/v1/samplers", endpoints.get_samplers, methods=["GET"], response_model=List[models.ItemSampler])
         self.add_api_route("/sdapi/v1/upscalers", endpoints.get_upscalers, methods=["GET"], response_model=List[models.ItemUpscaler])
         self.add_api_route("/sdapi/v1/sd-models", endpoints.get_sd_models, methods=["GET"], response_model=List[models.ItemModel])
@@ -91,7 +91,10 @@ class Api:
 
         # functional api
         self.add_api_route("/sdapi/v1/png-info", endpoints.post_pnginfo, methods=["POST"], response_model=models.ResImageInfo)
-        self.add_api_route("/sdapi/v1/interrogate", endpoints.post_interrogate, methods=["POST"], response_model=models.ResInterrogate, tags=["Caption"])
+        # Caption dispatch endpoint (routes to openclip, tagger, or vlm based on 'backend' field)
+        self.add_api_route("/sdapi/v1/caption", endpoints.post_caption_dispatch, methods=["POST"], response_model=models.ResCaptionDispatch, tags=["Caption"])
+        # Direct caption endpoints (bypass dispatch, use specific backend)
+        self.add_api_route("/sdapi/v1/openclip", endpoints.post_caption, methods=["POST"], response_model=models.ResCaption, tags=["Caption"])
         self.add_api_route("/sdapi/v1/vqa", endpoints.post_vqa, methods=["POST"], response_model=models.ResVQA, tags=["Caption"])
         self.add_api_route("/sdapi/v1/vqa/models", endpoints.get_vqa_models, methods=["GET"], response_model=List[models.ItemVLMModel], tags=["Caption"])
         self.add_api_route("/sdapi/v1/vqa/prompts", endpoints.get_vqa_prompts, methods=["GET"], response_model=models.ResVLMPrompts, tags=["Caption"])

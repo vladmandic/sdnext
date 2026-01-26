@@ -1,5 +1,5 @@
 import inspect
-from typing import Any, Optional, Dict, List, Type, Callable, Union
+from typing import Any, Optional, Dict, List, Type, Callable, Union, Literal, Annotated
 from pydantic import BaseModel, Field, create_model # pylint: disable=no-name-in-module
 from inflection import underscore
 from modules.processing import StableDiffusionProcessingTxt2Img, StableDiffusionProcessingImg2Img
@@ -361,31 +361,29 @@ class ResStatus(BaseModel):
     eta: Optional[float] = Field(default=None, title="ETA in secs")
     progress: Optional[float] = Field(default=None, title="Progress", description="The progress with a range of 0 to 1")
 
-class ReqInterrogate(BaseModel):
-    """Request model for OpenCLIP/BLIP image interrogation.
+class ReqCaption(BaseModel):
+    """Request model for OpenCLIP/BLIP image captioning.
 
     Analyze image using CLIP model via OpenCLIP to generate prompts.
     For anime-style tagging, use /sdapi/v1/tagger with WaifuDiffusion or DeepBooru.
     """
-    image: str = Field(default="", title="Image", description="Image to interrogate. Must be a Base64 encoded string containing the image data (PNG/JPEG).")
-    model: str = Field(default="ViT-L-14/openai", title="Model", description="OpenCLIP model to use. Get available models from GET /sdapi/v1/interrogate.")
+    image: str = Field(default="", title="Image", description="Image to caption. Must be a Base64 encoded string containing the image data (PNG/JPEG).")
+    model: str = Field(default="ViT-L-14/openai", title="Model", description="OpenCLIP model to use. Get available models from GET /sdapi/v1/caption.")
     clip_model: str = Field(default="ViT-L-14/openai", title="CLIP Model", description="CLIP model used for image-text similarity matching. Larger models (ViT-L, ViT-H) are more accurate but slower and use more VRAM.")
     blip_model: str = Field(default="blip-large", title="Caption Model", description="BLIP model used to generate the initial image caption. The caption model describes the image content which CLIP then enriches with style and flavor terms.")
-    mode: str = Field(default="best", title="Mode", description="Interrogation mode. Fast: Quick caption with minimal flavor terms. Classic: Standard interrogation with balanced quality and speed. Best: Most thorough analysis, slowest but highest quality. Negative: Generate terms to use as negative prompt.")
+    mode: str = Field(default="best", title="Mode", description="Caption mode. Fast: Quick caption with minimal flavor terms. Classic: Standard captioning with balanced quality and speed. Best: Most thorough analysis, slowest but highest quality. Negative: Generate terms to use as negative prompt.")
     analyze: bool = Field(default=False, title="Analyze", description="If True, returns detailed image analysis breakdown (medium, artist, movement, trending, flavor) in addition to caption.")
     # Advanced settings (optional per-request overrides)
     min_length: Optional[int] = Field(default=None, title="Min Length", description="Minimum number of tokens in the generated caption.")
     max_length: Optional[int] = Field(default=None, title="Max Length", description="Maximum number of tokens in the generated caption.")
-    chunk_size: Optional[int] = Field(default=None, title="Chunk Size", description="Batch size for processing description candidates (flavors). Higher values speed up interrogation but increase VRAM usage.")
+    chunk_size: Optional[int] = Field(default=None, title="Chunk Size", description="Batch size for processing description candidates (flavors). Higher values speed up captioning but increase VRAM usage.")
     min_flavors: Optional[int] = Field(default=None, title="Min Flavors", description="Minimum number of descriptive tags (flavors) to keep in the final prompt.")
     max_flavors: Optional[int] = Field(default=None, title="Max Flavors", description="Maximum number of descriptive tags (flavors) to keep in the final prompt.")
     flavor_count: Optional[int] = Field(default=None, title="Intermediates", description="Size of the intermediate candidate pool when matching image features to descriptive tags. Higher values may improve quality but are slower.")
     num_beams: Optional[int] = Field(default=None, title="Num Beams", description="Number of beams for beam search during caption generation. Higher values search more possibilities but are slower.")
 
-InterrogateRequest = ReqInterrogate # alias for backwards compatibility
-
-class ResInterrogate(BaseModel):
-    """Response model for image interrogation results."""
+class ResCaption(BaseModel):
+    """Response model for image captioning results."""
     caption: Optional[str] = Field(default=None, title="Caption", description="Generated caption/prompt describing the image content and style.")
     medium: Optional[str] = Field(default=None, title="Medium", description="Detected artistic medium (e.g., 'oil painting', 'digital art', 'photograph'). Only returned when analyze=True.")
     artist: Optional[str] = Field(default=None, title="Artist", description="Detected similar artist style (e.g., 'by greg rutkowski'). Only returned when analyze=True.")
@@ -463,6 +461,109 @@ class ResTagger(BaseModel):
     """Response model for image tagging results."""
     tags: str = Field(title="Tags", description="Comma-separated list of detected tags")
     scores: Optional[dict] = Field(default=None, title="Scores", description="Tag confidence scores (when show_scores=True)")
+
+
+# =============================================================================
+# Caption Dispatch Models (Discriminated Union)
+# =============================================================================
+# These models support the unified /sdapi/v1/caption dispatch endpoint.
+# Users can also access backends directly via /openclip, /tagger, /vqa.
+
+class ReqCaptionOpenCLIP(BaseModel):
+    """OpenCLIP/BLIP caption request for the dispatch endpoint.
+
+    Generate Stable Diffusion prompts using CLIP for image-text matching and BLIP for captioning.
+    Best for: General image captioning, prompt generation, style analysis.
+    """
+    backend: Literal["openclip"] = Field(default="openclip", description="Backend selector. Use 'openclip' for CLIP/BLIP captioning.")
+    image: str = Field(default="", title="Image", description="Image to caption. Must be a Base64 encoded string containing the image data (PNG/JPEG).")
+    model: str = Field(default="ViT-L-14/openai", title="Model", description="OpenCLIP model to use. Get available models from GET /sdapi/v1/openclip.")
+    clip_model: str = Field(default="ViT-L-14/openai", title="CLIP Model", description="CLIP model used for image-text similarity matching. Larger models (ViT-L, ViT-H) are more accurate but slower.")
+    blip_model: str = Field(default="blip-large", title="Caption Model", description="BLIP model used to generate the initial image caption.")
+    mode: str = Field(default="best", title="Mode", description="Caption mode: 'best' (highest quality), 'fast' (quick), 'classic' (traditional), 'caption' (BLIP only), 'negative' (for negative prompts).")
+    analyze: bool = Field(default=False, title="Analyze", description="If True, returns detailed breakdown (medium, artist, movement, trending, flavor).")
+    min_length: Optional[int] = Field(default=None, title="Min Length", description="Minimum tokens in generated caption.")
+    max_length: Optional[int] = Field(default=None, title="Max Length", description="Maximum tokens in generated caption.")
+    chunk_size: Optional[int] = Field(default=None, title="Chunk Size", description="Batch size for processing flavors.")
+    min_flavors: Optional[int] = Field(default=None, title="Min Flavors", description="Minimum descriptive tags to keep.")
+    max_flavors: Optional[int] = Field(default=None, title="Max Flavors", description="Maximum descriptive tags to keep.")
+    flavor_count: Optional[int] = Field(default=None, title="Intermediates", description="Size of intermediate candidate pool.")
+    num_beams: Optional[int] = Field(default=None, title="Num Beams", description="Beams for beam search during caption generation.")
+
+
+class ReqCaptionTagger(BaseModel):
+    """Tagger request for the dispatch endpoint.
+
+    Generate anime/illustration tags using WaifuDiffusion or DeepBooru models.
+    Best for: Anime images, booru-style tagging, character identification.
+    """
+    backend: Literal["tagger"] = Field(..., description="Backend selector. Use 'tagger' for WaifuDiffusion/DeepBooru tagging.")
+    image: str = Field(default="", title="Image", description="Image to tag. Must be a Base64 encoded string.")
+    model: str = Field(default="wd-eva02-large-tagger-v3", title="Model", description="Tagger model. WaifuDiffusion (wd-*) or DeepBooru (deepbooru/deepdanbooru).")
+    threshold: float = Field(default=0.5, title="Threshold", description="Confidence threshold for general tags.", ge=0.0, le=1.0)
+    character_threshold: float = Field(default=0.85, title="Character Threshold", description="Confidence threshold for character tags (WaifuDiffusion only).", ge=0.0, le=1.0)
+    max_tags: int = Field(default=74, title="Max Tags", description="Maximum number of tags to return.", ge=1, le=512)
+    include_rating: bool = Field(default=False, title="Include Rating", description="Include content rating tags (safe/questionable/explicit).")
+    sort_alpha: bool = Field(default=False, title="Sort Alphabetically", description="Sort tags alphabetically instead of by confidence.")
+    use_spaces: bool = Field(default=False, title="Use Spaces", description="Replace underscores with spaces in tags.")
+    escape_brackets: bool = Field(default=True, title="Escape Brackets", description="Escape parentheses/brackets for prompt syntax.")
+    exclude_tags: str = Field(default="", title="Exclude Tags", description="Comma-separated tags to exclude from output.")
+    show_scores: bool = Field(default=False, title="Show Scores", description="Include confidence scores with tags.")
+
+
+class ReqCaptionVLM(BaseModel):
+    """Vision-Language Model request for the dispatch endpoint.
+
+    Flexible image understanding using modern VLMs (Qwen, Gemma, Florence, Moondream, etc.).
+    Best for: Detailed descriptions, question answering, object detection, OCR.
+    """
+    backend: Literal["vlm"] = Field(..., description="Backend selector. Use 'vlm' for Vision-Language Model captioning.")
+    image: str = Field(default="", title="Image", description="Image to caption. Must be a Base64 encoded string.")
+    model: str = Field(default="Alibaba Qwen 2.5 VL 3B", title="Model", description="VLM model to use. See GET /sdapi/v1/vqa/models for full list.")
+    question: str = Field(default="describe the image", title="Question/Task", description="Task to perform: 'Short Caption', 'Normal Caption', 'Long Caption', '<OD>' (detection), '<OCR>' (text), etc.")
+    prompt: Optional[str] = Field(default=None, title="Prompt", description="Custom prompt text when question is 'Use Prompt'.")
+    system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System Prompt", description="System prompt for LLM behavior.")
+    include_annotated: bool = Field(default=False, title="Include Annotated Image", description="Return annotated image for detection tasks.")
+    max_tokens: Optional[int] = Field(default=None, title="Max Tokens", description="Maximum tokens in response.")
+    temperature: Optional[float] = Field(default=None, title="Temperature", description="Randomness in token selection (0=deterministic, 0.9=creative).")
+    top_k: Optional[int] = Field(default=None, title="Top-K", description="Limit to K most likely tokens per step.")
+    top_p: Optional[float] = Field(default=None, title="Top-P", description="Nucleus sampling threshold.")
+    num_beams: Optional[int] = Field(default=None, title="Num Beams", description="Beam search width (1=disabled).")
+    do_sample: Optional[bool] = Field(default=None, title="Use Samplers", description="Enable sampling vs greedy decoding.")
+    thinking_mode: Optional[bool] = Field(default=None, title="Thinking Mode", description="Enable reasoning mode (supported models only).")
+    prefill: Optional[str] = Field(default=None, title="Prefill Text", description="Pre-fill response start to guide output.")
+    keep_thinking: Optional[bool] = Field(default=None, title="Keep Thinking Trace", description="Include reasoning in output.")
+    keep_prefill: Optional[bool] = Field(default=None, title="Keep Prefill", description="Keep prefill text in final output.")
+
+
+# Discriminated union for the dispatch endpoint
+ReqCaptionDispatch = Annotated[
+    Union[ReqCaptionOpenCLIP, ReqCaptionTagger, ReqCaptionVLM],
+    Field(discriminator="backend")
+]
+
+
+class ResCaptionDispatch(BaseModel):
+    """Unified response for the caption dispatch endpoint.
+
+    Contains fields from all backends - only relevant fields are populated based on the backend used.
+    """
+    # Common
+    backend: str = Field(title="Backend", description="The backend that processed the request: 'openclip', 'tagger', or 'vlm'.")
+    # OpenCLIP fields
+    caption: Optional[str] = Field(default=None, title="Caption", description="Generated caption (OpenCLIP backend).")
+    medium: Optional[str] = Field(default=None, title="Medium", description="Detected artistic medium (OpenCLIP with analyze=True).")
+    artist: Optional[str] = Field(default=None, title="Artist", description="Detected artist style (OpenCLIP with analyze=True).")
+    movement: Optional[str] = Field(default=None, title="Movement", description="Detected art movement (OpenCLIP with analyze=True).")
+    trending: Optional[str] = Field(default=None, title="Trending", description="Trending tags (OpenCLIP with analyze=True).")
+    flavor: Optional[str] = Field(default=None, title="Flavor", description="Flavor descriptors (OpenCLIP with analyze=True).")
+    # Tagger fields
+    tags: Optional[str] = Field(default=None, title="Tags", description="Comma-separated tags (Tagger backend).")
+    scores: Optional[dict] = Field(default=None, title="Scores", description="Tag confidence scores (Tagger with show_scores=True).")
+    # VLM fields
+    answer: Optional[str] = Field(default=None, title="Answer", description="VLM response (VLM backend).")
+    annotated_image: Optional[str] = Field(default=None, title="Annotated Image", description="Base64 annotated image (VLM with include_annotated=True).")
+
 
 class ResTrain(BaseModel):
     info: str = Field(title="Train info", description="Response string from train embedding task.")

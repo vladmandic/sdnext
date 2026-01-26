@@ -71,28 +71,30 @@ def get_extra_networks(page: Optional[str] = None, name: Optional[str] = None, f
             })
     return res
 
-def get_interrogate():
+def get_caption():
     """
-    List available interrogation models.
+    List available OpenCLIP caption models.
 
-    Returns model identifiers for use with POST /sdapi/v1/interrogate.
+    Returns model identifiers for use with POST /sdapi/v1/openclip or POST /sdapi/v1/caption (with backend="openclip").
 
     **Model Types:**
     - OpenCLIP models: Format `architecture/pretrained_dataset` (e.g., `ViT-L-14/openai`)
-
-    For anime-style tagging (WaifuDiffusion, DeepBooru), use `/sdapi/v1/tagger` instead.
 
     **Example Response:**
     ```json
     ["ViT-L-14/openai", "ViT-H-14/laion2b_s32b_b79k"]
     ```
     """
-    from modules.interrogate.openclip import refresh_clip_models
+    from modules.caption.openclip import refresh_clip_models
     return refresh_clip_models()
 
-def post_interrogate(req: models.ReqInterrogate):
+
+def post_caption(req: models.ReqCaption):
     """
-    Interrogate an image using OpenCLIP/BLIP.
+    Caption an image using OpenCLIP/BLIP (direct endpoint).
+
+    This is the direct endpoint for OpenCLIP captioning. For a unified interface
+    that can dispatch to OpenCLIP, Tagger, or VLM, use POST /sdapi/v1/caption instead.
 
     Analyze image using CLIP model via OpenCLIP to generate Stable Diffusion prompts.
 
@@ -100,12 +102,10 @@ def post_interrogate(req: models.ReqInterrogate):
     - **Modes:**
       - `best`: Highest quality, combines multiple techniques
       - `fast`: Quick results with fewer iterations
-      - `classic`: Traditional CLIP interrogator style
+      - `classic`: Traditional CLIP captioner style
       - `caption`: BLIP caption only
       - `negative`: Generate negative prompt suggestions
     - Set `analyze=True` for detailed breakdown (medium, artist, movement, trending, flavor)
-
-    For anime/illustration tagging, use `/sdapi/v1/tagger` with WaifuDiffusion or DeepBooru models.
 
     **Error Codes:**
     - 404: Image not provided or model not found
@@ -114,7 +114,7 @@ def post_interrogate(req: models.ReqInterrogate):
         raise HTTPException(status_code=404, detail="Image not found")
     image = helpers.decode_base64_to_image(req.image)
     image = image.convert('RGB')
-    from modules.interrogate.openclip import interrogate_image, analyze_image, refresh_clip_models
+    from modules.caption.openclip import caption_image, analyze_image, refresh_clip_models
     if req.model not in refresh_clip_models():
         raise HTTPException(status_code=404, detail="Model not found")
     # Build clip overrides from request (only include non-None values)
@@ -134,11 +134,11 @@ def post_interrogate(req: models.ReqInterrogate):
     if req.num_beams is not None:
         clip_overrides['num_beams'] = req.num_beams
     try:
-        caption = interrogate_image(image, clip_model=req.clip_model, blip_model=req.blip_model, mode=req.mode, overrides=clip_overrides if clip_overrides else None)
+        caption = caption_image(image, clip_model=req.clip_model, blip_model=req.blip_model, mode=req.mode, overrides=clip_overrides if clip_overrides else None)
     except Exception as e:
         caption = str(e)
     if not req.analyze:
-        return models.ResInterrogate(caption=caption)
+        return models.ResCaption(caption=caption)
     analyze_results = analyze_image(image, clip_model=req.clip_model, blip_model=req.blip_model)
     # Extract top-ranked item from each Gradio update dict
     def get_top_item(result):
@@ -154,7 +154,8 @@ def post_interrogate(req: models.ReqInterrogate):
     movement = get_top_item(analyze_results[2])
     trending = get_top_item(analyze_results[3])
     flavor = get_top_item(analyze_results[4])
-    return models.ResInterrogate(caption=caption, medium=medium, artist=artist, movement=movement, trending=trending, flavor=flavor)
+    return models.ResCaption(caption=caption, medium=medium, artist=artist, movement=movement, trending=trending, flavor=flavor)
+
 
 def post_vqa(req: models.ReqVQA):
     """
@@ -216,8 +217,8 @@ def post_vqa(req: models.ReqVQA):
     if req.keep_prefill is not None:
         generation_kwargs['keep_prefill'] = req.keep_prefill
 
-    from modules.interrogate import vqa
-    answer = vqa.interrogate(
+    from modules.caption import vqa
+    answer = vqa.caption(
         question=req.question,
         system_prompt=req.system,
         prompt=req.prompt or '',
@@ -235,6 +236,201 @@ def post_vqa(req: models.ReqVQA):
             annotated_b64 = helpers.encode_pil_to_base64(annotated_img)
     return models.ResVQA(answer=answer, annotated_image=annotated_b64)
 
+
+def post_caption_dispatch(req: models.ReqCaptionDispatch):
+    """
+    Unified caption endpoint - dispatches to OpenCLIP, Tagger, or VLM backends.
+
+    This endpoint provides a single entry point for all captioning needs. Select the backend
+    using the `backend` field, then provide backend-specific parameters.
+
+    **Backends:**
+
+    1. **OpenCLIP** (`backend: "openclip"`):
+       - CLIP/BLIP-based captioning for Stable Diffusion prompts
+       - Modes: best, fast, classic, caption, negative
+       - Set `analyze=True` for style breakdown
+
+    2. **Tagger** (`backend: "tagger"`):
+       - WaifuDiffusion or DeepBooru anime/illustration tagging
+       - Returns comma-separated booru-style tags
+       - Configurable thresholds for general and character tags
+
+    3. **VLM** (`backend: "vlm"`):
+       - Vision-Language Models (Qwen, Gemma, Florence, Moondream, etc.)
+       - Flexible tasks: captioning, Q&A, object detection, OCR
+       - Supports thinking mode for reasoning models
+
+    **Direct Endpoints:**
+    For simpler requests, you can also use the direct endpoints:
+    - POST /sdapi/v1/openclip - OpenCLIP only
+    - POST /sdapi/v1/tagger - Tagger only
+    - POST /sdapi/v1/vqa - VLM only
+    """
+    if req.backend == "openclip":
+        return _dispatch_openclip(req)
+    elif req.backend == "tagger":
+        return _dispatch_tagger(req)
+    elif req.backend == "vlm":
+        return _dispatch_vlm(req)
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown backend: {req.backend}")
+
+
+def _dispatch_openclip(req: models.ReqCaptionOpenCLIP) -> models.ResCaptionDispatch:
+    """Handle OpenCLIP dispatch."""
+    if req.image is None or len(req.image) < 64:
+        raise HTTPException(status_code=404, detail="Image not found")
+    image = helpers.decode_base64_to_image(req.image)
+    image = image.convert('RGB')
+    from modules.caption.openclip import caption_image, analyze_image, refresh_clip_models
+    if req.model not in refresh_clip_models():
+        raise HTTPException(status_code=404, detail="Model not found")
+    # Build clip overrides from request
+    clip_overrides = {}
+    if req.min_length is not None:
+        clip_overrides['min_length'] = req.min_length
+    if req.max_length is not None:
+        clip_overrides['max_length'] = req.max_length
+    if req.chunk_size is not None:
+        clip_overrides['chunk_size'] = req.chunk_size
+    if req.min_flavors is not None:
+        clip_overrides['min_flavors'] = req.min_flavors
+    if req.max_flavors is not None:
+        clip_overrides['max_flavors'] = req.max_flavors
+    if req.flavor_count is not None:
+        clip_overrides['flavor_count'] = req.flavor_count
+    if req.num_beams is not None:
+        clip_overrides['num_beams'] = req.num_beams
+    try:
+        caption = caption_image(image, clip_model=req.clip_model, blip_model=req.blip_model, mode=req.mode, overrides=clip_overrides if clip_overrides else None)
+    except Exception as e:
+        caption = str(e)
+    if not req.analyze:
+        return models.ResCaptionDispatch(backend="openclip", caption=caption)
+    analyze_results = analyze_image(image, clip_model=req.clip_model, blip_model=req.blip_model)
+    # Extract top-ranked item from each Gradio update dict
+    def get_top_item(result):
+        if isinstance(result, dict) and 'value' in result:
+            value = result['value']
+            if isinstance(value, dict) and value:
+                return next(iter(value.keys()))
+            if isinstance(value, str):
+                return value
+        return None
+    medium = get_top_item(analyze_results[0])
+    artist = get_top_item(analyze_results[1])
+    movement = get_top_item(analyze_results[2])
+    trending = get_top_item(analyze_results[3])
+    flavor = get_top_item(analyze_results[4])
+    return models.ResCaptionDispatch(backend="openclip", caption=caption, medium=medium, artist=artist, movement=movement, trending=trending, flavor=flavor)
+
+
+def _dispatch_tagger(req: models.ReqCaptionTagger) -> models.ResCaptionDispatch:
+    """Handle Tagger dispatch."""
+    if req.image is None or len(req.image) < 64:
+        raise HTTPException(status_code=404, detail="Image not found")
+    image = helpers.decode_base64_to_image(req.image)
+    image = image.convert('RGB')
+    from modules.caption import tagger
+    is_deepbooru = req.model.lower() in ('deepbooru', 'deepdanbooru')
+    # Store original settings
+    original_opts = {
+        'tagger_threshold': shared.opts.tagger_threshold,
+        'tagger_max_tags': shared.opts.tagger_max_tags,
+        'tagger_include_rating': shared.opts.tagger_include_rating,
+        'tagger_sort_alpha': shared.opts.tagger_sort_alpha,
+        'tagger_use_spaces': shared.opts.tagger_use_spaces,
+        'tagger_escape_brackets': shared.opts.tagger_escape_brackets,
+        'tagger_exclude_tags': shared.opts.tagger_exclude_tags,
+        'tagger_show_scores': shared.opts.tagger_show_scores,
+    }
+    if not is_deepbooru:
+        original_opts['waifudiffusion_character_threshold'] = shared.opts.waifudiffusion_character_threshold
+        original_opts['waifudiffusion_model'] = shared.opts.waifudiffusion_model
+    try:
+        shared.opts.tagger_threshold = req.threshold
+        shared.opts.tagger_max_tags = req.max_tags
+        shared.opts.tagger_include_rating = req.include_rating
+        shared.opts.tagger_sort_alpha = req.sort_alpha
+        shared.opts.tagger_use_spaces = req.use_spaces
+        shared.opts.tagger_escape_brackets = req.escape_brackets
+        shared.opts.tagger_exclude_tags = req.exclude_tags
+        shared.opts.tagger_show_scores = req.show_scores
+        if not is_deepbooru:
+            shared.opts.waifudiffusion_character_threshold = req.character_threshold
+            shared.opts.waifudiffusion_model = req.model
+        tags = tagger.tag(image, model_name='DeepBooru' if is_deepbooru else None)
+        # Parse scores if requested
+        scores = None
+        if req.show_scores:
+            scores = {}
+            for item in tags.split(', '):
+                item = item.strip()
+                if item.startswith('(') and item.endswith(')') and ':' in item:
+                    inner = item[1:-1]
+                    tag, score_str = inner.rsplit(':', 1)
+                    try:
+                        scores[tag.strip()] = float(score_str.strip())
+                    except ValueError:
+                        pass
+                elif ':' in item:
+                    tag, score_str = item.rsplit(':', 1)
+                    try:
+                        scores[tag.strip()] = float(score_str.strip())
+                    except ValueError:
+                        pass
+            if not scores:
+                scores = None
+        return models.ResCaptionDispatch(backend="tagger", tags=tags, scores=scores)
+    finally:
+        for key, value in original_opts.items():
+            setattr(shared.opts, key, value)
+
+
+def _dispatch_vlm(req: models.ReqCaptionVLM) -> models.ResCaptionDispatch:
+    """Handle VLM dispatch."""
+    if req.image is None or len(req.image) < 64:
+        raise HTTPException(status_code=404, detail="Image not found")
+    image = helpers.decode_base64_to_image(req.image)
+    image = image.convert('RGB')
+    # Build generation kwargs
+    generation_kwargs = {}
+    if req.max_tokens is not None:
+        generation_kwargs['max_tokens'] = req.max_tokens
+    if req.temperature is not None:
+        generation_kwargs['temperature'] = req.temperature
+    if req.top_k is not None:
+        generation_kwargs['top_k'] = req.top_k
+    if req.top_p is not None:
+        generation_kwargs['top_p'] = req.top_p
+    if req.num_beams is not None:
+        generation_kwargs['num_beams'] = req.num_beams
+    if req.do_sample is not None:
+        generation_kwargs['do_sample'] = req.do_sample
+    if req.keep_thinking is not None:
+        generation_kwargs['keep_thinking'] = req.keep_thinking
+    if req.keep_prefill is not None:
+        generation_kwargs['keep_prefill'] = req.keep_prefill
+    from modules.caption import vqa
+    answer = vqa.caption(
+        question=req.question,
+        system_prompt=req.system,
+        prompt=req.prompt or '',
+        image=image,
+        model_name=req.model,
+        prefill=req.prefill,
+        thinking_mode=req.thinking_mode,
+        generation_kwargs=generation_kwargs if generation_kwargs else None
+    )
+    annotated_b64 = None
+    if req.include_annotated:
+        annotated_img = vqa.get_last_annotated_image()
+        if annotated_img is not None:
+            annotated_b64 = helpers.encode_pil_to_base64(annotated_img)
+    return models.ResCaptionDispatch(backend="vlm", answer=answer, annotated_image=annotated_b64)
+
+
 def get_vqa_models():
     """
     List available VLM models for captioning.
@@ -247,7 +443,7 @@ def get_vqa_models():
     - `prompts`: Available prompts/tasks
     - `capabilities`: Model features (caption, vqa, detection, ocr, thinking)
     """
-    from modules.interrogate import vqa
+    from modules.caption import vqa
     models_list = []
     for name, repo in vqa.vlm_models.items():
         prompts = vqa.get_prompts_for_model(name)
@@ -280,7 +476,7 @@ def get_vqa_prompts(model: Optional[str] = None):
     - Florence: Phrase Grounding, Object Detection, OCR, Dense Region Caption
     - Moondream: Point at..., Detect all..., Detect Gaze
     """
-    from modules.interrogate import vqa
+    from modules.caption import vqa
     if model:
         prompts = vqa.get_prompts_for_model(model)
         return {"available": prompts}
@@ -304,7 +500,7 @@ def get_tagger_models():
     **DeepBooru:**
     - Legacy tagger for anime images
     """
-    from modules.interrogate import waifudiffusion
+    from modules.caption import waifudiffusion
     models_list = []
     # Add WaifuDiffusion models
     for name in waifudiffusion.get_models():
@@ -334,7 +530,7 @@ def post_tagger(req: models.ReqTagger):
         raise HTTPException(status_code=404, detail="Image not found")
     image = helpers.decode_base64_to_image(req.image)
     image = image.convert('RGB')
-    from modules.interrogate import tagger
+    from modules.caption import tagger
     # Determine if using DeepBooru
     is_deepbooru = req.model.lower() in ('deepbooru', 'deepdanbooru')
     # Store original settings and apply request settings
