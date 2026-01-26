@@ -11,10 +11,6 @@ const monitoredOpts = [
   { sd_backend: () => gradioApp().getElementById('refresh_sd_model_checkpoint')?.click() },
 ];
 
-function monitorOption(option, callback) {
-  monitoredOpts.push({ [option]: callback });
-}
-
 const AppyOpts = [
   { compact_view: (val, old) => toggleCompact(val, old) },
   { gradio_theme: (val, old) => setTheme(val, old) },

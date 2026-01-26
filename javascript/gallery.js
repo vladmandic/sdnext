@@ -21,7 +21,7 @@ const el = {
   search: undefined,
   status: undefined,
   btnSend: undefined,
-  clearCache: undefined,
+  clearCacheFolder: undefined,
 };
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
@@ -1022,30 +1022,39 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
   });
 }
 
-function addCacheClearButton() { // Don't use async
-  const div = document.createElement('div');
-  div.style.cssText = 'margin-top: 1.5rem; margin-bottom: 0.5rem;';
-  const btn = document.createElement('button');
-  btn.style.cssText = 'margin: auto; display: block;';
-  btn.innerText = 'Clear Folder Thumbnails (double click/tap)';
-  btn.addEventListener('dblclick', () => {
-    if (!currentGalleryFolder) return;
-    const controller = resetController('Clearing thumbnails');
-    galleryHashes.clear();
-    galleryProgressBar.clear();
-    resetGallerySelection();
-    el.files.innerHTML = '';
-    thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
-  });
-  div.append(btn);
-  el.files.insertAdjacentElement('afterend', div);
-  el.clearCache = div;
+function clearGalleryFolderCache(evt) {
+  evt.preventDefault();
+  evt.stopPropagation();
+  if (!currentGalleryFolder) return;
+  el.clearCacheFolder.style.color = 'var(--color-green)';
+  setTimeout(() => {
+    el.clearCacheFolder.style.color = 'var(--color-blue)';
+  }, 1000);
+  const controller = resetController('Clearing thumbnails');
+  galleryHashes.clear();
+  galleryProgressBar.clear();
+  resetGallerySelection();
+  el.files.innerHTML = '';
+  thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
 }
 
-async function updateGalleryAdvDisplay(newval, oldval = undefined) {
-  if (el.clearCache) {
-    el.clearCache.style.display = newval ? 'block' : 'none';
+function addCacheClearLabel() { // Don't use async
+  const setting = document.querySelector('#setting_browser_cache');
+  if (setting) {
+    const div = document.createElement('div');
+    div.style.marginBlock = '0.75rem';
+
+    const span = document.createElement('span');
+    span.style.cssText = 'font-weight:bold; text-decoration:underline; cursor:pointer; color:var(--color-blue); user-select: none;';
+    span.innerText = '<select a folder first>';
+    span.addEventListener('dblclick', clearGalleryFolderCache);
+
+    div.append('Clear the thumbnail cache for: ', span, ' (double-click)');
+    setting.parentElement.insertAdjacentElement('afterend', div);
+    el.clearCacheFolder = span;
+    return true;
   }
+  return false;
 }
 
 async function fetchFilesHT(evt, controller) {
@@ -1104,10 +1113,9 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   }
   log(`gallery: connected=${wsConnected} state=${ws?.readyState} url=${ws?.url}`);
   currentGalleryFolder = evt.target.name;
-  if (!el.clearCache) {
-    addCacheClearButton();
+  if (el.clearCacheFolder) {
+    el.clearCacheFolder.innerText = currentGalleryFolder;
   }
-  updateGalleryAdvDisplay(opts.browser_gallery_advanced);
   if (!wsConnected) {
     await fetchFilesHT(evt, controller); // fallback to http
     return;
@@ -1234,8 +1242,16 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   });
   intersectionObserver.observe(el.folders);
   monitorGalleries();
-  monitorOption('browser_gallery_advanced', updateGalleryAdvDisplay);
 }
+
+// Add additional settings info once available
+
+let galleryClearInitTimeout = 0;
+const tryAddCacheLabel = setInterval(() => {
+  if (addCacheClearLabel() || ++galleryClearInitTimeout === 60) {
+    clearInterval(tryAddCacheLabel);
+  }
+}, 1000);
 
 // register on startup
 
