@@ -36,16 +36,6 @@
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 4.5"
   },
-  "Z-Image-Turbo": {
-    "path": "Tongyi-MAI/Z-Image-Turbo",
-    "preview": "Tongyi-MAI--Z-Image-Turbo.jpg",
-    "desc": "Z-Image-Turbo, a distilled version of Z-Image that matches or exceeds leading competitors with only 8 NFEs (Number of Function Evaluations). It excels in photorealistic image generation, bilingual text rendering (English & Chinese), and robust instruction adherence.",
-    "tags": "distilled",
-    "skip": true,
-    "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
-    "size": 20.3,
-    "date": "2025 November"
-  },
   "Qwen-Image-Lightning": {
     "path": "vladmandic/Qwen-Lightning",
     "preview": "vladmandic--Qwen-Lightning.jpg",
