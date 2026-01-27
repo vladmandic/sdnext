@@ -150,9 +150,8 @@
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 4.0, steps: 50",
     "size": 20.3,
-    "date": "2025 November"
+    "date": "2026 January"
   },
-
   "Z-Image-Turbo": {
     "path": "Tongyi-MAI/Z-Image-Turbo",
     "preview": "Tongyi-MAI--Z-Image-Turbo.jpg",
