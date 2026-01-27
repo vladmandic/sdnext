@@ -2,16 +2,20 @@
 
 ## Todo
 
-- upstream `torch/rocm` slowdown
-- update `rocm/windows`
+- **rocm/linux**: update to `torch==2.10.0`  
+- **rocm/windows**: update to `torch==2.10.0`  
 
-## Update for 2026-01-25
+## Update for 2026-01-27
 
 - **Features**
   - **caption** tab support for Booru tagger models, thanks @CalamitousFelicitousness  
   - add SmilingWolf WD14/WaifuDiffusion tagger models, thanks @CalamitousFelicitousness  
   - support comments in wildcard files, using `#`  
   - support aliases in metadata skip params, thanks @CalamitousFelicitousness  
+  - ui gallery add manual cache cleanup, thanks @awsr  
+- **Schedulers**  
+  - add *CogXDDIM, DDIMParallel, DDPMParallel*  
+    not originally intended to be a general purpose schedulers, but they work quite nicely and produce good results  
 - **Internal**
   - tagged release history: <https://github.com/vladmandic/sdnext/tags>  
     each major for the past year is now tagged for easier reference  
@@ -20,7 +24,6 @@
     **cuda**: update to `torch==2.10.0`  
     **xpu**: update to `torch==2.10.0`  
     **openvino**: update to `torch==2.10.0` and `openvino==2025.4.1`  
-    **rocm/linux**: update to `torch==2.10.0`  
   - relocate all json data files to `data/` folder  
     existing data files are auto-migrated on startup  
   - further work on type consistency and type checking, thanks @awsr  

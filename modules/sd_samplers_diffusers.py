@@ -37,13 +37,17 @@ try:
         PNDMScheduler,
         SASolverScheduler,
         UniPCMultistepScheduler,
+        CogVideoXDDIMScheduler,
+        DDIMParallelScheduler,
+        DDPMParallelScheduler,
+        TCDScheduler,
     )
 except Exception as e:
     shared.log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
         errors.display(e, 'Samplers')
 try:
-    from modules.schedulers.scheduler_tcd import TCDScheduler # pylint: disable=ungrouped-imports
+    # from modules.schedulers.scheduler_tcd import TCDScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_tdd import TDDScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_dc import DCSolverMultistepScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_vdm import VDMScheduler # pylint: disable=ungrouped-imports
@@ -117,6 +121,9 @@ config = {
     'KDPM2': { 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_beta_sigmas': False, 'steps_offset': 0, 'timestep_spacing': 'linspace' },
     'KDPM2 a': { 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_beta_sigmas': False, 'steps_offset': 0, 'timestep_spacing': 'linspace' },
     'CMSI': { },
+    'CogX DDIM': { 'beta_schedule': "scaled_linear", 'beta_start': 0.00085, 'beta_end': 0.012, 'set_alpha_to_one': True, 'rescale_betas_zero_snr': False },
+    'DDIM Parallel': {},
+    'DDPM Parallel': {},
 }
 
 samplers_data_diffusers = [
@@ -160,23 +167,26 @@ samplers_data_diffusers = [
     SamplerData('DEIS', lambda model: DiffusionSampler('DEIS', DEISMultistepScheduler, model), [], {}),
     SamplerData('SA Solver', lambda model: DiffusionSampler('SA Solver', SASolverScheduler, model), [], {}),
     SamplerData('DC Solver', lambda model: DiffusionSampler('DC Solver', DCSolverMultistepScheduler, model), [], {}),
-    SamplerData('VDM Solver', lambda model: DiffusionSampler('VDM Solver', VDMScheduler, model), [], {}),
-    SamplerData('BDIA DDIM', lambda model: DiffusionSampler('BDIA DDIM g=0', BDIA_DDIMScheduler, model), [], {}),
 
+    SamplerData('DDPM', lambda model: DiffusionSampler('DDPM', DDPMScheduler, model), [], {}),
+    SamplerData('DDPM Parallel', lambda model: DiffusionSampler('DDPM Parallel', DDPMParallelScheduler, model), [], {}),
+    SamplerData('DDIM Parallel', lambda model: DiffusionSampler('DDIM Parallel', DDIMParallelScheduler, model), [], {}),
     SamplerData('PNDM', lambda model: DiffusionSampler('PNDM', PNDMScheduler, model), [], {}),
     SamplerData('IPNDM', lambda model: DiffusionSampler('IPNDM', IPNDMScheduler, model), [], {}),
-    SamplerData('DDPM', lambda model: DiffusionSampler('DDPM', DDPMScheduler, model), [], {}),
     SamplerData('LMSD', lambda model: DiffusionSampler('LMSD', LMSDiscreteScheduler, model), [], {}),
     SamplerData('KDPM2', lambda model: DiffusionSampler('KDPM2', KDPM2DiscreteScheduler, model), [], {}),
     SamplerData('KDPM2 a', lambda model: DiffusionSampler('KDPM2 a', KDPM2AncestralDiscreteScheduler, model), [], {}),
     SamplerData('CMSI', lambda model: DiffusionSampler('CMSI', CMStochasticIterativeScheduler, model), [], {}),
 
+    SamplerData('VDM Solver', lambda model: DiffusionSampler('VDM Solver', VDMScheduler, model), [], {}),
+    SamplerData('BDIA DDIM', lambda model: DiffusionSampler('BDIA DDIM g=0', BDIA_DDIMScheduler, model), [], {}),
     SamplerData('LCM', lambda model: DiffusionSampler('LCM', LCMScheduler, model), [], {}),
     SamplerData('LCM FlowMatch', lambda model: DiffusionSampler('LCM FlowMatch', FlowMatchLCMScheduler, model), [], {}),
     SamplerData('TCD', lambda model: DiffusionSampler('TCD', TCDScheduler, model), [], {}),
     SamplerData('TDD', lambda model: DiffusionSampler('TDD', TDDScheduler, model), [], {}),
     SamplerData('PeRFlow', lambda model: DiffusionSampler('PeRFlow', PeRFlowScheduler, model), [], {}),
     SamplerData('UFOGen', lambda model: DiffusionSampler('UFOGen', UFOGenScheduler, model), [], {}),
+    SamplerData('CogX DDIM', lambda model: DiffusionSampler('CogX DDIM', CogVideoXDDIMScheduler, model), [], {}),
 
     SamplerData('Same as primary', None, [], {}),
 ]
