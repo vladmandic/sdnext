@@ -267,6 +267,14 @@ class SimpleFunctionQueue {
     this.#queue = [];
   }
 
+  static abortHandler(identifier, result) {
+    if (typeof result === 'string' || (result instanceof DOMException && result.name === 'AbortError')) {
+      log(identifier, result?.message || result);
+    } else {
+      error(identifier, result.message);
+    }
+  }
+
   /**
    * @param {{
    *  signal: AbortSignal,
@@ -1004,11 +1012,7 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
           log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
         })
         .catch((reason) => {
-          if (typeof reason === 'string' || (reason instanceof DOMException && reason.name === 'AbortError')) {
-            log('Thumbnail DB cleanup:', reason?.message || reason);
-          } else {
-            error('Thumbnail DB cleanup:', reason.message);
-          }
+          SimpleFunctionQueue.abortHandler('Thumbnail DB cleanup:', reason);
         })
         .finally(async () => {
           await new Promise((resolve) => { setTimeout(resolve, 1000); }); // Delay removal by 1 second to ensure at least minimum visibility
