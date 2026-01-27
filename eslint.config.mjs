@@ -53,6 +53,7 @@ const jsConfig = defineConfig([
         generateForever: 'readonly',
         showContributors: 'readonly',
         opts: 'writable',
+        monitorOption: 'readonly',
         sortUIElements: 'readonly',
         all_gallery_buttons: 'readonly',
         selected_gallery_button: 'readonly',
