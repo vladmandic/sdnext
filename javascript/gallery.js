@@ -26,13 +26,6 @@ const el = {
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
-function resetController(reason) {
-  maintenanceController.abort(reason);
-  const controller = new AbortController();
-  maintenanceController = controller;
-  return controller;
-}
-
 function getVisibleGalleryFiles() {
   if (!el.files) return [];
   return Array.from(el.files.children).filter((node) => node.name && node.offsetParent);
@@ -1022,6 +1015,17 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
   });
 }
 
+function resetGalleryState(reason) {
+  maintenanceController.abort(reason);
+  const controller = new AbortController();
+  maintenanceController = controller;
+
+  galleryHashes.clear(); // Must happen AFTER the AbortController steps
+  galleryProgressBar.clear();
+  resetGallerySelection();
+  return controller;
+}
+
 function folderCleanupRunner(evt) {
   evt.preventDefault();
   evt.stopPropagation();
@@ -1030,10 +1034,7 @@ function folderCleanupRunner(evt) {
   setTimeout(() => {
     el.clearCacheFolder.style.color = 'var(--color-blue)';
   }, 1000);
-  const controller = resetController('Clearing thumbnails');
-  galleryHashes.clear();
-  galleryProgressBar.clear();
-  resetGallerySelection();
+  const controller = resetGalleryState('Clearing folder thumbnails cache');
   el.files.innerHTML = '';
   thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
 }
@@ -1095,10 +1096,7 @@ async function fetchFilesHT(evt, controller) {
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   if (!url) return;
   // Abort previous controller and point to new controller for next time
-  const controller = resetController('Gallery update'); // Called here because fetchFilesHT isn't called directly
-  galleryHashes.clear(); // Must happen AFTER the AbortController steps
-  galleryProgressBar.clear();
-  resetGallerySelection();
+  const controller = resetGalleryState('Gallery update'); // Called here because fetchFilesHT isn't called directly
 
   el.files.innerHTML = '';
   updateGalleryStyles();
