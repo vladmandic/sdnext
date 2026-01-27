@@ -1022,7 +1022,7 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
   });
 }
 
-function clearGalleryFolderCache(evt) {
+function folderCleanupRunner(evt) {
   evt.preventDefault();
   evt.stopPropagation();
   if (!currentGalleryFolder) return;
@@ -1045,9 +1045,9 @@ function addCacheClearLabel() { // Don't use async
     div.style.marginBlock = '0.75rem';
 
     const span = document.createElement('span');
-    span.style.cssText = 'font-weight:bold; text-decoration:underline; cursor:pointer; color:var(--color-blue); user-select: none;';
+    span.style.cssText = 'font-weight: bold; text-decoration: underline; cursor: pointer; color: var(--color-blue); user-select: none;';
     span.innerText = '<select a folder first>';
-    span.addEventListener('dblclick', clearGalleryFolderCache);
+    span.addEventListener('dblclick', folderCleanupRunner);
 
     div.append('Clear the thumbnail cache for: ', span, ' (double-click)');
     setting.parentElement.insertAdjacentElement('afterend', div);
@@ -1244,12 +1244,12 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   monitorGalleries();
 }
 
-// Add additional settings info once available
+// Additional settings handling
 
 let galleryClearInitTimeout = 0;
-const tryAddCacheLabel = setInterval(() => {
+const tryCleanupInit = setInterval(() => {
   if (addCacheClearLabel() || ++galleryClearInitTimeout === 60) {
-    clearInterval(tryAddCacheLabel);
+    clearInterval(tryCleanupInit);
   }
 }, 1000);
 
