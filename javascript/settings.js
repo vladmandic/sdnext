@@ -25,17 +25,15 @@ async function updateOpts(json_string) {
 
   const t1 = performance.now();
   for (const op of monitoredOpts) {
-    const key = Object.keys(op)[0];
-    const callback = op[key];
-    if (opts[key] && opts[key] !== settings_data.values[key]) {
-      log('updateOpt', key, opts[key], settings_data.values[key]);
+    const [key, callback] = Object.entries(op)[0];
+    if (Object.hasOwn(opts, key) && opts[key] !== new_opts[key]) {
+      log('updateOpt', key, opts[key], new_opts[key]);
       if (callback) callback(new_opts[key], opts[key]);
     }
   }
 
   for (const op of AppyOpts) {
-    const key = Object.keys(op)[0];
-    const callback = op[key];
+    const [key, callback] = Object.entries(op)[0];
     if (callback) callback(new_opts[key], opts[key]);
   }
 

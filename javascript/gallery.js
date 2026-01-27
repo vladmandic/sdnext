@@ -2,6 +2,7 @@
 let ws;
 let url;
 let currentImage = null;
+let currentGalleryFolder = null;
 let pruneImagesTimer;
 let outstanding = 0;
 let lastSort = 0;
@@ -20,9 +21,17 @@ const el = {
   search: undefined,
   status: undefined,
   btnSend: undefined,
+  clearCacheFolder: undefined,
 };
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
+
+function resetController(reason) {
+  maintenanceController.abort(reason);
+  const controller = new AbortController();
+  maintenanceController = controller;
+  return controller;
+}
 
 function getVisibleGalleryFiles() {
   if (!el.files) return [];
@@ -952,9 +961,10 @@ const maintenanceQueue = new SimpleFunctionQueue('Maintenance');
  * @param {string} folder - Folder to clean
  * @param {number} imgCount - Expected number of images in gallery
  * @param {AbortController} controller - AbortController that's handling this task
+ * @param {boolean} force - Force full cleanup of the folder
  */
-async function thumbCacheCleanup(folder, imgCount, controller) {
-  if (!opts.browser_cache) return;
+async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
+  if (!opts.browser_cache && !force) return;
   try {
     if (typeof folder !== 'string' || typeof imgCount !== 'number') {
       throw new Error('Function called with invalid arguments');
@@ -971,14 +981,14 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
     callback: async () => {
       log(`Thumbnail DB cleanup: Checking if "${folder}" needs cleaning`);
       const t0 = performance.now();
-      const staticGalleryHashes = new Set(galleryHashes); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
+      const staticGalleryHashes = new Set(galleryHashes.values()); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
       const cachedHashesCount = await idbCount(folder)
         .catch((e) => {
           error(`Thumbnail DB cleanup: Error when getting entry count for "${folder}".`, e);
           return Infinity; // Forces next check to fail if something went wrong
         });
       const cleanupCount = cachedHashesCount - staticGalleryHashes.size;
-      if (cleanupCount < 500 || !Number.isFinite(cleanupCount)) {
+      if (!force && (cleanupCount < 500 || !Number.isFinite(cleanupCount))) {
         // Don't run when there aren't many excess entries
         return;
       }
@@ -1010,6 +1020,41 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
         });
     },
   });
+}
+
+function clearGalleryFolderCache(evt) {
+  evt.preventDefault();
+  evt.stopPropagation();
+  if (!currentGalleryFolder) return;
+  el.clearCacheFolder.style.color = 'var(--color-green)';
+  setTimeout(() => {
+    el.clearCacheFolder.style.color = 'var(--color-blue)';
+  }, 1000);
+  const controller = resetController('Clearing thumbnails');
+  galleryHashes.clear();
+  galleryProgressBar.clear();
+  resetGallerySelection();
+  el.files.innerHTML = '';
+  thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
+}
+
+function addCacheClearLabel() { // Don't use async
+  const setting = document.querySelector('#setting_browser_cache');
+  if (setting) {
+    const div = document.createElement('div');
+    div.style.marginBlock = '0.75rem';
+
+    const span = document.createElement('span');
+    span.style.cssText = 'font-weight:bold; text-decoration:underline; cursor:pointer; color:var(--color-blue); user-select: none;';
+    span.innerText = '<select a folder first>';
+    span.addEventListener('dblclick', clearGalleryFolderCache);
+
+    div.append('Clear the thumbnail cache for: ', span, ' (double-click)');
+    setting.parentElement.insertAdjacentElement('afterend', div);
+    el.clearCacheFolder = span;
+    return true;
+  }
+  return false;
 }
 
 async function fetchFilesHT(evt, controller) {
@@ -1049,9 +1094,8 @@ async function fetchFilesHT(evt, controller) {
 
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   if (!url) return;
-  const controller = new AbortController(); // Only called here because fetchFilesHT isn't called directly
-  maintenanceController.abort('Gallery update'); // Abort previous controller
-  maintenanceController = controller; // Point to new controller for next time
+  // Abort previous controller and point to new controller for next time
+  const controller = resetController('Gallery update'); // Called here because fetchFilesHT isn't called directly
   galleryHashes.clear(); // Must happen AFTER the AbortController steps
   galleryProgressBar.clear();
   resetGallerySelection();
@@ -1068,6 +1112,10 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     return;
   }
   log(`gallery: connected=${wsConnected} state=${ws?.readyState} url=${ws?.url}`);
+  currentGalleryFolder = evt.target.name;
+  if (el.clearCacheFolder) {
+    el.clearCacheFolder.innerText = currentGalleryFolder;
+  }
   if (!wsConnected) {
     await fetchFilesHT(evt, controller); // fallback to http
     return;
@@ -1195,6 +1243,15 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   intersectionObserver.observe(el.folders);
   monitorGalleries();
 }
+
+// Add additional settings info once available
+
+let galleryClearInitTimeout = 0;
+const tryAddCacheLabel = setInterval(() => {
+  if (addCacheClearLabel() || ++galleryClearInitTimeout === 60) {
+    clearInterval(tryAddCacheLabel);
+  }
+}, 1000);
 
 // register on startup
 
