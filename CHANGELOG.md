@@ -2,7 +2,6 @@
 
 ## Todo
 
-- **rocm/linux**: update to `torch==2.10.0`  
 - **rocm/windows**: update to `torch==2.10.0`  
 
 ## Update for 2026-01-27
@@ -23,6 +22,7 @@
     *note*: may cause slow first startup/generate  
     **cuda**: update to `torch==2.10.0`  
     **xpu**: update to `torch==2.10.0`  
+    **rocm/linux**: update to `torch==2.10.0`  
     **openvino**: update to `torch==2.10.0` and `openvino==2025.4.1`  
   - relocate all json data files to `data/` folder  
     existing data files are auto-migrated on startup  
