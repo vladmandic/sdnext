@@ -929,9 +929,10 @@ async function gallerySort(btn) {
 /**
  * Generate and display the overlay to announce cleanup is in progress.
  * @param {number} count - Number of entries being cleaned up
+ * @param {boolean} all - Indicate that all thumbnails are being cleared
  * @returns {ClearMsgCallback}
  */
-function showCleaningMsg(count) {
+function showCleaningMsg(count, all = false) {
   // Rendering performance isn't a priority since this doesn't run often
   const parent = el.folders.parentElement;
   const cleaningOverlay = document.createElement('div');
@@ -946,7 +947,7 @@ function showCleaningMsg(count) {
   msgText.style.cssText = 'font-size: 1.2em';
   msgInfo.style.cssText = 'font-size: 0.9em; text-align: center;';
   msgText.innerText = 'Thumbnail cleanup...';
-  msgInfo.innerText = `Found ${count} old entries`;
+  msgInfo.innerText = all ? 'Clearing all entries' : `Found ${count} old entries`;
   anim.classList.add('idbBusyAnim');
 
   msgDiv.append(msgText, msgInfo);
@@ -955,7 +956,7 @@ function showCleaningMsg(count) {
   return () => { cleaningOverlay.remove(); };
 }
 
-const maintenanceQueue = new SimpleFunctionQueue('Maintenance');
+const maintenanceQueue = new SimpleFunctionQueue('Gallery Maintenance');
 
 /**
  * Handles calling the cleanup function for the thumbnail cache
