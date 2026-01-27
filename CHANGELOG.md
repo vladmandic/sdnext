@@ -2,10 +2,14 @@
 
 ## Todo
 
+- **rocm/linux**: update to `torch==2.10.0`  
 - **rocm/windows**: update to `torch==2.10.0`  
 
 ## Update for 2026-01-27
 
+- **Models*
+  - [Tongyi-MAI Z-Image Base](https://tongyi-mai.github.io/Z-Image-blog/)  
+    yup, its finally here, the full base model of Z-Image Turbo  
 - **Features**
   - **caption** tab support for Booru tagger models, thanks @CalamitousFelicitousness  
   - add SmilingWolf WD14/WaifuDiffusion tagger models, thanks @CalamitousFelicitousness  
@@ -22,7 +26,7 @@
     *note*: may cause slow first startup/generate  
     **cuda**: update to `torch==2.10.0`  
     **xpu**: update to `torch==2.10.0`  
-    **rocm/linux**: update to `torch==2.10.0`  
+    **rocm**: update to `torch==2.10.0`  
     **openvino**: update to `torch==2.10.0` and `openvino==2025.4.1`  
   - relocate all json data files to `data/` folder  
     existing data files are auto-migrated on startup  
