@@ -1,13 +1,8 @@
 # Change Log for SD.Next
 
-## Todo
+## Update for 2026-01-28
 
-- **rocm/linux**: update to `torch==2.10.0`  
-- **rocm/windows**: update to `torch==2.10.0`  
-
-## Update for 2026-01-27
-
-- **Models*
+- **Models**
   - [Tongyi-MAI Z-Image Base](https://tongyi-mai.github.io/Z-Image-blog/)  
     yup, its finally here, the full base model of Z-Image Turbo  
 - **Features**
@@ -16,8 +11,11 @@
   - support comments in wildcard files, using `#`  
   - support aliases in metadata skip params, thanks @CalamitousFelicitousness  
   - ui gallery add manual cache cleanup, thanks @awsr  
-- **Schedulers**  
-  - add *CogXDDIM, DDIMParallel, DDPMParallel*  
+- **Schedulers**
+  - total of **34* new schedulers**!
+  - *ABNorsett (3), Lawson (3), ETD-RK (4), RES (8), DEIS (2), PEC (2), Sigma (5), Langevin (1), Flow (4)*  
+    inspired by [res4lyf](https://github.com/ClownsharkBatwing/RES4LYF) library and rewritten from scratch  
+  - *CogXDDIM, DDIMParallel, DDPMParallel*  
     not originally intended to be a general purpose schedulers, but they work quite nicely and produce good results  
 - **Internal**
   - tagged release history: <https://github.com/vladmandic/sdnext/tags>  
@@ -28,6 +26,7 @@
     **xpu**: update to `torch==2.10.0`  
     **rocm**: update to `torch==2.10.0`  
     **openvino**: update to `torch==2.10.0` and `openvino==2025.4.1`  
+  - rocm: set `MIOPEN_FIND_MODE=2` by default, thanks @crashingalexsan  
   - relocate all json data files to `data/` folder  
     existing data files are auto-migrated on startup  
   - further work on type consistency and type checking, thanks @awsr  

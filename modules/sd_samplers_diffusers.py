@@ -61,6 +61,28 @@ except Exception as e:
     shared.log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
         errors.display(e, 'Samplers')
+try:
+    from modules.res4lyf import (
+        ABNorsettScheduler,
+        CommonSigmaScheduler,
+        ETDRKScheduler,
+        LangevinDynamicsScheduler,
+        LawsonScheduler,
+        PECScheduler,
+        RESUnifiedScheduler,
+        RESSinglestepScheduler,
+        RESMultistepScheduler,
+        RESSinglestepSDEScheduler,
+        RiemannianFlowScheduler,
+        # RESMultistepSDEScheduler,
+        # BongTangentScheduler,
+        # SimpleExponentialScheduler,
+    )
+except Exception as e:
+    shared.log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
+    if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
+        errors.display(e, 'Samplers')
+
 
 config = {
     # beta_start, beta_end are typically per-scheduler, but we don't want them as they should be taken from the model itself as those are values model was trained on
@@ -124,6 +146,43 @@ config = {
     'CogX DDIM': { 'beta_schedule': "scaled_linear", 'beta_start': 0.00085, 'beta_end': 0.012, 'set_alpha_to_one': True, 'rescale_betas_zero_snr': False },
     'DDIM Parallel': {},
     'DDPM Parallel': {},
+
+    # res4lyf
+    'ABNorsett 2M': { 'variant': 'abnorsett_2m' },
+    'ABNorsett 3M': { 'variant': 'abnorsett_3m' },
+    'ABNorsett 4M': { 'variant': 'abnorsett_4m' },
+    'Lawson 2S A': { 'variant': 'lawson2a_2s' },
+    'Lawson 2S B': { 'variant': 'lawson2b_2s' },
+    'Lawson 4S': { 'variant': 'lawson4_4s' },
+    'ETD-RK 2S': { 'variant': 'etdrk2_2s' },
+    'ETD-RK 3S A': { 'variant': 'etdrk3_a_3s' },
+    'ETD-RK 3S B': { 'variant': 'etdrk3_b_3s' },
+    'ETD-RK 4S A': { 'variant': 'etdrk4_4s' },
+    'ETD-RK 4S B': { 'variant': 'etdrk4_4s_alt' },
+    'RES 2M Unified': { 'rk_type': 'res_2m' },
+    'RES 3M Unified': { 'rk_type': 'res_3m' },
+    'RES 2S Unified': { 'rk_type': 'res_2s' },
+    'RES 3S Unified': { 'rk_type': 'res_3s' },
+    'RES 2S Singlestep': { 'variant': 'res_2s' },
+    'RES 3S Singlestep': { 'variant': 'res_3s' },
+    'RES 2S Multistep': { 'variant': 'res_2m' },
+    'RES 3S Multistep': { 'variant': 'res_3m' },
+    'RES 2S SDE': { 'variant': 'res_2s' },
+    'RES 3S SDE': { 'variant': 'res_3s' },
+    'DEIS 1S': { 'rk_type': 'deis_1s' },
+    'DEIS 2M': { 'rk_type': 'deis_2m' },
+    'PEC 423': { 'variant': 'pec423_2h2s' },
+    'PEC 433': { 'variant': 'pec433_2h3s' },
+    'Sigmoid Sigma': { 'profile': 'sigmoid' },
+    'Sine Sigma': { 'profile': 'sine' },
+    'Easing Sigma': { 'profile': 'easing' },
+    'Arcsine Sigma': { 'profile': 'arcsine' },
+    'Smoothstep Sigma': { 'profile': 'smoothstep' },
+    'Langevin Dynamics': { },
+    'Euclidean Flow': { 'metric_type': 'euclidean' },
+    'Hyperbolic Flow': { 'metric_type': 'hyperbolic' },
+    'Spherical Flow': { 'metric_type': 'spherical' },
+    'Lorentzian Flow': { 'metric_type': 'lorentzian' },
 }
 
 samplers_data_diffusers = [
@@ -187,6 +246,42 @@ samplers_data_diffusers = [
     SamplerData('PeRFlow', lambda model: DiffusionSampler('PeRFlow', PeRFlowScheduler, model), [], {}),
     SamplerData('UFOGen', lambda model: DiffusionSampler('UFOGen', UFOGenScheduler, model), [], {}),
     SamplerData('CogX DDIM', lambda model: DiffusionSampler('CogX DDIM', CogVideoXDDIMScheduler, model), [], {}),
+
+    SamplerData('ABNorsett 2M', lambda model: DiffusionSampler('ABNorsett 2M', ABNorsettScheduler, model), [], {}),
+    SamplerData('ABNorsett 3M', lambda model: DiffusionSampler('ABNorsett 3M', ABNorsettScheduler, model), [], {}),
+    SamplerData('ABNorsett 4M', lambda model: DiffusionSampler('ABNorsett 4M', ABNorsettScheduler, model), [], {}),
+    SamplerData('Lawson 2S A', lambda model: DiffusionSampler('Lawson 2S A', LawsonScheduler, model), [], {}),
+    SamplerData('Lawson 2S B', lambda model: DiffusionSampler('Lawson 2S B', LawsonScheduler, model), [], {}),
+    SamplerData('Lawson 4S', lambda model: DiffusionSampler('Lawson 4S', LawsonScheduler, model), [], {}),
+    SamplerData('ETD-RK 2S', lambda model: DiffusionSampler('ETD-RK 2S', ETDRKScheduler, model), [], {}),
+    SamplerData('ETD-RK 3S A', lambda model: DiffusionSampler('ETD-RK 3S A', ETDRKScheduler, model), [], {}),
+    SamplerData('ETD-RK 3S B', lambda model: DiffusionSampler('ETD-RK 3S B', ETDRKScheduler, model), [], {}),
+    SamplerData('ETD-RK 4S A', lambda model: DiffusionSampler('ETD-RK 4S A', ETDRKScheduler, model), [], {}),
+    SamplerData('ETD-RK 4S B', lambda model: DiffusionSampler('ETD-RK 4S B', ETDRKScheduler, model), [], {}),
+    SamplerData('RES 2M Unified', lambda model: DiffusionSampler('RES 2M Unified', RESUnifiedScheduler, model), [], {}),
+    SamplerData('RES 3M Unified', lambda model: DiffusionSampler('RES 3M Unified', RESUnifiedScheduler, model), [], {}),
+    SamplerData('RES 2S Unified', lambda model: DiffusionSampler('RES 2S Unified', RESUnifiedScheduler, model), [], {}),
+    SamplerData('RES 3S Unified', lambda model: DiffusionSampler('RES 3S Unified', RESUnifiedScheduler, model), [], {}),
+    SamplerData('RES 2 Singlestep', lambda model: DiffusionSampler('RES 2S Singlestep', RESSinglestepScheduler, model), [], {}),
+    SamplerData('RES 3 Singlestep', lambda model: DiffusionSampler('RES 3S Singlestep', RESSinglestepScheduler, model), [], {}),
+    SamplerData('RES 2 Multistep', lambda model: DiffusionSampler('RES 2S Multistep', RESMultistepScheduler, model), [], {}),
+    SamplerData('RES 3 Multistep', lambda model: DiffusionSampler('RES 3S Multistep', RESMultistepScheduler, model), [], {}),
+    SamplerData('RES 2S SDE', lambda model: DiffusionSampler('RES 2S SDE', RESSinglestepSDEScheduler, model), [], {}),
+    SamplerData('RES 3S SDE', lambda model: DiffusionSampler('RES 3S SDE', RESSinglestepSDEScheduler, model), [], {}),
+    SamplerData('DEIS 1S', lambda model: DiffusionSampler('DEIS 1S', RESUnifiedScheduler, model), [], {}),
+    SamplerData('DEIS 2M', lambda model: DiffusionSampler('DEIS 2M', RESUnifiedScheduler, model), [], {}),
+    SamplerData('PEC 423', lambda model: DiffusionSampler('PEC 423', PECScheduler, model), [], {}),
+    SamplerData('PEC 433', lambda model: DiffusionSampler('PEC 433', PECScheduler, model), [], {}),
+    SamplerData('Sigmoid Sigma', lambda model: DiffusionSampler('Sigmoid Sigma', CommonSigmaScheduler, model), [], {}),
+    SamplerData('Sine Sigma', lambda model: DiffusionSampler('Sine Sigma', CommonSigmaScheduler, model), [], {}),
+    SamplerData('Easing Sigma', lambda model: DiffusionSampler('Easing Sigma', CommonSigmaScheduler, model), [], {}),
+    SamplerData('Arcsine Sigma', lambda model: DiffusionSampler('Arcsine Sigma', CommonSigmaScheduler, model), [], {}),
+    SamplerData('Smoothstep Sigma', lambda model: DiffusionSampler('Smoothstep Sigma', CommonSigmaScheduler, model), [], {}),
+    SamplerData('Langevin Dynamics', lambda model: DiffusionSampler('Langevin Dynamics', LangevinDynamicsScheduler, model), [], {}),
+    SamplerData('Euclidean Flow', lambda model: DiffusionSampler('Euclidean Flow', RiemannianFlowScheduler, model), [], {}),
+    SamplerData('Hyperbolic Flow', lambda model: DiffusionSampler('Hyperbolic Flow', RiemannianFlowScheduler, model), [], {}),
+    SamplerData('Spherical Flow', lambda model: DiffusionSampler('Spherical Flow', RiemannianFlowScheduler, model), [], {}),
+    SamplerData('Lorentzian Flow', lambda model: DiffusionSampler('Lorentzian Flow', RiemannianFlowScheduler, model), [], {}),
 
     SamplerData('Same as primary', None, [], {}),
 ]
