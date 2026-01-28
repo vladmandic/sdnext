@@ -10,6 +10,7 @@ from modules.sd_samplers_common import SamplerData, flow_models
 debug = os.environ.get('SD_SAMPLER_DEBUG', None) is not None
 debug_log = shared.log.trace if debug else lambda *args, **kwargs: None
 
+# Diffusers schedulers
 try:
     from diffusers import (
         CMStochasticIterativeScheduler,
@@ -46,6 +47,8 @@ except Exception as e:
     shared.log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
         errors.display(e, 'Samplers')
+
+# SD.Next Schedulers
 try:
     # from modules.schedulers.scheduler_tcd import TCDScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_tdd import TDDScheduler # pylint: disable=ungrouped-imports
@@ -61,6 +64,8 @@ except Exception as e:
     shared.log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
         errors.display(e, 'Samplers')
+
+# Res4Lyf Schedulers
 try:
     from modules.res4lyf import (
         ABNorsettScheduler,
@@ -74,6 +79,15 @@ try:
         RESMultistepScheduler,
         RESSinglestepSDEScheduler,
         RiemannianFlowScheduler,
+        DEISMultistepScheduler,
+        LinearRKScheduler,
+        LobattoScheduler,
+        RadauIIAScheduler,
+        GaussLegendreScheduler,
+        RungeKutta44Scheduler,
+        RungeKutta57Scheduler,
+        RungeKutta67Scheduler,
+        SpecializedRKScheduler,
         # RESMultistepSDEScheduler,
         # BongTangentScheduler,
         # SimpleExponentialScheduler,
@@ -169,6 +183,7 @@ config = {
     'RES 3S Multistep': { 'variant': 'res_3m' },
     'RES 2S SDE': { 'variant': 'res_2s' },
     'RES 3S SDE': { 'variant': 'res_3s' },
+    'DEIS Multistep': { 'order': 2 },
     'DEIS 1S': { 'rk_type': 'deis_1s' },
     'DEIS 2M': { 'rk_type': 'deis_2m' },
     'PEC 423': { 'variant': 'pec423_2h2s' },
@@ -183,6 +198,25 @@ config = {
     'Hyperbolic Flow': { 'metric_type': 'hyperbolic' },
     'Spherical Flow': { 'metric_type': 'spherical' },
     'Lorentzian Flow': { 'metric_type': 'lorentzian' },
+    'Linear-RK 2': { 'variant': 'rk2' },
+    'Linear-RK 3': { 'variant': 'rk3' },
+    'Linear-RK 4': { 'variant': 'rk4' },
+    'Linear-RK Euler': { 'variant': 'euler' },
+    'Linear-RK Heun': { 'variant': 'heun'},
+    'Linear-RK Ralston': { 'variant': 'ralston'},
+    'Lobatto 2': { 'variant': 'lobatto_iiia_2s' },
+    'Lobatto 3': { 'variant': 'lobatto_iiia_3s' },
+    'Lobatto 4': { 'variant': 'lobatto_iiia_4s' },
+    'Radau IIA 2': { 'variant': 'radau_iia_2s' },
+    'Radau IIA 3': { 'variant': 'radau_iia_3s' },
+    'Gauss-Legendre 2S': { 'variant': 'gauss-legendre_2s' },
+    'Gauss-Legendre 3S': { 'variant': 'gauss-legendre_3s' },
+    'Gauss-Legendre 4S': { 'variant': 'gauss-legendre_4s' },
+    'Runge-Kutta 4/4': { },
+    'Runge-Kutta 5/7': { },
+    'Runge-Kutta 6/7': { },
+    'Specialized-RK 3S': { 'variant': 'ssprk3_3s' },
+    'Specialized-RK 4S': { 'variant': 'ssprk4_4s' },
 }
 
 samplers_data_diffusers = [
@@ -268,6 +302,7 @@ samplers_data_diffusers = [
     SamplerData('RES 3 Multistep', lambda model: DiffusionSampler('RES 3S Multistep', RESMultistepScheduler, model), [], {}),
     SamplerData('RES 2S SDE', lambda model: DiffusionSampler('RES 2S SDE', RESSinglestepSDEScheduler, model), [], {}),
     SamplerData('RES 3S SDE', lambda model: DiffusionSampler('RES 3S SDE', RESSinglestepSDEScheduler, model), [], {}),
+    SamplerData('DEIS Multistep', lambda model: DiffusionSampler('DEIS Multistep', DEISMultistepScheduler, model), [], {}),
     SamplerData('DEIS 1S', lambda model: DiffusionSampler('DEIS 1S', RESUnifiedScheduler, model), [], {}),
     SamplerData('DEIS 2M', lambda model: DiffusionSampler('DEIS 2M', RESUnifiedScheduler, model), [], {}),
     SamplerData('PEC 423', lambda model: DiffusionSampler('PEC 423', PECScheduler, model), [], {}),
@@ -282,6 +317,26 @@ samplers_data_diffusers = [
     SamplerData('Hyperbolic Flow', lambda model: DiffusionSampler('Hyperbolic Flow', RiemannianFlowScheduler, model), [], {}),
     SamplerData('Spherical Flow', lambda model: DiffusionSampler('Spherical Flow', RiemannianFlowScheduler, model), [], {}),
     SamplerData('Lorentzian Flow', lambda model: DiffusionSampler('Lorentzian Flow', RiemannianFlowScheduler, model), [], {}),
+    SamplerData('Linear-RK 2', lambda model: DiffusionSampler('Linear-RK 2', LinearRKScheduler, model), [], {}),
+    SamplerData('Linear-RK 3', lambda model: DiffusionSampler('Linear-RK 3', LinearRKScheduler, model), [], {}),
+    SamplerData('Linear-RK 4', lambda model: DiffusionSampler('Linear-RK 4', LinearRKScheduler, model), [], {}),
+    SamplerData('Linear-RK Euler', lambda model: DiffusionSampler('Linear-RK Euler', LinearRKScheduler, model), [], {}),
+    SamplerData('Linear-RK Heun', lambda model: DiffusionSampler('Linear-RK Heun', LinearRKScheduler, model), [], {}),
+    SamplerData('Linear-RK Ralston', lambda model: DiffusionSampler('Linear-RK Ralston', LinearRKScheduler, model), [], {}),
+    SamplerData('Lobatto 2', lambda model: DiffusionSampler('Lobatto 2', LobattoScheduler, model), [], {}),
+    SamplerData('Lobatto 3', lambda model: DiffusionSampler('Lobatto 3', LobattoScheduler, model), [], {}),
+    SamplerData('Lobatto 4', lambda model: DiffusionSampler('Lobatto 4', LobattoScheduler, model), [], {}),
+    SamplerData('Radau IIA 2', lambda model: DiffusionSampler('Radau IIA 2', RadauIIAScheduler, model), [], {}),
+    SamplerData('Radau IIA 3', lambda model: DiffusionSampler('Radau IIA 2', RadauIIAScheduler, model), [], {}),
+    SamplerData('Radau IIA 4', lambda model: DiffusionSampler('Radau IIA 2', RadauIIAScheduler, model), [], {}),
+    SamplerData('Gauss-Legendre 2S', lambda model: DiffusionSampler('Gauss-Legendre 2S', GaussLegendreScheduler, model), [], {}),
+    SamplerData('Gauss-Legendre 3S', lambda model: DiffusionSampler('Gauss-Legendre 3S', GaussLegendreScheduler, model), [], {}),
+    SamplerData('Gauss-Legendre 4S', lambda model: DiffusionSampler('Gauss-Legendre 4S', GaussLegendreScheduler, model), [], {}),
+    SamplerData('Runge-Kutta 4/4', lambda model: DiffusionSampler('Runge-Kutta 4/4', RungeKutta44Scheduler, model), [], {}),
+    SamplerData('Runge-Kutta 5/7', lambda model: DiffusionSampler('Runge-Kutta 5/7', RungeKutta57Scheduler, model), [], {}),
+    SamplerData('Runge-Kutta 6/7', lambda model: DiffusionSampler('Runge-Kutta 6/7', RungeKutta67Scheduler, model), [], {}),
+    SamplerData('Specialized-RK 3S', lambda model: DiffusionSampler('Specialized-RK 3S', SpecializedRKScheduler, model), [], {}),
+    SamplerData('Specialized-RK 4S', lambda model: DiffusionSampler('Specialized-RK 4S', SpecializedRKScheduler, model), [], {}),
 
     SamplerData('Same as primary', None, [], {}),
 ]

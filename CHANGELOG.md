@@ -12,10 +12,15 @@
   - support aliases in metadata skip params, thanks @CalamitousFelicitousness  
   - ui gallery add manual cache cleanup, thanks @awsr  
 - **Schedulers**
-  - total of **34* new schedulers**!
-  - *ABNorsett (3), Lawson (3), ETD-RK (4), RES (8), DEIS (2), PEC (2), Sigma (5), Langevin (1), Flow (4)*  
-    inspired by [res4lyf](https://github.com/ClownsharkBatwing/RES4LYF) library and rewritten from scratch  
-  - *CogXDDIM, DDIMParallel, DDPMParallel*  
+  - schedulers documentation has new home: <https://vladmandic.github.io/sdnext-docs/Schedulers/>
+  - add 13(!) new scheduler families
+    not a port, but more of inspired-by [res4lyf](https://github.com/ClownsharkBatwing/RES4LYF) library  
+    *note*: each family may have multiple actual schedulers, so the list total is 56(!) new schedulers  
+    - core family: *RES*
+    - exponential: *DEIS, ETD, Lawson, ABNorsett*
+    - integrators: *Runge-Kutta, Linear-RK, Specialized-RK, Lobatto, Radau-IIA, Gauss-Legendre*
+    - flow: *PEC, Riemannian, Euclidean, Hyperbolic, Lorentzian, Langevin-Dynamics*
+  - add 3 additional schedulers: *CogXDDIM, DDIMParallel, DDPMParallel*  
     not originally intended to be a general purpose schedulers, but they work quite nicely and produce good results  
 - **Internal**
   - tagged release history: <https://github.com/vladmandic/sdnext/tags>  

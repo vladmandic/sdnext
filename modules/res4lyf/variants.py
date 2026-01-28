@@ -1,15 +1,19 @@
 from .abnorsett_scheduler import ABNorsettScheduler
 from .common_sigma_scheduler import CommonSigmaScheduler
+from .deis_scheduler_alt import DEISMultistepScheduler
 from .etdrk_scheduler import ETDRKScheduler
 from .lawson_scheduler import LawsonScheduler
+from .linear_rk_scheduler import LinearRKScheduler
+from .lobatto_scheduler import LobattoScheduler
 from .pec_scheduler import PECScheduler
-from .deis_scheduler_alt import DEISMultistepScheduler
+from .radau_iia_scheduler import RadauIIAScheduler
 from .res_multistep_scheduler import RESMultistepScheduler
 from .res_multistep_sde_scheduler import RESMultistepSDEScheduler
 from .res_singlestep_scheduler import RESSinglestepScheduler
 from .res_singlestep_sde_scheduler import RESSinglestepSDEScheduler
 from .res_unified_scheduler import RESUnifiedScheduler
 from .riemannian_flow_scheduler import RiemannianFlowScheduler
+from .gauss_legendre_scheduler import GaussLegendreScheduler
 
 # RES Unified Variants
 
@@ -18,55 +22,55 @@ from .riemannian_flow_scheduler import RiemannianFlowScheduler
     Supports DEIS 1S, 2M, 3M
 """
 
-class RESU2MScheduler(RESUnifiedScheduler):
+class RESUnified2MScheduler(RESUnifiedScheduler):
     def __init__(self, **kwargs):
         kwargs["rk_type"] = "res_2m"
         super().__init__(**kwargs)
 
 
-class RESU3MScheduler(RESUnifiedScheduler):
+class RESUnified3MScheduler(RESUnifiedScheduler):
     def __init__(self, **kwargs):
         kwargs["rk_type"] = "res_3m"
         super().__init__(**kwargs)
 
 
-class RESU2SScheduler(RESUnifiedScheduler):
+class RESUnified2SScheduler(RESUnifiedScheduler):
     def __init__(self, **kwargs):
         kwargs["rk_type"] = "res_2s"
         super().__init__(**kwargs)
 
 
-class RESU3SScheduler(RESUnifiedScheduler):
+class RESUnified3SScheduler(RESUnifiedScheduler):
     def __init__(self, **kwargs):
         kwargs["rk_type"] = "res_3s"
         super().__init__(**kwargs)
 
 
-class RESU5SScheduler(RESUnifiedScheduler):
+class RESUnified5SScheduler(RESUnifiedScheduler):
     def __init__(self, **kwargs):
         kwargs["rk_type"] = "res_5s"
         super().__init__(**kwargs)
 
 
-class RESU6SScheduler(RESUnifiedScheduler):
+class RESUnified6SScheduler(RESUnifiedScheduler):
     def __init__(self, **kwargs):
         kwargs["rk_type"] = "res_6s"
         super().__init__(**kwargs)
 
 
-class DEISU1SScheduler(RESUnifiedScheduler):
+class DEISUnified1SScheduler(RESUnifiedScheduler):
     def __init__(self, **kwargs):
         kwargs["rk_type"] = "deis_1s"
         super().__init__(**kwargs)
 
 
-class DEISU2MScheduler(RESUnifiedScheduler):
+class DEISUnified2MScheduler(RESUnifiedScheduler):
     def __init__(self, **kwargs):
         kwargs["rk_type"] = "deis_2m"
         super().__init__(**kwargs)
 
 
-class DEISU3MScheduler(RESUnifiedScheduler):
+class DEISUnified3MScheduler(RESUnifiedScheduler):
     def __init__(self, **kwargs):
         kwargs["rk_type"] = "deis_3m"
         super().__init__(**kwargs)
@@ -243,56 +247,56 @@ class PEC2H3SScheduler(PECScheduler):
 
 
 # Riemannian Flow Variants
-class EuclideanFlowScheduler(RiemannianFlowScheduler):
+class FlowEuclideanScheduler(RiemannianFlowScheduler):
     def __init__(self, **kwargs):
         kwargs["metric_type"] = "euclidean"
         super().__init__(**kwargs)
 
 
-class HyperbolicFlowScheduler(RiemannianFlowScheduler):
+class FlowHyperbolicScheduler(RiemannianFlowScheduler):
     def __init__(self, **kwargs):
         kwargs["metric_type"] = "hyperbolic"
         super().__init__(**kwargs)
 
 
-class SphericalFlowScheduler(RiemannianFlowScheduler):
+class FlowSphericalScheduler(RiemannianFlowScheduler):
     def __init__(self, **kwargs):
         kwargs["metric_type"] = "spherical"
         super().__init__(**kwargs)
 
 
-class LorentzianFlowScheduler(RiemannianFlowScheduler):
+class FlowLorentzianScheduler(RiemannianFlowScheduler):
     def __init__(self, **kwargs):
         kwargs["metric_type"] = "lorentzian"
         super().__init__(**kwargs)
 
 
 # Common Sigma Variants
-class SigmoidSigmaScheduler(CommonSigmaScheduler):
+class SigmaSigmoidScheduler(CommonSigmaScheduler):
     def __init__(self, **kwargs):
         kwargs["profile"] = "sigmoid"
         super().__init__(**kwargs)
 
 
-class SineSigmaScheduler(CommonSigmaScheduler):
+class SigmaSineScheduler(CommonSigmaScheduler):
     def __init__(self, **kwargs):
         kwargs["profile"] = "sine"
         super().__init__(**kwargs)
 
 
-class EasingSigmaScheduler(CommonSigmaScheduler):
+class SigmaEasingScheduler(CommonSigmaScheduler):
     def __init__(self, **kwargs):
         kwargs["profile"] = "easing"
         super().__init__(**kwargs)
 
 
-class ArcsineSigmaScheduler(CommonSigmaScheduler):
+class SigmaArcsineScheduler(CommonSigmaScheduler):
     def __init__(self, **kwargs):
         kwargs["profile"] = "arcsine"
         super().__init__(**kwargs)
 
 
-class SmoothstepSigmaScheduler(CommonSigmaScheduler):
+class SigmaSmoothScheduler(CommonSigmaScheduler):
     def __init__(self, **kwargs):
         kwargs["profile"] = "smoothstep"
         super().__init__(**kwargs)
@@ -311,4 +315,83 @@ class DEIS2MultistepScheduler(DEISMultistepScheduler):
 class DEIS3MultistepScheduler(DEISMultistepScheduler):
     def __init__(self, **kwargs):
         kwargs["order"] = "3"
+        super().__init__(**kwargs)
+
+## Linear RK Variants
+class LinearRKEulerScheduler(LinearRKScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "euler"
+        super().__init__(**kwargs)
+
+class LinearRKHeunScheduler(LinearRKScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "heun"
+        super().__init__(**kwargs)
+
+class LinearRK2Scheduler(LinearRKScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "rk2"
+        super().__init__(**kwargs)
+
+class LinearRK3Scheduler(LinearRKScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "rk3"
+        super().__init__(**kwargs)
+
+class LinearRK4Scheduler(LinearRKScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "rk4"
+        super().__init__(**kwargs)
+
+class LinearRKRalsstonScheduler(LinearRKScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "ralston"
+        super().__init__(**kwargs)
+
+class LinearRKMidpointScheduler(LinearRKScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "midpoint"
+        super().__init__(**kwargs)
+
+## Lobatto Variants
+class Lobatto2Scheduler(LobattoScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "lobatto_iiia_2s"
+        super().__init__(**kwargs)
+
+class Lobatto3Scheduler(LobattoScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "lobatto_iiia_3s"
+        super().__init__(**kwargs)
+
+class Lobatto4Scheduler(LobattoScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "lobatto_iiia_4s"
+        super().__init__(**kwargs)
+
+## Radau IIA Variants
+class RadauIIA2Scheduler(RadauIIAScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "radau_iia_2s"
+        super().__init__(**kwargs)
+
+class RadauIIA3Scheduler(RadauIIAScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "radau_iia_3s"
+        super().__init__(**kwargs)
+
+## Gauss Legendre Variants
+class GaussLegendre2SScheduler(GaussLegendreScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "gauss-legendre_2s"
+        super().__init__(**kwargs)
+
+class GaussLegendre3SScheduler(GaussLegendreScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "gauss-legendre_3s"
+        super().__init__(**kwargs)
+
+class GaussLegendre4SScheduler(GaussLegendreScheduler):
+    def __init__(self, **kwargs):
+        kwargs["variant"] = "gauss-legendre_4s"
         super().__init__(**kwargs)
