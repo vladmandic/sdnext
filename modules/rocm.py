@@ -305,10 +305,6 @@ if sys.platform == "win32":
             log.debug(f'ROCm: selected={agents}')
             if not agent.blaslt_supported:
                 log.warning(f'ROCm: hipBLASLt unavailable agent={agent}')
-            if (agent.gfx_version & 0xFFF0) == 0x1200:
-                # disable MIOpen for gfx120x
-                torch.backends.cudnn.enabled = False
-                log.debug('ROCm: disabled MIOpen')
 
             if sys.platform == "win32":
                 apply_triton_patches()
