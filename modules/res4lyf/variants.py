@@ -3,6 +3,7 @@ from .common_sigma_scheduler import CommonSigmaScheduler
 from .etdrk_scheduler import ETDRKScheduler
 from .lawson_scheduler import LawsonScheduler
 from .pec_scheduler import PECScheduler
+from .deis_scheduler_alt import DEISMultistepScheduler
 from .res_multistep_scheduler import RESMultistepScheduler
 from .res_multistep_sde_scheduler import RESMultistepSDEScheduler
 from .res_singlestep_scheduler import RESSinglestepScheduler
@@ -244,7 +245,7 @@ class PEC2H3SScheduler(PECScheduler):
 # Riemannian Flow Variants
 class EuclideanFlowScheduler(RiemannianFlowScheduler):
     def __init__(self, **kwargs):
-        kwargs["metric_type"] = "RiemannianFlowScheduler"
+        kwargs["metric_type"] = "euclidean"
         super().__init__(**kwargs)
 
 
@@ -294,4 +295,20 @@ class ArcsineSigmaScheduler(CommonSigmaScheduler):
 class SmoothstepSigmaScheduler(CommonSigmaScheduler):
     def __init__(self, **kwargs):
         kwargs["profile"] = "smoothstep"
+        super().__init__(**kwargs)
+
+## DEIS Multistep Variants
+class DEIS1MultistepScheduler(DEISMultistepScheduler):
+    def __init__(self, **kwargs):
+        kwargs["order"] = "1"
+        super().__init__(**kwargs)
+
+class DEIS2MultistepScheduler(DEISMultistepScheduler):
+    def __init__(self, **kwargs):
+        kwargs["order"] = "2"
+        super().__init__(**kwargs)
+
+class DEIS3MultistepScheduler(DEISMultistepScheduler):
+    def __init__(self, **kwargs):
+        kwargs["order"] = "3"
         super().__init__(**kwargs)

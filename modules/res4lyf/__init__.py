@@ -1,6 +1,7 @@
 from .abnorsett_scheduler import ABNorsettScheduler
 from .bong_tangent_scheduler import BongTangentScheduler
 from .common_sigma_scheduler import CommonSigmaScheduler
+from .deis_scheduler_alt import DEISMultistepScheduler
 from .etdrk_scheduler import ETDRKScheduler
 from .langevin_dynamics_scheduler import LangevinDynamicsScheduler
 from .lawson_scheduler import LawsonScheduler
@@ -58,15 +59,19 @@ from .variants import (
     SineSigmaScheduler,
     SmoothstepSigmaScheduler,
     SphericalFlowScheduler,
+    DEIS1MultistepScheduler,
+    DEIS2MultistepScheduler,
+    DEIS3MultistepScheduler,
 )
 
-__all__ = [
+__all__ = [  # noqa: RUF022
     # Base
     "RESUnifiedScheduler",
     "RESMultistepScheduler",
     "RESMultistepSDEScheduler",
     "RESSinglestepScheduler",
     "RESSinglestepSDEScheduler",
+    "DEISMultistepScheduler",
     "ETDRKScheduler",
     "LawsonScheduler",
     "ABNorsettScheduler",
@@ -122,6 +127,9 @@ __all__ = [
     "RESU3SScheduler",
     "RESU5SScheduler",
     "RESU6SScheduler",
+    "DEIS1MultistepScheduler",
+    "DEIS2MultistepScheduler",
+    "DEIS3MultistepScheduler",
 ]
 
 BASE = [
@@ -130,6 +138,7 @@ BASE = [
     ("RES Multistep SDE", RESMultistepSDEScheduler),
     ("RES Singlestep", RESSinglestepScheduler),
     ("RES Singlestep SDE", RESSinglestepSDEScheduler),
+    ("DEIS Multistep", DEISMultistepScheduler),
     ("ETDRK", ETDRKScheduler),
     ("Lawson", LawsonScheduler),
     ("ABNorsett", ABNorsettScheduler),
@@ -190,4 +199,7 @@ VARIANTS = [
     ("RES-U 3S", RESU3SScheduler),
     ("RES-U 5S", RESU5SScheduler),
     ("RES-U 6S", RESU6SScheduler),
+    ("DEIS 1 Multistep", DEIS1MultistepScheduler),
+    ("DEIS 2 Multistep", DEIS2MultistepScheduler),
+    ("DEIS 3 Multistep", DEIS3MultistepScheduler),
 ]

@@ -40,6 +40,7 @@
   - use base steps as-is for non sd/sdxl models  
   - ui css fixes for modernui  
   - support lora inside prompt selector  
+  - framepack video save  
 
 ## Update for 2026-01-22
 

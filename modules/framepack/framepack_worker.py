@@ -309,16 +309,18 @@ def worker(
                     break
 
             total_generated_frames, _video_filename = save_video(
-                None,
-                history_pixels,
-                mp4_fps,
-                mp4_codec,
-                mp4_opt,
-                mp4_ext,
-                mp4_sf,
-                mp4_video,
-                mp4_frames,
-                mp4_interpolate,
+                p=None,
+                pixels=history_pixels,
+                audio=None,
+                binary=None,
+                mp4_fps=mp4_fps,
+                mp4_codec=mp4_codec,
+                mp4_opt=mp4_opt,
+                mp4_ext=mp4_ext,
+                mp4_sf=mp4_sf,
+                mp4_video=mp4_video,
+                mp4_frames=mp4_frames,
+                mp4_interpolate=mp4_interpolate,
                 pbar=pbar,
                 stream=stream,
                 metadata=metadata,
@@ -327,7 +329,23 @@ def worker(
     except AssertionError:
         shared.log.info('FramePack: interrupted')
         if shared.opts.keep_incomplete:
-            save_video(None, history_pixels, mp4_fps, mp4_codec, mp4_opt, mp4_ext, mp4_sf, mp4_video, mp4_frames, mp4_interpolate=0, stream=stream, metadata=metadata)
+            save_video(
+                p=None,
+                pixels=history_pixels,
+                audio=None,
+                binary=None,
+                mp4_fps=mp4_fps,
+                mp4_codec=mp4_codec,
+                mp4_opt=mp4_opt,
+                mp4_ext=mp4_ext,
+                mp4_sf=mp4_sf,
+                mp4_video=mp4_video,
+                mp4_frames=mp4_frames,
+                mp4_interpolate=0,
+                pbar=pbar,
+                stream=stream,
+                metadata=metadata,
+            )
     except Exception as e:
         shared.log.error(f'FramePack: {e}')
         errors.display(e, 'FramePack')
