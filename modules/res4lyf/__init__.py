@@ -5,6 +5,7 @@ from .bong_tangent_scheduler import BongTangentScheduler
 from .common_sigma_scheduler import CommonSigmaScheduler
 from .deis_scheduler_alt import DEISMultistepScheduler
 from .etdrk_scheduler import ETDRKScheduler
+from .gauss_legendre_scheduler import GaussLegendreScheduler
 from .langevin_dynamics_scheduler import LangevinDynamicsScheduler
 from .lawson_scheduler import LawsonScheduler
 from .linear_rk_scheduler import LinearRKScheduler
@@ -17,11 +18,10 @@ from .res_singlestep_scheduler import RESSinglestepScheduler
 from .res_singlestep_sde_scheduler import RESSinglestepSDEScheduler
 from .res_unified_scheduler import RESUnifiedScheduler
 from .riemannian_flow_scheduler import RiemannianFlowScheduler
-from .simple_exponential_scheduler import SimpleExponentialScheduler
-from .gauss_legendre_scheduler import GaussLegendreScheduler
 from .rungekutta_44s_scheduler import RungeKutta44Scheduler
 from .rungekutta_57s_scheduler import RungeKutta57Scheduler
 from .rungekutta_67s_scheduler import RungeKutta67Scheduler
+from .simple_exponential_scheduler import SimpleExponentialScheduler
 from .specialized_rk_scheduler import SpecializedRKScheduler
 
 from .variants import (
@@ -88,7 +88,7 @@ from .variants import (
     GaussLegendre4SScheduler,
 )
 
-__all__ = [
+__all__ = [ # noqa: RUF022
     # Base
     "RESUnifiedScheduler",
     "RESMultistepScheduler",

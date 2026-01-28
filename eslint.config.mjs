@@ -241,6 +241,9 @@ const jsonConfig = defineConfig([
     plugins: { json },
     language: 'json/json',
     extends: ['json/recommended'],
+    rules: {
+      'json/no-empty-keys': 'off',
+    },
   },
 ]);
 

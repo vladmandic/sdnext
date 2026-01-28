@@ -4,7 +4,7 @@
 
 - **Models**
   - [Tongyi-MAI Z-Image Base](https://tongyi-mai.github.io/Z-Image-blog/)  
-    yup, its finally here, the full base model of Z-Image Turbo  
+    yup, its finally here, the full base model of **Z-Image**  
 - **Features**
   - **caption** tab support for Booru tagger models, thanks @CalamitousFelicitousness  
   - add SmilingWolf WD14/WaifuDiffusion tagger models, thanks @CalamitousFelicitousness  

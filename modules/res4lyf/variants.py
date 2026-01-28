@@ -2,6 +2,7 @@ from .abnorsett_scheduler import ABNorsettScheduler
 from .common_sigma_scheduler import CommonSigmaScheduler
 from .deis_scheduler_alt import DEISMultistepScheduler
 from .etdrk_scheduler import ETDRKScheduler
+from .gauss_legendre_scheduler import GaussLegendreScheduler
 from .lawson_scheduler import LawsonScheduler
 from .linear_rk_scheduler import LinearRKScheduler
 from .lobatto_scheduler import LobattoScheduler
@@ -13,7 +14,6 @@ from .res_singlestep_scheduler import RESSinglestepScheduler
 from .res_singlestep_sde_scheduler import RESSinglestepSDEScheduler
 from .res_unified_scheduler import RESUnifiedScheduler
 from .riemannian_flow_scheduler import RiemannianFlowScheduler
-from .gauss_legendre_scheduler import GaussLegendreScheduler
 
 # RES Unified Variants
 

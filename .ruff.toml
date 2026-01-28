@@ -1,3 +1,6 @@
+line-length = 250
+indent-width = 4
+target-version = "py310"
 exclude = [
     "venv",
     ".git",
@@ -13,7 +16,6 @@ exclude = [
     "modules/schedulers",
     "modules/teacache",
     "modules/seedvr",
-    "modules/res4lyf",
 
     "modules/control/proc",
     "modules/control/units",
@@ -42,9 +44,6 @@ exclude = [
     "extensions-builtin/sd-webui-agent-scheduler",
     "extensions-builtin/sdnext-modernui/node_modules",
 ]
-line-length = 250
-indent-width = 4
-target-version = "py310"
 
 [lint]
 select = [
