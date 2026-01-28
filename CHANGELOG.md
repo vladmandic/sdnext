@@ -36,6 +36,7 @@
     existing data files are auto-migrated on startup  
   - further work on type consistency and type checking, thanks @awsr  
   - log captured exceptions  
+  - improve temp folder handling and cleanup  
   - add ui placeholders for future agent-scheduler work, thanks @ryanmeador  
   - implement abort system on repeated errors, thanks @awsr  
     currently used by lora and textual-inversion loaders  
@@ -46,6 +47,7 @@
   - ui css fixes for modernui  
   - support lora inside prompt selector  
   - framepack video save  
+  - metadata save for manual saves  
 
 ## Update for 2026-01-22
 

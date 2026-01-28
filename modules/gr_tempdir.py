@@ -104,6 +104,9 @@ def on_tmpdir_changed():
 def cleanup_tmpdr():
     temp_dir = shared.opts.temp_dir
     if temp_dir == "" or not os.path.isdir(temp_dir):
+        temp_dir = os.path.join(paths.temp_dir, "gradio")
+    shared.log.debug(f'Temp folder: path="{temp_dir}"')
+    if not os.path.isdir(temp_dir):
         return
     for root, _dirs, files in os.walk(temp_dir, topdown=False):
         for name in files:

@@ -78,7 +78,8 @@ def image_from_url_text(filedata):
         filedata = filedata[len("data:image/jxl;base64,"):]
     filebytes = base64.decodebytes(filedata.encode('utf-8'))
     image = Image.open(io.BytesIO(filebytes))
-    images.read_info_from_image(image)
+    image.load()
+    # images.read_info_from_image(image)
     return image
 
 

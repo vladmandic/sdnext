@@ -10,7 +10,8 @@ from pathlib import Path
 from modules import shared, errors
 
 
-debug = errors.log.trace if os.environ.get('SD_NAMEGEN_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug= os.environ.get('SD_NAMEGEN_DEBUG', None) is not None
+debug_log = errors.log.trace if debug else lambda *args, **kwargs: None
 re_nonletters = re.compile(r'[\s' + string.punctuation + ']+')
 re_pattern = re.compile(r"(.*?)(?:\[([^\[\]]+)\]|$)")
 re_pattern_arg = re.compile(r"(.*)<([^>]*)>$")
@@ -66,9 +67,9 @@ class FilenameGenerator:
 
     def __init__(self, p, seed, prompt, image=None, grid=False, width=None, height=None):
         if p is None:
-            debug('Filename generator init skip')
+            debug_log('Filename generator init skip')
         else:
-            debug(f'Filename generator init: seed={seed} prompt="{prompt}"')
+            debug_log(f'Filename generator init: seed={seed} prompt="{prompt}"')
         self.p = p
         if seed is not None and int(seed) > 0:
             self.seed = seed
@@ -163,7 +164,7 @@ class FilenameGenerator:
     def prompt_sanitize(self, prompt):
         invalid_chars = '#<>:\'"\\|?*\n\t\r'
         sanitized = prompt.translate({ ord(x): '_' for x in invalid_chars }).strip()
-        debug(f'Prompt sanitize: input="{prompt}" output={sanitized}')
+        debug_log(f'Prompt sanitize: input="{prompt}" output="{sanitized}"')
         return sanitized
 
     def sanitize(self, filename):
@@ -200,7 +201,7 @@ class FilenameGenerator:
         while len(os.path.abspath(fn)) > max_length:
             fn = fn[:-1]
         fn += ext
-        debug(f'Filename sanitize: input="{filename}" parts={parts} output="{fn}" ext={ext} max={max_length} len={len(fn)}')
+        debug_log(f'Filename sanitize: input="{filename}" parts={parts} output="{fn}" ext={ext} max={max_length} len={len(fn)}')
         return fn
 
     def safe_int(self, s):
@@ -234,25 +235,38 @@ class FilenameGenerator:
 
     def apply(self, x):
         res = ''
+        if debug:
+            for k in self.replacements.keys():
+                try:
+                    fn = self.replacements.get(k, None)
+                    debug_log(f'Namegen: key={k} value={fn(self)}')
+                except Exception as e:
+                    shared.log.error(f'Namegen: key={k} {e}')
+                    errors.display(e, 'namegen')
         for m in re_pattern.finditer(x):
             text, pattern = m.groups()
-            if pattern is None:
-                res += text
-                continue
-            pattern_args = []
-            while True:
-                m = re_pattern_arg.match(pattern)
-                if m is None:
-                    break
-                pattern, arg = m.groups()
-                pattern_args.insert(0, arg)
+            debug_log(f'Filename apply: text="{text}" pattern="{pattern}"')
             if isinstance(pattern, list):
                 pattern = ' '.join(pattern)
+            if pattern is None or not isinstance(pattern, str) or pattern.strip() == '':
+                debug_log(f'Filename skip: pattern="{pattern}"')
+                res += text
+                continue
+
+            _pattern = pattern
+            pattern_args = []
+            while True:
+                m = re_pattern_arg.match(_pattern)
+                if m is None:
+                    break
+                _pattern, arg = m.groups()
+                pattern_args.insert(0, arg)
+
             fun = self.replacements.get(pattern.lower(), None)
             if fun is not None:
                 try:
-                    debug(f'Filename apply: pattern={pattern.lower()} args={pattern_args}')
                     replacement = fun(self, *pattern_args)
+                    debug_log(f'Filename apply: pattern="{pattern}" args={pattern_args} replacement="{replacement}"')
                 except Exception as e:
                     replacement = None
                     errors.display(e, 'namegen')
