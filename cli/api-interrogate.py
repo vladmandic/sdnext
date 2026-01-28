@@ -9,6 +9,7 @@ import sys
 import os
 import asyncio
 import filetype
+from types import SimpleNamespace
 from PIL import Image
 from util import log, Map
 import sdapi
@@ -65,22 +66,21 @@ async def interrogate(f):
                 stats['captions'][word] = stats['captions'][word] + 1 if word in stats['captions'] else 1
     else:
         log.error({ 'interrogate clip error': res })
-    # run booru
-    json.model = 'deepdanbooru'
-    res = await sdapi.post('/sdapi/v1/interrogate', json)
+    # run tagger (DeepBooru)
+    tagger_req = SimpleNamespace(image=json.image, model='deepbooru', show_scores=True)
+    res = await sdapi.post('/sdapi/v1/tagger', tagger_req)
     keywords = {}
-    if 'caption' in res:
-        for term in res.caption.split(', '):
-            term = term.replace('(', '').replace(')', '').replace('\\', '').split(':')
-            if len(term) < 2:
-                continue
-            keywords[term[0]] = term[1]
-        keywords = dict(sorted(keywords.items(), key=lambda x:x[1], reverse=True))
-        for word in keywords.items():
-            stats['keywords'][word[0]] = stats['keywords'][word[0]] + 1 if word[0] in stats['keywords'] else 1
-        log.info({ 'interrogate keywords': keywords })
+    if 'scores' in res and res.scores:
+        keywords = dict(sorted(res.scores.items(), key=lambda x: x[1], reverse=True))
+        for word in keywords:
+            stats['keywords'][word] = stats['keywords'][word] + 1 if word in stats['keywords'] else 1
+        log.info({'interrogate keywords': keywords})
+    elif 'tags' in res:
+        for tag in res.tags.split(', '):
+            stats['keywords'][tag] = stats['keywords'][tag] + 1 if tag in stats['keywords'] else 1
+        log.info({'interrogate tags': res.tags})
     else:
-        log.error({ 'interrogate booru error': res })
+        log.error({'interrogate tagger error': res})
     return caption, keywords, style
 
 
