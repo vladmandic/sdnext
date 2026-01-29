@@ -1004,6 +1004,9 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
         .then((delcount) => {
           const t1 = performance.now();
           log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+          currentGalleryFolder = null;
+          el.clearCacheFolder.innerText = '<select a folder first>';
+          updateStatusWithSort('Thumbnail cache cleared');
         })
         .catch((reason) => {
           SimpleFunctionQueue.abortLogger('Thumbnail DB cleanup:', reason);
@@ -1034,18 +1037,20 @@ function clearCacheIfDisabled(browser_cache) {
     maintenanceQueue.enqueue({
       signal: controller.signal,
       callback: async () => {
+        const t0 = performance.now();
         const cb_clearMsg = showCleaningMsg(0, true);
         await idbClearAll(controller.signal)
           .then(() => {
+            log(`Thumbnail DB cleanup: Cache cleared. time=${Math.floor(performance.now() - t0)}ms`);
             currentGalleryFolder = null;
             el.clearCacheFolder.innerText = '<select a folder first>';
             updateStatusWithSort('Thumbnail cache cleared');
-            log('Thumbnail DB cleanup: Cache cleared');
           })
           .catch((e) => {
             SimpleFunctionQueue.abortLogger('Thumbnail DB cleanup:', e);
           })
-          .finally(() => {
+          .finally(async () => {
+            await new Promise((resolve) => { setTimeout(resolve, 1000); });
             cb_clearMsg();
           });
       },
