@@ -208,6 +208,16 @@ async function idbFolderCleanup(keepSet, folder, signal) {
   });
 }
 
+async function idbClearAll(signal) {
+  if (!db) return null;
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['thumbs'], 'readwrite');
+    const props = { transaction, signal, resolve, reject };
+    configureTransactionAbort(props, null);
+    transaction.objectStore('thumbs').clear();
+  });
+}
+
 window.idbAdd = add;
 window.idbDel = del;
 window.idbGet = get;

@@ -99,6 +99,7 @@ const jsConfig = defineConfig([
         idbAdd: 'readonly',
         idbCount: 'readonly',
         idbFolderCleanup: 'readonly',
+        idbClearAll: 'readonly',
         idbIsReady: 'readonly',
         initChangelog: 'readonly',
         sendNotification: 'readonly',

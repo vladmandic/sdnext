@@ -1027,6 +1027,30 @@ function resetGalleryState(reason) {
   return controller;
 }
 
+function clearCacheIfDisabled(browser_cache) {
+  if (browser_cache === false) {
+    log('Thumbnail DB cleanup:', 'Image gallery cache setting disabled. Clearing cache.');
+    const controller = resetGalleryState('Clearing all thumbnails from cache');
+    maintenanceQueue.enqueue({
+      signal: controller.signal,
+      callback: async () => {
+        const cb_clearMsg = showCleaningMsg(0, true);
+        await idbClearAll(controller.signal)
+          .then(() => {
+            cb_clearMsg();
+            currentGalleryFolder = null;
+            el.clearCacheFolder.innerText = '<select a folder first>';
+            updateStatusWithSort('Thumbnail cache cleared');
+            log('Thumbnail DB cleanup: Cache cleared');
+          })
+          .catch((e) => {
+            SimpleFunctionQueue.abortLogger('Thumbnail DB cleanup:', e);
+          });
+      },
+    });
+  }
+}
+
 function folderCleanupRunner(evt) {
   evt.preventDefault();
   evt.stopPropagation();
@@ -1212,6 +1236,16 @@ async function setOverlayAnimation() {
   document.head.append(busyAnimation);
 }
 
+async function galleryClearInit() {
+  let galleryClearInitTimeout = 0;
+  const tryCleanupInit = setInterval(() => {
+    if (addCacheClearLabel() || galleryClearInitTimeout++ === 60) {
+      clearInterval(tryCleanupInit);
+      monitorOption('browser_cache', clearCacheIfDisabled);
+    }
+  }, 1000);
+}
+
 async function blockQueueUntilReady() {
   // Add block to maintenanceQueue until cache is ready
   maintenanceQueue.enqueue({
@@ -1243,6 +1277,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
+  galleryClearInit();
   const progress = gradioApp().getElementById('tab-gallery-progress');
   if (progress) {
     galleryProgressBar.attachTo(progress);
@@ -1260,15 +1295,6 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   intersectionObserver.observe(el.folders);
   monitorGalleries();
 }
-
-// Additional settings handling
-
-let galleryClearInitTimeout = 0;
-const tryCleanupInit = setInterval(() => {
-  if (addCacheClearLabel() || ++galleryClearInitTimeout === 60) {
-    clearInterval(tryCleanupInit);
-  }
-}, 1000);
 
 // register on startup
 
