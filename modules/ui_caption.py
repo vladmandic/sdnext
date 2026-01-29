@@ -112,8 +112,7 @@ def update_tagger_params(model_name, general_threshold, character_threshold, inc
 
 
 def update_clip_params(*args):
-    clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams = args
-    shared.opts.caption_openclip_min_length = int(clip_min_length)
+    clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams = args
     shared.opts.caption_openclip_max_length = int(clip_max_length)
     shared.opts.caption_openclip_min_flavors = int(clip_min_flavors)
     shared.opts.caption_openclip_max_flavors = int(clip_max_flavors)
@@ -215,7 +214,6 @@ def create_ui():
                         clip_mode = gr.Dropdown(openclip.caption_types, label='Mode', value='fast', elem_id='clip_clip_mode')
                     with gr.Accordion(label='Caption: Advanced Options', open=False, visible=True):
                         with gr.Row():
-                            clip_min_length = gr.Slider(label='clip: min length', value=shared.opts.caption_openclip_min_length, minimum=8, maximum=75, step=1, elem_id='clip_caption_min_length')
                             clip_max_length = gr.Slider(label='clip: max length', value=shared.opts.caption_openclip_max_length, minimum=16, maximum=1024, step=1, elem_id='clip_caption_max_length')
                             clip_chunk_size = gr.Slider(label='clip: chunk size', value=shared.opts.caption_openclip_chunk_size, minimum=256, maximum=4096, step=8, elem_id='clip_chunk_size')
                         with gr.Row():
@@ -224,13 +222,12 @@ def create_ui():
                             clip_flavor_count = gr.Slider(label='clip: intermediates', value=shared.opts.caption_openclip_flavor_count, minimum=256, maximum=4096, step=8, elem_id='clip_flavor_intermediate_count')
                         with gr.Row():
                             clip_num_beams = gr.Slider(label='clip: num beams', value=shared.opts.caption_openclip_num_beams, minimum=1, maximum=16, step=1, elem_id='clip_num_beams')
-                        clip_min_length.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
-                        clip_max_length.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
-                        clip_chunk_size.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
-                        clip_min_flavors.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
-                        clip_max_flavors.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
-                        clip_flavor_count.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
-                        clip_num_beams.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
+                        clip_max_length.change(fn=update_clip_params, inputs=[clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
+                        clip_chunk_size.change(fn=update_clip_params, inputs=[clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
+                        clip_min_flavors.change(fn=update_clip_params, inputs=[clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
+                        clip_max_flavors.change(fn=update_clip_params, inputs=[clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
+                        clip_flavor_count.change(fn=update_clip_params, inputs=[clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
+                        clip_num_beams.change(fn=update_clip_params, inputs=[clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
                     with gr.Accordion(label='Caption: Batch', open=False, visible=True):
                         with gr.Row():
                             clip_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='clip_batch_files')

@@ -22,6 +22,7 @@ Examples:
 """
 
 import os
+import re
 import sys
 import time
 import base64
@@ -37,6 +38,11 @@ DEFAULT_TEST_IMAGES = [
     'html/favicon.png',
     'extensions-builtin/sdnext-modernui/html/logo.png',
 ]
+
+# OCR test image (must have readable text)
+OCR_TEST_IMAGE = 'models/Reference/HiDream-ai--HiDream-I1-Fast.jpg'
+# Bracket test image (must produce tags with parentheses, e.g. pokemon_(creature))
+BRACKET_TEST_IMAGE = 'models/Reference/SDXL-Flash_Mini.jpg'
 
 
 class CaptionAPITest:
@@ -75,6 +81,8 @@ class CaptionAPITest:
         self.base_url = base_url.rstrip('/')
         self.image_path = image_path
         self.image_b64 = None
+        self.ocr_image_b64 = None  # Separate image with text for OCR tests
+        self.bracket_image_b64 = None  # Separate image that produces bracket-containing tags
         self.timeout = timeout  # Request timeout in seconds
         # Categorized results tracking
         self.results = {
@@ -149,26 +157,33 @@ class CaptionAPITest:
             return False
         text_lower = str(response_text).lower()
         # Critical error patterns that indicate backend is broken
+        # Note: patterns are substring matches, so be careful with short strings that could match common words
         critical_patterns = [
             'runtimeerror',
             'cuda error',
             'out of memory',
-            'oom',
+            # 'oom' removed - matches words like "room", "zoom", "bloom"; 'out of memory' covers this case
             'device-side assert',
             'cublas',
             'cudnn',
             'nccl',
             'input type',  # tensor type mismatch
             'weight type',  # tensor type mismatch
-            'expected .* but got',  # type/device mismatch
             'cannot be performed',
             'illegal memory access',
             'segmentation fault',
-            'killed',
-            'critical',
+        ]
+        # Patterns that need word boundary checking (could match common words)
+        word_boundary_patterns = [
+            'killed',  # could match "skilled", "thrilled"
+            'critical',  # could match "critical thinking"
         ]
         for pattern in critical_patterns:
             if pattern in text_lower:
+                return True
+        # Check word boundary patterns with regex
+        for pattern in word_boundary_patterns:
+            if re.search(rf'\b{pattern}\b', text_lower):
                 return True
         return False
 
@@ -304,8 +319,8 @@ class CaptionAPITest:
             return json_data.get('backend', 'openclip') if json_data else 'openclip'
         return None
 
-    def post(self, endpoint, json_data):
-        """Make POST request and return JSON response. Auto-checks for critical errors."""
+    def post(self, endpoint, json_data, check_critical=True):
+        """Make POST request and return JSON response. Auto-checks for critical errors unless check_critical=False."""
         url = f"{self.base_url}{endpoint}"
         backend = self._infer_backend_from_endpoint(endpoint, json_data)
 
@@ -314,11 +329,12 @@ class CaptionAPITest:
             resp.raise_for_status()
             data = resp.json()
 
-            # Auto-check for critical errors in the response
-            if backend and backend != 'vlm':  # VLM backend name differs
-                self._auto_check_critical(data, backend)
-            elif backend == 'vlm':
-                self._auto_check_critical(data, 'vqa')
+            # Auto-check for critical errors in the response (skip for deliberate error tests)
+            if check_critical:
+                if backend and backend != 'vlm':  # VLM backend name differs
+                    self._auto_check_critical(data, backend)
+                elif backend == 'vlm':
+                    self._auto_check_critical(data, 'vqa')
 
             return data
         except requests.exceptions.Timeout:
@@ -399,6 +415,33 @@ class CaptionAPITest:
             print(f"  ERROR: Failed to load image: {e}")
             return False
 
+        # Load OCR test image (image with readable text)
+        script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        ocr_image_path = os.path.join(script_dir, OCR_TEST_IMAGE)
+        if os.path.exists(ocr_image_path):
+            try:
+                with open(ocr_image_path, 'rb') as f:
+                    ocr_data = f.read()
+                self.ocr_image_b64 = base64.b64encode(ocr_data).decode('utf-8')
+                print(f"  OCR test image loaded: {OCR_TEST_IMAGE} ({len(ocr_data)} bytes)")
+            except Exception as e:
+                print(f"  Warning: Failed to load OCR test image: {e}")
+        else:
+            print(f"  Warning: OCR test image not found: {OCR_TEST_IMAGE}")
+
+        # Load bracket test image (image that produces tags with parentheses)
+        bracket_image_path = os.path.join(script_dir, BRACKET_TEST_IMAGE)
+        if os.path.exists(bracket_image_path):
+            try:
+                with open(bracket_image_path, 'rb') as f:
+                    bracket_data = f.read()
+                self.bracket_image_b64 = base64.b64encode(bracket_data).decode('utf-8')
+                print(f"  Bracket test image loaded: {BRACKET_TEST_IMAGE} ({len(bracket_data)} bytes)")
+            except Exception as e:
+                print(f"  Warning: Failed to load bracket test image: {e}")
+        else:
+            print(f"  Warning: Bracket test image not found: {BRACKET_TEST_IMAGE}")
+
         return True
 
     def print_summary(self):
@@ -437,6 +480,12 @@ class CaptionAPITest:
             if failures:
                 for _, msg in failures:
                     print(f"    [FAIL] {msg}")
+
+            # Show skipped tests for this category
+            skipped = [(s, m) for s, m in data['tests'] if s == 'skipped']
+            if skipped:
+                for _, msg in skipped:
+                    print(f"    [SKIP] {msg}")
 
         # Overall totals
         print("\n" + "-" * 70)
@@ -622,21 +671,21 @@ class CaptionAPITest:
         print("TEST: POST /sdapi/v1/openclip (invalid inputs)")
         print("=" * 70)
 
-        # Test missing image
+        # Test missing image (check_critical=False since we expect errors)
         data = self.post('/sdapi/v1/openclip', {
             'image': '',
             'model': 'ViT-L-14/openai'
-        })
+        }, check_critical=False)
         if 'error' in data and data.get('status') == 404:
             self.log_pass("Missing image returns 404")
         else:
             self.log_fail(f"Missing image should return 404, got: {data}")
 
-        # Test invalid model
+        # Test invalid model (check_critical=False since we expect errors)
         data = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': 'invalid-nonexistent-model'
-        })
+        }, check_critical=False)
         if 'error' in data:
             self.log_pass(f"Invalid model returns error: {data.get('status', 'error')}")
         else:
@@ -717,10 +766,10 @@ class CaptionAPITest:
     # TEST: POST /sdapi/v1/openclip - Caption Length
     # =========================================================================
     def test_openclip_length(self):
-        """Test min_length and max_length constraints."""
+        """Test max_length constraints."""
         self.set_category('openclip')
         print("\n" + "=" * 70)
-        print("TEST: POST /sdapi/v1/openclip (min_length, max_length)")
+        print("TEST: POST /sdapi/v1/openclip (max_length)")
         print("=" * 70)
 
         # Skip if critical error already occurred
@@ -777,36 +826,6 @@ class CaptionAPITest:
         else:
             self.log_fail("max_length test returned empty captions")
 
-        # Test min_length effect by comparing low vs high minimums
-        data_min_low = self.post('/sdapi/v1/openclip', {
-            'image': self.image_b64,
-            'model': model,
-            'mode': 'caption',
-            'min_length': 5  # Low minimum
-        })
-        data_min_high = self.post('/sdapi/v1/openclip', {
-            'image': self.image_b64,
-            'model': model,
-            'mode': 'caption',
-            'min_length': 50  # Higher minimum
-        })
-
-        if 'error' in data_min_low or 'error' in data_min_high:
-            self.log_skip("min_length test: API error")
-        elif data_min_low.get('caption') and data_min_high.get('caption'):
-            len_low = len(data_min_low['caption'])
-            len_high = len(data_min_high['caption'])
-            self.log_info(f"min_length=5: {len_low} chars - '{data_min_low['caption'][:50]}...'")
-            self.log_info(f"min_length=50: {len_high} chars - '{data_min_high['caption'][:50]}...'")
-            if len_high > len_low:
-                self.log_pass(f"min_length has effect: {len_low} < {len_high} chars")
-            elif len_high == len_low:
-                self.log_fail(f"min_length has no effect (both {len_low} chars)")
-            else:
-                self.log_fail(f"min_length reversed: low={len_low}, high={len_high}")
-        else:
-            self.log_fail("min_length test returned empty captions")
-
     # =========================================================================
     # TEST: POST /sdapi/v1/openclip - Flavors
     # =========================================================================
@@ -858,18 +877,21 @@ class CaptionAPITest:
         else:
             self.log_fail("max_flavors test returned empty captions")
 
-        # Test min_flavors effect by comparing low vs high minimums
+        # Test min_flavors effect: only applies in mode='best' which iterates from min to max flavors
+        # Use a narrow max_flavors window so min_flavors has a visible floor effect
         data_min_low = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
-            'mode': 'fast',
-            'min_flavors': 1
+            'mode': 'best',
+            'min_flavors': 1,
+            'max_flavors': 3
         })
         data_min_high = self.post('/sdapi/v1/openclip', {
             'image': self.image_b64,
             'model': model,
-            'mode': 'fast',
-            'min_flavors': 10
+            'mode': 'best',
+            'min_flavors': 8,
+            'max_flavors': 10
         })
 
         if 'error' in data_min_low or 'error' in data_min_high:
@@ -877,10 +899,12 @@ class CaptionAPITest:
         elif data_min_low.get('caption') and data_min_high.get('caption'):
             len_low = len(data_min_low['caption'])
             len_high = len(data_min_high['caption'])
-            self.log_info(f"min_flavors=1: {len_low} chars")
-            self.log_info(f"min_flavors=10: {len_high} chars")
-            if len_high >= len_low:
-                self.log_pass(f"min_flavors has effect: {len_low} <= {len_high} chars")
+            self.log_info(f"min_flavors=1,max=3: {len_low} chars - '{data_min_low['caption'][:50]}...'")
+            self.log_info(f"min_flavors=8,max=10: {len_high} chars - '{data_min_high['caption'][:50]}...'")
+            if len_high > len_low:
+                self.log_pass(f"min_flavors has effect: {len_low} < {len_high} chars")
+            elif len_high == len_low:
+                self.log_fail(f"min_flavors has no effect (both {len_low} chars)")
             else:
                 self.log_fail(f"min_flavors reversed: low={len_low}, high={len_high}")
         else:
@@ -921,6 +945,7 @@ class CaptionAPITest:
             self.log_skip(f"chunk_size override: {data.get('reason', 'failed')}")
         elif data.get('caption') and not self.is_error_answer(data['caption']):
             self.log_pass(f"chunk_size=1024 accepted ({elapsed:.1f}s)")
+            self.log_info("NOTE: acceptance-only test, does not verify output effect")
         else:
             self.log_fail("chunk_size override returned empty/error")
 
@@ -938,6 +963,7 @@ class CaptionAPITest:
             self.log_skip(f"flavor_count override: {data.get('reason', 'failed')}")
         elif data.get('caption') and not self.is_error_answer(data['caption']):
             self.log_pass(f"flavor_count=16 accepted ({elapsed:.1f}s)")
+            self.log_info("NOTE: acceptance-only test, does not verify output effect")
         else:
             self.log_fail("flavor_count override returned empty/error")
 
@@ -955,6 +981,7 @@ class CaptionAPITest:
             self.log_skip(f"num_beams override: {data.get('reason', 'failed')}")
         elif data.get('caption') and not self.is_error_answer(data['caption']):
             self.log_pass(f"num_beams=3 accepted ({elapsed:.1f}s)")
+            self.log_info("NOTE: acceptance-only test, does not verify output effect")
         else:
             self.log_fail("num_beams override returned empty/error")
 
@@ -1022,7 +1049,7 @@ class CaptionAPITest:
             return
 
         # Verify categories
-        expected_categories = ['common', 'florence', 'moondream']
+        expected_categories = ['common', 'florence', 'promptgen', 'moondream']
         for cat in expected_categories:
             if cat in data and isinstance(data[cat], list):
                 self.log_pass(f"Has '{cat}' category with {len(data[cat])} prompts")
@@ -1086,6 +1113,7 @@ class CaptionAPITest:
             return
 
         prompts = ['Short Caption', 'Normal Caption', 'Long Caption']
+        results = {}
         for prompt in prompts:
             t0 = time.time()
             data = self.post('/sdapi/v1/vqa', {
@@ -1097,11 +1125,18 @@ class CaptionAPITest:
             if 'error' in data:
                 self.log_skip(f"prompt='{prompt}': {data.get('reason', 'failed')}")
             elif data.get('answer') and not self.is_error_answer(data['answer']):
+                results[prompt] = len(data['answer'])
                 self.log_pass(f"prompt='{prompt}' returns answer ({len(data['answer'])} chars, {elapsed:.1f}s)")
             elif self.is_error_answer(data.get('answer', '')):
                 self.log_fail(f"prompt='{prompt}' returned error: {data['answer']}")
             else:
                 self.log_fail(f"prompt='{prompt}' returned empty answer")
+        # Length sanity check: Short should be noticeably shorter than Normal/Long
+        if 'Short Caption' in results and 'Normal Caption' in results and 'Long Caption' in results:
+            if results['Short Caption'] >= results['Normal Caption'] or results['Short Caption'] >= results['Long Caption']:
+                self.log_info(f"NOTE: Short ({results['Short Caption']}) >= Normal ({results['Normal Caption']}) or Long ({results['Long Caption']}); LLM output length is non-deterministic and prompt-dependent")
+            if results['Long Caption'] < results['Normal Caption']:
+                self.log_info(f"NOTE: Long ({results['Long Caption']}) < Normal ({results['Normal Caption']}); LLM may interpret length prompts differently per run")
 
     # =========================================================================
     # TEST: POST /sdapi/v1/vqa - Annotated Image
@@ -1231,11 +1266,11 @@ class CaptionAPITest:
         print("TEST: POST /sdapi/v1/vqa (invalid inputs)")
         print("=" * 70)
 
-        # Test missing image
+        # Test missing image (check_critical=False since we expect errors)
         data = self.post('/sdapi/v1/vqa', {
             'image': '',
             'question': 'describe'
-        })
+        }, check_critical=False)
         if 'error' in data and data.get('status') == 404:
             self.log_pass("Missing image returns 404")
         else:
@@ -1421,9 +1456,11 @@ class CaptionAPITest:
         })
         elapsed = time.time() - t0
 
+        greedy_elapsed = None
         if 'error' in data_greedy:
             self.log_skip(f"do_sample=False test: {data_greedy.get('reason', 'failed')}")
         elif data_greedy.get('answer') and not self.is_error_answer(data_greedy['answer']):
+            greedy_elapsed = elapsed
             self.log_pass(f"do_sample=False (greedy) accepted ({elapsed:.1f}s)")
         else:
             self.log_fail("do_sample=False returned empty/error")
@@ -1445,7 +1482,7 @@ class CaptionAPITest:
         else:
             self.log_fail("do_sample=True returned empty/error")
 
-        # Test with num_beams (beam search)
+        # Test with num_beams (beam search - should be slower than greedy)
         t0 = time.time()
         data_beams = self.post('/sdapi/v1/vqa', {
             'image': self.image_b64,
@@ -1458,6 +1495,8 @@ class CaptionAPITest:
             self.log_skip(f"num_beams=4 test: {data_beams.get('reason', 'failed')}")
         elif data_beams.get('answer') and not self.is_error_answer(data_beams['answer']):
             self.log_pass(f"num_beams=4 (beam search) accepted ({elapsed:.1f}s)")
+            if greedy_elapsed is not None and elapsed <= greedy_elapsed:
+                self.log_info(f"NOTE: num_beams=4 ({elapsed:.1f}s) not slower than greedy ({greedy_elapsed:.1f}s); beam search overhead may be negligible for short outputs or fast GPUs")
         else:
             self.log_fail("num_beams=4 returned empty/error")
 
@@ -1533,8 +1572,11 @@ class CaptionAPITest:
             self.log_skip(f"keep_thinking=True test: {data_keep.get('reason', 'failed')}")
         elif data_keep.get('answer') and not self.is_error_answer(data_keep['answer']):
             answer = data_keep['answer']
-            has_thinking = '<think' in answer.lower() or '</think>' in answer.lower()
+            # Thinking trace is reformatted: <think>→"Reasoning:" and </think>→"Answer:" by strip_think_xml_tags()
+            has_thinking = 'reasoning:' in answer.lower() or '<think' in answer.lower()
             self.log_pass(f"keep_thinking=True ({elapsed:.1f}s, {len(answer)} chars, has_trace={has_thinking})")
+            if not has_thinking:
+                self.log_info("NOTE: no thinking trace detected; model may not have produced <think> tags for this input")
             # Show first part of answer (may include thinking trace)
             answer_preview = answer[:150] + '...' if len(answer) > 150 else answer
             self.log_info(f"Answer: {answer_preview}")
@@ -1554,7 +1596,7 @@ class CaptionAPITest:
         if self.skip_if_critical('vqa', 'vqa prefill'):
             return
 
-        prefill_text = "The image shows"
+        prefill_text = "Vlado is the best, and I'm looking at his robot which"
 
         # Test with prefill to guide response start
         t0 = time.time()
@@ -1677,35 +1719,49 @@ class CaptionAPITest:
         if self.skip_if_critical('vqa', 'vqa florence prompts'):
             return
 
-        # Find a Florence model
+        # Find Florence models: base and PromptGen (which supports extra prompts)
         florence_model = None
+        promptgen_model = None
         if self._vqa_models:
             for m in self._vqa_models:
-                if 'florence' in m['name'].lower():
+                name_lower = m['name'].lower()
+                if 'promptgen' in name_lower and promptgen_model is None:
+                    promptgen_model = m['name']
+                elif 'florence' in name_lower and 'promptgen' not in name_lower and 'cog' not in name_lower and florence_model is None:
                     florence_model = m['name']
-                    break
 
         if not florence_model:
             self.log_skip("No Florence model available")
             return
 
         self.log_info(f"Using Florence model: {florence_model}")
+        if promptgen_model:
+            self.log_info(f"Using PromptGen model: {promptgen_model}")
 
-        # Florence-specific prompts
-        florence_prompts = {
+        # Base Florence prompts (supported by all Florence models)
+        base_prompts = {
             '<OD>': 'Object Detection',
             '<OCR>': 'Optical Character Recognition',
             '<DENSE_REGION_CAPTION>': 'Dense Region Captioning',
-            '<GENERATE_TAGS>': 'Tag Generation',
             '<CAPTION>': 'Standard Caption',
             '<DETAILED_CAPTION>': 'Detailed Caption',
         }
+        # PromptGen-only prompts (require MiaoshouAI PromptGen fine-tune)
+        promptgen_prompts = {
+            '<GENERATE_TAGS>': 'Tag Generation',
+        }
 
-        for prompt, description in florence_prompts.items():
+        def run_florence_prompt(model, prompt, description):
+            # Use OCR test image for OCR prompts (image with readable text)
+            if prompt == '<OCR>' and self.ocr_image_b64:
+                test_image = self.ocr_image_b64
+            else:
+                test_image = self.image_b64
+
             t0 = time.time()
             data = self.post('/sdapi/v1/vqa', {
-                'image': self.image_b64,
-                'model': florence_model,
+                'image': test_image,
+                'model': model,
                 'question': prompt
             })
             elapsed = time.time() - t0
@@ -1721,6 +1777,15 @@ class CaptionAPITest:
                 self.log_fail(f"{description} ({prompt}): non-meaningful response: '{data['answer']}'")
             else:
                 self.log_fail(f"{description} ({prompt}): empty/error response")
+
+        for prompt, description in base_prompts.items():
+            run_florence_prompt(florence_model, prompt, description)
+
+        for prompt, description in promptgen_prompts.items():
+            if promptgen_model:
+                run_florence_prompt(promptgen_model, prompt, f"{description} [PromptGen]")
+            else:
+                self.log_skip(f"{description} ({prompt}): requires PromptGen model, none available")
 
     # =========================================================================
     # TEST: VQA Moondream Detection Features
@@ -1840,8 +1905,14 @@ class CaptionAPITest:
             model_name = capability_models[capability][0]
             self.log_info(f"Testing '{capability}' with: {model_name}")
 
+            # Use OCR test image for OCR capability (image with readable text)
+            if capability == 'ocr' and self.ocr_image_b64:
+                test_image = self.ocr_image_b64
+            else:
+                test_image = self.image_b64
+
             request_data = {
-                'image': self.image_b64,
+                'image': test_image,
                 'model': model_name,
                 'question': test_prompt
             }
@@ -1860,6 +1931,8 @@ class CaptionAPITest:
                 answer = data['answer']
                 answer_preview = answer[:80] + '...' if len(answer) > 80 else answer
                 self.log_pass(f"Capability '{capability}' ({elapsed:.1f}s): {answer_preview}")
+                if elapsed > 60:
+                    self.log_info(f"NOTE: {model_name} took {elapsed:.1f}s which is suspiciously slow; may need performance investigation")
             elif data.get('answer'):
                 self.log_fail(f"Capability '{capability}': non-meaningful response: '{data['answer']}'")
             else:
@@ -2110,12 +2183,15 @@ class CaptionAPITest:
             self.log_skip("sort_alpha test: model not loaded")
             return
 
+        list_conf = [t.strip() for t in data_conf.get('tags', '').split(',') if t.strip()]
         list_alpha = [t.strip() for t in data_alpha.get('tags', '').split(',') if t.strip()]
 
         if len(list_alpha) < 2:
             self.log_skip("Not enough tags to test sorting")
             return
 
+        self.log_info(f"By confidence: {', '.join(list_conf[:8])}...")
+        self.log_info(f"Alphabetical:  {', '.join(list_alpha[:8])}...")
         is_sorted = list_alpha == sorted(list_alpha, key=str.lower)
         if is_sorted:
             self.log_pass("sort_alpha=True returns alphabetically sorted tags")
@@ -2182,14 +2258,19 @@ class CaptionAPITest:
         if self.skip_if_critical('tagger', 'tagger escape_brackets'):
             return
 
+        # Use bracket test image (produces tags with parentheses like "pokemon_(creature)")
+        test_image = self.bracket_image_b64 or self.image_b64
+        if not self.bracket_image_b64:
+            self.log_info("NOTE: bracket test image not available, using default image (may not produce bracket tags)")
+
         data_escaped = self.post('/sdapi/v1/tagger', {
-            'image': self.image_b64,
+            'image': test_image,
             'escape_brackets': True,
             'max_tags': 50,
             'threshold': 0.1
         })
         data_raw = self.post('/sdapi/v1/tagger', {
-            'image': self.image_b64,
+            'image': test_image,
             'escape_brackets': False,
             'max_tags': 50,
             'threshold': 0.1
@@ -2202,8 +2283,8 @@ class CaptionAPITest:
         tags_escaped = data_escaped.get('tags', '')
         tags_raw = data_raw.get('tags', '')
 
-        self.log_info(f"escape=True:  {tags_escaped[:60]}...")
-        self.log_info(f"escape=False: {tags_raw[:60]}...")
+        self.log_info(f"escape=True:  {tags_escaped[:70]}...")
+        self.log_info(f"escape=False: {tags_raw[:70]}...")
 
         # Check for escaped brackets (\\( or \\))
         has_escaped = '\\(' in tags_escaped or '\\)' in tags_escaped
@@ -2451,10 +2532,12 @@ class CaptionAPITest:
             count_high = len(data_high.get('tags', '').split(', '))
             self.log_info(f"Tag counts: threshold=0.5→{count_low}, threshold=0.99→{count_high}")
 
-            if count_low >= count_high:
-                self.log_pass("character_threshold affects tag filtering")
+            if count_low > count_high:
+                self.log_pass(f"character_threshold affects tag filtering: {count_low} > {count_high}")
+            elif count_low == count_high:
+                self.log_info("NOTE: acceptance-only test, tag counts identical; test image likely has no character tags (character_threshold only filters anime character names)")
             else:
-                self.log_info("Tag counts similar (image may not have character tags)")
+                self.log_fail(f"character_threshold reversed: low={count_low} < high={count_high}")
         else:
             self.log_fail("character_threshold=0.99 returned empty/error")
 
@@ -2611,10 +2694,10 @@ class CaptionAPITest:
         print("TEST: POST /sdapi/v1/tagger (invalid inputs)")
         print("=" * 70)
 
-        # Test missing image
+        # Test missing image (check_critical=False since we expect errors)
         data = self.post('/sdapi/v1/tagger', {
             'image': ''
-        })
+        }, check_critical=False)
         if 'error' in data and data.get('status') == 404:
             self.log_pass("Missing image returns 404")
         else:
@@ -2977,10 +3060,11 @@ class CaptionAPITest:
         print("TEST: POST /sdapi/v1/caption (dispatch: invalid backend)")
         print("=" * 70)
 
+        # check_critical=False since we expect errors
         data = self.post('/sdapi/v1/caption', {
             'backend': 'invalid_backend',
             'image': self.image_b64
-        })
+        }, check_critical=False)
 
         if 'error' in data:
             self.log_pass(f"Invalid backend returns error: {data.get('status', 'error')}")
@@ -2998,7 +3082,8 @@ class CaptionAPITest:
             req = {'backend': backend, 'image': ''}
             if backend == 'vlm':
                 req['question'] = 'describe'
-            data = self.post('/sdapi/v1/caption', req)
+            # check_critical=False since we expect errors
+            data = self.post('/sdapi/v1/caption', req, check_critical=False)
 
             if 'error' in data and data.get('status') == 404:
                 self.log_pass(f"dispatch {backend} missing image returns 404")

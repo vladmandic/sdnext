@@ -80,7 +80,7 @@ vlm_prompts_common = [
     "Long Caption",
 ]
 
-# Florence-2 specific prompts (only shown for Florence/PromptGen models)
+# Florence-2 base prompts (supported by all Florence models including CogFlorence)
 vlm_prompts_florence = [
     "Phrase Grounding",
     "Object Detection",
@@ -88,6 +88,10 @@ vlm_prompts_florence = [
     "Region Proposal",
     "OCR (Read Text)",
     "OCR with Regions",
+]
+
+# PromptGen-only prompts (require MiaoshouAI PromptGen fine-tune)
+vlm_prompts_promptgen = [
     "Analyze",
     "Generate Tags",
     "Mixed Caption",
@@ -148,7 +152,7 @@ vlm_prompt_placeholders = {
 }
 
 # Legacy list for backwards compatibility
-vlm_prompts = vlm_prompts_common + vlm_prompts_florence + vlm_prompts_moondream + vlm_prompts_moondream2
+vlm_prompts = vlm_prompts_common + vlm_prompts_florence + vlm_prompts_promptgen + vlm_prompts_moondream + vlm_prompts_moondream2
 
 vlm_prefill = 'Answer: the image shows'
 
@@ -160,8 +164,12 @@ def get_prompts_for_model(model_name: str) -> list:
 
     model_lower = model_name.lower()
 
-    # Check for Florence-2 / PromptGen models
-    if 'florence' in model_lower or 'promptgen' in model_lower:
+    # Check for PromptGen models (MiaoshouAI fine-tunes with extra prompts)
+    if 'promptgen' in model_lower:
+        return vlm_prompts_common + vlm_prompts_florence + vlm_prompts_promptgen
+
+    # Check for Florence-2 base / CogFlorence models (no PromptGen-specific prompts)
+    if 'florence' in model_lower:
         return vlm_prompts_common + vlm_prompts_florence
 
     # Check for Moondream models (Moondream 2 has gaze detection, Moondream 3 does not)
@@ -194,17 +202,21 @@ def get_prompt_placeholder(friendly_name: str) -> str:
 
 
 def is_florence_task(question: str) -> bool:
-    """Check if the question is a Florence-2 task token (either friendly name or internal token)."""
+    """Check if the question is a Florence-2 task token (either friendly name or internal token).
+
+    This includes both base Florence prompts and PromptGen-specific prompts,
+    since all are handled by the Florence handler.
+    """
     if not question:
         return False
-    # Check if it's a Florence-specific friendly name
-    if question in vlm_prompts_florence:
+    # Check if it's a Florence-specific friendly name (base or PromptGen)
+    if question in vlm_prompts_florence or question in vlm_prompts_promptgen:
         return True
     # Check if it's an internal Florence-2 task token (for backwards compatibility)
-    florence_tokens = ['<CAPTION>', '<DETAILED_CAPTION>', '<MORE_DETAILED_CAPTION>', '<CAPTION_TO_PHRASE_GROUNDING>',
-                       '<OD>', '<DENSE_REGION_CAPTION>', '<REGION_PROPOSAL>', '<OCR>', '<OCR_WITH_REGION>',
-                       '<ANALYZE>', '<GENERATE_TAGS>', '<MIXED_CAPTION>', '<MIXED_CAPTION_PLUS>']
-    return question in florence_tokens
+    florence_base_tokens = ['<CAPTION>', '<DETAILED_CAPTION>', '<MORE_DETAILED_CAPTION>', '<CAPTION_TO_PHRASE_GROUNDING>',
+                            '<OD>', '<DENSE_REGION_CAPTION>', '<REGION_PROPOSAL>', '<OCR>', '<OCR_WITH_REGION>']
+    promptgen_tokens = ['<ANALYZE>', '<GENERATE_TAGS>', '<MIXED_CAPTION>', '<MIXED_CAPTION_PLUS>']
+    return question in florence_base_tokens or question in promptgen_tokens
 
 
 def is_thinking_model(model_name: str) -> bool:
@@ -1125,19 +1137,8 @@ class VQA:
                     self.last_detection_data = {'points': points}
                     return vqa_detection.format_points_text(points)
                 return "Object not found"
-            elif question.lower().startswith('detect ') or question == 'DETECT_MODE':
-                target = question[7:].strip() if question.lower().startswith('detect ') else ''
-                if not target:
-                    return "Please specify an object to detect"
-                debug(f'VQA caption: handler=moondream method=detect target="{target}"')
-                result = self.model.detect(image, target)
-                debug(f'VQA caption: handler=moondream detect_raw_result={result}')
-                detections = vqa_detection.parse_detections(result, target)
-                if detections:
-                    self.last_detection_data = {'detections': detections}
-                    return vqa_detection.format_detections_text(detections, include_confidence=False)
-                return "No objects detected"
             elif question == 'DETECT_GAZE' or question.lower() == 'detect gaze':
+                # Must be checked before generic 'detect ' prefix to avoid matching as detect target="Gaze"
                 debug('VQA caption: handler=moondream method=detect_gaze')
                 faces = self.model.detect(image, "face")
                 debug(f'VQA caption: handler=moondream detect_gaze faces={faces}')
@@ -1150,6 +1151,18 @@ class VQA:
                         self.last_detection_data = {'points': [(gaze['x'], gaze['y'])]}
                         return f"Gaze direction: ({gaze['x']:.3f}, {gaze['y']:.3f})"
                 return "No face/gaze detected"
+            elif question.lower().startswith('detect ') or question == 'DETECT_MODE':
+                target = question[7:].strip() if question.lower().startswith('detect ') else ''
+                if not target:
+                    return "Please specify an object to detect"
+                debug(f'VQA caption: handler=moondream method=detect target="{target}"')
+                result = self.model.detect(image, target)
+                debug(f'VQA caption: handler=moondream detect_raw_result={result}')
+                detections = vqa_detection.parse_detections(result, target)
+                if detections:
+                    self.last_detection_data = {'detections': detections}
+                    return vqa_detection.format_detections_text(detections, include_confidence=False)
+                return "No objects detected"
             else:
                 debug(f'VQA caption: handler=moondream method=query question="{question}" reasoning={thinking_mode}')
                 result = self.model.query(image, question, reasoning=thinking_mode)

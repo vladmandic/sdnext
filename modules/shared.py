@@ -749,7 +749,6 @@ options_templates.update(options_section(('hidden_options', "Hidden options"), {
     "caption_openclip_mode": OptionInfo(caption_types[0], "OpenCLiP: default mode", gr.Dropdown, {"choices": caption_types, "visible": False}),
     "caption_openclip_blip_model": OptionInfo(list(caption_models)[0], "OpenCLiP: default captioner", gr.Dropdown, {"choices": list(caption_models), "visible": False}),
     "caption_openclip_num_beams": OptionInfo(1, "OpenCLiP: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
-    "caption_openclip_min_length": OptionInfo(32, "OpenCLiP: min length", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1, "visible": False}),
     "caption_openclip_max_length": OptionInfo(74, "OpenCLiP: max length", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1, "visible": False}),
     "caption_openclip_min_flavors": OptionInfo(2, "OpenCLiP: min flavors", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1, "visible": False}),
     "caption_openclip_max_flavors": OptionInfo(16, "OpenCLiP: max flavors", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1, "visible": False}),
