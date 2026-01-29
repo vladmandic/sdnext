@@ -36,6 +36,10 @@ async function initIndexDB() {
   if (!db) await createDB();
 }
 
+function idbIsReady() {
+  return db !== null;
+}
+
 /**
  * Reusable setup for handling IDB transactions.
  * @param {Object} resources - Required resources for implementation

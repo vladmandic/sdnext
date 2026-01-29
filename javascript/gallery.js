@@ -1212,6 +1212,22 @@ async function setOverlayAnimation() {
   document.head.append(busyAnimation);
 }
 
+async function blockQueueUntilReady() {
+  // Add block to maintenanceQueue until cache is ready
+  maintenanceQueue.enqueue({
+    signal: new AbortSignal(), // Use standalone AbortSignal that can't be aborted
+    callback: async () => {
+      let timeout = 0;
+      while (!idbIsReady() && timeout++ < 60) {
+        await new Promise((resolve) => { setTimeout(resolve, 1000); });
+      }
+      if (!idbIsReady()) {
+        throw new Error('Timed out waiting for thumbnail cache');
+      }
+    },
+  });
+}
+
 async function initGallery() { // triggered on gradio change to monitor when ui gets sufficiently constructed
   log('initGallery');
   el.folders = gradioApp().getElementById('tab-gallery-folders');
@@ -1222,6 +1238,8 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     error('initGallery', 'Missing gallery elements');
     return;
   }
+
+  blockQueueUntilReady(); // Run first
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
