@@ -89,9 +89,9 @@ class BatchWriter:
 
 def update_caption_params():
     if ci is not None:
-        ci.caption_max_length = get_clip_setting('max_length')
-        ci.chunk_size = get_clip_setting('chunk_size')
-        ci.flavor_intermediate_count = get_clip_setting('flavor_count')
+        ci.config.caption_max_length = get_clip_setting('max_length')
+        ci.config.chunk_size = get_clip_setting('chunk_size')
+        ci.config.flavor_intermediate_count = get_clip_setting('flavor_count')
         ci.clip_offload = shared.opts.caption_offload
         ci.caption_offload = shared.opts.caption_offload
 
