@@ -1037,7 +1037,6 @@ function clearCacheIfDisabled(browser_cache) {
         const cb_clearMsg = showCleaningMsg(0, true);
         await idbClearAll(controller.signal)
           .then(() => {
-            cb_clearMsg();
             currentGalleryFolder = null;
             el.clearCacheFolder.innerText = '<select a folder first>';
             updateStatusWithSort('Thumbnail cache cleared');
@@ -1045,6 +1044,9 @@ function clearCacheIfDisabled(browser_cache) {
           })
           .catch((e) => {
             SimpleFunctionQueue.abortLogger('Thumbnail DB cleanup:', e);
+          })
+          .finally(() => {
+            cb_clearMsg();
           });
       },
     });
