@@ -197,14 +197,9 @@ async function idbFolderCleanup(keepSet, folder, signal) {
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('thumbs', 'readwrite');
     const props = { transaction, signal, resolve, reject };
-    const abortTransaction = configureTransactionAbort(props, totalRemovals);
-    try {
-      const store = transaction.objectStore('thumbs');
-      removals.forEach((entry) => { store.delete(entry); });
-    } catch (err) {
-      error(err);
-      abortTransaction();
-    }
+    configureTransactionAbort(props, totalRemovals);
+    const store = transaction.objectStore('thumbs');
+    removals.forEach((entry) => { store.delete(entry); });
   });
 }
 
