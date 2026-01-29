@@ -4,6 +4,8 @@
 # Architecture: Mixture-of-Experts (9B total params, 2B active)
 import os
 import re
+import hashlib
+import collections
 import transformers
 from PIL import Image
 from modules import shared, devices, sd_models
@@ -21,7 +23,8 @@ def debug(*args, **kwargs):
 # Global state
 moondream3_model = None
 loaded = None
-image_cache = {}  # Cache encoded images for reuse
+image_cache: collections.OrderedDict = collections.OrderedDict()  # Bounded LRU cache for encoded image tensors
+IMAGE_CACHE_MAX = 8
 
 
 def get_settings():
@@ -54,7 +57,7 @@ def load_model(repo: str):
             cache_dir=shared.opts.hfcache_dir,
         )
 
-        moondream3_model.eval()
+        moondream3_model.eval()  # required: trust_remote_code model
 
         # Initialize KV caches before moving to device (they're lazy by default)
         if hasattr(moondream3_model, '_setup_caches'):
@@ -72,6 +75,14 @@ def load_model(repo: str):
     return moondream3_model
 
 
+def _image_hash(image: Image.Image) -> str:
+    """Content-based hash for cache keys using image size and pixel sample."""
+    h = hashlib.md5(usedforsecurity=False)
+    h.update(f"{image.size}{image.mode}".encode())
+    h.update(image.tobytes()[:4096])
+    return h.hexdigest()
+
+
 def encode_image(image: Image.Image, cache_key: str = None):
     """
     Encode image for reuse across multiple queries.
@@ -84,6 +95,7 @@ def encode_image(image: Image.Image, cache_key: str = None):
         Encoded image tensor
     """
     if cache_key and cache_key in image_cache:
+        image_cache.move_to_end(cache_key)  # LRU: mark as recently used
         debug(f'VQA caption: handler=moondream3 using cached encoding for cache_key="{cache_key}"')
         return image_cache[cache_key]
 
@@ -94,6 +106,9 @@ def encode_image(image: Image.Image, cache_key: str = None):
 
     if cache_key:
         image_cache[cache_key] = encoded
+        while len(image_cache) > IMAGE_CACHE_MAX:
+            evicted_key, _ = image_cache.popitem(last=False)  # Evict oldest
+            debug(f'VQA caption: handler=moondream3 evicted cache_key="{evicted_key}" cache_size={len(image_cache)}')
         debug(f'VQA caption: handler=moondream3 cached encoding cache_key="{cache_key}" cache_size={len(image_cache)}')
 
     return encoded
@@ -133,7 +148,7 @@ def query(image: Image.Image, question: str, repo: str, stream: bool = False,
 
     # Use cached encoding if requested
     if use_cache:
-        cache_key = f"{id(image)}_{question}"
+        cache_key = f"{_image_hash(image)}_{question}"
         image_input = encode_image(image, cache_key)
     else:
         image_input = image
@@ -384,6 +399,9 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
         from modules import errors
         errors.display(e, 'Moondream3')
         return f"Error: {str(e)}"
+    finally:
+        if shared.opts.caption_offload and moondream3_model is not None:
+            sd_models.move_model(moondream3_model, devices.cpu, force=True)
 
 
 def clear_cache():

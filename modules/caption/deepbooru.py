@@ -30,7 +30,7 @@ class DeepDanbooru:
             from modules.caption.deepbooru_model import DeepDanbooruModel
             self.model = DeepDanbooruModel()
             self.model.load_state_dict(torch.load(files[0], map_location="cpu"))
-            self.model.eval()
+            self.model.eval()  # required: loaded via torch.load + load_state_dict
             self.model.to(devices.cpu, devices.dtype)
 
     def start(self):
@@ -126,29 +126,6 @@ class DeepDanbooru:
 model = DeepDanbooru()
 
 
-def _save_tags_to_file(img_path, tags_str: str, save_append: bool) -> bool:
-    """Save tags to a text file with error handling.
-
-    Args:
-        img_path: Path to the image file
-        tags_str: Tags string to save
-        save_append: If True, append to existing file; otherwise overwrite
-
-    Returns:
-        True if save succeeded, False otherwise
-    """
-    try:
-        txt_path = img_path.with_suffix('.txt')
-        if save_append and txt_path.exists():
-            with open(txt_path, 'a', encoding='utf-8') as f:
-                f.write(f', {tags_str}')
-        else:
-            with open(txt_path, 'w', encoding='utf-8') as f:
-                f.write(tags_str)
-        return True
-    except Exception as e:
-        shared.log.error(f'DeepBooru batch: failed to save file="{img_path}" error={e}')
-        return False
 
 
 def get_models() -> list:
@@ -170,6 +147,7 @@ def unload_model():
     """Unload the DeepBooru model and free memory."""
     if model.model is not None:
         shared.log.debug('DeepBooru unload')
+        model.model.to(devices.cpu)
         model.model = None
         devices.torch_gc(force=True)
 
@@ -312,7 +290,8 @@ def batch(
                 tags_str = model.tag_multi(image, **kwargs)
 
                 if save_output:
-                    _save_tags_to_file(img_path, tags_str, save_append)
+                    from modules.caption import tagger
+                    tagger.save_tags_to_file(img_path, tags_str, save_append)
 
                 results.append(f'{img_path.name}: {tags_str[:100]}...' if len(tags_str) > 100 else f'{img_path.name}: {tags_str}')
 

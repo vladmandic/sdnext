@@ -1,7 +1,6 @@
 # based on <https://huggingface.co/fancyfeast/llama-joycaption-alpha-two-hf-llava>
 
 from dataclasses import dataclass
-import torch
 from transformers import AutoProcessor, LlavaForConditionalGeneration
 from modules import shared, devices, sd_models, model_quant
 
@@ -73,7 +72,6 @@ def load(repo: str = None):
             cache_dir=shared.opts.hfcache_dir,
             **quant_args,
         )
-        llava_model.eval()
     sd_models.move_model(llava_model, devices.device)
 
 
@@ -90,7 +88,6 @@ def unload():
         shared.log.debug('JoyCaption unload: no model loaded')
 
 
-@torch.no_grad()
 def predict(question: str, image, vqa_model: str = None) -> str:
     opts.max_new_tokens = shared.opts.caption_vlm_max_length
     load(vqa_model)
@@ -105,23 +102,25 @@ def predict(question: str, image, vqa_model: str = None) -> str:
     convo_string = processor.apply_chat_template(convo, tokenize=False, add_generation_prompt=True)
     inputs = processor(text=[convo_string], images=[image], return_tensors="pt").to(devices.device)
     inputs['pixel_values'] = inputs['pixel_values'].to(devices.dtype)
-    with devices.inference_context():
-        generate_ids = llava_model.generate( # Generate the captions
-            **inputs,
-            # input_ids=inputs['input_ids'],
-            # pixel_values=inputs['pixel_values'],
-            # attention_mask=inputs['attention_mask'],
-            max_new_tokens=opts.max_new_tokens,
-            suppress_tokens=None,
-            use_cache=True,
-            do_sample=opts.sample,
-            temperature=opts.temp,
-            top_k=opts.top_k,
-            top_p=opts.top_p,
-        )[0]
-        generate_ids = generate_ids[inputs['input_ids'].shape[1]:] # Trim off the prompt
-        caption = processor.tokenizer.decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False) # Decode the caption
-    if shared.opts.caption_offload:
-        sd_models.move_model(llava_model, devices.cpu, force=True)
-    caption = caption.replace('\n\n', '\n').strip()
-    return caption
+    try:
+        with devices.inference_context():
+            generate_ids = llava_model.generate( # Generate the captions
+                **inputs,
+                # input_ids=inputs['input_ids'],
+                # pixel_values=inputs['pixel_values'],
+                # attention_mask=inputs['attention_mask'],
+                max_new_tokens=opts.max_new_tokens,
+                suppress_tokens=None,
+                use_cache=True,
+                do_sample=opts.sample,
+                temperature=opts.temp,
+                top_k=opts.top_k,
+                top_p=opts.top_p,
+            )[0]
+            generate_ids = generate_ids[inputs['input_ids'].shape[1]:] # Trim off the prompt
+            caption = processor.tokenizer.decode(generate_ids, skip_special_tokens=True, clean_up_tokenization_spaces=False) # Decode the caption
+        caption = caption.replace('\n\n', '\n').strip()
+        return caption
+    finally:
+        if shared.opts.caption_offload:
+            sd_models.move_model(llava_model, devices.cpu, force=True)

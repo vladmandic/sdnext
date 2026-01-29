@@ -6,6 +6,31 @@ from modules import shared
 DEEPBOORU_MODEL = "DeepBooru"
 
 
+def save_tags_to_file(img_path, tags_str: str, save_append: bool) -> bool:
+    """Save tags to a text file alongside the image.
+
+    Args:
+        img_path: Path to the image file (pathlib.Path)
+        tags_str: Tags string to save
+        save_append: If True, append to existing file; otherwise overwrite
+
+    Returns:
+        True if save succeeded, False otherwise
+    """
+    try:
+        txt_path = img_path.with_suffix('.txt')
+        if save_append and txt_path.exists():
+            with open(txt_path, 'a', encoding='utf-8') as f:
+                f.write(f', {tags_str}')
+        else:
+            with open(txt_path, 'w', encoding='utf-8') as f:
+                f.write(tags_str)
+        return True
+    except Exception as e:
+        shared.log.error(f'Tagger batch: failed to save file="{img_path}" error={e}')
+        return False
+
+
 def get_models() -> list:
     """Return combined list: DeepBooru + WaifuDiffusion models."""
     from modules.caption import waifudiffusion

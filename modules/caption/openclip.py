@@ -5,7 +5,7 @@ import threading
 import re
 import gradio as gr
 from PIL import Image
-from modules import devices, shared, errors, sd_models
+from modules import devices, shared, errors
 
 
 debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
@@ -165,8 +165,11 @@ def load_captioner(clip_model, blip_model):
 def unload_clip_model():
     if ci is not None and shared.opts.caption_offload:
         shared.log.debug('CLIP unload: offloading models to CPU')
-        sd_models.move_model(ci.caption_model, devices.cpu)
-        sd_models.move_model(ci.clip_model, devices.cpu)
+        # Direct .to() instead of sd_models.move_model — models are from clip_interrogator, not transformers
+        if ci.caption_model is not None and hasattr(ci.caption_model, 'to'):
+            ci.caption_model.to(devices.cpu)
+        if ci.clip_model is not None and hasattr(ci.clip_model, 'to'):
+            ci.clip_model.to(devices.cpu)
         ci.caption_offloaded = True
         ci.clip_offloaded = True
         devices.torch_gc()

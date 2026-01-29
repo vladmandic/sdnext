@@ -226,6 +226,8 @@ def post_vqa(req: models.ReqVQA):
         thinking_mode=req.thinking_mode,
         generation_kwargs=generation_kwargs if generation_kwargs else None
     )
+    if isinstance(answer, str) and answer.startswith('Error:'):
+        raise HTTPException(status_code=422, detail=answer)
     # Return annotated image if requested and available
     annotated_b64 = None
     if req.include_annotated:
@@ -419,6 +421,8 @@ def _dispatch_vlm(req: models.ReqCaptionVLM) -> models.ResCaptionDispatch:
         thinking_mode=req.thinking_mode,
         generation_kwargs=generation_kwargs if generation_kwargs else None
     )
+    if isinstance(answer, str) and answer.startswith('Error:'):
+        raise HTTPException(status_code=422, detail=answer)
     annotated_b64 = None
     if req.include_annotated:
         annotated_img = vqa.get_last_annotated_image()

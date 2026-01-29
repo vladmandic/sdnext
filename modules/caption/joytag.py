@@ -1,4 +1,6 @@
-# based on <https://huggingface.co/spaces/fancyfeast/joytag>
+# Vendored from JoyTag: https://huggingface.co/spaces/fancyfeast/joytag
+# Contains full model architecture (ViT, CNN stems, MAE) including training-only code
+# retained for update compatibility. Do not modify directly — sync from upstream.
 
 import os
 import math
@@ -1041,7 +1043,7 @@ def load():
         folder = huggingface_hub.snapshot_download(MODEL_REPO, cache_dir=shared.opts.hfcache_dir)
         model = VisionModel.load_model(folder)
         model.to(dtype=devices.dtype)
-        model.eval()
+        model.eval()  # required: custom loader, not from_pretrained
         with open(os.path.join(folder, 'top_tags.txt'), 'r', encoding='utf8') as f:
             tags = [line.strip() for line in f.readlines() if line.strip()]
         shared.log.info(f'Caption: type=vlm model="JoyTag" repo="{MODEL_REPO}" tags={len(tags)}')
@@ -1067,6 +1069,8 @@ def predict(image: Image.Image):
     with devices.inference_context():
         preds = model({'image': image_tensor})
         tag_preds = preds['tags'].sigmoid().cpu()
+    if shared.opts.caption_offload:
+        sd_models.move_model(model, devices.cpu, force=True)
     scores = {tags[i]: tag_preds[0][i] for i in range(len(tags))}
     if shared.opts.tagger_show_scores:
         predicted_tags = [f'{tag}:{score:.2f}' for tag, score in scores.items() if score > THRESHOLD]
