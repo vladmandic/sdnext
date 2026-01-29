@@ -26,13 +26,6 @@ const el = {
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
-function resetController(reason) {
-  maintenanceController.abort(reason);
-  const controller = new AbortController();
-  maintenanceController = controller;
-  return controller;
-}
-
 function getVisibleGalleryFiles() {
   if (!el.files) return [];
   return Array.from(el.files.children).filter((node) => node.name && node.offsetParent);
@@ -265,6 +258,14 @@ class SimpleFunctionQueue {
     this.#id = id;
     this.#running = false;
     this.#queue = [];
+  }
+
+  static abortLogger(identifier, result) {
+    if (typeof result === 'string' || (result instanceof DOMException && result.name === 'AbortError')) {
+      log(identifier, result?.message || result);
+    } else {
+      error(identifier, result.message);
+    }
   }
 
   /**
@@ -928,9 +929,10 @@ async function gallerySort(btn) {
 /**
  * Generate and display the overlay to announce cleanup is in progress.
  * @param {number} count - Number of entries being cleaned up
+ * @param {boolean} all - Indicate that all thumbnails are being cleared
  * @returns {ClearMsgCallback}
  */
-function showCleaningMsg(count) {
+function showCleaningMsg(count, all = false) {
   // Rendering performance isn't a priority since this doesn't run often
   const parent = el.folders.parentElement;
   const cleaningOverlay = document.createElement('div');
@@ -945,7 +947,7 @@ function showCleaningMsg(count) {
   msgText.style.cssText = 'font-size: 1.2em';
   msgInfo.style.cssText = 'font-size: 0.9em; text-align: center;';
   msgText.innerText = 'Thumbnail cleanup...';
-  msgInfo.innerText = `Found ${count} old entries`;
+  msgInfo.innerText = all ? 'Clearing all entries' : `Found ${count} old entries`;
   anim.classList.add('idbBusyAnim');
 
   msgDiv.append(msgText, msgInfo);
@@ -954,7 +956,7 @@ function showCleaningMsg(count) {
   return () => { cleaningOverlay.remove(); };
 }
 
-const maintenanceQueue = new SimpleFunctionQueue('Maintenance');
+const maintenanceQueue = new SimpleFunctionQueue('Gallery Maintenance');
 
 /**
  * Handles calling the cleanup function for the thumbnail cache
@@ -998,31 +1000,65 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
         return;
       }
       const cb_clearMsg = showCleaningMsg(cleanupCount);
-      const tRun = Date.now(); // Doesn't need high resolution
       await idbFolderCleanup(staticGalleryHashes, folder, controller.signal)
         .then((delcount) => {
           const t1 = performance.now();
           log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+          currentGalleryFolder = null;
+          el.clearCacheFolder.innerText = '<select a folder first>';
+          updateStatusWithSort('Thumbnail cache cleared');
         })
         .catch((reason) => {
-          if (typeof reason === 'string' || (reason instanceof DOMException && reason.name === 'AbortError')) {
-            log('Thumbnail DB cleanup:', reason?.message || reason);
-          } else {
-            error('Thumbnail DB cleanup:', reason.message);
-          }
+          SimpleFunctionQueue.abortLogger('Thumbnail DB cleanup:', reason);
         })
         .finally(async () => {
-          // Ensure at least enough time to see that it's a message and not the UI breaking/flickering
-          await new Promise((resolve) => {
-            setTimeout(resolve, Math.min(1000, Math.max(1000 - (Date.now() - tRun), 0))); // Total display time of at least 1 second
-          });
+          await new Promise((resolve) => { setTimeout(resolve, 1000); }); // Delay removal by 1 second to ensure at least minimum visibility
           cb_clearMsg();
         });
     },
   });
 }
 
-function clearGalleryFolderCache(evt) {
+function resetGalleryState(reason) {
+  maintenanceController.abort(reason);
+  const controller = new AbortController();
+  maintenanceController = controller;
+
+  galleryHashes.clear(); // Must happen AFTER the AbortController steps
+  galleryProgressBar.clear();
+  resetGallerySelection();
+  return controller;
+}
+
+function clearCacheIfDisabled(browser_cache) {
+  if (browser_cache === false) {
+    log('Thumbnail DB cleanup:', 'Image gallery cache setting disabled. Clearing cache.');
+    const controller = resetGalleryState('Clearing all thumbnails from cache');
+    maintenanceQueue.enqueue({
+      signal: controller.signal,
+      callback: async () => {
+        const t0 = performance.now();
+        const cb_clearMsg = showCleaningMsg(0, true);
+        await idbClearAll(controller.signal)
+          .then(() => {
+            log(`Thumbnail DB cleanup: Cache cleared. time=${Math.floor(performance.now() - t0)}ms`);
+            currentGalleryFolder = null;
+            el.clearCacheFolder.innerText = '<select a folder first>';
+            updateStatusWithSort('Thumbnail cache cleared');
+          })
+          .catch((e) => {
+            SimpleFunctionQueue.abortLogger('Thumbnail DB cleanup:', e);
+          })
+          .finally(async () => {
+            await new Promise((resolve) => { setTimeout(resolve, 1000); });
+            cb_clearMsg();
+          });
+      },
+    });
+  }
+}
+
+function folderCleanupRunner(evt) {
   evt.preventDefault();
   evt.stopPropagation();
   if (!currentGalleryFolder) return;
@@ -1030,10 +1066,7 @@ function clearGalleryFolderCache(evt) {
   setTimeout(() => {
     el.clearCacheFolder.style.color = 'var(--color-blue)';
   }, 1000);
-  const controller = resetController('Clearing thumbnails');
-  galleryHashes.clear();
-  galleryProgressBar.clear();
-  resetGallerySelection();
+  const controller = resetGalleryState('Clearing folder thumbnails cache');
   el.files.innerHTML = '';
   thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
 }
@@ -1045,9 +1078,9 @@ function addCacheClearLabel() { // Don't use async
     div.style.marginBlock = '0.75rem';
 
     const span = document.createElement('span');
-    span.style.cssText = 'font-weight:bold; text-decoration:underline; cursor:pointer; color:var(--color-blue); user-select: none;';
+    span.style.cssText = 'font-weight: bold; text-decoration: underline; cursor: pointer; color: var(--color-blue); user-select: none;';
     span.innerText = '<select a folder first>';
-    span.addEventListener('dblclick', clearGalleryFolderCache);
+    span.addEventListener('dblclick', folderCleanupRunner);
 
     div.append('Clear the thumbnail cache for: ', span, ' (double-click)');
     setting.parentElement.insertAdjacentElement('afterend', div);
@@ -1095,10 +1128,7 @@ async function fetchFilesHT(evt, controller) {
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   if (!url) return;
   // Abort previous controller and point to new controller for next time
-  const controller = resetController('Gallery update'); // Called here because fetchFilesHT isn't called directly
-  galleryHashes.clear(); // Must happen AFTER the AbortController steps
-  galleryProgressBar.clear();
-  resetGallerySelection();
+  const controller = resetGalleryState('Gallery update'); // Called here because fetchFilesHT isn't called directly
 
   el.files.innerHTML = '';
   updateGalleryStyles();
@@ -1213,6 +1243,32 @@ async function setOverlayAnimation() {
   document.head.append(busyAnimation);
 }
 
+async function galleryClearInit() {
+  let galleryClearInitTimeout = 0;
+  const tryCleanupInit = setInterval(() => {
+    if (addCacheClearLabel() || galleryClearInitTimeout++ === 60) {
+      clearInterval(tryCleanupInit);
+      monitorOption('browser_cache', clearCacheIfDisabled);
+    }
+  }, 1000);
+}
+
+async function blockQueueUntilReady() {
+  // Add block to maintenanceQueue until cache is ready
+  maintenanceQueue.enqueue({
+    signal: new AbortController().signal, // Use standalone AbortSignal that can't be aborted
+    callback: async () => {
+      let timeout = 0;
+      while (!idbIsReady() && timeout++ < 60) {
+        await new Promise((resolve) => { setTimeout(resolve, 1000); });
+      }
+      if (!idbIsReady()) {
+        throw new Error('Timed out waiting for thumbnail cache');
+      }
+    },
+  });
+}
+
 async function initGallery() { // triggered on gradio change to monitor when ui gets sufficiently constructed
   log('initGallery');
   el.folders = gradioApp().getElementById('tab-gallery-folders');
@@ -1223,9 +1279,12 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     error('initGallery', 'Missing gallery elements');
     return;
   }
+
+  blockQueueUntilReady(); // Run first
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
+  galleryClearInit();
   const progress = gradioApp().getElementById('tab-gallery-progress');
   if (progress) {
     galleryProgressBar.attachTo(progress);
@@ -1243,15 +1302,6 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   intersectionObserver.observe(el.folders);
   monitorGalleries();
 }
-
-// Add additional settings info once available
-
-let galleryClearInitTimeout = 0;
-const tryAddCacheLabel = setInterval(() => {
-  if (addCacheClearLabel() || ++galleryClearInitTimeout === 60) {
-    clearInterval(tryAddCacheLabel);
-  }
-}, 1000);
 
 // register on startup
 
