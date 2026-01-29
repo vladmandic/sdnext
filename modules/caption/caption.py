@@ -18,6 +18,8 @@ def caption(image):
         openclip.load_captioner(clip_model=shared.opts.caption_openclip_model, blip_model=shared.opts.caption_openclip_blip_model)
         openclip.update_caption_params()
         prompt = openclip.caption(image, mode=shared.opts.caption_openclip_mode)
+        if shared.opts.caption_offload:
+            openclip.unload_clip_model()
         shared.log.debug(f'Caption: time={time.time()-t0:.2f} answer="{prompt}"')
         return prompt
     elif shared.opts.caption_default_type == 'Tagger':
