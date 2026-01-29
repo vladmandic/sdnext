@@ -366,7 +366,7 @@ def get_keep_thinking():
 def strip_think_xml_tags(text: str, keep: bool = False) -> str:
     """Strip or reformat XML-style <think>...</think> blocks from model output.
 
-    Applies to models that use HuggingFace chat templates with <think>/<\/think>
+    Applies to models that use HuggingFace chat templates with <think>/</think>
     tokens (Qwen, Gemma, SmolVLM). Models with structured reasoning APIs
     (e.g. Moondream) handle their reasoning output separately.
 
@@ -374,7 +374,7 @@ def strip_think_xml_tags(text: str, keep: bool = False) -> str:
     response may only contain </think> without a matching <think>.
 
     Args:
-        text: Model output text potentially containing <think>/<\/think> tags.
+        text: Model output text potentially containing <think>/</think> tags.
         keep: If True, reformat tags as human-readable Reasoning/Answer sections.
               If False, strip thinking blocks entirely.
     """
@@ -550,6 +550,7 @@ class VQA:
                 repo,
                 torch_dtype=devices.dtype,
                 trust_remote_code=True,
+                use_safetensors=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
@@ -585,6 +586,13 @@ class VQA:
         answer = self.processor.decode(outputs[0], skip_special_tokens=True)
         return answer
 
+    # Map Qwen VL config model_type strings to their model classes.
+    _QWEN_VL_MODEL_TYPE_MAP = {
+        'qwen3_vl': 'Qwen3VLForConditionalGeneration',
+        'qwen2_5_vl': 'Qwen2_5_VLForConditionalGeneration',
+        'qwen2_vl': 'Qwen2VLForConditionalGeneration',
+    }
+
     def _load_qwen(self, repo: str):
         """Load Qwen VL model and processor."""
         if self.model is None or self.loaded != repo:
@@ -597,11 +605,17 @@ class VQA:
             elif 'Qwen2-VL' in repo or 'Qwen2VL' in repo:
                 cls_name = transformers.Qwen2VLForConditionalGeneration
             else:
-                cls_name = transformers.AutoModelForCausalLM
+                # Fine-tunes (e.g. ToriiGate) may not have "Qwen" in the repo name.
+                # Detect the correct class from the config's model_type.
+                config = transformers.AutoConfig.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+                model_type = getattr(config, 'model_type', '')
+                cls_attr = self._QWEN_VL_MODEL_TYPE_MAP.get(model_type)
+                cls_name = getattr(transformers, cls_attr) if cls_attr else transformers.AutoModelForCausalLM
             quant_args = model_quant.create_config(module='LLM')
             self.model = cls_name.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
+                use_safetensors=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
@@ -716,6 +730,7 @@ class VQA:
             self.model = cls.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
+                use_safetensors=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
@@ -826,6 +841,7 @@ class VQA:
                 repo,
                 cache_dir=shared.opts.hfcache_dir,
                 torch_dtype=devices.dtype,
+                use_safetensors=True,
             )
             self.loaded = repo
             devices.torch_gc()
@@ -850,13 +866,22 @@ class VQA:
         if self.model is None or self.loaded != repo:
             shared.log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
-            self.model = transformers.AutoModelForCausalLM.from_pretrained(
-                repo,
-                torch_dtype=devices.dtype,
-                multimodal_max_length=32768,
-                trust_remote_code=True,
-                cache_dir=shared.opts.hfcache_dir,
-            )
+            # Ovis remote code calls AutoConfig.register("aimv2", ...) at module scope
+            # without exist_ok=True, which fails on reload or when the type is already
+            # registered by a newer transformers version.
+            _orig = transformers.AutoConfig.register.__func__ if hasattr(transformers.AutoConfig.register, '__func__') else transformers.AutoConfig.register
+            transformers.AutoConfig.register = staticmethod(lambda model_type, config, exist_ok=False: _orig(model_type, config, exist_ok=True))
+            try:
+                self.model = transformers.AutoModelForCausalLM.from_pretrained(
+                    repo,
+                    torch_dtype=devices.dtype,
+                    multimodal_max_length=32768,
+                    trust_remote_code=True,
+                    use_safetensors=True,
+                    cache_dir=shared.opts.hfcache_dir,
+                )
+            finally:
+                transformers.AutoConfig.register = _orig
             self.loaded = repo
             devices.torch_gc()
 
@@ -903,6 +928,7 @@ class VQA:
                 repo,
                 cache_dir=shared.opts.hfcache_dir,
                 torch_dtype=devices.dtype,
+                use_safetensors=True,
                 **quant_args,
             )
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
@@ -995,6 +1021,7 @@ class VQA:
             self.model = transformers.GitForCausalLM.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
+                use_safetensors=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
             self.processor = transformers.GitProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
@@ -1025,6 +1052,7 @@ class VQA:
             self.model = transformers.BlipForQuestionAnswering.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
+                use_safetensors=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
             self.processor = transformers.BlipProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
@@ -1049,6 +1077,7 @@ class VQA:
             self.model = transformers.ViltForQuestionAnswering.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
+                use_safetensors=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
             self.processor = transformers.ViltProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
@@ -1075,6 +1104,7 @@ class VQA:
             self.model = transformers.Pix2StructForConditionalGeneration.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
+                use_safetensors=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
             self.processor = transformers.Pix2StructProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
@@ -1085,9 +1115,10 @@ class VQA:
         self._load_pix(repo)
         sd_models.move_model(self.model, devices.device)
         if len(question) > 0:
-            inputs = self.processor(images=image, text=question, return_tensors="pt").to(devices.device)
+            inputs = self.processor(images=image, text=question, return_tensors="pt")
         else:
-            inputs = self.processor(images=image, return_tensors="pt").to(devices.device)
+            inputs = self.processor(images=image, return_tensors="pt")
+        inputs = {k: v.to(devices.device, devices.dtype) if v.is_floating_point() else v.to(devices.device) for k, v in inputs.items()}
         with devices.inference_context():
             outputs = self.model.generate(**inputs)
         response = self.processor.decode(outputs[0], skip_special_tokens=True)
@@ -1103,6 +1134,7 @@ class VQA:
                 revision="2025-06-21",
                 trust_remote_code=True,
                 torch_dtype=devices.dtype,
+                use_safetensors=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
             self.processor = transformers.AutoTokenizer.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
@@ -1201,6 +1233,7 @@ class VQA:
                 repo_name,
                 revision=effective_revision,
                 torch_dtype=devices.dtype,
+                use_safetensors=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
@@ -1254,6 +1287,7 @@ class VQA:
                 torch_dtype=devices.dtype,
                 low_cpu_mem_usage=True,
                 use_flash_attn=False,
+                use_safetensors=True,
                 trust_remote_code=True)
             self.model = self.model.eval()  # required: trust_remote_code model
             self.processor = transformers.AutoTokenizer.from_pretrained(

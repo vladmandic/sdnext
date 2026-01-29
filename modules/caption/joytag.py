@@ -120,6 +120,10 @@ class VisionModel(nn.Module):
         self.image_size = image_size
         self.n_tags = n_tags
 
+    @property
+    def device(self):
+        return next(self.parameters()).device
+
     @staticmethod
     def load_model(path: str) -> 'VisionModel':
         with open(Path(path) / 'config.json', 'r', encoding='utf8') as f:

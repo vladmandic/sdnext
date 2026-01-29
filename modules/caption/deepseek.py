@@ -51,6 +51,7 @@ def load(repo: str):
         vl_gpt = AutoModelForCausalLM.from_pretrained(
             repo,
             trust_remote_code=True,
+            use_safetensors=True,
             cache_dir=shared.opts.hfcache_dir,
         )
         vl_gpt.to(dtype=devices.dtype)

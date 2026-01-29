@@ -3,7 +3,7 @@ from modules import shared, ui_common, generation_parameters_copypaste
 from modules.caption import openclip
 
 
-default_task = "Short Caption"
+default_task = "Normal Caption"
 
 def vlm_caption_wrapper(question, system_prompt, prompt, image, model_name, prefill, thinking_mode):
     """Wrapper for vqa.caption that handles annotated image display."""
@@ -19,7 +19,8 @@ def update_vlm_prompts_for_model(model_name):
     """Update the task dropdown choices based on selected model."""
     from modules.caption import vqa
     prompts = vqa.get_prompts_for_model(model_name)
-    return gr.update(choices=prompts, value=prompts[0] if prompts else default_task)
+    value = default_task if default_task in prompts else (prompts[0] if prompts else default_task)
+    return gr.update(choices=prompts, value=value)
 
 
 def update_vlm_prompt_placeholder(question):

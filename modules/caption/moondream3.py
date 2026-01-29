@@ -54,6 +54,7 @@ def load_model(repo: str):
             repo,
             trust_remote_code=True,
             torch_dtype=devices.dtype,
+            use_safetensors=True,
             cache_dir=shared.opts.hfcache_dir,
         )
 

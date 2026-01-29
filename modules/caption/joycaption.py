@@ -69,6 +69,7 @@ def load(repo: str = None):
         llava_model = LlavaForConditionalGeneration.from_pretrained(
             repo,
             torch_dtype=devices.dtype,
+            use_safetensors=True,
             cache_dir=shared.opts.hfcache_dir,
             **quant_args,
         )

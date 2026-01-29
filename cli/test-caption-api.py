@@ -44,6 +44,9 @@ OCR_TEST_IMAGE = 'models/Reference/HiDream-ai--HiDream-I1-Fast.jpg'
 # Bracket test image (must produce tags with parentheses, e.g. pokemon_(creature))
 BRACKET_TEST_IMAGE = 'models/Reference/SDXL-Flash_Mini.jpg'
 
+# Custom prefill text used for dual-prefill verification across tests
+CUSTOM_PREFILL = "Vlado is the best, and I'm looking at his robot which"
+
 
 class CaptionAPITest:
     """Test harness for Caption API endpoints."""
@@ -256,6 +259,20 @@ class CaptionAPITest:
         if all(c in '.,!?;:\'"()-_' for c in stripped):
             return False
         return True
+
+    def _check_prefill(self, base_request: dict, test_label: str):
+        """Re-run a VQA request with custom prefill and verify it appears in output."""
+        req = {**base_request, 'prefill': CUSTOM_PREFILL, 'keep_prefill': True}
+        data = self.post('/sdapi/v1/vqa', req)
+        if 'error' in data:
+            self.log_skip(f"{test_label} prefill: API error")
+        elif data.get('answer') and not self.is_error_answer(data['answer']):
+            if data['answer'].startswith(CUSTOM_PREFILL):
+                self.log_pass(f"{test_label} prefill: output starts with custom prefill")
+            else:
+                self.log_fail(f"{test_label} prefill: expected '{CUSTOM_PREFILL[:30]}...' but got '{data['answer'][:30]}...'")
+        else:
+            self.log_fail(f"{test_label} prefill: empty/error")
 
     def get_model_family(self, model_name):
         """Determine model family from model name."""
@@ -1138,6 +1155,9 @@ class CaptionAPITest:
             if results['Long Caption'] < results['Normal Caption']:
                 self.log_info(f"NOTE: Long ({results['Long Caption']}) < Normal ({results['Normal Caption']}); LLM may interpret length prompts differently per run")
 
+        # Dual prefill: re-run 'Normal Caption' with custom prefill
+        self._check_prefill({'image': self.image_b64, 'question': 'Normal Caption'}, "different_prompts")
+
     # =========================================================================
     # TEST: POST /sdapi/v1/vqa - Annotated Image
     # =========================================================================
@@ -1256,6 +1276,9 @@ class CaptionAPITest:
         else:
             self.log_fail("Custom system prompt returned empty answer")
 
+        # Dual prefill: re-run with custom system prompt + prefill
+        self._check_prefill({'image': self.image_b64, 'question': 'describe the image', 'system': custom_system}, "system_prompt")
+
     # =========================================================================
     # TEST: POST /sdapi/v1/vqa - Invalid Inputs
     # =========================================================================
@@ -1327,6 +1350,9 @@ class CaptionAPITest:
                 self.log_pass("Detection-style prompt accepted")
             else:
                 self.log_skip("Detection prompt may require specific model")
+
+        # Dual prefill: re-run 'Use Prompt' with custom prefill
+        self._check_prefill({'image': self.image_b64, 'question': 'Use Prompt', 'prompt': custom_prompt}, "prompt_field")
 
     # =========================================================================
     # TEST: POST /sdapi/v1/vqa - Generation Parameters
@@ -1434,6 +1460,9 @@ class CaptionAPITest:
         else:
             self.log_fail("top_k/top_p returned empty/error")
 
+        # Dual prefill: re-run temp=0 request with custom prefill
+        self._check_prefill({'image': self.image_b64, 'question': 'describe the image briefly', 'temperature': 0.0}, "generation_params")
+
     # =========================================================================
     # TEST: POST /sdapi/v1/vqa - Sampling Controls
     # =========================================================================
@@ -1499,6 +1528,9 @@ class CaptionAPITest:
                 self.log_info(f"NOTE: num_beams=4 ({elapsed:.1f}s) not slower than greedy ({greedy_elapsed:.1f}s); beam search overhead may be negligible for short outputs or fast GPUs")
         else:
             self.log_fail("num_beams=4 returned empty/error")
+
+        # Dual prefill: re-run greedy request with custom prefill
+        self._check_prefill({'image': self.image_b64, 'question': 'describe the image', 'do_sample': False}, "sampling")
 
     # =========================================================================
     # TEST: POST /sdapi/v1/vqa - Thinking Mode
