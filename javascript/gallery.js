@@ -1256,7 +1256,7 @@ async function galleryClearInit() {
 async function blockQueueUntilReady() {
   // Add block to maintenanceQueue until cache is ready
   maintenanceQueue.enqueue({
-    signal: new AbortSignal(), // Use standalone AbortSignal that can't be aborted
+    signal: new AbortController().signal, // Use standalone AbortSignal that can't be aborted
     callback: async () => {
       let timeout = 0;
       while (!idbIsReady() && timeout++ < 60) {
