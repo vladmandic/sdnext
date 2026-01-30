@@ -1,31 +1,64 @@
-const getModel = () => {
-  const cp = opts?.sd_model_checkpoint || '';
-  if (!cp) return 'unknown model';
-  const noBracket = cp.replace(/\s*\[.*\]\s*$/, ''); // remove trailing [hash]
-  const parts = noBracket.split(/[\\/]/); // split on / or \
-  return parts[parts.length - 1].trim() || 'unknown model';
-};
+class ConnectionMonitorState {
+  static element;
+  static version = '';
+  static commit = '';
+  static branch = '';
+  static online = false;
+
+  static getModel() {
+    const cp = opts?.sd_model_checkpoint || '';
+    return cp ? this.trimModelName(cp) : 'unknown model';
+  }
+
+  static trimModelName(name) {
+    const noBracket = name.replace(/\s*\[.*\]\s*$/, ''); // remove trailing [hash]
+    const parts = noBracket.split(/[\\/]/); // split on / or \
+    return parts[parts.length - 1].trim() || 'unknown model';
+  }
+
+  static setData({ online, updated, commit, branch }) {
+    this.online = online;
+    this.version = updated;
+    this.commit = commit;
+    this.branch = branch;
+  }
+
+  static setElement(el) {
+    this.element = el;
+  }
+
+  static toHTML(modelOverride) {
+    return `
+      Version: <b>${this.version}</b><br>
+      Commit: <b>${this.commit}</b><br>
+      Branch: <b>${this.branch}</b><br>
+      Status: ${this.online ? '<b style="color:lime">online</b>' : '<b style="color:darkred">offline</b>'}<br>
+      Model: <b>${modelOverride ? this.trimModelName(modelOverride) : this.getModel()}</b><br>
+      Since: ${new Date().toLocaleString()}<br>
+    `;
+  }
+
+  static updateState(incomingModel) {
+    this.element.dataset.hint = this.toHTML(incomingModel);
+    this.element.style.backgroundColor = this.online ? 'var(--sd-main-accent-color)' : 'var(--color-error)';
+  }
+}
+
+let monitorAutoUpdating = false;
 
 async function updateIndicator(online, data, msg) {
   const el = document.getElementById('logo_nav');
   if (!el || !data) return;
-  const status = online ? '<b style="color:lime">online</b>' : '<b style="color:darkred">offline</b>';
-  const date = new Date();
-  const template = `
-    Version: <b>${data.updated}</b><br>
-    Commit: <b>${data.commit}</b><br>
-    Branch: <b>${data.branch}</b><br>
-    Status: ${status}<br>
-    Model: <b>${getModel()}</b><br>
-    Since: ${date.toLocaleString()}<br>
-  `;
+  ConnectionMonitorState.setElement(el);
+  if (!monitorAutoUpdating) {
+    monitorOption('sd_model_checkpoint', (newVal) => { ConnectionMonitorState.updateState(newVal); }); // Runs before opt actually changes
+    monitorAutoUpdating = true;
+  }
+  ConnectionMonitorState.setData({ online, ...data });
+  ConnectionMonitorState.updateState();
   if (online) {
-    el.dataset.hint = template;
-    el.style.backgroundColor = 'var(--sd-main-accent-color)';
     log('monitorConnection: online', data);
   } else {
-    el.dataset.hint = template;
-    el.style.backgroundColor = 'var(--color-error)';
     log('monitorConnection: offline', msg);
   }
 }
