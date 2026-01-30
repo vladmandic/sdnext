@@ -11,9 +11,8 @@ class ConnectionMonitorState {
   }
 
   static trimModelName(name) {
-    const noBracket = name.replace(/\s*\[.*\]\s*$/, ''); // remove trailing [hash]
-    const parts = noBracket.split(/[\\/]/); // split on / or \
-    return parts[parts.length - 1].trim() || 'unknown model';
+    // remove trailing [hash], split on / or \, return last segment, trim
+    return name.replace(/\s*\[.*\]\s*$/, '').split(/[\\/]/).pop().trim() || 'unknown model';
   }
 
   static setData({ online, updated, commit, branch }) {
