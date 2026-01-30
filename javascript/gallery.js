@@ -1058,19 +1058,6 @@ function clearCacheIfDisabled(browser_cache) {
   }
 }
 
-function folderCleanupRunner(evt) {
-  evt.preventDefault();
-  evt.stopPropagation();
-  if (!currentGalleryFolder) return;
-  el.clearCacheFolder.style.color = 'var(--color-green)';
-  setTimeout(() => {
-    el.clearCacheFolder.style.color = 'var(--color-blue)';
-  }, 1000);
-  const controller = resetGalleryState('Clearing folder thumbnails cache');
-  el.files.innerHTML = '';
-  thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
-}
-
 function addCacheClearLabel() { // Don't use async
   const setting = document.querySelector('#setting_browser_cache');
   if (setting) {
@@ -1080,11 +1067,23 @@ function addCacheClearLabel() { // Don't use async
     const span = document.createElement('span');
     span.style.cssText = 'font-weight: bold; text-decoration: underline; cursor: pointer; color: var(--color-blue); user-select: none;';
     span.innerText = '<select a folder first>';
-    span.addEventListener('dblclick', folderCleanupRunner);
 
     div.append('Clear the thumbnail cache for: ', span, ' (double-click)');
     setting.parentElement.insertAdjacentElement('afterend', div);
     el.clearCacheFolder = span;
+
+    span.addEventListener('dblclick', (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      if (!currentGalleryFolder) return;
+      el.clearCacheFolder.style.color = 'var(--color-green)';
+      setTimeout(() => {
+        el.clearCacheFolder.style.color = 'var(--color-blue)';
+      }, 1000);
+      const controller = resetGalleryState('Clearing folder thumbnails cache');
+      el.files.innerHTML = '';
+      thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
+    });
     return true;
   }
   return false;
