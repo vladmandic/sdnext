@@ -983,13 +983,13 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
     callback: async () => {
       log(`Thumbnail DB cleanup: Checking if "${folder}" needs cleaning`);
       const t0 = performance.now();
-      const staticGalleryHashes = new Set(galleryHashes.values()); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
+      const keptGalleryHashes = force ? new Set() : new Set(galleryHashes.values()); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
       const cachedHashesCount = await idbCount(folder)
         .catch((e) => {
           error(`Thumbnail DB cleanup: Error when getting entry count for "${folder}".`, e);
           return Infinity; // Forces next check to fail if something went wrong
         });
-      const cleanupCount = cachedHashesCount - staticGalleryHashes.size;
+      const cleanupCount = cachedHashesCount - keptGalleryHashes.size;
       if (!force && (cleanupCount < 500 || !Number.isFinite(cleanupCount))) {
         // Don't run when there aren't many excess entries
         return;
@@ -1000,10 +1000,10 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
         return;
       }
       const cb_clearMsg = showCleaningMsg(cleanupCount);
-      await idbFolderCleanup(staticGalleryHashes, folder, controller.signal)
+      await idbFolderCleanup(keptGalleryHashes, folder, controller.signal)
         .then((delcount) => {
           const t1 = performance.now();
-          log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+          log(`Thumbnail DB cleanup: folder=${folder} kept=${keptGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
           currentGalleryFolder = null;
           el.clearCacheFolder.innerText = '<select a folder first>';
           updateStatusWithSort('Thumbnail cache cleared');
