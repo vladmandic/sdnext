@@ -67,7 +67,7 @@ def task_specific_kwargs(p, model):
         if 'hires' not in p.ops:
             p.ops.append('img2img')
         if p.vae_type == 'Remote':
-            from modules.sd_vae_remote import remote_encode
+            from modules.vae.sd_vae_remote import remote_encode
             p.init_images = remote_encode(p.init_images)
         task_args = {
             'image': p.init_images,
@@ -117,7 +117,7 @@ def task_specific_kwargs(p, model):
             p.ops.append('inpaint')
         mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
         if p.vae_type == 'Remote':
-            from modules.sd_vae_remote import remote_encode
+            from modules.vae.sd_vae_remote import remote_encode
             p.init_images = remote_encode(p.init_images)
             # mask_image = remote_encode(mask_image)
         task_args = {

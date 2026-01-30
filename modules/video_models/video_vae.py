@@ -41,7 +41,7 @@ def vae_decode_tiny(latents):
     else:
         shared.log.warning(f'Decode: type=Tiny cls={shared.sd_model.__class__.__name__} not supported')
         return None
-    from modules import sd_vae_taesd
+    from modules.vae import sd_vae_taesd
     vae, variant = sd_vae_taesd.get_model(variant=variant)
     if vae is None:
         return None

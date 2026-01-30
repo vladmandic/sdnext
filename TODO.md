@@ -6,6 +6,7 @@
 
 ## Internal
 
+- Feature: Flow-match `res4lyf` schedulers
 - Feature: Move `nunchaku` models to refernce instead of internal decision  
 - Update: `transformers==5.0.0`
 - Feature: Unify *huggingface* and *diffusers* model folders

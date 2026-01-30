@@ -4,7 +4,8 @@ from collections import namedtuple
 import torch
 import torchvision.transforms as T
 from PIL import Image
-from modules import shared, devices, processing, images, sd_vae_approx, sd_vae_taesd, sd_vae_stablecascade, sd_samplers, timer
+from modules import shared, devices, processing, images, sd_samplers, timer
+from modules.vae import sd_vae_approx, sd_vae_taesd, sd_vae_stablecascade
 
 
 SamplerData = namedtuple('SamplerData', ['name', 'constructor', 'aliases', 'options'])

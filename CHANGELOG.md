@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-01-28
+## Update for 2026-01-30
 
 - **Models**
   - [Tongyi-MAI Z-Image Base](https://tongyi-mai.github.io/Z-Image-blog/)  
@@ -10,7 +10,9 @@
   - add SmilingWolf WD14/WaifuDiffusion tagger models, thanks @CalamitousFelicitousness  
   - support comments in wildcard files, using `#`  
   - support aliases in metadata skip params, thanks @CalamitousFelicitousness  
-  - ui gallery add manual cache cleanup, thanks @awsr  
+  - ui gallery improve cache cleanup and add manual option, thanks @awsr  
+  - selectable options to add system info to metadata, thanks @Athari  
+    see *settings -> image metadata*  
 - **Schedulers**
   - schedulers documentation has new home: <https://vladmandic.github.io/sdnext-docs/Schedulers/>
   - add 13(!) new scheduler families
@@ -31,9 +33,11 @@
     **xpu**: update to `torch==2.10.0`  
     **rocm**: update to `torch==2.10.0`  
     **openvino**: update to `torch==2.10.0` and `openvino==2025.4.1`  
+  - rocm: expand available gfx archs, thanks @crashingalexsan  
   - rocm: set `MIOPEN_FIND_MODE=2` by default, thanks @crashingalexsan  
   - relocate all json data files to `data/` folder  
     existing data files are auto-migrated on startup  
+  - refactor and improve connection monitor, thanks @awsr  
   - further work on type consistency and type checking, thanks @awsr  
   - log captured exceptions  
   - improve temp folder handling and cleanup  
