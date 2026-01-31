@@ -119,9 +119,12 @@ function updateGalleryStyles() {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        transition-duration: 0.2s;
+        transition-property: color, opacity, background-color, border-color;
+        transition-timing-function: ease-out;
       }
       .gallery-folder:hover {
-        background-color: var(--button-primary-background-fill-hover);
+        background-color: var(--button-primary-background-fill-hover, var(--sd-button-hover-color));
       }
       .gallery-folder-selected {
         background-color: var(--sd-button-selected-color);
