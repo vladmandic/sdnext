@@ -24,6 +24,9 @@
     - flow: *PEC, Riemannian, Euclidean, Hyperbolic, Lorentzian, Langevin-Dynamics*
   - add 3 additional schedulers: *CogXDDIM, DDIMParallel, DDPMParallel*  
     not originally intended to be a general purpose schedulers, but they work quite nicely and produce good results  
+- **API**  
+  - add `/sdapi/v1/xyz-grid` to enumerate xyz-grid axis options and their choices  
+    see `/cli/api-xyzenum.py` for example usage  
 - **Internal**
   - tagged release history: <https://github.com/vladmandic/sdnext/tags>  
     each major for the past year is now tagged for easier reference  

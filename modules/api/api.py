@@ -116,6 +116,10 @@ class Api:
         from modules.api import nudenet
         nudenet.register_api()
 
+        # xyz-grid api
+        from modules.api import xyz_grid
+        xyz_grid.register_api()
+
         # civitai api
         from modules.civitai import api_civitai
         api_civitai.register_api()

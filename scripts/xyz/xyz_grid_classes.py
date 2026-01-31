@@ -55,11 +55,15 @@ class AxisOption:
         self.cost = cost
         self.choices = choices
 
+    def __repr__(self):
+        return f'AxisOption(label="{self.label}" type={self.type.__name__} cost={self.cost} choices={self.choices is not None})'
+
 
 class AxisOptionImg2Img(AxisOption):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.is_img2img = True
+
 
 class AxisOptionTxt2Img(AxisOption):
     def __init__(self, *args, **kwargs):

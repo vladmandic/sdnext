@@ -1,4 +1,4 @@
-# RES4LYF SCHEDULERS
+# RES4LYF DIFFUSION SCHEDULERS
 
 - Schedulers codebase is in `modules/res4lyf`  
   do not modify any other files  
@@ -6,8 +6,9 @@
   - using `epsilon` prediction type  
   - using `StableDiffusionXLPipeline` pipeline for text2image  
   - using `StableDiffusionXLInpaintPipeline` for inpainting and image2image  
-- *ETDRKScheduler, LawsonScheduler, ABNorsettScheduler, RESSinglestepSDEScheduler, PECScheduler*:  
-  produce good outputs under all circumstances  
+- *ETDRKScheduler, LawsonScheduler, ABNorsettScheduler, RESSinglestepScheduler, RESSinglestepSDEScheduler, PECScheduler*:  
+  do NOT modify behavior and codebase for these schedulers as they produce good outputs under all circumstances  
+  if needed, you can use them as gold-standard references to compare other schedulers against  
 - *LinearRKScheduler, LobattoScheduler, RadauIIAScheduler, GaussLegendreScheduler, SpecializedRKScheduler, RungeKuttaScheduler*:  
   work well for text2image, but then in image2image it produces pure black image  
 - *RESUnifiedScheduler*:  
