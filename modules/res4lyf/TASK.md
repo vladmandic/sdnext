@@ -1,5 +1,5 @@
 # TASK: Schedulers
-
+ 
 ## Notes
 
 This is a codebase for diffusion schedulers implemented for `diffusers` library and ported from `res4lyf` repository at <https://github.com/ClownsharkBatwing/RES4LYF>
@@ -8,16 +8,17 @@ Ported schedulers codebase is in `modules/res4lyf`, do not modify any other file
 
 ## Testing  
 
-Current focus is on following code-paths:
-- using `epsilon` prediction type  
-- using `StableDiffusionXLPipeline` pipeline for *text2image*  
+All schedulers were tested using prediction type `epsilon` and `StableDiffusionXLPipeline` pipeline for *text2image*: WORKING GOOD!
+
+Shifting focus to testing prediction type `flow_prediction` and `ZImagePipeline` pipeline for *text2image*  
 
 ## Results
 
-- *ETDRKScheduler, LawsonScheduler, ABNorsettScheduler, RESSinglestepScheduler, RESSinglestepSDEScheduler, PECScheduler, etc.*:  
-  do NOT modify behavior and codebase for these schedulers as they produce good outputs under all circumstances  
-  if needed, you can use them as gold-standard references to compare other schedulers against  
-- *RESUnifiedScheduler*, *DEISMultistepScheduler, RESMultistepScheduler*
-  work fine with `rk_type=res_2s`, `rk_type=deis_1s` and similar single-step params,  
-  but with `rk_type=res_2m`, `rk_type=deis_2m` and similar multi-step params  
-  image looks fine in early steps, but then degrages at the final steps with what looks like too much noise
+- so far all tested schedules produce blocky/pixelated and unresolved output
+
+## TODO
+
+- focus on a single scheduler only. lets pick abnorsett_2m
+- validate config params: is this ok? 
+  config={'num_train_timesteps': 1000, 'beta_start': 0.0001, 'beta_end': 0.02, 'beta_schedule': 'linear', 'prediction_type': 'flow_prediction', 'variant': 'abnorsett_2m', 'use_analytic_solution': True, 'timestep_spacing': 'linspace', 'steps_offset': 0, 'use_flow_sigmas': True, 'shift': 3, 'base_shift': 0.5, 'max_shift': 1.15, 'base_image_seq_len': 256, 'max_image_seq_len': 4096}
+- check code
