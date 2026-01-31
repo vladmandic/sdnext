@@ -125,7 +125,6 @@ function updateGalleryStyles() {
       }
       .gallery-folder:hover {
         background-color: var(--button-primary-background-fill-hover, var(--sd-button-hover-color));
-        color: var(--sd-input-hover-text-color);
       }
       .gallery-folder-selected {
         background-color: var(--sd-button-selected-color);
