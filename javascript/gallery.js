@@ -311,6 +311,8 @@ class SimpleFunctionQueue {
 // HTML Elements
 
 class GalleryFolder extends HTMLElement {
+  static folders = new Set();
+
   constructor(folder) {
     super();
     // Support both old format (string) and new format (object with path and label)
@@ -324,21 +326,35 @@ class GalleryFolder extends HTMLElement {
     this.style.overflowX = 'hidden';
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [folderStylesheet];
+
+    this.div = document.createElement('div');
   }
 
   connectedCallback() {
-    const div = document.createElement('div');
-    div.className = 'gallery-folder';
-    div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.label}`;
-    div.title = this.name; // Show full path on hover
-    div.addEventListener('click', () => {
-      for (const folder of el.folders.children) {
-        if (folder.name === this.name) folder.shadow.firstElementChild.classList.add('gallery-folder-selected');
-        else folder.shadow.firstElementChild.classList.remove('gallery-folder-selected');
+    if (GalleryFolder.folders.has(this)) return; // Element is just being moved
+
+    this.div.className = 'gallery-folder';
+    this.div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.label}`;
+    this.div.title = this.name; // Show full path on hover
+    this.div.addEventListener('click', () => { this.updateSelected(); }); // Ensures 'this' isn't the div in the called method
+    this.div.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
+    this.shadow.appendChild(this.div);
+    GalleryFolder.folders.add(this);
+  }
+
+  async disconnectedCallback() {
+    await Promise.resolve(); // Wait for other microtasks (such as element moving)
+    if (this.isConnected) return;
+    GalleryFolder.folders.delete(this);
+  }
+
+  updateSelected() {
+    this.div.classList.add('gallery-folder-selected');
+    for (const folder of GalleryFolder.folders) {
+      if (folder !== this) {
+        folder.div.classList.remove('gallery-folder-selected');
       }
-    });
-    div.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
-    this.shadow.appendChild(div);
+    }
   }
 }
 
@@ -508,12 +524,13 @@ class GalleryFile extends HTMLElement {
     this.src = `${this.folder}/${this.name}`;
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [fileStylesheet];
+
+    this.firstRun = true;
   }
 
   async connectedCallback() {
-    if (this.shadow.children.length > 0) {
-      return;
-    }
+    if (!this.firstRun) return; // Element is just being moved
+    this.firstRun = false;
 
     // Check separator state early to hide the element immediately
     const dir = this.name.match(/(.*)[/\\]/);
@@ -596,9 +613,6 @@ class GalleryFile extends HTMLElement {
       setGallerySelectionByElement(this, { send: true });
     };
     img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
-    if (this.shadow.children.length > 0) {
-      return; // avoid double-adding
-    }
     this.title = img.title;
 
     // Final visibility check based on search term.
