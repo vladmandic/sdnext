@@ -5,6 +5,8 @@ import torch
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.schedulers.scheduling_utils import SchedulerMixin, SchedulerOutput
 
+from .phi_functions import Phi
+
 
 def get_def_integral_2(a, b, start, end, c):
     coeff = (end**3 - start**3) / 3 - (end**2 - start**2) * (a + b) / 2 + (end - start) * a * b
@@ -46,6 +48,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         use_dynamic_shifting: bool = False,
         timestep_spacing: str = "linspace",
         solver_order: int = 2,
+        use_analytic_solution: bool = True,
         clip_sample: bool = False,
         sample_max_value: float = 1.0,
         set_alpha_to_one: bool = False,
@@ -71,6 +74,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         self.num_inference_steps = None
         self.timesteps = torch.from_numpy(np.arange(0, num_train_timesteps)[::-1].copy())
         self.sigmas = None
+        self.init_noise_sigma = 1.0
 
         # Internal state
         self.model_outputs = []
@@ -84,7 +88,8 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         num_inference_steps: int,
         device: Union[str, torch.device] = None,
         mu: Optional[float] = None,
-    ):
+        dtype: torch.dtype = torch.float32):
+
         self.num_inference_steps = num_inference_steps
 
         # 1. Spacing
@@ -148,8 +153,9 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         # Map back to timesteps
         timesteps = np.interp(np.log(np.maximum(sigmas, 1e-10)), log_sigmas_all, np.arange(len(log_sigmas_all)))
 
-        self.sigmas = torch.from_numpy(np.append(sigmas, 0.0)).to(device=device, dtype=torch.float32)
-        self.timesteps = torch.from_numpy(timesteps + self.config.steps_offset).to(device=device, dtype=torch.float32)
+        self.sigmas = torch.from_numpy(np.append(sigmas, 0.0)).to(device=device, dtype=dtype)
+        self.timesteps = torch.from_numpy(timesteps + self.config.steps_offset).to(device=device, dtype=dtype)
+        self.init_noise_sigma = self.sigmas.max().item() if self.sigmas.numel() > 0 else 1.0
 
         self._sigmas_cpu = self.sigmas.detach().cpu().numpy()
 
@@ -225,7 +231,10 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             self._step_index = self.index_for_timestep(timestep)
 
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
-        return sample
+        if self._step_index is None:
+            self._init_step_index(timestep)
+        sigma = self.sigmas[self._step_index]
+        return sample / ((sigma**2 + 1) ** 0.5)
 
     def step(
         self,
@@ -239,16 +248,15 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         step_index = self._step_index
         sigma_t = self.sigmas[step_index]
-        # Calculate alpha_t and sigma_t (NSR)
-        alpha_t = 1 / (sigma_t**2 + 1) ** 0.5
-        sigma_actual = sigma_t * alpha_t
-
+        
+        # RECONSTRUCT X0 (Matching PEC pattern)
         if self.config.prediction_type == "epsilon":
-            denoised = (sample / alpha_t) - sigma_t * model_output
+            denoised = sample - sigma_t * model_output
         elif self.config.prediction_type == "v_prediction":
+            alpha_t = 1 / (sigma_t**2 + 1) ** 0.5
+            sigma_actual = sigma_t * alpha_t
             denoised = alpha_t * sample - sigma_actual * model_output
         elif self.config.prediction_type == "flow_prediction":
-            alpha_t = 1.0
             denoised = sample - sigma_t * model_output
         elif self.config.prediction_type == "sample":
             denoised = model_output
@@ -264,33 +272,54 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         sigma_next = self.sigmas[step_index + 1]
         alpha_next = 1 / (sigma_next**2 + 1) ** 0.5 if sigma_next > 0 else 1.0
 
-        if coeffs is None:
-            prev_sample = denoised
+        if self.config.solver_order == 1:
+            # 1st order step (Euler) in x-space
+            x_next = (sigma_next / sigma_t) * sample + (1 - sigma_next / sigma_t) * denoised
+            prev_sample = x_next
         else:
-            current_order = len(coeffs)
-            if current_order == 1:
-                # 1st order step (Euler) in normalized space
-                prev_sample_norm = (sigma_next / sigma_t) * (sample / alpha_t) + (1 - sigma_next / sigma_t) * denoised
-                prev_sample = prev_sample_norm * alpha_next
+            # Multistep weights based on phi functions (consistent with RESMultistep)
+            h = -torch.log(sigma_next / sigma_t) if sigma_t > 0 and sigma_next > 0 else torch.zeros_like(sigma_t)
+            phi = Phi(h, [0], getattr(self.config, "use_analytic_solution", True))
+            phi_1 = phi(1)
+            
+            # History of denoised samples
+            x0s = [denoised] + self.model_outputs[::-1]
+            orders = min(len(x0s), self.config.solver_order)
+            
+            if orders == 1:
+                res = phi_1 * denoised
+            elif orders == 2:
+                # Use phi(2) for 2nd order interpolation
+                h_prev = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 1] + 1e-9))
+                h_prev_t = torch.tensor(h_prev, device=sample.device, dtype=sample.dtype)
+                r = h_prev_t / (h + 1e-9)
+                phi_2 = phi(2)
+                # Correct Adams-Bashforth-like coefficients: b2 = -phi_2 / r
+                b2 = -phi_2 / (r + 1e-9)
+                b1 = phi_1 - b2
+                res = b1 * x0s[0] + b2 * x0s[1]
+            elif orders == 3:
+                # 3rd order with varying step sizes
+                h_p1 = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 1] + 1e-9))
+                h_p2 = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 2] + 1e-9))
+                r1 = torch.tensor(h_p1, device=sample.device, dtype=sample.dtype) / (h + 1e-9)
+                r2 = torch.tensor(h_p2, device=sample.device, dtype=sample.dtype) / (h + 1e-9)
+                phi_2, phi_3 = phi(2), phi(3)
+                denom = r2 - r1 + 1e-9
+                b3 = (phi_3 + r1 * phi_2) / (r2 * denom)
+                b2 = -(phi_3 + r2 * phi_2) / (r1 * denom)
+                b1 = phi_1 - b2 - b3
+                res = b1 * x0s[0] + b2 * x0s[1] + b3 * x0s[2]
             else:
-                # Xs: [x0_curr, x0_prev1, x0_prev2, ...]
-                x0s = [denoised, *self.model_outputs[::-1][: current_order - 1]]
+                # Fallback to Euler or lower order
+                res = phi_1 * denoised
 
-                # Normalize DEIS coefficients to get weights for x0 interpolation
-                # sum(coeffs) = sigma_next - sigma_t
-                delta_sigma = sigma_next - sigma_t
-                if abs(delta_sigma) > 1e-8:
-                    weights = [c / delta_sigma for c in coeffs]
-                else:
-                    weights = [1.0] + [0.0] * (current_order - 1)
-
-                mixed_x0 = 0
-                for i in range(current_order):
-                    mixed_x0 = mixed_x0 + weights[i] * x0s[i]
-
-                # Stable update in normalized space
-                prev_sample_norm = (sigma_next / sigma_t) * (sample / alpha_t) + (1 - sigma_next / sigma_t) * mixed_x0
-                prev_sample = prev_sample_norm * alpha_next
+            # Stable update in x-space
+            if sigma_next == 0:
+                x_next = denoised
+            else:
+                x_next = torch.exp(-h) * sample + h * res
+            prev_sample = x_next
 
         # Store state (always store x0)
         self.model_outputs.append(denoised)
@@ -313,15 +342,8 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         noise: torch.Tensor,
         timesteps: torch.Tensor,
     ) -> torch.Tensor:
-        step_indices = [self.index_for_timestep(t) for t in timesteps]
-        sigma = self.sigmas[step_indices].flatten()
-        while len(sigma.shape) < len(original_samples.shape):
-            sigma = sigma.unsqueeze(-1)
-        return original_samples + noise * sigma
-
-    @property
-    def init_noise_sigma(self):
-        return 1.0
+        from .scheduler_utils import add_noise_to_sample
+        return add_noise_to_sample(original_samples, noise, self.sigmas, timesteps, self.timesteps)
 
     def __len__(self):
         return self.config.num_train_timesteps

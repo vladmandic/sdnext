@@ -103,7 +103,7 @@ class BongTangentScheduler(SchedulerMixin, ConfigMixin):
         sample = sample / ((sigma**2 + 1) ** 0.5)
         return sample
 
-    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None):
+    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None, dtype: torch.dtype = torch.float32):
         from .scheduler_utils import (
             apply_shift,
             get_dynamic_shift,
@@ -118,14 +118,14 @@ class BongTangentScheduler(SchedulerMixin, ConfigMixin):
         steps_offset = getattr(self.config, "steps_offset", 0)
 
         if timestep_spacing == "linspace":
-            timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=np.float32)[::-1].copy()
+            timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=float)[::-1].copy()
         elif timestep_spacing == "leading":
             step_ratio = self.config.num_train_timesteps // self.num_inference_steps
-            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy().astype(np.float32)
+            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy()
             timesteps += steps_offset
         elif timestep_spacing == "trailing":
             step_ratio = self.config.num_train_timesteps / self.num_inference_steps
-            timesteps = (np.arange(self.config.num_train_timesteps, 0, -step_ratio)).round().copy().astype(np.float32)
+            timesteps = (np.arange(self.config.num_train_timesteps, 0, -step_ratio)).round().copy()
             timesteps -= 1
         else:
             raise ValueError(f"timestep_spacing {timestep_spacing} is not supported.")
@@ -165,13 +165,13 @@ class BongTangentScheduler(SchedulerMixin, ConfigMixin):
         sigmas = np.array(sigmas_list)
 
         if getattr(self.config, "use_karras_sigmas", False):
-            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif getattr(self.config, "use_exponential_sigmas", False):
-            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif getattr(self.config, "use_beta_sigmas", False):
-            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif getattr(self.config, "use_flow_sigmas", False):
-            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
 
         shift = getattr(self.config, "shift", 1.0)
         use_dynamic_shifting = getattr(self.config, "use_dynamic_shifting", False)
@@ -186,8 +186,8 @@ class BongTangentScheduler(SchedulerMixin, ConfigMixin):
                 )
             sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
 
-        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]]).astype(np.float32)).to(device=device)
-        self.timesteps = torch.from_numpy(timesteps.astype(np.float32)).to(device=device)
+        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]])).to(device=device, dtype=dtype)
+        self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=dtype)
         self.init_noise_sigma = self.sigmas.max().item() if self.sigmas.numel() > 0 else 1.0
 
         self._step_index = None
@@ -209,7 +209,7 @@ class BongTangentScheduler(SchedulerMixin, ConfigMixin):
         return add_noise_to_sample(original_samples, noise, self.sigmas, timesteps, self.timesteps)
 
     def _get_bong_tangent_sigmas(self, steps: int, slope: float, pivot: int, start: float, end: float) -> List[float]:
-        x = torch.arange(steps, dtype=torch.float32)
+        x = torch.arange(steps, dtype=dtype)
 
         def bong_fn(val):
             return ((2 / torch.pi) * torch.atan(-slope * (val - pivot)) + 1) / 2
@@ -268,7 +268,7 @@ class BongTangentScheduler(SchedulerMixin, ConfigMixin):
         if self.begin_index is None:
             if isinstance(timestep, torch.Tensor):
                 timestep = timestep.to(self.timesteps.device)
-            self._step_index = (self.timesteps == timestep).nonzero()[0].item()
+            self._step_index = self.index_for_timestep(timestep)
         else:
             self._step_index = self._begin_index
 

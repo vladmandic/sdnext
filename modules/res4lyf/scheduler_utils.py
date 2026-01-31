@@ -14,6 +14,7 @@ def betas_for_alpha_bar(
     num_diffusion_timesteps: int,
     max_beta: float = 0.999,
     alpha_transform_type: Literal["cosine", "exp", "laplace"] = "cosine",
+    dtype: torch.dtype = torch.float32,
 ) -> torch.Tensor:
     if alpha_transform_type == "cosine":
         def alpha_bar_fn(t):
@@ -34,7 +35,7 @@ def betas_for_alpha_bar(
         t1 = i / num_diffusion_timesteps
         t2 = (i + 1) / num_diffusion_timesteps
         betas.append(min(1 - alpha_bar_fn(t2) / alpha_bar_fn(t1), max_beta))
-    return torch.tensor(betas, dtype=torch.float32)
+    return torch.tensor(betas, dtype=dtype)
 
 def rescale_zero_terminal_snr(betas: torch.Tensor) -> torch.Tensor:
     alphas = 1.0 - betas
@@ -50,18 +51,18 @@ def rescale_zero_terminal_snr(betas: torch.Tensor) -> torch.Tensor:
     betas = 1 - alphas
     return betas
 
-def get_sigmas_karras(n, sigma_min, sigma_max, rho=7.0, device="cpu"):
+def get_sigmas_karras(n, sigma_min, sigma_max, rho=7.0, device="cpu", dtype: torch.dtype = torch.float32):
     ramp = np.linspace(0, 1, n)
     min_inv_rho = sigma_min ** (1 / rho)
     max_inv_rho = sigma_max ** (1 / rho)
     sigmas = (max_inv_rho + ramp * (min_inv_rho - max_inv_rho)) ** rho
-    return torch.from_numpy(sigmas).to(dtype=torch.float32, device=device)
+    return torch.from_numpy(sigmas).to(dtype=dtype, device=device)
 
-def get_sigmas_exponential(n, sigma_min, sigma_max, device="cpu"):
+def get_sigmas_exponential(n, sigma_min, sigma_max, device="cpu", dtype: torch.dtype = torch.float32):
     sigmas = np.exp(np.linspace(math.log(sigma_max), math.log(sigma_min), n))
-    return torch.from_numpy(sigmas).to(dtype=torch.float32, device=device)
+    return torch.from_numpy(sigmas).to(dtype=dtype, device=device)
 
-def get_sigmas_beta(n, sigma_min, sigma_max, alpha=0.6, beta=0.6, device="cpu"):
+def get_sigmas_beta(n, sigma_min, sigma_max, alpha=0.6, beta=0.6, device="cpu", dtype: torch.dtype = torch.float32):
     if not _scipy_available:
         raise ImportError("scipy is required for beta sigmas")
     sigmas = np.array(
@@ -73,12 +74,12 @@ def get_sigmas_beta(n, sigma_min, sigma_max, alpha=0.6, beta=0.6, device="cpu"):
             ]
         ]
     )
-    return torch.from_numpy(sigmas).to(dtype=torch.float32, device=device)
+    return torch.from_numpy(sigmas).to(dtype=dtype, device=device)
 
-def get_sigmas_flow(n, sigma_min, sigma_max, device="cpu"):
+def get_sigmas_flow(n, sigma_min, sigma_max, device="cpu", dtype: torch.dtype = torch.float32):
     # Linear flow sigmas
     sigmas = np.linspace(sigma_max, sigma_min, n)
-    return torch.from_numpy(sigmas).to(dtype=torch.float32, device=device)
+    return torch.from_numpy(sigmas).to(dtype=dtype, device=device)
 
 def apply_shift(sigmas, shift):
     return shift * sigmas / (1 + (shift - 1) * sigmas)
@@ -89,16 +90,13 @@ def get_dynamic_shift(mu, base_shift, max_shift, base_seq_len, max_seq_len):
     return m * mu + b
 
 def index_for_timestep(timestep, timesteps):
-    index_candidates = (timesteps == timestep).nonzero()
-
-    if len(index_candidates) == 0:
-        step_index = len(timesteps) - 1
-    elif len(index_candidates) > 1:
-        step_index = index_candidates[0].item()
-    else:
-        step_index = index_candidates.item()
-
-    return step_index
+    if isinstance(timestep, torch.Tensor):
+        timestep = timestep.to(timesteps.device)
+    
+    # Use argmin for robustness against float precision issues
+    # and to handle timesteps that might be slightly outside the schedule
+    dists = torch.abs(timesteps - timestep)
+    return torch.argmin(dists).item()
 
 def add_noise_to_sample(
     original_samples: torch.Tensor,
@@ -108,7 +106,7 @@ def add_noise_to_sample(
     timesteps: torch.Tensor,
 ) -> torch.Tensor:
     step_index = index_for_timestep(timestep, timesteps)
-    sigma = sigmas[step_index]
+    sigma = sigmas[step_index].to(original_samples.dtype)
 
     noisy_samples = original_samples + sigma * noise
     return noisy_samples

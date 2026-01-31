@@ -88,10 +88,9 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
         if self._step_index is None:
             self._init_step_index(timestep)
         sigma = self.sigmas[self._step_index]
-        sample = sample / ((sigma**2 + 1) ** 0.5)
-        return sample
+        return sample / ((sigma**2 + 1) ** 0.5)
 
-    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None):
+    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None, dtype: torch.dtype = torch.float32):
         from .scheduler_utils import (
             apply_shift,
             get_dynamic_shift,
@@ -106,14 +105,14 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
         steps_offset = getattr(self.config, "steps_offset", 0)
 
         if timestep_spacing == "linspace":
-            timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=np.float32)[::-1].copy()
+            timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=float)[::-1].copy()
         elif timestep_spacing == "leading":
             step_ratio = self.config.num_train_timesteps // self.num_inference_steps
-            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy().astype(np.float32)
+            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy()
             timesteps += steps_offset
         elif timestep_spacing == "trailing":
             step_ratio = self.config.num_train_timesteps / self.num_inference_steps
-            timesteps = (np.arange(self.config.num_train_timesteps, 0, -step_ratio)).round().copy().astype(np.float32)
+            timesteps = (np.arange(self.config.num_train_timesteps, 0, -step_ratio)).round().copy()
             timesteps -= 1
         else:
             raise ValueError(f"timestep_spacing {timestep_spacing} is not supported.")
@@ -123,13 +122,13 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
         sigmas = base_sigmas[::-1].copy() # Ensure high to low
 
         if getattr(self.config, "use_karras_sigmas", False):
-            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif getattr(self.config, "use_exponential_sigmas", False):
-            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif getattr(self.config, "use_beta_sigmas", False):
-            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif getattr(self.config, "use_flow_sigmas", False):
-            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         else:
             # Re-sample the base sigmas at the requested steps
             idx = np.linspace(0, len(base_sigmas) - 1, num_inference_steps)
@@ -148,37 +147,58 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
                 )
             sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
 
-        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]]).astype(np.float32)).to(device=device)
-        self.timesteps = torch.from_numpy(timesteps.astype(np.float32)).to(device=device)
+        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]])).to(device=device, dtype=dtype)
+        self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=dtype)
         self.init_noise_sigma = self.sigmas.max().item() if self.sigmas.numel() > 0 else 1.0
 
         self._step_index = None
         self._begin_index = None
 
+    def index_for_timestep(self, timestep, schedule_timesteps=None):
+        from .scheduler_utils import index_for_timestep
+        if schedule_timesteps is None:
+            schedule_timesteps = self.timesteps
+        return index_for_timestep(timestep, schedule_timesteps)
+
+    def add_noise(
+        self,
+        original_samples: torch.Tensor,
+        noise: torch.Tensor,
+        timesteps: torch.Tensor,
+    ) -> torch.Tensor:
+        from .scheduler_utils import add_noise_to_sample
+        return add_noise_to_sample(original_samples, noise, self.sigmas, timesteps, self.timesteps)
+
     def _get_coefficients(self, sigma, sigma_next):
         h = -torch.log(sigma_next / sigma) if sigma > 0 else torch.zeros_like(sigma)
-        phi = Phi(h, [], self.config.use_analytic_solution)
+        phi = Phi(h, [], getattr(self.config, "use_analytic_solution", True))
         phi_1 = phi(1)
         phi_2 = phi(2)
+        # phi_2 = phi(2) # Moved inside conditional blocks as needed
 
         history_len = len(self.x0_outputs)
 
         if self.config.rk_type in ["res_2m", "deis_2m"] and history_len >= 2:
-            h_prev = -torch.log(self.prev_sigmas[-1] / self.prev_sigmas[-2])
-            r = h_prev / h
-            # Correct coefficients: b2 = -phi_2 / r, b1 = phi_1 - b2
+            h_prev = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
+            r = h_prev / (h + 1e-9)
+            phi_2 = phi(2)
+            # Correct Adams-Bashforth-like coefficients for Exponential Integrators
             b2 = -phi_2 / (r + 1e-9)
             b1 = phi_1 - b2
             return [b1, b2], h
         elif self.config.rk_type in ["res_3m", "deis_3m"] and history_len >= 3:
-            h_prev1 = -torch.log(self.prev_sigmas[-1] / self.prev_sigmas[-2])
-            h_prev2 = -torch.log(self.prev_sigmas[-1] / self.prev_sigmas[-3])
-            c2 = (-h_prev1 / h).item()
-            c3 = (-h_prev2 / h).item()
-
-            gamma = (3 * (c3**3) - 2 * c3) / (c2 * (2 - 3 * c2) + 1e-9)
-            b3 = phi_2 / (gamma * c2 + c3 + 1e-9)
-            b2 = gamma * b3
+            h_prev1 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
+            h_prev2 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-3] + 1e-9))
+            r1 = h_prev1 / (h + 1e-9)
+            r2 = h_prev2 / (h + 1e-9)
+            
+            phi_2 = phi(2)
+            phi_3 = phi(3)
+            
+            # Generalized AB3 for Exponential Integrators (Varying steps)
+            denom = r2 - r1 + 1e-9
+            b3 = (phi_3 + r1 * phi_2) / (r2 * denom)
+            b2 = -(phi_3 + r2 * phi_2) / (r1 * denom)
             b1 = phi_1 - (b2 + b3)
             return [b1, b2, b3], h
 
@@ -197,15 +217,17 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
         sigma = self.sigmas[self._step_index]
         sigma_next = self.sigmas[self._step_index + 1]
 
-        # RECONSTRUCT X0
+        h = -torch.log(sigma_next / sigma) if sigma > 0 and sigma_next > 0 else torch.zeros_like(sigma)
+
+        # RECONSTRUCT X0 (Matching PEC pattern)
         if self.config.prediction_type == "epsilon":
             x0 = sample - sigma * model_output
-        elif self.config.prediction_type == "v_prediction":
-            alpha_t = 1.0 / (sigma**2 + 1)**0.5
-            sigma_t = sigma * alpha_t
-            x0 = alpha_t * sample - sigma_t * model_output
         elif self.config.prediction_type == "sample":
             x0 = model_output
+        elif self.config.prediction_type == "v_prediction":
+            alpha_t = 1.0 / (sigma**2 + 1) ** 0.5
+            sigma_t = sigma * alpha_t
+            x0 = alpha_t * sample - sigma_t * model_output
         elif self.config.prediction_type == "flow_prediction":
             x0 = sample - sigma * model_output
         else:
@@ -219,7 +241,7 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
             self.prev_sigmas.pop(0)
 
         # GET COEFFICIENTS
-        b, h = self._get_coefficients(sigma, sigma_next)
+        b, h_val = self._get_coefficients(sigma, sigma_next)
 
         if len(b) == 1:
             res = b[0] * x0
@@ -231,10 +253,10 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
             res = b[0] * x0
 
         # UPDATE
-        # Fixed formula: x_next = exp(-h) * sample + h * res
         if sigma_next == 0:
             x_next = x0
         else:
+            # Propagate in x-space (unnormalized)
             x_next = torch.exp(-h) * sample + h * res
 
         self._step_index += 1
@@ -248,7 +270,7 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
         if self.begin_index is None:
             if isinstance(timestep, torch.Tensor):
                 timestep = timestep.to(self.timesteps.device)
-            self._step_index = (self.timesteps == timestep).nonzero()[0].item()
+            self._step_index = self.index_for_timestep(timestep)
         else:
             self._step_index = self._begin_index
 

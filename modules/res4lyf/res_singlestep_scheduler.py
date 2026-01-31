@@ -92,10 +92,9 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
         if self._step_index is None:
             self._init_step_index(timestep)
         sigma = self.sigmas[self._step_index]
-        sample = sample / ((sigma**2 + 1) ** 0.5)
-        return sample
+        return sample / ((sigma**2 + 1) ** 0.5)
 
-    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None):
+    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None, dtype: torch.dtype = torch.float32):
         from .scheduler_utils import (
             apply_shift,
             get_dynamic_shift,
@@ -108,14 +107,14 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
         self.num_inference_steps = num_inference_steps
 
         if self.config.timestep_spacing == "linspace":
-            timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=np.float32)[::-1].copy()
+            timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=float)[::-1].copy()
         elif self.config.timestep_spacing == "leading":
             step_ratio = self.config.num_train_timesteps // self.num_inference_steps
-            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy().astype(np.float32)
+            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy()
             timesteps += self.config.steps_offset
         elif self.config.timestep_spacing == "trailing":
             step_ratio = self.config.num_train_timesteps / self.num_inference_steps
-            timesteps = (np.arange(self.config.num_train_timesteps, 0, -step_ratio)).round().copy().astype(np.float32)
+            timesteps = (np.arange(self.config.num_train_timesteps, 0, -step_ratio)).round().copy()
             timesteps -= 1
         else:
             raise ValueError(f"timestep_spacing {self.config.timestep_spacing} is not supported.")
@@ -124,13 +123,13 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
         sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
 
         if self.config.use_karras_sigmas:
-            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_exponential_sigmas:
-            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_beta_sigmas:
-            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_flow_sigmas:
-            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
 
         if self.config.shift != 1.0 or self.config.use_dynamic_shifting:
             shift = self.config.shift
@@ -144,8 +143,8 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
                 )
             sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
 
-        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]]).astype(np.float32)).to(device=device)
-        self.timesteps = torch.from_numpy(timesteps.astype(np.float32)).to(device=device)
+        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]])).to(device=device, dtype=dtype)
+        self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=dtype)
         self.init_noise_sigma = self.sigmas.max().item() if self.sigmas.numel() > 0 else 1.0
 
         self._step_index = None
@@ -180,13 +179,15 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
         sigma = self.sigmas[step]
         sigma_next = self.sigmas[step + 1]
 
-        # RECONSTRUCT X0
+        h = -torch.log(sigma_next / sigma) if sigma > 0 and sigma_next > 0 else torch.zeros_like(sigma)
+
+        # RECONSTRUCT X0 (Matching PEC pattern)
         if self.config.prediction_type == "epsilon":
             x0 = sample - sigma * model_output
         elif self.config.prediction_type == "sample":
             x0 = model_output
         elif self.config.prediction_type == "v_prediction":
-            alpha_t = 1.0 / (sigma**2 + 1)**0.5
+            alpha_t = 1.0 / (sigma**2 + 1) ** 0.5
             sigma_t = sigma * alpha_t
             x0 = alpha_t * sample - sigma_t * model_output
         elif self.config.prediction_type == "flow_prediction":
@@ -198,7 +199,6 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
         if sigma_next == 0:
             x_next = x0
         else:
-            h = -torch.log(sigma_next / sigma) if sigma > 0 and sigma_next > 0 else torch.zeros_like(sigma)
             # For singlestep RES (multistage), a proper RK requires model evals at intermediate ci * h.
             # Here we provide the standard 1st order update as a base.
             x_next = torch.exp(-h) * sample + (1 - torch.exp(-h)) * x0
@@ -212,7 +212,7 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
 
     def _init_step_index(self, timestep):
         if self.begin_index is None:
-            self._step_index = (self.timesteps == timestep).nonzero()[0].item()
+            self._step_index = self.index_for_timestep(timestep)
         else:
             self._step_index = self._begin_index
 

@@ -95,7 +95,7 @@ class SimpleExponentialScheduler(SchedulerMixin, ConfigMixin):
     def set_begin_index(self, begin_index: int = 0) -> None:
         self._begin_index = begin_index
 
-    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None):
+    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None, dtype: torch.dtype = torch.float32):
         from .scheduler_utils import (
             apply_shift,
             get_dynamic_shift,
@@ -110,13 +110,13 @@ class SimpleExponentialScheduler(SchedulerMixin, ConfigMixin):
         sigmas = np.exp(np.linspace(np.log(self.config.sigma_max), np.log(self.config.sigma_min), num_inference_steps))
 
         if self.config.use_karras_sigmas:
-            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_exponential_sigmas:
-            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_beta_sigmas:
-            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_flow_sigmas:
-            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
 
         if self.config.shift != 1.0 or self.config.use_dynamic_shifting:
             shift = self.config.shift
@@ -130,8 +130,8 @@ class SimpleExponentialScheduler(SchedulerMixin, ConfigMixin):
                 )
             sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
 
-        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]]).astype(np.float32)).to(device=device)
-        self.timesteps = torch.from_numpy(np.linspace(1000, 0, num_inference_steps).astype(np.float32)).to(device=device)
+        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]])).to(device=device, dtype=dtype)
+        self.timesteps = torch.from_numpy(np.linspace(1000, 0, num_inference_steps)).to(device=device, dtype=dtype)
         self.init_noise_sigma = self.sigmas.max().item() if self.sigmas.numel() > 0 else 1.0
 
         self._step_index = None
@@ -204,7 +204,7 @@ class SimpleExponentialScheduler(SchedulerMixin, ConfigMixin):
         if self.begin_index is None:
             if isinstance(timestep, torch.Tensor):
                 timestep = timestep.to(self.timesteps.device)
-            self._step_index = (self.timesteps == timestep).nonzero()[0].item()
+            self._step_index = self.index_for_timestep(timestep)
         else:
             self._step_index = self._begin_index
 

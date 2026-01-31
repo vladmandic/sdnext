@@ -46,6 +46,7 @@ def phi_standard_torch(j: int, neg_h: torch.Tensor) -> torch.Tensor:
         return torch.full_like(neg_h, 1.0 / _torch_factorial(j))
 
     # We use double precision for the series to avoid early overflow/precision loss
+    orig_dtype = neg_h.dtype
     neg_h = neg_h.to(torch.float64)
 
     # For very small h, use series expansion to avoid 0/0
@@ -56,14 +57,14 @@ def phi_standard_torch(j: int, neg_h: torch.Tensor) -> torch.Tensor:
         for k in range(1, 5):
             term = term * neg_h / (j + k)
             result += term
-        return result.to(torch.float32)
+        return result.to(orig_dtype)
 
     remainder = torch.zeros_like(neg_h)
     for k in range(j):
         remainder += (neg_h**k) / _torch_factorial(k)
 
     phi_val = (torch.exp(neg_h) - remainder) / (neg_h**j)
-    return phi_val.to(torch.float32)
+    return phi_val.to(orig_dtype)
 
 
 def phi_mpmath_series(j: int, neg_h: float) -> float:

@@ -97,7 +97,7 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
     def set_begin_index(self, begin_index: int = 0) -> None:
         self._begin_index = begin_index
 
-    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None):
+    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None, dtype: torch.dtype = torch.float32):
         from .scheduler_utils import (
             apply_shift,
             get_dynamic_shift,
@@ -110,14 +110,14 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
         self.num_inference_steps = num_inference_steps
 
         if self.config.timestep_spacing == "linspace":
-            timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=np.float32)[::-1].copy()
+            timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=float)[::-1].copy()
         elif self.config.timestep_spacing == "leading":
             step_ratio = self.config.num_train_timesteps // self.num_inference_steps
-            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy().astype(np.float32)
+            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy()
             timesteps += self.config.steps_offset
         elif self.config.timestep_spacing == "trailing":
             step_ratio = self.config.num_train_timesteps / self.num_inference_steps
-            timesteps = (np.arange(self.config.num_train_timesteps, 0, -step_ratio)).round().copy().astype(np.float32)
+            timesteps = (np.arange(self.config.num_train_timesteps, 0, -step_ratio)).round().copy()
             timesteps -= 1
         else:
             raise ValueError(f"timestep_spacing {self.config.timestep_spacing} is not supported.")
@@ -126,13 +126,13 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
         sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
 
         if self.config.use_karras_sigmas:
-            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_exponential_sigmas:
-            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_beta_sigmas:
-            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_flow_sigmas:
-            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
 
         if self.config.shift != 1.0 or self.config.use_dynamic_shifting:
             shift = self.config.shift
@@ -146,8 +146,8 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
                 )
             sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
 
-        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]]).astype(np.float32)).to(device=device)
-        self.timesteps = torch.from_numpy(timesteps.astype(np.float32)).to(device=device)
+        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]])).to(device=device, dtype=dtype)
+        self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=dtype)
         self.init_noise_sigma = self.sigmas.max().item() if self.sigmas.numel() > 0 else 1.0
 
         self._step_index = None
@@ -216,7 +216,7 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
         order = int(variant[-2])
         curr_order = min(len(self.prev_sigmas), order)
 
-        phi = Phi(h, [0], self.config.use_analytic_solution)
+        phi = Phi(h, [0], getattr(self.config, "use_analytic_solution", True))
 
         if sigma_next == 0:
             x_next = x0
@@ -268,7 +268,7 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
         if self.begin_index is None:
             if isinstance(timestep, torch.Tensor):
                 timestep = timestep.to(self.timesteps.device)
-            self._step_index = (self.timesteps == timestep).nonzero()[0].item()
+            self._step_index = self.index_for_timestep(timestep)
         else:
             self._step_index = self._begin_index
 

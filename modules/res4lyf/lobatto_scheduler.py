@@ -63,6 +63,7 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
         self.num_inference_steps = None
         self.timesteps = torch.from_numpy(np.arange(0, num_train_timesteps)[::-1].copy())
         self.sigmas = None
+        self.init_noise_sigma = 1.0
 
         # Internal state
         self.model_outputs = []
@@ -103,8 +104,7 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
         self,
         num_inference_steps: int,
         device: Union[str, torch.device] = None,
-        mu: Optional[float] = None,
-    ):
+        mu: Optional[float] = None, dtype: torch.dtype = torch.float32):
         self.num_inference_steps = num_inference_steps
 
         # 1. Spacing
@@ -177,8 +177,9 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
         sigmas_interpolated = np.array(sigmas_expanded)
         timesteps_expanded = np.interp(np.log(np.maximum(sigmas_interpolated, 1e-10)), log_sigmas_all, np.arange(len(log_sigmas_all)))
 
-        self.sigmas = torch.from_numpy(sigmas_interpolated).to(device=device, dtype=torch.float32)
-        self.timesteps = torch.from_numpy(timesteps_expanded + self.config.steps_offset).to(device=device, dtype=torch.float32)
+        self.sigmas = torch.from_numpy(sigmas_interpolated).to(device=device, dtype=dtype)
+        self.timesteps = torch.from_numpy(timesteps_expanded + self.config.steps_offset).to(device=device, dtype=dtype)
+        self.init_noise_sigma = self.sigmas.max().item() if self.sigmas.numel() > 0 else 1.0
 
         self.model_outputs = []
         self.sample_at_start_of_step = None
@@ -192,19 +193,22 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
         return self._step_index
 
     def index_for_timestep(self, timestep, schedule_timesteps=None):
+        from .scheduler_utils import index_for_timestep
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
+        return index_for_timestep(timestep, schedule_timesteps)
 
-        if isinstance(schedule_timesteps, torch.Tensor):
-            schedule_timesteps = schedule_timesteps.detach().cpu().numpy()
-
-        if isinstance(timestep, torch.Tensor):
-            timestep = timestep.detach().cpu().numpy()
-
-        return np.abs(schedule_timesteps - timestep).argmin().item()
+    def _init_step_index(self, timestep):
+        if self._step_index is None:
+            if isinstance(timestep, torch.Tensor):
+                timestep = timestep.to(self.timesteps.device)
+            self._step_index = self.index_for_timestep(timestep)
 
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
-        return sample
+        if self._step_index is None:
+            self._init_step_index(timestep)
+        sigma = self.sigmas[self._step_index]
+        return sample / ((sigma**2 + 1) ** 0.5)
 
     def step(
         self,
@@ -236,32 +240,33 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
 
         h = sigma_next - sigma_curr
         sigma_t = self.sigmas[self._step_index]
-        alpha_t = 1 / (sigma_t**2 + 1) ** 0.5
-        sigma_actual = sigma_t * alpha_t
 
         if self.config.prediction_type == "epsilon":
-            denoised = (sample - sigma_actual * model_output) / alpha_t
+            denoised = sample - sigma_t * model_output
         elif self.config.prediction_type == "v_prediction":
+            alpha_t = 1 / (sigma_t**2 + 1) ** 0.5
+            sigma_actual = sigma_t * alpha_t
             denoised = alpha_t * sample - sigma_actual * model_output
         elif self.config.prediction_type == "flow_prediction":
-            alpha_t = 1.0
             denoised = sample - sigma_t * model_output
         elif self.config.prediction_type == "sample":
             denoised = model_output
         else:
-            raise ValueError(f"prediction_type error: {self.config.prediction_type}")
+            raise ValueError(f"prediction_type error: {getattr(self.config, 'prediction_type', 'epsilon')}")
 
         if self.config.clip_sample:
             denoised = denoised.clamp(-self.config.sample_max_value, self.config.sample_max_value)
 
-        # Work in z = x/alpha space (normalized signal space)
-        # derivative = d z / d sigma = (x0 - z) / sigma
-        sample_norm = sample / alpha_t
-        derivative = (sample_norm - denoised) / sigma_t if sigma_t > 1e-6 else torch.zeros_like(sample)
+        # derivative = (x - x0) / sigma
+        derivative = (sample - denoised) / sigma_t if sigma_t > 1e-6 else torch.zeros_like(sample)
+        
+        if self.sample_at_start_of_step is None:
+            self.sample_at_start_of_step = sample
+            self.model_outputs = [derivative] * stage_index
 
         if stage_index == 0:
             self.model_outputs = [derivative]
-            self.sample_at_start_of_step = sample_norm
+            self.sample_at_start_of_step = sample
         else:
             self.model_outputs.append(derivative)
 
@@ -272,19 +277,15 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
                 sum_ak = sum_ak + a_mat[next_stage_idx][j] * self.model_outputs[j]
 
             sigma_next_stage = self.sigmas[self._step_index + 1]
-            alpha_next_stage = 1 / (sigma_next_stage**2 + 1) ** 0.5
 
-            # Update z (normalized sample)
-            z_next = self.sample_at_start_of_step + (sigma_next_stage - sigma_curr) * sum_ak
-            prev_sample = z_next * alpha_next_stage
+            # Update x (unnormalized sample)
+            prev_sample = self.sample_at_start_of_step + (sigma_next_stage - sigma_curr) * sum_ak
         else:
             sum_bk = 0
             for j in range(len(self.model_outputs)):
                 sum_bk = sum_bk + b_vec[j] * self.model_outputs[j]
 
-            alpha_next = 1 / (sigma_next**2 + 1) ** 0.5 if sigma_next > 0 else 1.0
-            z_next = self.sample_at_start_of_step + h * sum_bk
-            prev_sample = z_next * alpha_next
+            prev_sample = self.sample_at_start_of_step + h * sum_bk
 
             self.model_outputs = []
             self.sample_at_start_of_step = None
@@ -301,15 +302,8 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
         noise: torch.Tensor,
         timesteps: torch.Tensor,
     ) -> torch.Tensor:
-        step_indices = [self.index_for_timestep(t) for t in timesteps]
-        sigma = self.sigmas[step_indices].flatten()
-        while len(sigma.shape) < len(original_samples.shape):
-            sigma = sigma.unsqueeze(-1)
-        return original_samples + noise * sigma
-
-    @property
-    def init_noise_sigma(self):
-        return 1.0
+        from .scheduler_utils import add_noise_to_sample
+        return add_noise_to_sample(original_samples, noise, self.sigmas, timesteps, self.timesteps)
 
     def __len__(self):
         return self.config.num_train_timesteps

@@ -116,10 +116,9 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         if self._step_index is None:
             self._init_step_index(timestep)
         sigma = self.sigmas[self._step_index]
-        sample = sample / ((sigma**2 + 1) ** 0.5)
-        return sample
+        return sample / ((sigma**2 + 1) ** 0.5)
 
-    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None):
+    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None, dtype: torch.dtype = torch.float32):
         from .scheduler_utils import (
             apply_shift,
             get_dynamic_shift,
@@ -132,14 +131,14 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         self.num_inference_steps = num_inference_steps
 
         if self.config.timestep_spacing == "linspace":
-            timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=np.float32)[::-1].copy()
+            timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps, dtype=float)[::-1].copy()
         elif self.config.timestep_spacing == "leading":
             step_ratio = self.config.num_train_timesteps // self.num_inference_steps
-            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy().astype(np.float32)
+            timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy()
             timesteps += self.config.steps_offset
         elif self.config.timestep_spacing == "trailing":
             step_ratio = self.config.num_train_timesteps / self.num_inference_steps
-            timesteps = (np.arange(self.config.num_train_timesteps, 0, -step_ratio)).round().copy().astype(np.float32)
+            timesteps = (np.arange(self.config.num_train_timesteps, 0, -step_ratio)).round().copy()
             timesteps -= 1
         else:
             raise ValueError(f"timestep_spacing {self.config.timestep_spacing} is not supported.")
@@ -148,13 +147,13 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
 
         if self.config.use_karras_sigmas:
-            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_exponential_sigmas:
-            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_exponential(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_beta_sigmas:
-            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_flow_sigmas:
-            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0]).numpy()
+            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
 
         if self.config.shift != 1.0 or self.config.use_dynamic_shifting:
             shift = self.config.shift
@@ -168,8 +167,8 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
                 )
             sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
 
-        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]]).astype(np.float32)).to(device=device)
-        self.timesteps = torch.from_numpy(timesteps.astype(np.float32)).to(device=device)
+        self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]])).to(device=device, dtype=dtype)
+        self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=dtype)
         self.init_noise_sigma = self.sigmas.max().item() if self.sigmas.numel() > 0 else 1.0
 
         self._step_index = None
@@ -177,6 +176,7 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         self.model_outputs = []
         self.x0_outputs = []
         self.prev_sigmas = []
+
         self.lower_order_nums = 0
 
     def index_for_timestep(self, timestep, schedule_timesteps=None):
@@ -210,7 +210,7 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         h = -torch.log(sigma_next / sigma) if sigma > 0 and sigma_next > 0 else torch.zeros_like(sigma)
 
-        # RECONSTRUCT X0
+        # RECONSTRUCT X0 (Matching PEC pattern)
         if self.config.prediction_type == "epsilon":
             x0 = sample - sigma * model_output
         elif self.config.prediction_type == "sample":
@@ -235,6 +235,10 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         # Effective order for current step
         curr_order = min(len(self.prev_sigmas), order) if sigma > 0 else 1
 
+        # Exponential Integrator Setup
+        phi = Phi(h, [0], getattr(self.config, "use_analytic_solution", True))
+        phi_1 = phi(1)
+
         if variant.startswith("res"):
             # REiS Multistep logic
             c2, c3 = 0.5, 1.0
@@ -251,22 +255,31 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
             else:
                 rk_type = "res_1s"
 
+            # Exponential Integrator Update in x-space
             if curr_order == 1:
-                rk_type = "res_1s"
-            _a, b, _ci = self._get_res_coefficients(rk_type, h, c2, c3)
+                res = phi_1 * x0
+            elif curr_order == 2:
+                # b2 = -phi_2 / r
+                b2 = -phi(2) / ((-h_prev / h) + 1e-9)
+                b1 = phi_1 - b2
+                res = b1 * self.x0_outputs[-1] + b2 * self.x0_outputs[-2]
+            elif curr_order == 3:
+                # Generalized AB3 for Exponential Integrators
+                h_p1 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
+                h_p2 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-3] + 1e-9))
+                r1 = h_p1 / (h + 1e-9)
+                r2 = h_p2 / (h + 1e-9)
+                phi_2, phi_3 = phi(2), phi(3)
+                denom = r2 - r1 + 1e-9
+                b3 = (phi_3 + r1 * phi_2) / (r2 * denom)
+                b2 = -(phi_3 + r2 * phi_2) / (r1 * denom)
+                b1 = phi_1 - b2 - b3
+                res = b1 * self.x0_outputs[-1] + b2 * self.x0_outputs[-2] + b3 * self.x0_outputs[-3]
+            else:
+                res = phi_1 * x0
 
-            # Apply coefficients to x0 buffer
-            res = torch.zeros_like(sample)
-            # b[0] contains [b1, b2, b3] for current, prev, prev2
-            # x0_outputs contains [..., x0_prev2, x0_prev, x0_curr]
-            for i, b_val in enumerate(b[0]):
-                idx = len(self.x0_outputs) - 1 - i
-                if idx >= 0:
-                    res += b_val * self.x0_outputs[idx]
-
-            # Exponential Integrator Update: x_next = exp(-h) * x + h * sum(b_i * x0_i)
             if sigma_next == 0:
-                x_next = x0  # Final step anchor
+                x_next = x0
             else:
                 x_next = torch.exp(-h) * sample + h * res
 
@@ -281,8 +294,7 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
                 if idx >= 0:
                     res += b_val * self.x0_outputs[idx]
 
-            # DEIS update is usually linear in denoised space
-            # but following the same logic as RES for consistency in this framework
+            # DEIS update in x-space
             if sigma_next == 0:
                 x_next = x0
             else:
@@ -302,7 +314,7 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
 
     def _get_res_coefficients(self, rk_type, h, c2, c3):
         ci = [0, c2, c3]
-        phi = Phi(h, ci, self.config.use_analytic_solution)
+        phi = Phi(h, ci, getattr(self.config, "use_analytic_solution", True))
 
         if rk_type == "res_2s":
             b2 = phi(2) / (c2 + 1e-9)
@@ -320,26 +332,41 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         return a, b, ci
 
     def _get_deis_coefficients(self, order, sigma, sigma_next):
-        # Time in log space for DEIS
-        s0 = self.sigmas[0] if self.sigmas.numel() > 0 else 1.0
-        t = [-torch.log(s/s0) if s > 0 else torch.tensor(10.0) for s in self.prev_sigmas[max(0, len(self.prev_sigmas)-order):]]
-        t_cur = -torch.log(sigma/s0) if sigma > 0 else torch.tensor(10.0)
-        t_next = -torch.log(sigma_next/s0) if sigma_next > 0 else torch.tensor(11.0)
+        h = -torch.log(sigma_next / sigma) if sigma > 0 and sigma_next > 0 else torch.zeros_like(sigma)
+        phi = Phi(h, [0], getattr(self.config, "use_analytic_solution", True))
+        phi_1 = phi(1)
 
         if order == 1:
-            phi = Phi(t_next - t_cur, [0], self.config.use_analytic_solution)
-            return [[phi(1)]]
+            return [[phi_1]]
         elif order == 2:
-            coeff_cur = ((t_next - t[0])**2 - (t_cur - t[0])**2) / (2 * (t_cur - t[0]))
-            coeff_prev = (t_next - t_cur)**2 / (2 * (t[0] - t_cur))
-            return [[coeff_cur.item(), coeff_prev.item()]]
+            h_prev = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
+            r = h_prev / (h + 1e-9)
+            phi_2 = phi(2)
+            # Correct Adams-Bashforth-like coefficients for Exponential Integrators
+            b2 = -phi_2 / (r + 1e-9)
+            b1 = phi_1 - b2
+            return [[b1, b2]]
+        elif order == 3:
+            h_prev1 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
+            h_prev2 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-3] + 1e-9))
+            r1 = h_prev1 / (h + 1e-9)
+            r2 = h_prev2 / (h + 1e-9)
+            
+            phi_2 = phi(2)
+            phi_3 = phi(3)
+            
+            # Generalized AB3 for Exponential Integrators (Varying steps)
+            denom = r2 - r1 + 1e-9
+            b3 = (phi_3 + r1 * phi_2) / (r2 * denom)
+            b2 = -(phi_3 + r2 * phi_2) / (r1 * denom)
+            b1 = phi_1 - (b2 + b3)
+            return [[b1, b2, b3]]
         else:
-            # Fallback to lower order DEIS or Euler
-            return [[1.0]] # Placeholder
+            return [[phi_1]]
 
     def _init_step_index(self, timestep):
         if self.begin_index is None:
-            self._step_index = (self.timesteps == timestep).nonzero()[0].item()
+            self._step_index = self.index_for_timestep(timestep)
         else:
             self._step_index = self._begin_index
 
