@@ -212,19 +212,10 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         return self._step_index
 
     def index_for_timestep(self, timestep, schedule_timesteps=None):
-        if self._step_index is not None:
-            return self._step_index
-
+        from .scheduler_utils import index_for_timestep
         if schedule_timesteps is None:
             schedule_timesteps = self.timesteps
-
-        if isinstance(schedule_timesteps, torch.Tensor):
-            schedule_timesteps = schedule_timesteps.detach().cpu().numpy()
-
-        if isinstance(timestep, torch.Tensor):
-            timestep = timestep.detach().cpu().numpy()
-
-        return np.abs(schedule_timesteps - timestep).argmin().item()
+        return index_for_timestep(timestep, schedule_timesteps)
 
     def _init_step_index(self, timestep):
         if self._step_index is None:
@@ -286,30 +277,51 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             x0s = [denoised] + self.model_outputs[::-1]
             orders = min(len(x0s), self.config.solver_order)
             
-            if orders == 1:
+            # Force Order 1 at the end of schedule
+            if self.num_inference_steps is not None and step_index >= self.num_inference_steps - 3:
+                res = phi_1 * denoised
+            elif orders == 1:
                 res = phi_1 * denoised
             elif orders == 2:
                 # Use phi(2) for 2nd order interpolation
                 h_prev = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 1] + 1e-9))
                 h_prev_t = torch.tensor(h_prev, device=sample.device, dtype=sample.dtype)
                 r = h_prev_t / (h + 1e-9)
-                phi_2 = phi(2)
-                # Correct Adams-Bashforth-like coefficients: b2 = -phi_2 / r
-                b2 = -phi_2 / (r + 1e-9)
-                b1 = phi_1 - b2
-                res = b1 * x0s[0] + b2 * x0s[1]
+                h_prev = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 1] + 1e-9))
+                h_prev_t = torch.tensor(h_prev, device=sample.device, dtype=sample.dtype)
+                r = h_prev_t / (h + 1e-9)
+                
+                # Hard Restart
+                if r < 0.5 or r > 2.0:
+                    res = phi_1 * denoised
+                else:
+                    phi_2 = phi(2)
+                    # Correct Adams-Bashforth-like coefficients: b2 = -phi_2 / r
+                    b2 = -phi_2 / (r + 1e-9)
+                    b1 = phi_1 - b2
+                    res = b1 * x0s[0] + b2 * x0s[1]
             elif orders == 3:
+                # 3rd order with varying step sizes
                 # 3rd order with varying step sizes
                 h_p1 = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 1] + 1e-9))
                 h_p2 = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 2] + 1e-9))
                 r1 = torch.tensor(h_p1, device=sample.device, dtype=sample.dtype) / (h + 1e-9)
                 r2 = torch.tensor(h_p2, device=sample.device, dtype=sample.dtype) / (h + 1e-9)
-                phi_2, phi_3 = phi(2), phi(3)
-                denom = r2 - r1 + 1e-9
-                b3 = (phi_3 + r1 * phi_2) / (r2 * denom)
-                b2 = -(phi_3 + r2 * phi_2) / (r1 * denom)
-                b1 = phi_1 - b2 - b3
-                res = b1 * x0s[0] + b2 * x0s[1] + b3 * x0s[2]
+                h_p1 = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 1] + 1e-9))
+                h_p2 = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 2] + 1e-9))
+                r1 = torch.tensor(h_p1, device=sample.device, dtype=sample.dtype) / (h + 1e-9)
+                r2 = torch.tensor(h_p2, device=sample.device, dtype=sample.dtype) / (h + 1e-9)
+                
+                # Hard Restart
+                if r1 < 0.5 or r1 > 2.0 or r2 < 0.5 or r2 > 2.0:
+                    res = phi_1 * denoised
+                else:
+                    phi_2, phi_3 = phi(2), phi(3)
+                    denom = r2 - r1 + 1e-9
+                    b3 = (phi_3 + r1 * phi_2) / (r2 * denom)
+                    b2 = -(phi_3 + r2 * phi_2) / (r1 * denom)
+                    b1 = phi_1 - b2 - b3
+                    res = b1 * x0s[0] + b2 * x0s[1] + b3 * x0s[2]
             else:
                 # Fallback to Euler or lower order
                 res = phi_1 * denoised

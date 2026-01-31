@@ -227,7 +227,7 @@ class GaussLegendreScheduler(SchedulerMixin, ConfigMixin):
 
         self.model_outputs = []
         self.sample_at_start_of_step = None
-        self._step_index = 0
+        self._step_index = None
 
     @property
     def step_index(self):
@@ -322,6 +322,16 @@ class GaussLegendreScheduler(SchedulerMixin, ConfigMixin):
         derivative = (sample - denoised) / sigma_t if sigma_t > 1e-6 else torch.zeros_like(sample)
         
         if self.sample_at_start_of_step is None:
+            if stage_index > 0:
+                # Mid-step fallback for Img2Img/Inpainting
+                sigma_next_t = self.sigmas[self._step_index + 1]
+                dt = sigma_next_t - sigma_t
+                prev_sample = sample + dt * derivative
+                self._step_index += 1
+                if not return_dict:
+                    return (prev_sample,)
+                return SchedulerOutput(prev_sample=prev_sample)
+
             self.sample_at_start_of_step = sample
             self.model_outputs = [derivative] * stage_index
 

@@ -44,6 +44,7 @@
   - further work on type consistency and type checking, thanks @awsr  
   - log captured exceptions  
   - improve temp folder handling and cleanup  
+  - remove torch errors/warings on fast server shutdown  
   - add ui placeholders for future agent-scheduler work, thanks @ryanmeador  
   - implement abort system on repeated errors, thanks @awsr  
     currently used by lora and textual-inversion loaders  

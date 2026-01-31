@@ -167,19 +167,10 @@ class RungeKutta67Scheduler(SchedulerMixin, ConfigMixin):
         return self._step_index
 
     def index_for_timestep(self, timestep, schedule_timesteps=None):
-        if self._step_index is not None:
-            return self._step_index
-
+        from .scheduler_utils import index_for_timestep
         if schedule_timesteps is None:
-            schedule_timesteps = self._timesteps_cpu
-        else:
-            if isinstance(schedule_timesteps, torch.Tensor):
-                schedule_timesteps = schedule_timesteps.detach().cpu().numpy()
-
-        if isinstance(timestep, torch.Tensor):
-            timestep = timestep.detach().cpu().numpy()
-
-        return np.abs(schedule_timesteps - timestep).argmin().item()
+            schedule_timesteps = self.timesteps
+        return index_for_timestep(timestep, schedule_timesteps)
 
     def _init_step_index(self, timestep):
         if self._step_index is None:
@@ -237,6 +228,16 @@ class RungeKutta67Scheduler(SchedulerMixin, ConfigMixin):
         derivative = (sample - denoised) / sigma_t if sigma_t > 1e-6 else torch.zeros_like(sample)
         
         if self.sample_at_start_of_step is None:
+            if stage_index > 0:
+                # Mid-step fallback for Img2Img/Inpainting
+                sigma_next_t = self._sigmas_cpu[self._step_index + 1]
+                dt = sigma_next_t - sigma_t
+                prev_sample = sample + dt * derivative
+                self._step_index += 1
+                if not return_dict:
+                    return (prev_sample,)
+                return SchedulerOutput(prev_sample=prev_sample)
+
             self.sample_at_start_of_step = sample
             self.model_outputs = [derivative] * stage_index
 

@@ -125,8 +125,8 @@ class CommonSigmaScheduler(SchedulerMixin, ConfigMixin):
 
         # Derived sigma range from alphas_cumprod
         base_sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
-        sigma_max = base_sigmas[0]
-        sigma_min = base_sigmas[-1]
+        sigma_max = base_sigmas[-1]
+        sigma_min = base_sigmas[0]
 
         t = torch.linspace(0, 1, num_inference_steps)
         profile = self.config.profile

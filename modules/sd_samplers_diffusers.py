@@ -332,11 +332,11 @@ samplers_data_diffusers = [
     SamplerData('Gauss-Legendre 2S', lambda model: DiffusionSampler('Gauss-Legendre 2S', GaussLegendreScheduler, model), [], {}),
     SamplerData('Gauss-Legendre 3S', lambda model: DiffusionSampler('Gauss-Legendre 3S', GaussLegendreScheduler, model), [], {}),
     SamplerData('Gauss-Legendre 4S', lambda model: DiffusionSampler('Gauss-Legendre 4S', GaussLegendreScheduler, model), [], {}),
+    SamplerData('Specialized-RK 3S', lambda model: DiffusionSampler('Specialized-RK 3S', SpecializedRKScheduler, model), [], {}),
+    SamplerData('Specialized-RK 4S', lambda model: DiffusionSampler('Specialized-RK 4S', SpecializedRKScheduler, model), [], {}),
     SamplerData('Runge-Kutta 4/4', lambda model: DiffusionSampler('Runge-Kutta 4/4', RungeKutta44Scheduler, model), [], {}),
     SamplerData('Runge-Kutta 5/7', lambda model: DiffusionSampler('Runge-Kutta 5/7', RungeKutta57Scheduler, model), [], {}),
     SamplerData('Runge-Kutta 6/7', lambda model: DiffusionSampler('Runge-Kutta 6/7', RungeKutta67Scheduler, model), [], {}),
-    SamplerData('Specialized-RK 3S', lambda model: DiffusionSampler('Specialized-RK 3S', SpecializedRKScheduler, model), [], {}),
-    SamplerData('Specialized-RK 4S', lambda model: DiffusionSampler('Specialized-RK 4S', SpecializedRKScheduler, model), [], {}),
 
     SamplerData('Same as primary', None, [], {}),
 ]

@@ -46,6 +46,13 @@ except Exception as e:
     sys.exit(1)
 timer.startup.record("scipy")
 
+try:
+    import atexit
+    import torch._inductor.async_compile as ac
+    atexit.unregister(ac.shutdown_compile_workers)
+except Exception:
+    pass
+
 import torch # pylint: disable=C0411
 if torch.__version__.startswith('2.5.0'):
     errors.log.warning(f'Disabling cuDNN for SDP on torch={torch.__version__}')

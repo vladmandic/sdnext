@@ -177,10 +177,22 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
         # phi_2 = phi(2) # Moved inside conditional blocks as needed
 
         history_len = len(self.x0_outputs)
+        
+        # Stability: Force Order 1 for final few steps to prevent degradation at low noise levels
+        if self.num_inference_steps is not None and self._step_index >= self.num_inference_steps - 3:
+            return [phi_1], h
 
         if self.config.rk_type in ["res_2m", "deis_2m"] and history_len >= 2:
             h_prev = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
             r = h_prev / (h + 1e-9)
+            
+            h_prev = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
+            r = h_prev / (h + 1e-9)
+            
+            # Hard Restart: if step sizes vary too wildly, fallback to order 1
+            if r < 0.5 or r > 2.0:
+                 return [phi_1], h
+
             phi_2 = phi(2)
             # Correct Adams-Bashforth-like coefficients for Exponential Integrators
             b2 = -phi_2 / (r + 1e-9)
@@ -191,6 +203,15 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
             h_prev2 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-3] + 1e-9))
             r1 = h_prev1 / (h + 1e-9)
             r2 = h_prev2 / (h + 1e-9)
+
+            h_prev1 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
+            h_prev2 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-3] + 1e-9))
+            r1 = h_prev1 / (h + 1e-9)
+            r2 = h_prev2 / (h + 1e-9)
+
+            # Hard Restart check
+            if r1 < 0.5 or r1 > 2.0 or r2 < 0.5 or r2 > 2.0:
+                 return [phi_1], h
             
             phi_2 = phi(2)
             phi_3 = phi(3)

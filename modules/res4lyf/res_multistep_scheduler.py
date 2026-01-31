@@ -242,6 +242,11 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         if variant.startswith("res"):
             # REiS Multistep logic
             c2, c3 = 0.5, 1.0
+
+            # Force Order 1 at the end of schedule
+            if self.num_inference_steps is not None and self._step_index >= self.num_inference_steps - 3:
+                 curr_order = 1
+
             if curr_order == 2:
                 h_prev = -torch.log(self.prev_sigmas[-1] / self.prev_sigmas[-2])
                 c2 = (-h_prev / h).item() if h > 0 else 0.5
@@ -260,21 +265,43 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
                 res = phi_1 * x0
             elif curr_order == 2:
                 # b2 = -phi_2 / r
-                b2 = -phi(2) / ((-h_prev / h) + 1e-9)
-                b1 = phi_1 - b2
-                res = b1 * self.x0_outputs[-1] + b2 * self.x0_outputs[-2]
+                # b2 = -phi_2 / r = -phi(2) / (h_prev/h)
+                # Here we use: b2 = phi(2) / ((-h_prev / h) + 1e-9)
+                # Since (-h_prev/h) is negative (-r), this gives correct negative sign for b2.
+                
+                # Stability check
+                r_check = h_prev / (h + 1e-9) # This is effectively -r if using h_prev definition above?
+                # Wait, h_prev above is -log(). Positive.
+                # h is positive.
+                # So h_prev/h is positive. defined as r in other files.
+                # But here code uses -h_prev / h in denominator.
+                
+                # Stability check
+                r_check = h_prev / (h + 1e-9)
+                
+                # Hard Restart
+                if r_check < 0.5 or r_check > 2.0:
+                    res = phi_1 * x0
+                else: 
+                    b2 = phi(2) / ((-h_prev / h) + 1e-9)
+                    b1 = phi_1 - b2
+                    res = b1 * self.x0_outputs[-1] + b2 * self.x0_outputs[-2]
             elif curr_order == 3:
                 # Generalized AB3 for Exponential Integrators
                 h_p1 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
                 h_p2 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-3] + 1e-9))
                 r1 = h_p1 / (h + 1e-9)
                 r2 = h_p2 / (h + 1e-9)
-                phi_2, phi_3 = phi(2), phi(3)
-                denom = r2 - r1 + 1e-9
-                b3 = (phi_3 + r1 * phi_2) / (r2 * denom)
-                b2 = -(phi_3 + r2 * phi_2) / (r1 * denom)
-                b1 = phi_1 - b2 - b3
-                res = b1 * self.x0_outputs[-1] + b2 * self.x0_outputs[-2] + b3 * self.x0_outputs[-3]
+                
+                if r1 < 0.5 or r1 > 2.0 or r2 < 0.5 or r2 > 2.0:
+                     res = phi_1 * x0
+                else:
+                    phi_2, phi_3 = phi(2), phi(3)
+                    denom = r2 - r1 + 1e-9
+                    b3 = (phi_3 + r1 * phi_2) / (r2 * denom)
+                    b2 = -(phi_3 + r2 * phi_2) / (r1 * denom)
+                    b1 = phi_1 - b2 - b3
+                    res = b1 * self.x0_outputs[-1] + b2 * self.x0_outputs[-2] + b3 * self.x0_outputs[-3]
             else:
                 res = phi_1 * x0
 
@@ -341,8 +368,13 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         elif order == 2:
             h_prev = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
             r = h_prev / (h + 1e-9)
-            phi_2 = phi(2)
+            
             # Correct Adams-Bashforth-like coefficients for Exponential Integrators
+            
+            # Hard Restart for stability
+            if r < 0.5 or r > 2.0:
+                 return [[phi_1]]
+
             b2 = -phi_2 / (r + 1e-9)
             b1 = phi_1 - b2
             return [[b1, b2]]
@@ -351,6 +383,9 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
             h_prev2 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-3] + 1e-9))
             r1 = h_prev1 / (h + 1e-9)
             r2 = h_prev2 / (h + 1e-9)
+            
+            if r1 < 0.5 or r1 > 2.0 or r2 < 0.5 or r2 > 2.0:
+                return [[phi_1]]
             
             phi_2 = phi(2)
             phi_3 = phi(3)

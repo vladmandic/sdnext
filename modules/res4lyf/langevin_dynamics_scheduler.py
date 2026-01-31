@@ -140,6 +140,8 @@ class LangevinDynamicsScheduler(SchedulerMixin, ConfigMixin):
             trajectory.append(x.item())
 
         sigmas = np.array(trajectory)
+        # Force monotonicity to prevent negative h in step()
+        sigmas = np.sort(sigmas)[::-1]
         sigmas[-1] = end_sigma
 
         if self.config.use_karras_sigmas:
