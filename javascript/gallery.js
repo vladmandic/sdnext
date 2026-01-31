@@ -1193,11 +1193,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   ws.send(encodeURI(evt.target.name));
 }
 
-async function pruneImages() {
-  // TODO replace img.src with placeholder for images that are not visible
-}
-
-async function galleryVisible() {
+async function updateFolders() {
   // if (el.folders.children.length > 0) return;
   const res = await authFetch(`${window.api}/browser/folders`);
   if (!res || res.status !== 200) return;
@@ -1208,11 +1204,6 @@ async function galleryVisible() {
     const f = new GalleryFolder(folder);
     el.folders.appendChild(f);
   }
-  pruneImagesTimer = setInterval(pruneImages, 1000);
-}
-
-async function galleryHidden() {
-  if (pruneImagesTimer) clearInterval(pruneImagesTimer);
 }
 
 async function monitorGalleries() {
@@ -1295,12 +1286,9 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
   document.getElementById('tab-gallery-files').style.height = opts.logmonitor_show ? '75vh' : '85vh';
 
-  const intersectionObserver = new IntersectionObserver((entries) => {
-    if (entries[0].intersectionRatio <= 0) galleryHidden();
-    if (entries[0].intersectionRatio > 0) galleryVisible();
-  });
-  intersectionObserver.observe(el.folders);
   monitorGalleries();
+  updateFolders();
+  monitorOption('browser_folders', updateFolders);
 }
 
 // register on startup
