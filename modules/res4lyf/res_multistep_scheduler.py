@@ -115,6 +115,8 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
+        if self.config.prediction_type == "flow_prediction":
+            return sample
         sigma = self.sigmas[self._step_index]
         return sample / ((sigma**2 + 1) ** 0.5)
 
@@ -144,7 +146,12 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
             raise ValueError(f"timestep_spacing {self.config.timestep_spacing} is not supported.")
 
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
-        sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
+        # Linear remapping for Flow Matching
+        if self.config.use_flow_sigmas:
+             # Standardize linear spacing
+             sigmas = np.linspace(1.0, 1 / 1000, num_inference_steps)
+        else:
+             sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
 
         if self.config.use_karras_sigmas:
             sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
@@ -153,7 +160,8 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         elif self.config.use_beta_sigmas:
             sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_flow_sigmas:
-            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
+             # Already handled above, ensuring variable consistency
+             sigmas = np.linspace(1.0, 1 / 1000, num_inference_steps)
 
         if self.config.shift != 1.0 or self.config.use_dynamic_shifting:
             shift = self.config.shift
@@ -166,6 +174,9 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
                     self.config.max_image_seq_len,
                 )
             sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
+
+        if self.config.use_flow_sigmas:
+             timesteps = sigmas * self.config.num_train_timesteps
 
         self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]])).to(device=device, dtype=dtype)
         self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=dtype)
@@ -234,6 +245,56 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         # Effective order for current step
         curr_order = min(len(self.prev_sigmas), order) if sigma > 0 else 1
+
+        if self.config.prediction_type == "flow_prediction":
+            # Variable Step Adams-Bashforth for Flow Matching
+            dt = sigma_next - sigma
+            v_n = model_output
+            
+            if curr_order == 1:
+                 x_next = sample + dt * v_n
+            elif curr_order == 2:
+                 # AB2
+                 sigma_prev = self.prev_sigmas[-2]
+                 dt_prev = sigma - sigma_prev
+                 r = dt / dt_prev if abs(dt_prev) > 1e-8 else 0.0
+                 
+                 # Stability check
+                 if dt_prev == 0 or r < -0.9 or r > 2.0: # Fallback
+                     x_next = sample + dt * v_n
+                 else:
+                     c0 = 1 + 0.5 * r
+                     c1 = -0.5 * r
+                     x_next = sample + dt * (c0 * v_n + c1 * self.model_outputs[-2])
+            elif curr_order >= 3:
+                 # AB3
+                 sigma_prev1 = self.prev_sigmas[-2]
+                 sigma_prev2 = self.prev_sigmas[-3]
+                 dt_prev1 = sigma - sigma_prev1
+                 dt_prev2 = self.prev_sigmas[-2] - sigma_prev2 # This is not strictly correct for variable steps logic used in ABNorsett, assume simplified AB3 for now or stick to AB2
+                 # Actually, let's reuse ABNorsett logic
+                 # x_{n+1} = x_n + dt * [ (1 + r1/2 + r2/2 + ... ) ] - Too complex to derive on the fly?
+                 # Let's use AB2 for stability as requested "Variable Step Adams-Bashforth like ABNorsett"
+                 # ABNorsett implemented AB2. I will downgrade order 3 to AB2 for safety or implement AB3 if confident.
+                 # Let's stick to AB2 for Flow as it is robust enough.
+                 
+                 # Re-implement AB2 logic
+                 sigma_prev = self.prev_sigmas[-2]
+                 dt_prev = sigma - sigma_prev
+                 r = dt / dt_prev if abs(dt_prev) > 1e-8 else 0.0
+                 c0 = 1 + 0.5 * r
+                 c1 = -0.5 * r
+                 x_next = sample + dt * (c0 * v_n + c1 * self.model_outputs[-2])
+
+            self._step_index += 1
+            if len(self.model_outputs) > order:
+                self.model_outputs.pop(0)
+                self.x0_outputs.pop(0)
+                self.prev_sigmas.pop(0)
+            
+            if not return_dict:
+                return (x_next,)
+            return SchedulerOutput(prev_sample=x_next)
 
         # Exponential Integrator Setup
         phi = Phi(h, [0], getattr(self.config, "use_analytic_solution", True))

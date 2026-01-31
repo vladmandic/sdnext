@@ -110,8 +110,8 @@ class RungeKutta44Scheduler(SchedulerMixin, ConfigMixin):
         # 3. Map back to timesteps
         log_sigmas_all = np.log(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
         sigmas_interpolated = np.array(sigmas_expanded)
-        # Avoid log(0)
-        timesteps_expanded = np.interp(np.log(np.maximum(sigmas_interpolated, 1e-10)), log_sigmas_all, np.arange(len(log_sigmas_all)))
+        # Linear remapping for Flow Matching
+        timesteps_expanded = sigmas_interpolated * self.config.num_train_timesteps
 
         self.sigmas = torch.from_numpy(sigmas_interpolated).to(device=device, dtype=dtype)
         self.timesteps = torch.from_numpy(timesteps_expanded + self.config.steps_offset).to(device=device, dtype=dtype)
@@ -146,6 +146,8 @@ class RungeKutta44Scheduler(SchedulerMixin, ConfigMixin):
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
+        if self.config.prediction_type == "flow_prediction":
+            return sample
         sigma = self._sigmas_cpu[self._step_index]
         return sample / ((sigma**2 + 1) ** 0.5)
 

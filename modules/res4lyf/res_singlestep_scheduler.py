@@ -91,6 +91,10 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
+        if self._step_index is None:
+            self._init_step_index(timestep)
+        if self.config.prediction_type == "flow_prediction":
+            return sample
         sigma = self.sigmas[self._step_index]
         return sample / ((sigma**2 + 1) ** 0.5)
 
@@ -120,7 +124,14 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
             raise ValueError(f"timestep_spacing {self.config.timestep_spacing} is not supported.")
 
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
-        sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
+        sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
+        # Linear remapping logic
+        if self.config.use_flow_sigmas:
+             # Logic handled below (linspace) or here?
+             # To match others:
+             pass 
+        else:
+             sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
 
         if self.config.use_karras_sigmas:
             sigmas = get_sigmas_karras(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
@@ -141,7 +152,13 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
                     self.config.base_image_seq_len,
                     self.config.max_image_seq_len,
                 )
-            sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
+        if self.config.use_flow_sigmas:
+             sigmas = np.linspace(1.0, 1 / 1000, num_inference_steps)
+        else:
+             sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
+
+        if self.config.use_flow_sigmas:
+             timesteps = sigmas * self.config.num_train_timesteps
 
         self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]])).to(device=device, dtype=dtype)
         self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=dtype)
@@ -194,6 +211,13 @@ class RESSinglestepScheduler(SchedulerMixin, ConfigMixin):
             x0 = sample - sigma * model_output
         else:
             x0 = model_output
+        
+        if self.config.prediction_type == "flow_prediction":
+             dt = sigma_next - sigma
+             x_next = sample + dt * model_output
+             self._step_index += 1
+             if not return_dict: return (x_next,)
+             return SchedulerOutput(prev_sample=x_next)
 
         # Exponential Integrator Update
         if sigma_next == 0:

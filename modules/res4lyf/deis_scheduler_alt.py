@@ -142,7 +142,7 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
                 pass
             sigmas = sigma_max * (1 - ramp) + sigma_min * ramp
         elif self.config.use_flow_sigmas:
-            sigmas = np.linspace(1.0, 1 / 1000, num_inference_steps)
+             sigmas = np.linspace(1.0, 1 / 1000, num_inference_steps)
 
         # 3. Shifting
         if self.config.use_dynamic_shifting and mu is not None:
@@ -151,7 +151,10 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             sigmas = self.config.shift * sigmas / (1 + (self.config.shift - 1) * sigmas)
 
         # Map back to timesteps
-        timesteps = np.interp(np.log(np.maximum(sigmas, 1e-10)), log_sigmas_all, np.arange(len(log_sigmas_all)))
+        if self.config.use_flow_sigmas:
+             timesteps = sigmas * self.config.num_train_timesteps
+        else:
+             timesteps = np.interp(np.log(np.maximum(sigmas, 1e-10)), log_sigmas_all, np.arange(len(log_sigmas_all)))
 
         self.sigmas = torch.from_numpy(np.append(sigmas, 0.0)).to(device=device, dtype=dtype)
         self.timesteps = torch.from_numpy(timesteps + self.config.steps_offset).to(device=device, dtype=dtype)
@@ -224,6 +227,8 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
+        if self.config.prediction_type == "flow_prediction":
+            return sample
         sigma = self.sigmas[self._step_index]
         return sample / ((sigma**2 + 1) ** 0.5)
 
@@ -259,6 +264,45 @@ class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         # DEIS coefficients are precomputed in set_timesteps
         coeffs = self.all_coeffs[step_index]
+
+        if self.config.prediction_type == "flow_prediction":
+            # Variable Step Adams-Bashforth for Flow Matching
+            self.model_outputs.append(model_output)
+            self.prev_sigmas.append(sigma_t) 
+            # Note: deis uses hist_samples for x0? I'll use model_outputs for v.
+            if len(self.model_outputs) > 4:
+                 self.model_outputs.pop(0)
+                 self.prev_sigmas.pop(0)
+
+            dt = self.sigmas[step_index + 1] - sigma_t
+            v_n = model_output
+            
+            curr_order = min(len(self.prev_sigmas), 3)
+
+            if curr_order == 1:
+                 x_next = sample + dt * v_n
+            elif curr_order == 2:
+                 sigma_prev = self.prev_sigmas[-2]
+                 dt_prev = sigma_t - sigma_prev
+                 r = dt / dt_prev if abs(dt_prev) > 1e-8 else 0.0
+                 if dt_prev == 0 or r < -0.9 or r > 2.0:
+                     x_next = sample + dt * v_n
+                 else:
+                     c0 = 1 + 0.5 * r
+                     c1 = -0.5 * r
+                     x_next = sample + dt * (c0 * v_n + c1 * self.model_outputs[-2])
+            else:
+                 # AB2 fallback
+                 sigma_prev = self.prev_sigmas[-2]
+                 dt_prev = sigma_t - sigma_prev
+                 r = dt / dt_prev if abs(dt_prev) > 1e-8 else 0.0
+                 c0 = 1 + 0.5 * r
+                 c1 = -0.5 * r
+                 x_next = sample + dt * (c0 * v_n + c1 * self.model_outputs[-2])
+
+            self._step_index += 1
+            if not return_dict: return (x_next,)
+            return SchedulerOutput(prev_sample=x_next)
 
         sigma_next = self.sigmas[step_index + 1]
         alpha_next = 1 / (sigma_next**2 + 1) ** 0.5 if sigma_next > 0 else 1.0

@@ -87,6 +87,8 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
+        if self.config.prediction_type == "flow_prediction":
+            return sample
         sigma = self.sigmas[self._step_index]
         return sample / ((sigma**2 + 1) ** 0.5)
 
@@ -128,11 +130,14 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
         elif getattr(self.config, "use_beta_sigmas", False):
             sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif getattr(self.config, "use_flow_sigmas", False):
-            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
+            sigmas = np.linspace(1.0, 1 / 1000, num_inference_steps)
         else:
-            # Re-sample the base sigmas at the requested steps
-            idx = np.linspace(0, len(base_sigmas) - 1, num_inference_steps)
-            sigmas = np.interp(idx, np.arange(len(base_sigmas)), base_sigmas)[::-1].copy()
+             if self.config.use_flow_sigmas:
+                  sigmas = np.linspace(1.0, 1 / 1000, num_inference_steps)
+             else:
+                  # Re-sample the base sigmas at the requested steps
+                  idx = np.linspace(0, len(base_sigmas) - 1, num_inference_steps)
+                  sigmas = np.interp(idx, np.arange(len(base_sigmas)), base_sigmas)[::-1].copy()
 
         shift = getattr(self.config, "shift", 1.0)
         use_dynamic_shifting = getattr(self.config, "use_dynamic_shifting", False)
@@ -146,6 +151,9 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
                     getattr(self.config, "max_image_seq_len", 4096),
                 )
             sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
+
+        if getattr(self.config, "use_flow_sigmas", False):
+             timesteps = sigmas * self.config.num_train_timesteps
 
         self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]])).to(device=device, dtype=dtype)
         self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=dtype)
@@ -255,11 +263,45 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
             x0 = model_output
 
         self.x0_outputs.append(x0)
+        self.model_outputs.append(model_output) # Added for AB support
         self.prev_sigmas.append(sigma)
 
         if len(self.x0_outputs) > 3:
             self.x0_outputs.pop(0)
+            self.model_outputs.pop(0)
             self.prev_sigmas.pop(0)
+
+        if self.config.prediction_type == "flow_prediction":
+            # Variable Step Adams-Bashforth for Flow Matching
+            dt = sigma_next - sigma
+            v_n = model_output
+            
+            curr_order = min(len(self.prev_sigmas), 3) # Max order 3 here
+            
+            if curr_order == 1:
+                 x_next = sample + dt * v_n
+            elif curr_order == 2:
+                 sigma_prev = self.prev_sigmas[-2]
+                 dt_prev = sigma - sigma_prev
+                 r = dt / dt_prev if abs(dt_prev) > 1e-8 else 0.0
+                 if dt_prev == 0 or r < -0.9 or r > 2.0:
+                     x_next = sample + dt * v_n
+                 else:
+                     c0 = 1 + 0.5 * r
+                     c1 = -0.5 * r
+                     x_next = sample + dt * (c0 * v_n + c1 * self.model_outputs[-2])
+            else:
+                 # AB2 fallback for robustness
+                 sigma_prev = self.prev_sigmas[-2]
+                 dt_prev = sigma - sigma_prev
+                 r = dt / dt_prev if abs(dt_prev) > 1e-8 else 0.0
+                 c0 = 1 + 0.5 * r
+                 c1 = -0.5 * r
+                 x_next = sample + dt * (c0 * v_n + c1 * self.model_outputs[-2])
+
+            self._step_index += 1
+            if not return_dict: return (x_next,)
+            return SchedulerOutput(prev_sample=x_next)
 
         # GET COEFFICIENTS
         b, h_val = self._get_coefficients(sigma, sigma_next)

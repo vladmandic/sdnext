@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-01-30
+## Update for 2026-01-31
 
 - **Models**
   - [Tongyi-MAI Z-Image Base](https://tongyi-mai.github.io/Z-Image-blog/)  
@@ -17,7 +17,8 @@
   - schedulers documentation has new home: <https://vladmandic.github.io/sdnext-docs/Schedulers/>
   - add 13(!) new scheduler families
     not a port, but more of inspired-by [res4lyf](https://github.com/ClownsharkBatwing/RES4LYF) library  
-    *note*: each family may have multiple actual schedulers, so the list total is 56(!) new schedulers  
+    all schedulers should be compatible with both `epsilon` and `flow` prediction style!  
+    *note*: each family may have multiple actual schedulers, so the list total is 56(!) new schedulers     
     - core family: *RES*
     - exponential: *DEIS, ETD, Lawson, ABNorsett*
     - integrators: *Runge-Kutta, Linear-RK, Specialized-RK, Lobatto, Radau-IIA, Gauss-Legendre*

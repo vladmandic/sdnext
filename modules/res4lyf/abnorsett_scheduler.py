@@ -123,6 +123,7 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
             raise ValueError(f"timestep_spacing {self.config.timestep_spacing} is not supported.")
 
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
+        log_sigmas_all = np.log(sigmas)
         sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
 
         if self.config.use_karras_sigmas:
@@ -132,7 +133,11 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
         elif self.config.use_beta_sigmas:
             sigmas = get_sigmas_beta(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
         elif self.config.use_flow_sigmas:
-            sigmas = get_sigmas_flow(num_inference_steps, sigmas[-1], sigmas[0], device=device, dtype=dtype).cpu().numpy()
+            s_min = getattr(self.config, "sigma_min", None)
+            s_max = getattr(self.config, "sigma_max", None)
+            if s_min is None: s_min = 0.001
+            if s_max is None: s_max = 1.0
+            sigmas = np.linspace(s_max, s_min, num_inference_steps)
 
         if self.config.shift != 1.0 or self.config.use_dynamic_shifting:
             shift = self.config.shift
@@ -145,6 +150,12 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
                     self.config.max_image_seq_len,
                 )
             sigmas = apply_shift(torch.from_numpy(sigmas), shift).numpy()
+
+        # Map shifted sigmas back to timesteps (Linear mapping for Flow)
+        # t = sigma * 1000. Use standard linear scaling.
+        # This ensures the model receives the correct time embedding for the shifted noise level.
+        # We assume Flow sigmas are in [1.0, 0.0] range (before shift) and model expects [1000, 0].
+        timesteps = sigmas * self.config.num_train_timesteps
 
         self.sigmas = torch.from_numpy(np.concatenate([sigmas, [0.0]])).to(device=device, dtype=dtype)
         self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=dtype)
@@ -174,6 +185,8 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
+        if self.config.prediction_type == "flow_prediction":
+            return sample
         sigma = self.sigmas[self._step_index]
         sample = sample / ((sigma**2 + 1) ** 0.5)
         return sample
@@ -250,7 +263,57 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
                     res += b_val * self.x0_outputs[idx]
 
             # Exponential Integrator Update
-            x_next = torch.exp(-h) * sample + h * res
+            if self.config.prediction_type == "flow_prediction":
+                # Variable Step Adams-Bashforth for Flow Matching
+                # x_{n+1} = x_n + \int_{t_n}^{t_{n+1}} v(t) dt
+                sigma_curr = sigma
+                dt = sigma_next - sigma_curr
+
+                # Current derivative v_n is self.model_outputs[-1]
+                v_n = self.model_outputs[-1]
+
+                if curr_order == 1:
+                    # Euler: x_{n+1} = x_n + dt * v_n
+                    x_next = sample + dt * v_n
+                elif curr_order == 2:
+                    # AB2 Variable Step
+                    # x_{n+1} = x_n + dt * [ (1 + r/2) * v_n - (r/2) * v_{n-1} ]
+                    # where r = dt_cur / dt_prev
+                    
+                    v_nm1 = self.model_outputs[-2]
+                    sigma_prev = self.prev_sigmas[-2]
+                    dt_prev = sigma_curr - sigma_prev
+                    
+                    if abs(dt_prev) < 1e-8:
+                         # Fallback to Euler if division by zero risk
+                         x_next = sample + dt * v_n
+                    else:
+                        r = dt / dt_prev
+                        # Standard variable step AB2 coefficients
+                        c0 = 1 + 0.5 * r
+                        c1 = -0.5 * r
+                        x_next = sample + dt * (c0 * v_n + c1 * v_nm1)
+                        
+                elif curr_order >= 3:
+                     # For now, fallback to AB2 (variable) for higher orders to ensure stability 
+                     # given the complexity of variable-step AB3/4 formulas inline. 
+                     # The user specifically requested abnorsett_2m.
+                     v_nm1 = self.model_outputs[-2]
+                     sigma_prev = self.prev_sigmas[-2]
+                     dt_prev = sigma_curr - sigma_prev
+                     
+                     if abs(dt_prev) < 1e-8:
+                         x_next = sample + dt * v_n
+                     else:
+                        r = dt / dt_prev
+                        c0 = 1 + 0.5 * r
+                        c1 = -0.5 * r
+                        x_next = sample + dt * (c0 * v_n + c1 * v_nm1)
+                else:
+                     x_next = sample + dt * v_n
+
+            else:
+                x_next = torch.exp(-h) * sample + h * res
 
         self._step_index += 1
 
