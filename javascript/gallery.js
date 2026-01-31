@@ -1197,9 +1197,9 @@ async function updateFolders() {
   // if (el.folders.children.length > 0) return;
   const res = await authFetch(`${window.api}/browser/folders`);
   if (!res || res.status !== 200) return;
-  el.folders.innerHTML = '';
   url = res.url.split('/sdapi')[0].replace('http', 'ws'); // update global url as ws need fqdn
   const folders = await res.json();
+  el.folders.innerHTML = '';
   for (const folder of folders) {
     const f = new GalleryFolder(folder);
     el.folders.appendChild(f);
