@@ -406,6 +406,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_cosmos import load_cosmos_t2i
             sd_model = load_cosmos_t2i(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['Anima']:
+            from pipelines.model_anima import load_anima
+            sd_model = load_anima(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['FLite']:
             from pipelines.model_flite import load_flite
             sd_model = load_flite(checkpoint_info, diffusers_load_config)
@@ -1247,6 +1251,8 @@ def set_diffuser_pipe(pipe, new_pipe_type):
 
 def add_noise_pred_to_diffusers_callback(pipe):
     if not hasattr(pipe, "_callback_tensor_inputs"):
+        return pipe
+    if pipe.__class__.__name__.startswith("Anima"):
         return pipe
     if pipe.__class__.__name__.startswith("StableCascade") and ("predicted_image_embedding" not in pipe._callback_tensor_inputs): # pylint: disable=protected-access
         pipe.prior_pipe._callback_tensor_inputs.append("predicted_image_embedding") # pylint: disable=protected-access

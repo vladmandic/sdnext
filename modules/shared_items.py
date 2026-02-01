@@ -64,6 +64,7 @@ pipelines = {
     'X-Omni': getattr(diffusers, 'DiffusionPipeline', None),
     'HunyuanImage3': getattr(diffusers, 'DiffusionPipeline', None),
     'ChronoEdit': getattr(diffusers, 'DiffusionPipeline', None),
+    'Anima': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 

@@ -103,6 +103,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'FLUX'
     elif 'flex.2' in fn.lower():
         new_guess = 'FLEX'
+    elif 'anima' in fn.lower() and 'cosmos' in fn.lower():
+        new_guess = 'Anima'
     elif 'cosmos-predict2' in fn.lower():
         new_guess = 'Cosmos'
     elif 'f-lite' in fn.lower():
