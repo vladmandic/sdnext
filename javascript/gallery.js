@@ -314,6 +314,8 @@ class SimpleFunctionQueue {
 // HTML Elements
 
 class GalleryFolder extends HTMLElement {
+  static folders = new Set();
+
   constructor(folder) {
     super();
     // Support both old format (string) and new format (object with path and label)
@@ -327,21 +329,175 @@ class GalleryFolder extends HTMLElement {
     this.style.overflowX = 'hidden';
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [folderStylesheet];
+
+    this.div = document.createElement('div');
   }
 
   connectedCallback() {
-    const div = document.createElement('div');
-    div.className = 'gallery-folder';
-    div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.label}`;
-    div.title = this.name; // Show full path on hover
-    div.addEventListener('click', () => {
-      for (const folder of el.folders.children) {
-        if (folder.name === this.name) folder.shadow.firstElementChild.classList.add('gallery-folder-selected');
-        else folder.shadow.firstElementChild.classList.remove('gallery-folder-selected');
+    if (GalleryFolder.folders.has(this)) return; // Element is just being moved
+
+    this.div.className = 'gallery-folder';
+    this.div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.label}`;
+    this.div.title = this.name; // Show full path on hover
+    this.div.addEventListener('click', () => { this.updateSelected(); }); // Ensures 'this' isn't the div in the called method
+    this.div.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
+    this.shadow.appendChild(this.div);
+    GalleryFolder.folders.add(this);
+  }
+
+  async disconnectedCallback() {
+    await Promise.resolve(); // Wait for other microtasks (such as element moving)
+    if (this.isConnected) return;
+    GalleryFolder.folders.delete(this);
+  }
+
+  updateSelected() {
+    this.div.classList.add('gallery-folder-selected');
+    for (const folder of GalleryFolder.folders) {
+      if (folder !== this) {
+        folder.div.classList.remove('gallery-folder-selected');
       }
-    });
-    div.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
-    this.shadow.appendChild(div);
+    }
+  }
+}
+
+async function delayFetchThumb(fn, signal) {
+  await awaitForOutstanding(16, signal);
+  try {
+    outstanding++;
+    const ts = Date.now().toString();
+    const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
+    if (!res.ok) {
+      error(`fetchThumb: ${res.statusText}`);
+      return undefined;
+    }
+    const json = await res.json();
+    if (!res || !json || json.error || Object.keys(json).length === 0) {
+      if (json.error) error(`fetchThumb: ${json.error}`);
+      return undefined;
+    }
+    return json;
+  } finally {
+    outstanding--;
+  }
+}
+
+class GalleryFile extends HTMLElement {
+  /** @type {AbortSignal} */
+  #signal;
+
+  constructor(folder, file, signal) {
+    super();
+    this.folder = folder;
+    this.name = file;
+    this.#signal = signal;
+    this.size = 0;
+    this.mtime = 0;
+    this.hash = undefined;
+    this.exif = '';
+    this.width = 0;
+    this.height = 0;
+    this.src = `${this.folder}/${this.name}`;
+    this.shadow = this.attachShadow({ mode: 'open' });
+    this.shadow.adoptedStyleSheets = [fileStylesheet];
+
+    this.firstRun = true;
+  }
+
+  async connectedCallback() {
+    if (!this.firstRun) return; // Element is just being moved
+    this.firstRun = false;
+
+    // Check separator state early to hide the element immediately
+    const dir = this.name.match(/(.*)[/\\]/);
+    if (dir && dir[1]) {
+      const dirPath = dir[1];
+      const isOpen = separatorStates.get(dirPath);
+      if (isOpen === false) {
+        this.style.display = 'none';
+      }
+    }
+
+    // Normalize path to ensure consistent hash regardless of which folder view is used
+    const normalizedPath = this.src.replace(/\/+/g, '/').replace(/\/$/, '');
+    this.hash = await getHash(`${normalizedPath}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
+    const cachedData = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
+    const img = document.createElement('img');
+    img.className = 'gallery-file';
+    img.loading = 'lazy';
+    img.onload = async () => {
+      img.title += `\nResolution: ${this.width} x ${this.height}`;
+      this.title = img.title;
+      if (!cachedData && opts.browser_cache) {
+        if ((this.width === 0) || (this.height === 0)) { // fetch thumb failed so we use actual image
+          this.width = img.naturalWidth;
+          this.height = img.naturalHeight;
+        }
+      }
+    };
+    let ok = true;
+    if (cachedData?.img) {
+      img.src = cachedData.img;
+      this.exif = cachedData.exif;
+      this.width = cachedData.width;
+      this.height = cachedData.height;
+      this.size = cachedData.size;
+      this.mtime = new Date(cachedData.mtime);
+    } else {
+      try {
+        const json = await delayFetchThumb(this.src, this.#signal);
+        if (!json) {
+          ok = false;
+        } else {
+          img.src = json.data;
+          this.exif = json.exif;
+          this.width = json.width;
+          this.height = json.height;
+          this.size = json.size;
+          this.mtime = new Date(json.mtime);
+          if (opts.browser_cache) {
+            // Store file's actual parent directory (not browsed folder) for consistent cleanup
+            const fileDir = this.src.replace(/\/+/g, '/').replace(/\/[^/]+$/, '');
+            await idbAdd({
+              hash: this.hash,
+              folder: fileDir,
+              file: this.name,
+              size: this.size,
+              mtime: this.mtime,
+              width: this.width,
+              height: this.height,
+              src: this.src,
+              exif: this.exif,
+              img: img.src,
+              // exif: await getExif(img), // alternative client-side exif
+              // img: await createThumb(img), // alternative client-side thumb
+            });
+          }
+        }
+      } catch (err) { // thumb fetch failed so assign actual image
+        img.src = `file=${this.src}`;
+      }
+    }
+    if (this.#signal.aborted) { // Do not change the operations order from here...
+      return;
+    }
+    galleryHashes.add(this.hash);
+    if (!ok) {
+      return;
+    } // ... to here unless modifications are also being made to maintenance functionality and the usage of AbortController/AbortSignal
+    img.onclick = () => {
+      setGallerySelectionByElement(this, { send: true });
+    };
+    img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
+    this.title = img.title;
+
+    // Final visibility check based on search term.
+    const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase());
+    if (this.style.display !== 'none') { // Only proceed if not already hidden by a closed separator
+      this.style.display = shouldDisplayBasedOnSearch ? 'unset' : 'none';
+    }
+
+    this.shadow.appendChild(img);
   }
 }
 
@@ -469,148 +625,6 @@ async function addSeparators() {
         f.style.display = 'none';
       }
     }
-  }
-}
-
-async function delayFetchThumb(fn, signal) {
-  await awaitForOutstanding(16, signal);
-  try {
-    outstanding++;
-    const ts = Date.now().toString();
-    const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
-    if (!res.ok) {
-      error(`fetchThumb: ${res.statusText}`);
-      return undefined;
-    }
-    const json = await res.json();
-    if (!res || !json || json.error || Object.keys(json).length === 0) {
-      if (json.error) error(`fetchThumb: ${json.error}`);
-      return undefined;
-    }
-    return json;
-  } finally {
-    outstanding--;
-  }
-}
-
-class GalleryFile extends HTMLElement {
-  /** @type {AbortSignal} */
-  #signal;
-
-  constructor(folder, file, signal) {
-    super();
-    this.folder = folder;
-    this.name = file;
-    this.#signal = signal;
-    this.size = 0;
-    this.mtime = 0;
-    this.hash = undefined;
-    this.exif = '';
-    this.width = 0;
-    this.height = 0;
-    this.src = `${this.folder}/${this.name}`;
-    this.shadow = this.attachShadow({ mode: 'open' });
-    this.shadow.adoptedStyleSheets = [fileStylesheet];
-  }
-
-  async connectedCallback() {
-    if (this.shadow.children.length > 0) {
-      return;
-    }
-
-    // Check separator state early to hide the element immediately
-    const dir = this.name.match(/(.*)[/\\]/);
-    if (dir && dir[1]) {
-      const dirPath = dir[1];
-      const isOpen = separatorStates.get(dirPath);
-      if (isOpen === false) {
-        this.style.display = 'none';
-      }
-    }
-
-    // Normalize path to ensure consistent hash regardless of which folder view is used
-    const normalizedPath = this.src.replace(/\/+/g, '/').replace(/\/$/, '');
-    this.hash = await getHash(`${normalizedPath}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
-    const cachedData = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
-    const img = document.createElement('img');
-    img.className = 'gallery-file';
-    img.loading = 'lazy';
-    img.onload = async () => {
-      img.title += `\nResolution: ${this.width} x ${this.height}`;
-      this.title = img.title;
-      if (!cachedData && opts.browser_cache) {
-        if ((this.width === 0) || (this.height === 0)) { // fetch thumb failed so we use actual image
-          this.width = img.naturalWidth;
-          this.height = img.naturalHeight;
-        }
-      }
-    };
-    let ok = true;
-    if (cachedData?.img) {
-      img.src = cachedData.img;
-      this.exif = cachedData.exif;
-      this.width = cachedData.width;
-      this.height = cachedData.height;
-      this.size = cachedData.size;
-      this.mtime = new Date(cachedData.mtime);
-    } else {
-      try {
-        const json = await delayFetchThumb(this.src, this.#signal);
-        if (!json) {
-          ok = false;
-        } else {
-          img.src = json.data;
-          this.exif = json.exif;
-          this.width = json.width;
-          this.height = json.height;
-          this.size = json.size;
-          this.mtime = new Date(json.mtime);
-          if (opts.browser_cache) {
-            // Store file's actual parent directory (not browsed folder) for consistent cleanup
-            const fileDir = this.src.replace(/\/+/g, '/').replace(/\/[^/]+$/, '');
-            await idbAdd({
-              hash: this.hash,
-              folder: fileDir,
-              file: this.name,
-              size: this.size,
-              mtime: this.mtime,
-              width: this.width,
-              height: this.height,
-              src: this.src,
-              exif: this.exif,
-              img: img.src,
-              // exif: await getExif(img), // alternative client-side exif
-              // img: await createThumb(img), // alternative client-side thumb
-            });
-          }
-        }
-      } catch (err) { // thumb fetch failed so assign actual image
-        img.src = `file=${this.src}`;
-      }
-    }
-    if (this.#signal.aborted) { // Do not change the operations order from here...
-      return;
-    }
-    galleryHashes.add(this.hash);
-    if (!ok) {
-      return;
-    } // ... to here unless modifications are also being made to maintenance functionality and the usage of AbortController/AbortSignal
-    img.onclick = () => {
-      setGallerySelectionByElement(this, { send: true });
-    };
-    img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
-    if (this.shadow.children.length > 0) {
-      return; // avoid double-adding
-    }
-    this.title = img.title;
-
-    // Final visibility check based on search term.
-    const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase());
-    if (this.style.display !== 'none') { // Only proceed if not already hidden by a closed separator
-      this.style.display = shouldDisplayBasedOnSearch ? 'unset' : 'none';
-    }
-
-    this.shadow.appendChild(img);
   }
 }
 
