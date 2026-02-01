@@ -358,133 +358,6 @@ class GalleryFolder extends HTMLElement {
   }
 }
 
-async function createThumb(img) {
-  const height = opts.extra_networks_card_size;
-  const width = opts.browser_fixed_width ? opts.extra_networks_card_size : 0;
-  const canvas = document.createElement('canvas');
-  const scaleY = height / img.height;
-  const scaleX = width > 0 ? width / img.width : scaleY;
-  const scale = Math.min(scaleX, scaleY);
-  const scaledWidth = img.width * scale;
-  const scaledHeight = img.height * scale;
-  canvas.width = scaledWidth;
-  canvas.height = scaledHeight;
-  const ctx = canvas.getContext('2d');
-  ctx.drawImage(img, 0, 0, scaledWidth, scaledHeight);
-  const dataURL = canvas.toDataURL('image/jpeg', 0.5);
-  return dataURL;
-}
-
-async function handleSeparator(separator) {
-  separator.classList.toggle('gallery-separator-hidden');
-  const nowHidden = separator.classList.contains('gallery-separator-hidden');
-
-  // Store the state (true = open, false = closed)
-  separatorStates.set(separator.title, !nowHidden);
-
-  // Update arrow and count
-  const arrow = separator.querySelector('.gallery-separator-arrow');
-  arrow.style.transform = nowHidden ? 'rotate(0deg)' : 'rotate(90deg)';
-
-  const all = Array.from(el.files.children);
-  for (const f of all) {
-    if (!f.name) continue; // Skip separators
-
-    // Check if file belongs to this exact directory
-    const fileDir = f.name.match(/(.*)[/\\]/);
-    const fileDirPath = fileDir ? fileDir[1] : '';
-
-    if (separator.title.length > 0 && fileDirPath === separator.title) {
-      f.style.display = nowHidden ? 'none' : 'unset';
-    }
-  }
-  // Note: Count is not updated here on manual toggle, as it reflects the total.
-  // If I end up implementing it, the search function will handle dynamic count updates.
-}
-
-async function addSeparators() {
-  document.querySelectorAll('.gallery-separator').forEach((node) => { el.files.removeChild(node); });
-  const all = Array.from(el.files.children);
-  let lastDir;
-
-  // Count root files (files without a directory path)
-  const hasRootFiles = all.some((f) => f.name && !f.name.match(/[/\\]/));
-  // Only auto-open first separator if there are no root files to display
-  let isFirstSeparator = !hasRootFiles;
-
-  // First pass: create separators
-  for (const f of all) {
-    let dir = f.name?.match(/(.*)[/\\]/);
-    if (!dir) dir = '';
-    else dir = dir[1];
-    if (dir !== lastDir) {
-      lastDir = dir;
-      if (dir.length > 0) {
-        // Count files in this directory
-        let fileCount = 0;
-        for (const file of all) {
-          if (!file.name) continue;
-          const fileDir = file.name.match(/(.*)[/\\]/);
-          const fileDirPath = fileDir ? fileDir[1] : '';
-          if (fileDirPath === dir) fileCount++;
-        }
-
-        const sep = document.createElement('div');
-        sep.className = 'gallery-separator';
-        sep.title = dir;
-
-        // Default to open for the first separator if no state is saved, otherwise closed.
-        const isOpen = separatorStates.has(dir) ? separatorStates.get(dir) : isFirstSeparator;
-        separatorStates.set(dir, isOpen); // Ensure it's in the map
-        if (isFirstSeparator) isFirstSeparator = false; // Subsequent separators will default to closed
-
-        if (!isOpen) {
-          sep.classList.add('gallery-separator-hidden');
-        }
-
-        // Create arrow span
-        const arrow = document.createElement('span');
-        arrow.className = 'gallery-separator-arrow';
-        arrow.textContent = '▶';
-        arrow.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
-
-        // Create directory name span
-        const dirName = document.createElement('span');
-        dirName.className = 'gallery-separator-name';
-        dirName.textContent = dir;
-        dirName.title = dir; // Show full path on hover
-
-        // Create count span
-        const count = document.createElement('span');
-        count.className = 'gallery-separator-count';
-        count.textContent = `${fileCount} files`;
-        sep.dataset.totalFiles = fileCount; // Store total count for search filtering
-
-        sep.appendChild(arrow);
-        sep.appendChild(dirName);
-        sep.appendChild(count);
-
-        sep.onclick = () => handleSeparator(sep);
-        el.files.insertBefore(sep, f);
-      }
-    }
-  }
-
-  // Second pass: hide files in closed directories
-  for (const f of all) {
-    if (!f.name) continue; // Skip separators
-
-    const dir = f.name.match(/(.*)[/\\]/);
-    if (dir && dir[1]) {
-      const dirPath = dir[1];
-      const isOpen = separatorStates.get(dirPath);
-      if (isOpen === false) {
-        f.style.display = 'none';
-      }
-    }
-  }
-}
-
 async function delayFetchThumb(fn, signal) {
   await awaitForOutstanding(16, signal);
   try {
@@ -622,6 +495,133 @@ class GalleryFile extends HTMLElement {
     }
 
     this.shadow.appendChild(img);
+  }
+}
+
+async function createThumb(img) {
+  const height = opts.extra_networks_card_size;
+  const width = opts.browser_fixed_width ? opts.extra_networks_card_size : 0;
+  const canvas = document.createElement('canvas');
+  const scaleY = height / img.height;
+  const scaleX = width > 0 ? width / img.width : scaleY;
+  const scale = Math.min(scaleX, scaleY);
+  const scaledWidth = img.width * scale;
+  const scaledHeight = img.height * scale;
+  canvas.width = scaledWidth;
+  canvas.height = scaledHeight;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, scaledWidth, scaledHeight);
+  const dataURL = canvas.toDataURL('image/jpeg', 0.5);
+  return dataURL;
+}
+
+async function handleSeparator(separator) {
+  separator.classList.toggle('gallery-separator-hidden');
+  const nowHidden = separator.classList.contains('gallery-separator-hidden');
+
+  // Store the state (true = open, false = closed)
+  separatorStates.set(separator.title, !nowHidden);
+
+  // Update arrow and count
+  const arrow = separator.querySelector('.gallery-separator-arrow');
+  arrow.style.transform = nowHidden ? 'rotate(0deg)' : 'rotate(90deg)';
+
+  const all = Array.from(el.files.children);
+  for (const f of all) {
+    if (!f.name) continue; // Skip separators
+
+    // Check if file belongs to this exact directory
+    const fileDir = f.name.match(/(.*)[/\\]/);
+    const fileDirPath = fileDir ? fileDir[1] : '';
+
+    if (separator.title.length > 0 && fileDirPath === separator.title) {
+      f.style.display = nowHidden ? 'none' : 'unset';
+    }
+  }
+  // Note: Count is not updated here on manual toggle, as it reflects the total.
+  // If I end up implementing it, the search function will handle dynamic count updates.
+}
+
+async function addSeparators() {
+  document.querySelectorAll('.gallery-separator').forEach((node) => { el.files.removeChild(node); });
+  const all = Array.from(el.files.children);
+  let lastDir;
+
+  // Count root files (files without a directory path)
+  const hasRootFiles = all.some((f) => f.name && !f.name.match(/[/\\]/));
+  // Only auto-open first separator if there are no root files to display
+  let isFirstSeparator = !hasRootFiles;
+
+  // First pass: create separators
+  for (const f of all) {
+    let dir = f.name?.match(/(.*)[/\\]/);
+    if (!dir) dir = '';
+    else dir = dir[1];
+    if (dir !== lastDir) {
+      lastDir = dir;
+      if (dir.length > 0) {
+        // Count files in this directory
+        let fileCount = 0;
+        for (const file of all) {
+          if (!file.name) continue;
+          const fileDir = file.name.match(/(.*)[/\\]/);
+          const fileDirPath = fileDir ? fileDir[1] : '';
+          if (fileDirPath === dir) fileCount++;
+        }
+
+        const sep = document.createElement('div');
+        sep.className = 'gallery-separator';
+        sep.title = dir;
+
+        // Default to open for the first separator if no state is saved, otherwise closed.
+        const isOpen = separatorStates.has(dir) ? separatorStates.get(dir) : isFirstSeparator;
+        separatorStates.set(dir, isOpen); // Ensure it's in the map
+        if (isFirstSeparator) isFirstSeparator = false; // Subsequent separators will default to closed
+
+        if (!isOpen) {
+          sep.classList.add('gallery-separator-hidden');
+        }
+
+        // Create arrow span
+        const arrow = document.createElement('span');
+        arrow.className = 'gallery-separator-arrow';
+        arrow.textContent = '▶';
+        arrow.style.transform = isOpen ? 'rotate(90deg)' : 'rotate(0deg)';
+
+        // Create directory name span
+        const dirName = document.createElement('span');
+        dirName.className = 'gallery-separator-name';
+        dirName.textContent = dir;
+        dirName.title = dir; // Show full path on hover
+
+        // Create count span
+        const count = document.createElement('span');
+        count.className = 'gallery-separator-count';
+        count.textContent = `${fileCount} files`;
+        sep.dataset.totalFiles = fileCount; // Store total count for search filtering
+
+        sep.appendChild(arrow);
+        sep.appendChild(dirName);
+        sep.appendChild(count);
+
+        sep.onclick = () => handleSeparator(sep);
+        el.files.insertBefore(sep, f);
+      }
+    }
+  }
+
+  // Second pass: hide files in closed directories
+  for (const f of all) {
+    if (!f.name) continue; // Skip separators
+
+    const dir = f.name.match(/(.*)[/\\]/);
+    if (dir && dir[1]) {
+      const dirPath = dir[1];
+      const isOpen = separatorStates.get(dirPath);
+      if (isOpen === false) {
+        f.style.display = 'none';
+      }
+    }
   }
 }
 
