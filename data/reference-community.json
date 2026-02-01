@@ -128,5 +128,12 @@
     "preview": "shuttleai--shuttle-jaguar.jpg",
     "tags": "community",
     "skip": true
+  },
+  "Anima": {
+    "path": "CalamitousFelicitousness/Anima-sdnext-diffusers",
+    "preview": "CalamitousFelicitousness--Anima-sdnext-diffusers.png",
+    "desc": "Modified Cosmos-Predict-2B that replaces the T5-11B text encoder with Qwen3-0.6B. Anima is a 2 billion parameter text-to-image model created via a collaboration between CircleStone Labs and Comfy Org. It is focused mainly on anime concepts, characters, and styles, but is also capable of generating a wide variety of other non-photorealistic content. The model is designed for making illustrations and artistic images, and will not work well at realism.",
+    "tags": "community",
+    "skip": true
   }
 }
