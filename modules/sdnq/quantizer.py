@@ -113,12 +113,12 @@ def prepare_svd_for_matmul(svd_up: torch.FloatTensor, svd_down: torch.FloatTenso
     return svd_up, svd_down
 
 
-def check_param_name_in(param_name: str, param_list: List[str]) -> bool:
+def check_param_name_in(param_name: str, param_list: List[str]) -> str:
     split_param_name = param_name.split(".")
     for param in param_list:
         if param.startswith("."):
             if param_name.startswith(param[1:]):
-                return True
+                return param
             else:
                 continue
         if (
@@ -126,8 +126,8 @@ def check_param_name_in(param_name: str, param_list: List[str]) -> bool:
             or param in split_param_name
             or ("*" in param and re.match(param.replace(".*", "\\.*").replace("*", ".*"), param_name))
         ):
-            return True
-    return False
+            return param
+    return None
 
 
 def get_quant_args_from_config(quantization_config: Union["SDNQConfig", dict]) -> dict:
@@ -156,7 +156,7 @@ def get_quant_args_from_config(quantization_config: Union["SDNQConfig", dict]) -
 def get_minimum_dtype(weights_dtype: str, param_name: str, modules_dtype_dict: Dict[str, List[str]]):
     if len(modules_dtype_dict.keys()) > 0:
         for key, value in modules_dtype_dict.items():
-            if check_param_name_in(param_name, value):
+            if check_param_name_in(param_name, value) is not None:
                 key = key.lower()
                 if key in {"8bit", "8bits"}:
                     if dtype_dict[weights_dtype]["num_bits"] != 8:
@@ -181,8 +181,9 @@ def get_minimum_dtype(weights_dtype: str, param_name: str, modules_dtype_dict: D
 
 
 def get_quant_kwargs(quant_kwargs: dict, modules_quant_config: Dict[str, dict]) -> dict:
-    if check_param_name_in(quant_kwargs["param_name"], modules_quant_config.keys()):
-        for key, value in modules_quant_config.items():
+    param_key = check_param_name_in(quant_kwargs["param_name"], modules_quant_config.keys())
+    if param_key is not None:
+        for key, value in modules_quant_config[param_key].items():
             quant_kwargs[key] = value
     quant_kwargs["weights_dtype"] = get_minimum_dtype(quant_kwargs["weights_dtype"], quant_kwargs["param_name"], quant_kwargs["modules_dtype_dict"])
     return quant_kwargs
@@ -568,7 +569,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=Non
             param_name = module_name
         if hasattr(module, "weight") and module.weight is not None:
             param_name = param_name + ".weight"
-            if check_param_name_in(param_name, modules_to_not_convert):
+            if check_param_name_in(param_name, modules_to_not_convert) is not None:
                 continue
             layer_class_name = module.__class__.__name__
             if layer_class_name in allowed_types and module.weight.dtype in {torch.float32, torch.float16, torch.bfloat16}:
@@ -779,7 +780,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             if hasattr(layer, "sdnq_dequantizer"):
                 return True
         elif param_name.endswith(".weight"):
-            if not check_param_name_in(param_name, self.quantization_config.modules_to_not_convert):
+            if not check_param_name_in(param_name, self.quantization_config.modules_to_not_convert) is not None:
                 layer_class_name = get_module_from_name(model, param_name)[0].__class__.__name__
                 if layer_class_name in allowed_types:
                     if layer_class_name in conv_types or layer_class_name in conv_transpose_types:
