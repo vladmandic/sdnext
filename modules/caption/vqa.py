@@ -1288,12 +1288,14 @@ class VQA:
                 low_cpu_mem_usage=True,
                 use_flash_attn=False,
                 use_safetensors=True,
-                trust_remote_code=True)
+                trust_remote_code=True,
+                cache_dir=shared.opts.hfcache_dir)
             self.model = self.model.eval()  # required: trust_remote_code model
             self.processor = transformers.AutoTokenizer.from_pretrained(
                 repo,
                 trust_remote_code=True,
                 use_fast=False,
+                cache_dir=shared.opts.hfcache_dir,
             )
             self.loaded = repo
             devices.torch_gc()

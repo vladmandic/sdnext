@@ -110,6 +110,25 @@ def refresh_clip_models():
     return clip_models
 
 
+def _load_blip_model(blip_model: str, device):
+    """Pre-load BLIP caption model with cache_dir so downloads go to hfcache_dir."""
+    import transformers
+    model_path = caption_models.get(blip_model, blip_model)
+    cache_dir = shared.opts.clip_models_path
+    dtype = devices.dtype
+    if blip_model.startswith('git-'):
+        caption_model = transformers.AutoModelForCausalLM.from_pretrained(model_path, torch_dtype=dtype, cache_dir=cache_dir)
+    elif blip_model.startswith('blip2-'):
+        caption_model = transformers.Blip2ForConditionalGeneration.from_pretrained(model_path, torch_dtype=dtype, cache_dir=cache_dir)
+    else:
+        caption_model = transformers.BlipForConditionalGeneration.from_pretrained(model_path, torch_dtype=dtype, cache_dir=cache_dir)
+    caption_processor = transformers.AutoProcessor.from_pretrained(model_path, cache_dir=cache_dir)
+    caption_model.eval()
+    if not shared.opts.caption_offload:
+        caption_model = caption_model.to(device)
+    return caption_model, caption_processor
+
+
 def load_captioner(clip_model, blip_model):
     from installer import install
     install('clip_interrogator==0.6.0')
@@ -122,9 +141,11 @@ def load_captioner(clip_model, blip_model):
         cache_path = shared.opts.clip_models_path
         shared.log.info(f'CLIP load: clip="{clip_model}" blip="{blip_model}" device={device}')
         debug_log(f'CLIP load: cache_path="{cache_path}" max_length={shared.opts.caption_openclip_max_length} chunk_size={shared.opts.caption_openclip_chunk_size} flavor_count={shared.opts.caption_openclip_flavor_count} offload={shared.opts.caption_offload}')
+        caption_model, caption_processor = _load_blip_model(blip_model, device)
         captioner_config = clip_interrogator.Config(
             device=device,
             cache_path=cache_path,
+            clip_model_path=cache_path,
             clip_model_name=clip_model,
             caption_model_name=blip_model,
             quiet=True,
@@ -134,6 +155,8 @@ def load_captioner(clip_model, blip_model):
             clip_offload=shared.opts.caption_offload,
             caption_offload=shared.opts.caption_offload,
         )
+        captioner_config.caption_model = caption_model
+        captioner_config.caption_processor = caption_processor
         ci = clip_interrogator.Interrogator(captioner_config)
 
         if blip_model.startswith('blip2-'):
@@ -152,8 +175,9 @@ def load_captioner(clip_model, blip_model):
             shared.log.info(f'CLIP load: blip="{blip_model}" reloading')
             debug_log(f'CLIP load: previous blip="{ci.config.caption_model_name}"')
             ci.config.caption_model_name = blip_model
-            ci.config.caption_model = None
-            ci.load_caption_model()
+            caption_model, caption_processor = _load_blip_model(blip_model, ci.device)
+            ci.caption_model = caption_model
+            ci.caption_processor = caption_processor
             ci.caption_offloaded = True  # Reset flag so _prepare_caption() will move model to device
             if blip_model.startswith('blip2-'):
                 _apply_blip2_fix(ci.caption_model, ci.caption_processor)
