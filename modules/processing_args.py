@@ -269,7 +269,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             kwargs['output_type'] = 'np' # only set latent if model has vae
 
     # model specific
-    if 'Kandinsky' in model.__class__.__name__ or 'Cosmos2' in model.__class__.__name__ or 'OmniGen2' in model.__class__.__name__:
+    if 'Kandinsky' in model.__class__.__name__ or 'Cosmos2' in model.__class__.__name__ or 'Anima' in model.__class__.__name__ or 'OmniGen2' in model.__class__.__name__:
         kwargs['output_type'] = 'np' # only set latent if model has vae
     if 'StableCascade' in model.__class__.__name__:
         kwargs.pop("guidance_scale") # remove
