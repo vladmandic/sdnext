@@ -1,10 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2026-01-31
+## Update for 2026-02-02
 
 - **Models**
   - [Tongyi-MAI Z-Image Base](https://tongyi-mai.github.io/Z-Image-blog/)  
     yup, its finally here, the full base model of **Z-Image**  
+  - [CircleStone Anima](https://huggingface.co/circlestone-labs/Anima)  
+    2B anime optimized model based on a modified Cosmos-Predict, using Qwen3-0.6B as a text encoder  
 - **Features**
   - **caption** tab support for Booru tagger models, thanks @CalamitousFelicitousness  
   - add SmilingWolf WD14/WaifuDiffusion tagger models, thanks @CalamitousFelicitousness  
