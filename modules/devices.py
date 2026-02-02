@@ -666,8 +666,6 @@ def bypass_sdpa_hijacks():
     Context manager to temporarily restore the original SDPA during code execution.
     Use when a model is incompatible with SageAttention or other SDPA hijacks.
     """
-    global sdpa_original  # pylint: disable=global-statement
-
     if sdpa_original is None:
         # No hijacks applied, nothing to bypass
         yield

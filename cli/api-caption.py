@@ -8,8 +8,8 @@ import base64
 import sys
 import os
 import asyncio
-import filetype
 from types import SimpleNamespace
+import filetype
 from PIL import Image
 from util import log, Map
 import sdapi
@@ -53,15 +53,15 @@ async def caption(f):
     # run clip
     json.model = 'clip'
     res = await sdapi.post('/sdapi/v1/caption', json)
-    caption = ""
+    result = ""
     style = ""
     if 'caption' in res:
-        caption = res.caption
-        log.info({ 'caption result': caption })
-        if ', by' in caption:
-            style = caption.split(', by')[1].strip()
+        result = res.caption
+        log.info({ 'caption result': result })
+        if ', by' in result:
+            style = result.split(', by')[1].strip()
             log.info({ 'caption style': style })
-        for word in caption.split(' '):
+        for word in result.split(' '):
             if word not in exclude:
                 stats['captions'][word] = stats['captions'][word] + 1 if word in stats['captions'] else 1
     else:
@@ -81,7 +81,7 @@ async def caption(f):
         log.info({'caption tags': res.tags})
     else:
         log.error({'caption tagger error': res})
-    return caption, keywords, style
+    return result, keywords, style
 
 
 async def main():

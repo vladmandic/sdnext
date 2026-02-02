@@ -506,8 +506,8 @@ def batch(
                 tags_str = tagger.predict(image, **kwargs)
 
                 if save_output:
-                    from modules.caption import tagger
-                    tagger.save_tags_to_file(img_path, tags_str, save_append)
+                    from modules.caption import tagger as tagger_module
+                    tagger_module.save_tags_to_file(img_path, tags_str, save_append)
 
                 results.append(f'{img_path.name}: {tags_str[:100]}...' if len(tags_str) > 100 else f'{img_path.name}: {tags_str}')
 
