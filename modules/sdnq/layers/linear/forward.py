@@ -7,9 +7,9 @@ import torch
 from ...common import use_contiguous_mm # noqa: TID252
 
 
-def check_mats(input: torch.Tensor, weight: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+def check_mats(input: torch.Tensor, weight: torch.Tensor, allow_contiguous_mm: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
     input = input.contiguous()
-    if use_contiguous_mm:
+    if allow_contiguous_mm and use_contiguous_mm:
         weight = weight.contiguous()
     elif weight.is_contiguous():
         weight = weight.t().contiguous().t()

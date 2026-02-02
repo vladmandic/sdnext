@@ -43,7 +43,7 @@ def fp8_matmul_tensorwise(
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
     dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
     input, scale = quantize_fp_mm_input_tensorwise(input, scale)
-    input, weight = check_mats(input, weight)
+    input, weight = check_mats(input, weight, allow_contiguous_mm=False)
     if bias is not None:
         return dequantize_symmetric_with_bias(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=scale.dtype), scale, bias, dtype=return_dtype, result_shape=output_shape)
     else:
