@@ -1,7 +1,8 @@
-import os
+import sys
 import importlib.util
 import transformers
 import diffusers
+import huggingface_hub as hf
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
 from pipelines import generic
 
@@ -22,20 +23,20 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     shared.log.debug(f'Load model: type=Anima repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    # resolve local path for custom pipeline modules
-    local_path = sd_models.path_to_repo(checkpoint_info, local=True)
-    pipeline_file = os.path.join(local_path, 'pipeline.py')
-    adapter_file = os.path.join(local_path, 'llm_adapter', 'modeling_llm_adapter.py')
-    if not os.path.isfile(pipeline_file):
-        shared.log.error(f'Load model: type=Anima missing pipeline.py in "{local_path}"')
-        return None
-    if not os.path.isfile(adapter_file):
-        shared.log.error(f'Load model: type=Anima missing llm_adapter/modeling_llm_adapter.py in "{local_path}"')
+    # download custom pipeline modules from repo
+    try:
+        pipeline_file = hf.hf_hub_download(repo_id, filename='pipeline.py', cache_dir=shared.opts.diffusers_dir)
+        adapter_file = hf.hf_hub_download(repo_id, filename='llm_adapter/modeling_llm_adapter.py', cache_dir=shared.opts.diffusers_dir)
+    except Exception as e:
+        shared.log.error(f'Load model: type=Anima failed to download custom modules: {e}')
         return None
 
-    # dynamically import custom classes from the model repo
-    pipeline_mod = _import_from_file('anima_pipeline', pipeline_file)
-    adapter_mod = _import_from_file('anima_llm_adapter', adapter_file)
+    # dynamically import custom classes and register in sys.modules so
+    # Diffusers' from_pretrained can resolve them via trust_remote_code
+    adapter_mod = _import_from_file('modeling_llm_adapter', adapter_file)
+    sys.modules['modeling_llm_adapter'] = adapter_mod
+    pipeline_mod = _import_from_file('pipeline', pipeline_file)
+    sys.modules['pipeline'] = pipeline_mod
     AnimaTextToImagePipeline = pipeline_mod.AnimaTextToImagePipeline
     AnimaLLMAdapter = adapter_mod.AnimaLLMAdapter
 
@@ -69,6 +70,7 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
         tokenizer=tokenizer,
         t5_tokenizer=t5_tokenizer,
         cache_dir=shared.opts.diffusers_dir,
+        trust_remote_code=True,
         **load_args,
     )
 
