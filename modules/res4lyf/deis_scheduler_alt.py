@@ -18,7 +18,7 @@ def get_def_integral_3(a, b, c, start, end, d):
     return coeff / ((d - a) * (d - b) * (d - c))
 
 
-class DEISMultistepScheduler(SchedulerMixin, ConfigMixin):
+class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
     """
     DEISMultistepScheduler: Diffusion Explicit Iterative Sampler with high-order multistep.
     Adapted from the RES4LYF repository.
