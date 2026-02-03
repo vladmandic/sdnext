@@ -421,7 +421,7 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
         torch_dtype = weight.dtype
     weights_dtype_order_to_use = weights_dtype_order_fp32 if torch_dtype in {torch.float32, torch.float64} else weights_dtype_order
     weight = weight.to(dtype=torch.float32)
-    weight_std = weight.std().square()
+    weight_std = weight.std().square_().clamp_(min=1e-8)
 
     if use_svd:
         try:
