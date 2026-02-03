@@ -456,11 +456,9 @@ class GalleryFile extends HTMLElement {
           this.size = json.size;
           this.mtime = new Date(json.mtime);
           if (opts.browser_cache) {
-            // Store file's actual parent directory (not browsed folder) for consistent cleanup
-            const fileDir = this.src.replace(/\/+/g, '/').replace(/\/[^/]+$/, '');
             await idbAdd({
               hash: this.hash,
-              folder: fileDir,
+              folder: this.folder,
               file: this.name,
               size: this.size,
               mtime: this.mtime,
