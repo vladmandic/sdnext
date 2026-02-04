@@ -4,8 +4,9 @@
 
 ### Highlights for 2026-02-04
 
-Refresh release two weeks after prior release, yet we still somehow managed to pack in ~140 commits with new features, models and fixes!
-For full list of changes, see full changelog.
+Refresh release two weeks after prior release, yet we still somehow managed to pack in ~140 commits with new features, models and fixes!  
+Highlights would be two new models: **Z-Image-Base** and **Anima**, *captioning* support for **tagger** models and a massive addition of new **schedulers**  
+For full list of changes, see full changelog  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
@@ -36,6 +37,7 @@ For full list of changes, see full changelog.
     - flow: *PEC, Riemannian, Euclidean, Hyperbolic, Lorentzian, Langevin-Dynamics*
   - add 3 additional schedulers: *CogXDDIM, DDIMParallel, DDPMParallel*  
     not originally intended to be a general purpose schedulers, but they work quite nicely and produce good results  
+  - image metadata: always log scheduler class used  
 - **API**  
   - add `/sdapi/v1/xyz-grid` to enumerate xyz-grid axis options and their choices  
     see `/cli/api-xyzenum.py` for example usage  

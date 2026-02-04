@@ -41,23 +41,23 @@
 
 TODO: Investigate which models are diffusers-compatible and prioritize!
 
-### Text-to-Image
+### Image-Base
 - [Bria FIBO](https://huggingface.co/briaai/FIBO)
 - [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma)
 - [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance)
 - [Liquid](https://github.com/FoundationVision/Liquid)
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
 
-### Image-to-Image
+### Image-Edit
 - [Meituan LongCat-Image-Edit-Turbo](https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo)
 - [VIBE Image-Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit)
-- [Bria FiboEdit (diffusers)](https://github.com/huggingface/diffusers/commit/d7a1c31f4f85bae5a9e01cdce49bd7346bd8ccd6)
-- [LucyEdit (diffusers PR)](https://github.com/huggingface/diffusers/pull/12340)
+- [Bria FiboEdit](https://github.com/huggingface/diffusers/commit/d7a1c31f4f85bae5a9e01cdce49bd7346bd8ccd6)
+- [LucyEdit](https://github.com/huggingface/diffusers/pull/12340)
 - [SD3 UltraEdit](https://github.com/HaozheZhao/UltraEdit)
 - [Step1X-Edit](https://github.com/stepfun-ai/Step1X-Edit)
-- [OneReward (mask-guided / object removal)](https://github.com/bytedance/OneReward)
+- [OneReward](https://github.com/bytedance/OneReward)
 
-### Text-to-Video
+### Video
 - [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p)
 - [Wan family (Wan2.1 / Wan2.2 variants)](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
   - example: [Wan2.1-T2V-14B-CausVid](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-CausVid)
@@ -66,14 +66,10 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [MAGI-1 (autoregressive video)](https://github.com/SandAI-org/MAGI-1)
 - [MUG-V 10B (video generation)](https://huggingface.co/MUG-V/MUG-V-inference)
 - [Ovi (audio/video generation)](https://github.com/character-ai/Ovi)
-
-### Image-to-Video
 - [MUG-V 10B](https://huggingface.co/MUG-V/MUG-V-inference)
 - [HunyuanVideo-Avatar / HunyuanCustom](https://huggingface.co/tencent/HunyuanVideo-Avatar)
 - [Sana Image→Video (Sana-I2V)](https://github.com/huggingface/diffusers/pull/12634#issuecomment-3540534268)
 - [Wan-2.2 S2V (diffusers PR)](https://github.com/huggingface/diffusers/pull/12258)
-
-### Video Editing / Long-Video / Animation Tooling
 - [LongCat-Video](https://huggingface.co/meituan-longcat/LongCat-Video)
 - [LTXVideo / LTXVideo LongMulti (diffusers PR)](https://github.com/huggingface/diffusers/pull/12614)
 - [DiffSynth-Studio (ModelScope)](https://github.com/modelscope/DiffSynth-Studio)
@@ -87,7 +83,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
 - [Ming (inclusionAI)](https://github.com/inclusionAI/Ming)
 - [Magi (SandAI)](https://github.com/SandAI-org/MAGI-1)
-- [DreamO (ByteDance) — image customization framework](https://huggingface.co/ByteDance/DreamO)
+- [DreamO (ByteDance)](https://huggingface.co/ByteDance/DreamO)
 
 ### Other/Unsorted
 - [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer)
