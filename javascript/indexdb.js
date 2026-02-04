@@ -185,10 +185,7 @@ async function idbFolderCleanup(keepSet, folder, signal) {
     throw new Error('IndexedDB cleaning function must be told the current active folder');
   }
 
-  // Use range query to match folder and all its subdirectories
-  const folderNormalized = folder.replace(/\/+/g, '/').replace(/\/$/, '');
-  const range = IDBKeyRange.bound(folderNormalized, `${folderNormalized}\uffff`, false, true);
-  let removals = new Set(await idbGetAllKeys('folder', range));
+  let removals = new Set(await idbGetAllKeys('folder', folder));
   removals = removals.difference(keepSet); // Don't need to keep full set in memory
   const totalRemovals = removals.size;
   if (signal.aborted) {
