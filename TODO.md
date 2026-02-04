@@ -2,8 +2,6 @@
 
 ## Internal
 
-Project board: <https://github.com/users/vladmandic/projects>
-
 - Update: `transformers==5.0.0`
 - Deploy: Create executable for SD.Next
 - Deploy: Lite vs Expert mode
@@ -12,14 +10,14 @@ Project board: <https://github.com/users/vladmandic/projects>
 - Engine: `TensorRT` acceleration
 - Feature: Auto handle scheduler `prediction_type`
 - Feature: Cache models in memory
-- Feature: Control tab: add overrides handling
+- Feature: Control tab add overrides handling
 - Feature: Integrate natural language image search
   [ImageDB](https://github.com/vladmandic/imagedb)
 - Feature: LoRA add OMI format support for SD35/FLUX.1
 - Feature: Multi-user support
 - Feature: Remote Text-Encoder support
 - Feature: Settings profile manager
-- Feature: Video tab: add full API support
+- Feature: Video tab add full API support
 - Refactor: Unify *huggingface* and *diffusers* model folders
 - Refactor: Move `nunchaku` models to refernce instead of internal decision  
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
@@ -30,9 +28,14 @@ Project board: <https://github.com/users/vladmandic/projects>
 
 ## Modular
 
+*Pending finalization of modular pipelines implementation and development of compatibility layer*
+
 - Switch to modular pipelines
 - Feature: Transformers unified cache handler
 - Refactor: [Modular pipelines and guiders](https://github.com/huggingface/diffusers/issues/11915)
+- [MagCache](https://github.com/huggingface/diffusers/pull/12744)
+- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)
+- [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)
 
 ## New models / Pipelines
 
@@ -93,9 +96,6 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [ByteDance USO](https://github.com/bytedance/USO)
 - [ByteDance Lynx](https://github.com/bytedance/lynx)
 - [LanDiff](https://github.com/landiff/landiff)
-- [MagCache](https://github.com/huggingface/diffusers/pull/12744)
-- [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)
-- [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)
 - [Video Inpaint Pipeline](https://github.com/huggingface/diffusers/pull/12506)
 - [Sonic Inpaint](https://github.com/ubc-vision/sonic)
 - [BoxDiff](https://github.com/huggingface/diffusers/pull/7947)
