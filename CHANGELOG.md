@@ -39,6 +39,9 @@ For full list of changes, see full changelog.
 - **API**  
   - add `/sdapi/v1/xyz-grid` to enumerate xyz-grid axis options and their choices  
     see `/cli/api-xyzenum.py` for example usage  
+  - add `/sdapi/v1/sampler` to get current sampler config  
+  - modify `/sdapi/v1/samplers` to enumerate available samplers possible options  
+    see `/cli/api-samplers.py` for example usage  
 - **Internal**
   - tagged release history: <https://github.com/vladmandic/sdnext/tags>  
     each major for the past year is now tagged for easier reference  

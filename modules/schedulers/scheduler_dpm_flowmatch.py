@@ -155,6 +155,8 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         algorithm_type: str = "dpmsolver++2M",
         solver_type: str = "midpoint",
         sigma_schedule: Optional[str] = None,
+        prediction_type: str = "flow_prediction",
+        use_flow_sigmas: bool = True,
         shift: float = 3.0,
         midpoint_ratio: Optional[float] = 0.5,
         s_noise: Optional[float] = 1.0,
