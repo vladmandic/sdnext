@@ -1245,6 +1245,12 @@ def set_diffuser_pipe(pipe, new_pipe_type):
 
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     shared.log.debug(f"Pipeline class change: original={cls} target={new_pipe.__class__.__name__} device={pipe.device} fn={fn}") # pylint: disable=protected-access
+
+    if shared.opts.diffusers_offload_mode == 'none':
+        move_model(new_pipe, pipe.device)
+    else:
+        set_diffuser_offload(new_pipe, op='model')
+
     pipe = new_pipe
     return pipe
 
