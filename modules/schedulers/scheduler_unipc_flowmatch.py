@@ -86,6 +86,7 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             lower_order_final: bool = True,
             disable_corrector: List[int] = [],
             solver_p: SchedulerMixin = None,
+            use_flow_sigmas: bool = True,
             timestep_spacing: str = "linspace",
             steps_offset: int = 0,
             final_sigmas_type: Optional[str] = "zero",  # "zero", "sigma_min"

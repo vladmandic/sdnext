@@ -205,7 +205,7 @@ def face_id(
             ip_model_dict["faceid_embeds"] = face_embeds # overwrite placeholder
             faceid_model.set_scale(scale)
 
-            if p.all_prompts is None or len(p.all_prompts) == 0:
+            if not p.all_prompts:
                 processing.process_init(p)
                 p.init(p.all_prompts, p.all_seeds, p.all_subseeds)
             for n in range(p.n_iter):

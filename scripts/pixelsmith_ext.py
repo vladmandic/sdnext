@@ -49,7 +49,7 @@ class Script(scripts_manager.Script):
         supported_model_list = ['sdxl']
         if shared.sd_model_type not in supported_model_list:
             shared.log.warning(f'PixelSmith: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
-        from scripts.pixelsmith import PixelSmithXLPipeline, PixelSmithVAE
+        from scripts.pixelsmith import PixelSmithXLPipeline, PixelSmithVAE # pylint: disable=no-name-in-module
         self.orig_pipe = shared.sd_model
         self.orig_vae = shared.sd_model.vae
         if self.vae is None:

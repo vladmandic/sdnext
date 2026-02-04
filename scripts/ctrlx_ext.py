@@ -44,9 +44,9 @@ class Script(scripts_manager.Script):
             return None
 
         import yaml
-        from scripts.ctrlx import CtrlXStableDiffusionXLPipeline
-        from scripts.ctrlx.sdxl import get_control_config, register_control
-        from scripts.ctrlx.utils import get_self_recurrence_schedule
+        from scripts.ctrlx import CtrlXStableDiffusionXLPipeline # pylint: disable=no-name-in-module
+        from scripts.ctrlx.sdxl import get_control_config, register_control # pylint: disable=no-name-in-module
+        from scripts.ctrlx.utils import get_self_recurrence_schedule # pylint: disable=no-name-in-module
 
         orig_prompt_attention = shared.opts.prompt_attention
         shared.opts.data['prompt_attention'] = 'fixed'

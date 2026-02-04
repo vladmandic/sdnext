@@ -2,7 +2,8 @@ import os
 import time
 import numpy as np
 import torch
-from modules import shared, devices, sd_models, sd_vae, sd_vae_taesd, errors
+from modules import shared, devices, sd_models, sd_vae, errors
+from modules.vae import sd_vae_taesd
 
 
 debug = os.environ.get('SD_VAE_DEBUG', None) is not None
@@ -286,13 +287,13 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
 
     if vae_type == 'Remote':
         jobid = shared.state.begin('Remote VAE')
-        from modules.sd_vae_remote import remote_decode
+        from modules.vae.sd_vae_remote import remote_decode
         tensors = remote_decode(latents=latents, width=width, height=height)
         shared.state.end(jobid)
         if tensors is not None and len(tensors) > 0:
             return vae_postprocess(tensors, model, output_type)
     if vae_type == 'Repa':
-        from modules.sd_vae_repa import repa_load
+        from modules.vae.sd_vae_repa import repa_load
         vae = repa_load(latents)
         vae_type = 'Full'
         if vae is not None:
@@ -310,14 +311,17 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         latents = latents.unsqueeze(0)
     if latents.shape[-1] <= 4: # not a latent, likely an image
         decoded = latents.float().cpu().numpy()
-    elif vae_type == 'Full' and hasattr(model, "vae"):
-        decoded = full_vae_decode(latents=latents, model=model)
-    elif hasattr(model, "vqgan"):
-        decoded = full_vqgan_decode(latents=latents, model=model)
-    else:
+    elif vae_type == 'Tiny':
         decoded = taesd_vae_decode(latents=latents)
         if torch.is_tensor(decoded):
             decoded = 2.0 * decoded - 1.0 # typical normalized range
+    elif hasattr(model, "vqgan"):
+        decoded = full_vqgan_decode(latents=latents, model=model)
+    elif hasattr(model, "vae"):
+        decoded = full_vae_decode(latents=latents, model=model)
+    else:
+        shared.log.error('VAE not found in model')
+        decoded = []
 
     images = vae_postprocess(decoded, model, output_type)
     if shared.cmd_opts.profile or debug:
@@ -339,11 +343,14 @@ def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
         shared.log.error('VAE not found in model')
         return []
     tensor = f.to_tensor(image.convert("RGB")).unsqueeze(0).to(devices.device, devices.dtype_vae)
-    if vae_type == 'Full':
+    if vae_type == 'Tiny':
+        latents = taesd_vae_encode(image=tensor)
+    elif vae_type == 'Full' and hasattr(model, 'vae'):
         tensor = tensor * 2 - 1
         latents = full_vae_encode(image=tensor, model=shared.sd_model)
     else:
-        latents = taesd_vae_encode(image=tensor)
+        shared.log.error('VAE not found in model')
+        latents = []
     devices.torch_gc()
     shared.state.end(jobid)
     return latents

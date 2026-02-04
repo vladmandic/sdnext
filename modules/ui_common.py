@@ -5,8 +5,7 @@ import shutil
 import platform
 import subprocess
 import gradio as gr
-from modules import call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext, processing
-from modules.paths import resolve_output_path
+from modules import paths, call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext, processing
 
 
 folder_symbol = ui_symbols.folder
@@ -106,7 +105,7 @@ def delete_files(js_data, files, all_files, index):
 
 
 def save_files(js_data, files, html_info, index):
-    os.makedirs(resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save), exist_ok=True)
+    os.makedirs(paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save), exist_ok=True)
 
     class PObject: # pylint: disable=too-few-public-methods
         def __init__(self, d=None):
@@ -116,6 +115,7 @@ def save_files(js_data, files, html_info, index):
             self.prompt = getattr(self, 'prompt', None) or getattr(self, 'Prompt', None) or ''
             self.negative_prompt = getattr(self, 'negative_prompt', None) or getattr(self, 'Negative_prompt', None) or ''
             self.sampler = getattr(self, 'sampler', None) or getattr(self, 'Sampler', None) or ''
+            self.sampler_name = self.sampler
             self.seed = getattr(self, 'seed', None) or getattr(self, 'Seed', None) or 0
             self.steps = getattr(self, 'steps', None) or getattr(self, 'Steps', None) or 0
             self.width = getattr(self, 'width', None) or getattr(self, 'Width', None) or getattr(self, 'Size-1', None) or 0
@@ -128,13 +128,16 @@ def save_files(js_data, files, html_info, index):
             self.styles = getattr(self, 'styles', None) or getattr(self, 'Styles', None) or []
             self.styles = [s.strip() for s in self.styles.split(',')] if isinstance(self.styles, str) else self.styles
 
-            self.outpath_grids = resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_txt2img_grids)
+            self.outpath_grids = paths.resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_txt2img_grids)
             self.infotexts = getattr(self, 'infotexts', [html_info])
             self.infotext = self.infotexts[0] if len(self.infotexts) > 0 else html_info
             self.all_negative_prompt = getattr(self, 'all_negative_prompts', [self.negative_prompt])
             self.all_prompts = getattr(self, 'all_prompts', [self.prompt])
             self.all_seeds = getattr(self, 'all_seeds', [self.seed])
             self.all_subseeds = getattr(self, 'all_subseeds', [self.subseed])
+
+            self.n_iter = 1
+            self.batch_size = 1
     try:
         data = json.loads(js_data)
     except Exception:
@@ -159,17 +162,17 @@ def save_files(js_data, files, html_info, index):
             p.all_prompts.append(p.prompt)
         while len(p.infotexts) <= i:
             p.infotexts.append(p.infotext)
-        if 'name' in filedata and ('tmp' not in filedata['name']) and os.path.isfile(filedata['name']):
+        if 'name' in filedata and (paths.temp_dir not in filedata['name']) and os.path.isfile(filedata['name']):
             fullfn = filedata['name']
             fullfns.append(fullfn)
-            destination = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save)
+            destination = paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save)
             namegen = images.FilenameGenerator(p, seed=p.all_seeds[i], prompt=p.all_prompts[i], image=None)  # pylint: disable=no-member
             dirname = namegen.apply(shared.opts.directories_filename_pattern or "[prompt_words]").lstrip(' ').rstrip('\\ /')
             destination = os.path.join(destination, dirname)
             destination = namegen.sanitize(destination)
             os.makedirs(destination, exist_ok = True)
             tgt_filename = os.path.join(destination, os.path.basename(fullfn))
-            relfn = os.path.relpath(tgt_filename, resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save))
+            relfn = os.path.relpath(tgt_filename, paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save))
             filenames.append(relfn)
             if not os.path.exists(tgt_filename):
                 try:
@@ -195,21 +198,20 @@ def save_files(js_data, files, html_info, index):
             if len(info) == 0:
                 info = None
             if (js_data is None or len(js_data) == 0) and image is not None and image.info is not None:
-                info = image.info.pop('parameters', None) or image.info.pop('UserComment', None)
-                geninfo, _ = images.read_info_from_image(image)
-                items = infotext.parse(geninfo)
+                info, _items = images.read_info_from_image(image)
+                items = infotext.parse(info)
                 p = PObject(items)
             try:
                 seed = p.all_seeds[i] if i < len(p.all_seeds) else p.seed
                 prompt = p.all_prompts[i] if i < len(p.all_prompts) else p.prompt
-                fullfn, txt_fullfn, _exif = images.save_image(image, resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save), "", seed=seed, prompt=prompt, info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
+                fullfn, txt_fullfn, _exif = images.save_image(image, paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save), "", seed=seed, prompt=prompt, info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
             except Exception as e:
                 fullfn, txt_fullfn = None, None
                 shared.log.error(f'Save: image={image} i={i} seeds={p.all_seeds} prompts={p.all_prompts}')
                 errors.display(e, 'save')
             if fullfn is None:
                 continue
-            filename = os.path.relpath(fullfn, resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save))
+            filename = os.path.relpath(fullfn, paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save))
             filenames.append(filename)
             fullfns.append(fullfn)
             if txt_fullfn:
@@ -217,7 +219,7 @@ def save_files(js_data, files, html_info, index):
                 # fullfns.append(txt_fullfn)
             script_callbacks.image_save_btn_callback(filename)
     if shared.opts.samples_save_zip and len(fullfns) > 1:
-        zip_filepath = os.path.join(resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save), "images.zip")
+        zip_filepath = os.path.join(paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save), "images.zip")
         from zipfile import ZipFile
         with ZipFile(zip_filepath, "w") as zip_file:
             for i in range(len(fullfns)):
@@ -427,7 +429,10 @@ def update_token_counter(text):
         shared.log.debug('Tokenizer busy')
         return f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>"
     from modules import extra_networks
-    prompt, _ = extra_networks.parse_prompt(text)
+    if isinstance(text, list):
+        prompt, _ = extra_networks.parse_prompts(text)
+    else:
+        prompt, _ = extra_networks.parse_prompt(text)
     if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
         tokenizer = shared.sd_model.tokenizer
         # For multi-modal processors (e.g., PixtralProcessor), use the underlying text tokenizer

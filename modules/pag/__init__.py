@@ -15,7 +15,7 @@ def apply(p: processing.StableDiffusionProcessing): # pylint: disable=arguments-
         cls = unapply()
     if p.pag_scale == 0:
         return
-    if 'PAG' in cls.__name__:
+    if cls is not None and 'PAG' in cls.__name__:
         pass
     elif detect.is_sd15(cls):
         if sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.TEXT_2_IMAGE:

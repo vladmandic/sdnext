@@ -103,6 +103,7 @@ class Api:
         self.add_api_route("/sdapi/v1/latents", endpoints.get_latent_history, methods=["GET"], response_model=List[str])
         self.add_api_route("/sdapi/v1/latents", endpoints.post_latent_history, methods=["POST"], response_model=int)
         self.add_api_route("/sdapi/v1/modules", endpoints.get_modules, methods=["GET"])
+        self.add_api_route("/sdapi/v1/sampler", endpoints.get_sampler, methods=["GET"], response_model=dict)
 
         # lora api
         from modules.api import loras
@@ -115,6 +116,10 @@ class Api:
         # nudenet api
         from modules.api import nudenet
         nudenet.register_api()
+
+        # xyz-grid api
+        from modules.api import xyz_grid
+        xyz_grid.register_api()
 
         # civitai api
         from modules.civitai import api_civitai

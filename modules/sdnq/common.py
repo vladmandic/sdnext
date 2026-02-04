@@ -5,7 +5,7 @@ import torch
 
 from modules import shared, devices
 
-sdnq_version = "0.1.4"
+sdnq_version = "0.1.5"
 
 dtype_dict = {
     ### Integers
@@ -312,6 +312,10 @@ module_skip_keys_dict = {
     ],
     "ZImageTransformer2DModel": [
         ["layers.0.adaLN_modulation.0.weight", "t_embedder", "cap_embedder", "siglip_embedder", "all_x_embedder", "all_final_layer"],
+        {}
+    ],
+    "CosmosTransformer3DModel": [
+        ["transformer_blocks.0.norm*", "patch_embed", "time_embed", "norm_out", "proj_out", "crossattn_proj"],
         {}
     ],
     "GlmImageTransformer2DModel": [

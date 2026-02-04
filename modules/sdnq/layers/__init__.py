@@ -5,16 +5,26 @@ class SDNQLayer(torch.nn.Module):
     def __init__(self, original_layer, forward_func):
         torch.nn.Module.__init__(self)
         for key, value in original_layer.__dict__.items():
-            if key not in {"forward", "forward_func", "original_class"}:
+            if key not in {"forward", "forward_func", "original_class", "state_dict", "load_state_dict"}:
                 setattr(self, key, value)
         self.original_class = original_layer.__class__
         self.forward_func = forward_func
+
+    def dequantize(self: torch.nn.Module):
+        if self.weight.__class__.__name__ == "SDNQTensor": # pylint: disable=access-member-before-definition
+            self.weight = torch.nn.Parameter(self.weight.dequantize(), requires_grad=True) # pylint: disable=attribute-defined-outside-init
+        elif hasattr(self, "sdnq_dequantizer"):
+            self.weight = torch.nn.Parameter(self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul), requires_grad=True) # pylint: disable=attribute-defined-outside-init
+            del self.sdnq_dequantizer, self.scale, self.zero_point, self.svd_up, self.svd_down
+        self.__class__ = self.original_class
+        del self.original_class, self.forward_func
+        return self
 
     def forward(self, *args, **kwargs) -> torch.Tensor:
         return self.forward_func(self, *args, **kwargs)
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(original_class={self.original_class.__name__} forward_func={self.forward_func} sdnq_dequantizer={repr(getattr(self, 'sdnq_dequantizer', None))})"
+        return f"{self.__class__.__name__}(original_class={self.original_class} forward_func={self.forward_func} sdnq_dequantizer={repr(getattr(self, 'sdnq_dequantizer', None))})"
 
 
 class SDNQLinear(SDNQLayer, torch.nn.Linear):

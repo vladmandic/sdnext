@@ -69,6 +69,8 @@ class FlashFlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             num_train_timesteps: int = 1000,
             shift: float = 1.0,
             use_dynamic_shifting=False,
+            prediction_type: str = "flow_prediction",
+            use_flow_sigmas: bool = True,
             base_shift: Optional[float] = 0.5,
             max_shift: Optional[float] = 1.15,
             base_image_seq_len: Optional[int] = 256,
@@ -260,6 +262,22 @@ class FlashFlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             self._step_index = self.index_for_timestep(timestep)
         else:
             self._step_index = self._begin_index
+
+    def scale_model_input(self, sample: torch.FloatTensor, timestep: Optional[int] = None) -> torch.FloatTensor:
+        """
+        Ensures interchangeability with schedulers that need to scale the denoising model input depending on the
+        current timestep.
+
+        Args:
+            sample (`torch.FloatTensor`):
+                The input sample.
+            timestep (`int`, *optional*):
+                The current timestep in the diffusion chain.
+        Returns:
+            `torch.FloatTensor`:
+                A scaled input sample.
+        """
+        return sample
 
     def step(
             self,

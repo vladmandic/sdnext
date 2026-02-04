@@ -47,10 +47,10 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
             log.debug(f'Read: file="{filename}" json={len(data)} bytes={os.path.getsize(filename)} time={t1-t0:.3f} fn={fn}')
     except FileNotFoundError as err:
         if not silent:
-            log.debug(f'Reading failed: {filename} {err}')
+            log.debug(f'Read failed: file="{filename}" {err}')
     except Exception as err:
         if not silent:
-            log.error(f'Reading failed: {filename} {err}')
+            log.error(f'Read failed: file="{filename}" {err}')
     try:
         if locking_available and lock_file is not None:
             lock_file.release_read_lock()

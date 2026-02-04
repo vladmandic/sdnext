@@ -64,6 +64,7 @@ pipelines = {
     'X-Omni': getattr(diffusers, 'DiffusionPipeline', None),
     'HunyuanImage3': getattr(diffusers, 'DiffusionPipeline', None),
     'ChronoEdit': getattr(diffusers, 'DiffusionPipeline', None),
+    'Anima': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 
@@ -93,8 +94,8 @@ def sd_vae_items():
 
 
 def sd_taesd_items():
-    import modules.sd_vae_taesd
-    return list(modules.sd_vae_taesd.TAESD_MODELS.keys()) + list(modules.sd_vae_taesd.CQYAN_MODELS.keys())
+    import modules.vae.sd_vae_taesd
+    return list(modules.vae.sd_vae_taesd.TAESD_MODELS.keys()) + list(modules.vae.sd_vae_taesd.CQYAN_MODELS.keys())
 
 def refresh_vae_list():
     import modules.sd_vae

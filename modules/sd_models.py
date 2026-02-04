@@ -14,14 +14,13 @@ from installer import log
 from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, attention
 from modules.memstats import memory_stats
 from modules.modeldata import model_data
-from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
+from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, sd_metadata_file, checkpoints_list, checkpoint_titles, get_closest_checkpoint_match, model_hash, update_model_hashes, setup_model, write_metadata, read_metadata_from_safetensors # pylint: disable=unused-import
 from modules.sd_offload import get_module_names, disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
 from modules.sd_models_utils import NoWatermark, get_signature, get_call, path_to_repo, patch_diffuser_config, convert_to_faketensors, read_state_dict, get_state_dict_from_checkpoint, apply_function_to_model # pylint: disable=unused-import
 
 
 model_dir = "Stable-diffusion"
 model_path = os.path.abspath(os.path.join(paths.models_path, model_dir))
-sd_metadata_file = os.path.join(paths.data_path, "metadata.json")
 sd_metadata = None
 sd_metadata_pending = 0
 sd_metadata_timer = 0
@@ -406,6 +405,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
         elif model_type in ['Cosmos']:
             from pipelines.model_cosmos import load_cosmos_t2i
             sd_model = load_cosmos_t2i(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['Anima']:
+            from pipelines.model_anima import load_anima
+            sd_model = load_anima(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['FLite']:
             from pipelines.model_flite import load_flite
@@ -964,7 +967,7 @@ def get_diffusers_task(pipe: diffusers.DiffusionPipeline) -> DiffusersTaskType:
         return DiffusersTaskType.TEXT_2_IMAGE
 
 
-def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionPipeline = None, force = False, args: dict = None):
+def switch_pipe(cls: type[diffusers.DiffusionPipeline] | str, pipeline: diffusers.DiffusionPipeline | None = None, force = False, args: dict | None = None):
     """
     args:
     - cls: can be pipeline class or a string from custom pipelines
@@ -978,13 +981,22 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
             args = {}
         if isinstance(cls, str):
             shared.log.debug(f'Pipeline switch: custom={cls}')
-            cls = diffusers.utils.get_class_from_dynamic_module(cls, module_file='pipeline.py')
+            cls_object = diffusers.utils.get_class_from_dynamic_module(cls, module_file='pipeline.py')
+            if not cls_object:
+                log.error(f"Pipeline switch: Failed to get class for '{cls}'")
+                if shared.sd_model is not None:
+                    return shared.sd_model
+                raise RuntimeError("Pipeline switch: No existing pipeline to fall back to")
+        else:
+            cls_object = cls
         if pipeline is None:
+            if shared.sd_model is None:
+                raise RuntimeError("Pipeline switch: No existing pipeline to use as default")
             pipeline = shared.sd_model
         new_pipe = None
-        signature = get_signature(cls)
+        signature = get_signature(cls_object)
         possible = signature.keys()
-        if not force and isinstance(pipeline, cls) and args == {}:
+        if not force and isinstance(pipeline, cls_object) and args == {}:
             return pipeline
         pipe_dict = {}
         components_used = []
@@ -1007,10 +1019,10 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
                     shared.log.warning(f'Pipeling switch: missing component={item} type={signature[item].annotation}')
                     pipe_dict[item] = None # try but not likely to work
                     components_missing.append(item)
-            new_pipe = cls(**pipe_dict)
+            new_pipe = cls_object(**pipe_dict)
             switch_mode = 'auto'
         elif 'tokenizer_2' in possible and hasattr(pipeline, 'tokenizer_2'):
-            new_pipe = cls(
+            new_pipe = cls_object(
                 vae=pipeline.vae,
                 text_encoder=pipeline.text_encoder,
                 text_encoder_2=pipeline.text_encoder_2,
@@ -1023,7 +1035,7 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
             move_model(new_pipe, pipeline.device)
             switch_mode = 'sdxl'
         elif 'tokenizer' in possible and hasattr(pipeline, 'tokenizer'):
-            new_pipe = cls(
+            new_pipe = cls_object(
                 vae=pipeline.vae,
                 text_encoder=pipeline.text_encoder,
                 tokenizer=pipeline.tokenizer,
@@ -1057,9 +1069,9 @@ def switch_pipe(cls: diffusers.DiffusionPipeline, pipeline: diffusers.DiffusionP
                 shared.log.debug(f'Pipeline switch: from={pipeline.__class__.__name__} to={new_pipe.__class__.__name__} mode={switch_mode}')
             return new_pipe
         else:
-            shared.log.error(f'Pipeline switch error: from={pipeline.__class__.__name__} to={cls.__name__} empty pipeline')
+            shared.log.error(f'Pipeline switch error: from={pipeline.__class__.__name__} to={cls_object.__name__} empty pipeline')
     except Exception as e:
-        shared.log.error(f'Pipeline switch error: from={pipeline.__class__.__name__} to={cls.__name__} {e}')
+        shared.log.error(f'Pipeline switch error: from={pipeline.__class__.__name__} to={cls if isinstance(cls, str) else cls.__name__} {e}')
         errors.display(e, 'Pipeline switch')
     return pipeline
 
@@ -1233,12 +1245,20 @@ def set_diffuser_pipe(pipe, new_pipe_type):
 
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     shared.log.debug(f"Pipeline class change: original={cls} target={new_pipe.__class__.__name__} device={pipe.device} fn={fn}") # pylint: disable=protected-access
+
+    if shared.opts.diffusers_offload_mode == 'none':
+        move_model(new_pipe, pipe.device)
+    else:
+        set_diffuser_offload(new_pipe, op='model')
+
     pipe = new_pipe
     return pipe
 
 
 def add_noise_pred_to_diffusers_callback(pipe):
     if not hasattr(pipe, "_callback_tensor_inputs"):
+        return pipe
+    if pipe.__class__.__name__.startswith("Anima"):
         return pipe
     if pipe.__class__.__name__.startswith("StableCascade") and ("predicted_image_embedding" not in pipe._callback_tensor_inputs): # pylint: disable=protected-access
         pipe.prior_pipe._callback_tensor_inputs.append("predicted_image_embedding") # pylint: disable=protected-access

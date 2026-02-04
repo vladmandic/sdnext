@@ -15,6 +15,7 @@ import modules.loader
 import modules.hashes
 import modules.paths
 import modules.devices
+import modules.migrate
 from modules import shared
 from modules.call_queue import queue_lock, wrap_queued_call, wrap_gradio_gpu_call # pylint: disable=unused-import
 import modules.gr_tempdir

@@ -54,7 +54,11 @@ def select_from_weighted_list(inner: str) -> str:
     unweighted = []
 
     for p in parts:
-        if ':' in p and not p.startswith('(') and not p.endswith(')'):
+        is_list = (p.startswith('(') and p.endswith(')')) or \
+                  (p.startswith('[') and p.endswith(']')) or \
+                  (p.startswith('{') and p.endswith('}')) or \
+                  (p.startswith('<') and p.endswith('>'))
+        if (':' in p) and not is_list:
             name, wstr = p.split(':', 1)
             name = name.strip()
             try:
@@ -69,8 +73,7 @@ def select_from_weighted_list(inner: str) -> str:
     W = sum(weighted.values())
     U = len(unweighted)
 
-    if U == 0:
-        # Only weighted options
+    if U == 0: # only weighted options
         keys = list(weighted.keys())
         if not keys:
             return ''
@@ -79,10 +82,8 @@ def select_from_weighted_list(inner: str) -> str:
         if abs(W - 1.0) > 1e-12:
             for k in weighted:
                 weighted[k] = weighted[k] / W
-    else:
-        # Mix of weighted and unweighted
-        if W >= 1.0:
-            # Weighted probabilities consume whole mass -> normalize them, unweighted get 0
+    else: # mix of weighted and unweighted
+        if W >= 1.0: # weighted probabilities consume whole mass -> normalize them, unweighted get 0
             for k in weighted:
                 weighted[k] = weighted[k] / W
         else:
@@ -144,8 +145,10 @@ def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, see
                 try:
                     with open(file, 'r', encoding='utf-8') as f:
                         lines = f.readlines()
+                        lines = [line.split('#')[0].strip('\n').strip() for line in lines]
+                        lines = [line for line in lines if len(line) > 0]
                         if len(lines) > 0:
-                            choice = random.choice(lines).strip(' \n')
+                            choice = random.choice(lines)
                             if '|' in choice:
                                 choice = random.choice(choice.split('|')).strip(' []{}\n')
                             prompt = prompt.replace(f"__{wildcard}__", choice, 1)

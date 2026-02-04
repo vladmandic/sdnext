@@ -58,7 +58,7 @@ def get_model_type(pipe):
         model_type = 'sana'
     elif "HiDream" in name:
         model_type = 'h1'
-    elif "Cosmos2TextToImage" in name:
+    elif "Cosmos2TextToImage" in name or "AnimaTextToImage" in name:
         model_type = 'cosmos'
     elif "FLite" in name:
         model_type = 'flite'

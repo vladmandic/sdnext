@@ -3,6 +3,7 @@ import re
 import time
 import torch
 import diffusers.models.lora
+from modules.errorlimiter import ErrorLimiter
 from modules.lora import lora_common as l
 from modules import shared, devices, errors, model_quant
 
@@ -141,6 +142,7 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
             if l.debug:
                 errors.display(e, 'LoRA')
                 raise RuntimeError('LoRA apply weight') from e
+            ErrorLimiter.notify(("network_activate", "network_deactivate"))
         continue
     return batch_updown, batch_ex_bias
 

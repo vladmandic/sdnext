@@ -14,11 +14,11 @@ def list_builtin_themes():
 
 
 def refresh_themes(no_update=False):
-    fn = os.path.join('html', 'themes.json')
+    themes_file = os.path.join('data', 'themes.json')
     res = []
-    if os.path.exists(fn):
+    if os.path.exists(themes_file):
         try:
-            with open(fn, 'r', encoding='utf8') as f:
+            with open(themes_file, 'r', encoding='utf8') as f:
                 res = json.load(f)
         except Exception:
             modules.shared.log.error('Exception loading UI themes')
@@ -28,7 +28,7 @@ def refresh_themes(no_update=False):
             r = modules.shared.req('https://huggingface.co/datasets/freddyaboulton/gradio-theme-subdomains/resolve/main/subdomains.json')
             if r.status_code == 200:
                 res = r.json()
-                modules.shared.writefile(res, fn)
+                modules.shared.writefile(res, themes_file)
             else:
                 modules.shared.log.error('Error refreshing UI themes')
         except Exception:

@@ -13,7 +13,7 @@ from modules.interrogate import vqa_detection
 
 
 # Debug logging - function-based to avoid circular import
-debug_enabled = os.environ.get('SD_VQA_DEBUG', None) is not None
+debug_enabled = os.environ.get('SD_INTERROGATE_DEBUG', None) is not None
 
 def debug(*args, **kwargs):
     if debug_enabled:

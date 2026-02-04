@@ -34,11 +34,11 @@ class Script(scripts_manager.Script):
         return model, sampler, width, height, start, scale, lora
 
     def run(self, p: processing.StableDiffusionProcessing, model, sampler, width, height, start, scale, lora): # pylint: disable=arguments-differ, unused-argument
-        from scripts.xadapter.xadapter_hijacks import PositionNet
+        from scripts.xadapter.xadapter_hijacks import PositionNet # pylint: disable=no-name-in-module
         diffusers.models.embeddings.PositionNet = PositionNet # patch diffusers==0.26 from diffusers==0.20
-        from scripts.xadapter.adapter import Adapter_XL
-        from scripts.xadapter.pipeline_sd_xl_adapter import StableDiffusionXLAdapterPipeline
-        from scripts.xadapter.unet_adapter import UNet2DConditionModel as UNet2DConditionModelAdapter
+        from scripts.xadapter.adapter import Adapter_XL # pylint: disable=no-name-in-module
+        from scripts.xadapter.pipeline_sd_xl_adapter import StableDiffusionXLAdapterPipeline # pylint: disable=no-name-in-module
+        from scripts.xadapter.unet_adapter import UNet2DConditionModel as UNet2DConditionModelAdapter # pylint: disable=no-name-in-module
 
         global adapter # pylint: disable=global-statement
         if model == 'None':

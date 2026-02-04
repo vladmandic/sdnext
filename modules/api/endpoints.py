@@ -6,8 +6,28 @@ from modules.api import models, helpers
 
 
 def get_samplers():
-    from modules import sd_samplers
-    return [{"name": sampler[0], "aliases":sampler[2], "options":sampler[3]} for sampler in sd_samplers.all_samplers]
+    from modules import sd_samplers_diffusers
+    all_samplers = []
+    for k, v in sd_samplers_diffusers.config.items():
+        if k in ['All', 'Default', 'Res4Lyf']:
+            continue
+        all_samplers.append({
+            'name': k,
+            'options': v,
+        })
+    return all_samplers
+
+def get_sampler():
+    if not shared.sd_loaded or shared.sd_model is None:
+        return {}
+    if hasattr(shared.sd_model, 'scheduler'):
+        scheduler = shared.sd_model.scheduler
+        config = {k: v for k, v in scheduler.config.items() if not k.startswith('_')}
+        return {
+            'name': scheduler.__class__.__name__,
+            'options': config
+        }
+    return {}
 
 def get_sd_vaes():
     from modules.sd_vae import vae_dict
@@ -74,6 +94,13 @@ def get_extra_networks(page: Optional[str] = None, name: Optional[str] = None, f
 def get_interrogate():
     from modules.interrogate.openclip import refresh_clip_models
     return ['deepdanbooru'] + refresh_clip_models()
+
+def get_schedulers():
+    from modules.sd_samplers import list_samplers
+    all_schedulers = list_samplers()
+    for s in all_schedulers:
+        shared.log.critical(s)
+    return all_schedulers
 
 def post_interrogate(req: models.ReqInterrogate):
     if req.image is None or len(req.image) < 64:

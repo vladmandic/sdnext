@@ -45,6 +45,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Steps": p.steps,
         "Size": f"{p.width}x{p.height}" if hasattr(p, 'width') and hasattr(p, 'height') else None,
         "Sampler": p.sampler_name if p.sampler_name != 'Default' else None,
+        "Scheduler": shared.sd_model.scheduler.__class__.__name__ if getattr(shared.sd_model, 'scheduler', None) is not None else None,
         "Seed": all_seeds[index],
         "Seed resize from": None if p.seed_resize_from_w <= 0 or p.seed_resize_from_h <= 0 else f"{p.seed_resize_from_w}x{p.seed_resize_from_h}",
         "CFG scale": p.cfg_scale if p.cfg_scale > 1.0 else 1.0,

@@ -224,7 +224,7 @@ class TDDScheduler(DPMSolverSinglestepScheduler):
         model_output: torch.FloatTensor,
         timestep: int,
         sample: torch.FloatTensor,
-        eta: float,
+        eta: float = 0.0,
         generator: Optional[torch.Generator] = None,
         return_dict: bool = True,
     ) -> Union[SchedulerOutput, Tuple]:

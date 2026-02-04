@@ -1,7 +1,7 @@
 # defaults
+venv/
 __pycache__
 .ruff_cache
-/cache.json
 /*.json
 /*.yaml
 /params.txt
@@ -9,13 +9,14 @@ __pycache__
 /user.css
 /webui-user.bat
 /webui-user.sh
-/html/extensions.json
-/html/themes.json
+/data/metadata.json
+/data/extensions.json
+/data/cache.json
+/data/themes.json
 config_states
 node_modules
 pnpm-lock.yaml
 package-lock.json
-venv
 .history
 cache
 **/.DS_Store
@@ -65,6 +66,7 @@ tunableop_results*.csv
 .*/
 
 # force included
+!/data
 !/models/VAE-approx
 !/models/VAE-approx/model.pt
 !/models/Reference

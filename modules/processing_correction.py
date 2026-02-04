@@ -5,7 +5,8 @@ https://huggingface.co/blog/TimothyAlexisVass/explaining-the-sdxl-latent-space
 
 import os
 import torch
-from modules import shared, sd_vae_taesd, devices
+from modules import shared, devices
+from modules.vae import sd_vae_taesd
 
 
 debug_enabled = os.environ.get('SD_HDR_DEBUG', None) is not None

@@ -67,7 +67,7 @@ def task_specific_kwargs(p, model):
         if 'hires' not in p.ops:
             p.ops.append('img2img')
         if p.vae_type == 'Remote':
-            from modules.sd_vae_remote import remote_encode
+            from modules.vae.sd_vae_remote import remote_encode
             p.init_images = remote_encode(p.init_images)
         task_args = {
             'image': p.init_images,
@@ -117,7 +117,7 @@ def task_specific_kwargs(p, model):
             p.ops.append('inpaint')
         mask_image = p.task_args.get('image_mask', None) or getattr(p, 'image_mask', None) or getattr(p, 'mask', None)
         if p.vae_type == 'Remote':
-            from modules.sd_vae_remote import remote_encode
+            from modules.vae.sd_vae_remote import remote_encode
             p.init_images = remote_encode(p.init_images)
             # mask_image = remote_encode(mask_image)
         task_args = {
@@ -269,7 +269,7 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:t
             kwargs['output_type'] = 'np' # only set latent if model has vae
 
     # model specific
-    if 'Kandinsky' in model.__class__.__name__ or 'Cosmos2' in model.__class__.__name__ or 'OmniGen2' in model.__class__.__name__:
+    if 'Kandinsky' in model.__class__.__name__ or 'Cosmos2' in model.__class__.__name__ or 'Anima' in model.__class__.__name__ or 'OmniGen2' in model.__class__.__name__:
         kwargs['output_type'] = 'np' # only set latent if model has vae
     if 'StableCascade' in model.__class__.__name__:
         kwargs.pop("guidance_scale") # remove

@@ -141,7 +141,7 @@ class VDMScheduler(SchedulerMixin, ConfigMixin):
 
         # For linear beta schedule, equivalent to torch.exp(-1e-4 - 10 * t ** 2)
         self.alphas_cumprod = lambda t: torch.sigmoid(self.log_snr(t))  # Equivalent to 1 - self.sigmas
-        self.sigmas = lambda t: torch.sigmoid(-self.log_snr(t))  # Equivalent to 1 - self.alphas_cumprod
+        self.sigmas = []
 
         self.num_inference_steps = None
         self.timesteps = torch.from_numpy(self.get_timesteps(len(self)))
@@ -240,6 +240,8 @@ class VDMScheduler(SchedulerMixin, ConfigMixin):
         self.num_inference_steps = num_inference_steps
         timesteps += self.config.steps_offset
         self.timesteps = torch.from_numpy(timesteps).to(device)
+        self.sigmas = [torch.sigmoid(-self.log_snr(t)) for t in self.timesteps]
+        self.sigmas = torch.stack(self.sigmas)
 
     # Copied from diffusers.schedulers.scheduling_ddpm.DDPMScheduler._threshold_sample
     def _threshold_sample(self, sample: torch.Tensor) -> torch.Tensor:

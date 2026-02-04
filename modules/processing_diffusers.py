@@ -563,9 +563,9 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
         shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING) # force pipeline
         if len(getattr(p, 'init_images', [])) == 0:
             p.init_images = [TF.to_pil_image(torch.rand((3, getattr(p, 'height', 512), getattr(p, 'width', 512))))]
-    if p.prompts is None or len(p.prompts) == 0:
+    if not p.prompts:
         p.prompts = p.all_prompts[p.iteration * p.batch_size:(p.iteration+1) * p.batch_size]
-    if p.negative_prompts is None or len(p.negative_prompts) == 0:
+    if not p.negative_prompts:
         p.negative_prompts = p.all_negative_prompts[p.iteration * p.batch_size:(p.iteration+1) * p.batch_size]
 
     sd_models_compile.openvino_recompile_model(p, hires=False, refiner=False) # recompile if a parameter changes

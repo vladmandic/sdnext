@@ -143,6 +143,15 @@
     "date": "2025 January"
   },
 
+  "Z-Image": {
+    "path": "Tongyi-MAI/Z-Image",
+    "preview": "Tongyi-MAI--Z-Image.jpg",
+    "desc": "Z-Image, an efficient image generation foundation model built on a Single-Stream Diffusion Transformer architecture. It preserves the complete training signal with full CFG support, enabling aesthetic versatility from hyper-realistic photography to anime, enhanced output diversity, and robust negative prompting for artifact suppression. Ideal base for LoRA training, ControlNet, and semantic conditioning.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.0, steps: 50",
+    "size": 20.3,
+    "date": "2026 January"
+  },
   "Z-Image-Turbo": {
     "path": "Tongyi-MAI/Z-Image-Turbo",
     "preview": "Tongyi-MAI--Z-Image-Turbo.jpg",

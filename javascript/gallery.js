@@ -2,6 +2,7 @@
 let ws;
 let url;
 let currentImage = null;
+let currentGalleryFolder = null;
 let pruneImagesTimer;
 let outstanding = 0;
 let lastSort = 0;
@@ -20,6 +21,7 @@ const el = {
   search: undefined,
   status: undefined,
   btnSend: undefined,
+  clearCacheFolder: undefined,
 };
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
@@ -117,9 +119,12 @@ function updateGalleryStyles() {
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        transition-duration: 0.2s;
+        transition-property: color, opacity, background-color, border-color;
+        transition-timing-function: ease-out;
       }
       .gallery-folder:hover {
-        background-color: var(--button-primary-background-fill-hover);
+        background-color: var(--button-primary-background-fill-hover, var(--sd-button-hover-color));
       }
       .gallery-folder-selected {
         background-color: var(--sd-button-selected-color);
@@ -258,6 +263,14 @@ class SimpleFunctionQueue {
     this.#queue = [];
   }
 
+  static abortLogger(identifier, result) {
+    if (typeof result === 'string' || (result instanceof DOMException && result.name === 'AbortError')) {
+      log(identifier, result?.message || result);
+    } else {
+      error(identifier, result.message);
+    }
+  }
+
   /**
    * @param {{
    *  signal: AbortSignal,
@@ -301,6 +314,8 @@ class SimpleFunctionQueue {
 // HTML Elements
 
 class GalleryFolder extends HTMLElement {
+  static folders = new Set();
+
   constructor(folder) {
     super();
     // Support both old format (string) and new format (object with path and label)
@@ -314,21 +329,173 @@ class GalleryFolder extends HTMLElement {
     this.style.overflowX = 'hidden';
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [folderStylesheet];
+
+    this.div = document.createElement('div');
   }
 
   connectedCallback() {
-    const div = document.createElement('div');
-    div.className = 'gallery-folder';
-    div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.label}`;
-    div.title = this.name; // Show full path on hover
-    div.addEventListener('click', () => {
-      for (const folder of el.folders.children) {
-        if (folder.name === this.name) folder.shadow.firstElementChild.classList.add('gallery-folder-selected');
-        else folder.shadow.firstElementChild.classList.remove('gallery-folder-selected');
+    if (GalleryFolder.folders.has(this)) return; // Element is just being moved
+
+    this.div.className = 'gallery-folder';
+    this.div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.label}`;
+    this.div.title = this.name; // Show full path on hover
+    this.div.addEventListener('click', () => { this.updateSelected(); }); // Ensures 'this' isn't the div in the called method
+    this.div.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
+    this.shadow.appendChild(this.div);
+    GalleryFolder.folders.add(this);
+  }
+
+  async disconnectedCallback() {
+    await Promise.resolve(); // Wait for other microtasks (such as element moving)
+    if (this.isConnected) return;
+    GalleryFolder.folders.delete(this);
+  }
+
+  updateSelected() {
+    this.div.classList.add('gallery-folder-selected');
+    for (const folder of GalleryFolder.folders) {
+      if (folder !== this) {
+        folder.div.classList.remove('gallery-folder-selected');
       }
-    });
-    div.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
-    this.shadow.appendChild(div);
+    }
+  }
+}
+
+async function delayFetchThumb(fn, signal) {
+  await awaitForOutstanding(16, signal);
+  try {
+    outstanding++;
+    const ts = Date.now().toString();
+    const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
+    if (!res.ok) {
+      error(`fetchThumb: ${res.statusText}`);
+      return undefined;
+    }
+    const json = await res.json();
+    if (!res || !json || json.error || Object.keys(json).length === 0) {
+      if (json.error) error(`fetchThumb: ${json.error}`);
+      return undefined;
+    }
+    return json;
+  } finally {
+    outstanding--;
+  }
+}
+
+class GalleryFile extends HTMLElement {
+  /** @type {AbortSignal} */
+  #signal;
+
+  constructor(folder, file, signal) {
+    super();
+    this.folder = folder;
+    this.name = file;
+    this.#signal = signal;
+    this.size = 0;
+    this.mtime = 0;
+    this.hash = undefined;
+    this.exif = '';
+    this.width = 0;
+    this.height = 0;
+    this.src = `${this.folder}/${this.name}`;
+    this.shadow = this.attachShadow({ mode: 'open' });
+    this.shadow.adoptedStyleSheets = [fileStylesheet];
+
+    this.firstRun = true;
+  }
+
+  async connectedCallback() {
+    if (!this.firstRun) return; // Element is just being moved
+    this.firstRun = false;
+
+    // Check separator state early to hide the element immediately
+    const dir = this.name.match(/(.*)[/\\]/);
+    if (dir && dir[1]) {
+      const dirPath = dir[1];
+      const isOpen = separatorStates.get(dirPath);
+      if (isOpen === false) {
+        this.style.display = 'none';
+      }
+    }
+
+    // Normalize path to ensure consistent hash regardless of which folder view is used
+    const normalizedPath = this.src.replace(/\/+/g, '/').replace(/\/$/, '');
+    this.hash = await getHash(`${normalizedPath}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
+    const cachedData = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
+    const img = document.createElement('img');
+    img.className = 'gallery-file';
+    img.loading = 'lazy';
+    img.onload = async () => {
+      img.title += `\nResolution: ${this.width} x ${this.height}`;
+      this.title = img.title;
+      if (!cachedData && opts.browser_cache) {
+        if ((this.width === 0) || (this.height === 0)) { // fetch thumb failed so we use actual image
+          this.width = img.naturalWidth;
+          this.height = img.naturalHeight;
+        }
+      }
+    };
+    let ok = true;
+    if (cachedData?.img) {
+      img.src = cachedData.img;
+      this.exif = cachedData.exif;
+      this.width = cachedData.width;
+      this.height = cachedData.height;
+      this.size = cachedData.size;
+      this.mtime = new Date(cachedData.mtime);
+    } else {
+      try {
+        const json = await delayFetchThumb(this.src, this.#signal);
+        if (!json) {
+          ok = false;
+        } else {
+          img.src = json.data;
+          this.exif = json.exif;
+          this.width = json.width;
+          this.height = json.height;
+          this.size = json.size;
+          this.mtime = new Date(json.mtime);
+          if (opts.browser_cache) {
+            await idbAdd({
+              hash: this.hash,
+              folder: this.folder,
+              file: this.name,
+              size: this.size,
+              mtime: this.mtime,
+              width: this.width,
+              height: this.height,
+              src: this.src,
+              exif: this.exif,
+              img: img.src,
+              // exif: await getExif(img), // alternative client-side exif
+              // img: await createThumb(img), // alternative client-side thumb
+            });
+          }
+        }
+      } catch (err) { // thumb fetch failed so assign actual image
+        img.src = `file=${this.src}`;
+      }
+    }
+    if (this.#signal.aborted) { // Do not change the operations order from here...
+      return;
+    }
+    galleryHashes.add(this.hash);
+    if (!ok) {
+      return;
+    } // ... to here unless modifications are also being made to maintenance functionality and the usage of AbortController/AbortSignal
+    img.onclick = () => {
+      setGallerySelectionByElement(this, { send: true });
+    };
+    img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
+    this.title = img.title;
+
+    // Final visibility check based on search term.
+    const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase());
+    if (this.style.display !== 'none') { // Only proceed if not already hidden by a closed separator
+      this.style.display = shouldDisplayBasedOnSearch ? 'unset' : 'none';
+    }
+
+    this.shadow.appendChild(img);
   }
 }
 
@@ -456,148 +623,6 @@ async function addSeparators() {
         f.style.display = 'none';
       }
     }
-  }
-}
-
-async function delayFetchThumb(fn, signal) {
-  await awaitForOutstanding(16, signal);
-  try {
-    outstanding++;
-    const ts = Date.now().toString();
-    const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: 'low' });
-    if (!res.ok) {
-      error(`fetchThumb: ${res.statusText}`);
-      return undefined;
-    }
-    const json = await res.json();
-    if (!res || !json || json.error || Object.keys(json).length === 0) {
-      if (json.error) error(`fetchThumb: ${json.error}`);
-      return undefined;
-    }
-    return json;
-  } finally {
-    outstanding--;
-  }
-}
-
-class GalleryFile extends HTMLElement {
-  /** @type {AbortSignal} */
-  #signal;
-
-  constructor(folder, file, signal) {
-    super();
-    this.folder = folder;
-    this.name = file;
-    this.#signal = signal;
-    this.size = 0;
-    this.mtime = 0;
-    this.hash = undefined;
-    this.exif = '';
-    this.width = 0;
-    this.height = 0;
-    this.src = `${this.folder}/${this.name}`;
-    this.shadow = this.attachShadow({ mode: 'open' });
-    this.shadow.adoptedStyleSheets = [fileStylesheet];
-  }
-
-  async connectedCallback() {
-    if (this.shadow.children.length > 0) {
-      return;
-    }
-
-    // Check separator state early to hide the element immediately
-    const dir = this.name.match(/(.*)[/\\]/);
-    if (dir && dir[1]) {
-      const dirPath = dir[1];
-      const isOpen = separatorStates.get(dirPath);
-      if (isOpen === false) {
-        this.style.display = 'none';
-      }
-    }
-
-    // Normalize path to ensure consistent hash regardless of which folder view is used
-    const normalizedPath = this.src.replace(/\/+/g, '/').replace(/\/$/, '');
-    this.hash = await getHash(`${normalizedPath}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
-    const cachedData = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
-    const img = document.createElement('img');
-    img.className = 'gallery-file';
-    img.loading = 'lazy';
-    img.onload = async () => {
-      img.title += `\nResolution: ${this.width} x ${this.height}`;
-      this.title = img.title;
-      if (!cachedData && opts.browser_cache) {
-        if ((this.width === 0) || (this.height === 0)) { // fetch thumb failed so we use actual image
-          this.width = img.naturalWidth;
-          this.height = img.naturalHeight;
-        }
-      }
-    };
-    let ok = true;
-    if (cachedData?.img) {
-      img.src = cachedData.img;
-      this.exif = cachedData.exif;
-      this.width = cachedData.width;
-      this.height = cachedData.height;
-      this.size = cachedData.size;
-      this.mtime = new Date(cachedData.mtime);
-    } else {
-      try {
-        const json = await delayFetchThumb(this.src, this.#signal);
-        if (!json) {
-          ok = false;
-        } else {
-          img.src = json.data;
-          this.exif = json.exif;
-          this.width = json.width;
-          this.height = json.height;
-          this.size = json.size;
-          this.mtime = new Date(json.mtime);
-          if (opts.browser_cache) {
-            // Store file's actual parent directory (not browsed folder) for consistent cleanup
-            const fileDir = this.src.replace(/\/+/g, '/').replace(/\/[^/]+$/, '');
-            await idbAdd({
-              hash: this.hash,
-              folder: fileDir,
-              file: this.name,
-              size: this.size,
-              mtime: this.mtime,
-              width: this.width,
-              height: this.height,
-              src: this.src,
-              exif: this.exif,
-              img: img.src,
-              // exif: await getExif(img), // alternative client-side exif
-              // img: await createThumb(img), // alternative client-side thumb
-            });
-          }
-        }
-      } catch (err) { // thumb fetch failed so assign actual image
-        img.src = `file=${this.src}`;
-      }
-    }
-    if (this.#signal.aborted) { // Do not change the operations order from here...
-      return;
-    }
-    galleryHashes.add(this.hash);
-    if (!ok) {
-      return;
-    } // ... to here unless modifications are also being made to maintenance functionality and the usage of AbortController/AbortSignal
-    img.onclick = () => {
-      setGallerySelectionByElement(this, { send: true });
-    };
-    img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
-    if (this.shadow.children.length > 0) {
-      return; // avoid double-adding
-    }
-    this.title = img.title;
-
-    // Final visibility check based on search term.
-    const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase());
-    if (this.style.display !== 'none') { // Only proceed if not already hidden by a closed separator
-      this.style.display = shouldDisplayBasedOnSearch ? 'unset' : 'none';
-    }
-
-    this.shadow.appendChild(img);
   }
 }
 
@@ -919,9 +944,10 @@ async function gallerySort(btn) {
 /**
  * Generate and display the overlay to announce cleanup is in progress.
  * @param {number} count - Number of entries being cleaned up
+ * @param {boolean} all - Indicate that all thumbnails are being cleared
  * @returns {ClearMsgCallback}
  */
-function showCleaningMsg(count) {
+function showCleaningMsg(count, all = false) {
   // Rendering performance isn't a priority since this doesn't run often
   const parent = el.folders.parentElement;
   const cleaningOverlay = document.createElement('div');
@@ -936,7 +962,7 @@ function showCleaningMsg(count) {
   msgText.style.cssText = 'font-size: 1.2em';
   msgInfo.style.cssText = 'font-size: 0.9em; text-align: center;';
   msgText.innerText = 'Thumbnail cleanup...';
-  msgInfo.innerText = `Found ${count} old entries`;
+  msgInfo.innerText = all ? 'Clearing all entries' : `Found ${count} old entries`;
   anim.classList.add('idbBusyAnim');
 
   msgDiv.append(msgText, msgInfo);
@@ -945,16 +971,17 @@ function showCleaningMsg(count) {
   return () => { cleaningOverlay.remove(); };
 }
 
-const maintenanceQueue = new SimpleFunctionQueue('Maintenance');
+const maintenanceQueue = new SimpleFunctionQueue('Gallery Maintenance');
 
 /**
  * Handles calling the cleanup function for the thumbnail cache
  * @param {string} folder - Folder to clean
  * @param {number} imgCount - Expected number of images in gallery
  * @param {AbortController} controller - AbortController that's handling this task
+ * @param {boolean} force - Force full cleanup of the folder
  */
-async function thumbCacheCleanup(folder, imgCount, controller) {
-  if (!opts.browser_cache) return;
+async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
+  if (!opts.browser_cache && !force) return;
   try {
     if (typeof folder !== 'string' || typeof imgCount !== 'number') {
       throw new Error('Function called with invalid arguments');
@@ -971,14 +998,14 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
     callback: async () => {
       log(`Thumbnail DB cleanup: Checking if "${folder}" needs cleaning`);
       const t0 = performance.now();
-      const staticGalleryHashes = new Set(galleryHashes); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
+      const keptGalleryHashes = force ? new Set() : new Set(galleryHashes.values()); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
       const cachedHashesCount = await idbCount(folder)
         .catch((e) => {
           error(`Thumbnail DB cleanup: Error when getting entry count for "${folder}".`, e);
           return Infinity; // Forces next check to fail if something went wrong
         });
-      const cleanupCount = cachedHashesCount - staticGalleryHashes.size;
-      if (cleanupCount < 500 || !Number.isFinite(cleanupCount)) {
+      const cleanupCount = cachedHashesCount - keptGalleryHashes.size;
+      if (!force && (cleanupCount < 500 || !Number.isFinite(cleanupCount))) {
         // Don't run when there aren't many excess entries
         return;
       }
@@ -988,28 +1015,93 @@ async function thumbCacheCleanup(folder, imgCount, controller) {
         return;
       }
       const cb_clearMsg = showCleaningMsg(cleanupCount);
-      const tRun = Date.now(); // Doesn't need high resolution
-      await idbFolderCleanup(staticGalleryHashes, folder, controller.signal)
+      await idbFolderCleanup(keptGalleryHashes, folder, controller.signal)
         .then((delcount) => {
           const t1 = performance.now();
-          log(`Thumbnail DB cleanup: folder=${folder} kept=${staticGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+          log(`Thumbnail DB cleanup: folder=${folder} kept=${keptGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+          currentGalleryFolder = null;
+          el.clearCacheFolder.innerText = '<select a folder first>';
+          updateStatusWithSort('Thumbnail cache cleared');
         })
         .catch((reason) => {
-          if (typeof reason === 'string' || (reason instanceof DOMException && reason.name === 'AbortError')) {
-            log('Thumbnail DB cleanup:', reason?.message || reason);
-          } else {
-            error('Thumbnail DB cleanup:', reason.message);
-          }
+          SimpleFunctionQueue.abortLogger('Thumbnail DB cleanup:', reason);
         })
         .finally(async () => {
-          // Ensure at least enough time to see that it's a message and not the UI breaking/flickering
-          await new Promise((resolve) => {
-            setTimeout(resolve, Math.min(1000, Math.max(1000 - (Date.now() - tRun), 0))); // Total display time of at least 1 second
-          });
+          await new Promise((resolve) => { setTimeout(resolve, 1000); }); // Delay removal by 1 second to ensure at least minimum visibility
           cb_clearMsg();
         });
     },
   });
+}
+
+function resetGalleryState(reason) {
+  maintenanceController.abort(reason);
+  const controller = new AbortController();
+  maintenanceController = controller;
+
+  galleryHashes.clear(); // Must happen AFTER the AbortController steps
+  galleryProgressBar.clear();
+  resetGallerySelection();
+  return controller;
+}
+
+function clearCacheIfDisabled(browser_cache) {
+  if (browser_cache === false) {
+    log('Thumbnail DB cleanup:', 'Image gallery cache setting disabled. Clearing cache.');
+    const controller = resetGalleryState('Clearing all thumbnails from cache');
+    maintenanceQueue.enqueue({
+      signal: controller.signal,
+      callback: async () => {
+        const t0 = performance.now();
+        const cb_clearMsg = showCleaningMsg(0, true);
+        await idbClearAll(controller.signal)
+          .then(() => {
+            log(`Thumbnail DB cleanup: Cache cleared. time=${Math.floor(performance.now() - t0)}ms`);
+            currentGalleryFolder = null;
+            el.clearCacheFolder.innerText = '<select a folder first>';
+            updateStatusWithSort('Thumbnail cache cleared');
+          })
+          .catch((e) => {
+            SimpleFunctionQueue.abortLogger('Thumbnail DB cleanup:', e);
+          })
+          .finally(async () => {
+            await new Promise((resolve) => { setTimeout(resolve, 1000); });
+            cb_clearMsg();
+          });
+      },
+    });
+  }
+}
+
+function addCacheClearLabel() { // Don't use async
+  const setting = document.querySelector('#setting_browser_cache');
+  if (setting) {
+    const div = document.createElement('div');
+    div.style.marginBlock = '0.75rem';
+
+    const span = document.createElement('span');
+    span.style.cssText = 'font-weight: bold; text-decoration: underline; cursor: pointer; color: var(--color-blue); user-select: none;';
+    span.innerText = '<select a folder first>';
+
+    div.append('Clear the thumbnail cache for: ', span, ' (double-click)');
+    setting.parentElement.insertAdjacentElement('afterend', div);
+    el.clearCacheFolder = span;
+
+    span.addEventListener('dblclick', (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      if (!currentGalleryFolder) return;
+      el.clearCacheFolder.style.color = 'var(--color-green)';
+      setTimeout(() => {
+        el.clearCacheFolder.style.color = 'var(--color-blue)';
+      }, 1000);
+      const controller = resetGalleryState('Clearing folder thumbnails cache');
+      el.files.innerHTML = '';
+      thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
+    });
+    return true;
+  }
+  return false;
 }
 
 async function fetchFilesHT(evt, controller) {
@@ -1049,12 +1141,8 @@ async function fetchFilesHT(evt, controller) {
 
 async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   if (!url) return;
-  const controller = new AbortController(); // Only called here because fetchFilesHT isn't called directly
-  maintenanceController.abort('Gallery update'); // Abort previous controller
-  maintenanceController = controller; // Point to new controller for next time
-  galleryHashes.clear(); // Must happen AFTER the AbortController steps
-  galleryProgressBar.clear();
-  resetGallerySelection();
+  // Abort previous controller and point to new controller for next time
+  const controller = resetGalleryState('Gallery update'); // Called here because fetchFilesHT isn't called directly
 
   el.files.innerHTML = '';
   updateGalleryStyles();
@@ -1068,6 +1156,10 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     return;
   }
   log(`gallery: connected=${wsConnected} state=${ws?.readyState} url=${ws?.url}`);
+  currentGalleryFolder = evt.target.name;
+  if (el.clearCacheFolder) {
+    el.clearCacheFolder.innerText = currentGalleryFolder;
+  }
   if (!wsConnected) {
     await fetchFilesHT(evt, controller); // fallback to http
     return;
@@ -1115,26 +1207,17 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   ws.send(encodeURI(evt.target.name));
 }
 
-async function pruneImages() {
-  // TODO replace img.src with placeholder for images that are not visible
-}
-
-async function galleryVisible() {
+async function updateFolders() {
   // if (el.folders.children.length > 0) return;
   const res = await authFetch(`${window.api}/browser/folders`);
   if (!res || res.status !== 200) return;
-  el.folders.innerHTML = '';
   url = res.url.split('/sdapi')[0].replace('http', 'ws'); // update global url as ws need fqdn
   const folders = await res.json();
+  el.folders.innerHTML = '';
   for (const folder of folders) {
     const f = new GalleryFolder(folder);
     el.folders.appendChild(f);
   }
-  pruneImagesTimer = setInterval(pruneImages, 1000);
-}
-
-async function galleryHidden() {
-  if (pruneImagesTimer) clearInterval(pruneImagesTimer);
 }
 
 async function monitorGalleries() {
@@ -1165,6 +1248,32 @@ async function setOverlayAnimation() {
   document.head.append(busyAnimation);
 }
 
+async function galleryClearInit() {
+  let galleryClearInitTimeout = 0;
+  const tryCleanupInit = setInterval(() => {
+    if (addCacheClearLabel() || galleryClearInitTimeout++ === 60) {
+      clearInterval(tryCleanupInit);
+      monitorOption('browser_cache', clearCacheIfDisabled);
+    }
+  }, 1000);
+}
+
+async function blockQueueUntilReady() {
+  // Add block to maintenanceQueue until cache is ready
+  maintenanceQueue.enqueue({
+    signal: new AbortController().signal, // Use standalone AbortSignal that can't be aborted
+    callback: async () => {
+      let timeout = 0;
+      while (!idbIsReady() && timeout++ < 60) {
+        await new Promise((resolve) => { setTimeout(resolve, 1000); });
+      }
+      if (!idbIsReady()) {
+        throw new Error('Timed out waiting for thumbnail cache');
+      }
+    },
+  });
+}
+
 async function initGallery() { // triggered on gradio change to monitor when ui gets sufficiently constructed
   log('initGallery');
   el.folders = gradioApp().getElementById('tab-gallery-folders');
@@ -1175,9 +1284,12 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     error('initGallery', 'Missing gallery elements');
     return;
   }
+
+  blockQueueUntilReady(); // Run first
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
+  galleryClearInit();
   const progress = gradioApp().getElementById('tab-gallery-progress');
   if (progress) {
     galleryProgressBar.attachTo(progress);
@@ -1188,12 +1300,9 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
   document.getElementById('tab-gallery-files').style.height = opts.logmonitor_show ? '75vh' : '85vh';
 
-  const intersectionObserver = new IntersectionObserver((entries) => {
-    if (entries[0].intersectionRatio <= 0) galleryHidden();
-    if (entries[0].intersectionRatio > 0) galleryVisible();
-  });
-  intersectionObserver.observe(el.folders);
   monitorGalleries();
+  updateFolders();
+  monitorOption('browser_folders', updateFolders);
 }
 
 // register on startup

@@ -19,7 +19,7 @@ def verify_insightface():
 
 
 def load_infiniteyou(model: str):
-    from scripts.infiniteyou import InfUFluxPipeline
+    from scripts.infiniteyou import InfUFluxPipeline # pylint: disable=no-name-in-module
     shared.sd_model = InfUFluxPipeline(
         pipe=shared.sd_model,
         model_version=model,

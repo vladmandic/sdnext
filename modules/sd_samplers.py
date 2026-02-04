@@ -37,6 +37,7 @@ def list_samplers():
     samplers = all_samplers
     samplers_for_img2img = all_samplers
     samplers_map = {}
+    return all_samplers
     # shared.log.debug(f'Available samplers: {[x.name for x in all_samplers]}')
 
 

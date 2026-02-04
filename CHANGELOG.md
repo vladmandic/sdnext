@@ -1,5 +1,79 @@
 # Change Log for SD.Next
 
+## Update for 2026-02-04
+
+### Highlights for 2026-02-04
+
+Refresh release two weeks after prior release, yet we still somehow managed to pack in *~150 commits*!  
+Highlights would be two new models: **Z-Image-Base** and **Anima**, *captioning* support for **tagger** models and a massive addition of new **schedulers**  
+Also here are updates to `torch` and additional GPU archs support for `ROCm` backends, plus a lot of internal improvements and fixes.
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-02-04
+
+- **Models**
+  - [Tongyi-MAI Z-Image Base](https://tongyi-mai.github.io/Z-Image-blog/)  
+    yup, its finally here, the full base model of **Z-Image**  
+  - [CircleStone Anima](https://huggingface.co/circlestone-labs/Anima)  
+    2B anime optimized model based on a modified Cosmos-Predict, using Qwen3-0.6B as a text encoder  
+- **Features**
+  - **caption** tab support for Booru tagger models, thanks @CalamitousFelicitousness  
+  - add SmilingWolf WD14/WaifuDiffusion tagger models, thanks @CalamitousFelicitousness  
+  - support comments in wildcard files, using `#`  
+  - support aliases in metadata skip params, thanks @CalamitousFelicitousness  
+  - ui gallery improve cache cleanup and add manual option, thanks @awsr  
+  - selectable options to add system info to metadata, thanks @Athari  
+    see *settings -> image metadata*  
+- **Schedulers**
+  - schedulers documentation has new home: <https://vladmandic.github.io/sdnext-docs/Schedulers/>
+  - add 13(!) new scheduler families
+    not a port, but more of inspired-by [res4lyf](https://github.com/ClownsharkBatwing/RES4LYF) library  
+    all schedulers should be compatible with both `epsilon` and `flow` prediction style!  
+    *note*: each family may have multiple actual schedulers, so the list total is 56(!) new schedulers     
+    - core family: *RES*
+    - exponential: *DEIS, ETD, Lawson, ABNorsett*
+    - integrators: *Runge-Kutta, Linear-RK, Specialized-RK, Lobatto, Radau-IIA, Gauss-Legendre*
+    - flow: *PEC, Riemannian, Euclidean, Hyperbolic, Lorentzian, Langevin-Dynamics*
+  - add 3 additional schedulers: *CogXDDIM, DDIMParallel, DDPMParallel*  
+    not originally intended to be a general purpose schedulers, but they work quite nicely and produce good results  
+  - image metadata: always log scheduler class used  
+- **API**  
+  - add `/sdapi/v1/xyz-grid` to enumerate xyz-grid axis options and their choices  
+    see `/cli/api-xyzenum.py` for example usage  
+  - add `/sdapi/v1/sampler` to get current sampler config  
+  - modify `/sdapi/v1/samplers` to enumerate available samplers possible options  
+    see `/cli/api-samplers.py` for example usage  
+- **Internal**
+  - tagged release history: <https://github.com/vladmandic/sdnext/tags>  
+    each major for the past year is now tagged for easier reference  
+  - **torch** update
+    *note*: may cause slow first startup/generate  
+    **cuda**: update to `torch==2.10.0`  
+    **xpu**: update to `torch==2.10.0`  
+    **rocm**: update to `torch==2.10.0`  
+    **openvino**: update to `torch==2.10.0` and `openvino==2025.4.1`  
+  - rocm: expand available gfx archs, thanks @crashingalexsan  
+  - rocm: set `MIOPEN_FIND_MODE=2` by default, thanks @crashingalexsan  
+  - relocate all json data files to `data/` folder  
+    existing data files are auto-migrated on startup  
+  - refactor and improve connection monitor, thanks @awsr  
+  - further work on type consistency and type checking, thanks @awsr  
+  - log captured exceptions  
+  - improve temp folder handling and cleanup  
+  - remove torch errors/warings on fast server shutdown  
+  - add ui placeholders for future agent-scheduler work, thanks @ryanmeador  
+  - implement abort system on repeated errors, thanks @awsr  
+    currently used by lora and textual-inversion loaders  
+  - update package requirements  
+- **Fixes**
+  - add video ui elem_ids, thanks @ryanmeador  
+  - use base steps as-is for non sd/sdxl models  
+  - ui css fixes for modernui  
+  - support lora inside prompt selector  
+  - framepack video save  
+  - metadata save for manual saves  
+
 ## Update for 2026-01-22
 
 Bugfix refresh
@@ -139,7 +213,7 @@ End of year release update, just two weeks after previous one, with several new 
 - **Models**
   - [LongCat Image](https://github.com/meituan-longcat/LongCat-Image) in *Image* and *Image Edit* variants  
     LongCat is a new 8B diffusion base model using Qwen-2.5 as text encoder  
-  - [Qwen-Image-Edit 2511](Qwen/Qwen-Image-Edit-2511) in *base* and *pre-quantized* variants  
+  - [Qwen-Image-Edit 2511](https://huggingface.co/Qwen/Qwen-Image-Edit-2511) in *base* and *pre-quantized* variants  
     Key enhancements: mitigate image drift, improved character consistency, enhanced industrial design generation, and strengthened geometric reasoning ability  
   - [Qwen-Image-Layered](https://huggingface.co/Qwen/Qwen-Image-Layered) in *base* and *pre-quantized* variants  
     Qwen-Image-Layered, a model capable of decomposing an image into multiple RGBA layers  

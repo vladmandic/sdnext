@@ -36,6 +36,41 @@ async function initIndexDB() {
   if (!db) await createDB();
 }
 
+function idbIsReady() {
+  return db !== null;
+}
+
+/**
+ * Reusable setup for handling IDB transactions.
+ * @param {Object} resources - Required resources for implementation
+ * @param {IDBTransaction} resources.transaction
+ * @param {AbortSignal} resources.signal
+ * @param {Function} resources.resolve
+ * @param {Function} resources.reject
+ * @param {*} resolveValue - Value to resolve the outer Promise with
+ * @returns {() => void} - Function for manually aborting the transaction
+ */
+function configureTransactionAbort({ transaction, signal, resolve, reject }, resolveValue) {
+  function abortTransaction() {
+    signal.removeEventListener('abort', abortTransaction);
+    transaction.abort();
+  }
+  signal.addEventListener('abort', abortTransaction);
+  transaction.onabort = () => {
+    signal.removeEventListener('abort', abortTransaction);
+    reject(new DOMException(`Aborting database transaction. ${signal.reason}`, 'AbortError'));
+  };
+  transaction.onerror = (e) => {
+    signal.removeEventListener('abort', abortTransaction);
+    reject(new Error('Database transaction error.', e));
+  };
+  transaction.oncomplete = () => {
+    signal.removeEventListener('abort', abortTransaction);
+    resolve(resolveValue);
+  };
+  return abortTransaction;
+}
+
 async function add(record) {
   if (!db) return null;
   return new Promise((resolve, reject) => {
@@ -150,10 +185,7 @@ async function idbFolderCleanup(keepSet, folder, signal) {
     throw new Error('IndexedDB cleaning function must be told the current active folder');
   }
 
-  // Use range query to match folder and all its subdirectories
-  const folderNormalized = folder.replace(/\/+/g, '/').replace(/\/$/, '');
-  const range = IDBKeyRange.bound(folderNormalized, `${folderNormalized}\uffff`, false, true);
-  let removals = new Set(await idbGetAllKeys('folder', range));
+  let removals = new Set(await idbGetAllKeys('folder', folder));
   removals = removals.difference(keepSet); // Don't need to keep full set in memory
   const totalRemovals = removals.size;
   if (signal.aborted) {
@@ -161,31 +193,20 @@ async function idbFolderCleanup(keepSet, folder, signal) {
   }
   return new Promise((resolve, reject) => {
     const transaction = db.transaction('thumbs', 'readwrite');
-    function abortTransaction() {
-      signal.removeEventListener('abort', abortTransaction);
-      transaction.abort();
-    }
-    signal.addEventListener('abort', abortTransaction);
-    transaction.onabort = () => {
-      signal.removeEventListener('abort', abortTransaction);
-      reject(`Aborting. ${signal.reason}`); // eslint-disable-line prefer-promise-reject-errors
-    };
-    transaction.onerror = () => {
-      signal.removeEventListener('abort', abortTransaction);
-      reject(new Error('Database transaction error'));
-    };
-    transaction.oncomplete = async () => {
-      signal.removeEventListener('abort', abortTransaction);
-      resolve(totalRemovals);
-    };
+    const props = { transaction, signal, resolve, reject };
+    configureTransactionAbort(props, totalRemovals);
+    const store = transaction.objectStore('thumbs');
+    removals.forEach((entry) => { store.delete(entry); });
+  });
+}
 
-    try {
-      const store = transaction.objectStore('thumbs');
-      removals.forEach((entry) => { store.delete(entry); });
-    } catch (err) {
-      error(err);
-      abortTransaction();
-    }
+async function idbClearAll(signal) {
+  if (!db) return null;
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(['thumbs'], 'readwrite');
+    const props = { transaction, signal, resolve, reject };
+    configureTransactionAbort(props, null);
+    transaction.objectStore('thumbs').clear();
   });
 }
 

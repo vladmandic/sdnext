@@ -6,7 +6,7 @@ from modules.json_helpers import readfile, writefile
 from modules.paths import data_path
 
 
-cache_filename = os.path.join(data_path, "cache.json")
+cache_filename = os.path.join(data_path, 'data', 'cache.json')
 cache_data = None
 progress_ok = True
 

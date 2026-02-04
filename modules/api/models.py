@@ -86,8 +86,7 @@ class PydanticModelGenerator:
 
 class ItemSampler(BaseModel):
     name: str = Field(title="Name")
-    aliases: List[str] = Field(title="Aliases")
-    options: Dict[str, str] = Field(title="Options")
+    options: dict
 
 class ItemVae(BaseModel):
     model_name: str = Field(title="Model Name")
@@ -198,6 +197,11 @@ class ItemExtension(BaseModel):
     version: str = Field(title="Version", description="Extension Version")
     commit_date: Union[str, int] = Field(title="Commit Date", description="Extension Repository Commit Date")
     enabled: bool = Field(title="Enabled", description="Flag specifying whether this extension is enabled")
+
+class ItemScheduler(BaseModel):
+    name: str = Field(title="Name", description="Scheduler name")
+    cls: str = Field(title="Class", description="Scheduler class name")
+    options: Dict[str, Any] = Field(title="Options", description="Dictionary of scheduler options")
 
 ### request/response classes
 

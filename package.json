@@ -1,6 +1,5 @@
 {
   "name": "@vladmandic/sdnext",
-  "version": "dev",
   "description": "SD.Next: All-in-one WebUI for AI generative image and video creation",
   "author": "Vladimir Mandic <mandic00@live.com>",
   "bugs": {
@@ -23,15 +22,13 @@
     "format": ". venv/bin/activate && pre-commit run --all-files",
     "format-win": "venv\\scripts\\activate && pre-commit run --all-files",
     "eslint": "eslint . javascript/",
-    "eslint-win": "eslint . javascript/ --rule \"@stylistic/linebreak-style: off\"",
     "eslint-ui": "cd extensions-builtin/sdnext-modernui && eslint . javascript/",
-    "eslint-ui-win": "cd extensions-builtin/sdnext-modernui && eslint . javascript/ --rule \"@stylistic/linebreak-style: off\"",
     "ruff": ". venv/bin/activate && ruff check",
     "ruff-win": "venv\\scripts\\activate && ruff check",
     "pylint": ". venv/bin/activate && pylint --disable=W0511 *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",
     "pylint-win": "venv\\scripts\\activate && pylint --disable=W0511 *.py modules/ pipelines/ scripts/ extensions-builtin/",
     "lint": "npm run format && npm run eslint && npm run eslint-ui && npm run ruff && npm run pylint | grep -v TODO",
-    "lint-win": "npm run format-win && npm run eslint-win && npm run eslint-ui-win && npm run ruff-win && npm run pylint-win",
+    "lint-win": "npm run format-win && npm run eslint && npm run eslint-ui && npm run ruff-win && npm run pylint-win",
     "test": ". venv/bin/activate; python launch.py --debug --test",
     "todo": "grep -oIPR 'TODO.*' *.py modules/ pipelines/ | sort -u",
     "debug": "grep -ohIPR 'SD_.*?_DEBUG' *.py modules/ pipelines/ | sort -u"

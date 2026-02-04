@@ -4,6 +4,7 @@ import sys
 import json
 import shlex
 import argparse
+import tempfile
 from installer import log
 
 
@@ -18,12 +19,16 @@ cli = parser.parse_known_args(argv)[0]
 parser.add_argument("--config", type=str, default=os.environ.get("SD_CONFIG", os.path.join(cli.data_dir, 'config.json')), help="Use specific server configuration file, default: %(default)s") # twice because we want data_dir
 cli = parser.parse_known_args(argv)[0]
 config_path = cli.config if os.path.isabs(cli.config) else os.path.join(cli.data_dir, cli.config)
+
 try:
     with open(config_path, 'r', encoding='utf8') as f:
         config = json.load(f)
 except Exception:
     config = {}
 
+temp_dir = config.get('temp_dir', '')
+if len(temp_dir) == 0:
+    temp_dir = tempfile.gettempdir()
 reference_path = os.path.join('models', 'Reference')
 modules_path = os.path.dirname(os.path.realpath(__file__))
 script_path = os.path.dirname(modules_path)

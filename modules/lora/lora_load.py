@@ -269,7 +269,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 continue
         if net is None:
             failed_to_load_networks.append(name)
-            shared.log.error(f'Network load: type=LoRA name="{name}" detected={network_on_disk.sd_version if network_on_disk is not None else None} failed')
+            shared.log.error(f'Network load: type=LoRA name="{name}" detected={network_on_disk.sd_version if network_on_disk is not None else None} not found')
             continue
         if hasattr(sd_model, 'embedding_db'):
             sd_model.embedding_db.load_diffusers_embedding(None, net.bundle_embeddings)

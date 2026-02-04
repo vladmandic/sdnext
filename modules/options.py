@@ -11,8 +11,10 @@ if TYPE_CHECKING:
     from modules.ui_components import DropdownEditable
 
 
-def options_section(section_identifier: tuple[str, str], options_dict: dict[str, OptionInfo | LegacyOption]):
+def options_section(section_identifier: tuple[str, str], options_dict: dict[str, OptionInfo | LegacyOption]) -> dict[str, OptionInfo | LegacyOption]:
     """Set the `section` value for all OptionInfo/LegacyOption items"""
+    if len(section_identifier) > 2:
+        section_identifier = section_identifier[:2]
     for v in options_dict.values():
         v.section = section_identifier
     return options_dict

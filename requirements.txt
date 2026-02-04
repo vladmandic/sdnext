@@ -18,6 +18,7 @@ lark
 omegaconf
 optimum
 piexif
+mpmath
 psutil
 pyyaml
 resize-right

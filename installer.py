@@ -112,7 +112,7 @@ def install_traceback(suppress: list = []):
     width = os.environ.get("SD_TRACEWIDTH", console.width if console else None)
     if width is not None:
         width = int(width)
-    traceback_install(
+    log.excepthook = traceback_install(
         console=console,
         extra_lines=int(os.environ.get("SD_TRACELINES", 1)),
         max_frames=int(os.environ.get("SD_TRACEFRAMES", 16)),
@@ -168,7 +168,6 @@ def setup_logging():
         def get(self):
             return self.buffer
 
-
     class LogFilter(logging.Filter):
         def __init__(self):
             super().__init__()
@@ -215,6 +214,23 @@ def setup_logging():
     logging.Logger.trace = partialmethod(logging.Logger.log, logging.TRACE)
     logging.trace = partial(logging.log, logging.TRACE)
 
+    def exception_hook(e: Exception, suppress=[]):
+        from rich.traceback import Traceback
+        tb = Traceback.from_exception(type(e), e, e.__traceback__, show_locals=False, max_frames=16, extra_lines=1, suppress=suppress, theme="ansi_dark", word_wrap=False, width=console.width)
+        # print-to-console, does not get printed-to-file
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        log.excepthook(exc_type, exc_value, exc_traceback)
+        # print-to-file, temporarily disable-console-handler
+        for handler in log.handlers.copy():
+            if isinstance(handler, RichHandler):
+                log.removeHandler(handler)
+        with console.capture() as capture:
+            console.print(tb)
+        log.critical(capture.get())
+        log.addHandler(rh)
+
+    log.traceback = exception_hook
+
     level = logging.DEBUG if (args.debug or args.trace) else logging.INFO
     log.setLevel(logging.DEBUG) # log to file is always at level debug for facility `sd`
     log.print = rprint
@@ -240,8 +256,10 @@ def setup_logging():
     )
 
     logging.basicConfig(level=logging.ERROR, format='%(asctime)s | %(name)s | %(levelname)s | %(module)s | %(message)s', handlers=[logging.NullHandler()]) # redirect default logger to null
+
     pretty_install(console=console)
     install_traceback()
+
     while log.hasHandlers() and len(log.handlers) > 0:
         log.removeHandler(log.handlers[0])
 
@@ -288,7 +306,6 @@ def setup_logging():
     logging.getLogger("torch").setLevel(logging.ERROR)
     logging.getLogger("ControlNet").handlers = log.handlers
     logging.getLogger("lycoris").handlers = log.handlers
-    # logging.getLogger("DeepSpeed").handlers = log.handlers
     ts('log', t_start)
 
 
@@ -712,9 +729,9 @@ def install_cuda():
     log.info('CUDA: nVidia toolkit detected')
     ts('cuda', t_start)
     if args.use_nightly:
-        cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu126')
+        cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu130')
     else:
-        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+cu128 torchvision==0.24.1+cu128 --index-url https://download.pytorch.org/whl/cu128')
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cu128 torchvision==0.25.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
     return cmd
 
 
@@ -765,7 +782,6 @@ def install_rocm_zluda():
 
     if sys.platform == "win32":
         if args.use_zluda:
-            #check_python(supported_minors=[10, 11, 12, 13], reason='ZLUDA backend requires a Python version between 3.10 and 3.13')
             torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
 
             if args.device_id is not None:
@@ -795,6 +811,7 @@ def install_rocm_zluda():
                 torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/{device.therock}')
             else:
                 check_python(supported_minors=[12], reason='ROCm: Windows preview python==3.12 required')
+                # torch 2.8.0a0 is the last version with rocm 6.4 support
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
     else:
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
@@ -804,7 +821,11 @@ def install_rocm_zluda():
             else: # oldest rocm version on nightly is 7.0
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.0')
         else:
-            if rocm.version is None or float(rocm.version) >= 6.4: # assume the latest if version check fails
+            if rocm.version is None or float(rocm.version) >= 7.1: # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+rocm7.1 torchvision==0.25.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
+            elif rocm.version == "7.0": # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+rocm7.0 torchvision==0.25.0+rocm7.0 --index-url https://download.pytorch.org/whl/rocm7.0')
+            elif rocm.version == "6.4":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.4 torchvision==0.24.1+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
             elif rocm.version == "6.3":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.3 torchvision==0.24.1+rocm6.3 --index-url https://download.pytorch.org/whl/rocm6.3')
@@ -841,7 +862,7 @@ def install_ipex():
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+xpu torchvision==0.24.1+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+xpu torchvision==0.25.0+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
@@ -854,13 +875,13 @@ def install_openvino():
 
     #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
     if sys.platform == 'darwin':
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1 torchvision==0.24.1')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0 torchvision==0.25.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+cpu torchvision==0.24.1 --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cpu torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cpu')
 
     if not (args.skip_all or args.skip_requirements):
-        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.3.0'), 'openvino')
-        install(os.environ.get('NNCF_COMMAND', 'nncf==2.18.0'), 'nncf')
+        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.4.1'), 'openvino')
+        install(os.environ.get('NNCF_COMMAND', 'nncf==2.19.0'), 'nncf')
     ts('openvino', t_start)
     return torch_command
 
@@ -1427,6 +1448,7 @@ def set_environment():
     os.environ.setdefault('TORCH_CUDNN_V8_API_ENABLED', '1')
     os.environ.setdefault('TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD', '1')
     os.environ.setdefault('TORCH_ROCM_AOTRITON_ENABLE_EXPERIMENTAL', '1')
+    os.environ.setdefault('MIOPEN_FIND_MODE', '2')
     os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
     os.environ.setdefault('USE_TORCH', '1')
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
@@ -1540,7 +1562,7 @@ def check_ui(ver):
 
     t_start = time.time()
     if not same(ver):
-        log.debug(f'Branch mismatch: sdnext={ver["branch"]} ui={ver["ui"]}')
+        log.debug(f'Branch mismatch: {ver}')
         cwd = os.getcwd()
         try:
             os.chdir('extensions-builtin/sdnext-modernui')
@@ -1548,10 +1570,7 @@ def check_ui(ver):
             git('checkout ' + target, ignore=True, optional=True)
             os.chdir(cwd)
             ver = get_version(force=True)
-            if not same(ver):
-                log.debug(f'Branch synchronized: {ver["branch"]}')
-            else:
-                log.debug(f'Branch sync failed: sdnext={ver["branch"]} ui={ver["ui"]}')
+            log.debug(f'Branch sync: {ver}')
         except Exception as e:
             log.debug(f'Branch switch: {e}')
         os.chdir(cwd)
