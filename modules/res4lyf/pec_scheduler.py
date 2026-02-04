@@ -180,6 +180,8 @@ class PECScheduler(SchedulerMixin, ConfigMixin):
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
+        if self.config.prediction_type == "flow_prediction":
+            return sample
         sigma = self.sigmas[self._step_index]
         return sample / ((sigma**2 + 1) ** 0.5)
 

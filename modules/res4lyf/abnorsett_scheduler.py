@@ -123,7 +123,6 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
             raise ValueError(f"timestep_spacing {self.config.timestep_spacing} is not supported.")
 
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
-        log_sigmas_all = np.log(sigmas)
         sigmas = np.interp(timesteps, np.arange(0, len(sigmas)), sigmas)
 
         if self.config.use_karras_sigmas:
@@ -135,8 +134,10 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
         elif self.config.use_flow_sigmas:
             s_min = getattr(self.config, "sigma_min", None)
             s_max = getattr(self.config, "sigma_max", None)
-            if s_min is None: s_min = 0.001
-            if s_max is None: s_max = 1.0
+            if s_min is None:
+                s_min = 0.001
+            if s_max is None:
+                s_max = 1.0
             sigmas = np.linspace(s_max, s_min, num_inference_steps)
 
         if self.config.shift != 1.0 or self.config.use_dynamic_shifting:
@@ -279,11 +280,11 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
                     # AB2 Variable Step
                     # x_{n+1} = x_n + dt * [ (1 + r/2) * v_n - (r/2) * v_{n-1} ]
                     # where r = dt_cur / dt_prev
-                    
+
                     v_nm1 = self.model_outputs[-2]
                     sigma_prev = self.prev_sigmas[-2]
                     dt_prev = sigma_curr - sigma_prev
-                    
+
                     if abs(dt_prev) < 1e-8:
                          # Fallback to Euler if division by zero risk
                          x_next = sample + dt * v_n
@@ -293,15 +294,15 @@ class ABNorsettScheduler(SchedulerMixin, ConfigMixin):
                         c0 = 1 + 0.5 * r
                         c1 = -0.5 * r
                         x_next = sample + dt * (c0 * v_n + c1 * v_nm1)
-                        
+
                 elif curr_order >= 3:
-                     # For now, fallback to AB2 (variable) for higher orders to ensure stability 
-                     # given the complexity of variable-step AB3/4 formulas inline. 
+                     # For now, fallback to AB2 (variable) for higher orders to ensure stability
+                     # given the complexity of variable-step AB3/4 formulas inline.
                      # The user specifically requested abnorsett_2m.
                      v_nm1 = self.model_outputs[-2]
                      sigma_prev = self.prev_sigmas[-2]
                      dt_prev = sigma_curr - sigma_prev
-                     
+
                      if abs(dt_prev) < 1e-8:
                          x_next = sample + dt * v_n
                      else:

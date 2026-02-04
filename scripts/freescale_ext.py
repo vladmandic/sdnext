@@ -58,7 +58,7 @@ class Script(scripts_manager.Script):
                 shared.log.warning('FreeScale: missing input image')
                 return None
 
-        from scripts.freescale import StableDiffusionXLFreeScale, StableDiffusionXLFreeScaleImg2Img
+        from scripts.freescale import StableDiffusionXLFreeScale, StableDiffusionXLFreeScaleImg2Img # pylint: disable=no-name-in-module
         self.orig_pipe = shared.sd_model
         self.orig_slice = shared.opts.diffusers_vae_slicing
         self.orig_tile = shared.opts.diffusers_vae_tiling

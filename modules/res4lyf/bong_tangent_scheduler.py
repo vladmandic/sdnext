@@ -99,6 +99,8 @@ class BongTangentScheduler(SchedulerMixin, ConfigMixin):
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
+        if self.config.prediction_type == "flow_prediction":
+            return sample
         sigma = self.sigmas[self._step_index]
         sample = sample / ((sigma**2 + 1) ** 0.5)
         return sample
@@ -154,8 +156,8 @@ class BongTangentScheduler(SchedulerMixin, ConfigMixin):
         end_val = sigma_min
         mid_val = sigma_mid
 
-        tan_sigmas_1 = self._get_bong_tangent_sigmas(stage_1_len, s1, p1, start_val, mid_val)
-        tan_sigmas_2 = self._get_bong_tangent_sigmas(stage_2_len, s2, p2 - stage_1_len, mid_val, end_val)
+        tan_sigmas_1 = self._get_bong_tangent_sigmas(stage_1_len, s1, p1, start_val, mid_val, dtype=dtype)
+        tan_sigmas_2 = self._get_bong_tangent_sigmas(stage_2_len, s2, p2 - stage_1_len, mid_val, end_val, dtype=dtype)
 
         tan_sigmas_1 = tan_sigmas_1[:-1]
         sigmas_list = tan_sigmas_1 + tan_sigmas_2
@@ -208,7 +210,7 @@ class BongTangentScheduler(SchedulerMixin, ConfigMixin):
         from .scheduler_utils import add_noise_to_sample
         return add_noise_to_sample(original_samples, noise, self.sigmas, timesteps, self.timesteps)
 
-    def _get_bong_tangent_sigmas(self, steps: int, slope: float, pivot: int, start: float, end: float) -> List[float]:
+    def _get_bong_tangent_sigmas(self, steps: int, slope: float, pivot: int, start: float, end: float, dtype: torch.dtype = torch.float32) -> List[float]:
         x = torch.arange(steps, dtype=dtype)
 
         def bong_fn(val):

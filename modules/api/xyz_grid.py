@@ -2,7 +2,7 @@ from typing import List
 
 
 def xyz_grid_enum(option: str = "") -> List[dict]:
-    from scripts.xyz import xyz_grid_classes
+    from scripts.xyz import xyz_grid_classes # pylint: disable=no-name-in-module
     options = []
     for x in xyz_grid_classes.axis_options:
         _option = {

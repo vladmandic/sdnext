@@ -1,6 +1,6 @@
 from .abnorsett_scheduler import ABNorsettScheduler
 from .common_sigma_scheduler import CommonSigmaScheduler
-from .deis_scheduler_alt import DEISMultistepScheduler
+from .deis_scheduler_alt import RESDEISMultistepScheduler
 from .etdrk_scheduler import ETDRKScheduler
 from .gauss_legendre_scheduler import GaussLegendreScheduler
 from .lawson_scheduler import LawsonScheduler
@@ -302,19 +302,19 @@ class SigmaSmoothScheduler(CommonSigmaScheduler):
         super().__init__(**kwargs)
 
 ## DEIS Multistep Variants
-class DEIS1MultistepScheduler(DEISMultistepScheduler):
+class DEIS1MultistepScheduler(RESDEISMultistepScheduler):
     def __init__(self, **kwargs):
-        kwargs["order"] = "1"
+        kwargs["solver_order"] = 1
         super().__init__(**kwargs)
 
-class DEIS2MultistepScheduler(DEISMultistepScheduler):
+class DEIS2MultistepScheduler(RESDEISMultistepScheduler):
     def __init__(self, **kwargs):
-        kwargs["order"] = "2"
+        kwargs["solver_order"] = 2
         super().__init__(**kwargs)
 
-class DEIS3MultistepScheduler(DEISMultistepScheduler):
+class DEIS3MultistepScheduler(RESDEISMultistepScheduler):
     def __init__(self, **kwargs):
-        kwargs["order"] = "3"
+        kwargs["solver_order"] = 3
         super().__init__(**kwargs)
 
 ## Linear RK Variants

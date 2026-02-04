@@ -1,6 +1,15 @@
 # Change Log for SD.Next
 
-## Update for 2026-02-02
+## Update for 2026-02-04
+
+### Highlights for 2026-02-04
+
+Refresh release two weeks after prior release, yet we still somehow managed to pack in ~140 commits with new features, models and fixes!
+For full list of changes, see full changelog.
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-02-04
 
 - **Models**
   - [Tongyi-MAI Z-Image Base](https://tongyi-mai.github.io/Z-Image-blog/)  

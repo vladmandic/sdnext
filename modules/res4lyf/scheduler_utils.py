@@ -90,21 +90,19 @@ def get_dynamic_shift(mu, base_shift, max_shift, base_seq_len, max_seq_len):
     return m * mu + b
 
 def index_for_timestep(timestep, timesteps):
-    import numpy as _np
-
     # Normalize inputs to numpy arrays for a robust, device-agnostic argmin
     if isinstance(timestep, torch.Tensor):
         timestep_np = timestep.detach().cpu().numpy()
     else:
-        timestep_np = _np.array(timestep)
+        timestep_np = np.array(timestep)
 
     if isinstance(timesteps, torch.Tensor):
         timesteps_np = timesteps.detach().cpu().numpy()
     else:
-        timesteps_np = _np.array(timesteps)
+        timesteps_np = np.array(timesteps)
 
     # Use numpy argmin on absolute difference for stability
-    idx = _np.abs(timesteps_np - timestep_np).argmin()
+    idx = np.abs(timesteps_np - timestep_np).argmin()
     return int(idx)
 
 def add_noise_to_sample(

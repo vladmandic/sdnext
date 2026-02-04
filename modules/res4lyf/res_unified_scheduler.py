@@ -185,7 +185,7 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
         # phi_2 = phi(2) # Moved inside conditional blocks as needed
 
         history_len = len(self.x0_outputs)
-        
+
         # Stability: Force Order 1 for final few steps to prevent degradation at low noise levels
         if self.num_inference_steps is not None and self._step_index >= self.num_inference_steps - 3:
             return [phi_1], h
@@ -193,10 +193,10 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
         if self.config.rk_type in ["res_2m", "deis_2m"] and history_len >= 2:
             h_prev = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
             r = h_prev / (h + 1e-9)
-            
+
             h_prev = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
             r = h_prev / (h + 1e-9)
-            
+
             # Hard Restart: if step sizes vary too wildly, fallback to order 1
             if r < 0.5 or r > 2.0:
                  return [phi_1], h
@@ -220,10 +220,10 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
             # Hard Restart check
             if r1 < 0.5 or r1 > 2.0 or r2 < 0.5 or r2 > 2.0:
                  return [phi_1], h
-            
+
             phi_2 = phi(2)
             phi_3 = phi(3)
-            
+
             # Generalized AB3 for Exponential Integrators (Varying steps)
             denom = r2 - r1 + 1e-9
             b3 = (phi_3 + r1 * phi_2) / (r2 * denom)
@@ -275,9 +275,9 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
             # Variable Step Adams-Bashforth for Flow Matching
             dt = sigma_next - sigma
             v_n = model_output
-            
+
             curr_order = min(len(self.prev_sigmas), 3) # Max order 3 here
-            
+
             if curr_order == 1:
                  x_next = sample + dt * v_n
             elif curr_order == 2:
@@ -300,7 +300,8 @@ class RESUnifiedScheduler(SchedulerMixin, ConfigMixin):
                  x_next = sample + dt * (c0 * v_n + c1 * self.model_outputs[-2])
 
             self._step_index += 1
-            if not return_dict: return (x_next,)
+            if not return_dict:
+                return (x_next,)
             return SchedulerOutput(prev_sample=x_next)
 
         # GET COEFFICIENTS

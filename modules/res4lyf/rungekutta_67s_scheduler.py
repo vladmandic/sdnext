@@ -94,7 +94,6 @@ class RungeKutta67Scheduler(SchedulerMixin, ConfigMixin):
             timesteps = np.maximum(timesteps, 0)
 
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
-        log_sigmas_all = np.log(sigmas)
         if self.config.interpolation_type == "linear":
             sigmas = np.interp(timesteps, np.arange(len(sigmas)), sigmas)
         elif self.config.interpolation_type == "log_linear":
@@ -145,7 +144,6 @@ class RungeKutta67Scheduler(SchedulerMixin, ConfigMixin):
                 sigmas_expanded.append(s_curr + c * (s_next - s_curr))
         sigmas_expanded.append(0.0)
 
-        log_sigmas_all = np.log(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
         sigmas_interpolated = np.array(sigmas_expanded)
         # Linear remapping for Flow Matching
         timesteps_expanded = sigmas_interpolated * self.config.num_train_timesteps
@@ -229,7 +227,7 @@ class RungeKutta67Scheduler(SchedulerMixin, ConfigMixin):
 
         # derivative = (x - x0) / sigma
         derivative = (sample - denoised) / sigma_t if sigma_t > 1e-6 else torch.zeros_like(sample)
-        
+
         if self.sample_at_start_of_step is None:
             if stage_index > 0:
                 # Mid-step fallback for Img2Img/Inpainting

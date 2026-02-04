@@ -65,7 +65,7 @@ class Script(scripts_manager.Script):
             if repo_id is not None:
                 import huggingface_hub as hf
                 repo_file = hf.snapshot_download(repo_id, cache_dir=shared.opts.hfcache_dir)
-                from scripts.lbm import get_model
+                from scripts.lbm import get_model # pylint: disable=no-name-in-module
                 model = get_model(
                     repo_file,
                     save_dir=None,
@@ -85,7 +85,7 @@ class Script(scripts_manager.Script):
         install('lpips')
 
         from torchvision.transforms import ToPILImage, ToTensor
-        from scripts.lbm import get_model, extract_object, resize_and_center_crop
+        from scripts.lbm import get_model, extract_object, resize_and_center_crop # pylint: disable=no-name-in-module
 
         ori_h_bg, ori_w_bg = fg_image.size
         ar_bg = ori_h_bg / ori_w_bg

@@ -190,6 +190,8 @@ class LangevinDynamicsScheduler(SchedulerMixin, ConfigMixin):
     def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
+        if self.config.prediction_type == "flow_prediction":
+            return sample
         sigma = self.sigmas[self._step_index]
         sample = sample / ((sigma**2 + 1) ** 0.5)
         return sample

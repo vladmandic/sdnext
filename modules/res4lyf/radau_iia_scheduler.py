@@ -155,7 +155,6 @@ class RadauIIAScheduler(SchedulerMixin, ConfigMixin):
             raise ValueError(f"timestep_spacing must be one of 'linspace', 'leading', or 'trailing', got {self.config.timestep_spacing}")
 
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
-        log_sigmas_all = np.log(sigmas)
         if self.config.interpolation_type == "linear":
             sigmas = np.interp(timesteps, np.arange(len(sigmas)), sigmas)
         elif self.config.interpolation_type == "log_linear":
@@ -247,11 +246,7 @@ class RadauIIAScheduler(SchedulerMixin, ConfigMixin):
         sigma = self.sigmas[self._step_index]
         return sample / ((sigma**2 + 1) ** 0.5)
 
-    def index_for_timestep(self, timestep, schedule_timesteps=None):
-        from .scheduler_utils import index_for_timestep
-        if schedule_timesteps is None:
-            schedule_timesteps = self.timesteps
-        return index_for_timestep(timestep, schedule_timesteps)
+
 
     def _init_step_index(self, timestep):
         if self._step_index is None:
@@ -309,7 +304,7 @@ class RadauIIAScheduler(SchedulerMixin, ConfigMixin):
 
         # derivative = (x - x0) / sigma
         derivative = (sample - denoised) / sigma_t if sigma_t > 1e-6 else torch.zeros_like(sample)
-        
+
         if self.sample_at_start_of_step is None:
             if stage_index > 0:
                 # Mid-step fallback for Img2Img/Inpainting

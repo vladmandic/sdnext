@@ -20,7 +20,7 @@ def get_def_integral_3(a, b, c, start, end, d):
 
 class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
     """
-    DEISMultistepScheduler: Diffusion Explicit Iterative Sampler with high-order multistep.
+    RESDEISMultistepScheduler: Diffusion Explicit Iterative Sampler with high-order multistep.
     Adapted from the RES4LYF repository.
     """
 
@@ -82,6 +82,7 @@ class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         self._step_index = None
         self._sigmas_cpu = None
         self.all_coeffs = []
+        self.prev_sigmas = []
 
     def set_timesteps(
         self,
@@ -109,7 +110,7 @@ class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             timesteps = np.maximum(timesteps, 0)
 
         sigmas = np.array(((1 - self.alphas_cumprod) / self.alphas_cumprod) ** 0.5)
-        log_sigmas_all = np.log(sigmas)
+        log_sigmas_all = np.log(np.maximum(sigmas, 1e-10))
         if self.config.interpolation_type == "linear":
             sigmas = np.interp(timesteps, np.arange(len(sigmas)), sigmas)
         elif self.config.interpolation_type == "log_linear":
@@ -244,7 +245,7 @@ class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
 
         step_index = self._step_index
         sigma_t = self.sigmas[step_index]
-        
+
         # RECONSTRUCT X0 (Matching PEC pattern)
         if self.config.prediction_type == "epsilon":
             denoised = sample - sigma_t * model_output
@@ -262,13 +263,10 @@ class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
         if self.config.clip_sample:
             denoised = denoised.clamp(-self.config.sample_max_value, self.config.sample_max_value)
 
-        # DEIS coefficients are precomputed in set_timesteps
-        coeffs = self.all_coeffs[step_index]
-
         if self.config.prediction_type == "flow_prediction":
             # Variable Step Adams-Bashforth for Flow Matching
             self.model_outputs.append(model_output)
-            self.prev_sigmas.append(sigma_t) 
+            self.prev_sigmas.append(sigma_t)
             # Note: deis uses hist_samples for x0? I'll use model_outputs for v.
             if len(self.model_outputs) > 4:
                  self.model_outputs.pop(0)
@@ -276,7 +274,7 @@ class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
 
             dt = self.sigmas[step_index + 1] - sigma_t
             v_n = model_output
-            
+
             curr_order = min(len(self.prev_sigmas), 3)
 
             if curr_order == 1:
@@ -301,11 +299,11 @@ class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
                  x_next = sample + dt * (c0 * v_n + c1 * self.model_outputs[-2])
 
             self._step_index += 1
-            if not return_dict: return (x_next,)
+            if not return_dict:
+                return (x_next,)
             return SchedulerOutput(prev_sample=x_next)
 
         sigma_next = self.sigmas[step_index + 1]
-        alpha_next = 1 / (sigma_next**2 + 1) ** 0.5 if sigma_next > 0 else 1.0
 
         if self.config.solver_order == 1:
             # 1st order step (Euler) in x-space
@@ -316,11 +314,11 @@ class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
             h = -torch.log(sigma_next / sigma_t) if sigma_t > 0 and sigma_next > 0 else torch.zeros_like(sigma_t)
             phi = Phi(h, [0], getattr(self.config, "use_analytic_solution", True))
             phi_1 = phi(1)
-            
+
             # History of denoised samples
             x0s = [denoised] + self.model_outputs[::-1]
             orders = min(len(x0s), self.config.solver_order)
-            
+
             # Force Order 1 at the end of schedule
             if self.num_inference_steps is not None and step_index >= self.num_inference_steps - 3:
                 res = phi_1 * denoised
@@ -334,7 +332,7 @@ class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
                 h_prev = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 1] + 1e-9))
                 h_prev_t = torch.tensor(h_prev, device=sample.device, dtype=sample.dtype)
                 r = h_prev_t / (h + 1e-9)
-                
+
                 # Hard Restart
                 if r < 0.5 or r > 2.0:
                     res = phi_1 * denoised
@@ -355,7 +353,7 @@ class RESDEISMultistepScheduler(SchedulerMixin, ConfigMixin):
                 h_p2 = -np.log(self._sigmas_cpu[step_index] / (self._sigmas_cpu[step_index - 2] + 1e-9))
                 r1 = torch.tensor(h_p1, device=sample.device, dtype=sample.dtype) / (h + 1e-9)
                 r2 = torch.tensor(h_p2, device=sample.device, dtype=sample.dtype) / (h + 1e-9)
-                
+
                 # Hard Restart
                 if r1 < 0.5 or r1 > 2.0 or r2 < 0.5 or r2 > 2.0:
                     res = phi_1 * denoised

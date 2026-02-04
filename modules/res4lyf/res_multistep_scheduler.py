@@ -250,7 +250,7 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
             # Variable Step Adams-Bashforth for Flow Matching
             dt = sigma_next - sigma
             v_n = model_output
-            
+
             if curr_order == 1:
                  x_next = sample + dt * v_n
             elif curr_order == 2:
@@ -258,7 +258,7 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
                  sigma_prev = self.prev_sigmas[-2]
                  dt_prev = sigma - sigma_prev
                  r = dt / dt_prev if abs(dt_prev) > 1e-8 else 0.0
-                 
+
                  # Stability check
                  if dt_prev == 0 or r < -0.9 or r > 2.0: # Fallback
                      x_next = sample + dt * v_n
@@ -267,17 +267,6 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
                      c1 = -0.5 * r
                      x_next = sample + dt * (c0 * v_n + c1 * self.model_outputs[-2])
             elif curr_order >= 3:
-                 # AB3
-                 sigma_prev1 = self.prev_sigmas[-2]
-                 sigma_prev2 = self.prev_sigmas[-3]
-                 dt_prev1 = sigma - sigma_prev1
-                 dt_prev2 = self.prev_sigmas[-2] - sigma_prev2 # This is not strictly correct for variable steps logic used in ABNorsett, assume simplified AB3 for now or stick to AB2
-                 # Actually, let's reuse ABNorsett logic
-                 # x_{n+1} = x_n + dt * [ (1 + r1/2 + r2/2 + ... ) ] - Too complex to derive on the fly?
-                 # Let's use AB2 for stability as requested "Variable Step Adams-Bashforth like ABNorsett"
-                 # ABNorsett implemented AB2. I will downgrade order 3 to AB2 for safety or implement AB3 if confident.
-                 # Let's stick to AB2 for Flow as it is robust enough.
-                 
                  # Re-implement AB2 logic
                  sigma_prev = self.prev_sigmas[-2]
                  dt_prev = sigma - sigma_prev
@@ -291,7 +280,7 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
                 self.model_outputs.pop(0)
                 self.x0_outputs.pop(0)
                 self.prev_sigmas.pop(0)
-            
+
             if not return_dict:
                 return (x_next,)
             return SchedulerOutput(prev_sample=x_next)
@@ -301,25 +290,16 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         phi_1 = phi(1)
 
         if variant.startswith("res"):
-            # REiS Multistep logic
-            c2, c3 = 0.5, 1.0
-
             # Force Order 1 at the end of schedule
             if self.num_inference_steps is not None and self._step_index >= self.num_inference_steps - 3:
                  curr_order = 1
 
             if curr_order == 2:
                 h_prev = -torch.log(self.prev_sigmas[-1] / self.prev_sigmas[-2])
-                c2 = (-h_prev / h).item() if h > 0 else 0.5
-                rk_type = "res_2s"
             elif curr_order == 3:
-                h_prev1 = -torch.log(self.prev_sigmas[-1] / self.prev_sigmas[-2])
-                h_prev2 = -torch.log(self.prev_sigmas[-1] / self.prev_sigmas[-3])
-                c2 = (-h_prev1 / h).item() if h > 0 else 0.5
-                c3 = (-h_prev2 / h).item() if h > 0 else 1.0
-                rk_type = "res_3s"
+                pass
             else:
-                rk_type = "res_1s"
+                pass
 
             # Exponential Integrator Update in x-space
             if curr_order == 1:
@@ -329,21 +309,21 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
                 # b2 = -phi_2 / r = -phi(2) / (h_prev/h)
                 # Here we use: b2 = phi(2) / ((-h_prev / h) + 1e-9)
                 # Since (-h_prev/h) is negative (-r), this gives correct negative sign for b2.
-                
+
                 # Stability check
                 r_check = h_prev / (h + 1e-9) # This is effectively -r if using h_prev definition above?
                 # Wait, h_prev above is -log(). Positive.
                 # h is positive.
                 # So h_prev/h is positive. defined as r in other files.
                 # But here code uses -h_prev / h in denominator.
-                
+
                 # Stability check
                 r_check = h_prev / (h + 1e-9)
-                
+
                 # Hard Restart
                 if r_check < 0.5 or r_check > 2.0:
                     res = phi_1 * x0
-                else: 
+                else:
                     b2 = phi(2) / ((-h_prev / h) + 1e-9)
                     b1 = phi_1 - b2
                     res = b1 * self.x0_outputs[-1] + b2 * self.x0_outputs[-2]
@@ -353,7 +333,7 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
                 h_p2 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-3] + 1e-9))
                 r1 = h_p1 / (h + 1e-9)
                 r2 = h_p2 / (h + 1e-9)
-                
+
                 if r1 < 0.5 or r1 > 2.0 or r2 < 0.5 or r2 > 2.0:
                      res = phi_1 * x0
                 else:
@@ -429,13 +409,14 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
         elif order == 2:
             h_prev = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-2] + 1e-9))
             r = h_prev / (h + 1e-9)
-            
+
             # Correct Adams-Bashforth-like coefficients for Exponential Integrators
-            
+
             # Hard Restart for stability
             if r < 0.5 or r > 2.0:
                  return [[phi_1]]
 
+            phi_2 = phi(2)
             b2 = -phi_2 / (r + 1e-9)
             b1 = phi_1 - b2
             return [[b1, b2]]
@@ -444,13 +425,13 @@ class RESMultistepScheduler(SchedulerMixin, ConfigMixin):
             h_prev2 = -torch.log(self.prev_sigmas[-1] / (self.prev_sigmas[-3] + 1e-9))
             r1 = h_prev1 / (h + 1e-9)
             r2 = h_prev2 / (h + 1e-9)
-            
+
             if r1 < 0.5 or r1 > 2.0 or r2 < 0.5 or r2 > 2.0:
                 return [[phi_1]]
-            
+
             phi_2 = phi(2)
             phi_3 = phi(3)
-            
+
             # Generalized AB3 for Exponential Integrators (Varying steps)
             denom = r2 - r1 + 1e-9
             b3 = (phi_3 + r1 * phi_2) / (r2 * denom)
