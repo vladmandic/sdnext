@@ -65,7 +65,7 @@ def select_from_weighted_list(inner: str) -> str:
                 w = float(wstr.strip())
             except Exception:
                 w = 0.0
-            w = max(0.0, min(1.0, w))
+            w = max(0.0, w)
             weighted[name] = weighted.get(name, 0.0) + w
         else:
             unweighted.append(p)
@@ -78,34 +78,32 @@ def select_from_weighted_list(inner: str) -> str:
         if not keys:
             return ''
         if W == 0.0:
-            return random.choice(keys)
+            return ''
         if abs(W - 1.0) > 1e-12:
-            for k in weighted:
-                weighted[k] = weighted[k] / W
+            weighted = {k: v / W for k, v in weighted.items()}
     else: # mix of weighted and unweighted
-        if W >= 1.0: # weighted probabilities consume whole mass -> normalize them, unweighted get 0
-            for k in weighted:
-                weighted[k] = weighted[k] / W
+        if W > 1.0: # weighted probabilities consume whole mass -> normalize them, unweighted get 0
+            for name in unweighted:
+                weighted[name] = weighted.get(name, 0.0) + 1.0
+            total_before = sum(weighted.values())
+            if total_before > 0.0:
+                weighted = {k: v / total_before for k, v in weighted.items()}
         else:
             remaining = 1.0 - W
-            per = remaining / U
+            per = remaining / U if U > 0 else 0.0
             for name in unweighted:
                 weighted[name] = weighted.get(name, 0.0) + per
 
     items = list(weighted.items())
     if not items:
         return ''
+
     total = sum(v for _, v in items)
     if total <= 0.0:
         return items[0][0]
 
-    r = random.random() * total
-    cum = 0.0
-    for name, prob in items:
-        cum += prob
-        if r <= cum:
-            return name
-    return items[-1][0]
+    names, weights = zip(*items)
+    return random.choices(names, weights=weights, k=1)[0]
 
 
 def apply_curly_braces_to_prompt(prompt, seed=-1):
