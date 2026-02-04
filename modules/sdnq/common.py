@@ -315,7 +315,7 @@ module_skip_keys_dict = {
         {}
     ],
     "CosmosTransformer3DModel": [
-        ["patch_embed", "time_embed", "norm_out", "proj_out", "crossattn_proj"],
+        ["transformer_blocks.0.norm*", "patch_embed", "time_embed", "norm_out", "proj_out", "crossattn_proj"],
         {}
     ],
     "GlmImageTransformer2DModel": [
