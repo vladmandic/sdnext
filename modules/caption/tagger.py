@@ -6,9 +6,34 @@ from modules import shared
 DEEPBOORU_MODEL = "DeepBooru"
 
 
+def save_tags_to_file(img_path, tags_str: str, save_append: bool) -> bool:
+    """Save tags to a text file alongside the image.
+
+    Args:
+        img_path: Path to the image file (pathlib.Path)
+        tags_str: Tags string to save
+        save_append: If True, append to existing file; otherwise overwrite
+
+    Returns:
+        True if save succeeded, False otherwise
+    """
+    try:
+        txt_path = img_path.with_suffix('.txt')
+        if save_append and txt_path.exists():
+            with open(txt_path, 'a', encoding='utf-8') as f:
+                f.write(f', {tags_str}')
+        else:
+            with open(txt_path, 'w', encoding='utf-8') as f:
+                f.write(tags_str)
+        return True
+    except Exception as e:
+        shared.log.error(f'Tagger batch: failed to save file="{img_path}" error={e}')
+        return False
+
+
 def get_models() -> list:
     """Return combined list: DeepBooru + WaifuDiffusion models."""
-    from modules.interrogate import waifudiffusion
+    from modules.caption import waifudiffusion
     return [DEEPBOORU_MODEL] + waifudiffusion.get_models()
 
 
@@ -25,16 +50,16 @@ def is_deepbooru(model_name: str) -> bool:
 def load_model(model_name: str) -> bool:
     """Load appropriate backend."""
     if is_deepbooru(model_name):
-        from modules.interrogate import deepbooru
+        from modules.caption import deepbooru
         return deepbooru.load_model()
     else:
-        from modules.interrogate import waifudiffusion
+        from modules.caption import waifudiffusion
         return waifudiffusion.load_model(model_name)
 
 
 def unload_model():
     """Unload both backends to ensure memory is freed."""
-    from modules.interrogate import deepbooru, waifudiffusion
+    from modules.caption import deepbooru, waifudiffusion
     deepbooru.unload_model()
     waifudiffusion.unload_model()
 
@@ -54,10 +79,10 @@ def tag(image, model_name: str = None, **kwargs) -> str:
         model_name = shared.opts.waifudiffusion_model
 
     if is_deepbooru(model_name):
-        from modules.interrogate import deepbooru
+        from modules.caption import deepbooru
         return deepbooru.tag(image, **kwargs)
     else:
-        from modules.interrogate import waifudiffusion
+        from modules.caption import waifudiffusion
         return waifudiffusion.tag(image, model_name=model_name, **kwargs)
 
 
@@ -72,8 +97,8 @@ def batch(model_name: str, **kwargs) -> str:
         Combined tag results
     """
     if is_deepbooru(model_name):
-        from modules.interrogate import deepbooru
+        from modules.caption import deepbooru
         return deepbooru.batch(model_name=model_name, **kwargs)
     else:
-        from modules.interrogate import waifudiffusion
+        from modules.caption import waifudiffusion
         return waifudiffusion.batch(model_name=model_name, **kwargs)

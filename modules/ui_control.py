@@ -198,7 +198,7 @@ def create_ui(_blocks: gr.Blocks=None):
                             else:
                                 input_image = gr.HTML(value='<h1 style="text-align:center;color:var(--color-error);margin:1em;">Kanvas not initialized</h1>', elem_id='kanvas-container')
                             input_changed = gr.Button('Kanvas change', elem_id='kanvas-change-button', visible=False)
-                            btn_interrogate = ui_sections.create_interrogate_button('control', what='input')
+                            btn_caption = ui_sections.create_caption_button('control', what='input')
                         with gr.Tab('Video', id='in-video') as tab_video:
                             input_video = gr.Video(label="Input", show_label=False, interactive=True, height=gr_height, elem_classes=['control-image'])
                         with gr.Tab('Batch', id='in-batch') as tab_batch:
@@ -275,8 +275,8 @@ def create_ui(_blocks: gr.Blocks=None):
             )
 
             input_changed.click(**select_dict)
-            btn_interrogate.click(**select_dict) # need to fetch input first
-            btn_interrogate.click(fn=helpers.interrogate, inputs=[], outputs=[prompt])
+            btn_caption.click(**select_dict) # need to fetch input first
+            btn_caption.click(fn=helpers.caption, inputs=[], outputs=[prompt])
 
             prompt.submit(**select_dict)
             negative.submit(**select_dict)

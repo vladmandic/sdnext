@@ -4,14 +4,16 @@
 # Architecture: Mixture-of-Experts (9B total params, 2B active)
 import os
 import re
+import hashlib
+import collections
 import transformers
 from PIL import Image
 from modules import shared, devices, sd_models
-from modules.interrogate import vqa_detection
+from modules.caption import vqa_detection
 
 
 # Debug logging - function-based to avoid circular import
-debug_enabled = os.environ.get('SD_INTERROGATE_DEBUG', None) is not None
+debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
 
 def debug(*args, **kwargs):
     if debug_enabled:
@@ -21,7 +23,8 @@ def debug(*args, **kwargs):
 # Global state
 moondream3_model = None
 loaded = None
-image_cache = {}  # Cache encoded images for reuse
+image_cache: collections.OrderedDict = collections.OrderedDict()  # Bounded LRU cache for encoded image tensors
+IMAGE_CACHE_MAX = 8
 
 
 def get_settings():
@@ -30,12 +33,12 @@ def get_settings():
     Moondream 3 accepts: temperature, top_p, max_tokens
     """
     settings = {}
-    if shared.opts.interrogate_vlm_max_length > 0:
-        settings['max_tokens'] = shared.opts.interrogate_vlm_max_length
-    if shared.opts.interrogate_vlm_temperature > 0:
-        settings['temperature'] = shared.opts.interrogate_vlm_temperature
-    if shared.opts.interrogate_vlm_top_p > 0:
-        settings['top_p'] = shared.opts.interrogate_vlm_top_p
+    if shared.opts.caption_vlm_max_length > 0:
+        settings['max_tokens'] = shared.opts.caption_vlm_max_length
+    if shared.opts.caption_vlm_temperature > 0:
+        settings['temperature'] = shared.opts.caption_vlm_temperature
+    if shared.opts.caption_vlm_top_p > 0:
+        settings['top_p'] = shared.opts.caption_vlm_top_p
     return settings if settings else None
 
 
@@ -44,17 +47,18 @@ def load_model(repo: str):
     global moondream3_model, loaded  # pylint: disable=global-statement
 
     if moondream3_model is None or loaded != repo:
-        shared.log.debug(f'Interrogate load: vlm="{repo}"')
+        shared.log.debug(f'Caption load: vlm="{repo}"')
         moondream3_model = None
 
         moondream3_model = transformers.AutoModelForCausalLM.from_pretrained(
             repo,
             trust_remote_code=True,
             torch_dtype=devices.dtype,
+            use_safetensors=True,
             cache_dir=shared.opts.hfcache_dir,
         )
 
-        moondream3_model.eval()
+        moondream3_model.eval()  # required: trust_remote_code model
 
         # Initialize KV caches before moving to device (they're lazy by default)
         if hasattr(moondream3_model, '_setup_caches'):
@@ -72,6 +76,14 @@ def load_model(repo: str):
     return moondream3_model
 
 
+def _image_hash(image: Image.Image) -> str:
+    """Content-based hash for cache keys using image size and pixel sample."""
+    h = hashlib.md5(usedforsecurity=False)
+    h.update(f"{image.size}{image.mode}".encode())
+    h.update(image.tobytes()[:4096])
+    return h.hexdigest()
+
+
 def encode_image(image: Image.Image, cache_key: str = None):
     """
     Encode image for reuse across multiple queries.
@@ -84,7 +96,8 @@ def encode_image(image: Image.Image, cache_key: str = None):
         Encoded image tensor
     """
     if cache_key and cache_key in image_cache:
-        debug(f'VQA interrogate: handler=moondream3 using cached encoding for cache_key="{cache_key}"')
+        image_cache.move_to_end(cache_key)  # LRU: mark as recently used
+        debug(f'VQA caption: handler=moondream3 using cached encoding for cache_key="{cache_key}"')
         return image_cache[cache_key]
 
     model = load_model(loaded)
@@ -94,7 +107,10 @@ def encode_image(image: Image.Image, cache_key: str = None):
 
     if cache_key:
         image_cache[cache_key] = encoded
-        debug(f'VQA interrogate: handler=moondream3 cached encoding cache_key="{cache_key}" cache_size={len(image_cache)}')
+        while len(image_cache) > IMAGE_CACHE_MAX:
+            evicted_key, _ = image_cache.popitem(last=False)  # Evict oldest
+            debug(f'VQA caption: handler=moondream3 evicted cache_key="{evicted_key}" cache_size={len(image_cache)}')
+        debug(f'VQA caption: handler=moondream3 cached encoding cache_key="{cache_key}" cache_size={len(image_cache)}')
 
     return encoded
 
@@ -129,11 +145,11 @@ def query(image: Image.Image, question: str, repo: str, stream: bool = False,
     if max_tokens is not None:
         settings['max_tokens'] = max_tokens
 
-    debug(f'VQA interrogate: handler=moondream3 method=query question="{question}" stream={stream} settings={settings}')
+    debug(f'VQA caption: handler=moondream3 method=query question="{question}" stream={stream} settings={settings}')
 
     # Use cached encoding if requested
     if use_cache:
-        cache_key = f"{id(image)}_{question}"
+        cache_key = f"{_image_hash(image)}_{question}"
         image_input = encode_image(image, cache_key)
     else:
         image_input = image
@@ -150,12 +166,12 @@ def query(image: Image.Image, question: str, repo: str, stream: bool = False,
     # Log response structure (for non-streaming)
     if not stream:
         if isinstance(response, dict):
-            debug(f'VQA interrogate: handler=moondream3 response_type=dict keys={list(response.keys())}')
+            debug(f'VQA caption: handler=moondream3 response_type=dict keys={list(response.keys())}')
             if 'reasoning' in response:
                 reasoning_text = response['reasoning'].get('text', '')[:100] + '...' if len(response['reasoning'].get('text', '')) > 100 else response['reasoning'].get('text', '')
-                debug(f'VQA interrogate: handler=moondream3 reasoning="{reasoning_text}"')
+                debug(f'VQA caption: handler=moondream3 reasoning="{reasoning_text}"')
             if 'answer' in response:
-                debug(f'VQA interrogate: handler=moondream3 answer="{response["answer"]}"')
+                debug(f'VQA caption: handler=moondream3 answer="{response["answer"]}"')
 
     return response
 
@@ -188,7 +204,7 @@ def caption(image: Image.Image, repo: str, length: str = 'normal', stream: bool 
     if max_tokens is not None:
         settings['max_tokens'] = max_tokens
 
-    debug(f'VQA interrogate: handler=moondream3 method=caption length={length} stream={stream} settings={settings}')
+    debug(f'VQA caption: handler=moondream3 method=caption length={length} stream={stream} settings={settings}')
 
     with devices.inference_context():
         response = model.caption(
@@ -200,7 +216,7 @@ def caption(image: Image.Image, repo: str, length: str = 'normal', stream: bool 
 
     # Log response structure (for non-streaming)
     if not stream and isinstance(response, dict):
-        debug(f'VQA interrogate: handler=moondream3 response_type=dict keys={list(response.keys())}')
+        debug(f'VQA caption: handler=moondream3 response_type=dict keys={list(response.keys())}')
 
     return response
 
@@ -220,21 +236,21 @@ def point(image: Image.Image, object_name: str, repo: str):
     """
     model = load_model(repo)
 
-    debug(f'VQA interrogate: handler=moondream3 method=point object_name="{object_name}"')
+    debug(f'VQA caption: handler=moondream3 method=point object_name="{object_name}"')
 
     with devices.inference_context():
         result = model.point(image, object_name)
 
-    debug(f'VQA interrogate: handler=moondream3 point_raw_result="{result}" type={type(result)}')
+    debug(f'VQA caption: handler=moondream3 point_raw_result="{result}" type={type(result)}')
     if isinstance(result, dict):
-        debug(f'VQA interrogate: handler=moondream3 point_raw_result_keys={list(result.keys())}')
+        debug(f'VQA caption: handler=moondream3 point_raw_result_keys={list(result.keys())}')
 
     points = vqa_detection.parse_points(result)
     if points:
-        debug(f'VQA interrogate: handler=moondream3 point_result={len(points)} points found')
+        debug(f'VQA caption: handler=moondream3 point_result={len(points)} points found')
         return points
 
-    debug('VQA interrogate: handler=moondream3 point_result=not found')
+    debug('VQA caption: handler=moondream3 point_result=not found')
     return None
 
 
@@ -257,17 +273,17 @@ def detect(image: Image.Image, object_name: str, repo: str, max_objects: int = 1
     """
     model = load_model(repo)
 
-    debug(f'VQA interrogate: handler=moondream3 method=detect object_name="{object_name}" max_objects={max_objects}')
+    debug(f'VQA caption: handler=moondream3 method=detect object_name="{object_name}" max_objects={max_objects}')
 
     with devices.inference_context():
         result = model.detect(image, object_name)
 
-    debug(f'VQA interrogate: handler=moondream3 detect_raw_result="{result}" type={type(result)}')
+    debug(f'VQA caption: handler=moondream3 detect_raw_result="{result}" type={type(result)}')
     if isinstance(result, dict):
-        debug(f'VQA interrogate: handler=moondream3 detect_raw_result_keys={list(result.keys())}')
+        debug(f'VQA caption: handler=moondream3 detect_raw_result_keys={list(result.keys())}')
 
     detections = vqa_detection.parse_detections(result, object_name, max_objects)
-    debug(f'VQA interrogate: handler=moondream3 detect_result={len(detections)} objects found')
+    debug(f'VQA caption: handler=moondream3 detect_result={len(detections)} objects found')
     return detections
 
 
@@ -291,7 +307,7 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
         Response string (detection data stored on VQA singleton instance.last_detection_data)
         (or generator if stream=True for query/caption modes)
     """
-    debug(f'VQA interrogate: handler=moondream3 model_name="{model_name}" repo="{repo}" question="{question}" image_size={image.size if image else None} mode={mode} stream={stream}')
+    debug(f'VQA caption: handler=moondream3 model_name="{model_name}" repo="{repo}" question="{question}" image_size={image.size if image else None} mode={mode} stream={stream}')
 
     # Clean question
     question = question.replace('<', '').replace('>', '').replace('_', ' ') if question else ''
@@ -331,7 +347,7 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
         else:
             mode = 'query'
 
-    debug(f'VQA interrogate: handler=moondream3 mode_selected={mode}')
+    debug(f'VQA caption: handler=moondream3 mode_selected={mode}')
 
     # Dispatch to appropriate method
     try:
@@ -348,10 +364,10 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
                 object_name = re.sub(rf'\b{phrase}\b', '', object_name, flags=re.IGNORECASE)
             object_name = re.sub(r'[?.!,]', '', object_name).strip()
             object_name = re.sub(r'^\s*the\s+', '', object_name, flags=re.IGNORECASE)
-            debug(f'VQA interrogate: handler=moondream3 point_extracted_object="{object_name}"')
+            debug(f'VQA caption: handler=moondream3 point_extracted_object="{object_name}"')
             result = point(image, object_name, repo)
             if result:
-                from modules.interrogate import vqa
+                from modules.caption import vqa
                 vqa.get_instance().last_detection_data = {'points': result}
                 return vqa_detection.format_points_text(result)
             return "Object not found"
@@ -364,11 +380,11 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
             object_name = re.sub(r'^\s*the\s+', '', object_name, flags=re.IGNORECASE)
             if ' and ' in object_name.lower():
                 object_name = re.split(r'\s+and\s+', object_name, flags=re.IGNORECASE)[0].strip()
-            debug(f'VQA interrogate: handler=moondream3 detect_extracted_object="{object_name}"')
+            debug(f'VQA caption: handler=moondream3 detect_extracted_object="{object_name}"')
 
             results = detect(image, object_name, repo, max_objects=kwargs.get('max_objects', 10))
             if results:
-                from modules.interrogate import vqa
+                from modules.caption import vqa
                 vqa.get_instance().last_detection_data = {'detections': results}
                 return vqa_detection.format_detections_text(results)
             return "No objects detected"
@@ -377,20 +393,23 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
                 question = "Describe this image."
             response = query(image, question, repo, stream=stream, use_cache=use_cache, reasoning=thinking_mode)
 
-        debug(f'VQA interrogate: handler=moondream3 response_before_clean="{response}"')
+        debug(f'VQA caption: handler=moondream3 response_before_clean="{response}"')
         return response
 
     except Exception as e:
         from modules import errors
         errors.display(e, 'Moondream3')
         return f"Error: {str(e)}"
+    finally:
+        if shared.opts.caption_offload and moondream3_model is not None:
+            sd_models.move_model(moondream3_model, devices.cpu, force=True)
 
 
 def clear_cache():
     """Clear image encoding cache."""
     cache_size = len(image_cache)
     image_cache.clear()
-    debug(f'VQA interrogate: handler=moondream3 cleared image cache cache_size_was={cache_size}')
+    debug(f'VQA caption: handler=moondream3 cleared image cache cache_size_was={cache_size}')
     shared.log.debug(f'Moondream3: Cleared image cache ({cache_size} entries)')
 
 

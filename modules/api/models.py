@@ -361,32 +361,9 @@ class ResStatus(BaseModel):
     eta: Optional[float] = Field(default=None, title="ETA in secs")
     progress: Optional[float] = Field(default=None, title="Progress", description="The progress with a range of 0 to 1")
 
-class ReqInterrogate(BaseModel):
-    image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
-    clip_model: str = Field(default="", title="CLiP Model", description="The interrogate model used.")
-    blip_model: str = Field(default="", title="BLiP Model", description="The interrogate model used.")
-
-InterrogateRequest = ReqInterrogate # alias for backwards compatibility
-
-class ResInterrogate(BaseModel):
-    caption: Optional[str] = Field(default=None, title="Caption", description="The generated caption for the image.")
-    medium: Optional[str] = Field(default=None, title="Medium", description="Image medium.")
-    artist: Optional[str] = Field(default=None, title="Medium", description="Image artist.")
-    movement: Optional[str] = Field(default=None, title="Medium", description="Image movement.")
-    trending: Optional[str] = Field(default=None, title="Medium", description="Image trending.")
-    flavor: Optional[str] = Field(default=None, title="Medium", description="Image flavor.")
-
-class ReqVQA(BaseModel):
-    image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
-    model: str = Field(default="Microsoft Florence 2 Base", title="Model", description="The interrogate model used.")
-    question: str = Field(default="describe the image", title="Question", description="Question to ask the model.")
-    system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System prompt", description="Prompt to shape how the model interprets and responds to user prompts.")
-
 class ReqLatentHistory(BaseModel):
     name: str = Field(title="Name", description="Name of the history item to select")
 
-class ResVQA(BaseModel):
-    answer: Optional[str] = Field(default=None, title="Answer", description="The generated answer for the image.")
 
 class ResTrain(BaseModel):
     info: str = Field(title="Train info", description="Response string from train embedding task.")

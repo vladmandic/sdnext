@@ -1,5 +1,4 @@
 from typing import Optional
-from fastapi.exceptions import HTTPException
 from modules import shared
 from modules.api import models, helpers
 
@@ -70,42 +69,6 @@ def get_extra_networks(page: Optional[str] = None, name: Optional[str] = None, f
                 "preview": item.get('preview', None),
             })
     return res
-
-def get_interrogate():
-    from modules.interrogate.openclip import refresh_clip_models
-    return ['deepdanbooru'] + refresh_clip_models()
-
-def post_interrogate(req: models.ReqInterrogate):
-    if req.image is None or len(req.image) < 64:
-        raise HTTPException(status_code=404, detail="Image not found")
-    image = helpers.decode_base64_to_image(req.image)
-    image = image.convert('RGB')
-    if req.model == "deepdanbooru" or req.model == 'deepbooru':
-        from modules.interrogate import deepbooru
-        caption = deepbooru.model.tag(image)
-        return models.ResInterrogate(caption=caption)
-    else:
-        from modules.interrogate.openclip import interrogate_image, analyze_image, refresh_clip_models
-        if req.model not in refresh_clip_models():
-            raise HTTPException(status_code=404, detail="Model not found")
-        try:
-            caption = interrogate_image(image, clip_model=req.clip_model, blip_model=req.blip_model, mode=req.mode)
-        except Exception as e:
-            caption = str(e)
-        if not req.analyze:
-            return models.ResInterrogate(caption=caption)
-        else:
-            medium, artist, movement, trending, flavor, _ = analyze_image(image, clip_model=req.clip_model, blip_model=req.blip_model)
-            return models.ResInterrogate(caption=caption, medium=medium, artist=artist, movement=movement, trending=trending, flavor=flavor)
-
-def post_vqa(req: models.ReqVQA):
-    if req.image is None or len(req.image) < 64:
-        raise HTTPException(status_code=404, detail="Image not found")
-    image = helpers.decode_base64_to_image(req.image)
-    image = image.convert('RGB')
-    from modules.interrogate import vqa
-    answer = vqa.interrogate(req.question, req.system, '', image, req.model)
-    return models.ResVQA(answer=answer)
 
 def post_unload_checkpoint():
     from modules import sd_models

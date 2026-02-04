@@ -74,6 +74,156 @@ def parse_detections(result, label: str, max_objects: int = None) -> list:
     return detections
 
 
+def parse_florence_detections(response, image_size: tuple = None) -> list:
+    """Parse Florence-style detection response into standard detection format.
+
+    Florence returns detection data in two possible formats:
+
+    1. Dict format (from post_process_generation with proper task):
+        {'<OD>': {'bboxes': [[x1,y1,x2,y2], ...], 'labels': ['label1', ...]}}
+
+    2. String format (raw output):
+        'label1<loc_x1><loc_y1><loc_x2><loc_y2>label2<loc_x1>...'
+
+    Coordinates are on a 1000-point scale (0-999).
+
+    Args:
+        response: Florence model response (dict or string)
+        image_size: Optional (width, height) - not used for normalization since
+                   Florence coordinates are already normalized to 1000-point scale
+
+    Returns:
+        List of {'bbox': [x1,y1,x2,y2], 'label': str, 'confidence': float}
+        with coordinates normalized to 0-1 range.
+    """
+    import re
+    detections = []
+
+    def parse_loc_string(text: str) -> list:
+        """Parse string format: label<loc_X><loc_Y><loc_X2><loc_Y2>..."""
+        results = []
+        # Pattern matches: label followed by 4 <loc_N> tags
+        pattern = r'([^<]+)<loc_(\d+)><loc_(\d+)><loc_(\d+)><loc_(\d+)>'
+        matches = re.findall(pattern, text)
+
+        for match in matches:
+            label, x1, y1, x2, y2 = match
+            # Florence uses 0-999 scale, normalize to 0-1
+            results.append({
+                'bbox': [
+                    max(0.0, min(1.0, float(x1) / 1000)),
+                    max(0.0, min(1.0, float(y1) / 1000)),
+                    max(0.0, min(1.0, float(x2) / 1000)),
+                    max(0.0, min(1.0, float(y2) / 1000))
+                ],
+                'label': label.strip(),
+                'confidence': 1.0
+            })
+        return results
+
+    # Handle string format directly
+    if isinstance(response, str):
+        return parse_loc_string(response)
+
+    # Handle dict format
+    if not isinstance(response, dict):
+        return detections
+
+    # Check for 'task' key containing loc string (common Florence output format)
+    if 'task' in response and isinstance(response['task'], str):
+        detections = parse_loc_string(response['task'])
+        if detections:
+            return detections
+
+    # Florence detection task keys
+    detection_keys = ['<OD>', '<DENSE_REGION_CAPTION>', '<REGION_PROPOSAL>', '<OPEN_VOCABULARY_DETECTION>']
+
+    for key in detection_keys:
+        if key in response:
+            data = response[key]
+            if isinstance(data, dict) and 'bboxes' in data:
+                bboxes = data.get('bboxes', [])
+                labels = data.get('labels', [])
+
+                # Florence uses 1000x1000 coordinate space by default
+                scale_w = image_size[0] if image_size else 1000
+                scale_h = image_size[1] if image_size else 1000
+
+                for i, bbox in enumerate(bboxes):
+                    if len(bbox) >= 4:
+                        # Normalize to 0-1 range
+                        x1 = max(0.0, min(1.0, float(bbox[0]) / scale_w))
+                        y1 = max(0.0, min(1.0, float(bbox[1]) / scale_h))
+                        x2 = max(0.0, min(1.0, float(bbox[2]) / scale_w))
+                        y2 = max(0.0, min(1.0, float(bbox[3]) / scale_h))
+
+                        label = labels[i] if i < len(labels) else 'object'
+                        detections.append({
+                            'bbox': [x1, y1, x2, y2],
+                            'label': label,
+                            'confidence': 1.0
+                        })
+            break  # Only process first matching key
+
+    return detections
+
+
+def format_florence_response(response: dict) -> str:
+    """Format Florence response dict as human-readable text.
+
+    Handles various Florence task outputs and formats them appropriately.
+
+    Args:
+        response: Florence processor post_process_generation output
+
+    Returns:
+        Formatted string representation
+    """
+    if not isinstance(response, dict):
+        return str(response)
+
+    # Caption tasks - return text directly
+    caption_keys = ['<CAPTION>', '<DETAILED_CAPTION>', '<MORE_DETAILED_CAPTION>']
+    for key in caption_keys:
+        if key in response:
+            return str(response[key])
+
+    # Detection tasks - format with label<loc> syntax for raw output
+    detection_keys = ['<OD>', '<DENSE_REGION_CAPTION>', '<REGION_PROPOSAL>']
+    for key in detection_keys:
+        if key in response:
+            data = response[key]
+            if isinstance(data, dict) and 'bboxes' in data:
+                bboxes = data.get('bboxes', [])
+                labels = data.get('labels', [])
+                parts = []
+                for i, bbox in enumerate(bboxes):
+                    label = labels[i] if i < len(labels) else 'object'
+                    if len(bbox) >= 4:
+                        parts.append(f"{label}<loc_{int(bbox[0])}><loc_{int(bbox[1])}><loc_{int(bbox[2])}><loc_{int(bbox[3])}>")
+                return ''.join(parts) if parts else 'No objects detected'
+
+    # OCR task
+    if '<OCR>' in response:
+        return str(response['<OCR>'])
+
+    # OCR with regions
+    if '<OCR_WITH_REGION>' in response:
+        data = response['<OCR_WITH_REGION>']
+        if isinstance(data, dict) and 'labels' in data:
+            return ' '.join(data['labels'])
+
+    # Tags
+    if '<GENERATE_TAGS>' in response:
+        return str(response['<GENERATE_TAGS>'])
+
+    # Fallback - check for 'task' key or stringify
+    if 'task' in response:
+        return str(response['task'])
+
+    return str(response)
+
+
 def format_points_text(points: list) -> str:
     """Format point coordinates as human-readable text.
 

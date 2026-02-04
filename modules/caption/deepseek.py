@@ -32,13 +32,16 @@ def load(repo: str):
     """Load DeepSeek VL2 model (experimental)."""
     global vl_gpt, vl_chat_processor, loaded_repo  # pylint: disable=global-statement
     if not shared.cmd_opts.experimental:
-        shared.log.error(f'Interrogate: type=vlm model="DeepSeek VL2" repo="{repo}" is experimental-only')
+        shared.log.error(f'Caption: type=vlm model="DeepSeek VL2" repo="{repo}" is experimental-only')
         return False
     folder = os.path.join(paths.script_path, 'repositories', 'deepseek-vl2')
     if not os.path.exists(folder):
-        shared.log.error(f'Interrogate: type=vlm model="DeepSeek VL2" repo="{repo}" deepseek-vl2 repo not found')
+        shared.log.error(f'Caption: type=vlm model="DeepSeek VL2" repo="{repo}" deepseek-vl2 repo not found')
         return False
     if vl_gpt is None or loaded_repo != repo:
+        # GLOBAL PATCHES (not reverted): DeepSeek VL2 requires attrdict and uses LlamaFlashAttention2
+        # which may not be available. These patches persist for the lifetime of the process and may
+        # affect other Llama model loads (forcing standard attention instead of flash attention).
         sys.modules['attrdict'] = fake_attrdict
         from transformers.models.llama import modeling_llama
         modeling_llama.LlamaFlashAttention2 = modeling_llama.LlamaAttention
@@ -48,12 +51,14 @@ def load(repo: str):
         vl_gpt = AutoModelForCausalLM.from_pretrained(
             repo,
             trust_remote_code=True,
+            use_safetensors=True,
             cache_dir=shared.opts.hfcache_dir,
         )
         vl_gpt.to(dtype=devices.dtype)
-        vl_gpt.eval()
+        vl_gpt.eval()  # required: trust_remote_code model
         loaded_repo = repo
-        shared.log.info(f'Interrogate: type=vlm model="DeepSeek VL2" repo="{repo}"')
+        devices.torch_gc()
+        shared.log.info(f'Caption: type=vlm model="DeepSeek VL2" repo="{repo}"')
     sd_models.move_model(vl_gpt, devices.device)
     return True
 
@@ -73,7 +78,6 @@ def unload():
 
 
 def predict(question, image, repo):
-    global vl_gpt # pylint: disable=global-statement
     if not load(repo):
         return ''
 
@@ -97,7 +101,6 @@ def predict(question, image, repo):
     ).to(device=devices.device, dtype=devices.dtype)
     inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
     inputs_embeds = inputs_embeds.to(device=devices.device, dtype=devices.dtype)
-    sd_models.move_model(vl_gpt, devices.device)
     with devices.inference_context():
         outputs = vl_gpt.language.generate(
             inputs_embeds=inputs_embeds,
@@ -105,12 +108,11 @@ def predict(question, image, repo):
             pad_token_id=vl_chat_processor.tokenizer.eos_token_id,
             bos_token_id=vl_chat_processor.tokenizer.bos_token_id,
             eos_token_id=vl_chat_processor.tokenizer.eos_token_id,
-            max_new_tokens=shared.opts.interrogate_vlm_max_length,
+            max_new_tokens=shared.opts.caption_vlm_max_length,
             do_sample=False,
             use_cache=True
         )
-    vl_gpt = vl_gpt.to(devices.cpu)
+    if shared.opts.caption_offload:
+        sd_models.move_model(vl_gpt, devices.cpu, force=True)
     answer = vl_chat_processor.tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)
-    print('inputs', prepare_inputs['sft_format'][0])
-    print('answer', answer)
     return answer

@@ -658,3 +658,30 @@ def same_device(d1, d2):
     if torch.device(d1).type != torch.device(d2).type:
         return False
     return normalize_device(d1) == normalize_device(d2)
+
+
+@contextlib.contextmanager
+def bypass_sdpa_hijacks():
+    """
+    Context manager to temporarily restore the original SDPA during code execution.
+    Use when a model is incompatible with SageAttention or other SDPA hijacks.
+    """
+    if sdpa_original is None:
+        # No hijacks applied, nothing to bypass
+        yield
+        return
+
+    # Save current (hijacked) SDPA
+    current_sdpa = torch.nn.functional.scaled_dot_product_attention
+
+    try:
+        # Restore original SDPA
+        torch.nn.functional.scaled_dot_product_attention = sdpa_original
+        if debug:
+            log.debug('SDPA bypass: restored original attention')
+        yield
+    finally:
+        # Restore hijacked SDPA
+        torch.nn.functional.scaled_dot_product_attention = current_sdpa
+        if debug:
+            log.debug('SDPA bypass: restored hijacked attention')

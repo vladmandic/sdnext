@@ -1,7 +1,7 @@
 import gradio as gr
 from modules import shared, modelloader, ui_symbols, ui_common, sd_samplers
 from modules.ui_components import ToolButton
-from modules.interrogate import interrogate
+from modules.caption import caption
 
 
 def create_toprow(is_img2img: bool = False, id_part: str = None, generate_visible: bool = True, negative_visible: bool = True, reprocess_visible: bool = True):
@@ -91,11 +91,11 @@ def create_resolution_inputs(tab, default_width=1024, default_height=1024):
     return width, height
 
 
-def create_interrogate_button(tab: str, inputs: list = None, outputs: str = None, what: str = ''):
-    button_interrogate = gr.Button(ui_symbols.interrogate, elem_id=f"{tab}_interrogate_{what}", elem_classes=['interrogate'])
+def create_caption_button(tab: str, inputs: list = None, outputs: str = None, what: str = ''):
+    button_caption = gr.Button(ui_symbols.caption, elem_id=f"{tab}_caption_{what}", elem_classes=['caption'])
     if inputs is not None and outputs is not None:
-        button_interrogate.click(fn=interrogate.interrogate, inputs=inputs, outputs=[outputs])
-    return button_interrogate
+        button_caption.click(fn=caption.caption, inputs=inputs, outputs=[outputs])
+    return button_caption
 
 
 def create_batch_inputs(tab, accordion=True):

@@ -22,8 +22,8 @@ from modules.memstats import memory_stats, ram_stats # pylint: disable=unused-im
 
 log.debug('Initializing: pipelines')
 from modules import shared_items
-from modules.interrogate.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models
-from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system, vlm_default
+from modules.caption.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models
+from modules.caption.vqa import vlm_models, vlm_prompts, vlm_system, vlm_default
 
 
 if TYPE_CHECKING:
@@ -207,7 +207,7 @@ options_templates.update(options_section(('offload', "Model Offloading"), {
     "offload_sep": OptionInfo("<h2>Model Offloading</h2>", "", gr.HTML),
     "diffusers_offload_mode": OptionInfo(startup_offload_mode, "Model offload mode", gr.Radio, {"choices": ['none', 'balanced', 'group', 'model', 'sequential']}),
     "diffusers_offload_nonblocking": OptionInfo(False, "Non-blocking move operations"),
-    "interrogate_offload": OptionInfo(True, "Offload caption models"),
+    "caption_offload": OptionInfo(True, "Offload caption models"),
     "offload_balanced_sep": OptionInfo("<h2>Balanced Offload</h2>", "", gr.HTML),
     "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward"),
     "diffusers_offload_streams": OptionInfo(False, "Offload using streams"),
@@ -742,31 +742,30 @@ options_templates.update(options_section(('hidden_options', "Hidden options"), {
     "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint", gr.Textbox, {"visible": False}),
     "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
 
-    # Caption/Interrogate settings (controlled via Caption Tab UI)
-    "interrogate_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["VLM", "OpenCLiP", "Tagger"], "visible": False}),
+    # Caption settings (controlled via Caption Tab UI)
+    "caption_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["VLM", "OpenCLiP", "Tagger"], "visible": False}),
     "tagger_show_scores": OptionInfo(False, "Tagger: show confidence scores in results", gr.Checkbox, {"visible": False}),
-    "interrogate_clip_model": OptionInfo("ViT-L-14/openai", "OpenCLiP: default model", gr.Dropdown, lambda: {"choices": get_clip_models(), "visible": False}, refresh=refresh_clip_models),
-    "interrogate_clip_mode": OptionInfo(caption_types[0], "OpenCLiP: default mode", gr.Dropdown, {"choices": caption_types, "visible": False}),
-    "interrogate_blip_model": OptionInfo(list(caption_models)[0], "OpenCLiP: default captioner", gr.Dropdown, {"choices": list(caption_models), "visible": False}),
-    "interrogate_clip_num_beams": OptionInfo(1, "OpenCLiP: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
-    "interrogate_clip_min_length": OptionInfo(32, "OpenCLiP: min length", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1, "visible": False}),
-    "interrogate_clip_max_length": OptionInfo(74, "OpenCLiP: max length", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1, "visible": False}),
-    "interrogate_clip_min_flavors": OptionInfo(2, "OpenCLiP: min flavors", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1, "visible": False}),
-    "interrogate_clip_max_flavors": OptionInfo(16, "OpenCLiP: max flavors", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1, "visible": False}),
-    "interrogate_clip_flavor_count": OptionInfo(1024, "OpenCLiP: intermediate flavors", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 64, "visible": False}),
-    "interrogate_clip_chunk_size": OptionInfo(1024, "OpenCLiP: chunk size", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 64, "visible": False}),
-    "interrogate_vlm_model": OptionInfo(vlm_default, "VLM: default model", gr.Dropdown, {"choices": list(vlm_models), "visible": False}),
-    "interrogate_vlm_prompt": OptionInfo(vlm_prompts[2], "VLM: default prompt", DropdownEditable, {"choices": vlm_prompts, "visible": False}),
-    "interrogate_vlm_system": OptionInfo(vlm_system, "VLM: system prompt", gr.Textbox, {"visible": False}),
-    "interrogate_vlm_num_beams": OptionInfo(1, "VLM: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
-    "interrogate_vlm_max_length": OptionInfo(512, "VLM: max length", gr.Slider, {"minimum": 1, "maximum": 4096, "step": 1, "visible": False}),
-    "interrogate_vlm_do_sample": OptionInfo(True, "VLM: use sample method", gr.Checkbox, {"visible": False}),
-    "interrogate_vlm_temperature": OptionInfo(0.8, "VLM: temperature", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
-    "interrogate_vlm_top_k": OptionInfo(0, "VLM: top-k", gr.Slider, {"minimum": 0, "maximum": 99, "step": 1, "visible": False}),
-    "interrogate_vlm_top_p": OptionInfo(0, "VLM: top-p", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
-    "interrogate_vlm_keep_prefill": OptionInfo(False, "VLM: keep prefill text in output", gr.Checkbox, {"visible": False}),
-    "interrogate_vlm_keep_thinking": OptionInfo(False, "VLM: keep reasoning trace in output", gr.Checkbox, {"visible": False}),
-    "interrogate_vlm_thinking_mode": OptionInfo(False, "VLM: enable thinking/reasoning mode", gr.Checkbox, {"visible": False}),
+    "caption_openclip_model": OptionInfo("ViT-L-14/openai", "OpenCLiP: default model", gr.Dropdown, lambda: {"choices": get_clip_models(), "visible": False}, refresh=refresh_clip_models),
+    "caption_openclip_mode": OptionInfo(caption_types[0], "OpenCLiP: default mode", gr.Dropdown, {"choices": caption_types, "visible": False}),
+    "caption_openclip_blip_model": OptionInfo(list(caption_models)[0], "OpenCLiP: default captioner", gr.Dropdown, {"choices": list(caption_models), "visible": False}),
+    "caption_openclip_num_beams": OptionInfo(1, "OpenCLiP: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
+    "caption_openclip_max_length": OptionInfo(74, "OpenCLiP: max length", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1, "visible": False}),
+    "caption_openclip_min_flavors": OptionInfo(2, "OpenCLiP: min flavors", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1, "visible": False}),
+    "caption_openclip_max_flavors": OptionInfo(16, "OpenCLiP: max flavors", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1, "visible": False}),
+    "caption_openclip_flavor_count": OptionInfo(1024, "OpenCLiP: intermediate flavors", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 64, "visible": False}),
+    "caption_openclip_chunk_size": OptionInfo(1024, "OpenCLiP: chunk size", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 64, "visible": False}),
+    "caption_vlm_model": OptionInfo(vlm_default, "VLM: default model", gr.Dropdown, {"choices": list(vlm_models), "visible": False}),
+    "caption_vlm_prompt": OptionInfo(vlm_prompts[2], "VLM: default prompt", DropdownEditable, {"choices": vlm_prompts, "visible": False}),
+    "caption_vlm_system": OptionInfo(vlm_system, "VLM: system prompt", gr.Textbox, {"visible": False}),
+    "caption_vlm_num_beams": OptionInfo(1, "VLM: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
+    "caption_vlm_max_length": OptionInfo(512, "VLM: max length", gr.Slider, {"minimum": 1, "maximum": 4096, "step": 1, "visible": False}),
+    "caption_vlm_do_sample": OptionInfo(True, "VLM: use sample method", gr.Checkbox, {"visible": False}),
+    "caption_vlm_temperature": OptionInfo(0.8, "VLM: temperature", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
+    "caption_vlm_top_k": OptionInfo(0, "VLM: top-k", gr.Slider, {"minimum": 0, "maximum": 99, "step": 1, "visible": False}),
+    "caption_vlm_top_p": OptionInfo(0, "VLM: top-p", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
+    "caption_vlm_keep_prefill": OptionInfo(False, "VLM: keep prefill text in output", gr.Checkbox, {"visible": False}),
+    "caption_vlm_keep_thinking": OptionInfo(False, "VLM: keep reasoning trace in output", gr.Checkbox, {"visible": False}),
+    "caption_vlm_thinking_mode": OptionInfo(False, "VLM: enable thinking/reasoning mode", gr.Checkbox, {"visible": False}),
     "tagger_threshold": OptionInfo(0.50, "Tagger: general tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
     "tagger_include_rating": OptionInfo(False, "Tagger: include rating tags", gr.Checkbox, {"visible": False}),
     "tagger_max_tags": OptionInfo(74, "Tagger: max tags", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1, "visible": False}),

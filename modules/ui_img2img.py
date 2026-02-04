@@ -3,21 +3,21 @@ from modules import timer, shared, call_queue, generation_parameters_copypaste, 
 from modules import ui_common, ui_sections, ui_guidance
 
 
-def process_interrogate(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_singles):
+def process_caption(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_singles):
     import os
     from PIL import Image
-    from modules.interrogate.interrogate import interrogate
+    from modules.caption.caption import caption
     mode = int(mode)
     if mode in {0, 1, 3, 4}:
-        return [interrogate(ii_singles[mode]), None]
+        return [caption(ii_singles[mode]), None]
     if mode == 2:
-        return [interrogate(ii_singles[mode]["image"]), None]
+        return [caption(ii_singles[mode]["image"]), None]
     if mode == 5:
         if len(ii_input_files) > 0:
             images = [f.name for f in ii_input_files]
         else:
             if not os.path.isdir(ii_input_dir):
-                shared.log.error(f"Interrogate: Input directory not found: {ii_input_dir}")
+                shared.log.error(f"Caption: Input directory not found: {ii_input_dir}")
                 return [gr.update(), None]
             images = os.listdir(ii_input_dir)
         if ii_output_dir != "":
@@ -28,7 +28,7 @@ def process_interrogate(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_s
             img = Image.open(image)
             filename = os.path.basename(image)
             left, _ = os.path.splitext(filename)
-            print(interrogate(img), file=open(os.path.join(ii_output_dir, f"{left}.txt"), 'a', encoding='utf-8')) # pylint: disable=consider-using-with
+            print(caption(img), file=open(os.path.join(ii_output_dir, f"{left}.txt"), 'a', encoding='utf-8')) # pylint: disable=consider-using-with
     return [gr.update(), None]
 
 
@@ -70,7 +70,7 @@ def create_ui():
                     state = gr.Textbox(value='', visible=False)
                     with gr.TabItem('Image', id='img2img_image', elem_id="img2img_image_tab") as tab_img2img:
                         img_init = gr.Image(label="", elem_id="img2img_image", show_label=False, interactive=True, type="pil", tool="editor", image_mode="RGBA", height=512)
-                        interrogate_btn = ui_sections.create_interrogate_button(tab='img2img', what='input')
+                        caption_btn = ui_sections.create_caption_button(tab='img2img', what='input')
                         add_copy_image_controls('img2img', img_init)
 
                     with gr.TabItem('Inpaint', id='img2img_inpaint', elem_id="img2img_inpaint_tab") as tab_inpaint:
@@ -215,7 +215,7 @@ def create_ui():
             img2img_reprocess[2].click(**img2img_dict) # hires-refine
             img2img_reprocess[3].click(**img2img_dict) # face-restore
 
-            interrogate_args = dict(
+            caption_args = dict(
                 _js="get_img2img_tab_index",
                 inputs=[
                     dummy_component,
@@ -227,7 +227,7 @@ def create_ui():
                 ],
                 outputs=[img2img_prompt, dummy_component],
             )
-            interrogate_btn.click(fn=lambda *args: process_interrogate(*args), **interrogate_args)
+            caption_btn.click(fn=lambda *args: process_caption(*args), **caption_args)
 
             img2img_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_prompt], outputs=[img2img_token_counter], show_progress = 'hidden')
             img2img_negative_token_button.click(fn=call_queue.wrap_queued_call(ui_common.update_token_counter), inputs=[img2img_negative_prompt], outputs=[img2img_negative_token_counter], show_progress = 'hidden')

@@ -10,8 +10,8 @@ from PIL import Image
 from modules import shared, devices, errors
 
 
-# Debug logging - enable with SD_INTERROGATE_DEBUG environment variable
-debug_enabled = os.environ.get('SD_INTERROGATE_DEBUG', None) is not None
+# Debug logging - enable with SD_CAPTION_DEBUG environment variable
+debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
 debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
 
 re_special = re.compile(r'([\\()])')
@@ -337,29 +337,6 @@ class WaifuDiffusionTagger:
 tagger = WaifuDiffusionTagger()
 
 
-def _save_tags_to_file(img_path, tags_str: str, save_append: bool) -> bool:
-    """Save tags to a text file with error handling.
-
-    Args:
-        img_path: Path to the image file
-        tags_str: Tags string to save
-        save_append: If True, append to existing file; otherwise overwrite
-
-    Returns:
-        True if save succeeded, False otherwise
-    """
-    try:
-        txt_path = img_path.with_suffix('.txt')
-        if save_append and txt_path.exists():
-            with open(txt_path, 'a', encoding='utf-8') as f:
-                f.write(f', {tags_str}')
-        else:
-            with open(txt_path, 'w', encoding='utf-8') as f:
-                f.write(tags_str)
-        return True
-    except Exception as e:
-        shared.log.error(f'WaifuDiffusion batch: failed to save file="{img_path}" error={e}')
-        return False
 
 
 def get_models() -> list:
@@ -405,7 +382,7 @@ def tag(image: Image.Image, model_name: str = None, **kwargs) -> str:
         result = tagger.predict(image, **kwargs)
         shared.log.debug(f'WaifuDiffusion: complete time={time.time()-t0:.2f} tags={len(result.split(", ")) if result else 0}')
         # Offload model if setting enabled
-        if shared.opts.interrogate_offload:
+        if shared.opts.caption_offload:
             tagger.unload()
     except Exception as e:
         result = f"Exception {type(e)}"
@@ -529,7 +506,8 @@ def batch(
                 tags_str = tagger.predict(image, **kwargs)
 
                 if save_output:
-                    _save_tags_to_file(img_path, tags_str, save_append)
+                    from modules.caption import tagger as tagger_module
+                    tagger_module.save_tags_to_file(img_path, tags_str, save_append)
 
                 results.append(f'{img_path.name}: {tags_str[:100]}...' if len(tags_str) > 100 else f'{img_path.name}: {tags_str}')
 

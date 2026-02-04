@@ -11,7 +11,6 @@ class LegacyOption(OptionInfo):
 
 legacy_options = options_section(('legacy_options', "Legacy options"), {
     "ldsr_models_path": LegacyOption(os.path.join(paths.models_path, 'LDSR'), "LDSR Path", gr.Textbox, { "visible": False}),
-    "interrogate_clip_skip_categories": LegacyOption(["artists", "movements", "flavors"], "CLiP: skip categories", gr.CheckboxGroup, {"choices": [], "visible":False}),
     "lora_legacy": LegacyOption(False, "LoRA load using legacy method", gr.Checkbox, {"visible": False}),
     "lora_preferred_name": LegacyOption("filename", "LoRA preferred name", gr.Radio, {"choices": ["filename", "alias"], "visible": False}),
     "img2img_extra_noise": LegacyOption(0.0, "Extra noise multiplier for img2img", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
@@ -43,7 +42,6 @@ legacy_options = options_section(('legacy_options', "Legacy options"), {
     "grid_save_to_dirs": LegacyOption(False, "Save grids to a subdirectory", gr.Checkbox, {"visible": False}),
     "hypernetwork_enabled": LegacyOption(False, "Enable Hypernetwork support", gr.Checkbox, {"visible": False}),
     "img2img_fix_steps": LegacyOption(False, "For image processing do exact number of steps as specified", gr.Checkbox, { "visible": False }),
-    "interrogate_clip_dict_limit": LegacyOption(2048, "CLIP: maximum number of lines in text file", gr.Slider, { "visible": False }),
     "keyedit_delimiters": LegacyOption(r".,\/!?%^*;:{}=`~()", "Ctrl+up/down word delimiters", gr.Textbox, { "visible": False }),
     "keyedit_precision_attention": LegacyOption(0.1, "Ctrl+up/down precision when editing (attention:1.1)", gr.Slider, {"minimum": 0.01, "maximum": 0.2, "step": 0.001, "visible": False}),
     "keyedit_precision_extra": LegacyOption(0.05, "Ctrl+up/down precision when editing <extra networks:0.9>", gr.Slider, {"minimum": 0.01, "maximum": 0.2, "step": 0.001, "visible": False}),

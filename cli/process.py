@@ -151,12 +151,12 @@ def upscale_restore_image(res: Result, upscale: bool = False, restore: bool = Fa
     return res
 
 
-def interrogate_image(res: Result, tag: str = None):
+def caption_image(res: Result, tag: str = None):
     caption = ''
     tags = []
-    for model in options.process.interrogate_model:
+    for model in options.process.caption_model:
         json = util.Map({ 'image': encode(res.image), 'model': model })
-        result = sdapi.postsync('/sdapi/v1/interrogate', json)
+        result = sdapi.postsync('/sdapi/v1/caption', json)
         if model == 'clip':
             caption = result.caption if 'caption' in result else ''
             caption = caption.split(',')[0].replace(' a ', ' ').strip()
@@ -176,7 +176,7 @@ def interrogate_image(res: Result, tag: str = None):
         tags = tags[:options.process.tag_limit]
     res.caption = caption
     res.tags = tags
-    res.ops.append('interrogate')
+    res.ops.append('caption')
     return res
 
 
@@ -314,8 +314,8 @@ def file(filename: str, folder: str, tag = None, requested = []):
         res.message = f'low resolution: [{res.image.width}, {res.image.height}]'
         res.image = None
         return res
-    if 'interrogate' in requested:
-        res = interrogate_image(res, tag)
+    if 'caption' in requested:
+        res = caption_image(res, tag)
     if 'resize' in requested:
         res = resize_image(res)
     if 'square' in requested:
