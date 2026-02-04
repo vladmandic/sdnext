@@ -1202,6 +1202,8 @@ def set_diffuser_pipe(pipe, new_pipe_type):
             else:
                 shared.log.warning(f'Pipeline class change failed: type={new_pipe_type} pipeline={cls}')
                 return pipe
+            if new_pipe is not None and hasattr(pipe, 'device'):
+                move_model(new_pipe, pipe.device)
         except Exception as e: # pylint: disable=unused-variable
             fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
             shared.log.trace(f"Pipeline class change requested: target={new_pipe_type} fn={fn}") # pylint: disable=protected-access
@@ -1245,6 +1247,10 @@ def set_diffuser_pipe(pipe, new_pipe_type):
 
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     shared.log.debug(f"Pipeline class change: original={cls} target={new_pipe.__class__.__name__} device={pipe.device} fn={fn}") # pylint: disable=protected-access
+    
+    if shared.opts.diffusers_offload_mode == 'balanced':
+        new_pipe = apply_balanced_offload(new_pipe, force=True)
+    
     pipe = new_pipe
     return pipe
 
