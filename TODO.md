@@ -41,6 +41,12 @@
 
 TODO: Investigate which models are diffusers-compatible and prioritize!
 
+### Upscalers
+
+- [HQX](https://github.com/uier/py-hqx/blob/main/hqx.py)
+- [DCCI](https://every-algorithm.github.io/2024/11/06/directional_cubic_convolution_interpolation.html)
+- [ICBI](https://github.com/gyfastas/ICBI/blob/master/icbi.py)
+
 ### Image-Base
 - [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma): Image and video generator for creative effects and professional filters
 - [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance): Pixel-space model eliminating VAE artifacts for high visual fidelity

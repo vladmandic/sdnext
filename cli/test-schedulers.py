@@ -252,11 +252,9 @@ def run_tests():
         DCSolverMultistepScheduler,
         BDIA_DDIMScheduler
     ]
-    for cls in extended_schedulers:
-        # Most of these support standard prediction types, try epsilon as default safest bet
-        # Some might be flow matching specific, we can try robust default list
-        # For now, just test default init
-        test_scheduler(cls.__name__, cls, {"prediction_type": "epsilon"})
+    for prediction_type in ["epsilon", "v_prediction", "sample"]:
+        for cls in extended_schedulers:
+            test_scheduler(cls.__name__, cls, {"prediction_type": prediction_type})
 
 if __name__ == "__main__":
     run_tests()
