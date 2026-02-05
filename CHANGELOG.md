@@ -3,7 +3,7 @@
 ## Update for 2026-02-05
 
 - **UI**
-  - ui: add CTD-NT64Light theme, thanks @resonantsky  
+  - ui: add *CTD-NT64Light* and *CTD-NT64Dark* themes, thanks @resonantsky  
 - **Internal**
   - refactor: reorganize `cli` scripts  
 - **Upscalers**
