@@ -4,11 +4,12 @@
 
 Bugfix refresh
 
-- add metadata restore to always-on scripts  
-- improve wildcard weights parsing, thanks @Tillerz  
-- fix `anima` model detection  
-- reorganize `cli` scripts  
+- fix: add metadata restore to always-on scripts  
+- fix: improve wildcard weights parsing, thanks @Tillerz  
+- fix: `anima` model detection  
+- refactor: reorganize `cli` scripts  
 - upscalers: hqx, icbi  
+- ui: add CTD-NT64Light theme, thanks @resonantsky  
 
 ## Update for 2026-02-04
 
