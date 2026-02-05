@@ -1,3 +1,4 @@
+import time
 from PIL import Image
 from modules.upscaler import Upscaler, UpscalerData
 
@@ -30,12 +31,15 @@ class UpscalerAsymmetricVAE(Upscaler):
             self.vae.eval()
             self.selected = selected_model
             shared.log.debug(f'Upscaler load: selected="{self.selected}" vae="{repo_id}"')
+        t0 = time.time()
         img = img.resize((8 * (img.width // 8), 8 * (img.height // 8)), resample=Image.Resampling.LANCZOS).convert('RGB')
         tensor = (F.pil_to_tensor(img).unsqueeze(0) / 255.0).to(device=devices.device, dtype=devices.dtype)
         self.vae = self.vae.to(device=devices.device)
         tensor = self.vae(tensor).sample
         upscaled = F.to_pil_image(tensor.squeeze().clamp(0.0, 1.0).float().cpu())
         self.vae = self.vae.to(device=devices.cpu)
+        t1 = time.time()
+        shared.log.debug(f'Upscale: name="{self.selected}" input={img.size} output={upscaled.size} time={t1 - t0:.2f}')
         return upscaled
 
 
@@ -73,6 +77,7 @@ class UpscalerWanUpscale(Upscaler):
             self.selected = selected_model
             shared.log.debug(f'Upscaler load: selected="{self.selected}" encode="{repo_encode}" decode="{repo_decode}"')
 
+        t0 = time.time()
         self.vae_encode = self.vae_encode.to(device=devices.device)
         tensor = (F.pil_to_tensor(img).unsqueeze(0).unsqueeze(2) / 255.0).to(device=devices.device, dtype=devices.dtype)
         tensor = self.vae_encode.encode(tensor).latent_dist.mode()
@@ -84,4 +89,6 @@ class UpscalerWanUpscale(Upscaler):
         self.vae_decode.to(device=devices.cpu)
 
         upscaled = F.to_pil_image(tensor.squeeze().clamp(0.0, 1.0).float().cpu())
+        t1 = time.time()
+        shared.log.debug(f'Upscale: name="{self.selected}" input={img.size} output={upscaled.size} time={t1 - t0:.2f}')
         return upscaled

@@ -39,6 +39,7 @@ import modules.upscaler
 import modules.upscaler_simple
 import modules.upscaler_vae
 import modules.upscaler_algo
+import modules.upscaler_spandrel
 import modules.extra_networks
 import modules.ui_extra_networks
 import modules.textual_inversion

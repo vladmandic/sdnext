@@ -2,14 +2,19 @@
 
 ## Update for 2026-02-05
 
-Bugfix refresh
-
-- fix: add metadata restore to always-on scripts  
-- fix: improve wildcard weights parsing, thanks @Tillerz  
-- fix: `anima` model detection  
-- refactor: reorganize `cli` scripts  
-- upscalers: hqx, icbi  
-- ui: add CTD-NT64Light theme, thanks @resonantsky  
+- **UI**
+  - ui: add CTD-NT64Light theme, thanks @resonantsky  
+- **Internal**
+  - refactor: reorganize `cli` scripts  
+- **Upscalers**
+  - add support for [spandrel](https://github.com/chaiNNer-org/spandrel)  
+    upscaling engine with suport for new upscaling families  
+  - add two new ai upscalers: *RealPLKSR NomosWebPhoto* and *RealPLKSR AnimeSharpV2*  
+  - add two new interpolation methods: *HQX* and *ICB*  
+- **Fixes**
+  - fix: add metadata restore to always-on scripts  
+  - fix: improve wildcard weights parsing, thanks @Tillerz  
+  - fix: `anima` model detection  
 
 ## Update for 2026-02-04
 
