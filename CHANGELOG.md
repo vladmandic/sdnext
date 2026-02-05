@@ -5,6 +5,7 @@
 - **UI**
   - ui: add *CTD-NT64Light* and *CTD-NT64Dark* themes, thanks @resonantsky  
 - **Internal**
+  - pipelines: add ZImageInpaint, thanks @CalamitousFelicitousness  
   - refactor: reorganize `cli` scripts  
 - **Upscalers**
   - add support for [spandrel](https://github.com/chaiNNer-org/spandrel)  
