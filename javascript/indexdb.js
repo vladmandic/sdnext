@@ -178,13 +178,6 @@ async function idbCount(folder) {
  */
 async function idbFolderCleanup(keepSet, folder, signal) {
   if (!db) return null;
-  if (!(keepSet instanceof Set)) {
-    throw new TypeError('IndexedDB cleaning function must be given a Set() of the current gallery hashes');
-  }
-  if (typeof folder !== 'string') {
-    throw new Error('IndexedDB cleaning function must be told the current active folder');
-  }
-
   let removals = new Set(await idbGetAllKeys('folder', folder));
   removals = removals.difference(keepSet); // Don't need to keep full set in memory
   const totalRemovals = removals.size;
