@@ -7,6 +7,7 @@ Bugfix refresh
 - add metadata restore to always-on scripts
 - improve wildcard weights parsing, thanks @Tillerz
 - fix `anima` model detection
+- reorganize `cli` scripts
 
 ## Update for 2026-02-04
 

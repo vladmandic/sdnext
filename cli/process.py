@@ -12,7 +12,7 @@ from scipy.stats import beta
 
 import util
 import sdapi
-import options
+import process_options as options
 
 face_model = None
 body_model = None
@@ -42,7 +42,7 @@ def detect_blur(image: Image):
     cx, cy = image.size[0] // 2, image.size[1] // 2
     fft = np.fft.fft2(bw)
     fftShift = np.fft.fftshift(fft)
-    fftShift[cy - options.process.blur_samplesize: cy + options.process.blur_samplesize, cx - options.process.blur_samplesize: cx + options.process.blur_samplesize] = 0
+    fftShift[cy - options.process.blur_samplesize: cy + options.process.blur_samplesize, cx - options.process.blur_samplesize: cx + options.process.blur_samplesize] = 0 # pylint: disable=unsupported-assignment-operation
     fftShift = np.fft.ifftshift(fftShift)
     recon = np.fft.ifft2(fftShift)
     magnitude = np.log(np.abs(recon))

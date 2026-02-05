@@ -221,7 +221,7 @@ def args(): # parse cmd arguments
     global random # pylint: disable=global-statement
     parser = argparse.ArgumentParser(description = 'sd pipeline')
     parser.add_argument('--config', type = str, default = 'generate.json', required = False, help = 'configuration file')
-    parser.add_argument('--random', type = str, default = 'random.json', required = False, help = 'prompt file with randomized sections')
+    parser.add_argument('--random', type = str, default = 'generate-random.json', required = False, help = 'prompt file with randomized sections')
     parser.add_argument('--max', type = int, default = 1, required = False, help = 'maximum number of generated images')
     parser.add_argument('--prompt', type = str, default = 'dynamic', required = False, help = 'prompt')
     parser.add_argument('--negative', type = str, default = 'dynamic', required = False, help = 'negative prompt')
