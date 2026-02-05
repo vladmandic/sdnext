@@ -144,10 +144,10 @@ async function idbGetAllKeys(index = null, query = null) {
 /**
  * Get the number of entries in the IndexedDB thumbnail cache.
  * @global
- * @param {?string} folder - If specified, get the count for this gallery folder. Otherwise get the total count.
+ * @param {IDBValidKey | IDBKeyRange | undefined} folder - If specified, get the count for this gallery folder. Otherwise get the total count.
  * @returns {Promise<number>}
  */
-async function idbCount(folder = null) {
+async function idbCount(folder) {
   if (!db) return null;
   return new Promise((resolve, reject) => {
     try {
@@ -173,7 +173,7 @@ async function idbCount(folder = null) {
  * Cleanup function for IndexedDB thumbnail cache.
  * @global
  * @param {Set<string>} keepSet - Set containing the hashes of the current files in the folder
- * @param {string} folder - Folder name/path
+ * @param {IDBValidKey | IDBKeyRange} folder - Folder name/path or range
  * @param {AbortSignal} signal - Signal from the AbortController for thumbCacheCleanup()
  */
 async function idbFolderCleanup(keepSet, folder, signal) {
