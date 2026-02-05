@@ -136,7 +136,7 @@ def hqx( img: cv2.Mat, scale_factor: int ) -> cv2.Mat:
     return scaled_img
 
 
-def hq2x( width: int, height: int, src, dest ) -> None: # noqa:C901
+def hq2x( width: int, height: int, src, dest ) -> None: # noqa:C901 # pylint: disable=too-many-branches, too-many-statements
     w = [None] * 10
     dpL = width << 1
     dp = 0
@@ -1558,7 +1558,7 @@ def hq2x( width: int, height: int, src, dest ) -> None: # noqa:C901
         dp += dpL
 
 
-def hq3x( width: int, height: int, src, dest ) -> None: # noqa:C901
+def hq3x( width: int, height: int, src, dest ) -> None: # noqa:C901 # pylint: disable=too-many-branches, too-many-statements
     w = [None] * 10
     dpL = width * 3
     dp = 0
@@ -3952,7 +3952,7 @@ def hq3x( width: int, height: int, src, dest ) -> None: # noqa:C901
         dp += (dpL << 1)
 
 
-def hq4x( width: int, height: int, src, dest ) -> None: # noqa:C901
+def hq4x( width: int, height: int, src, dest ) -> None: # noqa:C901 # pylint: disable=too-many-branches, too-many-statements
     w = [None] * 10
     dpL = width << 2
     dp = 0
