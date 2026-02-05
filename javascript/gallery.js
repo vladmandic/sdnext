@@ -999,7 +999,9 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
       log(`Thumbnail DB cleanup: Checking if "${folder}" needs cleaning`);
       const t0 = performance.now();
       const keptGalleryHashes = force ? new Set() : new Set(galleryHashes.values()); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
-      const cachedHashesCount = await idbCount(folder)
+      const folderNormalized = folder.replace(/\/+/g, '/').replace(/\/$/, '');
+      const recursiveFolder = IDBKeyRange.bound(folderNormalized, `${folderNormalized}\uffff`, false, true);
+      const cachedHashesCount = await idbCount(recursiveFolder)
         .catch((e) => {
           error(`Thumbnail DB cleanup: Error when getting entry count for "${folder}".`, e);
           return Infinity; // Forces next check to fail if something went wrong
@@ -1015,7 +1017,7 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
         return;
       }
       const cb_clearMsg = showCleaningMsg(cleanupCount);
-      await idbFolderCleanup(keptGalleryHashes, folder, controller.signal)
+      await idbFolderCleanup(keptGalleryHashes, recursiveFolder, controller.signal)
         .then((delcount) => {
           const t1 = performance.now();
           log(`Thumbnail DB cleanup: folder=${folder} kept=${keptGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
