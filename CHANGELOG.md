@@ -1,5 +1,11 @@
 # Change Log for SD.Next
 
+## Update for 2026-02-05
+
+Bugfix refresh
+- metadata restore to always-on scripts
+- wildcard weights parsing, thanks @Tillerz
+
 ## Update for 2026-02-04
 
 ### Highlights for 2026-02-04

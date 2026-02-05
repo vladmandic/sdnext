@@ -336,6 +336,7 @@ class ScriptRunner:
         self.alwayson_scripts = []
         self.auto_processing_scripts = []
         self.titles = []
+        self.alwayson_titles = []
         self.infotext_fields = []
         self.paste_field_names = []
         self.script_load_ctr = 0
@@ -376,6 +377,7 @@ class ScriptRunner:
         self.selectable_scripts.clear()
         self.alwayson_scripts.clear()
         self.titles.clear()
+        self.alwayson_titles.clear()
         self.infotext_fields.clear()
         self.paste_field_names.clear()
         self.script_load_ctr = 0
@@ -405,6 +407,7 @@ class ScriptRunner:
     def setup_ui(self, parent='unknown', accordion=True):
         import modules.api.models as api_models
         self.titles = [wrap_call(script.title, script.filename, "title") or f"{script.filename} [error]" for script in self.selectable_scripts]
+        self.alwayson_titles = [wrap_call(script.title, script.filename, "title") or f"{script.filename} [error]" for script in self.alwayson_scripts]
 
         inputs = []
         inputs_alwayson = [True]
@@ -501,7 +504,7 @@ class ScriptRunner:
             if title == 'None': # called when an initial value is set from ui-config.json to show script's UI components
                 return
             if title not in self.titles:
-                errors.log.error(f'Script not found: {title}')
+                errors.log.error(f'Script: title="{title}" op=init not found')
                 return
             script_index = self.titles.index(title)
             self.selectable_scripts[script_index].group.visible = True
@@ -511,12 +514,18 @@ class ScriptRunner:
 
         def onload_script_visibility(params):
             title = params.get('Script', None)
-            if title:
+            if title and title in self.titles:
                 title_index = self.titles.index(title)
                 visibility = title_index == self.script_load_ctr
                 self.script_load_ctr = (self.script_load_ctr + 1) % len(self.titles)
                 return gr.update(visible=visibility)
+            elif title and title in self.alwayson_titles:
+                title_index = self.alwayson_titles.index(title)
+                visibility = title_index == self.script_load_ctr
+                self.script_load_ctr = (self.script_load_ctr + 1) % len(self.titles)
+                return gr.update(visible=visibility)
             else:
+                errors.log.warning(f'Script: title="{title}" op=visibility not found')
                 return gr.update(visible=False)
 
         self.infotext_fields.append((dropdown, lambda x: gr.update(value=x.get('Script', 'None'))))
@@ -526,9 +535,11 @@ class ScriptRunner:
     def run(self, p, *args):
         s = ScriptSummary('run')
         script_index = args[0] if len(args) > 0 else 0
-        if script_index == 0:
+        if (script_index is None) or (script_index == 0):
             return None
-        script = self.selectable_scripts[script_index-1]
+        script = self.selectable_scripts[script_index - 1]
+        if script is None:
+            script = self.alwayson_scripts[script_index - 1]
         if script is None:
             return None
         if 'upscale' in script.title():
@@ -549,9 +560,9 @@ class ScriptRunner:
     def after(self, p, processed, *args):
         s = ScriptSummary('after')
         script_index = args[0] if len(args) > 0 else 0
-        if script_index == 0:
+        if (script_index is None) or (script_index == 0):
             return processed
-        script = self.selectable_scripts[script_index-1]
+        script = self.selectable_scripts[script_index - 1]
         if script is None or not hasattr(script, 'after'):
             return processed
         parsed = []
