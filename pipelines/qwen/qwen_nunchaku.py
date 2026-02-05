@@ -14,15 +14,15 @@ def load_qwen_nunchaku(repo_id):
     if 'pruning' in repo_id.lower() or 'distill' in repo_id.lower():
         return None
     elif repo_id.lower().endswith('qwen-image'):
-        nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image/svdq-{nunchaku_precision}_r128-qwen-image.safetensors" # r32 vs r128
+        nunchaku_repo = f"nunchaku-ai/nunchaku-qwen-image/svdq-{nunchaku_precision}_r128-qwen-image.safetensors" # r32 vs r128
     elif repo_id.lower().endswith('qwen-lightning'):
-        nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image/svdq-{nunchaku_precision}_r128-qwen-image-lightningv1.1-8steps.safetensors" # 8-step variant
+        nunchaku_repo = f"nunchaku-ai/nunchaku-qwen-image/svdq-{nunchaku_precision}_r128-qwen-image-lightningv1.1-8steps.safetensors" # 8-step variant
     elif repo_id.lower().endswith('qwen-image-edit-2509'):
-        nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image-edit-2509/svdq-{nunchaku_precision}_r128-qwen-image-edit-2509.safetensors" # 8-step variant
+        nunchaku_repo = f"nunchaku-ai/nunchaku-qwen-image-edit-2509/svdq-{nunchaku_precision}_r128-qwen-image-edit-2509.safetensors" # 8-step variant
     elif repo_id.lower().endswith('qwen-image-edit'):
-        nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image-edit/svdq-{nunchaku_precision}_r128-qwen-image-edit.safetensors" # 8-step variant
+        nunchaku_repo = f"nunchaku-ai/nunchaku-qwen-image-edit/svdq-{nunchaku_precision}_r128-qwen-image-edit.safetensors" # 8-step variant
     elif repo_id.lower().endswith('qwen-lightning-edit'):
-        nunchaku_repo = f"nunchaku-tech/nunchaku-qwen-image-edit/svdq-{nunchaku_precision}_r128-qwen-image-edit-lightningv1.0-8steps.safetensors" # 8-step variant
+        nunchaku_repo = f"nunchaku-ai/nunchaku-qwen-image-edit/svdq-{nunchaku_precision}_r128-qwen-image-edit-lightningv1.0-8steps.safetensors" # 8-step variant
     else:
         shared.log.error(f'Load module: quant=Nunchaku module=transformer repo="{repo_id}" unsupported')
     if nunchaku_repo is not None:
