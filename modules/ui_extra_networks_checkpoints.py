@@ -60,6 +60,9 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         for k, v in shared.reference_models.items():
             count['total'] += 1
             url = v['path']
+            if v.get('hidden', False):
+                count['hidden'] += 1
+                continue
             experimental = v.get('experimental', False)
             if experimental:
                 if shared.cmd_opts.experimental:
