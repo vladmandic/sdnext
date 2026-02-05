@@ -391,13 +391,14 @@ class GalleryFile extends HTMLElement {
     this.folder = folder;
     this.name = file;
     this.#signal = signal;
+    this.src = `${this.folder}/${this.name}`;
+    this.fullFolder = this.src.replace(/\/+/g, '/').replace(/\/[^/]+$/, '');
     this.size = 0;
     this.mtime = 0;
     this.hash = undefined;
     this.exif = '';
     this.width = 0;
     this.height = 0;
-    this.src = `${this.folder}/${this.name}`;
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [fileStylesheet];
 
@@ -458,7 +459,7 @@ class GalleryFile extends HTMLElement {
           if (opts.browser_cache) {
             await idbAdd({
               hash: this.hash,
-              folder: this.folder,
+              folder: this.fullFolder,
               file: this.name,
               size: this.size,
               mtime: this.mtime,
