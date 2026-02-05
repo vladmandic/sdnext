@@ -3,8 +3,10 @@
 ## Update for 2026-02-05
 
 Bugfix refresh
-- metadata restore to always-on scripts
-- wildcard weights parsing, thanks @Tillerz
+
+- add metadata restore to always-on scripts
+- improve wildcard weights parsing, thanks @Tillerz
+- fix `anima` model detection
 
 ## Update for 2026-02-04
 
