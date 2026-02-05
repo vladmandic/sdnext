@@ -255,13 +255,25 @@ def check_quant(module: str = ''):
 
 def check_nunchaku(module: str = ''):
     from modules import shared
-    if module not in shared.opts.nunchaku_quantization:
+    model_name = getattr(shared.opts, 'sd_model_checkpoint', '')
+    if '+nunchaku' not in model_name:
         return False
-    from modules import mit_nunchaku
-    mit_nunchaku.install_nunchaku()
-    if not mit_nunchaku.ok:
-        return False
-    return True
+    base_path = model_name.split('+')[0]
+    for v in shared.reference_models.values():
+        if v.get('path', '') != base_path:
+            continue
+        nunchaku_modules = v.get('nunchaku', None)
+        if nunchaku_modules is None:
+            continue
+        if isinstance(nunchaku_modules, bool) and nunchaku_modules:
+            nunchaku_modules = ['Model', 'TE']
+        if not isinstance(nunchaku_modules, list):
+            continue
+        if module in nunchaku_modules:
+            from modules import mit_nunchaku
+            mit_nunchaku.install_nunchaku()
+            return mit_nunchaku.ok
+    return False
 
 
 def create_config(kwargs = None, allow: bool = True, module: str = 'Model', modules_to_not_convert: list = None, modules_dtype_dict: dict = None):
