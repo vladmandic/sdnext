@@ -391,8 +391,8 @@ class GalleryFile extends HTMLElement {
     this.folder = folder;
     this.name = file;
     this.#signal = signal;
-    this.src = `${this.folder}/${this.name}`;
-    this.fullFolder = this.src.replace(/\/+/g, '/').replace(/\/[^/]+$/, '');
+    this.src = `${this.folder}/${this.name}`.replace(/\/+/g, '/'); // Ensure no //, ///, etc...
+    this.fullFolder = this.src.replace(/\/[^/]+$/, '');
     this.size = 0;
     this.mtime = 0;
     this.hash = undefined;
