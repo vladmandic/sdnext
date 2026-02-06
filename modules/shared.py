@@ -535,6 +535,7 @@ options_templates.update(options_section(('saving-images', "Image Options"), {
     "image_sep_browser": OptionInfo("<h2>Image Gallery</h2>", "", gr.HTML),
     "browser_cache": OptionInfo(True, "Use image gallery cache"),
     "browser_folders": OptionInfo("", "Additional image browser folders"),
+    "browser_gallery_autoupdate": OptionInfo(False, "Automatically update when switching to the gallery"),
     "browser_fixed_width": OptionInfo(False, "Use fixed width thumbnails"),
     "viewer_show_metadata": OptionInfo(True, "Show metadata in full screen image browser"),
 
