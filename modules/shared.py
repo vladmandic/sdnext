@@ -35,7 +35,7 @@ from modules.shared_helpers import (
 from modules import errors, devices, shared_state, cmd_args, theme, history, files_cache
 from modules.shared_defaults import get_default_modes
 from modules.paths import (
-    models_path as models_path,
+    models_path as models_path, # For compatibility, do not modify from here...
     script_path as script_path,
     data_path as data_path,
     sd_configs_path as sd_configs_path,
@@ -43,7 +43,7 @@ from modules.paths import (
     sd_model_file as sd_model_file,
     default_sd_model_file as default_sd_model_file,
     extensions_dir as extensions_dir,
-    extensions_builtin_dir as extensions_builtin_dir,
+    extensions_builtin_dir as extensions_builtin_dir, # ... to here.
 )
 from modules.memstats import (
     memory_stats,
