@@ -51,6 +51,10 @@ def get_detailers():
     shared.yolo.enumerate()
     return [{"name": k, "path": v} for k, v in shared.yolo.list.items()]
 
+def get_ip_adapters():
+    from modules import ipadapter
+    return ipadapter.get_adapters()
+
 def get_prompt_styles():
     return [{ 'name': v.name, 'prompt': v.prompt, 'negative_prompt': v.negative_prompt, 'extra': v.extra, 'filename': v.filename, 'preview': v.preview} for v in shared.prompt_styles.styles.values()]
 

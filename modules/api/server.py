@@ -185,3 +185,30 @@ def get_memory():
     except Exception as err:
         cuda = { 'error': f'{err}' }
     return models.ResMemory(ram = ram, cuda = cuda)
+
+def get_server_info():
+    from modules import devices
+    ver = shared.get_version()
+    model_name = None
+    model_type = None
+    if hasattr(shared.opts, 'sd_model_checkpoint'):
+        model_name = shared.opts.sd_model_checkpoint
+    if shared.sd_model is not None:
+        model_type = type(shared.sd_model).__name__
+    return {
+        "version": ver,
+        "backend": shared.backend.name if hasattr(shared.backend, 'name') else str(shared.backend),
+        "platform": devices.get_device_name() if hasattr(devices, 'get_device_name') else str(shared.device),
+        "api_version": "v1",
+        "capabilities": {
+            "txt2img": True,
+            "img2img": True,
+            "control": True,
+            "video": True,
+            "websocket": True,
+        },
+        "model": {
+            "name": model_name,
+            "type": model_type,
+        }
+    }

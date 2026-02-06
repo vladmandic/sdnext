@@ -52,6 +52,10 @@ package-lock.json
 cache
 tunableop_results*.csv
 
+# frontend
+frontend/node_modules/
+frontend/dist/
+
 # force included
 !webui.bat
 !webui.sh

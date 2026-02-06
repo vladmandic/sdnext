@@ -14,6 +14,7 @@ exclude = [
     ".git",
     ".ruff_cache",
     ".vscode",
+    "frontend",
 
     "modules/cfgzero",
     "modules/flash_attn_triton_amd",
@@ -133,6 +134,7 @@ main.ignore-paths=[
              ".git",
              ".ruff_cache",
              ".vscode",
+             "frontend",
              "modules/apg",
              "modules/cfgzero",
              "modules/control/proc",

@@ -34,12 +34,16 @@ def setup_middleware(app: FastAPI, cmd_opts):
     app.user_middleware = [x for x in app.user_middleware if x.cls.__name__ != 'CORSMiddleware']
     app.middleware_stack = None # reset current middleware to allow modifying user provided list
     app.add_middleware(GZipMiddleware, minimum_size=2048)
-    if cmd_opts.cors_origins and cmd_opts.cors_regex:
-        app.add_middleware(CORSMiddleware, allow_origins=cmd_opts.cors_origins.split(','), allow_origin_regex=cmd_opts.cors_regex, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
-    elif cmd_opts.cors_origins:
-        app.add_middleware(CORSMiddleware, allow_origins=cmd_opts.cors_origins.split(','), allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
-    elif cmd_opts.cors_regex:
-        app.add_middleware(CORSMiddleware, allow_origin_regex=cmd_opts.cors_regex, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
+    cors_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+    cors_regex = None
+    if cmd_opts.cors_origins:
+        cors_origins += [o.strip() for o in cmd_opts.cors_origins.split(",")]
+    if cmd_opts.cors_regex:
+        cors_regex = cmd_opts.cors_regex
+    if cors_regex:
+        app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_origin_regex=cors_regex, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
+    else:
+        app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
 
     @app.middleware("http")
     async def log_and_time(req: Request, call_next):
