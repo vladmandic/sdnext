@@ -391,13 +391,14 @@ class GalleryFile extends HTMLElement {
     this.folder = folder;
     this.name = file;
     this.#signal = signal;
+    this.src = `${this.folder}/${this.name}`.replace(/\/+/g, '/'); // Ensure no //, ///, etc...
+    this.fullFolder = this.src.replace(/\/[^/]+$/, '');
     this.size = 0;
     this.mtime = 0;
     this.hash = undefined;
     this.exif = '';
     this.width = 0;
     this.height = 0;
-    this.src = `${this.folder}/${this.name}`;
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [fileStylesheet];
 
@@ -418,9 +419,7 @@ class GalleryFile extends HTMLElement {
       }
     }
 
-    // Normalize path to ensure consistent hash regardless of which folder view is used
-    const normalizedPath = this.src.replace(/\/+/g, '/').replace(/\/$/, '');
-    this.hash = await getHash(`${normalizedPath}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
+    this.hash = await getHash(`${this.src}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
     const cachedData = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
     const img = document.createElement('img');
     img.className = 'gallery-file';
@@ -458,7 +457,7 @@ class GalleryFile extends HTMLElement {
           if (opts.browser_cache) {
             await idbAdd({
               hash: this.hash,
-              folder: this.folder,
+              folder: this.fullFolder,
               file: this.name,
               size: this.size,
               mtime: this.mtime,
@@ -999,7 +998,9 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
       log(`Thumbnail DB cleanup: Checking if "${folder}" needs cleaning`);
       const t0 = performance.now();
       const keptGalleryHashes = force ? new Set() : new Set(galleryHashes.values()); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
-      const cachedHashesCount = await idbCount(folder)
+      const folderNormalized = folder.replace(/\/+/g, '/').replace(/\/$/, '');
+      const recursiveFolder = IDBKeyRange.bound(folderNormalized, `${folderNormalized}\uffff`, false, true);
+      const cachedHashesCount = await idbCount(recursiveFolder)
         .catch((e) => {
           error(`Thumbnail DB cleanup: Error when getting entry count for "${folder}".`, e);
           return Infinity; // Forces next check to fail if something went wrong
@@ -1015,7 +1016,7 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
         return;
       }
       const cb_clearMsg = showCleaningMsg(cleanupCount);
-      await idbFolderCleanup(keptGalleryHashes, folder, controller.signal)
+      await idbFolderCleanup(keptGalleryHashes, recursiveFolder, controller.signal)
         .then((delcount) => {
           const t1 = performance.now();
           log(`Thumbnail DB cleanup: folder=${folder} kept=${keptGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
@@ -1302,7 +1303,21 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
 
   monitorGalleries();
   updateFolders();
-  monitorOption('browser_folders', updateFolders);
+  [
+    'browser_folders',
+    'outdir_samples',
+    'outdir_txt2img_samples',
+    'outdir_img2img_samples',
+    'outdir_control_samples',
+    'outdir_extras_samples',
+    'outdir_save',
+    'outdir_video',
+    'outdir_init_images',
+    'outdir_grids',
+    'outdir_txt2img_grids',
+    'outdir_img2img_grids',
+    'outdir_control_grids',
+  ].forEach((op) => { monitorOption(op, updateFolders); });
 }
 
 // register on startup
