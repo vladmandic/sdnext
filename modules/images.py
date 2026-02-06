@@ -12,10 +12,24 @@ import piexif
 import piexif.helper
 from PIL import Image, PngImagePlugin, ExifTags, ImageDraw
 from modules import sd_samplers, shared, script_callbacks, errors, paths
-from modules.images_grid import image_grid, get_grid_size, split_grid, combine_grid, check_grid_size, get_font, draw_grid_annotations, draw_prompt_matrix, GridAnnotation, Grid # pylint: disable=unused-import
-from modules.images_resize import resize_image # pylint: disable=unused-import
-from modules.images_namegen import FilenameGenerator, get_next_sequence_number # pylint: disable=unused-import
-from modules.video import save_video # pylint: disable=unused-import
+from modules.images_grid import (
+    image_grid as image_grid,
+    get_grid_size as get_grid_size,
+    split_grid as split_grid,
+    combine_grid as combine_grid,
+    check_grid_size as check_grid_size,
+    get_font as get_font,
+    draw_grid_annotations as draw_grid_annotations,
+    draw_prompt_matrix as draw_prompt_matrix,
+    GridAnnotation as GridAnnotation,
+    Grid as Grid,
+)
+from modules.images_resize import resize_image as resize_image
+from modules.images_namegen import (
+    FilenameGenerator as FilenameGenerator,
+    get_next_sequence_number as get_next_sequence_number,
+)
+from modules.video import save_video as save_video
 
 
 debug = errors.log.trace if os.environ.get('SD_PATH_DEBUG', None) is not None else lambda *args, **kwargs: None
