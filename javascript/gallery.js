@@ -339,8 +339,8 @@ class GalleryFolder extends HTMLElement {
     this.div.className = 'gallery-folder';
     this.div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.label}`;
     this.div.title = this.name; // Show full path on hover
-    this.div.addEventListener('click', () => { this.updateSelected(); }); // Ensures 'this' isn't the div in the called method
-    this.div.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
+    this.addEventListener('click', this.updateSelected);
+    this.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
     this.shadow.appendChild(this.div);
     GalleryFolder.folders.add(this);
   }
@@ -1150,7 +1150,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   let wsConnected = false;
   try {
     ws = new WebSocket(`${url}/sdapi/v1/browser/files`);
-    wsConnected = await wsConnect(ws); // Warning. This changes "evt".
+    wsConnected = await wsConnect(ws);
   } catch (err) {
     log('gallery: ws connect error', err);
     return;
