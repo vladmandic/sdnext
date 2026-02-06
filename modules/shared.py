@@ -575,7 +575,7 @@ options_templates.update(options_section(('saving-paths', "Image Paths"), {
     "outdir_init_images": OptionInfo("outputs/inputs", "Folder for init images", component_args=hide_dirs, folder=True),
 
     "outdir_sep_grids": OptionInfo("<h2>Grids</h2>", "", gr.HTML),
-    "outdir_grids": OptionInfo("", "Base grids folde", component_args=hide_dirs, folder=True),
+    "outdir_grids": OptionInfo("", "Base grids folder", component_args=hide_dirs, folder=True),
     "outdir_txt2img_grids": OptionInfo("outputs/grids", 'Folder for txt2img grids', component_args=hide_dirs, folder=True),
     "outdir_img2img_grids": OptionInfo("outputs/grids", 'Folder for img2img grids', component_args=hide_dirs, folder=True),
     "outdir_control_grids": OptionInfo("outputs/grids", 'Folder for control grids', component_args=hide_dirs, folder=True),
