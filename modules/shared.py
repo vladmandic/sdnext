@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING
 import gradio as gr
 
 from installer import (
-    log,
+    log as log,
     print_dict,
     console as console,
     get_version as get_version,
@@ -21,11 +21,11 @@ log.debug("Initializing: shared module")
 import modules.memmon
 import modules.paths as paths
 from modules.json_helpers import (
-    readfile,
+    readfile as readfile,
     writefile as writefile,
 )
 from modules.shared_helpers import (
-    listdir,
+    listdir as listdir,
     walk_files as walk_files,
     html_path as html_path,
     html as html,
