@@ -3,7 +3,7 @@ import html
 import json
 import concurrent
 from datetime import datetime
-from modules import shared, ui_extra_networks, sd_models, modelstats, paths
+from modules import shared, ui_extra_networks, sd_models, modelstats, paths, devices
 from modules.json_helpers import readfile
 
 
@@ -88,6 +88,9 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 path = f'{v.get("path", "")}'
 
             tag = v.get('tags', '')
+            if tag == 'nunchaku' and devices.backend != 'cuda':
+                count['hidden'] += 1
+                continue
             if tag in count:
                 count[tag] += 1
             elif tag != '':
