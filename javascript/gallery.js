@@ -343,6 +343,9 @@ class GalleryFolder extends HTMLElement {
     this.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
     this.shadow.appendChild(this.div);
     GalleryFolder.folders.add(this);
+    if (this.name === currentGalleryFolder) {
+      this.updateSelected();
+    }
   }
 
   async disconnectedCallback() {
