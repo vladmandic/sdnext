@@ -315,6 +315,8 @@ class SimpleFunctionQueue {
 
 class GalleryFolder extends HTMLElement {
   static folders = new Set();
+  /** @type {GalleryFolder | null} */
+  static #active = null;
 
   constructor(folder) {
     super();
@@ -339,20 +341,31 @@ class GalleryFolder extends HTMLElement {
     this.div.className = 'gallery-folder';
     this.div.innerHTML = `<span class="gallery-folder-icon">\uf03e</span> ${this.label}`;
     this.div.title = this.name; // Show full path on hover
-    this.div.addEventListener('click', () => { this.updateSelected(); }); // Ensures 'this' isn't the div in the called method
-    this.div.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
+    this.addEventListener('click', this.updateSelected);
+    this.addEventListener('click', fetchFilesWS); // eslint-disable-line no-use-before-define
     this.shadow.appendChild(this.div);
     GalleryFolder.folders.add(this);
+    if (this.name === currentGalleryFolder) {
+      this.updateSelected();
+    }
   }
 
   async disconnectedCallback() {
     await Promise.resolve(); // Wait for other microtasks (such as element moving)
     if (this.isConnected) return;
     GalleryFolder.folders.delete(this);
+    if (GalleryFolder.#active === this) {
+      GalleryFolder.#active = null;
+    }
+  }
+
+  static getActive() {
+    return GalleryFolder.#active;
   }
 
   updateSelected() {
     this.div.classList.add('gallery-folder-selected');
+    GalleryFolder.#active = this;
     for (const folder of GalleryFolder.folders) {
       if (folder !== this) {
         folder.div.classList.remove('gallery-folder-selected');
@@ -1151,7 +1164,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   let wsConnected = false;
   try {
     ws = new WebSocket(`${url}/sdapi/v1/browser/files`);
-    wsConnected = await wsConnect(ws); // Warning. This changes "evt".
+    wsConnected = await wsConnect(ws);
   } catch (err) {
     log('gallery: ws connect error', err);
     return;
@@ -1257,6 +1270,43 @@ async function galleryClearInit() {
       monitorOption('browser_cache', clearCacheIfDisabled);
     }
   }, 1000);
+}
+
+async function initGalleryAutoRefresh() {
+  const isModern = opts.theme_type?.toLowerCase() === 'modern';
+  let galleryTab = isModern ? document.getElementById('gallery_tabitem') : document.getElementById('tab_gallery');
+  let timeout = 0;
+  while (!galleryTab && timeout++ < 60) {
+    await new Promise((resolve) => { setTimeout(resolve, 1000); });
+    galleryTab = isModern ? document.getElementById('gallery_tabitem') : document.getElementById('tab_gallery');
+  }
+  if (!galleryTab) {
+    throw new Error('Timed out waiting for gallery tab element');
+  }
+  const displayNoneRegEx = /display:\s*none/;
+  async function galleryAutoRefresh(mutations) {
+    if (!opts.browser_gallery_autoupdate) return;
+    for (const mutation of mutations) {
+      switch (mutation.attributeName) {
+        case 'class':
+          if (mutation.oldValue.includes('hidden') && !mutation.target.classList.contains('hidden')) {
+            await updateFolders();
+            GalleryFolder.getActive()?.click();
+          }
+          break;
+        case 'style':
+          if (displayNoneRegEx.test(mutation.oldValue) && !displayNoneRegEx.test(mutation.target.style.display)) {
+            await updateFolders();
+            GalleryFolder.getActive()?.click();
+          }
+          break;
+        default:
+          break;
+      }
+    }
+  }
+  const galleryVisObserver = new MutationObserver(galleryAutoRefresh);
+  galleryVisObserver.observe(galleryTab, { attributeFilter: ['class', 'style'], attributeOldValue: true });
 }
 
 async function blockQueueUntilReady() {
