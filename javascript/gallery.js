@@ -315,6 +315,8 @@ class SimpleFunctionQueue {
 
 class GalleryFolder extends HTMLElement {
   static folders = new Set();
+  /** @type {GalleryFolder | null} */
+  static #active = null;
 
   constructor(folder) {
     super();
@@ -352,10 +354,18 @@ class GalleryFolder extends HTMLElement {
     await Promise.resolve(); // Wait for other microtasks (such as element moving)
     if (this.isConnected) return;
     GalleryFolder.folders.delete(this);
+    if (GalleryFolder.#active === this) {
+      GalleryFolder.#active = null;
+    }
+  }
+
+  static getActive() {
+    return GalleryFolder.#active;
   }
 
   updateSelected() {
     this.div.classList.add('gallery-folder-selected');
+    GalleryFolder.#active = this;
     for (const folder of GalleryFolder.folders) {
       if (folder !== this) {
         folder.div.classList.remove('gallery-folder-selected');
