@@ -419,9 +419,7 @@ class GalleryFile extends HTMLElement {
       }
     }
 
-    // Normalize path to ensure consistent hash regardless of which folder view is used
-    const normalizedPath = this.src.replace(/\/+/g, '/').replace(/\/$/, '');
-    this.hash = await getHash(`${normalizedPath}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
+    this.hash = await getHash(`${this.src}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
     const cachedData = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
     const img = document.createElement('img');
     img.className = 'gallery-file';
