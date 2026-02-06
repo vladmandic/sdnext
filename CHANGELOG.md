@@ -1,20 +1,23 @@
 # Change Log for SD.Next
 
-## Update for 2026-02-05
+## Update for 2026-02-06
 
-- **UI**
-  - ui: add *CTD-NT64Light* and *CTD-NT64Dark* themes, thanks @resonantsky  
-- **Internal**
-  - pipelines: add ZImageInpaint, thanks @CalamitousFelicitousness  
-  - refactor: reorganize `cli` scripts  
 - **Upscalers**
   - add support for [spandrel](https://github.com/chaiNNer-org/spandrel)  
-    upscaling engine with suport for new upscaling families  
+    upscaling engine with suport for new upscaling model families  
   - add two new ai upscalers: *RealPLKSR NomosWebPhoto* and *RealPLKSR AnimeSharpV2*  
   - add two new interpolation methods: *HQX* and *ICB*  
+- **Features**
+  - pipelines: add **ZImageInpaint**, thanks @CalamitousFelicitousness  
+- **UI**
+  - ui: **themes** add *CTD-NT64Light* and *CTD-NT64Dark*, thanks @resonantsky  
+  - ui: **gallery** add option to auto-refresh gallery, thanks @awsr  
+- **Internal**
+  - refactor: reorganize `cli` scripts  
 - **Fixes**
   - fix: add metadata restore to always-on scripts  
   - fix: improve wildcard weights parsing, thanks @Tillerz  
+  - fix: ui gallery cace recursive cleanup, thanks @awsr  
   - fix: `anima` model detection  
 
 ## Update for 2026-02-04
