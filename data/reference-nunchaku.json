@@ -90,7 +90,7 @@
     "size": 0,
     "date": "2025 June"
   },
-  "Qwen-Lightning Nunchaku SVDQuant": {
+  "Qwen-Lightning (8-step) Nunchaku SVDQuant": {
     "path": "vladmandic/Qwen-Lightning",
     "subfolder": "nunchaku",
     "preview": "vladmandic--Qwen-Lightning.jpg",
@@ -99,6 +99,18 @@
     "nunchaku": ["Model"],
     "tags": "nunchaku",
     "extras": "steps: 8",
+    "size": 0,
+    "date": "2025 June"
+  },
+  "Qwen-Lightning (4-step) Nunchaku SVDQuant": {
+    "path": "vladmandic/Qwen-Lightning",
+    "subfolder": "nunchaku-4step",
+    "preview": "vladmandic--Qwen-Lightning.jpg",
+    "desc": "Nunchaku SVDQuant quantization of Qwen-Lightning (4-step distilled) transformer with INT4 and SVD rank 128",
+    "skip": true,
+    "nunchaku": ["Model"],
+    "tags": "nunchaku",
+    "extras": "steps: 4",
     "size": 0,
     "date": "2025 June"
   },
@@ -113,7 +125,7 @@
     "size": 0,
     "date": "2025 June"
   },
-  "Qwen-Lightning-Edit Nunchaku SVDQuant": {
+  "Qwen-Lightning-Edit (8-step) Nunchaku SVDQuant": {
     "path": "vladmandic/Qwen-Lightning-Edit",
     "subfolder": "nunchaku",
     "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
@@ -122,6 +134,18 @@
     "nunchaku": ["Model"],
     "tags": "nunchaku",
     "extras": "steps: 8",
+    "size": 0,
+    "date": "2025 June"
+  },
+  "Qwen-Lightning-Edit (4-step) Nunchaku SVDQuant": {
+    "path": "vladmandic/Qwen-Lightning-Edit",
+    "subfolder": "nunchaku-4step",
+    "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
+    "desc": "Nunchaku SVDQuant quantization of Qwen-Lightning-Edit (4-step distilled editing) transformer with INT4 and SVD rank 128",
+    "skip": true,
+    "nunchaku": ["Model"],
+    "tags": "nunchaku",
+    "extras": "steps: 4",
     "size": 0,
     "date": "2025 June"
   },
