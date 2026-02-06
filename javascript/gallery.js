@@ -1303,7 +1303,21 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
 
   monitorGalleries();
   updateFolders();
-  monitorOption('browser_folders', updateFolders);
+  [
+    'browser_folders',
+    'outdir_samples',
+    'outdir_txt2img_samples',
+    'outdir_img2img_samples',
+    'outdir_control_samples',
+    'outdir_extras_samples',
+    'outdir_save',
+    'outdir_video',
+    'outdir_init_images',
+    'outdir_grids',
+    'outdir_txt2img_grids',
+    'outdir_img2img_grids',
+    'outdir_control_grids',
+  ].forEach((op) => { monitorOption(op, updateFolders); });
 }
 
 // register on startup
