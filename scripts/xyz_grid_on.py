@@ -141,6 +141,7 @@ class Script(scripts_manager.Script):
             return gr.update(value = valslist)
 
         self.infotext_fields = (
+            (enabled, "XYZ Grid Enabled"),
             (x_type, "X Type"),
             (x_values, "X Values"),
             (x_values_dropdown, lambda params:get_dropdown_update_from_params("X",params)),
@@ -357,6 +358,7 @@ class Script(scripts_manager.Script):
             if ix == 0 and iy == 0: # create subgrid info text
                 pc.extra_generation_params = copy(pc.extra_generation_params)
                 pc.extra_generation_params['Script'] = self.title()
+                pc.extra_generation_params['XYZ Grid Enabled'] = enabled
                 if x_opt.label != 'Nothing':
                     pc.extra_generation_params["X Type"] = x_opt.label
                     pc.extra_generation_params["X Values"] = x_values

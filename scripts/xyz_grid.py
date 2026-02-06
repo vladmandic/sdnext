@@ -25,7 +25,7 @@ class Script(scripts_manager.Script):
     current_axis_options = []
 
     def title(self):
-        return "XYZ Grid"
+        return "XYZ Grid Script"
 
     def ui(self, is_img2img):
         self.current_axis_options = [x for x in axis_options if type(x) == AxisOption or x.is_img2img == is_img2img]
@@ -135,14 +135,14 @@ class Script(scripts_manager.Script):
             return gr.update(value = valslist)
 
         self.infotext_fields = (
-            (x_type, "X Type"),
-            (x_values, "X Values"),
+            (x_type, "X Script Type"),
+            (x_values, "X Script Values"),
             (x_values_dropdown, lambda params:get_dropdown_update_from_params("X",params)),
-            (y_type, "Y Type"),
-            (y_values, "Y Values"),
+            (y_type, "Y Script Type"),
+            (y_values, "Y Script Values"),
             (y_values_dropdown, lambda params:get_dropdown_update_from_params("Y",params)),
-            (z_type, "Z Type"),
-            (z_values, "Z Values"),
+            (z_type, "Z Script Type"),
+            (z_values, "Z Script Values"),
             (z_values_dropdown, lambda params:get_dropdown_update_from_params("Z",params)),
         )
 
@@ -334,21 +334,21 @@ class Script(scripts_manager.Script):
                 pc.extra_generation_params = copy(pc.extra_generation_params)
                 pc.extra_generation_params['Script'] = self.title()
                 if x_opt.label != 'Nothing':
-                    pc.extra_generation_params["X Type"] = x_opt.label
-                    pc.extra_generation_params["X Values"] = x_values
+                    pc.extra_generation_params["X Script Type"] = x_opt.label
+                    pc.extra_generation_params["X Script Values"] = x_values
                     if x_opt.label in ["[Param] Seed", "[Param] Variation seed"] and not no_fixed_seeds:
-                        pc.extra_generation_params["Fixed X Values"] = ", ".join([str(x) for x in xs])
+                        pc.extra_generation_params["Fixed X Script Values"] = ", ".join([str(x) for x in xs])
                 if y_opt.label != 'Nothing':
-                    pc.extra_generation_params["Y Type"] = y_opt.label
-                    pc.extra_generation_params["Y Values"] = y_values
+                    pc.extra_generation_params["Y Script Type"] = y_opt.label
+                    pc.extra_generation_params["Y Script Values"] = y_values
                     if y_opt.label in ["[Param] Seed", "[Param] Variation seed"] and not no_fixed_seeds:
-                        pc.extra_generation_params["Fixed Y Values"] = ", ".join([str(y) for y in ys])
+                        pc.extra_generation_params["Fixed Y Script Values"] = ", ".join([str(y) for y in ys])
                 grid_infotext[subgrid_index] = processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, grid=f'{len(xs)}x{len(ys)}')
             if grid_infotext[0] is None and ix == 0 and iy == 0 and iz == 0: # Sets main grid infotext
                 pc.extra_generation_params = copy(pc.extra_generation_params)
                 if z_opt.label != 'Nothing':
-                    pc.extra_generation_params["Z Type"] = z_opt.label
-                    pc.extra_generation_params["Z Values"] = z_values
+                    pc.extra_generation_params["Z Script Type"] = z_opt.label
+                    pc.extra_generation_params["Z Script Values"] = z_values
                     if z_opt.label in ["[Param] Seed", "[Param] Variation seed"] and not no_fixed_seeds:
                         pc.extra_generation_params["Fixed Z Values"] = ", ".join([str(z) for z in zs])
                 grid_text = f'{len(zs)}x{len(xs)}x{len(ys)}' if len(zs) > 0 else f'{len(xs)}x{len(ys)}'

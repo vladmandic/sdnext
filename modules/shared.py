@@ -535,6 +535,7 @@ options_templates.update(options_section(('saving-images', "Image Options"), {
     "image_sep_browser": OptionInfo("<h2>Image Gallery</h2>", "", gr.HTML),
     "browser_cache": OptionInfo(True, "Use image gallery cache"),
     "browser_folders": OptionInfo("", "Additional image browser folders"),
+    "browser_gallery_autoupdate": OptionInfo(False, "Automatically update when switching to the gallery"),
     "browser_fixed_width": OptionInfo(False, "Use fixed width thumbnails"),
     "viewer_show_metadata": OptionInfo(True, "Show metadata in full screen image browser"),
 
@@ -575,7 +576,7 @@ options_templates.update(options_section(('saving-paths', "Image Paths"), {
     "outdir_init_images": OptionInfo("outputs/inputs", "Folder for init images", component_args=hide_dirs, folder=True),
 
     "outdir_sep_grids": OptionInfo("<h2>Grids</h2>", "", gr.HTML),
-    "outdir_grids": OptionInfo("", "Base grids folde", component_args=hide_dirs, folder=True),
+    "outdir_grids": OptionInfo("", "Base grids folder", component_args=hide_dirs, folder=True),
     "outdir_txt2img_grids": OptionInfo("outputs/grids", 'Folder for txt2img grids', component_args=hide_dirs, folder=True),
     "outdir_img2img_grids": OptionInfo("outputs/grids", 'Folder for img2img grids', component_args=hide_dirs, folder=True),
     "outdir_control_grids": OptionInfo("outputs/grids", 'Folder for control grids', component_args=hide_dirs, folder=True),

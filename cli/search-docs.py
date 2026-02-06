@@ -89,7 +89,7 @@ class Page():
         return ''
 
     def __str__(self):
-        return f'Page(title="{self.title.strip()}" fn="{self.fn}" mtime={self.mtime} h1={[h.strip() for h in self.h1]} h2={len(self.h2)} h3={len(self.h3)} lines={len(self.lines)} size={self.size})'
+        return f'Page(title="{self.title.strip()}" file="{self.fn}" mtime={self.mtime} h1={[h.strip() for h in self.h1]} h2={len(self.h2)} h3={len(self.h3)} lines={len(self.lines)} size={self.size})'
 
 
 class Pages():
@@ -129,16 +129,14 @@ if __name__ == "__main__":
     sys.argv.pop(0)
     if len(sys.argv) < 1:
         log.error("Usage: python cli/docs.py <search_term>")
-    text = ' '.join(sys.argv)
-    topk = 10
-    full = True
-    log.info(f'Search: "{text}" topk={topk}, full={full}')
+    term = ' '.join(sys.argv)
+    log.info(f'Search: "{term}" topk=10, full=True')
     t0 = time.time()
-    results = index.search(text, topk=topk, full=full)
+    results = index.search(term, topk=10, full=True)
     t1 = time.time()
     log.info(f'Results: pages={len(results)} size={index.size} time={t1-t0:.3f}')
-    for score, page in results:
-        log.info(f'Score: {score:.2f} {page}')
+    for _score, _page in results:
+        log.info(f'Score: {_score:.2f} {_page}')
     # if len(results) > 0:
     #     log.info('Top result:')
     #     log.info(results[0][1].get())
