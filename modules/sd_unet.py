@@ -22,10 +22,11 @@ def load_unet_sdxl_nunchaku(repo_id):
     else:
         nunchaku_repo = 'nunchaku-ai/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors'
 
-    shared.log.debug(f'Load module: quant=Nunchaku module=unet repo="{nunchaku_repo}" offload={shared.opts.nunchaku_offload}')
+    if shared.opts.nunchaku_offload:
+        shared.log.warning('Load module: quant=Nunchaku module=unet offload not supported for SDXL, ignoring')
+    shared.log.debug(f'Load module: quant=Nunchaku module=unet repo="{nunchaku_repo}"')
     unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
         nunchaku_repo,
-        offload=shared.opts.nunchaku_offload,
         torch_dtype=devices.dtype,
         cache_dir=shared.opts.hfcache_dir,
     )
