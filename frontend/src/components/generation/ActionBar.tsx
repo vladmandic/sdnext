@@ -1,6 +1,9 @@
 import { useGenerationStore } from "@/stores/generationStore";
-import { useTxt2Img, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
-import { buildTxt2ImgRequest, restoreFromResult } from "@/lib/requestBuilder";
+import { useUiStore } from "@/stores/uiStore";
+import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useTxt2Img, useImg2Img, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
+import { buildTxt2ImgRequest, buildImg2ImgRequest, restoreFromResult } from "@/lib/requestBuilder";
+import type { Img2ImgRequest } from "@/api/types/generation";
 import { Play, Square, SkipForward, Loader2, History } from "lucide-react";
 import { useEffect, useRef, useCallback, memo } from "react";
 import { toast } from "sonner";
@@ -17,7 +20,10 @@ export const ActionBar = memo(function ActionBar() {
   const setPreview = useGenerationStore((s) => s.setPreview);
   const addResult = useGenerationStore((s) => s.addResult);
   const lastResult = useGenerationStore((s) => s.results[0]);
+  const generationMode = useUiStore((s) => s.generationMode);
+  const initImageBase64 = useImg2ImgStore((s) => s.initImageBase64);
   const txt2img = useTxt2Img();
+  const img2img = useImg2Img();
   const interrupt = useInterrupt();
   const skip = useSkip();
   const generatingRef = useRef(false);
@@ -71,8 +77,12 @@ export const ActionBar = memo(function ActionBar() {
     setGenerating(true);
     setPreview(null);
     try {
-      const request = await buildTxt2ImgRequest();
-      const result = await txt2img.mutateAsync(request);
+      const request = generationMode === "img2img"
+        ? await buildImg2ImgRequest()
+        : await buildTxt2ImgRequest();
+      const result = generationMode === "img2img"
+        ? await img2img.mutateAsync(request as Img2ImgRequest)
+        : await txt2img.mutateAsync(request);
       addResult({
         id: crypto.randomUUID(),
         images: result.images,
@@ -86,7 +96,7 @@ export const ActionBar = memo(function ActionBar() {
       generatingRef.current = false;
       setGenerating(false);
     }
-  }, [txt2img, setGenerating, setPreview, addResult]);
+  }, [txt2img, img2img, generationMode, setGenerating, setPreview, addResult]);
 
   const handleInterrupt = useCallback(() => {
     interrupt.mutate();
@@ -112,7 +122,7 @@ export const ActionBar = memo(function ActionBar() {
       <Button
         type="button"
         onClick={isGenerating ? handleInterrupt : handleGenerate}
-        disabled={!prompt && !isGenerating}
+        disabled={!isGenerating && (generationMode === "img2img" ? !initImageBase64 : !prompt)}
         variant={isGenerating ? "destructive" : "default"}
         size="sm"
         className="flex-1"

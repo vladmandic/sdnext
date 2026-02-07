@@ -1,14 +1,16 @@
 import { useUiStore } from "@/stores/uiStore";
 import { GenerateView } from "@/components/generation/GenerateView";
+import { Img2ImgView } from "@/components/generation/Img2ImgView";
 import { GalleryView } from "@/components/gallery/GalleryView";
 import { CaptionView } from "@/components/caption/CaptionView";
 
 export function MainContent() {
   const activeView = useUiStore((s) => s.activeSidebarView);
+  const generationMode = useUiStore((s) => s.generationMode);
 
   switch (activeView) {
     case "images":
-      return <GenerateView />;
+      return generationMode === "img2img" ? <Img2ImgView /> : <GenerateView />;
     case "gallery":
       return <GalleryView />;
     case "video":

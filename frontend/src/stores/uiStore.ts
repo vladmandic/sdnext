@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 
 type SidebarView = "images" | "video" | "process" | "caption" | "gallery";
 type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "adapters" | "control" | "scripts";
+type GenerationMode = "txt2img" | "img2img";
 
 interface UiState {
   // Sidebar
@@ -16,6 +17,9 @@ interface UiState {
   rightPanelCollapsed: boolean;
   rightPanelWidth: number;
 
+  // Generation mode
+  generationMode: GenerationMode;
+
   // Theme
   theme: string;
 
@@ -23,6 +27,7 @@ interface UiState {
   toggleSidebar: () => void;
   setSidebarView: (view: SidebarView) => void;
   setImagesSubTab: (tab: ImagesSubTab) => void;
+  setGenerationMode: (mode: GenerationMode) => void;
   toggleLeftPanel: () => void;
   setLeftPanelWidth: (width: number) => void;
   toggleRightPanel: () => void;
@@ -30,7 +35,7 @@ interface UiState {
   setTheme: (theme: string) => void;
 }
 
-export type { SidebarView, ImagesSubTab };
+export type { SidebarView, ImagesSubTab, GenerationMode };
 
 export const useUiStore = create<UiState>()(
   persist(
@@ -42,11 +47,13 @@ export const useUiStore = create<UiState>()(
       leftPanelWidth: 380,
       rightPanelCollapsed: true,
       rightPanelWidth: 320,
+      generationMode: "txt2img" as GenerationMode,
       theme: "default",
 
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarView: (view) => set({ activeSidebarView: view }),
       setImagesSubTab: (tab) => set({ activeImagesSubTab: tab }),
+      setGenerationMode: (mode) => set({ generationMode: mode }),
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),
       setLeftPanelWidth: (width) => set({ leftPanelWidth: Math.max(280, Math.min(600, width)) }),
       toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),

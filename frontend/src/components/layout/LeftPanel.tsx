@@ -1,5 +1,9 @@
 import { useUiStore } from "@/stores/uiStore";
+import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { ActionBar } from "@/components/generation/ActionBar";
+import { ModeSelector } from "@/components/generation/ModeSelector";
+import { InitImageThumbnail } from "@/components/generation/InitImageThumbnail";
+import { MaskParams } from "@/components/generation/MaskParams";
 import { ResultGallery } from "@/components/generation/ResultGallery";
 import { PromptsTab } from "@/components/generation/tabs/PromptsTab";
 import { SamplerTab } from "@/components/generation/tabs/SamplerTab";
@@ -26,13 +30,29 @@ export function LeftPanel() {
     return <GalleryPanel />;
   }
 
+  const generationMode = useUiStore((s) => s.generationMode);
+  const hasInitImage = useImg2ImgStore((s) => s.initImageData !== null);
+
   if (activeView === "images") {
     return (
       <div className="flex flex-col h-full">
+        {/* Mode selector */}
+        <div className="px-3 pt-2">
+          <ModeSelector />
+        </div>
+
         {/* Action bar */}
         <div className="px-3 py-2 border-b border-border">
           <ActionBar />
         </div>
+
+        {/* Init image thumbnail + mask params (img2img with image loaded) */}
+        {generationMode === "img2img" && hasInitImage && (
+          <div className="px-3 py-1.5 border-b border-border">
+            <InitImageThumbnail />
+            <MaskParams />
+          </div>
+        )}
 
         {/* Sub-tab content */}
         <ScrollArea className="flex-1">

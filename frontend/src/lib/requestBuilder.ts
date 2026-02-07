@@ -3,8 +3,14 @@ import type { GenerationResult } from "@/stores/generationStore";
 import { useAdapterStore } from "@/stores/adapterStore";
 import { useScriptStore } from "@/stores/scriptStore";
 import { useControlStore } from "@/stores/controlStore";
+import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { fileToBase64 } from "@/lib/image";
-import type { Txt2ImgRequest, GenerationInfo } from "@/api/types/generation";
+import { exportMaskToBase64 } from "@/lib/exportMask";
+import type { Txt2ImgRequest, Img2ImgRequest, GenerationInfo } from "@/api/types/generation";
+
+function snap8(v: number): number {
+  return Math.round(v / 8) * 8;
+}
 
 export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
   const gen = useGenerationStore.getState();
@@ -167,6 +173,38 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
   }
 
   return request;
+}
+
+export async function buildImg2ImgRequest(): Promise<Img2ImgRequest> {
+  const baseRequest = await buildTxt2ImgRequest();
+  const img2img = useImg2ImgStore.getState();
+  const gen = useGenerationStore.getState();
+
+  let width = gen.width;
+  let height = gen.height;
+  if (img2img.resolutionMode === "auto" && img2img.initImageWidth > 0) {
+    width = snap8(img2img.initImageWidth);
+    height = snap8(img2img.initImageHeight);
+  }
+
+  // Export mask from painted strokes if no explicit maskData
+  let maskData = img2img.maskData;
+  if (!maskData && img2img.maskLines.length > 0) {
+    maskData = exportMaskToBase64(img2img.maskLines, img2img.initImageWidth, img2img.initImageHeight);
+  }
+
+  return {
+    ...baseRequest,
+    width,
+    height,
+    init_images: img2img.initImageBase64 ? [img2img.initImageBase64] : [],
+    resize_mode: img2img.resizeMode,
+    mask: maskData || undefined,
+    mask_blur: img2img.maskBlur,
+    inpaint_full_res: img2img.inpaintFullRes,
+    inpaint_full_res_padding: img2img.inpaintFullResPadding,
+    inpainting_mask_invert: img2img.inpaintingMaskInvert ? 1 : 0,
+  };
 }
 
 /** Restore generation store state from a previous result. */

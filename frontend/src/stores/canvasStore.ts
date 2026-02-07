@@ -39,6 +39,8 @@ interface CanvasState {
   brushColor: string;
   brushOpacity: number;
   selection: { x: number; y: number; width: number; height: number } | null;
+  maskVisible: boolean;
+  maskColor: string;
 
   setViewport: (viewport: Partial<ViewportState>) => void;
   addLayer: (layer: CanvasLayer) => void;
@@ -50,6 +52,8 @@ interface CanvasState {
   setBrushColor: (color: string) => void;
   setBrushOpacity: (opacity: number) => void;
   setSelection: (rect: CanvasState["selection"]) => void;
+  setMaskVisible: (visible: boolean) => void;
+  setMaskColor: (color: string) => void;
   clearLayers: () => void;
 }
 
@@ -63,6 +67,8 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   brushColor: "#ffffff",
   brushOpacity: 1,
   selection: null,
+  maskVisible: true,
+  maskColor: "#ff000080",
 
   setViewport: (viewport) =>
     set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
@@ -87,5 +93,7 @@ export const useCanvasStore = create<CanvasState>()((set) => ({
   setBrushColor: (color) => set({ brushColor: color }),
   setBrushOpacity: (opacity) => set({ brushOpacity: opacity }),
   setSelection: (rect) => set({ selection: rect }),
+  setMaskVisible: (visible) => set({ maskVisible: visible }),
+  setMaskColor: (color) => set({ maskColor: color }),
   clearLayers: () => set({ layers: [], activeLayerId: null }),
 }));

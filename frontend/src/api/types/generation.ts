@@ -77,6 +77,7 @@ export interface Txt2ImgRequest {
 export interface Img2ImgRequest extends Txt2ImgRequest {
   init_images?: string[];
   mask?: string;
+  mask_blur?: number;
   denoising_strength?: number;
   resize_mode?: number;
   image_cfg_scale?: number;

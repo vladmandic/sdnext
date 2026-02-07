@@ -69,3 +69,5 @@ export const DEFAULT_GENERATION_PARAMS = {
 };
 
 export const ZOOM_LIMITS = { min: 0.1, max: 16 };
+
+export const RESIZE_MODES = ["None", "Fixed", "Crop", "Fill", "Outpaint", "Context aware"];

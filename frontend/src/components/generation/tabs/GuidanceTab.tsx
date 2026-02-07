@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useUiStore } from "@/stores/uiStore";
 import { useShallow } from "zustand/react/shallow";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
@@ -15,6 +16,7 @@ export function GuidanceTab() {
     denoisingStrength: s.denoisingStrength,
   })));
   const setParam = useGenerationStore((s) => s.setParam);
+  const generationMode = useUiStore((s) => s.generationMode);
 
   const set = useMemo(() => ({
     cfgScale: (v: number) => setParam("cfgScale", v),
@@ -43,7 +45,7 @@ export function GuidanceTab() {
         <ParamSlider label="Adaptive" value={state.pagAdaptive} onChange={set.pagAdaptive} min={0} max={1} step={0.05} />
       </ParamSection>
 
-      <ParamSection title="Denoising" defaultOpen={false}>
+      <ParamSection title="Denoising" defaultOpen={generationMode === "img2img"}>
         <ParamSlider label="Strength" value={state.denoisingStrength} onChange={set.denoisingStrength} min={0} max={1} step={0.05} />
       </ParamSection>
     </div>
