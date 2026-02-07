@@ -12,6 +12,7 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/sdapi/v1/ws": { target: "http://localhost:7860", ws: true },
+      "/sdapi/v1/browser/files": { target: "http://localhost:7860", ws: true },
       "/sdapi": "http://localhost:7860",
       "/internal": "http://localhost:7860",
       "/file": "http://localhost:7860",

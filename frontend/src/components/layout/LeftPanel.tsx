@@ -11,6 +11,7 @@ import { AdaptersTab } from "@/components/generation/tabs/AdaptersTab";
 import { ControlTab } from "@/components/generation/tabs/ControlTab";
 import { ScriptsTab } from "@/components/generation/tabs/ScriptsTab";
 import { CaptionPanel } from "@/components/caption/CaptionPanel";
+import { GalleryPanel } from "@/components/gallery/GalleryPanel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function LeftPanel() {
@@ -19,6 +20,10 @@ export function LeftPanel() {
 
   if (activeView === "caption") {
     return <CaptionPanel />;
+  }
+
+  if (activeView === "gallery") {
+    return <GalleryPanel />;
   }
 
   if (activeView === "images") {

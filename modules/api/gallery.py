@@ -176,7 +176,7 @@ def register_api(app: FastAPI): # register api
         return JSONResponse(content=unique_folders)
 
     # @app.get("/sdapi/v1/browser/thumb", response_model=dict)
-    async def get_thumb(file: str):
+    def get_thumb(file: str):
         try:
             decoded = unquote(file).replace('%3A', ':')
             if decoded.lower().endswith('.mp4'):
