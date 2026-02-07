@@ -1,9 +1,10 @@
 import { useGenerationStore } from "@/stores/generationStore";
+import type { GenerationResult } from "@/stores/generationStore";
 import { useAdapterStore } from "@/stores/adapterStore";
 import { useScriptStore } from "@/stores/scriptStore";
 import { useControlStore } from "@/stores/controlStore";
 import { fileToBase64 } from "@/lib/image";
-import type { Txt2ImgRequest } from "@/api/types/generation";
+import type { Txt2ImgRequest, GenerationInfo } from "@/api/types/generation";
 
 export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
   const gen = useGenerationStore.getState();
@@ -166,4 +167,134 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
   }
 
   return request;
+}
+
+/** Restore generation store state from a previous result. */
+export function restoreFromResult(result: GenerationResult): void {
+  const p = result.parameters;
+
+  // Parse the info JSON for resolved values (actual seed used, etc.)
+  let info: GenerationInfo | null = null;
+  try { info = JSON.parse(result.info) as GenerationInfo; }
+  catch { /* ignore */ }
+
+  const overrides = (p.override_settings ?? {}) as Record<string, unknown>;
+
+  const num = (v: unknown, fallback: number) => typeof v === "number" ? v : fallback;
+  const str = (v: unknown, fallback: string) => typeof v === "string" ? v : fallback;
+  const bool = (v: unknown, fallback: boolean) => typeof v === "boolean" ? v : fallback;
+
+  useGenerationStore.getState().setParams({
+    // Prompt
+    prompt: str(p.prompt, ""),
+    negativePrompt: str(p.negative_prompt, ""),
+
+    // Sampler
+    sampler: str(p.sampler_name, "Euler"),
+    steps: num(p.steps, 20),
+
+    // Resolution
+    width: num(p.width, 1024),
+    height: num(p.height, 1024),
+
+    // Batch
+    batchSize: num(p.batch_size, 1),
+    batchCount: num(p.n_iter, 1),
+
+    // Guidance
+    cfgScale: num(p.cfg_scale, 7),
+    cfgEnd: num(p.cfg_end, 1),
+    guidanceRescale: num(p.diffusers_guidance_rescale, 0),
+    imageCfgScale: num(p.image_cfg_scale, 6),
+    pagScale: num(p.diffusers_pag_scale, 0),
+    pagAdaptive: num(p.diffusers_pag_adaptive, 0.5),
+    denoisingStrength: num(p.denoising_strength, 0.5),
+
+    // Seed — use resolved values from info when available
+    seed: num(info?.seed ?? p.seed, -1),
+    subseed: num(info?.subseed ?? p.subseed, -1),
+    subseedStrength: num(p.subseed_strength, 0),
+
+    // Hires
+    hiresEnabled: bool(p.enable_hr, false),
+    hiresUpscaler: str(p.hr_upscaler, "Latent"),
+    hiresScale: num(p.hr_scale, 2),
+    hiresSteps: num(p.hr_second_pass_steps, 0),
+    hiresDenoising: num(p.hr_denoising_strength, 0.5),
+    hiresSampler: str(p.hr_sampler_name, ""),
+    hiresForce: bool(p.hr_force, false),
+    hiresResizeMode: num(p.hr_resize_mode, 0),
+    hiresResizeX: num(p.hr_resize_x, 0),
+    hiresResizeY: num(p.hr_resize_y, 0),
+
+    // Refiner
+    refinerSteps: num(p.refiner_steps, 0),
+    refinerStart: num(p.refiner_start, 0),
+    refinerPrompt: str(p.refiner_prompt, ""),
+    refinerNegative: str(p.refiner_negative, ""),
+
+    // Advanced
+    clipSkip: num(p.clip_skip, 1),
+    vaeType: str(p.vae_type, "Full"),
+    tiling: bool(p.tiling, false),
+    hidiffusion: bool(p.hidiffusion, false),
+
+    // HDR corrections
+    hdrMode: num(p.hdr_mode, 0),
+    hdrBrightness: num(p.hdr_brightness, 0),
+    hdrSharpen: num(p.hdr_sharpen, 0),
+    hdrColor: num(p.hdr_color, 0),
+    hdrClamp: bool(p.hdr_clamp, false),
+    hdrBoundary: num(p.hdr_boundary, 4.0),
+    hdrThreshold: num(p.hdr_threshold, 0.95),
+    hdrMaximize: bool(p.hdr_maximize, false),
+    hdrMaxCenter: num(p.hdr_max_center, 0.6),
+    hdrMaxBoundary: num(p.hdr_max_boundary, 1.0),
+    hdrTintRatio: num(p.hdr_tint_ratio, 0),
+
+    // Detailer
+    detailerEnabled: bool(p.detailer_enabled, false),
+    detailerPrompt: str(p.detailer_prompt, ""),
+    detailerNegative: str(p.detailer_negative, ""),
+    detailerSteps: num(p.detailer_steps, 10),
+    detailerStrength: num(p.detailer_strength, 0.3),
+    detailerResolution: num(p.detailer_resolution, 1024),
+    detailerSegmentation: bool(p.detailer_segmentation, false),
+    detailerIncludeDetections: bool(p.detailer_include_detections, false),
+    detailerMerge: bool(p.detailer_merge, false),
+    detailerSort: bool(p.detailer_sort, false),
+    detailerClasses: str(p.detailer_classes, ""),
+
+    // Scheduler overrides
+    sigmaMethod: str(overrides.schedulers_sigma, "default"),
+    timestepSpacing: str(overrides.schedulers_timestep_spacing, "default"),
+    betaSchedule: str(overrides.schedulers_beta_schedule, "default"),
+    predictionMethod: str(overrides.schedulers_prediction_type, "default"),
+    flowShift: num(overrides.schedulers_shift, 3),
+    baseShift: num(overrides.schedulers_base_shift, 0.5),
+    maxShift: num(overrides.schedulers_max_shift, 1.15),
+    sigmaAdjust: num(overrides.schedulers_sigma_adjust, 1.0),
+    sigmaAdjustStart: num(overrides.schedulers_sigma_adjust_min, 0.2),
+    sigmaAdjustEnd: num(overrides.schedulers_sigma_adjust_max, 1.0),
+    thresholding: bool(overrides.schedulers_use_thresholding, false),
+    dynamic: bool(overrides.schedulers_dynamic_shift, false),
+    rescale: bool(overrides.schedulers_rescale_betas, false),
+    lowOrder: bool(overrides.schedulers_use_loworder, true),
+    timestepsOverride: str(overrides.schedulers_timesteps, ""),
+    timestepsPreset: "None",
+
+    // Detailer overrides
+    ...(p.detailer_enabled ? {
+      detailerModels: Array.isArray(overrides.detailer_models) ? overrides.detailer_models as string[] : ["face-yolo8n"],
+      detailerMaxDetected: num(overrides.detailer_max_detected, 2),
+      detailerPadding: num(overrides.detailer_padding, 20),
+      detailerBlur: num(overrides.detailer_blur, 10),
+      detailerConfidence: num(overrides.detailer_confidence, 0.6),
+      detailerIou: num(overrides.detailer_iou, 0.5),
+      detailerMinSize: num(overrides.detailer_min_size, 0.0),
+      detailerMaxSize: num(overrides.detailer_max_size, 1.0),
+      detailerRenoise: num(overrides.detailer_renoise, 1.0),
+      detailerRenoiseEnd: num(overrides.detailer_renoise_end, 1.0),
+    } : {}),
+  });
 }

@@ -1,7 +1,7 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { useTxt2Img, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
-import { buildTxt2ImgRequest } from "@/lib/requestBuilder";
-import { Play, Square, SkipForward, Loader2 } from "lucide-react";
+import { buildTxt2ImgRequest, restoreFromResult } from "@/lib/requestBuilder";
+import { Play, Square, SkipForward, Loader2, History } from "lucide-react";
 import { useEffect, useRef, useCallback, memo } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ export const ActionBar = memo(function ActionBar() {
   const setProgress = useGenerationStore((s) => s.setProgress);
   const setPreview = useGenerationStore((s) => s.setPreview);
   const addResult = useGenerationStore((s) => s.addResult);
+  const lastResult = useGenerationStore((s) => s.results[0]);
   const txt2img = useTxt2Img();
   const interrupt = useInterrupt();
   const skip = useSkip();
@@ -97,6 +98,12 @@ export const ActionBar = memo(function ActionBar() {
     skip.mutate();
   }, [skip]);
 
+  const handleRestore = useCallback(() => {
+    if (!lastResult) return;
+    restoreFromResult(lastResult);
+    toast.success("Settings restored from last generation");
+  }, [lastResult]);
+
   const progressPct = Math.round(progress * 100);
 
   return (
@@ -122,6 +129,20 @@ export const ActionBar = memo(function ActionBar() {
           </>
         )}
       </Button>
+
+      {/* Restore last settings */}
+      {!isGenerating && (
+        <Button
+          type="button"
+          onClick={handleRestore}
+          disabled={!lastResult}
+          variant="secondary"
+          size="icon-sm"
+          title="Restore settings from last generation"
+        >
+          <History size={14} />
+        </Button>
+      )}
 
       {/* Skip button */}
       {isGenerating && (

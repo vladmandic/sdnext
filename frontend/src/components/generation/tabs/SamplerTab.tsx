@@ -10,6 +10,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import type { GenerationInfo } from "@/api/types/generation";
 
 export function SamplerTab() {
   const state = useGenerationStore(useShallow((s) => ({
@@ -36,7 +37,14 @@ export function SamplerTab() {
     subseedStrength: s.subseedStrength,
   })));
   const setParam = useGenerationStore((s) => s.setParam);
+  const lastResult = useGenerationStore((s) => s.results[0]);
   const { data: samplers } = useSamplerList();
+
+  const lastInfo = useMemo<GenerationInfo | null>(() => {
+    if (!lastResult?.info) return null;
+    try { return JSON.parse(lastResult.info) as GenerationInfo; }
+    catch { return null; }
+  }, [lastResult?.info]);
 
   const set = useMemo(() => ({
     sampler: (v: string) => setParam("sampler", v),
@@ -59,10 +67,12 @@ export function SamplerTab() {
     rescale: (c: boolean | "indeterminate") => setParam("rescale", !!c),
     seed: (v: number) => setParam("seed", v),
     seedRandom: () => setParam("seed", -1),
+    seedReuse: () => { if (lastInfo?.seed != null) setParam("seed", lastInfo.seed); },
     subseed: (v: number) => setParam("subseed", v),
     subseedRandom: () => setParam("subseed", -1),
+    subseedReuse: () => { if (lastInfo?.subseed != null) setParam("subseed", lastInfo.subseed); },
     subseedStrength: (v: number) => setParam("subseedStrength", v),
-  }), [setParam]);
+  }), [setParam, lastInfo]);
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -191,6 +201,15 @@ export function SamplerTab() {
           >
             Random
           </Button>
+          <Button
+            variant="secondary" size="xs"
+            onClick={set.seedReuse}
+            disabled={lastInfo?.seed == null}
+            className="text-muted-foreground"
+            title={lastInfo?.seed != null ? `Reuse seed ${lastInfo.seed}` : "No previous generation"}
+          >
+            Reuse
+          </Button>
         </div>
 
         <div className="flex items-center gap-2">
@@ -207,6 +226,15 @@ export function SamplerTab() {
             className="text-muted-foreground"
           >
             Random
+          </Button>
+          <Button
+            variant="secondary" size="xs"
+            onClick={set.subseedReuse}
+            disabled={lastInfo?.subseed == null}
+            className="text-muted-foreground"
+            title={lastInfo?.subseed != null ? `Reuse subseed ${lastInfo.subseed}` : "No previous generation"}
+          >
+            Reuse
           </Button>
         </div>
 
