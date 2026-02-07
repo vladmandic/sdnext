@@ -42,7 +42,7 @@ export function LeftPanel() {
         </ScrollArea>
 
         {/* Result thumbnails */}
-        <div className="border-t border-border p-2 max-h-[200px] overflow-y-auto">
+        <div className="border-t border-border px-2 py-1.5">
           <ResultGallery />
         </div>
       </div>

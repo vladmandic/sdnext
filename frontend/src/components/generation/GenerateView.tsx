@@ -6,9 +6,18 @@ export function GenerateView() {
   const isGenerating = useGenerationStore((s) => s.isGenerating);
   const previewImage = useGenerationStore((s) => s.previewImage);
   const progress = useGenerationStore((s) => s.progress);
+  const selectedResultId = useGenerationStore((s) => s.selectedResultId);
+  const selectedImageIndex = useGenerationStore((s) => s.selectedImageIndex);
 
-  const latestResult = results[0];
-  const displayImage = previewImage ?? latestResult?.images[0];
+  let displayImage: string | undefined;
+  if (previewImage) {
+    displayImage = previewImage;
+  } else if (selectedResultId) {
+    const selected = results.find((r) => r.id === selectedResultId);
+    displayImage = selected?.images[selectedImageIndex ?? 0];
+  } else {
+    displayImage = results[0]?.images[0];
+  }
 
   return (
     <div className="flex items-center justify-center h-full p-4">

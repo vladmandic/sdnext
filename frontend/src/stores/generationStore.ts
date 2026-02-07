@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { putResult, trimResults, clearAllResults, getAllResults } from "@/lib/historyDb";
 
 export interface GenerationResult {
   id: string;
@@ -126,6 +127,9 @@ interface GenerationState {
 
   // Results
   results: GenerationResult[];
+  selectedResultId: string | null;
+  selectedImageIndex: number | null;
+  _historyLimit: number;
 
   // Actions
   setParam: <K extends keyof GenerationState>(key: K, value: GenerationState[K]) => void;
@@ -136,6 +140,10 @@ interface GenerationState {
   setTaskId: (id: string | null) => void;
   addResult: (result: GenerationResult) => void;
   clearResults: () => void;
+  selectImage: (resultId: string, imageIndex: number) => void;
+  clearSelection: () => void;
+  setHistoryLimit: (limit: number) => void;
+  hydrateFromDb: () => void;
   reset: () => void;
 }
 
@@ -237,6 +245,9 @@ export const useGenerationStore = create<GenerationState>()((set) => ({
   previewImage: null,
   queuePosition: 0,
   results: [],
+  selectedResultId: null,
+  selectedImageIndex: null,
+  _historyLimit: 16,
 
   setParam: (key, value) => set({ [key]: value }),
 
@@ -255,11 +266,39 @@ export const useGenerationStore = create<GenerationState>()((set) => ({
   setTaskId: (id) => set({ currentTaskId: id }),
 
   addResult: (result) =>
-    set((state) => ({
-      results: [result, ...state.results].slice(0, 100),
-    })),
+    set((state) => {
+      putResult(result).then(() => trimResults(state._historyLimit));
+      return {
+        results: [result, ...state.results].slice(0, 100),
+        selectedResultId: result.id,
+        selectedImageIndex: 0,
+      };
+    }),
 
-  clearResults: () => set({ results: [] }),
+  clearResults: () => {
+    clearAllResults();
+    set({ results: [], selectedResultId: null, selectedImageIndex: null });
+  },
+
+  selectImage: (resultId, imageIndex) =>
+    set({ selectedResultId: resultId, selectedImageIndex: imageIndex }),
+
+  clearSelection: () =>
+    set({ selectedResultId: null, selectedImageIndex: null }),
+
+  setHistoryLimit: (limit) => set({ _historyLimit: limit }),
+
+  hydrateFromDb: () => {
+    getAllResults().then((dbResults) => {
+      if (useGenerationStore.getState().results.length === 0 && dbResults.length > 0) {
+        useGenerationStore.setState({
+          results: dbResults,
+          selectedResultId: dbResults[0]?.id ?? null,
+          selectedImageIndex: dbResults[0] ? 0 : null,
+        });
+      }
+    });
+  },
 
   reset: () => set({ ...defaultParams }),
 }));

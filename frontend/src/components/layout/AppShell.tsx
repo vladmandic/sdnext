@@ -5,9 +5,11 @@ import { MainContent } from "./MainContent";
 import { LeftPanel } from "./LeftPanel";
 import { RightPanel } from "./RightPanel";
 import { useUiStore } from "@/stores/uiStore";
+import { useHistoryInit } from "@/hooks/useHistoryInit";
 import { cn } from "@/lib/utils";
 
 export function AppShell() {
+  useHistoryInit();
   const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
   const leftPanelWidth = useUiStore((s) => s.leftPanelWidth);
   const rightPanelCollapsed = useUiStore((s) => s.rightPanelCollapsed);
