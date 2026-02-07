@@ -4,23 +4,53 @@ import os
 import sys
 import time
 import contextlib
-
 from enum import Enum
 from typing import TYPE_CHECKING
+
 import gradio as gr
-from installer import log, print_dict, console, get_version # pylint: disable=unused-import
-log.debug('Initializing: shared module')
+
+from installer import (
+    log as log,
+    print_dict,
+    console as console,
+    get_version as get_version,
+)
+
+log.debug("Initializing: shared module")
 
 import modules.memmon
 import modules.paths as paths
-from modules.json_helpers import readfile, writefile # pylint: disable=W0611
-from modules.shared_helpers import listdir, walk_files, html_path, html, req, total_tqdm # pylint: disable=W0611
+from modules.json_helpers import (
+    readfile as readfile,
+    writefile as writefile,
+)
+from modules.shared_helpers import (
+    listdir as listdir,
+    walk_files as walk_files,
+    html_path as html_path,
+    html as html,
+    req as req,
+    total_tqdm as total_tqdm,
+)
 from modules import errors, devices, shared_state, cmd_args, theme, history, files_cache
 from modules.shared_defaults import get_default_modes
-from modules.paths import models_path, script_path, data_path, sd_configs_path, sd_default_config, sd_model_file, default_sd_model_file, extensions_dir, extensions_builtin_dir # pylint: disable=W0611
-from modules.memstats import memory_stats, ram_stats # pylint: disable=unused-import
+from modules.paths import (
+    models_path as models_path, # For compatibility, do not modify from here...
+    script_path as script_path,
+    data_path as data_path,
+    sd_configs_path as sd_configs_path,
+    sd_default_config as sd_default_config,
+    sd_model_file as sd_model_file,
+    default_sd_model_file as default_sd_model_file,
+    extensions_dir as extensions_dir,
+    extensions_builtin_dir as extensions_builtin_dir, # ... to here.
+)
+from modules.memstats import (
+    memory_stats,
+    ram_stats as ram_stats,
+)
 
-log.debug('Initializing: pipelines')
+log.debug("Initializing: pipelines")
 from modules import shared_items
 from modules.interrogate.openclip import caption_models, caption_types, get_clip_models, refresh_clip_models
 from modules.interrogate.vqa import vlm_models, vlm_prompts, vlm_system, vlm_default
