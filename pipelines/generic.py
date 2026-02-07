@@ -152,7 +152,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
         elif cls_name == transformers.T5EncoderModel and allow_shared and shared.opts.te_shared_t5:
             if model_quant.check_nunchaku('TE'):
                 import nunchaku
-                repo_id = 'nunchaku-tech/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors'
+                repo_id = 'nunchaku-ai/nunchaku-t5/awq-int4-flux.1-t5xxl.safetensors'
                 cls_name = nunchaku.NunchakuT5EncoderModel
                 shared.log.debug(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} quant="SVDQuant" loader={_loader("transformers")}')
                 text_encoder = nunchaku.NunchakuT5EncoderModel.from_pretrained(

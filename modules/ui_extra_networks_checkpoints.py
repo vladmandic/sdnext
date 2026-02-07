@@ -3,7 +3,7 @@ import html
 import json
 import concurrent
 from datetime import datetime
-from modules import shared, ui_extra_networks, sd_models, modelstats, paths
+from modules import shared, ui_extra_networks, sd_models, modelstats, paths, devices
 from modules.json_helpers import readfile
 
 
@@ -48,16 +48,21 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         reference_distilled = readfile(os.path.join('data', 'reference-distilled.json'), as_type="dict")
         reference_community = readfile(os.path.join('data', 'reference-community.json'), as_type="dict")
         reference_cloud = readfile(os.path.join('data', 'reference-cloud.json'), as_type="dict")
+        reference_nunchaku = readfile(os.path.join('data', 'reference-nunchaku.json'), as_type="dict")
         shared.reference_models = {}
         shared.reference_models.update(reference_base)
         shared.reference_models.update(reference_quant)
         shared.reference_models.update(reference_community)
         shared.reference_models.update(reference_distilled)
         shared.reference_models.update(reference_cloud)
+        shared.reference_models.update(reference_nunchaku)
 
         for k, v in shared.reference_models.items():
             count['total'] += 1
             url = v['path']
+            if v.get('hidden', False):
+                count['hidden'] += 1
+                continue
             experimental = v.get('experimental', False)
             if experimental:
                 if shared.cmd_opts.experimental:
@@ -83,6 +88,9 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 path = f'{v.get("path", "")}'
 
             tag = v.get('tags', '')
+            if tag == 'nunchaku' and devices.backend != 'cuda':
+                count['hidden'] += 1
+                continue
             if tag in count:
                 count[tag] += 1
             elif tag != '':

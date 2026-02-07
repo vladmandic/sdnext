@@ -18,14 +18,15 @@ def load_unet_sdxl_nunchaku(repo_id):
         shared.log.error(f'Load module: quant=Nunchaku module=unet repo="{repo_id}" low nunchaku version')
         return None
     if 'turbo' in repo_id.lower():
-        nunchaku_repo = 'nunchaku-tech/nunchaku-sdxl-turbo/svdq-int4_r32-sdxl-turbo.safetensors'
+        nunchaku_repo = 'nunchaku-ai/nunchaku-sdxl-turbo/svdq-int4_r32-sdxl-turbo.safetensors'
     else:
-        nunchaku_repo = 'nunchaku-tech/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors'
+        nunchaku_repo = 'nunchaku-ai/nunchaku-sdxl/svdq-int4_r32-sdxl.safetensors'
 
-    shared.log.debug(f'Load module: quant=Nunchaku module=unet repo="{nunchaku_repo}" offload={shared.opts.nunchaku_offload}')
+    if shared.opts.nunchaku_offload:
+        shared.log.warning('Load module: quant=Nunchaku module=unet offload not supported for SDXL, ignoring')
+    shared.log.debug(f'Load module: quant=Nunchaku module=unet repo="{nunchaku_repo}"')
     unet = NunchakuSDXLUNet2DConditionModel.from_pretrained(
         nunchaku_repo,
-        offload=shared.opts.nunchaku_offload,
         torch_dtype=devices.dtype,
         cache_dir=shared.opts.hfcache_dir,
     )

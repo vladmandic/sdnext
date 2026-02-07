@@ -281,7 +281,6 @@ options_templates.update(options_section(("quantization", "Model Quantization"),
     "sdnq_quantize_shuffle_weights": OptionInfo(False, "Shuffle weights in post mode", gr.Checkbox),
 
     "nunchaku_sep": OptionInfo("<h2>Nunchaku Engine</h2>", "", gr.HTML),
-    "nunchaku_quantization": OptionInfo([], "SVDQuant enabled", gr.CheckboxGroup, {"choices": ["Model", "TE"]}),
     "nunchaku_attention": OptionInfo(False, "Nunchaku attention", gr.Checkbox),
     "nunchaku_offload": OptionInfo(False, "Nunchaku offloading", gr.Checkbox),
 
@@ -881,6 +880,7 @@ profiler = None
 import modules.styles
 prompt_styles = modules.styles.StyleDatabase(opts)
 reference_models = readfile(os.path.join('data', 'reference.json'), as_type="dict") if opts.extra_network_reference_enable else {}
+reference_models.update(readfile(os.path.join('data', 'reference-nunchaku.json'), as_type="dict") if opts.extra_network_reference_enable else {})
 cmd_opts.disable_extension_access = (cmd_opts.share or cmd_opts.listen or (cmd_opts.server_name or False)) and not cmd_opts.insecure
 
 log.debug('Initializing: devices')

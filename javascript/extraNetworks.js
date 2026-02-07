@@ -171,6 +171,12 @@ async function filterExtraNetworksForTab(searchTerm) {
           .toLowerCase()
           .includes('quantized') ? '' : 'none';
       });
+    } else if (searchTerm === 'nunchaku/') {
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags
+          .toLowerCase()
+          .includes('nunchaku') ? '' : 'none';
+      });
     } else if (searchTerm === 'local/') {
       cards.forEach((elem) => {
         elem.style.display = elem.dataset.name

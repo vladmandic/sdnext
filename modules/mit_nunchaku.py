@@ -4,8 +4,25 @@ from installer import log, pip
 from modules import devices
 
 
-nunchaku_ver = '1.1.0'
+nunchaku_versions = {
+    '2.5': '1.0.1',
+    '2.6': '1.0.1',
+    '2.7': '1.1.0',
+    '2.8': '1.1.0',
+    '2.9': '1.1.0',
+    '2.10': '1.0.2',
+    '2.11': '1.1.0',
+}
 ok = False
+
+
+def _expected_ver():
+    try:
+        import torch
+        torch_ver = '.'.join(torch.__version__.split('+')[0].split('.')[:2])
+        return nunchaku_versions.get(torch_ver)
+    except Exception:
+        return None
 
 
 def check():
@@ -16,8 +33,9 @@ def check():
         import nunchaku
         import nunchaku.utils
         from nunchaku import __version__
+        expected = _expected_ver()
         log.info(f'Nunchaku: path={nunchaku.__path__} version={__version__.__version__} precision={nunchaku.utils.get_precision()}')
-        if __version__.__version__ != nunchaku_ver:
+        if expected is not None and __version__.__version__ != expected:
             ok = False
             return False
         ok = True
@@ -49,14 +67,16 @@ def install_nunchaku():
         if devices.backend not in ['cuda']:
             log.error(f'Nunchaku: backend={devices.backend} unsupported')
             return False
-        torch_ver = torch.__version__[:3]
-        if torch_ver not in ['2.5', '2.6', '2.7', '2.8', '2.9', '2.10']:
+        torch_ver = '.'.join(torch.__version__.split('+')[0].split('.')[:2])
+        nunchaku_ver = nunchaku_versions.get(torch_ver)
+        if nunchaku_ver is None:
             log.error(f'Nunchaku: torch={torch.__version__} unsupported')
+            return False
         suffix = 'x86_64' if arch == 'linux' else 'win_amd64'
         url = os.environ.get('NUNCHAKU_COMMAND', None)
         if url is None:
             arch = f'{arch}_' if arch == 'linux' else ''
-            url = f'https://huggingface.co/nunchaku-tech/nunchaku/resolve/main/nunchaku-{nunchaku_ver}'
+            url = f'https://huggingface.co/nunchaku-ai/nunchaku/resolve/main/nunchaku-{nunchaku_ver}'
             url += f'+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{arch}{suffix}.whl'
         cmd = f'install --upgrade {url}'
         log.debug(f'Nunchaku: install="{url}"')

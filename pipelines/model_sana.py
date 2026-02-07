@@ -9,7 +9,7 @@ def load_quants(kwargs, repo_id, cache_dir):
     if 'Sana_1600M_1024px' in repo_id and model_quant.check_nunchaku('Model'): # only available model
         import nunchaku
         nunchaku_precision = nunchaku.utils.get_precision()
-        nunchaku_repo = "nunchaku-tech/nunchaku-sana/svdq-int4_r32-sana1.6b.safetensors"
+        nunchaku_repo = "nunchaku-ai/nunchaku-sana/svdq-int4_r32-sana1.6b.safetensors"
         shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" precision={nunchaku_precision} attention={shared.opts.nunchaku_attention}')
         kwargs['transformer'] = nunchaku.NunchakuSanaTransformer2DModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype, cache_dir=cache_dir)
     elif model_quant.check_quant('Model'):

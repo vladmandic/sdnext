@@ -37,7 +37,7 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
         diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["qwen-image"] = diffusers.QwenImageInpaintPipeline
 
     if model_quant.check_nunchaku('Model'):
-        transformer = qwen.load_qwen_nunchaku(repo_id)
+        transformer = qwen.load_qwen_nunchaku(repo_id, subfolder=repo_subfolder)
 
     if 'Qwen-Image-Distill-Full' in repo_id:
         repo_transformer = repo_id
@@ -63,6 +63,8 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
     text_encoder = generic.load_text_encoder(repo_te, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
 
     repo_id, repo_subfolder = qwen.check_qwen_pruning(repo_id, repo_subfolder)
+    if repo_subfolder is not None and repo_subfolder.startswith('nunchaku'):
+        repo_subfolder = None
     pipe = cls_name.from_pretrained(
         repo_id,
         transformer=transformer,

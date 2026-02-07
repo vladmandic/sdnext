@@ -8,7 +8,7 @@ def load_nunchaku():
     import nunchaku
     nunchaku_precision = nunchaku.utils.get_precision()
     nunchaku_rank = 128
-    nunchaku_repo = f"nunchaku-tech/nunchaku-z-image-turbo/svdq-{nunchaku_precision}_r{nunchaku_rank}-z-image-turbo.safetensors"
+    nunchaku_repo = f"nunchaku-ai/nunchaku-z-image-turbo/svdq-{nunchaku_precision}_r{nunchaku_rank}-z-image-turbo.safetensors"
     shared.log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" attention={shared.opts.nunchaku_attention}')
     transformer = nunchaku.NunchakuZImageTransformer2DModel.from_pretrained(
         nunchaku_repo,

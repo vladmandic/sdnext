@@ -305,6 +305,7 @@ class ExtraNetworksPage:
             subdirs['Reference'] = 1
             subdirs['Distilled'] = 1
             subdirs['Quantized'] = 1
+            subdirs['Nunchaku'] = 1
             subdirs['Community'] = 1
             subdirs['Cloud'] = 1
             subdirs[diffusers_base] = 1
@@ -324,6 +325,8 @@ class ExtraNetworksPage:
             subdirs.move_to_end('Distilled', last=True)
         if 'Quantized' in subdirs:
             subdirs.move_to_end('Quantized', last=True)
+        if 'Nunchaku' in subdirs:
+            subdirs.move_to_end('Nunchaku', last=True)
         if 'Community' in subdirs:
             subdirs.move_to_end('Community', last=True)
         if 'Cloud' in subdirs:
@@ -332,7 +335,7 @@ class ExtraNetworksPage:
         for subdir in subdirs:
             if len(subdir) == 0:
                 continue
-            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Quantized', 'Community', 'Cloud']:
+            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Quantized', 'Nunchaku', 'Community', 'Cloud']:
                 style = 'network-reference'
             else:
                 style = 'network-folder'
