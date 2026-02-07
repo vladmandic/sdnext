@@ -1,0 +1,30 @@
+name: Model request
+description: Request support for a new model
+title: "[Model]: "
+labels: ["enhancement"]
+
+body:
+  - type: textarea
+    id: name
+    attributes:
+      label: Model name
+      description: Enter model name
+      value: 
+  - type: textarea
+    id: type
+    attributes:
+      label: Model type
+      description: Describe model type
+      value: 
+  - type: textarea
+    id: url
+    attributes:
+      label: Model URL
+      description: Enter URL to the model page
+      value: 
+  - type: textarea
+    id: description
+    attributes:
+      label: Reason
+      description: Enter a reason why you would like to see this model supported
+      value: 
