@@ -66,13 +66,14 @@ body:
         If unsure if this is a right place to ask your question, perhaps post on [Discussions](https://github.com/vladmandic/automatic/discussions)
         Or reach-out to us on [Discord](https://discord.gg/WqMzTUDC)
   - type: dropdown
-    id: backend
+    id: os
     attributes:
-      label: Backend
-      description: What is the backend you're using?
+      label: Operating system
+      description: What is the OS you're using?
       options:
-        - Diffusers
-        - Original
+        - Windows
+        - Linux
+        - MacOS
       default: 0
     validations:
       required: true
