@@ -1,10 +1,10 @@
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { useSamplerList } from "@/api/hooks/useModels";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
@@ -64,24 +64,17 @@ export function SamplerTab() {
     subseedStrength: (v: number) => setParam("subseedStrength", v),
   }), [setParam]);
 
-  const handleSamplerChange = useCallback((e: React.ChangeEvent<HTMLSelectElement>) => {
-    setParam("sampler", e.target.value);
-  }, [setParam]);
-
   return (
     <div className="flex flex-col gap-3 text-sm">
       <ParamSection title="Sampler">
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Method</Label>
-          <select
+          <Combobox
             value={state.sampler}
-            onChange={handleSamplerChange}
-            className="flex-1 h-6 text-[11px] bg-transparent border border-input rounded-md px-1.5 text-foreground outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] transition-[color,box-shadow]"
-          >
-            {samplers?.map((s) => (
-              <option key={s.name} value={s.name}>{s.name}</option>
-            ))}
-          </select>
+            onValueChange={set.sampler}
+            options={samplers?.map((s) => s.name) ?? []}
+            className="flex-1 h-6 text-[11px]"
+          />
         </div>
         <ParamSlider label="Steps" value={state.steps} onChange={set.steps} min={1} max={150} />
       </ParamSection>
@@ -89,72 +82,54 @@ export function SamplerTab() {
       <ParamSection title="Scheduler" defaultOpen={false}>
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Sigma</Label>
-          <Select value={state.sigmaMethod} onValueChange={set.sigmaMethod}>
-            <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {["default", "karras", "exponential", "polyexponential"].map((v) => (
-                <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={state.sigmaMethod}
+            onValueChange={set.sigmaMethod}
+            options={["default", "karras", "exponential", "polyexponential"]}
+            className="flex-1 h-6 text-[11px]"
+          />
         </div>
 
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Spacing</Label>
-          <Select value={state.timestepSpacing} onValueChange={set.timestepSpacing}>
-            <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {["default", "linspace", "leading", "trailing"].map((v) => (
-                <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={state.timestepSpacing}
+            onValueChange={set.timestepSpacing}
+            options={["default", "linspace", "leading", "trailing"]}
+            className="flex-1 h-6 text-[11px]"
+          />
         </div>
 
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Beta</Label>
-          <Select value={state.betaSchedule} onValueChange={set.betaSchedule}>
-            <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {["default", "linear", "scaled_linear", "squaredcos_cap_v2", "sigmoid"].map((v) => (
-                <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={state.betaSchedule}
+            onValueChange={set.betaSchedule}
+            options={["default", "linear", "scaled_linear", "squaredcos_cap_v2", "sigmoid"]}
+            className="flex-1 h-6 text-[11px]"
+          />
         </div>
 
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Prediction</Label>
-          <Select value={state.predictionMethod} onValueChange={set.predictionMethod}>
-            <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {["default", "epsilon", "sample", "v_prediction", "flow_prediction"].map((v) => (
-                <SelectItem key={v} value={v} className="text-xs">{v}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={state.predictionMethod}
+            onValueChange={set.predictionMethod}
+            options={["default", "epsilon", "sample", "v_prediction", "flow_prediction"]}
+            className="flex-1 h-6 text-[11px]"
+          />
         </div>
       </ParamSection>
 
       <ParamSection title="Timesteps" defaultOpen={false}>
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Preset</Label>
-          <Select value={state.timestepsPreset} onValueChange={set.timestepsPreset}>
-            <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="None" className="text-xs">None</SelectItem>
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={state.timestepsPreset}
+            onValueChange={set.timestepsPreset}
+            options={["None"]}
+            className="flex-1 h-6 text-[11px]"
+          />
         </div>
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Override</Label>

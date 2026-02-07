@@ -4,7 +4,7 @@ import { useScriptStore } from "@/stores/scriptStore";
 import { ParamSection } from "../ParamSection";
 import { ScriptArgControl } from "./scripts/ScriptArgControl";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 
 export function ScriptsTab() {
   const { data: scriptsList } = useScriptsList();
@@ -28,17 +28,16 @@ export function ScriptsTab() {
       <ParamSection title="Script">
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Script</Label>
-          <Select value={store.selectedScript || "__none__"} onValueChange={(v) => store.setSelectedScript(v === "__none__" ? "" : v)}>
-            <SelectTrigger className="h-7 text-xs flex-1">
-              <SelectValue placeholder="None" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">None</SelectItem>
-              {selectableScripts.map((name) => (
-                <SelectItem key={name} value={name}>{name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={store.selectedScript || "__none__"}
+            onValueChange={(v) => store.setSelectedScript(v === "__none__" ? "" : v)}
+            options={[
+              { value: "__none__", label: "None" },
+              ...selectableScripts.map((name) => ({ value: name, label: name })),
+            ]}
+            placeholder="None"
+            className="h-7 text-xs flex-1"
+          />
         </div>
 
         {selectedInfo && selectedInfo.args.length > 0 && (

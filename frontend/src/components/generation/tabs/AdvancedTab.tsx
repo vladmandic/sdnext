@@ -6,7 +6,7 @@ import { ParamSection } from "../ParamSection";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 
 export function AdvancedTab() {
   const state = useGenerationStore(useShallow((s) => ({
@@ -75,16 +75,12 @@ export function AdvancedTab() {
 
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">VAE type</Label>
-          <Select value={state.vaeType} onValueChange={set.vaeType}>
-            <SelectTrigger className="h-7 text-xs flex-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Full">Full</SelectItem>
-              <SelectItem value="Tiny">Tiny</SelectItem>
-              <SelectItem value="Remote">Remote</SelectItem>
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={state.vaeType}
+            onValueChange={set.vaeType}
+            options={["Full", "Tiny", "Remote"]}
+            className="h-7 text-xs flex-1"
+          />
         </div>
 
         <div className="flex items-center gap-4">
@@ -102,15 +98,12 @@ export function AdvancedTab() {
       <ParamSection title="Corrections">
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Mode</Label>
-          <Select value={String(state.hdrMode)} onValueChange={set.hdrMode}>
-            <SelectTrigger className="h-7 text-xs flex-1">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="0">Relative values</SelectItem>
-              <SelectItem value="1">Absolute values</SelectItem>
-            </SelectContent>
-          </Select>
+          <Combobox
+            value={String(state.hdrMode)}
+            onValueChange={set.hdrMode}
+            options={[{ value: "0", label: "Relative values" }, { value: "1", label: "Absolute values" }]}
+            className="h-7 text-xs flex-1"
+          />
         </div>
 
         <ParamSlider label="Brightness" value={state.hdrBrightness} onChange={set.hdrBrightness} min={-1} max={1} step={0.1} />

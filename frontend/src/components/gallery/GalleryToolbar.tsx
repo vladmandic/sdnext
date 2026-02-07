@@ -2,7 +2,7 @@ import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
 import type { GallerySortField, GallerySortDir } from "@/api/types/gallery";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
 import { Search, FolderOpen } from "lucide-react";
 
@@ -86,16 +86,12 @@ export function GalleryToolbar({ totalCount, filteredCount }: GalleryToolbarProp
           />
         </div>
 
-        <Select value={sortValue} onValueChange={handleSortChange}>
-          <SelectTrigger size="sm" className="w-28 h-7 text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SORT_OPTIONS.map((o) => (
-              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={sortValue}
+          onValueChange={handleSortChange}
+          options={SORT_OPTIONS}
+          className="w-28 h-7 text-xs"
+        />
 
         <div className="flex items-center gap-1.5 min-w-[100px]">
           <span className="text-[10px] text-muted-foreground">Size</span>

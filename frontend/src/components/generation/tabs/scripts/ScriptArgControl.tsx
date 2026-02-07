@@ -2,7 +2,7 @@ import { ParamSlider } from "../../ParamSlider";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import type { ScriptArg } from "@/api/types/script";
 
 interface ScriptArgControlProps {
@@ -16,16 +16,12 @@ export function ScriptArgControl({ arg, value, onChange }: ScriptArgControlProps
     return (
       <div className="flex items-center gap-2">
         <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0 truncate" title={arg.label}>{arg.label}</Label>
-        <Select value={String(value ?? arg.choices[0])} onValueChange={onChange}>
-          <SelectTrigger className="h-7 text-xs flex-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {arg.choices.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={String(value ?? arg.choices[0])}
+          onValueChange={(v) => onChange(v)}
+          options={arg.choices}
+          className="h-7 text-xs flex-1"
+        />
       </div>
     );
   }

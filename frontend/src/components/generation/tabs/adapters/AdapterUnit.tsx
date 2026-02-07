@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { useMemo } from "react";
 
 interface AdapterUnitProps {
@@ -37,17 +37,12 @@ export function AdapterUnit({ index }: AdapterUnitProps) {
     <div className="flex flex-col gap-2 p-2 rounded-md border border-border">
       <div className="flex items-center gap-2">
         <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Adapter</Label>
-        <Select value={unit.adapter} onValueChange={(v) => setUnitParam(index, "adapter", v)}>
-          <SelectTrigger className="h-7 text-xs flex-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="None">None</SelectItem>
-            {adapterModels?.map((name) => (
-              <SelectItem key={name} value={name}>{name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={unit.adapter}
+          onValueChange={(v) => setUnitParam(index, "adapter", v)}
+          options={["None", ...(adapterModels ?? [])]}
+          className="h-7 text-xs flex-1"
+        />
       </div>
 
       <ParamSlider label="Scale" value={unit.scale} onChange={(v) => setUnitParam(index, "scale", v)} min={0} max={2} step={0.01} />

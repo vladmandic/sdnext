@@ -10,7 +10,7 @@ import { ParamSection } from "../ParamSection";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 
 export function PromptsTab() {
   const state = useGenerationStore(useShallow((s) => ({
@@ -75,16 +75,13 @@ export function PromptsTab() {
               </span>
             ))}
           </div>
-          <Select value="_placeholder_" onValueChange={addStyle}>
-            <SelectTrigger size="sm" className="h-6 text-[11px]">
-              <SelectValue placeholder="Add style..." />
-            </SelectTrigger>
-            <SelectContent>
-              {styles.filter((s) => !selectedStyles.includes(s.name)).map((s) => (
-                <SelectItem key={s.name} value={s.name} className="text-xs">{s.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <Combobox
+            value=""
+            onValueChange={addStyle}
+            options={styles.filter((s) => !selectedStyles.includes(s.name)).map((s) => s.name)}
+            placeholder="Add style..."
+            className="h-6 text-[11px]"
+          />
         </ParamSection>
       )}
 

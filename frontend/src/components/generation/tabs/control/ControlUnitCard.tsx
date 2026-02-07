@@ -7,7 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 
 interface ControlUnitCardProps {
   index: number;
@@ -38,32 +38,22 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
 
       <div className="flex items-center gap-2">
         <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Processor</Label>
-        <Select value={unit.processor} onValueChange={(v) => setUnitParam(index, "processor", v)}>
-          <SelectTrigger className="h-7 text-xs flex-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="None">None</SelectItem>
-            {preprocessors?.filter((p) => p.name !== "None").map((p) => (
-              <SelectItem key={p.name} value={p.name}>{p.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={unit.processor}
+          onValueChange={(v) => setUnitParam(index, "processor", v)}
+          options={["None", ...(preprocessors?.filter((p) => p.name !== "None").map((p) => p.name) ?? [])]}
+          className="h-7 text-xs flex-1"
+        />
       </div>
 
       <div className="flex items-center gap-2">
         <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Model</Label>
-        <Select value={unit.model} onValueChange={(v) => setUnitParam(index, "model", v)}>
-          <SelectTrigger className="h-7 text-xs flex-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="None">None</SelectItem>
-            {models?.map((name) => (
-              <SelectItem key={name} value={name}>{name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={unit.model}
+          onValueChange={(v) => setUnitParam(index, "model", v)}
+          options={["None", ...(models ?? [])]}
+          className="h-7 text-xs flex-1"
+        />
       </div>
 
       <ParamSlider label="Strength" value={unit.strength} onChange={(v) => setUnitParam(index, "strength", v)} min={0.01} max={2} step={0.01} />

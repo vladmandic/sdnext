@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { X } from "lucide-react";
 
 export function DetailTab() {
@@ -96,16 +96,13 @@ export function DetailTab() {
                   </span>
                 ))}
               </div>
-              <Select value="_placeholder_" onValueChange={addModel}>
-                <SelectTrigger className="h-7 text-xs flex-1">
-                  <SelectValue placeholder="Add model..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {models?.filter((m) => !state.detailerModels.includes(m.name)).map((m) => (
-                    <SelectItem key={m.name} value={m.name}>{m.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value=""
+                onValueChange={addModel}
+                options={models?.filter((m) => !state.detailerModels.includes(m.name)).map((m) => m.name) ?? []}
+                placeholder="Add model..."
+                className="h-7 text-xs flex-1"
+              />
             </div>
 
             <div className="flex flex-col gap-1">

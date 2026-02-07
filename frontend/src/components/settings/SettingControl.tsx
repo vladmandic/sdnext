@@ -3,7 +3,7 @@ import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Slider } from "@/components/ui/slider";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 
 interface SettingControlProps {
   setting: SettingDef;
@@ -53,16 +53,13 @@ export function SettingControl({ setting, value, onChange, dynamicChoices }: Set
         );
       }
       return (
-        <Select value={String(value ?? "")} onValueChange={(v) => onChange(v)}>
-          <SelectTrigger size="sm" className="h-7 text-xs min-w-[140px]">
-            <SelectValue placeholder="Select..." />
-          </SelectTrigger>
-          <SelectContent>
-            {choices.map((c) => (
-              <SelectItem key={c} value={c} className="text-xs">{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={String(value ?? "")}
+          onValueChange={(v) => onChange(v)}
+          options={choices}
+          placeholder="Select..."
+          className="h-7 text-xs min-w-[140px]"
+        />
       );
 
     case "number":

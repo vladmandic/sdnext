@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { ParamSection } from "@/components/generation/ParamSection";
@@ -91,44 +91,33 @@ export function OpenClipSettings({ onChange }: OpenClipSettingsProps) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">CLIP Model</Label>
-        <Select value={effectiveModel} onValueChange={handleModelChange}>
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue placeholder={clipModels.length === 0 ? "Loading..." : "Select model"} />
-          </SelectTrigger>
-          <SelectContent>
-            {clipModels.map((name) => (
-              <SelectItem key={name} value={name} className="text-xs">{name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={effectiveModel}
+          onValueChange={handleModelChange}
+          options={clipModels}
+          placeholder={clipModels.length === 0 ? "Loading..." : "Select model"}
+          className="w-full text-xs"
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Caption Model</Label>
-        <Select value={blipModel} onValueChange={handleBlipModelChange}>
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {BLIP_MODEL_NAMES.map((name) => (
-              <SelectItem key={name} value={name} className="text-xs">{name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={blipModel}
+          onValueChange={handleBlipModelChange}
+          options={BLIP_MODEL_NAMES}
+          className="w-full text-xs"
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Mode</Label>
-        <Select value={mode} onValueChange={handleModeChange}>
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {INTERROGATE_MODES.map((m) => (
-              <SelectItem key={m} value={m} className="text-xs capitalize">{m}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={mode}
+          onValueChange={handleModeChange}
+          options={INTERROGATE_MODES}
+          className="w-full text-xs"
+        />
       </div>
 
       <div className="flex items-center justify-between">

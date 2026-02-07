@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -65,16 +65,12 @@ export function TaggerSettings({ onChange }: TaggerSettingsProps) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Model</Label>
-        <Select value={model} onValueChange={handleModelChange}>
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TAGGER_MODELS.map((name) => (
-              <SelectItem key={name} value={name} className="text-xs">{name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={model}
+          onValueChange={handleModelChange}
+          options={TAGGER_MODELS}
+          className="w-full text-xs"
+        />
       </div>
 
       <ParamSection title="Advanced Options" defaultOpen={false}>

@@ -9,7 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 
 export function RefineTab() {
   const state = useGenerationStore(useShallow((s) => ({
@@ -63,15 +63,12 @@ export function RefineTab() {
           <>
             <div className="flex items-center gap-2">
               <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Mode</Label>
-              <Select value={String(state.hiresResizeMode)} onValueChange={set.hiresResizeMode}>
-                <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0" className="text-xs">Scale</SelectItem>
-                  <SelectItem value="1" className="text-xs">Fixed</SelectItem>
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={String(state.hiresResizeMode)}
+                onValueChange={set.hiresResizeMode}
+                options={[{ value: "0", label: "Scale" }, { value: "1", label: "Fixed" }]}
+                className="flex-1 h-6 text-[11px]"
+              />
             </div>
 
             {state.hiresResizeMode === 0 ? (
@@ -99,31 +96,26 @@ export function RefineTab() {
 
             <div className="flex items-center gap-2">
               <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Upscaler</Label>
-              <Select value={state.hiresUpscaler} onValueChange={set.hiresUpscaler}>
-                <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {upscalers?.map((u) => (
-                    <SelectItem key={u.name} value={u.name} className="text-xs">{u.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={state.hiresUpscaler}
+                onValueChange={set.hiresUpscaler}
+                options={upscalers?.map((u) => u.name) ?? []}
+                className="flex-1 h-6 text-[11px]"
+              />
             </div>
 
             <div className="flex items-center gap-2">
               <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Sampler</Label>
-              <Select value={state.hiresSampler || "_same_"} onValueChange={set.hiresSampler}>
-                <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
-                  <SelectValue placeholder="Same as primary" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="_same_" className="text-xs">Same as primary</SelectItem>
-                  {samplers?.map((s) => (
-                    <SelectItem key={s.name} value={s.name} className="text-xs">{s.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Combobox
+                value={state.hiresSampler || "_same_"}
+                onValueChange={set.hiresSampler}
+                options={[
+                  { value: "_same_", label: "Same as primary" },
+                  ...(samplers?.map((s) => ({ value: s.name, label: s.name })) ?? []),
+                ]}
+                placeholder="Same as primary"
+                className="flex-1 h-6 text-[11px]"
+              />
             </div>
 
             <ParamSlider label="Denoise" value={state.hiresDenoising} onChange={set.hiresDenoising} min={0} max={1} step={0.05} />

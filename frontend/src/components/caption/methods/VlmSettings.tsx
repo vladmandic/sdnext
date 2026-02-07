@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -93,30 +93,22 @@ export function VlmSettings({ onChange }: VlmSettingsProps) {
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Model</Label>
-        <Select value={model} onValueChange={handleModelChange}>
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {VLM_MODEL_NAMES.map((name) => (
-              <SelectItem key={name} value={name} className="text-xs">{name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={model}
+          onValueChange={handleModelChange}
+          options={VLM_MODEL_NAMES}
+          className="w-full text-xs"
+        />
       </div>
 
       <div className="flex flex-col gap-1.5">
         <Label className="text-xs">Task</Label>
-        <Select value={task} onValueChange={handleTaskChange}>
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {prompts.map((p) => (
-              <SelectItem key={p} value={p} className="text-xs">{p}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <Combobox
+          value={task}
+          onValueChange={handleTaskChange}
+          options={prompts}
+          className="w-full text-xs"
+        />
       </div>
 
       {task === "Use Prompt" && (
