@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-02-06
+## Update for 2026-02-07
 
 - **Upscalers**
   - add support for [spandrel](https://github.com/chaiNNer-org/spandrel)  
@@ -19,6 +19,7 @@
   - fix: improve wildcard weights parsing, thanks @Tillerz  
   - fix: ui gallery cace recursive cleanup, thanks @awsr  
   - fix: `anima` model detection  
+  - fix: lora unwanted unload  
 
 ## Update for 2026-02-04
 

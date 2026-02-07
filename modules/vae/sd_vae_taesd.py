@@ -158,13 +158,13 @@ def decode(latents):
         try:
             with devices.inference_context():
                 t0 = time.time()
-                dtype = devices.dtype_vae if devices.dtype_vae != torch.bfloat16 else torch.float16 # taesd does not support bf16
+                dtype = devices.dtype_vae if (devices.dtype_vae != torch.bfloat16) else torch.float16 # taesd does not support bf16
                 tensor = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
                 tensor = tensor.detach().clone().to(devices.device, dtype=dtype)
                 if debug:
                     shared.log.debug(f'Decode: type="taesd" variant="{variant}" input={latents.shape} tensor={tensor.shape}')
                 # Fallback: reshape packed 128-channel latents to 32 channels if not already unpacked
-                if variant == 'TAE FLUX.2' and len(tensor.shape) == 4 and tensor.shape[1] == 128:
+                if (variant == 'TAE FLUX.2') and (len(tensor.shape) == 4) and (tensor.shape[1] == 128):
                     b, _c, h, w = tensor.shape
                     tensor = tensor.reshape(b, 32, h * 2, w * 2)
                 if variant.startswith('TAESD') or variant in {'TAE FLUX.1', 'TAE FLUX.2', 'TAE SD3'}:

@@ -175,6 +175,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
 
     def changed(self, requested: List[str], include: List[str] = None, exclude: List[str] = None) -> bool:
         if shared.opts.lora_force_reload:
+            debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status=forced')
             return True
         sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
         if not hasattr(sd_model, 'loaded_loras'):
@@ -185,14 +186,16 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             exclude = ['none']
         key = f'include={",".join(include)}:exclude={",".join(exclude)}'
         loaded = sd_model.loaded_loras.get(key, [])
-        debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded}')
         if len(requested) != len(loaded):
             sd_model.loaded_loras[key] = requested
+            debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status=changed')
             return True
         for req, load in zip(requested, loaded):
             if req != load:
                 sd_model.loaded_loras[key] = requested
+                debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status=changed')
                 return True
+        debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status=same')
         return False
 
     def activate(self, p, params_list, step=0, include=[], exclude=[]):
@@ -245,9 +248,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                 shared.log.info(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_native else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
 
     def deactivate(self, p, force=False):
-        if len(lora_diffusers.diffuser_loaded) > 0:
-            if not (shared.compiled_model_state is not None and shared.compiled_model_state.is_compiled is True):
-                unload_diffusers()
+        if len(lora_diffusers.diffuser_loaded) > 0 and (shared.opts.lora_force_reload or force):
+            unload_diffusers()
         if force:
             networks.network_deactivate()
         if self.active and l.debug:
