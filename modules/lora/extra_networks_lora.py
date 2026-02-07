@@ -175,7 +175,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
 
     def changed(self, requested: List[str], include: List[str] = None, exclude: List[str] = None) -> bool:
         if shared.opts.lora_force_reload:
-            debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status=forced')
+            debug_log(f'Network check: type=LoRA requested={requested} status=forced')
             return True
         sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
         if not hasattr(sd_model, 'loaded_loras'):

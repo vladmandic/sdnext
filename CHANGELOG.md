@@ -9,6 +9,8 @@
   - add two new interpolation methods: *HQX* and *ICB*  
 - **Features**
   - pipelines: add **ZImageInpaint**, thanks @CalamitousFelicitousness  
+  - add `--remote` command line flag that reduces client/server chatter and improves link stability  
+    for long-running generates, useful when running on remote servers  
 - **UI**
   - ui: **themes** add *CTD-NT64Light* and *CTD-NT64Dark*, thanks @resonantsky  
   - ui: **gallery** add option to auto-refresh gallery, thanks @awsr  
@@ -20,6 +22,7 @@
   - fix: ui gallery cace recursive cleanup, thanks @awsr  
   - fix: `anima` model detection  
   - fix: lora unwanted unload  
+  - fix: improve preview error handler  
 
 ## Update for 2026-02-04
 

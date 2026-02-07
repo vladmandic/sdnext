@@ -115,6 +115,34 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
             shared.state.end(jobid)
 
 
+def generate_click_alt(job_id: str, state: str, active_tab: str, *args):
+    while helpers.busy:
+        debug(f'Control: tab="{active_tab}" job={job_id} busy')
+        time.sleep(0.1)
+    from modules.control.run import control_run
+    debug(f'Control: tab="{active_tab}" job={job_id} args={args}')
+    progress.add_task_to_queue(job_id)
+    with call_queue.get_lock():
+        results = None
+        shared.mem_mon.reset()
+        jobid = shared.state.begin('Control')
+        progress.start_task(job_id)
+        try:
+            t = time.perf_counter()
+            for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
+                progress.record_results(job_id, results)
+        except GeneratorExit:
+            shared.log.error("Control: generator exit")
+        except Exception as e:
+            shared.log.error(f"Control exception: {e}")
+            errors.display(e, 'Control')
+            return [None, None, None, None, f'Control: Exception: {e}', '']
+        finally:
+            progress.finish_task(job_id)
+            shared.state.end(jobid)
+        return return_controls(results, t)
+
+
 def create_ui(_blocks: gr.Blocks=None):
     helpers.initialize()
 
@@ -314,8 +342,9 @@ def create_ui(_blocks: gr.Blocks=None):
                 result_txt,
                 output_html_log,
             ]
+            generate_fn = generate_click_alt if shared.cmd_opts.remote else generate_click
             control_dict = dict(
-                fn=generate_click,
+                fn=generate_fn,
                 _js="submit_control",
                 inputs=[tabs_state, state, tabs_state] + input_fields + input_script_args,
                 outputs=output_fields,
