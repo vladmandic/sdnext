@@ -167,7 +167,7 @@ def create_ui():
                     with gr.Row():
                         vlm_load_btn = gr.Button(value='Load', elem_id='vlm_load', variant='secondary')
                         vlm_unload_btn = gr.Button(value='Unload', elem_id='vlm_unload', variant='secondary')
-                    with gr.Accordion(label='VLM: Advanced Options', open=False, visible=True):
+                    with gr.Accordion(label='Caption: Advanced Options', open=False, visible=True):
                         with gr.Row():
                             vlm_max_tokens = gr.Slider(label='VLM Max Tokens', value=shared.opts.interrogate_vlm_max_length, minimum=16, maximum=4096, step=1, elem_id='vlm_max_tokens')
                             vlm_num_beams = gr.Slider(label='VLM Num Beams', value=shared.opts.interrogate_vlm_num_beams, minimum=1, maximum=16, step=1, elem_id='vlm_num_beams')
@@ -192,7 +192,7 @@ def create_ui():
                         vlm_keep_prefill.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
                         vlm_keep_thinking.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
                         vlm_thinking_mode.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
-                    with gr.Accordion(label='VLM: Batch Caption', open=False, visible=True):
+                    with gr.Accordion(label='Caption: Batch', open=False, visible=True):
                         with gr.Row():
                             vlm_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='vlm_batch_files')
                         with gr.Row():
@@ -213,7 +213,7 @@ def create_ui():
                         ui_common.create_refresh_button(clip_model, openclip.refresh_clip_models, lambda: {"choices": openclip.refresh_clip_models()}, 'clip_models_refresh')
                         blip_model = gr.Dropdown(list(openclip.caption_models), value=shared.opts.interrogate_blip_model, label='Caption Model', elem_id='btN_clip_blip_model')
                         clip_mode = gr.Dropdown(openclip.caption_types, label='Mode', value='fast', elem_id='clip_clip_mode')
-                    with gr.Accordion(label='CLiP: Advanced Options', open=False, visible=True):
+                    with gr.Accordion(label='Caption: Advanced Options', open=False, visible=True):
                         with gr.Row():
                             clip_min_length = gr.Slider(label='clip: min length', value=shared.opts.interrogate_clip_min_length, minimum=8, maximum=75, step=1, elem_id='clip_caption_min_length')
                             clip_max_length = gr.Slider(label='clip: max length', value=shared.opts.interrogate_clip_max_length, minimum=16, maximum=1024, step=1, elem_id='clip_caption_max_length')
@@ -231,7 +231,7 @@ def create_ui():
                         clip_max_flavors.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
                         clip_flavor_count.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
                         clip_num_beams.change(fn=update_clip_params, inputs=[clip_min_length, clip_max_length, clip_chunk_size, clip_min_flavors, clip_max_flavors, clip_flavor_count, clip_num_beams], outputs=[])
-                    with gr.Accordion(label='CLiP: Batch Interrogate', open=False, visible=True):
+                    with gr.Accordion(label='Caption: Batch', open=False, visible=True):
                         with gr.Row():
                             clip_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='clip_batch_files')
                         with gr.Row():
@@ -255,7 +255,7 @@ def create_ui():
                     with gr.Row():
                         wd_load_btn = gr.Button(value='Load', elem_id='wd_load', variant='secondary')
                         wd_unload_btn = gr.Button(value='Unload', elem_id='wd_unload', variant='secondary')
-                    with gr.Accordion(label='Tagger: Advanced Options', open=True, visible=True):
+                    with gr.Accordion(label='Caption: Advanced Options', open=True, visible=True):
                         with gr.Row():
                             wd_general_threshold = gr.Slider(label='General threshold', value=shared.opts.tagger_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_general_threshold')
                             wd_character_threshold = gr.Slider(label='Character threshold', value=shared.opts.waifudiffusion_character_threshold, minimum=0.0, maximum=1.0, step=0.01, elem_id='wd_character_threshold')
@@ -271,7 +271,7 @@ def create_ui():
                         with gr.Row():
                             wd_show_scores = gr.Checkbox(label='Show confidence scores', value=shared.opts.tagger_show_scores, elem_id='wd_show_scores')
                     gr.HTML('<style>#wd_character_threshold:has(input:disabled), #wd_include_rating:has(input:disabled) { opacity: 0.5; }</style>')
-                    with gr.Accordion(label='Tagger: Batch', open=False, visible=True):
+                    with gr.Accordion(label='Caption: Batch', open=False, visible=True):
                         with gr.Row():
                             wd_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='wd_batch_files')
                         with gr.Row():

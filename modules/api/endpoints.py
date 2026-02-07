@@ -92,8 +92,23 @@ def get_extra_networks(page: Optional[str] = None, name: Optional[str] = None, f
     return res
 
 def get_interrogate():
+    """
+    List available interrogation models.
+
+    Returns model identifiers for use with POST /sdapi/v1/interrogate.
+
+    **Model Types:**
+    - OpenCLIP models: Format `architecture/pretrained_dataset` (e.g., `ViT-L-14/openai`)
+
+    For anime-style tagging (WaifuDiffusion, DeepBooru), use `/sdapi/v1/tagger` instead.
+
+    **Example Response:**
+    ```json
+    ["ViT-L-14/openai", "ViT-H-14/laion2b_s32b_b79k"]
+    ```
+    """
     from modules.interrogate.openclip import refresh_clip_models
-    return ['deepdanbooru'] + refresh_clip_models()
+    return refresh_clip_models()
 
 def get_schedulers():
     from modules.sd_samplers import list_samplers
@@ -103,36 +118,309 @@ def get_schedulers():
     return all_schedulers
 
 def post_interrogate(req: models.ReqInterrogate):
+    """
+    Interrogate an image using OpenCLIP/BLIP.
+
+    Analyze image using CLIP model via OpenCLIP to generate Stable Diffusion prompts.
+
+    - Uses CLIP for image-text matching, BLIP for captioning
+    - **Modes:**
+      - `best`: Highest quality, combines multiple techniques
+      - `fast`: Quick results with fewer iterations
+      - `classic`: Traditional CLIP interrogator style
+      - `caption`: BLIP caption only
+      - `negative`: Generate negative prompt suggestions
+    - Set `analyze=True` for detailed breakdown (medium, artist, movement, trending, flavor)
+
+    For anime/illustration tagging, use `/sdapi/v1/tagger` with WaifuDiffusion or DeepBooru models.
+
+    **Error Codes:**
+    - 404: Image not provided or model not found
+    """
     if req.image is None or len(req.image) < 64:
         raise HTTPException(status_code=404, detail="Image not found")
     image = helpers.decode_base64_to_image(req.image)
     image = image.convert('RGB')
-    if req.model == "deepdanbooru" or req.model == 'deepbooru':
-        from modules.interrogate import deepbooru
-        caption = deepbooru.model.tag(image)
+    from modules.interrogate.openclip import interrogate_image, analyze_image, refresh_clip_models
+    if req.model not in refresh_clip_models():
+        raise HTTPException(status_code=404, detail="Model not found")
+    # Build clip overrides from request (only include non-None values)
+    clip_overrides = {}
+    if req.min_length is not None:
+        clip_overrides['min_length'] = req.min_length
+    if req.max_length is not None:
+        clip_overrides['max_length'] = req.max_length
+    if req.chunk_size is not None:
+        clip_overrides['chunk_size'] = req.chunk_size
+    if req.min_flavors is not None:
+        clip_overrides['min_flavors'] = req.min_flavors
+    if req.max_flavors is not None:
+        clip_overrides['max_flavors'] = req.max_flavors
+    if req.flavor_count is not None:
+        clip_overrides['flavor_count'] = req.flavor_count
+    if req.num_beams is not None:
+        clip_overrides['num_beams'] = req.num_beams
+    try:
+        caption = interrogate_image(image, clip_model=req.clip_model, blip_model=req.blip_model, mode=req.mode, overrides=clip_overrides if clip_overrides else None)
+    except Exception as e:
+        caption = str(e)
+    if not req.analyze:
         return models.ResInterrogate(caption=caption)
-    else:
-        from modules.interrogate.openclip import interrogate_image, analyze_image, refresh_clip_models
-        if req.model not in refresh_clip_models():
-            raise HTTPException(status_code=404, detail="Model not found")
-        try:
-            caption = interrogate_image(image, clip_model=req.clip_model, blip_model=req.blip_model, mode=req.mode)
-        except Exception as e:
-            caption = str(e)
-        if not req.analyze:
-            return models.ResInterrogate(caption=caption)
-        else:
-            medium, artist, movement, trending, flavor, _ = analyze_image(image, clip_model=req.clip_model, blip_model=req.blip_model)
-            return models.ResInterrogate(caption=caption, medium=medium, artist=artist, movement=movement, trending=trending, flavor=flavor)
+    analyze_results = analyze_image(image, clip_model=req.clip_model, blip_model=req.blip_model)
+    # Extract top-ranked item from each Gradio update dict
+    def get_top_item(result):
+        if isinstance(result, dict) and 'value' in result:
+            value = result['value']
+            if isinstance(value, dict) and value:
+                return next(iter(value.keys()))  # First key = top ranked
+            if isinstance(value, str):
+                return value
+        return None
+    medium = get_top_item(analyze_results[0])
+    artist = get_top_item(analyze_results[1])
+    movement = get_top_item(analyze_results[2])
+    trending = get_top_item(analyze_results[3])
+    flavor = get_top_item(analyze_results[4])
+    return models.ResInterrogate(caption=caption, medium=medium, artist=artist, movement=movement, trending=trending, flavor=flavor)
 
 def post_vqa(req: models.ReqVQA):
+    """
+    Caption an image using Vision-Language Models (VLM).
+
+    Analyze image using vision language model for flexible image understanding.
+    Supports 60+ models including Google Gemma, Alibaba Qwen, Microsoft Florence, Moondream.
+
+    **Common Tasks:**
+
+    1. **General Captioning**
+       - `question="Short Caption"` or `"Normal Caption"` or `"Long Caption"`
+
+    2. **Object Detection** (Florence-2):
+       - `question="<OD>"` - Returns bounding boxes
+       - `question="<DENSE_REGION_CAPTION>"` - Captions for regions
+
+    3. **OCR/Text Recognition** (Florence-2):
+       - `question="<OCR>"` - Extract text from image
+
+    4. **Point/Detect** (Moondream):
+       - `question="Point at the cat"` - Returns coordinates
+       - `question="Detect all faces"` - Returns all instances
+
+    **Annotated Images:**
+    Set `include_annotated=True` to receive an annotated image with detection results.
+    Returns Base64 PNG with bounding boxes and points drawn for:
+    - Florence-2: Object detection, phrase grounding, region proposals
+    - Moondream 2/3: Point detection, object detection, gaze detection
+
+    **Model Selection:**
+    - Small/Fast: Florence 2 Base, SmolVLM 0.5B, FastVLM 0.5B
+    - Balanced: Qwen 2.5 VL 3B, Florence 2 Large, Gemma 3 4B
+    - High Quality: Qwen 3 VL 8B, JoyCaption Beta, Moondream 3
+
+    Use GET /sdapi/v1/vqa/models for complete model list.
+    """
     if req.image is None or len(req.image) < 64:
         raise HTTPException(status_code=404, detail="Image not found")
     image = helpers.decode_base64_to_image(req.image)
     image = image.convert('RGB')
+
+    # Build generation kwargs from request parameters (None values are ignored)
+    generation_kwargs = {}
+    if req.max_tokens is not None:
+        generation_kwargs['max_tokens'] = req.max_tokens
+    if req.temperature is not None:
+        generation_kwargs['temperature'] = req.temperature
+    if req.top_k is not None:
+        generation_kwargs['top_k'] = req.top_k
+    if req.top_p is not None:
+        generation_kwargs['top_p'] = req.top_p
+    if req.num_beams is not None:
+        generation_kwargs['num_beams'] = req.num_beams
+    if req.do_sample is not None:
+        generation_kwargs['do_sample'] = req.do_sample
+    if req.keep_thinking is not None:
+        generation_kwargs['keep_thinking'] = req.keep_thinking
+    if req.keep_prefill is not None:
+        generation_kwargs['keep_prefill'] = req.keep_prefill
+
     from modules.interrogate import vqa
-    answer = vqa.interrogate(req.question, req.system, '', image, req.model)
-    return models.ResVQA(answer=answer)
+    answer = vqa.interrogate(
+        question=req.question,
+        system_prompt=req.system,
+        prompt=req.prompt or '',
+        image=image,
+        model_name=req.model,
+        prefill=req.prefill,
+        thinking_mode=req.thinking_mode,
+        generation_kwargs=generation_kwargs if generation_kwargs else None
+    )
+    # Return annotated image if requested and available
+    annotated_b64 = None
+    if req.include_annotated:
+        annotated_img = vqa.get_last_annotated_image()
+        if annotated_img is not None:
+            annotated_b64 = helpers.encode_pil_to_base64(annotated_img)
+    return models.ResVQA(answer=answer, annotated_image=annotated_b64)
+
+def get_vqa_models():
+    """
+    List available VLM models for captioning.
+
+    Returns all Vision-Language Models available for POST /sdapi/v1/vqa.
+
+    **Response includes:**
+    - `name`: Display name
+    - `repo`: HuggingFace repository ID
+    - `prompts`: Available prompts/tasks
+    - `capabilities`: Model features (caption, vqa, detection, ocr, thinking)
+    """
+    from modules.interrogate import vqa
+    models_list = []
+    for name, repo in vqa.vlm_models.items():
+        prompts = vqa.get_prompts_for_model(name)
+        capabilities = ["caption", "vqa"]
+        # Detect additional capabilities based on model name
+        name_lower = name.lower()
+        if 'florence' in name_lower or 'promptgen' in name_lower:
+            capabilities.extend(["detection", "ocr"])
+        if 'moondream' in name_lower:
+            capabilities.append("detection")
+        if vqa.is_thinking_model(name):
+            capabilities.append("thinking")
+        models_list.append({
+            "name": name,
+            "repo": repo,
+            "prompts": prompts,
+            "capabilities": list(set(capabilities))
+        })
+    return models_list
+
+def get_vqa_prompts(model: Optional[str] = None):
+    """
+    List available prompts/tasks for VLM models.
+
+    **Query Parameters:**
+    - `model` (optional): Filter prompts for a specific model
+
+    **Prompt Categories:**
+    - Common: Use Prompt, Short/Normal/Long Caption
+    - Florence: Phrase Grounding, Object Detection, OCR, Dense Region Caption
+    - Moondream: Point at..., Detect all..., Detect Gaze
+    """
+    from modules.interrogate import vqa
+    if model:
+        prompts = vqa.get_prompts_for_model(model)
+        return {"available": prompts}
+    return {
+        "common": vqa.vlm_prompts_common,
+        "florence": vqa.vlm_prompts_florence,
+        "moondream": vqa.vlm_prompts_moondream,
+        "moondream2_only": vqa.vlm_prompts_moondream2
+    }
+
+def get_tagger_models():
+    """
+    List available tagger models.
+
+    Returns WaifuDiffusion and DeepBooru models for image tagging.
+
+    **WaifuDiffusion Models:**
+    - `wd-eva02-large-tagger-v3` (recommended)
+    - `wd-vit-tagger-v3`, `wd-convnext-tagger-v3`, `wd-swinv2-tagger-v3`
+
+    **DeepBooru:**
+    - Legacy tagger for anime images
+    """
+    from modules.interrogate import waifudiffusion
+    models_list = []
+    # Add WaifuDiffusion models
+    for name in waifudiffusion.get_models():
+        models_list.append({"name": name, "type": "waifudiffusion"})
+    # Add DeepBooru
+    models_list.append({"name": "deepbooru", "type": "deepbooru"})
+    return models_list
+
+def post_tagger(req: models.ReqTagger):
+    """
+    Tag an image using WaifuDiffusion or DeepBooru.
+
+    Generate anime/illustration tags for images.
+
+    **WaifuDiffusion Models:**
+    - `wd-eva02-large-tagger-v3` (recommended)
+    - `wd-vit-tagger-v3`, `wd-convnext-tagger-v3`, `wd-swinv2-tagger-v3`
+
+    **DeepBooru:**
+    - Legacy tagger, use `deepbooru` or `deepdanbooru`
+
+    **Thresholds:**
+    - `threshold`: General tag confidence (default: 0.5)
+    - `character_threshold`: Character identification (default: 0.85, WaifuDiffusion only)
+    """
+    if req.image is None or len(req.image) < 64:
+        raise HTTPException(status_code=404, detail="Image not found")
+    image = helpers.decode_base64_to_image(req.image)
+    image = image.convert('RGB')
+    from modules.interrogate import tagger
+    # Determine if using DeepBooru
+    is_deepbooru = req.model.lower() in ('deepbooru', 'deepdanbooru')
+    # Store original settings and apply request settings
+    original_opts = {
+        'tagger_threshold': shared.opts.tagger_threshold,
+        'tagger_max_tags': shared.opts.tagger_max_tags,
+        'tagger_include_rating': shared.opts.tagger_include_rating,
+        'tagger_sort_alpha': shared.opts.tagger_sort_alpha,
+        'tagger_use_spaces': shared.opts.tagger_use_spaces,
+        'tagger_escape_brackets': shared.opts.tagger_escape_brackets,
+        'tagger_exclude_tags': shared.opts.tagger_exclude_tags,
+        'tagger_show_scores': shared.opts.tagger_show_scores,
+    }
+    # WaifuDiffusion-specific settings (not applicable to DeepBooru)
+    if not is_deepbooru:
+        original_opts['waifudiffusion_character_threshold'] = shared.opts.waifudiffusion_character_threshold
+        original_opts['waifudiffusion_model'] = shared.opts.waifudiffusion_model
+    try:
+        shared.opts.tagger_threshold = req.threshold
+        shared.opts.tagger_max_tags = req.max_tags
+        shared.opts.tagger_include_rating = req.include_rating
+        shared.opts.tagger_sort_alpha = req.sort_alpha
+        shared.opts.tagger_use_spaces = req.use_spaces
+        shared.opts.tagger_escape_brackets = req.escape_brackets
+        shared.opts.tagger_exclude_tags = req.exclude_tags
+        shared.opts.tagger_show_scores = req.show_scores
+        # WaifuDiffusion-specific settings (not applicable to DeepBooru)
+        if not is_deepbooru:
+            shared.opts.waifudiffusion_character_threshold = req.character_threshold
+            shared.opts.waifudiffusion_model = req.model
+        tags = tagger.tag(image, model_name='DeepBooru' if is_deepbooru else None)
+        # Parse scores if requested - format is "(tag:0.95)" from WaifuDiffusion/DeepBooru
+        scores = None
+        if req.show_scores:
+            scores = {}
+            for item in tags.split(', '):
+                item = item.strip()
+                # Format: "(tag:0.95)" - tag and score wrapped in parentheses
+                if item.startswith('(') and item.endswith(')') and ':' in item:
+                    inner = item[1:-1]  # Remove outer parentheses
+                    tag, score_str = inner.rsplit(':', 1)
+                    try:
+                        scores[tag.strip()] = float(score_str.strip())
+                    except ValueError:
+                        pass
+                elif ':' in item:
+                    # Fallback format: "tag:0.95" without parentheses
+                    tag, score_str = item.rsplit(':', 1)
+                    try:
+                        scores[tag.strip()] = float(score_str.strip())
+                    except ValueError:
+                        pass
+            if not scores:
+                scores = None
+        return models.ResTagger(tags=tags, scores=scores)
+    finally:
+        # Restore original settings
+        for key, value in original_opts.items():
+            setattr(shared.opts, key, value)
 
 def post_unload_checkpoint():
     from modules import sd_models

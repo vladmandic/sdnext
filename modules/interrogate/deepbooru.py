@@ -4,7 +4,7 @@ import threading
 import torch
 import numpy as np
 from PIL import Image
-from modules import modelloader, paths, devices, shared
+from modules import modelloader, devices, shared
 
 re_special = re.compile(r'([\\()])')
 load_lock = threading.Lock()
@@ -18,7 +18,7 @@ class DeepDanbooru:
         with load_lock:
             if self.model is not None:
                 return
-            model_path = os.path.join(paths.models_path, "DeepDanbooru")
+            model_path = os.path.join(shared.opts.clip_models_path, "DeepDanbooru")
             shared.log.debug(f'Interrogate load: module=DeepDanbooru folder="{model_path}"')
             files = modelloader.load_models(
                 model_path=model_path,

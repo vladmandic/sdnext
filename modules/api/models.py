@@ -366,31 +366,107 @@ class ResStatus(BaseModel):
     progress: Optional[float] = Field(default=None, title="Progress", description="The progress with a range of 0 to 1")
 
 class ReqInterrogate(BaseModel):
-    image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
-    clip_model: str = Field(default="", title="CLiP Model", description="The interrogate model used.")
-    blip_model: str = Field(default="", title="BLiP Model", description="The interrogate model used.")
+    """Request model for OpenCLIP/BLIP image interrogation.
+
+    Analyze image using CLIP model via OpenCLIP to generate prompts.
+    For anime-style tagging, use /sdapi/v1/tagger with WaifuDiffusion or DeepBooru.
+    """
+    image: str = Field(default="", title="Image", description="Image to interrogate. Must be a Base64 encoded string containing the image data (PNG/JPEG).")
+    model: str = Field(default="ViT-L-14/openai", title="Model", description="OpenCLIP model to use. Get available models from GET /sdapi/v1/interrogate.")
+    clip_model: str = Field(default="ViT-L-14/openai", title="CLIP Model", description="CLIP model used for image-text similarity matching. Larger models (ViT-L, ViT-H) are more accurate but slower and use more VRAM.")
+    blip_model: str = Field(default="blip-large", title="Caption Model", description="BLIP model used to generate the initial image caption. The caption model describes the image content which CLIP then enriches with style and flavor terms.")
+    mode: str = Field(default="best", title="Mode", description="Interrogation mode. Fast: Quick caption with minimal flavor terms. Classic: Standard interrogation with balanced quality and speed. Best: Most thorough analysis, slowest but highest quality. Negative: Generate terms to use as negative prompt.")
+    analyze: bool = Field(default=False, title="Analyze", description="If True, returns detailed image analysis breakdown (medium, artist, movement, trending, flavor) in addition to caption.")
+    # Advanced settings (optional per-request overrides)
+    min_length: Optional[int] = Field(default=None, title="Min Length", description="Minimum number of tokens in the generated caption.")
+    max_length: Optional[int] = Field(default=None, title="Max Length", description="Maximum number of tokens in the generated caption.")
+    chunk_size: Optional[int] = Field(default=None, title="Chunk Size", description="Batch size for processing description candidates (flavors). Higher values speed up interrogation but increase VRAM usage.")
+    min_flavors: Optional[int] = Field(default=None, title="Min Flavors", description="Minimum number of descriptive tags (flavors) to keep in the final prompt.")
+    max_flavors: Optional[int] = Field(default=None, title="Max Flavors", description="Maximum number of descriptive tags (flavors) to keep in the final prompt.")
+    flavor_count: Optional[int] = Field(default=None, title="Intermediates", description="Size of the intermediate candidate pool when matching image features to descriptive tags. Higher values may improve quality but are slower.")
+    num_beams: Optional[int] = Field(default=None, title="Num Beams", description="Number of beams for beam search during caption generation. Higher values search more possibilities but are slower.")
 
 InterrogateRequest = ReqInterrogate # alias for backwards compatibility
 
 class ResInterrogate(BaseModel):
-    caption: Optional[str] = Field(default=None, title="Caption", description="The generated caption for the image.")
-    medium: Optional[str] = Field(default=None, title="Medium", description="Image medium.")
-    artist: Optional[str] = Field(default=None, title="Medium", description="Image artist.")
-    movement: Optional[str] = Field(default=None, title="Medium", description="Image movement.")
-    trending: Optional[str] = Field(default=None, title="Medium", description="Image trending.")
-    flavor: Optional[str] = Field(default=None, title="Medium", description="Image flavor.")
+    """Response model for image interrogation results."""
+    caption: Optional[str] = Field(default=None, title="Caption", description="Generated caption/prompt describing the image content and style.")
+    medium: Optional[str] = Field(default=None, title="Medium", description="Detected artistic medium (e.g., 'oil painting', 'digital art', 'photograph'). Only returned when analyze=True.")
+    artist: Optional[str] = Field(default=None, title="Artist", description="Detected similar artist style (e.g., 'by greg rutkowski'). Only returned when analyze=True.")
+    movement: Optional[str] = Field(default=None, title="Movement", description="Detected art movement (e.g., 'art nouveau', 'impressionism'). Only returned when analyze=True.")
+    trending: Optional[str] = Field(default=None, title="Trending", description="Trending/platform tags (e.g., 'trending on artstation'). Only returned when analyze=True.")
+    flavor: Optional[str] = Field(default=None, title="Flavor", description="Additional descriptive elements (e.g., 'cinematic lighting', 'highly detailed'). Only returned when analyze=True.")
 
 class ReqVQA(BaseModel):
-    image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
-    model: str = Field(default="Microsoft Florence 2 Base", title="Model", description="The interrogate model used.")
-    question: str = Field(default="describe the image", title="Question", description="Question to ask the model.")
-    system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System prompt", description="Prompt to shape how the model interprets and responds to user prompts.")
+    """Request model for Vision-Language Model (VLM) captioning.
+
+    Analyze image using vision language model to generate captions,
+    answer questions, or perform specialized tasks like object detection.
+    """
+    image: str = Field(default="", title="Image", description="Image to caption. Must be a Base64 encoded string containing the image data.")
+    model: str = Field(default="Alibaba Qwen 2.5 VL 3B", title="Model", description="Select which model to use for Visual Language tasks. Use GET /sdapi/v1/vqa/models for full list. Models which support thinking mode are indicated in capabilities.")
+    question: str = Field(default="describe the image", title="Question/Task", description="Changes which task the model will perform. Regular text prompts can be used when the task is set to 'Use Prompt'. Common tasks: 'Short Caption', 'Normal Caption', 'Long Caption'. Florence-2 supports: '<OD>' (object detection), '<OCR>' (text recognition). Moondream supports: 'Point at [object]', 'Detect all [objects]'.")
+    prompt: Optional[str] = Field(default=None, title="Prompt", description="Custom prompt text. Required when question is 'Use Prompt'. For 'Point at...' tasks, specify what to find (e.g., 'the red car'). For 'Detect all...' tasks, specify what to detect (e.g., 'faces').")
+    system: str = Field(default="You are image captioning expert, creative, unbiased and uncensored.", title="System Prompt", description="System prompt controls behavior of the LLM. Processed first and persists throughout conversation. Has highest priority weighting and is always appended at the beginning of the sequence. Use for: Response formatting rules, role definition, style.")
+    include_annotated: bool = Field(default=False, title="Include Annotated Image", description="If True and the task produces detection results (object detection, point detection, gaze), returns annotated image with bounding boxes/points drawn. Only applicable for detection tasks on models like Florence-2 and Moondream.")
+    # LLM generation parameters (optional overrides)
+    max_tokens: Optional[int] = Field(default=None, title="Max Tokens", description="Maximum number of tokens the model can generate in its response. The model is not aware of this limit during generation; it simply sets the hard limit for the length and will forcefully cut off the response when reached.")
+    temperature: Optional[float] = Field(default=None, title="Temperature", description="Controls randomness in token selection. Lower values (e.g., 0.1) make outputs more focused and deterministic, always choosing high-probability tokens. Higher values (e.g., 0.9) increase creativity and diversity by allowing less probable tokens. Set to 0 for fully deterministic output.")
+    top_k: Optional[int] = Field(default=None, title="Top-K", description="Limits token selection to the K most likely candidates at each step. Lower values (e.g., 40) make outputs more focused and predictable, while higher values allow more diverse choices. Set to 0 to disable.")
+    top_p: Optional[float] = Field(default=None, title="Top-P", description="Selects tokens from the smallest set whose cumulative probability exceeds P (e.g., 0.9). Dynamically adapts the number of candidates based on model confidence; fewer options when certain, more when uncertain. Set to 1 to disable.")
+    num_beams: Optional[int] = Field(default=None, title="Num Beams", description="Maintains multiple candidate paths simultaneously and selects the overall best sequence. More thorough but much slower and less creative than random sampling. Generally not recommended; most modern VLMs perform better with sampling methods. Set to 1 to disable.")
+    do_sample: Optional[bool] = Field(default=None, title="Use Samplers", description="Enable to use sampling (randomly selecting tokens based on sampling methods like Top-K or Top-P) or disable to use greedy decoding (selecting the most probable token at each step). Enabling makes outputs more diverse and creative but less deterministic.")
+    thinking_mode: Optional[bool] = Field(default=None, title="Thinking Mode", description="Enables thinking/reasoning, allowing the model to take more time to generate responses. Can lead to more thoughtful and detailed answers but increases response time. Only works with models that support this feature.")
+    prefill: Optional[str] = Field(default=None, title="Prefill Text", description="Pre-fills the start of the model's response to guide its output format or content by forcing it to continue the prefill text. Prefill is filtered out and does not appear in the final response unless keep_prefill is True. Leave empty to let the model generate from scratch.")
+    keep_thinking: Optional[bool] = Field(default=None, title="Keep Thinking Trace", description="Include the model's reasoning process in the final output. Useful for understanding how the model arrived at its answer. Only works with models that support thinking mode.")
+    keep_prefill: Optional[bool] = Field(default=None, title="Keep Prefill", description="Include the prefill text at the beginning of the final output. If disabled, the prefill text used to guide the model is removed from the result.")
 
 class ReqLatentHistory(BaseModel):
     name: str = Field(title="Name", description="Name of the history item to select")
 
 class ResVQA(BaseModel):
-    answer: Optional[str] = Field(default=None, title="Answer", description="The generated answer for the image.")
+    """Response model for VLM captioning results."""
+    answer: Optional[str] = Field(default=None, title="Answer", description="Generated caption, answer, or analysis from the VLM. Format depends on the question/task type.")
+    annotated_image: Optional[str] = Field(default=None, title="Annotated Image", description="Base64 encoded PNG image with detection results drawn (bounding boxes, points). Only returned when include_annotated=True and the task produces detection results.")
+
+class ItemVLMModel(BaseModel):
+    """VLM model information."""
+    name: str = Field(title="Name", description="Display name of the model")
+    repo: str = Field(title="Repository", description="HuggingFace repository ID")
+    prompts: List[str] = Field(title="Prompts", description="Available prompts/tasks for this model")
+    capabilities: List[str] = Field(title="Capabilities", description="Model capabilities: caption, vqa, detection, ocr, thinking")
+
+class ResVLMPrompts(BaseModel):
+    """Available VLM prompts grouped by category."""
+    common: Optional[List[str]] = Field(default=None, title="Common", description="Prompts available for all models: Use Prompt, Short/Normal/Long Caption")
+    florence: Optional[List[str]] = Field(default=None, title="Florence", description="Florence-2 specific: Phrase Grounding, Object Detection, OCR, etc.")
+    moondream: Optional[List[str]] = Field(default=None, title="Moondream", description="Moondream specific: Point at..., Detect all..., Detect Gaze")
+    moondream2_only: Optional[List[str]] = Field(default=None, title="Moondream 2 Only", description="Moondream 2 specific prompts (gaze detection)")
+    available: Optional[List[str]] = Field(default=None, title="Available", description="When filtered by model, the available prompts for that model")
+
+class ItemTaggerModel(BaseModel):
+    """Tagger model information."""
+    name: str = Field(title="Name", description="Model name")
+    type: str = Field(title="Type", description="Model type: waifudiffusion or deepbooru")
+
+class ReqTagger(BaseModel):
+    """Request model for image tagging."""
+    image: str = Field(default="", title="Image", description="Image to tag. Must be a Base64 encoded string.")
+    model: str = Field(default="wd-eva02-large-tagger-v3", title="Model", description="Model to use for image tagging. WaifuDiffusion models (wd-*): Modern taggers with separate general and character thresholds. DeepBooru: Legacy tagger, uses only general threshold.")
+    threshold: float = Field(default=0.5, title="Threshold", description="Confidence threshold for general tags (e.g., objects, actions, settings). Only tags with confidence above this threshold are included in the output. Higher values are more selective (fewer tags), lower values include more tags.", ge=0.0, le=1.0)
+    character_threshold: float = Field(default=0.85, title="Character Threshold", description="Confidence threshold for character-specific tags (e.g., character names, specific traits). Only tags with confidence above this threshold are included. Higher values are more selective, lower values include more potential matches. Not supported by DeepBooru models.", ge=0.0, le=1.0)
+    max_tags: int = Field(default=74, title="Max Tags", description="Maximum number of tags to include in the output. Limits the result length when an image has many detected features. Tags are sorted by confidence, so the most relevant ones are kept.", ge=1, le=512)
+    include_rating: bool = Field(default=False, title="Include Rating", description="Include content rating tags in the output (e.g., safe, questionable, explicit). Useful for filtering or categorizing images by their content rating.")
+    sort_alpha: bool = Field(default=False, title="Sort Alphabetically", description="Sort tags alphabetically instead of by confidence score. When disabled, tags are sorted by confidence (highest first). Alphabetical sorting makes it easier to find specific tags.")
+    use_spaces: bool = Field(default=False, title="Use Spaces", description="Replace underscores with spaces in tag output. Some prompt systems prefer spaces between words (e.g., 'long hair') while others use underscores (e.g., 'long_hair').")
+    escape_brackets: bool = Field(default=True, title="Escape Brackets", description="Escape parentheses and brackets in tags with backslashes. Required when tags contain characters that have special meaning in prompt syntax, such as ( ) [ ]. Enable this when using the output directly in prompts.")
+    exclude_tags: str = Field(default="", title="Exclude Tags", description="Comma-separated list of tags to exclude from the output. Useful for filtering out unwanted or redundant tags that appear frequently.")
+    show_scores: bool = Field(default=False, title="Show Scores", description="Display confidence scores alongside each tag. Shows how certain the model is about each tag (0.0 to 1.0). Useful for understanding which tags are most reliable.")
+
+class ResTagger(BaseModel):
+    """Response model for image tagging results."""
+    tags: str = Field(title="Tags", description="Comma-separated list of detected tags")
+    scores: Optional[dict] = Field(default=None, title="Scores", description="Tag confidence scores (when show_scores=True)")
 
 class ResTrain(BaseModel):
     info: str = Field(title="Train info", description="Response string from train embedding task.")
