@@ -11,6 +11,12 @@ body:
       description: Enter model name
       value: 
   - type: textarea
+    id: type
+    attributes:
+      label: Model type
+      description: Describe model type
+      value: 
+  - type: textarea
     id: url
     attributes:
       label: Model URL
