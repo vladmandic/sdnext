@@ -64,7 +64,7 @@ select = [
   "ISC",
   "ICN",
   "RSE",
-  "TCH",
+  "TC",
   "TID",
   "INT",
   "PLE",
