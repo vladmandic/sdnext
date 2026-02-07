@@ -1,6 +1,7 @@
 import { useUiStore } from "@/stores/uiStore";
 import { GenerateView } from "@/components/generation/GenerateView";
 import { GalleryView } from "@/components/gallery/GalleryView";
+import { CaptionView } from "@/components/caption/CaptionView";
 
 export function MainContent() {
   const activeView = useUiStore((s) => s.activeSidebarView);
@@ -15,7 +16,7 @@ export function MainContent() {
     case "process":
       return <PlaceholderView title="Process" description="Post-processing and upscaling" />;
     case "caption":
-      return <PlaceholderView title="Caption" description="Image captioning and interrogation" />;
+      return <CaptionView />;
     default:
       return <GenerateView />;
   }

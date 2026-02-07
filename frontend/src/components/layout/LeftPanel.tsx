@@ -10,11 +10,16 @@ import { DetailTab } from "@/components/generation/tabs/DetailTab";
 import { AdaptersTab } from "@/components/generation/tabs/AdaptersTab";
 import { ControlTab } from "@/components/generation/tabs/ControlTab";
 import { ScriptsTab } from "@/components/generation/tabs/ScriptsTab";
+import { CaptionPanel } from "@/components/caption/CaptionPanel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function LeftPanel() {
   const activeView = useUiStore((s) => s.activeSidebarView);
   const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
+
+  if (activeView === "caption") {
+    return <CaptionPanel />;
+  }
 
   if (activeView === "images") {
     return (

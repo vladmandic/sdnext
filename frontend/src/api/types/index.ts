@@ -7,3 +7,4 @@ export * from "./detailer";
 export * from "./adapter";
 export * from "./script";
 export * from "./control";
+export * from "./caption";
