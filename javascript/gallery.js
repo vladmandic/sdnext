@@ -1353,6 +1353,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
 
   monitorGalleries();
   updateFolders();
+  initGalleryAutoRefresh();
   [
     'browser_folders',
     'outdir_samples',
