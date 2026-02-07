@@ -28,7 +28,7 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     subseed: gen.subseed,
     subseed_strength: gen.subseedStrength,
     batch_size: gen.batchSize,
-    batch_count: gen.batchCount,
+    n_iter: gen.batchCount,
     denoising_strength: gen.denoisingStrength,
     enable_hr: gen.hiresEnabled,
     hr_upscaler: gen.hiresUpscaler,

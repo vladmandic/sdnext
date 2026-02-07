@@ -119,7 +119,7 @@ def get_history(req: models.ReqHistory = Depends()):
     return res
 
 def get_progress(req: models.ReqProgress = Depends()):
-    if shared.state.job_count == 0: # idle state
+    if shared.state.job_count == 0 and shared.state.sampling_step == 0: # truly idle
         return models.ResProgress(id=shared.state.id, progress=0, eta_relative=0, state=shared.state.dict(), textinfo=shared.state.textinfo)
     shared.state.do_set_current_image()
     current_image = None

@@ -4,6 +4,7 @@ import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -148,10 +149,10 @@ export function SamplerTab() {
       <ParamSection title="Seed">
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Seed</Label>
-          <Input
-            type="number"
+          <NumberInput
             value={store.seed}
-            onChange={(e) => store.setParam("seed", parseInt(e.target.value) || -1)}
+            onChange={(v) => store.setParam("seed", v)}
+            fallback={-1}
             className="flex-1 h-6 text-[11px] px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <Button
@@ -165,10 +166,10 @@ export function SamplerTab() {
 
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Variation</Label>
-          <Input
-            type="number"
+          <NumberInput
             value={store.subseed}
-            onChange={(e) => store.setParam("subseed", parseInt(e.target.value) || -1)}
+            onChange={(v) => store.setParam("subseed", v)}
+            fallback={-1}
             className="flex-1 h-6 text-[11px] px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <Button

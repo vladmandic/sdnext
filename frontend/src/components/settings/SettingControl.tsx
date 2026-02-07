@@ -1,6 +1,7 @@
 import type { SettingDef } from "@/lib/settingsSchema";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -66,13 +67,13 @@ export function SettingControl({ setting, value, onChange, dynamicChoices }: Set
 
     case "number":
       return (
-        <Input
-          type="number"
+        <NumberInput
           min={setting.min}
           max={setting.max}
           step={setting.step}
-          value={typeof value === "number" ? value : ""}
-          onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+          value={typeof value === "number" ? value : 0}
+          onChange={(v) => onChange(v)}
+          fallback={0}
           className="h-7 text-xs w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
       );

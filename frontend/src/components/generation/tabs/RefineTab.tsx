@@ -5,7 +5,7 @@ import { ParamSection } from "../ParamSection";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -44,21 +44,19 @@ export function RefineTab() {
             ) : (
               <div className="flex items-center gap-2">
                 <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Size</Label>
-                <Input
-                  type="number"
+                <NumberInput
                   value={store.hiresResizeX}
-                  onChange={(e) => store.setParam("hiresResizeX", parseInt(e.target.value) || 0)}
+                  onChange={(v) => store.setParam("hiresResizeX", v)}
                   placeholder="Width"
-                  step={8} min={0} max={8192}
+                  step={8} min={0} max={8192} fallback={0}
                   className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 <span className="text-[10px] text-muted-foreground">x</span>
-                <Input
-                  type="number"
+                <NumberInput
                   value={store.hiresResizeY}
-                  onChange={(e) => store.setParam("hiresResizeY", parseInt(e.target.value) || 0)}
+                  onChange={(v) => store.setParam("hiresResizeY", v)}
                   placeholder="Height"
-                  step={8} min={0} max={8192}
+                  step={8} min={0} max={8192} fallback={0}
                   className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
               </div>

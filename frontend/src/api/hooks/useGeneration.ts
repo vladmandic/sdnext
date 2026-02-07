@@ -17,11 +17,46 @@ export function useImg2Img() {
   });
 }
 
+/**
+ * Base URL that bypasses the Vite dev proxy.
+ *
+ * During generation the txt2img POST blocks the Vite proxy's connection pool,
+ * so lightweight polling GETs must go directly to the backend.
+ */
+function getDirectUrl(path: string): string {
+  if (window.location.port === "5173") {
+    return `${window.location.protocol}//${window.location.hostname}:7860${path}`;
+  }
+  return path;
+}
+
+/**
+ * Polls the progress endpoint directly against the backend.
+ *
+ * The backend returns progress=0 when job_count==0, even while sampling_step
+ * is actively incrementing. We compute progress from the state dict as a
+ * fallback so the UI always reflects real sampling progress.
+ */
 export function useProgress(enabled: boolean) {
   return useQuery({
     queryKey: ["progress"],
-    queryFn: () => api.get<ResProgress>("/sdapi/v1/progress"),
-    refetchInterval: enabled ? 500 : false,
+    queryFn: async () => {
+      const res = await fetch(getDirectUrl("/sdapi/v1/progress"));
+      const data = (await res.json()) as ResProgress;
+      // Backend may return progress=0 when job_count==0 despite active sampling.
+      // Calculate from state dict when the reported progress is 0 but steps are non-zero.
+      if (data.progress === 0 && data.state) {
+        const step = (data.state.sampling_step as number) ?? 0;
+        const steps = (data.state.sampling_steps as number) ?? 0;
+        if (step > 0 && steps > 0) {
+          data.progress = Math.min(step / steps, 1);
+        }
+      }
+      return data;
+    },
+    refetchInterval: enabled ? 250 : false,
+    staleTime: 0,
+    gcTime: 0,
     enabled,
   });
 }
@@ -29,7 +64,10 @@ export function useProgress(enabled: boolean) {
 export function useStatus() {
   return useQuery({
     queryKey: ["status"],
-    queryFn: () => api.get<ResStatus>("/sdapi/v1/status"),
+    queryFn: async () => {
+      const res = await fetch(getDirectUrl("/sdapi/v1/status"));
+      return (await res.json()) as ResStatus;
+    },
     refetchInterval: 2000,
   });
 }

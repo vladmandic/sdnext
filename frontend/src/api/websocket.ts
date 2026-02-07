@@ -48,6 +48,10 @@ export class WebSocketManager {
 
     this.ws.onclose = (event: CloseEvent) => {
       this.emit("close", event);
+      // Don't retry on auth/forbidden errors (code 1008 or HTTP 403 mapped to 1006)
+      if (event.code === 1008 || (event.code === 1006 && this.reconnectAttempts > 0)) {
+        this.shouldReconnect = false;
+      }
       if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
         const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
         this.reconnectAttempts++;

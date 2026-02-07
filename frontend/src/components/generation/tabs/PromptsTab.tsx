@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { PromptEditor } from "../PromptEditor";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -79,11 +79,10 @@ export function PromptsTab() {
       <ParamSection title="Size">
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Width</Label>
-          <Input
-            type="number"
+          <NumberInput
             value={store.width}
-            onChange={(e) => setWidth(parseInt(e.target.value) || 512)}
-            step={8} min={64} max={4096}
+            onChange={(v) => setWidth(v)}
+            step={8} min={64} max={4096} fallback={512}
             className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <Button
@@ -102,11 +101,10 @@ export function PromptsTab() {
           >
             <ArrowLeftRight size={12} />
           </Button>
-          <Input
-            type="number"
+          <NumberInput
             value={store.height}
-            onChange={(e) => setHeight(parseInt(e.target.value) || 512)}
-            step={8} min={64} max={4096}
+            onChange={(v) => setHeight(v)}
+            step={8} min={64} max={4096} fallback={512}
             className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <Label className="text-[11px] text-muted-foreground w-16">Height</Label>

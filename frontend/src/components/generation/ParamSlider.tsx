@@ -1,5 +1,5 @@
 import { Slider } from "@/components/ui/slider";
-import { Input } from "@/components/ui/input";
+import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 
 interface ParamSliderProps {
@@ -23,13 +23,13 @@ export function ParamSlider({ label, value, onChange, min, max, step = 1 }: Para
         onValueChange={([v]) => onChange(v)}
         className="flex-1"
       />
-      <Input
-        type="number"
+      <NumberInput
         min={min}
         max={max}
         step={step}
         value={value}
-        onChange={(e) => onChange(parseFloat(e.target.value) || min)}
+        onChange={onChange}
+        fallback={min}
         className="w-14 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
       />
     </div>

@@ -8,7 +8,7 @@ export interface Txt2ImgRequest {
   cfg_scale?: number;
   seed?: number;
   batch_size?: number;
-  batch_count?: number;
+  n_iter?: number;
   denoising_strength?: number;
   enable_hr?: boolean;
   hr_upscaler?: string;
