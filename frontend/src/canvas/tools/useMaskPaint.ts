@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import type { MaskLine } from "@/stores/img2imgStore";
@@ -9,19 +9,31 @@ interface UseMaskPaintOptions {
   spaceHeld: React.RefObject<boolean>;
 }
 
+/**
+ * Imperative mask painting. During a stroke, points are pushed into a
+ * mutable buffer and flushed straight to a Konva Line node — zero React
+ * state updates, zero re-renders. React only sees a change on mouseUp
+ * when the finished stroke commits to the Zustand store.
+ */
 export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
-  const [currentLine, setCurrentLine] = useState<MaskLine | null>(null);
-  const [cursorPos, setCursorPos] = useState<{ x: number; y: number } | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const isDrawing = useRef(false);
+  const pointsBuffer = useRef<number[]>([]);
+  const toolRef = useRef<MaskLine["tool"]>("brush");
+  const strokeWidthRef = useRef(20);
+
+  // Konva node refs — MaskLayer attaches these via callback refs
+  const activeLineRef = useRef<Konva.Line | null>(null);
+  const cursorRef = useRef<Konva.Circle | null>(null);
 
   const getCanvasPos = useCallback((stage: Konva.Stage): { x: number; y: number } | null => {
     const pointer = stage.getPointerPosition();
     if (!pointer) return null;
     const { initImageWidth: initW, initImageHeight: initH } = useImg2ImgStore.getState();
     if (initW <= 0 || initH <= 0) return null;
-    const x = Math.max(0, Math.min(initW, (pointer.x - stage.x()) / stage.scaleX()));
-    const y = Math.max(0, Math.min(initH, (pointer.y - stage.y()) / stage.scaleY()));
-    return { x, y };
+    return {
+      x: Math.max(0, Math.min(initW, (pointer.x - stage.x()) / stage.scaleX())),
+      y: Math.max(0, Math.min(initH, (pointer.y - stage.y()) / stage.scaleY())),
+    };
   }, []);
 
   const isMaskTool = useCallback(() => {
@@ -36,68 +48,99 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
     const pos = getCanvasPos(stage);
     if (!pos) return;
 
-    const activeTool = useCanvasStore.getState().activeTool;
-    const brushSize = useCanvasStore.getState().brushSize;
-    setIsDrawing(true);
-    setCurrentLine({
-      points: [pos.x, pos.y],
-      strokeWidth: brushSize,
-      tool: activeTool === "maskEraser" ? "eraser" : "brush",
-    });
+    const { activeTool, brushSize } = useCanvasStore.getState();
+    toolRef.current = activeTool === "maskEraser" ? "eraser" : "brush";
+    strokeWidthRef.current = brushSize;
+    pointsBuffer.current = [pos.x, pos.y];
+    isDrawing.current = true;
+
+    // Configure the active line node imperatively
+    const line = activeLineRef.current;
+    if (line) {
+      line.points([pos.x, pos.y]);
+      line.strokeWidth(brushSize);
+      line.globalCompositeOperation(toolRef.current === "eraser" ? "destination-out" : "source-over");
+      line.visible(true);
+      line.getLayer()?.batchDraw();
+    }
   }, [stageRef, spaceHeld, getCanvasPos, isMaskTool]);
 
   const handleMouseMove = useCallback((_e: Konva.KonvaEventObject<MouseEvent>) => {
     const stage = stageRef.current;
     if (!stage) return;
 
-    // Update cursor position when a mask tool is active
     if (isMaskTool()) {
       const pos = getCanvasPos(stage);
-      setCursorPos(pos);
+      const cursor = cursorRef.current;
+      if (cursor && pos) {
+        const scale = stage.scaleX();
+        cursor.x(pos.x);
+        cursor.y(pos.y);
+        cursor.radius(useCanvasStore.getState().brushSize / 2);
+        cursor.strokeWidth(1 / scale);
+        cursor.dash([4 / scale, 4 / scale]);
+        cursor.visible(true);
+      } else if (cursor) {
+        cursor.visible(false);
+      }
+      stage.container().style.cursor = "none";
 
-      // Set cursor style
-      const container = stage.container();
-      if (container) container.style.cursor = "none";
+      if (!isDrawing.current) {
+        cursor?.getLayer()?.batchDraw();
+      }
     }
 
-    if (!isDrawing || !currentLine) return;
+    if (!isDrawing.current) return;
     const pos = getCanvasPos(stage);
     if (!pos) return;
 
-    setCurrentLine((prev) => {
-      if (!prev) return prev;
-      return { ...prev, points: [...prev.points, pos.x, pos.y] };
-    });
-  }, [stageRef, isDrawing, currentLine, getCanvasPos, isMaskTool]);
+    pointsBuffer.current.push(pos.x, pos.y);
+
+    const line = activeLineRef.current;
+    if (line) {
+      line.points(pointsBuffer.current);
+      line.getLayer()?.batchDraw();
+    }
+  }, [stageRef, getCanvasPos, isMaskTool]);
+
+  const commitLine = useCallback(() => {
+    if (!isDrawing.current) return;
+    isDrawing.current = false;
+
+    if (pointsBuffer.current.length >= 2) {
+      useImg2ImgStore.getState().addMaskLine({
+        points: pointsBuffer.current.slice(),
+        strokeWidth: strokeWidthRef.current,
+        tool: toolRef.current,
+      });
+    }
+
+    const line = activeLineRef.current;
+    if (line) {
+      line.visible(false);
+      line.getLayer()?.batchDraw();
+    }
+  }, []);
 
   const handleMouseUp = useCallback(() => {
-    if (!isDrawing || !currentLine) return;
-    // Commit the line to the store
-    if (currentLine.points.length >= 2) {
-      useImg2ImgStore.getState().addMaskLine(currentLine);
-    }
-    setCurrentLine(null);
-    setIsDrawing(false);
-  }, [isDrawing, currentLine]);
+    commitLine();
+  }, [commitLine]);
 
   const handleMouseLeave = useCallback(() => {
-    setCursorPos(null);
-    if (isDrawing && currentLine) {
-      // Commit partial line on leave
-      if (currentLine.points.length >= 2) {
-        useImg2ImgStore.getState().addMaskLine(currentLine);
-      }
-      setCurrentLine(null);
-      setIsDrawing(false);
+    const cursor = cursorRef.current;
+    if (cursor) {
+      cursor.visible(false);
+      cursor.getLayer()?.batchDraw();
     }
-  }, [isDrawing, currentLine]);
+    commitLine();
+  }, [commitLine]);
 
   return {
     onMouseDown: handleMouseDown,
     onMouseMove: handleMouseMove,
     onMouseUp: handleMouseUp,
     onMouseLeave: handleMouseLeave,
-    currentLine,
-    cursorPos,
+    activeLineRef,
+    cursorRef,
   };
 }

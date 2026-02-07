@@ -102,7 +102,7 @@ export function CanvasStage() {
           onMouseLeave={maskPaint.onMouseLeave}
         >
           <ImageLayer />
-          <MaskLayer currentLine={maskPaint.currentLine} cursorPos={maskPaint.cursorPos} />
+          <MaskLayer activeLineRef={maskPaint.activeLineRef} cursorRef={maskPaint.cursorRef} />
           <OutputLayer offsetX={outputOffsetX} placeholderWidth={outputW} placeholderHeight={outputH} />
         </Stage>
       )}
