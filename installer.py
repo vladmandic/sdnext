@@ -1787,6 +1787,7 @@ def add_args(parser):
     group_http.add_argument("--share", default=os.environ.get("SD_SHARE", False), action='store_true', help="Enable UI accessible through Gradio site, default: %(default)s")
     group_http.add_argument("--insecure", default=os.environ.get("SD_INSECURE", False), action='store_true', help="Enable extensions tab regardless of other options, default: %(default)s")
     group_http.add_argument("--listen", default=os.environ.get("SD_LISTEN", False), action='store_true', help="Launch web server using public IP address, default: %(default)s")
+    group_http.add_argument("--remote", default=os.environ.get("SD_REMOTE", False), action='store_true', help="Reduce client-server communication, default: %(default)s")
     group_http.add_argument("--port", type=int, default=os.environ.get("SD_PORT", 7860), help="Launch web server with given server port, default: %(default)s")
 
     group_diag = parser.add_argument_group('Diagnostics')
