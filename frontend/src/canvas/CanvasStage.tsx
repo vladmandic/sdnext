@@ -12,6 +12,7 @@ import type Konva from "konva";
 
 const PADDING = 32;
 const OUTPUT_GAP = 48;
+const LABEL_HEIGHT = 19; // space reserved above images for labels
 
 export function CanvasStage() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -54,12 +55,12 @@ export function CanvasStage() {
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
 
     const totalWidth = initImageWidth + OUTPUT_GAP + outputW;
-    const totalHeight = Math.max(initImageHeight, outputH);
+    const totalHeight = LABEL_HEIGHT + Math.max(initImageHeight, outputH);
     const availW = containerSize.width - PADDING * 2;
     const availH = containerSize.height - PADDING * 2;
     const scale = Math.min(availW / totalWidth, availH / totalHeight, 1);
     const x = (containerSize.width - totalWidth * scale) / 2;
-    const y = (containerSize.height - totalHeight * scale) / 2;
+    const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
     setViewport({ x, y, scale });
   }, [initImageWidth, initImageHeight, outputW, outputH, containerSize, setViewport]);
 

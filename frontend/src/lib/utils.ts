@@ -20,6 +20,14 @@ export function formatDuration(seconds: number): string {
   return `${mins}m ${secs.toFixed(0)}s`;
 }
 
+/** Return "#000" or "#fff" for best contrast against a hex background color. */
+export function contrastText(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r * 0.299 + g * 0.587 + b * 0.114) > 128 ? "#000" : "#fff";
+}
+
 export function base64ToBlob(base64: string, mimeType = "image/png"): Blob {
   const byteCharacters = atob(base64);
   const byteNumbers = new Array(byteCharacters.length);

@@ -1,7 +1,10 @@
 import { useEffect, useRef, useState } from "react";
-import { Layer, Image as KonvaImage, Rect, Text } from "react-konva";
+import { Layer, Image as KonvaImage, Rect, Label, Tag, Text } from "react-konva";
 import { useGenerationStore } from "@/stores/generationStore";
-import { base64ToObjectUrl } from "@/lib/utils";
+import { base64ToObjectUrl, contrastText } from "@/lib/utils";
+
+const BORDER_COLOR = "#60a5fa";
+const LABEL_HEIGHT = 19; // fontSize(11) + padding(4)*2
 
 interface OutputLayerProps {
   offsetX: number;
@@ -60,37 +63,39 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
 
   if (offsetX <= 0) return null;
 
-  // Show image if available, otherwise dashed placeholder
-  if (image) {
-    return (
-      <Layer>
-        <KonvaImage image={image} x={offsetX} y={0} />
-      </Layer>
-    );
-  }
+  const w = image ? image.naturalWidth : placeholderWidth;
+  const h = image ? image.naturalHeight : placeholderHeight;
 
-  // Dashed placeholder rectangle
   return (
-    <Layer>
+    <Layer listening={false}>
+      {image ? (
+        <KonvaImage image={image} x={offsetX} y={0} />
+      ) : (
+        <Text
+          x={offsetX}
+          y={placeholderHeight / 2 - 8}
+          width={placeholderWidth}
+          align="center"
+          text="Output"
+          fontSize={14}
+          fill="#666"
+          listening={false}
+        />
+      )}
       <Rect
         x={offsetX}
         y={0}
-        width={placeholderWidth}
-        height={placeholderHeight}
-        stroke="#666"
-        strokeWidth={1}
-        dash={[8, 4]}
-        cornerRadius={4}
+        width={w}
+        height={h}
+        stroke={BORDER_COLOR}
+        strokeWidth={2}
+        dash={image ? undefined : [8, 4]}
+        listening={false}
       />
-      <Text
-        x={offsetX}
-        y={placeholderHeight / 2 - 8}
-        width={placeholderWidth}
-        align="center"
-        text="Output"
-        fontSize={14}
-        fill="#666"
-      />
+      <Label x={offsetX} y={-LABEL_HEIGHT} listening={false}>
+        <Tag fill={BORDER_COLOR} cornerRadius={3} />
+        <Text text="Output" fontSize={11} fill={contrastText(BORDER_COLOR)} padding={4} listening={false} />
+      </Label>
     </Layer>
   );
 }
