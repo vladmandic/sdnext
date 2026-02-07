@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useState, useEffect } from "react";
+import { memo, useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 
 interface NumberInputProps extends Omit<React.ComponentProps<"input">, "value" | "onChange" | "type"> {
@@ -15,7 +15,7 @@ interface NumberInputProps extends Omit<React.ComponentProps<"input">, "value" |
  * Number input that defers clamping until blur/Enter so users can freely
  * type multi-digit values without intermediate states being clamped.
  */
-function NumberInput({ value, onChange, min, max, step, fallback, className, ...props }: NumberInputProps) {
+const NumberInput = memo(function NumberInput({ value, onChange, min, max, step, fallback, className, ...props }: NumberInputProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
 
@@ -48,6 +48,6 @@ function NumberInput({ value, onChange, min, max, step, fallback, className, ...
       {...props}
     />
   );
-}
+});
 
 export { NumberInput };

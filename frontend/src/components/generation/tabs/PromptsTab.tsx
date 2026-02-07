@@ -1,6 +1,7 @@
+import { useMemo, useState, useCallback } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
-import { useState } from "react";
 import { Link2, Link2Off, ArrowLeftRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PromptEditor } from "../PromptEditor";
@@ -12,30 +13,41 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function PromptsTab() {
-  const store = useGenerationStore();
+  const state = useGenerationStore(useShallow((s) => ({
+    width: s.width,
+    height: s.height,
+    batchCount: s.batchCount,
+    batchSize: s.batchSize,
+  })));
+  const setParam = useGenerationStore((s) => s.setParam);
   const { data: styles } = usePromptStyles();
   const [aspectLocked, setAspectLocked] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
 
-  const aspectRatio = store.width / store.height;
+  const aspectRatio = state.width / state.height;
 
-  function setWidth(w: number) {
+  const setWidth = useCallback((w: number) => {
     const rounded = Math.round(w / 8) * 8;
-    store.setParam("width", rounded);
-    if (aspectLocked) store.setParam("height", Math.round(rounded / aspectRatio / 8) * 8);
-  }
+    setParam("width", rounded);
+    if (aspectLocked) setParam("height", Math.round(rounded / aspectRatio / 8) * 8);
+  }, [setParam, aspectLocked, aspectRatio]);
 
-  function setHeight(h: number) {
+  const setHeight = useCallback((h: number) => {
     const rounded = Math.round(h / 8) * 8;
-    store.setParam("height", rounded);
-    if (aspectLocked) store.setParam("width", Math.round(rounded * aspectRatio / 8) * 8);
-  }
+    setParam("height", rounded);
+    if (aspectLocked) setParam("width", Math.round(rounded * aspectRatio / 8) * 8);
+  }, [setParam, aspectLocked, aspectRatio]);
 
-  function swapDimensions() {
-    const w = store.width;
-    store.setParam("width", store.height);
-    store.setParam("height", w);
-  }
+  const swapDimensions = useCallback(() => {
+    const w = state.width;
+    setParam("width", state.height);
+    setParam("height", w);
+  }, [setParam, state.width, state.height]);
+
+  const set = useMemo(() => ({
+    batchCount: (v: number) => setParam("batchCount", v),
+    batchSize: (v: number) => setParam("batchSize", v),
+  }), [setParam]);
 
   function addStyle(name: string) {
     if (!selectedStyles.includes(name)) {
@@ -80,8 +92,8 @@ export function PromptsTab() {
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Width</Label>
           <NumberInput
-            value={store.width}
-            onChange={(v) => setWidth(v)}
+            value={state.width}
+            onChange={setWidth}
             step={8} min={64} max={4096} fallback={512}
             className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
@@ -102,8 +114,8 @@ export function PromptsTab() {
             <ArrowLeftRight size={12} />
           </Button>
           <NumberInput
-            value={store.height}
-            onChange={(v) => setHeight(v)}
+            value={state.height}
+            onChange={setHeight}
             step={8} min={64} max={4096} fallback={512}
             className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
@@ -112,8 +124,8 @@ export function PromptsTab() {
       </ParamSection>
 
       <ParamSection title="Batch">
-        <ParamSlider label="Count" value={store.batchCount} onChange={(v) => store.setParam("batchCount", v)} min={1} max={100} />
-        <ParamSlider label="Size" value={store.batchSize} onChange={(v) => store.setParam("batchSize", v)} min={1} max={16} />
+        <ParamSlider label="Count" value={state.batchCount} onChange={set.batchCount} min={1} max={100} />
+        <ParamSlider label="Size" value={state.batchSize} onChange={set.batchSize} min={1} max={16} />
       </ParamSection>
     </div>
   );

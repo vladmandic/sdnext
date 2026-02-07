@@ -1,9 +1,9 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { base64ToObjectUrl } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, memo } from "react";
 
-export function ResultGallery() {
+export const ResultGallery = memo(function ResultGallery() {
   const results = useGenerationStore((s) => s.results);
   const [selectedIdx, setSelectedIdx] = useState<number | null>(null);
 
@@ -44,4 +44,4 @@ export function ResultGallery() {
       ))}
     </div>
   );
-}
+});

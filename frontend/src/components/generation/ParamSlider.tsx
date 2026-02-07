@@ -1,3 +1,4 @@
+import { memo, useCallback } from "react";
 import { Slider } from "@/components/ui/slider";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
@@ -11,7 +12,9 @@ interface ParamSliderProps {
   step?: number;
 }
 
-export function ParamSlider({ label, value, onChange, min, max, step = 1 }: ParamSliderProps) {
+export const ParamSlider = memo(function ParamSlider({ label, value, onChange, min, max, step = 1 }: ParamSliderProps) {
+  const handleSliderChange = useCallback(([v]: number[]) => onChange(v), [onChange]);
+
   return (
     <div className="flex items-center gap-2">
       <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">{label}</Label>
@@ -20,7 +23,7 @@ export function ParamSlider({ label, value, onChange, min, max, step = 1 }: Para
         max={max}
         step={step}
         value={[value]}
-        onValueChange={([v]) => onChange(v)}
+        onValueChange={handleSliderChange}
         className="flex-1"
       />
       <NumberInput
@@ -34,4 +37,4 @@ export function ParamSlider({ label, value, onChange, min, max, step = 1 }: Para
       />
     </div>
   );
-}
+});

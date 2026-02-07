@@ -2,13 +2,13 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useTxt2Img, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
 import { buildTxt2ImgRequest } from "@/lib/requestBuilder";
 import { Play, Square, SkipForward, Loader2 } from "lucide-react";
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, memo } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { api } from "@/api/client";
 import { WebSocketManager } from "@/api/websocket";
 
-export function ActionBar() {
+export const ActionBar = memo(function ActionBar() {
   const isGenerating = useGenerationStore((s) => s.isGenerating);
   const prompt = useGenerationStore((s) => s.prompt);
   const progress = useGenerationStore((s) => s.progress);
@@ -145,4 +145,4 @@ export function ActionBar() {
       )}
     </div>
   );
-}
+});

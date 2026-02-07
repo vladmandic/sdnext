@@ -1,4 +1,6 @@
+import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useShallow } from "zustand/react/shallow";
 import { useSamplerList, useUpscalerList } from "@/api/hooks/useModels";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
@@ -10,9 +12,42 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export function RefineTab() {
-  const store = useGenerationStore();
+  const state = useGenerationStore(useShallow((s) => ({
+    hiresEnabled: s.hiresEnabled,
+    hiresUpscaler: s.hiresUpscaler,
+    hiresScale: s.hiresScale,
+    hiresSteps: s.hiresSteps,
+    hiresDenoising: s.hiresDenoising,
+    hiresResizeMode: s.hiresResizeMode,
+    hiresSampler: s.hiresSampler,
+    hiresForce: s.hiresForce,
+    hiresResizeX: s.hiresResizeX,
+    hiresResizeY: s.hiresResizeY,
+    refinerStart: s.refinerStart,
+    refinerSteps: s.refinerSteps,
+    refinerPrompt: s.refinerPrompt,
+    refinerNegative: s.refinerNegative,
+  })));
+  const setParam = useGenerationStore((s) => s.setParam);
   const { data: upscalers } = useUpscalerList();
   const { data: samplers } = useSamplerList();
+
+  const set = useMemo(() => ({
+    hiresEnabled: (checked: boolean) => setParam("hiresEnabled", checked),
+    hiresResizeMode: (v: string) => setParam("hiresResizeMode", Number(v)),
+    hiresScale: (v: number) => setParam("hiresScale", v),
+    hiresResizeX: (v: number) => setParam("hiresResizeX", v),
+    hiresResizeY: (v: number) => setParam("hiresResizeY", v),
+    hiresUpscaler: (v: string) => setParam("hiresUpscaler", v),
+    hiresSampler: (v: string) => setParam("hiresSampler", v === "_same_" ? "" : v),
+    hiresDenoising: (v: number) => setParam("hiresDenoising", v),
+    hiresSteps: (v: number) => setParam("hiresSteps", v),
+    hiresForce: (c: boolean | "indeterminate") => setParam("hiresForce", !!c),
+    refinerStart: (v: number) => setParam("refinerStart", v),
+    refinerSteps: (v: number) => setParam("refinerSteps", v),
+    refinerPrompt: (e: React.ChangeEvent<HTMLTextAreaElement>) => setParam("refinerPrompt", e.target.value),
+    refinerNegative: (e: React.ChangeEvent<HTMLTextAreaElement>) => setParam("refinerNegative", e.target.value),
+  }), [setParam]);
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -20,15 +55,15 @@ export function RefineTab() {
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Enable</Label>
           <Switch
-            checked={store.hiresEnabled}
-            onCheckedChange={(checked) => store.setParam("hiresEnabled", checked)}
+            checked={state.hiresEnabled}
+            onCheckedChange={set.hiresEnabled}
           />
         </div>
-        {store.hiresEnabled && (
+        {state.hiresEnabled && (
           <>
             <div className="flex items-center gap-2">
               <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Mode</Label>
-              <Select value={String(store.hiresResizeMode)} onValueChange={(v) => store.setParam("hiresResizeMode", Number(v))}>
+              <Select value={String(state.hiresResizeMode)} onValueChange={set.hiresResizeMode}>
                 <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -39,22 +74,22 @@ export function RefineTab() {
               </Select>
             </div>
 
-            {store.hiresResizeMode === 0 ? (
-              <ParamSlider label="Scale" value={store.hiresScale} onChange={(v) => store.setParam("hiresScale", v)} min={1} max={4} step={0.1} />
+            {state.hiresResizeMode === 0 ? (
+              <ParamSlider label="Scale" value={state.hiresScale} onChange={set.hiresScale} min={1} max={4} step={0.1} />
             ) : (
               <div className="flex items-center gap-2">
                 <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Size</Label>
                 <NumberInput
-                  value={store.hiresResizeX}
-                  onChange={(v) => store.setParam("hiresResizeX", v)}
+                  value={state.hiresResizeX}
+                  onChange={set.hiresResizeX}
                   placeholder="Width"
                   step={8} min={0} max={8192} fallback={0}
                   className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                 />
                 <span className="text-[10px] text-muted-foreground">x</span>
                 <NumberInput
-                  value={store.hiresResizeY}
-                  onChange={(v) => store.setParam("hiresResizeY", v)}
+                  value={state.hiresResizeY}
+                  onChange={set.hiresResizeY}
                   placeholder="Height"
                   step={8} min={0} max={8192} fallback={0}
                   className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
@@ -64,7 +99,7 @@ export function RefineTab() {
 
             <div className="flex items-center gap-2">
               <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Upscaler</Label>
-              <Select value={store.hiresUpscaler} onValueChange={(v) => store.setParam("hiresUpscaler", v)}>
+              <Select value={state.hiresUpscaler} onValueChange={set.hiresUpscaler}>
                 <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
                   <SelectValue />
                 </SelectTrigger>
@@ -78,7 +113,7 @@ export function RefineTab() {
 
             <div className="flex items-center gap-2">
               <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Sampler</Label>
-              <Select value={store.hiresSampler || "_same_"} onValueChange={(v) => store.setParam("hiresSampler", v === "_same_" ? "" : v)}>
+              <Select value={state.hiresSampler || "_same_"} onValueChange={set.hiresSampler}>
                 <SelectTrigger size="sm" className="flex-1 h-6 text-[11px]">
                   <SelectValue placeholder="Same as primary" />
                 </SelectTrigger>
@@ -91,11 +126,11 @@ export function RefineTab() {
               </Select>
             </div>
 
-            <ParamSlider label="Denoise" value={store.hiresDenoising} onChange={(v) => store.setParam("hiresDenoising", v)} min={0} max={1} step={0.05} />
-            <ParamSlider label="Steps" value={store.hiresSteps} onChange={(v) => store.setParam("hiresSteps", v)} min={0} max={150} />
+            <ParamSlider label="Denoise" value={state.hiresDenoising} onChange={set.hiresDenoising} min={0} max={1} step={0.05} />
+            <ParamSlider label="Steps" value={state.hiresSteps} onChange={set.hiresSteps} min={0} max={150} />
 
             <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
-              <Checkbox checked={store.hiresForce} onCheckedChange={(c) => store.setParam("hiresForce", !!c)} />
+              <Checkbox checked={state.hiresForce} onCheckedChange={set.hiresForce} />
               Force hires
             </label>
           </>
@@ -103,14 +138,14 @@ export function RefineTab() {
       </ParamSection>
 
       <ParamSection title="Refiner" defaultOpen={false}>
-        <ParamSlider label="Start" value={store.refinerStart} onChange={(v) => store.setParam("refinerStart", v)} min={0} max={1} step={0.01} />
-        <ParamSlider label="Steps" value={store.refinerSteps} onChange={(v) => store.setParam("refinerSteps", v)} min={0} max={150} />
+        <ParamSlider label="Start" value={state.refinerStart} onChange={set.refinerStart} min={0} max={1} step={0.01} />
+        <ParamSlider label="Steps" value={state.refinerSteps} onChange={set.refinerSteps} min={0} max={150} />
 
         <div className="flex flex-col gap-1">
           <Label className="text-[11px] text-muted-foreground">Refiner prompt</Label>
           <Textarea
-            value={store.refinerPrompt}
-            onChange={(e) => store.setParam("refinerPrompt", e.target.value)}
+            value={state.refinerPrompt}
+            onChange={set.refinerPrompt}
             placeholder="Refiner prompt (optional)"
             className="min-h-[48px] text-xs resize-none"
           />
@@ -118,8 +153,8 @@ export function RefineTab() {
         <div className="flex flex-col gap-1">
           <Label className="text-[11px] text-muted-foreground">Refiner negative</Label>
           <Textarea
-            value={store.refinerNegative}
-            onChange={(e) => store.setParam("refinerNegative", e.target.value)}
+            value={state.refinerNegative}
+            onChange={set.refinerNegative}
             placeholder="Refiner negative prompt (optional)"
             className="min-h-[36px] text-xs resize-none"
           />
