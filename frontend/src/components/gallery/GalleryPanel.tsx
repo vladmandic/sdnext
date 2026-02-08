@@ -48,36 +48,33 @@ export function GalleryPanel() {
   const activeFolder = useGalleryStore((s) => s.activeFolder);
   const setActiveFolder = useGalleryStore((s) => s.setActiveFolder);
   const setFolders = useGalleryStore((s) => s.setFolders);
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [userExpanded, setUserExpanded] = useState<Set<string> | null>(null);
 
   useEffect(() => {
     if (folders) setFolders(folders);
   }, [folders, setFolders]);
-
-  // Auto-expand nodes that have children on first load
-  useEffect(() => {
-    if (folders && expanded.size === 0) {
-      const tree = buildFolderTree(folders);
-      const toExpand = new Set<string>();
-      for (const node of tree) {
-        if (node.children.length > 0) toExpand.add(node.folder.path);
-      }
-      if (toExpand.size > 0) setExpanded(toExpand);
-    }
-  }, [folders, expanded.size]);
 
   const tree = useMemo(() => {
     if (!folders) return [];
     return buildFolderTree(folders);
   }, [folders]);
 
+  // Auto-expand parent nodes until user toggles; then respect user choice
+  const expanded = useMemo(() => {
+    if (userExpanded !== null) return userExpanded;
+    if (!folders) return new Set<string>();
+    const toExpand = new Set<string>();
+    for (const node of tree) {
+      if (node.children.length > 0) toExpand.add(node.folder.path);
+    }
+    return toExpand;
+  }, [userExpanded, folders, tree]);
+
   const toggleExpand = (path: string) => {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(path)) next.delete(path);
-      else next.add(path);
-      return next;
-    });
+    const next = new Set(expanded);
+    if (next.has(path)) next.delete(path);
+    else next.add(path);
+    setUserExpanded(next);
   };
 
   const handleSelect = (path: string) => {

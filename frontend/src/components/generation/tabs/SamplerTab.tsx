@@ -44,7 +44,7 @@ export function SamplerTab() {
     if (!lastResult?.info) return null;
     try { return JSON.parse(lastResult.info) as GenerationInfo; }
     catch { return null; }
-  }, [lastResult?.info]);
+  }, [lastResult]);
 
   const set = useMemo(() => ({
     sampler: (v: string) => setParam("sampler", v),

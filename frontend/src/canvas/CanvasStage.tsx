@@ -74,21 +74,21 @@ export function CanvasStage() {
   const onMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     maskPaint.onMouseDown(e);
     panZoom.onMouseDown(e);
-  }, [maskPaint.onMouseDown, panZoom.onMouseDown]);
+  }, [maskPaint, panZoom]);
 
   const onMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     maskPaint.onMouseMove(e);
     panZoom.onMouseMove(e);
-  }, [maskPaint.onMouseMove, panZoom.onMouseMove]);
+  }, [maskPaint, panZoom]);
 
   const onMouseUp = useCallback(() => {
     maskPaint.onMouseUp();
     panZoom.onMouseUp();
-  }, [maskPaint.onMouseUp, panZoom.onMouseUp]);
+  }, [maskPaint, panZoom]);
 
   const onClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     imageTransform.onStageClick(e);
-  }, [imageTransform.onStageClick]);
+  }, [imageTransform]);
 
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden">
@@ -110,7 +110,7 @@ export function CanvasStage() {
         >
           <CompositeLayer trRef={trRef} />
           <FrameLayer />
-          <MaskLayer activeLineRef={maskPaint.activeLineRef} cursorRef={maskPaint.cursorRef} />
+          <MaskLayer setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />
           <OutputLayer offsetX={outputOffsetX} placeholderWidth={outputW} placeholderHeight={outputH} />
         </Stage>
       )}

@@ -20,6 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 export function LeftPanel() {
   const activeView = useUiStore((s) => s.activeSidebarView);
   const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
+  const generationMode = useUiStore((s) => s.generationMode);
 
   if (activeView === "caption") {
     return <CaptionPanel />;
@@ -28,8 +29,6 @@ export function LeftPanel() {
   if (activeView === "gallery") {
     return <GalleryPanel />;
   }
-
-  const generationMode = useUiStore((s) => s.generationMode);
 
   if (activeView === "images") {
     return (

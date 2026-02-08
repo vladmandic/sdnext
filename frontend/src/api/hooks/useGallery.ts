@@ -226,7 +226,7 @@ function dispatchThumb(file: GalleryFile, setThumb: (id: string, thumb: CachedTh
 export function useThumbnailLoader(visibleFileIds: string[], files: GalleryFile[]) {
   const setThumb = useGalleryStore((s) => s.setThumb);
   const filesRef = useRef(files);
-  filesRef.current = files;
+  useEffect(() => { filesRef.current = files; }, [files]);
 
   useEffect(() => {
     const fileMap = new Map(filesRef.current.map((f) => [f.id, f]));

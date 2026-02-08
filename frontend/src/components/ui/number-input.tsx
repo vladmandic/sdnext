@@ -1,5 +1,5 @@
 import * as React from "react";
-import { memo, useState, useEffect } from "react";
+import { memo, useState } from "react";
 import { Input } from "@/components/ui/input";
 
 interface NumberInputProps extends Omit<React.ComponentProps<"input">, "value" | "onChange" | "type"> {
@@ -18,10 +18,6 @@ interface NumberInputProps extends Omit<React.ComponentProps<"input">, "value" |
 const NumberInput = memo(function NumberInput({ value, onChange, min, max, step, fallback, className, ...props }: NumberInputProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
-
-  useEffect(() => {
-    if (!editing) setDraft(String(value));
-  }, [value, editing]);
 
   const commit = () => {
     setEditing(false);

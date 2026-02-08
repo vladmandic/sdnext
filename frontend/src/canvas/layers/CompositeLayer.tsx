@@ -88,6 +88,7 @@ export function CompositeLayer({ trRef }: CompositeLayerProps) {
 
   return (
     <Layer>
+      {/* eslint-disable-next-line react-hooks/refs -- imageMap synced with imageLayers in effect above */}
       {imageLayers.map((layer) => (
         <KonvaImage
           key={layer.id}

@@ -106,7 +106,7 @@ export const ActionBar = memo(function ActionBar() {
       generatingRef.current = false;
       setGenerating(false);
     }
-  }, [txt2img, img2img, generationMode, setGenerating, setPreview, addResult]);
+  }, [txt2img, img2img, generationMode, setGenerating, setPreview, addResult, clearSelection]);
 
   const handleInterrupt = useCallback(() => {
     interrupt.mutate();

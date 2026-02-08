@@ -40,10 +40,7 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
       objectUrlRef.current = null;
     }
 
-    if (!displaySrc) {
-      setImage(null);
-      return;
-    }
+    if (!displaySrc) return;
 
     // Track blob URLs we create for cleanup
     if (displaySrc.startsWith("blob:")) {

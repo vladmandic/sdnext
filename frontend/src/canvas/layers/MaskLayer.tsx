@@ -7,8 +7,8 @@ import type { MaskLine } from "@/stores/img2imgStore";
 import type Konva from "konva";
 
 interface MaskLayerProps {
-  activeLineRef: React.RefObject<Konva.Line | null>;
-  cursorRef: React.RefObject<Konva.Circle | null>;
+  setActiveLineNode: (node: Konva.Line | null) => void;
+  setCursorNode: (node: Konva.Circle | null) => void;
 }
 
 /** Parse "#rrggbb" or "#rrggbbaa" into { rgb, alpha }. */
@@ -63,7 +63,7 @@ function renderMaskCanvas(lines: MaskLine[], color: string, w: number, h: number
  * imperatively by useMaskPaint — only committed-stroke changes cause
  * a React re-render.
  */
-export function MaskLayer({ activeLineRef, cursorRef }: MaskLayerProps) {
+export function MaskLayer({ setActiveLineNode: parentSetActiveLine, setCursorNode: parentSetCursor }: MaskLayerProps) {
   const maskVisible = useCanvasStore((s) => s.maskVisible);
   const maskColor = useCanvasStore((s) => s.maskColor);
   const maskLines = useImg2ImgStore((s) => s.maskLines);
@@ -82,8 +82,8 @@ export function MaskLayer({ activeLineRef, cursorRef }: MaskLayerProps) {
   const activeLineNodeRef = useRef<Konva.Line | null>(null);
   const setActiveLineNode = useCallback((node: Konva.Line | null) => {
     activeLineNodeRef.current = node;
-    (activeLineRef as React.MutableRefObject<Konva.Line | null>).current = node;
-  }, [activeLineRef]);
+    parentSetActiveLine(node);
+  }, [parentSetActiveLine]);
 
   useEffect(() => {
     const node = activeLineNodeRef.current;
@@ -94,8 +94,8 @@ export function MaskLayer({ activeLineRef, cursorRef }: MaskLayerProps) {
   }, [rgb, alpha]);
 
   const setCursorNode = useCallback((node: Konva.Circle | null) => {
-    (cursorRef as React.MutableRefObject<Konva.Circle | null>).current = node;
-  }, [cursorRef]);
+    parentSetCursor(node);
+  }, [parentSetCursor]);
 
   if (!maskVisible || frameW <= 0 || frameH <= 0) return null;
 

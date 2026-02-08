@@ -12,7 +12,8 @@ export function GalleryLightbox() {
 
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
-  const dragging = useRef(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [prevIndex, setPrevIndex] = useState(lightboxIndex);
   const dragStart = useRef({ x: 0, y: 0 });
   const imgRef = useRef<HTMLDivElement>(null);
 
@@ -27,11 +28,12 @@ export function GalleryLightbox() {
     return `/file=${file.fullPath}`;
   }, [file]);
 
-  // Reset transform on navigation
-  useEffect(() => {
+  // Reset transform on navigation (adjust state during render pattern)
+  if (prevIndex !== lightboxIndex) {
+    setPrevIndex(lightboxIndex);
     setScale(1);
     setTranslate({ x: 0, y: 0 });
-  }, [lightboxIndex]);
+  }
 
   // Sync selection
   useEffect(() => {
@@ -74,17 +76,17 @@ export function GalleryLightbox() {
   // Pan handlers
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (scale <= 1) return;
-    dragging.current = true;
+    setIsDragging(true);
     dragStart.current = { x: e.clientX - translate.x, y: e.clientY - translate.y };
   }, [scale, translate]);
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!dragging.current) return;
+    if (!isDragging) return;
     setTranslate({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
-  }, []);
+  }, [isDragging]);
 
   const handleMouseUp = useCallback(() => {
-    dragging.current = false;
+    setIsDragging(false);
   }, []);
 
   if (!isOpen || !file) return null;
@@ -109,7 +111,7 @@ export function GalleryLightbox() {
       <div
         ref={imgRef}
         className="flex-1 flex items-center justify-center overflow-hidden select-none"
-        style={{ cursor: scale > 1 ? (dragging.current ? "grabbing" : "grab") : "default" }}
+        style={{ cursor: scale > 1 ? (isDragging ? "grabbing" : "grab") : "default" }}
         onWheel={handleWheel}
         onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e); }}
         onMouseMove={handleMouseMove}

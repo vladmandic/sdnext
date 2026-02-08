@@ -22,9 +22,17 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
   const toolRef = useRef<MaskLine["tool"]>("brush");
   const strokeWidthRef = useRef(20);
 
-  // Konva node refs — MaskLayer attaches these via callback refs
+  // Konva node refs — MaskLayer attaches these via callback setters
   const activeLineRef = useRef<Konva.Line | null>(null);
   const cursorRef = useRef<Konva.Circle | null>(null);
+
+  const setActiveLineNode = useCallback((node: Konva.Line | null) => {
+    activeLineRef.current = node;
+  }, []);
+
+  const setCursorNode = useCallback((node: Konva.Circle | null) => {
+    cursorRef.current = node;
+  }, []);
 
   const getCanvasPos = useCallback((stage: Konva.Stage): { x: number; y: number } | null => {
     const pointer = stage.getPointerPosition();
@@ -141,7 +149,7 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
     onMouseMove: handleMouseMove,
     onMouseUp: handleMouseUp,
     onMouseLeave: handleMouseLeave,
-    activeLineRef,
-    cursorRef,
+    setActiveLineNode,
+    setCursorNode,
   };
 }
