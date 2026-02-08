@@ -10,11 +10,14 @@ export function useControlNetModels() {
   });
 }
 
+const TYPES_WITH_MODELS: Set<ControlUnitType> = new Set(["controlnet", "t2i", "xs", "lite", "reference"]);
+
 export function useControlModels(unitType: ControlUnitType) {
   return useQuery({
     queryKey: ["control-models", unitType],
     queryFn: () => api.get<string[]>(`/sdapi/v1/control-models?unit_type=${unitType}`),
     staleTime: 5 * 60 * 1000,
+    enabled: TYPES_WITH_MODELS.has(unitType),
   });
 }
 

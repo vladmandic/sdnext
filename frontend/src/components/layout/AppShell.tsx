@@ -11,7 +11,9 @@ import { cn } from "@/lib/utils";
 export function AppShell() {
   useHistoryInit();
   const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
+  const viewCollapsed = useUiStore((s) => s.viewCollapsed);
   const leftPanelWidth = useUiStore((s) => s.leftPanelWidth);
+  const leftHidden = leftPanelCollapsed || viewCollapsed;
   const rightPanelCollapsed = useUiStore((s) => s.rightPanelCollapsed);
   const rightPanelWidth = useUiStore((s) => s.rightPanelWidth);
 
@@ -31,11 +33,11 @@ export function AppShell() {
           <aside
             className={cn(
               "border-r border-border bg-card flex-shrink-0 overflow-y-auto transition-[width] duration-200",
-              leftPanelCollapsed && "w-0 border-r-0",
+              leftHidden && "w-0 border-r-0",
             )}
-            style={{ width: leftPanelCollapsed ? 0 : leftPanelWidth }}
+            style={{ width: leftHidden ? 0 : leftPanelWidth }}
           >
-            {!leftPanelCollapsed && <LeftPanel />}
+            {!leftHidden && <LeftPanel />}
           </aside>
 
           {/* Main content */}

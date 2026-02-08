@@ -37,6 +37,12 @@ export function base64ToBlob(base64: string, mimeType = "image/png"): Blob {
   return new Blob([new Uint8Array(byteNumbers)], { type: mimeType });
 }
 
+const objectUrlCache = new Map<string, string>();
+
 export function base64ToObjectUrl(base64: string, mimeType = "image/png"): string {
-  return URL.createObjectURL(base64ToBlob(base64, mimeType));
+  const cached = objectUrlCache.get(base64);
+  if (cached) return cached;
+  const url = URL.createObjectURL(base64ToBlob(base64, mimeType));
+  objectUrlCache.set(base64, url);
+  return url;
 }

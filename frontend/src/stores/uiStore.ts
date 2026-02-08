@@ -10,6 +10,7 @@ interface UiState {
   sidebarCollapsed: boolean;
   activeSidebarView: SidebarView;
   activeImagesSubTab: ImagesSubTab;
+  viewCollapsed: boolean;
 
   // Panels
   leftPanelCollapsed: boolean;
@@ -30,6 +31,7 @@ interface UiState {
   toggleSidebar: () => void;
   setSidebarView: (view: SidebarView) => void;
   setImagesSubTab: (tab: ImagesSubTab) => void;
+  toggleViewCollapsed: () => void;
   setGenerationMode: (mode: GenerationMode) => void;
   setAutoFitFrame: (enabled: boolean) => void;
   toggleLeftPanel: () => void;
@@ -47,6 +49,7 @@ export const useUiStore = create<UiState>()(
       sidebarCollapsed: false,
       activeSidebarView: "images",
       activeImagesSubTab: "prompts",
+      viewCollapsed: false,
       leftPanelCollapsed: false,
       leftPanelWidth: 380,
       rightPanelCollapsed: true,
@@ -58,6 +61,7 @@ export const useUiStore = create<UiState>()(
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarView: (view) => set({ activeSidebarView: view }),
       setImagesSubTab: (tab) => set({ activeImagesSubTab: tab }),
+      toggleViewCollapsed: () => set((s) => ({ viewCollapsed: !s.viewCollapsed })),
       setGenerationMode: (mode) => set({ generationMode: mode }),
       setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),

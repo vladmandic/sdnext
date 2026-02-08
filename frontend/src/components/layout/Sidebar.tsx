@@ -11,11 +11,15 @@ export function Sidebar() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const activeView = useUiStore((s) => s.activeSidebarView);
   const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
+  const viewCollapsed = useUiStore((s) => s.viewCollapsed);
+  const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
   const setSidebarView = useUiStore((s) => s.setSidebarView);
   const setImagesSubTab = useUiStore((s) => s.setImagesSubTab);
+  const toggleViewCollapsed = useUiStore((s) => s.toggleViewCollapsed);
+  const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
 
-  const hasSubTabs = activeView === "images";
+  const hasSubTabs = activeView === "images" && !viewCollapsed;
 
   return (
     <div
@@ -48,7 +52,14 @@ export function Sidebar() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setSidebarView(item.id as SidebarView)}
+                    onClick={() => {
+                      if (isActive) {
+                        toggleViewCollapsed();
+                      } else {
+                        setSidebarView(item.id as SidebarView);
+                        if (viewCollapsed) toggleViewCollapsed();
+                      }
+                    }}
                     className={cn(
                       "w-full aspect-square text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
                       isActive && "bg-sidebar-accent text-primary",
@@ -99,7 +110,15 @@ export function Sidebar() {
             return (
               <button
                 key={tab.id}
-                onClick={() => setImagesSubTab(tab.id as ImagesSubTab)}
+                onClick={() => {
+                  if (isActive && !leftPanelCollapsed && !viewCollapsed) {
+                    toggleLeftPanel();
+                  } else {
+                    setImagesSubTab(tab.id as ImagesSubTab);
+                    if (leftPanelCollapsed) toggleLeftPanel();
+                    if (viewCollapsed) toggleViewCollapsed();
+                  }
+                }}
                 className={cn(
                   "flex items-center gap-2 px-3 py-1.5 text-xs transition-colors text-left",
                   "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
