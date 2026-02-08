@@ -5,6 +5,7 @@ import { useScriptStore } from "@/stores/scriptStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
+import { useUiStore } from "@/stores/uiStore";
 import { fileToBase64 } from "@/lib/image";
 import { exportMaskToBase64 } from "@/lib/exportMask";
 import { flattenCanvas } from "@/lib/flattenCanvas";
@@ -334,4 +335,20 @@ export function restoreFromResult(result: GenerationResult): void {
       detailerRenoiseEnd: num(overrides.detailer_renoise_end, 1.0),
     } : {}),
   });
+
+  // Restore input image and mask if present (img2img history)
+  if (result.inputImage) {
+    const w = num(p.width, 1024);
+    const h = num(p.height, 1024);
+    useCanvasStore.getState().restoreImageLayer(result.inputImage, w, h);
+    useUiStore.getState().setGenerationMode("img2img");
+
+    if (result.inputMask && result.inputMask.length > 0) {
+      const img2imgState = useImg2ImgStore.getState();
+      img2imgState.clearMask();
+      for (const line of result.inputMask) {
+        img2imgState.addMaskLine(line);
+      }
+    }
+  }
 }

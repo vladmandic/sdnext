@@ -1,6 +1,7 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
+import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useTxt2Img, useImg2Img, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
 import { buildTxt2ImgRequest, buildImg2ImgRequest, restoreFromResult } from "@/lib/requestBuilder";
 import type { Img2ImgRequest } from "@/api/types/generation";
@@ -85,10 +86,17 @@ export const ActionBar = memo(function ActionBar() {
     setPreview(null);
     clearSelection();
     try {
-      const request = generationMode === "img2img"
+      const isImg2Img = generationMode === "img2img";
+      const request = isImg2Img
         ? await buildImg2ImgRequest()
         : await buildTxt2ImgRequest();
-      const result = generationMode === "img2img"
+
+      // Snapshot input state before the (possibly slow) API call
+      const inputImage = isImg2Img ? (request as Img2ImgRequest).init_images?.[0] : undefined;
+      const maskLines = useImg2ImgStore.getState().maskLines;
+      const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
+
+      const result = isImg2Img
         ? await img2img.mutateAsync(request as Img2ImgRequest)
         : await txt2img.mutateAsync(request);
       // Don't add result if generation was interrupted while awaiting
@@ -99,6 +107,8 @@ export const ActionBar = memo(function ActionBar() {
         parameters: result.parameters,
         info: result.info,
         timestamp: Date.now(),
+        inputImage,
+        inputMask,
       });
     } catch (err) {
       toast.error("Generation failed", { description: err instanceof Error ? err.message : String(err) });

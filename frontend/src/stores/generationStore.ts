@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { putResult, trimResults, clearAllResults, getAllResults } from "@/lib/historyDb";
+import type { MaskLine } from "@/stores/img2imgStore";
 
 export interface GenerationResult {
   id: string;
@@ -7,6 +8,10 @@ export interface GenerationResult {
   parameters: Record<string, unknown>;
   info: string;
   timestamp: number;
+  /** Flattened canvas base64 captured at generation time. Persisted to IndexedDB with the result. */
+  inputImage?: string;
+  /** Mask strokes captured at generation time. Persisted to IndexedDB with the result. */
+  inputMask?: MaskLine[];
 }
 
 interface GenerationState {

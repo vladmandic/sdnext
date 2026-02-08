@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
+import { base64ToBlob } from "@/lib/utils";
 
 export type ToolType = "move" | "brush" | "eraser" | "maskBrush" | "maskEraser" | "rectSelect" | "lassoSelect" | "colorPicker" | "zoom" | "pan";
 
@@ -62,6 +63,7 @@ interface CanvasState {
   setMaskVisible: (visible: boolean) => void;
   setMaskColor: (color: string) => void;
   clearLayers: () => void;
+  restoreImageLayer: (base64: string, w: number, h: number) => void;
   getImageLayers: () => ImageLayer[];
 }
 
@@ -159,6 +161,40 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
       }
     }
     set({ layers: [], activeLayerId: null });
+  },
+
+  restoreImageLayer: (base64, w, h) => {
+    // Clear existing layers first
+    const { layers } = get();
+    for (const layer of layers) {
+      if (layer.type === "image") {
+        URL.revokeObjectURL((layer as ImageLayer).imageData);
+      }
+    }
+    const blob = base64ToBlob(base64);
+    const objectUrl = URL.createObjectURL(blob);
+    const id = crypto.randomUUID();
+    const layer: ImageLayer = {
+      id,
+      type: "image",
+      name: "Restored input",
+      visible: true,
+      opacity: 1,
+      locked: false,
+      imageData: objectUrl,
+      base64,
+      file: new File([blob], "restored.png", { type: "image/png" }),
+      naturalWidth: w,
+      naturalHeight: h,
+      x: 0,
+      y: 0,
+      width: w,
+      height: h,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+    };
+    set({ layers: [layer], activeLayerId: id });
   },
 
   getImageLayers: () => get().layers.filter((l) => l.type === "image") as ImageLayer[],
