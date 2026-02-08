@@ -20,6 +20,9 @@ interface UiState {
   // Generation mode
   generationMode: GenerationMode;
 
+  // Canvas preferences
+  autoFitFrame: boolean;
+
   // Theme
   theme: string;
 
@@ -28,6 +31,7 @@ interface UiState {
   setSidebarView: (view: SidebarView) => void;
   setImagesSubTab: (tab: ImagesSubTab) => void;
   setGenerationMode: (mode: GenerationMode) => void;
+  setAutoFitFrame: (enabled: boolean) => void;
   toggleLeftPanel: () => void;
   setLeftPanelWidth: (width: number) => void;
   toggleRightPanel: () => void;
@@ -48,12 +52,14 @@ export const useUiStore = create<UiState>()(
       rightPanelCollapsed: true,
       rightPanelWidth: 320,
       generationMode: "txt2img" as GenerationMode,
+      autoFitFrame: true,
       theme: "default",
 
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarView: (view) => set({ activeSidebarView: view }),
       setImagesSubTab: (tab) => set({ activeImagesSubTab: tab }),
       setGenerationMode: (mode) => set({ generationMode: mode }),
+      setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),
       setLeftPanelWidth: (width) => set({ leftPanelWidth: Math.max(280, Math.min(600, width)) }),
       toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),

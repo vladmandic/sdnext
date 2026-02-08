@@ -13,6 +13,7 @@ interface OutputLayerProps {
 }
 
 export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: OutputLayerProps) {
+  const isGenerating = useGenerationStore((s) => s.isGenerating);
   const previewImage = useGenerationStore((s) => s.previewImage);
   const results = useGenerationStore((s) => s.results);
   const selectedResultId = useGenerationStore((s) => s.selectedResultId);
@@ -63,13 +64,25 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
 
   if (offsetX <= 0) return null;
 
-  const w = image ? image.naturalWidth : placeholderWidth;
-  const h = image ? image.naturalHeight : placeholderHeight;
+  // Use displaySrc (synchronous) alongside image state so clearing is immediate
+  const hasImage = !!displaySrc && !!image;
+  const isLivePreview = isGenerating && !!previewImage;
+
+  // Frame stays at placeholder (= input) size during previews and when empty.
+  // Only adjusts to actual image dimensions for a finished result.
+  const frameW = hasImage && !isLivePreview ? image.naturalWidth : placeholderWidth;
+  const frameH = hasImage && !isLivePreview ? image.naturalHeight : placeholderHeight;
 
   return (
     <Layer listening={false}>
-      {image ? (
-        <KonvaImage image={image} x={offsetX} y={0} />
+      {hasImage ? (
+        <KonvaImage
+          image={image}
+          x={offsetX}
+          y={0}
+          width={isLivePreview ? placeholderWidth : undefined}
+          height={isLivePreview ? placeholderHeight : undefined}
+        />
       ) : (
         <Text
           x={offsetX}
@@ -85,11 +98,11 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
       <Rect
         x={offsetX}
         y={0}
-        width={w}
-        height={h}
+        width={frameW}
+        height={frameH}
         stroke={BORDER_COLOR}
         strokeWidth={2}
-        dash={image ? undefined : [8, 4]}
+        dash={hasImage ? undefined : [8, 4]}
         listening={false}
       />
       <Label x={offsetX} y={-LABEL_HEIGHT} listening={false}>

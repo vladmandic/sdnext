@@ -1,11 +1,12 @@
 import { useRef, useEffect, useState, useCallback } from "react";
 import { Stage } from "react-konva";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { usePanZoom } from "./tools/usePanZoom";
 import { useMaskPaint } from "./tools/useMaskPaint";
-import { ImageLayer } from "./layers/ImageLayer";
+import { useImageTransform } from "./tools/useImageTransform";
+import { FrameLayer } from "./layers/FrameLayer";
+import { CompositeLayer } from "./layers/CompositeLayer";
 import { MaskLayer } from "./layers/MaskLayer";
 import { OutputLayer } from "./layers/OutputLayer";
 import type Konva from "konva";
@@ -17,20 +18,20 @@ const LABEL_HEIGHT = 19; // space reserved above images for labels
 export function CanvasStage() {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
+  const trRef = useRef<Konva.Transformer>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const viewport = useCanvasStore((s) => s.viewport);
   const setViewport = useCanvasStore((s) => s.setViewport);
-  const initImageWidth = useImg2ImgStore((s) => s.initImageWidth);
-  const initImageHeight = useImg2ImgStore((s) => s.initImageHeight);
-  const genWidth = useGenerationStore((s) => s.width);
-  const genHeight = useGenerationStore((s) => s.height);
+  const frameW = useGenerationStore((s) => s.width);
+  const frameH = useGenerationStore((s) => s.height);
   const panZoom = usePanZoom(stageRef);
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
+  const imageTransform = useImageTransform(stageRef, trRef);
 
   // Side-by-side derived values
-  const outputOffsetX = initImageWidth > 0 ? initImageWidth + OUTPUT_GAP : 0;
-  const outputW = genWidth || initImageWidth;
-  const outputH = genHeight || initImageHeight;
+  const outputOffsetX = frameW + OUTPUT_GAP;
+  const outputW = frameW;
+  const outputH = frameH;
 
   // Container-responsive sizing
   useEffect(() => {
@@ -49,22 +50,22 @@ export function CanvasStage() {
     return () => ro.disconnect();
   }, []);
 
-  // Auto-fit both images (side-by-side) to viewport
+  // Auto-fit frame + output pair to viewport
   const fitToView = useCallback(() => {
-    if (initImageWidth <= 0 || initImageHeight <= 0) return;
+    if (frameW <= 0 || frameH <= 0) return;
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
 
-    const totalWidth = initImageWidth + OUTPUT_GAP + outputW;
-    const totalHeight = LABEL_HEIGHT + Math.max(initImageHeight, outputH);
+    const totalWidth = frameW + OUTPUT_GAP + outputW;
+    const totalHeight = LABEL_HEIGHT + Math.max(frameH, outputH);
     const availW = containerSize.width - PADDING * 2;
     const availH = containerSize.height - PADDING * 2;
     const scale = Math.min(availW / totalWidth, availH / totalHeight, 1);
     const x = (containerSize.width - totalWidth * scale) / 2;
     const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
     setViewport({ x, y, scale });
-  }, [initImageWidth, initImageHeight, outputW, outputH, containerSize, setViewport]);
+  }, [frameW, frameH, outputW, outputH, containerSize, setViewport]);
 
-  // Fit on image load or container resize
+  // Fit on frame change or container resize
   useEffect(() => {
     fitToView();
   }, [fitToView]);
@@ -85,6 +86,10 @@ export function CanvasStage() {
     panZoom.onMouseUp();
   }, [maskPaint.onMouseUp, panZoom.onMouseUp]);
 
+  const onClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    imageTransform.onStageClick(e);
+  }, [imageTransform.onStageClick]);
+
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden">
       {containerSize.width > 0 && containerSize.height > 0 && (
@@ -101,8 +106,10 @@ export function CanvasStage() {
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
           onMouseLeave={maskPaint.onMouseLeave}
+          onClick={onClick}
         >
-          <ImageLayer />
+          <CompositeLayer trRef={trRef} />
+          <FrameLayer />
           <MaskLayer activeLineRef={maskPaint.activeLineRef} cursorRef={maskPaint.cursorRef} />
           <OutputLayer offsetX={outputOffsetX} placeholderWidth={outputW} placeholderHeight={outputH} />
         </Stage>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Layer, Line, Circle, Group, Image as KonvaImage } from "react-konva";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useGenerationStore } from "@/stores/generationStore";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type Konva from "konva";
 
@@ -66,16 +67,16 @@ export function MaskLayer({ activeLineRef, cursorRef }: MaskLayerProps) {
   const maskVisible = useCanvasStore((s) => s.maskVisible);
   const maskColor = useCanvasStore((s) => s.maskColor);
   const maskLines = useImg2ImgStore((s) => s.maskLines);
-  const initW = useImg2ImgStore((s) => s.initImageWidth);
-  const initH = useImg2ImgStore((s) => s.initImageHeight);
+  const frameW = useGenerationStore((s) => s.width);
+  const frameH = useGenerationStore((s) => s.height);
 
   const { rgb, alpha } = parseMaskColor(maskColor);
 
   // Flatten committed strokes to a single canvas — overlaps merge
   const maskCanvas = useMemo(() => {
-    if (maskLines.length === 0 || initW <= 0 || initH <= 0) return null;
-    return renderMaskCanvas(maskLines, rgb, initW, initH);
-  }, [maskLines, rgb, initW, initH]);
+    if (maskLines.length === 0 || frameW <= 0 || frameH <= 0) return null;
+    return renderMaskCanvas(maskLines, rgb, frameW, frameH);
+  }, [maskLines, rgb, frameW, frameH]);
 
   // Sync the active line's stroke color when maskColor changes
   const activeLineNodeRef = useRef<Konva.Line | null>(null);
@@ -96,11 +97,11 @@ export function MaskLayer({ activeLineRef, cursorRef }: MaskLayerProps) {
     (cursorRef as React.MutableRefObject<Konva.Circle | null>).current = node;
   }, [cursorRef]);
 
-  if (!maskVisible || initW <= 0 || initH <= 0) return null;
+  if (!maskVisible || frameW <= 0 || frameH <= 0) return null;
 
   return (
     <Layer>
-      <Group clipFunc={(ctx) => { ctx.rect(0, 0, initW, initH); }}>
+      <Group clipFunc={(ctx) => { ctx.rect(0, 0, frameW, frameH); }}>
         {/* Committed strokes — flat canvas, single alpha, no compounding */}
         {maskCanvas && (
           <KonvaImage image={maskCanvas} x={0} y={0} opacity={alpha} />

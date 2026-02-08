@@ -1,7 +1,7 @@
 import { useEffect, useCallback } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { Paintbrush, Eraser, Eye, EyeOff, Trash2 } from "lucide-react";
+import { Move, Paintbrush, Eraser, Eye, EyeOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,9 @@ export function CanvasToolbar() {
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
 
       switch (e.key.toLowerCase()) {
+        case "v":
+          setActiveTool("move");
+          break;
         case "b":
           setActiveTool(activeTool === "maskBrush" ? "move" : "maskBrush");
           break;
@@ -57,6 +60,16 @@ export function CanvasToolbar() {
 
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background/80 backdrop-blur-sm border border-border shadow-lg">
+      {/* Move */}
+      <Button
+        variant={activeTool === "move" ? "default" : "ghost"}
+        size="icon-xs"
+        onClick={() => setActiveTool("move")}
+        title="Move (V)"
+      >
+        <Move size={14} />
+      </Button>
+
       {/* Brush */}
       <Button
         variant={activeTool === "maskBrush" ? "default" : "ghost"}

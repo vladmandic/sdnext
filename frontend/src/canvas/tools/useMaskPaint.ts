@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useGenerationStore } from "@/stores/generationStore";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type Konva from "konva";
 
@@ -28,11 +29,11 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
   const getCanvasPos = useCallback((stage: Konva.Stage): { x: number; y: number } | null => {
     const pointer = stage.getPointerPosition();
     if (!pointer) return null;
-    const { initImageWidth: initW, initImageHeight: initH } = useImg2ImgStore.getState();
-    if (initW <= 0 || initH <= 0) return null;
+    const { width: frameW, height: frameH } = useGenerationStore.getState();
+    if (frameW <= 0 || frameH <= 0) return null;
     return {
-      x: Math.max(0, Math.min(initW, (pointer.x - stage.x()) / stage.scaleX())),
-      y: Math.max(0, Math.min(initH, (pointer.y - stage.y()) / stage.scaleY())),
+      x: Math.max(0, Math.min(frameW, (pointer.x - stage.x()) / stage.scaleX())),
+      y: Math.max(0, Math.min(frameH, (pointer.y - stage.y()) / stage.scaleY())),
     };
   }, []);
 

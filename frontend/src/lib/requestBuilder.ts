@@ -4,13 +4,11 @@ import { useAdapterStore } from "@/stores/adapterStore";
 import { useScriptStore } from "@/stores/scriptStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { fileToBase64 } from "@/lib/image";
 import { exportMaskToBase64 } from "@/lib/exportMask";
+import { flattenCanvas } from "@/lib/flattenCanvas";
 import type { Txt2ImgRequest, Img2ImgRequest, GenerationInfo } from "@/api/types/generation";
-
-function snap8(v: number): number {
-  return Math.round(v / 8) * 8;
-}
 
 export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
   const gen = useGenerationStore.getState();
@@ -179,25 +177,26 @@ export async function buildImg2ImgRequest(): Promise<Img2ImgRequest> {
   const baseRequest = await buildTxt2ImgRequest();
   const img2img = useImg2ImgStore.getState();
   const gen = useGenerationStore.getState();
+  const canvas = useCanvasStore.getState();
 
-  let width = gen.width;
-  let height = gen.height;
-  if (img2img.resolutionMode === "auto" && img2img.initImageWidth > 0) {
-    width = snap8(img2img.initImageWidth);
-    height = snap8(img2img.initImageHeight);
-  }
+  const width = gen.width;
+  const height = gen.height;
+
+  // Flatten all image layers into a single composite
+  const imageLayers = canvas.layers.filter((l) => l.type === "image") as ImageLayer[];
+  const flattenedBase64 = await flattenCanvas(imageLayers, width, height);
 
   // Export mask from painted strokes if no explicit maskData
   let maskData = img2img.maskData;
   if (!maskData && img2img.maskLines.length > 0) {
-    maskData = exportMaskToBase64(img2img.maskLines, img2img.initImageWidth, img2img.initImageHeight);
+    maskData = exportMaskToBase64(img2img.maskLines, width, height);
   }
 
   return {
     ...baseRequest,
     width,
     height,
-    init_images: img2img.initImageBase64 ? [img2img.initImageBase64] : [],
+    init_images: flattenedBase64 ? [flattenedBase64] : [],
     resize_mode: img2img.resizeMode,
     mask: maskData || undefined,
     mask_blur: img2img.maskBlur,

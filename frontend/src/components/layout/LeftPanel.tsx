@@ -1,8 +1,7 @@
 import { useUiStore } from "@/stores/uiStore";
-import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { ActionBar } from "@/components/generation/ActionBar";
 import { ModeSelector } from "@/components/generation/ModeSelector";
-import { InitImageThumbnail } from "@/components/generation/InitImageThumbnail";
+import { LayerPanel } from "@/components/generation/LayerPanel";
 import { MaskParams } from "@/components/generation/MaskParams";
 import { ResultGallery } from "@/components/generation/ResultGallery";
 import { PromptsTab } from "@/components/generation/tabs/PromptsTab";
@@ -31,7 +30,6 @@ export function LeftPanel() {
   }
 
   const generationMode = useUiStore((s) => s.generationMode);
-  const hasInitImage = useImg2ImgStore((s) => s.initImageData !== null);
 
   if (activeView === "images") {
     return (
@@ -46,10 +44,10 @@ export function LeftPanel() {
           <ActionBar />
         </div>
 
-        {/* Init image thumbnail + mask params (img2img with image loaded) */}
-        {generationMode === "img2img" && hasInitImage && (
+        {/* Layer panel + mask params (img2img) */}
+        {generationMode === "img2img" && (
           <div className="px-3 py-1.5 border-b border-border">
-            <InitImageThumbnail />
+            <LayerPanel />
             <MaskParams />
           </div>
         )}

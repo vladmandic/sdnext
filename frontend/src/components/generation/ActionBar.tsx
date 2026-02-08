@@ -1,6 +1,6 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
-import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useCanvasStore } from "@/stores/canvasStore";
 import { useTxt2Img, useImg2Img, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
 import { buildTxt2ImgRequest, buildImg2ImgRequest, restoreFromResult } from "@/lib/requestBuilder";
 import type { Img2ImgRequest } from "@/api/types/generation";
@@ -19,9 +19,10 @@ export const ActionBar = memo(function ActionBar() {
   const setProgress = useGenerationStore((s) => s.setProgress);
   const setPreview = useGenerationStore((s) => s.setPreview);
   const addResult = useGenerationStore((s) => s.addResult);
+  const clearSelection = useGenerationStore((s) => s.clearSelection);
   const lastResult = useGenerationStore((s) => s.results[0]);
   const generationMode = useUiStore((s) => s.generationMode);
-  const initImageBase64 = useImg2ImgStore((s) => s.initImageBase64);
+  const hasLayers = useCanvasStore((s) => s.layers.length > 0);
   const txt2img = useTxt2Img();
   const img2img = useImg2Img();
   const interrupt = useInterrupt();
@@ -59,12 +60,18 @@ export const ActionBar = memo(function ActionBar() {
     return () => ws.disconnect();
   }, [setProgress, setPreview]);
 
-  // REST polling fallback when WebSocket is unavailable
-  const { data: progressData } = useProgress(isGenerating && !wsConnected.current);
+  // REST polling: always active during generation for preview images.
+  // WS provides faster progress updates but may not send binary previews
+  // depending on the backend's live-preview decoder configuration.
+  const { data: progressData } = useProgress(isGenerating);
 
   useEffect(() => {
-    if (progressData && generatingRef.current && !wsConnected.current) {
-      setProgress(progressData.progress, progressData.eta_relative);
+    if (progressData && generatingRef.current) {
+      // Use REST progress when WS is unavailable
+      if (!wsConnected.current) {
+        setProgress(progressData.progress, progressData.eta_relative);
+      }
+      // Always use REST for preview images as fallback
       if (progressData.current_image) {
         setPreview(`data:image/jpeg;base64,${progressData.current_image}`);
       }
@@ -76,6 +83,7 @@ export const ActionBar = memo(function ActionBar() {
     generatingRef.current = true;
     setGenerating(true);
     setPreview(null);
+    clearSelection();
     try {
       const request = generationMode === "img2img"
         ? await buildImg2ImgRequest()
@@ -83,6 +91,8 @@ export const ActionBar = memo(function ActionBar() {
       const result = generationMode === "img2img"
         ? await img2img.mutateAsync(request as Img2ImgRequest)
         : await txt2img.mutateAsync(request);
+      // Don't add result if generation was interrupted while awaiting
+      if (!generatingRef.current) return;
       addResult({
         id: crypto.randomUUID(),
         images: result.images,
@@ -122,7 +132,7 @@ export const ActionBar = memo(function ActionBar() {
       <Button
         type="button"
         onClick={isGenerating ? handleInterrupt : handleGenerate}
-        disabled={!isGenerating && (generationMode === "img2img" ? !initImageBase64 : !prompt)}
+        disabled={!isGenerating && (generationMode === "img2img" ? !hasLayers : !prompt)}
         variant={isGenerating ? "destructive" : "default"}
         size="sm"
         className="flex-1"

@@ -11,7 +11,10 @@ export function StatusBar() {
 
   // Use client-side isGenerating as ground truth since backend status
   // flips to 'idle' between sub-phases (TE Encode → Base → Inference).
-  const isIdle = !isGenerating && (!status || status.status === "idle");
+  // Backend keeps status as "interrupted"/"skipped" until the next job
+  // begins, so treat those as idle-equivalent when we know we're done.
+  const backendIdle = !status || status.status === "idle" || status.status === "interrupted" || status.status === "skipped";
+  const isIdle = !isGenerating && backendIdle;
 
   // Get step/steps from the progress endpoint state dict (raw values).
   const samplingStep = (progressData?.state?.sampling_step as number) ?? 0;
