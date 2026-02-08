@@ -66,6 +66,23 @@ export interface Txt2ImgRequest {
     end: number;
     crop: boolean;
   }>;
+  init_control?: string[];
+  control_units?: Array<{
+    enabled: boolean;
+    unit_type: string;
+    processor: string;
+    model: string;
+    image: string;
+    strength: number;
+    start: number;
+    end: number;
+    guess?: boolean;
+    factor?: number;
+    attention?: string;
+    fidelity?: number;
+    query_weight?: number;
+    adain_weight?: number;
+  }>;
   script_name?: string;
   script_args?: unknown[];
   send_images?: boolean;

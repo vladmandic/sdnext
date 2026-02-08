@@ -10,7 +10,6 @@ import { GuidanceTab } from "@/components/generation/tabs/GuidanceTab";
 import { RefineTab } from "@/components/generation/tabs/RefineTab";
 import { AdvancedTab } from "@/components/generation/tabs/AdvancedTab";
 import { DetailTab } from "@/components/generation/tabs/DetailTab";
-import { AdaptersTab } from "@/components/generation/tabs/AdaptersTab";
 import { ControlTab } from "@/components/generation/tabs/ControlTab";
 import { ScriptsTab } from "@/components/generation/tabs/ScriptsTab";
 import { CaptionPanel } from "@/components/caption/CaptionPanel";
@@ -87,8 +86,6 @@ function ImagesSubTabContent({ activeSubTab }: { activeSubTab: string }) {
       return <DetailTab />;
     case "advanced":
       return <AdvancedTab />;
-    case "adapters":
-      return <AdaptersTab />;
     case "control":
       return <ControlTab />;
     case "scripts":

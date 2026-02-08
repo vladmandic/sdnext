@@ -1,9 +1,9 @@
 import { create } from "zustand";
 import type { ControlUnit, ControlUnitType } from "@/api/types/control";
 
-function defaultUnit(unitType: ControlUnitType = "controlnet"): ControlUnit {
+function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
   return {
-    enabled: true,
+    enabled: false,
     unitType,
     processor: "None",
     model: "None",
@@ -17,6 +17,11 @@ function defaultUnit(unitType: ControlUnitType = "controlnet"): ControlUnit {
     fidelity: 0.5,
     queryWeight: 1.0,
     adainWeight: 1.0,
+    adapter: "None",
+    scale: 0.5,
+    crop: false,
+    images: [],
+    masks: [],
   };
 }
 
@@ -29,6 +34,10 @@ interface ControlState {
   setUnitParam: <K extends keyof ControlUnit>(index: number, key: K, value: ControlUnit[K]) => void;
   setUnitImage: (index: number, file: File | null) => void;
   setUnitType: (index: number, unitType: ControlUnitType) => void;
+  addUnitImage: (index: number, file: File) => void;
+  removeUnitImage: (index: number, imageIdx: number) => void;
+  addUnitMask: (index: number, file: File) => void;
+  removeUnitMask: (index: number, maskIdx: number) => void;
   reset: () => void;
 }
 
@@ -75,7 +84,35 @@ export const useControlStore = create<ControlState>()((set) => ({
     set((state) => {
       const units = [...state.units];
       const old = units[index];
-      units[index] = { ...defaultUnit(unitType), image: old.image, enabled: old.enabled };
+      units[index] = { ...defaultUnit(unitType), enabled: old.enabled, image: old.image, images: old.images, masks: old.masks };
+      return { units };
+    }),
+
+  addUnitImage: (index, file) =>
+    set((state) => {
+      const units = [...state.units];
+      units[index] = { ...units[index], images: [...units[index].images, file] };
+      return { units };
+    }),
+
+  removeUnitImage: (index, imageIdx) =>
+    set((state) => {
+      const units = [...state.units];
+      units[index] = { ...units[index], images: units[index].images.filter((_, i) => i !== imageIdx) };
+      return { units };
+    }),
+
+  addUnitMask: (index, file) =>
+    set((state) => {
+      const units = [...state.units];
+      units[index] = { ...units[index], masks: [...units[index].masks, file] };
+      return { units };
+    }),
+
+  removeUnitMask: (index, maskIdx) =>
+    set((state) => {
+      const units = [...state.units];
+      units[index] = { ...units[index], masks: units[index].masks.filter((_, i) => i !== maskIdx) };
       return { units };
     }),
 

@@ -1,4 +1,4 @@
-export type ControlUnitType = "controlnet" | "t2i" | "xs" | "lite" | "reference";
+export type ControlUnitType = "controlnet" | "t2i" | "xs" | "lite" | "reference" | "ip" | "asset";
 
 export interface ControlUnit {
   enabled: boolean;
@@ -18,6 +18,12 @@ export interface ControlUnit {
   fidelity: number;
   queryWeight: number;
   adainWeight: number;
+  // IP-Adapter-specific
+  adapter: string;
+  scale: number;
+  crop: boolean;
+  images: File[];
+  masks: File[];
 }
 
 export interface PreprocessorInfo {

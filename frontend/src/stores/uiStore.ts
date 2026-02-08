@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 type SidebarView = "images" | "video" | "process" | "caption" | "gallery";
-type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "adapters" | "control" | "scripts";
+type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "control" | "scripts";
 type GenerationMode = "txt2img" | "img2img";
 
 interface UiState {

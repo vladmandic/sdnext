@@ -14,7 +14,7 @@ export function ControlTab() {
     <div className="flex flex-col gap-3 text-sm">
       <ParamSlider label="Units" value={units.length} onChange={setUnitCount} min={1} max={10} />
 
-      <ParamSection title="Control Units">
+      <ParamSection title="Input Units">
         <div className="flex flex-col gap-3">
           {units.map((_, i) => (
             <ControlUnitCard key={i} index={i} canRemove={units.length > 1} />

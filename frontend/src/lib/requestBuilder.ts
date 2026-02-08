@@ -1,6 +1,5 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import type { GenerationResult } from "@/stores/generationStore";
-import { useAdapterStore } from "@/stores/adapterStore";
 import { useScriptStore } from "@/stores/scriptStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
@@ -13,7 +12,6 @@ import type { Txt2ImgRequest, Img2ImgRequest, GenerationInfo } from "@/api/types
 
 export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
   const gen = useGenerationStore.getState();
-  const adapters = useAdapterStore.getState();
   const scripts = useScriptStore.getState();
   const control = useControlStore.getState();
 
@@ -112,24 +110,6 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     };
   }
 
-  // IP-Adapter
-  const activeAdapters = adapters.units
-    .slice(0, adapters.activeUnits)
-    .filter((u) => u.adapter !== "None" && u.images.length > 0);
-  if (activeAdapters.length > 0) {
-    request.ip_adapter = await Promise.all(
-      activeAdapters.map(async (u) => ({
-        adapter: u.adapter,
-        scale: u.scale,
-        crop: u.crop,
-        start: u.start,
-        end: u.end,
-        images: await Promise.all(u.images.map(fileToBase64)),
-        masks: u.masks.length > 0 ? await Promise.all(u.masks.map(fileToBase64)) : undefined,
-      })),
-    );
-  }
-
   // Scripts
   if (scripts.selectedScript) {
     request.script_name = scripts.selectedScript;
@@ -143,32 +123,46 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     }
   }
 
-  // Control: units as alwayson_scripts (per-unit type)
+  // Control units: partition by type — IP-adapter vs control types
+  const enabledIPUnits = control.units.filter((u) => u.enabled && u.unitType === "ip" && u.images.length > 0);
   const TYPE_MAP: Record<string, string> = { controlnet: "controlnet", t2i: "t2i adapter", xs: "xs", lite: "lite", reference: "reference" };
-  const enabledUnits = control.units.filter((u) => u.enabled && u.image);
-  if (enabledUnits.length > 0) {
-    const controlArgs = await Promise.all(
-      enabledUnits.map(async (u) => {
-        const base = {
-          enabled: true,
-          unit_type: TYPE_MAP[u.unitType] ?? u.unitType,
-          processor: u.processor,
-          model: u.model,
-          strength: u.strength,
-          start: u.start,
-          end: u.end,
-          image: u.image ? await fileToBase64(u.image) : null,
-        };
-        if (u.unitType === "controlnet") return { ...base, guess: u.guess };
-        if (u.unitType === "t2i") return { ...base, factor: u.factor };
-        if (u.unitType === "reference") return { ...base, attention: u.attention, fidelity: u.fidelity, query_weight: u.queryWeight, adain_weight: u.adainWeight };
-        return base;
-      }),
+  const enabledControlUnits = control.units.filter((u) => u.enabled && u.unitType !== "ip" && u.unitType !== "asset" && u.image);
+  const enabledAssetUnits = control.units.filter((u) => u.enabled && u.unitType === "asset" && u.image);
+
+  if (enabledIPUnits.length > 0) {
+    request.ip_adapter = await Promise.all(
+      enabledIPUnits.map(async (u) => ({
+        adapter: u.adapter,
+        scale: u.scale,
+        crop: u.crop,
+        start: u.start,
+        end: u.end,
+        images: await Promise.all(u.images.map(fileToBase64)),
+        masks: u.masks.length > 0 ? await Promise.all(u.masks.map(fileToBase64)) : undefined,
+      })),
     );
-    request.alwayson_scripts = {
-      ...request.alwayson_scripts,
-      controlnet: { args: controlArgs },
-    };
+  }
+
+  if (enabledControlUnits.length > 0) {
+    request.control_units = await Promise.all(
+      enabledControlUnits.map(async (u) => ({
+        enabled: true,
+        unit_type: TYPE_MAP[u.unitType] ?? u.unitType,
+        processor: u.processor,
+        model: u.model,
+        strength: u.strength,
+        start: u.start,
+        end: u.end,
+        image: u.image ? await fileToBase64(u.image) : "",
+        ...(u.unitType === "controlnet" ? { guess: u.guess } : {}),
+        ...(u.unitType === "t2i" ? { factor: u.factor } : {}),
+        ...(u.unitType === "reference" ? { attention: u.attention, fidelity: u.fidelity, query_weight: u.queryWeight, adain_weight: u.adainWeight } : {}),
+      })),
+    );
+  }
+
+  if (enabledAssetUnits.length > 0) {
+    request.init_control = await Promise.all(enabledAssetUnits.map((u) => fileToBase64(u.image!)));
   }
 
   // User override settings (merged last to take priority)
