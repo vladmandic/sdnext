@@ -212,6 +212,28 @@ def post_pnginfo(req: models.ReqImageInfo):
     script_callbacks.infotext_pasted_callback(geninfo, params)
     return models.ResImageInfo(info=geninfo, items=items, parameters=params)
 
+def get_control_models(unit_type: str = "controlnet"):
+    """Return model list for any control unit type."""
+    if unit_type == "controlnet":
+        from modules.control.units.controlnet import api_list_models
+        return api_list_models()
+    if unit_type in ("t2i", "t2i adapter"):
+        from modules.control.units.t2iadapter import list_models
+        result = list_models()
+        return list(result) if isinstance(result, dict) else result
+    if unit_type == "xs":
+        from modules.control.units.xs import list_models
+        result = list_models()
+        return list(result) if isinstance(result, dict) else result
+    if unit_type == "lite":
+        from modules.control.units.lite import list_models
+        result = list_models()
+        return list(result) if isinstance(result, dict) else result
+    if unit_type == "reference":
+        from modules.control.units.reference import list_models
+        return list_models()
+    return []
+
 def get_latent_history():
     return shared.history.list
 

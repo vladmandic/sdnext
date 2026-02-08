@@ -143,19 +143,27 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     }
   }
 
-  // Control: ControlNet units as alwayson_scripts
+  // Control: units as alwayson_scripts (per-unit type)
+  const TYPE_MAP: Record<string, string> = { controlnet: "controlnet", t2i: "t2i adapter", xs: "xs", lite: "lite", reference: "reference" };
   const enabledUnits = control.units.filter((u) => u.enabled && u.image);
   if (enabledUnits.length > 0) {
     const controlArgs = await Promise.all(
-      enabledUnits.map(async (u) => ({
-        enabled: true,
-        processor: u.processor,
-        model: u.model,
-        strength: u.strength,
-        start: u.start,
-        end: u.end,
-        image: u.image ? await fileToBase64(u.image) : null,
-      })),
+      enabledUnits.map(async (u) => {
+        const base = {
+          enabled: true,
+          unit_type: TYPE_MAP[u.unitType] ?? u.unitType,
+          processor: u.processor,
+          model: u.model,
+          strength: u.strength,
+          start: u.start,
+          end: u.end,
+          image: u.image ? await fileToBase64(u.image) : null,
+        };
+        if (u.unitType === "controlnet") return { ...base, guess: u.guess };
+        if (u.unitType === "t2i") return { ...base, factor: u.factor };
+        if (u.unitType === "reference") return { ...base, attention: u.attention, fidelity: u.fidelity, query_weight: u.queryWeight, adain_weight: u.adainWeight };
+        return base;
+      }),
     );
     request.alwayson_scripts = {
       ...request.alwayson_scripts,

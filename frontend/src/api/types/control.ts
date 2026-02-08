@@ -9,6 +9,15 @@ export interface ControlUnit {
   start: number;
   end: number;
   image: File | null;
+  // ControlNet-specific
+  guess: boolean;
+  // T2I-Adapter-specific
+  factor: number;
+  // Reference-specific
+  attention: string;
+  fidelity: number;
+  queryWeight: number;
+  adainWeight: number;
 }
 
 export interface PreprocessorInfo {
