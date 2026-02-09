@@ -6,6 +6,9 @@ import { ScriptArgControl } from "./scripts/ScriptArgControl";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 
+/** Scripts handled by dedicated tabs (e.g. IP Adapters lives in Input tab). */
+const HIDDEN_ALWAYS_ON = new Set(["ip adapters"]);
+
 export function ScriptsTab() {
   const { data: scriptsList } = useScriptsList();
   const { data: scriptInfo } = useScriptInfo();
@@ -18,10 +21,19 @@ export function ScriptsTab() {
     [scriptInfo, store.selectedScript],
   );
 
-  const alwaysOnScripts = useMemo(
-    () => scriptInfo?.filter((s) => s.is_alwayson && s.args.length > 0) ?? [],
-    [scriptInfo],
-  );
+  // Deduplicate by name (API returns one per context: txt2img, img2img, control)
+  // and exclude scripts that have dedicated tabs.
+  const alwaysOnScripts = useMemo(() => {
+    if (!scriptInfo) return [];
+    const seen = new Set<string>();
+    return scriptInfo.filter((s) => {
+      if (!s.is_alwayson || s.args.length === 0) return false;
+      if (HIDDEN_ALWAYS_ON.has(s.name)) return false;
+      if (seen.has(s.name)) return false;
+      seen.add(s.name);
+      return true;
+    });
+  }, [scriptInfo]);
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -54,23 +66,18 @@ export function ScriptsTab() {
         )}
       </ParamSection>
 
-      {alwaysOnScripts.length > 0 && (
-        <ParamSection title="Always-on Scripts" defaultOpen={false}>
-          {alwaysOnScripts.map((script) => (
-            <div key={script.name} className="flex flex-col gap-2 mb-3">
-              <Label className="text-[11px] font-medium text-foreground">{script.name}</Label>
-              {script.args.map((arg, i) => (
-                <ScriptArgControl
-                  key={`${script.name}-${i}`}
-                  arg={arg}
-                  value={store.alwaysOnOverrides[script.name]?.[i] ?? arg.value}
-                  onChange={(v) => store.setAlwaysOnArg(script.name, i, v)}
-                />
-              ))}
-            </div>
+      {alwaysOnScripts.map((script) => (
+        <ParamSection key={script.name} title={script.name} defaultOpen={false}>
+          {script.args.map((arg, i) => (
+            <ScriptArgControl
+              key={`${script.name}-${i}`}
+              arg={arg}
+              value={store.alwaysOnOverrides[script.name]?.[i] ?? arg.value}
+              onChange={(v) => store.setAlwaysOnArg(script.name, i, v)}
+            />
           ))}
         </ParamSection>
-      )}
+      ))}
     </div>
   );
 }

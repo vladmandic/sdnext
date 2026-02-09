@@ -15,7 +15,7 @@ export function ScriptArgControl({ arg, value, onChange }: ScriptArgControlProps
   if (arg.choices && arg.choices.length > 0) {
     return (
       <div className="flex items-center gap-2">
-        <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0 truncate" title={arg.label}>{arg.label}</Label>
+        <Label className="text-[11px] text-muted-foreground flex-shrink-0">{arg.label}</Label>
         <Combobox
           value={String(value ?? arg.choices[0])}
           onValueChange={(v) => onChange(v)}
@@ -42,7 +42,7 @@ export function ScriptArgControl({ arg, value, onChange }: ScriptArgControlProps
   if (typeof (value ?? arg.value) === "boolean") {
     return (
       <div className="flex items-center gap-2">
-        <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0 truncate" title={arg.label}>{arg.label}</Label>
+        <Label className="text-[11px] text-muted-foreground flex-shrink-0">{arg.label}</Label>
         <Switch checked={Boolean(value ?? arg.value)} onCheckedChange={(checked) => onChange(checked)} />
       </div>
     );
@@ -50,7 +50,7 @@ export function ScriptArgControl({ arg, value, onChange }: ScriptArgControlProps
 
   return (
     <div className="flex items-center gap-2">
-      <Label className="text-[11px] text-muted-foreground w-20 flex-shrink-0 truncate" title={arg.label}>{arg.label}</Label>
+      <Label className="text-[11px] text-muted-foreground flex-shrink-0">{arg.label}</Label>
       <Input
         value={String(value ?? arg.value ?? "")}
         onChange={(e) => onChange(e.target.value)}
