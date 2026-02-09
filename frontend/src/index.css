@@ -1,6 +1,8 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
+@font-face { font-family: 'NotoSansNerd'; font-display: swap; font-style: normal; font-weight: 400; src: url('/fonts/notosans-nerdfont-regular.ttf') format('truetype'); }
+
 @custom-variant dark (&:is(.dark *));
 
 :root {
@@ -85,7 +87,7 @@
   body {
     @apply bg-background text-foreground;
     margin: 0;
-    font-family: system-ui, -apple-system, sans-serif;
+    font-family: system-ui, -apple-system, sans-serif, 'NotoSansNerd';
     -webkit-font-smoothing: antialiased;
   }
 }

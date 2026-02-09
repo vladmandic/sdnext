@@ -10,13 +10,14 @@ interface ParamSliderProps {
   min: number;
   max: number;
   step?: number;
+  disabled?: boolean;
 }
 
-export const ParamSlider = memo(function ParamSlider({ label, value, onChange, min, max, step = 1 }: ParamSliderProps) {
+export const ParamSlider = memo(function ParamSlider({ label, value, onChange, min, max, step = 1, disabled }: ParamSliderProps) {
   const handleSliderChange = useCallback(([v]: number[]) => onChange(v), [onChange]);
 
   return (
-    <div className="flex items-center gap-2">
+    <div className={`flex items-center gap-2${disabled ? " opacity-50 pointer-events-none" : ""}`}>
       <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">{label}</Label>
       <Slider
         min={min}
@@ -25,6 +26,7 @@ export const ParamSlider = memo(function ParamSlider({ label, value, onChange, m
         value={[value]}
         onValueChange={handleSliderChange}
         className="flex-1"
+        disabled={disabled}
       />
       <NumberInput
         min={min}
@@ -34,6 +36,7 @@ export const ParamSlider = memo(function ParamSlider({ label, value, onChange, m
         onChange={onChange}
         fallback={min}
         className="w-14 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+        disabled={disabled}
       />
     </div>
   );

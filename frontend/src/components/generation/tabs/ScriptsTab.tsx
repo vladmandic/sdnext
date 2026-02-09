@@ -1,10 +1,12 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useScriptsList, useScriptInfo } from "@/api/hooks/useScripts";
 import { useScriptStore } from "@/stores/scriptStore";
 import { ParamSection } from "../ParamSection";
 import { ScriptArgControl } from "./scripts/ScriptArgControl";
+import { ScriptSection } from "./scripts/ScriptSection";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
+import type { ScriptInfo } from "@/api/types/script";
 
 /** Scripts handled by dedicated tabs (e.g. IP Adapters lives in Input tab). */
 const HIDDEN_ALWAYS_ON = new Set(["ip adapters"]);
@@ -67,17 +69,26 @@ export function ScriptsTab() {
       </ParamSection>
 
       {alwaysOnScripts.map((script) => (
-        <ParamSection key={script.name} title={script.name} defaultOpen={false}>
-          {script.args.map((arg, i) => (
-            <ScriptArgControl
-              key={`${script.name}-${i}`}
-              arg={arg}
-              value={store.alwaysOnOverrides[script.name]?.[i] ?? arg.value}
-              onChange={(v) => store.setAlwaysOnArg(script.name, i, v)}
-            />
-          ))}
-        </ParamSection>
+        <AlwaysOnSection key={script.name} script={script} />
       ))}
     </div>
+  );
+}
+
+function AlwaysOnSection({ script }: { script: ScriptInfo }) {
+  const store = useScriptStore();
+  const getArgValue = useCallback(
+    (index: number) => store.alwaysOnOverrides[script.name]?.[index] ?? script.args[index]?.value,
+    [store.alwaysOnOverrides, script.name, script.args],
+  );
+  const setArgValue = useCallback(
+    (index: number, value: unknown) => store.setAlwaysOnArg(script.name, index, value),
+    [store, script.name],
+  );
+
+  return (
+    <ParamSection title={script.name} defaultOpen={false}>
+      <ScriptSection script={script} getArgValue={getArgValue} setArgValue={setArgValue} />
+    </ParamSection>
   );
 }
