@@ -3,6 +3,11 @@ export interface BrowserFolder {
   label: string;
 }
 
+export interface BrowserSubdir {
+  path: string;
+  label: string;
+}
+
 export interface BrowserThumb {
   exif: string;
   data: string;

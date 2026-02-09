@@ -1,4 +1,4 @@
-import { Folder, FolderOpen, ChevronRight, ChevronDown } from "lucide-react";
+import { Folder, FolderOpen, ChevronRight, ChevronDown, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface FolderCardProps {
@@ -8,11 +8,12 @@ interface FolderCardProps {
   indent?: number;
   expanded?: boolean;
   hasChildren?: boolean;
+  loading?: boolean;
   onSelect: () => void;
   onToggle?: () => void;
 }
 
-export function FolderCard({ label, path, active, indent = 0, expanded, hasChildren, onSelect, onToggle }: FolderCardProps) {
+export function FolderCard({ label, path, active, indent = 0, expanded, hasChildren, loading, onSelect, onToggle }: FolderCardProps) {
   const Icon = active ? FolderOpen : Folder;
   const displayLabel = label || path.split("/").filter(Boolean).pop() || path;
 
@@ -26,7 +27,11 @@ export function FolderCard({ label, path, active, indent = 0, expanded, hasChild
       style={{ paddingLeft: indent * 16 + 4 }}
     >
       {/* Expand/collapse toggle */}
-      {hasChildren ? (
+      {loading ? (
+        <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
+          <Loader2 size={12} className="animate-spin text-muted-foreground" />
+        </span>
+      ) : hasChildren ? (
         <button
           onClick={(e) => { e.stopPropagation(); onToggle?.(); }}
           className="w-5 h-5 flex items-center justify-center flex-shrink-0 hover:text-foreground"
