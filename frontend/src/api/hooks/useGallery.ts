@@ -241,6 +241,9 @@ export function useBrowserFiles(folder: string | null) {
         store.setFiles(childMerge.files);
         store.setThumbsBatch(Array.from(childMerge.thumbs));
         store.setLoadProgress(childMerge.files.length, null);
+        // Batch-read IndexedDB for child-seeded files — this is the reliable
+        // thumb source (folder cache thumbs may be empty due to navigation timing)
+        preloadCachedThumbs(childMerge.files, folder);
       }
 
       const buffer: GalleryFile[] = [];
@@ -297,18 +300,13 @@ export function useBrowserFiles(folder: string | null) {
               const file = oldFileMap.get(id);
               if (file) pathToThumb.set(file.fullPath, thumb);
             }
-            if (pathToThumb.size > 0) {
-              const rekeyed: [string, CachedThumb][] = [];
-              for (const f of allFiles) {
-                const thumb = pathToThumb.get(f.fullPath);
-                if (thumb) rekeyed.push([f.id, thumb]);
-              }
-              // Set files first, then apply re-keyed thumbs
-              endStore.setFiles(allFiles);
-              if (rekeyed.length > 0) endStore.setThumbsBatch(rekeyed);
-            } else {
-              endStore.setFiles(allFiles);
+            const rekeyed: [string, CachedThumb][] = [];
+            for (const f of allFiles) {
+              const thumb = pathToThumb.get(f.fullPath);
+              if (thumb) rekeyed.push([f.id, thumb]);
             }
+            endStore.setFiles(allFiles);
+            if (rekeyed.length > 0) endStore.setThumbsBatch(rekeyed);
           } else {
             endStore.setFiles(allFiles);
           }
@@ -329,7 +327,8 @@ export function useBrowserFiles(folder: string | null) {
               setCachedFolder(folder, allFiles, thumbs, 0);
             });
 
-          // Pre-populate store from IndexedDB cache
+          // Batch-read IndexedDB for parent-context files — finds thumbs
+          // from child folder browsing since IndexedDB keys on fullPath hash
           preloadCachedThumbs(allFiles, folder);
           return;
         }
@@ -409,12 +408,13 @@ export async function fetchThumb(file: GalleryFile): Promise<CachedThumb | null>
 function dispatchThumb(file: GalleryFile, setThumb: (id: string, thumb: CachedThumb) => void) {
   if (inflightIds.has(file.id) || useGalleryStore.getState().thumbs.has(file.id)) return;
   inflightIds.add(file.id);
+  // Capture folder at dispatch time — not completion time — so the thumb
+  // updates the correct folder cache even if the user navigates away
+  const folder = useGalleryStore.getState().activeFolder;
   fetchThumb(file).then((thumb) => {
     inflightIds.delete(file.id);
     if (thumb) {
       setThumb(file.id, thumb);
-      // Keep folder cache in sync
-      const folder = useGalleryStore.getState().activeFolder;
       if (folder) updateCachedThumbs(folder, [[file.id, thumb]]);
     }
   });
