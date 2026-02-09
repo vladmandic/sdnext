@@ -1,5 +1,6 @@
 import type { SettingDef } from "@/lib/settingsSchema";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Slider } from "@/components/ui/slider";
@@ -61,6 +62,39 @@ export function SettingControl({ setting, value, onChange, dynamicChoices }: Set
           className="h-7 text-xs min-w-[140px]"
         />
       );
+
+    case "multiselect": {
+      const selected = Array.isArray(value) ? value as string[] : [];
+      if (!choices || choices.length === 0) {
+        return (
+          <Input
+            value={selected.join(", ")}
+            onChange={(e) => onChange(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))}
+            className="h-7 text-xs"
+            placeholder="Comma-separated values"
+          />
+        );
+      }
+      return (
+        <div className="flex flex-wrap gap-x-3 gap-y-1.5">
+          {choices.map((choice) => {
+            const checked = selected.includes(choice);
+            return (
+              <label key={choice} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                <Checkbox
+                  checked={checked}
+                  onCheckedChange={(c) => {
+                    if (c) onChange([...selected, choice]);
+                    else onChange(selected.filter((s) => s !== choice));
+                  }}
+                />
+                {choice}
+              </label>
+            );
+          })}
+        </div>
+      );
+    }
 
     case "number":
       return (

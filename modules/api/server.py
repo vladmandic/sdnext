@@ -186,6 +186,68 @@ def get_memory():
         cuda = { 'error': f'{err}' }
     return models.ResMemory(ram = ram, cuda = cuda)
 
+def get_options_info():
+    import re
+    import gradio as gr
+    from modules.shared_legacy import LegacyOption
+    from modules.ui_components import DropdownEditable
+
+    component_map = {
+        gr.Slider: "slider", gr.Checkbox: "switch", gr.Radio: "radio",
+        gr.Dropdown: "dropdown", gr.Textbox: "input", gr.Number: "number",
+        gr.ColorPicker: "color", gr.CheckboxGroup: "checkboxgroup", gr.HTML: "separator",
+    }
+    options_info = {}
+    sections_seen = {}
+
+    for key, info in shared.opts.data_labels.items():
+        section_id = info.section[0] if info.section else None
+        section_title = info.section[1] if info.section and len(info.section) > 1 else ""
+        hidden = section_id is None or 'hidden' in (section_id or '').lower() or 'hidden' in section_title.lower()
+
+        if section_id and section_id not in sections_seen:
+            sections_seen[section_id] = {"id": section_id, "title": section_title, "hidden": hidden}
+
+        if hidden:
+            args = {}
+        else:
+            try:
+                args = info.component_args() if callable(info.component_args) else (info.component_args or {})
+            except Exception:
+                args = {}
+
+        comp_name = component_map.get(info.component, "input")
+        if info.component is DropdownEditable:
+            comp_name = "dropdown"
+        elif info.component is None:
+            comp_name = "switch" if isinstance(info.default, bool) else "number" if isinstance(info.default, (int, float)) else "input"
+
+        visible = args.get('visible', True) and (comp_name == "separator" or len(info.label) > 2)
+
+        serializable_args = {}
+        for arg_key in ('minimum', 'maximum', 'step', 'choices', 'precision', 'multiselect'):
+            if arg_key in args:
+                serializable_args[arg_key] = args[arg_key]
+
+        label = info.label
+        if comp_name == "separator" and not label and isinstance(info.default, str):
+            label = re.sub(r'<[^>]+>', '', info.default).strip()
+
+        options_info[key] = {
+            "label": label,
+            "section_id": section_id,
+            "section_title": section_title,
+            "visible": visible,
+            "hidden": hidden,
+            "type": "boolean" if isinstance(info.default, bool) else "number" if isinstance(info.default, (int, float)) else "array" if isinstance(info.default, list) else "string",
+            "component": comp_name,
+            "component_args": serializable_args,
+            "is_legacy": isinstance(info, LegacyOption),
+        }
+
+    return {"options": options_info, "sections": list(sections_seen.values())}
+
+
 def get_server_info():
     from modules import devices
     ver = shared.get_version()

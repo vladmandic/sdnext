@@ -18,6 +18,15 @@ export function SettingsSection({ section, values, dirty, onSettingChange, dynam
       <h2 className="text-sm font-semibold text-foreground">{section.title}</h2>
       <div className="space-y-3">
         {section.settings.map((setting) => {
+          if (setting.component === "separator") {
+            return (
+              <div key={setting.key} className="pt-3 first:pt-0">
+                <div className="border-b border-primary/30 pb-1">
+                  <h3 className="text-sm font-semibold text-primary">{setting.label}</h3>
+                </div>
+              </div>
+            );
+          }
           const currentValue = dirty[setting.key] ?? values[setting.key] ?? setting.defaultValue;
           const isDirty = setting.key in dirty;
           return (

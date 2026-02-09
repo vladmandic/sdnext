@@ -1,10 +1,13 @@
 import path from "path";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import { VitePWA } from "vite-plugin-pwa";
 
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "VITE_");
+  const allowedHosts = env.VITE_ALLOWED_HOSTS?.split(",").map((h) => h.trim()).filter(Boolean) ?? [];
+  return {
   base: mode === "production" ? "/ui/" : "/",
   plugins: [
     react(),
@@ -50,6 +53,7 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     port: 5173,
+    allowedHosts: allowedHosts.length > 0 ? allowedHosts : undefined,
     proxy: {
       "/sdapi/v1/ws": { target: "http://localhost:7860", ws: true },
       "/sdapi/v1/browser/files": { target: "http://localhost:7860", ws: true },
@@ -62,4 +66,5 @@ export default defineConfig(({ mode }) => ({
     outDir: "dist",
     sourcemap: true,
   },
-}));
+};
+});

@@ -58,6 +58,7 @@ class Api:
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel)
         self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu_status, methods=["GET"], response_model=list[models.ResGPU])
         self.add_api_route("/sdapi/v1/server-info", server.get_server_info, methods=["GET"])
+        self.add_api_route("/sdapi/v1/options-info", server.get_options_info, methods=["GET"])
 
         # core api using locking
         self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img)

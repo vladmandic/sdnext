@@ -1,4 +1,6 @@
-export type SettingComponent = "slider" | "switch" | "select" | "input" | "number" | "radio";
+import type { OptionInfoMeta } from "@/api/types/settings";
+
+export type SettingComponent = "slider" | "switch" | "select" | "input" | "number" | "radio" | "separator" | "multiselect";
 
 export interface SettingDef {
   key: string;
@@ -141,4 +143,27 @@ export function getSettingsMap(): Map<string, { section: SettingSectionDef; sett
   return map;
 }
 
-export const knownKeys = new Set(settingsSchema.flatMap((s) => s.settings.map((st) => st.key)));
+const metaComponentMap: Record<string, SettingComponent> = {
+  slider: "slider",
+  switch: "switch",
+  radio: "select",
+  dropdown: "select",
+  input: "input",
+  number: "number",
+  color: "input",
+  checkboxgroup: "multiselect",
+  separator: "separator",
+};
+
+export function metaToSettingDef(key: string, info?: OptionInfoMeta): SettingDef {
+  if (!info) return { key, label: key, component: "input" };
+  return {
+    key,
+    label: info.label || key,
+    component: metaComponentMap[info.component] ?? "input",
+    min: info.component_args.minimum,
+    max: info.component_args.maximum,
+    step: info.component_args.step,
+    choices: info.component_args.choices,
+  };
+}

@@ -1,30 +1,42 @@
 import { useState, useMemo } from "react";
 import { toast } from "sonner";
-import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
+import { useOptions, useSetOptions, useOptionsInfo } from "@/api/hooks/useSettings";
 import { useModelList, useSamplerList, useVaeList, useUpscalerList } from "@/api/hooks/useModels";
-import { settingsSchema, knownKeys } from "@/lib/settingsSchema";
+import type { OptionInfoMeta } from "@/api/types/settings";
+import type { SettingSectionDef, SettingDef } from "@/lib/settingsSchema";
+import { settingsSchema, getSettingsMap, metaToSettingDef } from "@/lib/settingsSchema";
 import { SettingsSection } from "./SettingsSection";
-import { SettingControl } from "./SettingControl";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Save, RotateCcw, Search } from "lucide-react";
+
+/** Build a SettingDef using curated override if available, else from backend metadata */
+function buildSettingDef(
+  key: string,
+  info: OptionInfoMeta,
+  curatedMap: Map<string, { section: SettingSectionDef; setting: SettingDef }>,
+): SettingDef {
+  const curated = curatedMap.get(key);
+  if (curated) return curated.setting;
+  return metaToSettingDef(key, info);
+}
 
 export function SettingsView() {
   const { data: options, isLoading } = useOptions();
   const setOptions = useSetOptions();
+  const { data: optionsInfo } = useOptionsInfo();
   const { data: models } = useModelList();
   const { data: samplers } = useSamplerList();
   const { data: vaes } = useVaeList();
   const { data: upscalers } = useUpscalerList();
 
   const [dirty, setDirty] = useState<Record<string, unknown>>({});
-  const [activeSection, setActiveSection] = useState(settingsSchema[0].id);
+  const [activeSection, setActiveSection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+
+  const curatedMap = useMemo(() => getSettingsMap(), []);
 
   const dynamicChoices = useMemo(() => {
     const choices: Record<string, string[]> = {};
@@ -35,6 +47,62 @@ export function SettingsView() {
     if (upscalers) choices["upscaler_for_img2img"] = upscalers.map((u) => u.name);
     return choices;
   }, [models, samplers, vaes, upscalers]);
+
+  // Build all sections from backend metadata, with curated overrides
+  const allSections = useMemo((): SettingSectionDef[] => {
+    if (!optionsInfo || !options) return settingsSchema; // fallback before metadata loads
+
+    const meta = optionsInfo.options;
+    const result: SettingSectionDef[] = [];
+
+    for (const section of optionsInfo.sections) {
+      if (section.hidden) continue;
+
+      const settings: SettingDef[] = [];
+      for (const [key, info] of Object.entries(meta)) {
+        if (info.section_id !== section.id) continue;
+        if (!info.visible || info.hidden || info.is_legacy) continue;
+        if (info.component === "separator") {
+          if (info.label) settings.push({ key, label: info.label, component: "separator" });
+          continue;
+        }
+        if (!(key in options)) continue;
+
+        settings.push(buildSettingDef(key, info, curatedMap));
+      }
+
+      if (settings.length > 0) {
+        result.push({ id: section.id, title: section.title, settings });
+      }
+    }
+
+    return result;
+  }, [optionsInfo, options, curatedMap]);
+
+  // Resolve active section: use first section if none selected or selection is stale
+  const resolvedActive = useMemo(() => {
+    if (allSections.length === 0) return null;
+    if (activeSection && allSections.some((s) => s.id === activeSection)) return activeSection;
+    return allSections[0].id;
+  }, [allSections, activeSection]);
+
+  // Filter sections by search
+  const filteredSections = useMemo(() => {
+    if (!searchQuery) return allSections;
+    const q = searchQuery.toLowerCase();
+    return allSections
+      .map((section) => ({
+        ...section,
+        settings: section.settings.filter(
+          (s) =>
+            s.key.toLowerCase().includes(q) ||
+            s.label.toLowerCase().includes(q) ||
+            (s.description?.toLowerCase().includes(q) ?? false) ||
+            section.title.toLowerCase().includes(q),
+        ),
+      }))
+      .filter((s) => s.settings.length > 0);
+  }, [allSections, searchQuery]);
 
   function handleSettingChange(key: string, value: unknown) {
     setDirty((prev) => ({ ...prev, [key]: value }));
@@ -54,31 +122,6 @@ export function SettingsView() {
   function handleReset() {
     setDirty({});
   }
-
-  // Build advanced section from unknown keys
-  const advancedSettings = useMemo(() => {
-    if (!options) return [];
-    return Object.entries(options)
-      .filter(([key]) => !knownKeys.has(key))
-      .filter(([key]) => !searchQuery || key.toLowerCase().includes(searchQuery.toLowerCase()))
-      .sort(([a], [b]) => a.localeCompare(b));
-  }, [options, searchQuery]);
-
-  // Filter schema sections by search
-  const filteredSections = useMemo(() => {
-    if (!searchQuery) return settingsSchema;
-    return settingsSchema
-      .map((section) => ({
-        ...section,
-        settings: section.settings.filter(
-          (s) =>
-            s.key.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            s.label.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            (s.description?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false),
-        ),
-      }))
-      .filter((s) => s.settings.length > 0);
-  }, [searchQuery]);
 
   const dirtyCount = Object.keys(dirty).length;
 
@@ -107,7 +150,7 @@ export function SettingsView() {
         </div>
         <ScrollArea className="flex-1">
           <div className="flex flex-col gap-0.5 p-1">
-            {settingsSchema.map((section) => (
+            {allSections.map((section) => (
               <button
                 key={section.id}
                 onClick={() => {
@@ -117,26 +160,12 @@ export function SettingsView() {
                 className={cn(
                   "text-left text-xs px-2 py-1.5 rounded-md transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
-                  activeSection === section.id && !searchQuery && "bg-accent text-accent-foreground font-medium",
+                  resolvedActive === section.id && !searchQuery && "bg-accent text-accent-foreground font-medium",
                 )}
               >
                 {section.title}
               </button>
             ))}
-            <Separator className="my-1" />
-            <button
-              onClick={() => {
-                setActiveSection("advanced");
-                setSearchQuery("");
-              }}
-              className={cn(
-                "text-left text-xs px-2 py-1.5 rounded-md transition-colors",
-                "hover:bg-accent hover:text-accent-foreground",
-                activeSection === "advanced" && !searchQuery && "bg-accent text-accent-foreground font-medium",
-              )}
-            >
-              Advanced
-            </button>
           </div>
         </ScrollArea>
 
@@ -180,46 +209,14 @@ export function SettingsView() {
                   dynamicChoices={dynamicChoices}
                 />
               ))}
-              {filteredSections.length === 0 && advancedSettings.length === 0 && (
+              {filteredSections.length === 0 && (
                 <p className="text-sm text-muted-foreground text-center py-8">No settings match your search</p>
               )}
             </div>
-          ) : activeSection === "advanced" ? (
-            // Advanced: all unknown settings
-            <div className="space-y-4">
-              <h2 className="text-sm font-semibold text-foreground">Advanced</h2>
-              <p className="text-xs text-muted-foreground">
-                Settings not covered by the schema above. Edit with care.
-              </p>
-              <div className="space-y-2">
-                {advancedSettings.map(([key, val]) => {
-                  const currentValue = dirty[key] ?? val;
-                  const isDirty = key in dirty;
-                  const inferredComponent = typeof val === "boolean" ? "switch" : typeof val === "number" ? "number" : "input";
-                  return (
-                    <div key={key} className="flex items-center gap-3">
-                      <div className="w-56 flex-shrink-0">
-                        <Label className="text-xs font-mono flex items-center gap-1.5 break-all">
-                          {key}
-                          {isDirty && <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 text-primary border-primary/30">modified</Badge>}
-                        </Label>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <SettingControl
-                          setting={{ key, label: key, component: inferredComponent }}
-                          value={currentValue}
-                          onChange={(v) => handleSettingChange(key, v)}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
           ) : (
-            // Normal section view
+            // Single section view
             (() => {
-              const section = filteredSections.find((s) => s.id === activeSection) ?? settingsSchema.find((s) => s.id === activeSection);
+              const section = allSections.find((s) => s.id === resolvedActive);
               if (!section) return null;
               return (
                 <SettingsSection
