@@ -284,9 +284,35 @@ export function useBrowserFiles(folder: string | null) {
         if (msg === "#END#") {
           if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
           flush();
-          // Set authoritative file list (replaces child-cache seed if present)
           const endStore = useGalleryStore.getState();
-          endStore.setFiles(allFiles);
+
+          // Re-key child-seeded thumbs to match parent-context file IDs.
+          // Child cache files have IDs like "outputs%2Ftext##F##img.png" while
+          // the parent stream produces "outputs##F##text%2Fimg.png" — different
+          // IDs for the same fullPath. Build a fullPath→thumb map, then re-key.
+          if (hasChildSeed && endStore.thumbs.size > 0) {
+            const pathToThumb = new Map<string, CachedThumb>();
+            const oldFileMap = new Map(endStore.files.map((f) => [f.id, f]));
+            for (const [id, thumb] of endStore.thumbs) {
+              const file = oldFileMap.get(id);
+              if (file) pathToThumb.set(file.fullPath, thumb);
+            }
+            if (pathToThumb.size > 0) {
+              const rekeyed: [string, CachedThumb][] = [];
+              for (const f of allFiles) {
+                const thumb = pathToThumb.get(f.fullPath);
+                if (thumb) rekeyed.push([f.id, thumb]);
+              }
+              // Set files first, then apply re-keyed thumbs
+              endStore.setFiles(allFiles);
+              if (rekeyed.length > 0) endStore.setThumbsBatch(rekeyed);
+            } else {
+              endStore.setFiles(allFiles);
+            }
+          } else {
+            endStore.setFiles(allFiles);
+          }
+
           endStore.setLoadProgress(allFiles.length, allFiles.length);
           endStore.setLoadingFiles(false);
           ws.close();
