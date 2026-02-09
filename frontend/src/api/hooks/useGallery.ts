@@ -71,36 +71,43 @@ const FILE_BATCH_INTERVAL = 150; // ms between flushing accumulated files to the
 // ---------------------------------------------------------------------------
 
 /**
+ * Batch-read IndexedDB for cached thumbnails matching the given files.
+ * Returns [fileId, CachedThumb][] pairs — caller decides how to apply them.
+ */
+async function readCachedThumbs(files: GalleryFile[]): Promise<[string, CachedThumb][]> {
+  if (files.length === 0) return [];
+  // Compute hashes in parallel (crypto.subtle.digest is async but very fast)
+  const pairs = await Promise.all(
+    files.map(async (f) => ({ id: f.id, hash: await computeThumbHash(f.fullPath) })),
+  );
+
+  const hashToId = new Map<string, string>();
+  const hashes: string[] = [];
+  for (const { id, hash } of pairs) {
+    hashToId.set(hash, id);
+    hashes.push(hash);
+  }
+
+  // Batch-read from IndexedDB in a single transaction
+  const cached = await batchGetThumbs(hashes);
+
+  const batch: [string, CachedThumb][] = [];
+  for (const [hash, thumb] of cached) {
+    const fileId = hashToId.get(hash);
+    if (fileId) batch.push([fileId, thumb]);
+  }
+  return batch;
+}
+
+/**
  * After all files are loaded, batch-check IndexedDB for cached thumbnails
  * and pre-populate the in-memory store in a single update.
  */
 async function preloadCachedThumbs(files: GalleryFile[], folder: string) {
-  if (files.length === 0) return;
   try {
-    // Compute hashes in parallel (crypto.subtle.digest is async but very fast)
-    const pairs = await Promise.all(
-      files.map(async (f) => ({ id: f.id, hash: await computeThumbHash(f.fullPath) })),
-    );
-
-    const hashToId = new Map<string, string>();
-    const hashes: string[] = [];
-    for (const { id, hash } of pairs) {
-      hashToId.set(hash, id);
-      hashes.push(hash);
-    }
-
-    // Batch-read from IndexedDB in a single transaction
-    const cached = await batchGetThumbs(hashes);
-
-    if (cached.size > 0) {
-      const batch: [string, CachedThumb][] = [];
-      for (const [hash, thumb] of cached) {
-        const fileId = hashToId.get(hash);
-        if (fileId) batch.push([fileId, thumb]);
-      }
-      // Single Zustand update instead of N individual setThumb calls
+    const batch = await readCachedThumbs(files);
+    if (batch.length > 0) {
       useGalleryStore.getState().setThumbsBatch(batch);
-      // Keep folder cache in sync
       updateCachedThumbs(folder, batch);
     }
   } catch {
@@ -208,6 +215,115 @@ async function backgroundRefresh(folder: string, signal: AbortSignal) {
 }
 
 // ---------------------------------------------------------------------------
+// WebSocket file streaming for cache-miss loads
+// ---------------------------------------------------------------------------
+
+function startFileStream(folder: string, ac: AbortController, hasChildSeed: boolean) {
+  const buffer: GalleryFile[] = [];
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
+  const allFiles: GalleryFile[] = [];
+
+  const flush = () => {
+    if (buffer.length === 0) return;
+    const batch = buffer.splice(0);
+    allFiles.push(...batch);
+    // Skip incremental store updates when seeded from child caches
+    // to avoid duplicates — the #END# handler sets the authoritative list
+    if (hasChildSeed) return;
+    const s = useGalleryStore.getState();
+    s.setFiles([...s.files, ...batch]);
+    s.setLoadProgress(s.files.length + batch.length, null);
+  };
+
+  const scheduleFlush = () => {
+    if (flushTimer) return;
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      flush();
+    }, FILE_BATCH_INTERVAL);
+  };
+
+  const wsUrl = api.getWebSocketUrl("/sdapi/v1/browser/files");
+  const ws = new WebSocket(wsUrl);
+
+  const cleanupWs = () => {
+    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+    if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close();
+  };
+
+  ac.signal.addEventListener("abort", cleanupWs, { once: true });
+
+  ws.onopen = () => ws.send(folder);
+
+  ws.onmessage = (ev) => {
+    const msg = ev.data as string;
+    if (msg === "#END#") {
+      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+      flush();
+      const endStore = useGalleryStore.getState();
+
+      // Re-key child-seeded thumbs to match parent-context file IDs.
+      // Child cache files have IDs like "outputs%2Ftext##F##img.png" while
+      // the parent stream produces "outputs##F##text%2Fimg.png" — different
+      // IDs for the same fullPath. Build a fullPath→thumb map, then re-key.
+      if (hasChildSeed && endStore.thumbs.size > 0) {
+        const pathToThumb = new Map<string, CachedThumb>();
+        const oldFileMap = new Map(endStore.files.map((f) => [f.id, f]));
+        for (const [id, thumb] of endStore.thumbs) {
+          const file = oldFileMap.get(id);
+          if (file) pathToThumb.set(file.fullPath, thumb);
+        }
+        const rekeyed: [string, CachedThumb][] = [];
+        for (const f of allFiles) {
+          const thumb = pathToThumb.get(f.fullPath);
+          if (thumb) rekeyed.push([f.id, thumb]);
+        }
+        endStore.setFiles(allFiles);
+        if (rekeyed.length > 0) endStore.setThumbsBatch(rekeyed);
+      } else {
+        endStore.setFiles(allFiles);
+      }
+
+      endStore.setLoadProgress(allFiles.length, allFiles.length);
+      endStore.setLoadingFiles(false);
+      ws.close();
+
+      // Save to folder cache — fetch mtime for staleness tracking
+      api.get<{ mtime: number }>("/sdapi/v1/browser/folder-info", { folder })
+        .then((info) => {
+          const thumbs = new Map(useGalleryStore.getState().thumbs);
+          setCachedFolder(folder, allFiles, thumbs, info.mtime);
+        })
+        .catch(() => {
+          // Still cache with mtime=0 so revisit is instant
+          const thumbs = new Map(useGalleryStore.getState().thumbs);
+          setCachedFolder(folder, allFiles, thumbs, 0);
+        });
+
+      // Batch-read IndexedDB for parent-context files — finds thumbs
+      // from child folder browsing since IndexedDB keys on fullPath hash
+      preloadCachedThumbs(allFiles, folder);
+      return;
+    }
+    const entry = parseFileEntry(msg);
+    if (isMediaFile(entry.relativePath)) {
+      buffer.push(entry);
+      scheduleFlush();
+    }
+  };
+
+  ws.onerror = () => {
+    useGalleryStore.getState().setLoadingFiles(false);
+  };
+
+  ws.onclose = () => {
+    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+    flush();
+    useGalleryStore.getState().setLoadingFiles(false);
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Main hook
 // ---------------------------------------------------------------------------
 
@@ -234,120 +350,29 @@ export function useBrowserFiles(folder: string | null) {
       store.setLoadingFiles(true);
       store.setLoadProgress(0, null);
 
-      // Pre-populate from cached child folders so user sees content instantly
       const childMerge = mergeChildCaches(folder);
       const hasChildSeed = !!childMerge;
-      if (childMerge) {
-        store.setFiles(childMerge.files);
-        store.setThumbsBatch(Array.from(childMerge.thumbs));
-        store.setLoadProgress(childMerge.files.length, null);
-        // Batch-read IndexedDB for child-seeded files — this is the reliable
-        // thumb source (folder cache thumbs may be empty due to navigation timing)
-        preloadCachedThumbs(childMerge.files, folder);
-      }
 
-      const buffer: GalleryFile[] = [];
-      let flushTimer: ReturnType<typeof setTimeout> | null = null;
-      const allFiles: GalleryFile[] = [];
-
-      const flush = () => {
-        if (buffer.length === 0) return;
-        const batch = buffer.splice(0);
-        allFiles.push(...batch);
-        // Skip incremental store updates when seeded from child caches
-        // to avoid duplicates — the #END# handler sets the authoritative list
-        if (hasChildSeed) return;
-        const s = useGalleryStore.getState();
-        s.setFiles([...s.files, ...batch]);
-        s.setLoadProgress(s.files.length + batch.length, null);
-      };
-
-      const scheduleFlush = () => {
-        if (flushTimer) return;
-        flushTimer = setTimeout(() => {
-          flushTimer = null;
-          flush();
-        }, FILE_BATCH_INTERVAL);
-      };
-
-      const wsUrl = api.getWebSocketUrl("/sdapi/v1/browser/files");
-      const ws = new WebSocket(wsUrl);
-
-      const cleanupWs = () => {
-        if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
-        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close();
-      };
-
-      ac.signal.addEventListener("abort", cleanupWs, { once: true });
-
-      ws.onopen = () => ws.send(folder);
-
-      ws.onmessage = (ev) => {
-        const msg = ev.data as string;
-        if (msg === "#END#") {
-          if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
-          flush();
-          const endStore = useGalleryStore.getState();
-
-          // Re-key child-seeded thumbs to match parent-context file IDs.
-          // Child cache files have IDs like "outputs%2Ftext##F##img.png" while
-          // the parent stream produces "outputs##F##text%2Fimg.png" — different
-          // IDs for the same fullPath. Build a fullPath→thumb map, then re-key.
-          if (hasChildSeed && endStore.thumbs.size > 0) {
-            const pathToThumb = new Map<string, CachedThumb>();
-            const oldFileMap = new Map(endStore.files.map((f) => [f.id, f]));
-            for (const [id, thumb] of endStore.thumbs) {
-              const file = oldFileMap.get(id);
-              if (file) pathToThumb.set(file.fullPath, thumb);
-            }
-            const rekeyed: [string, CachedThumb][] = [];
-            for (const f of allFiles) {
-              const thumb = pathToThumb.get(f.fullPath);
-              if (thumb) rekeyed.push([f.id, thumb]);
-            }
-            endStore.setFiles(allFiles);
-            if (rekeyed.length > 0) endStore.setThumbsBatch(rekeyed);
-          } else {
-            endStore.setFiles(allFiles);
+      // Async IIFE: await IndexedDB preload for child-seeded files so
+      // files + thumbs are set together BEFORE the grid renders.
+      // This prevents useThumbnailLoader from racing with individual fetches.
+      (async () => {
+        if (childMerge) {
+          try {
+            const idbThumbs = await readCachedThumbs(childMerge.files);
+            if (ac.signal.aborted) return;
+            store.setFiles(childMerge.files);
+            if (idbThumbs.length > 0) store.setThumbsBatch(idbThumbs);
+          } catch {
+            if (ac.signal.aborted) return;
+            store.setFiles(childMerge.files);
           }
-
-          endStore.setLoadProgress(allFiles.length, allFiles.length);
-          endStore.setLoadingFiles(false);
-          ws.close();
-
-          // Save to folder cache — fetch mtime for staleness tracking
-          api.get<{ mtime: number }>("/sdapi/v1/browser/folder-info", { folder })
-            .then((info) => {
-              const thumbs = new Map(useGalleryStore.getState().thumbs);
-              setCachedFolder(folder, allFiles, thumbs, info.mtime);
-            })
-            .catch(() => {
-              // Still cache with mtime=0 so revisit is instant
-              const thumbs = new Map(useGalleryStore.getState().thumbs);
-              setCachedFolder(folder, allFiles, thumbs, 0);
-            });
-
-          // Batch-read IndexedDB for parent-context files — finds thumbs
-          // from child folder browsing since IndexedDB keys on fullPath hash
-          preloadCachedThumbs(allFiles, folder);
-          return;
+          store.setLoadProgress(childMerge.files.length, null);
         }
-        const entry = parseFileEntry(msg);
-        if (isMediaFile(entry.relativePath)) {
-          buffer.push(entry);
-          scheduleFlush();
-        }
-      };
 
-      ws.onerror = () => {
-        useGalleryStore.getState().setLoadingFiles(false);
-      };
-
-      ws.onclose = () => {
-        if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
-        flush();
-        useGalleryStore.getState().setLoadingFiles(false);
-      };
+        if (ac.signal.aborted) return;
+        startFileStream(folder, ac, hasChildSeed);
+      })();
     }
 
     return () => {
