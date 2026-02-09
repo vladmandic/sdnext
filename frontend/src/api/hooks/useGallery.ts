@@ -47,7 +47,7 @@ function parseFileEntry(raw: string): GalleryFile {
   }
   const folder = decodeURIComponent(folderEnc);
   const relativePath = decodeURIComponent(relEnc);
-  const fullPath = folder + "/" + relativePath;
+  const fullPath = folder.replace(/\/+$/, "") + "/" + relativePath;
   return { folder, relativePath, fullPath, id: raw };
 }
 
@@ -261,7 +261,6 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
       if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
       flush();
       const endStore = useGalleryStore.getState();
-
       // Re-key child-seeded thumbs to match parent-context file IDs.
       // Child cache files have IDs like "outputs%2Ftext##F##img.png" while
       // the parent stream produces "outputs##F##text%2Fimg.png" — different
@@ -279,7 +278,9 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
           if (thumb) rekeyed.push([f.id, thumb]);
         }
         endStore.setFiles(allFiles);
-        if (rekeyed.length > 0) endStore.setThumbsBatch(rekeyed);
+        // Replace (not merge) to drop orphaned child-context IDs that would
+        // inflate thumbs.size past files.length and confuse the progress bar.
+        useGalleryStore.setState({ thumbs: new Map(rekeyed) });
       } else {
         endStore.setFiles(allFiles);
       }
@@ -342,7 +343,6 @@ export function useBrowserFiles(folder: string | null) {
 
     if (cached) {
       // ---- Cache hit: files already restored by setActiveFolder ----
-      // Just kick off a background refresh to catch new/deleted files
       backgroundRefresh(folder, ac.signal);
     } else {
       // ---- Cache miss: stream from backend ----
