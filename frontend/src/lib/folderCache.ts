@@ -51,3 +51,33 @@ export function updateCachedThumbs(folder: string, entries: [string, CachedThumb
 export function invalidateFolder(path: string): void {
   cache.delete(path);
 }
+
+/**
+ * Gather files and thumbs from all cached child folders whose path starts
+ * with `parentPath + "/"`. Returns null if no children are cached.
+ * Deduplicates by file id.
+ */
+export function mergeChildCaches(parentPath: string): { files: GalleryFile[]; thumbs: Map<string, CachedThumb> } | null {
+  const norm = parentPath.replace(/\/+$/, "");
+  const prefix = norm + "/";
+  let files: GalleryFile[] | null = null;
+  let thumbs: Map<string, CachedThumb> | null = null;
+  const seenIds = new Set<string>();
+
+  for (const [key, snap] of cache) {
+    if (key.startsWith(prefix)) {
+      if (!files) { files = []; thumbs = new Map(); }
+      for (const f of snap.files) {
+        if (!seenIds.has(f.id)) {
+          seenIds.add(f.id);
+          files.push(f);
+        }
+      }
+      for (const [id, thumb] of snap.thumbs) {
+        thumbs!.set(id, thumb);
+      }
+    }
+  }
+
+  return files ? { files, thumbs: thumbs! } : null;
+}

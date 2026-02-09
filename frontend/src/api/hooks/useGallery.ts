@@ -4,7 +4,7 @@ import { api } from "../client";
 import type { BrowserFolder, BrowserSubdir, BrowserThumb, GalleryFile, CachedThumb } from "../types/gallery";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { computeThumbHash, getThumb, putThumb, batchGetThumbs } from "@/lib/thumbnailCache";
-import { getCachedFolder, setCachedFolder, updateCachedThumbs } from "@/lib/folderCache";
+import { getCachedFolder, setCachedFolder, updateCachedThumbs, mergeChildCaches } from "@/lib/folderCache";
 import { Semaphore } from "@/lib/concurrency";
 
 const thumbSemaphore = new Semaphore(16);
@@ -234,6 +234,15 @@ export function useBrowserFiles(folder: string | null) {
       store.setLoadingFiles(true);
       store.setLoadProgress(0, null);
 
+      // Pre-populate from cached child folders so user sees content instantly
+      const childMerge = mergeChildCaches(folder);
+      const hasChildSeed = !!childMerge;
+      if (childMerge) {
+        store.setFiles(childMerge.files);
+        store.setThumbsBatch(Array.from(childMerge.thumbs));
+        store.setLoadProgress(childMerge.files.length, null);
+      }
+
       const buffer: GalleryFile[] = [];
       let flushTimer: ReturnType<typeof setTimeout> | null = null;
       const allFiles: GalleryFile[] = [];
@@ -242,6 +251,9 @@ export function useBrowserFiles(folder: string | null) {
         if (buffer.length === 0) return;
         const batch = buffer.splice(0);
         allFiles.push(...batch);
+        // Skip incremental store updates when seeded from child caches
+        // to avoid duplicates — the #END# handler sets the authoritative list
+        if (hasChildSeed) return;
         const s = useGalleryStore.getState();
         s.setFiles([...s.files, ...batch]);
         s.setLoadProgress(s.files.length + batch.length, null);
@@ -272,7 +284,11 @@ export function useBrowserFiles(folder: string | null) {
         if (msg === "#END#") {
           if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
           flush();
-          useGalleryStore.getState().setLoadingFiles(false);
+          // Set authoritative file list (replaces child-cache seed if present)
+          const endStore = useGalleryStore.getState();
+          endStore.setFiles(allFiles);
+          endStore.setLoadProgress(allFiles.length, allFiles.length);
+          endStore.setLoadingFiles(false);
           ws.close();
 
           // Save to folder cache — fetch mtime for staleness tracking
