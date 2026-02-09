@@ -206,9 +206,32 @@ def register_api(app: FastAPI): # register api
             log.error(f'Gallery: {folder} {e}')
             return []
 
+    def get_folder_info(folder: str):
+        try:
+            decoded = unquote(folder).replace('%3A', ':')
+            mtime = files_cache.directory_mtime(decoded, recursive=True)
+            return JSONResponse(content={'mtime': mtime})
+        except Exception as e:
+            shared.log.error(f'Gallery folder-info: folder="{folder}" {e}')
+            return JSONResponse(content={'mtime': 0})
+
+    def get_subdirs(folder: str):
+        decoded = unquote(folder).replace('%3A', ':')
+        directory = files_cache.get_directory(decoded, fetch=True)
+        if not directory or not directory.directories:
+            return JSONResponse(content=[])
+        subdirs = []
+        for d in sorted(directory.directories):
+            label = os.path.basename(d)
+            if label:
+                subdirs.append({'path': d, 'label': label})
+        return JSONResponse(content=subdirs)
+
     shared.api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[str])
     shared.api.add_api_route("/sdapi/v1/browser/thumb", get_thumb, methods=["GET"], response_model=dict)
     shared.api.add_api_route("/sdapi/v1/browser/files", ht_files, methods=["GET"], response_model=list)
+    shared.api.add_api_route("/sdapi/v1/browser/folder-info", get_folder_info, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/browser/subdirs", get_subdirs, methods=["GET"])
 
     @app.websocket("/sdapi/v1/browser/files")
     async def ws_files(ws: WebSocket):

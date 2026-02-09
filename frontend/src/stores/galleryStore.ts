@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { BrowserFolder, GalleryFile, GallerySort, CachedThumb } from "@/api/types/gallery";
+import { getCachedFolder } from "@/lib/folderCache";
 
 interface GalleryState {
   folders: BrowserFolder[];
@@ -28,6 +29,7 @@ interface GalleryState {
   setLoadingFiles: (loading: boolean) => void;
   setLoadProgress: (loaded: number, total: number | null) => void;
   setThumb: (id: string, thumb: CachedThumb) => void;
+  setThumbsBatch: (entries: [string, CachedThumb][]) => void;
   setSortedFiles: (files: GalleryFile[]) => void;
   selectFile: (file: GalleryFile | null, thumb?: CachedThumb | null) => void;
   openLightbox: (index: number) => void;
@@ -55,12 +57,27 @@ export const useGalleryStore = create<GalleryState>()((set) => ({
   thumbSize: 180,
 
   setFolders: (folders) => set({ folders }),
-  setActiveFolder: (path) => set({ activeFolder: path, files: [], thumbs: new Map(), selectedFile: null, selectedThumb: null, lightboxIndex: null, isLoadingFiles: false, loadProgress: { loaded: 0, total: null } }),
+  setActiveFolder: (path) => {
+    if (path === null) {
+      return set({ activeFolder: null, files: [], thumbs: new Map(), selectedFile: null, selectedThumb: null, lightboxIndex: null, isLoadingFiles: false, loadProgress: { loaded: 0, total: null } });
+    }
+    const cached = getCachedFolder(path);
+    if (cached) {
+      return set({ activeFolder: path, files: cached.files, thumbs: new Map(cached.thumbs), selectedFile: null, selectedThumb: null, lightboxIndex: null, isLoadingFiles: false, loadProgress: { loaded: cached.files.length, total: cached.files.length } });
+    }
+    return set({ activeFolder: path, files: [], thumbs: new Map(), selectedFile: null, selectedThumb: null, lightboxIndex: null, isLoadingFiles: false, loadProgress: { loaded: 0, total: null } });
+  },
   setFiles: (files) => set({ files }),
   appendFile: (file) => set((s) => ({ files: [...s.files, file], loadProgress: { loaded: s.loadProgress.loaded + 1, total: s.loadProgress.total } })),
   setLoadingFiles: (loading) => set({ isLoadingFiles: loading }),
   setLoadProgress: (loaded, total) => set({ loadProgress: { loaded, total } }),
   setThumb: (id, thumb) => set((s) => { const m = new Map(s.thumbs); m.set(id, thumb); return { thumbs: m }; }),
+  setThumbsBatch: (entries) => set((s) => {
+    if (entries.length === 0) return {};
+    const m = new Map(s.thumbs);
+    for (const [id, thumb] of entries) m.set(id, thumb);
+    return { thumbs: m };
+  }),
   setSortedFiles: (sortedFiles) => set({ sortedFiles }),
   selectFile: (file, thumb) => set({ selectedFile: file, selectedThumb: thumb ?? null }),
   openLightbox: (index) => set({ lightboxIndex: index }),
