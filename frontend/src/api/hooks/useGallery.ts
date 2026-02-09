@@ -1,9 +1,10 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../client";
-import type { BrowserFolder, BrowserThumb, GalleryFile, CachedThumb } from "../types/gallery";
+import type { BrowserFolder, BrowserSubdir, BrowserThumb, GalleryFile, CachedThumb } from "../types/gallery";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { computeThumbHash, getThumb, putThumb, batchGetThumbs } from "@/lib/thumbnailCache";
+import { getCachedFolder, setCachedFolder, updateCachedThumbs } from "@/lib/folderCache";
 import { Semaphore } from "@/lib/concurrency";
 
 const thumbSemaphore = new Semaphore(16);
@@ -16,6 +17,15 @@ export function useBrowserFolders() {
     queryKey: ["browser", "folders"],
     queryFn: () => api.get<BrowserFolder[]>("/sdapi/v1/browser/folders"),
     staleTime: 60_000,
+  });
+}
+
+export function useSubdirs(folder: string | null) {
+  return useQuery({
+    queryKey: ["browser", "subdirs", folder],
+    queryFn: () => api.get<BrowserSubdir[]>("/sdapi/v1/browser/subdirs", { folder: folder! }),
+    enabled: folder !== null,
+    staleTime: 30_000,
   });
 }
 
@@ -56,115 +66,259 @@ function isMediaFile(path: string): boolean {
 
 const FILE_BATCH_INTERVAL = 150; // ms between flushing accumulated files to the store
 
+// ---------------------------------------------------------------------------
+// Thumb preloading (batch + parallel)
+// ---------------------------------------------------------------------------
+
 /**
  * After all files are loaded, batch-check IndexedDB for cached thumbnails
- * and pre-populate the in-memory store. This makes folder revisits instant.
+ * and pre-populate the in-memory store in a single update.
  */
-async function preloadCachedThumbs(files: GalleryFile[]) {
+async function preloadCachedThumbs(files: GalleryFile[], folder: string) {
   if (files.length === 0) return;
   try {
-    // Compute hashes for all files (path-only, very fast)
+    // Compute hashes in parallel (crypto.subtle.digest is async but very fast)
+    const pairs = await Promise.all(
+      files.map(async (f) => ({ id: f.id, hash: await computeThumbHash(f.fullPath) })),
+    );
+
     const hashToId = new Map<string, string>();
     const hashes: string[] = [];
-    for (const f of files) {
-      const hash = await computeThumbHash(f.fullPath);
-      hashToId.set(hash, f.id);
+    for (const { id, hash } of pairs) {
+      hashToId.set(hash, id);
       hashes.push(hash);
     }
 
     // Batch-read from IndexedDB in a single transaction
     const cached = await batchGetThumbs(hashes);
 
-    // Populate store with all cache hits
     if (cached.size > 0) {
-      const store = useGalleryStore.getState();
+      const batch: [string, CachedThumb][] = [];
       for (const [hash, thumb] of cached) {
         const fileId = hashToId.get(hash);
-        if (fileId) store.setThumb(fileId, thumb);
+        if (fileId) batch.push([fileId, thumb]);
       }
+      // Single Zustand update instead of N individual setThumb calls
+      useGalleryStore.getState().setThumbsBatch(batch);
+      // Keep folder cache in sync
+      updateCachedThumbs(folder, batch);
     }
   } catch {
     // IndexedDB errors are non-fatal
   }
 }
 
-export function useBrowserFiles(folder: string | null) {
-  const wsRef = useRef<WebSocket | null>(null);
+// ---------------------------------------------------------------------------
+// WebSocket file streaming (shared between initial load and background refresh)
+// ---------------------------------------------------------------------------
 
-  useEffect(() => {
-    if (!folder) return;
+interface StreamResult {
+  files: GalleryFile[];
+}
 
-    const store = useGalleryStore.getState();
-    store.setFiles([]);
-    store.setLoadingFiles(true);
-    store.setLoadProgress(0, null);
-
-    const allFiles: GalleryFile[] = [];
-    const buffer: GalleryFile[] = [];
-    let flushTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const flush = () => {
-      if (buffer.length === 0) return;
-      const batch = buffer.splice(0);
-      allFiles.push(...batch);
-      const s = useGalleryStore.getState();
-      s.setFiles([...s.files, ...batch]);
-      s.setLoadProgress(s.files.length + batch.length, null);
-    };
-
-    const scheduleFlush = () => {
-      if (flushTimer) return;
-      flushTimer = setTimeout(() => {
-        flushTimer = null;
-        flush();
-      }, FILE_BATCH_INTERVAL);
-    };
-
+/**
+ * Open a WebSocket to stream file entries for a folder.
+ * Returns a promise that resolves with the file list when #END# is received.
+ * If `onFile` is provided, it is called for each file as they arrive (for progress).
+ */
+function streamFiles(
+  folder: string,
+  signal: AbortSignal,
+  onFile?: (file: GalleryFile) => void,
+): Promise<StreamResult> {
+  return new Promise((resolve, reject) => {
     const wsUrl = api.getWebSocketUrl("/sdapi/v1/browser/files");
     const ws = new WebSocket(wsUrl);
-    wsRef.current = ws;
+    const allFiles: GalleryFile[] = [];
 
-    ws.onopen = () => {
-      ws.send(folder);
+    const cleanup = () => {
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close();
     };
+
+    signal.addEventListener("abort", cleanup, { once: true });
+
+    ws.onopen = () => ws.send(folder);
 
     ws.onmessage = (ev) => {
       const msg = ev.data as string;
       if (msg === "#END#") {
-        if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
-        flush();
-        useGalleryStore.getState().setLoadingFiles(false);
         ws.close();
-        // Pre-populate store from IndexedDB cache
-        preloadCachedThumbs(allFiles);
+        resolve({ files: allFiles });
         return;
       }
       const entry = parseFileEntry(msg);
       if (isMediaFile(entry.relativePath)) {
-        buffer.push(entry);
-        scheduleFlush();
+        allFiles.push(entry);
+        onFile?.(entry);
       }
     };
 
-    ws.onerror = () => {
-      useGalleryStore.getState().setLoadingFiles(false);
+    ws.onerror = () => reject(new Error("WebSocket error"));
+    ws.onclose = (ev) => {
+      // If we already resolved via #END#, this is a no-op (promise only resolves once)
+      if (ev.code !== 1000) reject(new Error("WebSocket closed unexpectedly"));
+      else resolve({ files: allFiles });
     };
+  });
+}
 
-    ws.onclose = () => {
-      if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
-      flush();
-      useGalleryStore.getState().setLoadingFiles(false);
-    };
+// ---------------------------------------------------------------------------
+// Background refresh — check if folder changed, update if needed
+// ---------------------------------------------------------------------------
+
+async function backgroundRefresh(folder: string, signal: AbortSignal) {
+  try {
+    const info = await api.get<{ mtime: number }>("/sdapi/v1/browser/folder-info", { folder });
+    const cached = getCachedFolder(folder);
+    if (!cached || info.mtime === cached.serverMtime) return;
+
+    // Mtime differs — re-stream file list silently
+    const { files: newFiles } = await streamFiles(folder, signal);
+    if (signal.aborted) return;
+
+    // Diff: find files only in newFiles (added)
+    const oldIds = new Set(cached.files.map((f) => f.id));
+    const addedFiles = newFiles.filter((f) => !oldIds.has(f.id));
+
+    // Build new thumb map: carry over existing thumbs, drop removed files
+    const newIds = new Set(newFiles.map((f) => f.id));
+    const newThumbs = new Map<string, CachedThumb>();
+    for (const [id, thumb] of cached.thumbs) {
+      if (newIds.has(id)) newThumbs.set(id, thumb);
+    }
+
+    // Update folder cache
+    setCachedFolder(folder, newFiles, newThumbs, info.mtime);
+
+    // Update store only if user is still on this folder
+    const store = useGalleryStore.getState();
+    if (store.activeFolder === folder) {
+      store.setFiles(newFiles);
+      store.setThumbsBatch(Array.from(newThumbs));
+      store.setLoadProgress(newFiles.length, newFiles.length);
+    }
+
+    // Preload thumbs for newly added files only
+    if (addedFiles.length > 0) {
+      await preloadCachedThumbs(addedFiles, folder);
+    }
+  } catch {
+    // Background refresh failures are silent
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main hook
+// ---------------------------------------------------------------------------
+
+export function useBrowserFiles(folder: string | null) {
+  const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    if (!folder) return;
+
+    // Abort any previous load/refresh
+    abortRef.current?.abort();
+    const ac = new AbortController();
+    abortRef.current = ac;
+
+    const cached = getCachedFolder(folder);
+
+    if (cached) {
+      // ---- Cache hit: files already restored by setActiveFolder ----
+      // Just kick off a background refresh to catch new/deleted files
+      backgroundRefresh(folder, ac.signal);
+    } else {
+      // ---- Cache miss: stream from backend ----
+      const store = useGalleryStore.getState();
+      store.setLoadingFiles(true);
+      store.setLoadProgress(0, null);
+
+      const buffer: GalleryFile[] = [];
+      let flushTimer: ReturnType<typeof setTimeout> | null = null;
+      const allFiles: GalleryFile[] = [];
+
+      const flush = () => {
+        if (buffer.length === 0) return;
+        const batch = buffer.splice(0);
+        allFiles.push(...batch);
+        const s = useGalleryStore.getState();
+        s.setFiles([...s.files, ...batch]);
+        s.setLoadProgress(s.files.length + batch.length, null);
+      };
+
+      const scheduleFlush = () => {
+        if (flushTimer) return;
+        flushTimer = setTimeout(() => {
+          flushTimer = null;
+          flush();
+        }, FILE_BATCH_INTERVAL);
+      };
+
+      const wsUrl = api.getWebSocketUrl("/sdapi/v1/browser/files");
+      const ws = new WebSocket(wsUrl);
+
+      const cleanupWs = () => {
+        if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+        if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close();
+      };
+
+      ac.signal.addEventListener("abort", cleanupWs, { once: true });
+
+      ws.onopen = () => ws.send(folder);
+
+      ws.onmessage = (ev) => {
+        const msg = ev.data as string;
+        if (msg === "#END#") {
+          if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+          flush();
+          useGalleryStore.getState().setLoadingFiles(false);
+          ws.close();
+
+          // Save to folder cache — fetch mtime for staleness tracking
+          api.get<{ mtime: number }>("/sdapi/v1/browser/folder-info", { folder })
+            .then((info) => {
+              const thumbs = new Map(useGalleryStore.getState().thumbs);
+              setCachedFolder(folder, allFiles, thumbs, info.mtime);
+            })
+            .catch(() => {
+              // Still cache with mtime=0 so revisit is instant
+              const thumbs = new Map(useGalleryStore.getState().thumbs);
+              setCachedFolder(folder, allFiles, thumbs, 0);
+            });
+
+          // Pre-populate store from IndexedDB cache
+          preloadCachedThumbs(allFiles, folder);
+          return;
+        }
+        const entry = parseFileEntry(msg);
+        if (isMediaFile(entry.relativePath)) {
+          buffer.push(entry);
+          scheduleFlush();
+        }
+      };
+
+      ws.onerror = () => {
+        useGalleryStore.getState().setLoadingFiles(false);
+      };
+
+      ws.onclose = () => {
+        if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+        flush();
+        useGalleryStore.getState().setLoadingFiles(false);
+      };
+    }
 
     return () => {
-      if (flushTimer) clearTimeout(flushTimer);
-      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) {
-        ws.close();
-      }
-      wsRef.current = null;
+      ac.abort();
+      abortRef.current = null;
     };
   }, [folder]);
 }
+
+// ---------------------------------------------------------------------------
+// Thumbnail fetching
+// ---------------------------------------------------------------------------
 
 /**
  * Fetch a single thumbnail. Checks IndexedDB FIRST (no semaphore needed),
@@ -215,7 +369,12 @@ function dispatchThumb(file: GalleryFile, setThumb: (id: string, thumb: CachedTh
   inflightIds.add(file.id);
   fetchThumb(file).then((thumb) => {
     inflightIds.delete(file.id);
-    if (thumb) setThumb(file.id, thumb);
+    if (thumb) {
+      setThumb(file.id, thumb);
+      // Keep folder cache in sync
+      const folder = useGalleryStore.getState().activeFolder;
+      if (folder) updateCachedThumbs(folder, [[file.id, thumb]]);
+    }
   });
 }
 
