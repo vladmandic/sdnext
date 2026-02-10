@@ -6,7 +6,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { ImageUpload } from "@/components/generation/ImageUpload";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useInterrogate, useVqa, setCaptionOptions } from "@/api/hooks/useCaption";
@@ -21,7 +20,6 @@ export function CaptionPanel() {
   const result = useCaptionStore((s) => s.result);
   const isProcessing = useCaptionStore((s) => s.isProcessing);
   const method = useCaptionStore((s) => s.method);
-  const setImage = useCaptionStore((s) => s.setImage);
   const setResult = useCaptionStore((s) => s.setResult);
   const setProcessing = useCaptionStore((s) => s.setProcessing);
   const setMethod = useCaptionStore((s) => s.setMethod);
@@ -134,12 +132,6 @@ export function CaptionPanel() {
               <TaggerSettings onChange={(v) => { taggerRef.current = v; }} />
             </TabsContent>
           </Tabs>
-
-          {/* Image upload */}
-          <div className="mt-3">
-            <Label className="text-xs mb-1.5 block">Image</Label>
-            <ImageUpload image={image} onImageChange={setImage} label="Drop image to caption" compact />
-          </div>
         </div>
       </ScrollArea>
 
