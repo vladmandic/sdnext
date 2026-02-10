@@ -23,6 +23,7 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     width: gen.width,
     height: gen.height,
     cfg_scale: gen.cfgScale,
+    save_images: true,
     cfg_end: gen.cfgEnd,
     diffusers_guidance_rescale: gen.guidanceRescale,
     image_cfg_scale: gen.imageCfgScale,

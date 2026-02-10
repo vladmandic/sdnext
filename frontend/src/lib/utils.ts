@@ -46,3 +46,29 @@ export function base64ToObjectUrl(base64: string, mimeType = "image/png"): strin
   objectUrlCache.set(base64, url);
   return url;
 }
+
+/** Download a base64 image as a file */
+export function downloadBase64Image(base64: string, filename: string, mimeType = "image/png"): void {
+  const blob = base64ToBlob(base64, mimeType);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/** Generate a filename from generation info */
+export function generateImageFilename(info: string, imageIndex: number): string {
+  let seed = "unknown";
+  let model = "image";
+  try {
+    const parsed = JSON.parse(info);
+    if (parsed.seed) seed = String(parsed.seed);
+    if (parsed.model) model = String(parsed.model).split("/").pop()?.split(".")[0] ?? "image";
+  } catch { /* fallback */ }
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+  return `${model}_${seed}_${imageIndex}_${timestamp}.png`;
+}
