@@ -12,15 +12,27 @@ import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Save, RotateCcw, Search } from "lucide-react";
 
-/** Build a SettingDef using curated override if available, else from backend metadata */
+/** Build a SettingDef: backend metadata is authoritative for choices, curated provides label/description/component overrides */
 function buildSettingDef(
   key: string,
   info: OptionInfoMeta,
   curatedMap: Map<string, { section: SettingSectionDef; setting: SettingDef }>,
 ): SettingDef {
   const curated = curatedMap.get(key);
-  if (curated) return curated.setting;
-  return metaToSettingDef(key, info);
+  if (!curated) return metaToSettingDef(key, info);
+  const base = metaToSettingDef(key, info);
+  return {
+    ...base,
+    label: curated.setting.label,
+    ...(curated.setting.description !== undefined && { description: curated.setting.description }),
+    component: curated.setting.component,
+    ...(curated.setting.min !== undefined && { min: curated.setting.min }),
+    ...(curated.setting.max !== undefined && { max: curated.setting.max }),
+    ...(curated.setting.step !== undefined && { step: curated.setting.step }),
+    ...(curated.setting.requiresRestart && { requiresRestart: true }),
+    // choices: prefer backend (base), fall back to curated if backend has none
+    choices: base.choices ?? curated.setting.choices,
+  };
 }
 
 export function SettingsView() {
