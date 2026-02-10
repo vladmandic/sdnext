@@ -110,7 +110,7 @@ export const CanvasView = memo(function CanvasView() {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full"
+      className="relative w-full h-full overflow-hidden"
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onPaste={handlePaste}
