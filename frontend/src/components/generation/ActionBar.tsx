@@ -4,6 +4,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useTxt2Img, useImg2Img, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
 import { buildTxt2ImgRequest, buildImg2ImgRequest, restoreFromResult } from "@/lib/requestBuilder";
+import { snapshotUnits } from "@/stores/controlStore";
 import type { Img2ImgRequest } from "@/api/types/generation";
 import { Play, Square, SkipForward, Loader2, History } from "lucide-react";
 import { useEffect, useRef, useCallback, memo } from "react";
@@ -99,6 +100,7 @@ export const ActionBar = memo(function ActionBar() {
       const inputImage = isImg2Img ? (request as Img2ImgRequest).init_images?.[0] : undefined;
       const maskLines = useImg2ImgStore.getState().maskLines;
       const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
+      const controlUnits = await snapshotUnits();
 
       const result = isImg2Img
         ? await img2img.mutateAsync(request as Img2ImgRequest)
@@ -113,6 +115,7 @@ export const ActionBar = memo(function ActionBar() {
         timestamp: Date.now(),
         inputImage,
         inputMask,
+        controlUnits,
       });
     } catch (err) {
       toast.error("Generation failed", { description: err instanceof Error ? err.message : String(err) });

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { putResult, trimResults, clearAllResults, getAllResults } from "@/lib/historyDb";
 import type { MaskLine } from "@/stores/img2imgStore";
+import type { ControlUnitSnapshot } from "@/api/types/control";
 
 export interface GenerationResult {
   id: string;
@@ -12,6 +13,8 @@ export interface GenerationResult {
   inputImage?: string;
   /** Mask strokes captured at generation time. Persisted to IndexedDB with the result. */
   inputMask?: MaskLine[];
+  /** Control unit settings + images captured at generation time. */
+  controlUnits?: ControlUnitSnapshot[];
 }
 
 interface GenerationState {

@@ -353,4 +353,9 @@ export function restoreFromResult(result: GenerationResult): void {
       }
     }
   }
+
+  // Restore control units if present
+  if (result.controlUnits && result.controlUnits.length > 0) {
+    useControlStore.getState().restoreUnits(result.controlUnits);
+  }
 }
