@@ -154,6 +154,7 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
         start: u.start,
         end: u.end,
         image: u.image ? await fileToBase64(u.image) : "",
+        mode: u.mode,
         ...(u.unitType === "controlnet" ? { guess: u.guess } : {}),
         ...(u.unitType === "t2i" ? { factor: u.factor } : {}),
         ...(u.unitType === "reference" ? { attention: u.attention, fidelity: u.fidelity, query_weight: u.queryWeight, adain_weight: u.adainWeight } : {}),

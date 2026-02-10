@@ -194,6 +194,7 @@ class ItemControlUnit(BaseModel):
     strength: float = Field(title="Strength", default=1.0, ge=0, le=2, description="Control strength")
     start: float = Field(title="Start", default=0.0, ge=0, le=1, description="Control start step")
     end: float = Field(title="End", default=1.0, ge=0, le=1, description="Control end step")
+    mode: str = Field(title="Mode", default="default", description="Control mode for Union/ProMax models (e.g., canny, depth, tile)")
     guess: bool = Field(title="Guess", default=False, description="Guess mode (ControlNet only)")
     factor: float = Field(title="Factor", default=1.0, ge=0, le=2, description="Adapter factor (T2I only)")
     attention: str = Field(title="Attention", default="Attention", description="Reference attention type")

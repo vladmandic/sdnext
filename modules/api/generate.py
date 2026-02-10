@@ -108,6 +108,8 @@ class APIGenerate:
                     end=cu.end,
                 )
                 u.model_name = cu.model if cu.model != "None" else None
+                u.update_choices()
+                u.mode = cu.mode if cu.mode != "default" and cu.mode in u.choices else u.choices[0]
                 u.process_name = cu.processor if cu.processor != "None" else None
                 u.guess = cu.guess
                 u.factor = cu.factor
