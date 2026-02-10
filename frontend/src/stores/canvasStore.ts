@@ -49,6 +49,7 @@ interface CanvasState {
   maskVisible: boolean;
   maskColor: string;
   selectedControlFrame: number | null;
+  panelCollapsedOverrides: Map<number, boolean>;  // explicit user overrides
 
   setViewport: (viewport: Partial<ViewportState>) => void;
   addLayer: (layer: CanvasLayer) => void;
@@ -64,6 +65,7 @@ interface CanvasState {
   setMaskVisible: (visible: boolean) => void;
   setMaskColor: (color: string) => void;
   setSelectedControlFrame: (index: number | null) => void;
+  togglePanelCollapsed: (index: number, currentCollapsed: boolean) => void;
   clearLayers: () => void;
   restoreImageLayer: (base64: string, w: number, h: number) => void;
   getImageLayers: () => ImageLayer[];
@@ -82,6 +84,7 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   maskVisible: true,
   maskColor: "#ff000080",
   selectedControlFrame: null,
+  panelCollapsedOverrides: new Map<number, boolean>(),
 
   setViewport: (viewport) =>
     set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
@@ -156,6 +159,12 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   setMaskVisible: (visible) => set({ maskVisible: visible }),
   setMaskColor: (color) => set({ maskColor: color }),
   setSelectedControlFrame: (index) => set({ selectedControlFrame: index }),
+
+  togglePanelCollapsed: (index, currentCollapsed: boolean) => set((s) => {
+    const newMap = new Map(s.panelCollapsedOverrides);
+    newMap.set(index, !currentCollapsed);
+    return { panelCollapsedOverrides: newMap };
+  }),
 
   clearLayers: () => {
     const { layers } = get();

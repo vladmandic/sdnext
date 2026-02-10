@@ -28,7 +28,7 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const viewport = useCanvasStore((s) => s.viewport);
   const setViewport = useCanvasStore((s) => s.setViewport);
-  const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
+  // Note: setSelectedControlFrame removed - panels are now persistent
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
   const panZoom = usePanZoom(stageRef);
@@ -90,12 +90,8 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
 
   const onClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (showInputFrame) imageTransform.onStageClick(e);
-    // Clear selected control frame if click was not on a control frame rect
-    const target = e.target;
-    if (target.name() !== "controlFrame") {
-      setSelectedControlFrame(null);
-    }
-  }, [showInputFrame, imageTransform, setSelectedControlFrame]);
+    // Control frame panels are now persistent - no auto-dismiss on click outside
+  }, [showInputFrame, imageTransform]);
 
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden">

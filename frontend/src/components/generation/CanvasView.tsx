@@ -6,7 +6,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { fileToBase64 } from "@/lib/image";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
-import { ControlFramePanel } from "@/canvas/ControlFramePanel";
+import { ControlFramePanels } from "@/canvas/ControlFramePanel";
 import { useControlFrameLayout } from "@/canvas/useControlFrameLayout";
 import { RotateCcw, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -174,8 +174,8 @@ export const CanvasView = memo(function CanvasView() {
       {/* Canvas toolbar for mask painting — img2img only */}
       {isImg2Img && <CanvasToolbar />}
 
-      {/* Floating control panel */}
-      <ControlFramePanel layout={layout} />
+      {/* Floating control panels (persistent, collapsible) */}
+      <ControlFramePanels layout={layout} />
 
       {isImg2Img && (
         <input
