@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Layer, Image as KonvaImage, Rect, Label, Tag, Text } from "react-konva";
 import { useGenerationStore } from "@/stores/generationStore";
 import { base64ToObjectUrl, contrastText } from "@/lib/utils";
@@ -19,7 +19,6 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
   const selectedResultId = useGenerationStore((s) => s.selectedResultId);
   const selectedImageIndex = useGenerationStore((s) => s.selectedImageIndex);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
-  const objectUrlRef = useRef<string | null>(null);
 
   // Determine which image to show: live preview during generation, or selected result
   let displaySrc: string | undefined;
@@ -34,30 +33,14 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
   }
 
   useEffect(() => {
-    // Revoke previous object URL to prevent leaks
-    if (objectUrlRef.current) {
-      URL.revokeObjectURL(objectUrlRef.current);
-      objectUrlRef.current = null;
-    }
-
     if (!displaySrc) return;
-
-    // Track blob URLs we create for cleanup
-    if (displaySrc.startsWith("blob:")) {
-      objectUrlRef.current = displaySrc;
-    }
-
     const img = new window.Image();
     img.onload = () => setImage(img);
     img.src = displaySrc;
   }, [displaySrc]);
 
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
-    };
-  }, []);
+  // Clear stale image when there's nothing to display
+  if (!displaySrc && image) setImage(null);
 
   // Use displaySrc (synchronous) alongside image state so clearing is immediate
   const hasImage = !!displaySrc && !!image;
