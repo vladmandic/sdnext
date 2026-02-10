@@ -3,15 +3,15 @@ import { Layer, Rect, Label, Tag, Text, Image as KonvaImage } from "react-konva"
 import { useControlStore } from "@/stores/controlStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { contrastText } from "@/lib/utils";
-import type { ControlFramePosition } from "@/canvas/useControlFrameLayout";
+import { PROCESSED_GAP, type ControlFramePosition } from "@/canvas/useControlFrameLayout";
 
 const BORDER_COLOR = "#f59e0b"; // amber
+const PROCESSED_BORDER_COLOR = "#78716c"; // stone-500
 const LABEL_HEIGHT = 19;
-const BADGE_SIZE = 48;
-const BADGE_MARGIN = 4;
 
 interface ControlFrameLayerProps {
   frames: ControlFramePosition[];
+  onPickImage?: (unitIndex: number) => void;
 }
 
 interface FrameImageState {
@@ -19,19 +19,19 @@ interface FrameImageState {
   htmlImage: HTMLImageElement;
 }
 
-interface ProcessedBadgeState {
+interface ProcessedImageState {
   htmlImage: HTMLImageElement;
 }
 
-export function ControlFrameLayer({ frames }: ControlFrameLayerProps) {
+export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProps) {
   const units = useControlStore((s) => s.units);
   const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
 
   // Track loaded images per unit index
   const [imageMap, setImageMap] = useState<Map<number, FrameImageState>>(new Map());
-  const [badgeMap, setBadgeMap] = useState<Map<number, ProcessedBadgeState>>(new Map());
+  const [processedMap, setProcessedMap] = useState<Map<number, ProcessedImageState>>(new Map());
   const prevUrlsRef = useRef<Map<number, string>>(new Map());
-  const prevBadgeUrlsRef = useRef<Map<number, string>>(new Map());
+  const prevProcessedUrlsRef = useRef<Map<number, string>>(new Map());
 
   // Sync image state with controlStore units
   useEffect(() => {
@@ -96,19 +96,19 @@ export function ControlFrameLayer({ frames }: ControlFrameLayerProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally tracking specific refs
   }, [frames, units]);
 
-  // Sync processed image badges
+  // Sync processed images
   useEffect(() => {
     const toLoad: { index: number; src: string }[] = [];
 
     for (const frame of frames) {
       const unit = units[frame.unitIndex];
       const src = unit?.processedImage;
-      const prevSrc = prevBadgeUrlsRef.current.get(frame.unitIndex);
+      const prevSrc = prevProcessedUrlsRef.current.get(frame.unitIndex);
 
       if (src && src !== prevSrc) {
         toLoad.push({ index: frame.unitIndex, src });
       } else if (!src && prevSrc) {
-        setBadgeMap((prev) => {
+        setProcessedMap((prev) => {
           const next = new Map(prev);
           next.delete(frame.unitIndex);
           return next;
@@ -119,22 +119,22 @@ export function ControlFrameLayer({ frames }: ControlFrameLayerProps) {
     if (toLoad.length === 0) return;
 
     const aborted = { current: false };
-    const loadBadges = async () => {
-      const newBadges = new Map(badgeMap);
-      const newPrevUrls = new Map(prevBadgeUrlsRef.current);
+    const loadProcessed = async () => {
+      const newProcessed = new Map(processedMap);
+      const newPrevUrls = new Map(prevProcessedUrlsRef.current);
       for (const { index, src } of toLoad) {
         if (aborted.current) return;
         const img = new window.Image();
         img.src = src;
         await new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); });
         if (aborted.current) return;
-        newBadges.set(index, { htmlImage: img });
+        newProcessed.set(index, { htmlImage: img });
         newPrevUrls.set(index, src);
       }
-      setBadgeMap(newBadges);
-      prevBadgeUrlsRef.current = newPrevUrls;
+      setProcessedMap(newProcessed);
+      prevProcessedUrlsRef.current = newPrevUrls;
     };
-    loadBadges();
+    loadProcessed();
 
     return () => { aborted.current = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -148,9 +148,13 @@ export function ControlFrameLayer({ frames }: ControlFrameLayerProps) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleFrameClick = useCallback((unitIndex: number) => {
-    setSelectedControlFrame(unitIndex);
-  }, [setSelectedControlFrame]);
+  const handleFrameClick = useCallback((unitIndex: number, hasImage: boolean) => {
+    if (!hasImage && onPickImage) {
+      onPickImage(unitIndex);
+    } else {
+      setSelectedControlFrame(unitIndex);
+    }
+  }, [setSelectedControlFrame, onPickImage]);
 
   if (frames.length === 0) return null;
 
@@ -159,7 +163,7 @@ export function ControlFrameLayer({ frames }: ControlFrameLayerProps) {
       {frames.map((frame) => {
         const unit = units[frame.unitIndex];
         const imgState = imageMap.get(frame.unitIndex);
-        const badgeState = badgeMap.get(frame.unitIndex);
+        const processedState = processedMap.get(frame.unitIndex);
         const hasImage = !!imgState;
         const labelText = `Control ${frame.unitIndex} (${unit?.unitType ?? "?"})`;
 
@@ -170,7 +174,7 @@ export function ControlFrameLayer({ frames }: ControlFrameLayerProps) {
             labelText={labelText}
             hasImage={hasImage}
             image={imgState?.htmlImage ?? null}
-            badge={badgeState?.htmlImage ?? null}
+            processedImage={processedState?.htmlImage ?? null}
             onClick={handleFrameClick}
           />
         );
@@ -184,14 +188,16 @@ interface ControlFrameProps {
   labelText: string;
   hasImage: boolean;
   image: HTMLImageElement | null;
-  badge: HTMLImageElement | null;
-  onClick: (unitIndex: number) => void;
+  processedImage: HTMLImageElement | null;
+  onClick: (unitIndex: number, hasImage: boolean) => void;
 }
 
-function ControlFrame({ frame, labelText, hasImage, image, badge, onClick }: ControlFrameProps) {
+function ControlFrame({ frame, labelText, hasImage, image, processedImage, onClick }: ControlFrameProps) {
   const handleClick = useCallback(() => {
-    onClick(frame.unitIndex);
-  }, [onClick, frame.unitIndex]);
+    onClick(frame.unitIndex, hasImage);
+  }, [onClick, frame.unitIndex, hasImage]);
+
+  const processedY = frame.y + frame.height + PROCESSED_GAP;
 
   return (
     <>
@@ -249,27 +255,30 @@ function ControlFrame({ frame, labelText, hasImage, image, badge, onClick }: Con
         <Text text={labelText} fontSize={11} fill={contrastText(BORDER_COLOR)} padding={4} listening={false} />
       </Label>
 
-      {/* Processed badge in bottom-right corner */}
-      {badge && (
+      {/* Processed image — full frame below input */}
+      {processedImage && (
         <>
           <KonvaImage
-            image={badge}
-            x={frame.x + frame.width - BADGE_SIZE - BADGE_MARGIN}
-            y={frame.y + frame.height - BADGE_SIZE - BADGE_MARGIN}
-            width={BADGE_SIZE}
-            height={BADGE_SIZE}
+            image={processedImage}
+            x={frame.x}
+            y={processedY}
+            width={frame.width}
+            height={frame.height}
             listening={false}
           />
           <Rect
-            x={frame.x + frame.width - BADGE_SIZE - BADGE_MARGIN}
-            y={frame.y + frame.height - BADGE_SIZE - BADGE_MARGIN}
-            width={BADGE_SIZE}
-            height={BADGE_SIZE}
-            stroke="#fff"
+            x={frame.x}
+            y={processedY}
+            width={frame.width}
+            height={frame.height}
+            stroke={PROCESSED_BORDER_COLOR}
             strokeWidth={1}
-            cornerRadius={3}
             listening={false}
           />
+          <Label x={frame.x} y={processedY - LABEL_HEIGHT} listening={false}>
+            <Tag fill={PROCESSED_BORDER_COLOR} cornerRadius={3} />
+            <Text text="Processed" fontSize={11} fill={contrastText(PROCESSED_BORDER_COLOR)} padding={4} listening={false} />
+          </Label>
         </>
       )}
     </>

@@ -4,6 +4,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 
 const FRAME_GAP = 48;
+export const PROCESSED_GAP = 8;
 
 export interface ControlFramePosition {
   unitIndex: number;
@@ -11,6 +12,7 @@ export interface ControlFramePosition {
   y: number;
   width: number;
   height: number;
+  hasProcessed: boolean;
 }
 
 export interface CanvasLayout {
@@ -49,18 +51,23 @@ export function useControlFrameLayout(): CanvasLayout {
       y: 0,
       width: frameW,
       height: frameH,
+      hasProcessed: !!entry.unit.processedImage,
     }));
 
     const minX = controlFrames.length > 0
       ? controlFrames[controlFrames.length - 1].x
       : 0;
 
+    // If any control frame has a processed image, extend maxY to include the second row
+    const anyProcessed = controlFrames.some((f) => f.hasProcessed);
+    const maxY = anyProcessed ? frameH + PROCESSED_GAP + frameH : frameH;
+
     return {
       showInputFrame: isImg2Img,
       inputX,
       outputX,
       controlFrames,
-      totalBounds: { minX, maxX: mainMaxX, maxY: frameH },
+      totalBounds: { minX, maxX: mainMaxX, maxY },
     };
   }, [units, frameW, frameH, generationMode]);
 }

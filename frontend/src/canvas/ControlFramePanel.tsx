@@ -33,19 +33,19 @@ export function ControlFramePanel({ layout }: ControlFramePanelProps) {
   }, [selectedControlFrame, setSelectedControlFrame]);
 
   // Compute screen position from canvas frame position + viewport
+  // Panel sits above the frame, anchored by its bottom edge
   const style = useMemo(() => {
     if (selectedControlFrame === null) return null;
     const frame = layout.controlFrames.find((f) => f.unitIndex === selectedControlFrame);
     if (!frame) return null;
 
-    // Center below the frame
     const screenCenterX = (frame.x + frame.width / 2) * viewport.scale + viewport.x;
-    const screenBottomY = (frame.y + frame.height) * viewport.scale + viewport.y + PANEL_GAP;
+    const screenTopY = frame.y * viewport.scale + viewport.y - PANEL_GAP;
 
     return {
       position: "absolute" as const,
       left: `${screenCenterX - PANEL_WIDTH / 2}px`,
-      top: `${screenBottomY}px`,
+      bottom: `calc(100% - ${screenTopY}px)`,
       width: `${PANEL_WIDTH}px`,
       maxHeight: `${PANEL_MAX_HEIGHT}px`,
     };

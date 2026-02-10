@@ -1,4 +1,4 @@
-import { useCallback, useRef, memo } from "react";
+import { useCallback, useRef, memo, useState } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
@@ -18,9 +18,12 @@ export const CanvasView = memo(function CanvasView() {
   const clearMask = useImg2ImgStore((s) => s.clearMask);
   const viewport = useCanvasStore((s) => s.viewport);
   const setUnitImage = useControlStore((s) => s.setUnitImage);
+  const setUnitParam = useControlStore((s) => s.setUnitParam);
   const generationMode = useUiStore((s) => s.generationMode);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const controlFileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [pendingUnitIndex, setPendingUnitIndex] = useState<number | null>(null);
 
   const layout = useControlFrameLayout();
   const isImg2Img = generationMode === "img2img";
@@ -107,6 +110,21 @@ export const CanvasView = memo(function CanvasView() {
     fileInputRef.current?.click();
   }, []);
 
+  const handlePickControlImage = useCallback((unitIndex: number) => {
+    setPendingUnitIndex(unitIndex);
+    controlFileInputRef.current?.click();
+  }, []);
+
+  const handleControlFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && pendingUnitIndex !== null) {
+      setUnitImage(pendingUnitIndex, file);
+      setUnitParam(pendingUnitIndex, "processedImage", null);
+    }
+    e.target.value = "";
+    setPendingUnitIndex(null);
+  }, [pendingUnitIndex, setUnitImage, setUnitParam]);
+
   return (
     <div
       ref={containerRef}
@@ -116,7 +134,7 @@ export const CanvasView = memo(function CanvasView() {
       onPaste={handlePaste}
       tabIndex={0}
     >
-      <CanvasStage layout={layout} />
+      <CanvasStage layout={layout} onPickImage={handlePickControlImage} />
 
       {/* Top-right utility buttons */}
       <div className="absolute top-2 right-2 flex items-center gap-1">
@@ -169,6 +187,15 @@ export const CanvasView = memo(function CanvasView() {
           className="hidden"
         />
       )}
+
+      {/* Hidden file input for control units */}
+      <input
+        ref={controlFileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleControlFileInput}
+        className="hidden"
+      />
     </div>
   );
 });

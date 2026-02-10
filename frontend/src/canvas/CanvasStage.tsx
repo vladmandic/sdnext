@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { Stage } from "react-konva";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
@@ -18,9 +18,10 @@ const LABEL_HEIGHT = 19;
 
 interface CanvasStageProps {
   layout: CanvasLayout;
+  onPickImage?: (unitIndex: number) => void;
 }
 
-export function CanvasStage({ layout }: CanvasStageProps) {
+export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -53,46 +54,23 @@ export function CanvasStage({ layout }: CanvasStageProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Fit viewport to show all frames — reads containerSize from ref to avoid
-  // re-triggering on minor container resizes (e.g. scrollbar from floating panel).
-  const containerSizeRef = useRef(containerSize);
-  useEffect(() => { containerSizeRef.current = containerSize; }, [containerSize]);
-
-  const fitToView = useCallback(() => {
-    const cs = containerSizeRef.current;
+  // Fit viewport to show all frames — only runs once on initial render
+  const hasFittedRef = useRef(false);
+  useEffect(() => {
+    if (hasFittedRef.current) return;
     if (frameW <= 0 || frameH <= 0) return;
-    if (cs.width <= 0 || cs.height <= 0) return;
+    if (containerSize.width <= 0 || containerSize.height <= 0) return;
+    hasFittedRef.current = true;
 
     const totalWidth = totalBounds.maxX - totalBounds.minX;
     const totalHeight = LABEL_HEIGHT + totalBounds.maxY;
-    const availW = cs.width - PADDING * 2;
-    const availH = cs.height - PADDING * 2;
+    const availW = containerSize.width - PADDING * 2;
+    const availH = containerSize.height - PADDING * 2;
     const scale = Math.min(availW / totalWidth, availH / totalHeight, 1);
-    const x = (cs.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
-    const y = (cs.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
+    const x = (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
+    const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
     setViewport({ x, y, scale });
-  }, [frameW, frameH, totalBounds, setViewport]);
-
-  // Stable key for the logical layout — only refit when this changes.
-  const layoutKey = useMemo(
-    () => `${frameW},${frameH},${totalBounds.minX},${totalBounds.maxX},${totalBounds.maxY}`,
-    [frameW, frameH, totalBounds],
-  );
-
-  // Auto-fit on genuine layout changes (frame dimensions, control frame count).
-  // Also fit when container first gets a nonzero size (initial render).
-  const prevLayoutKeyRef = useRef("");
-  const hadSizeRef = useRef(false);
-  useEffect(() => {
-    const hasSize = containerSize.width > 0 && containerSize.height > 0;
-    const layoutChanged = layoutKey !== prevLayoutKeyRef.current;
-    const firstSize = hasSize && !hadSizeRef.current;
-    if (hasSize) hadSizeRef.current = true;
-    if (layoutChanged || firstSize) {
-      prevLayoutKeyRef.current = layoutKey;
-      fitToView();
-    }
-  }, [layoutKey, containerSize, fitToView]);
+  }, [containerSize, frameW, frameH, totalBounds, setViewport]);
 
   // Compose event handlers: maskPaint first, then panZoom
   const onMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
@@ -137,7 +115,7 @@ export function CanvasStage({ layout }: CanvasStageProps) {
           onMouseLeave={showInputFrame ? maskPaint.onMouseLeave : undefined}
           onClick={onClick}
         >
-          <ControlFrameLayer frames={controlFrames} />
+          <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
           {showInputFrame && <CompositeLayer trRef={trRef} />}
           {showInputFrame && <FrameLayer />}
           {showInputFrame && <MaskLayer setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />}
