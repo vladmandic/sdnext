@@ -21,10 +21,6 @@ export function ModelSelector() {
   const currentModel = (options?.sd_model_checkpoint as string) ?? "No model loaded";
 
   async function handleSelect(title: string) {
-    if (title === currentModel) {
-      setOpen(false);
-      return;
-    }
     setOpen(false);
     setModelLoading(true);
     try {

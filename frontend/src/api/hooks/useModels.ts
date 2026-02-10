@@ -38,7 +38,7 @@ export function useLoadModel() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (checkpoint: string) =>
-      api.post("/sdapi/v1/options", { sd_model_checkpoint: checkpoint }),
+      api.post(`/sdapi/v1/checkpoint?sd_model_checkpoint=${encodeURIComponent(checkpoint)}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["options"] });
     },

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -12,7 +12,14 @@ interface ImageUploadProps {
 export function ImageUpload({ image, onImageChange, label = "Drop image", compact = false }: ImageUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [preview, setPreview] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string | null>(() => (image ? URL.createObjectURL(image) : null));
+
+  // Revoke object URL on unmount
+  useEffect(() => {
+    return () => {
+      if (preview) URL.revokeObjectURL(preview);
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- cleanup only on unmount
 
   const handleFile = useCallback((file: File | null) => {
     if (preview) URL.revokeObjectURL(preview);

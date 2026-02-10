@@ -83,6 +83,7 @@ class Api:
         self.add_api_route("/sdapi/v1/sd-models", endpoints.get_sd_models, methods=["GET"], response_model=list[models.ItemModel])
         self.add_api_route("/sdapi/v1/controlnets", endpoints.get_controlnets, methods=["GET"], response_model=list[str])
         self.add_api_route("/sdapi/v1/control-models", endpoints.get_control_models, methods=["GET"], response_model=list[str])
+        self.add_api_route("/sdapi/v1/control-modes", endpoints.get_control_modes, methods=["GET"])
         self.add_api_route("/sdapi/v1/ip-adapters", endpoints.get_ip_adapters, methods=["GET"], response_model=list[str])
         self.add_api_route("/sdapi/v1/face-restorers", endpoints.get_restorers, methods=["GET"], response_model=list[models.ItemDetailer])
         self.add_api_route("/sdapi/v1/detailers", endpoints.get_detailers, methods=["GET"], response_model=list[models.ItemDetailer])

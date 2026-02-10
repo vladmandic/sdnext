@@ -250,13 +250,14 @@ def get_options_info():
 
 def get_server_info():
     from modules import devices
+    from modules.sd_models import model_data
     ver = shared.get_version()
     model_name = None
     model_type = None
     if hasattr(shared.opts, 'sd_model_checkpoint'):
         model_name = shared.opts.sd_model_checkpoint
-    if shared.sd_model is not None:
-        model_type = type(shared.sd_model).__name__
+    if model_data.sd_model is not None:
+        model_type = type(model_data.sd_model).__name__
     return {
         "version": ver,
         "backend": shared.backend.name if hasattr(shared.backend, 'name') else str(shared.backend),

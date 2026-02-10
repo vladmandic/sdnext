@@ -5,10 +5,12 @@ export interface ControlUnit {
   unitType: ControlUnitType;
   processor: string;
   model: string;
+  mode: string;
   strength: number;
   start: number;
   end: number;
   image: File | null;
+  processedImage: string | null;
   // ControlNet-specific
   guess: boolean;
   // T2I-Adapter-specific

@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useControlStore } from "@/stores/controlStore";
-import { useControlModels, usePreprocessors } from "@/api/hooks/useControl";
+import { useControlModels, useControlModes, usePreprocessImage, usePreprocessors } from "@/api/hooks/useControl";
 import { useIPAdapterModels } from "@/api/hooks/useAdapters";
+import { fileToBase64 } from "@/lib/image";
 import { ParamSlider } from "../../ParamSlider";
 import { ParamSection } from "../../ParamSection";
 import { ImageUpload } from "../../ImageUpload";
@@ -9,8 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, X } from "lucide-react";
+import { Trash2, X, Play, Loader2 } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
+import { toast } from "sonner";
 import type { ControlUnitType } from "@/api/types/control";
 
 const UNIT_TYPE_OPTIONS: { value: ControlUnitType; label: string }[] = [
@@ -39,8 +41,33 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
   const addUnitMask = useControlStore((s) => s.addUnitMask);
   const removeUnitMask = useControlStore((s) => s.removeUnitMask);
   const { data: models } = useControlModels(unit.unitType);
+  const { data: controlModes } = useControlModes();
   const { data: preprocessors } = usePreprocessors();
   const { data: adapterModels } = useIPAdapterModels();
+  const preprocessMutation = usePreprocessImage();
+
+  const handleProcess = useCallback(async () => {
+    if (!unit.image || unit.processor === "None") return;
+    try {
+      const b64 = await fileToBase64(unit.image);
+      const result = await preprocessMutation.mutateAsync({ image: b64, model: unit.processor });
+      setUnitParam(index, "processedImage", `data:image/png;base64,${result.image}`);
+    } catch (err) {
+      toast.error("Preprocessing failed", { description: err instanceof Error ? err.message : String(err) });
+    }
+  }, [unit.image, unit.processor, preprocessMutation, setUnitParam, index]);
+
+  // Find modes for the currently selected model by matching against known mode keys
+  const modesForModel = useMemo(() => {
+    if (!controlModes || unit.model === "None") return null;
+    // Exact match first
+    if (controlModes[unit.model]) return controlModes[unit.model];
+    // Substring match: model key might be a substring of the selected model name
+    for (const [key, modes] of Object.entries(controlModes)) {
+      if (unit.model.toLowerCase().includes(key.toLowerCase())) return modes;
+    }
+    return null;
+  }, [controlModes, unit.model]);
 
   const type = unit.unitType;
   const showProcessor = type !== "reference" && type !== "ip" && type !== "asset";
@@ -82,7 +109,7 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Processor</Label>
           <Combobox
             value={unit.processor}
-            onValueChange={(v) => setUnitParam(index, "processor", v)}
+            onValueChange={(v) => { setUnitParam(index, "processor", v); setUnitParam(index, "processedImage", null); }}
             options={["None", ...(preprocessors?.filter((p) => p.name !== "None").map((p) => p.name) ?? [])]}
             className="h-7 text-xs flex-1"
           />
@@ -97,6 +124,19 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
             value={unit.model}
             onValueChange={(v) => setUnitParam(index, "model", v)}
             options={["None", ...(models ?? [])]}
+            className="h-7 text-xs flex-1"
+          />
+        </div>
+      )}
+
+      {/* Mode: shown when model has modes (e.g. union/promax ControlNets) */}
+      {showModel && modesForModel && modesForModel.length > 0 && (
+        <div className="flex items-center gap-2">
+          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Mode</Label>
+          <Combobox
+            value={unit.mode}
+            onValueChange={(v) => setUnitParam(index, "mode", v)}
+            options={modesForModel}
             className="h-7 text-xs flex-1"
           />
         </div>
@@ -169,13 +209,47 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
       {/* Control Image: all types except IP-Adapter */}
       {showControlImage && (
         <div className="flex flex-col gap-1">
-          <Label className="text-[11px] text-muted-foreground">Control Image</Label>
-          <ImageUpload
-            image={unit.image}
-            onImageChange={(file) => setUnitImage(index, file)}
-            label="Drop control image"
-            compact
-          />
+          <div className="flex items-center justify-between">
+            <Label className="text-[11px] text-muted-foreground">Control Image</Label>
+            {showProcessor && unit.image && unit.processor !== "None" && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-6 text-[11px] px-2 gap-1"
+                onClick={handleProcess}
+                disabled={preprocessMutation.isPending}
+              >
+                {preprocessMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
+                Process
+              </Button>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <div className="flex-1">
+              <ImageUpload
+                image={unit.image}
+                onImageChange={(file) => {
+                  setUnitImage(index, file);
+                  setUnitParam(index, "processedImage", null);
+                }}
+                label="Drop control image"
+                compact
+              />
+            </div>
+            {unit.processedImage && (
+              <div className="relative flex-1 h-20 rounded-md overflow-hidden border border-border group">
+                <img src={unit.processedImage} alt="Processed" className="w-full h-full object-cover" />
+                <Button
+                  variant="destructive"
+                  size="icon-sm"
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5"
+                  onClick={() => setUnitParam(index, "processedImage", null)}
+                >
+                  <X size={10} />
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
