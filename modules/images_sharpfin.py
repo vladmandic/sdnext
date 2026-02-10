@@ -10,27 +10,15 @@ All public functions include try/except fallback to PIL/torchvision.
 import torch
 import numpy as np
 from PIL import Image
+from installer import log
 
 _sharpfin_checked = False
 _sharpfin_ok = False
 _triton_ok = False
-_log = None
-
-
-def _get_log():
-    global _log
-    if _log is None:
-        try:
-            from modules.shared import log
-            _log = log
-        except Exception:
-            import logging
-            _log = logging.getLogger(__name__)
-    return _log
 
 
 def _check():
-    global _sharpfin_checked, _sharpfin_ok, _triton_ok
+    global _sharpfin_checked, _sharpfin_ok, _triton_ok  # pylint: disable=global-statement
     if not _sharpfin_checked:
         # DEBUG: no try/except — let import errors propagate
         from modules.sharpfin.functional import scale  # pylint: disable=unused-import
@@ -41,12 +29,6 @@ def _check():
         except Exception:
             _triton_ok = False
         _sharpfin_checked = True
-
-
-def is_available():
-    """Check if sharpfin functional module loaded."""
-    _check()
-    return _sharpfin_ok
 
 
 KERNEL_MAP = {
@@ -62,11 +44,8 @@ def _resolve_kernel(kernel=None):
     if kernel is not None:
         name = kernel
     else:
-        try:
-            from modules import shared
-            name = getattr(shared.opts, 'resize_quality', 'Sharpfin MKS2021')
-        except Exception:
-            name = 'Sharpfin MKS2021'
+        from modules import shared
+        name = shared.opts.resize_quality
     if name == "PIL Lanczos" or name not in KERNEL_MAP:
         return None
     from modules.sharpfin.util import ResizeKernel
@@ -79,25 +58,28 @@ def _resolve_linearize(linearize=None, is_mask=False):
         return False
     if linearize is not None:
         return linearize
-    try:
-        from modules import shared
-        return getattr(shared.opts, 'resize_linearize_srgb', True)
-    except Exception:
-        return True
+    from modules import shared
+    return shared.opts.resize_linearize_srgb
 
 
 def _get_device_dtype(device=None, dtype=None):
-    """Get optimal device/dtype for sharpfin operations."""
-    if device is not None and dtype is not None:
-        return device, dtype
-    try:
+    """Get device/dtype for sharpfin operations."""
+    from modules import devices
+    dev = device if device is not None else devices.device
+    if dtype is not None:
+        return dev, dtype
+    # float16 for CUDA (efficient), float32 for CPU/other (accurate)
+    return dev, torch.float16 if dev.type == 'cuda' else torch.float32
+
+
+def _should_use_sharpfin(device=None):
+    """Determine if sharpfin should be used based on device."""
+    if device is None:
         from modules import devices
-        dev = device or devices.device
-        if dev.type == 'cuda':
-            return dev, dtype or torch.float16
-        return dev, dtype or torch.float32
-    except Exception:
-        return device or torch.device('cpu'), dtype or torch.float32
+        device = devices.device
+    # Sharpfin is optimized for CUDA with Triton
+    # For other devices (CPU, MPS, OpenVINO), use torch/PIL optimized kernels
+    return hasattr(device, 'type') and device.type == 'cuda'
 
 
 def resize(image, target_size, *, kernel=None, linearize=None, device=None, dtype=None):
@@ -134,7 +116,7 @@ def _scale_pil(scale_fn, tensor, out_res, rk, dev, dt, do_linear, src_h, src_w, 
                 return scale_fn(tensor, out_res, resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=True)
             except Exception:
                 _triton_ok = False
-                _get_log().info("Sharpfin: Triton sparse disabled, using dense path")
+                log.info("Sharpfin: Triton sparse disabled, using dense path")
         return scale_fn(tensor, out_res, resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=False)
     # Mixed axis: split into two single-axis resizes
     if h > src_h:  # H up, W down
@@ -145,7 +127,7 @@ def _scale_pil(scale_fn, tensor, out_res, rk, dev, dt, do_linear, src_h, src_w, 
                 return scale_fn(intermediate, (h, w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=True)
             except Exception:
                 _triton_ok = False
-                _get_log().info("Sharpfin: Triton sparse disabled, using dense path")
+                log.info("Sharpfin: Triton sparse disabled, using dense path")
         return scale_fn(intermediate, (h, w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=False)
     # H down, W up
     use_sparse = _want_sparse(dev, rk, True)
@@ -155,7 +137,7 @@ def _scale_pil(scale_fn, tensor, out_res, rk, dev, dt, do_linear, src_h, src_w, 
             return scale_fn(intermediate, (h, w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=False)
         except Exception:
             _triton_ok = False
-            _get_log().info("Sharpfin: Triton sparse disabled, using dense path")
+            log.info("Sharpfin: Triton sparse disabled, using dense path")
     intermediate = scale_fn(tensor, (h, src_w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=False)
     return scale_fn(intermediate, (h, w), resize_kernel=rk, device=dev, dtype=dt, do_srgb_conversion=do_linear, use_sparse=False)
 
@@ -165,16 +147,17 @@ def _resize_pil(image, target_size, *, kernel=None, linearize=None, device=None,
     w, h = target_size
     if image.width == w and image.height == h:
         return image
+    dev, dt = _get_device_dtype(device, dtype)
+    # Non-CUDA: use PIL (torchvision has optimized kernels for these devices)
+    if not _should_use_sharpfin(dev):
+        return image.resize((w, h), resample=Image.Resampling.LANCZOS)
     is_mask = image.mode == 'L'
     rk = _resolve_kernel(kernel)
     if rk is None:
-        # DEBUG: only "PIL Lanczos" setting should reach here
-        assert _resolve_kernel.__doc__, "unreachable"  # keeps linter happy
         return image.resize((w, h), resample=Image.Resampling.LANCZOS)
     try:
         from modules.sharpfin.functional import scale
         do_linear = _resolve_linearize(linearize, is_mask=is_mask)
-        dev, dt = _get_device_dtype(device, dtype)
         tensor = to_tensor(image)
         if tensor.dim() == 3:
             tensor = tensor.unsqueeze(0)
@@ -202,11 +185,19 @@ def resize_tensor(tensor, target_size, *, kernel=None, linearize=False):
         linearize: sRGB linearization (default False for latent/mask data)
     """
     _check()
+    dev, dt = _get_device_dtype()
+    # Non-CUDA: use F.interpolate (has optimized kernels for CPU/MPS/etc)
+    if not _should_use_sharpfin(dev):
+        mode = 'bilinear' if target_size[0] * target_size[1] > tensor.shape[-2] * tensor.shape[-1] else 'area'
+        inp = tensor if tensor.dim() == 4 else tensor.unsqueeze(0)
+        result = torch.nn.functional.interpolate(inp, size=target_size, mode=mode, antialias=True)
+        return result.squeeze(0) if tensor.dim() == 3 else result
     rk = _resolve_kernel(kernel)
     if rk is None:
-        # DEBUG: only "PIL Lanczos" setting should reach here
         mode = 'bilinear' if target_size[0] * target_size[1] > tensor.shape[-2] * tensor.shape[-1] else 'area'
-        return torch.nn.functional.interpolate(tensor if tensor.dim() == 4 else tensor.unsqueeze(0), size=target_size, mode=mode, antialias=True).squeeze(0) if tensor.dim() == 3 else torch.nn.functional.interpolate(tensor, size=target_size, mode=mode, antialias=True)
+        inp = tensor if tensor.dim() == 4 else tensor.unsqueeze(0)
+        result = torch.nn.functional.interpolate(inp, size=target_size, mode=mode, antialias=True)
+        return result.squeeze(0) if tensor.dim() == 3 else result
     try:
         from modules.sharpfin.functional import scale
         dev, dt = _get_device_dtype()
@@ -270,8 +261,13 @@ def to_pil(tensor):
         tensor = (tensor.clamp(0, 1) * 255).round().to(torch.uint8)
     ndarr = tensor.permute(1, 2, 0).numpy()
     if ndarr.shape[2] == 1:
-        return Image.fromarray(ndarr[:, :, 0], mode='L')
-    return Image.fromarray(ndarr)
+        ndarr = ndarr[:, :, 0]
+        mode = 'L'
+    elif ndarr.shape[2] == 3:
+        mode = 'RGB'
+    else:
+        mode = 'RGBA'
+    return Image.fromarray(ndarr, mode=mode)
 
 
 def pil_to_tensor(image):

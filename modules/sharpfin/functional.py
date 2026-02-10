@@ -10,6 +10,7 @@ import torch.nn.functional as F
 from typing import Callable, Tuple
 import math
 from contextlib import nullcontext
+from functools import partial
 
 from .util import ResizeKernel, linear_to_srgb, srgb_to_linear
 
@@ -29,16 +30,16 @@ def _get_resize_kernel(k: ResizeKernel):
             resize_kernel = mitchell # B = 1/3, C = 1/3
             kernel_window = 2.
         case ResizeKernel.CATMULL_ROM:
-            resize_kernel = lambda x: mitchell(x, 0.0, 0.5)
+            resize_kernel = partial(mitchell, B=0.0, C=0.5)
             kernel_window = 2.
         case ResizeKernel.B_SPLINE:
-            resize_kernel = lambda x: mitchell(x, 1.0, 0.0)
+            resize_kernel = partial(mitchell, B=1.0, C=0.0)
             kernel_window = 2.
         case ResizeKernel.LANCZOS2:
-            resize_kernel = lambda x: lanczos(x, 2)
+            resize_kernel = partial(lanczos, n=2)
             kernel_window = 2.
         case ResizeKernel.LANCZOS3:
-            resize_kernel = lambda x: lanczos(x, 3)
+            resize_kernel = partial(lanczos, n=3)
             kernel_window = 3.
         case ResizeKernel.MAGIC_KERNEL:
             resize_kernel = magic_kernel
