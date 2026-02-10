@@ -75,6 +75,7 @@ interface GenerationState {
   hiresForce: boolean;
   hiresResizeX: number;
   hiresResizeY: number;
+  hiresResizeContext: string;
 
   // Refiner
   refinerStart: number;
@@ -200,6 +201,7 @@ const defaultParams = {
   hiresForce: false,
   hiresResizeX: 0,
   hiresResizeY: 0,
+  hiresResizeContext: "None",
   refinerStart: 0,
   refinerSteps: 0,
   refinerPrompt: "",

@@ -70,3 +70,22 @@ export const DEFAULT_GENERATION_PARAMS = {
 export const ZOOM_LIMITS = { min: 0.1, max: 16 };
 
 export const RESIZE_MODES = ["None", "Fixed", "Crop", "Fill", "Outpaint", "Context aware"];
+
+/** Hires fix resize modes with numeric values for API */
+export const HIRES_RESIZE_MODES = [
+  { value: "0", label: "None" },
+  { value: "1", label: "Fixed" },
+  { value: "2", label: "Crop" },
+  { value: "3", label: "Fill" },
+  { value: "4", label: "Outpaint" },
+  { value: "5", label: "Context aware" },
+] as const;
+
+/** Context modes for context-aware hires resize */
+export const HIRES_CONTEXT_MODES = [
+  { value: "None", label: "None" },
+  { value: "Add with forward", label: "Add with forward" },
+  { value: "Remove with forward", label: "Remove with forward" },
+  { value: "Add with backward", label: "Add with backward" },
+  { value: "Remove with backward", label: "Remove with backward" },
+] as const;

@@ -44,6 +44,7 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     hr_resize_mode: gen.hiresResizeMode,
     hr_resize_x: gen.hiresResizeX,
     hr_resize_y: gen.hiresResizeY,
+    hr_resize_context: gen.hiresResizeContext,
     refiner_steps: gen.refinerSteps,
     refiner_start: gen.refinerStart,
     refiner_prompt: gen.refinerPrompt || undefined,
@@ -267,6 +268,7 @@ export function restoreFromResult(result: GenerationResult): void {
     hiresResizeMode: num(p.hr_resize_mode, 0),
     hiresResizeX: num(p.hr_resize_x, 0),
     hiresResizeY: num(p.hr_resize_y, 0),
+    hiresResizeContext: str(p.hr_resize_context, "None"),
 
     // Refiner
     refinerSteps: num(p.refiner_steps, 0),

@@ -27,6 +27,7 @@ export interface Txt2ImgRequest {
   subseed_strength?: number;
   hr_force?: boolean;
   hr_resize_mode?: number;
+  hr_resize_context?: string;
   refiner_steps?: number;
   refiner_start?: number;
   refiner_prompt?: string;
