@@ -59,8 +59,6 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
     };
   }, []);
 
-  if (offsetX <= 0) return null;
-
   // Use displaySrc (synchronous) alongside image state so clearing is immediate
   const hasImage = !!displaySrc && !!image;
   const isLivePreview = isGenerating && !!previewImage;

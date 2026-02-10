@@ -1,16 +1,14 @@
 import { useUiStore } from "@/stores/uiStore";
-import { GenerateView } from "@/components/generation/GenerateView";
-import { Img2ImgView } from "@/components/generation/Img2ImgView";
+import { CanvasView } from "@/components/generation/CanvasView";
 import { GalleryView } from "@/components/gallery/GalleryView";
 import { CaptionView } from "@/components/caption/CaptionView";
 
 export function MainContent() {
   const activeView = useUiStore((s) => s.activeSidebarView);
-  const generationMode = useUiStore((s) => s.generationMode);
 
   switch (activeView) {
     case "images":
-      return generationMode === "img2img" ? <Img2ImgView /> : <GenerateView />;
+      return <CanvasView />;
     case "gallery":
       return <GalleryView />;
     case "video":
@@ -20,7 +18,7 @@ export function MainContent() {
     case "caption":
       return <CaptionView />;
     default:
-      return <GenerateView />;
+      return <CanvasView />;
   }
 }
 

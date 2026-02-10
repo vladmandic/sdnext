@@ -11,6 +11,7 @@ function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
     strength: 1.0,
     start: 0,
     end: 1,
+    useSeparateImage: false,
     image: null,
     processedImage: null,
     guess: false,
@@ -38,6 +39,7 @@ interface ControlState {
   setUnitType: (index: number, unitType: ControlUnitType) => void;
   addUnitImage: (index: number, file: File) => void;
   removeUnitImage: (index: number, imageIdx: number) => void;
+  toggleSeparateImage: (index: number) => void;
   addUnitMask: (index: number, file: File) => void;
   removeUnitMask: (index: number, maskIdx: number) => void;
   reset: () => void;
@@ -87,6 +89,19 @@ export const useControlStore = create<ControlState>()((set) => ({
       const units = [...state.units];
       const old = units[index];
       units[index] = { ...defaultUnit(unitType), enabled: old.enabled, image: old.image, images: old.images, masks: old.masks };
+      return { units };
+    }),
+
+  toggleSeparateImage: (index) =>
+    set((state) => {
+      const units = [...state.units];
+      const current = units[index].useSeparateImage;
+      units[index] = {
+        ...units[index],
+        useSeparateImage: !current,
+        // Clear image data when toggling OFF
+        ...(!current ? {} : { image: null, processedImage: null }),
+      };
       return { units };
     }),
 

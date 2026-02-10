@@ -9,29 +9,32 @@ import { FrameLayer } from "./layers/FrameLayer";
 import { CompositeLayer } from "./layers/CompositeLayer";
 import { MaskLayer } from "./layers/MaskLayer";
 import { OutputLayer } from "./layers/OutputLayer";
+import { ControlFrameLayer } from "./layers/ControlFrameLayer";
+import type { CanvasLayout } from "./useControlFrameLayout";
 import type Konva from "konva";
 
 const PADDING = 32;
-const OUTPUT_GAP = 48;
-const LABEL_HEIGHT = 19; // space reserved above images for labels
+const LABEL_HEIGHT = 19;
 
-export function CanvasStage() {
+interface CanvasStageProps {
+  layout: CanvasLayout;
+}
+
+export function CanvasStage({ layout }: CanvasStageProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<Konva.Stage>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
   const viewport = useCanvasStore((s) => s.viewport);
   const setViewport = useCanvasStore((s) => s.setViewport);
+  const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
   const panZoom = usePanZoom(stageRef);
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
   const imageTransform = useImageTransform(stageRef, trRef);
 
-  // Side-by-side derived values
-  const outputOffsetX = frameW + OUTPUT_GAP;
-  const outputW = frameW;
-  const outputH = frameH;
+  const { showInputFrame, outputX, controlFrames, totalBounds } = layout;
 
   // Container-responsive sizing
   useEffect(() => {
@@ -50,45 +53,50 @@ export function CanvasStage() {
     return () => ro.disconnect();
   }, []);
 
-  // Auto-fit frame + output pair to viewport
+  // Auto-fit all frames (input + output + control) to viewport
   const fitToView = useCallback(() => {
     if (frameW <= 0 || frameH <= 0) return;
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
 
-    const totalWidth = frameW + OUTPUT_GAP + outputW;
-    const totalHeight = LABEL_HEIGHT + Math.max(frameH, outputH);
+    const totalWidth = totalBounds.maxX - totalBounds.minX;
+    const totalHeight = LABEL_HEIGHT + totalBounds.maxY;
     const availW = containerSize.width - PADDING * 2;
     const availH = containerSize.height - PADDING * 2;
     const scale = Math.min(availW / totalWidth, availH / totalHeight, 1);
-    const x = (containerSize.width - totalWidth * scale) / 2;
+    const x = (containerSize.width - totalWidth * scale) / 2 - totalBounds.minX * scale;
     const y = (containerSize.height - totalHeight * scale) / 2 + LABEL_HEIGHT * scale;
     setViewport({ x, y, scale });
-  }, [frameW, frameH, outputW, outputH, containerSize, setViewport]);
+  }, [frameW, frameH, totalBounds, containerSize, setViewport]);
 
-  // Fit on frame change or container resize
+  // Fit on layout change or container resize
   useEffect(() => {
     fitToView();
   }, [fitToView]);
 
   // Compose event handlers: maskPaint first, then panZoom
   const onMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    maskPaint.onMouseDown(e);
+    if (showInputFrame) maskPaint.onMouseDown(e);
     panZoom.onMouseDown(e);
-  }, [maskPaint, panZoom]);
+  }, [showInputFrame, maskPaint, panZoom]);
 
   const onMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    maskPaint.onMouseMove(e);
+    if (showInputFrame) maskPaint.onMouseMove(e);
     panZoom.onMouseMove(e);
-  }, [maskPaint, panZoom]);
+  }, [showInputFrame, maskPaint, panZoom]);
 
   const onMouseUp = useCallback(() => {
-    maskPaint.onMouseUp();
+    if (showInputFrame) maskPaint.onMouseUp();
     panZoom.onMouseUp();
-  }, [maskPaint, panZoom]);
+  }, [showInputFrame, maskPaint, panZoom]);
 
   const onClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    imageTransform.onStageClick(e);
-  }, [imageTransform]);
+    if (showInputFrame) imageTransform.onStageClick(e);
+    // Clear selected control frame if click was not on a control frame rect
+    const target = e.target;
+    if (target.name() !== "controlFrame") {
+      setSelectedControlFrame(null);
+    }
+  }, [showInputFrame, imageTransform, setSelectedControlFrame]);
 
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden">
@@ -105,13 +113,14 @@ export function CanvasStage() {
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
-          onMouseLeave={maskPaint.onMouseLeave}
+          onMouseLeave={showInputFrame ? maskPaint.onMouseLeave : undefined}
           onClick={onClick}
         >
-          <CompositeLayer trRef={trRef} />
-          <FrameLayer />
-          <MaskLayer setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />
-          <OutputLayer offsetX={outputOffsetX} placeholderWidth={outputW} placeholderHeight={outputH} />
+          <ControlFrameLayer frames={controlFrames} />
+          {showInputFrame && <CompositeLayer trRef={trRef} />}
+          {showInputFrame && <FrameLayer />}
+          {showInputFrame && <MaskLayer setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />}
+          <OutputLayer offsetX={outputX} placeholderWidth={frameW} placeholderHeight={frameH} />
         </Stage>
       )}
     </div>

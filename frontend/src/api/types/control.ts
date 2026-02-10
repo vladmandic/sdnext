@@ -9,6 +9,7 @@ export interface ControlUnit {
   strength: number;
   start: number;
   end: number;
+  useSeparateImage: boolean;
   image: File | null;
   processedImage: string | null;
   // ControlNet-specific

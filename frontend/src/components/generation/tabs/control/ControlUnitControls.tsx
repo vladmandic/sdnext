@@ -10,32 +10,19 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Trash2, X, Play, Loader2 } from "lucide-react";
+import { X, Play, Loader2 } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
 import { toast } from "sonner";
-import type { ControlUnitType } from "@/api/types/control";
 
-const UNIT_TYPE_OPTIONS: { value: ControlUnitType; label: string }[] = [
-  { value: "asset", label: "Asset" },
-  { value: "controlnet", label: "ControlNet" },
-  { value: "t2i", label: "T2I-Adapter" },
-  { value: "xs", label: "XS" },
-  { value: "lite", label: "Lite" },
-  { value: "reference", label: "Reference" },
-  { value: "ip", label: "IP-Adapter" },
-];
-
-interface ControlUnitCardProps {
+interface ControlUnitControlsProps {
   index: number;
-  canRemove: boolean;
+  compact?: boolean;
 }
 
-export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
+export function ControlUnitControls({ index, compact }: ControlUnitControlsProps) {
   const unit = useControlStore((s) => s.units[index]);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const setUnitImage = useControlStore((s) => s.setUnitImage);
-  const setUnitType = useControlStore((s) => s.setUnitType);
-  const removeUnit = useControlStore((s) => s.removeUnit);
   const addUnitImage = useControlStore((s) => s.addUnitImage);
   const removeUnitImage = useControlStore((s) => s.removeUnitImage);
   const addUnitMask = useControlStore((s) => s.addUnitMask);
@@ -57,12 +44,9 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
     }
   }, [unit.image, unit.processor, preprocessMutation, setUnitParam, index]);
 
-  // Find modes for the currently selected model by matching against known mode keys
   const modesForModel = useMemo(() => {
     if (!controlModes || unit.model === "None") return null;
-    // Exact match first
     if (controlModes[unit.model]) return controlModes[unit.model];
-    // Substring match: model key might be a substring of the selected model name
     for (const [key, modes] of Object.entries(controlModes)) {
       if (unit.model.toLowerCase().includes(key.toLowerCase())) return modes;
     }
@@ -82,28 +66,11 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
   const imagePreviews = useMemo(() => unit.images.map((f) => URL.createObjectURL(f)), [unit.images]);
   const maskPreviews = useMemo(() => unit.masks.map((f) => URL.createObjectURL(f)), [unit.masks]);
 
-  return (
-    <div className="flex flex-col gap-2 p-2 rounded-md border border-border">
-      {/* Header: Type + Enabled + Remove */}
-      <div className="flex items-center justify-between gap-2">
-        <Combobox
-          value={unit.unitType}
-          onValueChange={(v) => setUnitType(index, v as ControlUnitType)}
-          options={UNIT_TYPE_OPTIONS}
-          className="h-7 text-xs w-28 flex-shrink-0"
-        />
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground">Enabled</Label>
-          <Switch checked={unit.enabled} onCheckedChange={(checked) => setUnitParam(index, "enabled", checked)} />
-        </div>
-        {canRemove && (
-          <Button variant="ghost" size="icon-sm" onClick={() => removeUnit(index)} title="Remove unit">
-            <Trash2 size={12} />
-          </Button>
-        )}
-      </div>
+  const gap = compact ? "gap-1.5" : "gap-2";
 
-      {/* Processor (not for Reference or IP-Adapter) */}
+  return (
+    <div className={`flex flex-col ${gap}`}>
+      {/* Processor */}
       {showProcessor && (
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Processor</Label>
@@ -116,7 +83,7 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
         </div>
       )}
 
-      {/* Model (not for Reference or IP-Adapter) */}
+      {/* Model */}
       {showModel && (
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Model</Label>
@@ -129,7 +96,7 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
         </div>
       )}
 
-      {/* Mode: shown when model has modes (e.g. union/promax ControlNets) */}
+      {/* Mode */}
       {showModel && modesForModel && modesForModel.length > 0 && (
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Mode</Label>
@@ -142,12 +109,12 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
         </div>
       )}
 
-      {/* Strength (not for Reference or IP-Adapter) */}
+      {/* Strength */}
       {showModel && (
         <ParamSlider label="Strength" value={unit.strength} onChange={(v) => setUnitParam(index, "strength", v)} min={0.01} max={2} step={0.01} />
       )}
 
-      {/* IP-Adapter-specific fields */}
+      {/* IP-Adapter fields */}
       {showIPAdapter && (
         <>
           <div className="flex items-center gap-2">
@@ -167,7 +134,7 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
         </>
       )}
 
-      {/* Timing: ControlNet, XS, and IP-Adapter */}
+      {/* Timing */}
       {showTiming && (
         <ParamSection title="Timing" defaultOpen={false}>
           <ParamSlider label="Start" value={unit.start} onChange={(v) => setUnitParam(index, "start", v)} min={0} max={1} step={0.01} />
@@ -175,7 +142,7 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
         </ParamSection>
       )}
 
-      {/* Guess mode: ControlNet only */}
+      {/* Guess mode */}
       {showGuess && (
         <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer px-1">
           <Checkbox checked={unit.guess} onCheckedChange={(c) => setUnitParam(index, "guess", !!c)} />
@@ -183,12 +150,12 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
         </label>
       )}
 
-      {/* Factor: T2I-Adapter only */}
+      {/* Factor */}
       {showFactor && (
         <ParamSlider label="Factor" value={unit.factor} onChange={(v) => setUnitParam(index, "factor", v)} min={0.01} max={2} step={0.01} />
       )}
 
-      {/* Reference-specific fields */}
+      {/* Reference fields */}
       {showReference && (
         <>
           <div className="flex items-center gap-2">
@@ -206,7 +173,7 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
         </>
       )}
 
-      {/* Control Image: all types except IP-Adapter */}
+      {/* Control image + process button */}
       {showControlImage && (
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between">
@@ -253,7 +220,7 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
         </div>
       )}
 
-      {/* IP-Adapter: Reference Images */}
+      {/* IP-Adapter images */}
       {showIPAdapter && (
         <div className="flex flex-col gap-1">
           <Label className="text-[11px] text-muted-foreground">Images</Label>
@@ -271,7 +238,7 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
         </div>
       )}
 
-      {/* IP-Adapter: Masks */}
+      {/* IP-Adapter masks */}
       {showIPAdapter && (
         <div className="flex flex-col gap-1">
           <Label className="text-[11px] text-muted-foreground">Masks</Label>
@@ -288,7 +255,6 @@ export function ControlUnitCard({ index, canRemove }: ControlUnitCardProps) {
           <ImageUpload image={null} onImageChange={(file) => { if (file) addUnitMask(index, file); }} label="Add mask" compact />
         </div>
       )}
-
     </div>
   );
 }

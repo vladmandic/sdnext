@@ -48,6 +48,7 @@ interface CanvasState {
   selection: { x: number; y: number; width: number; height: number } | null;
   maskVisible: boolean;
   maskColor: string;
+  selectedControlFrame: number | null;
 
   setViewport: (viewport: Partial<ViewportState>) => void;
   addLayer: (layer: CanvasLayer) => void;
@@ -62,6 +63,7 @@ interface CanvasState {
   setSelection: (rect: CanvasState["selection"]) => void;
   setMaskVisible: (visible: boolean) => void;
   setMaskColor: (color: string) => void;
+  setSelectedControlFrame: (index: number | null) => void;
   clearLayers: () => void;
   restoreImageLayer: (base64: string, w: number, h: number) => void;
   getImageLayers: () => ImageLayer[];
@@ -79,6 +81,7 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   selection: null,
   maskVisible: true,
   maskColor: "#ff000080",
+  selectedControlFrame: null,
 
   setViewport: (viewport) =>
     set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
@@ -152,6 +155,7 @@ export const useCanvasStore = create<CanvasState>()((set, get) => ({
   setSelection: (rect) => set({ selection: rect }),
   setMaskVisible: (visible) => set({ maskVisible: visible }),
   setMaskColor: (color) => set({ maskColor: color }),
+  setSelectedControlFrame: (index) => set({ selectedControlFrame: index }),
 
   clearLayers: () => {
     const { layers } = get();
