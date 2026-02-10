@@ -98,15 +98,15 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     request.override_settings = {
       ...request.override_settings,
       detailer_models: gen.detailerModels,
-      detailer_max_detected: gen.detailerMaxDetected,
+      detailer_max: gen.detailerMaxDetected,
       detailer_padding: gen.detailerPadding,
       detailer_blur: gen.detailerBlur,
-      detailer_confidence: gen.detailerConfidence,
+      detailer_conf: gen.detailerConfidence,
       detailer_iou: gen.detailerIou,
       detailer_min_size: gen.detailerMinSize,
       detailer_max_size: gen.detailerMaxSize,
-      detailer_renoise: gen.detailerRenoise,
-      detailer_renoise_end: gen.detailerRenoiseEnd,
+      detailer_sigma_adjust: gen.detailerRenoise,
+      detailer_sigma_adjust_max: gen.detailerRenoiseEnd,
     };
   }
 
@@ -327,15 +327,15 @@ export function restoreFromResult(result: GenerationResult): void {
     // Detailer overrides
     ...(p.detailer_enabled ? {
       detailerModels: Array.isArray(overrides.detailer_models) ? overrides.detailer_models as string[] : ["face-yolo8n"],
-      detailerMaxDetected: num(overrides.detailer_max_detected, 2),
+      detailerMaxDetected: num(overrides.detailer_max, 2),
       detailerPadding: num(overrides.detailer_padding, 20),
       detailerBlur: num(overrides.detailer_blur, 10),
-      detailerConfidence: num(overrides.detailer_confidence, 0.6),
+      detailerConfidence: num(overrides.detailer_conf, 0.6),
       detailerIou: num(overrides.detailer_iou, 0.5),
       detailerMinSize: num(overrides.detailer_min_size, 0.0),
       detailerMaxSize: num(overrides.detailer_max_size, 1.0),
-      detailerRenoise: num(overrides.detailer_renoise, 1.0),
-      detailerRenoiseEnd: num(overrides.detailer_renoise_end, 1.0),
+      detailerRenoise: num(overrides.detailer_sigma_adjust, 1.0),
+      detailerRenoiseEnd: num(overrides.detailer_sigma_adjust_max, 1.0),
     } : {}),
   });
 
