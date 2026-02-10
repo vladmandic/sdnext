@@ -22,7 +22,6 @@ interface ControlUnitControlsProps {
 export function ControlUnitControls({ index, compact }: ControlUnitControlsProps) {
   const unit = useControlStore((s) => s.units[index]);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
-  const setUnitImage = useControlStore((s) => s.setUnitImage);
   const addUnitImage = useControlStore((s) => s.addUnitImage);
   const removeUnitImage = useControlStore((s) => s.removeUnitImage);
   const addUnitMask = useControlStore((s) => s.addUnitMask);
@@ -191,20 +190,9 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
               </Button>
             )}
           </div>
-          <div className="flex gap-2">
-            <div className="flex-1">
-              <ImageUpload
-                image={unit.image}
-                onImageChange={(file) => {
-                  setUnitImage(index, file);
-                  setUnitParam(index, "processedImage", null);
-                }}
-                label="Drop control image"
-                compact
-              />
-            </div>
-            {unit.processedImage && (
-              <div className="relative flex-1 h-20 rounded-md overflow-hidden border border-border group">
+          {unit.processedImage && (
+            <div>
+              <div className="relative h-20 rounded-md overflow-hidden border border-border group">
                 <img src={unit.processedImage} alt="Processed" className="w-full h-full object-cover" />
                 <Button
                   variant="destructive"
@@ -215,8 +203,8 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
                   <X size={10} />
                 </Button>
               </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       )}
 
