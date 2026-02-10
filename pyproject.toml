@@ -24,6 +24,7 @@ exclude = [
     "modules/schedulers",
     "modules/teacache",
     "modules/seedvr",
+    "modules/sharpfin",
 
     "modules/control/proc",
     "modules/control/units",
@@ -150,6 +151,7 @@ main.ignore-paths=[
              "modules/prompt_parser_xhinker.py",
              "modules/ras",
              "modules/seedvr",
+             "modules/sharpfin",
              "modules/rife",
              "modules/schedulers",
              "modules/taesd",

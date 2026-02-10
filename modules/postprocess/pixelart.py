@@ -3,14 +3,13 @@ from typing import List
 import math
 import torch
 import numpy as np
-from modules import images_sharpfin
-
 from PIL import Image
 from diffusers.utils import CONFIG_NAME
 from diffusers.image_processor import PipelineImageInput
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from transformers import ImageProcessingMixin
 
+from modules import images_sharpfin
 from modules import devices
 
 

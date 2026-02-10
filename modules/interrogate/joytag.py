@@ -12,10 +12,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers.activations import QuickGELUActivation
 import torchvision
-from modules import images_sharpfin
 import einops
 from einops.layers.torch import Rearrange
 import huggingface_hub
+from modules import images_sharpfin
 from modules import shared, devices, sd_models
 
 
