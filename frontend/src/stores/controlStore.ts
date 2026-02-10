@@ -53,7 +53,13 @@ export const useControlStore = create<ControlState>()((set) => ({
   addUnit: () =>
     set((state) => {
       if (state.units.length >= 10) return state;
-      return { units: [...state.units, defaultUnit()] };
+      const last = state.units.at(-1);
+      const newUnit = {
+        ...defaultUnit(last?.unitType),
+        enabled: true,
+        useSeparateImage: last?.useSeparateImage ?? false,
+      };
+      return { units: [...state.units, newUnit] };
     }),
 
   removeUnit: (index) =>
@@ -66,7 +72,12 @@ export const useControlStore = create<ControlState>()((set) => ({
       const n = Math.max(1, Math.min(10, count));
       if (n === state.units.length) return state;
       if (n > state.units.length) {
-        const toAdd = Array.from({ length: n - state.units.length }, () => defaultUnit());
+        const last = state.units.at(-1);
+        const toAdd = Array.from({ length: n - state.units.length }, () => ({
+          ...defaultUnit(last?.unitType),
+          enabled: true,
+          useSeparateImage: last?.useSeparateImage ?? false,
+        }));
         return { units: [...state.units, ...toAdd] };
       }
       return { units: state.units.slice(0, n) };
