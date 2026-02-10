@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-import torchvision.transforms.functional as vF
+from modules import images_sharpfin
 import PIL
 
 
@@ -13,7 +13,7 @@ def preprocess(image, processor, **kwargs):
     elif isinstance(image, np.ndarray):
         image = PIL.Image.fromarray(image)
     elif isinstance(image, torch.Tensor):
-        image = vF.to_pil_image(image)
+        image = images_sharpfin.to_pil(image)
     else:
         raise TypeError(f"Image must be of type PIL.Image, np.ndarray, or torch.Tensor, got {type(image)} instead.")
 

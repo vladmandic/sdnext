@@ -27,6 +27,8 @@ class UpscalerResize(Upscaler):
             UpscalerData("Resize Bilinear", None, self),
             UpscalerData("Resize Hamming", None, self),
             UpscalerData("Resize Box", None, self),
+            UpscalerData("Resize Sharpfin MKS2021", None, self),
+            UpscalerData("Resize Sharpfin Lanczos3", None, self),
         ]
 
     def do_upscale(self, img: Image, selected_model=None):
@@ -44,6 +46,12 @@ class UpscalerResize(Upscaler):
             return img.resize((int(img.width * self.scale), int(img.height * self.scale)), resample=Image.Resampling.HAMMING)
         elif selected_model == "Resize Box":
             return img.resize((int(img.width * self.scale), int(img.height * self.scale)), resample=Image.Resampling.BOX)
+        elif selected_model == "Resize Sharpfin MKS2021":
+            from modules import images_sharpfin
+            return images_sharpfin.resize(img, (int(img.width * self.scale), int(img.height * self.scale)), kernel="Sharpfin MKS2021")
+        elif selected_model == "Resize Sharpfin Lanczos3":
+            from modules import images_sharpfin
+            return images_sharpfin.resize(img, (int(img.width * self.scale), int(img.height * self.scale)), kernel="Sharpfin Lanczos3")
         else:
             return img
 

@@ -2,8 +2,8 @@ from typing import List
 
 import math
 import torch
-import torchvision
 import numpy as np
+from modules import images_sharpfin
 
 from PIL import Image
 from diffusers.utils import CONFIG_NAME
@@ -65,11 +65,9 @@ def edge_detect_for_pixelart(image: PipelineImageInput, image_weight: float = 1.
     greyscale_reshaped = greyscale_reshaped.reshape(batch_size, block_size_sq, block_height, block_width)
 
     greyscale_range = greyscale_reshaped.amax(dim=1, keepdim=True).sub_(greyscale_reshaped.amin(dim=1, keepdim=True))
-    upsample = torchvision.transforms.Resize((height, width), interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
-
-    range_weight = upsample(greyscale_range)
+    range_weight = images_sharpfin.resize_tensor(greyscale_range, (height, width), linearize=False)
     range_weight = range_weight.div_(range_weight.max())
-    weight_map = upsample((greyscale > greyscale.median()).to(dtype=torch.float32))
+    weight_map = images_sharpfin.resize_tensor((greyscale > greyscale.median()).to(dtype=torch.float32), (height, width), linearize=False)
     weight_map = weight_map.unsqueeze(0).add_(range_weight).mul_(image_weight / 2)
 
     new_image = new_image.mul_(weight_map).addcmul_(min_pool, (1-weight_map))
@@ -161,8 +159,7 @@ def encode_jpeg_tensor(img: torch.FloatTensor, block_size: int=16, cbcr_downscal
     img = img[:, :, :(img.shape[-2]//block_size)*block_size, :(img.shape[-1]//block_size)*block_size] # crop to a multiply of block_size
     cbcr_block_size = block_size//cbcr_downscale
     _, _, height, width = img.shape
-    downsample = torchvision.transforms.Resize((height//cbcr_downscale, width//cbcr_downscale), interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
-    down_img = downsample(img[:, 1:,:,:])
+    down_img = images_sharpfin.resize_tensor(img[:, 1:,:,:], (height//cbcr_downscale, width//cbcr_downscale), linearize=False)
     y = encode_single_channel_dct_2d(img[:, 0, :,:], block_size=block_size, norm=norm)
     cb = encode_single_channel_dct_2d(down_img[:, 0, :,:], block_size=cbcr_block_size, norm=norm)
     cr = encode_single_channel_dct_2d(down_img[:, 1, :,:], block_size=cbcr_block_size, norm=norm)
@@ -180,9 +177,8 @@ def decode_jpeg_tensor(jpeg_img: torch.FloatTensor, block_size: int=16, cbcr_dow
     y = decode_single_channel_dct_2d(y, norm=norm)
     cb = decode_single_channel_dct_2d(cb, norm=norm)
     cr = decode_single_channel_dct_2d(cr, norm=norm)
-    upsample = torchvision.transforms.Resize((h_blocks*block_size, w_blocks*block_size), interpolation=torchvision.transforms.InterpolationMode.BICUBIC)
-    cb = upsample(cb)
-    cr = upsample(cr)
+    cb = images_sharpfin.resize_tensor(cb, (h_blocks*block_size, w_blocks*block_size), linearize=False)
+    cr = images_sharpfin.resize_tensor(cr, (h_blocks*block_size, w_blocks*block_size), linearize=False)
     return torch.stack([y,cb,cr], dim=1)
 
 

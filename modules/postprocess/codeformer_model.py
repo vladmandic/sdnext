@@ -70,7 +70,7 @@ def setup_model(dirname):
                 self.face_helper.face_parse.to(device)
 
             def restore(self, np_image, p=None, w=None): # pylint: disable=unused-argument
-                from torchvision.transforms.functional import normalize
+                from modules import images_sharpfin
                 from basicsr.utils import img2tensor, tensor2img
                 np_image = np_image[:, :, ::-1]
                 original_resolution = np_image.shape[0:2]
@@ -84,7 +84,7 @@ def setup_model(dirname):
                 self.face_helper.align_warp_face()
                 for cropped_face in self.face_helper.cropped_faces:
                     cropped_face_t = img2tensor(cropped_face / 255., bgr2rgb=True, float32=True)
-                    normalize(cropped_face_t, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
+                    images_sharpfin.normalize(cropped_face_t, (0.5, 0.5, 0.5), (0.5, 0.5, 0.5), inplace=True)
                     cropped_face_t = cropped_face_t.unsqueeze(0).to(devices.device)
                     try:
                         with devices.inference_context():

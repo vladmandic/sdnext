@@ -4,7 +4,7 @@ import time
 import numpy as np
 import torch
 from PIL import Image
-from modules import shared, upscaler
+from modules import shared, upscaler, images_sharpfin
 
 
 def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: int, height: int, upscaler_name: str=None, output_type: str='image', context: str=None):
@@ -36,7 +36,7 @@ def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: 
     def resize(im: Union[Image.Image, torch.Tensor], w, h):
         w, h = int(w), int(h)
         if upscaler_name is None or upscaler_name == "None" or (hasattr(im, 'mode') and im.mode == 'L'):
-            return im.resize((w, h), resample=Image.Resampling.LANCZOS) # force for mask
+            return images_sharpfin.resize(im, (w, h), linearize=False) # force for mask
         if isinstance(im, torch.Tensor):
             scale = max(w // 8 / im.shape[-1] , h // 8 / im.shape[-2])
         else:
@@ -53,7 +53,7 @@ def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: 
                 shared.log.warning(f"Resize upscaler: invalid={upscaler_name} fallback={selected_upscaler.name}")
                 shared.log.debug(f"Resize upscaler: available={[u.name for u in shared.sd_upscalers]}")
         if isinstance(im, Image.Image) and (im.width != w or im.height != h): # probably downsample after upscaler created larger image
-            im = im.resize((w, h), resample=Image.Resampling.LANCZOS)
+            im = images_sharpfin.resize(im, (w, h))
         return im
 
     def crop(im: Image.Image):

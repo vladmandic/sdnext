@@ -332,8 +332,8 @@ class StableCascadeDecoderPipelineFixed(diffusers.StableCascadeDecoderPipeline):
             if output_type == "np":
                 images = images.permute(0, 2, 3, 1).cpu().float().numpy()  # float() as bfloat16-> numpy doesnt work
             elif output_type == "pil":
-                images = images.permute(0, 2, 3, 1).cpu().float().numpy()  # float() as bfloat16-> numpy doesnt work
-                images = self.numpy_to_pil(images)
+                from modules import images_sharpfin
+                images = [images_sharpfin.to_pil(images[i]) for i in range(images.shape[0])]
             shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
         else:
             images = latents
