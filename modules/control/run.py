@@ -547,7 +547,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     if input_type == 1:
                         debug_log('Control Init image: same as control')
                         init_image = input_image
-                    elif inits is None or len(inits) == 0:
+                    elif not inits:
                         debug_log('Control Init image: none')
                         init_image = None
                     elif len(inits) > i and isinstance(inits[i], str):
