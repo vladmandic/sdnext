@@ -90,7 +90,7 @@ export const useControlStore = create<ControlState>()((set) => ({
     set((state) => {
       const units = [...state.units];
       const old = units[index];
-      units[index] = { ...defaultUnit(unitType), enabled: old.enabled, image: old.image, images: old.images, masks: old.masks };
+      units[index] = { ...defaultUnit(unitType), enabled: old.enabled, useSeparateImage: old.useSeparateImage, image: old.image, images: old.images, masks: old.masks };
       return { units };
     }),
 
