@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { toast } from "sonner";
 import { useOptions, useSetOptions, useOptionsInfo } from "@/api/hooks/useSettings";
 import { useModelList, useSamplerList, useVaeList, useUpscalerList } from "@/api/hooks/useModels";
@@ -10,7 +10,43 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Save, RotateCcw, Search } from "lucide-react";
+import { Save, RotateCcw, Search, ListRestart } from "lucide-react";
+import { useUiStore } from "@/stores/uiStore";
+import type { CornerStyle, ColorMode } from "@/stores/uiStore";
+
+const APPEARANCE_SECTION_ID = "__appearance";
+
+const CORNER_STYLES: { value: CornerStyle; label: string }[] = [
+  { value: "rounded", label: "Rounded" },
+  { value: "square", label: "Square" },
+];
+
+const COLOR_MODES: { value: ColorMode; label: string }[] = [
+  { value: "dark", label: "Dark" },
+  { value: "light", label: "Light" },
+  { value: "system", label: "System" },
+];
+
+/** Backend settings that are Gradio-specific and meaningless to the React UI */
+const GRADIO_ONLY_KEYS = new Set([
+  // UI section
+  "theme_type", "theme_style", "gradio_theme", "quicksettings_list",
+  "ui_request_timeout", "ui_disabled", "compact_view", "ui_columns",
+  "logmonitor_show", "logmonitor_refresh_period", "send_seed", "send_size",
+  "font_size", "ui_locale",
+  "extra_networks_card_size", "extra_networks_card_cover", "extra_networks_card_square",
+  // Extra networks section
+  "extra_networks_show", "extra_networks_view",
+  "extra_networks_sidebar_width", "extra_networks_height", "extra_networks_fetch",
+  // Live preview section
+  "live_preview_refresh_period", "notification_audio_enable", "notification_audio_path",
+]);
+
+/** Sentinel strings matching backend defaults in modules/shared.py — used for model/VAE "no selection" states */
+const SENTINEL_NONE = "None";
+const SENTINEL_AUTOMATIC = "Automatic";
+
+const HEX_REGEX = /^#[0-9a-fA-F]{6}$/;
 
 /** Build a SettingDef: backend metadata is authoritative for choices, curated provides label/description/component overrides */
 function buildSettingDef(
@@ -36,10 +72,129 @@ function buildSettingDef(
   };
 }
 
-export function SettingsView() {
+function AppearanceRow({ label, description, children }: { label: string; description: string; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-0.5">
+        <span className="text-xs font-medium">{label}</span>
+        <span className="text-[11px] text-muted-foreground">{description}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function SegmentedControl<T extends string>({ options, value, onChange }: { options: { value: T; label: string }[]; value: T; onChange: (v: T) => void }) {
+  return (
+    <div className="inline-flex border border-border bg-muted/40 p-0.5" style={{ borderRadius: "var(--control-radius)" }}>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className={cn(
+            "px-2.5 py-1 text-xs transition-colors",
+            value === opt.value
+              ? "bg-background text-foreground shadow-sm"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+          style={{ borderRadius: "var(--control-inner-radius)" }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function AppearancePanel() {
+  const colorMode = useUiStore((s) => s.colorMode);
+  const setColorMode = useUiStore((s) => s.setColorMode);
+  const accentColor = useUiStore((s) => s.accentColor);
+  const setAccentColor = useUiStore((s) => s.setAccentColor);
+  const cornerStyle = useUiStore((s) => s.cornerStyle);
+  const setCornerStyle = useUiStore((s) => s.setCornerStyle);
+  const borderRadius = useUiStore((s) => s.borderRadius);
+  const setBorderRadius = useUiStore((s) => s.setBorderRadius);
+  const uiScale = useUiStore((s) => s.uiScale);
+  const setUiScale = useUiStore((s) => s.setUiScale);
+
+  const [hexInput, setHexInput] = useState(accentColor);
+  useEffect(() => { setHexInput(accentColor); }, [accentColor]);
+
+  return (
+    <div>
+      <h3 className="text-sm font-medium mb-4">Appearance</h3>
+      <div className="space-y-4">
+        <AppearanceRow label="Color mode" description="Overall color scheme of the interface">
+          <SegmentedControl options={COLOR_MODES} value={colorMode} onChange={setColorMode} />
+        </AppearanceRow>
+
+        <AppearanceRow label="Accent color" description="Primary color used for buttons, links, and highlights">
+          <div className="flex items-center gap-2">
+            <input
+              type="color"
+              value={accentColor}
+              onChange={(e) => setAccentColor(e.target.value)}
+              className="h-7 w-7 cursor-pointer border border-border rounded-sm bg-transparent p-0"
+            />
+            <Input
+              value={hexInput}
+              onChange={(e) => {
+                setHexInput(e.target.value);
+                if (HEX_REGEX.test(e.target.value)) setAccentColor(e.target.value);
+              }}
+              className="h-7 w-20 text-xs font-mono"
+            />
+          </div>
+        </AppearanceRow>
+
+        <AppearanceRow label="Corner style" description="Shape of toggle switches and segmented controls">
+          <SegmentedControl options={CORNER_STYLES} value={cornerStyle} onChange={setCornerStyle} />
+        </AppearanceRow>
+
+        <AppearanceRow label="Border radius" description="Roundness of cards, inputs, and panels">
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={borderRadius}
+              onChange={(e) => setBorderRadius(parseFloat(e.target.value))}
+              className="w-24 accent-primary"
+            />
+            <span className="text-xs text-muted-foreground w-12 text-right">{borderRadius.toFixed(2)}rem</span>
+          </div>
+        </AppearanceRow>
+
+        <AppearanceRow label="UI scale" description="Base font size — all spacing and controls scale proportionally">
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={12}
+              max={20}
+              step={1}
+              value={uiScale}
+              onChange={(e) => setUiScale(parseInt(e.target.value, 10))}
+              className="w-24 accent-primary"
+            />
+            <span className="text-xs text-muted-foreground w-8 text-right">{uiScale}px</span>
+          </div>
+        </AppearanceRow>
+      </div>
+    </div>
+  );
+}
+
+interface SettingsViewProps {
+  onDirtyChange?: (isDirty: boolean) => void;
+}
+
+export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   const { data: options, isLoading } = useOptions();
   const setOptions = useSetOptions();
-  const { data: optionsInfo } = useOptionsInfo();
+  const { data: optionsInfo, isLoading: isInfoLoading } = useOptionsInfo();
   const { data: models } = useModelList();
   const { data: samplers } = useSamplerList();
   const { data: vaes } = useVaeList();
@@ -54,8 +209,8 @@ export function SettingsView() {
   const dynamicChoices = useMemo(() => {
     const choices: Record<string, string[]> = {};
     if (models) choices["sd_model_checkpoint"] = models.map((m) => m.title);
-    if (models) choices["sd_model_refiner"] = ["None", ...models.map((m) => m.title)];
-    if (vaes) choices["sd_vae"] = ["Automatic", "None", ...vaes.map((v) => v.model_name)];
+    if (models) choices["sd_model_refiner"] = [SENTINEL_NONE, ...models.map((m) => m.title)];
+    if (vaes) choices["sd_vae"] = [SENTINEL_AUTOMATIC, SENTINEL_NONE, ...vaes.map((v) => v.model_name)];
     if (samplers) choices["sampler_name"] = samplers.map((s) => s.name);
     if (upscalers) choices["upscaler_for_img2img"] = upscalers.map((u) => u.name);
     return choices;
@@ -75,6 +230,7 @@ export function SettingsView() {
       for (const [key, info] of Object.entries(meta)) {
         if (info.section_id !== section.id) continue;
         if (!info.visible || info.hidden || info.is_legacy) continue;
+        if (GRADIO_ONLY_KEYS.has(key)) continue;
         if (info.component === "separator") {
           if (info.label) settings.push({ key, label: info.label, component: "separator" });
           continue;
@@ -95,6 +251,7 @@ export function SettingsView() {
   // Resolve active section: use first section if none selected or selection is stale
   const resolvedActive = useMemo(() => {
     if (allSections.length === 0) return null;
+    if (activeSection === APPEARANCE_SECTION_ID) return APPEARANCE_SECTION_ID;
     if (activeSection && allSections.some((s) => s.id === activeSection)) return activeSection;
     return allSections[0].id;
   }, [allSections, activeSection]);
@@ -136,9 +293,43 @@ export function SettingsView() {
     setDirty({});
   }
 
+  function handleRestoreDefaults() {
+    const section = allSections.find((s) => s.id === resolvedActive);
+    if (!section) return;
+    const defaults: Record<string, unknown> = {};
+    for (const setting of section.settings) {
+      if (setting.component === "separator") continue;
+      if (setting.defaultValue !== undefined) {
+        defaults[setting.key] = setting.defaultValue;
+      }
+    }
+    if (Object.keys(defaults).length > 0) {
+      setDirty((prev) => ({ ...prev, ...defaults }));
+    }
+  }
+
   const dirtyCount = Object.keys(dirty).length;
 
-  if (isLoading || !options) {
+  // Set of section IDs that have matching settings during search
+  const matchingSectionIds = useMemo(() => {
+    if (!searchQuery) return null;
+    return new Set(filteredSections.map((s) => s.id));
+  }, [searchQuery, filteredSections]);
+
+  // Notify parent of dirty state changes
+  useEffect(() => {
+    onDirtyChange?.(dirtyCount > 0);
+  }, [dirtyCount, onDirtyChange]);
+
+  // Warn before page refresh with unsaved changes
+  useEffect(() => {
+    if (dirtyCount === 0) return;
+    const handler = (e: BeforeUnloadEvent) => { e.preventDefault(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirtyCount]);
+
+  if (isLoading || isInfoLoading || !options || !optionsInfo) {
     return (
       <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
         Loading settings...
@@ -163,22 +354,50 @@ export function SettingsView() {
         </div>
         <ScrollArea className="flex-1">
           <div className="flex flex-col gap-0.5 p-1">
-            {allSections.map((section) => (
+            {allSections.map((section) => {
+              const isMatch = matchingSectionIds?.has(section.id);
+              const matchCount = searchQuery ? filteredSections.find((s) => s.id === section.id)?.settings.length : undefined;
+              return (
+                <button
+                  key={section.id}
+                  onClick={() => {
+                    setActiveSection(section.id);
+                    setSearchQuery("");
+                  }}
+                  className={cn(
+                    "text-left text-xs px-2 py-1.5 rounded-md transition-colors flex items-center justify-between",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    resolvedActive === section.id && !searchQuery && "bg-accent text-accent-foreground font-medium",
+                    matchingSectionIds && isMatch && "text-primary font-medium",
+                    matchingSectionIds && !isMatch && "opacity-30",
+                  )}
+                >
+                  <span>{section.title}</span>
+                  {matchCount != null && matchCount > 0 && (
+                    <span className="text-[9px] bg-primary/10 text-primary rounded-full px-1.5 min-w-[18px] text-center">
+                      {matchCount}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            {/* React UI appearance settings */}
+            <div className="mt-2 pt-2 border-t border-border">
               <button
-                key={section.id}
                 onClick={() => {
-                  setActiveSection(section.id);
+                  setActiveSection(APPEARANCE_SECTION_ID);
                   setSearchQuery("");
                 }}
                 className={cn(
-                  "text-left text-xs px-2 py-1.5 rounded-md transition-colors",
+                  "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
                   "hover:bg-accent hover:text-accent-foreground",
-                  resolvedActive === section.id && !searchQuery && "bg-accent text-accent-foreground font-medium",
+                  resolvedActive === APPEARANCE_SECTION_ID && !searchQuery && "bg-accent text-accent-foreground font-medium",
+                  matchingSectionIds && "opacity-30",
                 )}
               >
-                {section.title}
+                Appearance
               </button>
-            ))}
+            </div>
           </div>
         </ScrollArea>
 
@@ -203,6 +422,16 @@ export function SettingsView() {
             <RotateCcw size={14} />
             Reset
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRestoreDefaults}
+            disabled={!resolvedActive || !!searchQuery}
+            className="w-full text-xs"
+          >
+            <ListRestart size={14} />
+            Restore defaults
+          </Button>
         </div>
       </div>
 
@@ -226,6 +455,8 @@ export function SettingsView() {
                 <p className="text-sm text-muted-foreground text-center py-8">No settings match your search</p>
               )}
             </div>
+          ) : resolvedActive === APPEARANCE_SECTION_ID ? (
+            <AppearancePanel />
           ) : (
             // Single section view
             (() => {

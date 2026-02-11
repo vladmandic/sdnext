@@ -1,6 +1,6 @@
 import type { OptionInfoMeta } from "@/api/types/settings";
 
-export type SettingComponent = "slider" | "switch" | "select" | "input" | "number" | "radio" | "separator" | "multiselect";
+export type SettingComponent = "slider" | "switch" | "select" | "radio" | "input" | "number" | "color" | "separator" | "multiselect";
 
 export interface SettingDef {
   key: string;
@@ -10,6 +10,7 @@ export interface SettingDef {
   min?: number;
   max?: number;
   step?: number;
+  precision?: number;
   choices?: string[];
   description?: string;
   requiresRestart?: boolean;
@@ -86,18 +87,6 @@ export const settingsSchema: SettingSectionDef[] = [
     ],
   },
   {
-    id: "ui",
-    title: "User Interface",
-    settings: [
-      { key: "theme_type", label: "Theme type", component: "select", defaultValue: "Modern", description: "UI mode", requiresRestart: true },
-      { key: "gradio_theme", label: "Theme", component: "select", description: "Visual theme (populated dynamically)" },
-      { key: "quicksettings_list", label: "Quick settings", component: "input", defaultValue: "sd_model_checkpoint", description: "Comma-separated list of quick settings" },
-      { key: "localization", label: "Language", component: "select", description: "UI language/localization" },
-      { key: "font_size", label: "Font size", component: "number", min: 8, max: 24, step: 1, defaultValue: 14, description: "Base font size in pixels" },
-      { key: "gallery_height", label: "Gallery height", component: "input", defaultValue: "", description: "Gallery height CSS value" },
-    ],
-  },
-  {
     id: "live-preview",
     title: "Live Previews",
     settings: [
@@ -132,11 +121,11 @@ export function getSettingsMap(): Map<string, { section: SettingSectionDef; sett
 const metaComponentMap: Record<string, SettingComponent> = {
   slider: "slider",
   switch: "switch",
-  radio: "select",
+  radio: "radio",
   dropdown: "select",
   input: "input",
   number: "number",
-  color: "input",
+  color: "color",
   checkboxgroup: "multiselect",
   separator: "separator",
 };
@@ -147,9 +136,11 @@ export function metaToSettingDef(key: string, info?: OptionInfoMeta): SettingDef
     key,
     label: info.label || key,
     component: metaComponentMap[info.component] ?? "input",
+    defaultValue: info.default,
     min: info.component_args.minimum,
     max: info.component_args.maximum,
     step: info.component_args.step,
+    precision: info.component_args.precision,
     choices: info.component_args.choices,
   };
 }

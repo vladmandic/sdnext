@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useUiStore } from "@/stores/uiStore";
 import { ModelSelector } from "@/components/models/ModelSelector";
 import { ConnectionIndicator } from "@/components/connection/ConnectionIndicator";
@@ -11,6 +11,14 @@ export function Toolbar() {
   const sidebarCollapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsDirty, setSettingsDirty] = useState(false);
+
+  const handleSheetOpenChange = useCallback((open: boolean) => {
+    if (!open && settingsDirty) {
+      if (!window.confirm("You have unsaved settings changes. Discard them?")) return;
+    }
+    setSettingsOpen(open);
+  }, [settingsDirty]);
 
   return (
     <>
@@ -50,12 +58,12 @@ export function Toolbar() {
       </header>
 
       {/* Settings sheet */}
-      <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+      <Sheet open={settingsOpen} onOpenChange={handleSheetOpenChange}>
         <SheetContent side="right" className="w-[600px] sm:max-w-[600px] p-0">
           <SheetHeader className="sr-only">
             <SheetTitle>Settings</SheetTitle>
           </SheetHeader>
-          <SettingsView />
+          <SettingsView onDirtyChange={setSettingsDirty} />
         </SheetContent>
       </Sheet>
     </>
