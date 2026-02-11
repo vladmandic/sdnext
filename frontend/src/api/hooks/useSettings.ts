@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { OptionsMap, CmdFlags, OptionsInfoResponse } from "../types/settings";
+import type { OptionsMap, OptionsInfoResponse } from "../types/settings";
 
 export function useOptions() {
   return useQuery({
@@ -17,6 +17,7 @@ export function useSetOptions() {
       api.post("/sdapi/v1/options", options),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["options"] });
+      queryClient.invalidateQueries({ queryKey: ["options-info"] });
     },
   });
 }
@@ -25,14 +26,7 @@ export function useOptionsInfo() {
   return useQuery({
     queryKey: ["options-info"],
     queryFn: () => api.get<OptionsInfoResponse>("/sdapi/v1/options-info"),
-    staleTime: Infinity,
+    staleTime: 5 * 60_000,
   });
 }
 
-export function useCmdFlags() {
-  return useQuery({
-    queryKey: ["cmd-flags"],
-    queryFn: () => api.get<CmdFlags>("/sdapi/v1/cmd-flags"),
-    staleTime: Infinity,
-  });
-}

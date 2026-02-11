@@ -1,9 +1,5 @@
 export type OptionsMap = Record<string, unknown>;
 
-export interface CmdFlags {
-  [key: string]: unknown;
-}
-
 export interface OptionInfoMeta {
   label: string;
   section_id: string | null;
@@ -20,6 +16,7 @@ export interface OptionInfoMeta {
     precision?: number;
     multiselect?: boolean;
   };
+  default?: unknown;
   is_legacy: boolean;
 }
 

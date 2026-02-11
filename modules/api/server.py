@@ -242,6 +242,7 @@ def get_options_info():
             "type": "boolean" if isinstance(info.default, bool) else "number" if isinstance(info.default, (int, float)) else "array" if isinstance(info.default, list) else "string",
             "component": comp_name,
             "component_args": serializable_args,
+            "default": info.default,
             "is_legacy": isinstance(info, LegacyOption),
         }
 
