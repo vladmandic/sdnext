@@ -671,6 +671,10 @@ options_templates.update(options_section(('postprocessing', "Postprocessing"), {
     "upscaler_latent_steps": OptionInfo(20, "Upscaler latent steps", gr.Slider, {"minimum": 4, "maximum": 100, "step": 1}),
     "upscaler_tile_size": OptionInfo(192, "Upscaler tile size", gr.Slider, {"minimum": 0, "maximum": 512, "step": 16}),
     "upscaler_tile_overlap": OptionInfo(8, "Upscaler tile overlap", gr.Slider, {"minimum": 0, "maximum": 64, "step": 1}),
+
+    "postprocessing_sep_resize": OptionInfo("<h2>Resize</h2>", "", gr.HTML),
+    "resize_quality": OptionInfo("Sharpfin MKS2021", "Image resize algorithm", gr.Dropdown, {"choices": ["PIL Lanczos", "Sharpfin MKS2021", "Sharpfin Lanczos3", "Sharpfin Mitchell", "Sharpfin Catmull-Rom"]}),
+    "resize_linearize_srgb": OptionInfo(True, "Apply sRGB linearization during image resize"),
 }))
 
 

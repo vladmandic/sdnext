@@ -17,9 +17,8 @@ class UpscalerAsymmetricVAE(Upscaler):
     def do_upscale(self, img: Image, selected_model=None):
         if selected_model is None:
             return img
-        import torchvision.transforms.functional as F
         import diffusers
-        from modules import shared, devices
+        from modules import shared, devices, images_sharpfin
         if self.vae is None or (selected_model != self.selected):
             if 'v1' in selected_model:
                 repo_id = 'Heasterian/AsymmetricAutoencoderKLUpscaler'
@@ -32,11 +31,11 @@ class UpscalerAsymmetricVAE(Upscaler):
             self.selected = selected_model
             shared.log.debug(f'Upscaler load: selected="{self.selected}" vae="{repo_id}"')
         t0 = time.time()
-        img = img.resize((8 * (img.width // 8), 8 * (img.height // 8)), resample=Image.Resampling.LANCZOS).convert('RGB')
-        tensor = (F.pil_to_tensor(img).unsqueeze(0) / 255.0).to(device=devices.device, dtype=devices.dtype)
+        img = images_sharpfin.resize(img, (8 * (img.width // 8), 8 * (img.height // 8))).convert('RGB')
+        tensor = images_sharpfin.to_tensor(img).unsqueeze(0).to(device=devices.device, dtype=devices.dtype)
         self.vae = self.vae.to(device=devices.device)
         tensor = self.vae(tensor).sample
-        upscaled = F.to_pil_image(tensor.squeeze().clamp(0.0, 1.0).float().cpu())
+        upscaled = images_sharpfin.to_pil(tensor.squeeze().clamp(0.0, 1.0).float().cpu())
         self.vae = self.vae.to(device=devices.cpu)
         t1 = time.time()
         shared.log.debug(f'Upscale: name="{self.selected}" input={img.size} output={upscaled.size} time={t1 - t0:.2f}')
@@ -57,10 +56,9 @@ class UpscalerWanUpscale(Upscaler):
     def do_upscale(self, img: Image, selected_model=None):
         if selected_model is None:
             return img
-        import torchvision.transforms.functional as F
         import torch.nn.functional as FN
         import diffusers
-        from modules import shared, devices
+        from modules import shared, devices, images_sharpfin
         if (self.vae_encode is None) or (self.vae_decode is None) or (selected_model != self.selected):
             repo_encode = 'Qwen/Qwen-Image-Edit-2509'
             subfolder_encode = 'vae'
@@ -79,7 +77,7 @@ class UpscalerWanUpscale(Upscaler):
 
         t0 = time.time()
         self.vae_encode = self.vae_encode.to(device=devices.device)
-        tensor = (F.pil_to_tensor(img).unsqueeze(0).unsqueeze(2) / 255.0).to(device=devices.device, dtype=devices.dtype)
+        tensor = images_sharpfin.to_tensor(img).unsqueeze(0).unsqueeze(2).to(device=devices.device, dtype=devices.dtype)
         tensor = self.vae_encode.encode(tensor).latent_dist.mode()
         self.vae_encode.to(device=devices.cpu)
 
@@ -88,7 +86,7 @@ class UpscalerWanUpscale(Upscaler):
         tensor = FN.pixel_shuffle(tensor.movedim(2, 1), upscale_factor=2).movedim(1, 2) # pixel shuffle needs [..., C, H, W] format
         self.vae_decode.to(device=devices.cpu)
 
-        upscaled = F.to_pil_image(tensor.squeeze().clamp(0.0, 1.0).float().cpu())
+        upscaled = images_sharpfin.to_pil(tensor.squeeze().clamp(0.0, 1.0).float().cpu())
         t1 = time.time()
         shared.log.debug(f'Upscale: name="{self.selected}" input={img.size} output={upscaled.size} time={t1 - t0:.2f}')
         return upscaled

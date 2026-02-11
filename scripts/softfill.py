@@ -18,7 +18,6 @@ import cv2
 import numpy as np
 from PIL import Image, ImageFilter
 import torch
-import torchvision
 from torchvision import transforms
 from transformers import (
     CLIPImageProcessor,
@@ -1323,7 +1322,8 @@ class StableDiffusionXLSoftFillPipeline(
                 image.save("noised_image.png")
 
             image = transforms.CenterCrop((image.size[1] // 64 * 64, image.size[0] // 64 * 64))(image)
-            image = transforms.ToTensor()(image)
+            from modules import images_sharpfin
+            image = images_sharpfin.to_tensor(image)
             image = image * 2 - 1  # Normalize to [-1, 1]
             return image.unsqueeze(0)
 
@@ -1334,7 +1334,8 @@ class StableDiffusionXLSoftFillPipeline(
             """
             map = map.convert("L")
             map = transforms.CenterCrop((map.size[1] // 64 * 64, map.size[0] // 64 * 64))(map)
-            map = transforms.ToTensor()(map)
+            from modules import images_sharpfin
+            map = images_sharpfin.to_tensor(map)
             map = (map - 0.05) / (0.95 - 0.05)
             map = torch.clamp(map, 0.0, 1.0)
             return 1.0 - map
@@ -1349,9 +1350,8 @@ class StableDiffusionXLSoftFillPipeline(
 
         # Prepare mask as rescaled tensor map
         map = preprocess_map(mask).to(device)
-        map = torchvision.transforms.Resize(
-            tuple(s // self.vae_scale_factor for s in original_image_tensor.shape[2:]), antialias=None
-        )(map)
+        from modules import images_sharpfin
+        map = images_sharpfin.resize_tensor(map, tuple(s // self.vae_scale_factor for s in original_image_tensor.shape[2:]), linearize=False)
 
         # Generate latent tensor with noise
         original_with_noise = self.prepare_latents(

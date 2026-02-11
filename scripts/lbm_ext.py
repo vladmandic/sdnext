@@ -84,7 +84,7 @@ class Script(scripts_manager.Script):
         from installer import install
         install('lpips')
 
-        from torchvision.transforms import ToPILImage, ToTensor
+        from modules import images_sharpfin
         from scripts.lbm import get_model, extract_object, resize_and_center_crop # pylint: disable=no-name-in-module
 
         ori_h_bg, ori_w_bg = fg_image.size
@@ -110,7 +110,7 @@ class Script(scripts_manager.Script):
         if lbm_method == 'Simple':
             output_image = img_pasted
         else:
-            img_pasted_tensor = ToTensor()(img_pasted).to(device=devices.device, dtype=devices.dtype).unsqueeze(0) * 2 - 1
+            img_pasted_tensor = images_sharpfin.to_tensor(img_pasted).to(device=devices.device, dtype=devices.dtype).unsqueeze(0) * 2 - 1
             batch = { "source_image": img_pasted_tensor }
             z_source = model.vae.encode(batch[model.source_key])
             output_image = model.sample(
@@ -120,7 +120,7 @@ class Script(scripts_manager.Script):
                 max_samples=1,
             )
             output_image = (output_image[0].clamp(-1, 1).float().cpu() + 1) / 2
-            output_image = ToPILImage()(output_image)
+            output_image = images_sharpfin.to_pil(output_image)
             if lbm_composite:
                 output_image = Image.composite(output_image, bg_image, fg_mask)
 

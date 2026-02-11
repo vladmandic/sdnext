@@ -293,10 +293,9 @@ class FLitePipeline(DiffusionPipeline):
                 raise
 
         # 8. Post-process images
+        from modules import images_sharpfin
         images = (decoded_images / 2 + 0.5).clamp(0, 1)
-        # Convert to PIL Images
-        images = (images * 255).round().clamp(0, 255).to(torch.uint8).cpu()
-        pil_images = [Image.fromarray(img.permute(1, 2, 0).numpy()) for img in images]
+        pil_images = [images_sharpfin.to_pil(img) for img in images]
 
         return FLitePipelineOutput(
             images=pil_images,

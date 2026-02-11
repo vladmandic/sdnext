@@ -2,9 +2,8 @@ import time
 import threading
 from collections import namedtuple
 import torch
-import torchvision.transforms.functional as TF
 from PIL import Image
-from modules import shared, devices, processing, images, sd_samplers, timer
+from modules import shared, devices, processing, images, sd_samplers, timer, images_sharpfin
 from modules.vae import sd_vae_approx, sd_vae_taesd, sd_vae_stablecascade
 
 
@@ -84,7 +83,7 @@ def single_sample_to_image(sample, approximation=None):
                 x_sample = (255.0 * x_sample).to(torch.uint8)
                 if len(x_sample.shape) == 4:
                     x_sample = x_sample[0]
-                image = TF.to_pil_image(x_sample)
+                image = images_sharpfin.to_pil(x_sample)
         except Exception as e:
             warn_once(f'Preview: {e}')
             image = Image.new(mode="RGB", size=(512, 512))

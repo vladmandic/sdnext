@@ -25,15 +25,15 @@ class UpscalerSpandrel(Upscaler):
             self.scalers.append(scaler)
 
     def process(self, img: Image.Image) -> Image.Image:
-        import torchvision.transforms.functional as TF
-        tensor = TF.to_tensor(img).unsqueeze(0).to(devices.device)
+        from modules import images_sharpfin
+        tensor = images_sharpfin.to_tensor(img).unsqueeze(0).to(devices.device)
         img = img.convert('RGB')
         t0 = time.time()
         with devices.inference_context():
             tensor = self.model(tensor)
             tensor = tensor.clamp(0, 1).squeeze(0).cpu()
         t1 = time.time()
-        upscaled = TF.to_pil_image(tensor)
+        upscaled = images_sharpfin.to_pil(tensor)
         log.debug(f'Upscale: name="{self.selected}" input={img.size} output={upscaled.size} time={t1 - t0:.2f}')
         return upscaled
 

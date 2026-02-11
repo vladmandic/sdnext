@@ -334,7 +334,7 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
 
 def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
     jobid = shared.state.begin('VAE Encode')
-    import torchvision.transforms.functional as f
+    from modules import images_sharpfin
     if shared.state.interrupted or shared.state.skipped:
         return []
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
@@ -342,7 +342,7 @@ def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
     if not hasattr(model, 'vae'):
         shared.log.error('VAE not found in model')
         return []
-    tensor = f.to_tensor(image.convert("RGB")).unsqueeze(0).to(devices.device, devices.dtype_vae)
+    tensor = images_sharpfin.to_tensor(image.convert("RGB")).unsqueeze(0).to(devices.device, devices.dtype_vae)
     if vae_type == 'Tiny':
         latents = taesd_vae_encode(image=tensor)
     elif vae_type == 'Full' and hasattr(model, 'vae'):

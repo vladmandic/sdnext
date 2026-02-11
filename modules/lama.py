@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from torch.hub import download_url_to_file, get_dir
 from PIL import Image
-from modules import devices
+from modules import devices, images_sharpfin
 from installer import log
 
 
@@ -96,7 +96,5 @@ class SimpleLama:
         image, mask = prepare_img_and_mask(image, mask, self.device)
         with devices.inference_context():
             inpainted = self.model(image, mask)
-            cur_res = inpainted[0].permute(1, 2, 0).detach().float().cpu().numpy()
-            cur_res = np.clip(cur_res * 255, 0, 255).astype(np.uint8)
-            cur_res = Image.fromarray(cur_res)
+            cur_res = images_sharpfin.to_pil(inpainted[0])
             return cur_res
