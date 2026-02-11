@@ -3,7 +3,7 @@
 
 @font-face { font-family: 'NotoSansNerd'; font-display: swap; font-style: normal; font-weight: 400; src: url('/fonts/notosans-nerdfont-regular.ttf') format('truetype'); }
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(:root:not([data-theme=light]) *));
 
 :root {
   --background: #0a0a0f;
@@ -39,6 +39,41 @@
   --chart-3: #f59e0b;
   --chart-4: #10b981;
   --chart-5: #ef4444;
+  --control-radius: 9999px;
+  --control-inner-radius: 9999px;
+}
+
+:root[data-corners=square] {
+  --control-radius: var(--radius-md);
+  --control-inner-radius: var(--radius-sm);
+}
+
+:root[data-theme=light] {
+  --background: #fafafc;
+  --foreground: #1a1a2e;
+  --card: #ffffff;
+  --card-foreground: #1a1a2e;
+  --popover: #ffffff;
+  --popover-foreground: #1a1a2e;
+  --secondary: #f0f0f6;
+  --secondary-foreground: #1a1a2e;
+  --muted: #ededf4;
+  --muted-foreground: #6e6e85;
+  --accent: #f0f0f6;
+  --accent-foreground: #1a1a2e;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #dddde8;
+  --input: #dddde8;
+  --sidebar: #f5f5fa;
+  --sidebar-foreground: #1a1a2e;
+  --sidebar-accent: #eaeaf2;
+  --sidebar-accent-foreground: #1a1a2e;
+  --sidebar-border: #dddde8;
+  --chart-2: #7c3aed;
+  --chart-3: #d97706;
+  --chart-4: #059669;
+  --chart-5: #dc2626;
 }
 
 @theme inline {
