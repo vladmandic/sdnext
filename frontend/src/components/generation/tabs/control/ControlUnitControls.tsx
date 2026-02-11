@@ -191,19 +191,14 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
             )}
           </div>
           {unit.processedImage && (
-            <div>
-              <div className="relative h-20 rounded-md overflow-hidden border border-border group">
-                <img src={unit.processedImage} alt="Processed" className="w-full h-full object-cover" />
-                <Button
-                  variant="destructive"
-                  size="icon-sm"
-                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity h-5 w-5"
-                  onClick={() => setUnitParam(index, "processedImage", null)}
-                >
-                  <X size={10} />
-                </Button>
-              </div>
-            </div>
+            <button
+              type="button"
+              onClick={() => setUnitParam(index, "processedImage", null)}
+              className="text-[10px] text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+            >
+              <X size={10} />
+              Clear processed
+            </button>
           )}
         </div>
       )}
