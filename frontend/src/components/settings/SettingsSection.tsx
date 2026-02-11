@@ -3,6 +3,7 @@ import type { OptionsMap } from "@/api/types/settings";
 import { SettingControl } from "./SettingControl";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { RotateCcw } from "lucide-react";
 
 interface SettingsSectionProps {
   section: SettingSectionDef;
@@ -35,6 +36,15 @@ export function SettingsSection({ section, values, dirty, onSettingChange, dynam
                 <Label className="text-xs font-medium flex items-center gap-1.5">
                   {setting.label}
                   {isDirty && <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 text-primary border-primary/30">modified</Badge>}
+                  {isDirty && setting.defaultValue !== undefined && (
+                    <button
+                      onClick={() => onSettingChange(setting.key, setting.defaultValue)}
+                      className="text-muted-foreground hover:text-primary transition-colors"
+                      title="Restore default"
+                    >
+                      <RotateCcw size={10} />
+                    </button>
+                  )}
                   {setting.requiresRestart && <Badge variant="outline" className="text-[9px] px-1 py-0 h-3.5 text-amber-500 border-amber-500/30">restart</Badge>}
                 </Label>
                 {setting.description && (
