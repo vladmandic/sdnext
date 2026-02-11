@@ -40,11 +40,6 @@ export const settingsSchema: SettingSectionDef[] = [
     ],
   },
   {
-    id: "quantization",
-    title: "Model Quantization",
-    settings: [],
-  },
-  {
     id: "vae_encoder",
     title: "VAE",
     settings: [

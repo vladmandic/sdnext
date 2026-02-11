@@ -29,6 +29,7 @@ function buildSettingDef(
     ...(curated.setting.min !== undefined && { min: curated.setting.min }),
     ...(curated.setting.max !== undefined && { max: curated.setting.max }),
     ...(curated.setting.step !== undefined && { step: curated.setting.step }),
+    ...(curated.setting.defaultValue !== undefined && { defaultValue: curated.setting.defaultValue }),
     ...(curated.setting.requiresRestart && { requiresRestart: true }),
     // choices: prefer backend (base), fall back to curated if backend has none
     choices: base.choices ?? curated.setting.choices,
