@@ -136,7 +136,7 @@ def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: 
         return res
     im = verify_image(im)
     if not isinstance(im, Image.Image):
-        shared.log.error(f'Image resize: image={type(im)} invalid type')
+        shared.log.error(f'Resize image: image={type(im)} invalid type')
         return im
     if (resize_mode == 0) or ((im.width == width) and (im.height == height)) or (width == 0 and height == 0): # none
         res = im.copy()
@@ -158,5 +158,5 @@ def resize_image(resize_mode: int, im: Union[Image.Image, torch.Tensor], width: 
     t1 = time.time()
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
     if im.width != width or im.height != height:
-        shared.log.debug(f'Image resize: source={im.width}:{im.height} target={width}:{height} mode="{shared.resize_modes[resize_mode]}" upscaler="{upscaler_name}" type={output_type} time={t1-t0:.2f} fn={fn}') # pylint: disable=protected-access
+        shared.log.debug(f'Resize image: source={im.width}:{im.height} target={width}:{height} mode="{shared.resize_modes[resize_mode]}" upscaler="{upscaler_name}" type={output_type} time={t1-t0:.2f} fn={fn}') # pylint: disable=protected-access
     return np.array(res) if output_type == 'np' else res

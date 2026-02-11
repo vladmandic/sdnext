@@ -1,12 +1,14 @@
 # Change Log for SD.Next
 
-## Update for 2026-02-09
+## Update for 2026-02-11
 
-- **Upscalers**
+- **Image manipulation**
+  - use high-quality [sharpfin](https://github.com/drhead/Sharpfin) accelerated library  
+    when available (cuda-only), thanks @CalamitousFelicitousness  
   - add support for [spandrel](https://github.com/chaiNNer-org/spandrel)  
-    upscaling engine with suport for new upscaling model families  
+    **upscaling** engine with suport for new upscaling model families  
   - add two new ai upscalers: *RealPLKSR NomosWebPhoto* and *RealPLKSR AnimeSharpV2*  
-  - add two new interpolation methods: *HQX* and *ICB*  
+  - add two new **interpolation** methods: *HQX* and *ICB*  
 - **Features**
   - pipelines: add **ZImageInpaint**, thanks @CalamitousFelicitousness  
   - add `--remote` command line flag that reduces client/server chatter and improves link stability  
@@ -18,6 +20,7 @@
   - ui: **themes** add *CTD-NT64Light* and *CTD-NT64Dark*, thanks @resonantsky  
   - ui: **gallery** add option to auto-refresh gallery, thanks @awsr  
 - **Internal**
+  - refactor: to/from image/tensor logic, thanks @CalamitousFelicitousness  
   - refactor: switch to `pyproject.toml` for tool configs  
   - refactor: reorganize `cli` scripts  
   - refactor: move tests to dedicated `/test/`  
