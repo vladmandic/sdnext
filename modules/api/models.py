@@ -329,12 +329,23 @@ class ResProcess(BaseModel):
 
 class ReqPromptEnhance(BaseModel):
     prompt: str = Field(title="Prompt", description="Prompt to enhance")
-    type: str = Field(title="Type", default='text', description="Type of enhancement to perform")
+    type: str = Field(title="Type", default='text', description="Type of enhancement: text, image, video")
     model: str | None = Field(title="Model", default=None, description="Model to use for enhancement")
     system_prompt: str | None = Field(title="System prompt", default=None, description="Model system prompt")
     image: str | None = Field(title="Image", default=None, description="Image to work on, must be a Base64 string containing the image's data.")
     seed: int = Field(title="Seed", default=-1, description="Seed used to generate the prompt")
     nsfw: bool = Field(title="NSFW", default=True, description="Should NSFW content be allowed?")
+    prefix: Optional[str] = Field(title="Prefix", default=None, description="Text prepended to enhanced prompt")
+    suffix: Optional[str] = Field(title="Suffix", default=None, description="Text appended to enhanced prompt")
+    do_sample: Optional[bool] = Field(title="Sample", default=None, description="Enable sampling")
+    max_tokens: Optional[int] = Field(title="Max tokens", default=None, description="Max generation tokens")
+    temperature: Optional[float] = Field(title="Temperature", default=None)
+    repetition_penalty: Optional[float] = Field(title="Repetition penalty", default=None)
+    top_k: Optional[int] = Field(title="Top K", default=None)
+    top_p: Optional[float] = Field(title="Top P", default=None)
+    thinking: bool = Field(title="Thinking", default=False, description="Enable thinking/reasoning mode")
+    keep_thinking: bool = Field(title="Keep thinking", default=False, description="Keep thinking tokens in output")
+    use_vision: bool = Field(title="Use vision", default=True, description="Use vision if model supports it")
 
 class ResPromptEnhance(BaseModel):
     prompt: str = Field(title="Prompt", description="Enhanced prompt")

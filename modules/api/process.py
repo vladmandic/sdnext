@@ -136,26 +136,27 @@ class APIProcess:
         seed = req.seed or -1
         seed = processing_helpers.get_fixed_seed(seed)
         prompt = ''
-        if req.type == 'text':
+        if req.type in ('text', 'image'):
             from modules.scripts_manager import scripts_txt2img
-            model = 'google/gemma-3-1b-it' if req.model is None or len(req.model) < 4 else req.model
+            default_model = 'google/gemma-3-4b-it' if req.type == 'image' else 'google/gemma-3-1b-it'
+            model = default_model if req.model is None or len(req.model) < 4 else req.model
             instance = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename][0]
             prompt = instance.enhance(
                 model=model,
                 prompt=req.prompt,
                 system=req.system_prompt,
-                seed=seed,
-                nsfw=req.nsfw,
-            )
-        elif req.type == 'image':
-            from modules.scripts_manager import scripts_txt2img
-            model = 'google/gemma-3-4b-it' if req.model is None or len(req.model) < 4 else req.model
-            instance = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename][0]
-            prompt = instance.enhance(
-                model=model,
-                prompt=req.prompt,
-                system=req.system_prompt,
-                image=decode_base64_to_image(req.image),
+                prefix=req.prefix,
+                suffix=req.suffix,
+                sample=req.do_sample,
+                tokens=req.max_tokens,
+                temperature=req.temperature,
+                penalty=req.repetition_penalty,
+                top_k=req.top_k,
+                top_p=req.top_p,
+                thinking=req.thinking,
+                keep_thinking=req.keep_thinking,
+                use_vision=req.use_vision,
+                image=decode_base64_to_image(req.image) if req.image else None,
                 seed=seed,
                 nsfw=req.nsfw,
             )
@@ -174,6 +175,17 @@ class APIProcess:
             raise HTTPException(status_code=400, detail="prompt enhancement: invalid type")
         res = models.ResPromptEnhance(prompt=prompt, seed=seed)
         return res
+
+    def get_prompt_enhance_models(self):
+        from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model
+        result = []
+        for repo in Options.models.keys():
+            result.append({
+                "name": repo,
+                "vision": is_vision_model(repo),
+                "thinking": is_thinking_model(repo),
+            })
+        return result
 
     def set_upscalers(self, req: dict):
         reqDict = vars(req)
