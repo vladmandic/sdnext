@@ -1,10 +1,12 @@
 import { useCallback, useEffect } from "react";
-import { Upload, X, Loader2, ImageOff } from "lucide-react";
+import { Upload, X, Loader2, ImageOff, Copy, ArrowRight } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCaptionStore } from "@/stores/captionStore";
+import { useGenerationStore } from "@/stores/generationStore";
 
 export function CaptionView() {
   const image = useCaptionStore((s) => s.image);
@@ -49,8 +51,38 @@ export function CaptionView() {
     return () => window.removeEventListener("paste", onPaste);
   }, [setImage]);
 
-  const answerText = result?.type === "vqa" ? (result.answer ?? "") : result?.type === "interrogate" ? (result.caption ?? "") : "";
-  const hasAnalysis = result?.type === "interrogate" && (result.medium || result.artist || result.movement || result.trending || result.flavor);
+  const answerText = result?.type === "vqa"
+    ? (result.answer ?? "")
+    : result?.type === "openclip"
+      ? (result.caption ?? "")
+      : result?.type === "tagger"
+        ? (result.tags ?? "")
+        : "";
+
+  const hasAnalysis = result?.type === "openclip" && (result.medium || result.artist || result.movement || result.trending || result.flavor);
+  const hasAnnotatedImage = result?.type === "vqa" && result.annotated_image;
+  const hasScores = result?.type === "tagger" && result.scores;
+
+  const handleCopy = useCallback(() => {
+    if (answerText) {
+      navigator.clipboard.writeText(answerText);
+      toast.success("Copied to clipboard");
+    }
+  }, [answerText]);
+
+  const handleToPrompt = useCallback(() => {
+    if (!answerText) return;
+    const current = useGenerationStore.getState().prompt;
+    useGenerationStore.getState().setParam("prompt", current ? `${current}, ${answerText}` : answerText);
+    toast.success("Appended to prompt");
+  }, [answerText]);
+
+  const handleToNegative = useCallback(() => {
+    if (!answerText) return;
+    const current = useGenerationStore.getState().negativePrompt;
+    useGenerationStore.getState().setParam("negativePrompt", current ? `${current}, ${answerText}` : answerText);
+    toast.success("Appended to negative prompt");
+  }, [answerText]);
 
   return (
     <div className="flex h-full gap-0">
@@ -101,7 +133,9 @@ export function CaptionView() {
           <div className="p-4 flex flex-col gap-4">
             {/* Answer - always shown */}
             <div className="flex flex-col gap-1.5">
-              <Label className="text-xs text-muted-foreground">Answer</Label>
+              <Label className="text-xs text-muted-foreground">
+                {result?.type === "tagger" ? "Tags" : "Answer"}
+              </Label>
               <Textarea
                 value={answerText}
                 readOnly
@@ -109,20 +143,46 @@ export function CaptionView() {
                 className="min-h-[120px] text-sm"
                 rows={5}
               />
+              {answerText && (
+                <div className="flex items-center gap-1.5 mt-1">
+                  <Button variant="secondary" size="sm" className="text-xs h-7 gap-1" onClick={handleCopy}>
+                    <Copy size={10} />
+                    Copy
+                  </Button>
+                  <Button variant="secondary" size="sm" className="text-xs h-7 gap-1" onClick={handleToPrompt}>
+                    <ArrowRight size={10} />
+                    Prompt
+                  </Button>
+                  <Button variant="secondary" size="sm" className="text-xs h-7 gap-1" onClick={handleToNegative}>
+                    <ArrowRight size={10} />
+                    Negative
+                  </Button>
+                </div>
+              )}
             </div>
 
-            {/* VLM: Output Image (annotated) */}
+            {/* VLM: Annotated Image */}
             {method === "vlm" && (
               <div className="flex flex-col gap-1.5">
                 <Label className="text-xs text-muted-foreground">Annotated Image</Label>
-                <div className="rounded-md border border-border flex items-center justify-center min-h-[200px] bg-muted/20">
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground opacity-50">
-                    <ImageOff size={32} />
-                    <p className="text-xs">
-                      {result ? "No annotated image for this result" : "Run VLM captioning with detection tasks to see annotated output"}
-                    </p>
+                {hasAnnotatedImage ? (
+                  <div className="rounded-md border border-border overflow-hidden">
+                    <img
+                      src={`data:image/png;base64,${result.annotated_image}`}
+                      alt="Annotated detection result"
+                      className="max-w-full object-contain"
+                    />
                   </div>
-                </div>
+                ) : (
+                  <div className="rounded-md border border-border flex items-center justify-center min-h-[200px] bg-muted/20">
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground opacity-50">
+                      <ImageOff size={32} />
+                      <p className="text-xs">
+                        {result ? "No annotated image for this result" : "Run VLM captioning with detection tasks to see annotated output"}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -148,7 +208,28 @@ export function CaptionView() {
               </div>
             )}
 
-            {/* Tagger: answer only, no extra sections */}
+            {/* Tagger: Confidence Scores */}
+            {method === "tagger" && (
+              <div className="flex flex-col gap-1.5">
+                <Label className="text-xs text-muted-foreground">Confidence Scores</Label>
+                {hasScores ? (
+                  <div className="rounded-md border border-border p-3 flex flex-col gap-1 text-sm">
+                    {Object.entries(result.scores!).map(([tag, score]) => (
+                      <div key={tag} className="flex items-center justify-between">
+                        <span className="text-foreground">{tag}</span>
+                        <span className="text-muted-foreground text-xs tabular-nums">{score.toFixed(3)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-md border border-border p-6 flex items-center justify-center min-h-[120px]">
+                    <p className="text-xs text-muted-foreground opacity-50">
+                      {result ? "Enable Show Confidence Scores to see per-tag scores" : "Run tagger to see results"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </ScrollArea>
       </div>

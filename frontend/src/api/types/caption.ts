@@ -1,15 +1,25 @@
 export type CaptionMethod = "vlm" | "openclip" | "tagger";
 
-export interface InterrogateRequest {
+// ---------------------------------------------------------------------------
+// OpenCLIP / BLIP
+// ---------------------------------------------------------------------------
+
+export interface OpenClipRequest {
   image: string;
   model?: string;
   clip_model?: string;
   blip_model?: string;
-  mode?: "fast" | "classic" | "best" | "negative";
+  mode?: string;
   analyze?: boolean;
+  max_length?: number | null;
+  chunk_size?: number | null;
+  min_flavors?: number | null;
+  max_flavors?: number | null;
+  flavor_count?: number | null;
+  num_beams?: number | null;
 }
 
-export interface InterrogateResponse {
+export interface OpenClipResponse {
   caption?: string;
   medium?: string;
   artist?: string;
@@ -18,50 +28,65 @@ export interface InterrogateResponse {
   flavor?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Tagger (WaifuDiffusion / DeepBooru)
+// ---------------------------------------------------------------------------
+
+export interface TaggerRequest {
+  image: string;
+  model?: string;
+  threshold?: number;
+  character_threshold?: number;
+  max_tags?: number;
+  include_rating?: boolean;
+  sort_alpha?: boolean;
+  use_spaces?: boolean;
+  escape_brackets?: boolean;
+  exclude_tags?: string;
+  show_scores?: boolean;
+}
+
+export interface TaggerResponse {
+  tags: string;
+  scores?: Record<string, number> | null;
+}
+
+export interface TaggerModel {
+  name: string;
+  type: string;
+}
+
+// ---------------------------------------------------------------------------
+// VLM / VQA
+// ---------------------------------------------------------------------------
+
 export interface VqaRequest {
   image: string;
   model?: string;
   question?: string;
+  prompt?: string | null;
   system?: string;
+  include_annotated?: boolean;
+  max_tokens?: number | null;
+  temperature?: number | null;
+  top_k?: number | null;
+  top_p?: number | null;
+  num_beams?: number | null;
+  do_sample?: boolean | null;
+  thinking_mode?: boolean | null;
+  prefill?: string | null;
+  keep_thinking?: boolean | null;
+  keep_prefill?: boolean | null;
 }
 
 export interface VqaResponse {
   answer?: string;
+  annotated_image?: string | null;
 }
 
-/** Options set via /sdapi/v1/options before calling caption endpoints */
-export interface VlmOptions {
-  interrogate_vlm_max_length?: number;
-  interrogate_vlm_num_beams?: number;
-  interrogate_vlm_temperature?: number;
-  interrogate_vlm_top_k?: number;
-  interrogate_vlm_top_p?: number;
-  interrogate_vlm_do_sample?: boolean;
-  interrogate_vlm_thinking_mode?: boolean;
-  interrogate_vlm_keep_thinking?: boolean;
-  interrogate_vlm_keep_prefill?: boolean;
-}
-
-export interface OpenClipOptions {
-  interrogate_blip_model?: string;
-  interrogate_clip_num_beams?: number;
-  interrogate_clip_min_length?: number;
-  interrogate_clip_max_length?: number;
-  interrogate_clip_min_flavors?: number;
-  interrogate_clip_max_flavors?: number;
-  interrogate_clip_flavor_count?: number;
-  interrogate_clip_chunk_size?: number;
-}
-
-export interface TaggerOptions {
-  waifudiffusion_model?: string;
-  tagger_threshold?: number;
-  waifudiffusion_character_threshold?: number;
-  tagger_max_tags?: number;
-  tagger_include_rating?: boolean;
-  tagger_sort_alpha?: boolean;
-  tagger_use_spaces?: boolean;
-  tagger_escape_brackets?: boolean;
-  tagger_exclude_tags?: string;
-  tagger_show_scores?: boolean;
+export interface VlmModel {
+  name: string;
+  repo: string;
+  prompts: string[];
+  capabilities: string[];
 }

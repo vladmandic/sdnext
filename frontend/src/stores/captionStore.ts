@@ -1,8 +1,9 @@
 import { create } from "zustand";
-import type { CaptionMethod, InterrogateResponse, VqaResponse } from "@/api/types/caption";
+import type { CaptionMethod, OpenClipResponse, TaggerResponse, VqaResponse } from "@/api/types/caption";
 
-type CaptionResult =
-  | (InterrogateResponse & { type: "interrogate" })
+export type CaptionResult =
+  | (OpenClipResponse & { type: "openclip" })
+  | (TaggerResponse & { type: "tagger" })
   | (VqaResponse & { type: "vqa" })
   | null;
 

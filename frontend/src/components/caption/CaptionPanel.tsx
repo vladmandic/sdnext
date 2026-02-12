@@ -1,36 +1,30 @@
-import { useCallback, useRef } from "react";
-import { Play, Loader2, Copy, ArrowRight } from "lucide-react";
+import { useCallback } from "react";
+import { Play, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCaptionStore } from "@/stores/captionStore";
-import { useGenerationStore } from "@/stores/generationStore";
-import { useInterrogate, useVqa, setCaptionOptions } from "@/api/hooks/useCaption";
+import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
+import { useOpenClipCaption, useTaggerCaption, useVqaCaption } from "@/api/hooks/useCaption";
 import { fileToBase64 } from "@/lib/image";
-import { VlmSettings, type VlmSettingsValues } from "./methods/VlmSettings";
-import { OpenClipSettings, type OpenClipSettingsValues } from "./methods/OpenClipSettings";
-import { TaggerSettings, type TaggerSettingsValues } from "./methods/TaggerSettings";
+import { CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
+import { VlmSettings } from "./methods/VlmSettings";
+import { OpenClipSettings } from "./methods/OpenClipSettings";
+import { TaggerSettings } from "./methods/TaggerSettings";
 import type { CaptionMethod } from "@/api/types/caption";
 
 export function CaptionPanel() {
   const image = useCaptionStore((s) => s.image);
-  const result = useCaptionStore((s) => s.result);
   const isProcessing = useCaptionStore((s) => s.isProcessing);
   const method = useCaptionStore((s) => s.method);
   const setResult = useCaptionStore((s) => s.setResult);
   const setProcessing = useCaptionStore((s) => s.setProcessing);
   const setMethod = useCaptionStore((s) => s.setMethod);
 
-  const interrogate = useInterrogate();
-  const vqa = useVqa();
-
-  // Refs to hold current settings from method components
-  const vlmRef = useRef<VlmSettingsValues>({ model: "Alibaba Qwen 2.5 VL 3B", question: "<DETAILED_CAPTION>", system: "", options: {} });
-  const clipRef = useRef<OpenClipSettingsValues>({ model: "", blipModel: "blip-base", mode: "fast", analyze: false, options: {} });
-  const taggerRef = useRef<TaggerSettingsValues>({ model: "wd-eva02-large-tagger-v3", options: {} });
+  const openclipMut = useOpenClipCaption();
+  const taggerMut = useTaggerCaption();
+  const vqaMut = useVqaCaption();
 
   const handleCaption = useCallback(async () => {
     if (!image || isProcessing) return;
@@ -38,53 +32,68 @@ export function CaptionPanel() {
     setResult(null);
     try {
       const base64 = await fileToBase64(image);
+      const settings = useCaptionSettingsStore.getState();
+
       if (method === "vlm") {
-        const { model, question, system, options } = vlmRef.current;
-        await setCaptionOptions(options);
-        const res = await vqa.mutateAsync({ image: base64, model, question, system });
+        const s = settings.vlm;
+        const res = await vqaMut.mutateAsync({
+          image: base64,
+          model: s.model,
+          question: s.task,
+          prompt: CUSTOM_PROMPT_TASKS.includes(s.task) ? s.customPrompt : undefined,
+          system: s.system,
+          include_annotated: s.includeAnnotated,
+          max_tokens: s.maxTokens,
+          temperature: s.temperature,
+          top_k: s.topK,
+          top_p: s.topP,
+          num_beams: s.numBeams,
+          do_sample: s.doSample,
+          thinking_mode: s.thinkingMode,
+          prefill: s.prefill || undefined,
+          keep_thinking: s.keepThinking,
+          keep_prefill: s.keepPrefill,
+        });
         setResult({ ...res, type: "vqa" });
       } else if (method === "openclip") {
-        const { model, blipModel, mode, analyze, options } = clipRef.current;
-        await setCaptionOptions(options);
-        const res = await interrogate.mutateAsync({ image: base64, model, blip_model: blipModel, mode: mode as "fast" | "classic" | "best" | "negative", analyze });
-        setResult({ ...res, type: "interrogate" });
+        const s = settings.openclip;
+        const res = await openclipMut.mutateAsync({
+          image: base64,
+          clip_model: s.clipModel,
+          blip_model: s.blipModel,
+          mode: s.mode,
+          analyze: s.analyze,
+          max_length: s.maxLength,
+          chunk_size: s.chunkSize,
+          min_flavors: s.minFlavors,
+          max_flavors: s.maxFlavors,
+          flavor_count: s.flavorCount,
+          num_beams: s.numBeams,
+        });
+        setResult({ ...res, type: "openclip" });
       } else {
-        const { model, options } = taggerRef.current;
-        await setCaptionOptions(options);
-        // DeepBooru uses the interrogate endpoint; WaifuDiffusion models use options + deepdanbooru path
-        const apiModel = model === "DeepBooru" ? "deepdanbooru" : "deepdanbooru";
-        const res = await interrogate.mutateAsync({ image: base64, model: apiModel });
-        setResult({ ...res, type: "interrogate" });
+        const s = settings.tagger;
+        const res = await taggerMut.mutateAsync({
+          image: base64,
+          model: s.model,
+          threshold: s.threshold,
+          character_threshold: s.characterThreshold,
+          max_tags: s.maxTags,
+          include_rating: s.includeRating,
+          sort_alpha: s.sortAlpha,
+          use_spaces: s.useSpaces,
+          escape_brackets: s.escapeBrackets,
+          exclude_tags: s.excludeTags,
+          show_scores: s.showScores,
+        });
+        setResult({ ...res, type: "tagger" });
       }
     } catch (err) {
       toast.error("Captioning failed", { description: err instanceof Error ? err.message : String(err) });
     } finally {
       setProcessing(false);
     }
-  }, [image, isProcessing, method, vqa, interrogate, setProcessing, setResult]);
-
-  const resultText = getResultText(result);
-
-  const handleCopy = useCallback(() => {
-    if (resultText) {
-      navigator.clipboard.writeText(resultText);
-      toast.success("Copied to clipboard");
-    }
-  }, [resultText]);
-
-  const handleToPrompt = useCallback(() => {
-    if (!resultText) return;
-    const current = useGenerationStore.getState().prompt;
-    useGenerationStore.getState().setParam("prompt", current ? `${current}, ${resultText}` : resultText);
-    toast.success("Appended to prompt");
-  }, [resultText]);
-
-  const handleToNegative = useCallback(() => {
-    if (!resultText) return;
-    const current = useGenerationStore.getState().negativePrompt;
-    useGenerationStore.getState().setParam("negativePrompt", current ? `${current}, ${resultText}` : resultText);
-    toast.success("Appended to negative prompt");
-  }, [resultText]);
+  }, [image, isProcessing, method, vqaMut, openclipMut, taggerMut, setProcessing, setResult]);
 
   return (
     <div className="flex flex-col h-full">
@@ -110,7 +119,7 @@ export function CaptionPanel() {
         </Button>
       </div>
 
-      {/* Method tabs + settings + image upload */}
+      {/* Method tabs + settings */}
       <ScrollArea className="flex-1">
         <div className="p-3">
           <Tabs value={method} onValueChange={(v) => setMethod(v as CaptionMethod)}>
@@ -121,77 +130,19 @@ export function CaptionPanel() {
             </TabsList>
 
             <TabsContent value="vlm" className="mt-3">
-              <VlmSettings onChange={(v) => { vlmRef.current = v; }} />
+              <VlmSettings />
             </TabsContent>
 
             <TabsContent value="openclip" className="mt-3">
-              <OpenClipSettings onChange={(v) => { clipRef.current = v; }} />
+              <OpenClipSettings />
             </TabsContent>
 
             <TabsContent value="tagger" className="mt-3">
-              <TaggerSettings onChange={(v) => { taggerRef.current = v; }} />
+              <TaggerSettings />
             </TabsContent>
           </Tabs>
         </div>
       </ScrollArea>
-
-      {/* Results area */}
-      {result && (
-        <div className="border-t border-border p-3 flex flex-col gap-2 max-h-[300px] overflow-y-auto">
-          <Label className="text-xs text-muted-foreground">Result</Label>
-
-          {result.type === "interrogate" && result.caption && (
-            <Textarea value={result.caption} readOnly className="min-h-12 text-xs" rows={3} />
-          )}
-          {result.type === "vqa" && result.answer && (
-            <Textarea value={result.answer} readOnly className="min-h-12 text-xs" rows={3} />
-          )}
-
-          {/* Analyze breakdown for OpenCLiP */}
-          {result.type === "interrogate" && (result.medium || result.artist || result.movement || result.trending || result.flavor) && (
-            <div className="flex flex-col gap-1 text-[10px]">
-              {result.medium && <AnalyzeField label="Medium" value={result.medium} />}
-              {result.artist && <AnalyzeField label="Artist" value={result.artist} />}
-              {result.movement && <AnalyzeField label="Movement" value={result.movement} />}
-              {result.trending && <AnalyzeField label="Trending" value={result.trending} />}
-              {result.flavor && <AnalyzeField label="Flavor" value={result.flavor} />}
-            </div>
-          )}
-
-          {/* Action buttons */}
-          {resultText && (
-            <div className="flex items-center gap-1.5">
-              <Button variant="secondary" size="sm" className="text-xs h-7 gap-1" onClick={handleCopy}>
-                <Copy size={10} />
-                Copy
-              </Button>
-              <Button variant="secondary" size="sm" className="text-xs h-7 gap-1" onClick={handleToPrompt}>
-                <ArrowRight size={10} />
-                Prompt
-              </Button>
-              <Button variant="secondary" size="sm" className="text-xs h-7 gap-1" onClick={handleToNegative}>
-                <ArrowRight size={10} />
-                Negative
-              </Button>
-            </div>
-          )}
-        </div>
-      )}
     </div>
   );
-}
-
-function AnalyzeField({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <span className="text-muted-foreground">{label}: </span>
-      <span className="text-foreground">{value}</span>
-    </div>
-  );
-}
-
-function getResultText(result: ReturnType<typeof useCaptionStore.getState>["result"]): string {
-  if (!result) return "";
-  if (result.type === "vqa") return result.answer ?? "";
-  return result.caption ?? "";
 }
