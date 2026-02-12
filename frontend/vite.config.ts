@@ -12,6 +12,10 @@ export default defineConfig(({ mode }) => {
     tailwindcss(),
     VitePWA({
       registerType: "autoUpdate",
+      devOptions: {
+        enabled: true,
+        type: "module",
+      },
       workbox: {
         // Only precache the app shell, not API calls or dynamic content
         globPatterns: ["**/*.{js,css,html,svg,png,woff2}"],
@@ -28,8 +32,8 @@ export default defineConfig(({ mode }) => {
         ],
       },
       manifest: {
-        name: "SD.Next",
-        short_name: "SD.Next",
+        name: "SD.Next React",
+        short_name: "SD.Next React",
         description: "AI Image & Video Generation",
         theme_color: "#0a0a0a",
         background_color: "#0a0a0a",
