@@ -1,21 +1,87 @@
 import { useGenerationStore } from "@/stores/generationStore";
-import { useState } from "react";
+import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
+import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
+import { useState, useCallback } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { PromptEnhancePanel } from "./PromptEnhancePanel";
+import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
 export function PromptEditor() {
   const prompt = useGenerationStore((s) => s.prompt);
   const negativePrompt = useGenerationStore((s) => s.negativePrompt);
   const setParam = useGenerationStore((s) => s.setParam);
   const [showNegative, setShowNegative] = useState(false);
+  const [showEnhancePanel, setShowEnhancePanel] = useState(false);
+
+  const enhanceStore = usePromptEnhanceStore();
+  const enhanceMutation = usePromptEnhance();
+
+  const handleEnhance = useCallback(() => {
+    if (!prompt.trim()) {
+      toast.warning("Enter a prompt first");
+      return;
+    }
+    const req: PromptEnhanceRequest = {
+      prompt,
+      type: "text",
+      model: enhanceStore.model || undefined,
+      system_prompt: enhanceStore.systemPrompt || undefined,
+      prefix: enhanceStore.prefix || undefined,
+      suffix: enhanceStore.suffix || undefined,
+      nsfw: enhanceStore.nsfw,
+      seed: enhanceStore.seed,
+      max_tokens: enhanceStore.maxTokens,
+      temperature: enhanceStore.temperature,
+      repetition_penalty: enhanceStore.repetitionPenalty,
+      top_k: enhanceStore.topK || undefined,
+      top_p: enhanceStore.topP || undefined,
+      thinking: enhanceStore.thinking,
+      keep_thinking: enhanceStore.keepThinking,
+      use_vision: enhanceStore.useVision,
+    };
+    enhanceMutation.mutate(req, {
+      onSuccess: (res) => {
+        setParam("prompt", res.prompt);
+        toast.success(`Prompt enhanced (seed: ${res.seed})`);
+      },
+      onError: (err) => {
+        toast.error(`Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+      },
+    });
+  }, [prompt, enhanceStore, enhanceMutation, setParam]);
 
   return (
     <div className="flex flex-col gap-2">
       {/* Positive prompt */}
       <div>
-        <Label className="text-[11px] text-muted-foreground mb-1 block">Prompt</Label>
+        <div className="flex items-center justify-between mb-1">
+          <Label className="text-[11px] text-muted-foreground">Prompt</Label>
+          <div className="flex items-center gap-0.5">
+            <button
+              type="button"
+              onClick={handleEnhance}
+              disabled={enhanceMutation.isPending}
+              className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+              title="Enhance prompt"
+            >
+              {enhanceMutation.isPending
+                ? <Loader2 size={14} className="animate-spin" />
+                : <Sparkles size={14} />}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowEnhancePanel((v) => !v)}
+              className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Enhance settings"
+            >
+              {showEnhancePanel ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+            </button>
+          </div>
+        </div>
         <Textarea
           value={prompt}
           onChange={(e) => setParam("prompt", e.target.value)}
@@ -29,6 +95,7 @@ export function PromptEditor() {
             }
           }}
         />
+        {showEnhancePanel && <PromptEnhancePanel />}
       </div>
 
       {/* Negative prompt */}
