@@ -21,7 +21,6 @@ export const CanvasView = memo(function CanvasView() {
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const generationMode = useUiStore((s) => s.generationMode);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const controlFileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [pendingUnitIndex, setPendingUnitIndex] = useState<number | null>(null);
 
@@ -58,6 +57,7 @@ export const CanvasView = memo(function CanvasView() {
           const file = dt.files[0];
           if (file?.type.startsWith("image/")) {
             setUnitImage(frame.unitIndex, file);
+            setUnitParam(frame.unitIndex, "processedImage", null);
           }
           return;
         }
@@ -70,7 +70,7 @@ export const CanvasView = memo(function CanvasView() {
         if (file.type.startsWith("image/")) handleFile(file);
       }
     }
-  }, [handleFile, isImg2Img, viewport, layout.controlFrames, setUnitImage]);
+  }, [handleFile, isImg2Img, viewport, layout.controlFrames, setUnitImage, setUnitParam]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -79,11 +79,25 @@ export const CanvasView = memo(function CanvasView() {
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
-    if (files) {
+    if (!files || files.length === 0) {
+      e.target.value = "";
+      setPendingUnitIndex(null);
+      return;
+    }
+    if (pendingUnitIndex !== null && pendingUnitIndex >= 0) {
+      // Control frame pick — single file
+      const file = files[0];
+      if (file) {
+        setUnitImage(pendingUnitIndex, file);
+        setUnitParam(pendingUnitIndex, "processedImage", null);
+      }
+    } else {
+      // Input frame pick — multiple files
       for (const file of files) handleFile(file);
     }
     e.target.value = "";
-  }, [handleFile]);
+    setPendingUnitIndex(null);
+  }, [pendingUnitIndex, handleFile, setUnitImage, setUnitParam]);
 
   const handleResetZoom = useCallback(() => {
     setViewport({ x: 0, y: 0, scale: 1 });
@@ -106,24 +120,13 @@ export const CanvasView = memo(function CanvasView() {
     }
   }, [handleFile, isImg2Img]);
 
-  const openPicker = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handlePickControlImage = useCallback((unitIndex: number) => {
+  const handlePickImage = useCallback((unitIndex: number) => {
     setPendingUnitIndex(unitIndex);
-    controlFileInputRef.current?.click();
-  }, []);
-
-  const handleControlFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && pendingUnitIndex !== null) {
-      setUnitImage(pendingUnitIndex, file);
-      setUnitParam(pendingUnitIndex, "processedImage", null);
+    if (fileInputRef.current) {
+      fileInputRef.current.multiple = unitIndex === -1;
+      fileInputRef.current.click();
     }
-    e.target.value = "";
-    setPendingUnitIndex(null);
-  }, [pendingUnitIndex, setUnitImage, setUnitParam]);
+  }, []);
 
   return (
     <div
@@ -134,7 +137,7 @@ export const CanvasView = memo(function CanvasView() {
       onPaste={handlePaste}
       tabIndex={0}
     >
-      <CanvasStage layout={layout} onPickImage={handlePickControlImage} />
+      <CanvasStage layout={layout} onPickImage={handlePickImage} />
 
       {/* Top-right utility buttons */}
       <div className="absolute top-2 right-2 flex items-center gap-1">
@@ -142,7 +145,7 @@ export const CanvasView = memo(function CanvasView() {
           <Button
             variant="secondary"
             size="icon-xs"
-            onClick={openPicker}
+            onClick={() => handlePickImage(-1)}
             title="Add image"
             className="bg-background/80 backdrop-blur-sm"
           >
@@ -177,23 +180,12 @@ export const CanvasView = memo(function CanvasView() {
       {/* Floating control panels (persistent, collapsible) */}
       <ControlFramePanels layout={layout} />
 
-      {isImg2Img && (
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*"
-          multiple
-          onChange={handleFileInput}
-          className="hidden"
-        />
-      )}
-
-      {/* Hidden file input for control units */}
+      {/* Single file input for both input frame and control frame picks */}
       <input
-        ref={controlFileInputRef}
+        ref={fileInputRef}
         type="file"
         accept="image/*"
-        onChange={handleControlFileInput}
+        onChange={handleFileInput}
         className="hidden"
       />
     </div>

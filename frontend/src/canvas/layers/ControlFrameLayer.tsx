@@ -230,7 +230,7 @@ function ControlFrame({ frame, labelText, hasImage, image, processedImage, onCli
           y={frame.y + frame.height / 2 - 8}
           width={frame.width}
           align="center"
-          text="Drop image"
+          text="Drop image or click to upload"
           fontSize={14}
           fill="#666"
           listening={false}
