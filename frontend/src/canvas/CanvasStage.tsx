@@ -113,7 +113,7 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
         >
           <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
           {showInputFrame && <CompositeLayer trRef={trRef} />}
-          {showInputFrame && <FrameLayer />}
+          {showInputFrame && <FrameLayer onPickImage={onPickImage ? () => onPickImage(-1) : undefined} />}
           {showInputFrame && <MaskLayer setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />}
           <OutputLayer offsetX={outputX} placeholderWidth={frameW} placeholderHeight={frameH} />
         </Stage>
