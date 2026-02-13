@@ -1,7 +1,7 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import type { GenerationResult } from "@/stores/generationStore";
 import { useScriptStore } from "@/stores/scriptStore";
-import { useControlStore } from "@/stores/controlStore";
+import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -128,8 +128,14 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
   // Control units: partition by type — IP-adapter vs control types
   const enabledIPUnits = control.units.filter((u) => u.enabled && u.unitType === "ip" && u.images.length > 0);
   const TYPE_MAP: Record<string, string> = { controlnet: "controlnet", t2i: "t2i adapter", xs: "xs", lite: "lite", reference: "reference" };
-  const enabledControlUnits = control.units.filter((u) => u.enabled && u.unitType !== "ip" && u.unitType !== "asset" && u.image);
-  const enabledAssetUnits = control.units.filter((u) => u.enabled && u.unitType === "asset" && u.image);
+
+  // Resolve images for control units (may reference another unit's image via "unit:N")
+  const controlUnitEntries = control.units
+    .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
+    .filter((e) => e.unit.enabled && e.unit.unitType !== "ip" && e.unit.unitType !== "asset" && e.image);
+  const assetUnitEntries = control.units
+    .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
+    .filter((e) => e.unit.enabled && e.unit.unitType === "asset" && e.image);
 
   if (enabledIPUnits.length > 0) {
     request.ip_adapter = await Promise.all(
@@ -145,27 +151,27 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     );
   }
 
-  if (enabledControlUnits.length > 0) {
+  if (controlUnitEntries.length > 0) {
     request.control_units = await Promise.all(
-      enabledControlUnits.map(async (u) => ({
+      controlUnitEntries.map(async (e) => ({
         enabled: true,
-        unit_type: TYPE_MAP[u.unitType] ?? u.unitType,
-        processor: u.processor,
-        model: u.model,
-        strength: u.strength,
-        start: u.start,
-        end: u.end,
-        image: u.image ? await fileToBase64(u.image) : "",
-        mode: u.mode,
-        ...(u.unitType === "controlnet" ? { guess: u.guess } : {}),
-        ...(u.unitType === "t2i" ? { factor: u.factor } : {}),
-        ...(u.unitType === "reference" ? { attention: u.attention, fidelity: u.fidelity, query_weight: u.queryWeight, adain_weight: u.adainWeight } : {}),
+        unit_type: TYPE_MAP[e.unit.unitType] ?? e.unit.unitType,
+        processor: e.unit.processor,
+        model: e.unit.model,
+        strength: e.unit.strength,
+        start: e.unit.start,
+        end: e.unit.end,
+        image: e.image ? await fileToBase64(e.image) : "",
+        mode: e.unit.mode,
+        ...(e.unit.unitType === "controlnet" ? { guess: e.unit.guess } : {}),
+        ...(e.unit.unitType === "t2i" ? { factor: e.unit.factor } : {}),
+        ...(e.unit.unitType === "reference" ? { attention: e.unit.attention, fidelity: e.unit.fidelity, query_weight: e.unit.queryWeight, adain_weight: e.unit.adainWeight } : {}),
       })),
     );
   }
 
-  if (enabledAssetUnits.length > 0) {
-    request.init_control = await Promise.all(enabledAssetUnits.map((u) => fileToBase64(u.image!)));
+  if (assetUnitEntries.length > 0) {
+    request.init_control = await Promise.all(assetUnitEntries.map((e) => fileToBase64(e.image!)));
   }
 
   // User override settings (merged last to take priority)

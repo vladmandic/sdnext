@@ -7,13 +7,18 @@ const FRAME_GAP = 48;
 /** Spacing between a frame and its associated elements (processed image, floating panel) */
 export const ELEMENT_GAP = 16;
 
+export interface ProcessedSlot {
+  unitIndex: number;
+  hasProcessed: boolean;
+}
+
 export interface ControlFramePosition {
   unitIndex: number;
   x: number;
   y: number;
   width: number;
   height: number;
-  hasProcessed: boolean;
+  processedSlots: ProcessedSlot[];
 }
 
 export interface CanvasLayout {
@@ -40,28 +45,43 @@ export function useControlFrameLayout(): CanvasLayout {
     // Rightmost edge of main frames
     const mainMaxX = isImg2Img ? outputX + frameW : frameW;
 
-    // Control frames: only enabled units with useSeparateImage
+    // Control frames: only enabled units with imageSource === "separate"
     const activeControlIndices = units
       .map((u, i) => ({ unit: u, index: i }))
-      .filter((entry) => entry.unit.enabled && entry.unit.useSeparateImage);
+      .filter((entry) => entry.unit.enabled && entry.unit.imageSource === "separate");
 
-    // Stack control frames right-to-left, starting from the left of the leftmost main frame
-    const controlFrames: ControlFramePosition[] = activeControlIndices.map((entry, slot) => ({
-      unitIndex: entry.index,
-      x: -(slot + 1) * (frameW + FRAME_GAP),
-      y: 0,
-      width: frameW,
-      height: frameH,
-      hasProcessed: !!entry.unit.processedImage,
-    }));
+    // Build control frames with processedSlots
+    const controlFrames: ControlFramePosition[] = activeControlIndices.map((entry, slot) => {
+      // Collect all units that share this frame: the owner + any "unit:N" referencing it
+      const slots: ProcessedSlot[] = [
+        { unitIndex: entry.index, hasProcessed: !!entry.unit.processedImage },
+      ];
+      for (let i = 0; i < units.length; i++) {
+        if (i !== entry.index && units[i].enabled && units[i].imageSource === `unit:${entry.index}`) {
+          slots.push({ unitIndex: i, hasProcessed: !!units[i].processedImage });
+        }
+      }
+
+      return {
+        unitIndex: entry.index,
+        x: -(slot + 1) * (frameW + FRAME_GAP),
+        y: 0,
+        width: frameW,
+        height: frameH,
+        processedSlots: slots,
+      };
+    });
 
     const minX = controlFrames.length > 0
       ? controlFrames[controlFrames.length - 1].x
       : 0;
 
-    // If any control frame has a processed image, extend maxY to include the second row
-    const anyProcessed = controlFrames.some((f) => f.hasProcessed);
-    const maxY = anyProcessed ? frameH + ELEMENT_GAP + frameH : frameH;
+    // maxY: account for the frame with the most processed slots
+    const maxSlots = controlFrames.reduce((max, f) => {
+      const active = f.processedSlots.filter((s) => s.hasProcessed).length;
+      return Math.max(max, active);
+    }, 0);
+    const maxY = maxSlots > 0 ? frameH + maxSlots * (ELEMENT_GAP + frameH) : frameH;
 
     return {
       showInputFrame: isImg2Img,

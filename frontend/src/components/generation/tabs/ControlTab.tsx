@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { useControlStore } from "@/stores/controlStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { ParamSlider } from "../ParamSlider";
@@ -48,15 +48,34 @@ interface ControlUnitRowProps {
 
 function ControlUnitRow({ index, canRemove }: ControlUnitRowProps) {
   const unit = useControlStore((s) => s.units[index]);
+  const units = useControlStore((s) => s.units);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const setUnitType = useControlStore((s) => s.setUnitType);
   const removeUnit = useControlStore((s) => s.removeUnit);
-  const toggleSeparateImage = useControlStore((s) => s.toggleSeparateImage);
+  const setImageSource = useControlStore((s) => s.setImageSource);
   const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
 
+  const imageSourceOptions = useMemo(() => {
+    const opts: { value: string; label: string }[] = [
+      { value: "canvas", label: "Canvas input" },
+      { value: "separate", label: "Separate image" },
+    ];
+    units.forEach((u, i) => {
+      if (i !== index && u.imageSource === "separate") {
+        opts.push({ value: `unit:${i}`, label: `Unit ${i} (${u.unitType})` });
+      }
+    });
+    return opts;
+  }, [units, index]);
+
   const handleEditOnCanvas = useCallback(() => {
-    setSelectedControlFrame(index);
-  }, [setSelectedControlFrame, index]);
+    // For "unit:N" references, scroll to the referenced unit's frame
+    const match = unit.imageSource.match(/^unit:(\d+)$/);
+    const targetIndex = match ? Number(match[1]) : index;
+    setSelectedControlFrame(targetIndex);
+  }, [setSelectedControlFrame, index, unit.imageSource]);
+
+  const showEditOnCanvas = unit.enabled && (unit.imageSource === "separate" || unit.imageSource.startsWith("unit:"));
 
   return (
     <div className="flex flex-col gap-1.5 p-2 rounded-md border border-border">
@@ -80,20 +99,19 @@ function ControlUnitRow({ index, canRemove }: ControlUnitRowProps) {
         )}
       </div>
 
-      {/* Row 2: Separate image toggle + Edit on Canvas */}
+      {/* Row 2: Image source selector + Edit on Canvas */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5">
-          <Switch
-            checked={unit.useSeparateImage}
-            onCheckedChange={() => toggleSeparateImage(index)}
-          />
-          <Label className="text-[10px] text-muted-foreground">Separate image</Label>
-        </div>
-        {unit.enabled && unit.useSeparateImage && (
+        <Combobox
+          value={unit.imageSource}
+          onValueChange={(v) => setImageSource(index, v)}
+          options={imageSourceOptions}
+          className="h-7 text-xs flex-1"
+        />
+        {showEditOnCanvas && (
           <Button
             variant="link"
             size="sm"
-            className="h-auto p-0 text-[11px] text-amber-500 gap-1"
+            className="h-auto p-0 text-[11px] text-amber-500 gap-1 shrink-0"
             onClick={handleEditOnCanvas}
           >
             <PenLine size={10} />

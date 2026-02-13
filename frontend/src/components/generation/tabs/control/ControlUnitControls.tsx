@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from "react";
-import { useControlStore } from "@/stores/controlStore";
+import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useControlModels, useControlModes, usePreprocessImage, usePreprocessors } from "@/api/hooks/useControl";
 import { useIPAdapterModels } from "@/api/hooks/useAdapters";
 import { fileToBase64 } from "@/lib/image";
@@ -21,6 +21,7 @@ interface ControlUnitControlsProps {
 
 export function ControlUnitControls({ index, compact }: ControlUnitControlsProps) {
   const unit = useControlStore((s) => s.units[index]);
+  const units = useControlStore((s) => s.units);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const addUnitImage = useControlStore((s) => s.addUnitImage);
   const removeUnitImage = useControlStore((s) => s.removeUnitImage);
@@ -32,16 +33,18 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
   const { data: adapterModels } = useIPAdapterModels();
   const preprocessMutation = usePreprocessImage();
 
+  const resolvedImage = resolveUnitImage(units, index);
+
   const handleProcess = useCallback(async () => {
-    if (!unit.image || unit.processor === "None") return;
+    if (!resolvedImage || unit.processor === "None") return;
     try {
-      const b64 = await fileToBase64(unit.image);
+      const b64 = await fileToBase64(resolvedImage);
       const result = await preprocessMutation.mutateAsync({ image: b64, model: unit.processor });
       setUnitParam(index, "processedImage", `data:image/png;base64,${result.image}`);
     } catch (err) {
       toast.error("Preprocessing failed", { description: err instanceof Error ? err.message : String(err) });
     }
-  }, [unit.image, unit.processor, preprocessMutation, setUnitParam, index]);
+  }, [resolvedImage, unit.processor, preprocessMutation, setUnitParam, index]);
 
   const modesForModel = useMemo(() => {
     if (!controlModes || unit.model === "None") return null;
@@ -150,7 +153,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
               Guess mode
             </label>
           )}
-          {showControlImage && showProcessor && unit.image && unit.processor !== "None" && (
+          {showControlImage && showProcessor && resolvedImage && unit.processor !== "None" && (
             <Button
               variant="outline"
               size="sm"
@@ -178,7 +181,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <Label className="text-[11px] text-muted-foreground">Control Image</Label>
-                {showProcessor && unit.image && unit.processor !== "None" && (
+                {showProcessor && resolvedImage && unit.processor !== "None" && (
                   <Button
                     variant="outline"
                     size="sm"

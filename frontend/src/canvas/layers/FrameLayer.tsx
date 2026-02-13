@@ -14,7 +14,8 @@ export function FrameLayer({ onPickImage }: FrameLayerProps) {
   const frameH = useGenerationStore((s) => s.height);
   const hasLayers = useCanvasStore((s) => s.layers.length > 0);
 
-  const handleClick = useCallback(() => {
+  const handleClick = useCallback((e: import("konva/lib/Node").KonvaEventObject<MouseEvent>) => {
+    if (e.evt.button !== 0) return;
     if (!hasLayers && onPickImage) onPickImage();
   }, [hasLayers, onPickImage]);
 

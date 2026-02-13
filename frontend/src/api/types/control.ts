@@ -11,7 +11,7 @@ export interface ControlUnit {
   strength: number;
   start: number;
   end: number;
-  useSeparateImage: boolean;
+  imageSource: string;
   image: File | null;
   processedImage: string | null;
   // ControlNet-specific
@@ -36,7 +36,7 @@ export interface ControlUnit {
 export interface ControlUnitSnapshot {
   enabled: boolean;
   unitType: ControlUnitType;
-  useSeparateImage: boolean;
+  imageSource: string;
   processor: string;
   model: string;
   mode: string;

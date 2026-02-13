@@ -102,24 +102,43 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
   // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally tracking specific refs
   }, [frames, units]);
 
-  // Sync processed images
+  // Sync processed images — load for ALL units that have processedSlots in any frame
   useEffect(() => {
-    const toLoad: { index: number; src: string }[] = [];
-
+    // Collect all unit indices that appear in processedSlots
+    const slotIndices = new Set<number>();
     for (const frame of frames) {
-      const unit = units[frame.unitIndex];
-      const src = unit?.processedImage;
-      const prevSrc = prevProcessedUrlsRef.current.get(frame.unitIndex);
-
-      if (src && src !== prevSrc) {
-        toLoad.push({ index: frame.unitIndex, src });
-      } else if (!src && prevSrc) {
-        setProcessedMap((prev) => {
-          const next = new Map(prev);
-          next.delete(frame.unitIndex);
-          return next;
-        });
+      for (const slot of frame.processedSlots) {
+        slotIndices.add(slot.unitIndex);
       }
+    }
+
+    const toLoad: { index: number; src: string }[] = [];
+    const toRemove: number[] = [];
+
+    for (const idx of slotIndices) {
+      const src = units[idx]?.processedImage;
+      const prevSrc = prevProcessedUrlsRef.current.get(idx);
+      if (src && src !== prevSrc) {
+        toLoad.push({ index: idx, src });
+      } else if (!src && prevSrc) {
+        toRemove.push(idx);
+      }
+    }
+
+    // Also clean up entries for indices no longer in any slot
+    for (const idx of prevProcessedUrlsRef.current.keys()) {
+      if (!slotIndices.has(idx)) toRemove.push(idx);
+    }
+
+    if (toRemove.length > 0) {
+      setProcessedMap((prev) => {
+        const next = new Map(prev);
+        for (const idx of toRemove) next.delete(idx);
+        return next;
+      });
+      const newPrev = new Map(prevProcessedUrlsRef.current);
+      for (const idx of toRemove) newPrev.delete(idx);
+      prevProcessedUrlsRef.current = newPrev;
     }
 
     if (toLoad.length === 0) return;
@@ -154,7 +173,8 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleFrameClick = useCallback((unitIndex: number, hasImage: boolean) => {
+  const handleFrameClick = useCallback((unitIndex: number, hasImage: boolean, button: number) => {
+    if (button !== 0) return;
     if (!hasImage && onPickImage) {
       onPickImage(unitIndex);
     } else {
@@ -168,16 +188,21 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
     <Layer>
       {frames.map((frame) => {
         const imgState = imageMap.get(frame.unitIndex);
-        const processedState = processedMap.get(frame.unitIndex);
         const hasImage = !!imgState;
         const fitMode = units[frame.unitIndex]?.fitMode ?? "contain";
+
+        // Collect processed images for all slots
+        const slotImages = frame.processedSlots
+          .map((slot) => ({ slot, state: processedMap.get(slot.unitIndex) }))
+          .filter((entry): entry is { slot: typeof entry.slot; state: ProcessedImageState } => !!entry.state);
+
         return (
           <ControlFrame
             key={frame.unitIndex}
             frame={frame}
             hasImage={hasImage}
             image={imgState?.htmlImage ?? null}
-            processedImage={processedState?.htmlImage ?? null}
+            processedSlots={slotImages}
             fitMode={fitMode}
             onClick={handleFrameClick}
           />
@@ -187,24 +212,26 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
   );
 }
 
+interface SlotImage {
+  slot: { unitIndex: number; hasProcessed: boolean };
+  state: ProcessedImageState;
+}
+
 interface ControlFrameProps {
   frame: ControlFramePosition;
   hasImage: boolean;
   image: HTMLImageElement | null;
-  processedImage: HTMLImageElement | null;
+  processedSlots: SlotImage[];
   fitMode: FitMode;
-  onClick: (unitIndex: number, hasImage: boolean) => void;
+  onClick: (unitIndex: number, hasImage: boolean, button: number) => void;
 }
 
-function ControlFrame({ frame, hasImage, image, processedImage, fitMode, onClick }: ControlFrameProps) {
-  const handleClick = useCallback(() => {
-    onClick(frame.unitIndex, hasImage);
+function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, onClick }: ControlFrameProps) {
+  const handleClick = useCallback((e: import("konva/lib/Node").KonvaEventObject<MouseEvent>) => {
+    onClick(frame.unitIndex, hasImage, e.evt.button);
   }, [onClick, frame.unitIndex, hasImage]);
 
-  const processedY = frame.y + frame.height + ELEMENT_GAP;
-
   const imgFit = image ? computeFit(image.naturalWidth, image.naturalHeight, frame.x, frame.y, frame.width, frame.height, fitMode) : null;
-  const processedFit = processedImage ? computeFit(processedImage.naturalWidth, processedImage.naturalHeight, frame.x, processedY, frame.width, frame.height, fitMode) : null;
 
   return (
     <>
@@ -257,33 +284,64 @@ function ControlFrame({ frame, hasImage, image, processedImage, fitMode, onClick
         listening={false}
       />
 
-      {/* Processed image — full frame below input */}
-      {processedImage && processedFit && (
-        <>
-          <KonvaImage
-            image={processedImage}
-            x={processedFit.x}
-            y={processedFit.y}
-            width={processedFit.width}
-            height={processedFit.height}
-            crop={processedFit.crop ?? undefined}
-            listening={false}
-          />
-          <Rect
-            x={frame.x}
+      {/* Stacked processed images — one row per slot */}
+      {processedSlots.map((entry, slotIdx) => {
+        const processedY = frame.y + frame.height + ELEMENT_GAP + slotIdx * (frame.height + ELEMENT_GAP);
+        const pFit = computeFit(entry.state.htmlImage.naturalWidth, entry.state.htmlImage.naturalHeight, frame.x, processedY, frame.width, frame.height, fitMode);
+        const labelText = processedSlots.length > 1 ? `Processed (Unit ${entry.slot.unitIndex})` : "Processed";
+
+        return (
+          <ProcessedSlotRender
+            key={entry.slot.unitIndex}
+            frameX={frame.x}
             y={processedY}
             width={frame.width}
             height={frame.height}
-            stroke={PROCESSED_BORDER_COLOR}
-            strokeWidth={1}
-            listening={false}
+            image={entry.state.htmlImage}
+            fit={pFit}
+            label={labelText}
           />
-          <Label x={frame.x} y={processedY - LABEL_HEIGHT} listening={false}>
-            <Tag fill={PROCESSED_BORDER_COLOR} cornerRadius={3} />
-            <Text text="Processed" fontSize={11} fill={contrastText(PROCESSED_BORDER_COLOR)} padding={4} listening={false} />
-          </Label>
-        </>
-      )}
+        );
+      })}
+    </>
+  );
+}
+
+interface ProcessedSlotRenderProps {
+  frameX: number;
+  y: number;
+  width: number;
+  height: number;
+  image: HTMLImageElement;
+  fit: ReturnType<typeof computeFit>;
+  label: string;
+}
+
+function ProcessedSlotRender({ frameX, y, width, height, image, fit, label }: ProcessedSlotRenderProps) {
+  return (
+    <>
+      <KonvaImage
+        image={image}
+        x={fit.x}
+        y={fit.y}
+        width={fit.width}
+        height={fit.height}
+        crop={fit.crop ?? undefined}
+        listening={false}
+      />
+      <Rect
+        x={frameX}
+        y={y}
+        width={width}
+        height={height}
+        stroke={PROCESSED_BORDER_COLOR}
+        strokeWidth={1}
+        listening={false}
+      />
+      <Label x={frameX} y={y - LABEL_HEIGHT} listening={false}>
+        <Tag fill={PROCESSED_BORDER_COLOR} cornerRadius={3} />
+        <Text text={label} fontSize={11} fill={contrastText(PROCESSED_BORDER_COLOR)} padding={4} listening={false} />
+      </Label>
     </>
   );
 }

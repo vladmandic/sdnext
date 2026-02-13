@@ -12,7 +12,7 @@ function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
     strength: 1.0,
     start: 0,
     end: 1,
-    useSeparateImage: false,
+    imageSource: "canvas",
     image: null,
     processedImage: null,
     guess: false,
@@ -30,6 +30,16 @@ function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
   };
 }
 
+/** Resolve the actual image for a control unit, following "unit:N" references. */
+export function resolveUnitImage(units: ControlUnit[], index: number): File | null {
+  const unit = units[index];
+  if (!unit) return null;
+  if (unit.imageSource === "separate") return unit.image;
+  const match = unit.imageSource.match(/^unit:(\d+)$/);
+  if (match) return units[Number(match[1])]?.image ?? null;
+  return null; // "canvas" → no explicit image
+}
+
 interface ControlState {
   units: ControlUnit[];
 
@@ -41,7 +51,7 @@ interface ControlState {
   setUnitType: (index: number, unitType: ControlUnitType) => void;
   addUnitImage: (index: number, file: File) => void;
   removeUnitImage: (index: number, imageIdx: number) => void;
-  toggleSeparateImage: (index: number) => void;
+  setImageSource: (index: number, source: string) => void;
   addUnitMask: (index: number, file: File) => void;
   removeUnitMask: (index: number, maskIdx: number) => void;
   restoreUnits: (snapshots: ControlUnitSnapshot[]) => void;
@@ -58,15 +68,25 @@ export const useControlStore = create<ControlState>()((set) => ({
       const newUnit = {
         ...defaultUnit(last?.unitType),
         enabled: true,
-        useSeparateImage: last?.useSeparateImage ?? false,
       };
       return { units: [...state.units, newUnit] };
     }),
 
   removeUnit: (index) =>
-    set((state) => ({
-      units: state.units.length > 1 ? state.units.filter((_, i) => i !== index) : state.units,
-    })),
+    set((state) => {
+      if (state.units.length <= 1) return state;
+      const remaining = state.units.filter((_, i) => i !== index);
+      // Cascade: fix or reset imageSource references
+      const fixed = remaining.map((u) => {
+        const match = u.imageSource.match(/^unit:(\d+)$/);
+        if (!match) return u;
+        const ref = Number(match[1]);
+        if (ref === index) return { ...u, imageSource: "canvas" };
+        if (ref > index) return { ...u, imageSource: `unit:${ref - 1}` };
+        return u;
+      });
+      return { units: fixed };
+    }),
 
   setUnitCount: (count) =>
     set((state) => {
@@ -77,11 +97,17 @@ export const useControlStore = create<ControlState>()((set) => ({
         const toAdd = Array.from({ length: n - state.units.length }, () => ({
           ...defaultUnit(last?.unitType),
           enabled: true,
-          useSeparateImage: last?.useSeparateImage ?? false,
         }));
         return { units: [...state.units, ...toAdd] };
       }
-      return { units: state.units.slice(0, n) };
+      // When shrinking, fix references pointing to removed units
+      const kept = state.units.slice(0, n);
+      const fixed = kept.map((u) => {
+        const match = u.imageSource.match(/^unit:(\d+)$/);
+        if (match && Number(match[1]) >= n) return { ...u, imageSource: "canvas" };
+        return u;
+      });
+      return { units: fixed };
     }),
 
   setUnitParam: (index, key, value) =>
@@ -102,20 +128,30 @@ export const useControlStore = create<ControlState>()((set) => ({
     set((state) => {
       const units = [...state.units];
       const old = units[index];
-      units[index] = { ...defaultUnit(unitType), enabled: old.enabled, useSeparateImage: old.useSeparateImage, image: old.image, images: old.images, masks: old.masks };
+      units[index] = { ...defaultUnit(unitType), enabled: old.enabled, imageSource: old.imageSource, image: old.image, images: old.images, masks: old.masks };
       return { units };
     }),
 
-  toggleSeparateImage: (index) =>
+  setImageSource: (index, source) =>
     set((state) => {
       const units = [...state.units];
-      const current = units[index].useSeparateImage;
+      const old = units[index];
+      const wasSeparate = old.imageSource === "separate";
+      const isSeparate = source === "separate";
       units[index] = {
-        ...units[index],
-        useSeparateImage: !current,
-        // Clear image data when toggling OFF
-        ...(!current ? {} : { image: null, processedImage: null }),
+        ...old,
+        imageSource: source,
+        // Clear own image/processed when leaving "separate"
+        ...(wasSeparate && !isSeparate ? { image: null, processedImage: null } : {}),
       };
+      // If this unit stopped being "separate", cascade: reset anyone referencing it
+      if (wasSeparate && !isSeparate) {
+        for (let i = 0; i < units.length; i++) {
+          if (units[i].imageSource === `unit:${index}`) {
+            units[i] = { ...units[i], imageSource: "canvas" };
+          }
+        }
+      }
       return { units };
     }),
 
@@ -149,31 +185,43 @@ export const useControlStore = create<ControlState>()((set) => ({
 
   restoreUnits: (snapshots) =>
     set({
-      units: snapshots.map((s) => ({
-        enabled: s.enabled,
-        unitType: s.unitType,
-        useSeparateImage: s.useSeparateImage,
-        processor: s.processor,
-        model: s.model,
-        mode: s.mode,
-        strength: s.strength,
-        start: s.start,
-        end: s.end,
-        image: s.image ? base64ToFile(s.image, "control.png") : null,
-        processedImage: s.processedImage ? `data:image/png;base64,${s.processedImage}` : null,
-        guess: s.guess,
-        factor: s.factor,
-        attention: s.attention,
-        fidelity: s.fidelity,
-        queryWeight: s.queryWeight,
-        adainWeight: s.adainWeight,
-        adapter: s.adapter,
-        scale: s.scale,
-        crop: s.crop,
-        images: s.images.map((b, i) => base64ToFile(b, `ref-${i}.png`)),
-        masks: s.masks.map((b, i) => base64ToFile(b, `mask-${i}.png`)),
-        fitMode: s.fitMode ?? "contain",
-      })),
+      units: snapshots.map((s) => {
+        // Migrate old snapshots: useSeparateImage boolean → imageSource string
+        const raw = s as Record<string, unknown>;
+        let imageSource: string;
+        if (typeof s.imageSource === "string") {
+          imageSource = s.imageSource;
+        } else if (typeof raw.useSeparateImage === "boolean") {
+          imageSource = raw.useSeparateImage ? "separate" : "canvas";
+        } else {
+          imageSource = "canvas";
+        }
+        return {
+          enabled: s.enabled,
+          unitType: s.unitType,
+          imageSource,
+          processor: s.processor,
+          model: s.model,
+          mode: s.mode,
+          strength: s.strength,
+          start: s.start,
+          end: s.end,
+          image: s.image ? base64ToFile(s.image, "control.png") : null,
+          processedImage: s.processedImage ? `data:image/png;base64,${s.processedImage}` : null,
+          guess: s.guess,
+          factor: s.factor,
+          attention: s.attention,
+          fidelity: s.fidelity,
+          queryWeight: s.queryWeight,
+          adainWeight: s.adainWeight,
+          adapter: s.adapter,
+          scale: s.scale,
+          crop: s.crop,
+          images: s.images.map((b, i) => base64ToFile(b, `ref-${i}.png`)),
+          masks: s.masks.map((b, i) => base64ToFile(b, `mask-${i}.png`)),
+          fitMode: s.fitMode ?? "contain",
+        };
+      }),
     }),
 
   reset: () => set({ units: [defaultUnit()] }),
@@ -191,7 +239,7 @@ export async function snapshotUnits(): Promise<ControlUnitSnapshot[]> {
     units.map(async (u) => ({
       enabled: u.enabled,
       unitType: u.unitType,
-      useSeparateImage: u.useSeparateImage,
+      imageSource: u.imageSource,
       processor: u.processor,
       model: u.model,
       mode: u.mode,
