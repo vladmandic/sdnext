@@ -8,7 +8,7 @@ import { ChevronUp, ChevronDown, ImagePlus, Trash2, Minimize2, Maximize2, Move }
 import type { FitMode } from "@/lib/image";
 import { Button } from "@/components/ui/button";
 import { contrastText } from "@/lib/utils";
-import { ELEMENT_GAP, type CanvasLayout } from "./useControlFrameLayout";
+import { ELEMENT_GAP, type CanvasLayout, type ControlFramePosition } from "./useControlFrameLayout";
 
 function useImageDimensions(file: File | null): { w: number; h: number } | null {
   const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
@@ -34,53 +34,35 @@ const CONTROL_COLOR = "#f59e0b";
 const INPUT_COLOR = "#4ade80";
 const OUTPUT_COLOR = "#60a5fa";
 
-interface ControlFramePanelProps {
-  layout: CanvasLayout;
+// --- StackedPanel: a single panel for one control unit (no positioning) ---
+
+interface StackedPanelProps {
   unitIndex: number;
+  isOwner: boolean;
   collapsed: boolean;
+  frame: ControlFramePosition;
   onPickImage?: (unitIndex: number) => void;
   onClearImage?: (unitIndex: number) => void;
 }
 
-function ControlFramePanel({ layout, unitIndex, collapsed, onPickImage, onClearImage }: ControlFramePanelProps) {
+function StackedPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onClearImage }: StackedPanelProps) {
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
   const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
-  const viewport = useCanvasStore((s) => s.viewport);
-  const units = useControlStore((s) => s.units);
+  const unit = useControlStore((s) => s.units[unitIndex]);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
-  const labelScale = useUiStore((s) => s.canvasLabelScale);
 
-  const style = useMemo(() => {
-    const frame = layout.controlFrames.find((f) => f.unitIndex === unitIndex);
-    if (!frame) return null;
+  const imageDims = useImageDimensions(isOwner ? (unit?.image ?? null) : null);
 
-    // Center above the frame with a gap
-    const screenCenterX = (frame.x + frame.width / 2) * viewport.scale + viewport.x;
-    const screenTopY = frame.y * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
-    const combinedScale = viewport.scale * labelScale;
-
-    return {
-      position: "absolute" as const,
-      left: `${screenCenterX - PANEL_WIDTH / 2}px`,
-      bottom: `calc(100% - ${screenTopY}px)`,
-      width: `${PANEL_WIDTH}px`,
-      borderColor: CONTROL_COLOR,
-      transform: `scale(${combinedScale})`,
-      transformOrigin: "bottom center",
-    };
-  }, [unitIndex, layout.controlFrames, viewport, labelScale]);
-
-  const unit = units[unitIndex];
-  const imageDims = useImageDimensions(unit?.image ?? null);
-
-  if (!style) return null;
   if (!unit) return null;
 
-  const frame = layout.controlFrames.find((f) => f.unitIndex === unitIndex);
-  const fitSuffix = unit.fitMode === "contain" ? "fit" : unit.fitMode === "cover" ? "crop" : "stretch";
-  const sizeText = imageDims ? `${imageDims.w}×${imageDims.h} ${fitSuffix}` : frame ? `${frame.width}×${frame.height}` : null;
-  const labelText = `Control ${unitIndex} (${unit.unitType})`;
   const textColor = contrastText(CONTROL_COLOR);
+  const labelText = isOwner ? `Control ${unitIndex} (${unit.unitType})` : `Unit ${unitIndex} (${unit.unitType})`;
+
+  let sizeText: string | null = null;
+  if (isOwner) {
+    const fitSuffix = unit.fitMode === "contain" ? "fit" : unit.fitMode === "cover" ? "crop" : "stretch";
+    sizeText = imageDims ? `${imageDims.w}×${imageDims.h} ${fitSuffix}` : `${frame.width}×${frame.height}`;
+  }
 
   const handlePanelClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -89,11 +71,10 @@ function ControlFramePanel({ layout, unitIndex, collapsed, onPickImage, onClearI
 
   return (
     <div
-      style={style}
-      className="flex flex-col overflow-hidden rounded-t-md border shadow-lg z-50"
+      className="flex flex-col overflow-hidden rounded-t-md border shadow-lg"
+      style={{ borderColor: CONTROL_COLOR }}
       onClick={handlePanelClick}
     >
-      {/* Header bar — always at top, acts as drawer front */}
       <div
         className="flex items-center justify-between px-3 shrink-0 rounded-t-md"
         style={{ backgroundColor: CONTROL_COLOR, height: HEADER_HEIGHT }}
@@ -101,7 +82,7 @@ function ControlFramePanel({ layout, unitIndex, collapsed, onPickImage, onClearI
         <span className="text-base font-medium truncate" style={{ color: textColor }}>{labelText}</span>
         {sizeText && <span className="text-xs opacity-70 shrink-0" style={{ color: textColor }}>{sizeText}</span>}
         <div className="flex items-center gap-0.5 shrink-0">
-          {unit.image && (
+          {isOwner && unit.image && (
             <>
               <Button
                 variant="ghost"
@@ -157,7 +138,6 @@ function ControlFramePanel({ layout, unitIndex, collapsed, onPickImage, onClearI
         </div>
       </div>
 
-      {/* Controls drawer — hangs below header, panel grows upward */}
       {!collapsed && (
         <div
           className="p-3 overflow-y-auto bg-background/95 backdrop-blur-sm border-t border-border/50"
@@ -170,7 +150,77 @@ function ControlFramePanel({ layout, unitIndex, collapsed, onPickImage, onClearI
   );
 }
 
-/** Container that renders header bars for all frames */
+// --- ControlFrameStack: positioned container for all panels sharing a frame ---
+
+interface ControlFrameStackProps {
+  frame: ControlFramePosition;
+  onPickImage?: (unitIndex: number) => void;
+  onClearImage?: (unitIndex: number) => void;
+}
+
+function ControlFrameStack({ frame, onPickImage, onClearImage }: ControlFrameStackProps) {
+  const viewport = useCanvasStore((s) => s.viewport);
+  const labelScale = useUiStore((s) => s.canvasLabelScale);
+  const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
+  const units = useControlStore((s) => s.units);
+
+  const containerStyle = useMemo(() => {
+    const screenCenterX = (frame.x + frame.width / 2) * viewport.scale + viewport.x;
+    const screenTopY = frame.y * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
+    const combinedScale = viewport.scale * labelScale;
+
+    return {
+      position: "absolute" as const,
+      left: `${screenCenterX - PANEL_WIDTH / 2}px`,
+      bottom: `calc(100% - ${screenTopY}px)`,
+      width: `${PANEL_WIDTH}px`,
+      transform: `scale(${combinedScale})`,
+      transformOrigin: "bottom center",
+      display: "flex",
+      flexDirection: "column" as const,
+      gap: "4px",
+    };
+  }, [frame, viewport, labelScale]);
+
+  // Referencing units (not the owner) — rendered first so they stack above the owner
+  const referencingSlots = frame.processedSlots.filter((s) => s.unitIndex !== frame.unitIndex);
+
+  const ownerUnit = units[frame.unitIndex];
+  if (!ownerUnit) return null;
+
+  const ownerHasImage = ownerUnit.image !== null;
+  const ownerOverride = panelCollapsedOverrides.get(frame.unitIndex);
+  const ownerCollapsed = ownerOverride !== undefined ? ownerOverride : !ownerHasImage;
+
+  return (
+    <div style={containerStyle} className="z-50">
+      {referencingSlots.map((slot) => {
+        const override = panelCollapsedOverrides.get(slot.unitIndex);
+        const isCollapsed = override !== undefined ? override : true; // referencing units default collapsed
+        return (
+          <StackedPanel
+            key={slot.unitIndex}
+            unitIndex={slot.unitIndex}
+            isOwner={false}
+            collapsed={isCollapsed}
+            frame={frame}
+          />
+        );
+      })}
+      <StackedPanel
+        unitIndex={frame.unitIndex}
+        isOwner
+        collapsed={ownerCollapsed}
+        frame={frame}
+        onPickImage={onPickImage}
+        onClearImage={onClearImage}
+      />
+    </div>
+  );
+}
+
+// --- ControlFramePanels: top-level container for all frame panels and header bars ---
+
 interface ControlFramePanelsProps {
   layout: CanvasLayout;
   onPickImage?: (unitIndex: number) => void;
@@ -178,8 +228,6 @@ interface ControlFramePanelsProps {
 }
 
 export function ControlFramePanels({ layout, onPickImage, onClearImage }: ControlFramePanelsProps) {
-  const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
-  const units = useControlStore((s) => s.units);
   const viewport = useCanvasStore((s) => s.viewport);
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
@@ -187,30 +235,19 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage }: Contro
 
   return (
     <>
-      {/* Control frame panels */}
-      {layout.controlFrames.length > 0 && units.map((unit, index) => {
-        const hasImage = unit.image !== null;
-        const override = panelCollapsedOverrides.get(index);
-        const isCollapsed = override !== undefined ? override : !hasImage;
+      {layout.controlFrames.map((frame) => (
+        <ControlFrameStack
+          key={frame.unitIndex}
+          frame={frame}
+          onPickImage={onPickImage}
+          onClearImage={onClearImage}
+        />
+      ))}
 
-        return (
-          <ControlFramePanel
-            key={index}
-            unitIndex={index}
-            collapsed={isCollapsed}
-            layout={layout}
-            onPickImage={onPickImage}
-            onClearImage={onClearImage}
-          />
-        );
-      })}
-
-      {/* Input frame header bar — img2img only */}
       {layout.showInputFrame && (
         <FrameHeaderBar label="Input" color={INPUT_COLOR} canvasX={layout.inputX} viewport={viewport} frameW={frameW} frameH={frameH} labelScale={labelScale} />
       )}
 
-      {/* Output frame header bar — always present */}
       <FrameHeaderBar label="Output" color={OUTPUT_COLOR} canvasX={layout.outputX} viewport={viewport} frameW={frameW} frameH={frameH} labelScale={labelScale} />
     </>
   );
