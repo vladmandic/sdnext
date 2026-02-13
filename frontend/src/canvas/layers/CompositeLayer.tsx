@@ -1,6 +1,8 @@
 import { useEffect, useRef, useCallback } from "react";
-import { Layer, Image as KonvaImage, Transformer } from "react-konva";
+import { Layer, Image as KonvaImage, Transformer, Line } from "react-konva";
 import { useCanvasStore, type ImageLayer as ImageLayerType } from "@/stores/canvasStore";
+import { useGenerationStore } from "@/stores/generationStore";
+import { useSnap } from "@/canvas/tools/useSnap";
 import type Konva from "konva";
 
 interface CompositeLayerProps {
@@ -13,6 +15,9 @@ export function CompositeLayer({ trRef }: CompositeLayerProps) {
   const activeTool = useCanvasStore((s) => s.activeTool);
   const updateLayer = useCanvasStore((s) => s.updateLayer);
   const setActiveLayer = useCanvasStore((s) => s.setActiveLayer);
+  const frameW = useGenerationStore((s) => s.width);
+  const frameH = useGenerationStore((s) => s.height);
+  const snap = useSnap(frameW, frameH, trRef);
 
   const imageMap = useRef<Map<string, HTMLImageElement>>(new Map());
   const nodeMap = useRef<Map<string, Konva.Image>>(new Map());
@@ -55,13 +60,15 @@ export function CompositeLayer({ trRef }: CompositeLayerProps) {
   }, [activeLayerId, activeTool, trRef, imageLayers]);
 
   const handleDragEnd = useCallback((layerId: string, e: Konva.KonvaEventObject<DragEvent>) => {
+    snap.clearGuides();
     updateLayer(layerId, {
       x: e.target.x(),
       y: e.target.y(),
     } as Partial<ImageLayerType>);
-  }, [updateLayer]);
+  }, [updateLayer, snap]);
 
   const handleTransformEnd = useCallback((layerId: string, e: Konva.KonvaEventObject<Event>) => {
+    snap.clearGuides();
     const node = e.target as Konva.Image;
     updateLayer(layerId, {
       x: node.x(),
@@ -70,7 +77,7 @@ export function CompositeLayer({ trRef }: CompositeLayerProps) {
       scaleY: node.scaleY(),
       rotation: node.rotation(),
     } as Partial<ImageLayerType>);
-  }, [updateLayer]);
+  }, [updateLayer, snap]);
 
   const handleClick = useCallback((layerId: string, e: Konva.KonvaEventObject<MouseEvent>) => {
     if (activeTool !== "move") return;
@@ -102,6 +109,7 @@ export function CompositeLayer({ trRef }: CompositeLayerProps) {
           opacity={layer.opacity}
           visible={layer.visible}
           draggable={activeTool === "move" && !layer.locked}
+          onDragMove={snap.handleDragMove}
           onDragEnd={(e) => handleDragEnd(layer.id, e)}
           onTransformEnd={(e) => handleTransformEnd(layer.id, e)}
           onClick={(e) => handleClick(layer.id, e)}
@@ -114,8 +122,18 @@ export function CompositeLayer({ trRef }: CompositeLayerProps) {
           "top-left", "top-right", "bottom-left", "bottom-right",
           "top-center", "bottom-center", "middle-left", "middle-right",
         ]}
-        boundBoxFunc={(_oldBox, newBox) => newBox}
+        onTransform={snap.handleTransform}
       />
+      {snap.guides.map((g, i) => (
+        <Line
+          key={i}
+          points={g.orientation === "v" ? [g.pos, -5000, g.pos, 5000] : [-5000, g.pos, 5000, g.pos]}
+          stroke="#22d3ee"
+          strokeWidth={1}
+          strokeScaleEnabled={false}
+          listening={false}
+        />
+      ))}
     </Layer>
   );
 }
