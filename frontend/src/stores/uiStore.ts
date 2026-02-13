@@ -32,6 +32,7 @@ interface UiState {
   cornerStyle: CornerStyle;
   borderRadius: number;
   uiScale: number;
+  canvasLabelScale: number;
 
   // Actions
   toggleSidebar: () => void;
@@ -49,6 +50,7 @@ interface UiState {
   setCornerStyle: (style: CornerStyle) => void;
   setBorderRadius: (radius: number) => void;
   setUiScale: (scale: number) => void;
+  setCanvasLabelScale: (scale: number) => void;
 }
 
 export type { SidebarView, ImagesSubTab, GenerationMode, CornerStyle, ColorMode };
@@ -71,6 +73,7 @@ export const useUiStore = create<UiState>()(
       cornerStyle: "rounded" as CornerStyle,
       borderRadius: 0.5,
       uiScale: 16,
+      canvasLabelScale: 1,
 
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       setSidebarView: (view) => set({ activeSidebarView: view }),
@@ -87,6 +90,7 @@ export const useUiStore = create<UiState>()(
       setCornerStyle: (style) => set({ cornerStyle: style }),
       setBorderRadius: (radius) => set({ borderRadius: Math.max(0, Math.min(1, radius)) }),
       setUiScale: (scale) => set({ uiScale: Math.max(12, Math.min(20, scale)) }),
+      setCanvasLabelScale: (scale) => set({ canvasLabelScale: Math.max(0.5, Math.min(2, scale)) }),
     }),
     { name: "sdnext-ui-v2" },
   ),

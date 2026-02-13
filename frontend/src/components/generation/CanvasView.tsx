@@ -128,6 +128,11 @@ export const CanvasView = memo(function CanvasView() {
     }
   }, []);
 
+  const handleClearImage = useCallback((unitIndex: number) => {
+    setUnitImage(unitIndex, null);
+    setUnitParam(unitIndex, "processedImage", null);
+  }, [setUnitImage, setUnitParam]);
+
   return (
     <div
       ref={containerRef}
@@ -178,7 +183,7 @@ export const CanvasView = memo(function CanvasView() {
       {isImg2Img && <CanvasToolbar />}
 
       {/* Floating control panels (persistent, collapsible) */}
-      <ControlFramePanels layout={layout} />
+      <ControlFramePanels layout={layout} onPickImage={handlePickImage} onClearImage={handleClearImage} />
 
       {/* Single file input for both input frame and control frame picks */}
       <input

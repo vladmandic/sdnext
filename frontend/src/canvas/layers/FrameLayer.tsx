@@ -1,11 +1,9 @@
 import { useCallback } from "react";
-import { Layer, Rect, Label, Tag, Text } from "react-konva";
+import { Layer, Rect, Text } from "react-konva";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { contrastText } from "@/lib/utils";
 
 const BORDER_COLOR = "#4ade80";
-const LABEL_HEIGHT = 19; // fontSize(11) + padding(4)*2
 
 interface FrameLayerProps {
   onPickImage?: () => void;
@@ -61,12 +59,6 @@ export function FrameLayer({ onPickImage }: FrameLayerProps) {
         dash={hasLayers ? undefined : [8, 4]}
         listening={false}
       />
-
-      {/* Label */}
-      <Label x={0} y={-LABEL_HEIGHT} listening={false}>
-        <Tag fill={BORDER_COLOR} cornerRadius={3} />
-        <Text text="Input" fontSize={11} fill={contrastText(BORDER_COLOR)} padding={4} listening={false} />
-      </Label>
     </Layer>
   );
 }

@@ -141,12 +141,69 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
         </ParamSection>
       )}
 
-      {/* Guess mode */}
-      {showGuess && (
-        <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer px-1">
-          <Checkbox checked={unit.guess} onCheckedChange={(c) => setUnitParam(index, "guess", !!c)} />
-          Guess mode
-        </label>
+      {/* Guess mode + process button — merged row in compact mode */}
+      {compact ? (
+        <div className="flex items-center justify-between">
+          {showGuess && (
+            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+              <Checkbox checked={unit.guess} onCheckedChange={(c) => setUnitParam(index, "guess", !!c)} />
+              Guess mode
+            </label>
+          )}
+          {showControlImage && showProcessor && unit.image && unit.processor !== "None" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-6 text-[11px] px-2 gap-1 ml-auto"
+              onClick={handleProcess}
+              disabled={preprocessMutation.isPending}
+            >
+              {preprocessMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
+              Process
+            </Button>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* Guess mode */}
+          {showGuess && (
+            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer px-1">
+              <Checkbox checked={unit.guess} onCheckedChange={(c) => setUnitParam(index, "guess", !!c)} />
+              Guess mode
+            </label>
+          )}
+
+          {/* Control image + process button */}
+          {showControlImage && (
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between">
+                <Label className="text-[11px] text-muted-foreground">Control Image</Label>
+                {showProcessor && unit.image && unit.processor !== "None" && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-6 text-[11px] px-2 gap-1"
+                    onClick={handleProcess}
+                    disabled={preprocessMutation.isPending}
+                  >
+                    {preprocessMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
+                    Process
+                  </Button>
+                )}
+              </div>
+              {unit.processedImage && (
+                <button
+                  type="button"
+                  onClick={() => setUnitParam(index, "processedImage", null)}
+                  className="text-[10px] text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                >
+                  <X size={10} />
+                  Clear processed
+                </button>
+              )}
+            </div>
+          )}
+        </>
       )}
 
       {/* Factor */}
@@ -170,37 +227,6 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
           <ParamSlider label="Query Weight" value={unit.queryWeight} onChange={(v) => setUnitParam(index, "queryWeight", v)} min={0} max={2} step={0.01} />
           <ParamSlider label="Adain Weight" value={unit.adainWeight} onChange={(v) => setUnitParam(index, "adainWeight", v)} min={0} max={2} step={0.01} />
         </>
-      )}
-
-      {/* Control image + process button */}
-      {showControlImage && (
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <Label className="text-[11px] text-muted-foreground">Control Image</Label>
-            {showProcessor && unit.image && unit.processor !== "None" && (
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-6 text-[11px] px-2 gap-1"
-                onClick={handleProcess}
-                disabled={preprocessMutation.isPending}
-              >
-                {preprocessMutation.isPending ? <Loader2 size={10} className="animate-spin" /> : <Play size={10} />}
-                Process
-              </Button>
-            )}
-          </div>
-          {unit.processedImage && (
-            <button
-              type="button"
-              onClick={() => setUnitParam(index, "processedImage", null)}
-              className="text-[10px] text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
-            >
-              <X size={10} />
-              Clear processed
-            </button>
-          )}
-        </div>
       )}
 
       {/* IP-Adapter images */}

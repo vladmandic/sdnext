@@ -118,6 +118,8 @@ function AppearancePanel() {
   const setBorderRadius = useUiStore((s) => s.setBorderRadius);
   const uiScale = useUiStore((s) => s.uiScale);
   const setUiScale = useUiStore((s) => s.setUiScale);
+  const canvasLabelScale = useUiStore((s) => s.canvasLabelScale);
+  const setCanvasLabelScale = useUiStore((s) => s.setCanvasLabelScale);
 
   const [hexInput, setHexInput] = useState(accentColor);
   useEffect(() => { setHexInput(accentColor); }, [accentColor]);
@@ -180,6 +182,21 @@ function AppearancePanel() {
               className="w-24 accent-primary"
             />
             <span className="text-xs text-muted-foreground w-8 text-right">{uiScale}px</span>
+          </div>
+        </AppearanceRow>
+
+        <AppearanceRow label="Canvas label scale" description="Size of frame labels and floating control panels on the canvas">
+          <div className="flex items-center gap-2">
+            <input
+              type="range"
+              min={0.5}
+              max={2}
+              step={0.1}
+              value={canvasLabelScale}
+              onChange={(e) => setCanvasLabelScale(parseFloat(e.target.value))}
+              className="w-24 accent-primary"
+            />
+            <span className="text-xs text-muted-foreground w-8 text-right">{canvasLabelScale.toFixed(1)}x</span>
           </div>
         </AppearanceRow>
       </div>

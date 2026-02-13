@@ -4,7 +4,8 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 
 const FRAME_GAP = 48;
-export const PROCESSED_GAP = 8;
+/** Spacing between a frame and its associated elements (processed image, floating panel) */
+export const ELEMENT_GAP = 16;
 
 export interface ControlFramePosition {
   unitIndex: number;
@@ -60,7 +61,7 @@ export function useControlFrameLayout(): CanvasLayout {
 
     // If any control frame has a processed image, extend maxY to include the second row
     const anyProcessed = controlFrames.some((f) => f.hasProcessed);
-    const maxY = anyProcessed ? frameH + PROCESSED_GAP + frameH : frameH;
+    const maxY = anyProcessed ? frameH + ELEMENT_GAP + frameH : frameH;
 
     return {
       showInputFrame: isImg2Img,

@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Layer, Image as KonvaImage, Rect, Label, Tag, Text } from "react-konva";
+import { Layer, Image as KonvaImage, Rect } from "react-konva";
 import { useGenerationStore } from "@/stores/generationStore";
-import { base64ToObjectUrl, contrastText } from "@/lib/utils";
+import { base64ToObjectUrl } from "@/lib/utils";
 
 const BORDER_COLOR = "#60a5fa";
-const LABEL_HEIGHT = 19; // fontSize(11) + padding(4)*2
 
 interface OutputLayerProps {
   offsetX: number;
@@ -53,24 +52,13 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
 
   return (
     <Layer listening={false}>
-      {hasImage ? (
+      {hasImage && (
         <KonvaImage
           image={image}
           x={offsetX}
           y={0}
           width={isLivePreview ? placeholderWidth : undefined}
           height={isLivePreview ? placeholderHeight : undefined}
-        />
-      ) : (
-        <Text
-          x={offsetX}
-          y={placeholderHeight / 2 - 8}
-          width={placeholderWidth}
-          align="center"
-          text="Output"
-          fontSize={14}
-          fill="#666"
-          listening={false}
         />
       )}
       <Rect
@@ -83,10 +71,6 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
         dash={hasImage ? undefined : [8, 4]}
         listening={false}
       />
-      <Label x={offsetX} y={-LABEL_HEIGHT} listening={false}>
-        <Tag fill={BORDER_COLOR} cornerRadius={3} />
-        <Text text="Output" fontSize={11} fill={contrastText(BORDER_COLOR)} padding={4} listening={false} />
-      </Label>
     </Layer>
   );
 }
