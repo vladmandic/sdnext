@@ -3,7 +3,8 @@ import { Layer, Rect, Label, Tag, Text, Image as KonvaImage } from "react-konva"
 import { useControlStore } from "@/stores/controlStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { contrastText } from "@/lib/utils";
-import { PROCESSED_GAP, type ControlFramePosition } from "@/canvas/useControlFrameLayout";
+import { computeFit, type FitMode } from "@/lib/image";
+import { ELEMENT_GAP, type ControlFramePosition } from "@/canvas/useControlFrameLayout";
 
 const BORDER_COLOR = "#f59e0b"; // amber
 const PROCESSED_BORDER_COLOR = "#78716c"; // stone-500
@@ -15,6 +16,7 @@ interface ControlFrameLayerProps {
 }
 
 interface FrameImageState {
+  file: File;
   objectUrl: string;
   htmlImage: HTMLImageElement;
 }
@@ -38,6 +40,7 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
     const newPrevUrls = new Map<number, string>();
     const toRevoke: string[] = [];
     const toLoad: { index: number; file: File }[] = [];
+    const toClear: number[] = [];
 
     for (const frame of frames) {
       const unit = units[frame.unitIndex];
@@ -47,26 +50,29 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
       if (file) {
         // Check if the File reference changed
         const existing = imageMap.get(frame.unitIndex);
-        if (existing && prevUrl) {
-          // Same object URL means same file — skip
+        if (existing && existing.file === file && prevUrl) {
+          // Same file object — skip
           newPrevUrls.set(frame.unitIndex, prevUrl);
         } else {
+          if (existing) { URL.revokeObjectURL(existing.objectUrl); toClear.push(frame.unitIndex); }
           toLoad.push({ index: frame.unitIndex, file });
         }
-      } else if (prevUrl) {
-        toRevoke.push(prevUrl);
+      } else {
+        // Image cleared — revoke old URL and mark for removal
+        if (prevUrl) toRevoke.push(prevUrl);
+        if (imageMap.has(frame.unitIndex)) toClear.push(frame.unitIndex);
       }
     }
 
-    // Revoke old URLs for removed images
     for (const url of toRevoke) URL.revokeObjectURL(url);
 
-    if (toLoad.length === 0 && toRevoke.length === 0) return;
+    if (toLoad.length === 0 && toClear.length === 0) return;
 
     // Load new images
     const aborted = { current: false };
     const loadImages = async () => {
       const newEntries = new Map(imageMap);
+      for (const idx of toClear) newEntries.delete(idx);
       for (const { index, file } of toLoad) {
         if (aborted.current) return;
         const url = URL.createObjectURL(file);
@@ -75,7 +81,7 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
         img.src = url;
         await new Promise<void>((resolve) => { img.onload = () => resolve(); img.onerror = () => resolve(); });
         if (aborted.current) { URL.revokeObjectURL(url); return; }
-        newEntries.set(index, { objectUrl: url, htmlImage: img });
+        newEntries.set(index, { file, objectUrl: url, htmlImage: img });
       }
 
       // Clean entries for frames that no longer exist
@@ -161,20 +167,18 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
   return (
     <Layer>
       {frames.map((frame) => {
-        const unit = units[frame.unitIndex];
         const imgState = imageMap.get(frame.unitIndex);
         const processedState = processedMap.get(frame.unitIndex);
         const hasImage = !!imgState;
-        const labelText = `Control ${frame.unitIndex} (${unit?.unitType ?? "?"})`;
-
+        const fitMode = units[frame.unitIndex]?.fitMode ?? "contain";
         return (
           <ControlFrame
             key={frame.unitIndex}
             frame={frame}
-            labelText={labelText}
             hasImage={hasImage}
             image={imgState?.htmlImage ?? null}
             processedImage={processedState?.htmlImage ?? null}
+            fitMode={fitMode}
             onClick={handleFrameClick}
           />
         );
@@ -185,19 +189,22 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
 
 interface ControlFrameProps {
   frame: ControlFramePosition;
-  labelText: string;
   hasImage: boolean;
   image: HTMLImageElement | null;
   processedImage: HTMLImageElement | null;
+  fitMode: FitMode;
   onClick: (unitIndex: number, hasImage: boolean) => void;
 }
 
-function ControlFrame({ frame, labelText, hasImage, image, processedImage, onClick }: ControlFrameProps) {
+function ControlFrame({ frame, hasImage, image, processedImage, fitMode, onClick }: ControlFrameProps) {
   const handleClick = useCallback(() => {
     onClick(frame.unitIndex, hasImage);
   }, [onClick, frame.unitIndex, hasImage]);
 
-  const processedY = frame.y + frame.height + PROCESSED_GAP;
+  const processedY = frame.y + frame.height + ELEMENT_GAP;
+
+  const imgFit = image ? computeFit(image.naturalWidth, image.naturalHeight, frame.x, frame.y, frame.width, frame.height, fitMode) : null;
+  const processedFit = processedImage ? computeFit(processedImage.naturalWidth, processedImage.naturalHeight, frame.x, processedY, frame.width, frame.height, fitMode) : null;
 
   return (
     <>
@@ -215,13 +222,14 @@ function ControlFrame({ frame, labelText, hasImage, image, processedImage, onCli
       />
 
       {/* Image or placeholder */}
-      {hasImage && image ? (
+      {hasImage && image && imgFit ? (
         <KonvaImage
           image={image}
-          x={frame.x}
-          y={frame.y}
-          width={frame.width}
-          height={frame.height}
+          x={imgFit.x}
+          y={imgFit.y}
+          width={imgFit.width}
+          height={imgFit.height}
+          crop={imgFit.crop ?? undefined}
           listening={false}
         />
       ) : (
@@ -249,21 +257,16 @@ function ControlFrame({ frame, labelText, hasImage, image, processedImage, onCli
         listening={false}
       />
 
-      {/* Label */}
-      <Label x={frame.x} y={-LABEL_HEIGHT} listening={false}>
-        <Tag fill={BORDER_COLOR} cornerRadius={3} />
-        <Text text={labelText} fontSize={11} fill={contrastText(BORDER_COLOR)} padding={4} listening={false} />
-      </Label>
-
       {/* Processed image — full frame below input */}
-      {processedImage && (
+      {processedImage && processedFit && (
         <>
           <KonvaImage
             image={processedImage}
-            x={frame.x}
-            y={processedY}
-            width={frame.width}
-            height={frame.height}
+            x={processedFit.x}
+            y={processedFit.y}
+            width={processedFit.width}
+            height={processedFit.height}
+            crop={processedFit.crop ?? undefined}
             listening={false}
           />
           <Rect

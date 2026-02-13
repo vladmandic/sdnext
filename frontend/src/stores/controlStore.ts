@@ -26,6 +26,7 @@ function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
     crop: false,
     images: [],
     masks: [],
+    fitMode: "contain",
   };
 }
 
@@ -171,6 +172,7 @@ export const useControlStore = create<ControlState>()((set) => ({
         crop: s.crop,
         images: s.images.map((b, i) => base64ToFile(b, `ref-${i}.png`)),
         masks: s.masks.map((b, i) => base64ToFile(b, `mask-${i}.png`)),
+        fitMode: s.fitMode ?? "contain",
       })),
     }),
 
@@ -209,6 +211,7 @@ export async function snapshotUnits(): Promise<ControlUnitSnapshot[]> {
       crop: u.crop,
       images: await Promise.all(u.images.map(fileToBase64)),
       masks: await Promise.all(u.masks.map(fileToBase64)),
+      fitMode: u.fitMode,
     })),
   );
 }

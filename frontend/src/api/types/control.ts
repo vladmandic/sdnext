@@ -1,3 +1,5 @@
+import type { FitMode } from "@/lib/image";
+
 export type ControlUnitType = "controlnet" | "t2i" | "xs" | "lite" | "reference" | "ip" | "asset";
 
 export interface ControlUnit {
@@ -27,6 +29,7 @@ export interface ControlUnit {
   crop: boolean;
   images: File[];
   masks: File[];
+  fitMode: FitMode;
 }
 
 /** JSON-serializable snapshot of a ControlUnit for history persistence (File → base64 string). */
@@ -53,6 +56,7 @@ export interface ControlUnitSnapshot {
   crop: boolean;
   images: string[];
   masks: string[];
+  fitMode: FitMode;
 }
 
 export interface PreprocessorInfo {
