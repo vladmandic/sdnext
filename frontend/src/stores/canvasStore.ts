@@ -1,7 +1,9 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { base64ToBlob } from "@/lib/utils";
+import { createIdbStorage } from "@/lib/idbStorage";
 
 export type ToolType = "move" | "brush" | "eraser" | "maskBrush" | "maskEraser" | "rectSelect" | "lassoSelect" | "colorPicker" | "zoom" | "pan";
 
@@ -71,144 +73,219 @@ interface CanvasState {
   getImageLayers: () => ImageLayer[];
 }
 
-export const useCanvasStore = create<CanvasState>()((set, get) => ({
-  viewport: { x: 0, y: 0, scale: 1 },
-  layers: [],
-  activeLayerId: null,
-  activeTool: "move",
-  brushSize: 20,
-  brushHardness: 0.8,
-  brushColor: "#ffffff",
-  brushOpacity: 1,
-  selection: null,
-  maskVisible: true,
-  maskColor: "#ff000080",
-  selectedControlFrame: null,
-  panelCollapsedOverrides: new Map<number, boolean>(),
+/** Serializable snapshot of canvas state stored in IndexedDB. */
+interface PersistedCanvasState {
+  viewport: ViewportState;
+  layers: CanvasLayer[];
+  activeLayerId: string | null;
+  activeTool: ToolType;
+  brushSize: number;
+  brushHardness: number;
+  brushColor: string;
+  brushOpacity: number;
+  maskVisible: boolean;
+  maskColor: string;
+  panelCollapsedOverrides: [number, boolean][];
+}
 
-  setViewport: (viewport) =>
-    set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
+const canvasIdbStorage = createIdbStorage("sdnext-canvas", "state");
 
-  addLayer: (layer) =>
-    set((s) => ({ layers: [...s.layers, layer] })),
+function rehydrateLayer(layer: CanvasLayer): CanvasLayer {
+  if (layer.type !== "image") return layer;
+  const img = layer as ImageLayer;
+  if (!img.base64) return layer;
+  const blob = base64ToBlob(img.base64);
+  return {
+    ...img,
+    imageData: URL.createObjectURL(blob),
+    file: new File([blob], img.name || "restored.png", { type: "image/png" }),
+  };
+}
 
-  addImageLayer: (file, base64, objectUrl, w, h) => {
-    const gen = useGenerationStore.getState();
-    const { layers } = get();
+export const useCanvasStore = create<CanvasState>()(
+  persist(
+    (set, get) => ({
+      viewport: { x: 0, y: 0, scale: 1 },
+      layers: [],
+      activeLayerId: null,
+      activeTool: "move",
+      brushSize: 20,
+      brushHardness: 0.8,
+      brushColor: "#ffffff",
+      brushOpacity: 1,
+      selection: null,
+      maskVisible: true,
+      maskColor: "#ff000080",
+      selectedControlFrame: null,
+      panelCollapsedOverrides: new Map<number, boolean>(),
 
-    // Auto-resize frame to match first image (snap to 8px grid)
-    const autoFit = useUiStore.getState().autoFitFrame;
-    if (layers.length === 0 && autoFit) {
-      const snapW = Math.round(w / 8) * 8;
-      const snapH = Math.round(h / 8) * 8;
-      gen.setParam("width", snapW);
-      gen.setParam("height", snapH);
-    }
+      setViewport: (viewport) =>
+        set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
 
-    // Use (potentially just-updated) frame dimensions for centering
-    const frameW = layers.length === 0 && autoFit ? Math.round(w / 8) * 8 : gen.width;
-    const frameH = layers.length === 0 && autoFit ? Math.round(h / 8) * 8 : gen.height;
+      addLayer: (layer) =>
+        set((s) => ({ layers: [...s.layers, layer] })),
 
-    const id = crypto.randomUUID();
-    const layer: ImageLayer = {
-      id,
-      type: "image",
-      name: file.name,
-      visible: true,
-      opacity: 1,
-      locked: false,
-      imageData: objectUrl,
-      base64,
-      file,
-      naturalWidth: w,
-      naturalHeight: h,
-      x: Math.round((frameW - w) / 2),
-      y: Math.round((frameH - h) / 2),
-      width: w,
-      height: h,
-      rotation: 0,
-      scaleX: 1,
-      scaleY: 1,
-    };
-    set((s) => ({ layers: [...s.layers, layer], activeLayerId: id }));
-  },
+      addImageLayer: (file, base64, objectUrl, w, h) => {
+        const gen = useGenerationStore.getState();
+        const { layers } = get();
 
-  removeLayer: (id) =>
-    set((s) => {
-      const layer = s.layers.find((l) => l.id === id);
-      if (layer && layer.type === "image") {
-        URL.revokeObjectURL((layer as ImageLayer).imageData);
-      }
-      return {
-        layers: s.layers.filter((l) => l.id !== id),
-        activeLayerId: s.activeLayerId === id ? null : s.activeLayerId,
-      };
+        // Auto-resize frame to match first image (snap to 8px grid)
+        const autoFit = useUiStore.getState().autoFitFrame;
+        if (layers.length === 0 && autoFit) {
+          const snapW = Math.round(w / 8) * 8;
+          const snapH = Math.round(h / 8) * 8;
+          gen.setParam("width", snapW);
+          gen.setParam("height", snapH);
+        }
+
+        // Use (potentially just-updated) frame dimensions for centering
+        const frameW = layers.length === 0 && autoFit ? Math.round(w / 8) * 8 : gen.width;
+        const frameH = layers.length === 0 && autoFit ? Math.round(h / 8) * 8 : gen.height;
+
+        const id = crypto.randomUUID();
+        const layer: ImageLayer = {
+          id,
+          type: "image",
+          name: file.name,
+          visible: true,
+          opacity: 1,
+          locked: false,
+          imageData: objectUrl,
+          base64,
+          file,
+          naturalWidth: w,
+          naturalHeight: h,
+          x: Math.round((frameW - w) / 2),
+          y: Math.round((frameH - h) / 2),
+          width: w,
+          height: h,
+          rotation: 0,
+          scaleX: 1,
+          scaleY: 1,
+        };
+        set((s) => ({ layers: [...s.layers, layer], activeLayerId: id }));
+      },
+
+      removeLayer: (id) =>
+        set((s) => {
+          const layer = s.layers.find((l) => l.id === id);
+          if (layer && layer.type === "image") {
+            URL.revokeObjectURL((layer as ImageLayer).imageData);
+          }
+          return {
+            layers: s.layers.filter((l) => l.id !== id),
+            activeLayerId: s.activeLayerId === id ? null : s.activeLayerId,
+          };
+        }),
+
+      updateLayer: (id, updates) =>
+        set((s) => ({
+          layers: s.layers.map((l) => (l.id === id ? { ...l, ...updates } : l)),
+        })),
+
+      setActiveLayer: (id) => set({ activeLayerId: id }),
+      setActiveTool: (tool) => set({ activeTool: tool }),
+      setBrushSize: (size) => set({ brushSize: size }),
+      setBrushColor: (color) => set({ brushColor: color }),
+      setBrushOpacity: (opacity) => set({ brushOpacity: opacity }),
+      setSelection: (rect) => set({ selection: rect }),
+      setMaskVisible: (visible) => set({ maskVisible: visible }),
+      setMaskColor: (color) => set({ maskColor: color }),
+      setSelectedControlFrame: (index) => set({ selectedControlFrame: index }),
+
+      togglePanelCollapsed: (index, currentCollapsed: boolean) => set((s) => {
+        const newMap = new Map(s.panelCollapsedOverrides);
+        newMap.set(index, !currentCollapsed);
+        return { panelCollapsedOverrides: newMap };
+      }),
+
+      clearLayers: () => {
+        const { layers } = get();
+        for (const layer of layers) {
+          if (layer.type === "image") {
+            URL.revokeObjectURL((layer as ImageLayer).imageData);
+          }
+        }
+        set({ layers: [], activeLayerId: null });
+      },
+
+      restoreImageLayer: (base64, w, h) => {
+        // Clear existing layers first
+        const { layers } = get();
+        for (const layer of layers) {
+          if (layer.type === "image") {
+            URL.revokeObjectURL((layer as ImageLayer).imageData);
+          }
+        }
+        const blob = base64ToBlob(base64);
+        const objectUrl = URL.createObjectURL(blob);
+        const id = crypto.randomUUID();
+        const layer: ImageLayer = {
+          id,
+          type: "image",
+          name: "Restored input",
+          visible: true,
+          opacity: 1,
+          locked: false,
+          imageData: objectUrl,
+          base64,
+          file: new File([blob], "restored.png", { type: "image/png" }),
+          naturalWidth: w,
+          naturalHeight: h,
+          x: 0,
+          y: 0,
+          width: w,
+          height: h,
+          rotation: 0,
+          scaleX: 1,
+          scaleY: 1,
+        };
+        set({ layers: [layer], activeLayerId: id });
+      },
+
+      getImageLayers: () => get().layers.filter((l) => l.type === "image") as ImageLayer[],
     }),
-
-  updateLayer: (id, updates) =>
-    set((s) => ({
-      layers: s.layers.map((l) => (l.id === id ? { ...l, ...updates } : l)),
-    })),
-
-  setActiveLayer: (id) => set({ activeLayerId: id }),
-  setActiveTool: (tool) => set({ activeTool: tool }),
-  setBrushSize: (size) => set({ brushSize: size }),
-  setBrushColor: (color) => set({ brushColor: color }),
-  setBrushOpacity: (opacity) => set({ brushOpacity: opacity }),
-  setSelection: (rect) => set({ selection: rect }),
-  setMaskVisible: (visible) => set({ maskVisible: visible }),
-  setMaskColor: (color) => set({ maskColor: color }),
-  setSelectedControlFrame: (index) => set({ selectedControlFrame: index }),
-
-  togglePanelCollapsed: (index, currentCollapsed: boolean) => set((s) => {
-    const newMap = new Map(s.panelCollapsedOverrides);
-    newMap.set(index, !currentCollapsed);
-    return { panelCollapsedOverrides: newMap };
-  }),
-
-  clearLayers: () => {
-    const { layers } = get();
-    for (const layer of layers) {
-      if (layer.type === "image") {
-        URL.revokeObjectURL((layer as ImageLayer).imageData);
-      }
-    }
-    set({ layers: [], activeLayerId: null });
-  },
-
-  restoreImageLayer: (base64, w, h) => {
-    // Clear existing layers first
-    const { layers } = get();
-    for (const layer of layers) {
-      if (layer.type === "image") {
-        URL.revokeObjectURL((layer as ImageLayer).imageData);
-      }
-    }
-    const blob = base64ToBlob(base64);
-    const objectUrl = URL.createObjectURL(blob);
-    const id = crypto.randomUUID();
-    const layer: ImageLayer = {
-      id,
-      type: "image",
-      name: "Restored input",
-      visible: true,
-      opacity: 1,
-      locked: false,
-      imageData: objectUrl,
-      base64,
-      file: new File([blob], "restored.png", { type: "image/png" }),
-      naturalWidth: w,
-      naturalHeight: h,
-      x: 0,
-      y: 0,
-      width: w,
-      height: h,
-      rotation: 0,
-      scaleX: 1,
-      scaleY: 1,
-    };
-    set({ layers: [layer], activeLayerId: id });
-  },
-
-  getImageLayers: () => get().layers.filter((l) => l.type === "image") as ImageLayer[],
-}));
+    {
+      name: "sdnext-canvas",
+      storage: canvasIdbStorage,
+      partialize: (state): PersistedCanvasState => ({
+        viewport: state.viewport,
+        layers: state.layers.map((layer) => {
+          if (layer.type !== "image") return layer;
+          // Strip non-serializable fields from image layers
+          const { file: _file, imageData: _url, ...rest } = layer as ImageLayer;
+          return { ...rest, imageData: "", file: undefined } as unknown as CanvasLayer;
+        }),
+        activeLayerId: state.activeLayerId,
+        activeTool: state.activeTool,
+        brushSize: state.brushSize,
+        brushHardness: state.brushHardness,
+        brushColor: state.brushColor,
+        brushOpacity: state.brushOpacity,
+        maskVisible: state.maskVisible,
+        maskColor: state.maskColor,
+        panelCollapsedOverrides: [...state.panelCollapsedOverrides.entries()],
+      }),
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<PersistedCanvasState> | undefined;
+        if (!saved) return current;
+        return {
+          ...current,
+          viewport: saved.viewport ?? current.viewport,
+          activeLayerId: saved.activeLayerId ?? current.activeLayerId,
+          activeTool: saved.activeTool ?? current.activeTool,
+          brushSize: saved.brushSize ?? current.brushSize,
+          brushHardness: saved.brushHardness ?? current.brushHardness,
+          brushColor: saved.brushColor ?? current.brushColor,
+          brushOpacity: saved.brushOpacity ?? current.brushOpacity,
+          maskVisible: saved.maskVisible ?? current.maskVisible,
+          maskColor: saved.maskColor ?? current.maskColor,
+          panelCollapsedOverrides: saved.panelCollapsedOverrides
+            ? new Map(saved.panelCollapsedOverrides)
+            : current.panelCollapsedOverrides,
+          layers: saved.layers ? saved.layers.map(rehydrateLayer) : current.layers,
+        };
+      },
+    },
+  ),
+);

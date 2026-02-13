@@ -215,3 +215,70 @@ export async function snapshotUnits(): Promise<ControlUnitSnapshot[]> {
     })),
   );
 }
+
+// --- IDB persistence (async File→base64 prevents using Zustand persist middleware) ---
+
+const CONTROL_DB = "sdnext-control";
+const CONTROL_STORE = "state";
+const CONTROL_KEY = "units";
+
+let controlDbPromise: Promise<IDBDatabase> | null = null;
+
+function openControlDb(): Promise<IDBDatabase> {
+  if (!controlDbPromise) {
+    controlDbPromise = new Promise<IDBDatabase>((resolve, reject) => {
+      const req = indexedDB.open(CONTROL_DB, 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains(CONTROL_STORE)) {
+          req.result.createObjectStore(CONTROL_STORE);
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+  return controlDbPromise;
+}
+
+function readSnapshots(): Promise<ControlUnitSnapshot[] | null> {
+  return openControlDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(CONTROL_STORE, "readonly");
+        const req = tx.objectStore(CONTROL_STORE).get(CONTROL_KEY);
+        req.onsuccess = () => resolve((req.result as ControlUnitSnapshot[] | undefined) ?? null);
+        req.onerror = () => reject(req.error);
+      }),
+  );
+}
+
+function writeSnapshots(snapshots: ControlUnitSnapshot[]): Promise<void> {
+  return openControlDb().then(
+    (db) =>
+      new Promise((resolve, reject) => {
+        const tx = db.transaction(CONTROL_STORE, "readwrite");
+        tx.objectStore(CONTROL_STORE).put(snapshots, CONTROL_KEY);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+      }),
+  );
+}
+
+let controlPersistTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleControlPersist() {
+  if (controlPersistTimer) clearTimeout(controlPersistTimer);
+  controlPersistTimer = setTimeout(() => {
+    snapshotUnits().then(writeSnapshots);
+  }, 2000);
+}
+
+// Subscribe to store changes → debounced IDB write
+useControlStore.subscribe(scheduleControlPersist);
+
+// Rehydrate on startup
+readSnapshots().then((snapshots) => {
+  if (snapshots && snapshots.length > 0) {
+    useControlStore.getState().restoreUnits(snapshots);
+  }
+});

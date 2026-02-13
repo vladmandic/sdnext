@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { putResult, trimResults, clearAllResults, getAllResults } from "@/lib/historyDb";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
@@ -245,70 +246,85 @@ const defaultParams = {
   hdrTintRatio: 0,
 };
 
-export const useGenerationStore = create<GenerationState>()((set) => ({
-  ...defaultParams,
+const defaultParamKeys = Object.keys(defaultParams) as (keyof typeof defaultParams)[];
 
-  isGenerating: false,
-  currentTaskId: null,
-  progress: 0,
-  eta: 0,
-  previewImage: null,
-  queuePosition: 0,
-  results: [],
-  selectedResultId: null,
-  selectedImageIndex: null,
-  _historyLimit: 16,
+export const useGenerationStore = create<GenerationState>()(
+  persist(
+    (set) => ({
+      ...defaultParams,
 
-  setParam: (key, value) => set({ [key]: value }),
+      isGenerating: false,
+      currentTaskId: null,
+      progress: 0,
+      eta: 0,
+      previewImage: null,
+      queuePosition: 0,
+      results: [],
+      selectedResultId: null,
+      selectedImageIndex: null,
+      _historyLimit: 16,
 
-  setParams: (params) => set(params),
+      setParam: (key, value) => set({ [key]: value }),
 
-  setGenerating: (generating) =>
-    set({
-      isGenerating: generating,
-      ...(generating ? {} : { progress: 0, eta: 0, previewImage: null }),
-    }),
+      setParams: (params) => set(params),
 
-  setProgress: (progress, eta) => set({ progress, eta }),
+      setGenerating: (generating) =>
+        set({
+          isGenerating: generating,
+          ...(generating ? {} : { progress: 0, eta: 0, previewImage: null }),
+        }),
 
-  setPreview: (image) => set({ previewImage: image }),
+      setProgress: (progress, eta) => set({ progress, eta }),
 
-  setTaskId: (id) => set({ currentTaskId: id }),
+      setPreview: (image) => set({ previewImage: image }),
 
-  addResult: (result) =>
-    set((state) => {
-      putResult(result).then(() => trimResults(state._historyLimit));
-      return {
-        results: [result, ...state.results].slice(0, 100),
-        selectedResultId: result.id,
-        selectedImageIndex: 0,
-      };
-    }),
+      setTaskId: (id) => set({ currentTaskId: id }),
 
-  clearResults: () => {
-    clearAllResults();
-    set({ results: [], selectedResultId: null, selectedImageIndex: null });
-  },
+      addResult: (result) =>
+        set((state) => {
+          putResult(result).then(() => trimResults(state._historyLimit));
+          return {
+            results: [result, ...state.results].slice(0, 100),
+            selectedResultId: result.id,
+            selectedImageIndex: 0,
+          };
+        }),
 
-  selectImage: (resultId, imageIndex) =>
-    set({ selectedResultId: resultId, selectedImageIndex: imageIndex }),
+      clearResults: () => {
+        clearAllResults();
+        set({ results: [], selectedResultId: null, selectedImageIndex: null });
+      },
 
-  clearSelection: () =>
-    set({ selectedResultId: null, selectedImageIndex: null }),
+      selectImage: (resultId, imageIndex) =>
+        set({ selectedResultId: resultId, selectedImageIndex: imageIndex }),
 
-  setHistoryLimit: (limit) => set({ _historyLimit: limit }),
+      clearSelection: () =>
+        set({ selectedResultId: null, selectedImageIndex: null }),
 
-  hydrateFromDb: () => {
-    getAllResults().then((dbResults) => {
-      if (useGenerationStore.getState().results.length === 0 && dbResults.length > 0) {
-        useGenerationStore.setState({
-          results: dbResults,
-          selectedResultId: dbResults[0]?.id ?? null,
-          selectedImageIndex: dbResults[0] ? 0 : null,
+      setHistoryLimit: (limit) => set({ _historyLimit: limit }),
+
+      hydrateFromDb: () => {
+        getAllResults().then((dbResults) => {
+          if (useGenerationStore.getState().results.length === 0 && dbResults.length > 0) {
+            useGenerationStore.setState({
+              results: dbResults,
+              selectedResultId: dbResults[0]?.id ?? null,
+              selectedImageIndex: dbResults[0] ? 0 : null,
+            });
+          }
         });
-      }
-    });
-  },
+      },
 
-  reset: () => set({ ...defaultParams }),
-}));
+      reset: () => set({ ...defaultParams }),
+    }),
+    {
+      name: "sdnext-generation",
+      partialize: (state) => {
+        const p: Record<string, unknown> = {};
+        for (const key of defaultParamKeys) p[key] = state[key];
+        p._historyLimit = state._historyLimit;
+        return p as Partial<GenerationState>;
+      },
+    },
+  ),
+);
