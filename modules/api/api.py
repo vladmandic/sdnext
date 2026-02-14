@@ -93,6 +93,7 @@ class Api:
         self.add_api_route("/sdapi/v1/sd-vae", endpoints.get_sd_vaes, methods=["GET"], response_model=list[models.ItemVae])
         self.add_api_route("/sdapi/v1/extensions", endpoints.get_extensions_list, methods=["GET"], response_model=list[models.ItemExtension])
         self.add_api_route("/sdapi/v1/extra-networks", endpoints.get_extra_networks, methods=["GET"], response_model=list[models.ItemExtraNetwork])
+        self.add_api_route("/sdapi/v1/extra-networks/detail", endpoints.get_extra_network_detail, methods=["GET"], response_model=models.ItemExtraNetworkDetail)
 
         # functional api
         self.add_api_route("/sdapi/v1/png-info", endpoints.post_pnginfo, methods=["POST"], response_model=models.ResImageInfo)

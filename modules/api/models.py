@@ -163,6 +163,22 @@ class ItemExtraNetwork(BaseModel):
     filename: str | None = Field(title="Filename")
     hash: str | None = Field(title="Hash")
     preview: str | None = Field(title="Preview image URL")
+    version: str | None = Field(default=None, title="Model version or class")
+    tags: str | None = Field(default=None, title="Tags")
+
+class ItemExtraNetworkDetail(BaseModel):
+    name: str = Field(title="Name")
+    type: str = Field(title="Type")
+    title: str | None = Field(default=None, title="Title")
+    filename: str | None = Field(default=None, title="Filename")
+    hash: str | None = Field(default=None, title="Hash")
+    alias: str | None = Field(default=None, title="Alias")
+    size: int | None = Field(default=None, title="File size in bytes")
+    mtime: str | None = Field(default=None, title="Last modified ISO timestamp")
+    version: str | None = Field(default=None, title="Model version or class")
+    tags: str | None = Field(default=None, title="Tags")
+    description: str | None = Field(default=None, title="Description")
+    info: dict | None = Field(default=None, title="Sidecar JSON info")
 
 class ItemArtist(BaseModel):
     name: str = Field(title="Name")

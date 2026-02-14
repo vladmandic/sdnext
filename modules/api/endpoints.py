@@ -80,6 +80,13 @@ def get_extra_networks(page: str | None = None, name: str | None = None, filenam
                 continue
             if hash is not None and (item.get('shorthash', None) or item.get('hash')) != hash:
                 continue
+            raw_tags = item.get('tags', None)
+            if isinstance(raw_tags, dict):
+                tags_str = '|'.join(raw_tags.keys()) if raw_tags else None
+            elif isinstance(raw_tags, str) and raw_tags:
+                tags_str = raw_tags
+            else:
+                tags_str = None
             res.append({
                 'name': item.get('name', ''),
                 'type': pg.name,
@@ -88,8 +95,46 @@ def get_extra_networks(page: str | None = None, name: str | None = None, filenam
                 'filename': item.get('filename', None),
                 'hash': item.get('shorthash', None) or item.get('hash'),
                 "preview": item.get('preview', None),
+                "version": item.get('version', None),
+                "tags": tags_str,
             })
     return res
+
+def get_extra_network_detail(page: str, name: str):
+    from datetime import datetime
+    for pg in shared.extra_networks:
+        if pg.name.lower() != page.lower():
+            continue
+        for item in pg.items:
+            if item.get('name', '').lower() != name.lower():
+                continue
+            raw_tags = item.get('tags', None)
+            if isinstance(raw_tags, dict):
+                tags_str = '|'.join(raw_tags.keys()) if raw_tags else None
+            elif isinstance(raw_tags, str) and raw_tags:
+                tags_str = raw_tags
+            else:
+                tags_str = None
+            mtime = item.get('mtime', None)
+            if isinstance(mtime, datetime):
+                mtime = mtime.isoformat()
+            elif mtime is not None:
+                mtime = str(mtime)
+            return {
+                'name': item.get('name', ''),
+                'type': pg.name,
+                'title': item.get('title', None),
+                'filename': item.get('filename', None),
+                'hash': item.get('shorthash', None) or item.get('hash'),
+                'alias': item.get('alias', None),
+                'size': item.get('size', None),
+                'mtime': mtime,
+                'version': item.get('version', None),
+                'tags': tags_str,
+                'description': item.get('description', None),
+                'info': item.get('info', None) if isinstance(item.get('info'), dict) else None,
+            }
+    return {}
 
 def get_schedulers():
     from modules.sd_samplers import list_samplers
