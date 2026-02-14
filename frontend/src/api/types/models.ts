@@ -34,6 +34,23 @@ export interface LoraNetwork {
   filename: string | null;
   hash: string | null;
   preview: string | null;
+  version: string | null;
+  tags: string | null;
+}
+
+export interface NetworkDetail {
+  name: string;
+  type: string;
+  title: string | null;
+  filename: string | null;
+  hash: string | null;
+  alias: string | null;
+  size: number | null;
+  mtime: string | null;
+  version: string | null;
+  tags: string | null;
+  description: string | null;
+  info: Record<string, unknown> | null;
 }
 
 export interface Embedding {
