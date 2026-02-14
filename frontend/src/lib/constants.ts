@@ -4,6 +4,7 @@ import {
   Type, SlidersHorizontal, Compass, Wand2, ScanSearch,
   Settings2, Layers, FileCode,
   BookOpen, Github, MessageCircle, Users,
+  Gauge, LayoutGrid, Box, Puzzle, Settings, Monitor, Clock, Info, Terminal,
 } from "lucide-react";
 
 export interface NavItem {
@@ -23,6 +24,27 @@ export interface ExternalLink {
   icon: LucideIcon;
   url: string;
 }
+
+export type AsideTab = "quick-settings" | "networks" | "models" | "extensions" | "settings" | "system" | "history" | "info" | "console";
+
+export interface AsideTabItem {
+  id: AsideTab;
+  label: string;
+  icon: LucideIcon;
+  hasSeparatorAfter?: boolean;
+}
+
+export const ASIDE_TABS: AsideTabItem[] = [
+  { id: "quick-settings", label: "Quick Settings", icon: Gauge },
+  { id: "networks", label: "Networks", icon: LayoutGrid },
+  { id: "models", label: "Models", icon: Box, hasSeparatorAfter: true },
+  { id: "extensions", label: "Extensions", icon: Puzzle },
+  { id: "settings", label: "Settings", icon: Settings },
+  { id: "system", label: "System", icon: Monitor },
+  { id: "history", label: "History", icon: Clock },
+  { id: "info", label: "Info", icon: Info },
+  { id: "console", label: "Console", icon: Terminal },
+];
 
 /** Primary sidebar navigation */
 export const NAV_ITEMS: NavItem[] = [

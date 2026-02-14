@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { AsideTab } from "@/lib/constants";
 
 type SidebarView = "images" | "video" | "process" | "caption" | "gallery";
 type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "control" | "scripts";
@@ -18,7 +19,9 @@ interface UiState {
   leftPanelCollapsed: boolean;
   leftPanelWidth: number;
   rightPanelCollapsed: boolean;
-  rightPanelWidth: number;
+
+  // Aside tabs
+  activeAsideTab: AsideTab;
 
   // Generation mode
   generationMode: GenerationMode;
@@ -44,7 +47,8 @@ interface UiState {
   toggleLeftPanel: () => void;
   setLeftPanelWidth: (width: number) => void;
   toggleRightPanel: () => void;
-  setRightPanelWidth: (width: number) => void;
+  setAsideTab: (tab: AsideTab) => void;
+  openAsideTab: (tab: AsideTab) => void;
   setColorMode: (mode: ColorMode) => void;
   setAccentColor: (color: string) => void;
   setCornerStyle: (style: CornerStyle) => void;
@@ -65,7 +69,7 @@ export const useUiStore = create<UiState>()(
       leftPanelCollapsed: false,
       leftPanelWidth: 380,
       rightPanelCollapsed: true,
-      rightPanelWidth: 320,
+      activeAsideTab: "networks" as AsideTab,
       generationMode: "txt2img" as GenerationMode,
       autoFitFrame: true,
       colorMode: "dark" as ColorMode,
@@ -84,7 +88,8 @@ export const useUiStore = create<UiState>()(
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),
       setLeftPanelWidth: (width) => set({ leftPanelWidth: Math.max(280, Math.min(600, width)) }),
       toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),
-      setRightPanelWidth: (width) => set({ rightPanelWidth: Math.max(280, Math.min(600, width)) }),
+      setAsideTab: (tab) => set({ activeAsideTab: tab }),
+      openAsideTab: (tab) => set({ activeAsideTab: tab, rightPanelCollapsed: false }),
       setColorMode: (mode) => set({ colorMode: mode }),
       setAccentColor: (color) => set({ accentColor: color }),
       setCornerStyle: (style) => set({ cornerStyle: style }),

@@ -38,7 +38,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   detailer: "Detailer",
 };
 
-function DeviceBadge({ device }: { device?: string | null }) {
+export function DeviceBadge({ device }: { device?: string | null }) {
   if (!device) return null;
   const variant = device.startsWith("cuda")
     ? "default"
@@ -52,7 +52,7 @@ function DeviceBadge({ device }: { device?: string | null }) {
   );
 }
 
-function DtypeLabel({ model }: { model: LoadedModel }) {
+export function DtypeLabel({ model }: { model: LoadedModel }) {
   const quant = model.extra?.quant as string | undefined;
   const dtype = model.dtype;
   if (!quant && !dtype) return null;
@@ -60,7 +60,7 @@ function DtypeLabel({ model }: { model: LoadedModel }) {
   return <span className="text-[10px] text-muted-foreground">{label}</span>;
 }
 
-function ModelRow({ model }: { model: LoadedModel }) {
+export function ModelRow({ model }: { model: LoadedModel }) {
   return (
     <div className="flex items-center justify-between gap-2 py-1 px-2 rounded hover:bg-muted/50">
       <span className="font-mono text-xs truncate min-w-0">{model.name}</span>
@@ -77,7 +77,7 @@ function ModelRow({ model }: { model: LoadedModel }) {
   );
 }
 
-function GroupedModels({ models }: { models: LoadedModel[] }) {
+export function GroupedModels({ models }: { models: LoadedModel[] }) {
   const groups = new Map<string, LoadedModel[]>();
   for (const m of models) {
     const list = groups.get(m.category) ?? [];
