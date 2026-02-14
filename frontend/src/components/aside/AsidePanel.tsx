@@ -36,7 +36,7 @@ export function AsidePanel() {
         {tabMeta && <tabMeta.icon className="h-4 w-4 text-muted-foreground" />}
         <span className="text-sm font-medium">{tabMeta?.label ?? activeTab}</span>
       </div>
-      <ScrollArea className="flex-1">
+      <ScrollArea className="flex-1 overflow-hidden">
         <Suspense fallback={<div className="p-3 text-xs text-muted-foreground">Loading...</div>}>
           {TabComponent && <TabComponent />}
         </Suspense>
