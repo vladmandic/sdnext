@@ -2,6 +2,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useProgress, useStatus } from "@/api/hooks/useGeneration";
 import { useMemory } from "@/api/hooks/useServer";
 import { formatBytes, formatDuration } from "@/lib/utils";
+import { LoadedModelsPanel } from "@/components/layout/LoadedModelsPanel";
 
 export function StatusBar() {
   const isGenerating = useGenerationStore((s) => s.isGenerating);
@@ -64,9 +65,11 @@ export function StatusBar() {
 
       {/* Memory info */}
       {memory?.cuda?.allocated && (
-        <span>
-          VRAM {formatBytes(memory.cuda.allocated.current)} / {formatBytes(memory.cuda.system?.total ?? 0)}
-        </span>
+        <LoadedModelsPanel>
+          <button type="button" className="hover:text-foreground transition-colors cursor-pointer">
+            VRAM {formatBytes(memory.cuda.allocated.current)} / {formatBytes(memory.cuda.system?.total ?? 0)}
+          </button>
+        </LoadedModelsPanel>
       )}
 
       {memory?.ram && !memory.ram.error && (

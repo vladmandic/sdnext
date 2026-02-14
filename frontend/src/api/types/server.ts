@@ -49,3 +49,12 @@ export interface VersionInfo {
   branch: string;
   commit: string;
 }
+
+export interface LoadedModel {
+  name: string;
+  category: string;
+  device?: string | null;
+  size_bytes?: number | null;
+  dtype?: string | null;
+  extra?: Record<string, unknown> | null;
+}

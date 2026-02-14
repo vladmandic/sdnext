@@ -484,6 +484,14 @@ class ResGPU(BaseModel): # definition of http response
     data: dict = Field(title="Name/Value data")
     chart: list[float, float] = Field(title="Exactly two items to place on chart")
 
+class ItemLoadedModel(BaseModel):
+    name: str = Field(title="Model Name")
+    category: str = Field(title="Category")
+    device: Optional[str] = Field(default=None, title="Device")
+    size_bytes: Optional[int] = Field(default=None, title="Size (bytes)")
+    dtype: Optional[str] = Field(default=None, title="Dtype")
+    extra: Optional[dict] = Field(default=None, title="Extra metadata")
+
 # helper function
 
 def create_model_from_signature(func: Callable, model_name: str, base_model: type[BaseModel] = BaseModel, additional_fields: list = None, exclude_fields: list[str] = None) -> type[BaseModel]:
