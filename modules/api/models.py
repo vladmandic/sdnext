@@ -291,6 +291,7 @@ class ResTxt2Img(BaseModel):
     images: list[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
     parameters: dict
     info: str
+    processed_images: Optional[List[str]] = Field(default=None, title="Processed images", description="Per-unit preprocessed control images in base64 format.")
 
 ReqImg2Img = PydanticModelGenerator(
     "StableDiffusionProcessingImg2Img",
@@ -323,6 +324,7 @@ class ResImg2Img(BaseModel):
     images: list[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
     parameters: dict
     info: str
+    processed_images: Optional[List[str]] = Field(default=None, title="Processed images", description="Per-unit preprocessed control images in base64 format.")
 
 class FileData(BaseModel):
     data: str = Field(title="File data", description="Base64 representation of the file")

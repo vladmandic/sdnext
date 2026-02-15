@@ -213,13 +213,23 @@ class APIGenerate:
                 result = e.value
             shared.state.end(jobid)
 
+        # result = (output_images, blended_image, html_txt, output_filename)
         output_images = result[0] if result else []
         if output_images:
             b64images = list(map(helpers.encode_pil_to_base64, output_images)) if send_images else []
         else:
             b64images = []
+        # Encode preprocessed composite image from control pipeline return value
+        processed_b64 = None
+        blended = result[1] if result and len(result) > 1 else None
+        if blended is not None:
+            from PIL import Image
+            if isinstance(blended, Image.Image):
+                processed_b64 = [helpers.encode_pil_to_base64(blended)]
+            elif isinstance(blended, list):
+                processed_b64 = [helpers.encode_pil_to_base64(img) for img in blended if isinstance(img, Image.Image)]
         self.sanitize_b64(request)
-        return models.ResTxt2Img(images=b64images, parameters=vars(request), info='')
+        return models.ResTxt2Img(images=b64images, parameters=vars(request), info='', processed_images=processed_b64)
 
     def post_text2img(self, txt2imgreq: models.ReqTxt2Img):
         self.prepare_face_module(txt2imgreq)
