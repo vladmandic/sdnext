@@ -76,14 +76,60 @@ function StackedPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onCle
       onClick={handlePanelClick}
     >
       <div
-        className="flex items-center justify-between px-3 shrink-0 rounded-t-md"
-        style={{ backgroundColor: CONTROL_COLOR, height: HEADER_HEIGHT }}
+        className="flex flex-col shrink-0 rounded-t-md"
+        style={{ backgroundColor: CONTROL_COLOR }}
       >
-        <span className="text-base font-medium truncate" style={{ color: textColor }}>{labelText}</span>
-        {sizeText && <span className="text-xs opacity-70 shrink-0" style={{ color: textColor }}>{sizeText}</span>}
-        <div className="flex items-center gap-0.5 shrink-0">
-          {isOwner && unit.image && (
-            <>
+        {/* Row 1: label + action buttons */}
+        <div className="flex items-center justify-between px-3" style={{ minHeight: HEADER_HEIGHT }}>
+          <span className="text-base font-medium truncate" style={{ color: textColor }}>{labelText}</span>
+          <div className="flex items-center gap-0.5 shrink-0">
+            {isOwner && unit.image && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPickImage?.(unitIndex);
+                  }}
+                  title="Replace image"
+                  className="hover:bg-black/10"
+                >
+                  <ImagePlus size={16} style={{ color: textColor }} />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onClearImage?.(unitIndex);
+                  }}
+                  title="Clear image"
+                  className="hover:bg-black/10"
+                >
+                  <Trash2 size={16} style={{ color: textColor }} />
+                </Button>
+              </>
+            )}
+            <Button
+              variant="ghost"
+              size="icon-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                togglePanelCollapsed(unitIndex, collapsed);
+              }}
+              title={collapsed ? "Expand settings" : "Collapse settings"}
+              className="hover:bg-black/10"
+            >
+              {collapsed ? <ChevronDown size={16} style={{ color: textColor }} /> : <ChevronUp size={16} style={{ color: textColor }} />}
+            </Button>
+          </div>
+        </div>
+        {/* Row 2: size + fit mode */}
+        {sizeText && (
+          <div className="flex items-center justify-between px-3 pb-1.5">
+            <span className="text-xs opacity-70" style={{ color: textColor }}>{sizeText}</span>
+            {isOwner && unit.image && (
               <Button
                 variant="ghost"
                 size="icon-xs"
@@ -97,45 +143,9 @@ function StackedPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onCle
               >
                 {unit.fitMode === "contain" ? <Minimize2 size={16} style={{ color: textColor }} /> : unit.fitMode === "cover" ? <Maximize2 size={16} style={{ color: textColor }} /> : <Move size={16} style={{ color: textColor }} />}
               </Button>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPickImage?.(unitIndex);
-                }}
-                title="Replace image"
-                className="hover:bg-black/10"
-              >
-                <ImagePlus size={16} style={{ color: textColor }} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-xs"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onClearImage?.(unitIndex);
-                }}
-                title="Clear image"
-                className="hover:bg-black/10"
-              >
-                <Trash2 size={16} style={{ color: textColor }} />
-              </Button>
-            </>
-          )}
-          <Button
-            variant="ghost"
-            size="icon-xs"
-            onClick={(e) => {
-              e.stopPropagation();
-              togglePanelCollapsed(unitIndex, collapsed);
-            }}
-            title={collapsed ? "Expand settings" : "Collapse settings"}
-            className="hover:bg-black/10"
-          >
-            {collapsed ? <ChevronDown size={16} style={{ color: textColor }} /> : <ChevronUp size={16} style={{ color: textColor }} />}
-          </Button>
-        </div>
+            )}
+          </div>
+        )}
       </div>
 
       {!collapsed && (
