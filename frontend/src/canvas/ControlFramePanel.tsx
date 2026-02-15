@@ -64,6 +64,8 @@ function StackedPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onCle
     sizeText = imageDims ? `${imageDims.w}×${imageDims.h} ${fitSuffix}` : `${frame.width}×${frame.height}`;
   }
 
+  const isAsset = unit.unitType === "asset";
+
   const handlePanelClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setSelectedControlFrame(unitIndex);
@@ -111,18 +113,20 @@ function StackedPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onCle
                 </Button>
               </>
             )}
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={(e) => {
-                e.stopPropagation();
-                togglePanelCollapsed(unitIndex, collapsed);
-              }}
-              title={collapsed ? "Expand settings" : "Collapse settings"}
-              className="hover:bg-black/10"
-            >
-              {collapsed ? <ChevronDown size={16} style={{ color: textColor }} /> : <ChevronUp size={16} style={{ color: textColor }} />}
-            </Button>
+            {!isAsset && (
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  togglePanelCollapsed(unitIndex, collapsed);
+                }}
+                title={collapsed ? "Expand settings" : "Collapse settings"}
+                className="hover:bg-black/10"
+              >
+                {collapsed ? <ChevronDown size={16} style={{ color: textColor }} /> : <ChevronUp size={16} style={{ color: textColor }} />}
+              </Button>
+            )}
           </div>
         </div>
         {/* Row 2: size + fit mode */}
@@ -148,7 +152,7 @@ function StackedPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onCle
         )}
       </div>
 
-      {!collapsed && (
+      {!isAsset && !collapsed && (
         <div
           className="p-3 overflow-y-auto bg-background/95 backdrop-blur-sm border-t border-border/50"
           style={{ maxHeight: DRAWER_MAX_HEIGHT }}
