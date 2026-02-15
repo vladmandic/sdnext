@@ -141,6 +141,14 @@ class Api:
         from modules.api import loaded_models
         loaded_models.register_api()
 
+        # model operations api
+        from modules.api import models_ops
+        models_ops.register_api()
+
+        # system operations api
+        from modules.api import system_ops
+        system_ops.register_api()
+
     def add_api_route(self, path: str, fn, auth: bool = True, **kwargs):
         if auth and self.credentials:
             deps = list(kwargs.get('dependencies', []))

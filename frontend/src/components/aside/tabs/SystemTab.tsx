@@ -1,108 +1,132 @@
-import { useGpuStatus, useMemory, useLoadedModels, useServerInfo } from "@/api/hooks/useServer";
-import { GroupedModels } from "@/components/layout/LoadedModelsPanel";
-import { formatBytes } from "@/lib/utils";
+import { useState } from "react";
+import { RotateCcw, PowerOff, Activity } from "lucide-react";
+import { useRestartServer, useShutdownServer, useToggleProfiling } from "@/api/hooks/useSystem";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+
+import { OverviewSubTab } from "@/components/system/sub-tabs/OverviewSubTab";
+import { UpdateSubTab } from "@/components/system/sub-tabs/UpdateSubTab";
+import { HistorySubTab } from "@/components/system/sub-tabs/HistorySubTab";
+import { GpuMonitorSubTab } from "@/components/system/sub-tabs/GpuMonitorSubTab";
+import { SystemInfoSubTab } from "@/components/system/sub-tabs/SystemInfoSubTab";
+import { BenchmarkSubTab } from "@/components/system/sub-tabs/BenchmarkSubTab";
+
+const SUB_TABS = [
+  "Overview",
+  "Update",
+  "History",
+  "GPU Monitor",
+  "System Info",
+  "Benchmark",
+] as const;
+
+type SubTab = (typeof SUB_TABS)[number];
 
 export function SystemTab() {
-  const { data: gpus } = useGpuStatus();
-  const { data: memory } = useMemory();
-  const { data: models } = useLoadedModels();
-  const { data: serverInfo } = useServerInfo();
+  const [active, setActive] = useState<SubTab>("Overview");
+  const [confirmAction, setConfirmAction] = useState<"restart" | "shutdown" | null>(null);
+  const [profiling, setProfiling] = useState(false);
 
-  const gpu = gpus?.[0];
-  const gpuData = gpu?.data as Record<string, number> | undefined;
-  const vramAllocated = memory?.cuda?.allocated?.current;
-  const vramTotal = memory?.cuda?.system?.total;
-  const ramUsed = memory?.ram?.used;
-  const ramTotal = memory?.ram?.total;
+  const restartServer = useRestartServer();
+  const shutdownServer = useShutdownServer();
+  const toggleProfiling = useToggleProfiling();
 
-  return (
-    <div className="p-3 space-y-4">
-      {/* GPU */}
-      {gpu && (
-        <Section title="GPU">
-          <Row label="Name" value={gpu.name} />
-          {gpuData?.temperature != null && <BarRow label="Temp" value={gpuData.temperature} max={100} unit="C" />}
-          {gpuData?.utilization != null && <BarRow label="Load" value={gpuData.utilization} max={100} unit="%" />}
-          {gpuData?.power != null && (
-            <Row label="Power" value={`${Math.round(gpuData.power)}W${gpuData.power_limit ? ` / ${Math.round(gpuData.power_limit)}W` : ""}`} />
-          )}
-        </Section>
-      )}
+  function handleConfirm() {
+    if (confirmAction === "restart") restartServer.mutate();
+    else if (confirmAction === "shutdown") shutdownServer.mutate();
+    setConfirmAction(null);
+  }
 
-      {/* Memory */}
-      <Section title="Memory">
-        {vramAllocated != null && vramTotal != null && vramTotal > 0 && (
-          <BarRow label="VRAM" value={vramAllocated} max={vramTotal} formatter={formatBytes} />
-        )}
-        {ramUsed != null && ramTotal != null && ramTotal > 0 && (
-          <BarRow label="RAM" value={ramUsed} max={ramTotal} formatter={formatBytes} />
-        )}
-        {!vramTotal && !ramTotal && <p className="text-xs text-muted-foreground">No memory data</p>}
-      </Section>
+  function handleProfiling() {
+    toggleProfiling.mutate(undefined, {
+      onSuccess: (data) => {
+        if (data && typeof data === "object" && "enabled" in data) {
+          setProfiling(data.enabled as boolean);
+        }
+      },
+    });
+  }
 
-      {/* Loaded Models */}
-      <Section title={`Loaded Models (${models?.length ?? 0})`}>
-        {models && models.length > 0 ? (
-          <GroupedModels models={models} />
-        ) : (
-          <p className="text-xs text-muted-foreground">No models loaded</p>
-        )}
-      </Section>
-
-      {/* Server */}
-      {serverInfo && (
-        <Section title="Server">
-          <Row label="Version" value={serverInfo.version?.app} />
-          <Row label="Backend" value={serverInfo.backend} />
-          <Row label="Platform" value={serverInfo.platform} />
-        </Section>
-      )}
-    </div>
-  );
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="text-xs font-medium text-muted-foreground mb-2">{title}</h3>
-      <div className="space-y-1.5">{children}</div>
-    </div>
-  );
-}
+      <div className="sticky top-0 z-10 bg-card p-2 space-y-2 border-b border-border">
+        <div className="flex items-center gap-1 flex-wrap">
+          <Button size="sm" variant="destructive-soft" onClick={() => setConfirmAction("restart")}>
+            <RotateCcw />
+            Restart
+          </Button>
+          <Button size="sm" variant="destructive-soft" onClick={() => setConfirmAction("shutdown")}>
+            <PowerOff />
+            Shutdown
+          </Button>
+          <Button
+            size="sm"
+            variant={profiling ? "default" : "ghost"}
+            className="h-7 px-2 text-[11px] ml-auto"
+            title="Toggle profiling"
+            onClick={handleProfiling}
+          >
+            <Activity className="h-3.5 w-3.5 mr-1" />
+            {profiling ? "Stop" : "Profile"}
+          </Button>
+        </div>
 
-function Row({ label, value }: { label: string; value?: string | number | null }) {
-  if (value == null) return null;
-  return (
-    <div className="flex justify-between gap-2 text-xs">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right truncate">{value}</span>
-    </div>
-  );
-}
-
-interface BarRowProps {
-  label: string;
-  value: number;
-  max: number;
-  unit?: string;
-  formatter?: (n: number) => string;
-}
-
-function BarRow({ label, value, max, unit, formatter }: BarRowProps) {
-  const pct = max > 0 ? Math.min(100, (value / max) * 100) : 0;
-  const fmt = formatter ?? ((n: number) => `${Math.round(n)}${unit ?? ""}`);
-  return (
-    <div className="space-y-0.5">
-      <div className="flex justify-between text-xs">
-        <span className="text-muted-foreground">{label}</span>
-        <span className="tabular-nums">{fmt(value)} / {fmt(max)}</span>
+        <div className="flex items-center gap-1 flex-wrap">
+          {SUB_TABS.map((tab) => (
+            <button
+              key={tab}
+              type="button"
+              onClick={() => setActive(tab)}
+              className={cn(
+                "px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors",
+                active === tab
+                  ? "bg-accent text-accent-foreground"
+                  : "bg-muted text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
       </div>
-      <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-        <div
-          className="h-full rounded-full bg-accent transition-all duration-300"
-          style={{ width: `${pct}%` }}
-        />
+
+      <div className="p-3">
+        {active === "Overview" && <OverviewSubTab />}
+        {active === "Update" && <UpdateSubTab />}
+        {active === "History" && <HistorySubTab />}
+        {active === "GPU Monitor" && <GpuMonitorSubTab />}
+        {active === "System Info" && <SystemInfoSubTab />}
+        {active === "Benchmark" && <BenchmarkSubTab />}
       </div>
+
+      <Dialog open={confirmAction !== null} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <DialogContent showCloseButton={false} className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {confirmAction === "restart" ? "Restart Server" : "Shutdown Server"}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction === "restart"
+                ? "The server will restart. You may lose connection temporarily."
+                : "The server will shut down completely. You will need to start it manually."}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setConfirmAction(null)}>Cancel</Button>
+            <Button variant="destructive" size="sm" onClick={handleConfirm}>
+              {confirmAction === "restart" ? "Restart" : "Shutdown"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
