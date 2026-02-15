@@ -56,7 +56,7 @@ function StackedPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onCle
   if (!unit) return null;
 
   const textColor = contrastText(CONTROL_COLOR);
-  const labelText = isOwner ? `Control ${unitIndex} (${unit.unitType})` : `Unit ${unitIndex} (${unit.unitType})`;
+  const labelText = `Unit ${unitIndex} (${unit.unitType})`;
 
   let sizeText: string | null = null;
   if (isOwner) {
