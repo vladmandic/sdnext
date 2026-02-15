@@ -523,7 +523,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     if input_image is not None:
                         p.ops.append('img2img')
                     if pipe is None: # pipe may have been reset externally
-                        pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
+                        if video is None:
+                            break # non-video: pipeline was consumed, no need to re-process remaining inputs
+                        pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, active_units, control_conditioning, control_guidance_start, control_guidance_end, inits)
                         debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
                     pipe.restore_pipeline = restore_pipeline
                     shared.sd_model.restore_pipeline = restore_pipeline
