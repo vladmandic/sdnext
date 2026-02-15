@@ -25,10 +25,13 @@ const TAB_COMPONENTS: Record<string, React.LazyExoticComponent<React.ComponentTy
   "console": ConsoleTab,
 };
 
+const SELF_SCROLL_TABS = new Set<string>(["settings"]);
+
 export function AsidePanel() {
   const activeTab = useUiStore((s) => s.activeAsideTab);
   const tabMeta = ASIDE_TABS.find((t) => t.id === activeTab);
   const TabComponent = TAB_COMPONENTS[activeTab];
+  const Wrapper = SELF_SCROLL_TABS.has(activeTab) ? "div" : ScrollArea;
 
   return (
     <div className="flex flex-col h-full bg-card">
@@ -36,11 +39,11 @@ export function AsidePanel() {
         {tabMeta && <tabMeta.icon className="h-4 w-4 text-muted-foreground" />}
         <span className="text-sm font-medium">{tabMeta?.label ?? activeTab}</span>
       </div>
-      <ScrollArea className="flex-1 overflow-hidden">
+      <Wrapper className="flex-1 overflow-hidden">
         <Suspense fallback={<div className="p-3 text-xs text-muted-foreground">Loading...</div>}>
           {TabComponent && <TabComponent />}
         </Suspense>
-      </ScrollArea>
+      </Wrapper>
     </div>
   );
 }
