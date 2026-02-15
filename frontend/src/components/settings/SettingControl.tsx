@@ -7,6 +7,28 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Slider } from "@/components/ui/slider";
 import { Combobox } from "@/components/ui/combobox";
 
+function renderSelect(choices: string[] | undefined, value: unknown, onChange: (value: unknown) => void, setting: SettingDef) {
+  if (!choices || choices.length === 0) {
+    return (
+      <Input
+        value={String(value ?? "")}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-7 text-xs"
+        placeholder={setting.description}
+      />
+    );
+  }
+  return (
+    <Combobox
+      value={String(value ?? "")}
+      onValueChange={(v) => onChange(v)}
+      options={choices}
+      placeholder="Select..."
+      className="h-7 text-xs min-w-[140px]"
+    />
+  );
+}
+
 interface SettingControlProps {
   setting: SettingDef;
   value: unknown;
@@ -69,28 +91,10 @@ export function SettingControl({ setting, value, onChange, dynamicChoices }: Set
           </div>
         );
       }
-    // falls through to select for 6+ choices or no choices
-    // eslint-disable-next-line no-fallthrough
+      return renderSelect(choices, value, onChange, setting);
+
     case "select":
-      if (!choices || choices.length === 0) {
-        return (
-          <Input
-            value={String(value ?? "")}
-            onChange={(e) => onChange(e.target.value)}
-            className="h-7 text-xs"
-            placeholder={setting.description}
-          />
-        );
-      }
-      return (
-        <Combobox
-          value={String(value ?? "")}
-          onValueChange={(v) => onChange(v)}
-          options={choices}
-          placeholder="Select..."
-          className="h-7 text-xs min-w-[140px]"
-        />
-      );
+      return renderSelect(choices, value, onChange, setting);
 
     case "multiselect": {
       const selected = Array.isArray(value) ? value as string[] : [];

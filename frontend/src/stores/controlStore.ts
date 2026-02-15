@@ -187,7 +187,7 @@ export const useControlStore = create<ControlState>()((set) => ({
     set({
       units: snapshots.map((s) => {
         // Migrate old snapshots: useSeparateImage boolean → imageSource string
-        const raw = s as Record<string, unknown>;
+        const raw = s as ControlUnitSnapshot & { useSeparateImage?: boolean };
         let imageSource: string;
         if (typeof s.imageSource === "string") {
           imageSource = s.imageSource;

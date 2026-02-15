@@ -19,6 +19,10 @@ export function FrameLayer({ onPickImage }: FrameLayerProps) {
     if (!hasLayers && onPickImage) onPickImage();
   }, [hasLayers, onPickImage]);
 
+  const handleTap = useCallback(() => {
+    if (!hasLayers && onPickImage) onPickImage();
+  }, [hasLayers, onPickImage]);
+
   return (
     <Layer>
       {/* Clickable background when empty */}
@@ -31,7 +35,7 @@ export function FrameLayer({ onPickImage }: FrameLayerProps) {
           fill="transparent"
           listening={true}
           onClick={handleClick}
-          onTap={handleClick}
+          onTap={handleTap}
         />
       )}
 

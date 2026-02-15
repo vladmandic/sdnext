@@ -231,6 +231,10 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, onClick
     onClick(frame.unitIndex, hasImage, e.evt.button);
   }, [onClick, frame.unitIndex, hasImage]);
 
+  const handleTap = useCallback(() => {
+    onClick(frame.unitIndex, hasImage, 0);
+  }, [onClick, frame.unitIndex, hasImage]);
+
   const imgFit = image ? computeFit(image.naturalWidth, image.naturalHeight, frame.x, frame.y, frame.width, frame.height, fitMode) : null;
 
   return (
@@ -244,7 +248,7 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, onClick
         fill="transparent"
         listening={true}
         onClick={handleClick}
-        onTap={handleClick}
+        onTap={handleTap}
         name="controlFrame"
       />
 

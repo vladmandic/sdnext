@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { base64ToBlob } from "@/lib/utils";
@@ -90,7 +90,7 @@ interface PersistedCanvasState {
 
 const canvasIdbStorage = createIdbStorage("sdnext-canvas", "state");
 
-function rehydrateLayer(layer: CanvasLayer): CanvasLayer {
+function rehydrateLayer(layer: CanvasLayer): CanvasLayer | ImageLayer {
   if (layer.type !== "image") return layer;
   const img = layer as ImageLayer;
   if (!img.base64) return layer;
@@ -247,7 +247,7 @@ export const useCanvasStore = create<CanvasState>()(
     }),
     {
       name: "sdnext-canvas",
-      storage: canvasIdbStorage,
+      storage: createJSONStorage(() => canvasIdbStorage),
       partialize: (state): PersistedCanvasState => ({
         viewport: state.viewport,
         layers: state.layers.map((layer) => {
