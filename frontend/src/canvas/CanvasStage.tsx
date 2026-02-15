@@ -9,6 +9,7 @@ import { FrameLayer } from "./layers/FrameLayer";
 import { CompositeLayer } from "./layers/CompositeLayer";
 import { MaskLayer } from "./layers/MaskLayer";
 import { OutputLayer } from "./layers/OutputLayer";
+import { ProcessedCompositeLayer } from "./layers/ProcessedCompositeLayer";
 import { ControlFrameLayer } from "./layers/ControlFrameLayer";
 import type { CanvasLayout } from "./useControlFrameLayout";
 import type Konva from "konva";
@@ -35,7 +36,7 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
   const imageTransform = useImageTransform(stageRef, trRef);
 
-  const { showInputFrame, outputX, controlFrames, totalBounds } = layout;
+  const { showInputFrame, outputX, processedX, showProcessedFrame, controlFrames, totalBounds } = layout;
 
   // Container-responsive sizing
   useEffect(() => {
@@ -116,6 +117,9 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
           {showInputFrame && <FrameLayer onPickImage={onPickImage ? () => onPickImage(-1) : undefined} />}
           {showInputFrame && <MaskLayer setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />}
           <OutputLayer offsetX={outputX} placeholderWidth={frameW} placeholderHeight={frameH} />
+          {showProcessedFrame && (
+            <ProcessedCompositeLayer offsetX={processedX} width={frameW} height={frameH} />
+          )}
         </Stage>
       )}
     </div>

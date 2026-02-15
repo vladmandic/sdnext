@@ -33,6 +33,7 @@ const STROKE_HALF = 1; // Konva strokeWidth=2 → 1 canvas unit extends outside 
 const CONTROL_COLOR = "#f59e0b";
 const INPUT_COLOR = "#4ade80";
 const OUTPUT_COLOR = "#60a5fa";
+const PROCESSED_COLOR = "#c084fc";
 
 // --- StackedPanel: a single panel for one control unit (no positioning) ---
 
@@ -263,6 +264,10 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage }: Contro
       )}
 
       <FrameHeaderBar label="Output" color={OUTPUT_COLOR} canvasX={layout.outputX} viewport={viewport} frameW={frameW} frameH={frameH} labelScale={labelScale} />
+
+      {layout.showProcessedFrame && (
+        <FrameHeaderBar label="Processed" color={PROCESSED_COLOR} canvasX={layout.processedX} viewport={viewport} frameW={frameW} frameH={frameH} labelScale={labelScale} />
+      )}
     </>
   );
 }

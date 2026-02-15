@@ -4,7 +4,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useTxt2Img, useImg2Img, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
 import { buildTxt2ImgRequest, buildImg2ImgRequest, restoreFromResult } from "@/lib/requestBuilder";
-import { snapshotUnits } from "@/stores/controlStore";
+import { snapshotUnits, useControlStore } from "@/stores/controlStore";
 import type { Img2ImgRequest } from "@/api/types/generation";
 import { Play, Square, SkipForward, Loader2, History } from "lucide-react";
 import { useEffect, useRef, useCallback, memo } from "react";
@@ -107,6 +107,10 @@ export const ActionBar = memo(function ActionBar() {
         : await txt2img.mutateAsync(request);
       // Don't add result if generation was interrupted while awaiting
       if (!generatingRef.current) return;
+      // Store preprocessed composite from control pipeline (if returned)
+      if (result.processed_images && result.processed_images.length > 0) {
+        useControlStore.getState().setCompositeProcessed(`data:image/png;base64,${result.processed_images[0]}`);
+      }
       addResult({
         id: crypto.randomUUID(),
         images: result.images,

@@ -109,6 +109,7 @@ export interface GenerationResponse {
   images: string[];
   parameters: Record<string, unknown>;
   info: string;
+  processed_images?: string[];
 }
 
 export interface GenerationInfo {

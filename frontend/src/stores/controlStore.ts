@@ -42,6 +42,8 @@ export function resolveUnitImage(units: ControlUnit[], index: number): File | nu
 
 interface ControlState {
   units: ControlUnit[];
+  /** Composite processed image from the backend (set after generation with control units). */
+  compositeProcessed: string | null;
 
   addUnit: () => void;
   removeUnit: (index: number) => void;
@@ -54,12 +56,14 @@ interface ControlState {
   setImageSource: (index: number, source: string) => void;
   addUnitMask: (index: number, file: File) => void;
   removeUnitMask: (index: number, maskIdx: number) => void;
+  setCompositeProcessed: (image: string | null) => void;
   restoreUnits: (snapshots: ControlUnitSnapshot[]) => void;
   reset: () => void;
 }
 
 export const useControlStore = create<ControlState>()((set) => ({
   units: [defaultUnit()],
+  compositeProcessed: null,
 
   addUnit: () =>
     set((state) => {
@@ -182,6 +186,8 @@ export const useControlStore = create<ControlState>()((set) => ({
       units[index] = { ...units[index], masks: units[index].masks.filter((_, i) => i !== maskIdx) };
       return { units };
     }),
+
+  setCompositeProcessed: (image) => set({ compositeProcessed: image }),
 
   restoreUnits: (snapshots) =>
     set({

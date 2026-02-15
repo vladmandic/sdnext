@@ -25,12 +25,15 @@ export interface CanvasLayout {
   showInputFrame: boolean;
   inputX: number;
   outputX: number;
+  processedX: number;
+  showProcessedFrame: boolean;
   controlFrames: ControlFramePosition[];
   totalBounds: { minX: number; maxX: number; maxY: number };
 }
 
 export function useControlFrameLayout(): CanvasLayout {
   const units = useControlStore((s) => s.units);
+  const compositeProcessed = useControlStore((s) => s.compositeProcessed);
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
   const generationMode = useUiStore((s) => s.generationMode);
@@ -42,8 +45,14 @@ export function useControlFrameLayout(): CanvasLayout {
     const inputX = 0;
     const outputX = isImg2Img ? frameW + FRAME_GAP : 0;
 
+    // Processed composite frame: visible when backend composite or any per-unit processedImage exists
+    const hasAnyProcessed = !!compositeProcessed || units.some((u) => u.enabled && !!u.processedImage);
+    const processedX = (isImg2Img ? outputX + frameW : frameW) + FRAME_GAP;
+
     // Rightmost edge of main frames
-    const mainMaxX = isImg2Img ? outputX + frameW : frameW;
+    const mainMaxX = hasAnyProcessed
+      ? processedX + frameW
+      : (isImg2Img ? outputX + frameW : frameW);
 
     // Control frames: only enabled units with imageSource === "separate"
     const activeControlIndices = units
@@ -87,8 +96,10 @@ export function useControlFrameLayout(): CanvasLayout {
       showInputFrame: isImg2Img,
       inputX,
       outputX,
+      processedX,
+      showProcessedFrame: hasAnyProcessed,
       controlFrames,
       totalBounds: { minX, maxX: mainMaxX, maxY },
     };
-  }, [units, frameW, frameH, generationMode]);
+  }, [units, compositeProcessed, frameW, frameH, generationMode]);
 }
