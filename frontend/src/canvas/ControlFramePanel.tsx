@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useCanvasStore } from "@/stores/canvasStore";
+import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
@@ -234,15 +234,81 @@ function ControlFrameStack({ frame, onPickImage, onClearImage }: ControlFrameSta
   );
 }
 
+// --- InputFramePanel: floating panel for the img2img Input frame ---
+
+interface InputFramePanelProps {
+  canvasX: number;
+  frameW: number;
+  frameH: number;
+  viewport: { x: number; y: number; scale: number };
+  labelScale: number;
+  onPickImage?: () => void;
+  onClearAll?: () => void;
+}
+
+function InputFramePanel({ canvasX, frameW, frameH, viewport, labelScale, onPickImage, onClearAll }: InputFramePanelProps) {
+  const layers = useCanvasStore((s) => s.layers);
+  const hasLayers = layers.length > 0;
+
+  const firstImage = layers.find((l): l is ImageLayer => l.type === "image");
+
+  const textColor = contrastText(INPUT_COLOR);
+  const combinedScale = viewport.scale * labelScale;
+
+  const screenCenterX = (canvasX + frameW / 2) * viewport.scale + viewport.x;
+  const screenTopY = STROKE_HALF * viewport.scale + viewport.y;
+
+  const style: React.CSSProperties = {
+    position: "absolute",
+    left: `${screenCenterX - PANEL_WIDTH / 2}px`,
+    bottom: `calc(100% - ${screenTopY}px)`,
+    width: `${PANEL_WIDTH}px`,
+    transform: `scale(${combinedScale})`,
+    transformOrigin: "bottom center",
+  };
+
+  const sizeText = firstImage ? `${firstImage.naturalWidth}×${firstImage.naturalHeight}` : `${frameW}×${frameH}`;
+
+  return (
+    <div style={style} className="z-50">
+      <div className="flex flex-col overflow-hidden rounded-t-md border shadow-lg" style={{ borderColor: INPUT_COLOR }}>
+        <div className="flex flex-col shrink-0 rounded-t-md" style={{ backgroundColor: INPUT_COLOR }}>
+          {/* Row 1: label + action buttons */}
+          <div className="flex items-center justify-between px-3" style={{ minHeight: HEADER_HEIGHT }}>
+            <span className="text-base font-medium truncate" style={{ color: textColor }}>Input</span>
+            <div className="flex items-center gap-0.5 shrink-0">
+              {hasLayers && (
+                <>
+                  <Button variant="ghost" size="icon-xs" onClick={() => onPickImage?.()} title="Replace image" className="hover:bg-black/10">
+                    <ImagePlus size={16} style={{ color: textColor }} />
+                  </Button>
+                  <Button variant="ghost" size="icon-xs" onClick={() => onClearAll?.()} title="Clear all" className="hover:bg-black/10">
+                    <Trash2 size={16} style={{ color: textColor }} />
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+          {/* Row 2: dimensions */}
+          <div className="flex items-center px-3 pb-1.5">
+            <span className="text-xs opacity-70" style={{ color: textColor }}>{sizeText}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // --- ControlFramePanels: top-level container for all frame panels and header bars ---
 
 interface ControlFramePanelsProps {
   layout: CanvasLayout;
   onPickImage?: (unitIndex: number) => void;
   onClearImage?: (unitIndex: number) => void;
+  onClearAll?: () => void;
 }
 
-export function ControlFramePanels({ layout, onPickImage, onClearImage }: ControlFramePanelsProps) {
+export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearAll }: ControlFramePanelsProps) {
   const viewport = useCanvasStore((s) => s.viewport);
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
@@ -260,7 +326,15 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage }: Contro
       ))}
 
       {layout.showInputFrame && (
-        <FrameHeaderBar label="Input" color={INPUT_COLOR} canvasX={layout.inputX} viewport={viewport} frameW={frameW} frameH={frameH} labelScale={labelScale} />
+        <InputFramePanel
+          canvasX={layout.inputX}
+          frameW={frameW}
+          frameH={frameH}
+          viewport={viewport}
+          labelScale={labelScale}
+          onPickImage={() => onPickImage?.(-1)}
+          onClearAll={onClearAll}
+        />
       )}
 
       <FrameHeaderBar label="Output" color={OUTPUT_COLOR} canvasX={layout.outputX} viewport={viewport} frameW={frameW} frameH={frameH} labelScale={labelScale} />

@@ -183,7 +183,7 @@ export const CanvasView = memo(function CanvasView() {
       {isImg2Img && <CanvasToolbar />}
 
       {/* Floating control panels (persistent, collapsible) */}
-      <ControlFramePanels layout={layout} onPickImage={handlePickImage} onClearImage={handleClearImage} />
+      <ControlFramePanels layout={layout} onPickImage={handlePickImage} onClearImage={handleClearImage} onClearAll={handleClearAll} />
 
       {/* Single file input for both input frame and control frame picks */}
       <input
