@@ -6,10 +6,14 @@ import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, Command
 
 export type ComboboxOption = string | { value: string; label: string };
 
-interface ComboboxProps {
+export interface ComboboxGroup {
+  heading: string;
+  options: readonly ComboboxOption[];
+}
+
+interface ComboboxBaseProps {
   value: string;
   onValueChange: (value: string) => void;
-  options: readonly ComboboxOption[];
   placeholder?: string;
   searchPlaceholder?: string;
   emptyText?: string;
@@ -17,10 +21,31 @@ interface ComboboxProps {
   align?: "start" | "center" | "end";
 }
 
+interface ComboboxFlatProps extends ComboboxBaseProps {
+  options: readonly ComboboxOption[];
+  groups?: undefined;
+}
+
+interface ComboboxGroupedProps extends ComboboxBaseProps {
+  groups: readonly ComboboxGroup[];
+  options?: undefined;
+}
+
+type ComboboxProps = ComboboxFlatProps | ComboboxGroupedProps;
+
+function getOptionValue(opt: ComboboxOption): string {
+  return typeof opt === "string" ? opt : opt.value;
+}
+
+function getOptionLabel(opt: ComboboxOption): string {
+  return typeof opt === "string" ? opt : opt.label;
+}
+
 export function Combobox({
   value,
   onValueChange,
   options,
+  groups,
   placeholder = "Select...",
   searchPlaceholder = "Search...",
   emptyText = "No results",
@@ -29,11 +54,31 @@ export function Combobox({
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
 
-  const currentLabel = options.reduce<string | undefined>((found, opt) => {
+  const allOptions: readonly ComboboxOption[] = groups
+    ? groups.flatMap((g) => g.options)
+    : (options ?? []);
+
+  const currentLabel = allOptions.reduce<string | undefined>((found, opt) => {
     if (found) return found;
-    if (typeof opt === "string") return opt === value ? opt : undefined;
-    return opt.value === value ? opt.label : undefined;
+    return getOptionValue(opt) === value ? getOptionLabel(opt) : undefined;
   }, undefined) ?? value;
+
+  const renderItem = (opt: ComboboxOption) => {
+    const v = getOptionValue(opt);
+    const l = getOptionLabel(opt);
+    return (
+      <CommandItem
+        key={v}
+        value={v}
+        keywords={typeof opt === "string" ? undefined : [l]}
+        onSelect={() => { onValueChange(v); setOpen(false); }}
+        className="text-xs"
+      >
+        <Check size={14} className={cn("shrink-0", v === value ? "opacity-100" : "opacity-0")} />
+        {l}
+      </CommandItem>
+    );
+  };
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -54,27 +99,24 @@ export function Combobox({
         align={align}
       >
         <Command>
-          {options.length > 6 && <CommandInput placeholder={searchPlaceholder} />}
+          {allOptions.length > 6 && <CommandInput placeholder={searchPlaceholder} />}
           <CommandList>
             <CommandEmpty>{emptyText}</CommandEmpty>
-            <CommandGroup>
-              {options.map((opt) => {
-                const v = typeof opt === "string" ? opt : opt.value;
-                const l = typeof opt === "string" ? opt : opt.label;
-                return (
-                  <CommandItem
-                    key={v}
-                    value={v}
-                    keywords={typeof opt === "string" ? undefined : [l]}
-                    onSelect={() => { onValueChange(v); setOpen(false); }}
-                    className="text-xs"
-                  >
-                    <Check size={14} className={cn("shrink-0", v === value ? "opacity-100" : "opacity-0")} />
-                    {l}
-                  </CommandItem>
-                );
-              })}
-            </CommandGroup>
+            {groups
+              ? groups.map((g) => (
+                <CommandGroup
+                  key={g.heading}
+                  heading={g.heading}
+                  className="overflow-visible [&_[cmdk-group-heading]]:bg-popover [&_[cmdk-group-heading]]:sticky [&_[cmdk-group-heading]]:top-0 [&_[cmdk-group-heading]]:z-10"
+                >
+                  {g.options.map(renderItem)}
+                </CommandGroup>
+              ))
+              : (
+                <CommandGroup>
+                  {(options ?? []).map(renderItem)}
+                </CommandGroup>
+              )}
           </CommandList>
         </Command>
       </PopoverContent>

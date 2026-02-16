@@ -16,6 +16,8 @@ export interface SdVae {
 export interface Sampler {
   name: string;
   options: Record<string, unknown>;
+  compatible?: boolean;
+  group?: string;
 }
 
 export interface Upscaler {

@@ -113,6 +113,8 @@ class PydanticModelGenerator:
 class ItemSampler(BaseModel):
     name: str = Field(title="Name", description="Sampler name")
     options: dict = Field(title="Options", description="Sampler configuration options")
+    compatible: bool = Field(default=True, title="Compatible", description="Whether sampler is compatible with the loaded model")
+    group: str = Field(default="Standard", title="Group", description="Sampler group: Standard, FlowMatch, or Res4Lyf")
 
 class ItemVae(BaseModel):
     model_name: str = Field(title="Model Name", description="VAE model display name")

@@ -4,13 +4,15 @@ import { useShallow } from "zustand/react/shallow";
 import { useSamplerList } from "@/api/hooks/useModels";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
-import { Combobox } from "@/components/ui/combobox";
+import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { GenerationInfo } from "@/api/types/generation";
+
+const SAMPLER_GROUP_ORDER = ["Standard", "FlowMatch", "Res4Lyf"] as const;
 
 export function SamplerTab() {
   const state = useGenerationStore(useShallow((s) => ({
@@ -39,6 +41,22 @@ export function SamplerTab() {
   const setParam = useGenerationStore((s) => s.setParam);
   const lastResult = useGenerationStore((s) => s.results[0]);
   const { data: samplers } = useSamplerList();
+
+  const samplerGroups = useMemo<ComboboxGroup[]>(() => {
+    if (!samplers) return [];
+    const buckets: Record<string, string[]> = {};
+    for (const s of samplers) {
+      if (s.compatible === false) continue;
+      const g = s.group ?? "Standard";
+      (buckets[g] ??= []).push(s.name);
+    }
+    for (const names of Object.values(buckets)) {
+      names.sort((a, b) => a.localeCompare(b));
+    }
+    return SAMPLER_GROUP_ORDER
+      .filter((g) => buckets[g]?.length)
+      .map((g) => ({ heading: g, options: buckets[g] }));
+  }, [samplers]);
 
   const lastInfo = useMemo<GenerationInfo | null>(() => {
     if (!lastResult?.info) return null;
@@ -82,7 +100,7 @@ export function SamplerTab() {
           <Combobox
             value={state.sampler}
             onValueChange={set.sampler}
-            options={samplers?.map((s) => s.name) ?? []}
+            groups={samplerGroups}
             className="flex-1 h-6 text-[11px]"
           />
         </div>

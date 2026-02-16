@@ -14,13 +14,23 @@ def _format_tags(raw_tags):
 def get_samplers():
     """List all available sampler/scheduler combinations with their configuration options."""
     from modules import sd_samplers_diffusers
+    compat = sd_samplers_diffusers.get_sampler_compatibility(shared.sd_model if shared.sd_loaded else None)
+    res4lyf_keys = set(sd_samplers_diffusers.config['Res4Lyf'].keys())
     all_samplers = []
     for k, v in sd_samplers_diffusers.config.items():
         if k in ['All', 'Default', 'Res4Lyf']:
             continue
+        if 'FlowMatch' in k:
+            group = 'FlowMatch'
+        elif res4lyf_keys.issubset(v.keys()):
+            group = 'Res4Lyf'
+        else:
+            group = 'Standard'
         all_samplers.append({
             'name': k,
             'options': v,
+            'compatible': compat.get(k, True),
+            'group': group,
         })
     return all_samplers
 
