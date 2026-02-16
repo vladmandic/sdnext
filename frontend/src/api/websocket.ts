@@ -70,6 +70,14 @@ export class WebSocketManager {
     this.ws = null;
   }
 
+  updateUrl(url: string): void {
+    this.disconnect();
+    this.url = url;
+    this.reconnectAttempts = 0;
+    this.shouldReconnect = true;
+    this.connect();
+  }
+
   send(data: string | Record<string, unknown>): void {
     if (this.ws?.readyState !== WebSocket.OPEN) return;
     const payload = typeof data === "string" ? data : JSON.stringify(data);

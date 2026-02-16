@@ -10,21 +10,7 @@ import { Play, Square, SkipForward, Loader2, History } from "lucide-react";
 import { useEffect, useRef, useCallback, memo } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { api } from "@/api/client";
-import { WebSocketManager } from "@/api/websocket";
-
-// Module-level singleton: connect once, survive component mount/unmount cycles
-const ws = new WebSocketManager(api.getWebSocketUrl("/sdapi/v1/ws"));
-let wsConnected = false;
-let wsStarted = false;
-
-function ensureWs() {
-  if (wsStarted) return;
-  wsStarted = true;
-  ws.on("open", () => { wsConnected = true; });
-  ws.on("close", () => { wsConnected = false; });
-  ws.connect();
-}
+import { ws, ensureWs, isWsConnected } from "@/api/wsManager";
 
 export const ActionBar = memo(function ActionBar() {
   const isGenerating = useGenerationStore((s) => s.isGenerating);
@@ -74,7 +60,7 @@ export const ActionBar = memo(function ActionBar() {
   useEffect(() => {
     if (progressData && generatingRef.current) {
       // Use REST progress when WS is unavailable
-      if (!wsConnected) {
+      if (!isWsConnected()) {
         setProgress(progressData.progress, progressData.eta_relative);
       }
       // Always use REST for preview images as fallback
