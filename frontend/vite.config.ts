@@ -32,8 +32,8 @@ export default defineConfig(({ mode }) => {
         ],
       },
       manifest: {
-        name: "SD.Next React",
-        short_name: "SD.Next React",
+        name: mode === "production" ? "SD.Next React" : "SD.Next React Dev",
+        short_name: mode === "production" ? "SD.Next React" : "SD.Next React Dev",
         description: "AI Image & Video Generation",
         theme_color: "#0a0a0a",
         background_color: "#0a0a0a",

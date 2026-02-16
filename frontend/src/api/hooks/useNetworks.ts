@@ -36,9 +36,13 @@ export function useNetworkDetail(page: string, name: string, enabled: boolean) {
 }
 
 export function useNetworkDetails(params: { page?: string; name?: string; filename?: string; title?: string; fullname?: string; hash?: string; offset?: number; limit?: number } = {}) {
+  const queryParams: Record<string, string> = {};
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined) queryParams[k] = String(v);
+  }
   return useQuery({
     queryKey: ["network-details", params],
-    queryFn: () => api.get<NetworkDetailsResponse>("/sdapi/v1/extra-networks/details", params),
+    queryFn: () => api.get<NetworkDetailsResponse>("/sdapi/v1/extra-networks/details", queryParams),
     staleTime: 60_000,
   });
 }
