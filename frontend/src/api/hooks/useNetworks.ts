@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../client";
-import type { LoraNetwork, EmbeddingsResponse, PromptStyle, NetworkDetail } from "../types/models";
+import type { LoraNetwork, EmbeddingsResponse, PromptStyle, NetworkDetail, NetworkDetailsResponse } from "../types/models";
 
 export function useExtraNetworks() {
   return useQuery({
@@ -31,6 +31,14 @@ export function useNetworkDetail(page: string, name: string, enabled: boolean) {
     queryKey: ["network-detail", page, name],
     queryFn: () => api.get<NetworkDetail>("/sdapi/v1/extra-networks/detail", { page, name }),
     enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useNetworkDetails(params: { page?: string; name?: string; filename?: string; title?: string; fullname?: string; hash?: string; offset?: number; limit?: number } = {}) {
+  return useQuery({
+    queryKey: ["network-details", params],
+    queryFn: () => api.get<NetworkDetailsResponse>("/sdapi/v1/extra-networks/details", params),
     staleTime: 60_000,
   });
 }

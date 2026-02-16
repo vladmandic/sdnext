@@ -53,6 +53,30 @@ export interface NetworkDetail {
   info: Record<string, unknown> | null;
 }
 
+export interface NetworkDetailFull {
+  name: string;
+  type: string;
+  title: string | null;
+  fullname: string | null;
+  filename: string | null;
+  hash: string | null;
+  preview: string | null;
+  alias: string | null;
+  size: number | null;
+  mtime: string | null;
+  version: string | null;
+  tags: string | null;
+  description: string | null;
+  info: Record<string, unknown> | null;
+}
+
+export interface NetworkDetailsResponse {
+  items: NetworkDetailFull[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
 export interface Embedding {
   step: number | null;
   sd_checkpoint: string | null;
