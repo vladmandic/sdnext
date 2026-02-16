@@ -15,12 +15,24 @@ from modules import shared
 # ---------------------------------------------------------------------------
 
 def post_restart():
+    """
+    Restart the server.
+
+    Triggers a graceful restart after a 1-second delay. Returns immediately
+    with a status message; the server will restart asynchronously.
+    """
     shared.log.info('API: restart request received')
     threading.Timer(1.0, shared.restart_server, kwargs={'restart': True}).start()
     return {"status": "restarting"}
 
 
 def post_profiling():
+    """
+    Toggle profiling mode.
+
+    Enables or disables runtime profiling for performance diagnostics.
+    Returns the new profiling state.
+    """
     shared.cmd_opts.profile = not shared.cmd_opts.profile
     shared.log.info(f'API: profiling {"enabled" if shared.cmd_opts.profile else "disabled"}')
     return {"enabled": shared.cmd_opts.profile}
@@ -31,6 +43,13 @@ def post_profiling():
 # ---------------------------------------------------------------------------
 
 def get_update_check():
+    """
+    Check for available updates.
+
+    Fetches the latest commit from the remote repository and compares it to
+    the current local commit. Returns branch, current/latest hashes and dates,
+    and whether the installation is up to date.
+    """
     import installer as i
     try:
         origin = i.git('remote get-url origin').splitlines()[0]
@@ -56,6 +75,13 @@ def get_update_check():
 
 
 def post_update_apply(rebase: bool = True, submodules: bool = True, extensions: bool = True):
+    """
+    Apply available updates.
+
+    Pulls the latest code from the remote repository. Optionally updates
+    submodules and extensions. Returns status messages, whether changes
+    were applied, and the new version info.
+    """
     import installer as i
     messages = []
     try:
@@ -89,6 +115,13 @@ def post_update_apply(rebase: bool = True, submodules: bool = True, extensions: 
 # ---------------------------------------------------------------------------
 
 def post_benchmark_run(level: str = "quick", steps: str = "normal", width: int = 512, height: int = 512):
+    """
+    Run a performance benchmark.
+
+    Generates images at the specified resolution across one or more batch sizes
+    depending on ``level``: ``quick`` (batch 1), ``normal`` (1/2/4), or
+    ``extensive`` (1/2/4/8/16). Returns iterations-per-second for each batch.
+    """
     try:
         import importlib
         spec = importlib.util.spec_from_file_location("benchmark", os.path.join(os.path.dirname(__file__), '..', '..', 'extensions-builtin', 'sd-extension-system-info', 'benchmark.py'))
@@ -112,6 +145,12 @@ def post_benchmark_run(level: str = "quick", steps: str = "normal", width: int =
 
 
 def get_benchmark_results():
+    """
+    Get saved benchmark results.
+
+    Returns previously recorded benchmark data from the local results file,
+    including timestamps, iterations-per-second, system info, and GPU details.
+    """
     bench_file = os.path.join(os.path.dirname(__file__), '..', '..', 'extensions-builtin', 'sd-extension-system-info', 'scripts', 'benchmark-data-local.json')
     headers = ['timestamp', 'it/s', 'version', 'system', 'libraries', 'gpu', 'flags', 'settings', 'username', 'note', 'hash']
     if os.path.isfile(bench_file) and os.path.getsize(bench_file) > 0:
@@ -130,9 +169,9 @@ def get_benchmark_results():
 
 def register_api():
     api = shared.api
-    api.add_api_route("/sdapi/v1/server/restart", post_restart, methods=["POST"])
-    api.add_api_route("/sdapi/v1/server/profiling", post_profiling, methods=["POST"])
-    api.add_api_route("/sdapi/v1/update/check", get_update_check, methods=["GET"])
-    api.add_api_route("/sdapi/v1/update/apply", post_update_apply, methods=["POST"])
-    api.add_api_route("/sdapi/v1/benchmark/run", post_benchmark_run, methods=["POST"])
-    api.add_api_route("/sdapi/v1/benchmark/results", get_benchmark_results, methods=["GET"])
+    api.add_api_route("/sdapi/v1/server/restart", post_restart, methods=["POST"], tags=["System"])
+    api.add_api_route("/sdapi/v1/server/profiling", post_profiling, methods=["POST"], tags=["System"])
+    api.add_api_route("/sdapi/v1/update/check", get_update_check, methods=["GET"], tags=["System"])
+    api.add_api_route("/sdapi/v1/update/apply", post_update_apply, methods=["POST"], tags=["System"])
+    api.add_api_route("/sdapi/v1/benchmark/run", post_benchmark_run, methods=["POST"], tags=["System"])
+    api.add_api_route("/sdapi/v1/benchmark/results", get_benchmark_results, methods=["GET"], tags=["System"])

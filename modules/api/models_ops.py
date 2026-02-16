@@ -15,6 +15,12 @@ from modules import shared
 # ---------------------------------------------------------------------------
 
 def get_analyze():
+    """
+    Analyze the currently loaded model.
+
+    Returns model name, type, class, hash, file size, metadata, and a breakdown
+    of all sub-modules with their device, dtype, quantization, and parameter counts.
+    """
     from modules import modelstats
     model = modelstats.analyze()
     if model is None:
@@ -44,12 +50,25 @@ def get_analyze():
 
 
 def post_save(name: str, path: str = None, shard: str = None, overwrite: bool = False):
+    """
+    Save the currently loaded model to disk.
+
+    Saves the active pipeline under ``name``. Optional ``path`` overrides the output
+    directory, ``shard`` sets the shard size, and ``overwrite`` allows replacing
+    an existing file.
+    """
     from modules import sd_models
     result = sd_models.save_model(name=name, path=path, shard=shard, overwrite=overwrite)
     return {"status": result}
 
 
 def get_list_detail():
+    """
+    List all checkpoints with detection info.
+
+    Returns every registered checkpoint with its filename, file type, auto-detected
+    model type, matching pipeline class, hash, file size, and modification time.
+    """
     from modules import sd_checkpoint, sd_detect, modelstats
     rows = []
     for ckpt in sd_checkpoint.checkpoints_list.values():
@@ -85,6 +104,12 @@ def get_list_detail():
 
 
 def post_update_hashes():
+    """
+    Recalculate hashes for all registered checkpoints.
+
+    Iterates over every checkpoint and recomputes its short hash. Returns a list
+    of updated entries with name, type, and new hash.
+    """
     from modules import sd_checkpoint
     updated = []
     for _html in sd_checkpoint.update_model_hashes():
@@ -100,6 +125,12 @@ def post_update_hashes():
 # ---------------------------------------------------------------------------
 
 def get_hf_search(keyword: str = ""):
+    """
+    Search HuggingFace Hub for models.
+
+    Returns matching models with their repo ID, pipeline tag, tags, download count,
+    last modified date, and URL.
+    """
     from modules import models_hf
     results = models_hf.hf_search(keyword)
     return [
@@ -109,18 +140,36 @@ def get_hf_search(keyword: str = ""):
 
 
 def post_hf_download(hub_id: str, token: str = "", variant: str = "", revision: str = "", mirror: str = "", custom_pipeline: str = ""):
+    """
+    Download a model from HuggingFace Hub.
+
+    Downloads the model identified by ``hub_id``. Optional parameters control
+    authentication token, variant (e.g., fp16), revision, mirror URL, and custom pipeline.
+    """
     from modules import models_hf
     result = models_hf.hf_download_model(hub_id, token, variant, revision, mirror, custom_pipeline)
     return {"status": result}
 
 
 def post_civitai_download(url: str, name: str = "", path: str = "", model_type: str = "", token: str = None):
+    """
+    Download a model from CivitAI.
+
+    Downloads the model at the given CivitAI ``url``. Optional ``name``, ``path``,
+    ``model_type``, and ``token`` override default download behavior.
+    """
     from modules.civitai import download_civitai
     download_civitai.download_civit_model(url, name, path, model_type, token)
     return {"status": f"Download complete: {url}"}
 
 
 def post_metadata_scan():
+    """
+    Scan local models against CivitAI metadata.
+
+    Checks all registered checkpoints for matching CivitAI entries and returns
+    scan results with model ID, name, hash, versions, and status.
+    """
     from modules.civitai import metadata_civitai
     results = []
     for batch in metadata_civitai.civit_search_metadata(raw=True):
@@ -130,6 +179,12 @@ def post_metadata_scan():
 
 
 def post_metadata_update():
+    """
+    Update local model metadata from CivitAI.
+
+    Fetches the latest metadata from CivitAI for all matched models and updates
+    local records. Returns per-model update results.
+    """
     from modules.civitai import metadata_civitai
     items = []
     for batch in metadata_civitai.civit_update_metadata(raw=True):
@@ -154,6 +209,12 @@ def post_metadata_update():
 # ---------------------------------------------------------------------------
 
 def get_merge_methods():
+    """
+    List available model merge methods and block-weight presets.
+
+    Returns method names, which methods support beta/triple parameters,
+    per-method documentation, and SD 1.5 / SDXL block-weight presets.
+    """
     from modules.merging import merge_methods
     from modules.merging.merge_utils import BETA_METHODS, TRIPLE_METHODS
     from modules.merging.merge_presets import BLOCK_WEIGHTS_PRESETS, SDXL_BLOCK_WEIGHTS_PRESETS
@@ -203,6 +264,13 @@ def post_merge(
     overwrite: bool = False,
     bake_in_vae: str = None,
 ):
+    """
+    Merge two or three checkpoint models.
+
+    Combines ``primary_model_name`` and ``secondary_model_name`` using the specified
+    ``merge_mode``. Supports block-weight presets, precision control, re-basin
+    alignment, and optional VAE bake-in. Saves the result as ``custom_name``.
+    """
     from modules import extras, sd_models, errors
     kwargs = {k: v for k, v in locals().items() if v not in [None, "None", "", 0, []]}
     if not custom_name:
@@ -241,6 +309,13 @@ def post_replace(
     create_safetensors: bool = False,
     debug: bool = False,
 ):
+    """
+    Replace model components and save as a new model.
+
+    Swap UNET, VAE, text encoders, scheduler, or fuse a LoRA into the base model.
+    Saves the result as ``custom_name`` in Diffusers and/or safetensors format
+    with optional metadata (author, version, license, description).
+    """
     from modules import extras
     status = "Unknown"
     for msg in extras.run_model_modules(
@@ -261,6 +336,12 @@ def post_replace(
 # ---------------------------------------------------------------------------
 
 def get_loader_pipelines():
+    """
+    List available pipeline types for the model loader.
+
+    Returns pipeline class names (e.g., StableDiffusionPipeline, FluxPipeline)
+    that can be used with the loader/components and loader/load endpoints.
+    """
     from modules import shared_items
     names = list(shared_items.pipelines)
     names = ["Current" if x.startswith("Custom") else x for x in names]
@@ -268,6 +349,13 @@ def get_loader_pipelines():
 
 
 def post_loader_components(model_type: str):
+    """
+    Inspect pipeline components for a given model type.
+
+    Returns the pipeline class name, default HuggingFace repo, and a list of
+    loadable components with their IDs, class names, local/remote paths,
+    dtype, and quantization settings.
+    """
     from modules import shared_items, ui_models_load
     import diffusers as _diffusers
     if model_type == "Current":
@@ -303,6 +391,13 @@ def post_loader_components(model_type: str):
 
 
 def post_loader_load(model_type: str, repo: str, components: list = None):
+    """
+    Load a model with custom component configuration.
+
+    Loads the pipeline for ``model_type`` from ``repo``, optionally overriding
+    individual component paths, dtypes, and quantization via the ``components`` list.
+    Call loader/components first to discover available components.
+    """
     from modules import ui_models_load
     cls_name = None
     # Ensure components are populated — call post_loader_components first
@@ -341,6 +436,11 @@ def post_loader_load(model_type: str, repo: str, components: list = None):
 
 
 def get_lora_loaded():
+    """
+    List LoRAs currently loaded in the active pipeline.
+
+    Returns names of all LoRA networks that are fused or applied to the current model.
+    """
     from modules.lora import lora_extract
     result = lora_extract.loaded_lora()
     if isinstance(result, str):
@@ -349,6 +449,13 @@ def get_lora_loaded():
 
 
 def post_lora_extract(filename: str, max_rank: int = 64, auto_rank: bool = False, rank_ratio: float = 0.5, modules: list = None, overwrite: bool = False):
+    """
+    Extract a LoRA from the currently loaded model.
+
+    Creates a LoRA file by comparing the current model weights against the base.
+    ``max_rank`` controls decomposition rank, ``modules`` selects which parts
+    to extract (defaults to ["te", "unet"]).
+    """
     from modules.lora import lora_extract
     if modules is None:
         modules = ["te", "unet"]
@@ -365,23 +472,23 @@ def post_lora_extract(filename: str, max_rank: int = 64, auto_rank: bool = False
 def register_api():
     api = shared.api
     # Phase 1
-    api.add_api_route("/sdapi/v1/model/analyze", get_analyze, methods=["GET"])
-    api.add_api_route("/sdapi/v1/model/save", post_save, methods=["POST"])
-    api.add_api_route("/sdapi/v1/model/list-detail", get_list_detail, methods=["GET"])
-    api.add_api_route("/sdapi/v1/model/update-hashes", post_update_hashes, methods=["POST"])
+    api.add_api_route("/sdapi/v1/model/analyze", get_analyze, methods=["GET"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/save", post_save, methods=["POST"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/list-detail", get_list_detail, methods=["GET"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/update-hashes", post_update_hashes, methods=["POST"], tags=["Models"])
     # Phase 2
-    api.add_api_route("/sdapi/v1/model/hf/search", get_hf_search, methods=["GET"])
-    api.add_api_route("/sdapi/v1/model/hf/download", post_hf_download, methods=["POST"])
-    api.add_api_route("/sdapi/v1/model/civitai/download", post_civitai_download, methods=["POST"])
-    api.add_api_route("/sdapi/v1/model/metadata/scan", post_metadata_scan, methods=["POST"])
-    api.add_api_route("/sdapi/v1/model/metadata/update", post_metadata_update, methods=["POST"])
+    api.add_api_route("/sdapi/v1/model/hf/search", get_hf_search, methods=["GET"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/hf/download", post_hf_download, methods=["POST"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/civitai/download", post_civitai_download, methods=["POST"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/metadata/scan", post_metadata_scan, methods=["POST"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/metadata/update", post_metadata_update, methods=["POST"], tags=["Models"])
     # Phase 3
-    api.add_api_route("/sdapi/v1/model/merge/methods", get_merge_methods, methods=["GET"])
-    api.add_api_route("/sdapi/v1/model/merge", post_merge, methods=["POST"])
-    api.add_api_route("/sdapi/v1/model/replace", post_replace, methods=["POST"])
+    api.add_api_route("/sdapi/v1/model/merge/methods", get_merge_methods, methods=["GET"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/merge", post_merge, methods=["POST"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/replace", post_replace, methods=["POST"], tags=["Models"])
     # Phase 4
-    api.add_api_route("/sdapi/v1/model/loader/pipelines", get_loader_pipelines, methods=["GET"])
-    api.add_api_route("/sdapi/v1/model/loader/components", post_loader_components, methods=["POST"])
-    api.add_api_route("/sdapi/v1/model/loader/load", post_loader_load, methods=["POST"])
-    api.add_api_route("/sdapi/v1/model/lora/loaded", get_lora_loaded, methods=["GET"])
-    api.add_api_route("/sdapi/v1/model/lora/extract", post_lora_extract, methods=["POST"])
+    api.add_api_route("/sdapi/v1/model/loader/pipelines", get_loader_pipelines, methods=["GET"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/loader/components", post_loader_components, methods=["POST"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/loader/load", post_loader_load, methods=["POST"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/lora/loaded", get_lora_loaded, methods=["GET"], tags=["Models"])
+    api.add_api_route("/sdapi/v1/model/lora/extract", post_lora_extract, methods=["POST"], tags=["Models"])

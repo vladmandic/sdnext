@@ -232,6 +232,7 @@ class APIGenerate:
         return models.ResTxt2Img(images=b64images, parameters=vars(request), info='', processed_images=processed_b64)
 
     def post_text2img(self, txt2imgreq: models.ReqTxt2Img):
+        """Generate images from a text prompt. Supports IP-Adapter, ControlNet units, FaceID, and script overrides."""
         self.prepare_face_module(txt2imgreq)
         control_units, control_images = self.prepare_control_units(txt2imgreq)
         if control_units:
@@ -281,6 +282,7 @@ class APIGenerate:
         return models.ResTxt2Img(images=b64images, parameters=vars(txt2imgreq), info=info)
 
     def post_img2img(self, img2imgreq: models.ReqImg2Img):
+        """Generate images from input images with optional inpainting mask. Supports IP-Adapter, ControlNet units, FaceID, and script overrides."""
         self.prepare_face_module(img2imgreq)
         control_units, control_images = self.prepare_control_units(img2imgreq)
         if control_units:

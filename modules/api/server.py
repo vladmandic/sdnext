@@ -14,6 +14,7 @@ def _get_version():
 
 
 def post_shutdown():
+    """Shut down the server process immediately."""
     log.info('Shutdown request received')
     import sys
     sys.exit(0)
@@ -45,6 +46,7 @@ def get_js(request: Request):
     return FileResponse(file, media_type=media_type)
 
 def get_motd():
+    """Return the message of the day, including version info and optional upstream MOTD."""
     import requests
     motd = ''
     ver = _get_version()
@@ -64,20 +66,24 @@ def get_motd():
     return motd
 
 def get_version():
+    """Return application version, commit hash, branch, and update timestamp."""
     return _get_version()
 
 def get_platform():
+    """Return platform details (OS, Python, torch, CUDA versions) and installed package versions."""
     from installer import get_platform as installer_get_platform
     from modules.loader import get_packages as loader_get_packages
     return { **installer_get_platform(), **loader_get_packages() }
 
 def get_log(req: models.ReqGetLog = Depends()):
+    """Return recent log lines from the in-memory buffer. Optionally clears the buffer after reading."""
     lines = log.buffer[:req.lines] if req.lines > 0 else log.buffer.copy()
     if req.clear:
         log.buffer.clear()
     return lines
 
 def post_log(req: models.ReqPostLog):
+    """Write a message to the server log at info, debug, or error level."""
     if req.message is not None:
         log.info(f'UI: {req.message}')
     if req.debug is not None:
@@ -88,6 +94,7 @@ def post_log(req: models.ReqPostLog):
 
 
 def get_config():
+    """Return all current application options as a key-value dictionary."""
     options = {}
     for k in shared.opts.data.keys():
         if shared.opts.data_labels.get(k) is not None:
@@ -101,6 +108,7 @@ def get_config():
     return options
 
 def set_config(req: dict[str, Any]):
+    """Update one or more application options and persist them to disk."""
     updated = []
     for k, v in req.items():
         updated.append({ k: shared.opts.set(k, v) })
@@ -108,9 +116,11 @@ def set_config(req: dict[str, Any]):
     return { "updated": updated }
 
 def get_cmd_flags():
+    """Return all command-line flags and their current values."""
     return vars(shared.cmd_opts)
 
 def get_history(req: models.ReqHistory = Depends()):
+    """Return generation job history. Optionally filter by task ID."""
     if req.id is not None and len(req.id) > 0:
         res = [item for item in shared.state.state_history if item['id'] == req.id]
     else:
@@ -119,6 +129,7 @@ def get_history(req: models.ReqHistory = Depends()):
     return res
 
 def get_progress(req: models.ReqProgress = Depends()):
+    """Return current generation progress, ETA, and optionally a preview of the in-progress image."""
     if shared.state.job_count == 0 and shared.state.sampling_step == 0: # truly idle
         return models.ResProgress(id=shared.state.id, progress=0, eta_relative=0, state=shared.state.dict(), textinfo=shared.state.textinfo)
     shared.state.do_set_current_image()
@@ -143,16 +154,20 @@ def get_progress(req: models.ReqProgress = Depends()):
     return res
 
 def get_status():
+    """Return server status including current task, step progress, queue depth, and uptime."""
     return shared.state.status()
 
 def post_interrupt():
+    """Interrupt the currently running generation job."""
     shared.state.interrupt()
     return {}
 
 def post_skip():
+    """Skip the current image in a batch generation and move to the next."""
     shared.state.skip()
 
 def get_memory():
+    """Return system RAM and CUDA GPU memory usage statistics."""
     try:
         import psutil
         process = psutil.Process(os.getpid())
@@ -187,6 +202,13 @@ def get_memory():
     return models.ResMemory(ram = ram, cuda = cuda)
 
 def get_options_info():
+    """
+    Return metadata for all application settings.
+
+    Returns every registered option with its label, section, type, default value,
+    component kind (slider, switch, dropdown, etc.), and component args (min/max/step/choices).
+    Used by alternative UIs to dynamically build a settings editor.
+    """
     import re
     import gradio as gr
     from modules.shared_legacy import LegacyOption
@@ -250,6 +272,13 @@ def get_options_info():
 
 
 def get_server_info():
+    """
+    Return server identity and capabilities.
+
+    Returns version info, active backend (Diffusers), platform/device name, supported
+    generation modes (txt2img, img2img, control, video, websocket), and the currently
+    loaded model name and pipeline class.
+    """
     from modules import devices
     from modules.sd_models import model_data
     ver = shared.get_version()

@@ -32,6 +32,7 @@ def get_civitai(
         token:str = None,
         exact:bool = True,
 ):
+    """Search CivitAI for models by query, tag, type, or retrieve a cached model by ID."""
     from modules.civitai import search_civitai
     if model_id is not None:
         dct = models_to_json(search_civitai.models, model_id=model_id)
@@ -55,6 +56,7 @@ def get_civitai(
 
 
 def post_civitai(page:str=None):
+    """Scan local models for CivitAI metadata matches. Optionally filter by model page/title."""
     from modules.civitai import metadata_civitai
     result = []
     for r in metadata_civitai.civit_search_metadata(title=page, raw=True):
@@ -64,5 +66,5 @@ def post_civitai(page:str=None):
 
 def register_api():
     from modules.shared import api
-    api.add_api_route("/sdapi/v1/civitai", get_civitai, methods=["GET"], response_model=list)
-    api.add_api_route("/sdapi/v1/civitai", post_civitai, methods=["POST"], response_model=list)
+    api.add_api_route("/sdapi/v1/civitai", get_civitai, methods=["GET"], response_model=list, tags=["Models"])
+    api.add_api_route("/sdapi/v1/civitai", post_civitai, methods=["POST"], response_model=list, tags=["Models"])

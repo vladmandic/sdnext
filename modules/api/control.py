@@ -11,12 +11,12 @@ errors.install()
 
 
 class ItemControl(BaseModel):
-    process: str = Field(title="Preprocessor", default="", description="")
-    model: str = Field(title="Control Model", default="", description="")
-    strength: float = Field(title="Control model strength", default=1.0, description="")
-    start: float = Field(title="Control model start", default=0.0, description="")
-    end: float = Field(title="Control model end", default=1.0, description="")
-    override: str = Field(title="Override image", default=None, description="")
+    process: str = Field(title="Preprocessor", default="", description="Preprocessor name to apply to the input image")
+    model: str = Field(title="Control Model", default="", description="Control model name (ControlNet, T2I Adapter, etc.)")
+    strength: float = Field(title="Control model strength", default=1.0, description="How strongly the control model influences generation (0.0-2.0)")
+    start: float = Field(title="Control model start", default=0.0, description="Step fraction at which control begins (0.0-1.0)")
+    end: float = Field(title="Control model end", default=1.0, description="Step fraction at which control ends (0.0-1.0)")
+    override: str = Field(title="Override image", default=None, description="Base64 encoded override image, bypasses preprocessor")
 
 
 class ItemXYZ(BaseModel):
@@ -56,10 +56,10 @@ if not hasattr(ReqControl, "__config__"):
 
 
 class ResControl(BaseModel):
-    images: list[str] = Field(default=None, title="Images", description="")
-    processed: list[str] = Field(default=None, title="Processed", description="")
-    params: dict = Field(default={}, title="Settings", description="")
-    info: str = Field(default="", title="Info", description="")
+    images: list[str] = Field(default=None, title="Images", description="Generated output images in base64 format")
+    processed: list[str] = Field(default=None, title="Processed", description="Preprocessed control images in base64 format")
+    params: dict = Field(default={}, title="Settings", description="Request parameters echoed back")
+    info: str = Field(default="", title="Info", description="Generation info string")
 
 
 class APIControl:
@@ -184,6 +184,7 @@ class APIControl:
         del req.control
 
     def post_control(self, req: ReqControl):
+        """Run the control pipeline (ControlNet, T2I Adapter, XS, Lite, Reference) with one or more control units."""
         requested = req.control
         self.prepare_face_module(req)
         self.prepare_control(req)

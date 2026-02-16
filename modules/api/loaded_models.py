@@ -289,6 +289,13 @@ def _enumerate_caption() -> List[ItemLoadedModel]:
 
 
 def get_loaded_models() -> List[ItemLoadedModel]:
+    """
+    Enumerate all models currently loaded in memory.
+
+    Returns entries for the main pipeline and refiner (with sub-components), ControlNet,
+    LoRA, IP-Adapter, upscaler, detailer, and caption models. Each entry includes
+    category, device, size in bytes, dtype, and quantization info where available.
+    """
     items = []
     # Main pipeline + refiner
     try:
@@ -308,4 +315,4 @@ def get_loaded_models() -> List[ItemLoadedModel]:
 
 def register_api():
     from modules.shared import api as api_instance
-    api_instance.add_api_route("/sdapi/v1/loaded-models", get_loaded_models, methods=["GET"], response_model=List[ItemLoadedModel])
+    api_instance.add_api_route("/sdapi/v1/loaded-models", get_loaded_models, methods=["GET"], response_model=List[ItemLoadedModel], tags=["Models"])

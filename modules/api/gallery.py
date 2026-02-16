@@ -129,6 +129,7 @@ def register_api(app: FastAPI): # register api
 
     # @app.get('/sdapi/v1/browser/folders', response_model=List[str])
     def get_folders():
+        """List configured output folders for the image browser with path and display label."""
         def make_folder(path, label=None):
             """Create folder entry with path and display label."""
             if label is None:
@@ -177,6 +178,7 @@ def register_api(app: FastAPI): # register api
 
     # @app.get("/sdapi/v1/browser/thumb", response_model=dict)
     def get_thumb(file: str):
+        """Return a thumbnail and metadata (EXIF, dimensions, size, mtime) for a single image or video file."""
         try:
             decoded = unquote(file).replace('%3A', ':')
             if decoded.lower().endswith('.mp4'):
@@ -190,6 +192,7 @@ def register_api(app: FastAPI): # register api
 
     # @app.get("/sdapi/v1/browser/files", response_model=list)
     async def ht_files(folder: str):
+        """List all files in a gallery folder recursively. Returns encoded path strings for client-side rendering."""
         try:
             t0 = time.time()
             files = files_cache.directory_files(folder, recursive=True)
@@ -207,6 +210,12 @@ def register_api(app: FastAPI): # register api
             return []
 
     def get_folder_info(folder: str):
+        """
+        Get directory modification time for cache invalidation.
+
+        Returns the latest mtime across all files in the folder (recursive).
+        Clients can poll this to detect when new images have been saved.
+        """
         try:
             decoded = unquote(folder).replace('%3A', ':')
             mtime = files_cache.directory_mtime(decoded, recursive=True)
@@ -216,6 +225,12 @@ def register_api(app: FastAPI): # register api
             return JSONResponse(content={'mtime': 0})
 
     def get_subdirs(folder: str):
+        """
+        List subdirectories of a gallery folder.
+
+        Returns immediate child directories with their path and display label,
+        sorted alphabetically. Used for building folder tree navigation.
+        """
         decoded = unquote(folder).replace('%3A', ':')
         directory = files_cache.get_directory(decoded, fetch=True)
         if not directory or not directory.directories:
@@ -227,11 +242,11 @@ def register_api(app: FastAPI): # register api
                 subdirs.append({'path': d, 'label': label})
         return JSONResponse(content=subdirs)
 
-    shared.api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[str])
-    shared.api.add_api_route("/sdapi/v1/browser/thumb", get_thumb, methods=["GET"], response_model=dict)
-    shared.api.add_api_route("/sdapi/v1/browser/files", ht_files, methods=["GET"], response_model=list)
-    shared.api.add_api_route("/sdapi/v1/browser/folder-info", get_folder_info, methods=["GET"])
-    shared.api.add_api_route("/sdapi/v1/browser/subdirs", get_subdirs, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[str], tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v1/browser/thumb", get_thumb, methods=["GET"], response_model=dict, tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v1/browser/files", ht_files, methods=["GET"], response_model=list, tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v1/browser/folder-info", get_folder_info, methods=["GET"], tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v1/browser/subdirs", get_subdirs, methods=["GET"], tags=["Gallery"])
 
     @app.websocket("/sdapi/v1/browser/files")
     async def ws_files(ws: WebSocket):
