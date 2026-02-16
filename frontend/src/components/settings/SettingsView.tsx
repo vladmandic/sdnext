@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { useOptions, useSetOptions, useOptionsInfo } from "@/api/hooks/useSettings";
 import { useModelList, useSamplerList, useVaeList, useUpscalerList } from "@/api/hooks/useModels";
@@ -10,10 +10,15 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Save, RotateCcw, Search, ListRestart } from "lucide-react";
+import { Save, RotateCcw, Search, ListRestart, Plug, Unplug } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
 import type { CornerStyle, ColorMode } from "@/stores/uiStore";
+import { useConnectionStore } from "@/stores/connectionStore";
+import { api } from "@/api/client";
+import { ws } from "@/api/wsManager";
+import { queryClient } from "@/main";
 
+const CONNECTION_SECTION_ID = "__connection";
 const APPEARANCE_SECTION_ID = "__appearance";
 
 const CORNER_STYLES: { value: CornerStyle; label: string }[] = [
@@ -204,6 +209,123 @@ function AppearancePanel() {
   );
 }
 
+function ConnectionPanel() {
+  const backendUrl = useConnectionStore((s) => s.backendUrl);
+  const username = useConnectionStore((s) => s.username);
+  const password = useConnectionStore((s) => s.password);
+  const storeSetUrl = useConnectionStore((s) => s.setBackendUrl);
+  const storeSetAuth = useConnectionStore((s) => s.setAuth);
+  const storeReset = useConnectionStore((s) => s.reset);
+
+  const [urlInput, setUrlInput] = useState(backendUrl);
+  const [userInput, setUserInput] = useState(username);
+  const [passInput, setPassInput] = useState(password);
+  const [status, setStatus] = useState<"idle" | "checking" | "connected" | "unreachable">("idle");
+
+  // Sync inputs when store changes externally (e.g. reset)
+  useEffect(() => { setUrlInput(backendUrl); }, [backendUrl]);
+  useEffect(() => { setUserInput(username); }, [username]);
+  useEffect(() => { setPassInput(password); }, [password]);
+
+  const checkConnection = useCallback(async (baseUrl: string) => {
+    setStatus("checking");
+    try {
+      await fetch(`${baseUrl}/sdapi/v1/server-info`, { signal: AbortSignal.timeout(5000) });
+      setStatus("connected");
+    } catch {
+      setStatus("unreachable");
+    }
+  }, []);
+
+  // Check connection on mount if a custom URL is stored
+  useEffect(() => {
+    if (backendUrl) {
+      checkConnection(backendUrl);
+    } else {
+      setStatus("connected"); // default origin is always "connected"
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleConnect = useCallback(async () => {
+    const effectiveUrl = urlInput.replace(/\/$/, "") || window.location.origin;
+    api.setBaseUrl(effectiveUrl);
+    if (userInput && passInput) {
+      api.setAuth(userInput, passInput);
+    } else {
+      api.clearAuth();
+    }
+    storeSetUrl(urlInput.replace(/\/$/, ""));
+    storeSetAuth(userInput, passInput);
+    ws.updateUrl(api.getWebSocketUrl("/sdapi/v1/ws"));
+    queryClient.invalidateQueries();
+    await checkConnection(effectiveUrl);
+    toast.success("Connection updated");
+  }, [urlInput, userInput, passInput, storeSetUrl, storeSetAuth, checkConnection]);
+
+  const handleReset = useCallback(() => {
+    storeReset();
+    api.setBaseUrl(window.location.origin);
+    api.clearAuth();
+    ws.updateUrl(api.getWebSocketUrl("/sdapi/v1/ws"));
+    queryClient.invalidateQueries();
+    setStatus("connected");
+    toast.success("Connection reset to default");
+  }, [storeReset]);
+
+  return (
+    <div>
+      <h3 className="text-sm font-medium mb-4">Connection</h3>
+      <div className="space-y-4">
+        <AppearanceRow label="Backend URL" description="Leave empty to use the current origin">
+          <div className="flex items-center gap-2">
+            <Input
+              value={urlInput}
+              onChange={(e) => setUrlInput(e.target.value)}
+              placeholder={window.location.origin}
+              className="h-7 w-56 text-xs font-mono"
+            />
+            {status === "checking" && <span className="text-xs text-muted-foreground">Checking...</span>}
+            {status === "connected" && <span className="text-xs text-emerald-500">Connected</span>}
+            {status === "unreachable" && <span className="text-xs text-destructive">Unreachable</span>}
+          </div>
+        </AppearanceRow>
+
+        <AppearanceRow label="Username" description="For basic auth (optional)">
+          <Input
+            value={userInput}
+            onChange={(e) => setUserInput(e.target.value)}
+            placeholder="username"
+            className="h-7 w-40 text-xs"
+            autoComplete="username"
+          />
+        </AppearanceRow>
+
+        <AppearanceRow label="Password" description="For basic auth (optional)">
+          <Input
+            type="password"
+            value={passInput}
+            onChange={(e) => setPassInput(e.target.value)}
+            placeholder="password"
+            className="h-7 w-40 text-xs"
+            autoComplete="current-password"
+          />
+        </AppearanceRow>
+
+        <div className="flex gap-2 pt-2">
+          <Button size="sm" onClick={handleConnect} className="text-xs">
+            <Plug size={14} />
+            Connect
+          </Button>
+          <Button variant="secondary" size="sm" onClick={handleReset} className="text-xs">
+            <Unplug size={14} />
+            Reset to default
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface SettingsViewProps {
   onDirtyChange?: (isDirty: boolean) => void;
 }
@@ -267,10 +389,12 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
 
   // Resolve active section: use first section if none selected or selection is stale
   const resolvedActive = useMemo(() => {
-    if (allSections.length === 0) return null;
+    if (activeSection === CONNECTION_SECTION_ID) return CONNECTION_SECTION_ID;
     if (activeSection === APPEARANCE_SECTION_ID) return APPEARANCE_SECTION_ID;
     if (activeSection && allSections.some((s) => s.id === activeSection)) return activeSection;
-    return allSections[0].id;
+    if (allSections.length > 0) return allSections[0].id;
+    // Backend hasn't loaded yet — default to Connection so it's reachable
+    return CONNECTION_SECTION_ID;
   }, [allSections, activeSection]);
 
   // Filter sections by search
@@ -346,13 +470,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirtyCount]);
 
-  if (isLoading || isInfoLoading || !options || !optionsInfo) {
-    return (
-      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-        Loading settings...
-      </div>
-    );
-  }
+  const backendReady = !isLoading && !isInfoLoading && !!options && !!optionsInfo;
 
   return (
     <div className="flex h-full">
@@ -365,6 +483,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              disabled={!backendReady}
               className="h-7 text-xs pl-7"
             />
           </div>
@@ -381,12 +500,14 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                     setActiveSection(section.id);
                     setSearchQuery("");
                   }}
+                  disabled={!backendReady}
                   className={cn(
                     "text-left text-xs px-2 py-1.5 rounded-md transition-colors flex items-center justify-between",
                     "hover:bg-accent hover:text-accent-foreground",
                     resolvedActive === section.id && !searchQuery && "bg-accent text-accent-foreground font-medium",
                     matchingSectionIds && isMatch && "text-primary font-medium",
                     matchingSectionIds && !isMatch && "opacity-30",
+                    !backendReady && "opacity-30 pointer-events-none",
                   )}
                 >
                   <span>{section.title}</span>
@@ -398,8 +519,22 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                 </button>
               );
             })}
-            {/* React UI appearance settings */}
-            <div className="mt-2 pt-2 border-t border-border">
+            {/* React UI local-only settings */}
+            <div className="mt-2 pt-2 border-t border-border flex flex-col gap-0.5">
+              <button
+                onClick={() => {
+                  setActiveSection(CONNECTION_SECTION_ID);
+                  setSearchQuery("");
+                }}
+                className={cn(
+                  "w-full text-left text-xs px-2 py-1.5 rounded-md transition-colors",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  resolvedActive === CONNECTION_SECTION_ID && !searchQuery && "bg-accent text-accent-foreground font-medium",
+                  matchingSectionIds && "opacity-30",
+                )}
+              >
+                Connection
+              </button>
               <button
                 onClick={() => {
                   setActiveSection(APPEARANCE_SECTION_ID);
@@ -455,7 +590,15 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
       {/* Settings content */}
       <ScrollArea className="flex-1">
         <div className="p-4 max-w-2xl">
-          {searchQuery ? (
+          {resolvedActive === CONNECTION_SECTION_ID ? (
+            <ConnectionPanel />
+          ) : resolvedActive === APPEARANCE_SECTION_ID ? (
+            <AppearancePanel />
+          ) : !backendReady ? (
+            <div className="flex items-center justify-center h-32 text-muted-foreground text-sm">
+              Loading settings...
+            </div>
+          ) : searchQuery ? (
             // Search results across all sections
             <div className="space-y-6">
               {filteredSections.map((section) => (
@@ -472,8 +615,6 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                 <p className="text-sm text-muted-foreground text-center py-8">No settings match your search</p>
               )}
             </div>
-          ) : resolvedActive === APPEARANCE_SECTION_ID ? (
-            <AppearancePanel />
           ) : (
             // Single section view
             (() => {

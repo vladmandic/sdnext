@@ -3,6 +3,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { AppShell } from "@/components/layout/AppShell";
 import { useUiStore } from "@/stores/uiStore";
+import { useConnectionStore } from "@/stores/connectionStore";
+import { api } from "@/api/client";
 import { contrastText } from "@/lib/utils";
 import "./App.css";
 
@@ -29,6 +31,13 @@ function App() {
   const borderRadius = useUiStore((s) => s.borderRadius);
   const uiScale = useUiStore((s) => s.uiScale);
   const resolvedTheme = useResolvedTheme();
+
+  // Bootstrap stored backend connection before queries fire
+  useEffect(() => {
+    const { backendUrl, username, password } = useConnectionStore.getState();
+    if (backendUrl) api.setBaseUrl(backendUrl);
+    if (username && password) api.setAuth(username, password);
+  }, []);
 
   // Corner style
   useEffect(() => {
