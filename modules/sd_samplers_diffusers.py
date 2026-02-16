@@ -344,6 +344,81 @@ samplers_data_diffusers = [
     SamplerData('Same as primary', None, [], {}),
 ]
 
+_sampler_cls = None
+_cls_caps = None
+
+
+def _get_sampler_cls():
+    """Lazily build sampler name → scheduler class mapping from samplers_data_diffusers."""
+    global _sampler_cls # pylint: disable=global-statement
+    if _sampler_cls is not None:
+        return _sampler_cls
+    _sampler_cls = {}
+    for sd in samplers_data_diffusers:
+        if sd.constructor is None:
+            _sampler_cls[sd.name] = None
+            continue
+        try:
+            closure_globals = inspect.getclosurevars(sd.constructor).globals
+            _sampler_cls[sd.name] = next((v for v in closure_globals.values() if v is not DiffusionSampler and isinstance(v, type)), None)
+        except Exception:
+            _sampler_cls[sd.name] = None
+    return _sampler_cls
+
+
+def _get_cls_caps():
+    """Cache per-sampler capabilities (static, computed once).
+
+    Only tracks flow support and is_flow_only — these are the gates
+    used by get_sampler_compatibility().
+    """
+    global _cls_caps # pylint: disable=global-statement
+    if _cls_caps is not None:
+        return _cls_caps
+    sampler_cls = _get_sampler_cls()
+    _cls_caps = {}
+    for name, cls in sampler_cls.items():
+        if cls is None:
+            _cls_caps[name] = {'flow': True, 'is_flow_only': False}
+            continue
+        is_flow_only = 'FlowMatch' in cls.__name__
+        if is_flow_only:
+            flow = True
+        else:
+            try:
+                src = inspect.getsource(cls)
+                flow = '"flow_prediction"' in src or "'flow_prediction'" in src
+            except (TypeError, OSError):
+                flow = False
+        _cls_caps[name] = {'flow': flow, 'is_flow_only': is_flow_only}
+    return _cls_caps
+
+
+def get_sampler_compatibility(model=None):
+    """Return {sampler_name: bool} compatibility for the loaded model.
+
+    Only the flow/non-flow gate is used: flow models require schedulers
+    that support flow_prediction, non-flow models reject flow-only schedulers.
+    The sigmas/scale_noise checks are NOT applied here because some schedulers
+    (e.g. Res4Lyf) compute flow sigmas internally rather than accepting them
+    as set_timesteps parameters; the runtime validation in DiffusionSampler
+    handles API-level mismatches with a fallback.
+    """
+    if model is None:
+        return {}
+    default = getattr(model, 'default_scheduler', getattr(model, 'scheduler', None))
+    if default is None:
+        return {}
+    requires_flow = ('FlowMatch' in default.__class__.__name__) or (getattr(default.config, 'prediction_type', None) == 'flow_prediction')
+    caps = _get_cls_caps()
+    result = {}
+    for name, cap in caps.items():
+        if requires_flow:
+            result[name] = cap['flow']
+        else:
+            result[name] = not cap['is_flow_only']
+    return result
+
 
 class DiffusionSampler:
     def __init__(self, name, constructor, model, **kwargs):
@@ -473,16 +548,28 @@ class DiffusionSampler:
             self.sampler = None
             return
 
+        if self.config.get('prediction_type') == 'flow_prediction' and 'FlowMatch' not in constructor.__name__:
+            try:
+                cls_source = inspect.getsource(constructor)
+                if '"flow_prediction"' not in cls_source and "'flow_prediction'" not in cls_source:
+                    shared.log.warning(f'Sampler: "{name}" does not support flow_prediction')
+                    self.sampler = None
+                    return
+            except (TypeError, OSError):
+                pass
+
         if hasattr(sampler, 'set_timesteps'):
             accept_sigmas = "sigmas" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
             accepts_timesteps = "timesteps" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
             accept_scale_noise = hasattr(sampler, "scale_noise")
             debug_log(f'Sampler: "{name}" sigmas={accept_sigmas} timesteps={accepts_timesteps}')
-            if ('Flux' in model.__class__.__name__) and (not accept_sigmas):
+            default_accept_sigmas = model is not None and hasattr(model.default_scheduler, 'set_timesteps') and "sigmas" in set(inspect.signature(model.default_scheduler.set_timesteps).parameters.keys())
+            default_accept_scale_noise = model is not None and hasattr(model.default_scheduler, "scale_noise")
+            if default_accept_sigmas and not accept_sigmas:
                 log.warning(f'Sampler: "{name}" does not accept sigmas')
                 self.sampler = None
                 return
-            if ('StableDiffusion3' in model.__class__.__name__) and (not accept_scale_noise):
+            if default_accept_scale_noise and not accept_scale_noise:
                 log.warning(f'Sampler: "{name}" does not implement scale noise')
                 self.sampler = None
                 return

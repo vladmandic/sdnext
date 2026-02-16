@@ -62,6 +62,7 @@ export function useLoadModel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["options"] });
       queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
+      queryClient.invalidateQueries({ queryKey: ["samplers"] });
     },
   });
 }
@@ -86,6 +87,7 @@ export function useReloadModel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["options"] });
       queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
+      queryClient.invalidateQueries({ queryKey: ["samplers"] });
     },
   });
 }
@@ -98,6 +100,7 @@ export function useUnloadModel() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["options"] });
       queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
+      queryClient.invalidateQueries({ queryKey: ["samplers"] });
     },
   });
 }
