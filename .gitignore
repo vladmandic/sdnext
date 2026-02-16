@@ -55,6 +55,7 @@ tunableop_results*.csv
 # frontend
 frontend/node_modules/
 frontend/dist/
+frontend/dev-dist/
 
 # force included
 !webui.bat
