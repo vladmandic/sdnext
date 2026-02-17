@@ -75,6 +75,11 @@ export class ApiClient {
     });
   }
 
+  async delete<T>(path: string, params?: Record<string, string>, signal?: AbortSignal): Promise<T> {
+    const query = params ? `?${new URLSearchParams(params)}` : "";
+    return this.request<T>(`${path}${query}`, { method: "DELETE", signal });
+  }
+
   async postBinary(path: string, body?: unknown, signal?: AbortSignal): Promise<Blob> {
     const url = `${this.baseUrl}${path}`;
     const response = await fetch(url, {
