@@ -1,0 +1,147 @@
+import { useState, useMemo } from "react";
+import { ChevronDown, ChevronRight, Download, Loader2 } from "lucide-react";
+import { useCivitModel, useCivitDownload, useCivitResolvePath } from "@/api/hooks/useCivitai";
+import type { CivitVersion, CivitFile } from "@/api/types/civitai";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
+
+interface CivitModelDetailProps {
+  modelId: number | null;
+  onClose: () => void;
+}
+
+function formatSize(sizeKB: number): string {
+  if (sizeKB >= 1_048_576) return `${(sizeKB / 1_048_576).toFixed(1)} GB`;
+  if (sizeKB >= 1024) return `${(sizeKB / 1024).toFixed(1)} MB`;
+  return `${sizeKB.toFixed(0)} KB`;
+}
+
+interface VersionSectionProps {
+  version: CivitVersion;
+  modelType: string;
+  modelName: string;
+  creatorName: string;
+  modelId: number;
+  modelNsfw: boolean;
+}
+
+function VersionSection({ version, modelType, modelName, creatorName, modelId, modelNsfw }: VersionSectionProps) {
+  const [open, setOpen] = useState(false);
+  const download = useCivitDownload();
+
+  const resolveParams = useMemo(() => ({
+    model_type: modelType,
+    model_name: modelName,
+    base_model: version.baseModel,
+    creator: creatorName,
+    model_id: String(modelId),
+    version_id: String(version.id),
+    version_name: version.name,
+    nsfw: String(modelNsfw),
+  }), [modelType, modelName, version.baseModel, creatorName, modelId, version.id, version.name, modelNsfw]);
+
+  const { data: resolved } = useCivitResolvePath(resolveParams, open);
+
+  function handleDownload(file: CivitFile) {
+    download.mutate({
+      url: file.downloadUrl,
+      filename: file.name,
+      model_type: modelType,
+      expected_hash: file.hashes.SHA256 ?? undefined,
+      model_name: modelName,
+      base_model: version.baseModel,
+      creator: creatorName,
+      model_id: modelId,
+      version_id: version.id,
+      version_name: version.name,
+      nsfw: modelNsfw,
+    });
+  }
+
+  return (
+    <div className="border border-border/50 rounded-md">
+      <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted/30">
+        {open ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
+        <span className="text-xs font-medium truncate">{version.name}</span>
+        <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">{version.baseModel}</Badge>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-2">
+          {version.trainedWords.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {version.trainedWords.map((w) => (
+                <Badge key={w} variant="secondary" className="text-[9px] px-1 py-0">{w}</Badge>
+              ))}
+            </div>
+          )}
+          {version.files.length > 0 && (
+            <div className="space-y-1">
+              {version.files.map((f) => (
+                <div key={f.id} className="flex items-center gap-2 text-[11px]">
+                  <span className="truncate flex-1" title={f.name}>{f.name}</span>
+                  <span className="text-muted-foreground shrink-0">{formatSize(f.sizeKB)}</span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-6 w-6 shrink-0"
+                    onClick={() => handleDownload(f)}
+                    disabled={download.isPending}
+                  >
+                    {download.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+          {resolved?.path && <p className="text-[10px] text-muted-foreground truncate" title={resolved.path}>&rarr; {resolved.path}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
+  const { data: model, isLoading } = useCivitModel(modelId);
+
+  return (
+    <Dialog open={modelId !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="sm:max-w-lg max-h-[80vh] flex flex-col">
+        {isLoading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-5 w-5 animate-spin" />
+          </div>
+        ) : model ? (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-sm">
+                {model.name}
+                <Badge variant="outline" className="text-[9px] px-1 py-0">{model.type}</Badge>
+              </DialogTitle>
+              <DialogDescription className="text-[11px]">
+                by {model.creator.username}
+              </DialogDescription>
+            </DialogHeader>
+            {model.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {model.tags.slice(0, 12).map((t) => (
+                  <Badge key={t} variant="secondary" className="text-[9px] px-1 py-0">{t}</Badge>
+                ))}
+              </div>
+            )}
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="space-y-2 pr-3">
+                {model.modelVersions.map((v) => (
+                  <VersionSection key={v.id} version={v} modelType={model.type} modelName={model.name} creatorName={model.creator.username} modelId={model.id} modelNsfw={model.nsfw} />
+                ))}
+              </div>
+            </ScrollArea>
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground py-4 text-center">Model not found</p>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}

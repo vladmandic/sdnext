@@ -39,7 +39,6 @@ manager = ConnectionManager()
 
 async def push_progress(ws: WebSocket):
     from modules import shared
-    from modules.api import helpers
     last_step = -1
     last_preview_id = -1
     last_download_snapshot = None
