@@ -1,0 +1,42 @@
+export type SizeMode = "fixed" | "scale" | "megapixel";
+
+export function snapTo8(value: number): number {
+  return Math.round(value / 8) * 8;
+}
+
+export function computeScaledSize(frameW: number, frameH: number, scaleFactor: number): { width: number; height: number } {
+  return {
+    width: Math.max(64, snapTo8(frameW * scaleFactor)),
+    height: Math.max(64, snapTo8(frameH * scaleFactor)),
+  };
+}
+
+export function computeMegapixelSize(frameW: number, frameH: number, megapixelTarget: number): { width: number; height: number } {
+  const targetPixels = megapixelTarget * 1_000_000;
+  const currentPixels = frameW * frameH;
+  if (currentPixels === 0) return { width: 512, height: 512 };
+  const scale = Math.sqrt(targetPixels / currentPixels);
+  return {
+    width: Math.max(64, snapTo8(frameW * scale)),
+    height: Math.max(64, snapTo8(frameH * scale)),
+  };
+}
+
+export function resolveGenerationSize(
+  sizeMode: SizeMode,
+  frameW: number,
+  frameH: number,
+  scaleFactor: number,
+  megapixelTarget: number,
+): { width: number; height: number } {
+  switch (sizeMode) {
+    case "scale": return computeScaledSize(frameW, frameH, scaleFactor);
+    case "megapixel": return computeMegapixelSize(frameW, frameH, megapixelTarget);
+    default: return { width: frameW, height: frameH };
+  }
+}
+
+export function formatMegapixels(w: number, h: number): string {
+  const mp = (w * h) / 1_000_000;
+  return `~${mp.toFixed(1)} MP`;
+}

@@ -8,6 +8,8 @@ import { useUiStore } from "@/stores/uiStore";
 import { fileToBase64 } from "@/lib/image";
 import { exportMaskToBase64 } from "@/lib/exportMask";
 import { flattenCanvas } from "@/lib/flattenCanvas";
+import { resolveGenerationSize } from "@/lib/sizeCompute";
+import type { SizeMode } from "@/lib/sizeCompute";
 import type { Txt2ImgRequest, Img2ImgRequest, GenerationInfo } from "@/api/types/generation";
 
 export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
@@ -190,26 +192,38 @@ export async function buildImg2ImgRequest(): Promise<Img2ImgRequest> {
   const img2img = useImg2ImgStore.getState();
   const gen = useGenerationStore.getState();
   const canvas = useCanvasStore.getState();
+  const ui = useUiStore.getState();
 
-  const width = gen.width;
-  const height = gen.height;
+  // Frame dimensions (native image size on canvas)
+  const frameW = gen.width;
+  const frameH = gen.height;
 
-  // Flatten all image layers into a single composite
+  // Determine effective size mode
+  const isAutoFit = ui.generationMode === "img2img" && ui.autoFitFrame;
+  const effectiveSizeMode: SizeMode = isAutoFit ? img2img.sizeMode : "fixed";
+
+  // Compute generation size (may differ from frame when using scale/megapixel)
+  const genSize = resolveGenerationSize(effectiveSizeMode, frameW, frameH, img2img.scaleFactor, img2img.megapixelTarget);
+
+  // Flatten all image layers at full frame size
   const imageLayers = canvas.layers.filter((l) => l.type === "image") as ImageLayer[];
-  const flattenedBase64 = await flattenCanvas(imageLayers, width, height);
+  const flattenedBase64 = await flattenCanvas(imageLayers, frameW, frameH);
 
   // Export mask from painted strokes if no explicit maskData
   let maskData = img2img.maskData;
   if (!maskData && img2img.maskLines.length > 0) {
-    maskData = exportMaskToBase64(img2img.maskLines, width, height);
+    maskData = exportMaskToBase64(img2img.maskLines, frameW, frameH);
   }
+
+  // Force resize_mode=1 when scale/megapixel so backend resizes the full-res init image to target
+  const resizeMode = effectiveSizeMode !== "fixed" ? 1 : img2img.resizeMode;
 
   return {
     ...baseRequest,
-    width,
-    height,
+    width: genSize.width,
+    height: genSize.height,
     init_images: flattenedBase64 ? [flattenedBase64] : [],
-    resize_mode: img2img.resizeMode,
+    resize_mode: resizeMode,
     mask: maskData || undefined,
     mask_blur: img2img.maskBlur,
     inpaint_full_res: img2img.inpaintFullRes,

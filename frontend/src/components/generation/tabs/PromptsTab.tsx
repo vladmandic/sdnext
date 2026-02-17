@@ -6,7 +6,8 @@ import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
 import { Link2, Link2Off, ArrowLeftRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { RESIZE_MODES } from "@/lib/constants";
+import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
+import type { SizeMode } from "@/lib/sizeCompute";
 import { PromptEditor } from "../PromptEditor";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
@@ -14,6 +15,7 @@ import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export function PromptsTab() {
   const state = useGenerationStore(useShallow((s) => ({
@@ -27,12 +29,24 @@ export function PromptsTab() {
   const generationMode = useUiStore((s) => s.generationMode);
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
   const setAutoFitFrame = useUiStore((s) => s.setAutoFitFrame);
-  const resizeMode = useImg2ImgStore((s) => s.resizeMode);
-  const setResizeMode = useImg2ImgStore((s) => s.setResizeMode);
+  const sizeMode = useImg2ImgStore((s) => s.sizeMode);
+  const setSizeMode = useImg2ImgStore((s) => s.setSizeMode);
+  const scaleFactor = useImg2ImgStore((s) => s.scaleFactor);
+  const setScaleFactor = useImg2ImgStore((s) => s.setScaleFactor);
+  const megapixelTarget = useImg2ImgStore((s) => s.megapixelTarget);
+  const setMegapixelTarget = useImg2ImgStore((s) => s.setMegapixelTarget);
   const [aspectLocked, setAspectLocked] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
 
   const isImg2Img = generationMode === "img2img";
+  const showSizeModes = isImg2Img && autoFitFrame;
+  const effectiveSizeMode: SizeMode = showSizeModes ? sizeMode : "fixed";
+  const isFixed = effectiveSizeMode === "fixed";
+
+  const genSize = useMemo(
+    () => resolveGenerationSize(effectiveSizeMode, state.width, state.height, scaleFactor, megapixelTarget),
+    [effectiveSizeMode, state.width, state.height, scaleFactor, megapixelTarget],
+  );
 
   const aspectRatio = state.width / state.height;
 
@@ -111,12 +125,25 @@ export function PromptsTab() {
           </Button>
         ) : undefined}
       >
+        {/* Size mode pill selector (img2img + auto-fit only) */}
+        {showSizeModes && (
+          <Tabs value={sizeMode} onValueChange={(v) => setSizeMode(v as SizeMode)}>
+            <TabsList className="h-7 w-full">
+              <TabsTrigger value="fixed" className="text-[11px] h-5 px-2">Fixed</TabsTrigger>
+              <TabsTrigger value="scale" className="text-[11px] h-5 px-2">Scale</TabsTrigger>
+              <TabsTrigger value="megapixel" className="text-[11px] h-5 px-2">Megapixel</TabsTrigger>
+            </TabsList>
+          </Tabs>
+        )}
+
+        {/* Width / Height row */}
         <div className="flex items-center gap-2">
           <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Width</Label>
           <NumberInput
-            value={state.width}
+            value={isFixed ? state.width : genSize.width}
             onChange={setWidth}
             step={8} min={64} max={4096} fallback={512}
+            disabled={!isFixed}
             className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <Button
@@ -124,6 +151,7 @@ export function PromptsTab() {
             onClick={() => setAspectLocked(!aspectLocked)}
             className={cn(aspectLocked ? "text-primary" : "text-muted-foreground")}
             title={aspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
+            disabled={!isFixed}
           >
             {aspectLocked ? <Link2 size={12} /> : <Link2Off size={12} />}
           </Button>
@@ -132,28 +160,35 @@ export function PromptsTab() {
             onClick={swapDimensions}
             className="text-muted-foreground"
             title="Swap width/height"
+            disabled={!isFixed}
           >
             <ArrowLeftRight size={12} />
           </Button>
           <NumberInput
-            value={state.height}
+            value={isFixed ? state.height : genSize.height}
             onChange={setHeight}
             step={8} min={64} max={4096} fallback={512}
+            disabled={!isFixed}
             className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <Label className="text-[11px] text-muted-foreground w-16">Height</Label>
         </div>
 
-        {/* Resize mode dropdown (img2img) */}
-        {isImg2Img && (
-          <div className="flex items-center gap-2 mt-2">
-            <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Resize</Label>
-            <Combobox
-              value={RESIZE_MODES[resizeMode]}
-              onValueChange={(v) => setResizeMode(RESIZE_MODES.indexOf(v))}
-              options={RESIZE_MODES}
-              className="flex-1 h-6 text-[11px]"
-            />
+        {/* Scale slider */}
+        {effectiveSizeMode === "scale" && (
+          <ParamSlider label="Scale" value={scaleFactor} onChange={setScaleFactor} min={0.25} max={2} step={0.05} />
+        )}
+
+        {/* Megapixel slider */}
+        {effectiveSizeMode === "megapixel" && (
+          <ParamSlider label="Target" value={megapixelTarget} onChange={setMegapixelTarget} min={0.25} max={4} step={0.05} />
+        )}
+
+        {/* Info line: frame size → generation size */}
+        {!isFixed && (
+          <div className="text-[10px] text-muted-foreground text-center">
+            {state.width}&times;{state.height} &rarr; {genSize.width}&times;{genSize.height}{" "}
+            <span className="opacity-70">({formatMegapixels(genSize.width, genSize.height)})</span>
           </div>
         )}
       </ParamSection>
