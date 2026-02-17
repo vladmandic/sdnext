@@ -42,6 +42,7 @@ async def push_progress(ws: WebSocket):
     from modules.api import helpers
     last_step = -1
     last_preview_id = -1
+    last_download_snapshot = None
     while ws.client_state == WebSocketState.CONNECTED:
         try:
             state = shared.state
@@ -58,6 +59,17 @@ async def push_progress(ws: WebSocket):
                 last_step = -1
                 status = state.status()
                 await manager.send_json(ws, {"type": "status", "data": status.dict() if hasattr(status, 'dict') else status.model_dump()})
+            # Push download progress when downloads are active
+            try:
+                from modules.civitai.download_civitai import download_manager
+                active = download_manager.get_active_items()
+                if active or last_download_snapshot:
+                    snapshot = str(active)
+                    if snapshot != last_download_snapshot:
+                        last_download_snapshot = snapshot if active else None
+                        await manager.send_json(ws, {"type": "download", "data": active})
+            except ImportError:
+                pass
         except Exception as e:
             log.debug(f'WebSocket push error: {e}')
             break
@@ -73,6 +85,15 @@ async def handle_command(ws: WebSocket, data: dict):
     elif msg_type == "skip":
         shared.state.skip()
         await manager.send_json(ws, {"type": "ack", "data": {"command": "skip"}})
+    elif msg_type == "download_cancel":
+        download_id = data.get("id", "")
+        if download_id:
+            try:
+                from modules.civitai.download_civitai import download_manager
+                result = download_manager.cancel(download_id)
+                await manager.send_json(ws, {"type": "ack", "data": {"command": "download_cancel", "id": download_id, "success": result}})
+            except ImportError:
+                await manager.send_json(ws, {"type": "ack", "data": {"command": "download_cancel", "id": download_id, "success": False}})
     elif msg_type == "ping":
         await manager.send_json(ws, {"type": "pong"})
 

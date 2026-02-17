@@ -155,12 +155,28 @@ def post_civitai_download(url: str, name: str = "", path: str = "", model_type: 
     """
     Download a model from CivitAI.
 
-    Downloads the model at the given CivitAI ``url``. Optional ``name``, ``path``,
-    ``model_type``, and ``token`` override default download behavior.
+    Queues the download and returns the download ID for progress tracking via
+    the WebSocket or ``GET /sdapi/v1/civitai/download/status``.
     """
-    from modules.civitai import download_civitai
-    download_civitai.download_civit_model(url, name, path, model_type, token)
-    return {"status": f"Download complete: {url}"}
+    from modules.civitai.download_civitai import download_manager
+    from modules.civitai.filemanage_civitai import get_type_folder
+    if not url:
+        return {"status": "Error: no url provided"}
+    if not path:
+        folder = str(get_type_folder(model_type or 'Checkpoint'))
+    elif os.path.isabs(path):
+        folder = path
+    else:
+        from modules import paths
+        folder = os.path.join(paths.models_path, path)
+    item = download_manager.enqueue(
+        url=url,
+        folder=folder,
+        filename=name or "Unknown",
+        model_type=model_type,
+        token=token,
+    )
+    return {"status": "queued", "download_id": item.id, "url": url}
 
 
 def post_metadata_scan():
