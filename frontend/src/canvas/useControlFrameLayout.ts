@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { useControlStore } from "@/stores/controlStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { resolveGenerationSize } from "@/lib/sizeCompute";
 
 const FRAME_GAP = 48;
 /** Spacing between a frame and its associated elements (processed image, floating panel) */
@@ -29,6 +31,8 @@ export interface CanvasLayout {
   showProcessedFrame: boolean;
   controlFrames: ControlFramePosition[];
   totalBounds: { minX: number; maxX: number; maxY: number };
+  /** Generation size (may differ from frame size when scale/megapixel is active) */
+  genSize: { width: number; height: number };
 }
 
 export function useControlFrameLayout(): CanvasLayout {
@@ -37,22 +41,29 @@ export function useControlFrameLayout(): CanvasLayout {
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
   const generationMode = useUiStore((s) => s.generationMode);
+  const autoFitFrame = useUiStore((s) => s.autoFitFrame);
+  const sizeMode = useImg2ImgStore((s) => s.sizeMode);
+  const scaleFactor = useImg2ImgStore((s) => s.scaleFactor);
+  const megapixelTarget = useImg2ImgStore((s) => s.megapixelTarget);
 
   return useMemo(() => {
     const isImg2Img = generationMode === "img2img";
+    const isAutoFit = isImg2Img && autoFitFrame;
+    const effectiveSizeMode = isAutoFit ? sizeMode : "fixed";
+    const genSize = resolveGenerationSize(effectiveSizeMode, frameW, frameH, scaleFactor, megapixelTarget);
 
-    // Main frame positions
+    // Main frame positions — Output and Processed use generation size
     const inputX = 0;
     const outputX = isImg2Img ? frameW + FRAME_GAP : 0;
 
     // Processed composite frame: visible when backend composite or any per-unit processedImage exists
     const hasAnyProcessed = !!compositeProcessed || units.some((u) => u.enabled && !!u.processedImage);
-    const processedX = (isImg2Img ? outputX + frameW : frameW) + FRAME_GAP;
+    const processedX = (isImg2Img ? outputX + genSize.width : frameW) + FRAME_GAP;
 
     // Rightmost edge of main frames
     const mainMaxX = hasAnyProcessed
-      ? processedX + frameW
-      : (isImg2Img ? outputX + frameW : frameW);
+      ? processedX + genSize.width
+      : (isImg2Img ? outputX + genSize.width : frameW);
 
     // Control frames: only enabled units with imageSource === "separate"
     const activeControlIndices = units
@@ -90,7 +101,8 @@ export function useControlFrameLayout(): CanvasLayout {
       const active = f.processedSlots.filter((s) => s.hasProcessed).length;
       return Math.max(max, active);
     }, 0);
-    const maxY = maxSlots > 0 ? frameH + maxSlots * (ELEMENT_GAP + frameH) : frameH;
+    const tallestFrame = Math.max(frameH, genSize.height);
+    const maxY = maxSlots > 0 ? tallestFrame + maxSlots * (ELEMENT_GAP + frameH) : tallestFrame;
 
     return {
       showInputFrame: isImg2Img,
@@ -100,6 +112,7 @@ export function useControlFrameLayout(): CanvasLayout {
       showProcessedFrame: hasAnyProcessed,
       controlFrames,
       totalBounds: { minX, maxX: mainMaxX, maxY },
+      genSize,
     };
-  }, [units, compositeProcessed, frameW, frameH, generationMode]);
+  }, [units, compositeProcessed, frameW, frameH, generationMode, autoFitFrame, sizeMode, scaleFactor, megapixelTarget]);
 }

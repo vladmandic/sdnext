@@ -32,11 +32,12 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   // Note: setSelectedControlFrame removed - panels are now persistent
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
+
   const panZoom = usePanZoom(stageRef);
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
   const imageTransform = useImageTransform(stageRef, trRef);
 
-  const { showInputFrame, outputX, processedX, showProcessedFrame, controlFrames, totalBounds } = layout;
+  const { showInputFrame, outputX, processedX, showProcessedFrame, controlFrames, totalBounds, genSize } = layout;
 
   // Container-responsive sizing
   useEffect(() => {
@@ -116,9 +117,9 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
           {showInputFrame && <CompositeLayer trRef={trRef} />}
           {showInputFrame && <FrameLayer onPickImage={onPickImage ? () => onPickImage(-1) : undefined} />}
           {showInputFrame && <MaskLayer setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />}
-          <OutputLayer offsetX={outputX} placeholderWidth={frameW} placeholderHeight={frameH} />
+          <OutputLayer offsetX={outputX} placeholderWidth={genSize.width} placeholderHeight={genSize.height} />
           {showProcessedFrame && (
-            <ProcessedCompositeLayer offsetX={processedX} width={frameW} height={frameH} />
+            <ProcessedCompositeLayer offsetX={processedX} width={genSize.width} height={genSize.height} />
           )}
         </Stage>
       )}

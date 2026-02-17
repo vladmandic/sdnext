@@ -240,13 +240,14 @@ interface InputFramePanelProps {
   canvasX: number;
   frameW: number;
   frameH: number;
+  genSize: { width: number; height: number };
   viewport: { x: number; y: number; scale: number };
   labelScale: number;
   onPickImage?: () => void;
   onClearAll?: () => void;
 }
 
-function InputFramePanel({ canvasX, frameW, frameH, viewport, labelScale, onPickImage, onClearAll }: InputFramePanelProps) {
+function InputFramePanel({ canvasX, frameW, frameH, genSize, viewport, labelScale, onPickImage, onClearAll }: InputFramePanelProps) {
   const layers = useCanvasStore((s) => s.layers);
   const hasLayers = layers.length > 0;
 
@@ -267,7 +268,10 @@ function InputFramePanel({ canvasX, frameW, frameH, viewport, labelScale, onPick
     transformOrigin: "bottom center",
   };
 
-  const sizeText = firstImage ? `${firstImage.naturalWidth}×${firstImage.naturalHeight}` : `${frameW}×${frameH}`;
+  const baseSizeText = firstImage ? `${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}` : `${frameW}\u00d7${frameH}`;
+  const sizeText = (genSize.width !== frameW || genSize.height !== frameH)
+    ? `${baseSizeText} \u2192 ${genSize.width}\u00d7${genSize.height}`
+    : baseSizeText;
 
   return (
     <div style={style} className="z-50">
@@ -289,7 +293,7 @@ function InputFramePanel({ canvasX, frameW, frameH, viewport, labelScale, onPick
               )}
             </div>
           </div>
-          {/* Row 2: dimensions */}
+          {/* Row 2: dimensions (with arrow to generation size when scale/megapixel active) */}
           <div className="flex items-center px-3 pb-1.5">
             <span className="text-xs opacity-70" style={{ color: textColor }}>{sizeText}</span>
           </div>
@@ -314,6 +318,9 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
   const frameH = useGenerationStore((s) => s.height);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
 
+  const { genSize } = layout;
+  const genSizeText = `${genSize.width}\u00d7${genSize.height}`;
+
   return (
     <>
       {layout.controlFrames.map((frame) => (
@@ -330,6 +337,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
           canvasX={layout.inputX}
           frameW={frameW}
           frameH={frameH}
+          genSize={genSize}
           viewport={viewport}
           labelScale={labelScale}
           onPickImage={() => onPickImage?.(-1)}
@@ -337,10 +345,10 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
         />
       )}
 
-      <FrameHeaderBar label="Output" color={OUTPUT_COLOR} canvasX={layout.outputX} viewport={viewport} frameW={frameW} frameH={frameH} labelScale={labelScale} />
+      <FrameHeaderBar label="Output" color={OUTPUT_COLOR} canvasX={layout.outputX} viewport={viewport} frameW={genSize.width} frameH={genSize.height} labelScale={labelScale} sizeText={genSizeText} />
 
       {layout.showProcessedFrame && (
-        <FrameHeaderBar label="Processed" color={PROCESSED_COLOR} canvasX={layout.processedX} viewport={viewport} frameW={frameW} frameH={frameH} labelScale={labelScale} />
+        <FrameHeaderBar label="Processed" color={PROCESSED_COLOR} canvasX={layout.processedX} viewport={viewport} frameW={genSize.width} frameH={genSize.height} labelScale={labelScale} sizeText={genSizeText} />
       )}
     </>
   );
@@ -354,9 +362,10 @@ interface FrameHeaderBarProps {
   frameH: number;
   viewport: { x: number; y: number; scale: number };
   labelScale: number;
+  sizeText?: string;
 }
 
-function FrameHeaderBar({ label, color, canvasX, frameW, frameH, viewport, labelScale }: FrameHeaderBarProps) {
+function FrameHeaderBar({ label, color, canvasX, frameW, frameH, viewport, labelScale, sizeText: sizeTextOverride }: FrameHeaderBarProps) {
   // Anchor bottom-left to frame's top-left, overlap top stroke so header acts as top border
   const anchorX = (canvasX - STROKE_HALF) * viewport.scale + viewport.x;
   const anchorY = (0 + STROKE_HALF) * viewport.scale + viewport.y;
@@ -379,7 +388,7 @@ function FrameHeaderBar({ label, color, canvasX, frameW, frameH, viewport, label
   return (
     <div style={style} className="flex items-center justify-between px-3 rounded-t-md z-50">
       <span className="text-base font-medium" style={{ color: textColor }}>{label}</span>
-      <span className="text-xs opacity-70" style={{ color: textColor }}>{frameW}×{frameH}</span>
+      <span className="text-xs opacity-70" style={{ color: textColor }}>{sizeTextOverride ?? `${frameW}\u00d7${frameH}`}</span>
     </div>
   );
 }
