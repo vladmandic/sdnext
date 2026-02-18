@@ -44,6 +44,14 @@ class Options:
             if cmd_opts.hide_ui_dir_config and key in self.restricted_opts:
                 log.warning(f'Settings key is restricted: {key}')
                 return
+            if key in self.data_labels:
+                info = self.data_labels[key]
+                if getattr(info, 'secret', False):
+                    from modules import secrets_manager
+                    if str(value) == secrets_manager.get_mask(key, info.env_var):
+                        return  # don't overwrite real secret with masked value
+                    secrets_manager.set(key, value)
+                    return
             if self.debug:
                 log.trace(f'Settings set: {key}={value}')
             if key in self.legacy:
@@ -53,6 +61,11 @@ class Options:
         return super().__setattr__(key, value) # pylint: disable=super-with-arguments
 
     def get(self, item):
+        if item in self.data_labels:
+            info = self.data_labels[item]
+            if getattr(info, 'secret', False):
+                from modules import secrets_manager
+                return secrets_manager.get(item, info.env_var)
         if item in self.data:
             return self.data[item]
         if item in self.data_labels:
@@ -60,6 +73,11 @@ class Options:
         return super().__getattribute__(item) # pylint: disable=super-with-arguments
 
     def __getattr__(self, item):
+        if item in self.data_labels:
+            info = self.data_labels[item]
+            if getattr(info, 'secret', False):
+                from modules import secrets_manager
+                return secrets_manager.get(item, info.env_var)
         if item in self.data:
             return self.data[item]
         if item in self.data_labels:
@@ -125,6 +143,8 @@ class Options:
 
             for k, v in self.data.items():
                 if k in self.data_labels:
+                    if getattr(self.data_labels[k], 'secret', False):
+                        continue  # secrets managed by secrets_manager
                     default = self.data_labels[k].default
                     if isinstance(v, list):
                         if (len(default) != len(v) or set(default) != set(v)): # list order is non-deterministic
@@ -184,6 +204,15 @@ class Options:
                 unknown_settings.append(k)
         if len(unknown_settings) > 0:
             log.warning(f"Setting validation: unknown={unknown_settings}")
+        # auto-migrate secrets from config.json to secrets.json
+        from modules import secrets_manager
+        secret_keys = {k: v.env_var for k, v in self.data_labels.items() if getattr(v, 'secret', False)}
+        if secret_keys:
+            migrated = secrets_manager.migrate_from_config(self.data, secret_keys)
+            if migrated:
+                for key in migrated:
+                    self.data.pop(key, None)
+                self.save_atomic()
 
     def onchange(self, key, func: Callable, call=True):
         item = self.data_labels.get(key)
@@ -192,7 +221,14 @@ class Options:
             func()
 
     def dumpjson(self):
-        d = {k: self.data.get(k, self.data_labels.get(k).default) for k in self.data_labels.keys()}
+        from modules import secrets_manager
+        d = {}
+        for k in self.data_labels.keys():
+            info = self.data_labels[k]
+            if getattr(info, 'secret', False):
+                d[k] = secrets_manager.get_mask(k, info.env_var)
+            else:
+                d[k] = self.data.get(k, info.default)
         metadata = {
             k: {
                 "is_stored": k in self.data and self.data[k] != self.data_labels[k].default, # pylint: disable=unnecessary-dict-index-lookup

@@ -177,7 +177,8 @@ def post_settings(request: dict):
             if user is None:
                 return JSONResponse(content={"error": "Invalid API token"}, status_code=400)
             log.info(f'CivitAI token validated: user={user.get("username", "?")}')
-        shared.opts.data['civitai_token'] = token.strip()
+        from modules import secrets_manager
+        secrets_manager.set('civitai_token', token.strip())
     if save_subfolder is not None:
         shared.opts.data['civitai_save_subfolder'] = save_subfolder
     if discard_hash_mismatch is not None:

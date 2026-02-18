@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { SettingDef } from "@/lib/settingsSchema";
 import { cn } from "@/lib/utils";
 import { Switch } from "@/components/ui/switch";
@@ -6,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Slider } from "@/components/ui/slider";
 import { Combobox } from "@/components/ui/combobox";
+import { Button } from "@/components/ui/button";
 
 function renderSelect(choices: string[] | undefined, value: unknown, onChange: (value: unknown) => void, setting: SettingDef) {
   if (!choices || choices.length === 0) {
@@ -29,6 +31,46 @@ function renderSelect(choices: string[] | undefined, value: unknown, onChange: (
   );
 }
 
+function SecretControl({ value, onChange }: { value: unknown; onChange: (value: unknown) => void }) {
+  const masked = String(value ?? "");
+  const configured = masked.length > 0;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  if (configured && !editing) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground font-mono">{masked}</span>
+        <Button size="xs" variant="ghost" onClick={() => { setEditing(true); setDraft(""); }}>Change</Button>
+        <Button size="xs" variant="ghost" className="text-destructive" onClick={() => { onChange(""); }}>Remove</Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Input
+        type="password"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder="Enter token..."
+        autoComplete="off"
+        className="h-7 text-xs flex-1"
+      />
+      <Button
+        size="xs"
+        disabled={!draft.trim()}
+        onClick={() => { onChange(draft.trim()); setEditing(false); setDraft(""); }}
+      >
+        Save
+      </Button>
+      {editing && (
+        <Button size="xs" variant="ghost" onClick={() => { setEditing(false); setDraft(""); }}>Cancel</Button>
+      )}
+    </div>
+  );
+}
+
 interface SettingControlProps {
   setting: SettingDef;
   value: unknown;
@@ -37,6 +79,10 @@ interface SettingControlProps {
 }
 
 export function SettingControl({ setting, value, onChange, dynamicChoices }: SettingControlProps) {
+  if (setting.isSecret) {
+    return <SecretControl value={value} onChange={onChange} />;
+  }
+
   const choices = dynamicChoices ?? setting.choices;
 
   switch (setting.component) {

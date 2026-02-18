@@ -35,6 +35,8 @@ class OptionInfo:
             comment_before='',
             comment_after='',
             category_id=None, # pylint: disable=unused-argument
+            secret=False,
+            env_var=None,
             *args, # pylint: disable=unused-argument
             **kwargs, # pylint: disable=unused-argument
         ): # pylint: disable=keyword-arg-before-vararg
@@ -49,6 +51,8 @@ class OptionInfo:
         self.comment_before = comment_before # HTML text that will be added after label in UI
         self.comment_after = comment_after # HTML text that will be added before label in UI
         self.submit = submit
+        self.secret = secret
+        self.env_var = env_var
         self.exclude = ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_unet', 'sd_text_encoder']
         self.dynamic = callable(component_args)
         args = {} if self.dynamic else (component_args or {}) # executing callable here is too expensive

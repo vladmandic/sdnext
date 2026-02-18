@@ -18,6 +18,7 @@ export interface OptionInfoMeta {
   };
   default?: unknown;
   is_legacy: boolean;
+  is_secret: boolean;
 }
 
 export interface SectionMeta {
@@ -30,3 +31,11 @@ export interface OptionsInfoResponse {
   options: Record<string, OptionInfoMeta>;
   sections: SectionMeta[];
 }
+
+export interface SecretStatus {
+  configured: boolean;
+  source: "env" | "file" | "none";
+  masked: string;
+}
+
+export type SecretsStatusMap = Record<string, SecretStatus>;

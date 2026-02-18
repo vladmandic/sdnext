@@ -43,8 +43,12 @@ def apply_setting(key, value):
 
 
 def get_value_for_setting(key):
-    value = getattr(shared.opts, key)
     info = shared.opts.data_labels[key]
+    if getattr(info, 'secret', False):
+        from modules import secrets_manager
+        value = secrets_manager.get_mask(key, info.env_var)
+    else:
+        value = getattr(shared.opts, key)
     args = info.component_args() if callable(info.component_args) else info.component_args or {}
     args = {k: v for k, v in args.items() if k not in {'precision', 'multiselect', 'visible'}}
     return gr.update(value=value, **args)
@@ -52,6 +56,10 @@ def get_value_for_setting(key):
 
 def create_setting_component(key, is_quicksettings=False):
     def fun():
+        info = shared.opts.data_labels.get(key)
+        if info and getattr(info, 'secret', False):
+            from modules import secrets_manager
+            return secrets_manager.get_mask(key, info.env_var)
         return shared.opts.data[key] if key in shared.opts.data else shared.opts.data_labels[key].default
 
     info = shared.opts.data_labels[key]

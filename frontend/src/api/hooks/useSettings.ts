@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { OptionsMap, OptionsInfoResponse } from "../types/settings";
+import type { OptionsMap, OptionsInfoResponse, SecretsStatusMap } from "../types/settings";
 
 export function useOptions() {
   return useQuery({
@@ -27,6 +27,14 @@ export function useOptionsInfo() {
     queryKey: ["options-info"],
     queryFn: () => api.get<OptionsInfoResponse>("/sdapi/v1/options-info"),
     staleTime: 5 * 60_000,
+  });
+}
+
+export function useSecretsStatus() {
+  return useQuery({
+    queryKey: ["secrets-status"],
+    queryFn: () => api.get<SecretsStatusMap>("/sdapi/v1/secrets-status"),
+    staleTime: 30_000,
   });
 }
 

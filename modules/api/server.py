@@ -95,12 +95,19 @@ def post_log(req: models.ReqPostLog):
 
 def get_config():
     """Return all current application options as a key-value dictionary."""
+    from modules import secrets_manager
     options = {}
     for k in shared.opts.data.keys():
-        if shared.opts.data_labels.get(k) is not None:
-            options.update({k: shared.opts.data.get(k, shared.opts.data_labels.get(k).default)})
+        info = shared.opts.data_labels.get(k)
+        if info is not None:
+            if getattr(info, 'secret', False):
+                continue  # handled below
+            options[k] = shared.opts.data.get(k, info.default)
         else:
-            options.update({k: shared.opts.data.get(k, None)})
+            options[k] = shared.opts.data.get(k, None)
+    for k, info in shared.opts.data_labels.items():
+        if getattr(info, 'secret', False):
+            options[k] = secrets_manager.get_mask(k, info.env_var)
     if 'sd_lyco' in options:
         del options['sd_lyco']
     if 'sd_lora' in options:
@@ -109,11 +116,19 @@ def get_config():
 
 def set_config(req: dict[str, Any]):
     """Update one or more application options and persist them to disk."""
+    from modules import secrets_manager
     updated = []
     for k, v in req.items():
-        updated.append({ k: shared.opts.set(k, v) })
+        info = shared.opts.data_labels.get(k)
+        if info and getattr(info, 'secret', False):
+            mask = secrets_manager.get_mask(k, info.env_var)
+            if str(v) != mask:
+                secrets_manager.set(k, v)
+            updated.append({k: True})
+        else:
+            updated.append({k: shared.opts.set(k, v)})
     shared.opts.save()
-    return { "updated": updated }
+    return {"updated": updated}
 
 def get_cmd_flags():
     """Return all command-line flags and their current values."""
@@ -266,9 +281,20 @@ def get_options_info():
             "component_args": serializable_args,
             "default": info.default,
             "is_legacy": isinstance(info, LegacyOption),
+            "is_secret": getattr(info, 'secret', False),
         }
 
     return {"options": options_info, "sections": list(sections_seen.values())}
+
+
+def get_secrets_status():
+    """Return configuration status for all secret options."""
+    from modules import secrets_manager
+    result = {}
+    for key, info in shared.opts.data_labels.items():
+        if getattr(info, 'secret', False):
+            result[key] = secrets_manager.get_status(key, info.env_var)
+    return result
 
 
 def get_server_info():

@@ -6,6 +6,7 @@ __pycache__
 .idea/
 **/.DS_Store
 /*.json
+secrets.json
 /*.yaml
 /params.txt
 /styles.csv

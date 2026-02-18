@@ -14,6 +14,7 @@ export interface SettingDef {
   choices?: string[];
   description?: string;
   requiresRestart?: boolean;
+  isSecret?: boolean;
 }
 
 export interface SettingSectionDef {
@@ -142,5 +143,6 @@ export function metaToSettingDef(key: string, info?: OptionInfoMeta): SettingDef
     step: info.component_args.step,
     precision: info.component_args.precision,
     choices: info.component_args.choices,
+    isSecret: info.is_secret || undefined,
   };
 }
