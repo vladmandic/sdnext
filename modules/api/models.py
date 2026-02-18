@@ -225,23 +225,6 @@ class ItemIPAdapter(BaseModel):
     end: float = Field(title="End", default=1.0, gt=0, le=1, description="IP adapter end step")
     crop: bool = Field(title="Crop", default=False, description="IP adapter crop face from input")
 
-class ItemControlUnit(BaseModel):
-    enabled: bool = Field(title="Enabled", default=True, description="Whether this control unit is active")
-    unit_type: str = Field(title="Unit Type", default="controlnet", description="Control unit type: controlnet, t2i adapter, xs, lite, reference")
-    processor: str = Field(title="Processor", default="None", description="Preprocessor name")
-    model: str = Field(title="Model", default="None", description="Control model name")
-    image: Optional[str] = Field(title="Image", default=None, description="Control image, base64 encoded")
-    strength: float = Field(title="Strength", default=1.0, ge=0, le=2, description="Control strength")
-    start: float = Field(title="Start", default=0.0, ge=0, le=1, description="Control start step")
-    end: float = Field(title="End", default=1.0, ge=0, le=1, description="Control end step")
-    mode: str = Field(title="Mode", default="default", description="Control mode for Union/ProMax models (e.g., canny, depth, tile)")
-    guess: bool = Field(title="Guess", default=False, description="Guess mode (ControlNet only)")
-    factor: float = Field(title="Factor", default=1.0, ge=0, le=2, description="Adapter factor (T2I only)")
-    attention: str = Field(title="Attention", default="Attention", description="Reference attention type")
-    fidelity: float = Field(title="Fidelity", default=0.5, ge=0, le=1, description="Reference fidelity")
-    query_weight: float = Field(title="Query Weight", default=1.0, ge=0, le=2, description="Reference query weight")
-    adain_weight: float = Field(title="Adain Weight", default=1.0, ge=0, le=2, description="Reference adain weight")
-
 class ItemFace(BaseModel):
     mode: str = Field(title="Mode", default="FaceID", description="The mode to use (available values: FaceID, FaceSwap, PhotoMaker, InstantID).")
     source_images: list[str] = Field(title="Source Images", description="Source face images, must be base64 encoded containing the image's data.")
@@ -315,7 +298,6 @@ class ResTxt2Img(BaseModel):
     images: list[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
     parameters: dict = Field(title="Parameters", description="The request parameters echoed back.")
     info: str = Field(title="Info", description="Generation info string with all parameters used.")
-    processed_images: Optional[List[str]] = Field(default=None, title="Processed images", description="Per-unit preprocessed control images in base64 format.")
 
 ReqImg2Img = PydanticModelGenerator(
     "StableDiffusionProcessingImg2Img",
@@ -348,7 +330,6 @@ class ResImg2Img(BaseModel):
     images: list[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
     parameters: dict = Field(title="Parameters", description="The request parameters echoed back.")
     info: str = Field(title="Info", description="Generation info string with all parameters used.")
-    processed_images: Optional[List[str]] = Field(default=None, title="Processed images", description="Per-unit preprocessed control images in base64 format.")
 
 class FileData(BaseModel):
     data: str = Field(title="File data", description="Base64 representation of the file")
