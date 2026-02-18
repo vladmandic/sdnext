@@ -23,6 +23,8 @@ export interface PromptEnhanceRequest {
   thinking?: boolean;
   keep_thinking?: boolean;
   use_vision?: boolean;
+  prefill?: string;
+  keep_prefill?: boolean;
 }
 
 export interface PromptEnhanceResponse {

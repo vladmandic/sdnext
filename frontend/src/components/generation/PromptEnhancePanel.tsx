@@ -29,6 +29,10 @@ function SwitchRow({ label, checked, onCheckedChange }: { label: string; checked
   );
 }
 
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return <Label className="text-[10px] uppercase tracking-wider text-muted-foreground/60 pt-1">{children}</Label>;
+}
+
 export function PromptEnhancePanel() {
   const { data: models } = usePromptEnhanceModels();
   const store = usePromptEnhanceStore();
@@ -48,7 +52,8 @@ export function PromptEnhancePanel() {
 
   return (
     <div className="flex flex-col gap-2.5 pt-2 pb-1">
-      {/* Model selector */}
+      {/* ── Model ── */}
+      <SectionLabel>Model</SectionLabel>
       <div className="flex flex-col gap-1">
         <div className="flex items-center">
           <Label className="text-[11px] text-muted-foreground">Model</Label>
@@ -64,46 +69,17 @@ export function PromptEnhancePanel() {
         />
       </div>
 
-      {/* Conditional toggles */}
-      {selectedModel?.vision && (
-        <SwitchRow label="Use vision" checked={store.useVision} onCheckedChange={store.setUseVision} />
-      )}
-      {selectedModel?.thinking && (
-        <SwitchRow label="Thinking mode" checked={store.thinking} onCheckedChange={store.setThinking} />
-      )}
-      {selectedModel?.thinking && store.thinking && (
-        <SwitchRow label="Keep thinking" checked={store.keepThinking} onCheckedChange={store.setKeepThinking} />
-      )}
-
-      <SwitchRow label="NSFW" checked={store.nsfw} onCheckedChange={store.setNsfw} />
-
-      {/* Sampling parameters */}
-      <ParamSlider label="Temp" value={store.temperature} onChange={store.setTemperature} min={0.1} max={2.0} step={0.05} />
-      <ParamSlider label="Rep. pen." value={store.repetitionPenalty} onChange={store.setRepetitionPenalty} min={1.0} max={2.0} step={0.05} />
-
-      {/* Number inputs row */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="flex flex-col gap-0.5">
-          <Label className="text-[10px] text-muted-foreground">Max tokens</Label>
-          <NumberInput value={store.maxTokens} onChange={store.setMaxTokens} min={64} max={2048} step={64} fallback={512} className="h-6 text-[11px] text-center px-1" />
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <Label className="text-[10px] text-muted-foreground">Top K</Label>
-          <NumberInput value={store.topK} onChange={store.setTopK} min={0} max={200} step={1} fallback={0} className="h-6 text-[11px] text-center px-1" />
-        </div>
-        <div className="flex flex-col gap-0.5">
-          <Label className="text-[10px] text-muted-foreground">Top P</Label>
-          <NumberInput value={store.topP} onChange={store.setTopP} min={0} max={1} step={0.05} fallback={0} className="h-6 text-[11px] text-center px-1" />
-        </div>
+      {/* ── Prompts ── */}
+      <SectionLabel>Prompts</SectionLabel>
+      <div className="flex flex-col gap-0.5">
+        <Label className="text-[10px] text-muted-foreground">System prompt</Label>
+        <Textarea
+          value={store.systemPrompt}
+          onChange={(e) => store.setSystemPrompt(e.target.value)}
+          placeholder="Custom system prompt..."
+          className="min-h-[40px] max-h-[80px] resize-y text-[11px]"
+        />
       </div>
-
-      {/* Seed */}
-      <div className="flex items-center gap-2">
-        <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Seed</Label>
-        <NumberInput value={store.seed} onChange={store.setSeed} min={-1} max={4294967294} step={1} fallback={-1} className="h-6 text-[11px] text-center px-1 flex-1" />
-      </div>
-
-      {/* Prefix / Suffix */}
       <div className="grid grid-cols-2 gap-2">
         <div className="flex flex-col gap-0.5">
           <Label className="text-[10px] text-muted-foreground">Prefix</Label>
@@ -115,15 +91,54 @@ export function PromptEnhancePanel() {
         </div>
       </div>
 
-      {/* System prompt */}
+      {/* ── Options ── */}
+      <SectionLabel>Options</SectionLabel>
+      {selectedModel?.vision && (
+        <SwitchRow label="Use vision" checked={store.useVision} onCheckedChange={store.setUseVision} />
+      )}
+      {selectedModel?.thinking && (
+        <SwitchRow label="Thinking mode" checked={store.thinking} onCheckedChange={store.setThinking} />
+      )}
+      {selectedModel?.thinking && store.thinking && (
+        <SwitchRow label="Keep thinking" checked={store.keepThinking} onCheckedChange={store.setKeepThinking} />
+      )}
+      <SwitchRow label="NSFW" checked={store.nsfw} onCheckedChange={store.setNsfw} />
       <div className="flex flex-col gap-0.5">
-        <Label className="text-[10px] text-muted-foreground">System prompt</Label>
-        <Textarea
-          value={store.systemPrompt}
-          onChange={(e) => store.setSystemPrompt(e.target.value)}
-          placeholder="Custom system prompt..."
-          className="min-h-[40px] max-h-[80px] resize-y text-[11px]"
-        />
+        <Label className="text-[10px] text-muted-foreground">Prefill</Label>
+        <Input value={store.prefill} onChange={(e) => store.setPrefill(e.target.value)} placeholder="Prefill model response..." className="h-6 text-[11px] px-2" />
+      </div>
+      {store.prefill.length > 0 && (
+        <SwitchRow label="Keep prefill" checked={store.keepPrefill} onCheckedChange={store.setKeepPrefill} />
+      )}
+
+      {/* ── Sampling ── */}
+      <SectionLabel>Sampling</SectionLabel>
+      <SwitchRow label="Do sample" checked={store.doSample} onCheckedChange={store.setDoSample} />
+      <div className={store.doSample ? "" : "opacity-40 pointer-events-none"}>
+        <div className="flex flex-col gap-2.5">
+          <ParamSlider label="Temp" value={store.temperature} onChange={store.setTemperature} min={0.1} max={2.0} step={0.05} />
+          <ParamSlider label="Rep. pen." value={store.repetitionPenalty} onChange={store.setRepetitionPenalty} min={1.0} max={2.0} step={0.05} />
+          <div className="grid grid-cols-3 gap-2">
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[10px] text-muted-foreground">Max tokens</Label>
+              <NumberInput value={store.maxTokens} onChange={store.setMaxTokens} min={64} max={2048} step={64} fallback={512} className="h-6 text-[11px] text-center px-1" />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[10px] text-muted-foreground">Top K</Label>
+              <NumberInput value={store.topK} onChange={store.setTopK} min={0} max={200} step={1} fallback={0} className="h-6 text-[11px] text-center px-1" />
+            </div>
+            <div className="flex flex-col gap-0.5">
+              <Label className="text-[10px] text-muted-foreground">Top P</Label>
+              <NumberInput value={store.topP} onChange={store.setTopP} min={0} max={1} step={0.05} fallback={0} className="h-6 text-[11px] text-center px-1" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Seed (always active) */}
+      <div className="flex items-center gap-2">
+        <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Seed</Label>
+        <NumberInput value={store.seed} onChange={store.setSeed} min={-1} max={4294967294} step={1} fallback={-1} className="h-6 text-[11px] text-center px-1 flex-1" />
       </div>
     </div>
   );

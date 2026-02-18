@@ -162,6 +162,8 @@ class APIProcess:
                 thinking=req.thinking,
                 keep_thinking=req.keep_thinking,
                 use_vision=req.use_vision,
+                prefill=req.prefill or '',
+                keep_prefill=req.keep_prefill,
                 image=decode_base64_to_image(req.image) if req.image else None,
                 seed=seed,
                 nsfw=req.nsfw,

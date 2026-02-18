@@ -34,6 +34,7 @@ export function PromptEditor() {
       suffix: enhanceStore.suffix || undefined,
       nsfw: enhanceStore.nsfw,
       seed: enhanceStore.seed,
+      do_sample: enhanceStore.doSample,
       max_tokens: enhanceStore.maxTokens,
       temperature: enhanceStore.temperature,
       repetition_penalty: enhanceStore.repetitionPenalty,
@@ -42,6 +43,8 @@ export function PromptEditor() {
       thinking: enhanceStore.thinking,
       keep_thinking: enhanceStore.keepThinking,
       use_vision: enhanceStore.useVision,
+      prefill: enhanceStore.prefill || undefined,
+      keep_prefill: enhanceStore.keepPrefill,
     };
     enhanceMutation.mutate(req, {
       onSuccess: (res) => {

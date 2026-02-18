@@ -369,6 +369,8 @@ class ReqPromptEnhance(BaseModel):
     thinking: bool = Field(title="Thinking", default=False, description="Enable thinking/reasoning mode")
     keep_thinking: bool = Field(title="Keep thinking", default=False, description="Keep thinking tokens in output")
     use_vision: bool = Field(title="Use vision", default=True, description="Use vision if model supports it")
+    prefill: Optional[str] = Field(title="Prefill", default=None, description="Text to prefill the model response with")
+    keep_prefill: bool = Field(title="Keep prefill", default=False, description="Keep prefill text in the output")
 
 class ResPromptEnhance(BaseModel):
     prompt: str = Field(title="Prompt", description="Enhanced prompt")
