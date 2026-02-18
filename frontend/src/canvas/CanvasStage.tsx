@@ -91,8 +91,8 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   }, [showInputFrame, maskPaint, panZoom]);
 
   const onClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (e.evt.button !== 0) return;
     if (showInputFrame) imageTransform.onStageClick(e);
-    // Control frame panels are now persistent - no auto-dismiss on click outside
   }, [showInputFrame, imageTransform]);
 
   return (

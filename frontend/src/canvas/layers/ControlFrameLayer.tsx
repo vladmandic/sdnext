@@ -228,6 +228,7 @@ interface ControlFrameProps {
 
 function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, onClick }: ControlFrameProps) {
   const handleClick = useCallback((e: import("konva/lib/Node").KonvaEventObject<MouseEvent>) => {
+    if (e.evt.button !== 0) return;
     onClick(frame.unitIndex, hasImage, e.evt.button);
   }, [onClick, frame.unitIndex, hasImage]);
 

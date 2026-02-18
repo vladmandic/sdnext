@@ -80,7 +80,7 @@ export function CompositeLayer({ trRef }: CompositeLayerProps) {
   }, [updateLayer, snap]);
 
   const handleClick = useCallback((layerId: string, e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (activeTool !== "move") return;
+    if (e.evt.button !== 0 || activeTool !== "move") return;
     e.cancelBubble = true;
     setActiveLayer(layerId);
   }, [activeTool, setActiveLayer]);
