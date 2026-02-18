@@ -58,6 +58,12 @@ export function computeFit(imgW: number, imgH: number, frameX: number, frameY: n
   };
 }
 
+/** Strip `data:...;base64,` prefix from a data URI, returning raw base64. */
+export function stripDataPrefix(dataUri: string): string {
+  const idx = dataUri.indexOf(",");
+  return idx >= 0 ? dataUri.slice(idx + 1) : dataUri;
+}
+
 export function createObjectUrl(base64: string, mimeType = "image/png"): string {
   const byteCharacters = atob(base64);
   const byteNumbers = new Array(byteCharacters.length);

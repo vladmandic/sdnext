@@ -88,9 +88,14 @@ export const ActionBar = memo(function ActionBar() {
       const result = await generate.mutateAsync(request);
       // Don't add result if generation was interrupted while awaiting
       if (!generatingRef.current) return;
-      // Store preprocessed composite from control pipeline (if returned)
+      // Update processed previews: when reprocess is on, replace stale per-unit previews with the new composite
       if (result.processed && result.processed.length > 0) {
-        useControlStore.getState().setCompositeProcessed(`data:image/png;base64,${result.processed[0]}`);
+        const composite = `data:image/png;base64,${result.processed[0]}`;
+        if (useUiStore.getState().reprocessOnGenerate) {
+          useControlStore.getState().replaceProcessedImages(composite);
+        } else {
+          useControlStore.getState().setCompositeProcessed(composite);
+        }
       }
       addResult({
         id: crypto.randomUUID(),

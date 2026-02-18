@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useControlStore } from "@/stores/controlStore";
 import { useCanvasStore } from "@/stores/canvasStore";
+import { useUiStore } from "@/stores/uiStore";
 import { ParamSlider } from "../ParamSlider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -23,10 +24,16 @@ export function ControlTab() {
   const units = useControlStore((s) => s.units);
   const addUnit = useControlStore((s) => s.addUnit);
   const setUnitCount = useControlStore((s) => s.setUnitCount);
+  const reprocessOnGenerate = useUiStore((s) => s.reprocessOnGenerate);
+  const setAutoUpdateProcessed = useUiStore((s) => s.setAutoUpdateProcessed);
 
   return (
     <div className="flex flex-col gap-3 text-sm">
       <ParamSlider label="Units" value={units.length} onChange={setUnitCount} min={1} max={10} />
+      <div className="flex items-center justify-between">
+        <Label className="text-[11px] text-muted-foreground" title="When on, preprocessors run fresh every generation. When off, manually processed images are used as-is.">Re-process on generate</Label>
+        <Switch checked={reprocessOnGenerate} onCheckedChange={setAutoUpdateProcessed} />
+      </div>
 
       <div className="flex flex-col gap-1.5">
         {units.map((_, i) => (

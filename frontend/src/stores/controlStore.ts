@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { ControlUnit, ControlUnitType, ControlUnitSnapshot } from "@/api/types/control";
-import { fileToBase64, base64ToFile } from "@/lib/image";
+import { fileToBase64, base64ToFile, stripDataPrefix } from "@/lib/image";
 
 function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
   return {
@@ -56,7 +56,9 @@ interface ControlState {
   setImageSource: (index: number, source: string) => void;
   addUnitMask: (index: number, file: File) => void;
   removeUnitMask: (index: number, maskIdx: number) => void;
+  clearProcessedImages: () => void;
   setCompositeProcessed: (image: string | null) => void;
+  replaceProcessedImages: (composite: string) => void;
   restoreUnits: (snapshots: ControlUnitSnapshot[]) => void;
   reset: () => void;
 }
@@ -187,7 +189,19 @@ export const useControlStore = create<ControlState>()((set) => ({
       return { units };
     }),
 
+  clearProcessedImages: () =>
+    set((state) => ({
+      compositeProcessed: null,
+      units: state.units.map((u) => (u.processedImage ? { ...u, processedImage: null } : u)),
+    })),
+
   setCompositeProcessed: (image) => set({ compositeProcessed: image }),
+
+  replaceProcessedImages: (composite) =>
+    set((state) => ({
+      compositeProcessed: composite,
+      units: state.units.map((u) => (u.processedImage ? { ...u, processedImage: null } : u)),
+    })),
 
   restoreUnits: (snapshots) =>
     set({
@@ -232,11 +246,6 @@ export const useControlStore = create<ControlState>()((set) => ({
 
   reset: () => set({ units: [defaultUnit()] }),
 }));
-
-function stripDataPrefix(dataUri: string): string {
-  const idx = dataUri.indexOf(",");
-  return idx >= 0 ? dataUri.slice(idx + 1) : dataUri;
-}
 
 /** Serialize all control units to JSON-safe snapshots (File → base64). */
 export async function snapshotUnits(): Promise<ControlUnitSnapshot[]> {

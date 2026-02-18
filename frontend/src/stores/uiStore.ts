@@ -28,6 +28,7 @@ interface UiState {
 
   // Canvas preferences
   autoFitFrame: boolean;
+  reprocessOnGenerate: boolean;
 
   // Appearance
   colorMode: ColorMode;
@@ -44,6 +45,7 @@ interface UiState {
   toggleViewCollapsed: () => void;
   setGenerationMode: (mode: GenerationMode) => void;
   setAutoFitFrame: (enabled: boolean) => void;
+  setAutoUpdateProcessed: (enabled: boolean) => void;
   toggleLeftPanel: () => void;
   setLeftPanelWidth: (width: number) => void;
   toggleRightPanel: () => void;
@@ -72,6 +74,7 @@ export const useUiStore = create<UiState>()(
       activeAsideTab: "networks" as AsideTab,
       generationMode: "txt2img" as GenerationMode,
       autoFitFrame: true,
+      reprocessOnGenerate: true,
       colorMode: "dark" as ColorMode,
       accentColor: "#00bcd4",
       cornerStyle: "rounded" as CornerStyle,
@@ -85,6 +88,7 @@ export const useUiStore = create<UiState>()(
       toggleViewCollapsed: () => set((s) => ({ viewCollapsed: !s.viewCollapsed })),
       setGenerationMode: (mode) => set({ generationMode: mode }),
       setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
+      setAutoUpdateProcessed: (enabled) => set({ reprocessOnGenerate: enabled }),
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),
       setLeftPanelWidth: (width) => set({ leftPanelWidth: Math.max(280, Math.min(600, width)) }),
       toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),

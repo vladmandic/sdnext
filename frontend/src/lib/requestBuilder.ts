@@ -5,7 +5,7 @@ import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
-import { fileToBase64 } from "@/lib/image";
+import { fileToBase64, stripDataPrefix } from "@/lib/image";
 import { exportMaskToBase64 } from "@/lib/exportMask";
 import { flattenCanvas } from "@/lib/flattenCanvas";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
@@ -158,20 +158,29 @@ export async function buildControlRequest(): Promise<ControlRequest> {
   }
 
   if (controlUnitEntries.length > 0) {
+    const reprocess = ui.reprocessOnGenerate;
     request.control = await Promise.all(
-      controlUnitEntries.map(async (e) => ({
-        process: e.unit.processor,
-        model: e.unit.model,
-        strength: e.unit.strength,
-        start: e.unit.start,
-        end: e.unit.end,
-        override: e.image ? await fileToBase64(e.image) : undefined,
-        unit_type: TYPE_MAP[e.unit.unitType] ?? e.unit.unitType,
-        mode: e.unit.mode,
-        ...(e.unit.unitType === "controlnet" ? { guess: e.unit.guess } : {}),
-        ...(e.unit.unitType === "t2i" ? { factor: e.unit.factor } : {}),
-        ...(e.unit.unitType === "reference" ? { attention: e.unit.attention, fidelity: e.unit.fidelity, query_weight: e.unit.queryWeight, adain_weight: e.unit.adainWeight } : {}),
-      })),
+      controlUnitEntries.map(async (e) => {
+        // When reprocess is off and a manual preview exists, send the processed image
+        // as override with process=None so the backend uses it as-is.
+        const hasManualPreview = !reprocess && e.unit.processedImage;
+        const overrideB64 = hasManualPreview
+          ? stripDataPrefix(e.unit.processedImage!)
+          : e.image ? await fileToBase64(e.image) : undefined;
+        return {
+          process: hasManualPreview ? "None" : e.unit.processor,
+          model: e.unit.model,
+          strength: e.unit.strength,
+          start: e.unit.start,
+          end: e.unit.end,
+          override: overrideB64,
+          unit_type: TYPE_MAP[e.unit.unitType] ?? e.unit.unitType,
+          mode: e.unit.mode,
+          ...(e.unit.unitType === "controlnet" ? { guess: e.unit.guess } : {}),
+          ...(e.unit.unitType === "t2i" ? { factor: e.unit.factor } : {}),
+          ...(e.unit.unitType === "reference" ? { attention: e.unit.attention, fidelity: e.unit.fidelity, query_weight: e.unit.queryWeight, adain_weight: e.unit.adainWeight } : {}),
+        };
+      }),
     );
   }
 
