@@ -129,7 +129,7 @@ class Agent:
             return "v2-staging/gfx1152"
         if self.gfx_version == 0x1153:
             return "v2-staging/gfx1153"
-        if self.gfx_version in (0x1030, 0x1032,):
+        if self.gfx_version in (0x1030, 0x1031, 0x1032, 0x1034,):
             return "v2-staging/gfx103X-dgpu"
         #if (self.gfx_version & 0xFFF0) == 0x1010:
         #    return "gfx101X-dgpu"
