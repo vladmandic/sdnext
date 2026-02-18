@@ -22,6 +22,8 @@ ignore_endpoints = [
     '/sdapi/v1/gpu',
     '/sdapi/v1/network/thumb',
     '/sdapi/v1/progress',
+    '/sdapi/v1/memory',
+    '/sdapi/v1/loaded-models',
 ]
 
 
