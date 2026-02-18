@@ -17,6 +17,15 @@ class ItemControl(BaseModel):
     start: float = Field(title="Control model start", default=0.0, description="Step fraction at which control begins (0.0-1.0)")
     end: float = Field(title="Control model end", default=1.0, description="Step fraction at which control ends (0.0-1.0)")
     override: str = Field(title="Override image", default=None, description="Base64 encoded override image, bypasses preprocessor")
+    unit_type: Optional[str] = Field(default=None, description="Per-unit type override (controlnet, t2i adapter, xs, lite, reference)")
+    mode: str = Field(default="default", description="Control mode for Union/ProMax models")
+    guess: bool = Field(default=False, description="Guess mode (ControlNet only)")
+    factor: float = Field(default=1.0, description="Adapter factor (T2I only)")
+    attention: str = Field(default="Attention", description="Reference attention type")
+    fidelity: float = Field(default=0.5, description="Reference fidelity")
+    query_weight: float = Field(default=1.0, description="Reference query weight")
+    adain_weight: float = Field(default=1.0, description="Reference adain weight")
+    image: Optional[str] = Field(default=None, description="Alias for override — base64 control image")
 
 
 class ItemXYZ(BaseModel):
@@ -48,7 +57,8 @@ ReqControl = models.create_model_from_signature(
         {"key": "face", "type": Optional[models.ItemFace], "default": None, "exclude": True},
         {"key": "control", "type": Optional[list[ItemControl]], "default": [], "exclude": True},
         {"key": "xyz", "type": Optional[ItemXYZ], "default": None, "exclude": True},
-        # {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
+        {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
+        {"key": "init_control", "type": Optional[list], "default": None, "exclude": True},
     ]
 )
 if not hasattr(ReqControl, "__config__"):
@@ -76,6 +86,11 @@ class APIControl:
         args.pop('face_id', None)
         args.pop('ip_adapter', None)
         args.pop('save_images', None)
+        args.pop('init_control', None)
+        args.pop('mask_blur', None)
+        args.pop('inpaint_full_res', None)
+        args.pop('inpaint_full_res_padding', None)
+        args.pop('inpainting_mask_invert', None)
         args['override_script_name'] = args.pop('script_name', None)
         args['override_script_args'] = args.pop('script_args', None)
         return args
@@ -154,14 +169,18 @@ class APIControl:
     def prepare_control(self, req):
         from modules.control.unit import Unit, unit_types
         req.units = []
-        if req.unit_type is None:
-            req.unit_type = 'controlnet'
-        if req.unit_type not in unit_types:
-            log.error(f'Control uknown unit type: type={req.unit_type} available={unit_types}')
-            return
+        default_type = req.unit_type if req.unit_type is not None else 'controlnet'
+        # Set top-level unit_type from first unit (control_run filters units by this)
+        if req.control:
+            first_type = req.control[0].unit_type if req.control[0].unit_type is not None else default_type
+            req.unit_type = first_type
         for i in range(len(req.control)):
             u = req.control[i]
-            if (len(self.units) > i) and (self.units[i].process_id == u.process) and (self.units[i].model_id == u.model):
+            ut = u.unit_type if u.unit_type is not None else default_type
+            if ut not in unit_types:
+                shared.log.error(f'Control unknown unit type: type={ut} available={unit_types}')
+                continue
+            if (len(self.units) > i) and (self.units[i].process_id == u.process) and (self.units[i].model_id == u.model) and (self.units[i].type == ut):
                 unit = self.units[i]
                 unit.enabled = True
                 unit.strength = u.strength
@@ -170,15 +189,34 @@ class APIControl:
             else:
                 unit = Unit(
                     enabled = True,
-                    unit_type = req.unit_type,
+                    unit_type = ut,
                     model_id = u.model,
                     process_id = u.process,
                     strength = u.strength,
                     start = u.start,
                     end = u.end,
                 )
-            if u.override is not None:
-                unit.override = helpers.decode_base64_to_image(u.override)
+            # Extended per-unit properties
+            unit.guess = u.guess
+            unit.factor = u.factor
+            unit.attention = u.attention
+            unit.fidelity = u.fidelity
+            unit.query_weight = u.query_weight
+            unit.adain_weight = u.adain_weight
+            unit.update_choices(u.model)
+            # Keep mode as string — run.py expects str and converts to index
+            if u.mode != "default" and u.mode in unit.choices:
+                unit.mode = u.mode
+            else:
+                unit.mode = unit.choices[0] if unit.choices else "default"
+            # Always clear process.override so init_units() re-sets it from unit.override
+            # This ensures the preprocessor runs fresh every generation (not reusing stale cached results)
+            if unit.process is not None:
+                unit.process.override = None
+            # Override image: use 'override' field, fall back to 'image' alias
+            override_b64 = u.override if u.override is not None else u.image
+            if override_b64 is not None:
+                unit.override = helpers.decode_base64_to_image(override_b64)
             req.units.append(unit)
         self.units = req.units
         del req.control
@@ -190,18 +228,27 @@ class APIControl:
         self.prepare_control(req)
         self.prepare_xyz_grid(req)
 
-        # prepare scripts
+        # Merge init_control images into inits
+        init_control = getattr(req, "init_control", None)
+        decoded_inits = [helpers.decode_base64_to_image(x) for x in req.inits] if req.inits else None
+        if init_control:
+            extra_inits = [helpers.decode_base64_to_image(x) for x in init_control]
+            decoded_inits = (decoded_inits or []) + extra_inits
+
+        # Extract excluded fields before copy (Pydantic exclude=True drops them from copy)
+        extra = getattr(req, "extra", {}) or {}
 
         # prepare args
-        args = req.copy(update={ # Override __init__ params
+        args = req.copy(update={
             "sampler_index": processing_helpers.get_sampler_index(req.sampler_name),
             "is_generator": True,
             "inputs": [helpers.decode_base64_to_image(x) for x in req.inputs] if req.inputs else None,
-            "inits": [helpers.decode_base64_to_image(x) for x in req.inits] if req.inits else None,
+            "inits": decoded_inits,
             "mask": helpers.decode_base64_to_image(req.mask) if req.mask else None,
         })
 
         args = self.sanitize_args(args)
+        args['extra'] = extra
         send_images = args.pop('send_images', True)
 
         # run
@@ -210,12 +257,17 @@ class APIControl:
             output_images = []
             output_processed = []
             output_info = ''
-            run.control_set({
+            extra_p_args = {
                 'do_not_save_grid': not req.save_images,
                 'do_not_save_samples': not req.save_images,
                 **self.prepare_ip_adapter(req),
-            })
-            run.control_set(getattr(req, "extra", {}))
+            }
+            # Forward inpainting fields
+            for field in ('mask_blur', 'inpaint_full_res', 'inpaint_full_res_padding', 'inpainting_mask_invert'):
+                val = getattr(req, field, None)
+                if val is not None:
+                    extra_p_args[field] = val
+            run.control_set(extra_p_args)
             # run
             res = run.control_run(**args)
             for item in res:
