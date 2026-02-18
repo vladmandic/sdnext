@@ -10,39 +10,43 @@ import { exportMaskToBase64 } from "@/lib/exportMask";
 import { flattenCanvas } from "@/lib/flattenCanvas";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
-import type { Txt2ImgRequest, Img2ImgRequest, GenerationInfo } from "@/api/types/generation";
+import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
 
-export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
+export async function buildControlRequest(): Promise<ControlRequest> {
   const gen = useGenerationStore.getState();
   const scripts = useScriptStore.getState();
   const control = useControlStore.getState();
+  const img2img = useImg2ImgStore.getState();
+  const canvas = useCanvasStore.getState();
+  const ui = useUiStore.getState();
 
-  const request: Txt2ImgRequest = {
+  const isImg2Img = ui.generationMode === "img2img";
+
+  const request: ControlRequest = {
     prompt: gen.prompt,
     negative_prompt: gen.negativePrompt,
     sampler_name: gen.sampler,
     steps: gen.steps,
-    width: gen.width,
-    height: gen.height,
+    width_before: gen.width,
+    height_before: gen.height,
     cfg_scale: gen.cfgScale,
     save_images: true,
     cfg_end: gen.cfgEnd,
     diffusers_guidance_rescale: gen.guidanceRescale,
     image_cfg_scale: gen.imageCfgScale,
-    diffusers_pag_scale: gen.pagScale,
-    diffusers_pag_adaptive: gen.pagAdaptive,
+    pag_scale: gen.pagScale,
+    pag_adaptive: gen.pagAdaptive,
     seed: gen.seed,
     subseed: gen.subseed,
     subseed_strength: gen.subseedStrength,
     batch_size: gen.batchSize,
-    n_iter: gen.batchCount,
+    batch_count: gen.batchCount,
     denoising_strength: gen.denoisingStrength,
     enable_hr: gen.hiresEnabled,
     hr_upscaler: gen.hiresUpscaler,
     hr_scale: gen.hiresScale,
     hr_second_pass_steps: gen.hiresSteps,
     hr_denoising_strength: gen.hiresDenoising,
-    hr_sampler_name: gen.hiresSampler || undefined,
     hr_force: gen.hiresForce,
     hr_resize_mode: gen.hiresResizeMode,
     hr_resize_x: gen.hiresResizeX,
@@ -67,7 +71,7 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     hdr_max_center: gen.hdrMaxCenter,
     hdr_max_boundary: gen.hdrMaxBoundary,
     hdr_tint_ratio: gen.hdrTintRatio,
-    override_settings: {
+    extra: {
       schedulers_sigma: gen.sigmaMethod,
       schedulers_timestep_spacing: gen.timestepSpacing,
       schedulers_beta_schedule: gen.betaSchedule,
@@ -99,8 +103,8 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     request.detailer_merge = gen.detailerMerge;
     request.detailer_sort = gen.detailerSort;
     request.detailer_classes = gen.detailerClasses || undefined;
-    request.override_settings = {
-      ...request.override_settings,
+    request.extra = {
+      ...request.extra,
       detailer_models: gen.detailerModels,
       detailer_max: gen.detailerMaxDetected,
       detailer_padding: gen.detailerPadding,
@@ -154,16 +158,15 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
   }
 
   if (controlUnitEntries.length > 0) {
-    request.control_units = await Promise.all(
+    request.control = await Promise.all(
       controlUnitEntries.map(async (e) => ({
-        enabled: true,
-        unit_type: TYPE_MAP[e.unit.unitType] ?? e.unit.unitType,
-        processor: e.unit.processor,
+        process: e.unit.processor,
         model: e.unit.model,
         strength: e.unit.strength,
         start: e.unit.start,
         end: e.unit.end,
-        image: e.image ? await fileToBase64(e.image) : "",
+        override: e.image ? await fileToBase64(e.image) : undefined,
+        unit_type: TYPE_MAP[e.unit.unitType] ?? e.unit.unitType,
         mode: e.unit.mode,
         ...(e.unit.unitType === "controlnet" ? { guess: e.unit.guess } : {}),
         ...(e.unit.unitType === "t2i" ? { factor: e.unit.factor } : {}),
@@ -176,60 +179,53 @@ export async function buildTxt2ImgRequest(): Promise<Txt2ImgRequest> {
     request.init_control = await Promise.all(assetUnitEntries.map((e) => fileToBase64(e.image!)));
   }
 
+  // img2img: add inputs, mask, inpainting params
+  if (isImg2Img) {
+    const frameW = gen.width;
+    const frameH = gen.height;
+    const isAutoFit = ui.autoFitFrame;
+    const effectiveSizeMode: SizeMode = isAutoFit ? img2img.sizeMode : "fixed";
+    const genSize = resolveGenerationSize(effectiveSizeMode, frameW, frameH, img2img.scaleFactor, img2img.megapixelTarget);
+
+    request.width_before = genSize.width;
+    request.height_before = genSize.height;
+    request.input_type = 1;
+
+    // Flatten all image layers at full frame size
+    const imageLayers = canvas.layers.filter((l) => l.type === "image") as ImageLayer[];
+    const flattenedBase64 = await flattenCanvas(imageLayers, frameW, frameH);
+    if (flattenedBase64) {
+      request.inputs = [flattenedBase64];
+    }
+
+    // Force resize_mode_before=1 when scale/megapixel so backend resizes init image to target
+    if (effectiveSizeMode !== "fixed") {
+      request.resize_mode_before = 1;
+    }
+
+    // Export mask from painted strokes if no explicit maskData
+    let maskData = img2img.maskData;
+    if (!maskData && img2img.maskLines.length > 0) {
+      maskData = exportMaskToBase64(img2img.maskLines, frameW, frameH);
+    }
+    if (maskData) {
+      request.mask = maskData;
+      request.mask_blur = img2img.maskBlur;
+      request.inpaint_full_res = img2img.inpaintFullRes;
+      request.inpaint_full_res_padding = img2img.inpaintFullResPadding;
+      request.inpainting_mask_invert = img2img.inpaintingMaskInvert ? 1 : 0;
+    }
+  }
+
   // User override settings (merged last to take priority)
   if (Object.keys(gen.overrideSettings).length > 0) {
-    request.override_settings = {
-      ...request.override_settings,
+    request.extra = {
+      ...request.extra,
       ...gen.overrideSettings,
     };
   }
 
   return request;
-}
-
-export async function buildImg2ImgRequest(): Promise<Img2ImgRequest> {
-  const baseRequest = await buildTxt2ImgRequest();
-  const img2img = useImg2ImgStore.getState();
-  const gen = useGenerationStore.getState();
-  const canvas = useCanvasStore.getState();
-  const ui = useUiStore.getState();
-
-  // Frame dimensions (native image size on canvas)
-  const frameW = gen.width;
-  const frameH = gen.height;
-
-  // Determine effective size mode
-  const isAutoFit = ui.generationMode === "img2img" && ui.autoFitFrame;
-  const effectiveSizeMode: SizeMode = isAutoFit ? img2img.sizeMode : "fixed";
-
-  // Compute generation size (may differ from frame when using scale/megapixel)
-  const genSize = resolveGenerationSize(effectiveSizeMode, frameW, frameH, img2img.scaleFactor, img2img.megapixelTarget);
-
-  // Flatten all image layers at full frame size
-  const imageLayers = canvas.layers.filter((l) => l.type === "image") as ImageLayer[];
-  const flattenedBase64 = await flattenCanvas(imageLayers, frameW, frameH);
-
-  // Export mask from painted strokes if no explicit maskData
-  let maskData = img2img.maskData;
-  if (!maskData && img2img.maskLines.length > 0) {
-    maskData = exportMaskToBase64(img2img.maskLines, frameW, frameH);
-  }
-
-  // Force resize_mode=1 when scale/megapixel so backend resizes the full-res init image to target
-  const resizeMode = effectiveSizeMode !== "fixed" ? 1 : img2img.resizeMode;
-
-  return {
-    ...baseRequest,
-    width: genSize.width,
-    height: genSize.height,
-    init_images: flattenedBase64 ? [flattenedBase64] : [],
-    resize_mode: resizeMode,
-    mask: maskData || undefined,
-    mask_blur: img2img.maskBlur,
-    inpaint_full_res: img2img.inpaintFullRes,
-    inpaint_full_res_padding: img2img.inpaintFullResPadding,
-    inpainting_mask_invert: img2img.inpaintingMaskInvert ? 1 : 0,
-  };
 }
 
 /** Restore generation store state from a previous result. */
@@ -241,7 +237,8 @@ export function restoreFromResult(result: GenerationResult): void {
   try { info = JSON.parse(result.info) as GenerationInfo; }
   catch { /* ignore */ }
 
-  const overrides = (p.override_settings ?? {}) as Record<string, unknown>;
+  // Handle both control (extra) and legacy (override_settings) field names
+  const overrides = (p.extra ?? p.override_settings ?? {}) as Record<string, unknown>;
 
   const num = (v: unknown, fallback: number) => typeof v === "number" ? v : fallback;
   const str = (v: unknown, fallback: string) => typeof v === "string" ? v : fallback;
@@ -256,21 +253,21 @@ export function restoreFromResult(result: GenerationResult): void {
     sampler: str(p.sampler_name, "Euler"),
     steps: num(p.steps, 20),
 
-    // Resolution
-    width: num(p.width, 1024),
-    height: num(p.height, 1024),
+    // Resolution — control uses width_before/height_before, legacy uses width/height
+    width: num(p.width_before ?? p.width, 1024),
+    height: num(p.height_before ?? p.height, 1024),
 
-    // Batch
+    // Batch — control uses batch_count, legacy uses n_iter
     batchSize: num(p.batch_size, 1),
-    batchCount: num(p.n_iter, 1),
+    batchCount: num(p.batch_count ?? p.n_iter, 1),
 
-    // Guidance
+    // Guidance — control uses pag_scale/pag_adaptive, legacy uses diffusers_ prefix
     cfgScale: num(p.cfg_scale, 7),
     cfgEnd: num(p.cfg_end, 1),
     guidanceRescale: num(p.diffusers_guidance_rescale, 0),
     imageCfgScale: num(p.image_cfg_scale, 6),
-    pagScale: num(p.diffusers_pag_scale, 0),
-    pagAdaptive: num(p.diffusers_pag_adaptive, 0.5),
+    pagScale: num(p.pag_scale ?? p.diffusers_pag_scale, 0),
+    pagAdaptive: num(p.pag_adaptive ?? p.diffusers_pag_adaptive, 0.5),
     denoisingStrength: num(p.denoising_strength, 0.5),
 
     // Seed — use resolved values from info when available
@@ -364,8 +361,8 @@ export function restoreFromResult(result: GenerationResult): void {
 
   // Restore input image and mask if present (img2img history)
   if (result.inputImage) {
-    const w = num(p.width, 1024);
-    const h = num(p.height, 1024);
+    const w = num(p.width_before ?? p.width, 1024);
+    const h = num(p.height_before ?? p.height, 1024);
     useCanvasStore.getState().restoreImageLayer(result.inputImage, w, h);
     useUiStore.getState().setGenerationMode("img2img");
 

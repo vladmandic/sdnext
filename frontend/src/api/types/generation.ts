@@ -1,14 +1,32 @@
-export interface Txt2ImgRequest {
+export interface ControlRequestUnit {
+  process: string;
+  model: string;
+  strength: number;
+  start: number;
+  end: number;
+  override?: string;
+  unit_type?: string;
+  mode?: string;
+  guess?: boolean;
+  factor?: number;
+  attention?: string;
+  fidelity?: number;
+  query_weight?: number;
+  adain_weight?: number;
+  image?: string;
+}
+
+export interface ControlRequest {
   prompt: string;
   negative_prompt?: string;
   sampler_name?: string;
   steps?: number;
-  width?: number;
-  height?: number;
+  width_before?: number;
+  height_before?: number;
   cfg_scale?: number;
   seed?: number;
   batch_size?: number;
-  n_iter?: number;
+  batch_count?: number;
   denoising_strength?: number;
   enable_hr?: boolean;
   hr_upscaler?: string;
@@ -17,17 +35,16 @@ export interface Txt2ImgRequest {
   hr_resize_x?: number;
   hr_resize_y?: number;
   hr_denoising_strength?: number;
-  hr_sampler_name?: string;
+  hr_resize_mode?: number;
+  hr_resize_context?: string;
+  hr_force?: boolean;
   cfg_end?: number;
   diffusers_guidance_rescale?: number;
   image_cfg_scale?: number;
-  diffusers_pag_scale?: number;
-  diffusers_pag_adaptive?: number;
+  pag_scale?: number;
+  pag_adaptive?: number;
   subseed?: number;
   subseed_strength?: number;
-  hr_force?: boolean;
-  hr_resize_mode?: number;
-  hr_resize_context?: string;
   refiner_steps?: number;
   refiner_start?: number;
   refiner_prompt?: string;
@@ -58,6 +75,15 @@ export interface Txt2ImgRequest {
   detailer_merge?: boolean;
   detailer_sort?: boolean;
   detailer_classes?: string;
+  input_type?: number;
+  inputs?: string[];
+  inits?: string[];
+  mask?: string;
+  mask_blur?: number;
+  inpaint_full_res?: boolean;
+  inpaint_full_res_padding?: number;
+  inpainting_mask_invert?: number;
+  resize_mode_before?: number;
   ip_adapter?: Array<{
     adapter: string;
     images: string[];
@@ -68,48 +94,20 @@ export interface Txt2ImgRequest {
     crop: boolean;
   }>;
   init_control?: string[];
-  control_units?: Array<{
-    enabled: boolean;
-    unit_type: string;
-    processor: string;
-    model: string;
-    image: string;
-    strength: number;
-    start: number;
-    end: number;
-    guess?: boolean;
-    factor?: number;
-    attention?: string;
-    fidelity?: number;
-    query_weight?: number;
-    adain_weight?: number;
-  }>;
+  control?: ControlRequestUnit[];
+  extra?: Record<string, unknown>;
   script_name?: string;
   script_args?: unknown[];
   send_images?: boolean;
   save_images?: boolean;
   alwayson_scripts?: Record<string, unknown>;
-  override_settings?: Record<string, unknown>;
 }
 
-export interface Img2ImgRequest extends Txt2ImgRequest {
-  init_images?: string[];
-  mask?: string;
-  mask_blur?: number;
-  denoising_strength?: number;
-  resize_mode?: number;
-  image_cfg_scale?: number;
-  inpaint_full_res?: boolean;
-  inpaint_full_res_padding?: number;
-  inpainting_fill?: number;
-  inpainting_mask_invert?: number;
-}
-
-export interface GenerationResponse {
+export interface ControlResponse {
   images: string[];
-  parameters: Record<string, unknown>;
+  processed: string[];
+  params: Record<string, unknown>;
   info: string;
-  processed_images?: string[];
 }
 
 export interface GenerationInfo {

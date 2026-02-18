@@ -2,10 +2,10 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { useTxt2Img, useImg2Img, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
-import { buildTxt2ImgRequest, buildImg2ImgRequest, restoreFromResult } from "@/lib/requestBuilder";
+import { useGenerate, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
+import { buildControlRequest, restoreFromResult } from "@/lib/requestBuilder";
 import { snapshotUnits, useControlStore } from "@/stores/controlStore";
-import type { Img2ImgRequest } from "@/api/types/generation";
+import type { ControlRequest } from "@/api/types/generation";
 import { Play, Square, SkipForward, Loader2, History } from "lucide-react";
 import { useEffect, useRef, useCallback, memo } from "react";
 import { toast } from "sonner";
@@ -24,8 +24,7 @@ export const ActionBar = memo(function ActionBar() {
   const lastResult = useGenerationStore((s) => s.results[0]);
   const generationMode = useUiStore((s) => s.generationMode);
   const hasLayers = useCanvasStore((s) => s.layers.length > 0);
-  const txt2img = useTxt2Img();
-  const img2img = useImg2Img();
+  const generate = useGenerate();
   const interrupt = useInterrupt();
   const skip = useSkip();
   const generatingRef = useRef(false);
@@ -78,29 +77,25 @@ export const ActionBar = memo(function ActionBar() {
     clearSelection();
     try {
       const isImg2Img = generationMode === "img2img";
-      const request = isImg2Img
-        ? await buildImg2ImgRequest()
-        : await buildTxt2ImgRequest();
+      const request = await buildControlRequest();
 
       // Snapshot input state before the (possibly slow) API call
-      const inputImage = isImg2Img ? (request as Img2ImgRequest).init_images?.[0] : undefined;
+      const inputImage = isImg2Img ? (request as ControlRequest).inputs?.[0] : undefined;
       const maskLines = useImg2ImgStore.getState().maskLines;
       const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
       const controlUnits = await snapshotUnits();
 
-      const result = isImg2Img
-        ? await img2img.mutateAsync(request as Img2ImgRequest)
-        : await txt2img.mutateAsync(request);
+      const result = await generate.mutateAsync(request);
       // Don't add result if generation was interrupted while awaiting
       if (!generatingRef.current) return;
       // Store preprocessed composite from control pipeline (if returned)
-      if (result.processed_images && result.processed_images.length > 0) {
-        useControlStore.getState().setCompositeProcessed(`data:image/png;base64,${result.processed_images[0]}`);
+      if (result.processed && result.processed.length > 0) {
+        useControlStore.getState().setCompositeProcessed(`data:image/png;base64,${result.processed[0]}`);
       }
       addResult({
         id: crypto.randomUUID(),
         images: result.images,
-        parameters: result.parameters,
+        parameters: result.params,
         info: result.info,
         timestamp: Date.now(),
         inputImage,
@@ -113,7 +108,7 @@ export const ActionBar = memo(function ActionBar() {
       generatingRef.current = false;
       setGenerating(false);
     }
-  }, [txt2img, img2img, generationMode, setGenerating, setPreview, addResult, clearSelection]);
+  }, [generate, generationMode, setGenerating, setPreview, addResult, clearSelection]);
 
   const handleInterrupt = useCallback(() => {
     interrupt.mutate();

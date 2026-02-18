@@ -1,26 +1,19 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "../client";
-import type { Txt2ImgRequest, Img2ImgRequest, GenerationResponse } from "../types/generation";
+import type { ControlRequest, ControlResponse } from "../types/generation";
 import type { ResProgress, ResStatus } from "../types/progress";
 
-export function useTxt2Img() {
+export function useGenerate() {
   return useMutation({
-    mutationFn: (params: Txt2ImgRequest) =>
-      api.post<GenerationResponse>("/sdapi/v1/txt2img", params),
-  });
-}
-
-export function useImg2Img() {
-  return useMutation({
-    mutationFn: (params: Img2ImgRequest) =>
-      api.post<GenerationResponse>("/sdapi/v1/img2img", params),
+    mutationFn: (params: ControlRequest) =>
+      api.post<ControlResponse>("/sdapi/v1/control", params),
   });
 }
 
 /**
  * Base URL that bypasses the Vite dev proxy.
  *
- * During generation the txt2img POST blocks the Vite proxy's connection pool,
+ * During generation the control POST blocks the Vite proxy's connection pool,
  * so lightweight polling GETs must go directly to the backend.
  */
 function getDirectUrl(path: string): string {
