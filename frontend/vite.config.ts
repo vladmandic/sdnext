@@ -58,8 +58,9 @@ export default defineConfig(({ mode }) => {
     port: 5173,
     allowedHosts: true,
     proxy: {
-      "/sdapi/v1/ws": { target: "http://localhost:7860", ws: true },
-      "/sdapi/v1/browser/files": { target: "http://localhost:7860", ws: true },
+      "/sdapi/v2/ws": { target: "http://localhost:7860", ws: true },
+      "/sdapi/v2/browser/files": { target: "http://localhost:7860", ws: true },
+      "/sdapi/v2/jobs": { target: "http://localhost:7860", ws: true },
       "/sdapi": "http://localhost:7860",
       "/internal": "http://localhost:7860",
       "/file": "http://localhost:7860",

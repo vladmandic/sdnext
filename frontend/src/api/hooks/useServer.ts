@@ -4,7 +4,7 @@ import type { ResMemory, ResGPU, ServerInfo, VersionInfo, LoadedModel } from "..
 
 async function fetchServerInfo(): Promise<ServerInfo> {
   try {
-    return await api.get<ServerInfo>("/sdapi/v1/server-info");
+    return await api.get<ServerInfo>("/sdapi/v2/server-info");
   } catch {
     // Fall back to /version for backends without server-info endpoint
     const version = await api.get<VersionInfo>("/sdapi/v1/version");
@@ -13,7 +13,7 @@ async function fetchServerInfo(): Promise<ServerInfo> {
       backend: "diffusers",
       platform: "",
       gpu: "",
-      api_version: "v1",
+      api_version: "v2",
       capabilities: { txt2img: true, img2img: true, control: true, video: false, websocket: false },
       model: { name: null, type: null },
     };
@@ -56,7 +56,7 @@ export function useGpuStatus() {
 export function useLoadedModels() {
   return useQuery({
     queryKey: ["loaded-models"],
-    queryFn: () => api.get<LoadedModel[]>("/sdapi/v1/loaded-models"),
+    queryFn: () => api.get<LoadedModel[]>("/sdapi/v2/loaded-models"),
     refetchInterval: 10_000,
     staleTime: 5_000,
   });

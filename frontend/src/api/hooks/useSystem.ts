@@ -31,7 +31,7 @@ export function useSystemInfoFull() {
 export function useUpdateCheck() {
   return useQuery({
     queryKey: ["update-check"],
-    queryFn: () => api.get<UpdateCheckResult>("/sdapi/v1/update/check"),
+    queryFn: () => api.get<UpdateCheckResult>("/sdapi/v2/update/check"),
     enabled: false,
   });
 }
@@ -39,7 +39,7 @@ export function useUpdateCheck() {
 export function useBenchmarkResults() {
   return useQuery({
     queryKey: ["benchmark-results"],
-    queryFn: () => api.get<BenchmarkHistory>("/sdapi/v1/benchmark/results"),
+    queryFn: () => api.get<BenchmarkHistory>("/sdapi/v2/benchmark/results"),
     enabled: false,
   });
 }
@@ -47,7 +47,7 @@ export function useBenchmarkResults() {
 export function useRestartServer() {
   return useMutation({
     mutationKey: ["server-restart"],
-    mutationFn: () => api.post("/sdapi/v1/server/restart"),
+    mutationFn: () => api.post("/sdapi/v2/server/restart"),
   });
 }
 
@@ -61,7 +61,7 @@ export function useShutdownServer() {
 export function useToggleProfiling() {
   return useMutation({
     mutationKey: ["server-profiling"],
-    mutationFn: () => api.post<{ enabled: boolean }>("/sdapi/v1/server/profiling"),
+    mutationFn: () => api.post<{ enabled: boolean }>("/sdapi/v2/server/profiling"),
   });
 }
 
@@ -69,7 +69,7 @@ export function useApplyUpdate() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["update-apply"],
-    mutationFn: (req: UpdateApplyRequest) => api.post<UpdateApplyResult>("/sdapi/v1/update/apply", req),
+    mutationFn: (req: UpdateApplyRequest) => api.post<UpdateApplyResult>("/sdapi/v2/update/apply", req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["update-check"] });
       queryClient.invalidateQueries({ queryKey: ["server-info"] });
@@ -81,7 +81,7 @@ export function useRunBenchmark() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: ["benchmark-run"],
-    mutationFn: (req: BenchmarkRunRequest) => api.post<BenchmarkRunResult>("/sdapi/v1/benchmark/run", req),
+    mutationFn: (req: BenchmarkRunRequest) => api.post<BenchmarkRunResult>("/sdapi/v2/benchmark/run", req),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["benchmark-results"] });
     },

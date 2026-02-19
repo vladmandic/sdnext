@@ -15,7 +15,7 @@ const inflightIds = new Set<string>();
 export function useBrowserFolders() {
   return useQuery({
     queryKey: ["browser", "folders"],
-    queryFn: () => api.get<BrowserFolder[]>("/sdapi/v1/browser/folders"),
+    queryFn: () => api.get<BrowserFolder[]>("/sdapi/v2/browser/folders"),
     staleTime: 60_000,
   });
 }
@@ -23,7 +23,7 @@ export function useBrowserFolders() {
 export function useSubdirs(folder: string | null) {
   return useQuery({
     queryKey: ["browser", "subdirs", folder],
-    queryFn: () => api.get<BrowserSubdir[]>("/sdapi/v1/browser/subdirs", { folder: folder! }),
+    queryFn: () => api.get<BrowserSubdir[]>("/sdapi/v2/browser/subdirs", { folder: folder! }),
     enabled: folder !== null,
     staleTime: 30_000,
   });
@@ -134,7 +134,7 @@ function streamFiles(
   onFile?: (file: GalleryFile) => void,
 ): Promise<StreamResult> {
   return new Promise((resolve, reject) => {
-    const wsUrl = api.getWebSocketUrl("/sdapi/v1/browser/files");
+    const wsUrl = api.getWebSocketUrl("/sdapi/v2/browser/files");
     const ws = new WebSocket(wsUrl);
     const allFiles: GalleryFile[] = [];
 
@@ -175,7 +175,7 @@ function streamFiles(
 
 async function backgroundRefresh(folder: string, signal: AbortSignal) {
   try {
-    const info = await api.get<{ mtime: number }>("/sdapi/v1/browser/folder-info", { folder });
+    const info = await api.get<{ mtime: number }>("/sdapi/v2/browser/folder-info", { folder });
     const cached = getCachedFolder(folder);
     if (!cached || info.mtime === cached.serverMtime) return;
 
@@ -243,7 +243,7 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
     }, FILE_BATCH_INTERVAL);
   };
 
-  const wsUrl = api.getWebSocketUrl("/sdapi/v1/browser/files");
+  const wsUrl = api.getWebSocketUrl("/sdapi/v2/browser/files");
   const ws = new WebSocket(wsUrl);
 
   const cleanupWs = () => {
@@ -290,7 +290,7 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
       ws.close();
 
       // Save to folder cache — fetch mtime for staleness tracking
-      api.get<{ mtime: number }>("/sdapi/v1/browser/folder-info", { folder })
+      api.get<{ mtime: number }>("/sdapi/v2/browser/folder-info", { folder })
         .then((info) => {
           const thumbs = new Map(useGalleryStore.getState().thumbs);
           setCachedFolder(folder, allFiles, thumbs, info.mtime);
@@ -403,7 +403,7 @@ export async function fetchThumb(file: GalleryFile): Promise<CachedThumb | null>
   // Cache miss - fetch from backend (uses semaphore to limit concurrency)
   await thumbSemaphore.acquire();
   try {
-    const resp = await api.get<BrowserThumb>("/sdapi/v1/browser/thumb", { file: file.fullPath });
+    const resp = await api.get<BrowserThumb>("/sdapi/v2/browser/thumb", { file: file.fullPath });
     if (!resp || !resp.data) return null;
 
     const hash = await computeThumbHash(file.fullPath);

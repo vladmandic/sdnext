@@ -25,7 +25,7 @@ export function useSetOptions() {
 export function useOptionsInfo() {
   return useQuery({
     queryKey: ["options-info"],
-    queryFn: () => api.get<OptionsInfoResponse>("/sdapi/v1/options-info"),
+    queryFn: () => api.get<OptionsInfoResponse>("/sdapi/v2/options-info"),
     staleTime: 5 * 60_000,
   });
 }
@@ -33,7 +33,7 @@ export function useOptionsInfo() {
 export function useSecretsStatus() {
   return useQuery({
     queryKey: ["secrets-status"],
-    queryFn: () => api.get<SecretsStatusMap>("/sdapi/v1/secrets-status"),
+    queryFn: () => api.get<SecretsStatusMap>("/sdapi/v2/secrets-status"),
     staleTime: 30_000,
   });
 }

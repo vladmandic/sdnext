@@ -124,7 +124,7 @@ export function GalleryPanel() {
 
     setLoadingSubdirs((prev) => new Set(prev).add(normPath));
     try {
-      const subdirs = await api.get<BrowserSubdir[]>("/sdapi/v1/browser/subdirs", { folder: path });
+      const subdirs = await api.get<BrowserSubdir[]>("/sdapi/v2/browser/subdirs", { folder: path });
       setDiscoveredSubdirs((prev) => {
         const next = new Map(prev);
         next.set(normPath, subdirs);

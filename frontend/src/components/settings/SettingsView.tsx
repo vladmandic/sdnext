@@ -230,7 +230,7 @@ function ConnectionPanel() {
   const checkConnection = useCallback(async (baseUrl: string) => {
     setStatus("checking");
     try {
-      await fetch(`${baseUrl}/sdapi/v1/server-info`, { signal: AbortSignal.timeout(5000) });
+      await fetch(`${baseUrl}/sdapi/v2/server-info`, { signal: AbortSignal.timeout(5000) });
       setStatus("connected");
     } catch {
       setStatus("unreachable");
@@ -256,7 +256,7 @@ function ConnectionPanel() {
     }
     storeSetUrl(urlInput.replace(/\/$/, ""));
     storeSetAuth(userInput, passInput);
-    ws.updateUrl(api.getWebSocketUrl("/sdapi/v1/ws"));
+    ws.updateUrl(api.getWebSocketUrl("/sdapi/v2/ws"));
     queryClient.invalidateQueries();
     await checkConnection(effectiveUrl);
     toast.success("Connection updated");
@@ -266,7 +266,7 @@ function ConnectionPanel() {
     storeReset();
     api.setBaseUrl(window.location.origin);
     api.clearAuth();
-    ws.updateUrl(api.getWebSocketUrl("/sdapi/v1/ws"));
+    ws.updateUrl(api.getWebSocketUrl("/sdapi/v2/ws"));
     queryClient.invalidateQueries();
     setStatus("connected");
     toast.success("Connection reset to default");

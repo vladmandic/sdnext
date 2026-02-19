@@ -19,7 +19,7 @@ function buildSearchParams(p: CivitSearchParams): Record<string, string> {
 export function useCivitOptions() {
   return useQuery({
     queryKey: ["civitai-options"],
-    queryFn: () => api.get<CivitOptions>("/sdapi/v1/civitai/options"),
+    queryFn: () => api.get<CivitOptions>("/sdapi/v2/civitai/options"),
     staleTime: Infinity,
   });
 }
@@ -27,7 +27,7 @@ export function useCivitOptions() {
 export function useCivitSearch(params: CivitSearchParams, enabled = false) {
   return useQuery({
     queryKey: ["civitai-search", params],
-    queryFn: () => api.get<CivitSearchResponse>("/sdapi/v1/civitai/search", buildSearchParams(params)),
+    queryFn: () => api.get<CivitSearchResponse>("/sdapi/v2/civitai/search", buildSearchParams(params)),
     enabled,
     staleTime: 30_000,
   });
@@ -39,7 +39,7 @@ export function useCivitSearchInfinite(params: CivitSearchParams, enabled = fals
     queryFn: ({ pageParam }) => {
       const p = { ...params };
       if (pageParam) p.cursor = pageParam as string;
-      return api.get<CivitSearchResponse>("/sdapi/v1/civitai/search", buildSearchParams(p));
+      return api.get<CivitSearchResponse>("/sdapi/v2/civitai/search", buildSearchParams(p));
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.metadata?.nextCursor ?? undefined,
@@ -51,7 +51,7 @@ export function useCivitSearchInfinite(params: CivitSearchParams, enabled = fals
 export function useCivitModel(modelId: number | null, enabled = true) {
   return useQuery({
     queryKey: ["civitai-model", modelId],
-    queryFn: () => api.get<CivitModel>(`/sdapi/v1/civitai/model/${modelId}`),
+    queryFn: () => api.get<CivitModel>(`/sdapi/v2/civitai/model/${modelId}`),
     enabled: enabled && modelId !== null,
     staleTime: 60_000,
   });
@@ -60,7 +60,7 @@ export function useCivitModel(modelId: number | null, enabled = true) {
 export function useCivitDownload() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (req: CivitDownloadRequest) => api.post<CivitDownloadItem>("/sdapi/v1/civitai/download", req),
+    mutationFn: (req: CivitDownloadRequest) => api.post<CivitDownloadItem>("/sdapi/v2/civitai/download", req),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-download-status"] }),
   });
 }
@@ -68,7 +68,7 @@ export function useCivitDownload() {
 export function useCivitDownloadCancel() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (downloadId: string) => api.post<{ success: boolean; id: string }>(`/sdapi/v1/civitai/download/${downloadId}/cancel`),
+    mutationFn: (downloadId: string) => api.post<{ success: boolean; id: string }>(`/sdapi/v2/civitai/download/${downloadId}/cancel`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-download-status"] }),
   });
 }
@@ -76,7 +76,7 @@ export function useCivitDownloadCancel() {
 export function useCivitDownloadStatus(enabled = false) {
   return useQuery({
     queryKey: ["civitai-download-status"],
-    queryFn: () => api.get<CivitDownloadStatus>("/sdapi/v1/civitai/download/status"),
+    queryFn: () => api.get<CivitDownloadStatus>("/sdapi/v2/civitai/download/status"),
     enabled,
     refetchInterval: enabled ? 5_000 : false,
   });
@@ -85,7 +85,7 @@ export function useCivitDownloadStatus(enabled = false) {
 export function useCivitHistory() {
   return useQuery({
     queryKey: ["civitai-history"],
-    queryFn: () => api.get<{ history: CivitHistoryEntry[] }>("/sdapi/v1/civitai/history"),
+    queryFn: () => api.get<{ history: CivitHistoryEntry[] }>("/sdapi/v2/civitai/history"),
     staleTime: 30_000,
   });
 }
@@ -93,7 +93,7 @@ export function useCivitHistory() {
 export function useCivitClearHistory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => api.delete<{ success: boolean }>("/sdapi/v1/civitai/history"),
+    mutationFn: () => api.delete<{ success: boolean }>("/sdapi/v2/civitai/history"),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-history"] }),
   });
 }
@@ -101,7 +101,7 @@ export function useCivitClearHistory() {
 export function useCivitSettings() {
   return useQuery({
     queryKey: ["civitai-settings"],
-    queryFn: () => api.get<CivitSettings>("/sdapi/v1/civitai/settings"),
+    queryFn: () => api.get<CivitSettings>("/sdapi/v2/civitai/settings"),
     staleTime: 60_000,
   });
 }
@@ -109,7 +109,7 @@ export function useCivitSettings() {
 export function useCivitSaveSettings() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (req: CivitSettingsUpdate) => api.post<CivitSettings>("/sdapi/v1/civitai/settings", req),
+    mutationFn: (req: CivitSettingsUpdate) => api.post<CivitSettings>("/sdapi/v2/civitai/settings", req),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-settings"] }),
   });
 }
@@ -117,7 +117,7 @@ export function useCivitSaveSettings() {
 export function useCivitResolvePath(params: Record<string, string>, enabled = false) {
   return useQuery({
     queryKey: ["civitai-resolve-path", params],
-    queryFn: () => api.get<{ path: string }>("/sdapi/v1/civitai/resolve-path", params),
+    queryFn: () => api.get<{ path: string }>("/sdapi/v2/civitai/resolve-path", params),
     enabled,
     staleTime: 0,
   });
