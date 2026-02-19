@@ -1,33 +1,8 @@
 // --- Job request types (discriminated union) ---
 
-export interface GenerateJobParams {
-  type: "generate";
-  prompt?: string;
-  negative_prompt?: string;
-  steps?: number;
-  width?: number;
-  height?: number;
-  cfg_scale?: number;
-  seed?: number;
-  batch_size?: number;
-  batch_count?: number;
-  sampler_name?: string;
-  denoising_strength?: number;
-  inputs?: string[];
-  inits?: string[];
-  mask?: string;
-  control?: Record<string, unknown>[];
-  ip_adapter?: Record<string, unknown>[];
-  extra?: Record<string, unknown>;
-  save_images?: boolean;
-  clip_skip?: number;
-  cfg_end?: number;
-  script_name?: string;
-  script_args?: unknown[];
-  alwayson_scripts?: Record<string, unknown>;
-  override_settings?: Record<string, unknown>;
-  priority?: number;
-}
+import type { ControlRequest } from "./generation";
+
+export type GenerateJobRequest = ControlRequest & { type: "generate"; priority?: number };
 
 export interface UpscaleJobParams {
   type: "upscale";
@@ -74,7 +49,7 @@ export interface PreprocessJobParams {
 }
 
 export type JobRequest =
-  | GenerateJobParams
+  | GenerateJobRequest
   | UpscaleJobParams
   | CaptionJobParams
   | EnhanceJobParams

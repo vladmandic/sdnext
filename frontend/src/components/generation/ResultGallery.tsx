@@ -1,6 +1,6 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { restoreFromResult } from "@/lib/requestBuilder";
-import { base64ToObjectUrl, cn, downloadBase64Image, generateImageFilename } from "@/lib/utils";
+import { cn, downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
 import { memo, useCallback } from "react";
 import { toast } from "sonner";
 import { Download } from "lucide-react";
@@ -27,9 +27,8 @@ export const ResultGallery = memo(function ResultGallery() {
     const result = results.find((r) => r.id === selectedResultId);
     if (!result || !result.images[selectedImageIndex]) return;
     const image = result.images[selectedImageIndex];
-    const base64 = image.startsWith("data:") ? image.split(",")[1] : image;
     const filename = generateImageFilename(result.info, selectedImageIndex);
-    downloadBase64Image(base64, filename);
+    downloadImage(image, filename);
   }, [results, selectedResultId, selectedImageIndex]);
 
   if (results.length === 0) {
@@ -76,11 +75,7 @@ export const ResultGallery = memo(function ResultGallery() {
               )}
             >
               <img
-                src={
-                  item.image.startsWith("data:") || item.image.startsWith("blob:")
-                    ? item.image
-                    : base64ToObjectUrl(item.image)
-                }
+                src={resolveImageSrc(item.image)}
                 alt="Result"
                 className="w-full h-full object-cover"
               />

@@ -60,6 +60,33 @@ export function downloadBase64Image(base64: string, filename: string, mimeType =
   URL.revokeObjectURL(url);
 }
 
+/** Return a displayable URL for either a raw base64 string or an already-resolved URL. */
+export function resolveImageSrc(image: string): string {
+  if (image.startsWith("data:") || image.startsWith("blob:") || image.startsWith("/") || image.startsWith("http")) {
+    return image;
+  }
+  return base64ToObjectUrl(image);
+}
+
+/** Download an image that may be either a URL or a raw base64 string. */
+export async function downloadImage(image: string, filename: string): Promise<void> {
+  if (image.startsWith("/") || image.startsWith("http")) {
+    const response = await fetch(image);
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } else {
+    const raw = image.startsWith("data:") ? image.split(",")[1]! : image;
+    downloadBase64Image(raw, filename);
+  }
+}
+
 /** Generate a filename from generation info */
 export function generateImageFilename(info: string, imageIndex: number): string {
   let seed = "unknown";

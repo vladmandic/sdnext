@@ -1,20 +1,11 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
-import { api } from "../client";
-import type { ControlRequest, ControlResponse } from "../types/generation";
+import { useQuery } from "@tanstack/react-query";
 import type { ResProgress, ResStatus } from "../types/progress";
-
-export function useGenerate() {
-  return useMutation({
-    mutationFn: (params: ControlRequest) =>
-      api.post<ControlResponse>("/sdapi/v1/control", params),
-  });
-}
 
 /**
  * Base URL that bypasses the Vite dev proxy.
  *
- * During generation the control POST blocks the Vite proxy's connection pool,
- * so lightweight polling GETs must go directly to the backend.
+ * During development the Vite proxy on :5173 may not route lightweight polling
+ * GETs correctly when other connections are active, so we hit the backend directly.
  */
 function getDirectUrl(path: string): string {
   if (window.location.port === "5173") {
@@ -62,17 +53,5 @@ export function useStatus() {
       return (await res.json()) as ResStatus;
     },
     refetchInterval: 2000,
-  });
-}
-
-export function useInterrupt() {
-  return useMutation({
-    mutationFn: () => api.post("/sdapi/v1/interrupt"),
-  });
-}
-
-export function useSkip() {
-  return useMutation({
-    mutationFn: () => api.post("/sdapi/v1/skip"),
   });
 }

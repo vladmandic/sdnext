@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Layer, Image as KonvaImage, Rect } from "react-konva";
 import { useGenerationStore } from "@/stores/generationStore";
-import { base64ToObjectUrl } from "@/lib/utils";
+import { resolveImageSrc } from "@/lib/utils";
 
 const BORDER_COLOR = "#60a5fa";
 
@@ -26,7 +26,7 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
     const selected = results.find((r) => r.id === selectedResultId);
     const raw = selected?.images[selectedImageIndex ?? 0];
     if (raw) {
-      displaySrc = raw.startsWith("data:") || raw.startsWith("blob:") ? raw : base64ToObjectUrl(raw);
+      displaySrc = resolveImageSrc(raw);
     }
   }
 

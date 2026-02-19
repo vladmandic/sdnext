@@ -2,15 +2,16 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { useGenerate, useProgress, useInterrupt, useSkip } from "@/api/hooks/useGeneration";
-import { buildControlRequest, restoreFromResult } from "@/lib/requestBuilder";
-import { snapshotUnits, useControlStore } from "@/stores/controlStore";
+import { buildControlRequest } from "@/lib/requestBuilder";
+import { restoreFromResult } from "@/lib/requestBuilder";
+import { snapshotUnits } from "@/stores/controlStore";
 import type { ControlRequest } from "@/api/types/generation";
+import { useSubmitJob, useCancelJob } from "@/api/hooks/useJobs";
+import { useJobWebSocket } from "@/api/hooks/useJobWebSocket";
 import { Play, Square, SkipForward, Loader2, History } from "lucide-react";
 import { useEffect, useRef, useCallback, memo } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { ws, ensureWs, isWsConnected } from "@/api/wsManager";
 
 export const ActionBar = memo(function ActionBar() {
   const isGenerating = useGenerationStore((s) => s.isGenerating);
@@ -21,57 +22,72 @@ export const ActionBar = memo(function ActionBar() {
   const setPreview = useGenerationStore((s) => s.setPreview);
   const addResult = useGenerationStore((s) => s.addResult);
   const clearSelection = useGenerationStore((s) => s.clearSelection);
+  const setTaskId = useGenerationStore((s) => s.setTaskId);
+  const currentJobId = useGenerationStore((s) => s.currentTaskId);
   const lastResult = useGenerationStore((s) => s.results[0]);
   const generationMode = useUiStore((s) => s.generationMode);
   const hasLayers = useCanvasStore((s) => s.layers.length > 0);
-  const generate = useGenerate();
-  const interrupt = useInterrupt();
-  const skip = useSkip();
-  const generatingRef = useRef(false);
 
-  // WebSocket connection for live previews (module-level singleton)
+  const submitJob = useSubmitJob();
+  const cancelJob = useCancelJob();
+  const { progress: wsProgress, preview, result: wsResult, status: wsStatus, error: wsError, send } = useJobWebSocket(currentJobId);
+
+  // Snapshot refs: capture input state at generation time so it survives async completion
+  const snapshotRef = useRef<{
+    inputImage?: string;
+    inputMask?: import("@/stores/img2imgStore").MaskLine[];
+    controlUnits?: import("@/api/types/control").ControlUnitSnapshot[];
+  }>({});
+
+  // Update progress from per-job WebSocket
   useEffect(() => {
-    ensureWs();
-    const unsubMsg = ws.on("message", (data) => {
-      const msg = data as { type: string; data?: Record<string, unknown> };
-      if (msg.type === "progress" && msg.data) {
-        const d = msg.data;
-        if (generatingRef.current && typeof d.progress === "number") {
-          setProgress(d.progress, typeof d.eta === "number" ? d.eta : 0);
-        }
-      }
-    });
-    const unsubBin = ws.on("binary", (buf) => {
-      if (generatingRef.current) {
-        const blob = new Blob([buf], { type: "image/jpeg" });
-        const url = URL.createObjectURL(blob);
-        setPreview(url);
-      }
-    });
-    return () => { unsubMsg(); unsubBin(); };
-  }, [setProgress, setPreview]);
-
-  // REST polling: always active during generation for preview images.
-  // WS provides faster progress updates but may not send binary previews
-  // depending on the backend's live-preview decoder configuration.
-  const { data: progressData } = useProgress(isGenerating);
-
-  useEffect(() => {
-    if (progressData && generatingRef.current) {
-      // Use REST progress when WS is unavailable
-      if (!isWsConnected()) {
-        setProgress(progressData.progress, progressData.eta_relative);
-      }
-      // Always use REST for preview images as fallback
-      if (progressData.current_image) {
-        setPreview(`data:image/jpeg;base64,${progressData.current_image}`);
-      }
+    if (currentJobId && wsProgress.progress > 0) {
+      setProgress(wsProgress.progress, wsProgress.eta ?? 0);
     }
-  }, [progressData, setProgress, setPreview]);
+  }, [currentJobId, wsProgress, setProgress]);
+
+  // Update preview from per-job WebSocket binary frames
+  useEffect(() => {
+    if (currentJobId && preview) {
+      setPreview(preview);
+    }
+  }, [currentJobId, preview, setPreview]);
+
+  // Handle terminal job states
+  useEffect(() => {
+    if (!currentJobId) return;
+
+    if (wsStatus === "completed" && wsResult) {
+      // Update processed previews if present
+      if (wsResult.images.length > 0) {
+        addResult({
+          id: crypto.randomUUID(),
+          images: wsResult.images.map((img) => img.url),
+          parameters: wsResult.params,
+          info: JSON.stringify(wsResult.info),
+          timestamp: Date.now(),
+          inputImage: snapshotRef.current.inputImage,
+          inputMask: snapshotRef.current.inputMask,
+          controlUnits: snapshotRef.current.controlUnits,
+        });
+      }
+      snapshotRef.current = {};
+      setTaskId(null);
+      setGenerating(false);
+    } else if (wsStatus === "failed") {
+      toast.error("Generation failed", { description: wsError ?? "Unknown error" });
+      snapshotRef.current = {};
+      setTaskId(null);
+      setGenerating(false);
+    } else if (wsStatus === "cancelled") {
+      snapshotRef.current = {};
+      setTaskId(null);
+      setGenerating(false);
+    }
+  }, [wsStatus, wsResult, wsError, currentJobId, addResult, setTaskId, setGenerating]);
 
   const handleGenerate = useCallback(async () => {
-    if (generatingRef.current) return;
-    generatingRef.current = true;
+    if (isGenerating) return;
     setGenerating(true);
     setPreview(null);
     clearSelection();
@@ -79,51 +95,33 @@ export const ActionBar = memo(function ActionBar() {
       const isImg2Img = generationMode === "img2img";
       const request = await buildControlRequest();
 
-      // Snapshot input state before the (possibly slow) API call
+      // Snapshot input state before the async call
       const inputImage = isImg2Img ? (request as ControlRequest).inputs?.[0] : undefined;
       const maskLines = useImg2ImgStore.getState().maskLines;
       const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
       const controlUnits = await snapshotUnits();
+      snapshotRef.current = { inputImage, inputMask, controlUnits };
 
-      const result = await generate.mutateAsync(request);
-      // Don't add result if generation was interrupted while awaiting
-      if (!generatingRef.current) return;
-      // Update processed previews: when reprocess is on, replace stale per-unit previews with the new composite
-      if (result.processed && result.processed.length > 0) {
-        const composite = `data:image/png;base64,${result.processed[0]}`;
-        if (useUiStore.getState().reprocessOnGenerate) {
-          useControlStore.getState().replaceProcessedImages(composite);
-        } else {
-          useControlStore.getState().setCompositeProcessed(composite);
-        }
-      }
-      addResult({
-        id: crypto.randomUUID(),
-        images: result.images,
-        parameters: result.params,
-        info: result.info,
-        timestamp: Date.now(),
-        inputImage,
-        inputMask,
-        controlUnits,
-      });
+      const job = await submitJob.mutateAsync({ type: "generate", ...request });
+      setTaskId(job.id);
     } catch (err) {
       toast.error("Generation failed", { description: err instanceof Error ? err.message : String(err) });
-    } finally {
-      generatingRef.current = false;
+      snapshotRef.current = {};
       setGenerating(false);
     }
-  }, [generate, generationMode, setGenerating, setPreview, addResult, clearSelection]);
+  }, [isGenerating, generationMode, setGenerating, setPreview, clearSelection, submitJob, setTaskId]);
 
   const handleInterrupt = useCallback(() => {
-    interrupt.mutate();
-    generatingRef.current = false;
+    send({ type: "interrupt" });
+    if (currentJobId) cancelJob.mutate(currentJobId);
+    snapshotRef.current = {};
+    setTaskId(null);
     setGenerating(false);
-  }, [interrupt, setGenerating]);
+  }, [send, currentJobId, cancelJob, setTaskId, setGenerating]);
 
   const handleSkip = useCallback(() => {
-    skip.mutate();
-  }, [skip]);
+    send({ type: "skip" });
+  }, [send]);
 
   const handleRestore = useCallback(() => {
     if (!lastResult) return;
