@@ -1,6 +1,20 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+export interface EnhanceHistoryEntry {
+  id: string;
+  prompt: string;
+  originalPrompt: string;
+  seed: number;
+  timestamp: number;
+}
+
+interface PendingResult {
+  prompt: string;
+  seed: number;
+  originalPrompt: string;
+}
+
 interface PromptEnhanceState {
   model: string;
   systemPrompt: string;
@@ -20,6 +34,11 @@ interface PromptEnhanceState {
   prefill: string;
   keepPrefill: boolean;
 
+  pinned: boolean;
+  pendingResult: PendingResult | null;
+  history: EnhanceHistoryEntry[];
+  historyLimit: number;
+
   setModel: (model: string) => void;
   setSystemPrompt: (v: string) => void;
   setPrefix: (v: string) => void;
@@ -37,11 +56,17 @@ interface PromptEnhanceState {
   setUseVision: (v: boolean) => void;
   setPrefill: (v: string) => void;
   setKeepPrefill: (v: boolean) => void;
+
+  setPinned: (v: boolean) => void;
+  setPendingResult: (v: PendingResult | null) => void;
+  addToHistory: (entry: Omit<EnhanceHistoryEntry, "id" | "timestamp">) => void;
+  clearHistory: () => void;
+  setHistoryLimit: (limit: number) => void;
 }
 
 export const usePromptEnhanceStore = create<PromptEnhanceState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       model: "",
       systemPrompt: "",
       prefix: "",
@@ -60,6 +85,11 @@ export const usePromptEnhanceStore = create<PromptEnhanceState>()(
       prefill: "",
       keepPrefill: false,
 
+      pinned: false,
+      pendingResult: null,
+      history: [],
+      historyLimit: 50,
+
       setModel: (model) => set({ model }),
       setSystemPrompt: (v) => set({ systemPrompt: v }),
       setPrefix: (v) => set({ prefix: v }),
@@ -77,7 +107,46 @@ export const usePromptEnhanceStore = create<PromptEnhanceState>()(
       setUseVision: (v) => set({ useVision: v }),
       setPrefill: (v) => set({ prefill: v }),
       setKeepPrefill: (v) => set({ keepPrefill: v }),
+
+      setPinned: (v) => set({ pinned: v }),
+      setPendingResult: (v) => set({ pendingResult: v }),
+      addToHistory: (entry) => {
+        const { history, historyLimit } = get();
+        const newEntry: EnhanceHistoryEntry = {
+          ...entry,
+          id: crypto.randomUUID(),
+          timestamp: Date.now(),
+        };
+        set({ history: [newEntry, ...history].slice(0, historyLimit) });
+      },
+      clearHistory: () => set({ history: [] }),
+      setHistoryLimit: (limit) => set({ historyLimit: limit }),
     }),
-    { name: "sdnext-enhance" },
+    {
+      name: "sdnext-enhance",
+      partialize: (state) => ({
+        model: state.model,
+        systemPrompt: state.systemPrompt,
+        prefix: state.prefix,
+        suffix: state.suffix,
+        nsfw: state.nsfw,
+        seed: state.seed,
+        doSample: state.doSample,
+        maxTokens: state.maxTokens,
+        temperature: state.temperature,
+        repetitionPenalty: state.repetitionPenalty,
+        topK: state.topK,
+        topP: state.topP,
+        thinking: state.thinking,
+        keepThinking: state.keepThinking,
+        useVision: state.useVision,
+        prefill: state.prefill,
+        keepPrefill: state.keepPrefill,
+        pinned: state.pinned,
+        history: state.history,
+        historyLimit: state.historyLimit,
+        // pendingResult excluded — transient
+      }),
+    },
   ),
 );

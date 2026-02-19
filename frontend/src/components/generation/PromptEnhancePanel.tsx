@@ -51,7 +51,7 @@ export function PromptEnhancePanel() {
   );
 
   return (
-    <div className="flex flex-col gap-2.5 pt-2 pb-1">
+    <div className="flex flex-col gap-2.5">
       {/* ── Model ── */}
       <SectionLabel>Model</SectionLabel>
       <div className="flex flex-col gap-1">

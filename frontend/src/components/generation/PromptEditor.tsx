@@ -1,13 +1,17 @@
 import { useGenerationStore } from "@/stores/generationStore";
+import { useCanvasStore } from "@/stores/canvasStore";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
+import { flattenCanvas } from "@/lib/flattenCanvas";
 import { useState, useCallback } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Sparkles, Loader2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Sparkles, Loader2, Settings2 } from "lucide-react";
 import { toast } from "sonner";
-import { PromptEnhancePanel } from "./PromptEnhancePanel";
+import { PromptEnhanceWorkspace } from "./PromptEnhanceWorkspace";
 import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
 export function PromptEditor() {
@@ -15,15 +19,24 @@ export function PromptEditor() {
   const negativePrompt = useGenerationStore((s) => s.negativePrompt);
   const setParam = useGenerationStore((s) => s.setParam);
   const [showNegative, setShowNegative] = useState(false);
-  const [showEnhancePanel, setShowEnhancePanel] = useState(false);
+  const [enhanceOpen, setEnhanceOpen] = useState(false);
 
   const enhanceStore = usePromptEnhanceStore();
+  const pinned = usePromptEnhanceStore((s) => s.pinned);
+  const setPendingResult = usePromptEnhanceStore((s) => s.setPendingResult);
   const enhanceMutation = usePromptEnhance();
 
-  const handleEnhance = useCallback(() => {
+  const handleEnhance = useCallback(async () => {
     if (!prompt.trim()) {
       toast.warning("Enter a prompt first");
       return;
+    }
+    let image: string | undefined;
+    if (enhanceStore.useVision) {
+      const { width, height } = useGenerationStore.getState();
+      const layers = useCanvasStore.getState().getImageLayers();
+      const flat = await flattenCanvas(layers, width, height);
+      if (flat) image = flat;
     }
     const req: PromptEnhanceRequest = {
       prompt,
@@ -45,17 +58,23 @@ export function PromptEditor() {
       use_vision: enhanceStore.useVision,
       prefill: enhanceStore.prefill || undefined,
       keep_prefill: enhanceStore.keepPrefill,
+      image,
     };
     enhanceMutation.mutate(req, {
       onSuccess: (res) => {
-        setParam("prompt", res.prompt);
+        setPendingResult({
+          prompt: res.prompt,
+          seed: res.seed,
+          originalPrompt: prompt,
+        });
+        setEnhanceOpen(true);
         toast.success(`Prompt enhanced (seed: ${res.seed})`);
       },
       onError: (err) => {
         toast.error(`Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`);
       },
     });
-  }, [prompt, enhanceStore, enhanceMutation, setParam]);
+  }, [prompt, enhanceStore, enhanceMutation, setPendingResult]);
 
   return (
     <div className="flex flex-col gap-2">
@@ -75,14 +94,32 @@ export function PromptEditor() {
                 ? <Loader2 size={14} className="animate-spin" />
                 : <Sparkles size={14} />}
             </button>
-            <button
-              type="button"
-              onClick={() => setShowEnhancePanel((v) => !v)}
-              className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Enhance settings"
-            >
-              {showEnhancePanel ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
-            </button>
+            <Popover open={enhanceOpen} onOpenChange={setEnhanceOpen}>
+              <PopoverTrigger asChild>
+                <button
+                  type="button"
+                  className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                  title="Enhance settings"
+                >
+                  <Settings2 size={13} />
+                </button>
+              </PopoverTrigger>
+              <PopoverContent
+                side="right"
+                align="start"
+                className="w-96 p-0"
+                onInteractOutside={(e) => { if (pinned) e.preventDefault(); }}
+                onEscapeKeyDown={(e) => { if (pinned) e.preventDefault(); }}
+              >
+                <ScrollArea className="max-h-[80vh]">
+                  <PromptEnhanceWorkspace
+                    onEnhance={handleEnhance}
+                    isPending={enhanceMutation.isPending}
+                    onClose={() => setEnhanceOpen(false)}
+                  />
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
           </div>
         </div>
         <Textarea
@@ -98,7 +135,6 @@ export function PromptEditor() {
             }
           }}
         />
-        {showEnhancePanel && <PromptEnhancePanel />}
       </div>
 
       {/* Negative prompt */}
