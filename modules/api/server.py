@@ -318,7 +318,7 @@ def get_server_info():
         "version": ver,
         "backend": shared.backend.name if hasattr(shared.backend, 'name') else str(shared.backend),
         "platform": devices.get_device_name() if hasattr(devices, 'get_device_name') else str(shared.device),
-        "api_version": "v1",
+        "api_version": "v2",
         "capabilities": {
             "txt2img": True,
             "img2img": True,

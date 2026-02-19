@@ -57,9 +57,9 @@ class Api:
         self.add_api_route("/sdapi/v1/options", server.set_config, methods=["POST"], tags=["Server"])
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel, tags=["Server"])
         self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu_status, methods=["GET"], response_model=list[models.ResGPU], tags=["Server"])
-        self.add_api_route("/sdapi/v1/server-info", server.get_server_info, methods=["GET"], tags=["Server"])
-        self.add_api_route("/sdapi/v1/options-info", server.get_options_info, methods=["GET"], tags=["Server"])
-        self.add_api_route("/sdapi/v1/secrets-status", server.get_secrets_status, methods=["GET"], tags=["Server"])
+        self.add_api_route("/sdapi/v2/server-info", server.get_server_info, methods=["GET"], tags=["Server"])
+        self.add_api_route("/sdapi/v2/options-info", server.get_options_info, methods=["GET"], tags=["Server"])
+        self.add_api_route("/sdapi/v2/secrets-status", server.get_secrets_status, methods=["GET"], tags=["Server"])
 
         # core api using locking
         self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img, tags=["Generation"])

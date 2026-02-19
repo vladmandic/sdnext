@@ -242,13 +242,13 @@ def register_api(app: FastAPI): # register api
                 subdirs.append({'path': d, 'label': label})
         return JSONResponse(content=subdirs)
 
-    shared.api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[str], tags=["Gallery"])
-    shared.api.add_api_route("/sdapi/v1/browser/thumb", get_thumb, methods=["GET"], response_model=dict, tags=["Gallery"])
-    shared.api.add_api_route("/sdapi/v1/browser/files", ht_files, methods=["GET"], response_model=list, tags=["Gallery"])
-    shared.api.add_api_route("/sdapi/v1/browser/folder-info", get_folder_info, methods=["GET"], tags=["Gallery"])
-    shared.api.add_api_route("/sdapi/v1/browser/subdirs", get_subdirs, methods=["GET"], tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v2/browser/folders", get_folders, methods=["GET"], response_model=list[str], tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v2/browser/thumb", get_thumb, methods=["GET"], response_model=dict, tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v2/browser/files", ht_files, methods=["GET"], response_model=list, tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v2/browser/folder-info", get_folder_info, methods=["GET"], tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v2/browser/subdirs", get_subdirs, methods=["GET"], tags=["Gallery"])
 
-    @app.websocket("/sdapi/v1/browser/files")
+    @app.websocket("/sdapi/v2/browser/files")
     async def ws_files(ws: WebSocket):
         try:
             await manager.connect(ws)

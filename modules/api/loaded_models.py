@@ -368,4 +368,4 @@ def get_loaded_models() -> List[ItemLoadedModel]:
 
 def register_api():
     from modules.shared import api as api_instance
-    api_instance.add_api_route("/sdapi/v1/loaded-models", get_loaded_models, methods=["GET"], response_model=List[ItemLoadedModel], tags=["Models"])
+    api_instance.add_api_route("/sdapi/v2/loaded-models", get_loaded_models, methods=["GET"], response_model=List[ItemLoadedModel], tags=["Models"])

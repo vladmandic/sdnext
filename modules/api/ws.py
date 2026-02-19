@@ -116,5 +116,5 @@ async def ws_endpoint(ws: WebSocket):
 
 
 def register_ws(app):
-    app.add_api_websocket_route("/sdapi/v1/ws", ws_endpoint)
-    log.debug('WebSocket: registered /sdapi/v1/ws')
+    app.add_api_websocket_route("/sdapi/v2/ws", ws_endpoint)
+    log.debug('WebSocket: registered /sdapi/v2/ws')

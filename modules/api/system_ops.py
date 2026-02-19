@@ -169,9 +169,9 @@ def get_benchmark_results():
 
 def register_api():
     api = shared.api
-    api.add_api_route("/sdapi/v1/server/restart", post_restart, methods=["POST"], tags=["System"])
-    api.add_api_route("/sdapi/v1/server/profiling", post_profiling, methods=["POST"], tags=["System"])
-    api.add_api_route("/sdapi/v1/update/check", get_update_check, methods=["GET"], tags=["System"])
-    api.add_api_route("/sdapi/v1/update/apply", post_update_apply, methods=["POST"], tags=["System"])
-    api.add_api_route("/sdapi/v1/benchmark/run", post_benchmark_run, methods=["POST"], tags=["System"])
-    api.add_api_route("/sdapi/v1/benchmark/results", get_benchmark_results, methods=["GET"], tags=["System"])
+    api.add_api_route("/sdapi/v2/server/restart", post_restart, methods=["POST"], tags=["System"])
+    api.add_api_route("/sdapi/v2/server/profiling", post_profiling, methods=["POST"], tags=["System"])
+    api.add_api_route("/sdapi/v2/update/check", get_update_check, methods=["GET"], tags=["System"])
+    api.add_api_route("/sdapi/v2/update/apply", post_update_apply, methods=["POST"], tags=["System"])
+    api.add_api_route("/sdapi/v2/benchmark/run", post_benchmark_run, methods=["POST"], tags=["System"])
+    api.add_api_route("/sdapi/v2/benchmark/results", get_benchmark_results, methods=["GET"], tags=["System"])
