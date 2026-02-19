@@ -109,6 +109,13 @@ export const settingsSchema: SettingSectionDef[] = [
   },
 ];
 
+export const QUICK_SETTINGS_GROUPS = [
+  { title: "Model", keys: ["sd_model_checkpoint", "sd_vae", "sd_model_refiner", "sd_model_dict"] },
+  { title: "Performance", keys: ["cross_attention_optimization", "cuda_compile_backend", "cuda_compile_mode", "diffusers_offload_mode"] },
+  { title: "Output", keys: ["samples_save", "save_init_img", "image_watermark_enabled", "mask_apply_overlay", "batch_frame_mode"] },
+  { title: "Preview", keys: ["live_previews_enable"] },
+];
+
 export function getSettingsMap(): Map<string, { section: SettingSectionDef; setting: SettingDef }> {
   const map = new Map<string, { section: SettingSectionDef; setting: SettingDef }>();
   for (const section of settingsSchema) {
