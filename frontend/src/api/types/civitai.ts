@@ -154,6 +154,9 @@ export interface CivitHistoryEntry {
   timestamp: string;
 }
 
+export interface CivitFavoriteEntry { name: string; }
+export interface CivitBannedEntry { name: string; }
+
 export interface CivitSearchParams {
   query?: string;
   tag?: string;

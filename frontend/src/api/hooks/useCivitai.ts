@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { CivitOptions, CivitSearchResponse, CivitModel, CivitSearchParams, CivitDownloadRequest, CivitDownloadItem, CivitDownloadStatus, CivitHistoryEntry, CivitSettings, CivitSettingsUpdate } from "../types/civitai";
+import type { CivitOptions, CivitSearchResponse, CivitModel, CivitSearchParams, CivitDownloadRequest, CivitDownloadItem, CivitDownloadStatus, CivitHistoryEntry, CivitSettings, CivitSettingsUpdate, CivitFavoriteEntry, CivitBannedEntry, CivitVersion } from "../types/civitai";
 
 function buildSearchParams(p: CivitSearchParams): Record<string, string> {
   const out: Record<string, string> = {};
@@ -73,12 +73,16 @@ export function useCivitDownloadCancel() {
   });
 }
 
-export function useCivitDownloadStatus(enabled = false) {
+export function useCivitDownloadStatus() {
   return useQuery({
     queryKey: ["civitai-download-status"],
     queryFn: () => api.get<CivitDownloadStatus>("/sdapi/v2/civitai/download/status"),
-    enabled,
-    refetchInterval: enabled ? 5_000 : false,
+    staleTime: 30_000,
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      const hasActive = (data?.active?.length ?? 0) > 0 || (data?.queued?.length ?? 0) > 0;
+      return hasActive ? 5_000 : false;
+    },
   });
 }
 
@@ -120,5 +124,77 @@ export function useCivitResolvePath(params: Record<string, string>, enabled = fa
     queryFn: () => api.get<{ path: string }>("/sdapi/v2/civitai/resolve-path", params),
     enabled,
     staleTime: 0,
+  });
+}
+
+export function useCivitFavorites() {
+  return useQuery({
+    queryKey: ["civitai-favorites"],
+    queryFn: async () => {
+      const res = await api.get<{ favorites: CivitFavoriteEntry[] }>("/sdapi/v2/civitai/favorites");
+      return res.favorites;
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useCivitAddFavorite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.post<CivitFavoriteEntry>("/sdapi/v2/civitai/favorites", { name }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-favorites"] }),
+  });
+}
+
+export function useCivitRemoveFavorite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.delete<{ success: boolean }>(`/sdapi/v2/civitai/favorites/${encodeURIComponent(name)}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-favorites"] }),
+  });
+}
+
+export function useCivitBanned() {
+  return useQuery({
+    queryKey: ["civitai-banned"],
+    queryFn: async () => {
+      const res = await api.get<{ banned: CivitBannedEntry[] }>("/sdapi/v2/civitai/banned");
+      return res.banned;
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useCivitAddBanned() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.post<CivitBannedEntry>("/sdapi/v2/civitai/banned", { name }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-banned"] }),
+  });
+}
+
+export function useCivitRemoveBanned() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (name: string) => api.delete<{ success: boolean }>(`/sdapi/v2/civitai/banned/${encodeURIComponent(name)}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-banned"] }),
+  });
+}
+
+export function useCivitVersion(versionId: number | null) {
+  return useQuery({
+    queryKey: ["civitai-version", versionId],
+    queryFn: () => api.get<CivitVersion>(`/sdapi/v2/civitai/version/${versionId}`),
+    enabled: versionId !== null,
+    staleTime: 60_000,
+  });
+}
+
+export function useCivitVersionByHash(hash: string | null) {
+  return useQuery({
+    queryKey: ["civitai-version-hash", hash],
+    queryFn: () => api.get<CivitVersion>(`/sdapi/v2/civitai/version/by-hash/${hash}`),
+    enabled: !!hash,
+    staleTime: 60_000,
   });
 }

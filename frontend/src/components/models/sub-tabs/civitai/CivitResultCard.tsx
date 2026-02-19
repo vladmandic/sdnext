@@ -1,5 +1,6 @@
-import { Download } from "lucide-react";
+import { Download, Heart, Ban } from "lucide-react";
 import type { CivitModel } from "@/api/types/civitai";
+import { useCivitFavorites, useCivitAddFavorite, useCivitRemoveFavorite, useCivitBanned, useCivitAddBanned, useCivitRemoveBanned } from "@/api/hooks/useCivitai";
 import { Badge } from "@/components/ui/badge";
 
 interface CivitResultCardProps {
@@ -31,6 +32,15 @@ function formatCount(n: number): string {
 
 export function CivitResultCard({ model, onClick }: CivitResultCardProps) {
   const preview = getPreviewUrl(model);
+  const { data: favorites } = useCivitFavorites();
+  const { data: banned } = useCivitBanned();
+  const addFav = useCivitAddFavorite();
+  const removeFav = useCivitRemoveFavorite();
+  const addBan = useCivitAddBanned();
+  const removeBan = useCivitRemoveBanned();
+
+  const isFavorited = favorites?.some((f) => f.name === model.name) ?? false;
+  const isBanned = banned?.some((b) => b.name === model.name) ?? false;
 
   return (
     <button type="button" onClick={onClick} className="flex items-center gap-2.5 w-full px-2 py-1.5 hover:bg-muted/30 cursor-pointer text-left rounded-sm">
@@ -52,6 +62,28 @@ export function CivitResultCard({ model, onClick }: CivitResultCardProps) {
             {formatCount(model.stats.downloadCount)}
           </span>
         </div>
+      </div>
+      <div className="flex items-center gap-0.5 shrink-0">
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); if (isFavorited) removeFav.mutate(model.name); else addFav.mutate(model.name); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); if (isFavorited) removeFav.mutate(model.name); else addFav.mutate(model.name); } }}
+          className="p-1 rounded hover:bg-muted/50 transition-colors"
+          title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+        >
+          <Heart className={`h-3 w-3 ${isFavorited ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+        </span>
+        <span
+          role="button"
+          tabIndex={0}
+          onClick={(e) => { e.stopPropagation(); if (isBanned) removeBan.mutate(model.name); else addBan.mutate(model.name); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); if (isBanned) removeBan.mutate(model.name); else addBan.mutate(model.name); } }}
+          className="p-1 rounded hover:bg-muted/50 transition-colors"
+          title={isBanned ? "Remove from banned" : "Ban this model"}
+        >
+          <Ban className={`h-3 w-3 ${isBanned ? "fill-orange-500 text-orange-500" : "text-muted-foreground"}`} />
+        </span>
       </div>
     </button>
   );

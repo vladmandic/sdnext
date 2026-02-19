@@ -24,7 +24,7 @@ function statusColor(status: string): "default" | "secondary" | "destructive" | 
 export function CivitDownloadQueue() {
   const [open, setOpen] = useState(false);
   const wsItems = useDownloadStore((s) => s.items);
-  const { data: statusData } = useCivitDownloadStatus(true);
+  const { data: statusData } = useCivitDownloadStatus();
   const cancelDownload = useCivitDownloadCancel();
 
   // Merge WS real-time items with REST status for completed/queued
