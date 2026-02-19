@@ -18,12 +18,18 @@ errors.install()
 ignore_endpoints = [
     '/sdapi/v1/version',
     '/sdapi/v1/log',
-    '/sdapi/v1/browser',
     '/sdapi/v1/gpu',
     '/sdapi/v1/network/thumb',
     '/sdapi/v1/progress',
     '/sdapi/v1/memory',
-    '/sdapi/v1/loaded-models',
+    '/sdapi/v1/status',
+    '/sdapi/v1/sd-models',
+    '/sdapi/v1/options',
+    '/sdapi/v1/checkpoint',
+    '/sdapi/v1/prompt-styles',
+    '/sdapi/v2/browser',
+    '/sdapi/v2/loaded-models',
+    '/sdapi/v2/server-info',
 ]
 
 
