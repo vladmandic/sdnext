@@ -2,6 +2,8 @@ import { useUiStore } from "@/stores/uiStore";
 import { CanvasView } from "@/components/generation/CanvasView";
 import { GalleryView } from "@/components/gallery/GalleryView";
 import { CaptionView } from "@/components/caption/CaptionView";
+import { ProcessView } from "@/components/process/ProcessView";
+import { VideoView } from "@/components/video/VideoView";
 
 export function MainContent() {
   const activeView = useUiStore((s) => s.activeSidebarView);
@@ -12,22 +14,12 @@ export function MainContent() {
     case "gallery":
       return <GalleryView />;
     case "video":
-      return <PlaceholderView title="Video" description="Video generation" />;
+      return <VideoView />;
     case "process":
-      return <PlaceholderView title="Process" description="Post-processing and upscaling" />;
+      return <ProcessView />;
     case "caption":
       return <CaptionView />;
     default:
       return <CanvasView />;
   }
-}
-
-function PlaceholderView({ title, description }: { title: string; description: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-      <h2 className="text-xl font-medium text-foreground">{title}</h2>
-      <p className="text-sm mt-1">{description}</p>
-      <p className="text-xs mt-4 opacity-50">Coming soon</p>
-    </div>
-  );
 }

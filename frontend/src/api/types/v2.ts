@@ -48,13 +48,45 @@ export interface PreprocessJobParams {
   priority?: number;
 }
 
+export interface VideoGenerateParams {
+  type: "video";
+  engine: string;
+  model: string;
+  prompt: string;
+  negative?: string;
+  width?: number;
+  height?: number;
+  frames?: number;
+  steps?: number;
+  sampler?: number;
+  sampler_shift?: number;
+  dynamic_shift?: boolean;
+  seed?: number;
+  guidance_scale?: number;
+  guidance_true?: number;
+  init_image?: string;
+  init_strength?: number;
+  last_image?: string;
+  vae_type?: string;
+  vae_tile_frames?: number;
+  fps?: number;
+  interpolate?: number;
+  codec?: string;
+  format?: string;
+  codec_options?: string;
+  save_video?: boolean;
+  save_frames?: boolean;
+  priority?: number;
+}
+
 export type JobRequest =
   | GenerateJobRequest
   | UpscaleJobParams
   | CaptionJobParams
   | EnhanceJobParams
   | DetectJobParams
-  | PreprocessJobParams;
+  | PreprocessJobParams
+  | VideoGenerateParams;
 
 // --- Job response types ---
 

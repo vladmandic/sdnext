@@ -289,6 +289,84 @@ def execute_preprocess(params: dict, job_id: str) -> dict:
     return {'images': image_refs, 'info': {'model': model}, 'params': {k: v for k, v in params.items() if k not in ('type', 'image')}}
 
 
+def execute_video(params: dict, job_id: str) -> dict:
+    from modules import shared
+    from modules.api import helpers
+    from modules.video_models import video_run, video_ui
+
+    engine = params.get('engine', '')
+    model = params.get('model', '')
+    prompt = params.get('prompt', '')
+    negative = params.get('negative', '')
+    width = params.get('width', 848)
+    height = params.get('height', 480)
+    frames = params.get('frames', 25)
+    steps = params.get('steps', 30)
+    sampler_index = params.get('sampler', 0)
+    sampler_shift = params.get('sampler_shift', -1)
+    dynamic_shift = params.get('dynamic_shift', False)
+    seed = params.get('seed', -1)
+    guidance_scale = params.get('guidance_scale', 6.0)
+    guidance_true = params.get('guidance_true', -1)
+    init_strength = params.get('init_strength', 0.5)
+    vae_type = params.get('vae_type', 'Default')
+    vae_tile_frames = params.get('vae_tile_frames', 0)
+    mp4_fps = params.get('fps', 24)
+    mp4_interpolate = params.get('interpolate', 0)
+    mp4_codec = params.get('codec', 'libx264')
+    mp4_ext = params.get('format', 'mp4')
+    mp4_opt = params.get('codec_options', 'crf:16')
+    mp4_video = params.get('save_video', True)
+    mp4_frames = params.get('save_frames', False)
+    mp4_sf = params.get('save_safetensors', False)
+
+    # Decode optional images
+    init_image = helpers.decode_base64_to_image(params['init_image']) if params.get('init_image') else None
+    last_image = helpers.decode_base64_to_image(params['last_image']) if params.get('last_image') else None
+
+    # Ensure model is loaded
+    for _msg in video_ui.model_load(engine, model):
+        pass
+
+    jobid = shared.state.begin('API-V2-VID', api=True)
+    try:
+        result = video_run.generate(
+            '', '',  # task_id, ui_state
+            engine, model,
+            prompt, negative, [],  # styles
+            width, height, frames,
+            steps, sampler_index, sampler_shift, dynamic_shift,
+            seed, guidance_scale, guidance_true,
+            init_image, init_strength, last_image,
+            vae_type, vae_tile_frames,
+            mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf,
+            False, '', '',  # vlm_enhance, vlm_model, vlm_system_prompt
+            {},  # override_settings
+        )
+    finally:
+        shared.state.end(jobid)
+
+    # result = (images, video_file, gen_info_js, info, html_log)
+    video_file = result[1] if result and len(result) > 1 else None
+
+    image_refs = []
+    # Video file as first "image" ref
+    if video_file and os.path.isfile(str(video_file)):
+        path = str(video_file)
+        ext = os.path.splitext(path)[1].lstrip('.').lower()
+        image_refs.append({
+            'index': 0,
+            'path': path,
+            'url': f'/sdapi/v2/jobs/{job_id}/images/0',
+            'width': width,
+            'height': height,
+            'format': ext or 'mp4',
+            'size': os.path.getsize(path),
+        })
+
+    return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k not in ('type', 'init_image', 'last_image')}}
+
+
 EXECUTORS = {
     'generate': execute_generate,
     'upscale': execute_upscale,
@@ -296,4 +374,5 @@ EXECUTORS = {
     'enhance': execute_enhance,
     'detect': execute_detect,
     'preprocess': execute_preprocess,
+    'video': execute_video,
 }

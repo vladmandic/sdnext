@@ -14,6 +14,8 @@ import { ControlTab } from "@/components/generation/tabs/ControlTab";
 import { ScriptsTab } from "@/components/generation/tabs/ScriptsTab";
 import { CaptionPanel } from "@/components/caption/CaptionPanel";
 import { GalleryPanel } from "@/components/gallery/GalleryPanel";
+import { ProcessPanel } from "@/components/process/ProcessPanel";
+import { VideoPanel } from "@/components/video/VideoPanel";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function LeftPanel() {
@@ -27,6 +29,14 @@ export function LeftPanel() {
 
   if (activeView === "gallery") {
     return <GalleryPanel />;
+  }
+
+  if (activeView === "process") {
+    return <ProcessPanel />;
+  }
+
+  if (activeView === "video") {
+    return <VideoPanel />;
   }
 
   if (activeView === "images") {

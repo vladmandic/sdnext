@@ -42,7 +42,7 @@ async def submit_job(request: dict):
     job_type = request.get('type')
     if not job_type:
         raise HTTPException(status_code=400, detail="Missing 'type' field")
-    valid_types = {'generate', 'upscale', 'caption', 'enhance', 'detect', 'preprocess'}
+    valid_types = {'generate', 'upscale', 'caption', 'enhance', 'detect', 'preprocess', 'video'}
     if job_type not in valid_types:
         raise HTTPException(status_code=400, detail=f"Invalid job type: {job_type}. Must be one of: {', '.join(sorted(valid_types))}")
     priority = request.pop('priority', 0)
@@ -129,6 +129,38 @@ async def get_job_image(job_id: str, index: int):
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="Image file not found on disk")
     ext = os.path.splitext(file_path)[1].lstrip('.').lower()
-    media_types = {'png': 'image/png', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'webp': 'image/webp', 'jxl': 'image/jxl'}
+    media_types = {'png': 'image/png', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'webp': 'image/webp', 'jxl': 'image/jxl', 'mp4': 'video/mp4', 'webm': 'video/webm', 'gif': 'image/gif'}
     media_type = media_types.get(ext, 'application/octet-stream')
     return FileResponse(file_path, media_type=media_type)
+
+
+@router.get("/video/engines")
+async def list_video_engines():
+    from modules.video_models import models_def
+    result = []
+    for engine_name, model_list in models_def.models.items():
+        if engine_name == 'None':
+            continue
+        model_names = [m.name for m in model_list if m.name != 'None']
+        result.append({'engine': engine_name, 'models': model_names})
+    return result
+
+
+@router.get("/video/engines/{engine}/models")
+async def list_video_engine_models(engine: str):
+    from modules.video_models import models_def
+    if engine not in models_def.models:
+        raise HTTPException(status_code=404, detail=f"Engine not found: {engine}")
+    model_list = models_def.models[engine]
+    return [{'name': m.name, 'repo': m.repo or '', 'url': m.url or ''} for m in model_list if m.name != 'None']
+
+
+@router.post("/video/load")
+async def load_video_model(request: dict):
+    from modules.video_models import video_ui
+    engine = request.get('engine', '')
+    model = request.get('model', '')
+    if not engine or not model:
+        raise HTTPException(status_code=400, detail="Both 'engine' and 'model' fields are required")
+    messages = list(video_ui.model_load(engine, model))
+    return {"engine": engine, "model": model, "messages": messages}
