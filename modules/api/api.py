@@ -151,6 +151,10 @@ class Api:
         from modules.api import system_ops
         system_ops.register_api()
 
+        # v2 async job queue api
+        from modules.api.v2 import register_v2
+        register_v2(self.app)
+
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute
         paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
