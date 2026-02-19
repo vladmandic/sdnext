@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
 import type { LoraNetwork, EmbeddingsResponse, PromptStyle, NetworkDetail, NetworkDetailsResponse } from "../types/models";
 
@@ -32,6 +32,17 @@ export function useNetworkDetail(page: string, name: string, enabled: boolean) {
     queryFn: () => api.get<NetworkDetail>("/sdapi/v1/extra-networks/detail", { page, name }),
     enabled,
     staleTime: 60_000,
+  });
+}
+
+export function useRefreshNetworks() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => api.post("/sdapi/v1/refresh-loras"),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["extra-networks"] });
+      queryClient.invalidateQueries({ queryKey: ["prompt-styles"] });
+    },
   });
 }
 

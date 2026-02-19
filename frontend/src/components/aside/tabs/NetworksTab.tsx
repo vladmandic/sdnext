@@ -1,7 +1,6 @@
 import { useState, useMemo } from "react";
 import { RefreshCw, ImageOff, Info, Loader2 } from "lucide-react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useExtraNetworks, usePromptStyles, useNetworkDetail } from "@/api/hooks/useNetworks";
+import { useExtraNetworks, usePromptStyles, useNetworkDetail, useRefreshNetworks } from "@/api/hooks/useNetworks";
 import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
 import { useGenerationStore } from "@/stores/generationStore";
 import type { LoraNetwork, PromptStyle } from "@/api/types/models";
@@ -63,7 +62,7 @@ export function NetworksTab() {
   const { data: options } = useOptions();
   const setOptions = useSetOptions();
   const prompt = useGenerationStore((s) => s.prompt);
-  const queryClient = useQueryClient();
+  const refreshNetworks = useRefreshNetworks();
   const [filter, setFilter] = useState<TypeFilter>("Model");
   const [search, setSearch] = useState("");
   const [selectedSubfolder, setSelectedSubfolder] = useState("All");
@@ -262,13 +261,11 @@ export function NetworksTab() {
           ))}
           <button
             type="button"
-            onClick={() => {
-              queryClient.invalidateQueries({ queryKey: ["extra-networks"] });
-              queryClient.invalidateQueries({ queryKey: ["prompt-styles"] });
-            }}
-            className="ml-auto p-1 text-muted-foreground hover:text-foreground"
+            disabled={refreshNetworks.isPending}
+            onClick={() => refreshNetworks.mutate()}
+            className="ml-auto p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
           >
-            <RefreshCw className="h-3.5 w-3.5" />
+            <RefreshCw className={`h-3.5 w-3.5 ${refreshNetworks.isPending ? "animate-spin" : ""}`} />
           </button>
         </div>
         <Input
