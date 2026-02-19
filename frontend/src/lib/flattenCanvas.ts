@@ -27,7 +27,8 @@ export async function flattenCanvas(
   const ctx = canvas.getContext("2d")!;
 
   for (const layer of visible) {
-    const img = await loadImage(layer.imageData);
+    const src = layer.base64 ? `data:image/png;base64,${layer.base64}` : layer.imageData;
+    const img = await loadImage(src);
     ctx.save();
     ctx.translate(layer.x, layer.y);
     ctx.rotate((layer.rotation * Math.PI) / 180);
