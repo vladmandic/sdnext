@@ -132,6 +132,8 @@ interface GenerationState {
   currentTaskId: string | null;
   progress: number;
   eta: number;
+  samplingStep: number;
+  samplingSteps: number;
   previewImage: string | null;
   queuePosition: number;
 
@@ -145,7 +147,7 @@ interface GenerationState {
   setParam: <K extends keyof GenerationState>(key: K, value: GenerationState[K]) => void;
   setParams: (params: Partial<GenerationState>) => void;
   setGenerating: (generating: boolean) => void;
-  setProgress: (progress: number, eta: number) => void;
+  setProgress: (progress: number, eta: number, samplingStep?: number, samplingSteps?: number) => void;
   setPreview: (image: string | null) => void;
   setTaskId: (id: string | null) => void;
   addResult: (result: GenerationResult) => void;
@@ -257,6 +259,8 @@ export const useGenerationStore = create<GenerationState>()(
       currentTaskId: null,
       progress: 0,
       eta: 0,
+      samplingStep: 0,
+      samplingSteps: 0,
       previewImage: null,
       queuePosition: 0,
       results: [],
@@ -271,10 +275,10 @@ export const useGenerationStore = create<GenerationState>()(
       setGenerating: (generating) =>
         set({
           isGenerating: generating,
-          ...(generating ? {} : { progress: 0, eta: 0, previewImage: null }),
+          ...(generating ? {} : { progress: 0, eta: 0, samplingStep: 0, samplingSteps: 0, previewImage: null }),
         }),
 
-      setProgress: (progress, eta) => set({ progress, eta }),
+      setProgress: (progress, eta, samplingStep, samplingSteps) => set({ progress, eta, ...(samplingStep !== undefined ? { samplingStep } : {}), ...(samplingSteps !== undefined ? { samplingSteps } : {}) }),
 
       setPreview: (image) => set({ previewImage: image }),
 

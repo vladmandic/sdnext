@@ -1,30 +1,23 @@
 import { useGenerationStore } from "@/stores/generationStore";
-import { useProgress, useStatus } from "@/api/hooks/useGeneration";
+import { useStatus } from "@/api/hooks/useGeneration";
 import { useMemory } from "@/api/hooks/useServer";
 import { formatBytes, formatDuration } from "@/lib/utils";
 import { LoadedModelsPanel } from "@/components/layout/LoadedModelsPanel";
 
 export function StatusBar() {
   const isGenerating = useGenerationStore((s) => s.isGenerating);
+  const progress = useGenerationStore((s) => s.progress);
+  const samplingStep = useGenerationStore((s) => s.samplingStep);
+  const samplingSteps = useGenerationStore((s) => s.samplingSteps);
+  const eta = useGenerationStore((s) => s.eta);
   const { data: status } = useStatus();
-  const { data: progressData } = useProgress(isGenerating);
   const { data: memory } = useMemory();
 
-  // Use client-side isGenerating as ground truth since backend status
-  // flips to 'idle' between sub-phases (TE Encode → Base → Inference).
-  // Backend keeps status as "interrupted"/"skipped" until the next job
-  // begins, so treat those as idle-equivalent when we know we're done.
   const backendIdle = !status || status.status === "idle" || status.status === "interrupted" || status.status === "skipped";
   const isIdle = !isGenerating && backendIdle;
 
-  // Get step/steps from the progress endpoint state dict (raw values).
-  const samplingStep = (progressData?.state?.sampling_step as number) ?? 0;
-  const samplingSteps = (progressData?.state?.sampling_steps as number) ?? 0;
+  const progressPct = !isIdle ? Math.round(progress * 100) : 0;
 
-  // Use the progress endpoint's corrected progress (with fallback calculation).
-  const progressPct = !isIdle ? Math.round((progressData?.progress ?? 0) * 100) : 0;
-
-  // Task name from status endpoint when available, else generic label.
   const taskName = status?.current || status?.task || "Working";
 
   return (
@@ -54,8 +47,8 @@ export function StatusBar() {
             </div>
             <span className="tabular-nums">{progressPct}%</span>
           </div>
-          {progressData?.eta_relative != null && progressData.eta_relative > 0 && (
-            <span>ETA {formatDuration(progressData.eta_relative)}</span>
+          {eta > 0 && (
+            <span>ETA {formatDuration(eta)}</span>
           )}
         </>
       )}
