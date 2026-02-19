@@ -257,6 +257,30 @@ def _enumerate_detailer() -> List[ItemLoadedModel]:
     return items
 
 
+def _enumerate_prompt_enhance() -> List[ItemLoadedModel]:
+    items = []
+    try:
+        from modules.scripts_manager import scripts_txt2img
+        if scripts_txt2img is None:
+            return items
+        instances = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename]
+        if not instances:
+            return items
+        instance = instances[0]
+        if instance.llm is not None:
+            items.append(ItemLoadedModel(
+                name=instance.model or 'unknown',
+                category='enhance',
+                device=_safe_device(instance.llm),
+                size_bytes=_safe_size(instance.llm),
+                dtype=_safe_dtype(instance.llm),
+                extra=_component_extra(instance.llm, **{'class': instance.llm.__class__.__name__}),
+            ))
+    except Exception:
+        pass
+    return items
+
+
 def _enumerate_caption() -> List[ItemLoadedModel]:
     items = []
     # VQA
@@ -285,6 +309,34 @@ def _enumerate_caption() -> List[ItemLoadedModel]:
             ))
     except Exception:
         pass
+    # DeepBooru
+    try:
+        from modules.caption import deepbooru
+        if deepbooru.model.model is not None:
+            items.append(ItemLoadedModel(
+                name='DeepDanbooru',
+                category='caption',
+                device=_safe_device(deepbooru.model.model),
+                size_bytes=_safe_size(deepbooru.model.model),
+                dtype=_safe_dtype(deepbooru.model.model),
+                extra={'type': 'deepbooru', 'class': deepbooru.model.model.__class__.__name__},
+            ))
+    except Exception:
+        pass
+    # WaifuDiffusion
+    try:
+        from modules.caption import waifudiffusion
+        if waifudiffusion.tagger.session is not None:
+            items.append(ItemLoadedModel(
+                name=waifudiffusion.tagger.model_name or 'unknown',
+                category='caption',
+                device=None,
+                size_bytes=None,
+                dtype=None,
+                extra={'type': 'waifudiffusion', 'runtime': 'onnx'},
+            ))
+    except Exception:
+        pass
     return items
 
 
@@ -310,6 +362,7 @@ def get_loaded_models() -> List[ItemLoadedModel]:
     items.extend(_enumerate_upscalers())
     items.extend(_enumerate_detailer())
     items.extend(_enumerate_caption())
+    items.extend(_enumerate_prompt_enhance())
     return items
 
 

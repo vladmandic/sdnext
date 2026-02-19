@@ -511,7 +511,7 @@ class ResGPU(BaseModel): # definition of http response
 
 class ItemLoadedModel(BaseModel):
     name: str = Field(title="Model Name", description="Model or component name")
-    category: str = Field(title="Category", description="Model category (pipeline, component, controlnet, lora, ipadapter, upscaler, detailer, caption)")
+    category: str = Field(title="Category", description="Model category (pipeline, component, controlnet, lora, ipadapter, upscaler, detailer, caption, enhance)")
     device: Optional[str] = Field(default=None, title="Device", description="Device where the model is loaded (e.g., cuda:0, cpu)")
     size_bytes: Optional[int] = Field(default=None, title="Size (bytes)", description="Total parameter memory footprint in bytes")
     dtype: Optional[str] = Field(default=None, title="Dtype", description="Effective data type (e.g., float16, nf4)")

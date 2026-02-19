@@ -22,6 +22,7 @@ const CATEGORY_ORDER = [
   "ipadapter",
   "upscaler",
   "caption",
+  "enhance",
   "detailer",
 ] as const;
 
@@ -35,6 +36,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   ipadapter: "IP-Adapter",
   upscaler: "Upscaler",
   caption: "Caption",
+  enhance: "Prompt Enhance",
   detailer: "Detailer",
 };
 
