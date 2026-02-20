@@ -1,4 +1,3 @@
-from modules.logger import log
 from .teacache_flux import teacache_flux_forward
 from .teacache_hidream import teacache_hidream_forward
 from .teacache_lumina2 import teacache_lumina2_forward
@@ -13,16 +12,18 @@ supported_models = ['Flux', 'Chroma', 'CogVideoX', 'Mochi', 'LTX', 'HiDream', 'L
 
 def apply_teacache(p):
     from modules import shared
-    if not shared.opts.teacache_enabled:
+    enabled = p.teacache_enabled if getattr(p, 'teacache_enabled', None) is not None else shared.opts.teacache_enabled
+    if not enabled:
         return
+    thresh = p.teacache_thresh if getattr(p, 'teacache_thresh', None) is not None else shared.opts.teacache_thresh
     if not any(shared.sd_model.__class__.__name__.startswith(x) for x in supported_models):
         return
     if not hasattr(shared.sd_model, 'transformer'):
         return
-    shared.sd_model.transformer.__class__.enable_teacache = shared.opts.teacache_thresh > 0
+    shared.sd_model.transformer.__class__.enable_teacache = thresh > 0
     shared.sd_model.transformer.__class__.cnt = 0
     shared.sd_model.transformer.__class__.num_steps = p.steps
-    shared.sd_model.transformer.__class__.rel_l1_thresh = shared.opts.teacache_thresh # 0.25 for 1.5x speedup, 0.4 for 1.8x speedup, 0.6 for 2.0x speedup, 0.8 for 2.25x speedup
+    shared.sd_model.transformer.__class__.rel_l1_thresh = thresh # 0.25 for 1.5x speedup, 0.4 for 1.8x speedup, 0.6 for 2.0x speedup, 0.8 for 2.25x speedup
     shared.sd_model.transformer.__class__.accumulated_rel_l1_distance = 0
     shared.sd_model.transformer.__class__.previous_modulated_input = None
     shared.sd_model.transformer.__class__.previous_residual = None
@@ -31,4 +32,4 @@ def apply_teacache(p):
     if shared.sd_model.__class__.__name__.startswith('Lumina2'):
         shared.sd_model.transformer.__class__.cache = {}
         shared.sd_model.transformer.__class__.uncond_seq_len = None
-    log.info(f'Transformers cache: type=teacache cls={shared.sd_model.__class__.__name__} thresh={shared.opts.teacache_thresh}')
+    shared.log.info(f'Transformers cache: type=teacache cls={shared.sd_model.__class__.__name__} thresh={thresh}')
