@@ -435,9 +435,7 @@ def update_token_counter(text: str):
 
     from modules.extra_networks import parse_prompt
 
-    token_counts = [0]
-    max_length = 75
-    count_formatted = ''
+    count_formatted = '0'
     visible = False
 
     prompt, _ = parse_prompt(text)
