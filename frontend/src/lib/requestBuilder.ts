@@ -5,14 +5,19 @@ import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
-import { fileToBase64, stripDataPrefix } from "@/lib/image";
-import { exportMaskToBase64 } from "@/lib/exportMask";
+import { exportMask } from "@/lib/exportMask";
 import { flattenCanvas } from "@/lib/flattenCanvas";
+import { uploadFile, uploadFiles, uploadBlob } from "@/lib/upload";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
 
-export async function buildControlRequest(): Promise<ControlRequest> {
+export interface BuildResult {
+  request: ControlRequest;
+  inputBlob?: Blob;
+}
+
+export async function buildControlRequest(): Promise<BuildResult> {
   const gen = useGenerationStore.getState();
   const scripts = useScriptStore.getState();
   const control = useControlStore.getState();
@@ -71,23 +76,50 @@ export async function buildControlRequest(): Promise<ControlRequest> {
     hdr_max_center: gen.hdrMaxCenter,
     hdr_max_boundary: gen.hdrMaxBoundary,
     hdr_tint_ratio: gen.hdrTintRatio,
-    extra: {
-      schedulers_sigma: gen.sigmaMethod,
-      schedulers_timestep_spacing: gen.timestepSpacing,
-      schedulers_beta_schedule: gen.betaSchedule,
-      schedulers_prediction_type: gen.predictionMethod,
-      schedulers_shift: gen.flowShift,
-      schedulers_base_shift: gen.baseShift,
-      schedulers_max_shift: gen.maxShift,
-      schedulers_sigma_adjust: gen.sigmaAdjust,
-      schedulers_sigma_adjust_min: gen.sigmaAdjustStart,
-      schedulers_sigma_adjust_max: gen.sigmaAdjustEnd,
-      schedulers_use_thresholding: gen.thresholding,
-      schedulers_dynamic_shift: gen.dynamic,
-      schedulers_rescale_betas: gen.rescale,
-      schedulers_use_loworder: gen.lowOrder,
-      ...(gen.timestepsOverride ? { schedulers_timesteps: gen.timestepsOverride } : {}),
-    },
+    schedulers_sigma: gen.sigmaMethod,
+    schedulers_timestep_spacing: gen.timestepSpacing,
+    schedulers_beta_schedule: gen.betaSchedule,
+    schedulers_prediction_type: gen.predictionMethod,
+    schedulers_shift: gen.flowShift,
+    schedulers_base_shift: gen.baseShift,
+    schedulers_max_shift: gen.maxShift,
+    schedulers_sigma_adjust: gen.sigmaAdjust,
+    schedulers_sigma_adjust_min: gen.sigmaAdjustStart,
+    schedulers_sigma_adjust_max: gen.sigmaAdjustEnd,
+    schedulers_use_thresholding: gen.thresholding,
+    schedulers_dynamic_shift: gen.dynamic,
+    schedulers_rescale_betas: gen.rescale,
+    schedulers_use_loworder: gen.lowOrder,
+    ...(gen.timestepsOverride ? { schedulers_timesteps: gen.timestepsOverride } : {}),
+    ...(gen.freeuEnabled ? {
+      freeu_enabled: true,
+      freeu_b1: gen.freeuB1,
+      freeu_b2: gen.freeuB2,
+      freeu_s1: gen.freeuS1,
+      freeu_s2: gen.freeuS2,
+    } : {}),
+    ...(gen.hypertileUnetEnabled ? {
+      hypertile_unet_enabled: true,
+      hypertile_hires_only: gen.hypertileHiresOnly,
+      hypertile_unet_tile: gen.hypertileUnetTile,
+      hypertile_unet_min_tile: gen.hypertileUnetMinTile,
+      hypertile_unet_swap_size: gen.hypertileUnetSwapSize,
+      hypertile_unet_depth: gen.hypertileUnetDepth,
+    } : {}),
+    ...(gen.hypertileVaeEnabled ? {
+      hypertile_vae_enabled: true,
+      hypertile_vae_tile: gen.hypertileVaeTile,
+      hypertile_vae_swap_size: gen.hypertileVaeSwapSize,
+    } : {}),
+    ...(gen.teacacheEnabled ? {
+      teacache_enabled: true,
+      teacache_thresh: gen.teacacheThresh,
+    } : {}),
+    ...(gen.tokenMergingMethod !== "None" ? {
+      token_merging_method: gen.tokenMergingMethod,
+      tome_ratio: gen.tomeRatio,
+      todo_ratio: gen.todoRatio,
+    } : {}),
   };
 
   // Detailer
@@ -151,8 +183,8 @@ export async function buildControlRequest(): Promise<ControlRequest> {
         crop: u.crop,
         start: u.start,
         end: u.end,
-        images: await Promise.all(u.images.map(fileToBase64)),
-        masks: u.masks.length > 0 ? await Promise.all(u.masks.map(fileToBase64)) : undefined,
+        images: await uploadFiles(u.images),
+        masks: u.masks.length > 0 ? await uploadFiles(u.masks) : undefined,
       })),
     );
   }
@@ -164,16 +196,21 @@ export async function buildControlRequest(): Promise<ControlRequest> {
         // When reprocess is off and a manual preview exists, send the processed image
         // as override with process=None so the backend uses it as-is.
         const hasManualPreview = !reprocess && e.unit.processedImage;
-        const overrideB64 = hasManualPreview
-          ? stripDataPrefix(e.unit.processedImage!)
-          : e.image ? await fileToBase64(e.image) : undefined;
+        let overrideRef: string | undefined;
+        if (hasManualPreview) {
+          const resp = await fetch(e.unit.processedImage!);
+          const blob = await resp.blob();
+          overrideRef = await uploadBlob(blob, "processed.png");
+        } else if (e.image) {
+          overrideRef = await uploadFile(e.image);
+        }
         return {
           process: hasManualPreview ? "None" : e.unit.processor,
           model: e.unit.model,
           strength: e.unit.strength,
           start: e.unit.start,
           end: e.unit.end,
-          override: overrideB64,
+          override: overrideRef,
           unit_type: TYPE_MAP[e.unit.unitType] ?? e.unit.unitType,
           mode: e.unit.mode,
           ...(e.unit.unitType === "controlnet" ? { guess: e.unit.guess } : {}),
@@ -185,10 +222,11 @@ export async function buildControlRequest(): Promise<ControlRequest> {
   }
 
   if (assetUnitEntries.length > 0) {
-    request.init_control = await Promise.all(assetUnitEntries.map((e) => fileToBase64(e.image!)));
+    request.init_control = await Promise.all(assetUnitEntries.map((e) => uploadFile(e.image!)));
   }
 
   // img2img: add inputs, mask, inpainting params
+  let inputBlob: Blob | undefined;
   if (isImg2Img) {
     const frameW = gen.width;
     const frameH = gen.height;
@@ -202,23 +240,32 @@ export async function buildControlRequest(): Promise<ControlRequest> {
 
     // Flatten all image layers at full frame size
     const imageLayers = canvas.layers.filter((l) => l.type === "image") as ImageLayer[];
-    const flattenedBase64 = await flattenCanvas(imageLayers, frameW, frameH);
-    if (flattenedBase64) {
-      request.inputs = [flattenedBase64];
+    const flattenedBlob = await flattenCanvas(imageLayers, frameW, frameH);
+    if (flattenedBlob) {
+      inputBlob = flattenedBlob;
+      const ref = await uploadBlob(flattenedBlob, "input.png");
+      request.inputs = [ref];
     }
 
-    // Force resize_mode_before=1 when scale/megapixel so backend resizes init image to target
+    // Force resize_mode_before=1 (Fixed) + resize_name_before when scale/megapixel
+    // so the backend resizes the init image to the computed target dimensions.
+    // Both fields are required: run.py zeros resize_mode when resize_name is 'None'.
     if (effectiveSizeMode !== "fixed") {
       request.resize_mode_before = 1;
+      request.resize_name_before = img2img.resizeMethod;
     }
 
     // Export mask from painted strokes if no explicit maskData
-    let maskData = img2img.maskData;
-    if (!maskData && img2img.maskLines.length > 0) {
-      maskData = exportMaskToBase64(img2img.maskLines, frameW, frameH);
+    let maskBlob: Blob | null = null;
+    if (img2img.maskData) {
+      // maskData is already a base64 string from external source — convert to Blob and upload
+      const resp = await fetch(`data:image/png;base64,${img2img.maskData}`);
+      maskBlob = await resp.blob();
+    } else if (img2img.maskLines.length > 0) {
+      maskBlob = await exportMask(img2img.maskLines, frameW, frameH);
     }
-    if (maskData) {
-      request.mask = maskData;
+    if (maskBlob) {
+      request.mask = await uploadBlob(maskBlob, "mask.png");
       request.mask_blur = img2img.maskBlur;
       request.inpaint_full_res = img2img.inpaintFullRes;
       request.inpaint_full_res_padding = img2img.inpaintFullResPadding;
@@ -234,7 +281,7 @@ export async function buildControlRequest(): Promise<ControlRequest> {
     };
   }
 
-  return request;
+  return { request, inputBlob };
 }
 
 /** Restore generation store state from a previous result. */
@@ -309,6 +356,27 @@ export function restoreFromResult(result: GenerationResult): void {
     tiling: bool(p.tiling, false),
     hidiffusion: bool(p.hidiffusion, false),
 
+    // Generation modifiers (hijack)
+    freeuEnabled: bool(p.freeu_enabled, false),
+    freeuB1: num(p.freeu_b1, 1.2),
+    freeuB2: num(p.freeu_b2, 1.4),
+    freeuS1: num(p.freeu_s1, 0.9),
+    freeuS2: num(p.freeu_s2, 0.2),
+    hypertileUnetEnabled: bool(p.hypertile_unet_enabled, false),
+    hypertileHiresOnly: bool(p.hypertile_hires_only, false),
+    hypertileUnetTile: num(p.hypertile_unet_tile, 0),
+    hypertileUnetMinTile: num(p.hypertile_unet_min_tile, 0),
+    hypertileUnetSwapSize: num(p.hypertile_unet_swap_size, 1),
+    hypertileUnetDepth: num(p.hypertile_unet_depth, 0),
+    hypertileVaeEnabled: bool(p.hypertile_vae_enabled, false),
+    hypertileVaeTile: num(p.hypertile_vae_tile, 128),
+    hypertileVaeSwapSize: num(p.hypertile_vae_swap_size, 1),
+    teacacheEnabled: bool(p.teacache_enabled, false),
+    teacacheThresh: num(p.teacache_thresh, 0.15),
+    tokenMergingMethod: str(p.token_merging_method, "None"),
+    tomeRatio: num(p.tome_ratio, 0.0),
+    todoRatio: num(p.todo_ratio, 0.0),
+
     // HDR corrections
     hdrMode: num(p.hdr_mode, 0),
     hdrBrightness: num(p.hdr_brightness, 0),
@@ -335,22 +403,22 @@ export function restoreFromResult(result: GenerationResult): void {
     detailerSort: bool(p.detailer_sort, false),
     detailerClasses: str(p.detailer_classes, ""),
 
-    // Scheduler overrides
-    sigmaMethod: str(overrides.schedulers_sigma, "default"),
-    timestepSpacing: str(overrides.schedulers_timestep_spacing, "default"),
-    betaSchedule: str(overrides.schedulers_beta_schedule, "default"),
-    predictionMethod: str(overrides.schedulers_prediction_type, "default"),
-    flowShift: num(overrides.schedulers_shift, 3),
-    baseShift: num(overrides.schedulers_base_shift, 0.5),
-    maxShift: num(overrides.schedulers_max_shift, 1.15),
-    sigmaAdjust: num(overrides.schedulers_sigma_adjust, 1.0),
-    sigmaAdjustStart: num(overrides.schedulers_sigma_adjust_min, 0.2),
-    sigmaAdjustEnd: num(overrides.schedulers_sigma_adjust_max, 1.0),
-    thresholding: bool(overrides.schedulers_use_thresholding, false),
-    dynamic: bool(overrides.schedulers_dynamic_shift, false),
-    rescale: bool(overrides.schedulers_rescale_betas, false),
-    lowOrder: bool(overrides.schedulers_use_loworder, true),
-    timestepsOverride: str(overrides.schedulers_timesteps, ""),
+    // Scheduler overrides (top-level in new API, overrides dict in legacy)
+    sigmaMethod: str(p.schedulers_sigma ?? overrides.schedulers_sigma, "default"),
+    timestepSpacing: str(p.schedulers_timestep_spacing ?? overrides.schedulers_timestep_spacing, "default"),
+    betaSchedule: str(p.schedulers_beta_schedule ?? overrides.schedulers_beta_schedule, "default"),
+    predictionMethod: str(p.schedulers_prediction_type ?? overrides.schedulers_prediction_type, "default"),
+    flowShift: num(p.schedulers_shift ?? overrides.schedulers_shift, 3),
+    baseShift: num(p.schedulers_base_shift ?? overrides.schedulers_base_shift, 0.5),
+    maxShift: num(p.schedulers_max_shift ?? overrides.schedulers_max_shift, 1.15),
+    sigmaAdjust: num(p.schedulers_sigma_adjust ?? overrides.schedulers_sigma_adjust, 1.0),
+    sigmaAdjustStart: num(p.schedulers_sigma_adjust_min ?? overrides.schedulers_sigma_adjust_min, 0.2),
+    sigmaAdjustEnd: num(p.schedulers_sigma_adjust_max ?? overrides.schedulers_sigma_adjust_max, 1.0),
+    thresholding: bool(p.schedulers_use_thresholding ?? overrides.schedulers_use_thresholding, false),
+    dynamic: bool(p.schedulers_dynamic_shift ?? overrides.schedulers_dynamic_shift, false),
+    rescale: bool(p.schedulers_rescale_betas ?? overrides.schedulers_rescale_betas, false),
+    lowOrder: bool(p.schedulers_use_loworder ?? overrides.schedulers_use_loworder, true),
+    timestepsOverride: str(p.schedulers_timesteps ?? overrides.schedulers_timesteps, ""),
     timestepsPreset: "None",
 
     // Detailer overrides

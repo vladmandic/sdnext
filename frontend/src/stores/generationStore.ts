@@ -89,6 +89,25 @@ interface GenerationState {
   vaeType: string;
   tiling: boolean;
   hidiffusion: boolean;
+  freeuEnabled: boolean;
+  freeuB1: number;
+  freeuB2: number;
+  freeuS1: number;
+  freeuS2: number;
+  hypertileUnetEnabled: boolean;
+  hypertileHiresOnly: boolean;
+  hypertileUnetTile: number;
+  hypertileUnetMinTile: number;
+  hypertileUnetSwapSize: number;
+  hypertileUnetDepth: number;
+  hypertileVaeEnabled: boolean;
+  hypertileVaeTile: number;
+  hypertileVaeSwapSize: number;
+  teacacheEnabled: boolean;
+  teacacheThresh: number;
+  tokenMergingMethod: string;
+  tomeRatio: number;
+  todoRatio: number;
   overrideSettings: Record<string, unknown>;
 
   // Detailer
@@ -213,6 +232,25 @@ const defaultParams = {
   vaeType: "Full",
   tiling: false,
   hidiffusion: false,
+  freeuEnabled: false,
+  freeuB1: 1.2,
+  freeuB2: 1.4,
+  freeuS1: 0.9,
+  freeuS2: 0.2,
+  hypertileUnetEnabled: false,
+  hypertileHiresOnly: false,
+  hypertileUnetTile: 0,
+  hypertileUnetMinTile: 0,
+  hypertileUnetSwapSize: 1,
+  hypertileUnetDepth: 0,
+  hypertileVaeEnabled: false,
+  hypertileVaeTile: 128,
+  hypertileVaeSwapSize: 1,
+  teacacheEnabled: false,
+  teacacheThresh: 0.15,
+  tokenMergingMethod: "None",
+  tomeRatio: 0.0,
+  todoRatio: 0.0,
   overrideSettings: {},
   detailerEnabled: false,
   detailerModels: ["face-yolo8n"],
