@@ -6,10 +6,8 @@ from copy import copy
 import numpy as np
 import gradio as gr
 from PIL import Image, ImageDraw
-from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, extra_networks, sd_models
-from modules.logger import log
+from modules import shared, processing, devices, processing_class, ui_common, ui_components, ui_symbols, images, extra_networks, sd_models
 from modules.detailer import Detailer
-from modules.image.grid import get_font
 
 
 predefined = [ # <https://huggingface.co/vladmandic/yolo-detailers/tree/main>
@@ -28,9 +26,7 @@ load_lock = threading.Lock()
 
 
 class YoloResult:
-    def __init__(self, cls: int, label: str, score: float, box: list[int], mask: Image.Image = None, item: Image.Image = None, width = 0, height = 0, args = None):
-        if args is None:
-            args = {}
+    def __init__(self, cls: int, label: str, score: float, box: list[int], mask: Image.Image = None, item: Image.Image = None, width = 0, height = 0, args = {}):
         self.cls = cls
         self.label = label
         self.score = score
@@ -72,14 +68,12 @@ class YoloRestorer(Detailer):
                     name = os.path.splitext(os.path.basename(f))[0]
                     if name not in files:
                         self.list[name] = os.path.join(shared.opts.yolo_dir, f)
-        log.info(f'Available Detailer: path="{shared.opts.yolo_dir}" items={len(list(self.list))} downloaded={downloaded}')
+        shared.log.info(f'Available Detailer: path="{shared.opts.yolo_dir}" items={len(list(self.list))} downloaded={downloaded}')
         return list(self.list)
 
     def dependencies(self):
-        from installer import install
-        install('ultralytics==8.3.40', ignore=True, quiet=True)
-        install('omegaconf')
-        install('antlr4-python3-runtime')
+        import installer
+        installer.install('ultralytics==8.3.40', ignore=True, quiet=True)
 
     def predict(
             self,
@@ -93,6 +87,8 @@ class YoloRestorer(Detailer):
             retina: bool = False,
             mask: bool = True,
             offload: bool = shared.opts.detailer_unload,
+            classes: str = None,
+            segmentation: bool = None,
         ) -> list[YoloResult]:
 
         if model is None or (isinstance(model, str) and len(model) == 0):
@@ -130,10 +126,11 @@ class YoloRestorer(Detailer):
             if offload:
                 model.to('cpu')
         except Exception as e:
-            log.error(f'Detailer predict: {e}')
+            shared.log.error(f'Detailer predict: {e}')
             return result
 
-        desired = shared.opts.detailer_classes.split(',')
+        classes_str = classes if classes is not None else shared.opts.detailer_classes
+        desired = classes_str.split(',')
         desired = [d.lower().strip() for d in desired]
         desired = [d for d in desired if len(d) > 0]
 
@@ -144,7 +141,7 @@ class YoloRestorer(Detailer):
             masks = prediction.masks.data.cpu().float().numpy() if prediction.masks is not None else []
             if len(masks) < len(classes):
                 masks = len(classes) * [None]
-            for score, box, cls, seg in zip(scores, boxes, classes, masks, strict=False):
+            for score, box, cls, seg in zip(scores, boxes, classes, masks):
                 if seg is not None:
                     try:
                         seg = (255 * seg).astype(np.uint8)
@@ -161,8 +158,9 @@ class YoloRestorer(Detailer):
                 min_size = shared.opts.detailer_min_size if shared.opts.detailer_min_size >= 0 and shared.opts.detailer_min_size <= 1 else 0
                 max_size = shared.opts.detailer_max_size if shared.opts.detailer_max_size >= 0 and shared.opts.detailer_max_size <= 1 else 1
                 if x_size >= min_size and y_size >=min_size and x_size <= max_size and y_size <= max_size:
+                    use_seg = segmentation if segmentation is not None else shared.opts.detailer_seg
                     if mask:
-                        if shared.opts.detailer_seg and seg is not None:
+                        if use_seg and seg is not None:
                             masked = seg
                         else:
                             masked = Image.new('L', image.size, 0)
@@ -196,14 +194,14 @@ class YoloRestorer(Detailer):
             else:
                 model_url = self.list.get(model_name, None)
                 if model_url is None:
-                    log.error(f'Load: type=Detailer name="{model_name}" error="model not found"')
+                    shared.log.error(f'Load: type=Detailer name="{model_name}" error="model not found"')
                     return None, None
                 file_name = os.path.basename(model_url)
                 model_file = None
                 try:
                     model_file = modelloader.load_file_from_url(url=model_url, model_dir=shared.opts.yolo_dir, file_name=file_name)
                     if model_file is None:
-                        log.error(f'Load: type=Detailer name="{model_name}" url="{model_url}" error="failed to fetch model"')
+                        shared.log.error(f'Load: type=Detailer name="{model_name}" url="{model_url}" error="failed to fetch model"')
                     elif model_file.endswith('.onnx'):
                         import onnxruntime as ort
                         options = ort.SessionOptions()
@@ -216,11 +214,11 @@ class YoloRestorer(Detailer):
                         import ultralytics
                         model = ultralytics.YOLO(model_file)
                         classes = list(model.names.values())
-                        log.info(f'Load: type=Detailer name="{model_name}" model="{model_file}" ultralytics={ultralytics.__version__} classes={classes}')
+                        shared.log.info(f'Load: type=Detailer name="{model_name}" model="{model_file}" ultralytics={ultralytics.__version__} classes={classes}')
                         self.models[model_name] = model
                         return model_name, model
                 except Exception as e:
-                    log.error(f'Load: type=Detailer name="{model_name}" error="{e}"')
+                    shared.log.error(f'Load: type=Detailer name="{model_name}" error="{e}"')
         return None, None
 
     def merge(self, items: list[YoloResult]) -> list[YoloResult]:
@@ -242,16 +240,17 @@ class YoloRestorer(Detailer):
         )
         return [merged]
 
-    def draw_masks(self, image: Image.Image, items: list[YoloResult]) -> Image.Image:
+    def draw_masks(self, image: Image.Image, items: list[YoloResult], segmentation: bool = None) -> Image.Image:
         if not isinstance(image, Image.Image):
             image = Image.fromarray(image)
         image = image.convert('RGBA')
         size = min(image.width, image.height) // 32
-        font = get_font(size)
+        font = images.get_font(size)
         color = (0, 190, 190)
-        log.debug(f'Detailer: draw={items}')
+        shared.log.debug(f'Detailer: draw={items}')
         for i, item in enumerate(items):
-            if shared.opts.detailer_seg and item.mask is not None:
+            use_seg = segmentation if segmentation is not None else shared.opts.detailer_seg
+            if use_seg and item.mask is not None:
                 mask = item.mask.convert('L')
             else:
                 mask = Image.new('L', image.size, 0)
@@ -280,7 +279,7 @@ class YoloRestorer(Detailer):
 
         shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.INPAINTING)
         if (sd_models.get_diffusers_task(shared.sd_model) != sd_models.DiffusersTaskType.INPAINTING) and (shared.sd_model.__class__.__name__ not in sd_models.pipe_switch_task_exclude):
-            log.error(f'Detailer: model="{shared.sd_model.__class__.__name__}" not compatible')
+            shared.log.error(f'Detailer: model="{shared.sd_model.__class__.__name__}" not compatible')
             return np_image
 
         models = []
@@ -290,9 +289,16 @@ class YoloRestorer(Detailer):
         if len(models) == 0:
             models = shared.opts.detailer_models
         if len(models) == 0:
-            log.warning('Detailer: model=None')
+            shared.log.warning('Detailer: model=None')
             return np_image
-        log.debug(f'Detailer: models={models}')
+        shared.log.debug(f'Detailer: models={models}')
+
+        # resolve per-request detailer settings with fallback to global opts
+        use_seg = getattr(p, 'detailer_segmentation', None)
+        use_save = getattr(p, 'detailer_include_detections', None)
+        use_merge = getattr(p, 'detailer_merge', None)
+        use_sort = getattr(p, 'detailer_sort', None)
+        use_classes = getattr(p, 'detailer_classes', None)
 
         # create backups
         orig_apply_overlay = shared.opts.mask_apply_overlay
@@ -313,19 +319,20 @@ class YoloRestorer(Detailer):
 
             name, model = self.load(model_name)
             if model is None:
-                log.warning(f'Detailer: model="{name}" not loaded')
+                shared.log.warning(f'Detailer: model="{name}" not loaded')
                 continue
 
             if image is None:
                 image = Image.fromarray(np_image)
-            items = self.predict(model, image)
+            items = self.predict(model, image, classes=use_classes, segmentation=use_seg)
 
             if len(items) == 0:
-                log.info(f'Detailer: model="{name}" no items detected')
+                shared.log.info(f'Detailer: model="{name}" no items detected')
                 continue
 
-            if shared.opts.detailer_merge and len(items) > 1:
-                log.debug(f'Detailer: model="{name}" items={len(items)} merge')
+            do_merge = use_merge if use_merge is not None else shared.opts.detailer_merge
+            if do_merge and len(items) > 1:
+                shared.log.debug(f'Detailer: model="{name}" items={len(items)} merge')
                 items = self.merge(items)
 
             shared.opts.data['mask_apply_overlay'] = True
@@ -366,7 +373,7 @@ class YoloRestorer(Detailer):
             }
             args.update(model_args)
             if args['denoising_strength'] == 0:
-                log.debug(f'Detailer: model="{name}" strength=0 skip')
+                shared.log.debug(f'Detailer: model="{name}" strength=0 skip')
                 return np_image
             control_pipeline = None
             orig_class = shared.sd_model.__class__
@@ -384,7 +391,7 @@ class YoloRestorer(Detailer):
                 p.steps = orig_p.get('steps', 0)
 
             # report = [{'label': i.label, 'score': i.score, 'size': f'{i.width}x{i.height}' } for i in items]
-            # log.info(f'Detailer: model="{name}" items={report} args={args}')
+            # shared.log.info(f'Detailer: model="{name}" items={report} args={args}')
             models_used.append(name)
 
             mask_all = []
@@ -397,10 +404,12 @@ class YoloRestorer(Detailer):
             shared.opts.schedulers_sigma_adjust = shared.opts.detailer_sigma_adjust
             shared.opts.schedulers_sigma_adjust_max = shared.opts.detailer_sigma_adjust_max
 
-            if shared.opts.detailer_sort:
+            do_sort = use_sort if use_sort is not None else shared.opts.detailer_sort
+            if do_sort:
                 items = sorted(items, key=lambda x: x.box[0]) # sort items left-to-right to improve consistency
-            if shared.opts.detailer_save:
-                annotated = self.draw_masks(annotated, items)
+            do_save = use_save if use_save is not None else shared.opts.detailer_save
+            if do_save:
+                annotated = self.draw_masks(annotated, items, segmentation=use_seg)
 
             for j, item in enumerate(items):
                 if item.mask is None:
@@ -413,7 +422,7 @@ class YoloRestorer(Detailer):
                 pc.negative_prompts = [pc.negative_prompt]
                 pc.prompts, pc.network_data = extra_networks.parse_prompts(pc.prompts)
                 extra_networks.activate(pc, pc.network_data)
-                log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label}" score={item.score:.2f} seg={shared.opts.detailer_seg} prompt="{pc.prompt}"')
+                shared.log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label}" score={item.score:.2f} seg={use_seg if use_seg is not None else shared.opts.detailer_seg} prompt="{pc.prompt}"')
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]
                 pc.overlay_images = []
@@ -492,9 +501,9 @@ class YoloRestorer(Detailer):
             shared.opts.detailer_seg = seg
             # shared.opts.detailer_resolution = resolution
             shared.opts.save(silent=True)
-            log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps} resolution={resolution} save={save} sort={sort} seg={seg}')
+            shared.log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps} resolution={resolution} save={save} sort={sort} seg={seg}')
             if not self.ui_mode:
-                log.debug(f'Detailer expert: {text}')
+                shared.log.debug(f'Detailer expert: {text}')
 
         with gr.Accordion(open=False, label="Detailer", elem_id=f"{tab}_detailer_accordion", elem_classes=["small-accordion"]):
             with gr.Row():
