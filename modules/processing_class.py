@@ -66,6 +66,11 @@ class StableDiffusionProcessing:
                  detailer_steps: int = 10,
                  detailer_strength: float = 0.3,
                  detailer_resolution: int = 1024,
+                 detailer_segmentation: bool = None,
+                 detailer_include_detections: bool = None,
+                 detailer_merge: bool = None,
+                 detailer_sort: bool = None,
+                 detailer_classes: str = None,
                  # hdr corrections
                  hdr_mode: int = 0,
                  hdr_brightness: float = 0,
@@ -151,7 +156,62 @@ class StableDiffusionProcessing:
                  # xyz flag
                  xyz: bool = False,
                  # scripts
-                 script_args: list = None,
+                 script_args: list = [],
+                 # scheduler/noise overrides
+                 schedulers_prediction_type: str = None,
+                 schedulers_beta_schedule: str = None,
+                 schedulers_timesteps: str = None,
+                 schedulers_sigma: str = None,
+                 schedulers_use_thresholding: bool = None,
+                 schedulers_use_loworder: bool = None,
+                 schedulers_solver_order: int = None,
+                 uni_pc_variant: str = None,
+                 schedulers_beta_start: float = None,
+                 schedulers_beta_end: float = None,
+                 schedulers_shift: float = None,
+                 schedulers_dynamic_shift: bool = None,
+                 schedulers_base_shift: float = None,
+                 schedulers_max_shift: float = None,
+                 schedulers_rescale_betas: bool = None,
+                 schedulers_timestep_spacing: str = None,
+                 schedulers_timesteps_range: int = None,
+                 schedulers_sigma_adjust: float = None,
+                 schedulers_sigma_adjust_min: float = None,
+                 schedulers_sigma_adjust_max: float = None,
+                 scheduler_eta: float = None,
+                 eta_noise_seed_delta: int = None,
+                 enable_batch_seeds: bool = None,
+                 diffusers_generator_device: str = None,
+                 nan_skip: bool = None,
+                 sequential_seed: bool = None,
+                 # prompt/attention overrides
+                 prompt_attention: str = None,
+                 prompt_mean_norm: bool = None,
+                 diffusers_zeros_prompt_pad: bool = None,
+                 te_pooled_embeds: bool = None,
+                 lora_apply_te: bool = None,
+                 te_complex_human_instruction: str = None,
+                 te_use_mask: bool = None,
+                 # generation modifier overrides (hijack)
+                 freeu_enabled: bool = None,
+                 freeu_b1: float = None,
+                 freeu_b2: float = None,
+                 freeu_s1: float = None,
+                 freeu_s2: float = None,
+                 hypertile_unet_enabled: bool = None,
+                 hypertile_hires_only: bool = None,
+                 hypertile_unet_tile: int = None,
+                 hypertile_unet_min_tile: int = None,
+                 hypertile_unet_swap_size: int = None,
+                 hypertile_unet_depth: int = None,
+                 hypertile_vae_enabled: bool = None,
+                 hypertile_vae_tile: int = None,
+                 hypertile_vae_swap_size: int = None,
+                 teacache_enabled: bool = None,
+                 teacache_thresh: float = None,
+                 token_merging_method: str = None,
+                 tome_ratio: float = None,
+                 todo_ratio: float = None,
                  # overrides
                  override_settings: dict[str, Any] = None,
                  override_settings_restore_afterwards: bool = True,
@@ -225,6 +285,11 @@ class StableDiffusionProcessing:
         self.detailer_steps = detailer_steps
         self.detailer_strength = detailer_strength
         self.detailer_resolution = detailer_resolution
+        self.detailer_segmentation = detailer_segmentation
+        self.detailer_include_detections = detailer_include_detections
+        self.detailer_merge = detailer_merge
+        self.detailer_sort = detailer_sort
+        self.detailer_classes = detailer_classes
         self.init_images = init_images
         self.init_control = init_control
         self.resize_mode = resize_mode
@@ -318,6 +383,62 @@ class StableDiffusionProcessing:
             log.error(f'Override: {override_settings} {e}')
             self.override_settings = {}
 
+        # scheduler/noise overrides
+        self.schedulers_prediction_type = schedulers_prediction_type
+        self.schedulers_beta_schedule = schedulers_beta_schedule
+        self.schedulers_timesteps = schedulers_timesteps
+        self.schedulers_sigma = schedulers_sigma
+        self.schedulers_use_thresholding = schedulers_use_thresholding
+        self.schedulers_use_loworder = schedulers_use_loworder
+        self.schedulers_solver_order = schedulers_solver_order
+        self.uni_pc_variant = uni_pc_variant
+        self.schedulers_beta_start = schedulers_beta_start
+        self.schedulers_beta_end = schedulers_beta_end
+        self.schedulers_shift = schedulers_shift
+        self.schedulers_dynamic_shift = schedulers_dynamic_shift
+        self.schedulers_base_shift = schedulers_base_shift
+        self.schedulers_max_shift = schedulers_max_shift
+        self.schedulers_rescale_betas = schedulers_rescale_betas
+        self.schedulers_timestep_spacing = schedulers_timestep_spacing
+        self.schedulers_timesteps_range = schedulers_timesteps_range
+        self.schedulers_sigma_adjust = schedulers_sigma_adjust
+        self.schedulers_sigma_adjust_min = schedulers_sigma_adjust_min
+        self.schedulers_sigma_adjust_max = schedulers_sigma_adjust_max
+        self.scheduler_eta = scheduler_eta
+        self.eta_noise_seed_delta = eta_noise_seed_delta
+        self.enable_batch_seeds = enable_batch_seeds
+        self.diffusers_generator_device = diffusers_generator_device
+        self.nan_skip = nan_skip
+        self.sequential_seed = sequential_seed
+        # prompt/attention overrides
+        self.prompt_attention = prompt_attention
+        self.prompt_mean_norm = prompt_mean_norm
+        self.diffusers_zeros_prompt_pad = diffusers_zeros_prompt_pad
+        self.te_pooled_embeds = te_pooled_embeds
+        self.lora_apply_te = lora_apply_te
+        self.te_complex_human_instruction = te_complex_human_instruction
+        self.te_use_mask = te_use_mask
+        # generation modifier overrides (hijack)
+        self.freeu_enabled = freeu_enabled
+        self.freeu_b1 = freeu_b1
+        self.freeu_b2 = freeu_b2
+        self.freeu_s1 = freeu_s1
+        self.freeu_s2 = freeu_s2
+        self.hypertile_unet_enabled = hypertile_unet_enabled
+        self.hypertile_hires_only = hypertile_hires_only
+        self.hypertile_unet_tile = hypertile_unet_tile
+        self.hypertile_unet_min_tile = hypertile_unet_min_tile
+        self.hypertile_unet_swap_size = hypertile_unet_swap_size
+        self.hypertile_unet_depth = hypertile_unet_depth
+        self.hypertile_vae_enabled = hypertile_vae_enabled
+        self.hypertile_vae_tile = hypertile_vae_tile
+        self.hypertile_vae_swap_size = hypertile_vae_swap_size
+        self.teacache_enabled = teacache_enabled
+        self.teacache_thresh = teacache_thresh
+        self.token_merging_method = token_merging_method
+        self.tome_ratio = tome_ratio
+        self.todo_ratio = todo_ratio
+
         self.prompts = []
         self.negative_prompts = []
         self.all_prompts = []
@@ -339,7 +460,7 @@ class StableDiffusionProcessing:
         self.comments = {}
         self.sampler = None
         self.nmask = None
-        self.initial_noise_multiplier = initial_noise_multiplier or shared.opts.initial_noise_multiplier
+        self.initial_noise_multiplier = initial_noise_multiplier if initial_noise_multiplier is not None else shared.opts.initial_noise_multiplier
         self.image_conditioning = None
         self.prompt_for_display: str = None
 

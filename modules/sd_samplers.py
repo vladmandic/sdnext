@@ -66,7 +66,7 @@ def restore_default(model):
     return model.scheduler
 
 
-def create_sampler(name, model):
+def create_sampler(name, model, scheduler_overrides=None):
     if name is None or name == 'None':
         return model.scheduler if model is not None else None
 
@@ -89,7 +89,12 @@ def create_sampler(name, model):
     config = find_sampler_config(name)
     if config is None or config.constructor is None:
         return restore_default(model)
-    sampler = config.constructor(model)
+    from modules import sd_samplers_diffusers
+    sd_samplers_diffusers._scheduler_overrides = scheduler_overrides or {}
+    try:
+        sampler = config.constructor(model)
+    finally:
+        sd_samplers_diffusers._scheduler_overrides = {}
     if sampler.sampler is None:
         return restore_default(model)
     is_flow = ('FlowMatch' in sampler.sampler.__class__.__name__) or (getattr(sampler.sampler.config, 'prediction_type', None) == 'flow_prediction')

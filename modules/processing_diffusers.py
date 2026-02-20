@@ -78,7 +78,7 @@ def process_pre(p: processing.StableDiffusionProcessing):
         # apply-with-unapply
         sd_models_compile.check_deepcache(enable=True)
         ipadapter.apply(shared.sd_model, p)
-        token_merge.apply_token_merging(shared.sd_model)
+        token_merge.apply_token_merging(p.sd_model, p)
         hidiffusion.apply(p, shared.sd_model_type)
         ras.apply(shared.sd_model, p)
         pag.apply(p)
@@ -154,7 +154,7 @@ def process_base(p: processing.StableDiffusionProcessing):
         prompts_2=[p.refiner_prompt] if len(p.refiner_prompt) > 0 else p.prompts,
         negative_prompts_2=[p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts,
         num_inference_steps=calculate_base_steps(p, use_refiner_start=use_refiner_start, use_denoise_start=use_denoise_start),
-        eta=shared.opts.scheduler_eta,
+        eta=p.scheduler_eta if p.scheduler_eta is not None else shared.opts.scheduler_eta,
         guidance_scale=p.cfg_scale,
         guidance_rescale=p.diffusers_guidance_rescale,
         true_cfg_scale=p.pag_scale,
@@ -163,12 +163,14 @@ def process_base(p: processing.StableDiffusionProcessing):
         num_frames=getattr(p, 'frames', 1),
         output_type=output_type,
         clip_skip=p.clip_skip,
+        prompt_attention=getattr(p, 'prompt_attention', None),
         desc=desc,
     )
+    _sched_eta = p.scheduler_eta if p.scheduler_eta is not None else shared.opts.scheduler_eta
     base_steps = base_args.get('prior_num_inference_steps', None) or p.steps or base_args.get('num_inference_steps', None)
     shared.state.update(get_job_name(p, shared.sd_model), base_steps, 1)
-    if shared.opts.scheduler_eta is not None and shared.opts.scheduler_eta > 0 and shared.opts.scheduler_eta < 1:
-        p.extra_generation_params["Sampler Eta"] = shared.opts.scheduler_eta
+    if _sched_eta is not None and _sched_eta > 0 and _sched_eta < 1:
+        p.extra_generation_params["Sampler Eta"] = _sched_eta
     output = None
     if debug:
         modelstats.analyze()
@@ -319,13 +321,14 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 prompts_2=len(output.images) * [p.refiner_prompt] if len(p.refiner_prompt) > 0 else p.prompts,
                 negative_prompts_2=len(output.images) * [p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts,
                 num_inference_steps=calculate_hires_steps(p),
-                eta=shared.opts.scheduler_eta,
+                eta=p.scheduler_eta if p.scheduler_eta is not None else shared.opts.scheduler_eta,
                 guidance_scale=p.image_cfg_scale if p.image_cfg_scale is not None else p.cfg_scale,
                 guidance_rescale=p.diffusers_guidance_rescale,
                 output_type=output_type,
                 clip_skip=p.clip_skip,
                 image=output.images,
                 strength=strength,
+                prompt_attention=getattr(p, 'prompt_attention', None),
                 desc='Hires',
             )
 
@@ -397,14 +400,13 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
                 p.extra_generation_params['Noise level'] = noise_level
                 refiner_output_type = 'np'
             update_sampler(p, shared.sd_refiner, second_pass=True)
-            shared.opts.prompt_attention = 'fixed'
             refiner_args = set_pipeline_args(
                 p=p,
                 model=shared.sd_refiner,
                 prompts=[p.refiner_prompt] if len(p.refiner_prompt) > 0 else p.prompts[i],
                 negative_prompts=[p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts[i],
                 num_inference_steps=calculate_refiner_steps(p),
-                eta=shared.opts.scheduler_eta,
+                eta=p.scheduler_eta if p.scheduler_eta is not None else shared.opts.scheduler_eta,
                 # strength=p.denoising_strength,
                 noise_level=noise_level, # StableDiffusionUpscalePipeline only
                 guidance_scale=p.image_cfg_scale if p.image_cfg_scale is not None else p.cfg_scale,

@@ -161,13 +161,18 @@ def slerp_alt(val, lo, hi): # from https://discuss.pytorch.org/t/help-regarding-
 
 
 def create_random_tensors(shape, seeds, subseeds=None, subseed_strength=0.0, seed_resize_from_h=0, seed_resize_from_w=0, p=None):
-    eta_noise_seed_delta = shared.opts.eta_noise_seed_delta or 0
+    eta_noise_seed_delta = (getattr(p, 'eta_noise_seed_delta', None) if p is not None else None)
+    if eta_noise_seed_delta is None:
+        eta_noise_seed_delta = shared.opts.eta_noise_seed_delta or 0
+    enable_batch_seeds = (getattr(p, 'enable_batch_seeds', None) if p is not None else None)
+    if enable_batch_seeds is None:
+        enable_batch_seeds = shared.opts.enable_batch_seeds
     xs = []
     # if we have multiple seeds, this means we are working with batch size>1; this then
     # enables the generation of additional tensors with noise that the sampler will use during its processing.
     # Using those pre-generated tensors instead of simple torch.randn allows a batch with seeds [100, 101] to
     # produce the same images as with two batches [100], [101].
-    if p is not None and p.sampler is not None and ((len(seeds) > 1 and shared.opts.enable_batch_seeds) or (eta_noise_seed_delta > 0)):
+    if p is not None and p.sampler is not None and ((len(seeds) > 1 and enable_batch_seeds) or (eta_noise_seed_delta > 0)):
         sampler_noises = [[] for _ in range(p.sampler.number_of_needed_noises(p))]
     else:
         sampler_noises = None
@@ -445,14 +450,17 @@ def calculate_refiner_steps(p):
 
 
 def get_generator(p):
-    if shared.opts.diffusers_generator_device == "Unset":
+    gen_device_opt = getattr(p, 'diffusers_generator_device', None) if p is not None else None
+    if gen_device_opt is None:
+        gen_device_opt = shared.opts.diffusers_generator_device
+    if gen_device_opt == "Unset":
         generator_device = None
         generator = None
     elif getattr(p, "generator", None) is not None:
-        generator_device = devices.cpu if shared.opts.diffusers_generator_device == "CPU" else shared.device
+        generator_device = devices.cpu if gen_device_opt == "CPU" else shared.device
         generator = p.generator
     else:
-        generator_device = devices.cpu if shared.opts.diffusers_generator_device == "CPU" else shared.device
+        generator_device = devices.cpu if gen_device_opt == "CPU" else shared.device
         try:
             p.seeds = [seed if seed != -1 else get_fixed_seed(seed) for seed in p.seeds if seed]
             devices.randn(p.seeds[0])
@@ -516,7 +524,16 @@ def update_sampler(p, sd_model, second_pass=False):
         if sampler is None:
             log.warning(f'Sampler: "{sampler_selection}" not found')
             sampler = sd_samplers.all_samplers_map.get("UniPC")
-        sampler = sd_samplers.create_sampler(sampler.name, sd_model)
+        sched_override_keys = [
+            'schedulers_prediction_type', 'schedulers_beta_schedule', 'schedulers_timesteps',
+            'schedulers_sigma', 'schedulers_use_thresholding', 'schedulers_use_loworder',
+            'schedulers_solver_order', 'uni_pc_variant', 'schedulers_beta_start',
+            'schedulers_beta_end', 'schedulers_shift', 'schedulers_dynamic_shift',
+            'schedulers_base_shift', 'schedulers_max_shift', 'schedulers_rescale_betas',
+            'schedulers_timestep_spacing', 'schedulers_timesteps_range',
+        ]
+        scheduler_overrides = {k: getattr(p, k) for k in sched_override_keys if getattr(p, k, None) is not None}
+        sampler = sd_samplers.create_sampler(sampler.name, sd_model, scheduler_overrides=scheduler_overrides)
         if sampler is None or sampler_selection == 'Default':
             if second_pass:
                 p.hr_sampler = 'Default'

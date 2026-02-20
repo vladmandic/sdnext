@@ -75,7 +75,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = No
             time.sleep(0.1)
     if latents is None:
         return kwargs
-    elif shared.opts.nan_skip:
+    elif (getattr(p, 'nan_skip', None) if (p is not None and getattr(p, 'nan_skip', None) is not None) else shared.opts.nan_skip):
         assert not torch.isnan(latents[..., 0, 0]).all(), f'NaN detected at step {step}: Skipping...'
     if p is None:
         return kwargs
@@ -168,9 +168,18 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = No
             try:
                 shared.state.current_sigma = pipe.scheduler.sigmas[pipe.scheduler.step_index-1]
                 shared.state.current_sigma_next = pipe.scheduler.sigmas[pipe.scheduler.step_index]
-                if (shared.opts.schedulers_sigma_adjust != 1.0) and (timestep > 1000 * shared.opts.schedulers_sigma_adjust_min) and (timestep < 1000 * shared.opts.schedulers_sigma_adjust_max):
-                    pipe.scheduler.sigmas[pipe.scheduler.step_index+1] = pipe.scheduler.sigmas[pipe.scheduler.step_index+1] * shared.opts.schedulers_sigma_adjust
-                    p.extra_generation_params["Sigma adjust"] = shared.opts.schedulers_sigma_adjust
+                _sigma_adjust = getattr(p, 'schedulers_sigma_adjust', None) if p is not None else None
+                if _sigma_adjust is None:
+                    _sigma_adjust = shared.opts.schedulers_sigma_adjust
+                _sigma_adjust_min = getattr(p, 'schedulers_sigma_adjust_min', None) if p is not None else None
+                if _sigma_adjust_min is None:
+                    _sigma_adjust_min = shared.opts.schedulers_sigma_adjust_min
+                _sigma_adjust_max = getattr(p, 'schedulers_sigma_adjust_max', None) if p is not None else None
+                if _sigma_adjust_max is None:
+                    _sigma_adjust_max = shared.opts.schedulers_sigma_adjust_max
+                if (_sigma_adjust != 1.0) and (timestep > 1000 * _sigma_adjust_min) and (timestep < 1000 * _sigma_adjust_max):
+                    pipe.scheduler.sigmas[pipe.scheduler.step_index+1] = pipe.scheduler.sigmas[pipe.scheduler.step_index+1] * _sigma_adjust
+                    p.extra_generation_params["Sigma adjust"] = _sigma_adjust
             except Exception:
                 pass
     except Exception as e:

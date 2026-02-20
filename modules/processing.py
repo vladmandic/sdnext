@@ -261,7 +261,10 @@ def process_init(p: StableDiffusionProcessing):
         if type(seed) == list:
             p.all_seeds = [int(s) for s in seed]
         else:
-            if shared.opts.sequential_seed:
+            _sequential_seed = getattr(p, 'sequential_seed', None)
+            if _sequential_seed is None:
+                _sequential_seed = shared.opts.sequential_seed
+            if _sequential_seed:
                 p.all_seeds = [int(seed) + (x if p.subseed_strength == 0 else 0) for x in range(len(p.all_prompts))]
             else:
                 p.all_seeds = []
