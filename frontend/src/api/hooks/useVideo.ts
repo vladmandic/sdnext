@@ -16,3 +16,25 @@ export function useLoadVideoModel() {
       api.post<VideoLoadResponse>("/sdapi/v2/video/load", params),
   });
 }
+
+export function useFramePackVariants() {
+  return useQuery({
+    queryKey: ["framepack-variants"],
+    queryFn: () => api.get<string[]>("/sdapi/v2/framepack/variants"),
+    staleTime: 300_000,
+  });
+}
+
+export function useLoadFramePack() {
+  return useMutation({
+    mutationFn: (params: { variant: string; attention: string }) =>
+      api.post<{ variant: string; messages: string[] }>("/sdapi/v2/framepack/load", params),
+  });
+}
+
+export function useUnloadFramePack() {
+  return useMutation({
+    mutationFn: () =>
+      api.post<{ messages: string[] }>("/sdapi/v2/framepack/unload", {}),
+  });
+}

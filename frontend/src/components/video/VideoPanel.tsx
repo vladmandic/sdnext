@@ -1,38 +1,134 @@
-import { useMemo, useEffect, useCallback } from "react";
-import { Play, Square, Loader2 } from "lucide-react";
+import { useEffect, useCallback } from "react";
+import { Play, Square } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
-import { useVideoEngines, useLoadVideoModel } from "@/api/hooks/useVideo";
 import { useSubmitJob, useCancelJob } from "@/api/hooks/useJobs";
 import { useJobWebSocket } from "@/api/hooks/useJobWebSocket";
-import { ParamSection } from "@/components/generation/ParamSection";
-import { ParamSlider } from "@/components/generation/ParamSlider";
-import { Combobox } from "@/components/ui/combobox";
+import { uploadFile } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { api } from "@/api/client";
+import { ModelsVideoTab } from "./tabs/ModelsVideoTab";
+import { FramePackTab } from "./tabs/FramePackTab";
+import { LtxVideoTab } from "./tabs/LtxVideoTab";
+
+const tabs = [
+  { id: "models", label: "Models" },
+  { id: "framepack", label: "FramePack" },
+  { id: "ltx", label: "LTX" },
+] as const;
+
+async function buildJobPayload(tab: string) {
+  const s = useVideoStore.getState();
+  const output = {
+    fps: s.fps,
+    interpolate: s.interpolate,
+    codec: s.codec,
+    format: s.format,
+    codec_options: s.codecOptions,
+    save_video: s.saveVideo,
+    save_frames: s.saveFrames,
+    save_safetensors: s.saveSafetensors,
+  };
+
+  const initRef = s.initImage ? await uploadFile(s.initImage) : null;
+  const lastRef = s.lastImage ? await uploadFile(s.lastImage) : null;
+
+  if (tab === "framepack") {
+    return {
+      type: "framepack" as const,
+      prompt: s.prompt,
+      negative: s.negative,
+      seed: s.seed,
+      variant: s.fpVariant,
+      resolution: s.fpResolution,
+      duration: s.fpDuration,
+      latent_ws: s.fpLatentWindowSize,
+      steps: s.fpSteps,
+      shift: s.fpShift,
+      cfg_scale: s.fpCfgScale,
+      cfg_distilled: s.fpCfgDistilled,
+      cfg_rescale: s.fpCfgRescale,
+      start_weight: s.fpStartWeight,
+      end_weight: s.fpEndWeight,
+      vision_weight: s.fpVisionWeight,
+      section_prompt: s.fpSectionPrompt,
+      system_prompt: s.fpSystemPrompt,
+      use_teacache: s.fpTeacache,
+      optimized_prompt: s.fpOptimizedPrompt,
+      use_cfgzero: s.fpCfgZero,
+      use_preview: s.fpPreview,
+      attention: s.fpAttention,
+      vae_type: s.fpVaeType,
+      init_image: initRef,
+      end_image: lastRef,
+      ...output,
+    };
+  }
+
+  if (tab === "ltx") {
+    return {
+      type: "ltx" as const,
+      model: s.ltxModel,
+      prompt: s.prompt,
+      negative: s.negative,
+      seed: s.seed,
+      width: s.width,
+      height: s.height,
+      frames: s.frames,
+      steps: s.ltxSteps,
+      decode_timestep: s.ltxDecodeTimestep,
+      image_cond_noise_scale: s.ltxNoiseScale,
+      upsample_enable: s.ltxUpsampleEnable,
+      upsample_ratio: s.ltxUpsampleRatio,
+      refine_enable: s.ltxRefineEnable,
+      refine_strength: s.ltxRefineStrength,
+      condition_strength: s.ltxConditionStrength,
+      condition_image: initRef,
+      condition_last: lastRef,
+      audio_enable: s.ltxAudioEnable,
+      ...output,
+    };
+  }
+
+  // models (generic video)
+  return {
+    type: "video" as const,
+    engine: s.engine,
+    model: s.model,
+    prompt: s.prompt,
+    negative: s.negative,
+    seed: s.seed,
+    width: s.width,
+    height: s.height,
+    frames: s.frames,
+    steps: s.steps,
+    guidance_scale: s.guidanceScale,
+    guidance_true: s.guidanceTrue,
+    sampler_shift: s.samplerShift,
+    dynamic_shift: s.dynamicShift,
+    init_strength: s.initStrength,
+    init_image: initRef,
+    last_image: lastRef,
+    vae_type: s.vaeType,
+    vae_tile_frames: s.vaeTileFrames,
+    ...output,
+  };
+}
+
+function canGenerate(tab: string) {
+  const s = useVideoStore.getState();
+  if (!s.prompt) return false;
+  if (tab === "models") return !!(s.engine && s.model);
+  if (tab === "ltx") return !!s.ltxModel;
+  return true; // framepack only needs prompt
+}
 
 export function VideoPanel() {
-  const engine = useVideoStore((s) => s.engine);
-  const model = useVideoStore((s) => s.model);
+  const activeVideoTab = useVideoStore((s) => s.activeVideoTab);
   const prompt = useVideoStore((s) => s.prompt);
   const negative = useVideoStore((s) => s.negative);
-  const width = useVideoStore((s) => s.width);
-  const height = useVideoStore((s) => s.height);
-  const frames = useVideoStore((s) => s.frames);
-  const steps = useVideoStore((s) => s.steps);
-  const seed = useVideoStore((s) => s.seed);
-  const guidanceScale = useVideoStore((s) => s.guidanceScale);
-  const samplerShift = useVideoStore((s) => s.samplerShift);
-  const dynamicShift = useVideoStore((s) => s.dynamicShift);
-  const initStrength = useVideoStore((s) => s.initStrength);
-  const fps = useVideoStore((s) => s.fps);
-  const format = useVideoStore((s) => s.format);
-  const saveVideo = useVideoStore((s) => s.saveVideo);
-  const saveFrames = useVideoStore((s) => s.saveFrames);
   const isGenerating = useVideoStore((s) => s.isGenerating);
   const jobId = useVideoStore((s) => s.jobId);
   const progress = useVideoStore((s) => s.progress);
@@ -42,18 +138,9 @@ export function VideoPanel() {
   const setProgress = useVideoStore((s) => s.setProgress);
   const setResultVideo = useVideoStore((s) => s.setResultVideo);
 
-  const { data: engines } = useVideoEngines();
-  const loadModel = useLoadVideoModel();
   const submitJob = useSubmitJob();
   const cancelJob = useCancelJob();
   const { progress: wsProgress, result: wsResult, status: wsStatus, error: wsError } = useJobWebSocket(jobId);
-
-  const engineNames = useMemo(() => engines?.map((e) => e.engine) ?? [], [engines]);
-  const modelNames = useMemo(() => {
-    if (!engines || !engine) return [];
-    const eng = engines.find((e) => e.engine === engine);
-    return eng?.models ?? [];
-  }, [engines, engine]);
 
   useEffect(() => {
     if (jobId && wsProgress.progress > 0) {
@@ -80,46 +167,20 @@ export function VideoPanel() {
     }
   }, [wsStatus, wsResult, wsError, jobId, setResultVideo, setJobId, setGenerating]);
 
-  const handleLoad = useCallback(() => {
-    if (!engine || !model) return;
-    loadModel.mutate({ engine, model }, {
-      onSuccess: () => toast.success(`Loaded ${model}`),
-      onError: (err) => toast.error("Failed to load model", { description: err.message }),
-    });
-  }, [engine, model, loadModel]);
-
   const handleGenerate = useCallback(async () => {
-    if (isGenerating || !engine || !model || !prompt) return;
+    if (isGenerating) return;
+    if (!canGenerate(activeVideoTab)) return;
     setGenerating(true);
     setResultVideo(null);
     try {
-      const state = useVideoStore.getState();
-      const job = await submitJob.mutateAsync({
-        type: "video",
-        engine: state.engine,
-        model: state.model,
-        prompt: state.prompt,
-        negative: state.negative,
-        width: state.width,
-        height: state.height,
-        frames: state.frames,
-        steps: state.steps,
-        seed: state.seed,
-        guidance_scale: state.guidanceScale,
-        sampler_shift: state.samplerShift,
-        dynamic_shift: state.dynamicShift,
-        init_strength: state.initStrength,
-        fps: state.fps,
-        format: state.format,
-        save_video: state.saveVideo,
-        save_frames: state.saveFrames,
-      });
+      const payload = await buildJobPayload(activeVideoTab);
+      const job = await submitJob.mutateAsync(payload);
       setJobId(job.id);
     } catch (err) {
       toast.error("Failed to start video generation", { description: err instanceof Error ? err.message : String(err) });
       setGenerating(false);
     }
-  }, [isGenerating, engine, model, prompt, setGenerating, setResultVideo, submitJob, setJobId]);
+  }, [isGenerating, activeVideoTab, setGenerating, setResultVideo, submitJob, setJobId]);
 
   const handleCancel = useCallback(() => {
     if (jobId) cancelJob.mutate(jobId);
@@ -132,8 +193,8 @@ export function VideoPanel() {
   return (
     <ScrollArea className="h-full">
       <div className="p-3 space-y-1">
-        {/* Prompt */}
-        <ParamSection title="Prompt">
+        {/* Prompt - always visible */}
+        <div className="space-y-1.5 mb-3">
           <Textarea
             value={prompt}
             onChange={(e) => setParam("prompt", e.target.value)}
@@ -146,69 +207,14 @@ export function VideoPanel() {
             placeholder="Negative prompt (optional)"
             className="text-xs min-h-[36px] resize-y"
           />
-        </ParamSection>
+        </div>
 
-        {/* Engine / Model */}
-        <ParamSection title="Model">
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <Label className="text-[11px] text-muted-foreground w-16 shrink-0">Engine</Label>
-              <Combobox value={engine} onValueChange={(v) => { setParam("engine", v); setParam("model", ""); }} options={engineNames} placeholder="Select engine..." className="h-7 text-xs flex-1" />
-            </div>
-            <div className="flex items-center gap-2">
-              <Label className="text-[11px] text-muted-foreground w-16 shrink-0">Model</Label>
-              <Combobox value={model} onValueChange={(v) => setParam("model", v)} options={modelNames} placeholder={engine ? "Select model..." : "Select engine first"} className="h-7 text-xs flex-1" />
-            </div>
-            <Button size="sm" variant="secondary" onClick={handleLoad} disabled={!engine || !model || loadModel.isPending} className="w-full">
-              {loadModel.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
-              Load Model
-            </Button>
-          </div>
-        </ParamSection>
-
-        {/* Size */}
-        <ParamSection title="Size" defaultOpen={false}>
-          <ParamSlider label="Width" value={width} onChange={(v) => setParam("width", v)} min={256} max={1920} step={16} />
-          <ParamSlider label="Height" value={height} onChange={(v) => setParam("height", v)} min={256} max={1920} step={16} />
-          <ParamSlider label="Frames" value={frames} onChange={(v) => setParam("frames", v)} min={1} max={256} step={1} />
-        </ParamSection>
-
-        {/* Sampling */}
-        <ParamSection title="Sampling" defaultOpen={false}>
-          <ParamSlider label="Steps" value={steps} onChange={(v) => setParam("steps", v)} min={1} max={100} step={1} />
-          <ParamSlider label="Guidance" value={guidanceScale} onChange={(v) => setParam("guidanceScale", v)} min={0} max={20} step={0.5} />
-          <ParamSlider label="Shift" value={samplerShift} onChange={(v) => setParam("samplerShift", v)} min={-1} max={20} step={0.5} />
-          <ParamSlider label="Strength" value={initStrength} onChange={(v) => setParam("initStrength", v)} min={0} max={1} step={0.05} />
-          <ParamSlider label="Seed" value={seed} onChange={(v) => setParam("seed", v)} min={-1} max={999999999} step={1} />
-          <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-muted-foreground w-16 shrink-0">Dynamic</Label>
-            <Switch checked={dynamicShift} onCheckedChange={(v) => setParam("dynamicShift", v)} />
-          </div>
-        </ParamSection>
-
-        {/* Output */}
-        <ParamSection title="Output" defaultOpen={false}>
-          <ParamSlider label="FPS" value={fps} onChange={(v) => setParam("fps", v)} min={1} max={60} step={1} />
-          <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-muted-foreground w-16 shrink-0">Format</Label>
-            <Combobox value={format} onValueChange={(v) => setParam("format", v)} options={["mp4", "webm", "gif"]} className="h-7 text-xs flex-1" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-muted-foreground w-16 shrink-0">Save video</Label>
-            <Switch checked={saveVideo} onCheckedChange={(v) => setParam("saveVideo", v)} />
-          </div>
-          <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-muted-foreground w-16 shrink-0">Frames</Label>
-            <Switch checked={saveFrames} onCheckedChange={(v) => setParam("saveFrames", v)} />
-          </div>
-        </ParamSection>
-
-        {/* Generate button */}
-        <div className="pt-2 space-y-2">
+        {/* Generate / Stop */}
+        <div className="space-y-2 mb-3">
           <Button
             type="button"
             onClick={isGenerating ? handleCancel : handleGenerate}
-            disabled={!isGenerating && (!engine || !model || !prompt)}
+            disabled={!isGenerating && !canGenerate(activeVideoTab)}
             variant={isGenerating ? "destructive" : "default"}
             size="sm"
             className="w-full"
@@ -234,6 +240,32 @@ export function VideoPanel() {
             </div>
           )}
         </div>
+
+        {/* Sub-tab bar */}
+        <div className="flex border-b border-border mb-3">
+          {tabs.map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setParam("activeVideoTab", tab.id)}
+              className={`px-3 py-1.5 text-xs font-medium transition-colors relative ${
+                activeVideoTab === tab.id
+                  ? "text-foreground"
+                  : "text-muted-foreground hover:text-foreground/70"
+              }`}
+            >
+              {tab.label}
+              {activeVideoTab === tab.id && (
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-primary rounded-t" />
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Tab content */}
+        {activeVideoTab === "models" && <ModelsVideoTab />}
+        {activeVideoTab === "framepack" && <FramePackTab />}
+        {activeVideoTab === "ltx" && <LtxVideoTab />}
       </div>
     </ScrollArea>
   );
