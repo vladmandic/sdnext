@@ -217,20 +217,31 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
         else:
             args['clip_skip'] = clip_skip - 1
 
-    if shared.opts.lora_apply_te:
+    _lora_apply_te = getattr(p, 'lora_apply_te', None)
+    if _lora_apply_te is None:
+        _lora_apply_te = shared.opts.lora_apply_te
+    if _lora_apply_te:
         extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
 
     if 'complex_human_instruction' in possible:
-        chi = shared.opts.te_complex_human_instruction
+        chi = getattr(p, 'te_complex_human_instruction', None)
+        if chi is None:
+            chi = shared.opts.te_complex_human_instruction
         p.extra_generation_params["CHI"] = chi
         if not chi:
             args['complex_human_instruction'] = None
     if 'use_resolution_binning' in possible:
         args['use_resolution_binning'] = False
     if 'use_mask_in_transformer' in possible:
-        args['use_mask_in_transformer'] = shared.opts.te_use_mask
+        _te_use_mask = getattr(p, 'te_use_mask', None)
+        if _te_use_mask is None:
+            _te_use_mask = shared.opts.te_use_mask
+        args['use_mask_in_transformer'] = _te_use_mask
 
-    timesteps = re.split(',| ', shared.opts.schedulers_timesteps)
+    _sched_timesteps = getattr(p, 'schedulers_timesteps', None)
+    if _sched_timesteps is None:
+        _sched_timesteps = shared.opts.schedulers_timesteps
+    timesteps = re.split(',| ', _sched_timesteps)
     if len(timesteps) > 2:
         if ('timesteps' in possible) and hasattr(model.scheduler, 'set_timesteps') and ("timesteps" in set(inspect.signature(model.scheduler.set_timesteps).parameters.keys())):
             p.timesteps = [int(x) for x in timesteps if x.isdigit()]
