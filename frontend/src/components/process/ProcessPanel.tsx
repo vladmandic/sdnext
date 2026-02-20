@@ -5,7 +5,7 @@ import { useProcessStore } from "@/stores/processStore";
 import { useUpscalerList } from "@/api/hooks/useModels";
 import { useSubmitJob } from "@/api/hooks/useJobs";
 import { useJobWebSocket } from "@/api/hooks/useJobWebSocket";
-import { fileToBase64 } from "@/lib/image";
+import { uploadFile } from "@/lib/upload";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
@@ -63,8 +63,8 @@ export function ProcessPanel() {
     setProcessing(true);
     setResult(null);
     try {
-      const b64 = await fileToBase64(image);
-      const job = await submitJob.mutateAsync({ type: "upscale", image: b64, upscaler, scale });
+      const ref = await uploadFile(image);
+      const job = await submitJob.mutateAsync({ type: "upscale", image: ref, upscaler, scale });
       setJobId(job.id);
     } catch (err) {
       toast.error("Upscale failed", { description: err instanceof Error ? err.message : String(err) });

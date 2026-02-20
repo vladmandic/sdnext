@@ -2,10 +2,9 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { buildControlRequest } from "@/lib/requestBuilder";
-import { restoreFromResult } from "@/lib/requestBuilder";
+import { buildControlRequest, restoreFromResult } from "@/lib/requestBuilder";
+import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
-import type { ControlRequest } from "@/api/types/generation";
 import { useSubmitJob, useCancelJob } from "@/api/hooks/useJobs";
 import { useJobWebSocket } from "@/api/hooks/useJobWebSocket";
 import { Play, Square, SkipForward, Loader2, History, FileSearch } from "lucide-react";
@@ -95,10 +94,10 @@ export const ActionBar = memo(function ActionBar() {
     clearSelection();
     try {
       const isImg2Img = generationMode === "img2img";
-      const request = await buildControlRequest();
+      const { request, inputBlob } = await buildControlRequest();
 
       // Snapshot input state before the async call
-      const inputImage = isImg2Img ? (request as ControlRequest).inputs?.[0] : undefined;
+      const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
       const maskLines = useImg2ImgStore.getState().maskLines;
       const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
       const controlUnits = await snapshotUnits();

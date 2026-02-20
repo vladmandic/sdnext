@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { usePngInfo } from "@/api/hooks/usePngInfo";
 import { restoreFromPngInfo } from "@/lib/pngInfoRestore";
+import { uploadFile } from "@/lib/upload";
 import { toast } from "sonner";
 
 interface PngInfoDialogProps {
@@ -18,13 +19,11 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
   const [parameters, setParameters] = useState<Record<string, unknown>>({});
   const pngInfo = usePngInfo();
 
-  const processFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      setPreviewUrl(dataUrl);
-      const base64 = dataUrl.split(",")[1];
-      pngInfo.mutate({ image: base64 }, {
+  const processFile = useCallback(async (file: File) => {
+    setPreviewUrl(URL.createObjectURL(file));
+    try {
+      const ref = await uploadFile(file);
+      pngInfo.mutate({ image: ref }, {
         onSuccess: (data) => {
           setInfoText(data.info ?? "");
           setItems(data.items ?? {});
@@ -32,8 +31,9 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
         },
         onError: () => toast.error("Failed to extract PNG info"),
       });
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      toast.error("Failed to upload image");
+    }
   }, [pngInfo]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {

@@ -7,7 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import { useOpenClipCaption, useTaggerCaption, useVqaCaption } from "@/api/hooks/useCaption";
-import { fileToBase64 } from "@/lib/image";
+import { uploadFile } from "@/lib/upload";
 import { CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
 import { VlmSettings } from "./methods/VlmSettings";
 import { OpenClipSettings } from "./methods/OpenClipSettings";
@@ -31,13 +31,13 @@ export function CaptionPanel() {
     setProcessing(true);
     setResult(null);
     try {
-      const base64 = await fileToBase64(image);
+      const ref = await uploadFile(image);
       const settings = useCaptionSettingsStore.getState();
 
       if (method === "vlm") {
         const s = settings.vlm;
         const res = await vqaMut.mutateAsync({
-          image: base64,
+          image: ref,
           model: s.model,
           question: s.task,
           prompt: CUSTOM_PROMPT_TASKS.includes(s.task) ? s.customPrompt : undefined,
@@ -58,7 +58,7 @@ export function CaptionPanel() {
       } else if (method === "openclip") {
         const s = settings.openclip;
         const res = await openclipMut.mutateAsync({
-          image: base64,
+          image: ref,
           clip_model: s.clipModel,
           blip_model: s.blipModel,
           mode: s.mode,
@@ -74,7 +74,7 @@ export function CaptionPanel() {
       } else {
         const s = settings.tagger;
         const res = await taggerMut.mutateAsync({
-          image: base64,
+          image: ref,
           model: s.model,
           threshold: s.threshold,
           character_threshold: s.characterThreshold,

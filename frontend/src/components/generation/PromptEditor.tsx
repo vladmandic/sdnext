@@ -3,6 +3,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
 import { flattenCanvas } from "@/lib/flattenCanvas";
+import { uploadBlob } from "@/lib/upload";
 import { useState, useCallback } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -35,8 +36,8 @@ export function PromptEditor() {
     if (enhanceStore.useVision) {
       const { width, height } = useGenerationStore.getState();
       const layers = useCanvasStore.getState().getImageLayers();
-      const flat = await flattenCanvas(layers, width, height);
-      if (flat) image = flat;
+      const blob = await flattenCanvas(layers, width, height);
+      if (blob) image = await uploadBlob(blob, "vision.png");
     }
     const req: PromptEnhanceRequest = {
       prompt,

@@ -32,12 +32,16 @@ export class ApiClient {
     this.auth = null;
   }
 
-  private getHeaders(): HeadersInit {
-    const headers: HeadersInit = { "Content-Type": "application/json" };
+  private getAuthHeaders(): HeadersInit {
+    const headers: HeadersInit = {};
     if (this.auth) {
       headers["Authorization"] = `Basic ${btoa(`${this.auth.username}:${this.auth.password}`)}`;
     }
     return headers;
+  }
+
+  private getHeaders(): HeadersInit {
+    return { "Content-Type": "application/json", ...this.getAuthHeaders() };
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -78,6 +82,26 @@ export class ApiClient {
   async delete<T>(path: string, params?: Record<string, string>, signal?: AbortSignal): Promise<T> {
     const query = params ? `?${new URLSearchParams(params)}` : "";
     return this.request<T>(`${path}${query}`, { method: "DELETE", signal });
+  }
+
+  async postMultipart<T>(path: string, formData: FormData, signal?: AbortSignal): Promise<T> {
+    const url = `${this.baseUrl}${path}`;
+    const response = await fetch(url, {
+      method: "POST",
+      headers: this.getAuthHeaders(),
+      body: formData,
+      signal,
+    });
+    if (!response.ok) {
+      let body: unknown;
+      try {
+        body = await response.json();
+      } catch {
+        body = await response.text();
+      }
+      throw new ApiError(response.status, response.statusText, body);
+    }
+    return response.json() as Promise<T>;
   }
 
   async postBinary(path: string, body?: unknown, signal?: AbortSignal): Promise<Blob> {

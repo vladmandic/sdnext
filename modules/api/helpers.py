@@ -18,6 +18,8 @@ def validate_sampler_name(name):
 def decode_base64_to_image(encoding, quiet=False):
     if encoding is None:
         return None
+    if isinstance(encoding, str) and encoding.startswith("upload:"):
+        return _resolve_upload_ref(encoding, quiet)
     if encoding.startswith("data:image/"):
         encoding = encoding.split(";")[1].split(",")[1]
     try:
@@ -32,6 +34,24 @@ def decode_base64_to_image(encoding, quiet=False):
         if not quiet:
             raise HTTPException(status_code=500, detail="Invalid encoded image") from e
         return None
+
+
+def _resolve_upload_ref(encoding: str, quiet: bool = False):
+    ref_id = encoding[len("upload:"):]
+    try:
+        from modules.api.v2.upload import get_upload_store
+        store = get_upload_store()
+        image = store.resolve_to_image(ref_id)
+        if image is not None:
+            return image
+    except Exception as e:
+        shared.log.warning(f'API cannot resolve upload ref={ref_id}: {e}')
+        if not quiet:
+            raise HTTPException(status_code=400, detail=f"Upload reference not found: {encoding}") from e
+        return None
+    if not quiet:
+        raise HTTPException(status_code=400, detail=f"Upload reference not found: {encoding}")
+    return None
 
 
 def encode_pil_to_base64(image):

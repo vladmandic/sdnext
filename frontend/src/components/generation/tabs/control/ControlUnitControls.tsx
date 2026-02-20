@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useControlModels, useControlModes, usePreprocessImage, usePreprocessors } from "@/api/hooks/useControl";
 import { useIPAdapterModels } from "@/api/hooks/useAdapters";
-import { fileToBase64 } from "@/lib/image";
+import { uploadFile } from "@/lib/upload";
 import { ParamSlider } from "../../ParamSlider";
 import { ParamSection } from "../../ParamSection";
 import { ImageUpload } from "../../ImageUpload";
@@ -38,8 +38,8 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
   const handleProcess = useCallback(async () => {
     if (!resolvedImage || unit.processor === "None") return;
     try {
-      const b64 = await fileToBase64(resolvedImage);
-      const result = await preprocessMutation.mutateAsync({ image: b64, model: unit.processor });
+      const ref = await uploadFile(resolvedImage);
+      const result = await preprocessMutation.mutateAsync({ image: ref, model: unit.processor });
       setUnitParam(index, "processedImage", `data:image/png;base64,${result.image}`);
     } catch (err) {
       toast.error("Preprocessing failed", { description: err instanceof Error ? err.message : String(err) });

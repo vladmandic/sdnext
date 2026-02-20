@@ -11,13 +11,13 @@ function loadImage(src: string): Promise<HTMLImageElement> {
 
 /**
  * Composites all visible image layers within the frame bounds into a single
- * base64-encoded PNG. Returns null if no visible layers exist.
+ * PNG Blob. Returns null if no visible layers exist.
  */
 export async function flattenCanvas(
   layers: ImageLayer[],
   frameWidth: number,
   frameHeight: number,
-): Promise<string | null> {
+): Promise<Blob | null> {
   const visible = layers.filter((l) => l.visible);
   if (visible.length === 0) return null;
 
@@ -38,5 +38,7 @@ export async function flattenCanvas(
     ctx.restore();
   }
 
-  return canvas.toDataURL("image/png").split(",")[1];
+  return new Promise<Blob | null>((resolve) => {
+    canvas.toBlob((blob) => resolve(blob), "image/png");
+  });
 }

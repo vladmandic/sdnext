@@ -64,6 +64,15 @@ export function stripDataPrefix(dataUri: string): string {
   return idx >= 0 ? dataUri.slice(idx + 1) : dataUri;
 }
 
+export function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function createObjectUrl(base64: string, mimeType = "image/png"): string {
   const byteCharacters = atob(base64);
   const byteNumbers = new Array(byteCharacters.length);
