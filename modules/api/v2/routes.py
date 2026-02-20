@@ -42,7 +42,7 @@ async def submit_job(request: dict):
     job_type = request.get('type')
     if not job_type:
         raise HTTPException(status_code=400, detail="Missing 'type' field")
-    valid_types = {'generate', 'upscale', 'caption', 'enhance', 'detect', 'preprocess', 'video'}
+    valid_types = {'generate', 'upscale', 'caption', 'enhance', 'detect', 'preprocess', 'video', 'framepack', 'ltx'}
     if job_type not in valid_types:
         raise HTTPException(status_code=400, detail=f"Invalid job type: {job_type}. Must be one of: {', '.join(sorted(valid_types))}")
     priority = request.pop('priority', 0)
@@ -164,3 +164,28 @@ async def load_video_model(request: dict):
         raise HTTPException(status_code=400, detail="Both 'engine' and 'model' fields are required")
     messages = list(video_ui.model_load(engine, model))
     return {"engine": engine, "model": model, "messages": messages}
+
+
+@router.get("/framepack/variants")
+async def list_framepack_variants():
+    from modules.framepack import framepack_load
+    return list(framepack_load.models.keys())
+
+
+@router.post("/framepack/load")
+async def load_framepack_model(request: dict):
+    from modules.framepack import framepack_wrappers
+    variant = request.get('variant', 'bi-directional')
+    attention = request.get('attention', 'Default')
+    messages = []
+    for item in framepack_wrappers.load_model(variant, attention):
+        if isinstance(item, tuple) and len(item) > 2 and isinstance(item[2], str):
+            messages.append(item[2])
+    return {"variant": variant, "messages": messages}
+
+
+@router.post("/framepack/unload")
+async def unload_framepack_model():
+    from modules.framepack import framepack_wrappers
+    list(framepack_wrappers.unload_model())
+    return {"messages": ["Model unloaded"]}

@@ -1,4 +1,5 @@
 import os
+import inspect
 from installer import log
 
 
@@ -54,9 +55,10 @@ def execute_generate(params: dict, job_id: str) -> dict:
     sampler_name = params.get('sampler_name', 'Default')
     sampler_index = processing_helpers.get_sampler_index(sampler_name)
 
-    # Build args dict for control_run, excluding keys already consumed
+    # Build args dict for control_run, only passing params it accepts
+    _valid_params = set(inspect.signature(control_run_module.control_run).parameters.keys())
     skip_keys = {'type', 'inputs', 'inits', 'mask', 'control', 'ip_adapter', 'save_images', 'sampler_name', 'script_name', 'script_args', 'alwayson_scripts', 'extra', 'priority'}
-    run_args = {k: v for k, v in params.items() if k not in skip_keys}
+    run_args = {k: v for k, v in params.items() if k in _valid_params and k not in skip_keys}
     run_args['sampler_index'] = sampler_index
     run_args['is_generator'] = True
     run_args['inputs'] = inputs
@@ -89,12 +91,14 @@ def execute_generate(params: dict, job_id: str) -> dict:
         for item in res:
             if len(item) > 0 and (isinstance(item[0], list) or item[0] is None):
                 output_images += item[0] if item[0] is not None else []
+
+        # Capture saved file paths BEFORE end() clears state.results
+        saved_paths = list(shared.state.results) if hasattr(shared.state, 'results') and shared.state.results else []
     finally:
         shared.state.end(jobid)
 
-    # Collect saved file paths from state results
+    # Collect saved file paths
     image_refs = []
-    saved_paths = list(shared.state.results) if hasattr(shared.state, 'results') and shared.state.results else []
 
     for i, img in enumerate(output_images):
         path = saved_paths[i] if i < len(saved_paths) else None
@@ -149,14 +153,13 @@ def execute_upscale(params: dict, job_id: str) -> dict:
             extras_mode=0, image=image, image_folder="", input_dir="", output_dir="",
             save_output=True, extras_upscaler_1=upscaler, upscaling_resize=scale,
         )
+        saved_paths = list(shared.state.results) if hasattr(shared.state, 'results') and shared.state.results else []
     finally:
         shared.state.end(jobid)
 
     output_image = result[0][0] if result and result[0] else None
     image_refs = []
     if output_image is not None:
-        # Try to get saved path from state
-        saved_paths = list(shared.state.results) if hasattr(shared.state, 'results') and shared.state.results else []
         if saved_paths and os.path.isfile(str(saved_paths[0])):
             path = str(saved_paths[0])
             ext = os.path.splitext(path)[1].lstrip('.').lower()
@@ -367,6 +370,130 @@ def execute_video(params: dict, job_id: str) -> dict:
     return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k not in ('type', 'init_image', 'last_image')}}
 
 
+def execute_framepack(params: dict, job_id: str) -> dict:
+    from modules import shared
+    from modules.api import helpers
+    from modules.framepack import framepack_wrappers
+
+    init_image = helpers.decode_base64_to_image(params['init_image']) if params.get('init_image') else None
+    end_image = helpers.decode_base64_to_image(params['end_image']) if params.get('end_image') else None
+
+    prompt = params.get('prompt', '')
+    negative = params.get('negative', '')
+    styles = params.get('styles', [])
+    seed = params.get('seed', -1)
+    resolution = params.get('resolution', 640)
+    duration = params.get('duration', 4)
+    variant = params.get('variant', 'bi-directional')
+    attention = params.get('attention', 'Default')
+
+    jobid = shared.state.begin('API-V2-FP', api=True)
+    try:
+        gen = framepack_wrappers.run_framepack(
+            '', '',  # task_id, ui_state
+            init_image, end_image,
+            params.get('start_weight', 1.0), params.get('end_weight', 1.0), params.get('vision_weight', 1.0),
+            prompt, params.get('system_prompt', ''), params.get('optimized_prompt', True), params.get('section_prompt', ''),
+            negative, styles,
+            seed, resolution, duration,
+            params.get('latent_ws', 9), params.get('steps', 25),
+            params.get('cfg_scale', 1.0), params.get('cfg_distilled', 10.0), params.get('cfg_rescale', 0.0),
+            params.get('shift', 3.0),
+            params.get('use_teacache', True), params.get('use_cfgzero', False), params.get('use_preview', True),
+            params.get('fps', 30), params.get('codec', 'libx264'), params.get('save_safetensors', False),
+            params.get('save_video', True), params.get('save_frames', False),
+            params.get('codec_options', 'crf:16'), params.get('format', 'mp4'),
+            params.get('interpolate', 0),
+            attention, params.get('vae_type', 'Full'), variant,
+            params.get('vlm_enhance', False), params.get('vlm_model', ''), params.get('vlm_system_prompt', ''),
+        )
+        video_file = None
+        for item in gen:
+            if item and len(item) > 0 and isinstance(item[0], str) and item[0] and not item[0].startswith('<'):
+                video_file = item[0]
+    finally:
+        shared.state.end(jobid)
+
+    image_refs = []
+    if video_file and os.path.isfile(str(video_file)):
+        path = str(video_file)
+        ext = os.path.splitext(path)[1].lstrip('.').lower()
+        image_refs.append({
+            'index': 0,
+            'path': path,
+            'url': f'/sdapi/v2/jobs/{job_id}/images/0',
+            'width': resolution,
+            'height': resolution,
+            'format': ext or 'mp4',
+            'size': os.path.getsize(path),
+        })
+
+    return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k not in ('type', 'init_image', 'end_image')}}
+
+
+def execute_ltx(params: dict, job_id: str) -> dict:
+    from modules import shared
+    from modules.api import helpers
+    from modules.ltx import ltx_process
+
+    model = params.get('model', '')
+    prompt = params.get('prompt', '')
+    negative = params.get('negative', '')
+    styles = params.get('styles', [])
+    width = params.get('width', 768)
+    height = params.get('height', 512)
+    frames = params.get('frames', 97)
+    steps = params.get('steps', 50)
+    sampler_index = params.get('sampler', 0)
+    seed = params.get('seed', -1)
+
+    condition_image = helpers.decode_base64_to_image(params['condition_image']) if params.get('condition_image') else None
+    condition_last = helpers.decode_base64_to_image(params['condition_last']) if params.get('condition_last') else None
+
+    jobid = shared.state.begin('API-V2-LTX', api=True)
+    try:
+        gen = ltx_process.run_ltx(
+            '', '',  # task_id, ui_state
+            model, prompt, negative, styles,
+            width, height, frames, steps, sampler_index, seed,
+            params.get('upsample_enable', False), params.get('upsample_ratio', 2.0),
+            params.get('refine_enable', False), params.get('refine_strength', 0.4),
+            params.get('condition_strength', 0.8),
+            condition_image, condition_last,
+            None, None,  # condition_files, condition_video
+            params.get('condition_video_frames', 0), params.get('condition_video_skip', 0),
+            params.get('decode_timestep', 0.05), params.get('image_cond_noise_scale', 0.025),
+            params.get('fps', 24), params.get('interpolate', 0),
+            params.get('codec', 'libx264'), params.get('format', 'mp4'),
+            params.get('codec_options', 'crf:16'),
+            params.get('save_video', True), params.get('save_frames', False), params.get('save_safetensors', False),
+            params.get('audio_enable', False),
+            {},  # overrides
+        )
+        video_file = None
+        for item in gen:
+            if item and len(item) > 0 and isinstance(item[0], str) and item[0]:
+                video_file = item[0]
+    finally:
+        shared.state.end(jobid)
+
+    image_refs = []
+    if video_file and os.path.isfile(str(video_file)):
+        path = str(video_file)
+        ext = os.path.splitext(path)[1].lstrip('.').lower()
+        image_refs.append({
+            'index': 0,
+            'path': path,
+            'url': f'/sdapi/v2/jobs/{job_id}/images/0',
+            'width': width,
+            'height': height,
+            'format': ext or 'mp4',
+            'size': os.path.getsize(path),
+        })
+
+    return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k not in ('type', 'condition_image', 'condition_last')}}
+
+
 EXECUTORS = {
     'generate': execute_generate,
     'upscale': execute_upscale,
@@ -375,4 +502,6 @@ EXECUTORS = {
     'detect': execute_detect,
     'preprocess': execute_preprocess,
     'video': execute_video,
+    'framepack': execute_framepack,
+    'ltx': execute_ltx,
 }

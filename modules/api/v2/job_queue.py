@@ -184,6 +184,8 @@ class JobQueue:
                     if self.store is not None:
                         self.store.update_progress(job_id, progress_val, step, steps)
                     self._push_progress(job_id, progress_data)
+                    # Decode current latent into a preview image (bypasses the api guard in set_current_image)
+                    state.do_set_current_image()
                     # Send preview image as binary if available
                     if state.id_live_preview != last_preview_id and state.current_image is not None:
                         last_preview_id = state.id_live_preview
