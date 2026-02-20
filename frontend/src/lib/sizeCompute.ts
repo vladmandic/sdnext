@@ -36,6 +36,12 @@ export function resolveGenerationSize(
   }
 }
 
+export function containFit(w: number, h: number, boxW: number, boxH: number): { width: number; height: number } {
+  if (w === 0 || h === 0) return { width: boxW, height: boxH };
+  const scale = Math.min(boxW / w, boxH / h);
+  return { width: Math.round(w * scale), height: Math.round(h * scale) };
+}
+
 export function formatMegapixels(w: number, h: number): string {
   const mp = (w * h) / 1_000_000;
   return `~${mp.toFixed(1)} MP`;

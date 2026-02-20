@@ -151,7 +151,7 @@ export const CanvasView = memo(function CanvasView() {
             variant="secondary"
             size="icon-xs"
             onClick={() => handlePickImage(-1)}
-            title="Add image"
+            title="Add an image layer to the canvas"
             className="bg-background/80 backdrop-blur-sm"
           >
             <Plus size={12} />
@@ -171,7 +171,7 @@ export const CanvasView = memo(function CanvasView() {
             variant="secondary"
             size="icon-xs"
             onClick={handleClearAll}
-            title="Clear all"
+            title="Clear all layers and mask"
             className="bg-background/80 backdrop-blur-sm"
           >
             <X size={12} />

@@ -46,7 +46,7 @@ export function FrameLayer({ onPickImage }: FrameLayerProps) {
           y={frameH / 2 - 8}
           width={frameW}
           align="center"
-          text="Drop image or click to upload"
+          text="Drop image or click to upload\nEmpty areas will be inpainted based on your prompt"
           fontSize={14}
           fill="#666"
           listening={false}

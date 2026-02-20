@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useGenerationStore } from "@/stores/generationStore";
@@ -9,22 +9,6 @@ import type { FitMode } from "@/lib/image";
 import { Button } from "@/components/ui/button";
 import { contrastText } from "@/lib/utils";
 import { ELEMENT_GAP, type CanvasLayout, type ControlFramePosition } from "./useControlFrameLayout";
-
-function useImageDimensions(file: File | null): { w: number; h: number } | null {
-  const [dims, setDims] = useState<{ w: number; h: number } | null>(null);
-  useEffect(() => {
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    const img = new window.Image();
-    img.onload = () => { setDims({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(url); };
-    img.onerror = () => URL.revokeObjectURL(url);
-    img.src = url;
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
-  // Clear dims synchronously when file is removed (not inside effect)
-  if (!file && dims) return null;
-  return dims;
-}
 
 const HEADER_HEIGHT = 36;
 const DRAWER_MAX_HEIGHT = 420;
@@ -52,9 +36,9 @@ function StackedPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onCle
   const unit = useControlStore((s) => s.units[unitIndex]);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
 
-  const imageDims = useImageDimensions(isOwner ? (unit?.image ?? null) : null);
-
   if (!unit) return null;
+
+  const imageDims = isOwner ? unit.imageDims : null;
 
   const textColor = contrastText(CONTROL_COLOR);
   const labelText = `Unit ${unitIndex} (${unit.unitType})`;

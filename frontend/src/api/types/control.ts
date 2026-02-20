@@ -13,6 +13,7 @@ export interface ControlUnit {
   end: number;
   imageSource: string;
   image: File | null;
+  imageDims: { w: number; h: number } | null;
   processedImage: string | null;
   // ControlNet-specific
   guess: boolean;
@@ -44,6 +45,7 @@ export interface ControlUnitSnapshot {
   start: number;
   end: number;
   image: string | null;
+  imageDims: { w: number; h: number } | null;
   processedImage: string | null;
   guess: boolean;
   factor: number;

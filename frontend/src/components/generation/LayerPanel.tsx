@@ -81,7 +81,7 @@ export function LayerPanel() {
                 setParam("height", Math.round(layer.naturalHeight / 8) * 8);
               }}
               className="text-muted-foreground flex-shrink-0"
-              title="Fit frame to image dimensions"
+              title="Resize the generation frame to match this image's native dimensions (snapped to 8px grid)"
             >
               <Frame size={10} />
             </Button>
@@ -94,7 +94,7 @@ export function LayerPanel() {
                 updateLayer(layer.id, { visible: !layer.visible });
               }}
               className="text-muted-foreground flex-shrink-0"
-              title={layer.visible ? "Hide layer" : "Show layer"}
+              title={layer.visible ? "Hide layer — hidden layers are excluded from the composite sent to the backend" : "Show layer"}
             >
               {layer.visible ? <Eye size={10} /> : <EyeOff size={10} />}
             </Button>
@@ -121,6 +121,7 @@ export function LayerPanel() {
         size="sm"
         onClick={openPicker}
         className="w-full h-6 text-[10px] text-muted-foreground"
+        title="Add an image layer to the canvas. You can also drag and drop files directly onto the canvas."
       >
         <Plus size={10} />
         Add Image

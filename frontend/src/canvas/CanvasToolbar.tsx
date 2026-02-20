@@ -65,7 +65,7 @@ export function CanvasToolbar() {
         variant={activeTool === "move" ? "default" : "ghost"}
         size="icon-xs"
         onClick={() => setActiveTool("move")}
-        title="Move (V)"
+        title="Move / select layers (V)"
       >
         <Move size={14} />
       </Button>
@@ -75,7 +75,7 @@ export function CanvasToolbar() {
         variant={activeTool === "maskBrush" ? "default" : "ghost"}
         size="icon-xs"
         onClick={toggleBrush}
-        title="Brush (B)"
+        title="Paint inpainting mask (B)"
       >
         <Paintbrush size={14} />
       </Button>
@@ -85,7 +85,7 @@ export function CanvasToolbar() {
         variant={activeTool === "maskEraser" ? "default" : "ghost"}
         size="icon-xs"
         onClick={toggleEraser}
-        title="Eraser (E)"
+        title="Erase inpainting mask (E)"
       >
         <Eraser size={14} />
       </Button>
@@ -123,7 +123,7 @@ export function CanvasToolbar() {
         size="icon-xs"
         onClick={clearMask}
         disabled={maskLineCount === 0}
-        title="Clear mask"
+        title="Clear all mask strokes"
       >
         <Trash2 size={14} />
       </Button>

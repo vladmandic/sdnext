@@ -14,6 +14,7 @@ function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
     end: 1,
     imageSource: "canvas",
     image: null,
+    imageDims: null,
     processedImage: null,
     guess: false,
     factor: 1.0,
@@ -123,18 +124,37 @@ export const useControlStore = create<ControlState>()((set) => ({
       return { units };
     }),
 
-  setUnitImage: (index, file) =>
+  setUnitImage: (index, file) => {
+    // Phase 1: set file + clear dims immediately
     set((state) => {
       const units = [...state.units];
-      units[index] = { ...units[index], image: file };
+      units[index] = { ...units[index], image: file, imageDims: null };
       return { units };
-    }),
+    });
+    // Phase 2: async-load dims from blob URL
+    if (file) {
+      const url = URL.createObjectURL(file);
+      const img = new window.Image();
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        set((state) => {
+          // Staleness guard: only update if the unit still has the same file
+          if (state.units[index]?.image !== file) return state;
+          const units = [...state.units];
+          units[index] = { ...units[index], imageDims: { w: img.naturalWidth, h: img.naturalHeight } };
+          return { units };
+        });
+      };
+      img.onerror = () => URL.revokeObjectURL(url);
+      img.src = url;
+    }
+  },
 
   setUnitType: (index, unitType) =>
     set((state) => {
       const units = [...state.units];
       const old = units[index];
-      units[index] = { ...defaultUnit(unitType), enabled: old.enabled, imageSource: old.imageSource, image: old.image, images: old.images, masks: old.masks };
+      units[index] = { ...defaultUnit(unitType), enabled: old.enabled, imageSource: old.imageSource, image: old.image, imageDims: old.imageDims, images: old.images, masks: old.masks };
       return { units };
     }),
 
@@ -148,7 +168,7 @@ export const useControlStore = create<ControlState>()((set) => ({
         ...old,
         imageSource: source,
         // Clear own image/processed when leaving "separate"
-        ...(wasSeparate && !isSeparate ? { image: null, processedImage: null } : {}),
+        ...(wasSeparate && !isSeparate ? { image: null, imageDims: null, processedImage: null } : {}),
       };
       // If this unit stopped being "separate", cascade: reset anyone referencing it
       if (wasSeparate && !isSeparate) {
@@ -227,6 +247,7 @@ export const useControlStore = create<ControlState>()((set) => ({
           start: s.start,
           end: s.end,
           image: s.image ? base64ToFile(s.image, "control.png") : null,
+          imageDims: s.imageDims ?? null,
           processedImage: s.processedImage ? `data:image/png;base64,${s.processedImage}` : null,
           guess: s.guess,
           factor: s.factor,
@@ -262,6 +283,7 @@ export async function snapshotUnits(): Promise<ControlUnitSnapshot[]> {
       start: u.start,
       end: u.end,
       image: u.image ? await fileToBase64(u.image) : null,
+      imageDims: u.imageDims,
       processedImage: u.processedImage ? stripDataPrefix(u.processedImage) : null,
       guess: u.guess,
       factor: u.factor,
