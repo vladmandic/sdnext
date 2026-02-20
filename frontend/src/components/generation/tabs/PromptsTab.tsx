@@ -4,6 +4,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
+import { useUpscalerList } from "@/api/hooks/useModels";
 import { Link2, Link2Off, ArrowLeftRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
@@ -35,6 +36,9 @@ export function PromptsTab() {
   const setScaleFactor = useImg2ImgStore((s) => s.setScaleFactor);
   const megapixelTarget = useImg2ImgStore((s) => s.megapixelTarget);
   const setMegapixelTarget = useImg2ImgStore((s) => s.setMegapixelTarget);
+  const resizeMethod = useImg2ImgStore((s) => s.resizeMethod);
+  const setResizeMethod = useImg2ImgStore((s) => s.setResizeMethod);
+  const { data: upscalers } = useUpscalerList();
   const [aspectLocked, setAspectLocked] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
 
@@ -118,8 +122,8 @@ export function PromptsTab() {
             onClick={() => setAutoFitFrame(!autoFitFrame)}
             className="h-5 px-1.5 text-[10px] rounded"
             title={autoFitFrame
-              ? "Auto: frame resizes to match the first image dropped onto the canvas"
-              : "Manual: frame stays at the size you set"}
+              ? "Auto: dropping the first image onto an empty canvas resizes the frame to match that image's dimensions"
+              : "Manual: frame stays at the width and height you set, regardless of image size"}
           >
             Auto
           </Button>
@@ -150,7 +154,7 @@ export function PromptsTab() {
             variant="ghost" size="icon-xs"
             onClick={() => setAspectLocked(!aspectLocked)}
             className={cn(aspectLocked ? "text-primary" : "text-muted-foreground")}
-            title={aspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio"}
+            title={aspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio — changing one dimension adjusts the other to maintain proportions"}
             disabled={!isFixed}
           >
             {aspectLocked ? <Link2 size={12} /> : <Link2Off size={12} />}
@@ -159,7 +163,7 @@ export function PromptsTab() {
             variant="ghost" size="icon-xs"
             onClick={swapDimensions}
             className="text-muted-foreground"
-            title="Swap width/height"
+            title="Swap width and height — switch between landscape and portrait"
             disabled={!isFixed}
           >
             <ArrowLeftRight size={12} />
@@ -182,6 +186,19 @@ export function PromptsTab() {
         {/* Megapixel slider */}
         {effectiveSizeMode === "megapixel" && (
           <ParamSlider label="Target" value={megapixelTarget} onChange={setMegapixelTarget} min={0.25} max={4} step={0.05} />
+        )}
+
+        {/* Resize method (shown when scale/megapixel active) */}
+        {!isFixed && (
+          <div className="flex items-center gap-2">
+            <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Resize</Label>
+            <Combobox
+              value={resizeMethod}
+              onValueChange={setResizeMethod}
+              options={upscalers?.map((u) => u.name).filter((n) => !n.startsWith("Latent")) ?? ["Resize Lanczos"]}
+              className="h-7 text-xs flex-1"
+            />
+          </div>
         )}
 
         {/* Info line: frame size → generation size */}

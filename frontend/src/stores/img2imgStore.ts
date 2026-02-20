@@ -18,6 +18,7 @@ interface Img2ImgState {
   sizeMode: SizeMode;
   scaleFactor: number;
   megapixelTarget: number;
+  resizeMethod: string;
 
   // Mask painting
   maskLines: MaskLine[];
@@ -36,6 +37,7 @@ interface Img2ImgState {
   setSizeMode: (mode: SizeMode) => void;
   setScaleFactor: (factor: number) => void;
   setMegapixelTarget: (target: number) => void;
+  setResizeMethod: (method: string) => void;
   setMaskBlur: (blur: number) => void;
   setInpaintFullRes: (v: boolean) => void;
   setInpaintFullResPadding: (v: number) => void;
@@ -49,6 +51,7 @@ const defaultState = {
   sizeMode: "fixed" as SizeMode,
   scaleFactor: 1,
   megapixelTarget: 1,
+  resizeMethod: "Resize Lanczos",
   maskLines: [] as MaskLine[],
   maskData: null as string | null,
   maskBlur: 4,
@@ -68,6 +71,7 @@ export const useImg2ImgStore = create<Img2ImgState>()((_set) => ({
   setSizeMode: (mode) => _set({ sizeMode: mode }),
   setScaleFactor: (factor) => _set({ scaleFactor: factor }),
   setMegapixelTarget: (target) => _set({ megapixelTarget: target }),
+  setResizeMethod: (method) => _set({ resizeMethod: method }),
   setMaskBlur: (blur) => _set({ maskBlur: blur }),
   setInpaintFullRes: (v) => _set({ inpaintFullRes: v }),
   setInpaintFullResPadding: (v) => _set({ inpaintFullResPadding: v }),
