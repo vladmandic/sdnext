@@ -115,3 +115,43 @@ class CivitSearchResponse(BaseModel):
     items: list[CivitModel] = Field(default_factory=list)
     metadata: CivitSearchMetadata = Field(default_factory=CivitSearchMetadata)
     request_url: str | None = Field(None, alias="requestUrl")
+
+
+class CivitTag(BaseModel):
+    class Config:
+        allow_population_by_field_name = True
+    name: str = ""
+    model_count: int = Field(0, alias="modelCount")
+    link: str = ""
+
+
+class CivitTagResponse(BaseModel):
+    class Config:
+        allow_population_by_field_name = True
+    items: list[CivitTag] = Field(default_factory=list)
+    metadata: CivitSearchMetadata = Field(default_factory=CivitSearchMetadata)
+
+
+class CivitCreatorItem(BaseModel):
+    class Config:
+        allow_population_by_field_name = True
+    username: str = ""
+    model_count: int = Field(0, alias="modelCount")
+    link: str = ""
+    image: str | None = None
+
+
+class CivitCreatorResponse(BaseModel):
+    class Config:
+        allow_population_by_field_name = True
+    items: list[CivitCreatorItem] = Field(default_factory=list)
+    metadata: CivitSearchMetadata = Field(default_factory=CivitSearchMetadata)
+
+
+class CivitUserProfile(BaseModel):
+    class Config:
+        allow_population_by_field_name = True
+    id: int = 0
+    username: str = ""
+    image: str | None = None
+    profile_picture: str | None = Field(None, alias="profilePicture")

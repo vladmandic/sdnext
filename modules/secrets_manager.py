@@ -8,7 +8,7 @@ Environment variables take highest priority.
 import os
 import stat
 from modules.json_helpers import readfile, writefile
-from installer import log
+from modules.logger import log
 
 
 _secrets: dict[str, str] = {}

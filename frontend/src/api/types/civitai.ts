@@ -157,6 +157,36 @@ export interface CivitHistoryEntry {
 export interface CivitFavoriteEntry { name: string; }
 export interface CivitBannedEntry { name: string; }
 
+export interface CivitTag {
+  name: string;
+  modelCount: number;
+  link: string;
+}
+
+export interface CivitTagResponse {
+  items: CivitTag[];
+  metadata: CivitSearchMetadata;
+}
+
+export interface CivitCreatorItem {
+  username: string;
+  modelCount: number;
+  link: string;
+  image: string | null;
+}
+
+export interface CivitCreatorResponse {
+  items: CivitCreatorItem[];
+  metadata: CivitSearchMetadata;
+}
+
+export interface CivitUserProfile {
+  id: number;
+  username: string;
+  image: string | null;
+  profilePicture: string | null;
+}
+
 export interface CivitSearchParams {
   query?: string;
   tag?: string;
@@ -167,4 +197,6 @@ export interface CivitSearchParams {
   nsfw?: boolean;
   limit?: number;
   cursor?: string;
+  username?: string;
+  favorites?: boolean;
 }

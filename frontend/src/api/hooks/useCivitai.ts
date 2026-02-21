@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { CivitOptions, CivitSearchResponse, CivitModel, CivitSearchParams, CivitDownloadRequest, CivitDownloadItem, CivitDownloadStatus, CivitHistoryEntry, CivitSettings, CivitSettingsUpdate, CivitFavoriteEntry, CivitBannedEntry, CivitVersion } from "../types/civitai";
+import type { CivitOptions, CivitSearchResponse, CivitModel, CivitSearchParams, CivitDownloadRequest, CivitDownloadItem, CivitDownloadStatus, CivitHistoryEntry, CivitSettings, CivitSettingsUpdate, CivitFavoriteEntry, CivitBannedEntry, CivitVersion, CivitTagResponse, CivitCreatorResponse, CivitUserProfile } from "../types/civitai";
 
 function buildSearchParams(p: CivitSearchParams): Record<string, string> {
   const out: Record<string, string> = {};
@@ -13,6 +13,8 @@ function buildSearchParams(p: CivitSearchParams): Record<string, string> {
   if (p.nsfw !== undefined) out.nsfw = String(p.nsfw);
   if (p.limit) out.limit = String(p.limit);
   if (p.cursor) out.cursor = p.cursor;
+  if (p.username) out.username = p.username;
+  if (p.favorites) out.favorites = "true";
   return out;
 }
 
@@ -196,5 +198,33 @@ export function useCivitVersionByHash(hash: string | null) {
     queryFn: () => api.get<CivitVersion>(`/sdapi/v2/civitai/version/by-hash/${hash}`),
     enabled: !!hash,
     staleTime: 60_000,
+  });
+}
+
+export function useCivitTags(query: string, enabled = false) {
+  return useQuery({
+    queryKey: ["civitai-tags", query],
+    queryFn: () => api.get<CivitTagResponse>("/sdapi/v2/civitai/tags", { query, limit: "20" }),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useCivitCreators(query: string, enabled = false) {
+  return useQuery({
+    queryKey: ["civitai-creators", query],
+    queryFn: () => api.get<CivitCreatorResponse>("/sdapi/v2/civitai/creators", { query, limit: "20" }),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+export function useCivitMe(enabled = true) {
+  return useQuery({
+    queryKey: ["civitai-me"],
+    queryFn: () => api.get<CivitUserProfile>("/sdapi/v2/civitai/me"),
+    enabled,
+    staleTime: 300_000,
+    retry: false,
   });
 }

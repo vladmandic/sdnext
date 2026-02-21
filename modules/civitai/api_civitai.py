@@ -6,7 +6,7 @@ options discovery, metadata scanning, and user data (favorites/bans/history).
 
 import os
 from starlette.responses import JSONResponse
-from installer import log
+from modules.logger import log
 
 
 # ---------------------------------------------------------------------------
@@ -87,6 +87,27 @@ def get_options():
     """Get valid types, sort, period, base_models from CivitAI API discovery."""
     from modules.civitai.client_civitai import client
     return client.discover_options()
+
+
+def get_tags(query: str = '', limit: int = 20, page: int = 1):
+    """Search CivitAI tags."""
+    from modules.civitai.client_civitai import client
+    return client.get_tags(query=query, limit=limit, page=page).dict(by_alias=True)
+
+
+def get_creators(query: str = '', limit: int = 20, page: int = 1):
+    """Search CivitAI creators."""
+    from modules.civitai.client_civitai import client
+    return client.get_creators(query=query, limit=limit, page=page).dict(by_alias=True)
+
+
+def get_me(token: str = None):
+    """Get authenticated CivitAI user profile."""
+    from modules.civitai.client_civitai import client
+    profile = client.get_me(token=token)
+    if profile is None:
+        return JSONResponse(content={"error": "not authenticated"}, status_code=401)
+    return profile.dict(by_alias=True)
 
 
 # ---------------------------------------------------------------------------
@@ -360,6 +381,9 @@ def register_api():
     api.add_api_route("/sdapi/v2/civitai/version/{version_id}", get_version, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/version/by-hash/{hash_str}", get_version_by_hash, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/options", get_options, methods=["GET"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/tags", get_tags, methods=["GET"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/creators", get_creators, methods=["GET"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/me", get_me, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/download", post_download, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/download/{download_id}/cancel", post_download_cancel, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/download/status", get_download_status, methods=["GET"], tags=["CivitAI"])

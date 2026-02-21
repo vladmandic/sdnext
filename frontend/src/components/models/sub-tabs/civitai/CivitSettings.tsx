@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Settings, Check, ChevronDown, ChevronRight, X } from "lucide-react";
-import { useCivitSettings, useCivitSaveSettings } from "@/api/hooks/useCivitai";
+import { useCivitSettings, useCivitSaveSettings, useCivitMe } from "@/api/hooks/useCivitai";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +40,7 @@ function TokenSection({ configured }: { configured: boolean }) {
   const [value, setValue] = useState("");
   const [error, setError] = useState("");
   const save = useCivitSaveSettings();
+  const { data: profile } = useCivitMe(configured || saved);
 
   function handleSave() {
     setError("");
@@ -53,7 +54,12 @@ function TokenSection({ configured }: { configured: boolean }) {
     return (
       <div className="flex items-center gap-2">
         <Check className="h-3 w-3 text-green-500 shrink-0" />
-        <span className="text-xs text-muted-foreground">API token configured</span>
+        {profile?.profilePicture || profile?.image ? (
+          <img src={profile.profilePicture ?? profile.image!} alt="" className="h-6 w-6 rounded-full shrink-0 object-cover" />
+        ) : null}
+        <span className="text-xs text-muted-foreground">
+          {profile?.username ? `Signed in as ${profile.username}` : "API token configured"}
+        </span>
         <Button size="sm" variant="ghost" className="h-6 text-[10px] ml-auto" onClick={() => { setEditing(true); setSaved(false); }}>Change</Button>
       </div>
     );

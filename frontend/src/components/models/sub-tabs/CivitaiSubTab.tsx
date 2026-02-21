@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useCivitOptions, useCivitSearchInfinite } from "@/api/hooks/useCivitai";
+import { useCivitOptions, useCivitSearchInfinite, useCivitSettings, useCivitMe } from "@/api/hooks/useCivitai";
 import { useDownloadStore } from "@/stores/downloadStore";
 import { ws, ensureWs } from "@/api/wsManager";
 import type { CivitSearchParams } from "@/api/types/civitai";
@@ -18,10 +18,16 @@ export function CivitaiSubTab() {
   const [sort, setSort] = useState("");
   const [period, setPeriod] = useState("");
   const [baseModel, setBaseModel] = useState("");
+  const [creator, setCreator] = useState("");
+  const [nsfw, setNsfw] = useState(false);
+  const [favorites, setFavorites] = useState(false);
   const [searchEnabled, setSearchEnabled] = useState(false);
   const [selectedModelId, setSelectedModelId] = useState<number | null>(null);
 
   const { data: options } = useCivitOptions();
+  const { data: settings } = useCivitSettings();
+  const tokenConfigured = settings?.token_configured ?? false;
+  const { data: me } = useCivitMe(tokenConfigured && favorites);
 
   const searchParams: CivitSearchParams = {
     query: query || undefined,
@@ -30,26 +36,35 @@ export function CivitaiSubTab() {
     sort: sort || undefined,
     period: period || undefined,
     base_models: baseModel || undefined,
+    nsfw: nsfw || undefined,
+    username: favorites && me?.username ? me.username : (creator || undefined),
+    favorites: favorites || undefined,
     limit: 20,
   };
 
-  const infiniteSearch = useCivitSearchInfinite(searchParams, searchEnabled && (!!query || !!tag));
+  const infiniteSearch = useCivitSearchInfinite(searchParams, searchEnabled && (!!query || !!tag || favorites));
 
   const handleSearch = useCallback(() => {
-    if (!query && !tag) return;
+    if (!query && !tag && !favorites) return;
     if (searchEnabled) {
       infiniteSearch.refetch();
     } else {
       setSearchEnabled(true);
     }
-  }, [query, tag, searchEnabled, infiniteSearch]);
+  }, [query, tag, favorites, searchEnabled, infiniteSearch]);
 
   function handleHistorySelect(q: string, t: string) {
     setQuery(q);
     setTag(t);
     setSearchEnabled(false);
-    // Trigger search on next tick after state updates
     setTimeout(() => setSearchEnabled(true), 0);
+  }
+
+  function handleFavoritesChange(v: boolean) {
+    setFavorites(v);
+    if (v) {
+      setSearchEnabled(true);
+    }
   }
 
   // WS listener for download progress
@@ -69,7 +84,7 @@ export function CivitaiSubTab() {
       <CivitSettings />
       <CivitSearchHistory onSelect={handleHistorySelect} />
       <CivitSearchBar query={query} tag={tag} onQueryChange={(v) => { setQuery(v); setSearchEnabled(false); }} onTagChange={(v) => { setTag(v); setSearchEnabled(false); }} onSearch={handleSearch} isLoading={infiniteSearch.isFetching} />
-      <CivitFilters options={options} type={type} sort={sort} period={period} baseModel={baseModel} onTypeChange={setType} onSortChange={setSort} onPeriodChange={setPeriod} onBaseModelChange={setBaseModel} />
+      <CivitFilters options={options} type={type} sort={sort} period={period} baseModel={baseModel} creator={creator} nsfw={nsfw} favorites={favorites} tokenConfigured={tokenConfigured} onTypeChange={setType} onSortChange={setSort} onPeriodChange={setPeriod} onBaseModelChange={setBaseModel} onCreatorChange={setCreator} onNsfwChange={setNsfw} onFavoritesChange={handleFavoritesChange} />
       <CivitResultList pages={infiniteSearch.data} hasNextPage={!!infiniteSearch.hasNextPage} isFetchingNextPage={infiniteSearch.isFetchingNextPage} fetchNextPage={() => infiniteSearch.fetchNextPage()} onSelectModel={setSelectedModelId} />
       <CivitModelDetail modelId={selectedModelId} onClose={() => setSelectedModelId(null)} />
       <CivitDownloadQueue />

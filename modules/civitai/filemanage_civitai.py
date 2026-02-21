@@ -1,7 +1,7 @@
 import os
 import re
 from pathlib import Path
-from installer import log
+from modules.logger import log
 
 
 # Map CivitAI model types to shared.opts directory settings and fallback subfolder names

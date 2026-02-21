@@ -607,7 +607,7 @@ def create_settings(cmd_opts):
         "diffusers_model_load_variant": OptionInfo("default", "Preferred Model variant", gr.Radio, {"choices": ['default', 'fp32', 'fp16']}),
         "diffusers_vae_load_variant": OptionInfo("default", "Preferred VAE variant", gr.Radio, {"choices": ['default', 'fp32', 'fp16']}),
         "custom_diffusers_pipeline": OptionInfo('', 'Load custom Diffusers pipeline'),
-        "civitai_token": OptionInfo('', 'HuggingFace token', gr.Textbox, {"lines": 2, "visible": False}),
+        "civitai_token": OptionInfo('', 'CivitAI token', gr.Textbox, {"lines": 2, "visible": False}, secret=True, env_var='CIVITAI_TOKEN'),
     }))
 
     # --- Extra Networks ---

@@ -1,7 +1,7 @@
 import os
 import time
-from installer import log
-from modules.civitai.models_civitai import CivitModel, CivitVersion, CivitImage, CivitSearchResponse
+from modules.logger import log
+from modules.civitai.models_civitai import CivitModel, CivitVersion, CivitImage, CivitSearchResponse, CivitTagResponse, CivitCreatorResponse, CivitUserProfile
 
 
 _options_cache: dict = {}
@@ -131,16 +131,56 @@ class CivitaiClient:
                 pass
         return result
 
-    def validate_token(self, token: str) -> dict | None:
-        """Validate a token by calling /me. Returns user info dict or None if invalid."""
+    def get_tags(self, *, query: str = "", limit: int = 20, page: int = 1) -> CivitTagResponse:
+        params: dict = {}
+        if query:
+            params['query'] = query
+        if limit:
+            params['limit'] = limit
+        if page > 1:
+            params['page'] = page
+        r = self._get('/tags', params=params)
+        if r.status_code != 200:
+            return CivitTagResponse()
+        try:
+            return CivitTagResponse.parse_obj(r.json())
+        except Exception as e:
+            log.error(f'CivitAI get tags parse error: {e}')
+            return CivitTagResponse()
+
+    def get_creators(self, *, query: str = "", limit: int = 20, page: int = 1) -> CivitCreatorResponse:
+        params: dict = {}
+        if query:
+            params['query'] = query
+        if limit:
+            params['limit'] = limit
+        if page > 1:
+            params['page'] = page
+        r = self._get('/creators', params=params)
+        if r.status_code != 200:
+            return CivitCreatorResponse()
+        try:
+            return CivitCreatorResponse.parse_obj(r.json())
+        except Exception as e:
+            log.error(f'CivitAI get creators parse error: {e}')
+            return CivitCreatorResponse()
+
+    def get_me(self, token: str | None = None) -> CivitUserProfile | None:
         r = self._get('/me', token=token)
         if r.status_code != 200:
             return None
         try:
-            data = r.json()
-            return {"username": data.get("username", ""), "id": data.get("id", 0)}
-        except Exception:
+            return CivitUserProfile.parse_obj(r.json())
+        except Exception as e:
+            log.error(f'CivitAI get me parse error: {e}')
             return None
+
+    def validate_token(self, token: str) -> dict | None:
+        """Validate a token by calling /me. Returns user info dict or None if invalid."""
+        profile = self.get_me(token=token)
+        if profile is None:
+            return None
+        return {"username": profile.username, "id": profile.id}
 
     def discover_options(self) -> dict:
         global _options_cache, _options_cache_time # pylint: disable=global-statement
@@ -182,13 +222,18 @@ class CivitaiClient:
                         if options:
                             result[key] = options
                             break
+                        # Flat format: values directly on issue (sort/period use this)
+                        values = issue.get('values', [])
+                        if values:
+                            result[key] = values
+                            break
                         # Nested union format: errors[][].values
                         for err_group in issue.get('errors', []):
                             if isinstance(err_group, list):
                                 for err in err_group:
-                                    values = err.get('values', [])
-                                    if values:
-                                        result[key] = values
+                                    vals = err.get('values', [])
+                                    if vals:
+                                        result[key] = vals
                                         break
                             if result[key]:
                                 break

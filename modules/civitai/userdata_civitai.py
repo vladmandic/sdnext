@@ -2,7 +2,7 @@ import os
 import json
 import threading
 from datetime import datetime
-from installer import log
+from modules.logger import log
 
 
 def _data_dir() -> str:
