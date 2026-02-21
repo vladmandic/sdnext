@@ -8,6 +8,7 @@ import os
 import json
 import threading
 from modules import shared
+from modules.logger import log
 
 
 # ---------------------------------------------------------------------------
@@ -21,7 +22,7 @@ def post_restart():
     Triggers a graceful restart after a 1-second delay. Returns immediately
     with a status message; the server will restart asynchronously.
     """
-    shared.log.info('API: restart request received')
+    log.info('API: restart request received')
     threading.Timer(1.0, shared.restart_server, kwargs={'restart': True}).start()
     return {"status": "restarting"}
 
@@ -34,7 +35,7 @@ def post_profiling():
     Returns the new profiling state.
     """
     shared.cmd_opts.profile = not shared.cmd_opts.profile
-    shared.log.info(f'API: profiling {"enabled" if shared.cmd_opts.profile else "disabled"}')
+    log.info(f'API: profiling {"enabled" if shared.cmd_opts.profile else "disabled"}')
     return {"enabled": shared.cmd_opts.profile}
 
 
@@ -70,7 +71,7 @@ def get_update_check():
             "up_to_date": current_hash == latest_hash,
         }
     except Exception as e:
-        shared.log.error(f'API update check: {e}')
+        log.error(f'API update check: {e}')
         return {"error": str(e)}
 
 

@@ -8,6 +8,7 @@ import os
 import collections
 import inspect
 from modules import shared
+from modules.logger import log
 
 
 # ---------------------------------------------------------------------------
@@ -99,7 +100,7 @@ def get_list_detail():
                 "mtime": str(stat_mtime) if stat_mtime else None,
             })
         except Exception as e:
-            shared.log.error(f"Model list-detail: {e}")
+            log.error(f"Model list-detail: {e}")
     return rows
 
 

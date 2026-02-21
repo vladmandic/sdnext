@@ -1,7 +1,7 @@
 import asyncio
 import json
 from fastapi import WebSocket, WebSocketDisconnect
-from installer import log
+from modules.logger import log
 
 
 async def ws_job_endpoint(ws: WebSocket, job_id: str):

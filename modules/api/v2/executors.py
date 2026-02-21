@@ -1,6 +1,6 @@
 import os
 import inspect
-from installer import log
+from modules.logger import log
 
 
 def execute_generate(params: dict, job_id: str) -> dict:

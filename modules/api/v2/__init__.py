@@ -21,4 +21,5 @@ def register_v2(app):
     app.include_router(upload_router)
     app.add_api_websocket_route("/sdapi/v2/jobs/{job_id}/ws", ws_job_endpoint)
 
-    shared.log.info('API v2: registered')
+    from modules.logger import log
+    log.info('API v2: registered')

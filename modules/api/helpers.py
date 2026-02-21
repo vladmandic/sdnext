@@ -45,7 +45,7 @@ def _resolve_upload_ref(encoding: str, quiet: bool = False):
         if image is not None:
             return image
     except Exception as e:
-        shared.log.warning(f'API cannot resolve upload ref={ref_id}: {e}')
+        log.warning(f'API cannot resolve upload ref={ref_id}: {e}')
         if not quiet:
             raise HTTPException(status_code=400, detail=f"Upload reference not found: {encoding}") from e
         return None

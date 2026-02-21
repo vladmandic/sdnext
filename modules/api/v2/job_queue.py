@@ -91,7 +91,7 @@ class JobQueue:
                     pass
 
     def _worker_loop(self) -> None:
-        from installer import log
+        from modules.logger import log
         log.debug('Job queue: worker started')
         while True:
             self._job_event.wait(timeout=1.0)
@@ -104,7 +104,7 @@ class JobQueue:
             self._execute_job(job)
 
     def _execute_job(self, job: dict) -> None:
-        from installer import log
+        from modules.logger import log
         job_id = job['id']
         job_type = job['type']
         self._current_job_id = job_id

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from modules import shared
+from modules.logger import log
 
 
 class UploadEntry:
@@ -92,7 +93,7 @@ upload_store: Optional[UploadStore] = None
 def init_upload_store(staging_dir: str, ttl: int = 1800):
     global upload_store
     upload_store = UploadStore(staging_dir, ttl)
-    shared.log.debug(f'Upload store: dir={staging_dir} ttl={ttl}s')
+    log.debug(f'Upload store: dir={staging_dir} ttl={ttl}s')
 
 
 def get_upload_store() -> UploadStore:
