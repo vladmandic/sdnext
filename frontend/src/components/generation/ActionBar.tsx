@@ -1,128 +1,66 @@
 import { useGenerationStore } from "@/stores/generationStore";
+import { useJobQueueStore, selectRunningJob, selectDomainActive, selectPendingCount } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { buildControlRequest, restoreFromResult } from "@/lib/requestBuilder";
 import { blobToBase64 } from "@/lib/image";
 import { snapshotUnits } from "@/stores/controlStore";
-import { useSubmitJob, useCancelJob } from "@/api/hooks/useJobs";
-import { useJobWebSocket } from "@/api/hooks/useJobWebSocket";
+import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
+import { sendToJob } from "@/hooks/useJobTracker";
+import { useCancelJob } from "@/api/hooks/useJobs";
 import { Play, Square, SkipForward, Loader2, History, FileSearch } from "lucide-react";
-import { useState, useEffect, useRef, useCallback, memo } from "react";
+import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PngInfoDialog } from "@/components/generation/PngInfoDialog";
 
 export const ActionBar = memo(function ActionBar() {
-  const isGenerating = useGenerationStore((s) => s.isGenerating);
   const prompt = useGenerationStore((s) => s.prompt);
-  const progress = useGenerationStore((s) => s.progress);
-  const setGenerating = useGenerationStore((s) => s.setGenerating);
-  const setProgress = useGenerationStore((s) => s.setProgress);
-  const setPreview = useGenerationStore((s) => s.setPreview);
-  const addResult = useGenerationStore((s) => s.addResult);
   const clearSelection = useGenerationStore((s) => s.clearSelection);
-  const setTaskId = useGenerationStore((s) => s.setTaskId);
-  const currentJobId = useGenerationStore((s) => s.currentTaskId);
   const lastResult = useGenerationStore((s) => s.results[0]);
   const generationMode = useUiStore((s) => s.generationMode);
   const hasLayers = useCanvasStore((s) => s.layers.length > 0);
 
+  const isActive = useJobQueueStore(selectDomainActive("generate"));
+  const runningJob = useJobQueueStore(selectRunningJob);
+  const pendingCount = useJobQueueStore(selectPendingCount);
+
   const [pngInfoOpen, setPngInfoOpen] = useState(false);
-  const submitJob = useSubmitJob();
   const cancelJob = useCancelJob();
-  const { progress: wsProgress, preview, result: wsResult, status: wsStatus, error: wsError, send } = useJobWebSocket(currentJobId);
 
-  // Snapshot refs: capture input state at generation time so it survives async completion
-  const snapshotRef = useRef<{
-    inputImage?: string;
-    inputMask?: import("@/stores/img2imgStore").MaskLine[];
-    controlUnits?: import("@/api/types/control").ControlUnitSnapshot[];
-  }>({});
-
-  // Update progress from per-job WebSocket
-  useEffect(() => {
-    if (currentJobId && wsProgress.progress > 0) {
-      setProgress(wsProgress.progress, wsProgress.eta ?? 0, wsProgress.step, wsProgress.steps);
-    }
-  }, [currentJobId, wsProgress, setProgress]);
-
-  // Update preview from per-job WebSocket binary frames
-  useEffect(() => {
-    if (currentJobId && preview) {
-      setPreview(preview);
-    }
-  }, [currentJobId, preview, setPreview]);
-
-  // Handle terminal job states
-  useEffect(() => {
-    if (!currentJobId) return;
-
-    if (wsStatus === "completed" && wsResult) {
-      // Update processed previews if present
-      if (wsResult.images.length > 0) {
-        addResult({
-          id: crypto.randomUUID(),
-          images: wsResult.images.map((img) => img.url),
-          parameters: wsResult.params,
-          info: JSON.stringify(wsResult.info),
-          timestamp: Date.now(),
-          inputImage: snapshotRef.current.inputImage,
-          inputMask: snapshotRef.current.inputMask,
-          controlUnits: snapshotRef.current.controlUnits,
-        });
-      }
-      snapshotRef.current = {};
-      setTaskId(null);
-      setGenerating(false);
-    } else if (wsStatus === "failed") {
-      toast.error("Generation failed", { description: wsError ?? "Unknown error" });
-      snapshotRef.current = {};
-      setTaskId(null);
-      setGenerating(false);
-    } else if (wsStatus === "cancelled") {
-      snapshotRef.current = {};
-      setTaskId(null);
-      setGenerating(false);
-    }
-  }, [wsStatus, wsResult, wsError, currentJobId, addResult, setTaskId, setGenerating]);
-
-  const handleGenerate = useCallback(async () => {
-    if (isGenerating) return;
-    setGenerating(true);
-    setPreview(null);
+  const buildRequest = useCallback(async () => {
+    const isImg2Img = useUiStore.getState().generationMode === "img2img";
+    const { request, inputBlob } = await buildControlRequest();
+    const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
+    const maskLines = useImg2ImgStore.getState().maskLines;
+    const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
+    const controlUnits = await snapshotUnits();
     clearSelection();
-    try {
-      const isImg2Img = generationMode === "img2img";
-      const { request, inputBlob } = await buildControlRequest();
+    return {
+      payload: { type: "generate" as const, ...request },
+      snapshot: { inputImage, inputMask, controlUnits },
+    };
+  }, [clearSelection]);
 
-      // Snapshot input state before the async call
-      const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
-      const maskLines = useImg2ImgStore.getState().maskLines;
-      const inputMask = isImg2Img && maskLines.length > 0 ? maskLines.slice() : undefined;
-      const controlUnits = await snapshotUnits();
-      snapshotRef.current = { inputImage, inputMask, controlUnits };
+  const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ domain: "generate" as const, buildRequest }), [buildRequest]));
 
-      const job = await submitJob.mutateAsync({ type: "generate", ...request });
-      setTaskId(job.id);
-    } catch (err) {
-      toast.error("Generation failed", { description: err instanceof Error ? err.message : String(err) });
-      snapshotRef.current = {};
-      setGenerating(false);
-    }
-  }, [isGenerating, generationMode, setGenerating, setPreview, clearSelection, submitJob, setTaskId]);
+  const isGenerating = isActive || isSubmitting;
+  const runningGenJob = useJobQueueStore(useMemo(() => selectDomainActive("generate"), []));
+  const progress = runningJob?.domain === "generate" ? runningJob.progress : 0;
 
   const handleInterrupt = useCallback(() => {
-    send({ type: "interrupt" });
-    if (currentJobId) cancelJob.mutate(currentJobId);
-    snapshotRef.current = {};
-    setTaskId(null);
-    setGenerating(false);
-  }, [send, currentJobId, cancelJob, setTaskId, setGenerating]);
+    if (runningJob && runningJob.domain === "generate") {
+      sendToJob(runningJob.id, { type: "interrupt" });
+      cancelJob.mutate(runningJob.id);
+    }
+  }, [runningJob, cancelJob]);
 
   const handleSkip = useCallback(() => {
-    send({ type: "skip" });
-  }, [send]);
+    if (runningJob && runningJob.domain === "generate") {
+      sendToJob(runningJob.id, { type: "skip" });
+    }
+  }, [runningJob]);
 
   const handleRestore = useCallback(() => {
     if (!lastResult) return;
@@ -131,30 +69,35 @@ export const ActionBar = memo(function ActionBar() {
   }, [lastResult]);
 
   const progressPct = Math.round(progress * 100);
+  const canSubmit = generationMode === "img2img" ? hasLayers : !!prompt;
 
   return (
     <div className="flex items-center gap-2">
-      {/* Generate / Stop button */}
+      {/* Generate button */}
       <Button
         type="button"
-        onClick={isGenerating ? handleInterrupt : handleGenerate}
-        disabled={!isGenerating && (generationMode === "img2img" ? !hasLayers : !prompt)}
-        variant={isGenerating ? "destructive" : "default"}
+        onClick={submit}
+        disabled={!canSubmit || isSubmitting}
+        variant="default"
         size="sm"
         className="flex-1"
       >
-        {isGenerating ? (
-          <>
-            <Square size={14} />
-            Stop
-          </>
-        ) : (
-          <>
-            <Play size={14} />
-            Generate
-          </>
-        )}
+        <Play size={14} />
+        Generate{pendingCount > 0 ? ` [${pendingCount}]` : ""}
       </Button>
+
+      {/* Stop button */}
+      {isGenerating && (
+        <Button
+          type="button"
+          onClick={handleInterrupt}
+          variant="destructive"
+          size="icon-sm"
+          title="Stop generation"
+        >
+          <Square size={14} />
+        </Button>
+      )}
 
       {/* Restore last settings */}
       {!isGenerating && (
@@ -183,7 +126,7 @@ export const ActionBar = memo(function ActionBar() {
       )}
 
       {/* Skip button */}
-      {isGenerating && (
+      {runningGenJob && (
         <Button
           type="button"
           onClick={handleSkip}

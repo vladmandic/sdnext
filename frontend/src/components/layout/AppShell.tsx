@@ -8,10 +8,12 @@ import { AsidePanel } from "@/components/aside/AsidePanel";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useUiStore } from "@/stores/uiStore";
 import { useHistoryInit } from "@/hooks/useHistoryInit";
+import { useJobTracker } from "@/hooks/useJobTracker";
 import { cn } from "@/lib/utils";
 
 export function AppShell() {
   useHistoryInit();
+  useJobTracker();
   const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
   const viewCollapsed = useUiStore((s) => s.viewCollapsed);
   const leftPanelWidth = useUiStore((s) => s.leftPanelWidth);

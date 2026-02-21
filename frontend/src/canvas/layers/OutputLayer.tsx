@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Layer, Image as KonvaImage, Rect } from "react-konva";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useJobQueueStore, selectViewedJob } from "@/stores/jobStore";
 import { resolveImageSrc } from "@/lib/utils";
 
 const BORDER_COLOR = "#60a5fa";
@@ -12,7 +13,8 @@ interface OutputLayerProps {
 }
 
 export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: OutputLayerProps) {
-  const previewImage = useGenerationStore((s) => s.previewImage);
+  const viewedJob = useJobQueueStore(selectViewedJob);
+  const previewImage = viewedJob?.previewUrl ?? null;
   const results = useGenerationStore((s) => s.results);
   const selectedResultId = useGenerationStore((s) => s.selectedResultId);
   const selectedImageIndex = useGenerationStore((s) => s.selectedImageIndex);

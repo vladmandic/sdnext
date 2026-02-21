@@ -1,12 +1,19 @@
 import { Download } from "lucide-react";
 import { useVideoStore } from "@/stores/videoStore";
+import { useJobQueueStore, selectDomainActive, selectDomainProgress } from "@/stores/jobStore";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { Button } from "@/components/ui/button";
 
 export function VideoView() {
   const resultVideoUrl = useVideoStore((s) => s.resultVideoUrl);
-  const isGenerating = useVideoStore((s) => s.isGenerating);
-  const progress = useVideoStore((s) => s.progress);
+  const isVideoActive = useJobQueueStore(selectDomainActive("video"));
+  const isFramepackActive = useJobQueueStore(selectDomainActive("framepack"));
+  const isLtxActive = useJobQueueStore(selectDomainActive("ltx"));
+  const isGenerating = isVideoActive || isFramepackActive || isLtxActive;
+  const videoProgress = useJobQueueStore(selectDomainProgress("video"));
+  const fpProgress = useJobQueueStore(selectDomainProgress("framepack"));
+  const ltxProgress = useJobQueueStore(selectDomainProgress("ltx"));
+  const progress = Math.max(videoProgress, fpProgress, ltxProgress);
 
   const progressPct = Math.round(progress * 100);
 

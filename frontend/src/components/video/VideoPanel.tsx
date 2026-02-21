@@ -1,23 +1,30 @@
-import { useEffect, useCallback } from "react";
+import { useCallback, useMemo } from "react";
 import { Play, Square } from "lucide-react";
-import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
-import { useSubmitJob, useCancelJob } from "@/api/hooks/useJobs";
-import { useJobWebSocket } from "@/api/hooks/useJobWebSocket";
+import { useJobQueueStore, selectDomainActive, selectDomainProgress, selectDomainRunning } from "@/stores/jobStore";
+import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
+import { sendToJob } from "@/hooks/useJobTracker";
+import { useCancelJob } from "@/api/hooks/useJobs";
 import { uploadFile } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { api } from "@/api/client";
 import { ModelsVideoTab } from "./tabs/ModelsVideoTab";
 import { FramePackTab } from "./tabs/FramePackTab";
 import { LtxVideoTab } from "./tabs/LtxVideoTab";
+import type { JobDomain } from "@/stores/jobStore";
 
 const tabs = [
   { id: "models", label: "Models" },
   { id: "framepack", label: "FramePack" },
   { id: "ltx", label: "LTX" },
 ] as const;
+
+function tabToDomain(tab: string): JobDomain {
+  if (tab === "framepack") return "framepack";
+  if (tab === "ltx") return "ltx";
+  return "video";
+}
 
 async function buildJobPayload(tab: string) {
   const s = useVideoStore.getState();
@@ -129,64 +136,33 @@ export function VideoPanel() {
   const activeVideoTab = useVideoStore((s) => s.activeVideoTab);
   const prompt = useVideoStore((s) => s.prompt);
   const negative = useVideoStore((s) => s.negative);
-  const isGenerating = useVideoStore((s) => s.isGenerating);
-  const jobId = useVideoStore((s) => s.jobId);
-  const progress = useVideoStore((s) => s.progress);
   const setParam = useVideoStore((s) => s.setParam);
-  const setGenerating = useVideoStore((s) => s.setGenerating);
-  const setJobId = useVideoStore((s) => s.setJobId);
-  const setProgress = useVideoStore((s) => s.setProgress);
   const setResultVideo = useVideoStore((s) => s.setResultVideo);
 
-  const submitJob = useSubmitJob();
+  const domain = tabToDomain(activeVideoTab);
+  const isVideoActive = useJobQueueStore(selectDomainActive("video"));
+  const isFramepackActive = useJobQueueStore(selectDomainActive("framepack"));
+  const isLtxActive = useJobQueueStore(selectDomainActive("ltx"));
+  const isGenerating = isVideoActive || isFramepackActive || isLtxActive;
+  const progress = useJobQueueStore(selectDomainProgress(domain));
+  const runningVideoJob = useJobQueueStore(selectDomainRunning(domain));
+
   const cancelJob = useCancelJob();
-  const { progress: wsProgress, result: wsResult, status: wsStatus, error: wsError } = useJobWebSocket(jobId);
 
-  useEffect(() => {
-    if (jobId && wsProgress.progress > 0) {
-      setProgress(wsProgress.progress);
-    }
-  }, [jobId, wsProgress, setProgress]);
-
-  useEffect(() => {
-    if (!jobId) return;
-    if (wsStatus === "completed" && wsResult) {
-      const vid = wsResult.images[0];
-      if (vid) {
-        setResultVideo(`${api.getBaseUrl()}${vid.url}`);
-      }
-      setJobId(null);
-      setGenerating(false);
-    } else if (wsStatus === "failed") {
-      toast.error("Video generation failed", { description: wsError ?? "Unknown error" });
-      setJobId(null);
-      setGenerating(false);
-    } else if (wsStatus === "cancelled") {
-      setJobId(null);
-      setGenerating(false);
-    }
-  }, [wsStatus, wsResult, wsError, jobId, setResultVideo, setJobId, setGenerating]);
-
-  const handleGenerate = useCallback(async () => {
-    if (isGenerating) return;
-    if (!canGenerate(activeVideoTab)) return;
-    setGenerating(true);
+  const buildRequest = useCallback(async () => {
     setResultVideo(null);
-    try {
-      const payload = await buildJobPayload(activeVideoTab);
-      const job = await submitJob.mutateAsync(payload);
-      setJobId(job.id);
-    } catch (err) {
-      toast.error("Failed to start video generation", { description: err instanceof Error ? err.message : String(err) });
-      setGenerating(false);
-    }
-  }, [isGenerating, activeVideoTab, setGenerating, setResultVideo, submitJob, setJobId]);
+    const payload = await buildJobPayload(activeVideoTab);
+    return { payload, snapshot: {} };
+  }, [activeVideoTab, setResultVideo]);
+
+  const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ domain, buildRequest }), [domain, buildRequest]));
 
   const handleCancel = useCallback(() => {
-    if (jobId) cancelJob.mutate(jobId);
-    setJobId(null);
-    setGenerating(false);
-  }, [jobId, cancelJob, setJobId, setGenerating]);
+    if (runningVideoJob) {
+      sendToJob(runningVideoJob.id, { type: "interrupt" });
+      cancelJob.mutate(runningVideoJob.id);
+    }
+  }, [runningVideoJob, cancelJob]);
 
   const progressPct = Math.round(progress * 100);
 
@@ -211,26 +187,30 @@ export function VideoPanel() {
 
         {/* Generate / Stop */}
         <div className="space-y-2 mb-3">
-          <Button
-            type="button"
-            onClick={isGenerating ? handleCancel : handleGenerate}
-            disabled={!isGenerating && !canGenerate(activeVideoTab)}
-            variant={isGenerating ? "destructive" : "default"}
-            size="sm"
-            className="w-full"
-          >
-            {isGenerating ? (
-              <>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              onClick={submit}
+              disabled={isSubmitting || !canGenerate(activeVideoTab)}
+              variant="default"
+              size="sm"
+              className="flex-1"
+            >
+              <Play size={14} />
+              Generate
+            </Button>
+            {isGenerating && (
+              <Button
+                type="button"
+                onClick={handleCancel}
+                variant="destructive"
+                size="sm"
+              >
                 <Square size={14} />
                 Stop
-              </>
-            ) : (
-              <>
-                <Play size={14} />
-                Generate
-              </>
+              </Button>
             )}
-          </Button>
+          </div>
           {isGenerating && progressPct > 0 && (
             <div className="flex items-center gap-2">
               <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">

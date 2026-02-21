@@ -5,8 +5,6 @@ interface ProcessState {
   imagePreviewUrl: string | null;
   upscaler: string;
   scale: number;
-  isProcessing: boolean;
-  jobId: string | null;
   resultImageUrl: string | null;
   resultWidth: number | null;
   resultHeight: number | null;
@@ -14,8 +12,6 @@ interface ProcessState {
   setImage: (file: File | null) => void;
   setUpscaler: (upscaler: string) => void;
   setScale: (scale: number) => void;
-  setProcessing: (processing: boolean) => void;
-  setJobId: (id: string | null) => void;
   setResult: (url: string | null, width?: number, height?: number) => void;
   reset: () => void;
 }
@@ -25,8 +21,6 @@ export const useProcessStore = create<ProcessState>()((set, get) => ({
   imagePreviewUrl: null,
   upscaler: "None",
   scale: 2,
-  isProcessing: false,
-  jobId: null,
   resultImageUrl: null,
   resultWidth: null,
   resultHeight: null,
@@ -45,9 +39,6 @@ export const useProcessStore = create<ProcessState>()((set, get) => ({
 
   setUpscaler: (upscaler) => set({ upscaler }),
   setScale: (scale) => set({ scale }),
-  setProcessing: (processing) => set({ isProcessing: processing }),
-  setJobId: (id) => set({ jobId: id }),
-
   setResult: (url, width, height) => set({
     resultImageUrl: url,
     resultWidth: width ?? null,
@@ -62,8 +53,6 @@ export const useProcessStore = create<ProcessState>()((set, get) => ({
       imagePreviewUrl: null,
       upscaler: "None",
       scale: 2,
-      isProcessing: false,
-      jobId: null,
       resultImageUrl: null,
       resultWidth: null,
       resultHeight: null,

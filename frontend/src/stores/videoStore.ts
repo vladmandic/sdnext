@@ -70,16 +70,10 @@ interface VideoState {
   ltxAudioEnable: boolean;
 
   // Runtime state
-  isGenerating: boolean;
-  jobId: string | null;
-  progress: number;
   resultVideoUrl: string | null;
 
   setParam: <K extends keyof VideoState>(key: K, value: VideoState[K]) => void;
   setParams: (params: Partial<VideoState>) => void;
-  setGenerating: (generating: boolean) => void;
-  setJobId: (id: string | null) => void;
-  setProgress: (progress: number) => void;
   setResultVideo: (url: string | null) => void;
   reset: () => void;
 }
@@ -156,16 +150,10 @@ export const useVideoStore = create<VideoState>()(
     (set) => ({
       ...defaultParams,
 
-      isGenerating: false,
-      jobId: null,
-      progress: 0,
       resultVideoUrl: null,
 
       setParam: (key, value) => set({ [key]: value }),
       setParams: (params) => set(params),
-      setGenerating: (generating) => set({ isGenerating: generating, ...(generating ? {} : { progress: 0 }) }),
-      setJobId: (id) => set({ jobId: id }),
-      setProgress: (progress) => set({ progress }),
       setResultVideo: (url) => set({ resultVideoUrl: url }),
       reset: () => set({ ...defaultParams }),
     }),

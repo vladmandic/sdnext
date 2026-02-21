@@ -1,33 +1,26 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { Play, Loader2 } from "lucide-react";
-import { toast } from "sonner";
 import { useProcessStore } from "@/stores/processStore";
+import { useJobQueueStore, selectDomainActive } from "@/stores/jobStore";
 import { useUpscalerList } from "@/api/hooks/useModels";
-import { useSubmitJob } from "@/api/hooks/useJobs";
-import { useJobWebSocket } from "@/api/hooks/useJobWebSocket";
+import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { uploadFile } from "@/lib/upload";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { api } from "@/api/client";
 
 export function ProcessPanel() {
   const image = useProcessStore((s) => s.image);
   const upscaler = useProcessStore((s) => s.upscaler);
   const scale = useProcessStore((s) => s.scale);
-  const isProcessing = useProcessStore((s) => s.isProcessing);
-  const jobId = useProcessStore((s) => s.jobId);
   const setUpscaler = useProcessStore((s) => s.setUpscaler);
   const setScale = useProcessStore((s) => s.setScale);
-  const setProcessing = useProcessStore((s) => s.setProcessing);
-  const setJobId = useProcessStore((s) => s.setJobId);
   const setResult = useProcessStore((s) => s.setResult);
 
-  const { data: upscalers } = useUpscalerList();
-  const submitJob = useSubmitJob();
-  const { result: wsResult, status: wsStatus, error: wsError } = useJobWebSocket(jobId);
+  const isProcessing = useJobQueueStore(selectDomainActive("upscale"));
 
+  const { data: upscalers } = useUpscalerList();
   const upscalerNames = useMemo(() => upscalers?.map((u) => u.name) ?? [], [upscalers]);
 
   // Auto-select first non-"None" upscaler
@@ -38,39 +31,17 @@ export function ProcessPanel() {
     }
   }, [upscalerNames, upscaler, setUpscaler]);
 
-  // Handle job completion
-  useEffect(() => {
-    if (!jobId) return;
-    if (wsStatus === "completed" && wsResult) {
-      const img = wsResult.images[0];
-      if (img) {
-        setResult(`${api.getBaseUrl()}${img.url}`, img.width, img.height);
-      }
-      setJobId(null);
-      setProcessing(false);
-    } else if (wsStatus === "failed") {
-      toast.error("Upscale failed", { description: wsError ?? "Unknown error" });
-      setJobId(null);
-      setProcessing(false);
-    } else if (wsStatus === "cancelled") {
-      setJobId(null);
-      setProcessing(false);
-    }
-  }, [wsStatus, wsResult, wsError, jobId, setResult, setJobId, setProcessing]);
-
-  const handleProcess = useCallback(async () => {
-    if (!image || isProcessing) return;
-    setProcessing(true);
+  const buildRequest = useCallback(async () => {
+    if (!image) throw new Error("No image selected");
     setResult(null);
-    try {
-      const ref = await uploadFile(image);
-      const job = await submitJob.mutateAsync({ type: "upscale", image: ref, upscaler, scale });
-      setJobId(job.id);
-    } catch (err) {
-      toast.error("Upscale failed", { description: err instanceof Error ? err.message : String(err) });
-      setProcessing(false);
-    }
-  }, [image, isProcessing, upscaler, scale, setProcessing, setResult, submitJob, setJobId]);
+    const ref = await uploadFile(image);
+    return {
+      payload: { type: "upscale" as const, image: ref, upscaler, scale },
+      snapshot: {},
+    };
+  }, [image, upscaler, scale, setResult]);
+
+  const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ domain: "upscale" as const, buildRequest }), [buildRequest]));
 
   return (
     <div className="flex flex-col h-full">
@@ -88,8 +59,8 @@ export function ProcessPanel() {
         <ParamSlider label="Scale" value={scale} onChange={setScale} min={1} max={8} step={0.5} />
         <Button
           type="button"
-          onClick={handleProcess}
-          disabled={!image || isProcessing || upscaler === "None"}
+          onClick={submit}
+          disabled={!image || isProcessing || isSubmitting || upscaler === "None"}
           size="sm"
           className="w-full"
         >

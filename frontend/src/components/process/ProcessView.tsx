@@ -1,12 +1,13 @@
 import { useCallback, useEffect } from "react";
 import { Upload, X, Download, Loader2 } from "lucide-react";
 import { useProcessStore } from "@/stores/processStore";
+import { useJobQueueStore, selectDomainActive } from "@/stores/jobStore";
 import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 
 export function ProcessView() {
   const imagePreviewUrl = useProcessStore((s) => s.imagePreviewUrl);
-  const isProcessing = useProcessStore((s) => s.isProcessing);
+  const isProcessing = useJobQueueStore(selectDomainActive("upscale"));
   const resultImageUrl = useProcessStore((s) => s.resultImageUrl);
   const resultWidth = useProcessStore((s) => s.resultWidth);
   const resultHeight = useProcessStore((s) => s.resultHeight);

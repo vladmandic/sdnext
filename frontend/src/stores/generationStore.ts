@@ -146,16 +146,6 @@ interface GenerationState {
   hdrMaxBoundary: number;
   hdrTintRatio: number;
 
-  // Generation state
-  isGenerating: boolean;
-  currentTaskId: string | null;
-  progress: number;
-  eta: number;
-  samplingStep: number;
-  samplingSteps: number;
-  previewImage: string | null;
-  queuePosition: number;
-
   // Results
   results: GenerationResult[];
   selectedResultId: string | null;
@@ -165,10 +155,6 @@ interface GenerationState {
   // Actions
   setParam: <K extends keyof GenerationState>(key: K, value: GenerationState[K]) => void;
   setParams: (params: Partial<GenerationState>) => void;
-  setGenerating: (generating: boolean) => void;
-  setProgress: (progress: number, eta: number, samplingStep?: number, samplingSteps?: number) => void;
-  setPreview: (image: string | null) => void;
-  setTaskId: (id: string | null) => void;
   addResult: (result: GenerationResult) => void;
   clearResults: () => void;
   selectImage: (resultId: string, imageIndex: number) => void;
@@ -293,14 +279,6 @@ export const useGenerationStore = create<GenerationState>()(
     (set) => ({
       ...defaultParams,
 
-      isGenerating: false,
-      currentTaskId: null,
-      progress: 0,
-      eta: 0,
-      samplingStep: 0,
-      samplingSteps: 0,
-      previewImage: null,
-      queuePosition: 0,
       results: [],
       selectedResultId: null,
       selectedImageIndex: null,
@@ -309,18 +287,6 @@ export const useGenerationStore = create<GenerationState>()(
       setParam: (key, value) => set({ [key]: value }),
 
       setParams: (params) => set(params),
-
-      setGenerating: (generating) =>
-        set({
-          isGenerating: generating,
-          ...(generating ? {} : { progress: 0, eta: 0, samplingStep: 0, samplingSteps: 0, previewImage: null }),
-        }),
-
-      setProgress: (progress, eta, samplingStep, samplingSteps) => set({ progress, eta, ...(samplingStep !== undefined ? { samplingStep } : {}), ...(samplingSteps !== undefined ? { samplingSteps } : {}) }),
-
-      setPreview: (image) => set({ previewImage: image }),
-
-      setTaskId: (id) => set({ currentTaskId: id }),
 
       addResult: (result) =>
         set((state) => {
