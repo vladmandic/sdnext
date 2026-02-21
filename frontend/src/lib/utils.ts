@@ -87,6 +87,38 @@ export async function downloadImage(image: string, filename: string): Promise<vo
   }
 }
 
+/** Download all images from generation results as a zip file. */
+export async function downloadAllAsZip(results: { images: string[]; info: string }[]): Promise<void> {
+  const JSZip = (await import("jszip")).default;
+  const zip = new JSZip();
+  let fileIndex = 0;
+  for (const result of results) {
+    for (let ii = 0; ii < result.images.length; ii++) {
+      const image = result.images[ii];
+      const filename = generateImageFilename(result.info, ii);
+      let blob: Blob;
+      if (image.startsWith("/") || image.startsWith("http")) {
+        const resp = await fetch(image);
+        blob = await resp.blob();
+      } else {
+        const raw = image.startsWith("data:") ? image.split(",")[1]! : image;
+        blob = base64ToBlob(raw);
+      }
+      zip.file(`${String(fileIndex).padStart(4, "0")}_${filename}`, blob);
+      fileIndex++;
+    }
+  }
+  const content = await zip.generateAsync({ type: "blob" });
+  const url = URL.createObjectURL(content);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `sdnext_${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 /** Generate a filename from generation info */
 export function generateImageFilename(info: string, imageIndex: number): string {
   let seed = "unknown";

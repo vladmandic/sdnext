@@ -1,15 +1,28 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { restoreFromResult } from "@/lib/requestBuilder";
-import { cn, downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
-import { memo, useCallback } from "react";
+import { cn, downloadImage, downloadAllAsZip, generateImageFilename, resolveImageSrc } from "@/lib/utils";
+import { memo, useCallback, useState } from "react";
 import { toast } from "sonner";
-import { Download } from "lucide-react";
+import { Download, FolderDown, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export const ResultGallery = memo(function ResultGallery() {
   const results = useGenerationStore((s) => s.results);
   const selectedResultId = useGenerationStore((s) => s.selectedResultId);
   const selectedImageIndex = useGenerationStore((s) => s.selectedImageIndex);
   const selectImage = useGenerationStore((s) => s.selectImage);
+  const clearResults = useGenerationStore((s) => s.clearResults);
+
+  const [confirmAction, setConfirmAction] = useState<"downloadAll" | "clear" | null>(null);
+  const [downloading, setDownloading] = useState(false);
 
   const handleDoubleClick = useCallback(
     (resultId: string) => {
@@ -31,6 +44,25 @@ export const ResultGallery = memo(function ResultGallery() {
     downloadImage(image, filename);
   }, [results, selectedResultId, selectedImageIndex]);
 
+  const totalImages = results.reduce((sum, r) => sum + r.images.length, 0);
+
+  function handleConfirm() {
+    if (confirmAction === "downloadAll") {
+      setDownloading(true);
+      downloadAllAsZip(results)
+        .then(() => toast.success("Zip downloaded"))
+        .catch(() => toast.error("Failed to create zip"))
+        .finally(() => {
+          setDownloading(false);
+          setConfirmAction(null);
+        });
+    } else if (confirmAction === "clear") {
+      clearResults();
+      toast.success("History cleared");
+      setConfirmAction(null);
+    }
+  }
+
   if (results.length === 0) {
     return (
       <div className="text-[11px] text-muted-foreground text-center py-2">
@@ -50,8 +82,8 @@ export const ResultGallery = memo(function ResultGallery() {
 
   return (
     <div className="flex flex-col gap-1">
-      {selectedResultId && selectedImageIndex !== null && (
-        <div className="flex items-center gap-1 justify-end">
+      <div className="flex items-center gap-1 justify-end">
+        {selectedResultId && selectedImageIndex !== null && (
           <button
             onClick={handleDownload}
             title="Download image"
@@ -59,8 +91,22 @@ export const ResultGallery = memo(function ResultGallery() {
           >
             <Download size={14} />
           </button>
-        </div>
-      )}
+        )}
+        <button
+          onClick={() => setConfirmAction("downloadAll")}
+          title="Download all as zip"
+          className="p-1 rounded hover:bg-accent transition-colors"
+        >
+          <FolderDown size={14} />
+        </button>
+        <button
+          onClick={() => setConfirmAction("clear")}
+          title="Clear history"
+          className="p-1 rounded hover:bg-accent transition-colors text-destructive/70 hover:text-destructive"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
       <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "thin" }}>
         {allImages.map((item) => {
           const isSelected = item.resultId === selectedResultId && item.imageIndex === selectedImageIndex;
@@ -83,6 +129,34 @@ export const ResultGallery = memo(function ResultGallery() {
           );
         })}
       </div>
+
+      <Dialog open={confirmAction !== null} onOpenChange={(open) => !open && setConfirmAction(null)}>
+        <DialogContent showCloseButton={false} className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>
+              {confirmAction === "downloadAll" ? "Download All Images" : confirmAction === "clear" ? "Clear History" : ""}
+            </DialogTitle>
+            <DialogDescription>
+              {confirmAction === "downloadAll"
+                ? `Download ${totalImages} image${totalImages === 1 ? "" : "s"} as a zip file?`
+                : confirmAction === "clear"
+                  ? `Remove all ${totalImages} image${totalImages === 1 ? "" : "s"} from history? This cannot be undone.`
+                  : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={() => setConfirmAction(null)} disabled={downloading}>Cancel</Button>
+            <Button
+              variant={confirmAction === "clear" ? "destructive" : "default"}
+              size="sm"
+              onClick={handleConfirm}
+              disabled={downloading}
+            >
+              {downloading ? "Downloading..." : confirmAction === "downloadAll" ? "Download" : confirmAction === "clear" ? "Clear" : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 });
