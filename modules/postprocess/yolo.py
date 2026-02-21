@@ -10,6 +10,13 @@ from modules import shared, processing, devices, processing_class, ui_common, ui
 from modules.detailer import Detailer
 
 
+def _p_or_opt(p, key):
+    val = getattr(p, key, None) if p is not None else None
+    if val is not None:
+        return val
+    return getattr(shared.opts, key, None)
+
+
 predefined = [ # <https://huggingface.co/vladmandic/yolo-detailers/tree/main>
     'https://github.com/ultralytics/assets/releases/download/v8.3.0/yolo11m.pt',
     'https://huggingface.co/vladmandic/yolo-detailers/resolve/main/face-yolo8n.pt',
@@ -82,15 +89,20 @@ class YoloRestorer(Detailer):
             imgsz: int = 640,
             half: bool = True,
             device = devices.device,
-            augment: bool = shared.opts.detailer_augment,
+            augment: bool = None,
             agnostic: bool = False,
             retina: bool = False,
             mask: bool = True,
-            offload: bool = shared.opts.detailer_unload,
+            offload: bool = None,
             classes: str = None,
             segmentation: bool = None,
+            p = None,
         ) -> list[YoloResult]:
 
+        if augment is None:
+            augment = _p_or_opt(p, 'detailer_augment') if _p_or_opt(p, 'detailer_augment') is not None else shared.opts.detailer_augment
+        if offload is None:
+            offload = shared.opts.detailer_unload
         if model is None or (isinstance(model, str) and len(model) == 0):
             model = 'yolo11m'
         result = []
@@ -103,9 +115,8 @@ class YoloRestorer(Detailer):
         if model is None:
             return result
         args = {
-            'conf': shared.opts.detailer_conf,
-            'iou': shared.opts.detailer_iou,
-            # 'max_det': shared.opts.detailer_max,
+            'conf': _p_or_opt(p, 'detailer_conf'),
+            'iou': _p_or_opt(p, 'detailer_iou'),
         }
         try:
             if TYPE_CHECKING:
@@ -155,8 +166,10 @@ class YoloRestorer(Detailer):
                 box = box.tolist()
                 w, h = box[2] - box[0], box[3] - box[1]
                 x_size, y_size = w/image.width, h/image.height
-                min_size = shared.opts.detailer_min_size if shared.opts.detailer_min_size >= 0 and shared.opts.detailer_min_size <= 1 else 0
-                max_size = shared.opts.detailer_max_size if shared.opts.detailer_max_size >= 0 and shared.opts.detailer_max_size <= 1 else 1
+                _min = _p_or_opt(p, 'detailer_min_size')
+                min_size = _min if _min is not None and 0 <= _min <= 1 else 0
+                _max = _p_or_opt(p, 'detailer_max_size')
+                max_size = _max if _max is not None and 0 < _max <= 1 else 1
                 if x_size >= min_size and y_size >=min_size and x_size <= max_size and y_size <= max_size:
                     use_seg = segmentation if segmentation is not None else shared.opts.detailer_seg
                     if mask:
@@ -179,7 +192,7 @@ class YoloRestorer(Detailer):
                             args=args,
                         )
                         result.append(res)
-                if len(result) >= shared.opts.detailer_max:
+                if len(result) >= _p_or_opt(p, 'detailer_max'):
                     break
         return result
 
@@ -283,7 +296,10 @@ class YoloRestorer(Detailer):
             return np_image
 
         models = []
-        if len(shared.opts.detailer_args) > 0:
+        p_models = getattr(p, 'detailer_models', None)
+        if p_models is not None and len(p_models) > 0:
+            models = p_models
+        elif len(shared.opts.detailer_args) > 0:
             models = [m.strip() for m in re.split(r'[\n,;]+', shared.opts.detailer_args)]
             models = [m for m in models if len(m) > 0]
         if len(models) == 0:
@@ -308,6 +324,7 @@ class YoloRestorer(Detailer):
         np_images = []
         annotated = Image.fromarray(np_image)
         image = None
+        do_save = use_save if use_save is not None else shared.opts.detailer_save
 
         for i, model_val in enumerate(models):
             if ':' in model_val:
@@ -324,7 +341,7 @@ class YoloRestorer(Detailer):
 
             if image is None:
                 image = Image.fromarray(np_image)
-            items = self.predict(model, image, classes=use_classes, segmentation=use_seg)
+            items = self.predict(model, image, classes=use_classes, segmentation=use_seg, p=p)
 
             if len(items) == 0:
                 shared.log.info(f'Detailer: model="{name}" no items detected')
@@ -365,8 +382,8 @@ class YoloRestorer(Detailer):
                 'styles': [],
                 'inpaint_full_res': True,
                 'inpainting_mask_invert': 0,
-                'mask_blur': shared.opts.detailer_blur,
-                'inpaint_full_res_padding': shared.opts.detailer_padding,
+                'mask_blur': _p_or_opt(p, 'detailer_blur'),
+                'inpaint_full_res_padding': _p_or_opt(p, 'detailer_padding'),
                 'width': p.detailer_resolution,
                 'height': p.detailer_resolution,
                 'vae_type': orig_p.get('vae_type', 'Full'),
@@ -399,15 +416,12 @@ class YoloRestorer(Detailer):
             pc = copy(p)
             pc.ops.append('detailer')
 
-            orig_sigma_adjust: float = shared.opts.schedulers_sigma_adjust
-            orig_sigma_end: float = shared.opts.schedulers_sigma_adjust_max
-            shared.opts.schedulers_sigma_adjust = shared.opts.detailer_sigma_adjust
-            shared.opts.schedulers_sigma_adjust_max = shared.opts.detailer_sigma_adjust_max
+            pc.schedulers_sigma_adjust = _p_or_opt(p, 'detailer_sigma_adjust')
+            pc.schedulers_sigma_adjust_max = _p_or_opt(p, 'detailer_sigma_adjust_max')
 
             do_sort = use_sort if use_sort is not None else shared.opts.detailer_sort
             if do_sort:
                 items = sorted(items, key=lambda x: x.box[0]) # sort items left-to-right to improve consistency
-            do_save = use_save if use_save is not None else shared.opts.detailer_save
             if do_save:
                 annotated = self.draw_masks(annotated, items, segmentation=use_seg)
 
@@ -446,9 +460,6 @@ class YoloRestorer(Detailer):
                     if len(pp.images) > 1:
                         mask_all.append(pp.images[1])
 
-            shared.opts.schedulers_sigma_adjust = orig_sigma_adjust
-            shared.opts.schedulers_sigma_adjust_max = orig_sigma_end
-
             # restore pipeline
             if control_pipeline is not None:
                 shared.sd_model = control_pipeline
@@ -468,7 +479,7 @@ class YoloRestorer(Detailer):
 
         if image is not None:
             np_images.append(np.array(image))
-        if shared.opts.detailer_save and annotated is not None:
+        if do_save and annotated is not None:
             np_images.append(annotated) # save debug image with boxes
         return np_images
 

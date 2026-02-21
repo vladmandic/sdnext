@@ -75,6 +75,17 @@ export interface ControlRequest {
   detailer_merge?: boolean;
   detailer_sort?: boolean;
   detailer_classes?: string;
+  detailer_conf?: number;
+  detailer_iou?: number;
+  detailer_max?: number;
+  detailer_min_size?: number;
+  detailer_max_size?: number;
+  detailer_blur?: number;
+  detailer_padding?: number;
+  detailer_sigma_adjust?: number;
+  detailer_sigma_adjust_max?: number;
+  detailer_models?: string[];
+  detailer_augment?: boolean;
   input_type?: number;
   inputs?: string[];
   inits?: string[];

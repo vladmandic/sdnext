@@ -71,6 +71,17 @@ class StableDiffusionProcessing:
                  detailer_merge: bool = None,
                  detailer_sort: bool = None,
                  detailer_classes: str = None,
+                 detailer_conf: float = None,
+                 detailer_iou: float = None,
+                 detailer_max: int = None,
+                 detailer_min_size: float = None,
+                 detailer_max_size: float = None,
+                 detailer_blur: int = None,
+                 detailer_padding: int = None,
+                 detailer_sigma_adjust: float = None,
+                 detailer_sigma_adjust_max: float = None,
+                 detailer_models: list = None,
+                 detailer_augment: bool = None,
                  # hdr corrections
                  hdr_mode: int = 0,
                  hdr_brightness: float = 0,
@@ -290,6 +301,17 @@ class StableDiffusionProcessing:
         self.detailer_merge = detailer_merge
         self.detailer_sort = detailer_sort
         self.detailer_classes = detailer_classes
+        self.detailer_conf = detailer_conf
+        self.detailer_iou = detailer_iou
+        self.detailer_max = detailer_max
+        self.detailer_min_size = detailer_min_size
+        self.detailer_max_size = detailer_max_size
+        self.detailer_blur = detailer_blur
+        self.detailer_padding = detailer_padding
+        self.detailer_sigma_adjust = detailer_sigma_adjust
+        self.detailer_sigma_adjust_max = detailer_sigma_adjust_max
+        self.detailer_models = detailer_models
+        self.detailer_augment = detailer_augment
         self.init_images = init_images
         self.init_control = init_control
         self.resize_mode = resize_mode

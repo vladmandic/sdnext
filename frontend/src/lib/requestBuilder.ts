@@ -135,19 +135,16 @@ export async function buildControlRequest(): Promise<BuildResult> {
     request.detailer_merge = gen.detailerMerge;
     request.detailer_sort = gen.detailerSort;
     request.detailer_classes = gen.detailerClasses || undefined;
-    request.extra = {
-      ...request.extra,
-      detailer_models: gen.detailerModels,
-      detailer_max: gen.detailerMaxDetected,
-      detailer_padding: gen.detailerPadding,
-      detailer_blur: gen.detailerBlur,
-      detailer_conf: gen.detailerConfidence,
-      detailer_iou: gen.detailerIou,
-      detailer_min_size: gen.detailerMinSize,
-      detailer_max_size: gen.detailerMaxSize,
-      detailer_sigma_adjust: gen.detailerRenoise,
-      detailer_sigma_adjust_max: gen.detailerRenoiseEnd,
-    };
+    request.detailer_models = gen.detailerModels;
+    request.detailer_max = gen.detailerMaxDetected;
+    request.detailer_padding = gen.detailerPadding;
+    request.detailer_blur = gen.detailerBlur;
+    request.detailer_conf = gen.detailerConfidence;
+    request.detailer_iou = gen.detailerIou;
+    request.detailer_min_size = gen.detailerMinSize;
+    request.detailer_max_size = gen.detailerMaxSize;
+    request.detailer_sigma_adjust = gen.detailerRenoise;
+    request.detailer_sigma_adjust_max = gen.detailerRenoiseEnd;
   }
 
   // Scripts
@@ -423,16 +420,16 @@ export function restoreFromResult(result: GenerationResult): void {
 
     // Detailer overrides
     ...(p.detailer_enabled ? {
-      detailerModels: Array.isArray(overrides.detailer_models) ? overrides.detailer_models as string[] : ["face-yolo8n"],
-      detailerMaxDetected: num(overrides.detailer_max, 2),
-      detailerPadding: num(overrides.detailer_padding, 20),
-      detailerBlur: num(overrides.detailer_blur, 10),
-      detailerConfidence: num(overrides.detailer_conf, 0.6),
-      detailerIou: num(overrides.detailer_iou, 0.5),
-      detailerMinSize: num(overrides.detailer_min_size, 0.0),
-      detailerMaxSize: num(overrides.detailer_max_size, 1.0),
-      detailerRenoise: num(overrides.detailer_sigma_adjust, 1.0),
-      detailerRenoiseEnd: num(overrides.detailer_sigma_adjust_max, 1.0),
+      detailerModels: (Array.isArray(p.detailer_models) ? p.detailer_models : Array.isArray(overrides.detailer_models) ? overrides.detailer_models : ["face-yolo8n"]) as string[],
+      detailerMaxDetected: num(p.detailer_max ?? overrides.detailer_max, 2),
+      detailerPadding: num(p.detailer_padding ?? overrides.detailer_padding, 20),
+      detailerBlur: num(p.detailer_blur ?? overrides.detailer_blur, 10),
+      detailerConfidence: num(p.detailer_conf ?? overrides.detailer_conf, 0.6),
+      detailerIou: num(p.detailer_iou ?? overrides.detailer_iou, 0.5),
+      detailerMinSize: num(p.detailer_min_size ?? overrides.detailer_min_size, 0.0),
+      detailerMaxSize: num(p.detailer_max_size ?? overrides.detailer_max_size, 1.0),
+      detailerRenoise: num(p.detailer_sigma_adjust ?? overrides.detailer_sigma_adjust, 1.0),
+      detailerRenoiseEnd: num(p.detailer_sigma_adjust_max ?? overrides.detailer_sigma_adjust_max, 1.0),
     } : {}),
   });
 
