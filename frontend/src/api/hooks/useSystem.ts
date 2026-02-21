@@ -9,6 +9,7 @@ import type {
   BenchmarkHistory,
   HistoryEntry,
   SystemInfoFull,
+  StorageInfo,
 } from "../types/system";
 
 export function useHistory() {
@@ -74,6 +75,15 @@ export function useApplyUpdate() {
       queryClient.invalidateQueries({ queryKey: ["update-check"] });
       queryClient.invalidateQueries({ queryKey: ["server-info"] });
     },
+  });
+}
+
+export function useStorage() {
+  return useQuery({
+    queryKey: ["storage"],
+    queryFn: () => api.get<StorageInfo>("/sdapi/v2/storage"),
+    enabled: false,
+    retry: false,
   });
 }
 

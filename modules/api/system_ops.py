@@ -1,4 +1,4 @@
-"""System operations API — restart, profiling, update, benchmark.
+"""System operations API — restart, profiling, update, benchmark, storage.
 
 Provides REST endpoints for system management operations that were previously
 only accessible through the Gradio UI.
@@ -7,7 +7,7 @@ only accessible through the Gradio UI.
 import os
 import json
 import threading
-from modules import shared
+from modules import shared, paths
 from modules.logger import log
 
 
@@ -165,6 +165,109 @@ def get_benchmark_results():
 
 
 # ---------------------------------------------------------------------------
+# Storage
+# ---------------------------------------------------------------------------
+
+def _dir_size(path: str, recursive: bool = False, max_depth: int = 1):
+    """Return total size in bytes of a directory. Non-recursive by default for speed on huge dirs."""
+    total = 0
+    if not path or not os.path.isdir(path):
+        return total
+    try:
+        for entry in os.scandir(path):
+            try:
+                if entry.is_file(follow_symlinks=False):
+                    total += entry.stat(follow_symlinks=False).st_size
+                elif recursive and entry.is_dir(follow_symlinks=False) and max_depth > 0:
+                    total += _dir_size(entry.path, recursive=True, max_depth=max_depth - 1)
+            except OSError:
+                pass
+    except OSError:
+        pass
+    return total
+
+
+def _file_size(path: str):
+    try:
+        return os.path.getsize(path) if os.path.isfile(path) else 0
+    except OSError:
+        return 0
+
+
+def get_storage():
+    """Return disk usage grouped by category."""
+    data_dir = paths.data_path or '.'
+    result = {}
+
+    # Caches
+    cache_files = [
+        ("cache.json", os.path.join(data_dir, "data", "cache.json")),
+        ("metadata.json", os.path.join(data_dir, "data", "metadata.json")),
+        ("extensions.json", os.path.join(data_dir, "data", "extensions.json")),
+        ("jobs.db", os.path.join(data_dir, "jobs.db")),
+    ]
+    result["caches"] = [{"label": label, "path": p, "size": _file_size(p)} for label, p in cache_files]
+
+    # Temp
+    temp_dir = getattr(shared.opts, 'temp_dir', '') or os.path.join(data_dir, "tmp")
+    result["temp"] = [{"label": "Temp", "path": temp_dir, "size": _dir_size(temp_dir, recursive=True, max_depth=2)}]
+
+    # HuggingFace cache
+    hf_dir = getattr(shared.opts, 'hfcache_dir', '') or os.path.join(paths.models_path, 'huggingface')
+    result["huggingface"] = [{"label": "HuggingFace cache", "path": hf_dir, "size": _dir_size(hf_dir, recursive=False)}]
+
+    # Outputs — resolve via the same base+specific logic the gallery uses
+    base_samples = getattr(shared.opts, 'outdir_samples', '')
+    base_grids = getattr(shared.opts, 'outdir_grids', '')
+    output_candidates = [
+        ("Text-to-Image", paths.resolve_output_path(base_samples, getattr(shared.opts, 'outdir_txt2img_samples', ''))),
+        ("Image-to-Image", paths.resolve_output_path(base_samples, getattr(shared.opts, 'outdir_img2img_samples', ''))),
+        ("Control", paths.resolve_output_path(base_samples, getattr(shared.opts, 'outdir_control_samples', ''))),
+        ("Extras", paths.resolve_output_path(base_samples, getattr(shared.opts, 'outdir_extras_samples', ''))),
+        ("Saved", paths.resolve_output_path(base_samples, getattr(shared.opts, 'outdir_save', ''))),
+        ("Video", paths.resolve_output_path(base_samples, getattr(shared.opts, 'outdir_video', ''))),
+        ("Init images", paths.resolve_output_path(base_samples, getattr(shared.opts, 'outdir_init_images', ''))),
+        ("Grids (txt2img)", paths.resolve_output_path(base_grids, getattr(shared.opts, 'outdir_txt2img_grids', ''))),
+        ("Grids (img2img)", paths.resolve_output_path(base_grids, getattr(shared.opts, 'outdir_img2img_grids', ''))),
+        ("Grids (control)", paths.resolve_output_path(base_grids, getattr(shared.opts, 'outdir_control_grids', ''))),
+    ]
+    # Deduplicate — multiple grid types often resolve to the same folder
+    seen_paths: dict[str, str] = {}
+    outputs = []
+    for label, p in output_candidates:
+        if not p:
+            continue
+        resolved = os.path.normpath(os.path.abspath(p))
+        if resolved in seen_paths:
+            # Merge label into the first occurrence
+            seen_paths[resolved] += f" / {label}"
+            for entry in outputs:
+                if os.path.normpath(os.path.abspath(entry["path"])) == resolved:
+                    entry["label"] = seen_paths[resolved]
+                    break
+        else:
+            seen_paths[resolved] = label
+            outputs.append({"label": label, "path": p, "size": _dir_size(p, recursive=True, max_depth=3)})
+    result["outputs"] = outputs
+
+    # Models
+    model_dirs = [
+        ("Checkpoints", getattr(shared.opts, 'ckpt_dir', os.path.join(paths.models_path, 'Stable-diffusion'))),
+        ("Diffusers", getattr(shared.opts, 'diffusers_dir', os.path.join(paths.models_path, 'Diffusers'))),
+        ("VAE", getattr(shared.opts, 'vae_dir', os.path.join(paths.models_path, 'VAE'))),
+        ("UNET", getattr(shared.opts, 'unet_dir', os.path.join(paths.models_path, 'UNET'))),
+        ("Text encoders", getattr(shared.opts, 'te_dir', os.path.join(paths.models_path, 'Text-encoder'))),
+        ("LoRA", getattr(shared.cmd_opts, 'lora_dir', os.path.join(paths.models_path, 'Lora'))),
+        ("Embeddings", getattr(shared.cmd_opts, 'embeddings_dir', os.path.join(paths.models_path, 'embeddings'))),
+        ("Control", getattr(shared.opts, 'control_dir', os.path.join(paths.models_path, 'control'))),
+    ]
+    result["models"] = [{"label": label, "path": p, "size": _dir_size(p, recursive=False)} for label, p in model_dirs if p]
+
+    log.debug('API: storage scan complete')
+    return result
+
+
+# ---------------------------------------------------------------------------
 # Registration
 # ---------------------------------------------------------------------------
 
@@ -176,3 +279,4 @@ def register_api():
     api.add_api_route("/sdapi/v2/update/apply", post_update_apply, methods=["POST"], tags=["System"])
     api.add_api_route("/sdapi/v2/benchmark/run", post_benchmark_run, methods=["POST"], tags=["System"])
     api.add_api_route("/sdapi/v2/benchmark/results", get_benchmark_results, methods=["GET"], tags=["System"])
+    api.add_api_route("/sdapi/v2/storage", get_storage, methods=["GET"], tags=["System"])

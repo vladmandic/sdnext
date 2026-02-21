@@ -53,6 +53,14 @@ export interface HistoryEntry {
   outputs: string[];
 }
 
+export interface StorageEntry {
+  label: string;
+  path: string;
+  size: number;
+}
+
+export type StorageInfo = Record<string, StorageEntry[]>;
+
 export interface SystemInfoFull {
   version: Record<string, string>;
   uptime: string;

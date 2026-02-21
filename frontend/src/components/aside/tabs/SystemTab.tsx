@@ -18,9 +18,11 @@ import { HistorySubTab } from "@/components/system/sub-tabs/HistorySubTab";
 import { GpuMonitorSubTab } from "@/components/system/sub-tabs/GpuMonitorSubTab";
 import { SystemInfoSubTab } from "@/components/system/sub-tabs/SystemInfoSubTab";
 import { BenchmarkSubTab } from "@/components/system/sub-tabs/BenchmarkSubTab";
+import { StorageSubTab } from "@/components/system/sub-tabs/StorageSubTab";
 
 const SUB_TABS = [
   "Overview",
+  "Storage",
   "Update",
   "History",
   "GPU Monitor",
@@ -100,6 +102,7 @@ export function SystemTab() {
 
       <div className="p-3">
         {active === "Overview" && <OverviewSubTab />}
+        {active === "Storage" && <StorageSubTab />}
         {active === "Update" && <UpdateSubTab />}
         {active === "History" && <HistorySubTab />}
         {active === "GPU Monitor" && <GpuMonitorSubTab />}
