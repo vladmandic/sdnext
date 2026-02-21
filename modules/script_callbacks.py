@@ -27,6 +27,12 @@ class ImageSaveParams:
         self.pnginfo = pnginfo
         """dictionary with parameters for image's PNG info data; infotext will have the key 'parameters'"""
 
+        self.image_metadata = None
+        """per-request image_metadata override; set by save_image()"""
+
+        self.jpeg_quality = None
+        """per-request jpeg_quality override; set by save_image()"""
+
 
 class ExtraNoiseParams:
     def __init__(self, noise, x, xi):

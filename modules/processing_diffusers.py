@@ -269,7 +269,9 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
         if hasattr(p, 'height') and hasattr(p, 'width') and p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5):
             log.info(f'Upscale: mode={p.hr_resize_mode} upscaler="{p.hr_upscaler}" context="{p.hr_resize_context}" resize={p.hr_resize_x}x{p.hr_resize_y} upscale={p.hr_upscale_to_x}x{p.hr_upscale_to_y}')
             p.ops.append('upscale')
-            if shared.opts.samples_save and not p.do_not_save_samples and shared.opts.save_images_before_highres_fix and hasattr(shared.sd_model, 'vae'):
+            _samples_save = p.samples_save if p.samples_save is not None else shared.opts.samples_save
+            _before_hires = p.save_images_before_highres_fix if p.save_images_before_highres_fix is not None else shared.opts.save_images_before_highres_fix
+            if _samples_save and not p.do_not_save_samples and _before_hires and hasattr(shared.sd_model, 'vae'):
                 save_intermediate(p, latents=output.images, suffix="-before-hires")
             output.images = resize_hires(p, latents=output.images)
             sd_hijack_hypertile.hypertile_set(p, hr=True)
@@ -370,7 +372,9 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
     if (output is None) or (output.images is None):
         return output
     if is_refiner_enabled(p):
-        if shared.opts.samples_save and not p.do_not_save_samples and shared.opts.save_images_before_refiner and hasattr(shared.sd_model, 'vae'):
+        _samples_save = p.samples_save if p.samples_save is not None else shared.opts.samples_save
+        _before_refiner = p.save_images_before_refiner if p.save_images_before_refiner is not None else shared.opts.save_images_before_refiner
+        if _samples_save and not p.do_not_save_samples and _before_refiner and hasattr(shared.sd_model, 'vae'):
             save_intermediate(p, latents=output.images, suffix="-before-refiner")
         if shared.opts.diffusers_move_base:
             log.debug('Moving to CPU: model=base')

@@ -89,6 +89,23 @@ class StableDiffusionProcessing:
                  mask_apply_overlay: bool = None,
                  include_mask: bool = None,
                  inpainting_mask_weight: float = None,
+                 # output and saving
+                 samples_save: bool = None,
+                 samples_format: str = None,
+                 save_images_before_highres_fix: bool = None,
+                 save_images_before_refiner: bool = None,
+                 save_images_before_detailer: bool = None,
+                 save_images_before_color_correction: bool = None,
+                 grid_save: bool = None,
+                 grid_format: str = None,
+                 return_grid: bool = None,
+                 save_mask: bool = None,
+                 save_mask_composite: bool = None,
+                 return_mask: bool = None,
+                 return_mask_composite: bool = None,
+                 keep_incomplete: bool = None,
+                 image_metadata: bool = None,
+                 jpeg_quality: int = None,
                  # hdr corrections
                  hdr_mode: int = 0,
                  hdr_brightness: float = 0,
@@ -325,6 +342,22 @@ class StableDiffusionProcessing:
         self.mask_apply_overlay = mask_apply_overlay
         self.include_mask = include_mask
         self.inpainting_mask_weight = inpainting_mask_weight
+        self.samples_save = samples_save
+        self.samples_format = samples_format
+        self.save_images_before_highres_fix = save_images_before_highres_fix
+        self.save_images_before_refiner = save_images_before_refiner
+        self.save_images_before_detailer = save_images_before_detailer
+        self.save_images_before_color_correction = save_images_before_color_correction
+        self.grid_save = grid_save
+        self.grid_format = grid_format
+        self.return_grid = return_grid
+        self.save_mask = save_mask
+        self.save_mask_composite = save_mask_composite
+        self.return_mask = return_mask
+        self.return_mask_composite = return_mask_composite
+        self.keep_incomplete = keep_incomplete
+        self.image_metadata = image_metadata
+        self.jpeg_quality = jpeg_quality
         self.init_images = init_images
         self.init_control = init_control
         self.resize_mode = resize_mode
