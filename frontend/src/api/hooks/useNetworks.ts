@@ -29,7 +29,7 @@ export function usePromptStyles() {
 export function useNetworkDetail(page: string, name: string, enabled: boolean) {
   return useQuery({
     queryKey: ["network-detail", page, name],
-    queryFn: () => api.get<NetworkDetail>("/sdapi/v1/extra-networks/detail", { page, name }),
+    queryFn: () => api.get<NetworkDetail>("/sdapi/v2/extra-networks/detail", { page, name }),
     enabled,
     staleTime: 60_000,
   });
@@ -53,7 +53,7 @@ export function useNetworkDetails(params: { page?: string; name?: string; filena
   }
   return useQuery({
     queryKey: ["network-details", params],
-    queryFn: () => api.get<NetworkDetailsResponse>("/sdapi/v1/extra-networks/details", queryParams),
+    queryFn: () => api.get<NetworkDetailsResponse>("/sdapi/v2/extra-networks/details", queryParams),
     staleTime: 60_000,
   });
 }

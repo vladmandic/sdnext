@@ -4,7 +4,7 @@ import { api } from "../client";
 export function useIPAdapterModels() {
   return useQuery({
     queryKey: ["ip-adapters"],
-    queryFn: () => api.get<string[]>("/sdapi/v1/ip-adapters"),
+    queryFn: () => api.get<string[]>("/sdapi/v2/ip-adapters"),
     staleTime: 30_000,
   });
 }

@@ -15,7 +15,7 @@ const TYPES_WITH_MODELS: Set<ControlUnitType> = new Set(["controlnet", "t2i", "x
 export function useControlModels(unitType: ControlUnitType) {
   return useQuery({
     queryKey: ["control-models", unitType],
-    queryFn: () => api.get<string[]>(`/sdapi/v1/control-models?unit_type=${unitType}`),
+    queryFn: () => api.get<string[]>(`/sdapi/v2/control-models?unit_type=${unitType}`),
     staleTime: 5 * 60 * 1000,
     enabled: TYPES_WITH_MODELS.has(unitType),
   });
@@ -24,7 +24,7 @@ export function useControlModels(unitType: ControlUnitType) {
 export function useControlModes() {
   return useQuery({
     queryKey: ["control-modes"],
-    queryFn: () => api.get<Record<string, string[]>>("/sdapi/v1/control-modes"),
+    queryFn: () => api.get<Record<string, string[]>>("/sdapi/v2/control-modes"),
     staleTime: 5 * 60 * 1000,
   });
 }

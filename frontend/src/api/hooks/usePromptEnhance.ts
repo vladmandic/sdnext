@@ -5,7 +5,7 @@ import type { PromptEnhanceModel, PromptEnhanceRequest, PromptEnhanceResponse } 
 export function usePromptEnhanceModels() {
   return useQuery({
     queryKey: ["prompt-enhance-models"],
-    queryFn: () => api.get<PromptEnhanceModel[]>("/sdapi/v1/prompt-enhance/models"),
+    queryFn: () => api.get<PromptEnhanceModel[]>("/sdapi/v2/prompt-enhance/models"),
     staleTime: 5 * 60 * 1000,
   });
 }

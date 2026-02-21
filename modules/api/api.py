@@ -71,7 +71,7 @@ class Api:
         self.add_api_route("/sdapi/v1/mask", self.process.post_mask, methods=["POST"], tags=["Processing"])
         self.add_api_route("/sdapi/v1/detect", self.process.post_detect, methods=["POST"], tags=["Processing"])
         self.add_api_route("/sdapi/v1/prompt-enhance", self.process.post_prompt_enhance, methods=["POST"], response_model=models.ResPromptEnhance, tags=["Generation"])
-        self.add_api_route("/sdapi/v1/prompt-enhance/models", self.process.get_prompt_enhance_models, methods=["GET"], tags=["Generation"])
+        self.add_api_route("/sdapi/v2/prompt-enhance/models", self.process.get_prompt_enhance_models, methods=["GET"])
 
         # api dealing with optional scripts
         self.add_api_route("/sdapi/v1/scripts", script.get_scripts_list, methods=["GET"], response_model=models.ResScripts, tags=["Scripts"])
@@ -84,9 +84,9 @@ class Api:
         self.add_api_route("/sdapi/v1/upscalers", endpoints.get_upscalers, methods=["GET"], response_model=list[models.ItemUpscaler], tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/sd-models", endpoints.get_sd_models, methods=["GET"], response_model=list[models.ItemModel], tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/controlnets", endpoints.get_controlnets, methods=["GET"], response_model=list[str], tags=["Enumerators"])
-        self.add_api_route("/sdapi/v1/control-models", endpoints.get_control_models, methods=["GET"], response_model=list[str], tags=["Enumerators"])
-        self.add_api_route("/sdapi/v1/control-modes", endpoints.get_control_modes, methods=["GET"], tags=["Enumerators"])
-        self.add_api_route("/sdapi/v1/ip-adapters", endpoints.get_ip_adapters, methods=["GET"], response_model=list[str], tags=["Enumerators"])
+        self.add_api_route("/sdapi/v2/control-models", endpoints.get_control_models, methods=["GET"], response_model=list[str], tags=["Enumerators"])
+        self.add_api_route("/sdapi/v2/control-modes", endpoints.get_control_modes, methods=["GET"], tags=["Enumerators"])
+        self.add_api_route("/sdapi/v2/ip-adapters", endpoints.get_ip_adapters, methods=["GET"], response_model=list[str], tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/face-restorers", endpoints.get_restorers, methods=["GET"], response_model=list[models.ItemDetailer], tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/detailers", endpoints.get_detailers, methods=["GET"], response_model=list[models.ItemDetailer], tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/prompt-styles", endpoints.get_prompt_styles, methods=["GET"], response_model=list[models.ItemStyle], tags=["Enumerators"])
@@ -94,8 +94,8 @@ class Api:
         self.add_api_route("/sdapi/v1/sd-vae", endpoints.get_sd_vaes, methods=["GET"], response_model=list[models.ItemVae], tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/extensions", endpoints.get_extensions_list, methods=["GET"], response_model=list[models.ItemExtension], tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/extra-networks", endpoints.get_extra_networks, methods=["GET"], response_model=list[models.ItemExtraNetwork], tags=["Enumerators"])
-        self.add_api_route("/sdapi/v1/extra-networks/detail", endpoints.get_extra_network_detail, methods=["GET"], response_model=models.ItemExtraNetworkDetail, tags=["Enumerators"])
-        self.add_api_route("/sdapi/v1/extra-networks/details", endpoints.get_extra_network_details, methods=["GET"], response_model=models.ResExtraNetworkDetails, tags=["Enumerators"])
+        self.add_api_route("/sdapi/v2/extra-networks/detail", endpoints.get_extra_network_detail, methods=["GET"], response_model=models.ItemExtraNetworkDetail, tags=["Enumerators"])
+        self.add_api_route("/sdapi/v2/extra-networks/details", endpoints.get_extra_network_details, methods=["GET"], response_model=models.ResExtraNetworkDetails, tags=["Enumerators"])
 
         # functional api
         self.add_api_route("/sdapi/v1/png-info", endpoints.post_pnginfo, methods=["POST"], response_model=models.ResImageInfo, tags=["Functional"])
