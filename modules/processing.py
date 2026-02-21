@@ -336,7 +336,10 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 if pp.image is not None:
                     image = pp.image
 
-            if shared.opts.mask_apply_overlay:
+            _overlay = getattr(p, 'mask_apply_overlay', None)
+            if _overlay is None:
+                _overlay = shared.opts.mask_apply_overlay
+            if _overlay:
                 image = apply_overlay(image, p.paste_to, i, p.overlay_images)
 
             if hasattr(p, 'mask_for_overlay') and p.mask_for_overlay and any([shared.opts.save_mask, shared.opts.save_mask_composite, shared.opts.return_mask, shared.opts.return_mask_composite]):
@@ -357,9 +360,12 @@ def process_samples(p: StableDiffusionProcessing, samples):
                     out_infotexts.append(info)
                     out_images.append(image_mask_composite)
 
-            if shared.opts.include_mask:
+            _inc_mask = getattr(p, 'include_mask', None)
+            if _inc_mask is None:
+                _inc_mask = shared.opts.include_mask
+            if _inc_mask:
                 info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                if shared.opts.mask_apply_overlay and p.overlay_images is not None and len(p.overlay_images) > 0:
+                if _overlay and p.overlay_images is not None and len(p.overlay_images) > 0:
                     p.image_mask = create_binary_mask(p.overlay_images[0])
                     p.image_mask = ImageOps.invert(p.image_mask)
                     out_infotexts.append(info)

@@ -24,7 +24,10 @@ def warn_once(message):
 
 
 def setup_img2img_steps(p, steps=None):
-    if shared.opts.img2img_fix_steps or steps is not None:
+    _fix = getattr(p, 'img2img_fix_steps', None)
+    if _fix is None:
+        _fix = shared.opts.img2img_fix_steps
+    if _fix or steps is not None:
         requested_steps = (steps or p.steps)
         steps = int(requested_steps / min(p.denoising_strength, 0.999)) if p.denoising_strength > 0 else 0
         t_enc = requested_steps - 1

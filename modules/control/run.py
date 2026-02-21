@@ -285,6 +285,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 detailer_blur: int = None, detailer_padding: int = None,
                 detailer_sigma_adjust: float = None, detailer_sigma_adjust_max: float = None,
                 detailer_models: list = None, detailer_augment: bool = None,
+                img2img_color_correction: bool = None, img2img_background_color: str = None,
+                img2img_fix_steps: bool = None, mask_apply_overlay: bool = None,
+                include_mask: bool = None, inpainting_mask_weight: float = None,
                 hdr_mode: int = 0, hdr_brightness: float = 0, hdr_color: float = 0, hdr_sharpen: float = 0, hdr_clamp: bool = False, hdr_boundary: float = 4.0, hdr_threshold: float = 0.95,
                 hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str = None, hdr_tint_ratio: float = 0,
                 resize_mode_before: int = 0, resize_name_before: str = 'None', resize_context_before: str = 'None', width_before: int = 512, height_before: int = 512, scale_by_before: float = 1.0, selected_scale_tab_before: int = 0,
@@ -432,6 +435,10 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         detailer_blur=detailer_blur, detailer_padding=detailer_padding,
         detailer_sigma_adjust=detailer_sigma_adjust, detailer_sigma_adjust_max=detailer_sigma_adjust_max,
         detailer_models=detailer_models, detailer_augment=detailer_augment,
+        # img2img and mask
+        img2img_color_correction=img2img_color_correction, img2img_background_color=img2img_background_color,
+        img2img_fix_steps=img2img_fix_steps, mask_apply_overlay=mask_apply_overlay,
+        include_mask=include_mask, inpainting_mask_weight=inpainting_mask_weight,
         # inpaint
         inpaint_full_res = masking.opts.mask_only,
         inpainting_mask_invert = 1 if masking.opts.invert else 0,
@@ -698,7 +705,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     for _i, output_image in enumerate(output):
                         if output_image is not None:
                             output_images.append(output_image)
-                            if shared.opts.include_mask and not script_run:
+                            _inc_mask = getattr(p, 'include_mask', None)
+                            if (_inc_mask if _inc_mask is not None else shared.opts.include_mask) and not script_run:
                                 if processed_image is not None and isinstance(processed_image, Image.Image):
                                     output_images.append(processed_image)
 

@@ -317,7 +317,6 @@ class YoloRestorer(Detailer):
         use_classes = getattr(p, 'detailer_classes', None)
 
         # create backups
-        orig_apply_overlay = shared.opts.mask_apply_overlay
         orig_p = p.__dict__.copy()
         orig_cls = p.__class__
         models_used = []
@@ -352,7 +351,6 @@ class YoloRestorer(Detailer):
                 shared.log.debug(f'Detailer: model="{name}" items={len(items)} merge')
                 items = self.merge(items)
 
-            shared.opts.data['mask_apply_overlay'] = True
             orig_prompt: str = orig_p.get('all_prompts', [''])[0]
             orig_negative: str = orig_p.get('all_negative_prompts', [''])[0]
             prompt: str = orig_p.get('detailer_prompt', '')
@@ -418,6 +416,7 @@ class YoloRestorer(Detailer):
 
             pc.schedulers_sigma_adjust = _p_or_opt(p, 'detailer_sigma_adjust')
             pc.schedulers_sigma_adjust_max = _p_or_opt(p, 'detailer_sigma_adjust_max')
+            pc.mask_apply_overlay = True
 
             do_sort = use_sort if use_sort is not None else shared.opts.detailer_sort
             if do_sort:
@@ -470,9 +469,8 @@ class YoloRestorer(Detailer):
             p.image_mask = orig_p.get('image_mask', None)
             p.state = orig_p.get('state', None)
             p.ops = orig_p.get('ops', [])
-            shared.opts.data['mask_apply_overlay'] = orig_apply_overlay
 
-            if len(mask_all) > 0 and shared.opts.include_mask:
+            if len(mask_all) > 0 and _p_or_opt(p, 'include_mask'):
                 from modules.control.util import blend
                 p.image_mask = blend([np.array(m) for m in mask_all])
                 p.image_mask = Image.fromarray(p.image_mask)

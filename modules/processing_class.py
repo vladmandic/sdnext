@@ -82,6 +82,13 @@ class StableDiffusionProcessing:
                  detailer_sigma_adjust_max: float = None,
                  detailer_models: list = None,
                  detailer_augment: bool = None,
+                 # img2img and mask
+                 img2img_color_correction: bool = None,
+                 img2img_background_color: str = None,
+                 img2img_fix_steps: bool = None,
+                 mask_apply_overlay: bool = None,
+                 include_mask: bool = None,
+                 inpainting_mask_weight: float = None,
                  # hdr corrections
                  hdr_mode: int = 0,
                  hdr_brightness: float = 0,
@@ -312,6 +319,12 @@ class StableDiffusionProcessing:
         self.detailer_sigma_adjust_max = detailer_sigma_adjust_max
         self.detailer_models = detailer_models
         self.detailer_augment = detailer_augment
+        self.img2img_color_correction = img2img_color_correction
+        self.img2img_background_color = img2img_background_color
+        self.img2img_fix_steps = img2img_fix_steps
+        self.mask_apply_overlay = mask_apply_overlay
+        self.include_mask = include_mask
+        self.inpainting_mask_weight = inpainting_mask_weight
         self.init_images = init_images
         self.init_control = init_control
         self.resize_mode = resize_mode
@@ -677,7 +690,8 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.mask_for_overlay = Image.fromarray(np_mask)
         self.overlay_images = []
 
-        add_color_corrections = shared.opts.img2img_color_correction and self.color_corrections is None
+        _cc = self.img2img_color_correction if self.img2img_color_correction is not None else shared.opts.img2img_color_correction
+        add_color_corrections = _cc and self.color_corrections is None
         if add_color_corrections:
             self.color_corrections = []
         processed_images = []
@@ -693,12 +707,13 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.init_img_height = getattr(self, 'init_img_height', img.height) # pylint: disable=attribute-defined-outside-init
             if shared.opts.save_init_img:
                 images.save_image(img, path=resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_init_images), basename=None, forced_filename=self.init_img_hash, suffix="-init-image")
-            image = flatten(img, shared.opts.img2img_background_color)
+            image = flatten(img, self.img2img_background_color if self.img2img_background_color is not None else shared.opts.img2img_background_color)
             if crop_region is None and self.resize_mode > 0:
                 image = images.resize_image(self.resize_mode, image, self.width, self.height, upscaler_name=self.resize_name, context=self.resize_context)
                 self.width = image.width
                 self.height = image.height
-            if self.image_mask is not None and shared.opts.mask_apply_overlay:
+            _overlay = self.mask_apply_overlay if self.mask_apply_overlay is not None else shared.opts.mask_apply_overlay
+            if self.image_mask is not None and _overlay:
                 image_masked = Image.new('RGBa', (image.width, image.height))
                 image_to_paste = image.convert("RGBA").convert("RGBa")
                 image_to_mask = ImageOps.invert(self.mask_for_overlay.convert('L')) if self.mask_for_overlay is not None else None
