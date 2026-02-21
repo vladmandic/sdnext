@@ -164,6 +164,11 @@ export interface ControlRequest {
   token_merging_method?: string;
   tome_ratio?: number;
   todo_ratio?: number;
+  lora_fuse_native?: boolean;
+  lora_fuse_diffusers?: boolean;
+  lora_force_reload?: boolean;
+  extra_networks_default_multiplier?: number;
+  lora_apply_tags?: number;
   extra?: Record<string, unknown>;
   script_name?: string;
   script_args?: unknown[];

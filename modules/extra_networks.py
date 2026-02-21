@@ -127,8 +127,11 @@ def activate(p, extra_network_data=None, step=0, include=None, exclude=None):
         shared.opts.data['lora_functional'] = functional
 
 
-def deactivate(p, extra_network_data=None, force=shared.opts.lora_force_reload):
+def deactivate(p, extra_network_data=None, force=None):
     """call deactivate for extra networks in extra_network_data in specified order, then call deactivate for all remaining registered networks"""
+    if force is None:
+        val = getattr(p, 'lora_force_reload', None)
+        force = val if val is not None else shared.opts.lora_force_reload
     if p.disable_extra_networks:
         return
     extra_network_data = extra_network_data or p.network_data

@@ -144,7 +144,7 @@ def maybe_recompile_model(names, te_multipliers):
         if len(names) == len(shared.compiled_model_state.lora_model):
             for i, name in enumerate(names):
                 if shared.compiled_model_state.lora_model[
-                    i] != f"{name}:{te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier}":
+                    i] != f"{name}:{te_multipliers[i] if te_multipliers else l.opt('extra_networks_default_multiplier')}":
                     recompile_model = True
                     shared.compiled_model_state.lora_model = []
                     break
@@ -248,7 +248,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             if l.debug:
                 log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" hash="{shorthash}"')
             try:
-                lora_scale = te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier
+                lora_scale = te_multipliers[i] if te_multipliers else l.opt('extra_networks_default_multiplier')
                 lora_module = lora_modules[i] if lora_modules and len(lora_modules) > i else None
                 if recompile_model and shared.compiled_model_state is not None:
                     shared.compiled_model_state.lora_model.append(f"{name}:{lora_scale}")
@@ -273,9 +273,9 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             continue
         if hasattr(sd_model, 'embedding_db'):
             sd_model.embedding_db.load_diffusers_embedding(None, net.bundle_embeddings)
-        net.te_multiplier = te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier
-        net.unet_multiplier = unet_multipliers[i] if unet_multipliers else shared.opts.extra_networks_default_multiplier
-        net.dyn_dim = dyn_dims[i] if dyn_dims else shared.opts.extra_networks_default_multiplier
+        net.te_multiplier = te_multipliers[i] if te_multipliers else l.opt('extra_networks_default_multiplier')
+        net.unet_multiplier = unet_multipliers[i] if unet_multipliers else l.opt('extra_networks_default_multiplier')
+        net.dyn_dim = dyn_dims[i] if dyn_dims else l.opt('extra_networks_default_multiplier')
         l.loaded_networks.append(net)
 
     while len(lora_cache) > shared.opts.lora_in_memory_limit:
@@ -296,7 +296,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             if l.debug:
                 errors.display(e, 'LoRA')
         try:
-            if shared.opts.lora_fuse_diffusers and not lora_overrides.disable_fuse():
+            if l.opt('lora_fuse_diffusers') and not lora_overrides.disable_fuse():
                 sd_model.fuse_lora(adapter_names=lora_diffusers.diffuser_loaded, lora_scale=1.0, fuse_unet=True, fuse_text_encoder=True) # diffusers with fuse uses fixed scale since later apply does the scaling
                 sd_model.unload_lora_weights()
             l.timer.activate += time.time() - t1

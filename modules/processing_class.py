@@ -106,6 +106,12 @@ class StableDiffusionProcessing:
                  keep_incomplete: bool = None,
                  image_metadata: bool = None,
                  jpeg_quality: int = None,
+                 # lora behavior
+                 lora_fuse_native: bool = None,
+                 lora_fuse_diffusers: bool = None,
+                 lora_force_reload: bool = None,
+                 extra_networks_default_multiplier: float = None,
+                 lora_apply_tags: int = None,
                  # hdr corrections
                  hdr_mode: int = 0,
                  hdr_brightness: float = 0,
@@ -358,6 +364,11 @@ class StableDiffusionProcessing:
         self.keep_incomplete = keep_incomplete
         self.image_metadata = image_metadata
         self.jpeg_quality = jpeg_quality
+        self.lora_fuse_native = lora_fuse_native
+        self.lora_fuse_diffusers = lora_fuse_diffusers
+        self.lora_force_reload = lora_force_reload
+        self.extra_networks_default_multiplier = extra_networks_default_multiplier
+        self.lora_apply_tags = lora_apply_tags
         self.init_images = init_images
         self.init_control = init_control
         self.resize_mode = resize_mode
