@@ -41,6 +41,7 @@ TBD
   - ui: **themes** add *CTD-NT64Light*, *CTD-NT64Medium* and *CTD-NT64Dark*, thanks @resonantsky  
   - ui: **gallery** add option to auto-refresh gallery, thanks @awsr  
 - **Internal**
+  - `python==3.13` full support  
   - `python==3.14` initial support  
     see [docs](https://vladmandic.github.io/sdnext-docs/Python/) for details  
   - remove hard-dependnecies:  
@@ -64,9 +65,11 @@ TBD
   - use `threading` for deferable operatios  
   - use `threading` for io-independent parallel operations  
   - remove requirements: `clip`, `open-clip`  
-  - remove `normalbae` pre-processor  
   - captioning part-2, thanks @CalamitousFelicitousness  
   - add new build of `insightface`, thanks @hameerabbasi  
+- **Obsolete**
+  - remove `normalbae` pre-processor  
+  - remove `dwpose` pre-processor  
 - **Checks**
   - switch to `pyproject.toml` for tool configs  
   - update `lint` rules, thanks @awsr  

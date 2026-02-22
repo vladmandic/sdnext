@@ -60,7 +60,6 @@ def delay_load_config():
     from modules.control.proc.midas import MidasDetector
     from modules.control.proc.mlsd import MLSDdetector
     from modules.control.proc.openpose import OpenposeDetector
-    from modules.control.proc.dwpose import DWposeDetector
     from modules.control.proc.segment_anything import SamDetector
     from modules.control.proc.zoe import ZoeDetector
     from modules.control.proc.marigold import MarigoldDetector
@@ -73,7 +72,6 @@ def delay_load_config():
         'None': {},
         # pose models
         'OpenPose': {'class': OpenposeDetector, 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
-        'DWPose': {'class': DWposeDetector, 'checkpoint': False, 'model': 'Tiny', 'params': {'min_confidence': 0.3}},
         'MediaPipe Face': {'class': MediapipeFaceDetector, 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
         # outline models
         'Canny': {'class': CannyDetector, 'checkpoint': False, 'params': {'low_threshold': 100, 'high_threshold': 200}},
