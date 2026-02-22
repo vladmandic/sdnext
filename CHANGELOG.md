@@ -1,12 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2026-02-21
+## Update for 2026-02-22
 
-### Highlights for 2026-02-21
+### Highlights for 2026-02-22
 
 TBD
 
-### Details for 2026-02-21
+### Details for 2026-02-22
 
 - **Models**
   - [FireRed Image Edit](https://huggingface.co/FireRedTeam/FireRed-Image-Edit-1.0)  
@@ -88,6 +88,7 @@ TBD
   - gallery over remote/unsecure connections  
   - ltx2-i2v  
   - handle missing preview image  
+  - ui connection monitor  
 
 ## Update for 2026-02-04
 

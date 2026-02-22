@@ -30,22 +30,21 @@ async function initStartup() {
   if (window.setupLogger) await setupLogger();
 
   // all items here are non-blocking async calls
-  await initModels();
-  await getUIDefaults();
-  await initPromptChecker();
-  await initContextMenu();
-  await initDragDrop();
-  await initAccordions();
-  await initSettings();
-  await initImageViewer();
-  await initiGenerationParams();
-  await initChangelog();
-  await setupControlUI();
+  initModels();
+  getUIDefaults();
+  initPromptChecker();
+  initContextMenu();
+  initDragDrop();
+  initAccordions();
+  initSettings();
+  initImageViewer();
+  initiGenerationParams();
+  initChangelog();
+  setupControlUI();
 
   // reconnect server session
   await reconnectUI();
   await waitForOpts();
-
   await initGallery();
 
   log('mountURL', window.opts.subpath);
@@ -60,6 +59,7 @@ async function initStartup() {
 
   // optinally wait for modern ui
   if (window.waitForUiReady) await waitForUiReady();
+  monitorConnection();
   removeSplash();
 
   // post startup tasks that may take longer but are not critical
