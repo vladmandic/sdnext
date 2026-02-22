@@ -115,3 +115,34 @@ class ErrorResponse(BaseModel):
     error: str
     code: int
     detail: Optional[str] = None
+
+
+# --- Simple response types for Swagger docs ---
+
+class StatusResponse(BaseModel):
+    id: str
+    status: str
+
+
+class MessageResponse(BaseModel):
+    messages: list[str]
+
+
+class VideoEngine(BaseModel):
+    engine: str
+    models: list[str]
+
+
+class VideoModel(BaseModel):
+    name: str
+    repo: str
+    url: str
+
+
+class VideoLoadResponse(MessageResponse):
+    engine: str
+    model: str
+
+
+class FramePackLoadResponse(MessageResponse):
+    variant: str

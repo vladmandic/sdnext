@@ -115,12 +115,16 @@ class UploadResponse(BaseModel):
     uploads: list[UploadRef]
 
 
+class DeleteResponse(BaseModel):
+    status: str
+
+
 # Router
 
 MAX_FILE_SIZE = 50 * 1024 * 1024  # 50MB
 MAX_FILES_PER_REQUEST = 20
 
-upload_router = APIRouter(prefix="/sdapi/v2", tags=["v2-upload"])
+upload_router = APIRouter(prefix="/sdapi/v2", tags=["Upload"])
 
 
 @upload_router.post("/upload", response_model=UploadResponse)
@@ -153,7 +157,7 @@ async def get_upload(ref_id: str):
     return FileResponse(entry.path, media_type=entry.content_type, filename=entry.name)
 
 
-@upload_router.delete("/uploads/{ref_id}")
+@upload_router.delete("/uploads/{ref_id}", response_model=DeleteResponse)
 async def delete_upload(ref_id: str):
     store = get_upload_store()
     entry = store.get(ref_id)

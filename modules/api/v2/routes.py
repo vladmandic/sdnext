@@ -3,7 +3,7 @@ import os
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
-from modules.api.v2.models import JobResponse, JobListResponse, JobResult, ImageRef
+from modules.api.v2.models import JobResponse, JobListResponse, JobResult, ImageRef, StatusResponse, VideoEngine, VideoModel, VideoLoadResponse, MessageResponse, FramePackLoadResponse
 
 
 router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
@@ -36,7 +36,7 @@ def _job_to_response(job: dict) -> JobResponse:
     )
 
 
-@router.post("/jobs", response_model=JobResponse, status_code=202)
+@router.post("/jobs", response_model=JobResponse, status_code=202, tags=["Jobs"])
 async def submit_job(request: dict):
     from modules.api.v2.job_queue import job_queue
     job_type = request.get('type')
@@ -50,7 +50,7 @@ async def submit_job(request: dict):
     return _job_to_response(job)
 
 
-@router.get("/jobs", response_model=JobListResponse)
+@router.get("/jobs", response_model=JobListResponse, tags=["Jobs"])
 async def list_jobs(
     status: Optional[str] = None,
     type: Optional[str] = None,
@@ -62,7 +62,7 @@ async def list_jobs(
     return JobListResponse(items=[_job_to_response(j) for j in items], total=total, offset=offset, limit=limit)
 
 
-@router.get("/jobs/{job_id}", response_model=JobResponse)
+@router.get("/jobs/{job_id}", response_model=JobResponse, tags=["Jobs"])
 async def get_job(job_id: str):
     from modules.api.v2.job_queue import job_queue
     job = job_queue.store.get(job_id)
@@ -79,7 +79,7 @@ async def get_job(job_id: str):
     return resp
 
 
-@router.delete("/jobs/{job_id}")
+@router.delete("/jobs/{job_id}", response_model=StatusResponse, tags=["Jobs"])
 async def cancel_job(job_id: str):
     from modules.api.v2.job_queue import job_queue
     job = job_queue.store.get(job_id)
@@ -115,7 +115,7 @@ def _get_image_path(job: dict, index: int) -> str | None:
     return images[index].get('path')
 
 
-@router.get("/jobs/{job_id}/images/{index}")
+@router.get("/jobs/{job_id}/images/{index}", tags=["Jobs"])
 async def get_job_image(job_id: str, index: int):
     from modules.api.v2.job_queue import job_queue
     job = job_queue.store.get(job_id)
@@ -134,7 +134,7 @@ async def get_job_image(job_id: str, index: int):
     return FileResponse(file_path, media_type=media_type)
 
 
-@router.get("/video/engines")
+@router.get("/video/engines", response_model=list[VideoEngine], tags=["Video"])
 async def list_video_engines():
     from modules.video_models import models_def
     result = []
@@ -146,7 +146,7 @@ async def list_video_engines():
     return result
 
 
-@router.get("/video/engines/{engine}/models")
+@router.get("/video/engines/{engine}/models", response_model=list[VideoModel], tags=["Video"])
 async def list_video_engine_models(engine: str):
     from modules.video_models import models_def
     if engine not in models_def.models:
@@ -155,7 +155,7 @@ async def list_video_engine_models(engine: str):
     return [{'name': m.name, 'repo': m.repo or '', 'url': m.url or ''} for m in model_list if m.name != 'None']
 
 
-@router.post("/video/load")
+@router.post("/video/load", response_model=VideoLoadResponse, tags=["Video"])
 async def load_video_model(request: dict):
     from modules.video_models import video_ui
     engine = request.get('engine', '')
@@ -166,13 +166,13 @@ async def load_video_model(request: dict):
     return {"engine": engine, "model": model, "messages": messages}
 
 
-@router.get("/framepack/variants")
+@router.get("/framepack/variants", response_model=list[str], tags=["Video"])
 async def list_framepack_variants():
     from modules.framepack import framepack_load
     return list(framepack_load.models.keys())
 
 
-@router.post("/framepack/load")
+@router.post("/framepack/load", response_model=FramePackLoadResponse, tags=["Video"])
 async def load_framepack_model(request: dict):
     from modules.framepack import framepack_wrappers
     variant = request.get('variant', 'bi-directional')
@@ -184,7 +184,7 @@ async def load_framepack_model(request: dict):
     return {"variant": variant, "messages": messages}
 
 
-@router.post("/framepack/unload")
+@router.post("/framepack/unload", response_model=MessageResponse, tags=["Video"])
 async def unload_framepack_model():
     from modules.framepack import framepack_wrappers
     list(framepack_wrappers.unload_model())
