@@ -6,6 +6,17 @@ import { Eye, EyeOff, X, Plus, Frame } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+function LayerDims({ layer }: { layer: ImageLayer }) {
+  const canvasW = Math.round(Math.abs(layer.naturalWidth * layer.scaleX));
+  const canvasH = Math.round(Math.abs(layer.naturalHeight * layer.scaleY));
+  const isTransformed = canvasW !== layer.naturalWidth || canvasH !== layer.naturalHeight;
+  return (
+    <p className="text-4xs text-muted-foreground" title={`Native: ${layer.naturalWidth}×${layer.naturalHeight}`}>
+      {isTransformed ? <>{canvasW}&times;{canvasH} <span className="opacity-50">({layer.naturalWidth}&times;{layer.naturalHeight})</span></> : <>{layer.naturalWidth}&times;{layer.naturalHeight}</>}
+    </p>
+  );
+}
+
 export function LayerPanel() {
   const layers = useCanvasStore((s) => s.layers);
   const activeLayerId = useCanvasStore((s) => s.activeLayerId);
@@ -67,9 +78,7 @@ export function LayerPanel() {
             {/* Name + dims */}
             <div className="flex-1 min-w-0">
               <p className="text-3xs truncate" title={layer.name}>{truncName}</p>
-              <p className="text-4xs text-muted-foreground">
-                {layer.naturalWidth}&times;{layer.naturalHeight}
-              </p>
+              <LayerDims layer={layer} />
             </div>
             {/* Fit frame to image */}
             <Button
@@ -77,11 +86,17 @@ export function LayerPanel() {
               size="icon-xs"
               onClick={(e) => {
                 e.stopPropagation();
-                setParam("width", Math.round(layer.naturalWidth / 8) * 8);
-                setParam("height", Math.round(layer.naturalHeight / 8) * 8);
+                const w = Math.max(64, Math.round(Math.abs(layer.naturalWidth * layer.scaleX) / 8) * 8);
+                const h = Math.max(64, Math.round(Math.abs(layer.naturalHeight * layer.scaleY) / 8) * 8);
+                setParam("width", w);
+                setParam("height", h);
+                updateLayer(layer.id, {
+                  x: (w - layer.naturalWidth * layer.scaleX) / 2,
+                  y: (h - layer.naturalHeight * layer.scaleY) / 2,
+                } as Partial<ImageLayer>);
               }}
               className="text-muted-foreground flex-shrink-0"
-              title="Resize the generation frame to match this image's native dimensions (snapped to 8px grid)"
+              title="Fit frame to this layer and center it (snapped to 8px grid)"
             >
               <Frame size={10} />
             </Button>
