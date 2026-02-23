@@ -133,7 +133,7 @@ interface GenerationState {
   detailerSort: boolean;
   detailerClasses: string;
 
-  // Corrections
+  // Latent Corrections
   hdrMode: number;
   hdrBrightness: number;
   hdrSharpen: number;
@@ -144,7 +144,29 @@ interface GenerationState {
   hdrMaximize: boolean;
   hdrMaxCenter: number;
   hdrMaxBoundary: number;
+  hdrColorPicker: string;
   hdrTintRatio: number;
+
+  // Color Grading
+  gradingBrightness: number;
+  gradingContrast: number;
+  gradingSaturation: number;
+  gradingHue: number;
+  gradingGamma: number;
+  gradingSharpness: number;
+  gradingColorTemp: number;
+  gradingShadows: number;
+  gradingMidtones: number;
+  gradingHighlights: number;
+  gradingClaheClip: number;
+  gradingClaheGrid: number;
+  gradingShadowsTint: string;
+  gradingHighlightsTint: string;
+  gradingSplitToneBalance: number;
+  gradingVignette: number;
+  gradingGrain: number;
+  gradingLutFile: string;
+  gradingLutStrength: number;
 
   // Results
   results: GenerationResult[];
@@ -269,7 +291,27 @@ const defaultParams = {
   hdrMaximize: false,
   hdrMaxCenter: 0.6,
   hdrMaxBoundary: 1.0,
+  hdrColorPicker: "#000000",
   hdrTintRatio: 0,
+  gradingBrightness: 0,
+  gradingContrast: 0,
+  gradingSaturation: 0,
+  gradingHue: 0,
+  gradingGamma: 1.0,
+  gradingSharpness: 0,
+  gradingColorTemp: 6500,
+  gradingShadows: 0,
+  gradingMidtones: 0,
+  gradingHighlights: 0,
+  gradingClaheClip: 0,
+  gradingClaheGrid: 8,
+  gradingShadowsTint: "#000000",
+  gradingHighlightsTint: "#ffffff",
+  gradingSplitToneBalance: 0.5,
+  gradingVignette: 0,
+  gradingGrain: 0,
+  gradingLutFile: "",
+  gradingLutStrength: 1.0,
 };
 
 const defaultParamKeys = Object.keys(defaultParams) as (keyof typeof defaultParams)[];

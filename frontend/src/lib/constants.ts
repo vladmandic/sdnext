@@ -2,7 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   ImageIcon, Video, Sparkles, MessageSquare, Images,
   Type, SlidersHorizontal, Compass, Wand2, ScanSearch,
-  Settings2, Layers, FileCode,
+  Settings2, Layers, FileCode, Palette,
   BookOpen, Github, MessageCircle, Users,
   Gauge, LayoutGrid, Box, Puzzle, Settings, Monitor, Clock, Info, Terminal,
 } from "lucide-react";
@@ -63,6 +63,7 @@ export const IMAGES_SUB_TABS: SubTabItem[] = [
   { id: "refine", label: "Refine", icon: Wand2 },
   { id: "detail", label: "Detail", icon: ScanSearch },
   { id: "advanced", label: "Advanced", icon: Settings2 },
+  { id: "color", label: "Color", icon: Palette },
   { id: "control", label: "Input", icon: Layers },
   { id: "scripts", label: "Scripts", icon: FileCode },
 ];

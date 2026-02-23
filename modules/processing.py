@@ -3,7 +3,7 @@ import json
 import time
 import numpy as np
 from PIL import Image, ImageOps
-from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, timer
+from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer
 from modules.logger import log
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 from modules.processing_class import ( # pylint: disable=unused-import
@@ -340,6 +340,31 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 p.scripts.postprocess_image(p, pp)
                 if pp.image is not None:
                     image = pp.image
+
+            grading_params = processing_grading.GradingParams(
+                brightness=getattr(p, 'grading_brightness', 0.0),
+                contrast=getattr(p, 'grading_contrast', 0.0),
+                saturation=getattr(p, 'grading_saturation', 0.0),
+                hue=getattr(p, 'grading_hue', 0.0),
+                gamma=getattr(p, 'grading_gamma', 1.0),
+                sharpness=getattr(p, 'grading_sharpness', 0.0),
+                color_temp=getattr(p, 'grading_color_temp', 6500),
+                shadows=getattr(p, 'grading_shadows', 0.0),
+                midtones=getattr(p, 'grading_midtones', 0.0),
+                highlights=getattr(p, 'grading_highlights', 0.0),
+                clahe_clip=getattr(p, 'grading_clahe_clip', 0.0),
+                clahe_grid=getattr(p, 'grading_clahe_grid', 8),
+                shadows_tint=getattr(p, 'grading_shadows_tint', '#000000'),
+                highlights_tint=getattr(p, 'grading_highlights_tint', '#ffffff'),
+                split_tone_balance=getattr(p, 'grading_split_tone_balance', 0.5),
+                vignette=getattr(p, 'grading_vignette', 0.0),
+                grain=getattr(p, 'grading_grain', 0.0),
+                lut_file=getattr(p, 'grading_lut_file', ''),
+                lut_strength=getattr(p, 'grading_lut_strength', 1.0),
+            )
+            if processing_grading.is_active(grading_params):
+                p.ops.append('grading')
+                image = processing_grading.grade_image(image, grading_params)
 
             _overlay = getattr(p, 'mask_apply_overlay', None)
             if _overlay is None:

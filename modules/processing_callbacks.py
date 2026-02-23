@@ -93,7 +93,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = No
             debug_callback(f"Callback: IP Adapter scales={ip_adapter_scales}")
             pipe.set_ip_adapter_scale(ip_adapter_scales)
     if step != getattr(pipe, 'num_timesteps', 0):
-        kwargs = processing_correction.correction_callback(p, timestep, kwargs, initial=step == 0)
+        kwargs = processing_correction.correction_callback(p, timestep, kwargs, pipe=pipe, initial=step == 0)
     kwargs = prompt_callback(step, kwargs)  # monkey patch for diffusers callback issues
 
     if step == 0:
