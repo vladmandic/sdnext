@@ -81,7 +81,7 @@ export function UpdateSubTab() {
       {applyUpdate.data && (
         <div className="text-xs space-y-1 p-2 rounded bg-muted">
           <p className="font-medium">{applyUpdate.data.changed ? "Update applied" : "No changes"}</p>
-          <pre className="whitespace-pre-wrap text-muted-foreground text-[10px]">{applyUpdate.data.status}</pre>
+          <pre className="whitespace-pre-wrap text-muted-foreground text-3xs">{applyUpdate.data.status}</pre>
         </div>
       )}
     </div>

@@ -67,7 +67,7 @@ export function GalleryMetadata() {
 
         {/* File info */}
         <div>
-          <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">File</h3>
+          <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">File</h3>
           <div className="space-y-1">
             <MetaRow label="Name" value={filename} />
             <MetaRow label="Size" value={formatSize(selectedThumb.size)} />
@@ -82,13 +82,13 @@ export function GalleryMetadata() {
             <Separator />
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Prompt</h3>
+                <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">Prompt</h3>
                 <div className="flex gap-0.5">
                   <SmallButton onClick={() => copyToClipboard(genInfo.prompt)} title="Copy"><Copy size={10} /></SmallButton>
                   <SmallButton onClick={copyPromptToGeneration} title="Use">Use</SmallButton>
                 </div>
               </div>
-              <p className="text-[11px] text-foreground leading-relaxed break-words">{genInfo.prompt}</p>
+              <p className="text-2xs text-foreground leading-relaxed break-words">{genInfo.prompt}</p>
             </div>
           </>
         )}
@@ -96,13 +96,13 @@ export function GalleryMetadata() {
         {genInfo.negativePrompt && (
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Negative</h3>
+              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">Negative</h3>
               <div className="flex gap-0.5">
                 <SmallButton onClick={() => copyToClipboard(genInfo.negativePrompt)} title="Copy"><Copy size={10} /></SmallButton>
                 <SmallButton onClick={copyNegativeToGeneration} title="Use">Use</SmallButton>
               </div>
             </div>
-            <p className="text-[11px] text-foreground/70 leading-relaxed break-words">{genInfo.negativePrompt}</p>
+            <p className="text-2xs text-foreground/70 leading-relaxed break-words">{genInfo.negativePrompt}</p>
           </div>
         )}
 
@@ -110,7 +110,7 @@ export function GalleryMetadata() {
           <>
             <Separator />
             <div>
-              <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Parameters</h3>
+              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Parameters</h3>
               <div className="space-y-0.5">
                 {Object.entries(genInfo.params).map(([key, value]) => (
                   <MetaRow key={key} label={key} value={value} />
@@ -124,12 +124,12 @@ export function GalleryMetadata() {
 
         {/* Actions */}
         <div className="space-y-1.5">
-          <Button variant="outline" size="sm" className="w-full h-7 text-xs justify-start gap-2" asChild>
+          <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" asChild>
             <a href={fullUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink size={12} /> Open full size
             </a>
           </Button>
-          <Button variant="outline" size="sm" className="w-full h-7 text-xs justify-start gap-2" asChild>
+          <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" asChild>
             <a href={fullUrl} download={filename}>
               <Download size={12} /> Download
             </a>
@@ -143,8 +143,8 @@ export function GalleryMetadata() {
 function MetaRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start gap-2">
-      <span className="text-[10px] text-muted-foreground w-16 flex-shrink-0">{label}</span>
-      <span className="text-[11px] text-foreground break-all">{value}</span>
+      <span className="text-3xs text-muted-foreground w-16 flex-shrink-0">{label}</span>
+      <span className="text-2xs text-foreground break-all">{value}</span>
     </div>
   );
 }
@@ -154,7 +154,7 @@ function SmallButton({ children, onClick, title }: { children: React.ReactNode; 
     <button
       onClick={onClick}
       title={title}
-      className="px-1.5 py-0.5 text-[9px] rounded bg-accent/50 text-accent-foreground hover:bg-accent transition-colors"
+      className="px-1.5 py-0.5 text-4xs rounded bg-accent/50 text-accent-foreground hover:bg-accent transition-colors"
     >
       {children}
     </button>

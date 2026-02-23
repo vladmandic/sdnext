@@ -20,7 +20,7 @@ export function CivitSearchHistory({ onSelect }: CivitSearchHistoryProps) {
         <Badge
           key={`${e.type}-${e.term}`}
           variant="secondary"
-          className="text-[11px] cursor-pointer hover:bg-muted"
+          className="text-2xs cursor-pointer hover:bg-muted"
           onClick={() => onSelect(e.type === "query" ? e.term : "", e.type === "tag" ? e.term : "")}
         >
           {e.type === "tag" ? `#${e.term}` : e.term}

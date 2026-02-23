@@ -73,7 +73,7 @@ export function SystemInfoSubTab() {
             <Section title="Flags">
               <div className="flex flex-wrap gap-1">
                 {data.flags.map((flag) => (
-                  <Badge key={flag} variant="secondary" className="text-[10px]">{flag}</Badge>
+                  <Badge key={flag} variant="secondary" className="text-3xs">{flag}</Badge>
                 ))}
               </div>
             </Section>

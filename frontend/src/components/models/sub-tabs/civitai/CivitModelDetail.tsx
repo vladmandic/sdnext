@@ -65,21 +65,21 @@ function VersionSection({ version, modelType, modelName, creatorName, modelId, m
       <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted/30">
         {open ? <ChevronDown className="h-3 w-3 shrink-0" /> : <ChevronRight className="h-3 w-3 shrink-0" />}
         <span className="text-xs font-medium truncate">{version.name}</span>
-        <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">{version.baseModel}</Badge>
+        <Badge variant="outline" className="text-4xs px-1 py-0 shrink-0">{version.baseModel}</Badge>
       </button>
       {open && (
         <div className="px-3 pb-3 space-y-2">
           {version.trainedWords.length > 0 && (
             <div className="flex flex-wrap gap-1">
               {version.trainedWords.map((w) => (
-                <Badge key={w} variant="secondary" className="text-[9px] px-1 py-0">{w}</Badge>
+                <Badge key={w} variant="secondary" className="text-4xs px-1 py-0">{w}</Badge>
               ))}
             </div>
           )}
           {version.files.length > 0 && (
             <div className="space-y-1">
               {version.files.map((f) => (
-                <div key={f.id} className="flex items-center gap-2 text-[11px]">
+                <div key={f.id} className="flex items-center gap-2 text-2xs">
                   <span className="truncate flex-1" title={f.name}>{f.name}</span>
                   <span className="text-muted-foreground shrink-0">{formatSize(f.sizeKB)}</span>
                   <Button
@@ -95,7 +95,7 @@ function VersionSection({ version, modelType, modelName, creatorName, modelId, m
               ))}
             </div>
           )}
-          {resolved?.path && <p className="text-[10px] text-muted-foreground truncate" title={resolved.path}>&rarr; {resolved.path}</p>}
+          {resolved?.path && <p className="text-3xs text-muted-foreground truncate" title={resolved.path}>&rarr; {resolved.path}</p>}
         </div>
       )}
     </div>
@@ -126,7 +126,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 text-sm">
                 {model.name}
-                <Badge variant="outline" className="text-[9px] px-1 py-0">{model.type}</Badge>
+                <Badge variant="outline" className="text-4xs px-1 py-0">{model.type}</Badge>
                 <button
                   type="button"
                   onClick={() => isFavorited ? removeFav.mutate(model.name) : addFav.mutate(model.name)}
@@ -144,14 +144,14 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
                   <Ban className={`h-3.5 w-3.5 ${isBanned ? "fill-orange-500 text-orange-500" : "text-muted-foreground"}`} />
                 </button>
               </DialogTitle>
-              <DialogDescription className="text-[11px]">
+              <DialogDescription className="text-2xs">
                 by {model.creator.username}
               </DialogDescription>
             </DialogHeader>
             {model.tags.length > 0 && (
               <div className="flex flex-wrap gap-1">
                 {model.tags.slice(0, 12).map((t) => (
-                  <Badge key={t} variant="secondary" className="text-[9px] px-1 py-0">{t}</Badge>
+                  <Badge key={t} variant="secondary" className="text-4xs px-1 py-0">{t}</Badge>
                 ))}
               </div>
             )}

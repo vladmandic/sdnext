@@ -45,9 +45,9 @@ export function CivitDownloadQueue() {
         <div className="px-3 pb-3 space-y-1.5">
           {activeItems.map((item) => (
             <div key={item.id} className="space-y-1">
-              <div className="flex items-center gap-2 text-[11px]">
+              <div className="flex items-center gap-2 text-2xs">
                 <span className="truncate flex-1" title={item.filename}>{item.filename}</span>
-                <Badge variant={statusColor(item.status)} className="text-[9px] px-1 py-0">{item.status}</Badge>
+                <Badge variant={statusColor(item.status)} className="text-4xs px-1 py-0">{item.status}</Badge>
                 <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => cancelDownload.mutate(item.id)}>
                   <X className="h-2.5 w-2.5" />
                 </Button>
@@ -58,18 +58,18 @@ export function CivitDownloadQueue() {
             </div>
           ))}
           {queuedItems.map((item) => (
-            <div key={item.id} className="flex items-center gap-2 text-[11px]">
+            <div key={item.id} className="flex items-center gap-2 text-2xs">
               <span className="truncate flex-1" title={item.filename}>{item.filename}</span>
-              <Badge variant="outline" className="text-[9px] px-1 py-0">queued</Badge>
+              <Badge variant="outline" className="text-4xs px-1 py-0">queued</Badge>
               <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => cancelDownload.mutate(item.id)}>
                 <X className="h-2.5 w-2.5" />
               </Button>
             </div>
           ))}
           {completedItems.slice(0, 5).map((item) => (
-            <div key={item.id} className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            <div key={item.id} className="flex items-center gap-2 text-2xs text-muted-foreground">
               <span className="truncate flex-1" title={item.filename}>{item.filename}</span>
-              <Badge variant={statusColor(item.status)} className="text-[9px] px-1 py-0">{item.status}</Badge>
+              <Badge variant={statusColor(item.status)} className="text-4xs px-1 py-0">{item.status}</Badge>
             </div>
           ))}
         </div>

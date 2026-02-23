@@ -24,8 +24,8 @@ export function MetadataSubTab() {
       {scan.data && scan.data.results.length > 0 && (
         <div className="space-y-1">
           <p className="text-xs font-medium">Scan results ({scan.data.results.length})</p>
-          <div className="border border-border rounded-md overflow-auto max-h-[300px]">
-            <table className="w-full text-[11px]">
+          <div className="border border-border rounded-md overflow-auto max-h-75">
+            <table className="w-full text-2xs">
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
                   <th className="px-2 py-1 text-left font-medium">Name</th>
@@ -37,10 +37,10 @@ export function MetadataSubTab() {
               <tbody>
                 {scan.data.results.map((r, i) => (
                   <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
-                    <td className="px-2 py-1 truncate max-w-[120px]">{r.name}</td>
+                    <td className="px-2 py-1 truncate max-w-30">{r.name}</td>
                     <td className="px-2 py-1">{r.type}</td>
                     <td className="px-2 py-1 font-mono">{r.hash?.slice(0, 10) ?? "-"}</td>
-                    <td className="px-2 py-1 truncate max-w-[100px]">{r.note}</td>
+                    <td className="px-2 py-1 truncate max-w-25">{r.note}</td>
                   </tr>
                 ))}
               </tbody>
@@ -52,8 +52,8 @@ export function MetadataSubTab() {
       {update.data && update.data.results.length > 0 && (
         <div className="space-y-1">
           <p className="text-xs font-medium">Update results ({update.data.results.length})</p>
-          <div className="border border-border rounded-md overflow-auto max-h-[300px]">
-            <table className="w-full text-[11px]">
+          <div className="border border-border rounded-md overflow-auto max-h-75">
+            <table className="w-full text-2xs">
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
                   <th className="px-2 py-1 text-left font-medium">Name</th>
@@ -65,9 +65,9 @@ export function MetadataSubTab() {
               <tbody>
                 {update.data.results.map((r, i) => (
                   <tr key={i} className="border-b border-border/50 hover:bg-muted/30">
-                    <td className="px-2 py-1 truncate max-w-[120px]">{r.name ?? r.file}</td>
+                    <td className="px-2 py-1 truncate max-w-30">{r.name ?? r.file}</td>
                     <td className="px-2 py-1">{r.versions ?? "-"}</td>
-                    <td className="px-2 py-1 truncate max-w-[80px]">{r.latest ?? "-"}</td>
+                    <td className="px-2 py-1 truncate max-w-20">{r.latest ?? "-"}</td>
                     <td className="px-2 py-1">{r.status ?? "-"}</td>
                   </tr>
                 ))}

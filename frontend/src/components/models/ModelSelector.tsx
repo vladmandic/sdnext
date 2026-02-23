@@ -55,7 +55,7 @@ export function ModelSelector() {
             <ChevronsUpDown size={12} className="flex-shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[400px] p-0" align="start">
+        <PopoverContent className="w-[25rem] p-0" align="start">
           <Command>
             <CommandInput placeholder="Search models..." />
             <CommandList>
@@ -71,7 +71,7 @@ export function ModelSelector() {
                     <Check size={14} className={cn("mr-1 flex-shrink-0", model.title === currentModel ? "opacity-100" : "opacity-0")} />
                     <span className="truncate flex-1">{model.title}</span>
                     {model.hash && (
-                      <span className="text-[10px] text-muted-foreground font-mono pl-2">{model.hash.slice(0, 8)}</span>
+                      <span className="text-3xs text-muted-foreground font-mono pl-2">{model.hash.slice(0, 8)}</span>
                     )}
                   </CommandItem>
                 ))}
@@ -82,7 +82,7 @@ export function ModelSelector() {
       </Popover>
 
       {pipelineClass && (
-        <span className="text-[10px] text-muted-foreground whitespace-nowrap">{pipelineClass}</span>
+        <span className="text-3xs text-muted-foreground whitespace-nowrap">{pipelineClass}</span>
       )}
 
       <Button variant="ghost" size="icon-sm" title="Reload model" disabled={isModelLoading} onClick={() => reloadModel.mutate(undefined)}>

@@ -69,7 +69,7 @@ export function GpuMonitorSubTab() {
           <Section title={gpu.name}>
             <div className="space-y-2">
               <div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
+                <div className="flex justify-between text-3xs text-muted-foreground mb-0.5">
                   <span>GPU Load</span>
                   <span className="tabular-nums">{chart?.[1] ?? 0}%</span>
                 </div>
@@ -78,7 +78,7 @@ export function GpuMonitorSubTab() {
                 </div>
               </div>
               <div>
-                <div className="flex justify-between text-[10px] text-muted-foreground mb-0.5">
+                <div className="flex justify-between text-3xs text-muted-foreground mb-0.5">
                   <span>VRAM Load</span>
                   <span className="tabular-nums">{chart?.[0] ?? 0}%</span>
                 </div>

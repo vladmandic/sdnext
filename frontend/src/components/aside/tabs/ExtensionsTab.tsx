@@ -14,8 +14,8 @@ export function ExtensionsTab() {
         <div key={ext.name} className="flex items-center justify-between py-1.5 px-2 rounded hover:bg-muted/50">
           <span className="text-xs truncate min-w-0">{ext.name}</span>
           <div className="flex items-center gap-1.5 shrink-0">
-            {ext.version && <span className="text-[10px] text-muted-foreground">{ext.version}</span>}
-            <Badge variant={ext.enabled ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
+            {ext.version && <span className="text-3xs text-muted-foreground">{ext.version}</span>}
+            <Badge variant={ext.enabled ? "default" : "secondary"} className="text-3xs px-1.5 py-0">
               {ext.enabled ? "on" : "off"}
             </Badge>
           </div>

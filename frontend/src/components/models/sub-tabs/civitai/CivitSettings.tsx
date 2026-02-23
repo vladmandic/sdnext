@@ -60,7 +60,7 @@ function TokenSection({ configured }: { configured: boolean }) {
         <span className="text-xs text-muted-foreground">
           {profile?.username ? `Signed in as ${profile.username}` : "API token configured"}
         </span>
-        <Button size="sm" variant="ghost" className="h-6 text-[10px] ml-auto" onClick={() => { setEditing(true); setSaved(false); }}>Change</Button>
+        <Button size="sm" variant="ghost" className="h-6 text-3xs ml-auto" onClick={() => { setEditing(true); setSaved(false); }}>Change</Button>
       </div>
     );
   }
@@ -69,11 +69,11 @@ function TokenSection({ configured }: { configured: boolean }) {
     <div className="space-y-1">
       <Label htmlFor="civit-token" className="text-xs">CivitAI API token</Label>
       <div className="flex gap-2">
-        <Input id="civit-token" placeholder="Paste token..." value={value} onChange={(e) => { setValue(e.target.value); setError(""); }} autoComplete="off" className="h-7 text-xs" />
-        <Button size="sm" className="h-7 text-xs" disabled={!value.trim() || save.isPending} onClick={handleSave}>{save.isPending ? "Validating..." : "Save"}</Button>
+        <Input id="civit-token" placeholder="Paste token..." value={value} onChange={(e) => { setValue(e.target.value); setError(""); }} autoComplete="off" className="h-6 text-2xs" />
+        <Button size="sm" className="h-6 text-2xs" disabled={!value.trim() || save.isPending} onClick={handleSave}>{save.isPending ? "Validating..." : "Save"}</Button>
       </div>
       {error && (
-        <div className="flex items-center gap-1 text-[10px] text-destructive">
+        <div className="flex items-center gap-1 text-3xs text-destructive">
           <X className="h-3 w-3 shrink-0" />
           <span>{error}</span>
         </div>
@@ -90,10 +90,10 @@ function SubfolderSection({ value, onSave, isPending }: { value: string; onSave:
     <div className="space-y-1">
       <Label htmlFor="subfolder-template" className="text-xs">Save subfolder template</Label>
       <div className="flex gap-2">
-        <Input id="subfolder-template" placeholder="{{BASEMODEL}}/{{MODELNAME}}" value={draft} onChange={(e) => setDraft(e.target.value)} className="h-7 text-xs" />
-        {changed && <Button size="sm" className="h-7 text-xs" disabled={isPending} onClick={() => onSave(draft)}>Save</Button>}
+        <Input id="subfolder-template" placeholder="{{BASEMODEL}}/{{MODELNAME}}" value={draft} onChange={(e) => setDraft(e.target.value)} className="h-6 text-2xs" />
+        {changed && <Button size="sm" className="h-6 text-2xs" disabled={isPending} onClick={() => onSave(draft)}>Save</Button>}
       </div>
-      <p className="text-[10px] text-muted-foreground">
+      <p className="text-3xs text-muted-foreground">
         {"Variables: {{BASEMODEL}}, {{MODELNAME}}, {{CREATOR}}, {{TYPE}}, {{NSFW}}, {{MODELID}}, {{VERSIONID}}, {{VERSIONNAME}}"}
       </p>
     </div>

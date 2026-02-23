@@ -72,7 +72,7 @@ export function SystemTab() {
           <Button
             size="sm"
             variant={profiling ? "default" : "ghost"}
-            className="h-7 px-2 text-[11px] ml-auto"
+            className="h-7 px-2 text-2xs ml-auto"
             title="Toggle profiling"
             onClick={handleProfiling}
           >
@@ -88,7 +88,7 @@ export function SystemTab() {
               type="button"
               onClick={() => setActive(tab)}
               className={cn(
-                "px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors",
+                "px-2 py-0.5 rounded-full text-2xs font-medium transition-colors",
                 active === tab
                   ? "bg-accent text-accent-foreground"
                   : "bg-muted text-muted-foreground hover:text-foreground",

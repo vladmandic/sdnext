@@ -65,7 +65,7 @@ export const ResultGallery = memo(function ResultGallery() {
 
   if (results.length === 0) {
     return (
-      <div className="text-[11px] text-muted-foreground text-center py-2">
+      <div className="text-2xs text-muted-foreground text-center py-2">
         No results yet
       </div>
     );

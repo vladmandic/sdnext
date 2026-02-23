@@ -31,7 +31,7 @@ export function ControlTab() {
     <div className="flex flex-col gap-3 text-sm">
       <ParamSlider label="Units" value={units.length} onChange={setUnitCount} min={1} max={10} />
       <div className="flex items-center justify-between">
-        <Label className="text-[11px] text-muted-foreground" title="When on, preprocessors run fresh every generation. When off, manually processed images are used as-is.">Re-process on generate</Label>
+        <Label className="text-2xs text-muted-foreground" title="When on, preprocessors run fresh every generation. When off, manually processed images are used as-is.">Re-process on generate</Label>
         <Switch checked={reprocessOnGenerate} onCheckedChange={setAutoUpdateProcessed} />
       </div>
 
@@ -88,15 +88,15 @@ function ControlUnitRow({ index, canRemove }: ControlUnitRowProps) {
     <div className="flex flex-col gap-1.5 p-2 rounded-md border border-border">
       {/* Row 1: Index + Type + Enabled + Remove */}
       <div className="flex items-center gap-1.5">
-        <span className="text-[11px] text-muted-foreground font-mono w-4 flex-shrink-0">{index}</span>
+        <span className="text-2xs text-muted-foreground font-mono w-4 flex-shrink-0">{index}</span>
         <Combobox
           value={unit.unitType}
           onValueChange={(v) => setUnitType(index, v as ControlUnitType)}
           options={UNIT_TYPE_OPTIONS}
-          className="h-7 text-xs flex-1"
+          className="h-6 text-2xs flex-1"
         />
         <div className="flex items-center gap-1">
-          <Label className="text-[10px] text-muted-foreground">On</Label>
+          <Label className="text-2xs text-muted-foreground">On</Label>
           <Switch checked={unit.enabled} onCheckedChange={(checked) => setUnitParam(index, "enabled", checked)} />
         </div>
         {canRemove && (
@@ -112,13 +112,13 @@ function ControlUnitRow({ index, canRemove }: ControlUnitRowProps) {
           value={unit.imageSource}
           onValueChange={(v) => setImageSource(index, v)}
           options={imageSourceOptions}
-          className="h-7 text-xs flex-1"
+          className="h-6 text-2xs flex-1"
         />
         {showEditOnCanvas && (
           <Button
             variant="link"
             size="sm"
-            className="h-auto p-0 text-[11px] text-amber-500 gap-1 shrink-0"
+            className="h-auto p-0 text-2xs text-amber-500 gap-1 shrink-0"
             onClick={handleEditOnCanvas}
           >
             <PenLine size={10} />

@@ -48,7 +48,7 @@ export function DeviceBadge({ device }: { device?: string | null }) {
       ? "secondary"
       : "outline";
   return (
-    <Badge variant={variant} className="text-[10px] px-1.5 py-0">
+    <Badge variant={variant} className="text-3xs px-1.5 py-0">
       {device}
     </Badge>
   );
@@ -59,7 +59,7 @@ export function DtypeLabel({ model }: { model: LoadedModel }) {
   const dtype = model.dtype;
   if (!quant && !dtype) return null;
   const label = quant ? `${quant} ${dtype ?? ""}`.trim() : dtype!;
-  return <span className="text-[10px] text-muted-foreground">{label}</span>;
+  return <span className="text-3xs text-muted-foreground">{label}</span>;
 }
 
 export function ModelRow({ model }: { model: LoadedModel }) {
@@ -69,7 +69,7 @@ export function ModelRow({ model }: { model: LoadedModel }) {
       <div className="flex items-center gap-1.5 shrink-0">
         <DtypeLabel model={model} />
         {model.size_bytes != null && model.size_bytes > 0 && (
-          <span className="text-[10px] text-muted-foreground tabular-nums">
+          <span className="text-3xs text-muted-foreground tabular-nums">
             {formatBytes(model.size_bytes)}
           </span>
         )}

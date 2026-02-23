@@ -60,7 +60,7 @@ export function ConsoleTab() {
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>
-        <span className="ml-auto text-[10px] text-muted-foreground tabular-nums">
+        <span className="ml-auto text-3xs text-muted-foreground tabular-nums">
           {lines?.length ?? 0} lines
         </span>
       </div>
@@ -69,7 +69,7 @@ export function ConsoleTab() {
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-auto bg-muted/30 font-mono text-[11px] leading-relaxed p-2"
+        className="flex-1 overflow-auto bg-muted/30 font-mono text-2xs leading-relaxed p-2"
       >
         {lines?.map((line, i) => (
           <div key={i} className={cn("px-1 hover:bg-muted/50", !wrap && "whitespace-nowrap")}>

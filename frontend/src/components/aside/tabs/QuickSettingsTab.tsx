@@ -60,11 +60,11 @@ export function QuickSettingsTab() {
     <div className="p-2 space-y-3">
       {groups.map((group) => (
         <div key={group.title}>
-          <h3 className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">{group.title}</h3>
+          <h3 className="text-3xs font-semibold uppercase tracking-wider text-muted-foreground/60 mb-1.5">{group.title}</h3>
           <div className="space-y-1.5">
             {group.settings.map((setting) => (
               <div key={setting.key} className="flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground w-[110px] shrink-0 truncate" title={setting.label}>{setting.label}</span>
+                <span className="text-2xs text-muted-foreground w-[6.875rem] shrink-0 truncate" title={setting.label}>{setting.label}</span>
                 <div className="flex-1 min-w-0">
                   <SettingControl
                     setting={setting}

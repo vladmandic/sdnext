@@ -187,7 +187,7 @@ export function CaptionView() {
                             />
                           </div>
                         ) : (
-                          <div className="rounded-md border border-border flex items-center justify-center min-h-[200px] bg-muted/20">
+                          <div className="rounded-md border border-border flex items-center justify-center min-h-50 bg-muted/20">
                             <div className="flex flex-col items-center gap-2 text-muted-foreground opacity-50">
                               <ImageOff size={32} />
                               <p className="text-xs">
@@ -212,7 +212,7 @@ export function CaptionView() {
                             {result.flavor && <AnalysisField label="Flavor" value={result.flavor} />}
                           </div>
                         ) : (
-                          <div className="rounded-md border border-border p-6 flex items-center justify-center min-h-[120px]">
+                          <div className="rounded-md border border-border p-6 flex items-center justify-center min-h-30">
                             <p className="text-xs text-muted-foreground opacity-50">
                               {result ? "Enable Analyze to see CLIP breakdown" : "Run OpenCLiP captioning with Analyze enabled"}
                             </p>
@@ -235,7 +235,7 @@ export function CaptionView() {
                             ))}
                           </div>
                         ) : (
-                          <div className="rounded-md border border-border p-6 flex items-center justify-center min-h-[120px]">
+                          <div className="rounded-md border border-border p-6 flex items-center justify-center min-h-30">
                             <p className="text-xs text-muted-foreground opacity-50">
                               {result ? "Enable Show Confidence Scores to see per-tag scores" : "Run tagger to see results"}
                             </p>

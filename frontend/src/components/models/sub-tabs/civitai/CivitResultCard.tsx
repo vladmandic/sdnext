@@ -48,14 +48,14 @@ export function CivitResultCard({ model, onClick }: CivitResultCardProps) {
         {preview ? (
           <img src={preview} alt="" className="w-full h-full object-cover" loading="lazy" />
         ) : (
-          <span className="text-[9px] text-muted-foreground">N/A</span>
+          <span className="text-4xs text-muted-foreground">N/A</span>
         )}
       </div>
       <div className="flex-1 min-w-0">
         <div className="text-xs font-medium truncate">{model.name}</div>
-        <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-          <Badge variant="outline" className="text-[9px] px-1 py-0 shrink-0">{model.type}</Badge>
-          {model.modelVersions[0]?.baseModel && <Badge variant="secondary" className="text-[9px] px-1 py-0 shrink-0">{model.modelVersions[0].baseModel}</Badge>}
+        <div className="flex items-center gap-2 text-3xs text-muted-foreground">
+          <Badge variant="outline" className="text-4xs px-1 py-0 shrink-0">{model.type}</Badge>
+          {model.modelVersions[0]?.baseModel && <Badge variant="secondary" className="text-4xs px-1 py-0 shrink-0">{model.modelVersions[0].baseModel}</Badge>}
           <span>{model.creator.username}</span>
           <span className="flex items-center gap-0.5">
             <Download className="h-2.5 w-2.5" />

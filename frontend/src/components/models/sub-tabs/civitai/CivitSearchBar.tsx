@@ -46,7 +46,7 @@ export function CivitSearchBar({ query, tag, onQueryChange, onTagChange, onSearc
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
         onKeyDown={handleKeyDown}
-        className="h-7 text-xs flex-1"
+        className="h-6 text-2xs flex-1"
       />
       <div className="relative w-36">
         <Input
@@ -56,7 +56,7 @@ export function CivitSearchBar({ query, tag, onQueryChange, onTagChange, onSearc
           onKeyDown={handleKeyDown}
           onFocus={handleTagFocus}
           onBlur={handleTagBlur}
-          className="h-7 text-xs"
+          className="h-6 text-2xs"
         />
         {showSuggestions && (
           <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
@@ -69,7 +69,7 @@ export function CivitSearchBar({ query, tag, onQueryChange, onTagChange, onSearc
                 onClick={() => selectTag(t.name)}
               >
                 <span className="truncate">{t.name}</span>
-                <span className="ml-2 shrink-0 text-[10px] text-muted-foreground">{t.modelCount.toLocaleString()}</span>
+                <span className="ml-2 shrink-0 text-3xs text-muted-foreground">{t.modelCount.toLocaleString()}</span>
               </button>
             ))}
           </div>

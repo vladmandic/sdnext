@@ -68,7 +68,7 @@ export function GalleryToolbar({ totalCount, filteredCount }: GalleryToolbarProp
       {folderDisplay && (
         <div className="flex items-center gap-1.5 px-3 py-1 border-b border-border/50 bg-muted/30">
           <FolderOpen size={11} className="text-muted-foreground flex-shrink-0" />
-          <span className="text-[10px] text-muted-foreground truncate" title={activeFolder ?? ""}>
+          <span className="text-3xs text-muted-foreground truncate" title={activeFolder ?? ""}>
             {folderDisplay}
           </span>
         </div>
@@ -82,7 +82,7 @@ export function GalleryToolbar({ totalCount, filteredCount }: GalleryToolbarProp
             placeholder="Search files..."
             value={localSearch}
             onChange={(e) => handleSearch(e.target.value)}
-            className="h-7 text-xs pl-7"
+            className="h-6 text-2xs pl-7"
           />
         </div>
 
@@ -90,11 +90,11 @@ export function GalleryToolbar({ totalCount, filteredCount }: GalleryToolbarProp
           value={sortValue}
           onValueChange={handleSortChange}
           options={SORT_OPTIONS}
-          className="w-28 h-7 text-xs"
+          className="w-28 h-6 text-2xs"
         />
 
-        <div className="flex items-center gap-1.5 min-w-[100px]">
-          <span className="text-[10px] text-muted-foreground">Size</span>
+        <div className="flex items-center gap-1.5 min-w-[6.25rem]">
+          <span className="text-3xs text-muted-foreground">Size</span>
           <Slider
             value={[thumbSize]}
             min={120}
@@ -105,7 +105,7 @@ export function GalleryToolbar({ totalCount, filteredCount }: GalleryToolbarProp
           />
         </div>
 
-        <span className="text-[10px] text-muted-foreground tabular-nums ml-auto whitespace-nowrap">
+        <span className="text-3xs text-muted-foreground tabular-nums ml-auto whitespace-nowrap">
           {filteredCount === totalCount
             ? `${totalCount} file${totalCount !== 1 ? "s" : ""}`
             : `${filteredCount} / ${totalCount}`}

@@ -17,11 +17,11 @@ export function LoaderSubTab() {
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-muted-foreground">Custom model loader — select pipeline and configure components.</p>
+      <p className="text-2xs text-muted-foreground">Custom model loader — select pipeline and configure components.</p>
 
       <div>
-        <Label className="text-[11px]">Pipeline type</Label>
-        <Combobox value={modelType} onValueChange={setModelType} options={pipelines} className="h-7 text-xs" />
+        <Label className="text-2xs">Pipeline type</Label>
+        <Combobox value={modelType} onValueChange={setModelType} options={pipelines} className="h-6 text-2xs" />
       </div>
 
       {compLoading && <p className="text-xs text-muted-foreground">Loading components...</p>}
@@ -68,9 +68,9 @@ function LoaderEditor({ compData, modelType }: { compData: LoaderComponentsRespo
       </div>
 
       <div>
-        <Label className="text-[11px]">Repo</Label>
+        <Label className="text-2xs">Repo</Label>
         <div className="flex gap-1 items-center">
-          <Input className="h-7 text-xs flex-1" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="HuggingFace repo ID" />
+          <Input className="h-6 text-2xs flex-1" value={repo} onChange={(e) => setRepo(e.target.value)} placeholder="HuggingFace repo ID" />
           {repo && (
             <a href={`https://huggingface.co/${repo}`} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground shrink-0">
               <ExternalLink className="h-3.5 w-3.5" />
@@ -81,7 +81,7 @@ function LoaderEditor({ compData, modelType }: { compData: LoaderComponentsRespo
 
       {loadableComponents.length > 0 && (
         <div className="border border-border rounded-md overflow-auto">
-          <table className="w-full text-[11px]">
+          <table className="w-full text-2xs">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
                 <th className="px-2 py-1 text-left font-medium">Name</th>
@@ -93,11 +93,11 @@ function LoaderEditor({ compData, modelType }: { compData: LoaderComponentsRespo
             <tbody>
               {loadableComponents.map((c) => (
                 <tr key={c.id} className="border-b border-border/50">
-                  <td className="px-2 py-1 font-mono truncate max-w-[80px]">{c.name}</td>
-                  <td className="px-2 py-1 truncate max-w-[100px]">{c.class_name}</td>
+                  <td className="px-2 py-1 font-mono truncate max-w-20">{c.name}</td>
+                  <td className="px-2 py-1 truncate max-w-25">{c.class_name}</td>
                   <td className="px-1 py-0.5">
                     <Input
-                      className="h-6 text-[10px] border-0 bg-transparent p-1"
+                      className="h-6 text-3xs border-0 bg-transparent p-1"
                       value={(getEditedValue(c.id, "local") as string | undefined) ?? c.local ?? ""}
                       onChange={(e) => setComponentField(c.id, "local", e.target.value)}
                       placeholder="local path"
@@ -105,7 +105,7 @@ function LoaderEditor({ compData, modelType }: { compData: LoaderComponentsRespo
                   </td>
                   <td className="px-1 py-0.5">
                     <Input
-                      className="h-6 text-[10px] border-0 bg-transparent p-1 w-16"
+                      className="h-6 text-3xs border-0 bg-transparent p-1 w-16"
                       value={(getEditedValue(c.id, "dtype") as string | undefined) ?? c.dtype ?? ""}
                       onChange={(e) => setComponentField(c.id, "dtype", e.target.value)}
                       placeholder="dtype"
@@ -124,7 +124,7 @@ function LoaderEditor({ compData, modelType }: { compData: LoaderComponentsRespo
           Load model
         </Button>
       </div>
-      {load.data && <p className="text-[11px] text-muted-foreground">{load.data.status}</p>}
+      {load.data && <p className="text-2xs text-muted-foreground">{load.data.status}</p>}
     </>
   );
 }

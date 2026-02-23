@@ -52,11 +52,11 @@ export function BenchmarkSubTab() {
           <div className="grid grid-cols-2 gap-2">
             <div>
               <Label className="text-xs mb-1 block">Width</Label>
-              <Input value={width} onChange={(e) => setWidth(e.target.value)} className="h-7 text-xs" />
+              <Input value={width} onChange={(e) => setWidth(e.target.value)} className="h-6 text-2xs" />
             </div>
             <div>
               <Label className="text-xs mb-1 block">Height</Label>
-              <Input value={height} onChange={(e) => setHeight(e.target.value)} className="h-7 text-xs" />
+              <Input value={height} onChange={(e) => setHeight(e.target.value)} className="h-6 text-2xs" />
             </div>
           </div>
         </div>
@@ -73,7 +73,7 @@ export function BenchmarkSubTab() {
             <p className="text-xs text-destructive">{runBenchmark.data.error}</p>
           )}
           <div className="space-y-0.5">
-            <div className="grid grid-cols-2 gap-2 text-[10px] font-medium text-muted-foreground px-2 pb-1 border-b border-border">
+            <div className="grid grid-cols-2 gap-2 text-3xs font-medium text-muted-foreground px-2 pb-1 border-b border-border">
               <span>Batch Size</span>
               <span className="text-right">it/s</span>
             </div>
@@ -107,7 +107,7 @@ export function BenchmarkSubTab() {
             {history.data.map((row, i) => {
               if (!row[0]) return null;
               return (
-                <div key={i} className="text-[10px] p-1.5 rounded bg-muted space-y-0.5">
+                <div key={i} className="text-3xs p-1.5 rounded bg-muted space-y-0.5">
                   <Row label="Timestamp" value={row[0]} />
                   <Row label="Performance" value={row[1]} />
                   <Row label="GPU" value={row[5]} />

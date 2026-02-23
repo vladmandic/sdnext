@@ -72,7 +72,7 @@ export function Combobox({
         value={v}
         keywords={typeof opt === "string" ? undefined : [l]}
         onSelect={() => { onValueChange(v); setOpen(false); }}
-        className="text-xs"
+        className="text-2xs"
       >
         <Check size={14} className={cn("shrink-0", v === value ? "opacity-100" : "opacity-0")} />
         {l}
@@ -86,11 +86,11 @@ export function Combobox({
         <button
           type="button"
           className={cn(
-            "border-input bg-transparent flex w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
+            "border-input bg-transparent flex w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-2xs shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
             className,
           )}
         >
-          <span className="truncate">{value ? currentLabel : placeholder}</span>
+          <span className="break-words text-left">{value ? currentLabel : placeholder}</span>
           <ChevronDown size={12} className="shrink-0 opacity-50" />
         </button>
       </PopoverTrigger>

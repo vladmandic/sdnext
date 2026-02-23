@@ -41,7 +41,7 @@ export function ScriptsTab() {
     <div className="flex flex-col gap-3 text-sm">
       <ParamSection title="Script">
         <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Script</Label>
+          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Script</Label>
           <Combobox
             value={store.selectedScript || "__none__"}
             onValueChange={(v) => store.setSelectedScript(v === "__none__" ? "" : v)}
@@ -50,7 +50,7 @@ export function ScriptsTab() {
               ...selectableScripts.map((name) => ({ value: name, label: name })),
             ]}
             placeholder="None"
-            className="h-7 text-xs flex-1"
+            className="h-6 text-2xs flex-1"
           />
         </div>
 

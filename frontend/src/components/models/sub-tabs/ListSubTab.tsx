@@ -32,13 +32,13 @@ export function ListSubTab() {
   return (
     <div className="space-y-2">
       <div className="flex gap-2">
-        <Input placeholder="Filter..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-7 text-xs flex-1" />
+        <Input placeholder="Filter..." value={search} onChange={(e) => setSearch(e.target.value)} className="h-6 text-2xs flex-1" />
         <Button
           size="sm"
           variant="secondary"
           onClick={() => updateHashes.mutate()}
           disabled={updateHashes.isPending}
-          className="shrink-0 text-[11px]"
+          className="shrink-0 text-2xs"
         >
           {updateHashes.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
           Calc hashes
@@ -49,7 +49,7 @@ export function ListSubTab() {
 
       {!isLoading && filtered.length > 0 && (
         <div className="border border-border rounded-md overflow-auto">
-          <table className="w-full text-[11px]">
+          <table className="w-full text-2xs">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
                 <th className="px-2 py-1 text-left font-medium">Name</th>
@@ -63,10 +63,10 @@ export function ListSubTab() {
             <tbody>
               {filtered.map((m) => (
                 <tr key={m.filename} className="border-b border-border/50 hover:bg-muted/30">
-                  <td className="px-2 py-1 truncate max-w-[140px] font-mono" title={m.filename}>{m.model_name}</td>
+                  <td className="px-2 py-1 truncate max-w-[8.75rem] font-mono" title={m.filename}>{m.model_name}</td>
                   <td className="px-2 py-1">{m.type}</td>
                   <td className="px-2 py-1">{m.detected_type}</td>
-                  <td className="px-2 py-1 truncate max-w-[100px]">{m.pipeline ?? "-"}</td>
+                  <td className="px-2 py-1 truncate max-w-25">{m.pipeline ?? "-"}</td>
                   <td className="px-2 py-1 font-mono">{m.hash ?? "-"}</td>
                   <td className="px-2 py-1 text-right font-mono">{formatSize(m.size)}</td>
                 </tr>
@@ -84,7 +84,7 @@ export function ListSubTab() {
         <p className="text-xs text-muted-foreground">No models found.</p>
       )}
 
-      <p className="text-[10px] text-muted-foreground">{models?.length ?? 0} models total</p>
+      <p className="text-3xs text-muted-foreground">{models?.length ?? 0} models total</p>
     </div>
   );
 }

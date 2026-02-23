@@ -48,7 +48,7 @@ export function ImageDropInput({ label, value, onChange }: ImageDropInputProps) 
   if (value && previewUrl) {
     return (
       <div className="space-y-1">
-        <span className="text-[11px] text-muted-foreground">{label}</span>
+        <span className="text-2xs text-muted-foreground">{label}</span>
         <div className="relative group w-full h-20 rounded border border-border overflow-hidden cursor-pointer" onClick={handleClick}>
           <img src={previewUrl} alt={label} className="w-full h-full object-cover" />
           <button
@@ -66,7 +66,7 @@ export function ImageDropInput({ label, value, onChange }: ImageDropInputProps) 
 
   return (
     <div className="space-y-1">
-      <span className="text-[11px] text-muted-foreground">{label}</span>
+      <span className="text-2xs text-muted-foreground">{label}</span>
       <div
         className={`flex flex-col items-center justify-center w-full h-20 rounded border-2 border-dashed cursor-pointer transition-colors ${dragging ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-muted-foreground/50"}`}
         onClick={handleClick}
@@ -75,7 +75,7 @@ export function ImageDropInput({ label, value, onChange }: ImageDropInputProps) 
         onDragLeave={handleDragLeave}
       >
         <ImagePlus size={16} className="text-muted-foreground/50 mb-1" />
-        <span className="text-[10px] text-muted-foreground/50">Drop or click</span>
+        <span className="text-3xs text-muted-foreground/50">Drop or click</span>
         <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleInputChange} />
       </div>
     </div>

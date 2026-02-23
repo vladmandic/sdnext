@@ -79,7 +79,7 @@ export function ImageUpload({ image, onImageChange, label = "Drop image", compac
         onClick={() => inputRef.current?.click()}
       >
         <Upload size={compact ? 14 : 16} className="mb-1" />
-        <span className="text-[10px]">{label}</span>
+        <span className="text-3xs">{label}</span>
       </div>
       <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={onInputChange} />
     </>

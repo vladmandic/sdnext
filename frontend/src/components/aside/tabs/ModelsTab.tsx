@@ -34,7 +34,7 @@ export function ModelsTab() {
   return (
     <div>
       <div className="sticky top-0 z-10 bg-card p-2 space-y-2 border-b border-border">
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           {loadedCount} model{loadedCount !== 1 ? "s" : ""} loaded
         </p>
         <div className="flex items-center gap-1 flex-wrap">
@@ -44,7 +44,7 @@ export function ModelsTab() {
               type="button"
               onClick={() => setActive(tab)}
               className={cn(
-                "px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors",
+                "px-2 py-0.5 rounded-full text-2xs font-medium transition-colors",
                 active === tab
                   ? "bg-accent text-accent-foreground"
                   : "bg-muted text-muted-foreground hover:text-foreground",

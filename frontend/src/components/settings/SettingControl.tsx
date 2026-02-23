@@ -7,15 +7,17 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Slider } from "@/components/ui/slider";
 import { Combobox } from "@/components/ui/combobox";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
 function renderSelect(choices: string[] | undefined, value: unknown, onChange: (value: unknown) => void, setting: SettingDef) {
   if (!choices || choices.length === 0) {
     return (
-      <Input
+      <Textarea
         value={String(value ?? "")}
         onChange={(e) => onChange(e.target.value)}
-        className="h-7 text-xs"
+        className="min-h-7 py-1 text-xs resize-none"
+        rows={1}
         placeholder={setting.description}
       />
     );
@@ -26,7 +28,7 @@ function renderSelect(choices: string[] | undefined, value: unknown, onChange: (
       onValueChange={(v) => onChange(v)}
       options={choices}
       placeholder="Select..."
-      className="h-7 text-xs min-w-[140px]"
+      className="h-6 text-2xs min-w-[8.75rem]"
     />
   );
 }
@@ -55,7 +57,7 @@ function SecretControl({ value, onChange }: { value: unknown; onChange: (value: 
         onChange={(e) => setDraft(e.target.value)}
         placeholder="Enter token..."
         autoComplete="off"
-        className="h-7 text-xs flex-1"
+        className="h-6 text-2xs flex-1"
       />
       <Button
         size="xs"
@@ -117,7 +119,7 @@ export function SettingControl({ setting, value, onChange, dynamicChoices }: Set
     case "radio":
       if (choices && choices.length > 0 && choices.length <= 5) {
         return (
-          <div className="inline-flex border border-border bg-muted/40 p-0.5" style={{ borderRadius: "var(--control-radius)" }}>
+          <div className="inline-flex flex-wrap self-start border border-border bg-muted/40 p-0.5" style={{ borderRadius: "var(--control-radius)" }}>
             {choices.map((choice) => (
               <button
                 key={choice}
@@ -149,7 +151,7 @@ export function SettingControl({ setting, value, onChange, dynamicChoices }: Set
           <Input
             value={selected.join(", ")}
             onChange={(e) => onChange(e.target.value.split(",").map((s) => s.trim()).filter(Boolean))}
-            className="h-7 text-xs"
+            className="h-6 text-2xs"
             placeholder="Comma-separated values"
           />
         );
@@ -185,7 +187,7 @@ export function SettingControl({ setting, value, onChange, dynamicChoices }: Set
           value={typeof value === "number" ? value : 0}
           onChange={(v) => onChange(v)}
           fallback={0}
-          className="h-7 text-xs w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          className="h-6 text-2xs w-24 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
       );
     }
@@ -202,7 +204,7 @@ export function SettingControl({ setting, value, onChange, dynamicChoices }: Set
           <Input
             value={String(value ?? "")}
             onChange={(e) => onChange(e.target.value)}
-            className="h-7 text-xs w-24"
+            className="h-6 text-2xs w-24"
             placeholder="#000000"
           />
         </div>
@@ -211,10 +213,11 @@ export function SettingControl({ setting, value, onChange, dynamicChoices }: Set
     case "input":
     default:
       return (
-        <Input
+        <Textarea
           value={String(value ?? "")}
           onChange={(e) => onChange(e.target.value)}
-          className="h-7 text-xs"
+          className="min-h-7 py-1 text-xs resize-none"
+          rows={1}
           placeholder={setting.description}
         />
       );

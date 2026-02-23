@@ -33,7 +33,7 @@ export function StatusBar() {
   const taskName = phase || domainLabel;
 
   return (
-    <footer className="flex items-center h-6 px-3 gap-4 border-t border-border bg-card text-[11px] text-muted-foreground flex-shrink-0">
+    <footer className="flex items-center h-6 px-3 gap-4 border-t border-border bg-card text-2xs text-muted-foreground flex-shrink-0">
       {/* Status */}
       <span className="flex items-center gap-1.5">
         <span
@@ -50,7 +50,7 @@ export function StatusBar() {
               Step {step}/{steps}
             </span>
           )}
-          <div className="flex items-center gap-1.5 min-w-[120px]">
+          <div className="flex items-center gap-1.5 min-w-[7.5rem]">
             <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary rounded-full transition-[width] duration-300"

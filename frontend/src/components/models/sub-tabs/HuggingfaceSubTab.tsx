@@ -53,7 +53,7 @@ export function HuggingfaceSubTab() {
           value={keyword}
           onChange={(e) => { setKeyword(e.target.value); setSearchEnabled(false); }}
           onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-          className="h-7 text-xs flex-1"
+          className="h-6 text-2xs flex-1"
         />
         <Button size="sm" variant="secondary" onClick={handleSearch} disabled={isLoading || !keyword} className="shrink-0">
           {isLoading && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
@@ -62,8 +62,8 @@ export function HuggingfaceSubTab() {
       </div>
 
       {results && results.length > 0 && (
-        <div className="border border-border rounded-md overflow-auto max-h-[300px]">
-          <table className="w-full text-[11px]">
+        <div className="border border-border rounded-md overflow-auto max-h-75">
+          <table className="w-full text-2xs">
             <thead>
               <tr className="bg-muted/50 border-b border-border">
                 <th className="px-2 py-1 text-left font-medium">Name</th>
@@ -79,7 +79,7 @@ export function HuggingfaceSubTab() {
                   onClick={() => setSelected(r.id)}
                   className={`border-b border-border/50 cursor-pointer ${selected === r.id ? "bg-accent/30" : "hover:bg-muted/30"}`}
                 >
-                  <td className="px-2 py-1 truncate max-w-[160px] font-mono">{r.id}</td>
+                  <td className="px-2 py-1 truncate max-w-40 font-mono">{r.id}</td>
                   <td className="px-2 py-1">{r.pipeline_tag ?? "-"}</td>
                   <td className="px-2 py-1 text-right font-mono">{formatDownloads(r.downloads)}</td>
                   <td className="px-2 py-1 text-center">
@@ -100,31 +100,31 @@ export function HuggingfaceSubTab() {
         <div className="space-y-2 border border-border rounded-md p-2">
           <p className="text-xs font-medium font-mono">{selected}</p>
 
-          <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+          <button type="button" onClick={() => setShowAdvanced(!showAdvanced)} className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground">
             {showAdvanced ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
             Advanced options
           </button>
           {showAdvanced && (
             <div className="space-y-2 pl-3">
               <div>
-                <Label className="text-[11px]">Token</Label>
-                <Input className="h-7 text-xs" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="HuggingFace token" />
+                <Label className="text-2xs">Token</Label>
+                <Input className="h-6 text-2xs" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="HuggingFace token" />
               </div>
               <div>
-                <Label className="text-[11px]">Variant</Label>
-                <Input className="h-7 text-xs" value={variant} onChange={(e) => setVariant(e.target.value)} placeholder="e.g. fp16" />
+                <Label className="text-2xs">Variant</Label>
+                <Input className="h-6 text-2xs" value={variant} onChange={(e) => setVariant(e.target.value)} placeholder="e.g. fp16" />
               </div>
               <div>
-                <Label className="text-[11px]">Revision</Label>
-                <Input className="h-7 text-xs" value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="branch or commit" />
+                <Label className="text-2xs">Revision</Label>
+                <Input className="h-6 text-2xs" value={revision} onChange={(e) => setRevision(e.target.value)} placeholder="branch or commit" />
               </div>
               <div>
-                <Label className="text-[11px]">Mirror</Label>
-                <Input className="h-7 text-xs" value={mirror} onChange={(e) => setMirror(e.target.value)} placeholder="optional mirror URL" />
+                <Label className="text-2xs">Mirror</Label>
+                <Input className="h-6 text-2xs" value={mirror} onChange={(e) => setMirror(e.target.value)} placeholder="optional mirror URL" />
               </div>
               <div>
-                <Label className="text-[11px]">Custom pipeline</Label>
-                <Input className="h-7 text-xs" value={customPipeline} onChange={(e) => setCustomPipeline(e.target.value)} placeholder="pipeline name" />
+                <Label className="text-2xs">Custom pipeline</Label>
+                <Input className="h-6 text-2xs" value={customPipeline} onChange={(e) => setCustomPipeline(e.target.value)} placeholder="pipeline name" />
               </div>
             </div>
           )}
@@ -133,7 +133,7 @@ export function HuggingfaceSubTab() {
             {hfDownload.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
             Download
           </Button>
-          {hfDownload.data && <p className="text-[11px] text-muted-foreground">{hfDownload.data.status}</p>}
+          {hfDownload.data && <p className="text-2xs text-muted-foreground">{hfDownload.data.status}</p>}
         </div>
       )}
     </div>

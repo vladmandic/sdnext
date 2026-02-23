@@ -47,13 +47,13 @@ export function ProcessPanel() {
     <div className="flex flex-col h-full">
       <div className="px-3 pt-3 pb-2 border-b border-border space-y-3">
         <div className="space-y-1.5">
-          <Label className="text-[11px] text-muted-foreground">Upscaler</Label>
+          <Label className="text-2xs text-muted-foreground">Upscaler</Label>
           <Combobox
             value={upscaler}
             onValueChange={setUpscaler}
             options={upscalerNames}
             placeholder="Select upscaler..."
-            className="h-7 text-xs"
+            className="h-6 text-2xs"
           />
         </div>
         <ParamSlider label="Scale" value={scale} onChange={setScale} min={1} max={8} step={0.5} />

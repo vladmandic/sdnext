@@ -82,7 +82,7 @@ export function PromptEditor() {
       {/* Positive prompt */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <Label className="text-[11px] text-muted-foreground">Prompt</Label>
+          <Label className="text-2xs text-muted-foreground">Prompt</Label>
           <div className="flex items-center gap-0.5">
             <button
               type="button"
@@ -127,7 +127,7 @@ export function PromptEditor() {
           value={prompt}
           onChange={(e) => setParam("prompt", e.target.value)}
           placeholder="Describe what you want to generate..."
-          className="min-h-[80px] max-h-[200px] resize-y text-sm"
+          className="min-h-20 max-h-50 resize-y text-sm"
           onKeyDown={(e) => {
             if (e.ctrlKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
               e.preventDefault();
@@ -140,7 +140,7 @@ export function PromptEditor() {
 
       {/* Negative prompt */}
       <Collapsible open={showNegative} onOpenChange={setShowNegative}>
-        <CollapsibleTrigger className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground transition-colors">
+        <CollapsibleTrigger className="flex items-center gap-1 text-2xs text-muted-foreground hover:text-foreground transition-colors">
           {showNegative ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           Negative prompt
         </CollapsibleTrigger>
@@ -149,7 +149,7 @@ export function PromptEditor() {
             value={negativePrompt}
             onChange={(e) => setParam("negativePrompt", e.target.value)}
             placeholder="What to avoid..."
-            className="min-h-[50px] max-h-[120px] resize-y text-sm mt-1.5"
+            className="min-h-[3.125rem] max-h-30 resize-y text-sm mt-1.5"
           />
         </CollapsibleContent>
       </Collapsible>

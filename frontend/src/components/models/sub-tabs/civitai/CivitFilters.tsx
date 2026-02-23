@@ -35,31 +35,31 @@ export function CivitFilters({ options, type, sort, period, baseModel, creator, 
   return (
     <div className="grid grid-cols-2 gap-2">
         <div>
-          <Label className="text-[11px]">Type</Label>
-          <Combobox value={type} onValueChange={onTypeChange} options={types} placeholder="All types" className="h-7 text-xs" />
+          <Label className="text-2xs">Type</Label>
+          <Combobox value={type} onValueChange={onTypeChange} options={types} placeholder="All types" className="h-6 text-2xs" />
         </div>
         <div>
-          <Label className="text-[11px]">Sort</Label>
-          <Combobox value={sort} onValueChange={onSortChange} options={sorts} placeholder="Default" className="h-7 text-xs" />
+          <Label className="text-2xs">Sort</Label>
+          <Combobox value={sort} onValueChange={onSortChange} options={sorts} placeholder="Default" className="h-6 text-2xs" />
         </div>
         <div>
-          <Label className="text-[11px]">Period</Label>
-          <Combobox value={period} onValueChange={onPeriodChange} options={periods} placeholder="All time" className="h-7 text-xs" />
+          <Label className="text-2xs">Period</Label>
+          <Combobox value={period} onValueChange={onPeriodChange} options={periods} placeholder="All time" className="h-6 text-2xs" />
         </div>
         <div>
-          <Label className="text-[11px]">Base model</Label>
-          <Combobox value={baseModel} onValueChange={onBaseModelChange} options={baseModels} placeholder="Any" className="h-7 text-xs" />
+          <Label className="text-2xs">Base model</Label>
+          <Combobox value={baseModel} onValueChange={onBaseModelChange} options={baseModels} placeholder="Any" className="h-6 text-2xs" />
         </div>
         <CreatorInput value={creator} onChange={onCreatorChange} />
         <div className="flex flex-col justify-end gap-1.5 pb-0.5">
           <div className="flex items-center gap-1.5">
             <Switch id="civit-nsfw" size="sm" checked={nsfw} onCheckedChange={onNsfwChange} />
-            <Label htmlFor="civit-nsfw" className="text-[11px]">NSFW</Label>
+            <Label htmlFor="civit-nsfw" className="text-2xs">NSFW</Label>
           </div>
           {tokenConfigured && (
             <div className="flex items-center gap-1.5">
               <Switch id="civit-favorites" size="sm" checked={favorites} onCheckedChange={onFavoritesChange} />
-              <Label htmlFor="civit-favorites" className="text-[11px]">Favorites</Label>
+              <Label htmlFor="civit-favorites" className="text-2xs">Favorites</Label>
             </div>
           )}
         </div>
@@ -90,14 +90,14 @@ function CreatorInput({ value, onChange }: { value: string; onChange: (v: string
 
   return (
     <div className="relative">
-      <Label className="text-[11px]">Creator</Label>
+      <Label className="text-2xs">Creator</Label>
       <Input
         placeholder="Username..."
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        className="h-7 text-xs"
+        className="h-6 text-2xs"
       />
       {showSuggestions && (
         <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
@@ -110,7 +110,7 @@ function CreatorInput({ value, onChange }: { value: string; onChange: (v: string
               onClick={() => select(c.username)}
             >
               <span className="truncate">{c.username}</span>
-              <span className="ml-2 shrink-0 text-[10px] text-muted-foreground">{c.modelCount.toLocaleString()}</span>
+              <span className="ml-2 shrink-0 text-3xs text-muted-foreground">{c.modelCount.toLocaleString()}</span>
             </button>
           ))}
         </div>

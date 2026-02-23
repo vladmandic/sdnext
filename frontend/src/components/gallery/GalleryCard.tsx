@@ -39,9 +39,9 @@ export const GalleryCard = memo(function GalleryCard({ file, thumb, size, select
       {/* Hover overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         <div className="absolute bottom-0 left-0 right-0 p-1.5">
-          <p className="text-[9px] text-white/90 font-medium truncate">{filename}</p>
+          <p className="text-4xs text-white/90 font-medium truncate">{filename}</p>
           {thumb && (
-            <p className="text-[8px] text-white/60">{thumb.width}x{thumb.height}</p>
+            <p className="text-5xs text-white/60">{thumb.width}x{thumb.height}</p>
           )}
         </div>
       </div>

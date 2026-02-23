@@ -26,7 +26,7 @@ export function MaskParams() {
       <ParamSlider label="Blur" value={maskBlur} onChange={setMaskBlur} min={0} max={64} step={1} />
 
       <div className="flex items-center justify-between">
-        <Label className="text-[11px] text-muted-foreground">Inpaint full res</Label>
+        <Label className="text-2xs text-muted-foreground">Inpaint full res</Label>
         <Switch checked={inpaintFullRes} onCheckedChange={handleFullResToggle} />
       </div>
 
@@ -35,7 +35,7 @@ export function MaskParams() {
       )}
 
       <div className="flex items-center justify-between">
-        <Label className="text-[11px] text-muted-foreground">Invert mask</Label>
+        <Label className="text-2xs text-muted-foreground">Invert mask</Label>
         <Switch checked={inpaintingMaskInvert} onCheckedChange={handleInvertToggle} />
       </div>
     </ParamSection>

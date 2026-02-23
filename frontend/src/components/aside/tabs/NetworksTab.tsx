@@ -252,7 +252,7 @@ export function NetworksTab() {
               type="button"
               onClick={() => handleFilterChange(t)}
               className={cn(
-                "px-2 py-0.5 rounded-full text-[11px] font-medium transition-colors",
+                "px-2 py-0.5 rounded-full text-2xs font-medium transition-colors",
                 filter === t ? "bg-accent text-accent-foreground" : "bg-muted text-muted-foreground hover:text-foreground",
               )}
             >
@@ -272,7 +272,7 @@ export function NetworksTab() {
           placeholder="Search..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="h-7 text-xs"
+          className="h-6 text-2xs"
         />
       </div>
 
@@ -283,7 +283,7 @@ export function NetworksTab() {
             {sidebarGroups.map((group, gi) => (
               <div key={group.header ?? gi}>
                 {group.header && (
-                  <div className="px-2 pt-2 pb-0.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60 border-t border-border">
+                  <div className="px-2 pt-2 pb-0.5 text-4xs font-semibold uppercase tracking-wider text-muted-foreground/60 border-t border-border">
                     {group.header}
                   </div>
                 )}
@@ -293,7 +293,7 @@ export function NetworksTab() {
                     type="button"
                     onClick={() => setSelectedSubfolder(dir)}
                     className={cn(
-                      "w-full text-left px-2 py-1 text-[11px] truncate transition-colors",
+                      "w-full text-left px-2 py-1 text-2xs truncate transition-colors",
                       selectedSubfolder === dir ? "bg-accent text-accent-foreground font-medium" : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
                     )}
                   >
@@ -330,7 +330,7 @@ function formatBytes(bytes: number): string {
 function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
   if (!value) return null;
   return (
-    <div className="flex gap-2 text-[11px] leading-tight">
+    <div className="flex gap-2 text-2xs leading-tight">
       <span className="text-muted-foreground shrink-0 w-16">{label}</span>
       <span className="truncate font-medium">{value}</span>
     </div>
@@ -374,11 +374,11 @@ function NetworkDetailPopover({ item }: { item: LoraNetwork | PromptStyle }) {
             <DetailRow label="Tags" value={detail.tags?.replaceAll("|", ", ")} />
             <DetailRow label="File" value={detail.filename?.split("/").pop()} />
             {detail.description && (
-              <p className="text-[11px] text-muted-foreground pt-1 border-t border-border mt-1">{detail.description}</p>
+              <p className="text-2xs text-muted-foreground pt-1 border-t border-border mt-1">{detail.description}</p>
             )}
           </div>
         ) : (
-          <p className="text-[11px] text-muted-foreground">No detail available.</p>
+          <p className="text-2xs text-muted-foreground">No detail available.</p>
         )}
       </PopoverContent>
     </Popover>
@@ -389,13 +389,13 @@ function StyleDetail({ item }: { item: PromptStyle }) {
   return (
     <div className="space-y-1">
       {item.prompt && (
-        <div className="text-[11px]">
+        <div className="text-2xs">
           <span className="text-muted-foreground">Prompt: </span>
           <span className="break-words">{item.prompt}</span>
         </div>
       )}
       {item.negative_prompt && (
-        <div className="text-[11px]">
+        <div className="text-2xs">
           <span className="text-muted-foreground">Negative: </span>
           <span className="break-words">{item.negative_prompt}</span>
         </div>
@@ -433,9 +433,9 @@ function NetworkCard({ item, active, onClick }: { item: LoraNetwork | PromptStyl
         )}
       </div>
       <div className="p-1.5 space-y-0.5">
-        <p className="text-[11px] font-medium truncate leading-tight">{item.name}</p>
+        <p className="text-2xs font-medium truncate leading-tight">{item.name}</p>
         <div className="flex items-center justify-between gap-1">
-          <Badge variant="secondary" className="text-[9px] px-1 py-0">{typeBadge}</Badge>
+          <Badge variant="secondary" className="text-4xs px-1 py-0">{typeBadge}</Badge>
           <NetworkDetailPopover item={item} />
         </div>
       </div>

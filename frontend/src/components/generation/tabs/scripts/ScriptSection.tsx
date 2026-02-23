@@ -33,7 +33,7 @@ export function ScriptSection({ script, getArgValue, setArgValue }: ScriptSectio
     <div className="flex flex-col gap-3">
       {hasHeaderRow && (
         <div className="flex items-center gap-4">
-          <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Switch size="sm" checked={sectionEnabled} onCheckedChange={(checked) => setSectionEnabled(script.name, checked)} />
             Enabled
           </label>
@@ -44,7 +44,7 @@ export function ScriptSection({ script, getArgValue, setArgValue }: ScriptSectio
             const requirementMet = !requirement || String(getArgValue(requirement.arg) ?? "").includes(requirement.includes);
             const disabled = !sectionEnabled || !requirementMet;
             return (
-              <label key={idx} className={`flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer${disabled ? " opacity-50 pointer-events-none" : ""}`}>
+              <label key={idx} className={`flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer${disabled ? " opacity-50 pointer-events-none" : ""}`}>
                 <Switch size="sm" checked={Boolean(getArgValue(idx) ?? arg.value)} onCheckedChange={(checked) => setArgValue(idx, checked)} disabled={disabled} />
                 {arg.label}
               </label>
@@ -66,7 +66,7 @@ export function ScriptSection({ script, getArgValue, setArgValue }: ScriptSectio
         return (
           <div key={gi} className="flex flex-col gap-2">
             {group.title && (
-              <span className={`text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70${sectionDisabled || ownDisabled ? " opacity-50" : ""}`}>{group.title}</span>
+              <span className={`text-3xs font-medium uppercase tracking-wider text-muted-foreground/70${sectionDisabled || ownDisabled ? " opacity-50" : ""}`}>{group.title}</span>
             )}
 
             {group.grid && boolArgs.length > 0 && (
@@ -81,7 +81,7 @@ export function ScriptSection({ script, getArgValue, setArgValue }: ScriptSectio
                   const requirementMet = !requirement || String(getArgValue(requirement.arg) ?? "").includes(requirement.includes);
                   const disabled = sectionDisabled || (ownDisabled && !isController) || (perArgController != null && !getArgValue(perArgController)) || !requirementMet;
                   return (
-                    <label key={idx} className={`flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer${disabled ? " opacity-50 pointer-events-none" : ""}`}>
+                    <label key={idx} className={`flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer${disabled ? " opacity-50 pointer-events-none" : ""}`}>
                       <Switch size="sm" checked={Boolean(val ?? arg.value)} onCheckedChange={(checked) => setArgValue(idx, checked)} disabled={disabled} />
                       {arg.label}
                     </label>

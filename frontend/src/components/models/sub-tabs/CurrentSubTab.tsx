@@ -60,7 +60,7 @@ export function CurrentSubTab() {
 
           {analysis.modules.length > 0 && (
             <div className="border border-border rounded-md overflow-hidden">
-              <table className="w-full text-[11px]">
+              <table className="w-full text-2xs">
                 <thead>
                   <tr className="bg-muted/50 border-b border-border">
                     <th className="px-2 py-1 text-left font-medium">Name</th>
@@ -73,8 +73,8 @@ export function CurrentSubTab() {
                 <tbody>
                   {analysis.modules.map((m) => (
                     <tr key={m.name} className="border-b border-border/50 hover:bg-muted/30">
-                      <td className="px-2 py-1 font-mono truncate max-w-[100px]">{m.name}</td>
-                      <td className="px-2 py-1 truncate max-w-[100px]">{m.cls}</td>
+                      <td className="px-2 py-1 font-mono truncate max-w-25">{m.name}</td>
+                      <td className="px-2 py-1 truncate max-w-25">{m.cls}</td>
                       <td className="px-2 py-1">{m.device ?? "-"}</td>
                       <td className="px-2 py-1">{m.quant ?? m.dtype ?? "-"}</td>
                       <td className="px-2 py-1 text-right font-mono">{m.params ? formatParams(m.params) : "-"}</td>
@@ -93,26 +93,26 @@ export function CurrentSubTab() {
           {showSave && (
             <div className="space-y-2 pl-4">
               <div>
-                <Label className="text-[11px]">Name</Label>
-                <Input className="h-7 text-xs" value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="model-name" />
+                <Label className="text-2xs">Name</Label>
+                <Input className="h-6 text-2xs" value={saveName} onChange={(e) => setSaveName(e.target.value)} placeholder="model-name" />
               </div>
               <div>
-                <Label className="text-[11px]">Path</Label>
-                <Input className="h-7 text-xs" value={savePath} onChange={(e) => setSavePath(e.target.value)} placeholder="diffusers directory" />
+                <Label className="text-2xs">Path</Label>
+                <Input className="h-6 text-2xs" value={savePath} onChange={(e) => setSavePath(e.target.value)} placeholder="diffusers directory" />
               </div>
               <div>
-                <Label className="text-[11px]">Shard size</Label>
-                <Input className="h-7 text-xs" value={saveShard} onChange={(e) => setSaveShard(e.target.value)} placeholder="10GB" />
+                <Label className="text-2xs">Shard size</Label>
+                <Input className="h-6 text-2xs" value={saveShard} onChange={(e) => setSaveShard(e.target.value)} placeholder="10GB" />
               </div>
               <div className="flex items-center gap-2">
                 <Checkbox id="save-overwrite" checked={saveOverwrite} onCheckedChange={(v) => setSaveOverwrite(!!v)} />
-                <Label htmlFor="save-overwrite" className="text-[11px]">Overwrite</Label>
+                <Label htmlFor="save-overwrite" className="text-2xs">Overwrite</Label>
               </div>
               <Button size="sm" variant="secondary" onClick={handleSave} disabled={saveModel.isPending || !saveName} className="w-full">
                 {saveModel.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
                 Save
               </Button>
-              {saveModel.data && <p className="text-[11px] text-muted-foreground">{saveModel.data.status}</p>}
+              {saveModel.data && <p className="text-2xs text-muted-foreground">{saveModel.data.status}</p>}
             </div>
           )}
 
@@ -124,7 +124,7 @@ export function CurrentSubTab() {
                 Metadata ({Object.keys(analysis.meta).length} keys)
               </button>
               {showMeta && (
-                <pre className="text-[10px] bg-muted/30 rounded-md p-2 overflow-auto max-h-[300px] whitespace-pre-wrap break-all">
+                <pre className="text-3xs bg-muted/30 rounded-md p-2 overflow-auto max-h-75 whitespace-pre-wrap break-all">
                   {JSON.stringify(analysis.meta, null, 2)}
                 </pre>
               )}

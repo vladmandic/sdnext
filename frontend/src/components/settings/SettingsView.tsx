@@ -34,6 +34,8 @@ const COLOR_MODES: { value: ColorMode; label: string }[] = [
 
 /** Backend settings that are Gradio-specific and meaningless to the React UI */
 const GRADIO_ONLY_KEYS = new Set([
+  // Model selector — accessible from the toolbar
+  "sd_model_checkpoint",
   // UI section
   "theme_type", "theme_style", "gradio_theme", "quicksettings_list",
   "ui_request_timeout", "ui_disabled", "compact_view", "ui_columns",
@@ -82,7 +84,7 @@ function AppearanceRow({ label, description, children }: { label: string; descri
     <div className="flex items-center justify-between gap-4">
       <div className="flex flex-col gap-0.5">
         <span className="text-xs font-medium">{label}</span>
-        <span className="text-[11px] text-muted-foreground">{description}</span>
+        <span className="text-2xs text-muted-foreground">{description}</span>
       </div>
       {children}
     </div>
@@ -484,7 +486,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               disabled={!backendReady}
-              className="h-7 text-xs pl-7"
+              className="h-6 text-2xs pl-7"
             />
           </div>
         </div>
@@ -512,7 +514,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                 >
                   <span>{section.title}</span>
                   {matchCount != null && matchCount > 0 && (
-                    <span className="text-[9px] bg-primary/10 text-primary rounded-full px-1.5 min-w-[18px] text-center">
+                    <span className="text-4xs bg-primary/10 text-primary rounded-full px-1.5 min-w-[1.125rem] text-center">
                       {matchCount}
                     </span>
                   )}

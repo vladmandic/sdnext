@@ -175,13 +175,13 @@ export function VideoPanel() {
             value={prompt}
             onChange={(e) => setParam("prompt", e.target.value)}
             placeholder="Describe the video..."
-            className="text-xs min-h-[60px] resize-y"
+            className="text-xs min-h-15 resize-y"
           />
           <Textarea
             value={negative}
             onChange={(e) => setParam("negative", e.target.value)}
             placeholder="Negative prompt (optional)"
-            className="text-xs min-h-[36px] resize-y"
+            className="text-xs min-h-9 resize-y"
           />
         </div>
 

@@ -43,7 +43,7 @@ export function LayerPanel() {
   return (
     <div className="flex flex-col gap-1">
       {imageLayers.length === 0 && (
-        <p className="text-[10px] text-muted-foreground text-center py-1">Drop images onto canvas</p>
+        <p className="text-3xs text-muted-foreground text-center py-1">Drop images onto canvas</p>
       )}
 
       {imageLayers.map((layer) => {
@@ -66,8 +66,8 @@ export function LayerPanel() {
             />
             {/* Name + dims */}
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] truncate" title={layer.name}>{truncName}</p>
-              <p className="text-[9px] text-muted-foreground">
+              <p className="text-3xs truncate" title={layer.name}>{truncName}</p>
+              <p className="text-4xs text-muted-foreground">
                 {layer.naturalWidth}&times;{layer.naturalHeight}
               </p>
             </div>
@@ -120,7 +120,7 @@ export function LayerPanel() {
         variant="ghost"
         size="sm"
         onClick={openPicker}
-        className="w-full h-6 text-[10px] text-muted-foreground"
+        className="w-full h-6 text-3xs text-muted-foreground"
         title="Add an image layer to the canvas. You can also drag and drop files directly onto the canvas."
       >
         <Plus size={10} />

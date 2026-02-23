@@ -84,7 +84,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
 
         {!previewUrl ? (
           <div
-            className="flex-1 min-h-[200px] border-2 border-dashed border-border rounded-lg"
+            className="flex-1 min-h-50 border-2 border-dashed border-border rounded-lg"
             onDrop={handleDrop}
             onDragOver={handleDragOver}
           >
@@ -106,7 +106,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
                   <textarea
                     readOnly
                     value={infoText}
-                    className="w-full h-24 text-[11px] bg-muted/30 rounded p-2 resize-none font-mono border border-border"
+                    className="w-full h-24 text-2xs bg-muted/30 rounded p-2 resize-none font-mono border border-border"
                   />
                 ) : (
                   <p className="text-xs text-muted-foreground">No generation info found in this image.</p>
@@ -115,7 +115,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
             </div>
 
             {itemEntries.length > 0 && (
-              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-[11px]">
+              <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-2xs">
                 {itemEntries.map(([key, value]) => (
                   <div key={key} className="contents">
                     <span className="text-muted-foreground truncate">{key}</span>

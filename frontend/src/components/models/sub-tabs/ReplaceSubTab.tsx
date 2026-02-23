@@ -67,70 +67,70 @@ export function ReplaceSubTab() {
 
   return (
     <div className="space-y-3">
-      <p className="text-[11px] text-muted-foreground">Replace model components (SDXL only).</p>
+      <p className="text-2xs text-muted-foreground">Replace model components (SDXL only).</p>
 
       <div className="flex gap-2">
         <div className="flex-1">
-          <Label className="text-[11px]">Model type</Label>
-          <Combobox value={modelType} onValueChange={setModelType} options={MODEL_TYPES} className="h-7 text-xs" />
+          <Label className="text-2xs">Model type</Label>
+          <Combobox value={modelType} onValueChange={setModelType} options={MODEL_TYPES} className="h-6 text-2xs" />
         </div>
         <div className="flex-1">
-          <Label className="text-[11px]">Precision</Label>
-          <Combobox value={precision} onValueChange={setPrecision} options={PRECISION_OPTIONS} className="h-7 text-xs" />
+          <Label className="text-2xs">Precision</Label>
+          <Combobox value={precision} onValueChange={setPrecision} options={PRECISION_OPTIONS} className="h-6 text-2xs" />
         </div>
       </div>
 
       <div>
-        <Label className="text-[11px]">Input model</Label>
-        <Combobox value={modelName} onValueChange={setModelName} options={modelOptions} placeholder="Select model..." className="h-7 text-xs" />
+        <Label className="text-2xs">Input model</Label>
+        <Combobox value={modelName} onValueChange={setModelName} options={modelOptions} placeholder="Select model..." className="h-6 text-2xs" />
       </div>
 
       <div>
-        <Label className="text-[11px]">Output name</Label>
-        <Input className="h-7 text-xs" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="output-model" />
+        <Label className="text-2xs">Output name</Label>
+        <Input className="h-6 text-2xs" value={customName} onChange={(e) => setCustomName(e.target.value)} placeholder="output-model" />
       </div>
 
       <div className="space-y-2">
         <p className="text-xs font-medium">Components</p>
         <div>
-          <Label className="text-[11px]">UNet</Label>
-          <Input className="h-7 text-xs" value={compUnet} onChange={(e) => setCompUnet(e.target.value)} placeholder="path or repo" />
+          <Label className="text-2xs">UNet</Label>
+          <Input className="h-6 text-2xs" value={compUnet} onChange={(e) => setCompUnet(e.target.value)} placeholder="path or repo" />
         </div>
         <div>
-          <Label className="text-[11px]">VAE</Label>
-          <Input className="h-7 text-xs" value={compVae} onChange={(e) => setCompVae(e.target.value)} placeholder="path or repo" />
+          <Label className="text-2xs">VAE</Label>
+          <Input className="h-6 text-2xs" value={compVae} onChange={(e) => setCompVae(e.target.value)} placeholder="path or repo" />
         </div>
         <div>
-          <Label className="text-[11px]">Text Encoder 1</Label>
-          <Input className="h-7 text-xs" value={compTe1} onChange={(e) => setCompTe1(e.target.value)} placeholder="path or repo" />
+          <Label className="text-2xs">Text Encoder 1</Label>
+          <Input className="h-6 text-2xs" value={compTe1} onChange={(e) => setCompTe1(e.target.value)} placeholder="path or repo" />
         </div>
         <div>
-          <Label className="text-[11px]">Text Encoder 2</Label>
-          <Input className="h-7 text-xs" value={compTe2} onChange={(e) => setCompTe2(e.target.value)} placeholder="path or repo" />
+          <Label className="text-2xs">Text Encoder 2</Label>
+          <Input className="h-6 text-2xs" value={compTe2} onChange={(e) => setCompTe2(e.target.value)} placeholder="path or repo" />
         </div>
       </div>
 
       <div className="space-y-2">
         <p className="text-xs font-medium">Settings</p>
         <div>
-          <Label className="text-[11px]">Scheduler</Label>
-          <Combobox value={scheduler} onValueChange={setScheduler} options={samplerOptions} placeholder="(None)" className="h-7 text-xs" />
+          <Label className="text-2xs">Scheduler</Label>
+          <Combobox value={scheduler} onValueChange={setScheduler} options={samplerOptions} placeholder="(None)" className="h-6 text-2xs" />
         </div>
         <div>
-          <Label className="text-[11px]">Prediction type</Label>
-          <Combobox value={prediction} onValueChange={setPrediction} options={PREDICTION_OPTIONS} placeholder="(None)" className="h-7 text-xs" />
+          <Label className="text-2xs">Prediction type</Label>
+          <Combobox value={prediction} onValueChange={setPrediction} options={PREDICTION_OPTIONS} placeholder="(None)" className="h-6 text-2xs" />
         </div>
       </div>
 
       <div className="space-y-2">
         <p className="text-xs font-medium">LoRA merge</p>
         <div>
-          <Label className="text-[11px]">LoRA list (comma-separated, name:strength)</Label>
-          <Input className="h-7 text-xs" value={compLora} onChange={(e) => setCompLora(e.target.value)} placeholder="lora1:0.8, lora2" />
+          <Label className="text-2xs">LoRA list (comma-separated, name:strength)</Label>
+          <Input className="h-6 text-2xs" value={compLora} onChange={(e) => setCompLora(e.target.value)} placeholder="lora1:0.8, lora2" />
         </div>
         <div>
-          <Label className="text-[11px]">Fuse strength</Label>
-          <Input className="h-7 text-xs" value={compFuse} onChange={(e) => setCompFuse(e.target.value)} placeholder="1.0" />
+          <Label className="text-2xs">Fuse strength</Label>
+          <Input className="h-6 text-2xs" value={compFuse} onChange={(e) => setCompFuse(e.target.value)} placeholder="1.0" />
         </div>
       </div>
 
@@ -138,25 +138,25 @@ export function ReplaceSubTab() {
         <p className="text-xs font-medium">Metadata</p>
         <div className="grid grid-cols-2 gap-2">
           <div>
-            <Label className="text-[11px]">Author</Label>
-            <Input className="h-7 text-xs" value={metaAuthor} onChange={(e) => setMetaAuthor(e.target.value)} />
+            <Label className="text-2xs">Author</Label>
+            <Input className="h-6 text-2xs" value={metaAuthor} onChange={(e) => setMetaAuthor(e.target.value)} />
           </div>
           <div>
-            <Label className="text-[11px]">Version</Label>
-            <Input className="h-7 text-xs" value={metaVersion} onChange={(e) => setMetaVersion(e.target.value)} />
+            <Label className="text-2xs">Version</Label>
+            <Input className="h-6 text-2xs" value={metaVersion} onChange={(e) => setMetaVersion(e.target.value)} />
           </div>
           <div>
-            <Label className="text-[11px]">License</Label>
-            <Input className="h-7 text-xs" value={metaLicense} onChange={(e) => setMetaLicense(e.target.value)} />
+            <Label className="text-2xs">License</Label>
+            <Input className="h-6 text-2xs" value={metaLicense} onChange={(e) => setMetaLicense(e.target.value)} />
           </div>
           <div>
-            <Label className="text-[11px]">Hint</Label>
-            <Input className="h-7 text-xs" value={metaHint} onChange={(e) => setMetaHint(e.target.value)} />
+            <Label className="text-2xs">Hint</Label>
+            <Input className="h-6 text-2xs" value={metaHint} onChange={(e) => setMetaHint(e.target.value)} />
           </div>
         </div>
         <div>
-          <Label className="text-[11px]">Description</Label>
-          <Input className="h-7 text-xs" value={metaDesc} onChange={(e) => setMetaDesc(e.target.value)} />
+          <Label className="text-2xs">Description</Label>
+          <Input className="h-6 text-2xs" value={metaDesc} onChange={(e) => setMetaDesc(e.target.value)} />
         </div>
       </div>
 
@@ -164,11 +164,11 @@ export function ReplaceSubTab() {
         <p className="text-xs font-medium">Save options</p>
         <div className="flex items-center gap-2">
           <Checkbox id="replace-diffusers" checked={createDiffusers} onCheckedChange={(v) => setCreateDiffusers(!!v)} />
-          <Label htmlFor="replace-diffusers" className="text-[11px]">Diffusers format</Label>
+          <Label htmlFor="replace-diffusers" className="text-2xs">Diffusers format</Label>
         </div>
         <div className="flex items-center gap-2">
           <Checkbox id="replace-safetensors" checked={createSafetensors} onCheckedChange={(v) => setCreateSafetensors(!!v)} />
-          <Label htmlFor="replace-safetensors" className="text-[11px]">Safetensors format</Label>
+          <Label htmlFor="replace-safetensors" className="text-2xs">Safetensors format</Label>
         </div>
       </div>
 
@@ -176,7 +176,7 @@ export function ReplaceSubTab() {
         {replace.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
         Replace & Build
       </Button>
-      {replace.data && <p className="text-[11px] text-muted-foreground">{replace.data.status}</p>}
+      {replace.data && <p className="text-2xs text-muted-foreground">{replace.data.status}</p>}
     </div>
   );
 }

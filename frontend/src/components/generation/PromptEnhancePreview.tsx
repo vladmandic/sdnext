@@ -34,8 +34,8 @@ export function PromptEnhancePreview({ onEnhance, isPending }: PromptEnhancePrev
 
   return (
     <div className="flex flex-col gap-2 p-3">
-      <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">Preview</div>
-      <div className="text-xs leading-relaxed p-2 rounded-md bg-muted/30 max-h-[200px] overflow-y-auto">
+      <div className="text-3xs uppercase tracking-wider text-muted-foreground/60">Preview</div>
+      <div className="text-xs leading-relaxed p-2 rounded-md bg-muted/30 max-h-50 overflow-y-auto">
         {segments.map((seg, i) => {
           if (seg.type === "equal") return <span key={i}>{seg.text}</span>;
           if (seg.type === "added") return <span key={i} className="bg-green-500/20 text-green-300 rounded px-0.5">{seg.text}</span>;
@@ -46,7 +46,7 @@ export function PromptEnhancePreview({ onEnhance, isPending }: PromptEnhancePrev
         <button
           type="button"
           onClick={handleAccept}
-          className="flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-green-600/20 text-green-300 hover:bg-green-600/30 transition-colors"
+          className="flex items-center gap-1 px-2 py-1 rounded text-2xs bg-green-600/20 text-green-300 hover:bg-green-600/30 transition-colors"
         >
           <Check size={12} /> Accept
         </button>
@@ -54,7 +54,7 @@ export function PromptEnhancePreview({ onEnhance, isPending }: PromptEnhancePrev
           type="button"
           onClick={onEnhance}
           disabled={isPending}
-          className="flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-muted text-muted-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1 px-2 py-1 rounded text-2xs bg-muted text-muted-foreground hover:bg-muted/80 transition-colors disabled:opacity-50"
         >
           {isPending ? <Loader2 size={12} className="animate-spin" /> : <RotateCcw size={12} />} Retry
         </button>
