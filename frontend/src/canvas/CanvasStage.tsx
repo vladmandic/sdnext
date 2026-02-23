@@ -37,7 +37,7 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
   const imageTransform = useImageTransform(stageRef, trRef);
 
-  const { showInputFrame, outputX, processedX, showProcessedFrame, controlFrames, totalBounds, genSize } = layout;
+  const { outputX, processedX, showProcessedFrame, controlFrames, totalBounds } = layout;
 
   // Container-responsive sizing
   useEffect(() => {
@@ -76,24 +76,24 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
 
   // Compose event handlers: maskPaint first, then panZoom
   const onMouseDown = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (showInputFrame) maskPaint.onMouseDown(e);
+    maskPaint.onMouseDown(e);
     panZoom.onMouseDown(e);
-  }, [showInputFrame, maskPaint, panZoom]);
+  }, [maskPaint, panZoom]);
 
   const onMouseMove = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (showInputFrame) maskPaint.onMouseMove(e);
+    maskPaint.onMouseMove(e);
     panZoom.onMouseMove(e);
-  }, [showInputFrame, maskPaint, panZoom]);
+  }, [maskPaint, panZoom]);
 
   const onMouseUp = useCallback(() => {
-    if (showInputFrame) maskPaint.onMouseUp();
+    maskPaint.onMouseUp();
     panZoom.onMouseUp();
-  }, [showInputFrame, maskPaint, panZoom]);
+  }, [maskPaint, panZoom]);
 
   const onClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.evt.button !== 0) return;
-    if (showInputFrame) imageTransform.onStageClick(e);
-  }, [showInputFrame, imageTransform]);
+    imageTransform.onStageClick(e);
+  }, [imageTransform]);
 
   return (
     <div ref={containerRef} className="w-full h-full overflow-hidden">
@@ -110,16 +110,16 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
           onMouseDown={onMouseDown}
           onMouseMove={onMouseMove}
           onMouseUp={onMouseUp}
-          onMouseLeave={showInputFrame ? maskPaint.onMouseLeave : undefined}
+          onMouseLeave={maskPaint.onMouseLeave}
           onClick={onClick}
         >
           <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
-          {showInputFrame && <CompositeLayer trRef={trRef} />}
-          {showInputFrame && <FrameLayer onPickImage={onPickImage ? () => onPickImage(-1) : undefined} />}
-          {showInputFrame && <MaskLayer setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />}
-          <OutputLayer offsetX={outputX} placeholderWidth={genSize.width} placeholderHeight={genSize.height} />
+          <CompositeLayer trRef={trRef} />
+          <FrameLayer onPickImage={onPickImage ? () => onPickImage(-1) : undefined} />
+          <MaskLayer setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />
+          <OutputLayer offsetX={outputX} placeholderWidth={frameW} placeholderHeight={frameH} />
           {showProcessedFrame && (
-            <ProcessedCompositeLayer offsetX={processedX} width={genSize.width} height={genSize.height} />
+            <ProcessedCompositeLayer offsetX={processedX} width={frameW} height={frameH} />
           )}
         </Stage>
       )}
