@@ -15,6 +15,19 @@ import { X, Play, Loader2 } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
 import { toast } from "sonner";
 
+/** Infer reasonable slider range from a default value when the API provides no metadata. */
+function inferSliderRange(defaultValue: number): { min: number; max: number; step: number } {
+  if (Number.isInteger(defaultValue)) {
+    if (defaultValue <= 1) return { min: 0, max: 10, step: 1 };
+    if (defaultValue <= 64) return { min: 0, max: Math.max(512, defaultValue * 4), step: 1 };
+    if (defaultValue <= 512) return { min: 0, max: Math.max(2048, defaultValue * 4), step: 1 };
+    return { min: 0, max: defaultValue * 4, step: 1 };
+  }
+  // Float
+  if (defaultValue <= 1) return { min: 0, max: 2, step: 0.01 };
+  return { min: 0, max: Math.max(10, defaultValue * 4), step: 0.01 };
+}
+
 interface ControlUnitControlsProps {
   index: number;
   compact?: boolean;
@@ -40,12 +53,33 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
     if (!resolvedImage || unit.processor === "None") return;
     try {
       const ref = await uploadFile(resolvedImage);
-      const result = await preprocessMutation.mutateAsync({ image: ref, model: unit.processor });
+      const params = Object.keys(unit.processorParams).length > 0 ? unit.processorParams : undefined;
+      const result = await preprocessMutation.mutateAsync({ image: ref, model: unit.processor, params });
       setUnitParam(index, "processedImage", `data:image/png;base64,${result.image}`);
     } catch (err) {
       toast.error("Preprocessing failed", { description: err instanceof Error ? err.message : String(err) });
     }
-  }, [resolvedImage, unit.processor, preprocessMutation, setUnitParam, index]);
+  }, [resolvedImage, unit.processor, unit.processorParams, preprocessMutation, setUnitParam, index]);
+
+  // Default params for the currently selected processor
+  const processorDefaults = useMemo(() => {
+    if (!preprocessors || unit.processor === "None") return null;
+    const info = preprocessors.find((p) => p.name === unit.processor);
+    if (!info || Object.keys(info.params).length === 0) return null;
+    return info.params;
+  }, [preprocessors, unit.processor]);
+
+  const handleProcessorChange = useCallback((v: string) => {
+    setUnitParam(index, "processor", v);
+    setUnitParam(index, "processedImage", null);
+    // Initialize params from API defaults for the new processor
+    const info = preprocessors?.find((p) => p.name === v);
+    setUnitParam(index, "processorParams", info?.params && Object.keys(info.params).length > 0 ? { ...info.params } : {});
+  }, [index, setUnitParam, preprocessors]);
+
+  const handleParamChange = useCallback((key: string, value: unknown) => {
+    setUnitParam(index, "processorParams", { ...unit.processorParams, [key]: value });
+  }, [index, setUnitParam, unit.processorParams]);
 
   const modesForModel = useMemo(() => {
     if (!controlModes || unit.model === "None") return null;
@@ -79,7 +113,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
           <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Processor</Label>
           <Combobox
             value={unit.processor}
-            onValueChange={(v) => { setUnitParam(index, "processor", v); setUnitParam(index, "processedImage", null); }}
+            onValueChange={handleProcessorChange}
             options={["None", ...(preprocessors?.filter((p) => p.name !== "None").map((p) => p.name) ?? [])]}
             className="h-6 text-2xs flex-1"
           />
@@ -144,6 +178,29 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
             <ParamSlider label="Start" value={unit.start} onChange={(v) => setUnitParam(index, "start", v)} min={0} max={1} step={0.01} />
             <ParamSlider label="End" value={unit.end} onChange={(v) => setUnitParam(index, "end", v)} min={0} max={1} step={0.01} />
           </ParamGrid>
+        </ParamSection>
+      )}
+
+      {/* Processor params */}
+      {showProcessor && processorDefaults && (
+        <ParamSection title="Processor Settings" defaultOpen={false}>
+          {Object.entries(unit.processorParams).map(([key, value]) => {
+            const def = processorDefaults[key];
+            if (typeof value === "boolean" || typeof def === "boolean") {
+              return (
+                <label key={key} className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
+                  <Checkbox checked={!!value} onCheckedChange={(c) => handleParamChange(key, !!c)} />
+                  {key}
+                </label>
+              );
+            }
+            if (typeof value === "number" || typeof def === "number") {
+              const numDef = typeof def === "number" ? def : (typeof value === "number" ? value : 0);
+              const inferred = inferSliderRange(numDef);
+              return <ParamSlider key={key} label={key} value={typeof value === "number" ? value : numDef} onChange={(v) => handleParamChange(key, v)} min={inferred.min} max={inferred.max} step={inferred.step} />;
+            }
+            return null;
+          })}
         </ParamSection>
       )}
 

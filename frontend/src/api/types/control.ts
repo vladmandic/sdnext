@@ -32,6 +32,7 @@ export interface ControlUnit {
   masks: File[];
   fitMode: FitMode;
   freeTransform: FreeTransform | null;
+  processorParams: Record<string, unknown>;
 }
 
 /** JSON-serializable snapshot of a ControlUnit for history persistence (File → base64 string). */
@@ -61,6 +62,7 @@ export interface ControlUnitSnapshot {
   masks: string[];
   fitMode: FitMode;
   freeTransform: FreeTransform | null;
+  processorParams: Record<string, unknown>;
 }
 
 export interface PreprocessorInfo {

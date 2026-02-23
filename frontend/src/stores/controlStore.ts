@@ -30,6 +30,7 @@ function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
     masks: [],
     fitMode: "contain",
     freeTransform: null,
+    processorParams: {},
   };
 }
 
@@ -272,6 +273,7 @@ export const useControlStore = create<ControlState>()((set) => ({
           masks: s.masks.map((b, i) => base64ToFile(b, `mask-${i}.png`)),
           fitMode: s.fitMode ?? "contain",
           freeTransform: s.freeTransform ?? null,
+          processorParams: s.processorParams ?? {},
         };
       }),
     }),
@@ -309,6 +311,7 @@ export async function snapshotUnits(): Promise<ControlUnitSnapshot[]> {
       masks: await Promise.all(u.masks.map(fileToBase64)),
       fitMode: u.fitMode,
       freeTransform: u.freeTransform,
+      processorParams: u.processorParams,
     })),
   );
 }
