@@ -27,7 +27,15 @@ export function base64ToFile(base64: string, name: string, mimeType = "image/png
   return new File([bytes], name, { type: mimeType });
 }
 
-export type FitMode = "contain" | "cover" | "fill";
+export type FitMode = "contain" | "cover" | "fill" | "free";
+
+export interface FreeTransform {
+  x: number;
+  y: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+}
 
 export interface FitResult {
   x: number;
@@ -39,6 +47,14 @@ export interface FitResult {
 
 /** Compute position, size, and optional source crop for fitting an image into a frame. */
 export function computeFit(imgW: number, imgH: number, frameX: number, frameY: number, frameW: number, frameH: number, mode: FitMode): FitResult {
+  if (mode === "free") {
+    // Free mode: caller handles positioning via freeTransform props.
+    // Return contain-style placement as a fallback / initial value.
+    const scale = Math.min(frameW / imgW, frameH / imgH);
+    const w = imgW * scale;
+    const h = imgH * scale;
+    return { x: frameX + (frameW - w) / 2, y: frameY + (frameH - h) / 2, width: w, height: h, crop: null };
+  }
   if (mode === "fill") {
     return { x: frameX, y: frameY, width: frameW, height: frameH, crop: null };
   }

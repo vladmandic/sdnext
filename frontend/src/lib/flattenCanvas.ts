@@ -1,4 +1,5 @@
 import type { ImageLayer } from "@/stores/canvasStore";
+import type { FreeTransform } from "@/lib/image";
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -40,5 +41,46 @@ export async function flattenCanvas(
 
   return new Promise<Blob | null>((resolve) => {
     canvas.toBlob((blob) => resolve(blob), "image/png");
+  });
+}
+
+/**
+ * Composites a free-mode control image onto a generation-sized canvas.
+ * The transform is in display-unit space; displayScale converts to pixel space.
+ */
+export async function compositeControlImage(
+  file: File,
+  transform: FreeTransform,
+  genW: number,
+  genH: number,
+  displayScale: number,
+): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  const img = await loadImage(url);
+  URL.revokeObjectURL(url);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = genW;
+  canvas.height = genH;
+  const ctx = canvas.getContext("2d")!;
+
+  // Convert display-unit transform to pixel space
+  const pixelX = transform.x / displayScale;
+  const pixelY = transform.y / displayScale;
+  const pixelScaleX = transform.scaleX / displayScale;
+  const pixelScaleY = transform.scaleY / displayScale;
+
+  ctx.save();
+  ctx.translate(pixelX, pixelY);
+  ctx.rotate((transform.rotation * Math.PI) / 180);
+  ctx.scale(pixelScaleX, pixelScaleY);
+  ctx.drawImage(img, 0, 0);
+  ctx.restore();
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Failed to composite control image"));
+    }, "image/png");
   });
 }

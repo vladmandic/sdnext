@@ -6,7 +6,7 @@ import { useUiStore } from "@/stores/uiStore";
 import { ControlUnitControls } from "@/components/generation/tabs/control/ControlUnitControls";
 import { LayerPanel } from "@/components/generation/LayerPanel";
 import { MaskParams } from "@/components/generation/MaskParams";
-import { ChevronUp, ChevronDown, ImagePlus, Trash2, Minimize2, Maximize2, Move, ArrowLeftFromLine } from "lucide-react";
+import { ChevronUp, ChevronDown, ImagePlus, Trash2, Minimize2, Maximize2, Move, ArrowLeftFromLine, Hand, LocateFixed } from "lucide-react";
 import type { FitMode } from "@/lib/image";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
@@ -154,16 +154,18 @@ interface UnitPanelProps {
   unitIndex: number;
   isOwner: boolean;
   collapsed: boolean;
-  frame: ControlFramePosition;
   onPickImage?: (unitIndex: number) => void;
   onClearImage?: (unitIndex: number) => void;
 }
 
-function UnitPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onClearImage }: UnitPanelProps) {
+function UnitPanel({ unitIndex, isOwner, collapsed, onPickImage, onClearImage }: UnitPanelProps) {
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
   const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
   const unit = useControlStore((s) => s.units[unitIndex]);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
+  const setFreeTransform = useControlStore((s) => s.setFreeTransform);
+  const genW = useGenerationStore((s) => s.width);
+  const genH = useGenerationStore((s) => s.height);
 
   if (!unit) return null;
 
@@ -174,8 +176,12 @@ function UnitPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onClearI
 
   let sizeText: string | null = null;
   if (isOwner) {
-    const fitSuffix = unit.fitMode === "contain" ? "fit" : unit.fitMode === "cover" ? "crop" : "stretch";
-    sizeText = imageDims ? `${imageDims.w}×${imageDims.h} ${fitSuffix}` : `${frame.width}×${frame.height}`;
+    if (unit.fitMode === "free") {
+      sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h} free` : `${genW}\u00d7${genH}`;
+    } else {
+      const fitSuffix = unit.fitMode === "contain" ? "fit" : unit.fitMode === "cover" ? "crop" : "stretch";
+      sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h} \u2192 ${genW}\u00d7${genH} ${fitSuffix}` : `${genW}\u00d7${genH}`;
+    }
   }
 
   const handlePanelClick = (e: React.MouseEvent) => {
@@ -198,20 +204,39 @@ function UnitPanel({ unitIndex, isOwner, collapsed, frame, onPickImage, onClearI
     </>
   );
 
+  const fitIcon = unit.fitMode === "contain" ? <Minimize2 size={16} style={{ color: textColor }} />
+    : unit.fitMode === "cover" ? <Maximize2 size={16} style={{ color: textColor }} />
+    : unit.fitMode === "fill" ? <Move size={16} style={{ color: textColor }} />
+    : <Hand size={16} style={{ color: textColor }} />;
+
   const subHeader = isOwner && unit.image ? (
-    <Button
-      variant="ghost"
-      size="icon-xs"
-      onClick={(e) => {
-        e.stopPropagation();
-        const next: FitMode = unit.fitMode === "contain" ? "cover" : unit.fitMode === "cover" ? "fill" : "contain";
-        setUnitParam(unitIndex, "fitMode", next);
-      }}
-      title={`Fit: ${unit.fitMode}`}
-      className="hover:bg-black/10"
-    >
-      {unit.fitMode === "contain" ? <Minimize2 size={16} style={{ color: textColor }} /> : unit.fitMode === "cover" ? <Maximize2 size={16} style={{ color: textColor }} /> : <Move size={16} style={{ color: textColor }} />}
-    </Button>
+    <div className="flex items-center gap-0.5">
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={(e) => {
+          e.stopPropagation();
+          const next: FitMode = unit.fitMode === "contain" ? "cover" : unit.fitMode === "cover" ? "fill" : unit.fitMode === "fill" ? "free" : "contain";
+          if (next === "free" || unit.fitMode === "free") setFreeTransform(unitIndex, null);
+          setUnitParam(unitIndex, "fitMode", next);
+        }}
+        title={`Fit: ${unit.fitMode}`}
+        className="hover:bg-black/10"
+      >
+        {fitIcon}
+      </Button>
+      {unit.fitMode === "free" && unit.freeTransform !== null && (
+        <Button
+          variant="ghost"
+          size="icon-xs"
+          onClick={(e) => { e.stopPropagation(); setFreeTransform(unitIndex, null); }}
+          title="Re-center image"
+          className="hover:bg-black/10"
+        >
+          <LocateFixed size={16} style={{ color: textColor }} />
+        </Button>
+      )}
+    </div>
   ) : undefined;
 
   // UnitPanel is rendered inside a positioned container (ControlFrameStack),
@@ -312,7 +337,6 @@ function ControlFrameStack({ frame, onPickImage, onClearImage }: ControlFrameSta
             unitIndex={slot.unitIndex}
             isOwner={false}
             collapsed={isCollapsed}
-            frame={frame}
           />
         );
       })}
@@ -320,7 +344,6 @@ function ControlFrameStack({ frame, onPickImage, onClearImage }: ControlFrameSta
         unitIndex={frame.unitIndex}
         isOwner
         collapsed={ownerCollapsed}
-        frame={frame}
         onPickImage={onPickImage}
         onClearImage={onClearImage}
       />
@@ -330,8 +353,8 @@ function ControlFrameStack({ frame, onPickImage, onClearImage }: ControlFrameSta
 
 // ─── Input frame panel (uses FrameHeader in panel mode) ─────────────────────
 
-function InputFramePanel({ canvasX, frameW, frameH, genSize, viewport, labelScale, onPickImage, onClearAll }: {
-  canvasX: number; frameW: number; frameH: number;
+function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPickImage, onClearAll }: {
+  canvasX: number; frameW: number;
   genSize: { width: number; height: number };
   viewport: { x: number; y: number; scale: number };
   labelScale: number;
@@ -343,6 +366,8 @@ function InputFramePanel({ canvasX, frameW, frameH, genSize, viewport, labelScal
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
   const denoisingStrength = useGenerationStore((s) => s.denoisingStrength);
   const setParam = useGenerationStore((s) => s.setParam);
+  const pixelW = useGenerationStore((s) => s.width);
+  const pixelH = useGenerationStore((s) => s.height);
   const hasLayers = layers.length > 0;
 
   const firstImage = layers.find((l): l is ImageLayer => l.type === "image");
@@ -350,8 +375,8 @@ function InputFramePanel({ canvasX, frameW, frameH, genSize, viewport, labelScal
   const override = panelCollapsedOverrides.get(INPUT_PANEL_KEY);
   const collapsed = override !== undefined ? override : !hasLayers;
 
-  const baseSizeText = firstImage ? `${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}` : `${frameW}\u00d7${frameH}`;
-  const sizeText = (genSize.width !== frameW || genSize.height !== frameH)
+  const baseSizeText = firstImage ? `${firstImage.naturalWidth}\u00d7${firstImage.naturalHeight}` : `${pixelW}\u00d7${pixelH}`;
+  const sizeText = (genSize.width !== pixelW || genSize.height !== pixelH)
     ? `${baseSizeText} \u2192 ${genSize.width}\u00d7${genSize.height}`
     : baseSizeText;
 
@@ -471,11 +496,9 @@ interface ControlFramePanelsProps {
 
 export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearAll }: ControlFramePanelsProps) {
   const viewport = useCanvasStore((s) => s.viewport);
-  const frameW = useGenerationStore((s) => s.width);
-  const frameH = useGenerationStore((s) => s.height);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
 
-  const { genSize } = layout;
+  const { genSize, displayW } = layout;
   const genSizeText = `${genSize.width}\u00d7${genSize.height}`;
 
   return (
@@ -491,8 +514,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
 
       <InputFramePanel
         canvasX={layout.inputX}
-        frameW={frameW}
-        frameH={frameH}
+        frameW={displayW}
         genSize={genSize}
         viewport={viewport}
         labelScale={labelScale}
@@ -503,7 +525,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
       <OutputFrameHeader
         canvasX={layout.outputX}
         viewport={viewport}
-        frameW={frameW}
+        frameW={displayW}
         labelScale={labelScale}
         sizeText={genSizeText}
       />
@@ -515,7 +537,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
           label="Processed"
           sizeText={genSizeText}
           canvasX={layout.processedX}
-          frameW={frameW}
+          frameW={displayW}
           viewport={viewport}
           labelScale={labelScale}
         />

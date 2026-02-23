@@ -1,4 +1,4 @@
-import type { FitMode } from "@/lib/image";
+import type { FitMode, FreeTransform } from "@/lib/image";
 
 export type ControlUnitType = "controlnet" | "t2i" | "xs" | "lite" | "reference" | "ip" | "asset";
 
@@ -31,6 +31,7 @@ export interface ControlUnit {
   images: File[];
   masks: File[];
   fitMode: FitMode;
+  freeTransform: FreeTransform | null;
 }
 
 /** JSON-serializable snapshot of a ControlUnit for history persistence (File → base64 string). */
@@ -59,6 +60,7 @@ export interface ControlUnitSnapshot {
   images: string[];
   masks: string[];
   fitMode: FitMode;
+  freeTransform: FreeTransform | null;
 }
 
 export interface PreprocessorInfo {

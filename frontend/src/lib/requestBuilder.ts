@@ -6,8 +6,9 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
 import { exportMask } from "@/lib/exportMask";
-import { flattenCanvas } from "@/lib/flattenCanvas";
+import { flattenCanvas, compositeControlImage } from "@/lib/flattenCanvas";
 import { uploadFile, uploadFiles, uploadBlob } from "@/lib/upload";
+import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
@@ -206,6 +207,9 @@ export async function buildControlRequest(): Promise<BuildResult> {
     );
   }
 
+  // Compute display scale for free-mode compositing
+  const displayScale = gen.height > 0 ? REFERENCE_HEIGHT / gen.height : 1;
+
   if (controlUnitEntries.length > 0) {
     const reprocess = ui.reprocessOnGenerate;
     request.control = await Promise.all(
@@ -218,6 +222,11 @@ export async function buildControlRequest(): Promise<BuildResult> {
           const resp = await fetch(e.unit.processedImage!);
           const blob = await resp.blob();
           overrideRef = await uploadBlob(blob, "processed.png");
+        } else if (e.unit.fitMode === "free" && e.image) {
+          // Free mode: composite the image at generation resolution before uploading
+          const ft = e.unit.freeTransform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
+          const composed = await compositeControlImage(e.image, ft, gen.width, gen.height, displayScale);
+          overrideRef = await uploadBlob(composed, "control.png");
         } else if (e.image) {
           overrideRef = await uploadFile(e.image);
         }
@@ -239,7 +248,14 @@ export async function buildControlRequest(): Promise<BuildResult> {
   }
 
   if (assetUnitEntries.length > 0) {
-    request.init_control = await Promise.all(assetUnitEntries.map((e) => uploadFile(e.image!)));
+    request.init_control = await Promise.all(assetUnitEntries.map(async (e) => {
+      if (e.unit.fitMode === "free" && e.image) {
+        const ft = e.unit.freeTransform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
+        const composed = await compositeControlImage(e.image, ft, gen.width, gen.height, displayScale);
+        return uploadBlob(composed, "control.png");
+      }
+      return uploadFile(e.image!);
+    }));
   }
 
   // img2img: add inputs, mask, inpainting params

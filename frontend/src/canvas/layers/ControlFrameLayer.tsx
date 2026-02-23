@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Layer, Rect, Label, Tag, Text, Image as KonvaImage } from "react-konva";
+import { Layer, Rect, Label, Tag, Text, Image as KonvaImage, Group, Transformer } from "react-konva";
 import { useControlStore } from "@/stores/controlStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { contrastText } from "@/lib/utils";
-import { computeFit, type FitMode } from "@/lib/image";
+import { computeFit, type FitMode, type FreeTransform } from "@/lib/image";
 import { ELEMENT_GAP, type ControlFramePosition } from "@/canvas/useControlFrameLayout";
+import type Konva from "konva";
 
 const BORDER_COLOR = "#f59e0b"; // amber
 const PROCESSED_BORDER_COLOR = "#78716c"; // stone-500
@@ -189,7 +190,9 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
       {frames.map((frame) => {
         const imgState = imageMap.get(frame.unitIndex);
         const hasImage = !!imgState;
-        const fitMode = units[frame.unitIndex]?.fitMode ?? "contain";
+        const unit = units[frame.unitIndex];
+        const fitMode = unit?.fitMode ?? "contain";
+        const freeTransform = unit?.freeTransform ?? null;
 
         // Collect processed images for all slots
         const slotImages = frame.processedSlots
@@ -204,6 +207,7 @@ export function ControlFrameLayer({ frames, onPickImage }: ControlFrameLayerProp
             image={imgState?.htmlImage ?? null}
             processedSlots={slotImages}
             fitMode={fitMode}
+            freeTransform={freeTransform}
             onClick={handleFrameClick}
           />
         );
@@ -223,11 +227,38 @@ interface ControlFrameProps {
   image: HTMLImageElement | null;
   processedSlots: SlotImage[];
   fitMode: FitMode;
+  freeTransform: FreeTransform | null;
   onClick: (unitIndex: number, hasImage: boolean, button: number) => void;
 }
 
-function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, onClick }: ControlFrameProps) {
-  const handleClick = useCallback((e: import("konva/lib/Node").KonvaEventObject<MouseEvent>) => {
+function computeAutoCenter(imgW: number, imgH: number, frameW: number, frameH: number): FreeTransform {
+  const scale = Math.min(frameW / imgW, frameH / imgH);
+  return { x: (frameW - imgW * scale) / 2, y: (frameH - imgH * scale) / 2, scaleX: scale, scaleY: scale, rotation: 0 };
+}
+
+function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, freeTransform, onClick }: ControlFrameProps) {
+  const activeTool = useCanvasStore((s) => s.activeTool);
+  const selectedControlFrame = useCanvasStore((s) => s.selectedControlFrame);
+  const setFreeTransform = useControlStore((s) => s.setFreeTransform);
+  const freeImageRef = useRef<Konva.Image | null>(null);
+  const trRef = useRef<Konva.Transformer | null>(null);
+
+  const isFree = fitMode === "free" && hasImage && image;
+  const isSelected = selectedControlFrame === frame.unitIndex;
+
+  // Attach/detach transformer for free mode
+  useEffect(() => {
+    if (!trRef.current) return;
+    if (isFree && isSelected && activeTool === "move" && freeImageRef.current) {
+      trRef.current.nodes([freeImageRef.current]);
+      trRef.current.getLayer()?.batchDraw();
+    } else {
+      trRef.current.nodes([]);
+      trRef.current.getLayer()?.batchDraw();
+    }
+  }, [isFree, isSelected, activeTool]);
+
+  const handleClick = useCallback((e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.evt.button !== 0) return;
     onClick(frame.unitIndex, hasImage, e.evt.button);
   }, [onClick, frame.unitIndex, hasImage]);
@@ -236,7 +267,31 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, onClick
     onClick(frame.unitIndex, hasImage, 0);
   }, [onClick, frame.unitIndex, hasImage]);
 
-  const imgFit = image ? computeFit(image.naturalWidth, image.naturalHeight, frame.x, frame.y, frame.width, frame.height, fitMode) : null;
+  const handleDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    setFreeTransform(frame.unitIndex, {
+      x: e.target.x() - frame.x,
+      y: e.target.y() - frame.y,
+      scaleX: e.target.scaleX(),
+      scaleY: e.target.scaleY(),
+      rotation: e.target.rotation(),
+    });
+  }, [setFreeTransform, frame.unitIndex, frame.x, frame.y]);
+
+  const handleTransformEnd = useCallback((e: Konva.KonvaEventObject<Event>) => {
+    const node = e.target as Konva.Image;
+    setFreeTransform(frame.unitIndex, {
+      x: node.x() - frame.x,
+      y: node.y() - frame.y,
+      scaleX: node.scaleX(),
+      scaleY: node.scaleY(),
+      rotation: node.rotation(),
+    });
+  }, [setFreeTransform, frame.unitIndex, frame.x, frame.y]);
+
+  const imgFit = (image && fitMode !== "free") ? computeFit(image.naturalWidth, image.naturalHeight, frame.x, frame.y, frame.width, frame.height, fitMode) : null;
+
+  // Resolve free transform: use stored or auto-center
+  const resolvedFree = (isFree && image) ? (freeTransform ?? computeAutoCenter(image.naturalWidth, image.naturalHeight, frame.width, frame.height)) : null;
 
   return (
     <>
@@ -253,8 +308,40 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, onClick
         name="controlFrame"
       />
 
-      {/* Image or placeholder */}
-      {hasImage && image && imgFit ? (
+      {/* Image rendering */}
+      {isFree && image && resolvedFree ? (
+        // Free mode: draggable image clipped to frame bounds
+        <Group
+          clipX={frame.x}
+          clipY={frame.y}
+          clipWidth={frame.width}
+          clipHeight={frame.height}
+        >
+          <KonvaImage
+            ref={freeImageRef}
+            image={image}
+            x={frame.x + resolvedFree.x}
+            y={frame.y + resolvedFree.y}
+            scaleX={resolvedFree.scaleX}
+            scaleY={resolvedFree.scaleY}
+            rotation={resolvedFree.rotation}
+            draggable={activeTool === "move"}
+            onClick={handleClick}
+            onTap={handleTap}
+            onDragEnd={handleDragEnd}
+            onTransformEnd={handleTransformEnd}
+          />
+          {isSelected && activeTool === "move" && (
+            <Transformer
+              ref={trRef}
+              keepRatio={false}
+              enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center", "middle-left", "middle-right"]}
+              boundBoxFunc={(_oldBox, newBox) => newBox}
+            />
+          )}
+        </Group>
+      ) : hasImage && image && imgFit ? (
+        // Auto-fit modes: contain/cover/fill
         <KonvaImage
           image={image}
           x={imgFit.x}
@@ -292,7 +379,7 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, onClick
       {/* Stacked processed images — one row per slot */}
       {processedSlots.map((entry, slotIdx) => {
         const processedY = frame.y + frame.height + ELEMENT_GAP + slotIdx * (frame.height + ELEMENT_GAP);
-        const pFit = computeFit(entry.state.htmlImage.naturalWidth, entry.state.htmlImage.naturalHeight, frame.x, processedY, frame.width, frame.height, fitMode);
+        const pFit = computeFit(entry.state.htmlImage.naturalWidth, entry.state.htmlImage.naturalHeight, frame.x, processedY, frame.width, frame.height, fitMode === "free" ? "contain" : fitMode);
         const labelText = processedSlots.length > 1 ? `Processed (Unit ${entry.slot.unitIndex})` : "Processed";
 
         return (

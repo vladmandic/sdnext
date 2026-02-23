@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { ControlUnit, ControlUnitType, ControlUnitSnapshot } from "@/api/types/control";
+import type { FreeTransform } from "@/lib/image";
 import { fileToBase64, base64ToFile, stripDataPrefix } from "@/lib/image";
 
 function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
@@ -28,6 +29,7 @@ function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
     images: [],
     masks: [],
     fitMode: "contain",
+    freeTransform: null,
   };
 }
 
@@ -54,6 +56,7 @@ interface ControlState {
   setUnitType: (index: number, unitType: ControlUnitType) => void;
   addUnitImage: (index: number, file: File) => void;
   removeUnitImage: (index: number, imageIdx: number) => void;
+  setFreeTransform: (index: number, transform: FreeTransform | null) => void;
   setImageSource: (index: number, source: string) => void;
   addUnitMask: (index: number, file: File) => void;
   removeUnitMask: (index: number, maskIdx: number) => void;
@@ -125,10 +128,10 @@ export const useControlStore = create<ControlState>()((set) => ({
     }),
 
   setUnitImage: (index, file) => {
-    // Phase 1: set file + clear dims immediately
+    // Phase 1: set file + clear dims + reset free transform immediately
     set((state) => {
       const units = [...state.units];
-      units[index] = { ...units[index], image: file, imageDims: null };
+      units[index] = { ...units[index], image: file, imageDims: null, freeTransform: null };
       return { units };
     });
     // Phase 2: async-load dims from blob URL
@@ -155,6 +158,13 @@ export const useControlStore = create<ControlState>()((set) => ({
       const units = [...state.units];
       const old = units[index];
       units[index] = { ...defaultUnit(unitType), enabled: old.enabled, imageSource: old.imageSource, image: old.image, imageDims: old.imageDims, images: old.images, masks: old.masks };
+      return { units };
+    }),
+
+  setFreeTransform: (index, transform) =>
+    set((state) => {
+      const units = [...state.units];
+      units[index] = { ...units[index], freeTransform: transform };
       return { units };
     }),
 
@@ -261,6 +271,7 @@ export const useControlStore = create<ControlState>()((set) => ({
           images: s.images.map((b, i) => base64ToFile(b, `ref-${i}.png`)),
           masks: s.masks.map((b, i) => base64ToFile(b, `mask-${i}.png`)),
           fitMode: s.fitMode ?? "contain",
+          freeTransform: s.freeTransform ?? null,
         };
       }),
     }),
@@ -297,6 +308,7 @@ export async function snapshotUnits(): Promise<ControlUnitSnapshot[]> {
       images: await Promise.all(u.images.map(fileToBase64)),
       masks: await Promise.all(u.masks.map(fileToBase64)),
       fitMode: u.fitMode,
+      freeTransform: u.freeTransform,
     })),
   );
 }
