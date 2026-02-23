@@ -2,7 +2,6 @@ import { useCallback, useRef, memo, useState } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { useUiStore } from "@/stores/uiStore";
 import { fileToBase64 } from "@/lib/image";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
@@ -15,17 +14,16 @@ export const CanvasView = memo(function CanvasView() {
   const setViewport = useCanvasStore((s) => s.setViewport);
   const addImageLayer = useCanvasStore((s) => s.addImageLayer);
   const clearLayers = useCanvasStore((s) => s.clearLayers);
+  const hasLayers = useCanvasStore((s) => s.layers.length > 0);
   const clearMask = useImg2ImgStore((s) => s.clearMask);
   const viewport = useCanvasStore((s) => s.viewport);
   const setUnitImage = useControlStore((s) => s.setUnitImage);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
-  const generationMode = useUiStore((s) => s.generationMode);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [pendingUnitIndex, setPendingUnitIndex] = useState<number | null>(null);
 
   const layout = useControlFrameLayout();
-  const isImg2Img = generationMode === "img2img";
 
   const handleFile = useCallback(async (file: File) => {
     if (!file.type.startsWith("image/")) return;
@@ -64,13 +62,11 @@ export const CanvasView = memo(function CanvasView() {
       }
     }
 
-    // Fall through to canvas image layer (img2img only)
-    if (isImg2Img) {
-      for (const file of dt.files) {
-        if (file.type.startsWith("image/")) handleFile(file);
-      }
+    // Fall through to canvas image layer — always accept drops
+    for (const file of dt.files) {
+      if (file.type.startsWith("image/")) handleFile(file);
     }
-  }, [handleFile, isImg2Img, viewport, layout.controlFrames, setUnitImage, setUnitParam]);
+  }, [handleFile, viewport, layout.controlFrames, setUnitImage, setUnitParam]);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -110,7 +106,6 @@ export const CanvasView = memo(function CanvasView() {
   }, [clearLayers, clearMask]);
 
   const handlePaste = useCallback((e: React.ClipboardEvent) => {
-    if (!isImg2Img) return;
     const items = e.clipboardData.items;
     for (const item of items) {
       if (item.type.startsWith("image/")) {
@@ -118,7 +113,7 @@ export const CanvasView = memo(function CanvasView() {
         if (file) handleFile(file);
       }
     }
-  }, [handleFile, isImg2Img]);
+  }, [handleFile]);
 
   const handlePickImage = useCallback((unitIndex: number) => {
     setPendingUnitIndex(unitIndex);
@@ -146,17 +141,15 @@ export const CanvasView = memo(function CanvasView() {
 
       {/* Top-right utility buttons */}
       <div className="absolute top-2 right-2 flex items-center gap-1">
-        {isImg2Img && (
-          <Button
-            variant="secondary"
-            size="icon-xs"
-            onClick={() => handlePickImage(-1)}
-            title="Add an image layer to the canvas"
-            className="bg-background/80 backdrop-blur-sm"
-          >
-            <Plus size={12} />
-          </Button>
-        )}
+        <Button
+          variant="secondary"
+          size="icon-xs"
+          onClick={() => handlePickImage(-1)}
+          title="Add an image layer to the canvas"
+          className="bg-background/80 backdrop-blur-sm"
+        >
+          <Plus size={12} />
+        </Button>
         <Button
           variant="secondary"
           size="icon-xs"
@@ -166,7 +159,7 @@ export const CanvasView = memo(function CanvasView() {
         >
           <RotateCcw size={12} />
         </Button>
-        {isImg2Img && (
+        {hasLayers && (
           <Button
             variant="secondary"
             size="icon-xs"
@@ -179,8 +172,8 @@ export const CanvasView = memo(function CanvasView() {
         )}
       </div>
 
-      {/* Canvas toolbar for mask painting — img2img only */}
-      {isImg2Img && <CanvasToolbar />}
+      {/* Canvas toolbar for mask painting — only when images present */}
+      {hasLayers && <CanvasToolbar />}
 
       {/* Floating control panels (persistent, collapsible) */}
       <ControlFramePanels layout={layout} onPickImage={handlePickImage} onClearImage={handleClearImage} onClearAll={handleClearAll} />

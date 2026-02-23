@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useIsImg2Img } from "@/hooks/useIsImg2Img";
 import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
 import { useUpscalerList } from "@/api/hooks/useModels";
@@ -12,6 +13,7 @@ import type { SizeMode } from "@/lib/sizeCompute";
 import { PromptEditor } from "../PromptEditor";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
+import { ParamGrid } from "../ParamRow";
 import { NumberInput } from "@/components/ui/number-input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -27,7 +29,7 @@ export function PromptsTab() {
   })));
   const setParam = useGenerationStore((s) => s.setParam);
   const { data: styles } = usePromptStyles();
-  const generationMode = useUiStore((s) => s.generationMode);
+  const isImg2Img = useIsImg2Img();
   const autoFitFrame = useUiStore((s) => s.autoFitFrame);
   const setAutoFitFrame = useUiStore((s) => s.setAutoFitFrame);
   const sizeMode = useImg2ImgStore((s) => s.sizeMode);
@@ -42,7 +44,6 @@ export function PromptsTab() {
   const [aspectLocked, setAspectLocked] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
 
-  const isImg2Img = generationMode === "img2img";
   const showSizeModes = isImg2Img && autoFitFrame;
   const effectiveSizeMode: SizeMode = showSizeModes ? sizeMode : "fixed";
   const isFixed = effectiveSizeMode === "fixed";
@@ -95,7 +96,7 @@ export function PromptsTab() {
         <ParamSection title="Styles" defaultOpen={false}>
           <div className="flex flex-wrap gap-1 mb-1">
             {selectedStyles.map((name) => (
-              <span key={name} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] bg-muted rounded">
+              <span key={name} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-3xs bg-muted rounded">
                 {name}
                 <button onClick={() => removeStyle(name)} className="text-muted-foreground hover:text-foreground">
                   <X size={10} />
@@ -108,7 +109,7 @@ export function PromptsTab() {
             onValueChange={addStyle}
             options={styles.filter((s) => !selectedStyles.includes(s.name)).map((s) => s.name)}
             placeholder="Add style..."
-            className="h-6 text-[11px]"
+            className="h-6 text-2xs"
           />
         </ParamSection>
       )}
@@ -120,7 +121,7 @@ export function PromptsTab() {
             variant={autoFitFrame ? "default" : "outline"}
             size="sm"
             onClick={() => setAutoFitFrame(!autoFitFrame)}
-            className="h-5 px-1.5 text-[10px] rounded"
+            className="h-5 px-1.5 text-3xs rounded"
             title={autoFitFrame
               ? "Auto: dropping the first image onto an empty canvas resizes the frame to match that image's dimensions"
               : "Manual: frame stays at the width and height you set, regardless of image size"}
@@ -133,22 +134,22 @@ export function PromptsTab() {
         {showSizeModes && (
           <Tabs value={sizeMode} onValueChange={(v) => setSizeMode(v as SizeMode)}>
             <TabsList className="h-7 w-full">
-              <TabsTrigger value="fixed" className="text-[11px] h-5 px-2">Fixed</TabsTrigger>
-              <TabsTrigger value="scale" className="text-[11px] h-5 px-2">Scale</TabsTrigger>
-              <TabsTrigger value="megapixel" className="text-[11px] h-5 px-2">Megapixel</TabsTrigger>
+              <TabsTrigger value="fixed" className="text-2xs h-5 px-2">Fixed</TabsTrigger>
+              <TabsTrigger value="scale" className="text-2xs h-5 px-2">Scale</TabsTrigger>
+              <TabsTrigger value="megapixel" className="text-2xs h-5 px-2">Megapixel</TabsTrigger>
             </TabsList>
           </Tabs>
         )}
 
         {/* Width / Height row */}
         <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Width</Label>
+          <Label className="text-2xs text-muted-foreground shrink-0">Width</Label>
           <NumberInput
             value={isFixed ? state.width : genSize.width}
             onChange={setWidth}
             step={8} min={64} max={4096} fallback={512}
             disabled={!isFixed}
-            className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <Button
             variant="ghost" size="icon-xs"
@@ -173,9 +174,9 @@ export function PromptsTab() {
             onChange={setHeight}
             step={8} min={64} max={4096} fallback={512}
             disabled={!isFixed}
-            className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <Label className="text-[11px] text-muted-foreground w-16">Height</Label>
+          <Label className="text-2xs text-muted-foreground shrink-0">Height</Label>
         </div>
 
         {/* Scale slider */}
@@ -191,19 +192,19 @@ export function PromptsTab() {
         {/* Resize method (shown when scale/megapixel active) */}
         {!isFixed && (
           <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Resize</Label>
+            <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Resize</Label>
             <Combobox
               value={resizeMethod}
               onValueChange={setResizeMethod}
               options={upscalers?.map((u) => u.name).filter((n) => !n.startsWith("Latent")) ?? ["Resize Lanczos"]}
-              className="h-7 text-xs flex-1"
+              className="h-6 text-2xs flex-1"
             />
           </div>
         )}
 
         {/* Info line: frame size → generation size */}
         {!isFixed && (
-          <div className="text-[10px] text-muted-foreground text-center">
+          <div className="text-3xs text-muted-foreground text-center">
             {state.width}&times;{state.height} &rarr; {genSize.width}&times;{genSize.height}{" "}
             <span className="opacity-70">({formatMegapixels(genSize.width, genSize.height)})</span>
           </div>
@@ -211,8 +212,10 @@ export function PromptsTab() {
       </ParamSection>
 
       <ParamSection title="Batch">
-        <ParamSlider label="Count" value={state.batchCount} onChange={set.batchCount} min={1} max={100} />
-        <ParamSlider label="Size" value={state.batchSize} onChange={set.batchSize} min={1} max={16} />
+        <ParamGrid>
+          <ParamSlider label="Count" value={state.batchCount} onChange={set.batchCount} min={1} max={100} />
+          <ParamSlider label="Size" value={state.batchSize} onChange={set.batchSize} min={1} max={16} />
+        </ParamGrid>
       </ParamSection>
     </div>
   );

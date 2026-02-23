@@ -1,6 +1,5 @@
 import { useGenerationStore } from "@/stores/generationStore";
 import { useJobQueueStore, selectRunningJob, selectDomainActive, selectPendingCount } from "@/stores/jobStore";
-import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { buildControlRequest, restoreFromResult } from "@/lib/requestBuilder";
@@ -19,7 +18,6 @@ export const ActionBar = memo(function ActionBar() {
   const prompt = useGenerationStore((s) => s.prompt);
   const clearSelection = useGenerationStore((s) => s.clearSelection);
   const lastResult = useGenerationStore((s) => s.results[0]);
-  const generationMode = useUiStore((s) => s.generationMode);
   const hasLayers = useCanvasStore((s) => s.layers.length > 0);
 
   const isActive = useJobQueueStore(selectDomainActive("generate"));
@@ -30,7 +28,7 @@ export const ActionBar = memo(function ActionBar() {
   const cancelJob = useCancelJob();
 
   const buildRequest = useCallback(async () => {
-    const isImg2Img = useUiStore.getState().generationMode === "img2img";
+    const isImg2Img = useCanvasStore.getState().layers.length > 0;
     const { request, inputBlob } = await buildControlRequest();
     const inputImage = isImg2Img && inputBlob ? await blobToBase64(inputBlob) : undefined;
     const maskLines = useImg2ImgStore.getState().maskLines;
@@ -69,7 +67,7 @@ export const ActionBar = memo(function ActionBar() {
   }, [lastResult]);
 
   const progressPct = Math.round(progress * 100);
-  const canSubmit = generationMode === "img2img" ? hasLayers : !!prompt;
+  const canSubmit = hasLayers || !!prompt;
 
   return (
     <div className="flex items-center gap-2">

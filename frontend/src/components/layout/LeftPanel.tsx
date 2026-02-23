@@ -1,14 +1,12 @@
 import { useUiStore } from "@/stores/uiStore";
 import { ActionBar } from "@/components/generation/ActionBar";
-import { ModeSelector } from "@/components/generation/ModeSelector";
-import { LayerPanel } from "@/components/generation/LayerPanel";
-import { MaskParams } from "@/components/generation/MaskParams";
 import { ResultGallery } from "@/components/generation/ResultGallery";
 import { PromptsTab } from "@/components/generation/tabs/PromptsTab";
 import { SamplerTab } from "@/components/generation/tabs/SamplerTab";
 import { GuidanceTab } from "@/components/generation/tabs/GuidanceTab";
 import { RefineTab } from "@/components/generation/tabs/RefineTab";
 import { AdvancedTab } from "@/components/generation/tabs/AdvancedTab";
+import { ColorTab } from "@/components/generation/tabs/ColorTab";
 import { DetailTab } from "@/components/generation/tabs/DetailTab";
 import { ControlTab } from "@/components/generation/tabs/ControlTab";
 import { ScriptsTab } from "@/components/generation/tabs/ScriptsTab";
@@ -21,7 +19,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 export function LeftPanel() {
   const activeView = useUiStore((s) => s.activeSidebarView);
   const activeSubTab = useUiStore((s) => s.activeImagesSubTab);
-  const generationMode = useUiStore((s) => s.generationMode);
 
   if (activeView === "caption") {
     return <CaptionPanel />;
@@ -42,26 +39,13 @@ export function LeftPanel() {
   if (activeView === "images") {
     return (
       <div className="flex flex-col h-full">
-        {/* Mode selector */}
-        <div className="px-3 pt-2">
-          <ModeSelector />
-        </div>
-
         {/* Action bar */}
         <div className="px-3 py-2 border-b border-border">
           <ActionBar />
         </div>
 
-        {/* Layer panel + mask params (img2img) */}
-        {generationMode === "img2img" && (
-          <div className="px-3 py-1.5 border-b border-border">
-            <LayerPanel />
-            <MaskParams />
-          </div>
-        )}
-
         {/* Sub-tab content */}
-        <ScrollArea className="flex-1">
+        <ScrollArea className="flex-1 min-h-0">
           <div className="p-3">
             <ImagesSubTabContent activeSubTab={activeSubTab} />
           </div>
@@ -96,6 +80,8 @@ function ImagesSubTabContent({ activeSubTab }: { activeSubTab: string }) {
       return <DetailTab />;
     case "advanced":
       return <AdvancedTab />;
+    case "color":
+      return <ColorTab />;
     case "control":
       return <ControlTab />;
     case "scripts":

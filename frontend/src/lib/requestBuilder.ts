@@ -25,7 +25,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
   const canvas = useCanvasStore.getState();
   const ui = useUiStore.getState();
 
-  const isImg2Img = ui.generationMode === "img2img";
+  const isImg2Img = canvas.getImageLayers().length > 0;
 
   const request: ControlRequest = {
     prompt: gen.prompt,
@@ -75,7 +75,27 @@ export async function buildControlRequest(): Promise<BuildResult> {
     hdr_maximize: gen.hdrMaximize,
     hdr_max_center: gen.hdrMaxCenter,
     hdr_max_boundary: gen.hdrMaxBoundary,
+    hdr_color_picker: gen.hdrColorPicker,
     hdr_tint_ratio: gen.hdrTintRatio,
+    grading_brightness: gen.gradingBrightness,
+    grading_contrast: gen.gradingContrast,
+    grading_saturation: gen.gradingSaturation,
+    grading_hue: gen.gradingHue,
+    grading_gamma: gen.gradingGamma,
+    grading_sharpness: gen.gradingSharpness,
+    grading_color_temp: gen.gradingColorTemp,
+    grading_shadows: gen.gradingShadows,
+    grading_midtones: gen.gradingMidtones,
+    grading_highlights: gen.gradingHighlights,
+    grading_clahe_clip: gen.gradingClaheClip,
+    grading_clahe_grid: gen.gradingClaheGrid,
+    grading_shadows_tint: gen.gradingShadowsTint,
+    grading_highlights_tint: gen.gradingHighlightsTint,
+    grading_split_tone_balance: gen.gradingSplitToneBalance,
+    grading_vignette: gen.gradingVignette,
+    grading_grain: gen.gradingGrain,
+    grading_lut_file: gen.gradingLutFile || undefined,
+    grading_lut_strength: gen.gradingLutStrength,
     schedulers_sigma: gen.sigmaMethod,
     schedulers_timestep_spacing: gen.timestepSpacing,
     schedulers_beta_schedule: gen.betaSchedule,
@@ -374,7 +394,7 @@ export function restoreFromResult(result: GenerationResult): void {
     tomeRatio: num(p.tome_ratio, 0.0),
     todoRatio: num(p.todo_ratio, 0.0),
 
-    // HDR corrections
+    // Latent corrections
     hdrMode: num(p.hdr_mode, 0),
     hdrBrightness: num(p.hdr_brightness, 0),
     hdrSharpen: num(p.hdr_sharpen, 0),
@@ -385,7 +405,29 @@ export function restoreFromResult(result: GenerationResult): void {
     hdrMaximize: bool(p.hdr_maximize, false),
     hdrMaxCenter: num(p.hdr_max_center, 0.6),
     hdrMaxBoundary: num(p.hdr_max_boundary, 1.0),
+    hdrColorPicker: str(p.hdr_color_picker, "#000000"),
     hdrTintRatio: num(p.hdr_tint_ratio, 0),
+
+    // Color grading
+    gradingBrightness: num(p.grading_brightness, 0),
+    gradingContrast: num(p.grading_contrast, 0),
+    gradingSaturation: num(p.grading_saturation, 0),
+    gradingHue: num(p.grading_hue, 0),
+    gradingGamma: num(p.grading_gamma, 1.0),
+    gradingSharpness: num(p.grading_sharpness, 0),
+    gradingColorTemp: num(p.grading_color_temp, 6500),
+    gradingShadows: num(p.grading_shadows, 0),
+    gradingMidtones: num(p.grading_midtones, 0),
+    gradingHighlights: num(p.grading_highlights, 0),
+    gradingClaheClip: num(p.grading_clahe_clip, 0),
+    gradingClaheGrid: num(p.grading_clahe_grid, 8),
+    gradingShadowsTint: str(p.grading_shadows_tint, "#000000"),
+    gradingHighlightsTint: str(p.grading_highlights_tint, "#ffffff"),
+    gradingSplitToneBalance: num(p.grading_split_tone_balance, 0.5),
+    gradingVignette: num(p.grading_vignette, 0),
+    gradingGrain: num(p.grading_grain, 0),
+    gradingLutFile: str(p.grading_lut_file, ""),
+    gradingLutStrength: num(p.grading_lut_strength, 1.0),
 
     // Detailer
     detailerEnabled: bool(p.detailer_enabled, false),
@@ -438,7 +480,6 @@ export function restoreFromResult(result: GenerationResult): void {
     const w = num(p.width_before ?? p.width, 1024);
     const h = num(p.height_before ?? p.height, 1024);
     useCanvasStore.getState().restoreImageLayer(result.inputImage, w, h);
-    useUiStore.getState().setGenerationMode("img2img");
 
     if (result.inputMask && result.inputMask.length > 0) {
       const img2imgState = useImg2ImgStore.getState();

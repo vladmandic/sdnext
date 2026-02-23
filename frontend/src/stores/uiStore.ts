@@ -4,7 +4,6 @@ import type { AsideTab } from "@/lib/constants";
 
 type SidebarView = "images" | "video" | "process" | "caption" | "gallery";
 type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "control" | "scripts";
-type GenerationMode = "txt2img" | "img2img";
 type CornerStyle = "rounded" | "square";
 type ColorMode = "dark" | "light" | "system";
 
@@ -23,9 +22,6 @@ interface UiState {
   // Aside tabs
   activeAsideTab: AsideTab;
 
-  // Generation mode
-  generationMode: GenerationMode;
-
   // Canvas preferences
   autoFitFrame: boolean;
   reprocessOnGenerate: boolean;
@@ -43,7 +39,6 @@ interface UiState {
   setSidebarView: (view: SidebarView) => void;
   setImagesSubTab: (tab: ImagesSubTab) => void;
   toggleViewCollapsed: () => void;
-  setGenerationMode: (mode: GenerationMode) => void;
   setAutoFitFrame: (enabled: boolean) => void;
   setAutoUpdateProcessed: (enabled: boolean) => void;
   toggleLeftPanel: () => void;
@@ -59,7 +54,7 @@ interface UiState {
   setCanvasLabelScale: (scale: number) => void;
 }
 
-export type { SidebarView, ImagesSubTab, GenerationMode, CornerStyle, ColorMode };
+export type { SidebarView, ImagesSubTab, CornerStyle, ColorMode };
 
 export const useUiStore = create<UiState>()(
   persist(
@@ -72,7 +67,6 @@ export const useUiStore = create<UiState>()(
       leftPanelWidth: 380,
       rightPanelCollapsed: true,
       activeAsideTab: "networks" as AsideTab,
-      generationMode: "txt2img" as GenerationMode,
       autoFitFrame: true,
       reprocessOnGenerate: true,
       colorMode: "dark" as ColorMode,
@@ -86,7 +80,6 @@ export const useUiStore = create<UiState>()(
       setSidebarView: (view) => set({ activeSidebarView: view }),
       setImagesSubTab: (tab) => set({ activeImagesSubTab: tab }),
       toggleViewCollapsed: () => set((s) => ({ viewCollapsed: !s.viewCollapsed })),
-      setGenerationMode: (mode) => set({ generationMode: mode }),
       setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
       setAutoUpdateProcessed: (enabled) => set({ reprocessOnGenerate: enabled }),
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),

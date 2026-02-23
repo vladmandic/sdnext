@@ -5,10 +5,10 @@ import { useSamplerList, useCurrentCheckpoint } from "@/api/hooks/useModels";
 import { classifySampler, isSamplerCompatible } from "@/lib/samplerUtils";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
+import { ParamRow, ParamGrid } from "../ParamRow";
 import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { GenerationInfo } from "@/api/types/generation";
@@ -98,108 +98,106 @@ export function SamplerTab() {
   return (
     <div className="flex flex-col gap-3 text-sm">
       <ParamSection title="Sampler">
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Method</Label>
+        <ParamRow label="Method">
           <Combobox
             value={state.sampler}
             onValueChange={set.sampler}
             groups={samplerGroups}
-            className="flex-1 h-6 text-[11px]"
+            className="h-6 text-2xs"
           />
-        </div>
+        </ParamRow>
         <ParamSlider label="Steps" value={state.steps} onChange={set.steps} min={1} max={150} />
       </ParamSection>
 
       <ParamSection title="Scheduler" defaultOpen={false}>
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Sigma</Label>
-          <Combobox
-            value={state.sigmaMethod}
-            onValueChange={set.sigmaMethod}
-            options={["default", "karras", "exponential", "polyexponential"]}
-            className="flex-1 h-6 text-[11px]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Spacing</Label>
-          <Combobox
-            value={state.timestepSpacing}
-            onValueChange={set.timestepSpacing}
-            options={["default", "linspace", "leading", "trailing"]}
-            className="flex-1 h-6 text-[11px]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Beta</Label>
-          <Combobox
-            value={state.betaSchedule}
-            onValueChange={set.betaSchedule}
-            options={["default", "linear", "scaled_linear", "squaredcos_cap_v2", "sigmoid"]}
-            className="flex-1 h-6 text-[11px]"
-          />
-        </div>
-
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Prediction</Label>
-          <Combobox
-            value={state.predictionMethod}
-            onValueChange={set.predictionMethod}
-            options={["default", "epsilon", "sample", "v_prediction", "flow_prediction"]}
-            className="flex-1 h-6 text-[11px]"
-          />
-        </div>
+        <ParamGrid>
+          <ParamRow label="Sigma">
+            <Combobox
+              value={state.sigmaMethod}
+              onValueChange={set.sigmaMethod}
+              options={["default", "karras", "exponential", "polyexponential"]}
+              className="h-6 text-2xs"
+            />
+          </ParamRow>
+          <ParamRow label="Spacing">
+            <Combobox
+              value={state.timestepSpacing}
+              onValueChange={set.timestepSpacing}
+              options={["default", "linspace", "leading", "trailing"]}
+              className="h-6 text-2xs"
+            />
+          </ParamRow>
+          <ParamRow label="Beta">
+            <Combobox
+              value={state.betaSchedule}
+              onValueChange={set.betaSchedule}
+              options={["default", "linear", "scaled_linear", "squaredcos_cap_v2", "sigmoid"]}
+              className="h-6 text-2xs"
+            />
+          </ParamRow>
+          <ParamRow label="Prediction">
+            <Combobox
+              value={state.predictionMethod}
+              onValueChange={set.predictionMethod}
+              options={["default", "epsilon", "sample", "v_prediction", "flow_prediction"]}
+              className="h-6 text-2xs"
+            />
+          </ParamRow>
+        </ParamGrid>
       </ParamSection>
 
       <ParamSection title="Timesteps" defaultOpen={false}>
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Preset</Label>
-          <Combobox
-            value={state.timestepsPreset}
-            onValueChange={set.timestepsPreset}
-            options={["None"]}
-            className="flex-1 h-6 text-[11px]"
-          />
-        </div>
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Override</Label>
-          <Input
-            value={state.timestepsOverride}
-            onChange={set.timestepsOverride}
-            placeholder="e.g. 999,850,700,550,400,250,100"
-            className="flex-1 h-6 text-[11px] px-2"
-          />
-        </div>
+        <ParamGrid>
+          <ParamRow label="Preset">
+            <Combobox
+              value={state.timestepsPreset}
+              onValueChange={set.timestepsPreset}
+              options={["None"]}
+              className="h-6 text-2xs"
+            />
+          </ParamRow>
+          <ParamRow label="Override">
+            <Input
+              value={state.timestepsOverride}
+              onChange={set.timestepsOverride}
+              placeholder="e.g. 999,850,700,..."
+              className="h-6 text-2xs px-2"
+            />
+          </ParamRow>
+        </ParamGrid>
       </ParamSection>
 
       <ParamSection title="Sigma" defaultOpen={false}>
+        <ParamGrid>
+          <ParamSlider label="Start" value={state.sigmaAdjustStart} onChange={set.sigmaAdjustStart} min={0} max={1} step={0.01} />
+          <ParamSlider label="End" value={state.sigmaAdjustEnd} onChange={set.sigmaAdjustEnd} min={0} max={1} step={0.01} />
+        </ParamGrid>
         <ParamSlider label="Adjust" value={state.sigmaAdjust} onChange={set.sigmaAdjust} min={0.5} max={1.5} step={0.01} />
-        <ParamSlider label="Start" value={state.sigmaAdjustStart} onChange={set.sigmaAdjustStart} min={0} max={1} step={0.01} />
-        <ParamSlider label="End" value={state.sigmaAdjustEnd} onChange={set.sigmaAdjustEnd} min={0} max={1} step={0.01} />
       </ParamSection>
 
       <ParamSection title="Shifts" defaultOpen={false}>
+        <ParamGrid>
+          <ParamSlider label="Base shift" value={state.baseShift} onChange={set.baseShift} min={0} max={1} step={0.01} />
+          <ParamSlider label="Max shift" value={state.maxShift} onChange={set.maxShift} min={0} max={4} step={0.01} />
+        </ParamGrid>
         <ParamSlider label="Flow shift" value={state.flowShift} onChange={set.flowShift} min={0.1} max={10} step={0.1} />
-        <ParamSlider label="Base shift" value={state.baseShift} onChange={set.baseShift} min={0} max={1} step={0.01} />
-        <ParamSlider label="Max shift" value={state.maxShift} onChange={set.maxShift} min={0} max={4} step={0.01} />
       </ParamSection>
 
       <ParamSection title="Options" defaultOpen={false}>
         <div className="grid grid-cols-2 gap-2">
-          <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.lowOrder} onCheckedChange={set.lowOrder} />
             Low order
           </label>
-          <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.thresholding} onCheckedChange={set.thresholding} />
             Thresholding
           </label>
-          <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.dynamic} onCheckedChange={set.dynamic} />
             Dynamic
           </label>
-          <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.rescale} onCheckedChange={set.rescale} />
             Rescale
           </label>
@@ -207,57 +205,47 @@ export function SamplerTab() {
       </ParamSection>
 
       <ParamSection title="Seed">
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Seed</Label>
-          <NumberInput
-            value={state.seed}
-            onChange={set.seed}
-            fallback={-1}
-            className="flex-1 h-6 text-[11px] px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-          <Button
-            variant="secondary" size="xs"
-            onClick={set.seedRandom}
-            className="text-muted-foreground"
-          >
-            Random
-          </Button>
-          <Button
-            variant="secondary" size="xs"
-            onClick={set.seedReuse}
-            disabled={lastInfo?.seed == null}
-            className="text-muted-foreground"
-            title={lastInfo?.seed != null ? `Reuse seed ${lastInfo.seed}` : "No previous generation"}
-          >
-            Reuse
-          </Button>
-        </div>
+        <ParamRow label="Seed">
+          <div className="flex items-center gap-1">
+            <NumberInput
+              value={state.seed}
+              onChange={set.seed}
+              fallback={-1}
+              className="flex-1 h-6 text-2xs px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <Button variant="secondary" size="xs" onClick={set.seedRandom} className="text-muted-foreground">Random</Button>
+            <Button
+              variant="secondary" size="xs"
+              onClick={set.seedReuse}
+              disabled={lastInfo?.seed == null}
+              className="text-muted-foreground"
+              title={lastInfo?.seed != null ? `Reuse seed ${lastInfo.seed}` : "No previous generation"}
+            >
+              Reuse
+            </Button>
+          </div>
+        </ParamRow>
 
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Variation</Label>
-          <NumberInput
-            value={state.subseed}
-            onChange={set.subseed}
-            fallback={-1}
-            className="flex-1 h-6 text-[11px] px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
-          <Button
-            variant="secondary" size="xs"
-            onClick={set.subseedRandom}
-            className="text-muted-foreground"
-          >
-            Random
-          </Button>
-          <Button
-            variant="secondary" size="xs"
-            onClick={set.subseedReuse}
-            disabled={lastInfo?.subseed == null}
-            className="text-muted-foreground"
-            title={lastInfo?.subseed != null ? `Reuse subseed ${lastInfo.subseed}` : "No previous generation"}
-          >
-            Reuse
-          </Button>
-        </div>
+        <ParamRow label="Variation">
+          <div className="flex items-center gap-1">
+            <NumberInput
+              value={state.subseed}
+              onChange={set.subseed}
+              fallback={-1}
+              className="flex-1 h-6 text-2xs px-2 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <Button variant="secondary" size="xs" onClick={set.subseedRandom} className="text-muted-foreground">Random</Button>
+            <Button
+              variant="secondary" size="xs"
+              onClick={set.subseedReuse}
+              disabled={lastInfo?.subseed == null}
+              className="text-muted-foreground"
+              title={lastInfo?.subseed != null ? `Reuse subseed ${lastInfo.subseed}` : "No previous generation"}
+            >
+              Reuse
+            </Button>
+          </div>
+        </ParamRow>
 
         <ParamSlider label="Var. str." value={state.subseedStrength} onChange={set.subseedStrength} min={0} max={1} step={0.01} />
       </ParamSection>

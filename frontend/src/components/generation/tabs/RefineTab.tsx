@@ -5,6 +5,7 @@ import { useSamplerList, useUpscalerList } from "@/api/hooks/useModels";
 import { HIRES_RESIZE_MODES, HIRES_CONTEXT_MODES } from "@/lib/constants";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
+import { ParamRow, ParamGrid } from "../ParamRow";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -68,8 +69,8 @@ export function RefineTab() {
     <div className="flex flex-col gap-3 text-sm">
       <ParamSection title="Hires Fix">
         {/* Enable toggle */}
-        <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Enable</Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-2xs text-muted-foreground">Enable</Label>
           <Switch
             checked={state.hiresEnabled}
             onCheckedChange={set.hiresEnabled}
@@ -78,57 +79,48 @@ export function RefineTab() {
 
         {state.hiresEnabled && (
           <>
-            {/* Resize mode dropdown - all 6 modes */}
-            <div className="flex items-center gap-2">
-              <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Mode</Label>
-              <Combobox
-                value={String(state.hiresResizeMode)}
-                onValueChange={set.hiresResizeMode}
-                options={HIRES_RESIZE_MODES}
-                className="flex-1 h-6 text-[11px]"
-              />
-            </div>
+            <ParamGrid>
+              <ParamRow label="Mode">
+                <Combobox
+                  value={String(state.hiresResizeMode)}
+                  onValueChange={set.hiresResizeMode}
+                  options={HIRES_RESIZE_MODES}
+                  className="h-6 text-2xs"
+                />
+              </ParamRow>
+              <ParamRow label="Upscaler">
+                <Combobox
+                  value={state.hiresUpscaler}
+                  onValueChange={set.hiresUpscaler}
+                  options={upscalers?.map((u) => u.name) ?? []}
+                  className="h-6 text-2xs"
+                />
+              </ParamRow>
+            </ParamGrid>
 
-            {/* Upscaler dropdown */}
-            <div className="flex items-center gap-2">
-              <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Upscaler</Label>
-              <Combobox
-                value={state.hiresUpscaler}
-                onValueChange={set.hiresUpscaler}
-                options={upscalers?.map((u) => u.name) ?? []}
-                className="flex-1 h-6 text-[11px]"
-              />
-            </div>
-
-            {/* Context dropdown - only for Context aware mode (5) */}
             {showContextDropdown && (
-              <div className="flex items-center gap-2">
-                <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Context</Label>
+              <ParamRow label="Context">
                 <Combobox
                   value={state.hiresResizeContext}
                   onValueChange={set.hiresResizeContext}
                   options={HIRES_CONTEXT_MODES}
-                  className="flex-1 h-6 text-[11px]"
+                  className="h-6 text-2xs"
                 />
-              </div>
+              </ParamRow>
             )}
 
-            {/* Size controls - Scale slider for mode 0 (None), or Scale/Fixed tabs for modes 1-5 */}
+            {/* Size controls */}
             {state.hiresResizeMode === 0 ? (
-              /* Mode 0 (None): Just upscale with scale factor, no second diffusion pass */
               <ParamSlider label="Scale" value={state.hiresScale} onChange={set.hiresScale} min={1} max={4} step={0.1} />
             ) : (
-              /* Modes 1-5: Show size mode tabs (Scale vs Fixed) */
               <div className="flex flex-col gap-2">
-                {/* Tab switcher */}
-                <div className="flex items-center gap-2">
-                  <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Size</Label>
-                  <div className="flex h-6 rounded-md border border-border overflow-hidden">
+                <ParamRow label="Size">
+                  <div className="flex h-6 rounded-md border border-border overflow-hidden w-fit">
                     <button
                       type="button"
                       onClick={() => setSizeMode("scale")}
                       className={cn(
-                        "px-3 text-[10px] font-medium transition-colors",
+                        "px-3 text-3xs font-medium transition-colors",
                         sizeMode === "scale"
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted/50 text-muted-foreground hover:bg-muted"
@@ -140,7 +132,7 @@ export function RefineTab() {
                       type="button"
                       onClick={() => setSizeMode("fixed")}
                       className={cn(
-                        "px-3 text-[10px] font-medium transition-colors border-l border-border",
+                        "px-3 text-3xs font-medium transition-colors border-l border-border",
                         sizeMode === "fixed"
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted/50 text-muted-foreground hover:bg-muted"
@@ -149,37 +141,35 @@ export function RefineTab() {
                       Fixed
                     </button>
                   </div>
-                </div>
+                </ParamRow>
 
-                {/* Content based on size mode */}
                 {sizeMode === "scale" ? (
                   <ParamSlider label="Scale" value={state.hiresScale} onChange={set.hiresScale} min={1} max={4} step={0.1} />
                 ) : (
-                  <div className="flex items-center gap-2">
-                    <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Dims</Label>
-                    <NumberInput
-                      value={state.hiresResizeX}
-                      onChange={set.hiresResizeX}
-                      placeholder="Width"
-                      step={8} min={0} max={8192} fallback={0}
-                      className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-[10px] text-muted-foreground">x</span>
-                    <NumberInput
-                      value={state.hiresResizeY}
-                      onChange={set.hiresResizeY}
-                      placeholder="Height"
-                      step={8} min={0} max={8192} fallback={0}
-                      className="flex-1 h-6 text-[11px] text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                  </div>
+                  <ParamRow label="Dims">
+                    <div className="flex items-center gap-2">
+                      <NumberInput
+                        value={state.hiresResizeX}
+                        onChange={set.hiresResizeX}
+                        placeholder="Width"
+                        step={8} min={0} max={8192} fallback={0}
+                        className="flex-1 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span className="text-3xs text-muted-foreground">x</span>
+                      <NumberInput
+                        value={state.hiresResizeY}
+                        onChange={set.hiresResizeY}
+                        placeholder="Height"
+                        step={8} min={0} max={8192} fallback={0}
+                        className="flex-1 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                    </div>
+                  </ParamRow>
                 )}
               </div>
             )}
 
-            {/* Second pass settings */}
-            <div className="flex items-center gap-2">
-              <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Sampler</Label>
+            <ParamRow label="Sampler">
               <Combobox
                 value={state.hiresSampler || "_same_"}
                 onValueChange={set.hiresSampler}
@@ -188,14 +178,16 @@ export function RefineTab() {
                   ...(samplers?.map((s) => ({ value: s.name, label: s.name })) ?? []),
                 ]}
                 placeholder="Same as primary"
-                className="flex-1 h-6 text-[11px]"
+                className="h-6 text-2xs"
               />
-            </div>
+            </ParamRow>
 
-            <ParamSlider label="Denoise" value={state.hiresDenoising} onChange={set.hiresDenoising} min={0} max={1} step={0.05} />
-            <ParamSlider label="Steps" value={state.hiresSteps} onChange={set.hiresSteps} min={0} max={150} />
+            <ParamGrid>
+              <ParamSlider label="Denoise" value={state.hiresDenoising} onChange={set.hiresDenoising} min={0} max={1} step={0.05} />
+              <ParamSlider label="Steps" value={state.hiresSteps} onChange={set.hiresSteps} min={0} max={150} />
+            </ParamGrid>
 
-            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+            <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
               <Checkbox checked={state.hiresForce} onCheckedChange={set.hiresForce} />
               Force hires
             </label>
@@ -204,25 +196,27 @@ export function RefineTab() {
       </ParamSection>
 
       <ParamSection title="Refiner" defaultOpen={false}>
-        <ParamSlider label="Start" value={state.refinerStart} onChange={set.refinerStart} min={0} max={1} step={0.01} />
-        <ParamSlider label="Steps" value={state.refinerSteps} onChange={set.refinerSteps} min={0} max={150} />
+        <ParamGrid>
+          <ParamSlider label="Start" value={state.refinerStart} onChange={set.refinerStart} min={0} max={1} step={0.01} />
+          <ParamSlider label="Steps" value={state.refinerSteps} onChange={set.refinerSteps} min={0} max={150} />
+        </ParamGrid>
 
         <div className="flex flex-col gap-1">
-          <Label className="text-[11px] text-muted-foreground">Refiner prompt</Label>
+          <Label className="text-2xs text-muted-foreground">Refiner prompt</Label>
           <Textarea
             value={state.refinerPrompt}
             onChange={set.refinerPrompt}
             placeholder="Refiner prompt (optional)"
-            className="min-h-[48px] text-xs resize-none"
+            className="min-h-12 text-xs resize-none"
           />
         </div>
         <div className="flex flex-col gap-1">
-          <Label className="text-[11px] text-muted-foreground">Refiner negative</Label>
+          <Label className="text-2xs text-muted-foreground">Refiner negative</Label>
           <Textarea
             value={state.refinerNegative}
             onChange={set.refinerNegative}
             placeholder="Refiner negative prompt (optional)"
-            className="min-h-[36px] text-xs resize-none"
+            className="min-h-9 text-xs resize-none"
           />
         </div>
       </ParamSection>
