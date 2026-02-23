@@ -242,6 +242,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
           ...(e.unit.unitType === "controlnet" ? { guess: e.unit.guess } : {}),
           ...(e.unit.unitType === "t2i" ? { factor: e.unit.factor } : {}),
           ...(e.unit.unitType === "reference" ? { attention: e.unit.attention, fidelity: e.unit.fidelity, query_weight: e.unit.queryWeight, adain_weight: e.unit.adainWeight } : {}),
+          ...(Object.keys(e.unit.processorParams).length > 0 && !hasManualPreview ? { process_params: e.unit.processorParams } : {}),
         };
       }),
     );

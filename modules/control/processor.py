@@ -51,6 +51,7 @@ def preprocess_image(
         active_model:list = None,
         selected_models:list = None,
         has_models:bool = False,
+        active_units:list = None,
     ):
     if selected_models is None:
         selected_models = []
@@ -111,6 +112,7 @@ def preprocess_image(
             resize_mode = p.resize_mode_before
         else:
             resize_mode = 3 if shared.opts.control_aspect_ratio else 1
+        local_config = getattr(active_units[i], 'process_params', None) if active_units and i < len(active_units) else None
         processed_image = process(
             image_input=masked_image,
             width=p.width,
@@ -120,6 +122,7 @@ def preprocess_image(
             resize_name=p.resize_name_before,
             scale_tab=p.selected_scale_tab_before,
             scale_by=p.scale_by_before,
+            local_config=local_config,
         )
         if processed_image is not None:
             processed_images.append(processed_image)

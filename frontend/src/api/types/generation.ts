@@ -13,6 +13,7 @@ export interface ControlRequestUnit {
   fidelity?: number;
   query_weight?: number;
   adain_weight?: number;
+  process_params?: Record<string, unknown>;
   image?: string;
 }
 

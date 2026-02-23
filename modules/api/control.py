@@ -25,6 +25,7 @@ class ItemControl(BaseModel):
     fidelity: float = Field(default=0.5, description="Reference fidelity")
     query_weight: float = Field(default=1.0, description="Reference query weight")
     adain_weight: float = Field(default=1.0, description="Reference adain weight")
+    process_params: Optional[dict] = Field(default=None, description="Custom preprocessor parameter overrides")
     image: Optional[str] = Field(default=None, description="Alias for override — base64 control image")
 
 
@@ -203,6 +204,7 @@ class APIControl:
             unit.fidelity = u.fidelity
             unit.query_weight = u.query_weight
             unit.adain_weight = u.adain_weight
+            unit.process_params = u.process_params or {}
             unit.update_choices(u.model)
             # Keep mode as string — run.py expects str and converts to index
             if u.mode != "default" and u.mode in unit.choices:
