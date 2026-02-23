@@ -5,6 +5,7 @@ import { useVideoStore } from "@/stores/videoStore";
 import { useVideoEngines, useLoadVideoModel } from "@/api/hooks/useVideo";
 import { ParamSection } from "@/components/generation/ParamSection";
 import { ParamSlider } from "@/components/generation/ParamSlider";
+import { ParamGrid } from "@/components/generation/ParamRow";
 import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -54,12 +55,12 @@ export function ModelsVideoTab() {
       <ParamSection title="Model">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-muted-foreground w-16 shrink-0">Engine</Label>
-            <Combobox value={engine} onValueChange={(v) => { setParam("engine", v); setParam("model", ""); }} options={engineNames} placeholder="Select engine..." className="h-7 text-xs flex-1" />
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Engine</Label>
+            <Combobox value={engine} onValueChange={(v) => { setParam("engine", v); setParam("model", ""); }} options={engineNames} placeholder="Select engine..." className="h-6 text-2xs flex-1" />
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-muted-foreground w-16 shrink-0">Model</Label>
-            <Combobox value={model} onValueChange={(v) => setParam("model", v)} options={modelNames} placeholder={engine ? "Select model..." : "Select engine first"} className="h-7 text-xs flex-1" />
+            <Label className="text-2xs text-muted-foreground w-16 shrink-0">Model</Label>
+            <Combobox value={model} onValueChange={(v) => setParam("model", v)} options={modelNames} placeholder={engine ? "Select model..." : "Select engine first"} className="h-6 text-2xs flex-1" />
           </div>
           <Button size="sm" variant="secondary" onClick={handleLoad} disabled={!engine || !model || loadModel.isPending} className="w-full">
             {loadModel.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
@@ -69,20 +70,24 @@ export function ModelsVideoTab() {
       </ParamSection>
 
       <ParamSection title="Parameters" defaultOpen={false}>
-        <ParamSlider label="Steps" value={steps} onChange={(v) => setParam("steps", v)} min={1} max={100} step={1} />
-        <ParamSlider label="Guidance" value={guidanceScale} onChange={(v) => setParam("guidanceScale", v)} min={0} max={20} step={0.5} />
-        <ParamSlider label="True CFG" value={guidanceTrue} onChange={(v) => setParam("guidanceTrue", v)} min={-1} max={20} step={0.5} />
-        <ParamSlider label="Shift" value={samplerShift} onChange={(v) => setParam("samplerShift", v)} min={-1} max={20} step={0.5} />
+        <ParamGrid>
+          <ParamSlider label="Steps" value={steps} onChange={(v) => setParam("steps", v)} min={1} max={100} step={1} />
+          <ParamSlider label="Guidance" value={guidanceScale} onChange={(v) => setParam("guidanceScale", v)} min={0} max={20} step={0.5} />
+          <ParamSlider label="True CFG" value={guidanceTrue} onChange={(v) => setParam("guidanceTrue", v)} min={-1} max={20} step={0.5} />
+          <ParamSlider label="Shift" value={samplerShift} onChange={(v) => setParam("samplerShift", v)} min={-1} max={20} step={0.5} />
+        </ParamGrid>
         <ParamSlider label="Seed" value={seed} onChange={(v) => setParam("seed", v)} min={-1} max={999999999} step={1} />
         <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 shrink-0">Dynamic</Label>
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">Dynamic</Label>
           <Switch checked={dynamicShift} onCheckedChange={(v) => setParam("dynamicShift", v)} />
         </div>
       </ParamSection>
 
       <ParamSection title="Size" defaultOpen={false}>
-        <ParamSlider label="Width" value={width} onChange={(v) => setParam("width", v)} min={256} max={1920} step={16} />
-        <ParamSlider label="Height" value={height} onChange={(v) => setParam("height", v)} min={256} max={1920} step={16} />
+        <ParamGrid>
+          <ParamSlider label="Width" value={width} onChange={(v) => setParam("width", v)} min={256} max={1920} step={16} />
+          <ParamSlider label="Height" value={height} onChange={(v) => setParam("height", v)} min={256} max={1920} step={16} />
+        </ParamGrid>
         <ParamSlider label="Frames" value={frames} onChange={(v) => setParam("frames", v)} min={1} max={256} step={1} />
       </ParamSection>
 
@@ -94,8 +99,8 @@ export function ModelsVideoTab() {
 
       <ParamSection title="Decode" defaultOpen={false}>
         <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 shrink-0">VAE type</Label>
-          <Combobox value={vaeType} onValueChange={(v) => setParam("vaeType", v)} options={["Default", "Tiny", "Remote", "Upscale"]} className="h-7 text-xs flex-1" />
+          <Label className="text-2xs text-muted-foreground w-16 shrink-0">VAE type</Label>
+          <Combobox value={vaeType} onValueChange={(v) => setParam("vaeType", v)} options={["Default", "Tiny", "Remote", "Upscale"]} className="h-6 text-2xs flex-1" />
         </div>
         <ParamSlider label="Tile frames" value={vaeTileFrames} onChange={(v) => setParam("vaeTileFrames", v)} min={0} max={64} step={1} />
       </ParamSection>

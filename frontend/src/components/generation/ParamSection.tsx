@@ -18,10 +18,10 @@ export function ParamSection({ title, defaultOpen = true, action, children }: Pa
         <button
           type="button"
           onClick={toggle}
-          className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground hover:text-foreground uppercase tracking-wider"
+          className="flex items-center gap-1 text-2xs font-medium text-muted-foreground hover:text-foreground uppercase tracking-wider"
         >
-          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
           {title}
+          {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </button>
         {action && <div className="ml-auto">{action}</div>}
       </div>

@@ -5,6 +5,7 @@ import { useIPAdapterModels } from "@/api/hooks/useAdapters";
 import { uploadFile } from "@/lib/upload";
 import { ParamSlider } from "../../ParamSlider";
 import { ParamSection } from "../../ParamSection";
+import { ParamGrid } from "../../ParamRow";
 import { ImageUpload } from "../../ImageUpload";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -75,12 +76,12 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* Processor */}
       {showProcessor && (
         <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Processor</Label>
+          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Processor</Label>
           <Combobox
             value={unit.processor}
             onValueChange={(v) => { setUnitParam(index, "processor", v); setUnitParam(index, "processedImage", null); }}
             options={["None", ...(preprocessors?.filter((p) => p.name !== "None").map((p) => p.name) ?? [])]}
-            className="h-7 text-xs flex-1"
+            className="h-6 text-2xs flex-1"
           />
         </div>
       )}
@@ -88,12 +89,12 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* Model */}
       {showModel && (
         <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Model</Label>
+          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Model</Label>
           <Combobox
             value={unit.model}
             onValueChange={(v) => setUnitParam(index, "model", v)}
             options={["None", ...(models ?? [])]}
-            className="h-7 text-xs flex-1"
+            className="h-6 text-2xs flex-1"
           />
         </div>
       )}
@@ -101,12 +102,12 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* Mode */}
       {showModel && modesForModel && modesForModel.length > 0 && (
         <div className="flex items-center gap-2">
-          <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Mode</Label>
+          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Mode</Label>
           <Combobox
             value={unit.mode}
             onValueChange={(v) => setUnitParam(index, "mode", v)}
             options={modesForModel}
-            className="h-7 text-xs flex-1"
+            className="h-6 text-2xs flex-1"
           />
         </div>
       )}
@@ -120,17 +121,17 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {showIPAdapter && (
         <>
           <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Adapter</Label>
+            <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Adapter</Label>
             <Combobox
               value={unit.adapter}
               onValueChange={(v) => setUnitParam(index, "adapter", v)}
               options={["None", ...(adapterModels ?? [])]}
-              className="h-7 text-xs flex-1"
+              className="h-6 text-2xs flex-1"
             />
           </div>
           <ParamSlider label="Scale" value={unit.scale} onChange={(v) => setUnitParam(index, "scale", v)} min={0} max={2} step={0.01} />
           <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Crop</Label>
+            <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Crop</Label>
             <Switch checked={unit.crop} onCheckedChange={(checked) => setUnitParam(index, "crop", checked)} />
           </div>
         </>
@@ -139,8 +140,10 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* Timing */}
       {showTiming && (
         <ParamSection title="Timing" defaultOpen={false}>
-          <ParamSlider label="Start" value={unit.start} onChange={(v) => setUnitParam(index, "start", v)} min={0} max={1} step={0.01} />
-          <ParamSlider label="End" value={unit.end} onChange={(v) => setUnitParam(index, "end", v)} min={0} max={1} step={0.01} />
+          <ParamGrid>
+            <ParamSlider label="Start" value={unit.start} onChange={(v) => setUnitParam(index, "start", v)} min={0} max={1} step={0.01} />
+            <ParamSlider label="End" value={unit.end} onChange={(v) => setUnitParam(index, "end", v)} min={0} max={1} step={0.01} />
+          </ParamGrid>
         </ParamSection>
       )}
 
@@ -148,7 +151,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {compact ? (
         <div className="flex items-center justify-between">
           {showGuess && (
-            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer">
+            <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
               <Checkbox checked={unit.guess} onCheckedChange={(c) => setUnitParam(index, "guess", !!c)} />
               Guess mode
             </label>
@@ -157,7 +160,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
             <Button
               variant="outline"
               size="sm"
-              className="h-6 text-[11px] px-2 gap-1 ml-auto"
+              className="h-6 text-2xs px-2 gap-1 ml-auto"
               onClick={handleProcess}
               disabled={preprocessMutation.isPending}
             >
@@ -170,7 +173,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
         <>
           {/* Guess mode */}
           {showGuess && (
-            <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer px-1">
+            <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer px-1">
               <Checkbox checked={unit.guess} onCheckedChange={(c) => setUnitParam(index, "guess", !!c)} />
               Guess mode
             </label>
@@ -180,12 +183,12 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
           {showControlImage && (
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <Label className="text-[11px] text-muted-foreground">Control Image</Label>
+                <Label className="text-2xs text-muted-foreground">Control Image</Label>
                 {showProcessor && resolvedImage && unit.processor !== "None" && (
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-6 text-[11px] px-2 gap-1"
+                    className="h-6 text-2xs px-2 gap-1"
                     onClick={handleProcess}
                     disabled={preprocessMutation.isPending}
                   >
@@ -198,7 +201,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
                 <button
                   type="button"
                   onClick={() => setUnitParam(index, "processedImage", null)}
-                  className="text-[10px] text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
+                  className="text-3xs text-muted-foreground hover:text-destructive transition-colors flex items-center gap-1"
                 >
                   <X size={10} />
                   Clear processed
@@ -218,24 +221,26 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {showReference && (
         <>
           <div className="flex items-center gap-2">
-            <Label className="text-[11px] text-muted-foreground w-16 flex-shrink-0">Attention</Label>
+            <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Attention</Label>
             <Combobox
               value={unit.attention}
               onValueChange={(v) => setUnitParam(index, "attention", v)}
               options={["Attention", "Adain", "Attention and Adain"]}
-              className="h-7 text-xs flex-1"
+              className="h-6 text-2xs flex-1"
             />
           </div>
+          <ParamGrid>
+            <ParamSlider label="Query Weight" value={unit.queryWeight} onChange={(v) => setUnitParam(index, "queryWeight", v)} min={0} max={2} step={0.01} />
+            <ParamSlider label="Adain Weight" value={unit.adainWeight} onChange={(v) => setUnitParam(index, "adainWeight", v)} min={0} max={2} step={0.01} />
+          </ParamGrid>
           <ParamSlider label="Fidelity" value={unit.fidelity} onChange={(v) => setUnitParam(index, "fidelity", v)} min={0} max={1} step={0.01} />
-          <ParamSlider label="Query Weight" value={unit.queryWeight} onChange={(v) => setUnitParam(index, "queryWeight", v)} min={0} max={2} step={0.01} />
-          <ParamSlider label="Adain Weight" value={unit.adainWeight} onChange={(v) => setUnitParam(index, "adainWeight", v)} min={0} max={2} step={0.01} />
         </>
       )}
 
       {/* IP-Adapter images */}
       {showIPAdapter && (
         <div className="flex flex-col gap-1">
-          <Label className="text-[11px] text-muted-foreground">Images</Label>
+          <Label className="text-2xs text-muted-foreground">Images</Label>
           <div className="flex gap-1 flex-wrap">
             {imagePreviews.map((url, i) => (
               <div key={i} className="relative h-16 w-16 rounded border border-border overflow-hidden group">
@@ -253,7 +258,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* IP-Adapter masks */}
       {showIPAdapter && (
         <div className="flex flex-col gap-1">
-          <Label className="text-[11px] text-muted-foreground">Masks</Label>
+          <Label className="text-2xs text-muted-foreground">Masks</Label>
           <div className="flex gap-1 flex-wrap">
             {maskPreviews.map((url, i) => (
               <div key={i} className="relative h-16 w-16 rounded border border-border overflow-hidden group">
