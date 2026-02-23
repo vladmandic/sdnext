@@ -301,8 +301,8 @@ class Processor:
             return image_process
         try:
             t0 = time.time()
-            kwargs = config.get(self.processor_id, {}).get('params', None)
-            if kwargs:
+            kwargs = dict(config.get(self.processor_id, {}).get('params', {}))
+            if local_config:
                 kwargs.update(local_config)
             if self.resize:
                 image_resized = image_input.resize((512, 512), Image.Resampling.LANCZOS)
