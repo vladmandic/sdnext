@@ -2,12 +2,19 @@ import { useCallback, useRef } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useGenerationStore } from "@/stores/generationStore";
+import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type Konva from "konva";
 
 interface UseMaskPaintOptions {
   stageRef: React.RefObject<Konva.Stage | null>;
   spaceHeld: React.RefObject<boolean>;
+}
+
+/** Compute displayScale imperatively from the store (no reactive dep). */
+function getDisplayScale(): number {
+  const h = useGenerationStore.getState().height;
+  return h > 0 ? REFERENCE_HEIGHT / h : 1;
 }
 
 /**
@@ -39,9 +46,11 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
     if (!pointer) return null;
     const { width: frameW, height: frameH } = useGenerationStore.getState();
     if (frameW <= 0 || frameH <= 0) return null;
+    // screen → stage (display units) → pixel space
+    const ds = getDisplayScale();
     return {
-      x: Math.max(0, Math.min(frameW, (pointer.x - stage.x()) / stage.scaleX())),
-      y: Math.max(0, Math.min(frameH, (pointer.y - stage.y()) / stage.scaleY())),
+      x: Math.max(0, Math.min(frameW, (pointer.x - stage.x()) / stage.scaleX() / ds)),
+      y: Math.max(0, Math.min(frameH, (pointer.y - stage.y()) / stage.scaleY() / ds)),
     };
   }, []);
 
@@ -82,12 +91,13 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
       const pos = getCanvasPos(stage);
       const cursor = cursorRef.current;
       if (cursor && pos) {
-        const scale = stage.scaleX();
+        // Combined scale: viewport.scale * displayScale (cursor is inside Group)
+        const combinedScale = stage.scaleX() * getDisplayScale();
         cursor.x(pos.x);
         cursor.y(pos.y);
         cursor.radius(useCanvasStore.getState().brushSize / 2);
-        cursor.strokeWidth(1 / scale);
-        cursor.dash([4 / scale, 4 / scale]);
+        cursor.strokeWidth(1 / combinedScale);
+        cursor.dash([4 / combinedScale, 4 / combinedScale]);
         cursor.visible(true);
       } else if (cursor) {
         cursor.visible(false);

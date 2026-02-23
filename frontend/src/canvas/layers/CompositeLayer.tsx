@@ -1,5 +1,5 @@
 import { useEffect, useRef, useCallback } from "react";
-import { Layer, Image as KonvaImage, Transformer, Line } from "react-konva";
+import { Layer, Group, Image as KonvaImage, Transformer, Line } from "react-konva";
 import { useCanvasStore, type ImageLayer as ImageLayerType } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useSnap } from "@/canvas/tools/useSnap";
@@ -7,9 +7,10 @@ import type Konva from "konva";
 
 interface CompositeLayerProps {
   trRef: React.RefObject<Konva.Transformer | null>;
+  displayScale: number;
 }
 
-export function CompositeLayer({ trRef }: CompositeLayerProps) {
+export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
   const layers = useCanvasStore((s) => s.layers);
   const activeLayerId = useCanvasStore((s) => s.activeLayerId);
   const activeTool = useCanvasStore((s) => s.activeTool);
@@ -95,45 +96,47 @@ export function CompositeLayer({ trRef }: CompositeLayerProps) {
 
   return (
     <Layer>
-      {/* eslint-disable-next-line react-hooks/refs -- imageMap synced with imageLayers in effect above */}
-      {imageLayers.map((layer) => (
-        <KonvaImage
-          key={layer.id}
-          ref={(node) => setNodeRef(layer.id, node)}
-          image={imageMap.current.get(layer.id)}
-          x={layer.x}
-          y={layer.y}
-          scaleX={layer.scaleX}
-          scaleY={layer.scaleY}
-          rotation={layer.rotation}
-          opacity={layer.opacity}
-          visible={layer.visible}
-          draggable={activeTool === "move" && !layer.locked}
-          onDragMove={snap.handleDragMove}
-          onDragEnd={(e) => handleDragEnd(layer.id, e)}
-          onTransformEnd={(e) => handleTransformEnd(layer.id, e)}
-          onClick={(e) => handleClick(layer.id, e)}
+      <Group scaleX={displayScale} scaleY={displayScale}>
+        {/* eslint-disable-next-line react-hooks/refs -- imageMap synced with imageLayers in effect above */}
+        {imageLayers.map((layer) => (
+          <KonvaImage
+            key={layer.id}
+            ref={(node) => setNodeRef(layer.id, node)}
+            image={imageMap.current.get(layer.id)}
+            x={layer.x}
+            y={layer.y}
+            scaleX={layer.scaleX}
+            scaleY={layer.scaleY}
+            rotation={layer.rotation}
+            opacity={layer.opacity}
+            visible={layer.visible}
+            draggable={activeTool === "move" && !layer.locked}
+            onDragMove={snap.handleDragMove}
+            onDragEnd={(e) => handleDragEnd(layer.id, e)}
+            onTransformEnd={(e) => handleTransformEnd(layer.id, e)}
+            onClick={(e) => handleClick(layer.id, e)}
+          />
+        ))}
+        <Transformer
+          ref={trRef}
+          keepRatio={false}
+          enabledAnchors={[
+            "top-left", "top-right", "bottom-left", "bottom-right",
+            "top-center", "bottom-center", "middle-left", "middle-right",
+          ]}
+          onTransform={snap.handleTransform}
         />
-      ))}
-      <Transformer
-        ref={trRef}
-        keepRatio={false}
-        enabledAnchors={[
-          "top-left", "top-right", "bottom-left", "bottom-right",
-          "top-center", "bottom-center", "middle-left", "middle-right",
-        ]}
-        onTransform={snap.handleTransform}
-      />
-      {snap.guides.map((g, i) => (
-        <Line
-          key={i}
-          points={g.orientation === "v" ? [g.pos, -5000, g.pos, 5000] : [-5000, g.pos, 5000, g.pos]}
-          stroke="#22d3ee"
-          strokeWidth={1}
-          strokeScaleEnabled={false}
-          listening={false}
-        />
-      ))}
+        {snap.guides.map((g, i) => (
+          <Line
+            key={i}
+            points={g.orientation === "v" ? [g.pos, -5000, g.pos, 5000] : [-5000, g.pos, 5000, g.pos]}
+            stroke="#22d3ee"
+            strokeWidth={1}
+            strokeScaleEnabled={false}
+            listening={false}
+          />
+        ))}
+      </Group>
     </Layer>
   );
 }

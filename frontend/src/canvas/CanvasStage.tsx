@@ -37,7 +37,7 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
   const imageTransform = useImageTransform(stageRef, trRef);
 
-  const { outputX, processedX, showProcessedFrame, controlFrames, totalBounds } = layout;
+  const { outputX, processedX, showProcessedFrame, controlFrames, totalBounds, displayScale, displayW, displayH } = layout;
 
   // Container-responsive sizing
   useEffect(() => {
@@ -114,12 +114,12 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
           onClick={onClick}
         >
           <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
-          <CompositeLayer trRef={trRef} />
-          <FrameLayer onPickImage={onPickImage ? () => onPickImage(-1) : undefined} />
-          <MaskLayer setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />
-          <OutputLayer offsetX={outputX} placeholderWidth={frameW} placeholderHeight={frameH} />
+          <CompositeLayer trRef={trRef} displayScale={displayScale} />
+          <FrameLayer displayScale={displayScale} onPickImage={onPickImage ? () => onPickImage(-1) : undefined} />
+          <MaskLayer displayScale={displayScale} setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />
+          <OutputLayer offsetX={outputX} placeholderWidth={displayW} placeholderHeight={displayH} />
           {showProcessedFrame && (
-            <ProcessedCompositeLayer offsetX={processedX} width={frameW} height={frameH} />
+            <ProcessedCompositeLayer offsetX={processedX} width={displayW} height={displayH} />
           )}
         </Stage>
       )}

@@ -7,6 +7,7 @@ import type { MaskLine } from "@/stores/img2imgStore";
 import type Konva from "konva";
 
 interface MaskLayerProps {
+  displayScale: number;
   setActiveLineNode: (node: Konva.Line | null) => void;
   setCursorNode: (node: Konva.Circle | null) => void;
 }
@@ -63,7 +64,7 @@ function renderMaskCanvas(lines: MaskLine[], color: string, w: number, h: number
  * imperatively by useMaskPaint — only committed-stroke changes cause
  * a React re-render.
  */
-export function MaskLayer({ setActiveLineNode: parentSetActiveLine, setCursorNode: parentSetCursor }: MaskLayerProps) {
+export function MaskLayer({ displayScale, setActiveLineNode: parentSetActiveLine, setCursorNode: parentSetCursor }: MaskLayerProps) {
   const maskVisible = useCanvasStore((s) => s.maskVisible);
   const maskColor = useCanvasStore((s) => s.maskColor);
   const maskLines = useImg2ImgStore((s) => s.maskLines);
@@ -101,36 +102,38 @@ export function MaskLayer({ setActiveLineNode: parentSetActiveLine, setCursorNod
 
   return (
     <Layer>
-      <Group clipFunc={(ctx) => { ctx.rect(0, 0, frameW, frameH); }}>
-        {/* Committed strokes — flat canvas, single alpha, no compounding */}
-        {maskCanvas && (
-          <KonvaImage image={maskCanvas} x={0} y={0} opacity={alpha} />
-        )}
-        {/* Active stroke — drawn live by useMaskPaint */}
-        <Line
-          ref={setActiveLineNode}
-          points={[]}
-          stroke={rgb}
-          strokeWidth={20}
-          opacity={alpha}
-          lineJoin="round"
-          lineCap="round"
+      <Group scaleX={displayScale} scaleY={displayScale}>
+        <Group clipFunc={(ctx) => { ctx.rect(0, 0, frameW, frameH); }}>
+          {/* Committed strokes — flat canvas, single alpha, no compounding */}
+          {maskCanvas && (
+            <KonvaImage image={maskCanvas} x={0} y={0} opacity={alpha} />
+          )}
+          {/* Active stroke — drawn live by useMaskPaint */}
+          <Line
+            ref={setActiveLineNode}
+            points={[]}
+            stroke={rgb}
+            strokeWidth={20}
+            opacity={alpha}
+            lineJoin="round"
+            lineCap="round"
+            visible={false}
+            listening={false}
+          />
+        </Group>
+
+        <Circle
+          ref={setCursorNode}
+          x={0}
+          y={0}
+          radius={10}
+          stroke="#fff"
+          strokeWidth={1 / displayScale}
+          dash={[4 / displayScale, 4 / displayScale]}
           visible={false}
           listening={false}
         />
       </Group>
-
-      <Circle
-        ref={setCursorNode}
-        x={0}
-        y={0}
-        radius={10}
-        stroke="#fff"
-        strokeWidth={1}
-        dash={[4, 4]}
-        visible={false}
-        listening={false}
-      />
     </Layer>
   );
 }

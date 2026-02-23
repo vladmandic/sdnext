@@ -4,7 +4,12 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
-import { resolveGenerationSize, containFit } from "@/lib/sizeCompute";
+import { resolveGenerationSize } from "@/lib/sizeCompute";
+
+/** Reference height for display-unit normalization: all frames are laid out as
+ *  if the main frame were this many units tall. Keeps UI panels consistently
+ *  sized regardless of the actual generation resolution. */
+export const REFERENCE_HEIGHT = 512;
 
 const FRAME_GAP = 48;
 /** Spacing between a frame and its associated elements (processed image, floating panel) */
@@ -34,6 +39,11 @@ export interface CanvasLayout {
   totalBounds: { minX: number; maxX: number; maxY: number };
   /** Generation size (may differ from frame size when scale/megapixel is active) */
   genSize: { width: number; height: number };
+  /** Factor to convert pixel coords → display coords: displayCoord = pixelCoord * displayScale */
+  displayScale: number;
+  /** Main frame dimensions in display units */
+  displayW: number;
+  displayH: number;
 }
 
 export function useControlFrameLayout(): CanvasLayout {
@@ -52,18 +62,24 @@ export function useControlFrameLayout(): CanvasLayout {
     const effectiveSizeMode = isAutoFit ? sizeMode : "fixed";
     const genSize = resolveGenerationSize(effectiveSizeMode, frameW, frameH, scaleFactor, megapixelTarget);
 
-    // Input frame always visible — always at x=0
+    // Normalize all layout positions to display units so that UI panels
+    // stay a consistent size regardless of the actual generation resolution.
+    const ds = frameH > 0 ? REFERENCE_HEIGHT / frameH : 1;
+    const dw = frameW * ds;
+    const dh = REFERENCE_HEIGHT;
+
+    // Input frame always visible — always at x=0 (display units)
     const inputX = 0;
-    const outputX = frameW + FRAME_GAP;
+    const outputX = dw + FRAME_GAP;
 
     // Processed composite frame: visible when backend composite or any per-unit processedImage exists
     const hasAnyProcessed = !!compositeProcessed || units.some((u) => u.enabled && !!u.processedImage);
-    const processedX = outputX + frameW + FRAME_GAP;
+    const processedX = outputX + dw + FRAME_GAP;
 
-    // Rightmost edge of main frames
+    // Rightmost edge of main frames (display units)
     const mainMaxX = hasAnyProcessed
-      ? processedX + frameW
-      : outputX + frameW;
+      ? processedX + dw
+      : outputX + dw;
 
     // Control frames: only enabled units with imageSource === "separate"
     const activeControlIndices = units
@@ -84,8 +100,9 @@ export function useControlFrameLayout(): CanvasLayout {
         }
       }
 
-      const dims = entry.unit.imageDims;
-      const size = dims ? containFit(dims.w, dims.h, frameW, frameH) : { width: frameW, height: frameH };
+      // Control frames always match the main frame size — the backend resizes
+      // control images to the generation resolution before processing.
+      const size = { width: dw, height: dh };
 
       cursorX -= size.width + FRAME_GAP;
       controlFrames.push({
@@ -102,8 +119,8 @@ export function useControlFrameLayout(): CanvasLayout {
       ? controlFrames[controlFrames.length - 1].x
       : 0;
 
-    // maxY: account for per-frame height + stacked processed slots
-    let maxY = frameH;
+    // maxY: account for per-frame height + stacked processed slots (display units)
+    let maxY = dh;
     for (const f of controlFrames) {
       const activeSlots = f.processedSlots.filter((s) => s.hasProcessed).length;
       const frameMaxY = f.height + activeSlots * (ELEMENT_GAP + f.height);
@@ -119,6 +136,9 @@ export function useControlFrameLayout(): CanvasLayout {
       controlFrames,
       totalBounds: { minX, maxX: mainMaxX, maxY },
       genSize,
+      displayScale: ds,
+      displayW: dw,
+      displayH: dh,
     };
   }, [units, compositeProcessed, frameW, frameH, hasLayers, autoFitFrame, sizeMode, scaleFactor, megapixelTarget]);
 }
