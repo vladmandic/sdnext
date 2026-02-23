@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Layer, Rect, Label, Tag, Text, Image as KonvaImage, Group, Transformer } from "react-konva";
+import { Layer, Rect, Label, Tag, Text, Image as KonvaImage, Group, Transformer, Line } from "react-konva";
 import { useControlStore } from "@/stores/controlStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { contrastText } from "@/lib/utils";
 import { computeFit, type FitMode, type FreeTransform } from "@/lib/image";
+import { useSnap } from "@/canvas/tools/useSnap";
 import { ELEMENT_GAP, type ControlFramePosition } from "@/canvas/useControlFrameLayout";
 import type Konva from "konva";
 
@@ -242,6 +243,7 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, freeTra
   const setFreeTransform = useControlStore((s) => s.setFreeTransform);
   const freeImageRef = useRef<Konva.Image | null>(null);
   const trRef = useRef<Konva.Transformer | null>(null);
+  const snap = useSnap(frame.width, frame.height, trRef, frame.x, frame.y);
 
   const isFree = fitMode === "free" && hasImage && image;
   const isSelected = selectedControlFrame === frame.unitIndex;
@@ -268,6 +270,7 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, freeTra
   }, [onClick, frame.unitIndex, hasImage]);
 
   const handleDragEnd = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
+    snap.clearGuides();
     setFreeTransform(frame.unitIndex, {
       x: e.target.x() - frame.x,
       y: e.target.y() - frame.y,
@@ -275,9 +278,10 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, freeTra
       scaleY: e.target.scaleY(),
       rotation: e.target.rotation(),
     });
-  }, [setFreeTransform, frame.unitIndex, frame.x, frame.y]);
+  }, [snap, setFreeTransform, frame.unitIndex, frame.x, frame.y]);
 
   const handleTransformEnd = useCallback((e: Konva.KonvaEventObject<Event>) => {
+    snap.clearGuides();
     const node = e.target as Konva.Image;
     setFreeTransform(frame.unitIndex, {
       x: node.x() - frame.x,
@@ -286,7 +290,7 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, freeTra
       scaleY: node.scaleY(),
       rotation: node.rotation(),
     });
-  }, [setFreeTransform, frame.unitIndex, frame.x, frame.y]);
+  }, [snap, setFreeTransform, frame.unitIndex, frame.x, frame.y]);
 
   const imgFit = (image && fitMode !== "free") ? computeFit(image.naturalWidth, image.naturalHeight, frame.x, frame.y, frame.width, frame.height, fitMode) : null;
 
@@ -328,6 +332,7 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, freeTra
             draggable={activeTool === "move"}
             onClick={handleClick}
             onTap={handleTap}
+            onDragMove={snap.handleDragMove}
             onDragEnd={handleDragEnd}
             onTransformEnd={handleTransformEnd}
           />
@@ -337,8 +342,19 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, freeTra
               keepRatio={false}
               enabledAnchors={["top-left", "top-right", "bottom-left", "bottom-right", "top-center", "bottom-center", "middle-left", "middle-right"]}
               boundBoxFunc={(_oldBox, newBox) => newBox}
+              onTransform={snap.handleTransform}
             />
           )}
+          {snap.guides.map((g, i) => (
+            <Line
+              key={i}
+              points={g.orientation === "v" ? [g.pos, -5000, g.pos, 5000] : [-5000, g.pos, 5000, g.pos]}
+              stroke="#22d3ee"
+              strokeWidth={1}
+              strokeScaleEnabled={false}
+              listening={false}
+            />
+          ))}
         </Group>
       ) : hasImage && image && imgFit ? (
         // Auto-fit modes: contain/cover/fill

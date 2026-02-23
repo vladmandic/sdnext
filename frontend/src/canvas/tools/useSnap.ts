@@ -46,15 +46,15 @@ const anchorFreeEdges: Record<string, { left?: boolean; right?: boolean; top?: b
   "bottom-right": { right: true, bottom: true },
 };
 
-export function useSnap(frameW: number, frameH: number, trRef: React.RefObject<Konva.Transformer | null>) {
+export function useSnap(frameW: number, frameH: number, trRef: React.RefObject<Konva.Transformer | null>, frameX = 0, frameY = 0) {
   const [guides, setGuides] = useState<Guide[]>([]);
   const scaleRef = useRef(1);
 
   const viewportScale = useCanvasStore((s) => s.viewport.scale);
   useEffect(() => { scaleRef.current = viewportScale; }, [viewportScale]);
 
-  const xTargets = useMemo(() => [0, frameW / 2, frameW], [frameW]);
-  const yTargets = useMemo(() => [0, frameH / 2, frameH], [frameH]);
+  const xTargets = useMemo(() => [frameX, frameX + frameW / 2, frameX + frameW], [frameX, frameW]);
+  const yTargets = useMemo(() => [frameY, frameY + frameH / 2, frameY + frameH], [frameY, frameH]);
 
   const handleDragMove = useCallback((e: Konva.KonvaEventObject<DragEvent>) => {
     const node = e.target as Konva.Node;
