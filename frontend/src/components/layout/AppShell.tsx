@@ -31,7 +31,7 @@ export function AppShell() {
           {/* Left panel */}
           <aside
             className={cn(
-              "border-r border-border bg-card flex-shrink-0 overflow-y-auto transition-[width] duration-200",
+              "border-r border-border bg-card flex-shrink-0 overflow-hidden transition-[width] duration-200",
               leftHidden && "w-0 border-r-0",
             )}
             style={{ width: leftHidden ? 0 : leftPanelWidth }}

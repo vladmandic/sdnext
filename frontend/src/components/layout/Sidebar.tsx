@@ -25,7 +25,7 @@ export function Sidebar() {
     <div
       className={cn(
         "flex bg-sidebar border-r border-sidebar-border transition-[width] duration-200 flex-shrink-0",
-        collapsed ? "w-0 overflow-hidden" : hasSubTabs ? "w-[170px]" : "w-14",
+        collapsed ? "w-0 overflow-hidden" : !hasSubTabs && "w-14",
       )}
     >
       {/* Column 1: Primary nav icons */}
@@ -103,7 +103,7 @@ export function Sidebar() {
 
       {/* Column 2: Sub-tab labels (only for views with sub-tabs) */}
       {hasSubTabs && (
-        <div className="flex flex-col w-[114px] border-l border-sidebar-border py-2 overflow-y-auto">
+        <div className="flex flex-col border-l border-sidebar-border py-2 overflow-y-auto">
           {IMAGES_SUB_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;
@@ -120,13 +120,17 @@ export function Sidebar() {
                   }
                 }}
                 className={cn(
-                  "flex items-center gap-2 px-3 py-1.5 text-xs transition-colors text-left",
+                  "flex items-center gap-2 px-3 py-1.5 text-xs transition-colors text-left whitespace-nowrap",
                   "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
                   isActive && "bg-sidebar-accent text-primary font-medium",
                 )}
               >
                 <Icon size={14} className="flex-shrink-0" />
-                {tab.label}
+                <span className="relative">
+                  {tab.label}
+                  {/* Invisible bold copy reserves width so the column doesn't shift on selection */}
+                  <span className="font-medium invisible block h-0 overflow-hidden" aria-hidden>{tab.label}</span>
+                </span>
               </button>
             );
           })}
