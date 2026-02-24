@@ -14,6 +14,12 @@ def execute_generate(params: dict, job_id: str) -> dict:
     inits = [helpers.decode_base64_to_image(x) for x in params.get('inits', [])] if params.get('inits') else None
     mask = helpers.decode_base64_to_image(params['mask']) if params.get('mask') else None
 
+    # Merge asset unit images (init_control) into inits
+    init_control = params.get('init_control')
+    if init_control:
+        extra_inits = [helpers.decode_base64_to_image(x) for x in init_control]
+        inits = (inits or []) + extra_inits
+
     # Build units from control dicts
     units = []
     control_dicts = params.get('control') or []
@@ -57,7 +63,7 @@ def execute_generate(params: dict, job_id: str) -> dict:
 
     # Build args dict for control_run, only passing params it accepts
     _valid_params = set(inspect.signature(control_run_module.control_run).parameters.keys())
-    skip_keys = {'type', 'inputs', 'inits', 'mask', 'control', 'ip_adapter', 'save_images', 'sampler_name', 'script_name', 'script_args', 'alwayson_scripts', 'extra', 'priority'}
+    skip_keys = {'type', 'inputs', 'inits', 'mask', 'control', 'init_control', 'ip_adapter', 'save_images', 'sampler_name', 'script_name', 'script_args', 'alwayson_scripts', 'extra', 'priority'}
     run_args = {k: v for k, v in params.items() if k in _valid_params and k not in skip_keys}
     run_args['sampler_index'] = sampler_index
     run_args['is_generator'] = True
