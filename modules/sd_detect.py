@@ -126,7 +126,7 @@ def guess_by_name(fn, current_guess):
         new_guess = 'Kandinsky 2.2'
     elif 'kandinsky-3' in fn.lower():
         new_guess = 'Kandinsky 3.0'
-    elif 'kandinsky-5.0' in fn.lower():
+    elif 'kandinsky-5.0' in fn.lower() and '2i' not in fn.lower():
         new_guess = 'Kandinsky 5.0'
     elif 'hunyuanimage3' in fn.lower() or 'hunyuanimage-3' in fn.lower():
         new_guess = 'HunyuanImage3'
