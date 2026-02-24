@@ -1,5 +1,5 @@
 import { useJobQueueStore, selectRunningJob, selectPendingCount, selectHasActiveJobs } from "@/stores/jobStore";
-import { useStatus } from "@/api/hooks/useGeneration";
+import { useBackendStatusStore } from "@/stores/backendStatusStore";
 import { useMemory } from "@/api/hooks/useServer";
 import { formatBytes, formatDuration } from "@/lib/utils";
 import { LoadedModelsPanel } from "@/components/layout/LoadedModelsPanel";
@@ -16,30 +16,49 @@ export function StatusBar() {
   const runningJob = useJobQueueStore(selectRunningJob);
   const pendingCount = useJobQueueStore(selectPendingCount);
   const hasActive = useJobQueueStore(selectHasActiveJobs);
-  const { data: status } = useStatus();
   const { data: memory } = useMemory();
 
-  const backendIdle = !status || status.status === "idle" || status.status === "interrupted" || status.status === "skipped";
+  const bsStatus = useBackendStatusStore((s) => s.status);
+  const bsCurrent = useBackendStatusStore((s) => s.current);
+  const bsTask = useBackendStatusStore((s) => s.task);
+  const bsTextinfo = useBackendStatusStore((s) => s.textinfo);
+  const bsStep = useBackendStatusStore((s) => s.step);
+  const bsSteps = useBackendStatusStore((s) => s.steps);
+  const bsProgress = useBackendStatusStore((s) => s.progress);
+  const bsEta = useBackendStatusStore((s) => s.eta);
+  const bsUptime = useBackendStatusStore((s) => s.uptime);
+  const wsConnected = useBackendStatusStore((s) => s.connected);
+
+  const backendIdle = !bsStatus || bsStatus === "idle" || bsStatus === "interrupted" || bsStatus === "skipped";
   const isIdle = !hasActive && backendIdle;
 
-  const progress = runningJob?.progress || status?.progress || 0;
+  const progress = runningJob?.progress || bsProgress || 0;
   const progressPct = !isIdle ? Math.round(progress * 100) : 0;
-  const step = runningJob?.step || status?.step || 0;
-  const steps = runningJob?.steps || status?.steps || 0;
-  const eta = runningJob?.eta || status?.eta || 0;
+  const step = runningJob?.step || bsStep || 0;
+  const steps = runningJob?.steps || bsSteps || 0;
+  const eta = runningJob?.eta || bsEta || 0;
 
-  const phase = status?.current || status?.task || "";
+  const phase = bsCurrent || bsTask || "";
+  const textinfo = runningJob?.textinfo || bsTextinfo || "";
   const domainLabel = runningJob ? (DOMAIN_LABELS[runningJob.domain] ?? "Working") : "Working";
   const taskName = phase || domainLabel;
+
+  // Connection indicator: green=idle, amber=active, red=disconnected
+  const dotClass = !wsConnected
+    ? "bg-red-500"
+    : isIdle
+      ? "bg-emerald-500"
+      : "bg-amber-500 animate-pulse";
 
   return (
     <footer className="flex items-center h-6 px-3 gap-4 border-t border-border bg-card text-2xs text-muted-foreground flex-shrink-0">
       {/* Status */}
       <span className="flex items-center gap-1.5">
-        <span
-          className={`inline-block w-1.5 h-1.5 rounded-full ${isIdle ? "bg-emerald-500" : "bg-amber-500 animate-pulse"}`}
-        />
+        <span className={`inline-block w-1.5 h-1.5 rounded-full ${dotClass}`} />
         {isIdle ? "Idle" : taskName}
+        {!isIdle && textinfo && (
+          <span className="text-muted-foreground/70">— {textinfo}</span>
+        )}
       </span>
 
       {/* Progress */}
@@ -87,7 +106,7 @@ export function StatusBar() {
       )}
 
       {/* Uptime */}
-      {status?.uptime != null && <span>{formatDuration(status.uptime)}</span>}
+      {bsUptime > 0 && <span>{formatDuration(bsUptime)}</span>}
     </footer>
   );
 }

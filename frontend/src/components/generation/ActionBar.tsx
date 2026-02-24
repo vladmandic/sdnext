@@ -68,6 +68,8 @@ export const ActionBar = memo(function ActionBar() {
 
   const progressPct = Math.round(progress * 100);
   const canSubmit = hasLayers || !!prompt;
+  const phase = runningJob?.domain === "generate" ? runningJob.task : "";
+  const phaseLabel = phase || "Generating";
 
   return (
     <div className="flex items-center gap-2">
@@ -80,8 +82,10 @@ export const ActionBar = memo(function ActionBar() {
         size="sm"
         className="flex-1"
       >
-        <Play size={14} />
-        Generate{pendingCount > 0 ? ` [${pendingCount}]` : ""}
+        {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+        {isGenerating
+          ? `${phaseLabel}${progressPct > 0 ? ` ${progressPct}%` : ""}${pendingCount > 0 ? ` [+${pendingCount}]` : ""}`
+          : `Generate${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
       </Button>
 
       {/* Stop button */}
