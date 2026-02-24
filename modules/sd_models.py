@@ -456,10 +456,6 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_nextstep import load_nextstep
             sd_model = load_nextstep(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
             allow_post_quant = False
-        elif model_type in ['hdm']:
-            from pipelines.model_hdm import load_hdm
-            sd_model = load_hdm(checkpoint_info, diffusers_load_config)
-            allow_post_quant = False
         elif model_type in ['HunyuanImage']:
             from pipelines.model_hyimage import load_hyimage
             sd_model = load_hyimage(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
