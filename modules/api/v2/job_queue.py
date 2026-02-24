@@ -161,14 +161,26 @@ class JobQueue:
     def _progress_poller(self, job_id: str, stop_event: threading.Event) -> None:
         from modules import shared
         last_step = -1
+        last_job = ""
+        last_textinfo = None
         last_preview_id = -1
         while not stop_event.is_set():
             try:
                 if self._current_job_id != job_id:
                     break
                 state = shared.state
-                if state.sampling_step != last_step:
-                    last_step = state.sampling_step
+                current_step = state.sampling_step
+                current_job = state.job
+                current_textinfo = state.textinfo
+                changed = (
+                    current_step != last_step
+                    or current_job != last_job
+                    or current_textinfo != last_textinfo
+                )
+                if changed:
+                    last_step = current_step
+                    last_job = current_job
+                    last_textinfo = current_textinfo
                     status = state.status()
                     step = status.step if hasattr(status, 'step') else getattr(status, 'sampling_step', 0)
                     steps = status.steps if hasattr(status, 'steps') else getattr(status, 'sampling_steps', 0)
@@ -180,6 +192,8 @@ class JobQueue:
                         'steps': steps,
                         'progress': progress_val,
                         'eta': eta_val,
+                        'task': current_job,
+                        'textinfo': current_textinfo,
                     }
                     if self.store is not None:
                         self.store.update_progress(job_id, progress_val, step, steps)

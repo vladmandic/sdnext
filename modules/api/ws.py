@@ -40,22 +40,38 @@ manager = ConnectionManager()
 async def push_progress(ws: WebSocket):
     from modules import shared
     last_step = -1
+    last_job = ""
+    last_textinfo = None
     last_preview_id = -1
     last_download_snapshot = None
     while ws.client_state == WebSocketState.CONNECTED:
         try:
             state = shared.state
-            if state.job_count > 0 and state.sampling_step != last_step:
-                last_step = state.sampling_step
+            current_step = state.sampling_step
+            current_job = state.job
+            current_textinfo = state.textinfo
+            changed = (
+                current_step != last_step
+                or current_job != last_job
+                or current_textinfo != last_textinfo
+            )
+            if state.job_count > 0 and changed:
+                last_step = current_step
+                last_job = current_job
+                last_textinfo = current_textinfo
                 status = state.status()
-                await manager.send_json(ws, {"type": "progress", "data": status.dict() if hasattr(status, 'dict') else status.model_dump()})
+                data = status.dict() if hasattr(status, 'dict') else status.model_dump()
+                data['textinfo'] = current_textinfo
+                await manager.send_json(ws, {"type": "progress", "data": data})
                 if state.id_live_preview != last_preview_id and state.current_image is not None:
                     last_preview_id = state.id_live_preview
                     buf = io.BytesIO()
                     state.current_image.save(buf, format="JPEG", quality=75)
                     await manager.send_bytes(ws, buf.getvalue())
-            elif state.job_count == 0 and last_step != -1:
+            elif state.job_count == 0 and (last_step != -1 or last_job != ""):
                 last_step = -1
+                last_job = ""
+                last_textinfo = None
                 status = state.status()
                 await manager.send_json(ws, {"type": "status", "data": status.dict() if hasattr(status, 'dict') else status.model_dump()})
             # Push download progress when downloads are active
