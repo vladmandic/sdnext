@@ -7,7 +7,6 @@ interface VlmSettings {
   task: string;
   customPrompt: string;
   system: string;
-  includeAnnotated: boolean;
   maxTokens: number;
   temperature: number;
   topK: number;
@@ -63,7 +62,6 @@ export const useCaptionSettingsStore = create<CaptionSettingsState>()(
         task: "Normal Caption",
         customPrompt: "",
         system: VLM_SYSTEM_DEFAULT,
-        includeAnnotated: false,
         maxTokens: 512,
         temperature: 0.8,
         topK: 0,

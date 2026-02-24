@@ -42,7 +42,7 @@ export function CaptionPanel() {
           question: s.task,
           prompt: CUSTOM_PROMPT_TASKS.includes(s.task) ? s.customPrompt : undefined,
           system: s.system,
-          include_annotated: s.includeAnnotated,
+          include_annotated: true,
           max_tokens: s.maxTokens,
           temperature: s.temperature,
           top_k: s.topK,

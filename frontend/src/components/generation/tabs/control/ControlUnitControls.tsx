@@ -16,6 +16,12 @@ import { X, Play, Loader2 } from "lucide-react";
 import { Combobox } from "@/components/ui/combobox";
 import { toast } from "sonner";
 
+const COLORMAPS = ["None", "autumn", "bone", "jet", "winter", "rainbow", "ocean", "summer", "spring", "cool", "hsv", "pink", "hot", "parula", "magma", "inferno", "plasma", "viridis", "cividis", "twilight", "shifted", "turbo", "deepgreen"];
+
+const STRING_PARAM_OPTIONS: Record<string, string[]> = {
+  color_map: COLORMAPS,
+};
+
 /** Infer reasonable slider range from a default value when the API provides no metadata. */
 function inferSliderRange(defaultValue: number): { min: number; max: number; step: number } {
   if (Number.isInteger(defaultValue)) {
@@ -204,6 +210,23 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
               const numDef = typeof def === "number" ? def : (typeof value === "number" ? value : 0);
               const inferred = inferSliderRange(numDef);
               return <ParamSlider key={key} label={key} value={typeof value === "number" ? value : numDef} onChange={(v) => handleParamChange(key, v)} min={inferred.min} max={inferred.max} step={inferred.step} />;
+            }
+            if (typeof value === "string" || typeof def === "string") {
+              const options = STRING_PARAM_OPTIONS[key];
+              if (options) {
+                return (
+                  <div key={key} className="flex items-center gap-1.5">
+                    <span className="text-2xs text-muted-foreground shrink-0">{key}</span>
+                    <Combobox value={String(value)} onValueChange={(v) => handleParamChange(key, v)} options={options} className="h-6 text-2xs flex-1" />
+                  </div>
+                );
+              }
+              return (
+                <div key={key} className="flex items-center gap-1.5">
+                  <span className="text-2xs text-muted-foreground shrink-0">{key}</span>
+                  <input type="text" value={String(value)} onChange={(e) => handleParamChange(key, e.target.value)} className="h-6 text-2xs flex-1 rounded border bg-background px-1.5" />
+                </div>
+              );
             }
             return null;
           })}
