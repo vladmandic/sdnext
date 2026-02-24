@@ -85,6 +85,29 @@ def get_status(key: str, env_var: str | None = None) -> dict:
     return {'configured': False, 'source': 'none', 'masked': ''}
 
 
+class SecretStr(str):
+    """A str subclass that redacts itself in repr() but passes the real value to APIs.
+
+    When a dict containing a SecretStr is printed (e.g. in f-string log
+    messages like ``f"config={some_dict}"``), Python calls ``repr()`` on
+    each value, so the token appears as ``'***'`` in logs.  Direct string
+    operations (``f"Bearer {token}"``, concatenation, header building)
+    use the real value via the normal ``str`` interface.
+    """
+
+    def __repr__(self):
+        return "'***'"
+
+
+_REDACT_KEYS = frozenset({'token', 'api_key', 'api_token', 'access_token', 'secret', 'password', 'authorization'})
+_REDACTED = '***'
+
+
+def sanitize_dict(d: dict) -> dict:
+    """Return a shallow copy of *d* with secret-looking values replaced by '***'."""
+    return {k: (_REDACTED if k in _REDACT_KEYS and v else v) for k, v in d.items()}
+
+
 def migrate_from_config(config_data: dict, secret_keys: dict[str, str | None]) -> list[str]:
     """One-time migration of secrets from config.json data.
 

@@ -5,6 +5,7 @@ import diffusers
 import transformers
 from modules import shared, devices, errors, sd_models, model_quant
 from modules.logger import log
+from modules.secrets_manager import sanitize_dict, SecretStr
 
 
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
@@ -32,6 +33,9 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
         load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True, allow_quant=allow_quant, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
         quant_type = model_quant.get_quant_type(quant_args)
         dtype = dtype or devices.dtype
+        hf_token = shared.opts.huggingface_token
+        if hf_token and 'token' not in load_args:
+            load_args['token'] = SecretStr(hf_token)
 
         local_file = None
         if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
@@ -42,7 +46,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 local_file = sd_unet.unet_dict[shared.opts.sd_unet]
 
         if local_file is not None and local_file.lower().endswith('.gguf'):
-            log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("diffusers")} args={load_args}')
+            log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("diffusers")} args={sanitize_dict(load_args)}')
             from modules import ggml
             ggml.install_gguf()
             loader = cls_name.from_single_file if hasattr(cls_name, 'from_single_file') else cls_name.from_pretrained
@@ -54,7 +58,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
             )
             transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
-            log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("diffusers")} args={load_args}')
+            log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("diffusers")} args={sanitize_dict(load_args)}')
             if dtype is not None:
                 load_args['torch_dtype'] = dtype
             load_args.pop('device_map', None) # single-file uses different syntax
@@ -66,7 +70,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 **quant_args,
             )
         else:
-            log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" loader={_loader("diffusers")} args={load_args}')
+            log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" loader={_loader("diffusers")} args={sanitize_dict(load_args)}')
             if 'sdnq-' in repo_id.lower():
                 quant_args = {}
             if dtype is not None:

@@ -599,7 +599,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('huggingface', "Huggingface"), {
         "huggingface_sep": OptionInfo("<h2>Huggingface</h2>", "", gr.HTML),
         "diffuser_cache_config": OptionInfo(True, "Use cached model config when available"),
-        "huggingface_token": OptionInfo('', 'HuggingFace token', gr.Textbox, {"lines": 2}),
+        "huggingface_token": OptionInfo('', 'HuggingFace token', gr.Textbox, {"lines": 2}, secret=True, env_var='HF_TOKEN'),
         "hf_transfer_mode": OptionInfo("rust", "HuggingFace download method", gr.Radio, {"choices": ['requests', 'rust', 'xet']}),
         "huggingface_mirror": OptionInfo('', 'HuggingFace mirror', gr.Textbox),
         "offline_mode": OptionInfo(False, 'Force offline mode', gr.Checkbox),
