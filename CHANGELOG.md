@@ -70,6 +70,8 @@ TBD
 - **Obsolete**
   - remove `normalbae` pre-processor  
   - remove `dwpose` pre-processor  
+  - remove `hdm` model support  
+  - remove `xadapter` script  
 - **Checks**
   - switch to `pyproject.toml` for tool configs  
   - update `lint` rules, thanks @awsr  
