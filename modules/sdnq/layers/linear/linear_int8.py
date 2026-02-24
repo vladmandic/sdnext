@@ -1,6 +1,5 @@
 # pylint: disable=relative-beyond-top-level,redefined-builtin,protected-access
 
-
 import torch
 
 from ...common import compile_func, int_mm_func # noqa: TID252

@@ -648,11 +648,11 @@ def sdnq_post_load_quant(
     dequantize_fp32: bool = False,
     non_blocking: bool = False,
     add_skip_keys:bool = True,
-    quantization_device: torch.device | None = None,
-    return_device: torch.device | None = None,
-    modules_to_not_convert: list[str] | None = None,
-    modules_dtype_dict: dict[str, list[str]] | None = None,
-    modules_quant_config: dict[str, dict] | None = None,
+    quantization_device: torch.device = None,
+    return_device: torch.device = None,
+    modules_to_not_convert: list[str] = None,
+    modules_dtype_dict: dict[str, list[str]] = None,
+    modules_quant_config: dict[str, dict] = None,
 ):
     if modules_to_not_convert is None:
         modules_to_not_convert = []
@@ -1067,11 +1067,11 @@ class SDNQConfig(QuantizationConfigMixin):
         dequantize_fp32: bool = False,
         non_blocking: bool = False,
         add_skip_keys: bool = True,
-        quantization_device: torch.device | None = None,
-        return_device: torch.device | None = None,
-        modules_to_not_convert: list[str] | None = None,
-        modules_dtype_dict: dict[str, list[str]] | None = None,
-        modules_quant_config: dict[str, dict] | None = None,
+        quantization_device: torch.device = None,
+        return_device: torch.device = None,
+        modules_to_not_convert: list[str] = None,
+        modules_dtype_dict: dict[str, list[str]] = None,
+        modules_quant_config: dict[str, dict] = None,
         is_training: bool = False,
         **kwargs, # pylint: disable=unused-argument
     ):

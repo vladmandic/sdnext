@@ -95,7 +95,7 @@ def unpack_float(x: torch.Tensor, shape: torch.Size, weights_dtype: str) -> torc
         ),
     )
 
-    overflow_mask = (~(-(1 << (22 + exponent_bits))) | -1073741824)
+    overflow_mask = (~(-(1 << (22 + exponent_bits))) | 1090519039)
     x = torch.where(torch.bitwise_and(x, overflow_mask).to(dtype=torch.bool), x, 0)
     x = x.view(torch.float32)
 

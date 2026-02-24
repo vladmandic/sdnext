@@ -1,6 +1,5 @@
 # pylint: disable=redefined-builtin,no-member,protected-access
 
-
 import torch
 
 from .common import dtype_dict
@@ -14,7 +13,7 @@ def pack_int_asymetric(tensor: torch.CharTensor, weights_dtype: str) -> torch.By
     return packed_int_function_dict[weights_dtype]["pack"](tensor.to(dtype=dtype_dict[weights_dtype]["storage_dtype"]))
 
 
-def unpack_int_symetric(packed_tensor: torch.ByteTensor, shape: torch.Size, weights_dtype: str, dtype: torch.dtype | None = None) -> torch.CharTensor:
+def unpack_int_symetric(packed_tensor: torch.ByteTensor, shape: torch.Size, weights_dtype: str, dtype: torch.dtype = None) -> torch.CharTensor:
     if dtype is None:
         dtype = dtype_dict[weights_dtype]["torch_dtype"]
     return packed_int_function_dict[weights_dtype]["unpack"](packed_tensor, shape).to(dtype=dtype).add_(dtype_dict[weights_dtype]["min"])

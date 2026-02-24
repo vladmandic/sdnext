@@ -12,7 +12,7 @@ from .layers import SDNQLayer
 
 
 @devices.inference_context()
-def dequantize_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None, dtype: torch.dtype | None = None, result_shape: torch.Size | None = None, skip_quantized_matmul: bool = False) -> torch.FloatTensor:
+def dequantize_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None, dtype: torch.dtype = None, result_shape: torch.Size = None, skip_quantized_matmul: bool = False) -> torch.FloatTensor:
     result = torch.addcmul(zero_point, weight.to(dtype=scale.dtype), scale)
     if result_shape is not None:
         result = result.view(result_shape)
@@ -33,7 +33,7 @@ def dequantize_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, ze
 
 
 @devices.inference_context()
-def dequantize_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None, dtype: torch.dtype | None = None, result_shape: torch.Size | None = None, skip_quantized_matmul: bool = False, re_quantize_for_matmul: bool = False) -> torch.FloatTensor:
+def dequantize_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None, dtype: torch.dtype = None, result_shape: torch.Size = None, skip_quantized_matmul: bool = False, re_quantize_for_matmul: bool = False) -> torch.FloatTensor:
     result = weight.to(dtype=scale.dtype).mul_(scale)
     if skip_quantized_matmul and not re_quantize_for_matmul:
         result.t_()
@@ -56,7 +56,7 @@ def dequantize_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, svd
 
 
 @devices.inference_context()
-def dequantize_symmetric_with_bias(weight: torch.CharTensor, scale: torch.FloatTensor, bias: torch.FloatTensor, dtype: torch.dtype | None = None, result_shape: torch.Size | None = None) -> torch.FloatTensor:
+def dequantize_symmetric_with_bias(weight: torch.CharTensor, scale: torch.FloatTensor, bias: torch.FloatTensor, dtype: torch.dtype = None, result_shape: torch.Size = None) -> torch.FloatTensor:
     result = torch.addcmul(bias, weight.to(dtype=scale.dtype), scale)
     if result_shape is not None:
         result = result.view(result_shape)
@@ -66,22 +66,22 @@ def dequantize_symmetric_with_bias(weight: torch.CharTensor, scale: torch.FloatT
 
 
 @devices.inference_context()
-def dequantize_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None, dtype: torch.dtype | None = None, result_shape: torch.Size | None = None, skip_quantized_matmul: bool = False) -> torch.FloatTensor:
+def dequantize_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None, dtype: torch.dtype = None, result_shape: torch.Size = None, skip_quantized_matmul: bool = False) -> torch.FloatTensor:
     return dequantize_asymmetric(unpack_int_asymetric(weight, shape, weights_dtype), scale, zero_point, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul)
 
 
 @devices.inference_context()
-def dequantize_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None, dtype: torch.dtype | None = None, result_shape: torch.Size | None = None, skip_quantized_matmul: bool = False, re_quantize_for_matmul: bool = False) -> torch.FloatTensor:
+def dequantize_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None, dtype: torch.dtype = None, result_shape: torch.Size = None, skip_quantized_matmul: bool = False, re_quantize_for_matmul: bool = False) -> torch.FloatTensor:
     return dequantize_symmetric(unpack_int_symetric(weight, shape, weights_dtype, dtype=scale.dtype), scale, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
 
 
 @devices.inference_context()
-def dequantize_packed_float_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None, dtype: torch.dtype | None = None, result_shape: torch.Size | None = None, skip_quantized_matmul: bool = False) -> torch.FloatTensor:
+def dequantize_packed_float_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None, dtype: torch.dtype = None, result_shape: torch.Size = None, skip_quantized_matmul: bool = False) -> torch.FloatTensor:
     return dequantize_asymmetric(unpack_float(weight, shape, weights_dtype), scale, zero_point, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul)
 
 
 @devices.inference_context()
-def dequantize_packed_float_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None, dtype: torch.dtype | None = None, result_shape: torch.Size | None = None, skip_quantized_matmul: bool = False, re_quantize_for_matmul: bool = False) -> torch.FloatTensor:
+def dequantize_packed_float_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None, dtype: torch.dtype = None, result_shape: torch.Size = None, skip_quantized_matmul: bool = False, re_quantize_for_matmul: bool = False) -> torch.FloatTensor:
     return dequantize_symmetric(unpack_float(weight, shape, weights_dtype), scale, svd_up=svd_up, svd_down=svd_down, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
 
 
@@ -140,7 +140,7 @@ def re_quantize_fp_mm(weight: torch.FloatTensor, matmul_dtype: str = "float8_e4m
 
 
 @devices.inference_context()
-def re_quantize_matmul_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, matmul_dtype: str, result_shape: torch.Size | None = None, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None) -> tuple[torch.Tensor, torch.FloatTensor]:
+def re_quantize_matmul_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, matmul_dtype: str, result_shape: torch.Size = None, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None) -> tuple[torch.Tensor, torch.FloatTensor]:
     weight = dequantize_asymmetric(weight, scale, zero_point, svd_up=svd_up, svd_down=svd_down, dtype=scale.dtype, result_shape=result_shape)
     if dtype_dict[matmul_dtype]["is_integer"]:
         return re_quantize_int_mm(weight)
@@ -149,7 +149,7 @@ def re_quantize_matmul_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTe
 
 
 @devices.inference_context()
-def re_quantize_matmul_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, matmul_dtype: str, result_shape: torch.Size | None = None, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None) -> tuple[torch.Tensor, torch.FloatTensor]:
+def re_quantize_matmul_symmetric(weight: torch.CharTensor, scale: torch.FloatTensor, matmul_dtype: str, result_shape: torch.Size = None, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None) -> tuple[torch.Tensor, torch.FloatTensor]:
     weight = dequantize_symmetric(weight, scale, svd_up=svd_up, svd_down=svd_down, dtype=scale.dtype, result_shape=result_shape)
     if dtype_dict[matmul_dtype]["is_integer"]:
         return re_quantize_int_mm(weight)
@@ -158,22 +158,22 @@ def re_quantize_matmul_symmetric(weight: torch.CharTensor, scale: torch.FloatTen
 
 
 @devices.inference_context()
-def re_quantize_matmul_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, matmul_dtype: str, result_shape: torch.Size, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None) -> tuple[torch.Tensor, torch.FloatTensor]:
+def re_quantize_matmul_packed_int_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, matmul_dtype: str, result_shape: torch.Size, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None) -> tuple[torch.Tensor, torch.FloatTensor]:
     return re_quantize_matmul_asymmetric(unpack_int_asymetric(weight, shape, weights_dtype), scale, zero_point, matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=result_shape)
 
 
 @devices.inference_context()
-def re_quantize_matmul_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, matmul_dtype: str, result_shape: torch.Size | None = None, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None) -> tuple[torch.Tensor, torch.FloatTensor]:
+def re_quantize_matmul_packed_int_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, matmul_dtype: str, result_shape: torch.Size = None, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None) -> tuple[torch.Tensor, torch.FloatTensor]:
     return re_quantize_matmul_symmetric(unpack_int_symetric(weight, shape, weights_dtype, dtype=scale.dtype), scale, matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=result_shape)
 
 
 @devices.inference_context()
-def re_quantize_matmul_packed_float_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, matmul_dtype: str, result_shape: torch.Size, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None) -> tuple[torch.Tensor, torch.FloatTensor]:
+def re_quantize_matmul_packed_float_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, matmul_dtype: str, result_shape: torch.Size, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None) -> tuple[torch.Tensor, torch.FloatTensor]:
     return re_quantize_matmul_asymmetric(unpack_float(weight, shape, weights_dtype), scale, zero_point, matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=result_shape)
 
 
 @devices.inference_context()
-def re_quantize_matmul_packed_float_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, matmul_dtype: str, result_shape: torch.Size | None = None, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None) -> tuple[torch.Tensor, torch.FloatTensor]:
+def re_quantize_matmul_packed_float_symmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, shape: torch.Size, weights_dtype: str, matmul_dtype: str, result_shape: torch.Size = None, svd_up: torch.FloatTensor = None, svd_down: torch.FloatTensor = None) -> tuple[torch.Tensor, torch.FloatTensor]:
     return re_quantize_matmul_symmetric(unpack_float(weight, shape, weights_dtype), scale, matmul_dtype, svd_up=svd_up, svd_down=svd_down, result_shape=result_shape)
 
 

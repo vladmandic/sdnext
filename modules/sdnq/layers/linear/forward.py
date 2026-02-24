@@ -1,6 +1,5 @@
 # pylint: disable=relative-beyond-top-level,redefined-builtin,protected-access
 
-
 import torch
 
 from ...common import use_contiguous_mm # noqa: TID252
