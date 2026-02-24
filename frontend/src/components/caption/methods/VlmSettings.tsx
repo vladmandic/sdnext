@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { Lightbulb } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
@@ -8,6 +9,8 @@ import { ParamSection } from "@/components/generation/ParamSection";
 import { useCaptionSettingsStore } from "@/stores/captionSettingsStore";
 import { useVlmModels } from "@/api/hooks/useCaption";
 import { VLM_DEFAULT, CUSTOM_PROMPT_TASKS } from "@/lib/captionModels";
+import { stripPua } from "@/lib/utils";
+import type { VlmModel } from "@/api/types/caption";
 
 export function VlmSettings() {
   const s = useCaptionSettingsStore((st) => st.vlm);
@@ -17,6 +20,23 @@ export function VlmSettings() {
   const modelNames = useMemo(() => models?.map((m) => m.name) ?? [], [models]);
   const selectedModel = useMemo(() => models?.find((m) => m.name === s.model), [models, s.model]);
   const prompts = useMemo(() => selectedModel?.prompts ?? ["Use Prompt", "Short Caption", "Normal Caption", "Long Caption"], [selectedModel]);
+
+  const capsByName = useMemo(() => {
+    const map = new Map<string, VlmModel>();
+    for (const m of models ?? []) map.set(m.name, m);
+    return map;
+  }, [models]);
+
+  const renderModelLabel = useCallback((value: string, label: string) => {
+    const model = capsByName.get(value);
+    const caps = model?.capabilities ?? [];
+    return (
+      <span className="inline-flex items-center gap-0.5">
+        {stripPua(label)}
+        {caps.includes("thinking") && <Lightbulb className="shrink-0 size-[1em]" />}
+      </span>
+    );
+  }, [capsByName]);
 
   const handleModelChange = (v: string) => {
     set({ model: v });
@@ -41,6 +61,7 @@ export function VlmSettings() {
           options={modelNames.length > 0 ? modelNames : [VLM_DEFAULT]}
           placeholder={modelNames.length === 0 ? "Loading..." : "Select model"}
           className="w-full text-xs"
+          renderLabel={renderModelLabel}
         />
       </div>
 
@@ -66,11 +87,6 @@ export function VlmSettings() {
           />
         </div>
       )}
-
-      <div className="flex items-center justify-between">
-        <Label className="text-xs">Include Annotated Image</Label>
-        <Switch size="sm" checked={s.includeAnnotated} onCheckedChange={(v) => set({ includeAnnotated: v })} />
-      </div>
 
       <ParamSection title="System Prompt" defaultOpen={false}>
         <Textarea

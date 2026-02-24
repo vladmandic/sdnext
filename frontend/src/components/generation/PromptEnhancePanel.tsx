@@ -1,4 +1,5 @@
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
+import { Lightbulb, Eye } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Combobox } from "@/components/ui/combobox";
@@ -9,17 +10,8 @@ import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
 import { usePromptEnhanceModels } from "@/api/hooks/usePromptEnhance";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
+import { stripPua } from "@/lib/utils";
 import type { PromptEnhanceModel } from "@/api/types/promptEnhance";
-
-function ModelBadges({ model }: { model: PromptEnhanceModel | undefined }) {
-  if (!model) return null;
-  return (
-    <span className="flex gap-1 ml-1">
-      {model.vision && <span className="text-4xs bg-blue-500/20 text-blue-400 px-1 rounded">VL</span>}
-      {model.thinking && <span className="text-4xs bg-amber-500/20 text-amber-400 px-1 rounded">Think</span>}
-    </span>
-  );
-}
 
 function SwitchRow({ label, checked, onCheckedChange }: { label: string; checked: boolean; onCheckedChange: (v: boolean) => void }) {
   return (
@@ -51,15 +43,29 @@ export function PromptEnhancePanel() {
     [models],
   );
 
+  const modelsByName = useMemo(() => {
+    const map = new Map<string, PromptEnhanceModel>();
+    for (const m of models ?? []) map.set(m.name, m);
+    return map;
+  }, [models]);
+
+  const renderModelLabel = useCallback((value: string, label: string) => {
+    const model = modelsByName.get(value);
+    return (
+      <span className="inline-flex items-center gap-0.5">
+        {stripPua(label)}
+        {model?.thinking && <Lightbulb className="shrink-0 size-[1em]" />}
+        {model?.vision && <Eye className="shrink-0 size-[1em]" />}
+      </span>
+    );
+  }, [modelsByName]);
+
   return (
     <div className="flex flex-col gap-2.5">
       {/* ── Model ── */}
       <SectionLabel>Model</SectionLabel>
       <div className="flex flex-col gap-1">
-        <div className="flex items-center">
-          <Label className="text-2xs text-muted-foreground">Model</Label>
-          <ModelBadges model={selectedModel} />
-        </div>
+        <Label className="text-2xs text-muted-foreground">Model</Label>
         <Combobox
           value={store.model}
           onValueChange={store.setModel}
@@ -67,6 +73,7 @@ export function PromptEnhancePanel() {
           placeholder="Select model..."
           searchPlaceholder="Search models..."
           className="h-6 text-2xs"
+          renderLabel={renderModelLabel}
         />
       </div>
 

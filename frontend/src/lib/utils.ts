@@ -20,6 +20,11 @@ export function formatDuration(seconds: number): string {
   return `${mins}m ${secs.toFixed(0)}s`;
 }
 
+/** Strip Font Awesome Private Use Area characters (U+F000–U+F8FF) that the backend embeds in model names. */
+export function stripPua(s: string): string {
+  return s.replace(/[\uF000-\uF8FF]/g, "").trimEnd();
+}
+
 /** Return "#000" or "#fff" for best contrast against a hex background color. */
 export function contrastText(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);

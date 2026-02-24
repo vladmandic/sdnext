@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
@@ -19,6 +19,7 @@ interface ComboboxBaseProps {
   emptyText?: string;
   className?: string;
   align?: "start" | "center" | "end";
+  renderLabel?: (value: string, label: string) => ReactNode;
 }
 
 interface ComboboxFlatProps extends ComboboxBaseProps {
@@ -51,6 +52,7 @@ export function Combobox({
   emptyText = "No results",
   className,
   align = "start",
+  renderLabel,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
 
@@ -75,7 +77,7 @@ export function Combobox({
         className="text-2xs"
       >
         <Check size={14} className={cn("shrink-0", v === value ? "opacity-100" : "opacity-0")} />
-        {l}
+        {renderLabel ? renderLabel(v, l) : l}
       </CommandItem>
     );
   };
@@ -90,7 +92,7 @@ export function Combobox({
             className,
           )}
         >
-          <span className="break-words text-left">{value ? currentLabel : placeholder}</span>
+          <span className="break-words text-left">{value ? (renderLabel ? renderLabel(value, currentLabel) : currentLabel) : placeholder}</span>
           <ChevronDown size={12} className="shrink-0 opacity-50" />
         </button>
       </PopoverTrigger>
