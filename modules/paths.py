@@ -32,6 +32,12 @@ script_path = os.path.dirname(modules_path)
 data_path = cli.data_dir
 models_config = cli.models_dir or config.get('models_dir') or 'models'
 models_path = models_config if os.path.isabs(models_config) else os.path.join(data_path, models_config)
+# Set HF_HUB_CACHE as early as possible to prevent any HuggingFace downloads going to ~/.cache
+_hfcache = os.environ.get('SD_HFCACHEDIR') or config.get('hfcache_dir') or os.path.join(models_path, 'huggingface')
+if not os.path.isabs(_hfcache):
+    _hfcache = os.path.join(data_path, _hfcache)
+os.environ.setdefault('HF_HUB_CACHE', _hfcache)
+os.environ.setdefault('HF_HOME', _hfcache)
 params_path = os.environ.get('SD_PATH_PARAMS', os.path.join(data_path, "params.txt"))
 extensions_dir = cli.extensions_dir or os.path.join(data_path, "extensions")
 extensions_builtin_dir = "extensions-builtin"
