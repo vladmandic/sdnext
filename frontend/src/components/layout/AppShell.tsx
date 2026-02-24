@@ -9,11 +9,13 @@ import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/componen
 import { useUiStore } from "@/stores/uiStore";
 import { useHistoryInit } from "@/hooks/useHistoryInit";
 import { useJobTracker } from "@/hooks/useJobTracker";
+import { useGlobalWs } from "@/hooks/useGlobalWs";
 import { cn } from "@/lib/utils";
 
 export function AppShell() {
   useHistoryInit();
   useJobTracker();
+  useGlobalWs();
   const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
   const viewCollapsed = useUiStore((s) => s.viewCollapsed);
   const leftPanelWidth = useUiStore((s) => s.leftPanelWidth);

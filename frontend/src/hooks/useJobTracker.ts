@@ -6,6 +6,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
 import type { JobResult, JobWsEvent } from "@/api/types/v2";
+import { toast } from "sonner";
 
 const MAX_CONCURRENT_WS = 5;
 
@@ -97,7 +98,7 @@ export function useJobTracker() {
           const s = useJobQueueStore.getState();
           switch (data.type) {
             case "progress":
-              s.updateProgress(jobId, data.progress, data.eta ?? 0, data.step, data.steps);
+              s.updateProgress(jobId, data.progress, data.eta ?? 0, data.step, data.steps, data.task, data.textinfo);
               break;
             case "status":
               s.updateStatus(jobId, data.status);
@@ -108,6 +109,7 @@ export function useJobTracker() {
               break;
             case "error":
               s.failJob(jobId, data.error);
+              toast.error("Generation failed", { description: data.error, duration: 8000 });
               break;
             case "cancelled":
               s.updateStatus(jobId, "cancelled");

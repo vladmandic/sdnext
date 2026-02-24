@@ -1,7 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { useCivitOptions, useCivitSearchInfinite, useCivitSettings, useCivitMe } from "@/api/hooks/useCivitai";
-import { useDownloadStore } from "@/stores/downloadStore";
-import { ws, ensureWs } from "@/api/wsManager";
 import type { CivitSearchParams } from "@/api/types/civitai";
 import { CivitSettings } from "./civitai/CivitSettings";
 import { CivitSearchHistory } from "./civitai/CivitSearchHistory";
@@ -66,18 +64,6 @@ export function CivitaiSubTab() {
       setSearchEnabled(true);
     }
   }
-
-  // WS listener for download progress
-  useEffect(() => {
-    ensureWs();
-    const unsub = ws.on("message", (data) => {
-      const msg = data as { type: string; data?: unknown };
-      if (msg.type === "download" && Array.isArray(msg.data)) {
-        useDownloadStore.getState().updateFromWs(msg.data);
-      }
-    });
-    return unsub;
-  }, []);
 
   return (
     <div className="space-y-3">
