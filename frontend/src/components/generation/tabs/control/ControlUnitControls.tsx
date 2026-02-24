@@ -3,6 +3,7 @@ import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useControlModels, useControlModes, usePreprocessImage, usePreprocessors } from "@/api/hooks/useControl";
 import { useIPAdapterModels } from "@/api/hooks/useAdapters";
 import { uploadFile } from "@/lib/upload";
+import { buildProcessorGroups } from "@/lib/processorUtils";
 import { ParamSlider } from "../../ParamSlider";
 import { ParamSection } from "../../ParamSection";
 import { ParamGrid } from "../../ParamRow";
@@ -61,6 +62,11 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
     }
   }, [resolvedImage, unit.processor, unit.processorParams, preprocessMutation, setUnitParam, index]);
 
+  const processorGroups = useMemo(() => {
+    if (!preprocessors) return [];
+    return buildProcessorGroups(preprocessors);
+  }, [preprocessors]);
+
   // Default params for the currently selected processor
   const processorDefaults = useMemo(() => {
     if (!preprocessors || unit.processor === "None") return null;
@@ -114,7 +120,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
           <Combobox
             value={unit.processor}
             onValueChange={handleProcessorChange}
-            options={["None", ...(preprocessors?.filter((p) => p.name !== "None").map((p) => p.name) ?? [])]}
+            groups={[{ heading: "", options: ["None"] }, ...processorGroups]}
             className="h-6 text-2xs flex-1"
           />
         </div>

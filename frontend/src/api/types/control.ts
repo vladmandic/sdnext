@@ -67,5 +67,6 @@ export interface ControlUnitSnapshot {
 
 export interface PreprocessorInfo {
   name: string;
+  group: string;
   params: Record<string, unknown>;
 }
