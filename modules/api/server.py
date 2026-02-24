@@ -297,6 +297,61 @@ def get_secrets_status():
     return result
 
 
+def get_hf_settings():
+    """Return HuggingFace token configuration status."""
+    from modules import secrets_manager
+    return {
+        "token_configured": secrets_manager.has('huggingface_token', 'HF_TOKEN'),
+    }
+
+
+def post_hf_settings(request: dict):
+    """Validate and store a HuggingFace token."""
+    from starlette.responses import JSONResponse
+    from modules import secrets_manager
+    token = request.get('token')
+    if token is not None:
+        token = token.strip()
+        if token:
+            try:
+                import huggingface_hub as hf
+                user = hf.whoami(token=token)
+                log.info(f'HuggingFace token validated: user={user.get("name", "?")}')
+            except Exception:
+                return JSONResponse(content={"error": "Invalid token"}, status_code=400)
+        secrets_manager.set('huggingface_token', token)
+        # Also update the runtime HF_TOKEN environment variable
+        if token:
+            os.environ['HF_TOKEN'] = token
+            try:
+                import huggingface_hub as hf
+                hf.login(token=token, add_to_git_credential=False)
+            except Exception:
+                pass
+        else:
+            os.environ.pop('HF_TOKEN', None)
+    return get_hf_settings()
+
+
+def get_hf_profile():
+    """Return HuggingFace profile for the configured token."""
+    from starlette.responses import JSONResponse
+    from modules import secrets_manager
+    token = secrets_manager.get('huggingface_token', 'HF_TOKEN')
+    if not token:
+        return JSONResponse(content={"error": "not authenticated"}, status_code=401)
+    try:
+        import huggingface_hub as hf
+        user = hf.whoami(token=token)
+        return {
+            "username": user.get("name", ""),
+            "fullname": user.get("fullname", ""),
+            "avatar": user.get("avatarUrl", ""),
+        }
+    except Exception:
+        return JSONResponse(content={"error": "token invalid or expired"}, status_code=401)
+
+
 def get_server_info():
     """
     Return server identity and capabilities.

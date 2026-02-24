@@ -60,6 +60,9 @@ class Api:
         self.add_api_route("/sdapi/v2/server-info", server.get_server_info, methods=["GET"], tags=["Server"])
         self.add_api_route("/sdapi/v2/options-info", server.get_options_info, methods=["GET"], tags=["Server"])
         self.add_api_route("/sdapi/v2/secrets-status", server.get_secrets_status, methods=["GET"], tags=["Server"])
+        self.add_api_route("/sdapi/v2/huggingface/settings", server.get_hf_settings, methods=["GET"], tags=["HuggingFace"])
+        self.add_api_route("/sdapi/v2/huggingface/settings", server.post_hf_settings, methods=["POST"], tags=["HuggingFace"])
+        self.add_api_route("/sdapi/v2/huggingface/me", server.get_hf_profile, methods=["GET"], tags=["HuggingFace"])
 
         # core api using locking
         self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img, tags=["Generation"])
