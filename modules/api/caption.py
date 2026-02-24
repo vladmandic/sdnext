@@ -245,14 +245,16 @@ class ResCaptionDispatch(BaseModel):
 # =============================================================================
 
 def validate_image(image_b64: str):
-    """Validate and decode a base64 image string, returning an RGB PIL Image.
+    """Validate and decode an image string (base64 or upload ref), returning an RGB PIL Image.
 
     Raises:
-        HTTPException(404): If image data is missing or too short to be valid.
+        HTTPException(404): If image data is missing.
     """
-    if image_b64 is None or len(image_b64) < 64:
+    if not image_b64:
         raise HTTPException(status_code=404, detail="Image not found")
     image = helpers.decode_base64_to_image(image_b64)
+    if image is None:
+        raise HTTPException(status_code=404, detail="Image not found")
     return image.convert('RGB')
 
 
