@@ -4,35 +4,113 @@ from PIL import Image
 from modules.logger import log
 
 
-OPENPOSE_BODY_SKELETON = [
+# ---------------------------------------------------------------------------
+# COCO-WholeBody 133-keypoint layout
+#   0-16:    body (17 COCO keypoints)
+#   17-22:   feet (6 points)
+#   23-90:   face (68 landmarks)
+#   91-111:  left hand (21 points)
+#   112-132: right hand (21 points)
+# ---------------------------------------------------------------------------
+
+BODY_SKELETON = [
     [15, 13], [13, 11], [16, 14], [14, 12], [11, 12], [5, 11], [6, 12],
     [5, 6], [5, 7], [6, 8], [7, 9], [8, 10], [1, 2], [0, 1], [0, 2],
     [1, 3], [2, 4], [3, 5], [4, 6],
 ]
 
-OPENPOSE_BODY_COLORS = [
+BODY_COLORS = [
     (255, 0, 0), (255, 85, 0), (255, 170, 0), (255, 255, 0), (170, 255, 0),
     (85, 255, 0), (0, 255, 0), (0, 255, 85), (0, 255, 170), (0, 255, 255),
     (0, 170, 255), (0, 85, 255), (0, 0, 255), (85, 0, 255), (170, 0, 255),
     (255, 0, 255), (255, 0, 170), (255, 0, 85), (255, 0, 0),
 ]
 
+FOOT_SKELETON = [
+    [0, 1], [1, 2],   # left ankle -> big toe -> small toe
+    [3, 4], [4, 5],   # right ankle -> big toe -> small toe
+]
+FOOT_OFFSET = 17
 
-def draw_skeleton(canvas, keypoints, scores, min_confidence=0.3):
+HAND_EDGES = [
+    [0, 1], [1, 2], [2, 3], [3, 4],
+    [0, 5], [5, 6], [6, 7], [7, 8],
+    [0, 9], [9, 10], [10, 11], [11, 12],
+    [0, 13], [13, 14], [14, 15], [15, 16],
+    [0, 17], [17, 18], [18, 19], [19, 20],
+]
+LEFT_HAND_OFFSET = 91
+RIGHT_HAND_OFFSET = 112
+FACE_OFFSET = 23
+FACE_COUNT = 68
+
+
+def _hsv_to_rgb(h, s, v):
+    """Convert HSV [0-1] to BGR tuple for cv2."""
+    import colorsys
+    r, g, b = colorsys.hsv_to_rgb(h, s, v)
+    return (int(b * 255), int(g * 255), int(r * 255))
+
+
+def draw_body(canvas, keypoints, scores, min_conf):
     import cv2
-    for i, (x, y) in enumerate(keypoints):
-        if i < len(scores) and scores[i] >= min_confidence:
-            color = OPENPOSE_BODY_COLORS[i % len(OPENPOSE_BODY_COLORS)]
-            cv2.circle(canvas, (int(x), int(y)), 4, color, -1)
-    for idx, (start, end) in enumerate(OPENPOSE_BODY_SKELETON):
+    n_kps = min(len(keypoints), 17)
+    for i in range(n_kps):
+        if scores[i] >= min_conf:
+            x, y = int(keypoints[i][0]), int(keypoints[i][1])
+            color = BODY_COLORS[i % len(BODY_COLORS)]
+            cv2.circle(canvas, (x, y), 4, color, -1)
+    for idx, (start, end) in enumerate(BODY_SKELETON):
+        if start < n_kps and end < n_kps:
+            if scores[start] >= min_conf and scores[end] >= min_conf:
+                pt1 = (int(keypoints[start][0]), int(keypoints[start][1]))
+                pt2 = (int(keypoints[end][0]), int(keypoints[end][1]))
+                color = BODY_COLORS[idx % len(BODY_COLORS)]
+                cv2.line(canvas, pt1, pt2, color, 2)
+
+
+def draw_feet(canvas, keypoints, scores, min_conf):
+    import cv2
+    for start_local, end_local in FOOT_SKELETON:
+        start = start_local + FOOT_OFFSET
+        end = end_local + FOOT_OFFSET
         if start < len(keypoints) and end < len(keypoints):
-            if start < len(scores) and end < len(scores):
-                if scores[start] >= min_confidence and scores[end] >= min_confidence:
-                    pt1 = (int(keypoints[start][0]), int(keypoints[start][1]))
-                    pt2 = (int(keypoints[end][0]), int(keypoints[end][1]))
-                    color = OPENPOSE_BODY_COLORS[idx % len(OPENPOSE_BODY_COLORS)]
-                    cv2.line(canvas, pt1, pt2, color, 2)
-    return canvas
+            if scores[start] >= min_conf and scores[end] >= min_conf:
+                pt1 = (int(keypoints[start][0]), int(keypoints[start][1]))
+                pt2 = (int(keypoints[end][0]), int(keypoints[end][1]))
+                cv2.line(canvas, pt1, pt2, (0, 255, 170), 2)
+    for i in range(FOOT_OFFSET, min(FOOT_OFFSET + 6, len(keypoints))):
+        if scores[i] >= min_conf:
+            cv2.circle(canvas, (int(keypoints[i][0]), int(keypoints[i][1])), 3, (0, 255, 170), -1)
+
+
+def draw_hand(canvas, keypoints, scores, offset, min_conf):
+    import cv2
+    n_edges = len(HAND_EDGES)
+    for ie, (start_local, end_local) in enumerate(HAND_EDGES):
+        start = start_local + offset
+        end = end_local + offset
+        if start < len(keypoints) and end < len(keypoints):
+            if scores[start] >= min_conf and scores[end] >= min_conf:
+                pt1 = (int(keypoints[start][0]), int(keypoints[start][1]))
+                pt2 = (int(keypoints[end][0]), int(keypoints[end][1]))
+                color = _hsv_to_rgb(ie / n_edges, 1.0, 1.0)
+                cv2.line(canvas, pt1, pt2, color, 2)
+    for i in range(offset, min(offset + 21, len(keypoints))):
+        if scores[i] >= min_conf:
+            cv2.circle(canvas, (int(keypoints[i][0]), int(keypoints[i][1])), 3, (0, 0, 255), -1)
+
+
+def draw_hands(canvas, keypoints, scores, min_conf):
+    draw_hand(canvas, keypoints, scores, LEFT_HAND_OFFSET, min_conf)
+    draw_hand(canvas, keypoints, scores, RIGHT_HAND_OFFSET, min_conf)
+
+
+def draw_face(canvas, keypoints, scores, min_conf):
+    import cv2
+    for i in range(FACE_OFFSET, min(FACE_OFFSET + FACE_COUNT, len(keypoints))):
+        if scores[i] >= min_conf:
+            cv2.circle(canvas, (int(keypoints[i][0]), int(keypoints[i][1])), 2, (255, 255, 255), -1)
 
 
 class RtmlibPoseDetector:
@@ -77,7 +155,7 @@ class RtmlibPoseDetector:
                 del os.environ['TORCH_HOME']
         return cls(body, mode)
 
-    def __call__(self, image, min_confidence=0.3, output_type="pil", **kwargs):
+    def __call__(self, image, min_confidence=0.3, draw_body_pose=True, draw_hand_pose=True, draw_face_pose=True, output_type="pil", **kwargs):
         if isinstance(image, Image.Image):
             image = np.array(image)
         h, w = image.shape[:2]
@@ -87,7 +165,15 @@ class RtmlibPoseDetector:
             for person_idx in range(len(keypoints)):
                 kps = keypoints[person_idx]
                 sc = scores[person_idx] if person_idx < len(scores) else np.ones(len(kps))
-                canvas = draw_skeleton(canvas, kps, sc, min_confidence)
+                is_wholebody = len(kps) >= 133
+                if draw_body_pose:
+                    draw_body(canvas, kps, sc, min_confidence)
+                    if is_wholebody:
+                        draw_feet(canvas, kps, sc, min_confidence)
+                if draw_hand_pose and is_wholebody:
+                    draw_hands(canvas, kps, sc, min_confidence)
+                if draw_face_pose and is_wholebody:
+                    draw_face(canvas, kps, sc, min_confidence)
         if output_type == "pil":
             canvas = Image.fromarray(canvas)
         return canvas

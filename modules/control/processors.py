@@ -19,7 +19,7 @@ config = {
     'DWPose': {'class': None, 'group': 'Pose', 'checkpoint': False, 'model': 'Tiny', 'params': {'min_confidence': 0.3}},
     'MediaPipe Face': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
     'DWPose (ONNX)': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
-    'RTMW': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
+    'RTMW': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True}},
     'RTMO': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
     'ViTPose': {'class': None, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {'min_confidence': 0.3}},
     # edge models
@@ -98,7 +98,7 @@ def delay_load_config():
         'OpenPose': {'class': OpenposeDetector, 'group': 'Pose', 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
         'MediaPipe Face': {'class': MediapipeFaceDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
         'DWPose (ONNX)': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
-        'RTMW': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
+        'RTMW': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True}},
         'RTMO': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
         'ViTPose': {'class': ViTPoseDetector, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {'min_confidence': 0.3}},
         # edge models
