@@ -18,6 +18,13 @@ class StableNormalDetector:
             os.makedirs(hub_dir, exist_ok=True)
             torch.hub.set_dir(hub_dir)
         try:
+            # StableNormal's custom pipeline imports from the old diffusers path
+            import diffusers.models
+            if not hasattr(diffusers.models, 'controlnet'):
+                import diffusers.models.controlnets.controlnet as _cn_compat
+                diffusers.models.controlnet = _cn_compat
+                import sys
+                sys.modules['diffusers.models.controlnet'] = _cn_compat
             model = torch.hub.load("Stable-X/StableNormal", "StableNormal_turbo", trust_repo=True)
         finally:
             torch.hub.set_dir(old_hub_dir)

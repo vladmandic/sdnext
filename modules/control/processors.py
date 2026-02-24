@@ -21,7 +21,7 @@ config = {
     'DWPose (ONNX)': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
     'RTMW': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
     'RTMO': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
-    'ViTPose': {'class': None, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {}},
+    'ViTPose': {'class': None, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {'min_confidence': 0.3}},
     # edge models
     'Canny': {'class': None, 'group': 'Edge', 'checkpoint': False, 'params': {'low_threshold': 100, 'high_threshold': 200}},
     'Edge': {'class': None, 'group': 'Edge', 'checkpoint': False, 'params': {'pf': True, 'mode': 'edge'}},
@@ -30,7 +30,7 @@ config = {
     'HED': {'class': None, 'group': 'Edge', 'checkpoint': True, 'params': {'scribble': False, 'safe': False}},
     'PidiNet': {'class': None, 'group': 'Edge', 'checkpoint': True, 'params': {'scribble': False, 'safe': False, 'apply_filter': False}},
     'MLSD': {'class': None, 'group': 'Edge', 'checkpoint': True, 'params': {'thr_v': 0.1, 'thr_d': 0.1}},
-    'TEED': {'class': None, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'fal-ai/teed'}, 'params': {}},
+    'TEED': {'class': None, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'fal/teed'}, 'params': {}},
     'Anyline': {'class': None, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'TheMistoAI/MistoLine'}, 'params': {}},
     # depth models
     'Midas Depth Hybrid': {'class': None, 'group': 'Depth', 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}},
@@ -100,7 +100,7 @@ def delay_load_config():
         'DWPose (ONNX)': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
         'RTMW': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
         'RTMO': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
-        'ViTPose': {'class': ViTPoseDetector, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {}},
+        'ViTPose': {'class': ViTPoseDetector, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {'min_confidence': 0.3}},
         # edge models
         'Canny': {'class': CannyDetector, 'group': 'Edge', 'checkpoint': False, 'params': {'low_threshold': 100, 'high_threshold': 200}},
         'Edge': {'class': EdgeDetector, 'group': 'Edge', 'checkpoint': False, 'params': {'pf': True, 'mode': 'edge'}},
@@ -109,7 +109,7 @@ def delay_load_config():
         'HED': {'class': HEDdetector, 'group': 'Edge', 'checkpoint': True, 'params': {'scribble': False, 'safe': False}},
         'PidiNet': {'class': PidiNetDetector, 'group': 'Edge', 'checkpoint': True, 'params': {'scribble': False, 'safe': False, 'apply_filter': False}},
         'MLSD': {'class': MLSDdetector, 'group': 'Edge', 'checkpoint': True, 'params': {'thr_v': 0.1, 'thr_d': 0.1}},
-        'TEED': {'class': TEEDDetector, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'fal-ai/teed'}, 'params': {}},
+        'TEED': {'class': TEEDDetector, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'fal/teed'}, 'params': {}},
         'Anyline': {'class': AnylineDetector, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'TheMistoAI/MistoLine'}, 'params': {}},
         # depth models
         'Midas Depth Hybrid': {'class': MidasDetector, 'group': 'Depth', 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}},

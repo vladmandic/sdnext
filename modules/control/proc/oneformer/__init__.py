@@ -50,7 +50,7 @@ class OneFormerDetector:
     def from_pretrained(cls, pretrained_model_or_path="shi-labs/oneformer_ade20k_swin_large", cache_dir=None, local_files_only=False):
         from transformers import AutoProcessor, OneFormerForUniversalSegmentation
         processor = AutoProcessor.from_pretrained(pretrained_model_or_path, cache_dir=cache_dir, local_files_only=local_files_only)
-        model = OneFormerForUniversalSegmentation.from_pretrained(pretrained_model_or_path, cache_dir=cache_dir, local_files_only=local_files_only).to(devices.device).eval()
+        model = OneFormerForUniversalSegmentation.from_pretrained(pretrained_model_or_path, cache_dir=cache_dir, local_files_only=local_files_only, use_safetensors=True).to(devices.device).eval()
         return cls(model, processor)
 
     def __call__(self, input_image, detect_resolution=512, image_resolution=512, output_type="pil", **kwargs):

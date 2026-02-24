@@ -16,7 +16,7 @@ class DepthAnythingV2Detector:
     def from_pretrained(cls, pretrained_model_or_path="depth-anything/Depth-Anything-V2-Small-hf", cache_dir=None, local_files_only=False):
         from transformers import AutoImageProcessor, AutoModelForDepthEstimation
         processor = AutoImageProcessor.from_pretrained(pretrained_model_or_path, cache_dir=cache_dir, local_files_only=local_files_only)
-        model = AutoModelForDepthEstimation.from_pretrained(pretrained_model_or_path, cache_dir=cache_dir, local_files_only=local_files_only).to(devices.device).eval()
+        model = AutoModelForDepthEstimation.from_pretrained(pretrained_model_or_path, cache_dir=cache_dir, local_files_only=local_files_only, use_safetensors=True).to(devices.device).eval()
         return cls(model, processor)
 
     def __call__(self, image, color_map="none", output_type="pil"):
