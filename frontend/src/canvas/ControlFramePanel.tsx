@@ -19,7 +19,8 @@ const DRAWER_MAX_HEIGHT = 420;
 const PANEL_WIDTH = 320;
 const STROKE_HALF = 1;
 const CONTROL_COLOR = "#f59e0b";
-const INPUT_COLOR = "#4ade80";
+const INPUT_COLOR_ACTIVE = "#4ade80";
+const INPUT_COLOR_INACTIVE = "#6b7280";
 const OUTPUT_COLOR = "#60a5fa";
 const PROCESSED_COLOR = "#c084fc";
 const INPUT_PANEL_KEY = -1;
@@ -75,16 +76,17 @@ function FrameHeader({ mode, color, label, sizeText, canvasX, frameW, viewport, 
         transformOrigin: "bottom left",
       };
     }
-    // Panel mode: fixed width, centered above frame with gap
-    const screenCenterX = (canvasX + frameW / 2) * viewport.scale + viewport.x;
+    // Panel mode: fixed width, positioned above frame with gap.
+    // Left-align to frame edge so the panel never overlaps adjacent frames.
+    const screenLeftX = (canvasX - STROKE_HALF) * viewport.scale + viewport.x;
     const screenTopY = STROKE_HALF * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
     return {
       position: "absolute",
-      left: `${screenCenterX - PANEL_WIDTH / 2}px`,
+      left: `${screenLeftX}px`,
       bottom: `calc(100% - ${screenTopY}px)`,
       width: `${PANEL_WIDTH}px`,
       transform: `scale(${combinedScale})`,
-      transformOrigin: "bottom center",
+      transformOrigin: "bottom left",
     };
   }, [mode, canvasX, frameW, viewport, labelScale, combinedScale]);
 
@@ -300,17 +302,17 @@ function ControlFrameStack({ frame, onPickImage, onClearImage }: ControlFrameSta
   const units = useControlStore((s) => s.units);
 
   const containerStyle = useMemo(() => {
-    const screenCenterX = (frame.x + frame.width / 2) * viewport.scale + viewport.x;
+    const screenLeftX = (frame.x - STROKE_HALF) * viewport.scale + viewport.x;
     const screenTopY = frame.y * viewport.scale + viewport.y - ELEMENT_GAP * viewport.scale;
     const combinedScale = viewport.scale * labelScale;
 
     return {
       position: "absolute" as const,
-      left: `${screenCenterX - PANEL_WIDTH / 2}px`,
+      left: `${screenLeftX}px`,
       bottom: `calc(100% - ${screenTopY}px)`,
       width: `${PANEL_WIDTH}px`,
       transform: `scale(${combinedScale})`,
-      transformOrigin: "bottom center",
+      transformOrigin: "bottom left",
       display: "flex",
       flexDirection: "column" as const,
       gap: "4px",
@@ -382,7 +384,8 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
 
   const handleDenoising = useCallback((v: number) => setParam("denoisingStrength", v), [setParam]);
 
-  const textColor = contrastText(INPUT_COLOR);
+  const inputColor = hasLayers ? INPUT_COLOR_ACTIVE : INPUT_COLOR_INACTIVE;
+  const textColor = contrastText(inputColor);
 
   const actions = hasLayers ? (
     <>
@@ -406,7 +409,7 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
   return (
     <FrameHeader
       mode="panel"
-      color={INPUT_COLOR}
+      color={inputColor}
       label="Input"
       sizeText={sizeText}
       canvasX={canvasX}

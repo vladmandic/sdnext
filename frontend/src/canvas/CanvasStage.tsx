@@ -56,13 +56,15 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
     return () => ro.disconnect();
   }, []);
 
-  // Fit viewport to show all frames — only runs once on initial render
-  const hasFittedRef = useRef(false);
+  // Fit viewport to show all frames — runs on initial render and whenever
+  // the generation size changes (e.g. autoFitFrame resizing to match image).
+  const prevFrameRef = useRef<string>("");
   useEffect(() => {
-    if (hasFittedRef.current) return;
     if (frameW <= 0 || frameH <= 0) return;
     if (containerSize.width <= 0 || containerSize.height <= 0) return;
-    hasFittedRef.current = true;
+    const key = `${frameW}x${frameH}`;
+    if (prevFrameRef.current === key) return;
+    prevFrameRef.current = key;
 
     const totalWidth = totalBounds.maxX - totalBounds.minX;
     const totalHeight = LABEL_HEIGHT + totalBounds.maxY;

@@ -3,7 +3,8 @@ import { Layer, Group, Rect, Text } from "react-konva";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 
-const BORDER_COLOR = "#4ade80";
+const ACTIVE_COLOR = "#4ade80";
+const INACTIVE_COLOR = "#6b7280";
 
 interface FrameLayerProps {
   displayScale: number;
@@ -34,7 +35,7 @@ export function FrameLayer({ displayScale, onPickImage }: FrameLayerProps) {
             y={0}
             width={frameW}
             height={frameH}
-            fill="transparent"
+            fill="#1a1a1a"
             listening={true}
             onClick={handleClick}
             onTap={handleTap}
@@ -48,7 +49,7 @@ export function FrameLayer({ displayScale, onPickImage }: FrameLayerProps) {
             y={frameH / 2 - 8}
             width={frameW}
             align="center"
-            text="Drop image or click to upload\nEmpty areas will be inpainted based on your prompt"
+            text="Drop image or click to upload."
             fontSize={14 / displayScale}
             fill="#666"
             listening={false}
@@ -61,7 +62,7 @@ export function FrameLayer({ displayScale, onPickImage }: FrameLayerProps) {
           y={0}
           width={frameW}
           height={frameH}
-          stroke={BORDER_COLOR}
+          stroke={hasLayers ? ACTIVE_COLOR : INACTIVE_COLOR}
           strokeWidth={2 / displayScale}
           dash={hasLayers ? undefined : [8 / displayScale, 4 / displayScale]}
           listening={false}
