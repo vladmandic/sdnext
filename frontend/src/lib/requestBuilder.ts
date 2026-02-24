@@ -6,8 +6,8 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
 import { exportMask } from "@/lib/exportMask";
-import { flattenCanvas, compositeControlImage } from "@/lib/flattenCanvas";
-import { uploadFile, uploadFiles, uploadBlob } from "@/lib/upload";
+import { flattenCanvas, compositeControlImage, compositeFitImage } from "@/lib/flattenCanvas";
+import { uploadFiles, uploadBlob } from "@/lib/upload";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
@@ -228,7 +228,9 @@ export async function buildControlRequest(): Promise<BuildResult> {
           const composed = await compositeControlImage(e.image, ft, gen.width, gen.height, displayScale);
           overrideRef = await uploadBlob(composed, "control.png");
         } else if (e.image) {
-          overrideRef = await uploadFile(e.image);
+          // WYSIWYG: composite the image using the fit mode so what's sent matches what's on canvas
+          const composed = await compositeFitImage(e.image, gen.width, gen.height, e.unit.fitMode);
+          overrideRef = await uploadBlob(composed, "control.png");
         }
         return {
           process: hasManualPreview ? "None" : e.unit.processor,
@@ -255,7 +257,8 @@ export async function buildControlRequest(): Promise<BuildResult> {
         const composed = await compositeControlImage(e.image, ft, gen.width, gen.height, displayScale);
         return uploadBlob(composed, "control.png");
       }
-      return uploadFile(e.image!);
+      const composed = await compositeFitImage(e.image!, gen.width, gen.height, e.unit.fitMode);
+      return uploadBlob(composed, "control.png");
     }));
   }
 

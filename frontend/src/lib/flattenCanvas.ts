@@ -1,5 +1,6 @@
 import type { ImageLayer } from "@/stores/canvasStore";
-import type { FreeTransform } from "@/lib/image";
+import type { FreeTransform, FitMode } from "@/lib/image";
+import { computeFit } from "@/lib/image";
 
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -41,6 +42,40 @@ export async function flattenCanvas(
 
   return new Promise<Blob | null>((resolve) => {
     canvas.toBlob((blob) => resolve(blob), "image/png");
+  });
+}
+
+/**
+ * Composites an image onto a generation-sized canvas using the given fit mode.
+ * WYSIWYG: the output matches what the user sees on the canvas frame.
+ */
+export async function compositeFitImage(
+  file: File,
+  genW: number,
+  genH: number,
+  fitMode: FitMode,
+): Promise<Blob> {
+  const url = URL.createObjectURL(file);
+  const img = await loadImage(url);
+  URL.revokeObjectURL(url);
+
+  const canvas = document.createElement("canvas");
+  canvas.width = genW;
+  canvas.height = genH;
+  const ctx = canvas.getContext("2d")!;
+
+  const fit = computeFit(img.naturalWidth, img.naturalHeight, 0, 0, genW, genH, fitMode);
+  if (fit.crop) {
+    ctx.drawImage(img, fit.crop.x, fit.crop.y, fit.crop.width, fit.crop.height, fit.x, fit.y, fit.width, fit.height);
+  } else {
+    ctx.drawImage(img, fit.x, fit.y, fit.width, fit.height);
+  }
+
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Failed to composite fit image"));
+    }, "image/png");
   });
 }
 
