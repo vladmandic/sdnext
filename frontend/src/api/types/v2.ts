@@ -205,7 +205,7 @@ export interface JobListResponse {
 
 export type JobWsEvent =
   | { type: "status"; status: JobStatus; progress: number }
-  | { type: "progress"; step: number; steps: number; progress: number; eta: number | null }
+  | { type: "progress"; step: number; steps: number; progress: number; eta: number | null; task?: string; textinfo?: string | null }
   | { type: "completed"; result: JobResult }
   | { type: "error"; error: string }
   | { type: "cancelled" }

@@ -19,6 +19,8 @@ export interface TrackedJob {
   eta: number;
   step: number;
   steps: number;
+  task: string;
+  textinfo: string | null;
   previewUrl: string | null;
   result: JobResult | null;
   error: string | null;
@@ -38,7 +40,7 @@ interface JobQueueState {
 
   trackJob: (id: string, domain: JobDomain, snapshot: JobSnapshot) => void;
   updateStatus: (id: string, status: JobStatus) => void;
-  updateProgress: (id: string, progress: number, eta: number, step: number, steps: number) => void;
+  updateProgress: (id: string, progress: number, eta: number, step: number, steps: number, task?: string, textinfo?: string | null) => void;
   updatePreview: (id: string, previewUrl: string) => void;
   completeJob: (id: string, result: JobResult) => void;
   failJob: (id: string, error: string) => void;
@@ -76,6 +78,8 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
         eta: 0,
         step: 0,
         steps: 0,
+        task: "",
+        textinfo: null,
         previewUrl: null,
         result: null,
         error: null,
@@ -98,20 +102,23 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
       return updates;
     }),
 
-  updateProgress: (id, progress, eta, step, steps) =>
+  updateProgress: (id, progress, eta, step, steps, task?, textinfo?) =>
     set((state) => {
       const job = state.jobs.get(id);
       if (!job) return state;
       const next = new Map(state.jobs);
-      next.set(id, { ...job, progress, eta, step, steps, status: job.status === "pending" ? "running" : job.status });
-      const updates: Partial<JobQueueState> = { jobs: next };
+      const jobUpdates: Partial<TrackedJob> = { progress, eta, step, steps, status: job.status === "pending" ? "running" : job.status };
+      if (task !== undefined) jobUpdates.task = task;
+      if (textinfo !== undefined) jobUpdates.textinfo = textinfo;
+      next.set(id, { ...job, ...jobUpdates });
+      const stateUpdates: Partial<JobQueueState> = { jobs: next };
       if (state.activeJobId !== id && !isTerminal(job.status)) {
         const currentActive = state.activeJobId ? state.jobs.get(state.activeJobId) : null;
         if (!currentActive || isTerminal(currentActive.status)) {
-          updates.activeJobId = id;
+          stateUpdates.activeJobId = id;
         }
       }
-      return updates;
+      return stateUpdates;
     }),
 
   updatePreview: (id, previewUrl) =>
