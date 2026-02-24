@@ -4,6 +4,7 @@ import { useHfSearch, useHfDownload } from "@/api/hooks/useModelOps";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { HfSettings } from "./huggingface/HfSettings";
 
 function formatDownloads(n: number): string {
   if (n >= 1e6) return `${(n / 1e6).toFixed(1)}M`;
@@ -18,7 +19,6 @@ export function HuggingfaceSubTab() {
   const hfDownload = useHfDownload();
   const [selected, setSelected] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [token, setToken] = useState("");
   const [variant, setVariant] = useState("");
   const [revision, setRevision] = useState("");
   const [mirror, setMirror] = useState("");
@@ -37,7 +37,6 @@ export function HuggingfaceSubTab() {
     if (!selected) return;
     hfDownload.mutate({
       hub_id: selected,
-      token: token || undefined,
       variant: variant || undefined,
       revision: revision || undefined,
       mirror: mirror || undefined,
@@ -47,6 +46,7 @@ export function HuggingfaceSubTab() {
 
   return (
     <div className="space-y-3">
+      <HfSettings />
       <div className="flex gap-2">
         <Input
           placeholder="Search HuggingFace..."
@@ -106,10 +106,6 @@ export function HuggingfaceSubTab() {
           </button>
           {showAdvanced && (
             <div className="space-y-2 pl-3">
-              <div>
-                <Label className="text-2xs">Token</Label>
-                <Input className="h-6 text-2xs" type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="HuggingFace token" />
-              </div>
               <div>
                 <Label className="text-2xs">Variant</Label>
                 <Input className="h-6 text-2xs" value={variant} onChange={(e) => setVariant(e.target.value)} placeholder="e.g. fp16" />
