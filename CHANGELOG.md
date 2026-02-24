@@ -1,12 +1,17 @@
 # Change Log for SD.Next
 
-## Update for 2026-02-22
+## Update for 2026-02-24
 
-### Highlights for 2026-02-22
+### Highlights for 2026-02-24
 
-TBD
+This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
+And since its a bit quieter period when it comes to new models, so we have two deep fine-tunes: *FireRed-Image-Edit* and *SkyWorks-UniPic-3*  
+What else? Updated localization with new languages and improved translations, several new upscalers, futher improvements to captioning, some new UI themes  
+But also many smaller quality-of-life improvements - for full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
 
-### Details for 2026-02-22
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-02-24
 
 - **Models**
   - [FireRed Image Edit](https://huggingface.co/FireRedTeam/FireRed-Image-Edit-1.0)  
@@ -27,7 +32,6 @@ TBD
   - hires: allow using different lora in refiner prompt  
   - **nunchaku** models are now listed in networks tab as reference models  
     instead of being used implicitly via quantization, thanks @CalamitousFelicitousness  
-  - removed: old `codeformer` and `gfpgan` face restorers, thanks @CalamitousFelicitousness  
 - **Compute**
   - **ROCm** support for additional AMD GPUs: `gfx103X`, thanks @crashingalexsan  
   - **Cuda** `torch==2.10` removed support for `rtx1000` series, use following before first startup:  
@@ -72,6 +76,7 @@ TBD
   - remove `dwpose` pre-processor  
   - remove `hdm` model support  
   - remove `xadapter` script  
+  - remove `codeformer` and `gfpgan` face restorers, thanks @CalamitousFelicitousness  
 - **Checks**
   - switch to `pyproject.toml` for tool configs  
   - update `lint` rules, thanks @awsr  
@@ -91,6 +96,7 @@ TBD
   - ltx2-i2v  
   - handle missing preview image  
   - ui connection monitor  
+  - kandinsky 5 t2i/i2i model type detection  
 
 ## Update for 2026-02-04
 
