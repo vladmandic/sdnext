@@ -156,18 +156,18 @@ interface UnitPanelProps {
   unitIndex: number;
   isOwner: boolean;
   collapsed: boolean;
+  genSize: { width: number; height: number };
   onPickImage?: (unitIndex: number) => void;
   onClearImage?: (unitIndex: number) => void;
 }
 
-function UnitPanel({ unitIndex, isOwner, collapsed, onPickImage, onClearImage }: UnitPanelProps) {
+function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClearImage }: UnitPanelProps) {
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
   const setSelectedControlFrame = useCanvasStore((s) => s.setSelectedControlFrame);
   const unit = useControlStore((s) => s.units[unitIndex]);
   const setUnitParam = useControlStore((s) => s.setUnitParam);
   const setFreeTransform = useControlStore((s) => s.setFreeTransform);
-  const genW = useGenerationStore((s) => s.width);
-  const genH = useGenerationStore((s) => s.height);
+  const { width: genW, height: genH } = genSize;
 
   if (!unit) return null;
 
@@ -291,11 +291,12 @@ function UnitPanel({ unitIndex, isOwner, collapsed, onPickImage, onClearImage }:
 
 interface ControlFrameStackProps {
   frame: ControlFramePosition;
+  genSize: { width: number; height: number };
   onPickImage?: (unitIndex: number) => void;
   onClearImage?: (unitIndex: number) => void;
 }
 
-function ControlFrameStack({ frame, onPickImage, onClearImage }: ControlFrameStackProps) {
+function ControlFrameStack({ frame, genSize, onPickImage, onClearImage }: ControlFrameStackProps) {
   const viewport = useCanvasStore((s) => s.viewport);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
   const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
@@ -339,6 +340,7 @@ function ControlFrameStack({ frame, onPickImage, onClearImage }: ControlFrameSta
             unitIndex={slot.unitIndex}
             isOwner={false}
             collapsed={isCollapsed}
+            genSize={genSize}
           />
         );
       })}
@@ -346,6 +348,7 @@ function ControlFrameStack({ frame, onPickImage, onClearImage }: ControlFrameSta
         unitIndex={frame.unitIndex}
         isOwner
         collapsed={ownerCollapsed}
+        genSize={genSize}
         onPickImage={onPickImage}
         onClearImage={onClearImage}
       />
@@ -510,6 +513,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
         <ControlFrameStack
           key={frame.unitIndex}
           frame={frame}
+          genSize={genSize}
           onPickImage={onPickImage}
           onClearImage={onClearImage}
         />

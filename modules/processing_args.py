@@ -6,7 +6,7 @@ import inspect
 import torch
 import numpy as np
 from PIL import Image
-from modules import shared, sd_models, processing, processing_vae, processing_helpers, sd_hijack_hypertile, extra_networks, sd_vae
+from modules import shared, sd_models, processing, processing_vae, processing_helpers, sd_hijack_hypertile, extra_networks, sd_vae, images
 from modules.logger import log
 from modules.processing_callbacks import diffusers_callback_legacy, diffusers_callback, set_callbacks_p
 from modules.processing_helpers import get_generator, apply_circular # pylint: disable=unused-import
@@ -127,6 +127,16 @@ def task_specific_kwargs(p, model):
             'height': height,
             'width': width,
         }
+
+    # resize init_control images to match generation dimensions
+    if hasattr(p, 'init_control') and p.init_control:
+        target_w, target_h = p.width, p.height
+        resized = []
+        for img in p.init_control:
+            if img.width != target_w or img.height != target_h:
+                img = images.resize_image(1, img, target_w, target_h, upscaler_name=getattr(p, 'resize_name_before', None))
+            resized.append(img)
+        p.init_control = resized
 
     # model specific args
     if ('QwenImageEdit' in model_cls) and (p.init_images is None or len(p.init_images) == 0):
