@@ -43,6 +43,7 @@ class ResMask(BaseModel):
 
 class ItemPreprocess(BaseModel):
     name: str = Field(title="Name", description="Preprocessor name")
+    group: str = Field(default="Other", title="Group", description="Category group")
     params: dict = Field(title="Params", description="Configurable parameters for this preprocessor")
 
 class ItemMask(BaseModel):
@@ -61,7 +62,7 @@ class APIProcess:
         from modules.control import processors
         items = []
         for k, v in processors.config.items():
-            items.append(ItemPreprocess(name=k, params=v.get('params', {})))
+            items.append(ItemPreprocess(name=k, group=v.get('group', 'Other'), params=v.get('params', {})))
         return items
 
     def post_preprocess(self, req: ReqPreprocess):

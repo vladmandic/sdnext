@@ -15,27 +15,48 @@ debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
 processors = [
     'None',
+    # pose
     'OpenPose',
     'DWPose',
     'MediaPipe Face',
+    'DWPose (ONNX)',
+    'RTMW',
+    'RTMO',
+    'ViTPose',
+    # edge
     'Canny',
     'Edge',
     'LineArt Realistic',
     'LineArt Anime',
     'HED',
     'PidiNet',
+    'MLSD',
+    'TEED',
+    'Anyline',
+    # depth
     'Midas Depth Hybrid',
     'Leres Depth',
     'Zoe Depth',
     'Marigold Depth',
-    'Normal Bae',
-    'SegmentAnything',
-    'MLSD',
-    'Shuffle',
     'DPT Depth Hybrid',
     'GLPN Depth',
     'Depth Anything',
     'Depth Pro',
+    'Depth Anything V2 Small',
+    'Depth Anything V2 Large',
+    'Marigold Depth LCM',
+    'Lotus Depth',
+    # normal
+    'Normal Bae',
+    'DSINE',
+    'StableNormal',
+    'Marigold Normals',
+    # segmentation
+    'SegmentAnything',
+    'SAM 2.1',
+    'OneFormer',
+    # other
+    'Shuffle',
 ]
 
 
