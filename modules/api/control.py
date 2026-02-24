@@ -11,37 +11,37 @@ errors.install()
 
 
 class ItemControl(BaseModel):
-    process: str = Field(title="Preprocessor", default="", description="Preprocessor name to apply to the input image")
-    model: str = Field(title="Control Model", default="", description="Control model name (ControlNet, T2I Adapter, etc.)")
-    strength: float = Field(title="Control model strength", default=1.0, description="How strongly the control model influences generation (0.0-2.0)")
-    start: float = Field(title="Control model start", default=0.0, description="Step fraction at which control begins (0.0-1.0)")
-    end: float = Field(title="Control model end", default=1.0, description="Step fraction at which control ends (0.0-1.0)")
-    override: str = Field(title="Override image", default=None, description="Base64 encoded override image, bypasses preprocessor")
-    unit_type: Optional[str] = Field(default=None, description="Per-unit type override (controlnet, t2i adapter, xs, lite, reference)")
-    mode: str = Field(default="default", description="Control mode for Union/ProMax models")
-    guess: bool = Field(default=False, description="Guess mode (ControlNet only)")
-    factor: float = Field(default=1.0, description="Adapter factor (T2I only)")
-    attention: str = Field(default="Attention", description="Reference attention type")
-    fidelity: float = Field(default=0.5, description="Reference fidelity")
-    query_weight: float = Field(default=1.0, description="Reference query weight")
-    adain_weight: float = Field(default=1.0, description="Reference adain weight")
-    process_params: Optional[dict] = Field(default=None, description="Custom preprocessor parameter overrides")
-    image: Optional[str] = Field(default=None, description="Alias for override — base64 control image")
+    process: str = Field(title="Preprocessor", default="", description="Preprocessor name (e.g. 'Canny', 'OpenPose', 'Depth Anything'). Use /sdapi/v1/preprocessors to list available options.")
+    model: str = Field(title="Control model", default="", description="Control model filename or path. Use /sdapi/v2/control-models to list available models.")
+    strength: float = Field(title="Strength", default=1.0, description="How strongly the control model influences generation (0.0-2.0)")
+    start: float = Field(title="Start", default=0.0, description="Step fraction at which control begins (0.0-1.0)")
+    end: float = Field(title="End", default=1.0, description="Step fraction at which control ends (0.0-1.0)")
+    override: str = Field(title="Override image", default=None, description="Base64-encoded pre-processed control image that bypasses the preprocessor. Takes priority over 'image'.")
+    unit_type: Optional[str] = Field(title="Unit type", default=None, description="Control unit type: 'controlnet', 't2i adapter', 'xs', 'lite', 'reference', or 'ip'. Defaults to the request-level unit_type.")
+    mode: str = Field(title="Mode", default="default", description="Control mode for Union/ProMax models. Use /sdapi/v2/control-modes to list valid modes per model.")
+    guess: bool = Field(title="Guess mode", default=False, description="Enable guess mode, which removes the need for a prompt (ControlNet only)")
+    factor: float = Field(title="Adapter factor", default=1.0, description="Conditioning scale factor (T2I Adapter only)")
+    attention: str = Field(title="Attention type", default="Attention", description="Attention mechanism type (Reference units only)")
+    fidelity: float = Field(title="Fidelity", default=0.5, description="Style fidelity level 0.0-1.0 (Reference units only)")
+    query_weight: float = Field(title="Query weight", default=1.0, description="Attention query weight (Reference units only)")
+    adain_weight: float = Field(title="AdaIN weight", default=1.0, description="Adaptive instance normalization weight (Reference units only)")
+    process_params: Optional[dict] = Field(title="Preprocessor params", default=None, description="Override preprocessor defaults, e.g. {'low_threshold': 50, 'high_threshold': 150} for Canny. Keys must match the preprocessor's parameters.")
+    image: Optional[str] = Field(title="Image", default=None, description="Base64-encoded control input image. Alias for 'override' -- if both are set, 'override' takes priority.")
 
 
 class ItemXYZ(BaseModel):
-    x_type: str = Field(title="X axis values", default='')
-    x_values: str = Field(title="X axis values", default='')
-    y_type: str = Field(title="Y axis values", default='')
-    y_values: str = Field(title="Y axis values", default='')
-    z_type: str = Field(title="Z axis values", default='')
-    z_values: str = Field(title="Z axis values", default='')
-    draw_legend: bool = Field(title="Draw legend", default=True)
-    include_grid: bool = Field(title="Include grid", default=True)
-    include_subgrids: bool = Field(title="Include subgrids", default=False)
-    include_images: bool = Field(title="Include images", default=False)
-    include_time: bool = Field(title="Include time", default=False)
-    include_text: bool = Field(title="Include text", default=False)
+    x_type: str = Field(title="X axis type", default='', description="Parameter name for X axis variation (e.g. 'Seed', 'Steps', 'CFG Scale')")
+    x_values: str = Field(title="X axis values", default='', description="Comma-separated values for X axis")
+    y_type: str = Field(title="Y axis type", default='', description="Parameter name for Y axis variation")
+    y_values: str = Field(title="Y axis values", default='', description="Comma-separated values for Y axis")
+    z_type: str = Field(title="Z axis type", default='', description="Parameter name for Z axis variation")
+    z_values: str = Field(title="Z axis values", default='', description="Comma-separated values for Z axis")
+    draw_legend: bool = Field(title="Draw legend", default=True, description="Draw axis labels on the output grid image")
+    include_grid: bool = Field(title="Include grid", default=True, description="Include the combined grid image in output")
+    include_subgrids: bool = Field(title="Include subgrids", default=False, description="Include intermediate sub-grid images when using 3 axes")
+    include_images: bool = Field(title="Include images", default=False, description="Include individual cell images in output alongside the grid")
+    include_time: bool = Field(title="Include time", default=False, description="Show generation time per cell in the legend")
+    include_text: bool = Field(title="Include text", default=False, description="Show generation parameters as text overlay")
 
 
 ReqControl = models.create_model_from_signature(
@@ -67,10 +67,10 @@ if not hasattr(ReqControl, "__config__"):
 
 
 class ResControl(BaseModel):
-    images: list[str] = Field(default=None, title="Images", description="Generated output images in base64 format")
-    processed: list[str] = Field(default=None, title="Processed", description="Preprocessed control images in base64 format")
-    params: dict = Field(default={}, title="Settings", description="Request parameters echoed back")
-    info: str = Field(default="", title="Info", description="Generation info string")
+    images: list[str] = Field(default=None, title="Images", description="Base64-encoded generated output images")
+    processed: list[str] = Field(default=None, title="Processed", description="Base64-encoded preprocessor output images (control maps)")
+    params: dict = Field(default={}, title="Settings", description="Echo of the request parameters used for generation")
+    info: str = Field(default="", title="Info", description="Generation info string with seed, sampler, and pipeline details")
 
 
 class APIControl:
@@ -224,7 +224,22 @@ class APIControl:
         del req.control
 
     def post_control(self, req: ReqControl):
-        """Run the control pipeline (ControlNet, T2I Adapter, XS, Lite, Reference) with one or more control units."""
+        """Run the control-guided generation pipeline with one or more control units.
+
+        Supports unit types: **controlnet**, **t2i adapter**, **xs**, **lite**, **reference**, and **ip**.
+        Each unit in the `control` list pairs a preprocessor with a control model. The preprocessor
+        transforms the input image into a control signal (e.g. edge map, depth map, pose skeleton),
+        which the control model uses to guide diffusion.
+
+        Set `process_params` on individual control units to override preprocessor defaults
+        (e.g. Canny thresholds, pose confidence) without changing the global processor settings.
+
+        Optional modules: `ip_adapter` for image-prompt conditioning, `face` for face-driven
+        generation (FaceID/FaceSwap/PhotoMaker/InstantID), and `xyz` for parameter grid sweeps.
+
+        Returns generated images, preprocessor output maps, the echoed request parameters, and
+        a generation info string.
+        """
         requested = req.control
         self.prepare_face_module(req)
         self.prepare_control(req)
