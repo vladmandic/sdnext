@@ -13,8 +13,8 @@ export class WebSocketManager {
   private ws: WebSocket | null = null;
   private url: string;
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10;
   private reconnectDelay = 1000;
+  private maxReconnectDelay = 30_000;
   private shouldReconnect = true;
   private listeners = new Map<keyof WsEvents, Set<(...args: never[]) => void>>();
 
@@ -30,6 +30,7 @@ export class WebSocketManager {
 
     this.ws.onopen = () => {
       this.reconnectAttempts = 0;
+      this.shouldReconnect = true;
       this.emit("open");
     };
 
@@ -48,12 +49,12 @@ export class WebSocketManager {
 
     this.ws.onclose = (event: CloseEvent) => {
       this.emit("close", event);
-      // Don't retry on auth/forbidden errors (code 1008 or HTTP 403 mapped to 1006)
-      if (event.code === 1008 || (event.code === 1006 && this.reconnectAttempts > 0)) {
+      // Don't retry on explicit policy-violation close (auth/forbidden)
+      if (event.code === 1008) {
         this.shouldReconnect = false;
       }
-      if (this.shouldReconnect && this.reconnectAttempts < this.maxReconnectAttempts) {
-        const delay = this.reconnectDelay * Math.pow(2, this.reconnectAttempts);
+      if (this.shouldReconnect) {
+        const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay);
         this.reconnectAttempts++;
         setTimeout(() => this.connect(), delay);
       }
