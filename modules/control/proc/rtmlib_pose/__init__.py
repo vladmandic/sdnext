@@ -113,10 +113,22 @@ def draw_face(canvas, keypoints, scores, min_conf):
             cv2.circle(canvas, (int(keypoints[i][0]), int(keypoints[i][1])), 2, (255, 255, 255), -1)
 
 
+def draw_skeleton(canvas, keypoints, scores, min_conf):
+    """Draw a full pose skeleton for one person. Used by ViTPoseDetector."""
+    is_wholebody = len(keypoints) >= 133
+    draw_body(canvas, keypoints, scores, min_conf)
+    if is_wholebody:
+        draw_feet(canvas, keypoints, scores, min_conf)
+        draw_hands(canvas, keypoints, scores, min_conf)
+        draw_face(canvas, keypoints, scores, min_conf)
+    return canvas
+
+
 class RtmlibPoseDetector:
-    def __init__(self, pose_model, mode):
+    def __init__(self, pose_model, mode, openpose=True):
         self.pose_model = pose_model
         self.mode = mode
+        self.openpose = openpose
 
     @classmethod
     def from_pretrained(cls, pretrained_model_or_path="DWPose", cache_dir=None, local_files_only=False, **kwargs):
@@ -132,9 +144,9 @@ class RtmlibPoseDetector:
             import rtmlib
             mode = pretrained_model_or_path
             model_map = {
-                'DWPose': ('RTMPose', {'to_openpose': False}),
-                'RTMW-l': ('RTMW', {'to_openpose': False}),
-                'RTMO-l': ('RTMO', {'to_openpose': False}),
+                'DWPose': ('RTMPose', {'to_openpose': True}),
+                'RTMW-l': ('RTMW', {'to_openpose': True}),
+                'RTMO-l': ('RTMO', {'to_openpose': True}),
             }
             if mode not in model_map:
                 log.warning(f'RtmlibPose: unknown mode "{mode}", falling back to DWPose')
@@ -143,7 +155,7 @@ class RtmlibPoseDetector:
             if model_name == 'RTMPose':
                 body = rtmlib.Body(mode='lightweight', backend='onnxruntime', device='cpu', **model_kwargs)
             elif model_name == 'RTMW':
-                body = rtmlib.Wholebody(mode='lightweight', backend='onnxruntime', device='cpu', to_openpose=False)
+                body = rtmlib.Wholebody(mode='lightweight', backend='onnxruntime', device='cpu', to_openpose=True)
             elif model_name == 'RTMO':
                 body = rtmlib.Body(mode='balanced', backend='onnxruntime', device='cpu', **model_kwargs)
             else:
@@ -158,22 +170,14 @@ class RtmlibPoseDetector:
     def __call__(self, image, min_confidence=0.3, draw_body_pose=True, draw_hand_pose=True, draw_face_pose=True, output_type="pil", **kwargs):
         if isinstance(image, Image.Image):
             image = np.array(image)
+        if image.ndim == 3 and image.shape[2] == 4:
+            image = image[:, :, :3]
         h, w = image.shape[:2]
         keypoints, scores = self.pose_model(image)
         canvas = np.zeros((h, w, 3), dtype=np.uint8)
         if keypoints is not None and len(keypoints) > 0:
-            for person_idx in range(len(keypoints)):
-                kps = keypoints[person_idx]
-                sc = scores[person_idx] if person_idx < len(scores) else np.ones(len(kps))
-                is_wholebody = len(kps) >= 133
-                if draw_body_pose:
-                    draw_body(canvas, kps, sc, min_confidence)
-                    if is_wholebody:
-                        draw_feet(canvas, kps, sc, min_confidence)
-                if draw_hand_pose and is_wholebody:
-                    draw_hands(canvas, kps, sc, min_confidence)
-                if draw_face_pose and is_wholebody:
-                    draw_face(canvas, kps, sc, min_confidence)
+            import rtmlib
+            canvas = rtmlib.draw_skeleton(canvas, keypoints, scores, openpose_skeleton=self.openpose, kpt_thr=min_confidence)
         if output_type == "pil":
             canvas = Image.fromarray(canvas)
         return canvas
