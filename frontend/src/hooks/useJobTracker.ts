@@ -3,6 +3,7 @@ import { api } from "@/api/client";
 import { WebSocketManager } from "@/api/websocket";
 import { useJobQueueStore, type TrackedJob, type JobDomain } from "@/stores/jobStore";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useControlStore } from "@/stores/controlStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
 import type { JobResult, JobWsEvent } from "@/api/types/v2";
@@ -27,6 +28,9 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
         inputMask: snapshot.inputMask,
         controlUnits: snapshot.controlUnits,
       });
+    }
+    if (result.processed?.length > 0) {
+      useControlStore.getState().replaceProcessedImages(`${api.getBaseUrl()}${result.processed[0].url}`);
     }
   } else if (domain === "video" || domain === "framepack" || domain === "ltx") {
     const vid = result.images[0];

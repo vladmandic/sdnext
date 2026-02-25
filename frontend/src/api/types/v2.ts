@@ -173,6 +173,7 @@ export interface ImageRef {
 
 export interface JobResult {
   images: ImageRef[];
+  processed: ImageRef[];
   info: Record<string, unknown>;
   params: Record<string, unknown>;
 }
