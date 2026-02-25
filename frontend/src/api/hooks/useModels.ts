@@ -63,6 +63,7 @@ export function useLoadModel() {
       queryClient.invalidateQueries({ queryKey: ["options"] });
       queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
       queryClient.invalidateQueries({ queryKey: ["samplers"] });
+      queryClient.invalidateQueries({ queryKey: ["control-models"] });
     },
   });
 }
@@ -88,6 +89,7 @@ export function useReloadModel() {
       queryClient.invalidateQueries({ queryKey: ["options"] });
       queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
       queryClient.invalidateQueries({ queryKey: ["samplers"] });
+      queryClient.invalidateQueries({ queryKey: ["control-models"] });
     },
   });
 }
@@ -101,6 +103,7 @@ export function useUnloadModel() {
       queryClient.invalidateQueries({ queryKey: ["options"] });
       queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
       queryClient.invalidateQueries({ queryKey: ["samplers"] });
+      queryClient.invalidateQueries({ queryKey: ["control-models"] });
     },
   });
 }
