@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { useSamplerList, useCurrentCheckpoint } from "@/api/hooks/useModels";
-import { classifySampler, isSamplerCompatible } from "@/lib/samplerUtils";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
 import { ParamRow, ParamGrid } from "../ParamRow";
@@ -41,17 +40,14 @@ export function SamplerTab() {
   })));
   const setParam = useGenerationStore((s) => s.setParam);
   const lastResult = useGenerationStore((s) => s.results[0]);
-  const { data: samplers } = useSamplerList();
   const { data: checkpoint } = useCurrentCheckpoint();
+  const { data: samplers } = useSamplerList(checkpoint?.type);
 
   const samplerGroups = useMemo<ComboboxGroup[]>(() => {
     if (!samplers) return [];
-    const modelType = checkpoint?.type ?? null;
     const buckets: Record<string, string[]> = {};
     for (const s of samplers) {
-      const group = classifySampler(s);
-      if (!isSamplerCompatible(group, modelType)) continue;
-      (buckets[group] ??= []).push(s.name);
+      (buckets[s.group] ??= []).push(s.name);
     }
     for (const names of Object.values(buckets)) {
       names.sort((a, b) => a.localeCompare(b));
@@ -59,7 +55,7 @@ export function SamplerTab() {
     return SAMPLER_GROUP_ORDER
       .filter((g) => buckets[g]?.length)
       .map((g) => ({ heading: g, options: buckets[g] }));
-  }, [samplers, checkpoint]);
+  }, [samplers]);
 
   const lastInfo = useMemo<GenerationInfo | null>(() => {
     if (!lastResult?.info) return null;

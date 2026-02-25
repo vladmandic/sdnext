@@ -9,7 +9,7 @@ export function HistorySubTab() {
   const [filter, setFilter] = useState("");
   const [expanded, setExpanded] = useState<Set<number>>(new Set());
 
-  const filtered = (history ?? []).filter((entry) => {
+  const filtered = (history?.items ?? []).filter((entry) => {
     if (!filter) return true;
     const q = filter.toLowerCase();
     return (

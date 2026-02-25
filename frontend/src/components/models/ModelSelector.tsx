@@ -1,5 +1,5 @@
 import { useModelList, useLoadModel, useRefreshModels, useReloadModel, useUnloadModel, useCurrentCheckpoint, useIsModelLoading } from "@/api/hooks/useModels";
-import { useOptions } from "@/api/hooks/useSettings";
+import { useOptionsSubset } from "@/api/hooks/useSettings";
 import { RefreshCw, Check, ChevronsUpDown, ArrowBigDownDash, FolderSync } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,7 +15,7 @@ function formatPipelineClass(cls: string | null | undefined): string | null {
 
 export function ModelSelector() {
   const { data: models } = useModelList();
-  const { data: options } = useOptions();
+  const { data: options } = useOptionsSubset(["sd_model_checkpoint"]);
   const { data: checkpoint } = useCurrentCheckpoint();
   const loadModel = useLoadModel();
   const reloadModel = useReloadModel();
@@ -26,7 +26,7 @@ export function ModelSelector() {
   const [open, setOpen] = useState(false);
 
   const currentModel = (options?.sd_model_checkpoint as string) ?? "No model loaded";
-  const pipelineClass = formatPipelineClass(checkpoint?.class);
+  const pipelineClass = formatPipelineClass(checkpoint?.class_name);
 
   async function handleSelect(title: string) {
     setOpen(false);

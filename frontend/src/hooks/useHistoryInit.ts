@@ -1,12 +1,12 @@
 import { useEffect, useRef } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
-import { useOptions } from "@/api/hooks/useSettings";
+import { useOptionsSubset } from "@/api/hooks/useSettings";
 
 export function useHistoryInit() {
   const hydrated = useRef(false);
   const hydrateFromDb = useGenerationStore((s) => s.hydrateFromDb);
   const setHistoryLimit = useGenerationStore((s) => s.setHistoryLimit);
-  const { data: options } = useOptions();
+  const { data: options } = useOptionsSubset(["latent_history"]);
 
   useEffect(() => {
     if (!hydrated.current) {

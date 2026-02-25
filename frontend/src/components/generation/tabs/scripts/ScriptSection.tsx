@@ -2,10 +2,10 @@ import { Switch } from "@/components/ui/switch";
 import { useScriptStore } from "@/stores/scriptStore";
 import { ScriptArgControl } from "./ScriptArgControl";
 import { SCRIPT_LAYOUTS } from "./scriptLayouts";
-import type { ScriptInfo } from "@/api/types/script";
+import type { ScriptInfoV2 } from "@/api/types/script";
 
 interface ScriptSectionProps {
-  script: ScriptInfo;
+  script: ScriptInfoV2;
   getArgValue: (index: number) => unknown;
   setArgValue: (index: number, value: unknown) => void;
 }

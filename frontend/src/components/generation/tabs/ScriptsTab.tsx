@@ -1,41 +1,31 @@
 import { useCallback, useMemo } from "react";
-import { useScriptsList, useScriptInfo } from "@/api/hooks/useScripts";
+import { useScripts } from "@/api/hooks/useScripts";
 import { useScriptStore } from "@/stores/scriptStore";
 import { ParamSection } from "../ParamSection";
 import { ScriptArgControl } from "./scripts/ScriptArgControl";
 import { ScriptSection } from "./scripts/ScriptSection";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
-import type { ScriptInfo } from "@/api/types/script";
-
-/** Scripts handled by dedicated tabs (e.g. IP Adapters lives in Input tab). */
-const HIDDEN_ALWAYS_ON = new Set(["ip adapters"]);
+import type { ScriptInfoV2 } from "@/api/types/script";
 
 export function ScriptsTab() {
-  const { data: scriptsList } = useScriptsList();
-  const { data: scriptInfo } = useScriptInfo();
+  const { data: scripts } = useScripts();
   const store = useScriptStore();
 
-  const selectableScripts = scriptsList?.txt2img ?? [];
-
-  const selectedInfo = useMemo(
-    () => scriptInfo?.find((s) => s.name === store.selectedScript),
-    [scriptInfo, store.selectedScript],
+  const selectableScripts = useMemo(
+    () => scripts?.scripts.filter((s) => !s.is_alwayson && s.contexts.includes("txt2img")).map((s) => s.name) ?? [],
+    [scripts],
   );
 
-  // Deduplicate by name (API returns one per context: txt2img, img2img, control)
-  // and exclude scripts that have dedicated tabs.
+  const selectedInfo = useMemo(
+    () => scripts?.scripts.find((s) => s.name === store.selectedScript),
+    [scripts, store.selectedScript],
+  );
+
   const alwaysOnScripts = useMemo(() => {
-    if (!scriptInfo) return [];
-    const seen = new Set<string>();
-    return scriptInfo.filter((s) => {
-      if (!s.is_alwayson || s.args.length === 0) return false;
-      if (HIDDEN_ALWAYS_ON.has(s.name)) return false;
-      if (seen.has(s.name)) return false;
-      seen.add(s.name);
-      return true;
-    });
-  }, [scriptInfo]);
+    if (!scripts) return [];
+    return scripts.scripts.filter((s) => s.is_alwayson && s.args.length > 0);
+  }, [scripts]);
 
   return (
     <div className="flex flex-col gap-3 text-sm">
@@ -75,7 +65,7 @@ export function ScriptsTab() {
   );
 }
 
-function AlwaysOnSection({ script }: { script: ScriptInfo }) {
+function AlwaysOnSection({ script }: { script: ScriptInfoV2 }) {
   const store = useScriptStore();
   const getArgValue = useCallback(
     (index: number) => store.alwaysOnOverrides[script.name]?.[index] ?? script.args[index]?.value,

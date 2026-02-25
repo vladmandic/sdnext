@@ -3,7 +3,7 @@ import { RefreshCw, ImageOff, Info, Loader2 } from "lucide-react";
 import { useExtraNetworks, usePromptStyles, useNetworkDetail, useRefreshNetworks } from "@/api/hooks/useNetworks";
 import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
 import { useGenerationStore } from "@/stores/generationStore";
-import type { LoraNetwork, PromptStyle } from "@/api/types/models";
+import type { ExtraNetworkV2, PromptStyle } from "@/api/types/models";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -13,15 +13,14 @@ import { api } from "@/api/client";
 const TYPE_FILTERS = ["Model", "LoRA", "Style", "Wildcards", "Embedding", "VAE"] as const;
 type TypeFilter = (typeof TYPE_FILTERS)[number];
 
-function typeMatches(network: LoraNetwork, filter: TypeFilter): boolean {
-  const t = network.type?.toLowerCase() ?? "";
-  if (filter === "Model") return t === "model" || t === "checkpoint";
-  if (filter === "LoRA") return t === "lora" || t === "lycoris";
-  if (filter === "Embedding") return t === "embedding" || t === "textual inversion";
-  if (filter === "Wildcards") return t === "wildcards";
-  if (filter === "VAE") return t === "vae";
-  return false;
-}
+const PAGE_MAP: Record<TypeFilter, string | null> = {
+  Model: "model",
+  LoRA: "lora",
+  Style: null,
+  Wildcards: "wildcards",
+  Embedding: "embedding",
+  VAE: "vae",
+};
 
 const TAG_CATEGORIES = ["Distilled", "Quantized", "Nunchaku", "Community", "Cloud"] as const;
 
@@ -29,7 +28,7 @@ const EXCLUDED_VERSIONS = new Set(["ref", "reference", "ready", "download"]);
 
 type SidebarGroup = { header?: string; items: string[] };
 
-function isLoraNetwork(item: LoraNetwork | PromptStyle): item is LoraNetwork {
+function isExtraNetwork(item: ExtraNetworkV2 | PromptStyle): item is ExtraNetworkV2 {
   return "type" in item && !!item.type;
 }
 
@@ -37,8 +36,8 @@ function isReferenceName(name: string): boolean {
   return name.toLowerCase().includes("reference/");
 }
 
-function isItemActive(item: LoraNetwork | PromptStyle, prompt: string, options: Record<string, unknown> | undefined): boolean {
-  if (!isLoraNetwork(item)) {
+function isItemActive(item: ExtraNetworkV2 | PromptStyle, prompt: string, options: Record<string, unknown> | undefined): boolean {
+  if (!isExtraNetwork(item)) {
     const style = item as PromptStyle;
     return !!style.prompt && prompt.includes(style.prompt);
   }
@@ -51,36 +50,38 @@ function isItemActive(item: LoraNetwork | PromptStyle, prompt: string, options: 
   return false;
 }
 
-function itemHasTag(item: LoraNetwork, tag: string): boolean {
-  if (!item.tags) return false;
-  return item.tags.split("|").some((t) => t.toLowerCase() === tag.toLowerCase());
+function itemHasTag(item: ExtraNetworkV2, tag: string): boolean {
+  return item.tags.some((t) => t.toLowerCase() === tag.toLowerCase());
 }
 
 export function NetworksTab() {
-  const { data: networks, isLoading } = useExtraNetworks();
-  const { data: styles } = usePromptStyles();
   const { data: options } = useOptions();
   const setOptions = useSetOptions();
+  const { data: styles } = usePromptStyles();
   const prompt = useGenerationStore((s) => s.prompt);
   const refreshNetworks = useRefreshNetworks();
   const [filter, setFilter] = useState<TypeFilter>("Model");
   const [search, setSearch] = useState("");
   const [selectedSubfolder, setSelectedSubfolder] = useState("All");
 
-  const filtered = useMemo(() => {
-    const items: (LoraNetwork | PromptStyle)[] = [];
-    const lowerSearch = search.toLowerCase();
+  const page = PAGE_MAP[filter];
+  const { data: networksResp, isLoading } = useExtraNetworks({
+    page: page ?? undefined,
+    search: search || undefined,
+    limit: 500,
+  });
+  const networks = networksResp?.items;
 
+  const filtered = useMemo(() => {
+    const items: (ExtraNetworkV2 | PromptStyle)[] = [];
     if (filter === "Style") {
+      const lowerSearch = search.toLowerCase();
       for (const s of styles ?? []) {
         if (lowerSearch && !s.name.toLowerCase().includes(lowerSearch)) continue;
         items.push(s);
       }
     } else {
       for (const n of networks ?? []) {
-        if (n.type?.toLowerCase() === "style") continue;
-        if (!typeMatches(n, filter)) continue;
-        if (lowerSearch && !n.name.toLowerCase().includes(lowerSearch)) continue;
         items.push(n);
       }
     }
@@ -90,7 +91,7 @@ export function NetworksTab() {
   const versionSet = useMemo(() => {
     const versions = new Set<string>();
     for (const item of filtered) {
-      if (isLoraNetwork(item) && item.version && !EXCLUDED_VERSIONS.has(item.version.toLowerCase())) {
+      if (isExtraNetwork(item) && item.version && !EXCLUDED_VERSIONS.has(item.version.toLowerCase())) {
         versions.add(item.version);
       }
     }
@@ -109,7 +110,7 @@ export function NetworksTab() {
       for (const cat of TAG_CATEGORIES) tagHits.set(cat.toLowerCase(), false);
 
       for (const item of filtered) {
-        if (!isLoraNetwork(item)) continue;
+        if (!isExtraNetwork(item)) continue;
         const isRef = isReferenceName(item.name);
         const isDiff = item.name.startsWith("Diffusers/");
         if (!isRef && !isDiff) {
@@ -119,7 +120,7 @@ export function NetworksTab() {
           if (slash > 0) realDirs.add(name.substring(0, slash));
         }
         if (isDiff) hasDiffusers = true;
-        if (isRef && !item.tags) hasReference = true;
+        if (isRef && item.tags.length === 0) hasReference = true;
         for (const cat of TAG_CATEGORIES) {
           if (itemHasTag(item, cat.toLowerCase())) tagHits.set(cat.toLowerCase(), true);
         }
@@ -169,20 +170,20 @@ export function NetworksTab() {
 
     if (filter === "Model") {
       if (selectedSubfolder === "Local") {
-        return filtered.filter((item) => isLoraNetwork(item) && !isReferenceName(item.name) && !item.name.startsWith("Diffusers/"));
+        return filtered.filter((item) => isExtraNetwork(item) && !isReferenceName(item.name) && !item.name.startsWith("Diffusers/"));
       }
       if (selectedSubfolder === "Diffusers") {
-        return filtered.filter((item) => isLoraNetwork(item) && item.name.startsWith("Diffusers/"));
+        return filtered.filter((item) => isExtraNetwork(item) && item.name.startsWith("Diffusers/"));
       }
       if (selectedSubfolder === "Reference") {
-        return filtered.filter((item) => isLoraNetwork(item) && isReferenceName(item.name) && !item.tags);
+        return filtered.filter((item) => isExtraNetwork(item) && isReferenceName(item.name) && item.tags.length === 0);
       }
       const tagCat = TAG_CATEGORIES.find((c) => c === selectedSubfolder);
       if (tagCat) {
-        return filtered.filter((item) => isLoraNetwork(item) && itemHasTag(item, tagCat.toLowerCase()));
+        return filtered.filter((item) => isExtraNetwork(item) && itemHasTag(item, tagCat.toLowerCase()));
       }
       if (versionSet.has(selectedSubfolder)) {
-        return filtered.filter((item) => isLoraNetwork(item) && item.version === selectedSubfolder);
+        return filtered.filter((item) => isExtraNetwork(item) && item.version === selectedSubfolder);
       }
       // Real subdir
       const prefix = selectedSubfolder + "/";
@@ -197,7 +198,7 @@ export function NetworksTab() {
 
     // LoRA, Wildcards, Embedding, VAE — version or path-based filter
     if (versionSet.has(selectedSubfolder)) {
-      return filtered.filter((item) => isLoraNetwork(item) && item.version === selectedSubfolder);
+      return filtered.filter((item) => isExtraNetwork(item) && item.version === selectedSubfolder);
     }
     const prefix = selectedSubfolder + "/";
     return filtered.filter((item) => item.name.startsWith(prefix));
@@ -208,9 +209,9 @@ export function NetworksTab() {
     setSelectedSubfolder("All");
   }
 
-  function handleClick(item: LoraNetwork | PromptStyle) {
+  function handleClick(item: ExtraNetworkV2 | PromptStyle) {
     if ("type" in item && item.type) {
-      const network = item as LoraNetwork;
+      const network = item as ExtraNetworkV2;
       const t = network.type.toLowerCase();
       if (t === "lora" || t === "lycoris") {
         const current = useGenerationStore.getState().prompt;
@@ -337,10 +338,10 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   );
 }
 
-function NetworkDetailPopover({ item }: { item: LoraNetwork | PromptStyle }) {
+function NetworkDetailPopover({ item }: { item: ExtraNetworkV2 | PromptStyle }) {
   const [open, setOpen] = useState(false);
   const isNetwork = "type" in item && item.type;
-  const network = isNetwork ? (item as LoraNetwork) : null;
+  const network = isNetwork ? (item as ExtraNetworkV2) : null;
   const { data: detail, isLoading } = useNetworkDetail(network?.type ?? "", item.name, open && !!network);
 
   return (
@@ -405,9 +406,9 @@ function StyleDetail({ item }: { item: PromptStyle }) {
   );
 }
 
-function NetworkCard({ item, active, onClick }: { item: LoraNetwork | PromptStyle; active: boolean; onClick: () => void }) {
+function NetworkCard({ item, active, onClick }: { item: ExtraNetworkV2 | PromptStyle; active: boolean; onClick: () => void }) {
   const isNetwork = "type" in item && item.type;
-  const network = isNetwork ? (item as LoraNetwork) : null;
+  const network = isNetwork ? (item as ExtraNetworkV2) : null;
   const typeBadge = network ? (network.version || network.type) : "Style";
   const preview = item.preview;
   const previewUrl = preview
