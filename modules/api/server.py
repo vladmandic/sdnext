@@ -362,7 +362,7 @@ def get_server_info():
     """
     from modules import devices
     from modules.sd_models import model_data
-    ver = shared.get_version()
+    ver = _get_version()
     model_name = None
     model_type = None
     if hasattr(shared.opts, 'sd_model_checkpoint'):
