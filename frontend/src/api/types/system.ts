@@ -61,6 +61,22 @@ export interface StorageEntry {
 
 export type StorageInfo = Record<string, StorageEntry[]>;
 
+export interface HistoryEntryV2 {
+  id: string | number | null;
+  job: string;
+  op: string;
+  timestamp: number | null;
+  duration: number | null;
+  outputs: string[];
+}
+
+export interface HistoryResponse {
+  items: HistoryEntryV2[];
+  total: number;
+  offset: number;
+  limit: number;
+}
+
 export interface SystemInfoFull {
   version: Record<string, string>;
   uptime: string;

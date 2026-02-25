@@ -5,7 +5,16 @@ import type { OptionsMap, OptionsInfoResponse, SecretsStatusMap } from "../types
 export function useOptions() {
   return useQuery({
     queryKey: ["options"],
-    queryFn: () => api.get<OptionsMap>("/sdapi/v1/options"),
+    queryFn: () => api.get<OptionsMap>("/sdapi/v2/options"),
+    staleTime: 30_000,
+  });
+}
+
+export function useOptionsSubset(keys: string[]) {
+  const keysStr = keys.join(",");
+  return useQuery({
+    queryKey: ["options", keysStr],
+    queryFn: () => api.get<OptionsMap>("/sdapi/v2/options", { keys: keysStr }),
     staleTime: 30_000,
   });
 }
@@ -37,4 +46,3 @@ export function useSecretsStatus() {
     staleTime: 30_000,
   });
 }
-

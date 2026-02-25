@@ -1,11 +1,17 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { LoraNetwork, EmbeddingsResponse, PromptStyle, NetworkDetail, NetworkDetailsResponse } from "../types/models";
+import type { EmbeddingsResponse, PromptStyle, NetworkDetail, NetworkDetailsResponse, ExtraNetworksResponse } from "../types/models";
 
-export function useExtraNetworks() {
+export function useExtraNetworks(params: { page?: string; search?: string; subfolder?: string; offset?: number; limit?: number } = {}) {
+  const queryParams: Record<string, string> = {};
+  if (params.page) queryParams.page = params.page;
+  if (params.search) queryParams.search = params.search;
+  if (params.subfolder) queryParams.subfolder = params.subfolder;
+  if (params.offset != null) queryParams.offset = String(params.offset);
+  if (params.limit != null) queryParams.limit = String(params.limit);
   return useQuery({
-    queryKey: ["extra-networks"],
-    queryFn: () => api.get<LoraNetwork[]>("/sdapi/v1/extra-networks"),
+    queryKey: ["extra-networks", params],
+    queryFn: () => api.get<ExtraNetworksResponse>("/sdapi/v2/extra-networks", queryParams),
     staleTime: 60_000,
   });
 }

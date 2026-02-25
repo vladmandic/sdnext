@@ -7,15 +7,21 @@ import type {
   BenchmarkRunRequest,
   BenchmarkRunResult,
   BenchmarkHistory,
-  HistoryEntry,
+  HistoryResponse,
   SystemInfoFull,
   StorageInfo,
 } from "../types/system";
 
-export function useHistory() {
+export function useHistory(params: { since?: number; job?: string; op?: string; offset?: number; limit?: number } = {}) {
+  const queryParams: Record<string, string> = {};
+  if (params.since != null) queryParams.since = String(params.since);
+  if (params.job) queryParams.job = params.job;
+  if (params.op) queryParams.op = params.op;
+  if (params.offset != null) queryParams.offset = String(params.offset);
+  if (params.limit != null) queryParams.limit = String(params.limit);
   return useQuery({
-    queryKey: ["history"],
-    queryFn: () => api.get<HistoryEntry[]>("/sdapi/v1/history"),
+    queryKey: ["history", params],
+    queryFn: () => api.get<HistoryResponse>("/sdapi/v2/history", queryParams),
     refetchInterval: 10_000,
   });
 }

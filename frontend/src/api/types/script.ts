@@ -19,3 +19,14 @@ export interface ScriptsList {
   img2img: string[];
   control: string[];
 }
+
+export interface ScriptInfoV2 {
+  name: string;
+  is_alwayson: boolean;
+  contexts: string[];
+  args: ScriptArg[];
+}
+
+export interface ScriptsResponse {
+  scripts: ScriptInfoV2[];
+}

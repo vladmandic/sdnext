@@ -1,22 +1,16 @@
 import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { SdModel, SdVae, Sampler, Upscaler } from "../types/models";
+import type { SdVae, Upscaler, SdModelsResponse, SamplerV2, CheckpointInfoV2 } from "../types/models";
 
 const MODEL_MUTATION_KEY = ["model-operation"];
-
-export interface CheckpointInfo {
-  type: string | null;
-  class: string | null;
-  title?: string;
-  name?: string;
-  filename?: string;
-  hash?: string;
-}
 
 export function useModelList() {
   return useQuery({
     queryKey: ["models"],
-    queryFn: () => api.get<SdModel[]>("/sdapi/v1/sd-models"),
+    queryFn: async () => {
+      const resp = await api.get<SdModelsResponse>("/sdapi/v2/sd-models");
+      return resp.items;
+    },
     staleTime: 60_000,
   });
 }
@@ -29,10 +23,12 @@ export function useVaeList() {
   });
 }
 
-export function useSamplerList() {
+export function useSamplerList(modelType?: string | null) {
+  const params: Record<string, string> = {};
+  if (modelType) params.model_type = modelType;
   return useQuery({
-    queryKey: ["samplers"],
-    queryFn: () => api.get<Sampler[]>("/sdapi/v1/samplers"),
+    queryKey: ["samplers", modelType ?? "all"],
+    queryFn: () => api.get<SamplerV2[]>("/sdapi/v2/samplers", params),
     staleTime: 300_000,
   });
 }
@@ -48,7 +44,7 @@ export function useUpscalerList() {
 export function useCurrentCheckpoint() {
   return useQuery({
     queryKey: ["checkpoint"],
-    queryFn: () => api.get<CheckpointInfo>("/sdapi/v1/checkpoint"),
+    queryFn: () => api.get<CheckpointInfoV2>("/sdapi/v2/checkpoint"),
     staleTime: 30_000,
   });
 }
@@ -58,7 +54,7 @@ export function useLoadModel() {
   return useMutation({
     mutationKey: MODEL_MUTATION_KEY,
     mutationFn: (checkpoint: string) =>
-      api.post(`/sdapi/v1/checkpoint?sd_model_checkpoint=${encodeURIComponent(checkpoint)}`),
+      api.post("/sdapi/v2/checkpoint", { sd_model_checkpoint: checkpoint }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["options"] });
       queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
