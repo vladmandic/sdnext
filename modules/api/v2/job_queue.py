@@ -182,8 +182,8 @@ class JobQueue:
                     last_job = current_job
                     last_textinfo = current_textinfo
                     status = state.status()
-                    step = status.step if hasattr(status, 'step') else getattr(status, 'sampling_step', 0)
-                    steps = status.steps if hasattr(status, 'steps') else getattr(status, 'sampling_steps', 0)
+                    step = current_step
+                    steps = state.sampling_steps
                     progress_val = status.progress if hasattr(status, 'progress') else 0
                     eta_val = status.eta if hasattr(status, 'eta') else None
                     progress_data = {

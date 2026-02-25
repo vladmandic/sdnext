@@ -61,6 +61,8 @@ async def push_progress(ws: WebSocket):
                 last_textinfo = current_textinfo
                 status = state.status()
                 data = status.dict() if hasattr(status, 'dict') else status.model_dump()
+                data['step'] = current_step
+                data['steps'] = state.sampling_steps
                 data['textinfo'] = current_textinfo
                 await manager.send_json(ws, {"type": "progress", "data": data})
                 if state.id_live_preview != last_preview_id and state.current_image is not None:
