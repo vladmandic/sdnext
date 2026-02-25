@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-02-24
+## Update for 2026-02-25
 
-### Highlights for 2026-02-24
+### Highlights for 2026-02-25
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, so we have two deep fine-tunes: *FireRed-Image-Edit* and *SkyWorks-UniPic-3*  
@@ -11,7 +11,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-02-24
+### Details for 2026-02-25
 
 - **Models**
   - [FireRed Image Edit](https://huggingface.co/FireRedTeam/FireRed-Image-Edit-1.0)  
@@ -37,13 +37,14 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - **Cuda** `torch==2.10` removed support for `rtx1000` series, use following before first startup:  
     > set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'  
 - **UI**
-  - ui: **localization** improved translation quality and new translations locales:  
+  - **localization** improved translation quality and new translations locales:  
     *en, en1, en2, en3, en4, hr, es, it, fr, de, pt, ru, zh, ja, ko, hi, ar, bn, ur, id, vi, tr, sr, po, he, xx, yy, qq, tlh*  
     yes, this now includes stuff like *latin, esperanto, arabic, hebrew, klingon* and a lot more!  
     and also intruce some pseudo-locales such as: *techno-babbel*, *for-n00bs*  
     *hint*: click on locale icon in bottom-left corner to cycle through available locales, or set default in *settings -> ui*  
-  - ui: **themes** add *CTD-NT64Light*, *CTD-NT64Medium* and *CTD-NT64Dark*, thanks @resonantsky  
-  - ui: **gallery** add option to auto-refresh gallery, thanks @awsr  
+  - **kanvas**: add paste image from clipboard
+  - **themes** add *CTD-NT64Light*, *CTD-NT64Medium* and *CTD-NT64Dark*, thanks @resonantsky  
+  - **gallery** add option to auto-refresh gallery, thanks @awsr  
 - **Internal**
   - `python==3.13` full support  
   - `python==3.14` initial support  
