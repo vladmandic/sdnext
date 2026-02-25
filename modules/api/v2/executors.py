@@ -35,6 +35,21 @@ def execute_generate(params: dict, job_id: str) -> dict:
             start=u.get('start', 0.0),
             end=u.get('end', 1.0),
         )
+        unit.guess = u.get('guess', False)
+        unit.factor = u.get('factor', 1.0)
+        unit.attention = u.get('attention', 'Attention')
+        unit.fidelity = u.get('fidelity', 0.5)
+        unit.query_weight = u.get('query_weight', 1.0)
+        unit.adain_weight = u.get('adain_weight', 1.0)
+        unit.process_params = u.get('process_params') or {}
+        unit.update_choices(u.get('model', ''))
+        mode = u.get('mode', 'default')
+        if mode != 'default' and unit.choices and mode in unit.choices:
+            unit.mode = mode
+        elif unit.choices:
+            unit.mode = unit.choices[0]
+        if unit.process is not None:
+            unit.process.override = None
         override_b64 = u.get('override') or u.get('image')
         if override_b64:
             unit.override = helpers.decode_base64_to_image(override_b64)
@@ -71,6 +86,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
     run_args['inits'] = inits
     run_args['mask'] = mask
     run_args['units'] = units
+    if units:
+        run_args['unit_type'] = units[0].type
 
     extra = params.get('extra', {}) or {}
     run_args['extra'] = extra
@@ -94,9 +111,12 @@ def execute_generate(params: dict, job_id: str) -> dict:
         res = control_run_module.control_run(**run_args)
 
         output_images = []
+        output_processed = []
         for item in res:
             if len(item) > 0 and (isinstance(item[0], list) or item[0] is None):
                 output_images += item[0] if item[0] is not None else []
+            if len(item) > 1 and item[1] is not None:
+                output_processed.append(item[1])
 
         # Capture saved file paths BEFORE end() clears state.results
         saved_paths = list(shared.state.results) if hasattr(shared.state, 'results') and shared.state.results else []
@@ -142,7 +162,31 @@ def execute_generate(params: dict, job_id: str) -> dict:
             except Exception as e:
                 log.warning(f'Job {job_id}: failed to save fallback image {i}: {e}')
 
-    return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k != 'type'}}
+    # Save processed control images to disk and build refs
+    processed_refs = []
+    if output_processed:
+        from modules import images as img_module
+        output_dir = shared.opts.outdir_extras_samples if hasattr(shared.opts, 'outdir_extras_samples') else shared.opts.outdir_txt2img_samples
+        for pi, proc_img in enumerate(output_processed):
+            try:
+                path_info = img_module.save_image(proc_img, output_dir, "control-", prompt="processed")
+                fpath = path_info[0] if isinstance(path_info, (list, tuple)) else str(path_info) if path_info else None
+                if fpath and os.path.isfile(str(fpath)):
+                    fpath = str(fpath)
+                    ext = os.path.splitext(fpath)[1].lstrip('.').lower()
+                    processed_refs.append({
+                        'index': pi,
+                        'path': fpath,
+                        'url': f'/sdapi/v2/jobs/{job_id}/processed/{pi}',
+                        'width': proc_img.width if hasattr(proc_img, 'width') else 0,
+                        'height': proc_img.height if hasattr(proc_img, 'height') else 0,
+                        'format': ext or 'png',
+                        'size': os.path.getsize(fpath),
+                    })
+            except Exception as e:
+                log.warning(f'Job {job_id}: failed to save processed image {pi}: {e}')
+
+    return {'images': image_refs, 'processed': processed_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k != 'type'}}
 
 
 def execute_upscale(params: dict, job_id: str) -> dict:
