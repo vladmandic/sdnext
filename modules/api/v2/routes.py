@@ -94,13 +94,13 @@ async def cancel_job(job_id: str):
 def _embed_base64(job: dict, resp: JobResponse) -> None:
     import base64
     for img_ref in resp.result.images:
-        file_path = _get_image_path(job, img_ref.index)
+        file_path = _get_ref_path(job, 'images', img_ref.index)
         if file_path and os.path.isfile(file_path):
             with open(file_path, 'rb') as f:
                 img_ref.__dict__['data'] = base64.b64encode(f.read()).decode('ascii')
 
 
-def _get_image_path(job: dict, index: int) -> str | None:
+def _get_ref_path(job: dict, key: str, index: int) -> str | None:
     result = job.get('result')
     if isinstance(result, str):
         try:
@@ -109,29 +109,41 @@ def _get_image_path(job: dict, index: int) -> str | None:
             return None
     if not isinstance(result, dict):
         return None
-    images = result.get('images', [])
-    if index < 0 or index >= len(images):
+    items = result.get(key, [])
+    if index < 0 or index >= len(items):
         return None
-    return images[index].get('path')
+    return items[index].get('path')
 
 
-@router.get("/jobs/{job_id}/images/{index}", tags=["Jobs"])
-async def get_job_image(job_id: str, index: int):
+def _serve_job_file(job: dict, key: str, index: int):
+    file_path = _get_ref_path(job, key, index)
+    if file_path is None:
+        raise HTTPException(status_code=404, detail=f"{key} index {index} out of range")
+    if not os.path.isfile(file_path):
+        raise HTTPException(status_code=404, detail="File not found on disk")
+    ext = os.path.splitext(file_path)[1].lstrip('.').lower()
+    media_types = {'png': 'image/png', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'webp': 'image/webp', 'jxl': 'image/jxl', 'mp4': 'video/mp4', 'webm': 'video/webm', 'gif': 'image/gif'}
+    return FileResponse(file_path, media_type=media_types.get(ext, 'application/octet-stream'))
+
+
+def _get_completed_job(job_id: str):
     from modules.api.v2.job_queue import job_queue
     job = job_queue.store.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found")
     if job['status'] != 'completed':
         raise HTTPException(status_code=409, detail="Job not completed")
-    file_path = _get_image_path(job, index)
-    if file_path is None:
-        raise HTTPException(status_code=404, detail=f"Image index {index} out of range")
-    if not os.path.isfile(file_path):
-        raise HTTPException(status_code=404, detail="Image file not found on disk")
-    ext = os.path.splitext(file_path)[1].lstrip('.').lower()
-    media_types = {'png': 'image/png', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'webp': 'image/webp', 'jxl': 'image/jxl', 'mp4': 'video/mp4', 'webm': 'video/webm', 'gif': 'image/gif'}
-    media_type = media_types.get(ext, 'application/octet-stream')
-    return FileResponse(file_path, media_type=media_type)
+    return job
+
+
+@router.get("/jobs/{job_id}/images/{index}", tags=["Jobs"])
+async def get_job_image(job_id: str, index: int):
+    return _serve_job_file(_get_completed_job(job_id), 'images', index)
+
+
+@router.get("/jobs/{job_id}/processed/{index}", tags=["Jobs"])
+async def get_job_processed(job_id: str, index: int):
+    return _serve_job_file(_get_completed_job(job_id), 'processed', index)
 
 
 @router.get("/video/engines", response_model=list[VideoEngine], tags=["Video"])

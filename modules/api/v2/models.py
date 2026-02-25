@@ -85,6 +85,7 @@ class ImageRef(BaseModel):
 
 class JobResult(BaseModel):
     images: list[ImageRef] = Field(default_factory=list)
+    processed: list[ImageRef] = Field(default_factory=list)
     info: dict = Field(default_factory=dict)
     params: dict = Field(default_factory=dict)
 
