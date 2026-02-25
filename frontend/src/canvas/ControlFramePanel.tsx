@@ -6,13 +6,13 @@ import { useUiStore } from "@/stores/uiStore";
 import { ControlUnitControls } from "@/components/generation/tabs/control/ControlUnitControls";
 import { LayerPanel } from "@/components/generation/LayerPanel";
 import { MaskParams } from "@/components/generation/MaskParams";
-import { ChevronUp, ChevronDown, ImagePlus, Trash2, Minimize2, Maximize2, Move, ArrowLeftFromLine, Hand, LocateFixed } from "lucide-react";
+import { ChevronUp, ChevronDown, ImagePlus, Trash2, Minimize2, Maximize2, Move, ArrowLeftFromLine, Hand, LocateFixed, Download } from "lucide-react";
 import type { FitMode } from "@/lib/image";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
-import { contrastText } from "@/lib/utils";
+import { contrastText, downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
 import { fileToBase64 } from "@/lib/image";
-import { ELEMENT_GAP, type CanvasLayout, type ControlFramePosition } from "./useControlFrameLayout";
+import { ELEMENT_GAP, PROCESSED_HEADER_HEIGHT, type CanvasLayout, type ControlFramePosition } from "./useControlFrameLayout";
 
 const HEADER_HEIGHT = 36;
 const DRAWER_MAX_HEIGHT = 420;
@@ -41,6 +41,8 @@ interface FrameHeaderProps {
   sizeText?: string;
   /** Canvas-space X of the frame's left edge */
   canvasX: number;
+  /** Canvas-space Y of the frame's top edge (default 0) */
+  canvasY?: number;
   /** Canvas-space frame width */
   frameW: number;
   viewport: { x: number; y: number; scale: number };
@@ -57,7 +59,7 @@ interface FrameHeaderProps {
   onToggleCollapsed?: () => void;
 }
 
-function FrameHeader({ mode, color, label, sizeText, canvasX, frameW, viewport, labelScale, actions, subHeader, drawer, collapsed, onToggleCollapsed }: FrameHeaderProps) {
+function FrameHeader({ mode, color, label, sizeText, canvasX, canvasY = 0, frameW, viewport, labelScale, actions, subHeader, drawer, collapsed, onToggleCollapsed }: FrameHeaderProps) {
   const textColor = contrastText(color);
   const combinedScale = viewport.scale * labelScale;
 
@@ -65,7 +67,7 @@ function FrameHeader({ mode, color, label, sizeText, canvasX, frameW, viewport, 
     if (mode === "hat") {
       // Frame-width, flush to top edge, anchor bottom-left
       const anchorX = (canvasX - STROKE_HALF) * viewport.scale + viewport.x;
-      const anchorY = STROKE_HALF * viewport.scale + viewport.y;
+      const anchorY = (canvasY + STROKE_HALF) * viewport.scale + viewport.y;
       const widthPx = (frameW + STROKE_HALF * 2) / labelScale;
       return {
         position: "absolute",
@@ -88,7 +90,7 @@ function FrameHeader({ mode, color, label, sizeText, canvasX, frameW, viewport, 
       transform: `scale(${combinedScale})`,
       transformOrigin: "bottom left",
     };
-  }, [mode, canvasX, frameW, viewport, labelScale, combinedScale]);
+  }, [mode, canvasX, canvasY, frameW, viewport, labelScale, combinedScale]);
 
   const isPanel = mode === "panel";
   const showDrawer = isPanel && drawer && !collapsed;
@@ -461,19 +463,40 @@ function OutputFrameHeader({ canvasX, viewport, frameW, labelScale, sizeText }: 
     addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
   }, [selectedResult, selectedImageIndex, addImageLayer]);
 
+  const handleDownload = useCallback(() => {
+    if (!selectedResult || selectedImageIndex === null) return;
+    const raw = selectedResult.images[selectedImageIndex];
+    if (!raw) return;
+    const src = resolveImageSrc(raw);
+    const filename = generateImageFilename(selectedResult.info, selectedImageIndex);
+    downloadImage(src, filename);
+  }, [selectedResult, selectedImageIndex]);
+
   const textColor = contrastText(OUTPUT_COLOR);
 
   const actions = (
-    <Button
-      variant="ghost"
-      size="icon-xs"
-      onClick={handleSendToInput}
-      disabled={!hasSelectedImage}
-      title="Send selected output to Input frame"
-      className="hover:bg-black/10 disabled:opacity-30"
-    >
-      <ArrowLeftFromLine size={16} style={{ color: textColor }} />
-    </Button>
+    <>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={handleDownload}
+        disabled={!hasSelectedImage}
+        title="Download output image"
+        className="hover:bg-black/10 disabled:opacity-30"
+      >
+        <Download size={16} style={{ color: textColor }} />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-xs"
+        onClick={handleSendToInput}
+        disabled={!hasSelectedImage}
+        title="Send selected output to Input frame"
+        className="hover:bg-black/10 disabled:opacity-30"
+      >
+        <ArrowLeftFromLine size={16} style={{ color: textColor }} />
+      </Button>
+    </>
   );
 
   return (
@@ -483,6 +506,63 @@ function OutputFrameHeader({ canvasX, viewport, frameW, labelScale, sizeText }: 
       label="Output"
       sizeText={sizeText}
       canvasX={canvasX}
+      frameW={frameW}
+      viewport={viewport}
+      labelScale={labelScale}
+      actions={actions}
+    />
+  );
+}
+
+// ─── Processed frame header (uses FrameHeader in hat mode) ──────────────────
+
+function ProcessedFrameHeader({ canvasX, canvasY, viewport, frameW, labelScale, sizeText, label, imageSrc }: {
+  canvasX: number;
+  canvasY?: number;
+  viewport: { x: number; y: number; scale: number };
+  frameW: number; labelScale: number; sizeText?: string;
+  label?: string;
+  imageSrc?: string | null;
+}) {
+  const compositeProcessed = useControlStore((s) => s.compositeProcessed);
+  const units = useControlStore((s) => s.units);
+
+  const processedSrc = useMemo(() => {
+    if (imageSrc !== undefined) return imageSrc;
+    if (compositeProcessed) return compositeProcessed;
+    const first = units.find((u) => u.enabled && !!u.processedImage);
+    return first?.processedImage ?? null;
+  }, [imageSrc, compositeProcessed, units]);
+
+  const handleDownload = useCallback(() => {
+    if (!processedSrc) return;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+    downloadImage(processedSrc, `processed_${timestamp}.png`);
+  }, [processedSrc]);
+
+  const textColor = contrastText(PROCESSED_COLOR);
+
+  const actions = (
+    <Button
+      variant="ghost"
+      size="icon-xs"
+      onClick={handleDownload}
+      disabled={!processedSrc}
+      title="Download processed image"
+      className="hover:bg-black/10 disabled:opacity-30"
+    >
+      <Download size={16} style={{ color: textColor }} />
+    </Button>
+  );
+
+  return (
+    <FrameHeader
+      mode="hat"
+      color={PROCESSED_COLOR}
+      label={label ?? "Processed"}
+      sizeText={sizeText}
+      canvasX={canvasX}
+      canvasY={canvasY}
       frameW={frameW}
       viewport={viewport}
       labelScale={labelScale}
@@ -503,6 +583,7 @@ interface ControlFramePanelsProps {
 export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearAll }: ControlFramePanelsProps) {
   const viewport = useCanvasStore((s) => s.viewport);
   const labelScale = useUiStore((s) => s.canvasLabelScale);
+  const units = useControlStore((s) => s.units);
 
   const { genSize, displayW } = layout;
   const genSizeText = `${genSize.width}\u00d7${genSize.height}`;
@@ -518,6 +599,32 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
           onClearImage={onClearImage}
         />
       ))}
+
+      {/* Per-unit processed slot headers (below each control frame) */}
+      {layout.controlFrames.map((frame) => {
+        const activeSlots = frame.processedSlots.filter((s) => {
+          const u = units[s.unitIndex];
+          return u && !!u.processedImage;
+        });
+        if (activeSlots.length === 0) return null;
+        return activeSlots.map((slot, slotIdx) => {
+          const imageY = frame.y + frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT + slotIdx * (frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT);
+          const slotLabel = activeSlots.length > 1 ? `Processed (Unit ${slot.unitIndex})` : "Processed";
+          const unit = units[slot.unitIndex];
+          return (
+            <ProcessedFrameHeader
+              key={`proc-${frame.unitIndex}-${slot.unitIndex}`}
+              canvasX={frame.x}
+              canvasY={imageY}
+              viewport={viewport}
+              frameW={frame.width}
+              labelScale={labelScale}
+              label={slotLabel}
+              imageSrc={unit?.processedImage ?? null}
+            />
+          );
+        });
+      })}
 
       <InputFramePanel
         canvasX={layout.inputX}
@@ -538,15 +645,12 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
       />
 
       {layout.showProcessedFrame && (
-        <FrameHeader
-          mode="hat"
-          color={PROCESSED_COLOR}
-          label="Processed"
-          sizeText={genSizeText}
+        <ProcessedFrameHeader
           canvasX={layout.processedX}
-          frameW={displayW}
           viewport={viewport}
+          frameW={displayW}
           labelScale={labelScale}
+          sizeText={genSizeText}
         />
       )}
     </>

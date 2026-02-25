@@ -1,16 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { Layer, Rect, Label, Tag, Text, Image as KonvaImage, Group, Transformer, Line } from "react-konva";
+import { Layer, Rect, Text, Image as KonvaImage, Group, Transformer, Line } from "react-konva";
 import { useControlStore } from "@/stores/controlStore";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { contrastText } from "@/lib/utils";
 import { computeFit, type FitMode, type FreeTransform } from "@/lib/image";
 import { useSnap } from "@/canvas/tools/useSnap";
-import { ELEMENT_GAP, type ControlFramePosition } from "@/canvas/useControlFrameLayout";
+import { ELEMENT_GAP, PROCESSED_HEADER_HEIGHT, type ControlFramePosition } from "@/canvas/useControlFrameLayout";
 import type Konva from "konva";
 
 const BORDER_COLOR = "#f59e0b"; // amber
-const PROCESSED_BORDER_COLOR = "#78716c"; // stone-500
-const LABEL_HEIGHT = 19;
 
 interface ControlFrameLayerProps {
   frames: ControlFramePosition[];
@@ -392,11 +389,10 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, freeTra
         listening={false}
       />
 
-      {/* Stacked processed images — one row per slot */}
+      {/* Stacked processed images — headers are HTML overlays in ControlFramePanels */}
       {processedSlots.map((entry, slotIdx) => {
-        const processedY = frame.y + frame.height + ELEMENT_GAP + slotIdx * (frame.height + ELEMENT_GAP);
+        const processedY = frame.y + frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT + slotIdx * (frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT);
         const pFit = computeFit(entry.state.htmlImage.naturalWidth, entry.state.htmlImage.naturalHeight, frame.x, processedY, frame.width, frame.height, fitMode === "free" ? "contain" : fitMode);
-        const labelText = processedSlots.length > 1 ? `Processed (Unit ${entry.slot.unitIndex})` : "Processed";
 
         return (
           <ProcessedSlotRender
@@ -407,13 +403,14 @@ function ControlFrame({ frame, hasImage, image, processedSlots, fitMode, freeTra
             height={frame.height}
             image={entry.state.htmlImage}
             fit={pFit}
-            label={labelText}
           />
         );
       })}
     </>
   );
 }
+
+const PROCESSED_COLOR = "#c084fc";
 
 interface ProcessedSlotRenderProps {
   frameX: number;
@@ -422,10 +419,9 @@ interface ProcessedSlotRenderProps {
   height: number;
   image: HTMLImageElement;
   fit: ReturnType<typeof computeFit>;
-  label: string;
 }
 
-function ProcessedSlotRender({ frameX, y, width, height, image, fit, label }: ProcessedSlotRenderProps) {
+function ProcessedSlotRender({ frameX, y, width, height, image, fit }: ProcessedSlotRenderProps) {
   return (
     <>
       <KonvaImage
@@ -442,14 +438,10 @@ function ProcessedSlotRender({ frameX, y, width, height, image, fit, label }: Pr
         y={y}
         width={width}
         height={height}
-        stroke={PROCESSED_BORDER_COLOR}
+        stroke={PROCESSED_COLOR}
         strokeWidth={1}
         listening={false}
       />
-      <Label x={frameX} y={y - LABEL_HEIGHT} listening={false}>
-        <Tag fill={PROCESSED_BORDER_COLOR} cornerRadius={3} />
-        <Text text={label} fontSize={11} fill={contrastText(PROCESSED_BORDER_COLOR)} padding={4} listening={false} />
-      </Label>
     </>
   );
 }

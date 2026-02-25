@@ -14,6 +14,8 @@ export const REFERENCE_HEIGHT = 512;
 const FRAME_GAP = 48;
 /** Spacing between a frame and its associated elements (processed image, floating panel) */
 export const ELEMENT_GAP = 16;
+/** Height of the per-unit processed image header bar (matches HEADER_HEIGHT in ControlFramePanel) */
+export const PROCESSED_HEADER_HEIGHT = 36;
 
 export interface ProcessedSlot {
   unitIndex: number;
@@ -123,7 +125,7 @@ export function useControlFrameLayout(): CanvasLayout {
     let maxY = dh;
     for (const f of controlFrames) {
       const activeSlots = f.processedSlots.filter((s) => s.hasProcessed).length;
-      const frameMaxY = f.height + activeSlots * (ELEMENT_GAP + f.height);
+      const frameMaxY = f.height + activeSlots * (ELEMENT_GAP + PROCESSED_HEADER_HEIGHT + f.height);
       if (frameMaxY > maxY) maxY = frameMaxY;
     }
 
