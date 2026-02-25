@@ -147,3 +147,91 @@ class VideoLoadResponse(MessageResponse):
 
 class FramePackLoadResponse(MessageResponse):
     variant: str
+
+
+# --- V2 API models ---
+
+class ItemExtraNetworkV2(BaseModel):
+    name: str = Field(title="Name", description="Network short name")
+    type: str = Field(title="Type", description="Network type: lora, model, embedding, etc.")
+    title: Optional[str] = Field(default=None, title="Title", description="Display title")
+    fullname: Optional[str] = Field(default=None, title="Full name", description="Fully qualified name")
+    filename: Optional[str] = Field(default=None, title="Filename", description="Path to file")
+    hash: Optional[str] = Field(default=None, title="Hash", description="Short hash")
+    preview: Optional[str] = Field(default=None, title="Preview", description="Preview thumbnail URL")
+    version: Optional[str] = Field(default=None, title="Version", description="Base model version")
+    tags: list[str] = Field(default_factory=list, title="Tags", description="Tag list")
+    size: Optional[int] = Field(default=None, title="Size", description="File size in bytes")
+    mtime: Optional[str] = Field(default=None, title="Modified", description="ISO 8601 modification time")
+
+class ResExtraNetworksV2(BaseModel):
+    items: list[ItemExtraNetworkV2] = Field(title="Items", description="List of extra network items")
+    total: int = Field(title="Total", description="Total matching items before pagination")
+    offset: int = Field(title="Offset", description="Number of items skipped")
+    limit: int = Field(title="Limit", description="Maximum items returned per page")
+
+class ItemModelV2(BaseModel):
+    title: str = Field(title="Title")
+    model_name: str = Field(title="Model Name")
+    filename: str = Field(title="Filename")
+    type: str = Field(title="Type")
+    hash: Optional[str] = Field(default=None, title="Hash")
+    sha256: Optional[str] = Field(default=None, title="SHA256")
+    size: Optional[int] = Field(default=None, title="Size", description="File size in bytes")
+    mtime: Optional[str] = Field(default=None, title="Modified", description="ISO 8601 modification time")
+    version: Optional[str] = Field(default=None, title="Version")
+    subfolder: Optional[str] = Field(default=None, title="Subfolder")
+
+class ResModelsV2(BaseModel):
+    items: list[ItemModelV2] = Field(title="Items")
+    total: int = Field(title="Total")
+    offset: int = Field(title="Offset")
+    limit: int = Field(title="Limit")
+
+class ItemSamplerV2(BaseModel):
+    name: str = Field(title="Name")
+    group: str = Field(title="Group", description="Standard, FlowMatch, or Res4Lyf")
+    compatible: Optional[bool] = Field(default=None, title="Compatible", description="null if no model loaded")
+    options: dict = Field(default_factory=dict, title="Options")
+
+class ItemHistoryV2(BaseModel):
+    id: Optional[Union[int, str]] = Field(default=None, title="ID")
+    job: str = Field(title="Job")
+    op: str = Field(title="Operation")
+    timestamp: Optional[float] = Field(default=None, title="Timestamp")
+    duration: Optional[float] = Field(default=None, title="Duration")
+    outputs: list[str] = Field(default_factory=list, title="Outputs")
+
+class ResHistoryV2(BaseModel):
+    items: list[ItemHistoryV2] = Field(title="Items")
+    total: int = Field(title="Total")
+    offset: int = Field(title="Offset")
+    limit: int = Field(title="Limit")
+
+class ResCheckpointV2(BaseModel):
+    loaded: bool = Field(title="Loaded")
+    type: Optional[str] = Field(default=None, title="Type")
+    class_name: Optional[str] = Field(default=None, title="Class Name")
+    checkpoint: Optional[str] = Field(default=None, title="Checkpoint")
+    title: Optional[str] = Field(default=None, title="Title")
+    name: Optional[str] = Field(default=None, title="Name")
+    filename: Optional[str] = Field(default=None, title="Filename")
+    hash: Optional[str] = Field(default=None, title="Hash")
+
+class ReqSetCheckpointV2(BaseModel):
+    sd_model_checkpoint: str = Field(title="Checkpoint")
+    dtype: Optional[str] = Field(default=None, title="Dtype")
+    force: bool = Field(default=False, title="Force")
+
+class ResSetCheckpointV2(BaseModel):
+    ok: bool = Field(title="OK")
+    checkpoint: Optional[ResCheckpointV2] = Field(default=None, title="Checkpoint")
+
+class ItemScriptV2(BaseModel):
+    name: str = Field(title="Name")
+    is_alwayson: bool = Field(title="Is Always-on")
+    contexts: list[str] = Field(default_factory=list, title="Contexts", description="txt2img, img2img, control")
+    args: list = Field(default_factory=list, title="Arguments")
+
+class ResScriptsV2(BaseModel):
+    scripts: list[ItemScriptV2] = Field(title="Scripts")
