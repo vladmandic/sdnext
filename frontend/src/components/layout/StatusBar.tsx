@@ -32,11 +32,11 @@ export function StatusBar() {
   const backendIdle = !bsStatus || bsStatus === "idle" || bsStatus === "interrupted" || bsStatus === "skipped";
   const isIdle = !hasActive && backendIdle;
 
-  const progress = runningJob?.progress || bsProgress || 0;
+  const progress = runningJob?.progress ?? bsProgress ?? 0;
   const progressPct = !isIdle ? Math.round(progress * 100) : 0;
-  const step = runningJob?.step || bsStep || 0;
-  const steps = runningJob?.steps || bsSteps || 0;
-  const eta = runningJob?.eta || bsEta || 0;
+  const step = runningJob?.step ?? bsStep ?? 0;
+  const steps = runningJob?.steps ?? bsSteps ?? 0;
+  const eta = runningJob?.eta ?? bsEta ?? 0;
 
   const phase = bsCurrent || bsTask || "";
   const textinfo = runningJob?.textinfo || bsTextinfo || "";
