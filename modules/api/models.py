@@ -239,6 +239,16 @@ class ItemFace(BaseModel):
     pm_start: float = Field(title="PhotoMaker Start", default=0.5, ge=0, le=1, description="PhotoMaker start value, must be between 0.0 and 1.0.")
     fs_cache: bool = Field(title="FaceSwap Cache", default=True, description="Should the FaceSwap model be cached?")
 
+class ItemControlUnit(BaseModel):
+    process: str = Field(title="Preprocessor", default="", description="Preprocessor name (e.g. 'Canny', 'OpenPose')")
+    model: str = Field(title="Control model", default="", description="Control model filename or path")
+    strength: float = Field(title="Strength", default=1.0, description="Control influence strength (0.0-2.0)")
+    start: float = Field(title="Start", default=0.0, description="Step fraction at which control begins (0.0-1.0)")
+    end: float = Field(title="End", default=1.0, description="Step fraction at which control ends (0.0-1.0)")
+    override: str | None = Field(title="Override image", default=None, description="Base64-encoded pre-processed control image")
+    unit_type: str | None = Field(title="Unit type", default=None, description="Control unit type: 'controlnet', 't2i adapter', 'xs', 'lite', 'reference', or 'ip'")
+    image: str | None = Field(title="Image", default=None, description="Base64-encoded control input image")
+
 class ScriptArg(BaseModel):
     label: str = Field(default=None, title="Label", description="Name of the argument in UI")
     value: Any | None = Field(default=None, title="Value", description="Default value of the argument")

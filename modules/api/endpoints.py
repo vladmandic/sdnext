@@ -61,6 +61,8 @@ def get_detailers():
     shared.yolo.enumerate()
     return [{"name": k, "path": v} for k, v in shared.yolo.list.items()]
 
+get_restorers = get_detailers  # legacy alias for /sdapi/v1/face-restorers
+
 def get_ip_adapters():
     """
     List available IP-Adapter models.
@@ -146,7 +148,7 @@ def get_extra_network_detail(page: str, name: str):
             }
     return {}
 
-def get_extra_network_details(page: Optional[str] = None, name: Optional[str] = None, filename: Optional[str] = None, title: Optional[str] = None, fullname: Optional[str] = None, hash: Optional[str] = None, offset: int = 0, limit: int = 50): # pylint: disable=redefined-builtin
+def get_extra_network_details(page: str | None = None, name: str | None = None, filename: str | None = None, title: str | None = None, fullname: str | None = None, hash: str | None = None, offset: int = 0, limit: int = 50): # pylint: disable=redefined-builtin
     """Batch-fetch full detail for extra network items with optional filtering and pagination."""
     from datetime import datetime
     matched = []

@@ -229,14 +229,19 @@ def execute_caption(params: dict, job_id: str) -> dict:
     jobid = shared.state.begin('API-V2-CAP', api=True)
     try:
         if backend == 'vlm':
-            from modules.api.caption import handle_vqa
-            caption_text = handle_vqa(image=image, model=model, prompt=params.get('prompt'))
+            from modules.api.caption import do_vqa, ReqVQA
+            req = ReqVQA(image='', model=model, prompt=params.get('prompt'))
+            answer, _annotated = do_vqa(image, req)
+            caption_text = answer
         elif backend == 'openclip':
-            from modules.api.caption import handle_openclip
-            caption_text = handle_openclip(image=image, model=model)
+            from modules.api.caption import do_openclip, ReqCaptionOpenCLIP
+            req = ReqCaptionOpenCLIP(image='', model=model)
+            caption_text, *_ = do_openclip(image, req)
         elif backend == 'tagger':
-            from modules.api.caption import handle_tagger
-            caption_text = handle_tagger(image=image, model=model)
+            from modules.api.caption import do_tagger, ReqTagger
+            req = ReqTagger(image='', model=model)
+            tags, _scores = do_tagger(image, req)
+            caption_text = tags
         else:
             raise ValueError(f"Unknown caption backend: {backend}")
     finally:
