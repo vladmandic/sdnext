@@ -44,6 +44,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
     *hint*: click on locale icon in bottom-left corner to cycle through available locales, or set default in *settings -> ui*  
   - **kanvas**: add paste image from clipboard
   - **themes** add *CTD-NT64Light*, *CTD-NT64Medium* and *CTD-NT64Dark*, thanks @resonantsky  
+  - **themes** add *Vlad-Neomorph*  
   - **gallery** add option to auto-refresh gallery, thanks @awsr  
 - **Internal**
   - `python==3.13` full support  
