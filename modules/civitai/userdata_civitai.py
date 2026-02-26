@@ -123,6 +123,6 @@ class SearchHistory:
             self._save()
 
 
-favorites = UserList("civitai_favorites.json")
+bookmarks = UserList("civitai_bookmarks.json")
 banned = UserList("civitai_banned.json")
 search_history = SearchHistory("civitai_search_history.json")
