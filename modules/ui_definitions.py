@@ -608,6 +608,9 @@ def create_settings(cmd_opts):
         "diffusers_vae_load_variant": OptionInfo("default", "Preferred VAE variant", gr.Radio, {"choices": ['default', 'fp32', 'fp16']}),
         "custom_diffusers_pipeline": OptionInfo('', 'Load custom Diffusers pipeline'),
         "civitai_token": OptionInfo('', 'CivitAI token', gr.Textbox, {"lines": 2, "visible": False}, secret=True, env_var='CIVITAI_TOKEN'),
+        "civitai_save_subfolder_enabled": OptionInfo(False, 'CivitAI save to subfolders', gr.Checkbox, {"visible": False}),
+        "civitai_save_subfolder": OptionInfo('{{BASEMODEL}}', 'CivitAI subfolder template', gr.Textbox, {"visible": False}),
+        "civitai_discard_hash_mismatch": OptionInfo(True, 'CivitAI discard downloads with hash mismatch', gr.Checkbox, {"visible": False}),
     }))
 
     # --- Extra Networks ---

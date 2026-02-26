@@ -204,8 +204,10 @@ class Options:
                 unknown_settings.append(k)
         if len(unknown_settings) > 0:
             log.warning(f"Setting validation: unknown={unknown_settings}")
-        # auto-migrate secrets from config.json to secrets.json
+        # load secrets and auto-migrate from config.json if needed
         from modules import secrets_manager
+        if not secrets_manager._initialized: # pylint: disable=protected-access
+            secrets_manager.init(filename)
         secret_keys = {k: v.env_var for k, v in self.data_labels.items() if getattr(v, 'secret', False)}
         if secret_keys:
             migrated = secrets_manager.migrate_from_config(self.data, secret_keys)
