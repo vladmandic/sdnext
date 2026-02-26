@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight, Download, Loader2, Bookmark, Ban } from "lucide-react";
-import { useCivitModel, useCivitDownload, useCivitResolvePath, useCivitBookmarks, useCivitAddBookmark, useCivitRemoveBookmark, useCivitBanned, useCivitAddBanned, useCivitRemoveBanned } from "@/api/hooks/useCivitai";
+import { Check, ChevronDown, ChevronRight, Download, Loader2, Bookmark, Ban } from "lucide-react";
+import { useCivitModel, useCivitDownload, useCivitResolvePath, useCivitBookmarks, useCivitAddBookmark, useCivitRemoveBookmark, useCivitBanned, useCivitAddBanned, useCivitRemoveBanned, useCivitCheckLocal } from "@/api/hooks/useCivitai";
 import type { CivitVersion, CivitFile } from "@/api/types/civitai";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -25,9 +25,10 @@ interface VersionSectionProps {
   creatorName: string;
   modelId: number;
   modelNsfw: boolean;
+  localFiles: Record<string, { filename: string; type: string }>;
 }
 
-function VersionSection({ version, modelType, modelName, creatorName, modelId, modelNsfw }: VersionSectionProps) {
+function VersionSection({ version, modelType, modelName, creatorName, modelId, modelNsfw, localFiles }: VersionSectionProps) {
   const [open, setOpen] = useState(false);
   const download = useCivitDownload();
 
@@ -78,21 +79,30 @@ function VersionSection({ version, modelType, modelName, creatorName, modelId, m
           )}
           {version.files.length > 0 && (
             <div className="space-y-1">
-              {version.files.map((f) => (
-                <div key={f.id} className="flex items-center gap-2 text-2xs">
-                  <span className="truncate flex-1" title={f.name}>{f.name}</span>
-                  <span className="text-muted-foreground shrink-0">{formatSize(f.sizeKB)}</span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-6 w-6 shrink-0"
-                    onClick={() => handleDownload(f)}
-                    disabled={download.isPending}
-                  >
-                    {download.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
-                  </Button>
-                </div>
-              ))}
+              {version.files.map((f) => {
+                const localMatch = f.hashes.SHA256 ? localFiles[f.hashes.SHA256] : undefined;
+                return (
+                  <div key={f.id} className="flex items-center gap-2 text-2xs">
+                    <span className="truncate flex-1" title={f.name}>{f.name}</span>
+                    <span className="text-muted-foreground shrink-0">{formatSize(f.sizeKB)}</span>
+                    {localMatch ? (
+                      <span className="h-6 w-6 shrink-0 flex items-center justify-center" title={`Downloaded: ${localMatch.filename}`}>
+                        <Check className="h-3 w-3 text-green-500" />
+                      </span>
+                    ) : (
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-6 w-6 shrink-0"
+                        onClick={() => handleDownload(f)}
+                        disabled={download.isPending}
+                      >
+                        {download.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+                      </Button>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
           {resolved?.path && <p className="text-3xs text-muted-foreground truncate" title={resolved.path}>&rarr; {resolved.path}</p>}
@@ -110,6 +120,19 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
   const removeBookmark = useCivitRemoveBookmark();
   const addBan = useCivitAddBanned();
   const removeBan = useCivitRemoveBanned();
+
+  const allHashes = useMemo(() => {
+    if (!model) return [];
+    const hashes: string[] = [];
+    for (const v of model.modelVersions) {
+      for (const f of v.files) {
+        if (f.hashes.SHA256) hashes.push(f.hashes.SHA256);
+      }
+    }
+    return hashes;
+  }, [model]);
+  const { data: localCheck } = useCivitCheckLocal(allHashes);
+  const localFiles = localCheck?.found ?? {};
 
   const isBookmarked = model ? (bookmarks?.some((b) => b.name === model.name) ?? false) : false;
   const isBanned = model ? (banned?.some((b) => b.name === model.name) ?? false) : false;
@@ -158,7 +181,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
             <ScrollArea className="flex-1 min-h-0">
               <div className="space-y-2 pr-3">
                 {model.modelVersions.map((v) => (
-                  <VersionSection key={v.id} version={v} modelType={model.type} modelName={model.name} creatorName={model.creator.username} modelId={model.id} modelNsfw={model.nsfw} />
+                  <VersionSection key={v.id} version={v} modelType={model.type} modelName={model.name} creatorName={model.creator.username} modelId={model.id} modelNsfw={model.nsfw} localFiles={localFiles} />
                 ))}
               </div>
             </ScrollArea>

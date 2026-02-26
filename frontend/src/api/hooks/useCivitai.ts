@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { CivitOptions, CivitSearchResponse, CivitModel, CivitSearchParams, CivitDownloadRequest, CivitDownloadItem, CivitDownloadStatus, CivitHistoryEntry, CivitSettings, CivitSettingsUpdate, CivitBookmarkEntry, CivitBannedEntry, CivitVersion, CivitTagResponse, CivitCreatorResponse, CivitUserProfile } from "../types/civitai";
+import type { CivitOptions, CivitSearchResponse, CivitModel, CivitSearchParams, CivitDownloadRequest, CivitDownloadItem, CivitDownloadStatus, CivitHistoryEntry, CivitSettings, CivitSettingsUpdate, CivitBookmarkEntry, CivitBannedEntry, CivitVersion, CivitTagResponse, CivitCreatorResponse, CivitUserProfile, CivitCheckLocalResponse } from "../types/civitai";
 import type { CivitMetadataScanResult } from "../types/modelOps";
 
 function buildSearchParams(p: CivitSearchParams): Record<string, string> {
@@ -60,11 +60,23 @@ export function useCivitModel(modelId: number | null, enabled = true) {
   });
 }
 
+export function useCivitCheckLocal(hashes: string[]) {
+  return useQuery({
+    queryKey: ["civitai-check-local", hashes],
+    queryFn: () => api.post<CivitCheckLocalResponse>("/sdapi/v2/civitai/check-local", { hashes }),
+    enabled: hashes.length > 0,
+    staleTime: 120_000,
+  });
+}
+
 export function useCivitDownload() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (req: CivitDownloadRequest) => api.post<CivitDownloadItem>("/sdapi/v2/civitai/download", req),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-download-status"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["civitai-download-status"] });
+      qc.invalidateQueries({ queryKey: ["civitai-check-local"] });
+    },
   });
 }
 

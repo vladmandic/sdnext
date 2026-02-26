@@ -189,6 +189,14 @@ export interface CivitUserProfile {
   profilePicture: string | null;
 }
 
+export interface CivitCheckLocalRequest {
+  hashes: string[];
+}
+
+export interface CivitCheckLocalResponse {
+  found: Record<string, { filename: string; type: string }>;
+}
+
 export interface CivitSearchParams {
   query?: string;
   tag?: string;
