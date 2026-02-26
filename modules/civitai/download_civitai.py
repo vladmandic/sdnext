@@ -271,6 +271,23 @@ class DownloadManager:
         item.completed_at = datetime.now()
         log.info(f'CivitAI download complete: id={item.id} file="{final_file}" size={item.bytes_downloaded}')
 
+        # Write verified hash to cache so check-local finds it immediately
+        if item.expected_hash:
+            try:
+                from modules import hashes
+                model_type_map = {'Checkpoint': 'checkpoint', 'LORA': 'lora', 'TextualInversion': 'embedding', 'VAE': 'vae'}
+                prefix = model_type_map.get(item.model_type, item.model_type.lower())
+                name = os.path.splitext(item.filename)[0]
+                title = f"{prefix}/{name}"
+                hash_cache = hashes.cache("hashes")
+                hash_cache[title] = {
+                    "mtime": os.path.getmtime(final_file),
+                    "sha256": item.expected_hash.lower(),
+                }
+                hashes.dump_cache()
+            except Exception:
+                pass
+
         # Download metadata and preview
         self._fetch_sidecar(item, final_file)
 
