@@ -39,16 +39,15 @@ export function CivitaiSubTab() {
     limit: 20,
   };
 
-  const infiniteSearch = useCivitSearchInfinite(searchParams, searchEnabled && (!!query || !!tag || favorites));
+  const infiniteSearch = useCivitSearchInfinite(searchParams, searchEnabled);
 
   const handleSearch = useCallback(() => {
-    if (!query && !tag && !favorites) return;
     if (searchEnabled) {
       infiniteSearch.refetch();
     } else {
       setSearchEnabled(true);
     }
-  }, [query, tag, favorites, searchEnabled, infiniteSearch]);
+  }, [searchEnabled, infiniteSearch]);
 
   function handleHistorySelect(q: string, t: string) {
     setQuery(q);

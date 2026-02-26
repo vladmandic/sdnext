@@ -83,7 +83,7 @@ export function CivitSearchBar({ query, tag, onQueryChange, onTagChange, onSearc
             </div>
           )}
         </div>
-        <Button size="sm" variant="secondary" onClick={onSearch} disabled={isLoading || (!query && !tag)} className="shrink-0">
+        <Button size="sm" variant="secondary" onClick={onSearch} disabled={isLoading} className="shrink-0">
           {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Search className="h-3 w-3" />}
           Search
         </Button>
