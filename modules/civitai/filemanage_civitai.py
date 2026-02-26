@@ -15,11 +15,11 @@ _TYPE_MAP = {
     'DoRA': ('lora_dir', 'Lora'),
     'Controlnet': ('control_dir', 'control'),
     'Poses': ('ckpt_dir', 'Stable-diffusion'),
-    'Wildcards': (None, 'wildcards'),
+    'Wildcards': ('wildcards_dir', 'wildcards'),
     'Workflows': (None, 'workflows'),
     'VAE': ('vae_dir', 'VAE'),
     'MotionModule': (None, 'motion'),
-    'Upscaler': (None, 'ESRGAN'),
+    'Upscaler': ('esrgan_models_path', 'ESRGAN'),
     'Other': ('ckpt_dir', 'Stable-diffusion'),
 }
 
@@ -52,7 +52,9 @@ def resolve_save_path(model_type: str, model_name: str = "", base_model: str = "
                       version_id: int = 0, version_name: str = "") -> Path:
     from modules import shared
     base_folder = get_type_folder(model_type)
-    template = getattr(shared.opts, 'civitai_save_subfolder', '') or ''
+    if not getattr(shared.opts, 'civitai_save_subfolder_enabled', False):
+        return base_folder
+    template = getattr(shared.opts, 'civitai_save_subfolder', '{{BASEMODEL}}') or ''
     if not template:
         return base_folder
     # Template variable substitution
