@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight, Download, Loader2, Heart, Ban } from "lucide-react";
-import { useCivitModel, useCivitDownload, useCivitResolvePath, useCivitFavorites, useCivitAddFavorite, useCivitRemoveFavorite, useCivitBanned, useCivitAddBanned, useCivitRemoveBanned } from "@/api/hooks/useCivitai";
+import { ChevronDown, ChevronRight, Download, Loader2, Bookmark, Ban } from "lucide-react";
+import { useCivitModel, useCivitDownload, useCivitResolvePath, useCivitBookmarks, useCivitAddBookmark, useCivitRemoveBookmark, useCivitBanned, useCivitAddBanned, useCivitRemoveBanned } from "@/api/hooks/useCivitai";
 import type { CivitVersion, CivitFile } from "@/api/types/civitai";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
@@ -104,14 +104,14 @@ function VersionSection({ version, modelType, modelName, creatorName, modelId, m
 
 export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
   const { data: model, isLoading } = useCivitModel(modelId);
-  const { data: favorites } = useCivitFavorites();
+  const { data: bookmarks } = useCivitBookmarks();
   const { data: banned } = useCivitBanned();
-  const addFav = useCivitAddFavorite();
-  const removeFav = useCivitRemoveFavorite();
+  const addBookmark = useCivitAddBookmark();
+  const removeBookmark = useCivitRemoveBookmark();
   const addBan = useCivitAddBanned();
   const removeBan = useCivitRemoveBanned();
 
-  const isFavorited = model ? (favorites?.some((f) => f.name === model.name) ?? false) : false;
+  const isBookmarked = model ? (bookmarks?.some((b) => b.name === model.name) ?? false) : false;
   const isBanned = model ? (banned?.some((b) => b.name === model.name) ?? false) : false;
 
   return (
@@ -129,11 +129,11 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
                 <Badge variant="outline" className="text-4xs px-1 py-0">{model.type}</Badge>
                 <button
                   type="button"
-                  onClick={() => isFavorited ? removeFav.mutate(model.name) : addFav.mutate(model.name)}
+                  onClick={() => isBookmarked ? removeBookmark.mutate(model.name) : addBookmark.mutate(model.name)}
                   className="p-1 rounded hover:bg-muted/50 transition-colors"
-                  title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+                  title={isBookmarked ? "Remove bookmark" : "Bookmark"}
                 >
-                  <Heart className={`h-3.5 w-3.5 ${isFavorited ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+                  <Bookmark className={`h-3.5 w-3.5 ${isBookmarked ? "fill-primary text-primary" : "text-muted-foreground"}`} />
                 </button>
                 <button
                   type="button"

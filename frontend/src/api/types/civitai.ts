@@ -136,6 +136,7 @@ export interface CivitDownloadRequest {
 
 export interface CivitSettings {
   token_configured: boolean;
+  save_subfolder_enabled: boolean;
   save_subfolder: string;
   save_type_folders: string;
   discard_hash_mismatch: boolean;
@@ -144,6 +145,7 @@ export interface CivitSettings {
 
 export interface CivitSettingsUpdate {
   token?: string;
+  save_subfolder_enabled?: boolean;
   save_subfolder?: string;
   discard_hash_mismatch?: boolean;
 }
@@ -154,7 +156,7 @@ export interface CivitHistoryEntry {
   timestamp: string;
 }
 
-export interface CivitFavoriteEntry { name: string; }
+export interface CivitBookmarkEntry { name: string; }
 export interface CivitBannedEntry { name: string; }
 
 export interface CivitTag {

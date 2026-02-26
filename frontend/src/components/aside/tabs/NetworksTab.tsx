@@ -1,9 +1,11 @@
 import { useState, useMemo } from "react";
-import { RefreshCw, ImageOff, Info, Loader2 } from "lucide-react";
+import { RefreshCw, ImageOff, Info, Loader2, ScanSearch, ExternalLink } from "lucide-react";
+import { toast } from "sonner";
 import { useExtraNetworks, usePromptStyles, useNetworkDetail, useRefreshNetworks } from "@/api/hooks/useNetworks";
+import { useCivitMetadataScan } from "@/api/hooks/useCivitai";
 import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
 import { useGenerationStore } from "@/stores/generationStore";
-import type { ExtraNetworkV2, PromptStyle } from "@/api/types/models";
+import type { ExtraNetworkV2, NetworkDetail, PromptStyle } from "@/api/types/models";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -63,6 +65,27 @@ export function NetworksTab() {
   const [filter, setFilter] = useState<TypeFilter>("Model");
   const [search, setSearch] = useState("");
   const [selectedSubfolder, setSelectedSubfolder] = useState("All");
+
+  const civitScan = useCivitMetadataScan();
+  const canScan = filter !== "Style" && filter !== "Wildcards";
+
+  async function handleCivitScan() {
+    const page = PAGE_MAP[filter] ?? undefined;
+    try {
+      const data = await civitScan.mutateAsync(page);
+      const results = data.results ?? [];
+      const found = results.filter((r) => String(r.code) === "200").length;
+      const notFound = results.filter((r) => String(r.code) === "404").length;
+      if (results.length === 0) {
+        toast.info("CivitAI scan complete", { description: "No items needed scanning" });
+      } else {
+        toast.success("CivitAI scan complete", { description: `${found} found, ${notFound} not on CivitAI` });
+      }
+      refreshNetworks.mutate();
+    } catch (err) {
+      toast.error("CivitAI scan failed", { description: err instanceof Error ? err.message : String(err) });
+    }
+  }
 
   const page = PAGE_MAP[filter];
   const { data: networksResp, isLoading } = useExtraNetworks({
@@ -260,14 +283,27 @@ export function NetworksTab() {
               {t}
             </button>
           ))}
-          <button
-            type="button"
-            disabled={refreshNetworks.isPending}
-            onClick={() => refreshNetworks.mutate()}
-            className="ml-auto p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
-          >
-            <RefreshCw className={`h-3.5 w-3.5 ${refreshNetworks.isPending ? "animate-spin" : ""}`} />
-          </button>
+          <div className="ml-auto flex items-center gap-0.5">
+            {canScan && (
+              <button
+                type="button"
+                disabled={civitScan.isPending || refreshNetworks.isPending}
+                onClick={handleCivitScan}
+                title="Scan CivitAI for missing previews & metadata"
+                className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
+              >
+                {civitScan.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ScanSearch className="h-3.5 w-3.5" />}
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={refreshNetworks.isPending || civitScan.isPending}
+              onClick={() => refreshNetworks.mutate()}
+              className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-50"
+            >
+              <RefreshCw className={`h-3.5 w-3.5 ${refreshNetworks.isPending ? "animate-spin" : ""}`} />
+            </button>
+          </div>
         </div>
         <Input
           placeholder="Search..."
@@ -365,24 +401,69 @@ function NetworkDetailPopover({ item }: { item: ExtraNetworkV2 | PromptStyle }) 
             Loading...
           </div>
         ) : detail && detail.name ? (
-          <div className="space-y-1">
-            <DetailRow label="Type" value={detail.type} />
-            <DetailRow label="Alias" value={detail.alias} />
-            <DetailRow label="Hash" value={detail.hash} />
-            <DetailRow label="Version" value={detail.version} />
-            <DetailRow label="Size" value={detail.size != null ? formatBytes(detail.size) : null} />
-            <DetailRow label="Modified" value={detail.mtime ? new Date(detail.mtime).toLocaleDateString() : null} />
-            <DetailRow label="Tags" value={detail.tags?.replaceAll("|", ", ")} />
-            <DetailRow label="File" value={detail.filename?.split("/").pop()} />
-            {detail.description && (
-              <p className="text-2xs text-muted-foreground pt-1 border-t border-border mt-1">{detail.description}</p>
-            )}
-          </div>
+          <NetworkDetailContent detail={detail} />
         ) : (
           <p className="text-2xs text-muted-foreground">No detail available.</p>
         )}
       </PopoverContent>
     </Popover>
+  );
+}
+
+function getCivitInfo(info: Record<string, unknown> | null | undefined) {
+  if (!info || typeof info.id !== "number" || info.id <= 0) return null;
+  const versions = Array.isArray(info.modelVersions) ? info.modelVersions as Array<Record<string, unknown>> : [];
+  const firstVersion = versions[0];
+  const trainedWords = Array.isArray(firstVersion?.trainedWords) ? (firstVersion.trainedWords as string[]).filter(Boolean) : [];
+  const baseModel = typeof firstVersion?.baseModel === "string" ? firstVersion.baseModel : null;
+  return {
+    id: info.id as number,
+    name: typeof info.name === "string" ? info.name : null,
+    trainedWords,
+    baseModel,
+  };
+}
+
+function NetworkDetailContent({ detail }: { detail: NetworkDetail }) {
+  const civit = getCivitInfo(detail.info);
+  return (
+    <div className="space-y-1">
+      <DetailRow label="Type" value={detail.type} />
+      <DetailRow label="Alias" value={detail.alias} />
+      <DetailRow label="Hash" value={detail.hash} />
+      <DetailRow label="Version" value={detail.version} />
+      <DetailRow label="Size" value={detail.size != null ? formatBytes(detail.size) : null} />
+      <DetailRow label="Modified" value={detail.mtime ? new Date(detail.mtime).toLocaleDateString() : null} />
+      <DetailRow label="Tags" value={detail.tags?.replaceAll("|", ", ")} />
+      <DetailRow label="File" value={detail.filename?.split("/").pop()} />
+      {detail.description && (
+        <p className="text-2xs text-muted-foreground pt-1 border-t border-border mt-1">{detail.description}</p>
+      )}
+      {civit && (
+        <div className="pt-1 border-t border-border mt-1 space-y-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-2xs font-semibold">CivitAI</span>
+            <a
+              href={`https://civitai.com/models/${civit.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-muted-foreground hover:text-foreground"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="h-2.5 w-2.5" />
+            </a>
+          </div>
+          {civit.name && <DetailRow label="Name" value={civit.name} />}
+          {civit.baseModel && <DetailRow label="Base" value={civit.baseModel} />}
+          {civit.trainedWords.length > 0 && (
+            <div className="flex gap-2 text-2xs leading-tight">
+              <span className="text-muted-foreground shrink-0 w-16">Triggers</span>
+              <span className="font-medium break-words">{civit.trainedWords.join(", ")}</span>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

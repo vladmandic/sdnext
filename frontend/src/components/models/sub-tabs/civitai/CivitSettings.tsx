@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useMemo } from "react";
 import { Settings, Check, ChevronDown, ChevronRight, X } from "lucide-react";
 import { useCivitSettings, useCivitSaveSettings, useCivitMe } from "@/api/hooks/useCivitai";
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,13 @@ export function CivitSettings() {
       {open && (
         <div className="px-3 pb-3 space-y-4">
           <TokenSection configured={settings.token_configured} />
-          <SubfolderSection value={settings.save_subfolder} onSave={(v) => save.mutate({ save_subfolder: v })} isPending={save.isPending} />
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="subfolder-enabled" className="text-xs">Save downloads into subfolders</Label>
+            <Switch id="subfolder-enabled" size="sm" checked={settings.save_subfolder_enabled} onCheckedChange={(v) => save.mutate({ save_subfolder_enabled: v })} />
+          </div>
+          {settings.save_subfolder_enabled && (
+            <SubfolderSection value={settings.save_subfolder} onSave={(v) => save.mutate({ save_subfolder: v })} isPending={save.isPending} />
+          )}
           <div className="flex items-center justify-between gap-2">
             <Label htmlFor="hash-mismatch" className="text-xs">Discard downloads with hash mismatch</Label>
             <Switch id="hash-mismatch" size="sm" checked={settings.discard_hash_mismatch} onCheckedChange={(v) => save.mutate({ discard_hash_mismatch: v })} />
@@ -82,20 +88,75 @@ function TokenSection({ configured }: { configured: boolean }) {
   );
 }
 
+const TEMPLATE_VARS = [
+  { key: "BASEMODEL", example: "SDXL" },
+  { key: "MODELNAME", example: "My_Model" },
+  { key: "CREATOR", example: "artist42" },
+  { key: "TYPE", example: "LORA" },
+  { key: "VERSIONNAME", example: "v2.0" },
+  { key: "NSFW", example: "sfw" },
+  { key: "MODELID", example: "12345" },
+  { key: "VERSIONID", example: "67890" },
+] as const;
+
+function resolvePreview(template: string): string {
+  if (!template) return "";
+  let result = template;
+  for (const v of TEMPLATE_VARS) {
+    result = result.replaceAll(`{{${v.key}}}`, v.example);
+  }
+  return result.replace(/[/\\]+/g, "/").replace(/^\/|\/$/g, "");
+}
+
 function SubfolderSection({ value, onSave, isPending }: { value: string; onSave: (v: string) => void; isPending: boolean }) {
   const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement>(null);
   const changed = draft !== value;
+  const preview = useMemo(() => resolvePreview(draft), [draft]);
+
+  function insertVar(key: string) {
+    const el = inputRef.current;
+    if (!el) {
+      setDraft((d) => d + `{{${key}}}`);
+      return;
+    }
+    const tag = `{{${key}}}`;
+    const start = el.selectionStart ?? draft.length;
+    const end = el.selectionEnd ?? start;
+    const next = draft.slice(0, start) + tag + draft.slice(end);
+    setDraft(next);
+    requestAnimationFrame(() => {
+      const pos = start + tag.length;
+      el.setSelectionRange(pos, pos);
+      el.focus();
+    });
+  }
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-1.5">
       <Label htmlFor="subfolder-template" className="text-xs">Save subfolder template</Label>
       <div className="flex gap-2">
-        <Input id="subfolder-template" placeholder="{{BASEMODEL}}/{{MODELNAME}}" value={draft} onChange={(e) => setDraft(e.target.value)} className="h-6 text-2xs" />
+        <Input ref={inputRef} id="subfolder-template" placeholder="e.g. {{BASEMODEL}}/{{CREATOR}}" value={draft} onChange={(e) => setDraft(e.target.value)} className="h-6 text-2xs font-mono" />
         {changed && <Button size="sm" className="h-6 text-2xs" disabled={isPending} onClick={() => onSave(draft)}>Save</Button>}
       </div>
-      <p className="text-3xs text-muted-foreground">
-        {"Variables: {{BASEMODEL}}, {{MODELNAME}}, {{CREATOR}}, {{TYPE}}, {{NSFW}}, {{MODELID}}, {{VERSIONID}}, {{VERSIONNAME}}"}
-      </p>
+      <div className="flex flex-wrap gap-1">
+        {TEMPLATE_VARS.map((v) => (
+          <button
+            key={v.key}
+            type="button"
+            onClick={() => insertVar(v.key)}
+            className="px-1.5 py-0.5 rounded text-3xs font-mono bg-muted text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          >
+            {v.key}
+          </button>
+        ))}
+      </div>
+      {preview && (
+        <p className="text-3xs text-muted-foreground">
+          <span className="font-medium text-foreground/70">Preview: </span>
+          <span className="font-mono">.../Lora/{preview}/</span>
+        </p>
+      )}
     </div>
   );
 }

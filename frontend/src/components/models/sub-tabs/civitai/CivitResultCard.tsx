@@ -1,6 +1,6 @@
-import { Download, Heart, Ban } from "lucide-react";
+import { Download, Bookmark, Ban } from "lucide-react";
 import type { CivitModel } from "@/api/types/civitai";
-import { useCivitFavorites, useCivitAddFavorite, useCivitRemoveFavorite, useCivitBanned, useCivitAddBanned, useCivitRemoveBanned } from "@/api/hooks/useCivitai";
+import { useCivitBookmarks, useCivitAddBookmark, useCivitRemoveBookmark, useCivitBanned, useCivitAddBanned, useCivitRemoveBanned } from "@/api/hooks/useCivitai";
 import { Badge } from "@/components/ui/badge";
 
 interface CivitResultCardProps {
@@ -32,14 +32,14 @@ function formatCount(n: number): string {
 
 export function CivitResultCard({ model, onClick }: CivitResultCardProps) {
   const preview = getPreviewUrl(model);
-  const { data: favorites } = useCivitFavorites();
+  const { data: bookmarks } = useCivitBookmarks();
   const { data: banned } = useCivitBanned();
-  const addFav = useCivitAddFavorite();
-  const removeFav = useCivitRemoveFavorite();
+  const addBookmark = useCivitAddBookmark();
+  const removeBookmark = useCivitRemoveBookmark();
   const addBan = useCivitAddBanned();
   const removeBan = useCivitRemoveBanned();
 
-  const isFavorited = favorites?.some((f) => f.name === model.name) ?? false;
+  const isBookmarked = bookmarks?.some((b) => b.name === model.name) ?? false;
   const isBanned = banned?.some((b) => b.name === model.name) ?? false;
 
   return (
@@ -67,12 +67,12 @@ export function CivitResultCard({ model, onClick }: CivitResultCardProps) {
         <span
           role="button"
           tabIndex={0}
-          onClick={(e) => { e.stopPropagation(); if (isFavorited) removeFav.mutate(model.name); else addFav.mutate(model.name); }}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); if (isFavorited) removeFav.mutate(model.name); else addFav.mutate(model.name); } }}
+          onClick={(e) => { e.stopPropagation(); if (isBookmarked) removeBookmark.mutate(model.name); else addBookmark.mutate(model.name); }}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); if (isBookmarked) removeBookmark.mutate(model.name); else addBookmark.mutate(model.name); } }}
           className="p-1 rounded hover:bg-muted/50 transition-colors"
-          title={isFavorited ? "Remove from favorites" : "Add to favorites"}
+          title={isBookmarked ? "Remove bookmark" : "Bookmark"}
         >
-          <Heart className={`h-3 w-3 ${isFavorited ? "fill-red-500 text-red-500" : "text-muted-foreground"}`} />
+          <Bookmark className={`h-3 w-3 ${isBookmarked ? "fill-primary text-primary" : "text-muted-foreground"}`} />
         </span>
         <span
           role="button"

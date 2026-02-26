@@ -1,6 +1,7 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { CivitOptions, CivitSearchResponse, CivitModel, CivitSearchParams, CivitDownloadRequest, CivitDownloadItem, CivitDownloadStatus, CivitHistoryEntry, CivitSettings, CivitSettingsUpdate, CivitFavoriteEntry, CivitBannedEntry, CivitVersion, CivitTagResponse, CivitCreatorResponse, CivitUserProfile } from "../types/civitai";
+import type { CivitOptions, CivitSearchResponse, CivitModel, CivitSearchParams, CivitDownloadRequest, CivitDownloadItem, CivitDownloadStatus, CivitHistoryEntry, CivitSettings, CivitSettingsUpdate, CivitBookmarkEntry, CivitBannedEntry, CivitVersion, CivitTagResponse, CivitCreatorResponse, CivitUserProfile } from "../types/civitai";
+import type { CivitMetadataScanResult } from "../types/modelOps";
 
 function buildSearchParams(p: CivitSearchParams): Record<string, string> {
   const out: Record<string, string> = {};
@@ -129,30 +130,30 @@ export function useCivitResolvePath(params: Record<string, string>, enabled = fa
   });
 }
 
-export function useCivitFavorites() {
+export function useCivitBookmarks() {
   return useQuery({
-    queryKey: ["civitai-favorites"],
+    queryKey: ["civitai-bookmarks"],
     queryFn: async () => {
-      const res = await api.get<{ favorites: CivitFavoriteEntry[] }>("/sdapi/v2/civitai/favorites");
-      return res.favorites;
+      const res = await api.get<{ bookmarks: CivitBookmarkEntry[] }>("/sdapi/v2/civitai/bookmarks");
+      return res.bookmarks;
     },
     staleTime: 30_000,
   });
 }
 
-export function useCivitAddFavorite() {
+export function useCivitAddBookmark() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => api.post<CivitFavoriteEntry>("/sdapi/v2/civitai/favorites", { name }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-favorites"] }),
+    mutationFn: (name: string) => api.post<CivitBookmarkEntry>("/sdapi/v2/civitai/bookmarks", { name }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-bookmarks"] }),
   });
 }
 
-export function useCivitRemoveFavorite() {
+export function useCivitRemoveBookmark() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (name: string) => api.delete<{ success: boolean }>(`/sdapi/v2/civitai/favorites/${encodeURIComponent(name)}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-favorites"] }),
+    mutationFn: (name: string) => api.delete<{ success: boolean }>(`/sdapi/v2/civitai/bookmarks/${encodeURIComponent(name)}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["civitai-bookmarks"] }),
   });
 }
 
@@ -226,5 +227,17 @@ export function useCivitMe(enabled = true) {
     enabled,
     staleTime: 300_000,
     retry: false,
+  });
+}
+
+export function useCivitMetadataScan() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (page?: string) =>
+      api.post<{ results: CivitMetadataScanResult[] }>("/sdapi/v2/civitai/metadata/scan", page ? { page } : {}),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["extra-networks"] });
+      qc.invalidateQueries({ queryKey: ["network-detail"] });
+    },
   });
 }
