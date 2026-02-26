@@ -337,6 +337,131 @@ def delete_history():
 
 
 # ---------------------------------------------------------------------------
+# Sidecar Index (lazy-built from CivitAI .json metadata files)
+# ---------------------------------------------------------------------------
+
+_sidecar_index = None
+
+
+def _build_sidecar_index():
+    """Scan CivitAI .json sidecar files to build sha256 -> local file mapping. Lazy, one-time."""
+    global _sidecar_index  # pylint: disable=global-statement
+    if _sidecar_index is not None:
+        return _sidecar_index
+    _sidecar_index = {}
+    import glob
+    from modules import shared, paths
+    model_exts = ('.safetensors', '.ckpt', '.pt', '.pth', '.bin')
+    dirs = [
+        (getattr(shared.cmd_opts, 'lora_dir', None) or os.path.join(paths.models_path, 'Lora'), 'lora'),
+        (getattr(shared.opts, 'ckpt_dir', None) or os.path.join(paths.models_path, 'Stable-diffusion'), 'checkpoint'),
+    ]
+    for model_dir, model_type in dirs:
+        if not os.path.isdir(model_dir):
+            continue
+        for json_path in glob.glob(os.path.join(model_dir, '**', '*.json'), recursive=True):
+            try:
+                from modules.json_helpers import readfile
+                data = readfile(json_path, silent=True, as_type="dict")
+                if not isinstance(data, dict) or 'modelVersions' not in data:
+                    continue
+                # Find the companion model file for this sidecar
+                base = os.path.splitext(json_path)[0]
+                companion = None
+                for ext in model_exts:
+                    candidate = base + ext
+                    if os.path.isfile(candidate):
+                        companion = candidate
+                        break
+                if not companion:
+                    continue
+                # Match the companion file to a JSON entry by size (sizeKB)
+                companion_size_kb = os.path.getsize(companion) / 1024.0
+                companion_name = os.path.basename(base)
+                best_sha = None
+                best_diff = float('inf')
+                for v in data.get('modelVersions', []):
+                    for f in v.get('files', []):
+                        sha = (f.get('hashes') or {}).get('SHA256')
+                        size_kb = f.get('sizeKB', 0)
+                        if sha and size_kb and abs(size_kb - companion_size_kb) < 1.0:
+                            diff = abs(size_kb - companion_size_kb)
+                            if diff < best_diff:
+                                best_sha = sha
+                                best_diff = diff
+                if best_sha:
+                    _sidecar_index[best_sha.lower()] = {"filename": companion_name, "type": model_type}
+            except Exception:
+                continue
+    log.debug(f'CivitAI sidecar index: {len(_sidecar_index)} hashes from sidecar files')
+    return _sidecar_index
+
+
+def _invalidate_sidecar_index():
+    global _sidecar_index  # pylint: disable=global-statement
+    _sidecar_index = None
+
+
+# ---------------------------------------------------------------------------
+# Local Hash Check
+# ---------------------------------------------------------------------------
+
+def post_check_local(request: dict):
+    """Check which SHA256 hashes correspond to locally downloaded files."""
+    from modules import hashes as hash_module
+    input_hashes = request.get('hashes', [])
+    if not input_hashes:
+        return {"found": {}}
+    # Build reverse lookup: lowercase sha256 -> {filename, type}
+    found = {}
+    hash_cache = hash_module.cache("hashes")
+    for title, entry in hash_cache.items():
+        sha = entry.get("sha256")
+        if not sha:
+            continue
+        parts = title.split("/", 1)
+        file_type = parts[0] if len(parts) > 1 else "unknown"
+        found[sha.lower()] = {"filename": title, "type": file_type}
+    # Supplement from in-memory checkpoint registry
+    try:
+        from modules.sd_checkpoint import checkpoints_list
+        for _title, cp in checkpoints_list.items():
+            if cp.sha256:
+                key = cp.sha256.lower()
+                if key not in found:
+                    found[key] = {"filename": cp.filename, "type": "checkpoint"}
+    except Exception:
+        pass
+    # Supplement from in-memory LoRA registry
+    try:
+        from modules.lora.lora_load import available_networks
+        for _name, net in available_networks.items():
+            if net.hash:
+                key = net.hash.lower()
+                if key not in found:
+                    found[key] = {"filename": net.filename, "type": "lora"}
+    except Exception:
+        pass
+    # Supplement from sidecar index (covers files never hashed locally)
+    sidecar = _build_sidecar_index()
+    for h in input_hashes:
+        if not h:
+            continue
+        key = h.lower()
+        if key not in found and key in sidecar:
+            found[key] = sidecar[key]
+    # Match requested hashes
+    result = {}
+    for h in input_hashes:
+        if not h:
+            continue
+        match = found.get(h.lower())
+        if match:
+            result[h] = match
+    return {"found": result}
+
+
+# ---------------------------------------------------------------------------
 # Legacy Endpoints (backward compatibility)
 # ---------------------------------------------------------------------------
 
@@ -412,6 +537,7 @@ def register_api():
     api.add_api_route("/sdapi/v2/civitai/banned/{name}", delete_banned, methods=["DELETE"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/history", get_history, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/history", delete_history, methods=["DELETE"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/check-local", post_check_local, methods=["POST"], tags=["CivitAI"])
 
     # Legacy endpoints (backward compatibility)
     api.add_api_route("/sdapi/v1/civitai", _legacy_get_civitai, methods=["GET"], response_model=list, tags=["Models"])
