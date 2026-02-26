@@ -21,7 +21,17 @@ def get_loras():
 def post_refresh_loras():
     """Rescan LoRA directories and update the available networks list."""
     from modules.lora import lora_load
-    return lora_load.list_available_networks()
+    result = lora_load.list_available_networks()
+    _invalidate_extra_networks()
+    return result
+
+
+def _invalidate_extra_networks():
+    """Reset extra-networks page caches so the v2 API picks up changes."""
+    from modules import shared
+    for page in shared.extra_networks:
+        page.refresh_time = 0
+        page.create_items('txt2img')
 
 
 def register_api():

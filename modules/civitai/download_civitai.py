@@ -19,6 +19,8 @@ class DownloadItem:
     model_type: str = ""
     expected_hash: str = ""
     token: str | None = None
+    model_id: int = 0
+    version_id: int = 0
     status: str = "queued"  # queued | downloading | verifying | completed | failed | cancelled
     progress: float = 0.0
     bytes_downloaded: int = 0
@@ -55,7 +57,8 @@ class DownloadManager:
         self._worker_count = 0
 
     def enqueue(self, url: str, folder: str, filename: str, model_type: str = "",
-                expected_hash: str = "", token: str | None = None) -> DownloadItem:
+                expected_hash: str = "", token: str | None = None,
+                model_id: int = 0, version_id: int = 0) -> DownloadItem:
         item = DownloadItem(
             url=url,
             filename=filename,
@@ -63,6 +66,8 @@ class DownloadManager:
             model_type=model_type,
             expected_hash=expected_hash,
             token=token,
+            model_id=model_id,
+            version_id=version_id,
         )
         with self._lock:
             self._queue.append(item)
@@ -266,12 +271,45 @@ class DownloadManager:
         item.completed_at = datetime.now()
         log.info(f'CivitAI download complete: id={item.id} file="{final_file}" size={item.bytes_downloaded}')
 
-        # Refresh model list
+        # Download metadata and preview
+        self._fetch_sidecar(item, final_file)
+
+        # Refresh model list and extra-networks cache
         try:
             from modules.sd_models import list_models
             list_models()
         except Exception:
             pass
+        try:
+            from modules.api.loras import _invalidate_extra_networks
+            _invalidate_extra_networks()
+        except Exception:
+            pass
+
+    def _fetch_sidecar(self, item: DownloadItem, final_file: str):
+        """Download metadata JSON and preview image for a completed download."""
+        if not item.model_id:
+            return
+        try:
+            code, _size, _note = download_civit_meta(final_file, item.model_id)
+            if code == 200:
+                log.info(f'CivitAI metadata saved: id={item.id} model_id={item.model_id}')
+        except Exception as e:
+            log.warning(f'CivitAI metadata fetch failed: id={item.id} {e}')
+        if not item.version_id:
+            return
+        try:
+            from modules.civitai.client_civitai import client
+            version = client.get_version(item.version_id)
+            if version and version.images:
+                for img in version.images:
+                    if img.url:
+                        code, _size, _note = download_civit_preview(final_file, img.url)
+                        if code == 200:
+                            log.info(f'CivitAI preview saved: id={item.id}')
+                            break
+        except Exception as e:
+            log.warning(f'CivitAI preview fetch failed: id={item.id} {e}')
 
     def _get_token(self) -> str | None:
         tok = getattr(shared.opts, 'civitai_token', '') or ''
@@ -292,7 +330,8 @@ def download_civit_meta(model_path: str, model_id):
     if r.status_code == 200:
         try:
             data = r.json()
-            shared.writefile(data, filename=fn, mode='w', silent=True)
+            from modules.json_helpers import writefile
+            writefile(data, filename=fn, mode='w', silent=True)
             log.info(f'CivitAI download: id={model_id} url={url} file="{fn}"')
             return r.status_code, len(data), ''
         except Exception as e:
