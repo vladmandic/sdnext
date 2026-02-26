@@ -1,7 +1,7 @@
 """CivitAI REST API endpoints.
 
 Provides search, model/version lookup, download queue management,
-options discovery, metadata scanning, and user data (favorites/bans/history).
+options discovery, metadata scanning, and user data (bookmarks/bans/history).
 """
 
 import os
@@ -114,23 +114,22 @@ def get_me(token: str = None):
 # Download Queue
 # ---------------------------------------------------------------------------
 
-def post_download(
-    url: str,
-    filename: str = '',
-    folder: str = '',
-    model_type: str = 'Checkpoint',
-    expected_hash: str = '',
-    token: str = None,
-    model_name: str = '',
-    base_model: str = '',
-    creator: str = '',
-    model_id: int = 0,
-    version_id: int = 0,
-    version_name: str = '',
-    nsfw: bool = False,
-):
+def post_download(request: dict):
     """Queue a download. Returns the download item with its ID."""
     from modules.civitai.download_civitai import download_manager
+    url = request.get('url', '')
+    filename = request.get('filename', '')
+    folder = request.get('folder', '')
+    model_type = request.get('model_type', 'Checkpoint')
+    expected_hash = request.get('expected_hash', '')
+    token = request.get('token', None)
+    model_name = request.get('model_name', '')
+    base_model = request.get('base_model', '')
+    creator = request.get('creator', '')
+    model_id = request.get('model_id', 0)
+    version_id = request.get('version_id', 0)
+    version_name = request.get('version_name', '')
+    nsfw = request.get('nsfw', False)
     if not url:
         return JSONResponse(content={"error": "url is required"}, status_code=400)
     if not folder:
@@ -150,6 +149,8 @@ def post_download(
         model_type=model_type,
         expected_hash=expected_hash,
         token=token,
+        model_id=int(model_id) if model_id else 0,
+        version_id=int(version_id) if version_id else 0,
     )
     return item.to_dict()
 
@@ -178,7 +179,8 @@ def get_settings():
     from modules import shared
     return {
         "token_configured": bool(getattr(shared.opts, 'civitai_token', '')),
-        "save_subfolder": getattr(shared.opts, 'civitai_save_subfolder', ''),
+        "save_subfolder_enabled": getattr(shared.opts, 'civitai_save_subfolder_enabled', False),
+        "save_subfolder": getattr(shared.opts, 'civitai_save_subfolder', '{{BASEMODEL}}'),
         "save_type_folders": getattr(shared.opts, 'civitai_save_type_folders', ''),
         "discard_hash_mismatch": getattr(shared.opts, 'civitai_discard_hash_mismatch', True),
         "download_workers": getattr(shared.opts, 'civitai_download_workers', 2),
@@ -200,6 +202,9 @@ def post_settings(request: dict):
             log.info(f'CivitAI token validated: user={user.get("username", "?")}')
         from modules import secrets_manager
         secrets_manager.set('civitai_token', token.strip())
+    save_subfolder_enabled = request.get('save_subfolder_enabled')
+    if save_subfolder_enabled is not None:
+        shared.opts.data['civitai_save_subfolder_enabled'] = bool(save_subfolder_enabled)
     if save_subfolder is not None:
         shared.opts.data['civitai_save_subfolder'] = save_subfolder
     if discard_hash_mismatch is not None:
@@ -232,11 +237,12 @@ def get_resolve_path(
 # Metadata
 # ---------------------------------------------------------------------------
 
-def post_metadata_scan():
-    """Scan local models for CivitAI metadata."""
+def post_metadata_scan(request: dict = None):
+    """Scan local models for CivitAI metadata. Optional ``page`` filters by network type (e.g. 'lora', 'model')."""
     from modules.civitai import metadata_civitai
+    page = (request or {}).get('page', None)
     results = []
-    for batch in metadata_civitai.civit_search_metadata(raw=True):
+    for batch in metadata_civitai.civit_search_metadata(title=page, raw=True):
         if isinstance(batch, list):
             results = batch
     return {"results": results}
@@ -264,23 +270,26 @@ def post_metadata_update():
 
 
 # ---------------------------------------------------------------------------
-# User Data — Favorites
+# User Data — Bookmarks
 # ---------------------------------------------------------------------------
 
-def get_favorites():
-    from modules.civitai.userdata_civitai import favorites
-    return {"favorites": favorites.list()}
+def get_bookmarks():
+    from modules.civitai.userdata_civitai import bookmarks
+    return {"bookmarks": [{"name": n} for n in bookmarks.list()]}
 
 
-def post_favorite(name: str):
-    from modules.civitai.userdata_civitai import favorites
-    added = favorites.add(name)
+def post_bookmark(request: dict):
+    from modules.civitai.userdata_civitai import bookmarks
+    name = request.get('name', '')
+    if not name:
+        return JSONResponse(content={"error": "name is required"}, status_code=400)
+    added = bookmarks.add(name)
     return {"success": added, "name": name}
 
 
-def delete_favorite(name: str):
-    from modules.civitai.userdata_civitai import favorites
-    removed = favorites.remove(name)
+def delete_bookmark(name: str):
+    from modules.civitai.userdata_civitai import bookmarks
+    removed = bookmarks.remove(name)
     if not removed:
         return JSONResponse(content={"error": "not found"}, status_code=404)
     return {"success": True, "name": name}
@@ -292,11 +301,14 @@ def delete_favorite(name: str):
 
 def get_banned():
     from modules.civitai.userdata_civitai import banned
-    return {"banned": banned.list()}
+    return {"banned": [{"name": n} for n in banned.list()]}
 
 
-def post_banned(name: str):
+def post_banned(request: dict):
     from modules.civitai.userdata_civitai import banned
+    name = request.get('name', '')
+    if not name:
+        return JSONResponse(content={"error": "name is required"}, status_code=400)
     added = banned.add(name)
     return {"success": added, "name": name}
 
@@ -392,9 +404,9 @@ def register_api():
     api.add_api_route("/sdapi/v2/civitai/resolve-path", get_resolve_path, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/metadata/scan", post_metadata_scan, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/metadata/update", post_metadata_update, methods=["POST"], tags=["CivitAI"])
-    api.add_api_route("/sdapi/v2/civitai/favorites", get_favorites, methods=["GET"], tags=["CivitAI"])
-    api.add_api_route("/sdapi/v2/civitai/favorites", post_favorite, methods=["POST"], tags=["CivitAI"])
-    api.add_api_route("/sdapi/v2/civitai/favorites/{name}", delete_favorite, methods=["DELETE"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/bookmarks", get_bookmarks, methods=["GET"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/bookmarks", post_bookmark, methods=["POST"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/bookmarks/{name}", delete_bookmark, methods=["DELETE"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/banned", get_banned, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/banned", post_banned, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/banned/{name}", delete_banned, methods=["DELETE"], tags=["CivitAI"])
