@@ -1,14 +1,6 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "../client";
-import type { ControlUnitType, PreprocessorInfo } from "../types/control";
-
-export function useControlNetModels() {
-  return useQuery({
-    queryKey: ["controlnets"],
-    queryFn: () => api.get<string[]>("/sdapi/v1/controlnets"),
-    staleTime: 30_000,
-  });
-}
+import type { ControlUnitType, PreprocessorInfo, PreprocessResponse } from "../types/control";
 
 const TYPES_WITH_MODELS: Set<ControlUnitType> = new Set(["controlnet", "t2i", "xs", "lite", "reference"]);
 
@@ -32,14 +24,14 @@ export function useControlModes() {
 export function usePreprocessImage() {
   return useMutation({
     mutationFn: (req: { image: string; model: string; params?: Record<string, unknown> }) =>
-      api.post<{ model: string; image: string }>("/sdapi/v1/preprocess", req),
+      api.post<PreprocessResponse>("/sdapi/v2/preprocess", req),
   });
 }
 
 export function usePreprocessors() {
   return useQuery({
     queryKey: ["preprocessors"],
-    queryFn: () => api.get<PreprocessorInfo[]>("/sdapi/v1/preprocessors"),
+    queryFn: () => api.get<PreprocessorInfo[]>("/sdapi/v2/preprocessors"),
     staleTime: 60_000,
   });
 }

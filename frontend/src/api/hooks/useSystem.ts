@@ -29,7 +29,7 @@ export function useHistory(params: { since?: number; job?: string; op?: string; 
 export function useSystemInfoFull() {
   return useQuery({
     queryKey: ["system-info-full"],
-    queryFn: () => api.get<SystemInfoFull>("/sdapi/v1/system-info/status", { full: "true" }),
+    queryFn: () => api.get<SystemInfoFull>("/sdapi/v2/system-info"),
     staleTime: 30_000,
     enabled: false,
   });
@@ -61,7 +61,7 @@ export function useRestartServer() {
 export function useShutdownServer() {
   return useMutation({
     mutationKey: ["server-shutdown"],
-    mutationFn: () => api.post("/sdapi/v1/shutdown"),
+    mutationFn: () => api.post("/sdapi/v2/server/shutdown"),
   });
 }
 

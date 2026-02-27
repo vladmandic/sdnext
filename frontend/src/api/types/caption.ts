@@ -20,6 +20,7 @@ export interface OpenClipRequest {
 }
 
 export interface OpenClipResponse {
+  ok: boolean;
   caption?: string;
   medium?: string;
   artist?: string;
@@ -47,6 +48,7 @@ export interface TaggerRequest {
 }
 
 export interface TaggerResponse {
+  ok: boolean;
   tags: string;
   scores?: Record<string, number> | null;
 }
@@ -80,6 +82,7 @@ export interface VqaRequest {
 }
 
 export interface VqaResponse {
+  ok: boolean;
   answer?: string;
   annotated_image?: string | null;
 }

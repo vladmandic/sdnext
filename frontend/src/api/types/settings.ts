@@ -32,10 +32,12 @@ export interface OptionsInfoResponse {
   sections: SectionMeta[];
 }
 
-export interface SecretStatus {
-  configured: boolean;
-  source: "env" | "file" | "none";
-  masked: string;
+export interface OptionUpdateItem {
+  key: string;
+  changed: boolean;
 }
 
-export type SecretsStatusMap = Record<string, SecretStatus>;
+export interface SetOptionsResponse {
+  ok: boolean;
+  updated: OptionUpdateItem[];
+}

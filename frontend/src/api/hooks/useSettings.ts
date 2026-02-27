@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { OptionsMap, OptionsInfoResponse, SecretsStatusMap } from "../types/settings";
+import type { OptionsMap, OptionsInfoResponse, SetOptionsResponse } from "../types/settings";
 
 export function useOptions() {
   return useQuery({
@@ -16,6 +16,7 @@ export function useOptionsSubset(keys: string[]) {
     queryKey: ["options", keysStr],
     queryFn: () => api.get<OptionsMap>("/sdapi/v2/options", { keys: keysStr }),
     staleTime: 30_000,
+    enabled: keys.length > 0,
   });
 }
 
@@ -23,7 +24,7 @@ export function useSetOptions() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (options: Partial<OptionsMap>) =>
-      api.post("/sdapi/v1/options", options),
+      api.post<SetOptionsResponse>("/sdapi/v2/options", options),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["options"] });
       queryClient.invalidateQueries({ queryKey: ["options-info"] });
@@ -36,13 +37,5 @@ export function useOptionsInfo() {
     queryKey: ["options-info"],
     queryFn: () => api.get<OptionsInfoResponse>("/sdapi/v2/options-info"),
     staleTime: 5 * 60_000,
-  });
-}
-
-export function useSecretsStatus() {
-  return useQuery({
-    queryKey: ["secrets-status"],
-    queryFn: () => api.get<SecretsStatusMap>("/sdapi/v2/secrets-status"),
-    staleTime: 30_000,
   });
 }

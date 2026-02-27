@@ -6,7 +6,7 @@ export interface PromptEnhanceModel {
 
 export interface PromptEnhanceRequest {
   prompt: string;
-  type?: "text" | "image";
+  type?: "text" | "image" | "video";
   model?: string;
   system_prompt?: string;
   image?: string;
@@ -28,6 +28,7 @@ export interface PromptEnhanceRequest {
 }
 
 export interface PromptEnhanceResponse {
+  ok: boolean;
   prompt: string;
   seed: number;
 }

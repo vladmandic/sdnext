@@ -70,3 +70,9 @@ export interface PreprocessorInfo {
   group: string;
   params: Record<string, unknown>;
 }
+
+export interface PreprocessResponse {
+  ok: boolean;
+  model: string;
+  image: string;
+}

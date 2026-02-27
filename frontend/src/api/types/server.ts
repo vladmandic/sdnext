@@ -1,53 +1,88 @@
+export interface VersionInfo {
+  app: string;
+  updated: string;
+  commit: string;
+  branch: string;
+  url: string;
+}
+
+export interface ServerCapabilities {
+  txt2img: boolean;
+  img2img: boolean;
+  control: boolean;
+  video: boolean;
+  websocket: boolean;
+}
+
+export interface ServerModelInfo {
+  name: string | null;
+  type: string | null;
+}
+
+export interface ServerInfo {
+  version: VersionInfo;
+  backend: string;
+  platform: string;
+  api_version: string;
+  capabilities: ServerCapabilities;
+  model: ServerModelInfo;
+}
+
+export interface MemoryUsage {
+  free?: number;
+  used?: number;
+  total?: number;
+}
+
+export interface MemoryPeakUsage {
+  current?: number;
+  peak?: number;
+}
+
+export interface MemoryWarnings {
+  retries: number;
+  oom: number;
+}
+
+export interface RamMemory {
+  free?: number;
+  used?: number;
+  total?: number;
+  error?: string;
+}
+
+export interface CudaMemory {
+  system?: MemoryUsage;
+  active?: MemoryPeakUsage;
+  allocated?: MemoryPeakUsage;
+  reserved?: MemoryPeakUsage;
+  inactive?: MemoryPeakUsage;
+  events?: MemoryWarnings;
+  error?: string;
+}
+
 export interface ResMemory {
-  ram: {
-    free?: number;
-    used?: number;
-    total?: number;
-    error?: string;
-  };
-  cuda: {
-    system?: { free: number; used: number; total: number };
-    active?: { current: number; peak: number };
-    allocated?: { current: number; peak: number };
-    reserved?: { current: number; peak: number };
-    inactive?: { current: number; peak: number };
-    events?: { retries: number; oom: number };
-    error?: string;
-  };
+  ram: RamMemory;
+  cuda: CudaMemory;
+}
+
+export interface GpuMetrics {
+  load_gpu: number | null;
+  load_vram: number | null;
+  temperature: number | null;
+  fan_speed: number | null;
+  power_current: number | null;
+  power_limit: number | null;
+  vram_used: number | null;
+  vram_total: number | null;
 }
 
 export interface ResGPU {
   name: string;
-  data: Record<string, unknown>;
-  chart: [number, number];
-}
-
-export interface ServerInfo {
-  version: Record<string, string>;
-  backend: string;
-  platform: string;
-  gpu: string;
-  api_version: string;
-  capabilities: {
-    txt2img: boolean;
-    img2img: boolean;
-    control: boolean;
-    video: boolean;
-    websocket: boolean;
-  };
-  model: {
-    name: string | null;
-    type: string | null;
-  };
-}
-
-export interface VersionInfo {
-  app: string;
-  updated: string;
-  hash: string;
-  url: string;
-  branch: string;
-  commit: string;
+  metrics: GpuMetrics;
+  details: Record<string, string>;
+  chart_vram_pct: number | null;
+  chart_gpu_pct: number | null;
 }
 
 export interface LoadedModel {

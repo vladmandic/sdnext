@@ -1,55 +1,31 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../client";
-import type { ResMemory, ResGPU, ServerInfo, VersionInfo, LoadedModel } from "../types/server";
-
-async function fetchServerInfo(): Promise<ServerInfo> {
-  try {
-    return await api.get<ServerInfo>("/sdapi/v2/server-info");
-  } catch {
-    // Fall back to /version for backends without server-info endpoint
-    const version = await api.get<VersionInfo>("/sdapi/v1/version");
-    return {
-      version: { app: version.app, updated: version.updated },
-      backend: "diffusers",
-      platform: "",
-      gpu: "",
-      api_version: "v2",
-      capabilities: { txt2img: true, img2img: true, control: true, video: false, websocket: false },
-      model: { name: null, type: null },
-    };
-  }
-}
+import type { ResMemory, ResGPU, ServerInfo, LoadedModel } from "../types/server";
 
 export function useServerInfo() {
   return useQuery({
     queryKey: ["server-info"],
-    queryFn: fetchServerInfo,
+    queryFn: () => api.get<ServerInfo>("/sdapi/v2/server-info"),
     staleTime: 30_000,
     retry: 2,
-  });
-}
-
-export function useVersion() {
-  return useQuery({
-    queryKey: ["version"],
-    queryFn: () => api.get<VersionInfo>("/sdapi/v1/version"),
-    staleTime: Infinity,
   });
 }
 
 export function useMemory() {
   return useQuery({
     queryKey: ["memory"],
-    queryFn: () => api.get<ResMemory>("/sdapi/v1/memory"),
+    queryFn: () => api.get<ResMemory>("/sdapi/v2/memory"),
     refetchInterval: 5000,
+    staleTime: 5000,
   });
 }
 
 export function useGpuStatus() {
   return useQuery({
     queryKey: ["gpu"],
-    queryFn: () => api.get<ResGPU[]>("/sdapi/v1/gpu"),
+    queryFn: () => api.get<ResGPU[]>("/sdapi/v2/gpu"),
     refetchInterval: 3000,
+    staleTime: 3000,
   });
 }
 

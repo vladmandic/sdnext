@@ -13,6 +13,6 @@ export function usePromptEnhanceModels() {
 export function usePromptEnhance() {
   return useMutation({
     mutationFn: (params: PromptEnhanceRequest) =>
-      api.post<PromptEnhanceResponse>("/sdapi/v1/prompt-enhance", params),
+      api.post<PromptEnhanceResponse>("/sdapi/v2/prompt-enhance", params),
   });
 }

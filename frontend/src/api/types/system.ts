@@ -44,15 +44,6 @@ export interface BenchmarkHistory {
   error?: string;
 }
 
-export interface HistoryEntry {
-  id: string | number | null;
-  job: string;
-  op: string;
-  timestamp: number | null;
-  duration: number | null;
-  outputs: string[];
-}
-
 export interface StorageEntry {
   label: string;
   path: string;
@@ -81,15 +72,13 @@ export interface SystemInfoFull {
   version: Record<string, string>;
   uptime: string;
   timestamp: string;
-  state: Record<string, unknown> | null;
-  memory: Record<string, unknown> | null;
-  platform: Record<string, string> | null;
-  torch: string | null;
-  gpu: Record<string, string> | null;
-  flags: string[] | null;
-  crossatention: string | null;
-  device: Record<string, string> | null;
-  backend: string | null;
-  pipeline: string | null;
-  libs?: Record<string, string> | null;
+  platform: Record<string, string>;
+  torch: string;
+  gpu: Record<string, string>;
+  device: Record<string, string>;
+  libs: Record<string, string>;
+  backend: string;
+  pipeline: string;
+  cross_attention: string;
+  flags: string[];
 }

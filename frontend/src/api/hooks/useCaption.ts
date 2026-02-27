@@ -13,7 +13,7 @@ import type {
 export function useOpenClipModels() {
   return useQuery({
     queryKey: ["openclip-models"],
-    queryFn: () => api.get<string[]>("/sdapi/v1/openclip"),
+    queryFn: () => api.get<string[]>("/sdapi/v2/caption/openclip/models"),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -21,7 +21,7 @@ export function useOpenClipModels() {
 export function useOpenClipCaption() {
   return useMutation({
     mutationFn: (params: OpenClipRequest) =>
-      api.post<OpenClipResponse>("/sdapi/v1/openclip", params),
+      api.post<OpenClipResponse>("/sdapi/v2/caption/openclip", params),
   });
 }
 
@@ -32,7 +32,7 @@ export function useOpenClipCaption() {
 export function useTaggerModels() {
   return useQuery({
     queryKey: ["tagger-models"],
-    queryFn: () => api.get<TaggerModel[]>("/sdapi/v1/tagger/models"),
+    queryFn: () => api.get<TaggerModel[]>("/sdapi/v2/caption/tagger/models"),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -40,7 +40,7 @@ export function useTaggerModels() {
 export function useTaggerCaption() {
   return useMutation({
     mutationFn: (params: TaggerRequest) =>
-      api.post<TaggerResponse>("/sdapi/v1/tagger", params),
+      api.post<TaggerResponse>("/sdapi/v2/caption/tagger", params),
   });
 }
 
@@ -51,7 +51,7 @@ export function useTaggerCaption() {
 export function useVlmModels() {
   return useQuery({
     queryKey: ["vlm-models"],
-    queryFn: () => api.get<VlmModel[]>("/sdapi/v1/vqa/models"),
+    queryFn: () => api.get<VlmModel[]>("/sdapi/v2/caption/vlm/models"),
     staleTime: 5 * 60 * 1000,
   });
 }
@@ -59,6 +59,6 @@ export function useVlmModels() {
 export function useVqaCaption() {
   return useMutation({
     mutationFn: (params: VqaRequest) =>
-      api.post<VqaResponse>("/sdapi/v1/vqa", params),
+      api.post<VqaResponse>("/sdapi/v2/caption/vlm", params),
   });
 }

@@ -1,6 +1,6 @@
 import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
-import type { SdVae, Upscaler, SdModelsResponse, SamplerV2, CheckpointInfoV2 } from "../types/models";
+import type { VaeV2, UpscalerV2, SdModelsResponse, SamplerV2, CheckpointInfoV2 } from "../types/models";
 
 const MODEL_MUTATION_KEY = ["model-operation"];
 
@@ -18,7 +18,7 @@ export function useModelList() {
 export function useVaeList() {
   return useQuery({
     queryKey: ["vaes"],
-    queryFn: () => api.get<SdVae[]>("/sdapi/v1/sd-vae"),
+    queryFn: () => api.get<VaeV2[]>("/sdapi/v2/sd-vae"),
     staleTime: 60_000,
   });
 }
@@ -36,7 +36,7 @@ export function useSamplerList(modelType?: string | null) {
 export function useUpscalerList() {
   return useQuery({
     queryKey: ["upscalers"],
-    queryFn: () => api.get<Upscaler[]>("/sdapi/v1/upscalers"),
+    queryFn: () => api.get<UpscalerV2[]>("/sdapi/v2/upscalers"),
     staleTime: 300_000,
   });
 }
@@ -68,7 +68,7 @@ export function useRefreshModels() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: MODEL_MUTATION_KEY,
-    mutationFn: () => api.post("/sdapi/v1/refresh-checkpoints"),
+    mutationFn: () => api.post("/sdapi/v2/checkpoint/refresh"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["models"] });
       queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
@@ -80,7 +80,7 @@ export function useReloadModel() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: MODEL_MUTATION_KEY,
-    mutationFn: () => api.post("/sdapi/v1/reload-checkpoint"),
+    mutationFn: () => api.post("/sdapi/v2/checkpoint/reload"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["options"] });
       queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
@@ -94,7 +94,7 @@ export function useUnloadModel() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationKey: MODEL_MUTATION_KEY,
-    mutationFn: () => api.post("/sdapi/v1/unload-checkpoint"),
+    mutationFn: () => api.post("/sdapi/v2/checkpoint/unload"),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["options"] });
       queryClient.invalidateQueries({ queryKey: ["checkpoint"] });
