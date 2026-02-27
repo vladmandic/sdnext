@@ -1259,8 +1259,7 @@ def get_version(force=False):
         cwd = os.getcwd()
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
-                os.chdir('extensions-builtin/sdnext-modernui')
-                res = subprocess.run('git rev-parse --abbrev-ref HEAD', capture_output=True, shell=True, check=True)
+                res = subprocess.run('git rev-parse --abbrev-ref HEAD', capture_output=True, shell=True, check=True, cwd='extensions-builtin/sdnext-modernui')
                 branch_ui = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
                 branch_ui = 'dev' if 'dev' in branch_ui else 'main'
                 version['ui'] = branch_ui
@@ -1275,8 +1274,7 @@ def get_version(force=False):
             if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
                 version['kanvas'] = 'disabled'
             elif os.path.exists('extensions-builtin/sdnext-kanvas'):
-                os.chdir('extensions-builtin/sdnext-kanvas')
-                res = subprocess.run('git rev-parse --abbrev-ref HEAD', capture_output=True, shell=True, check=True)
+                res = subprocess.run('git rev-parse --abbrev-ref HEAD', capture_output=True, shell=True, check=True, cwd='extensions-builtin/sdnext-kanvas')
                 branch_kanvas = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
                 branch_kanvas = 'dev' if 'dev' in branch_kanvas else 'main'
                 version['kanvas'] = branch_kanvas

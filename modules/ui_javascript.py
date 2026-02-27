@@ -84,7 +84,7 @@ def html_css(css: list[str]):
             head += stylesheet(themecss)
             log.debug(f'UI theme: css="{themecss}" base="{css}" user="{usercss}"')
         else:
-            log.error(f'UI theme: css="{themecss}" not found')
+            log.error(f'UI theme: css="{themecss}" path="{os.getcwd()}" not found')
     elif modules.shared.opts.theme_type == 'Modern':
         theme_folder = next((e.path for e in modules.extensions.extensions if e.name == 'sdnext-modernui'), None)
         themecss = os.path.join(theme_folder or '', 'themes', f'{modules.shared.opts.gradio_theme}.css')

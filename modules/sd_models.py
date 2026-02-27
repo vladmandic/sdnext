@@ -232,7 +232,7 @@ def move_model(model, device=None, force=False):
     try:
         t0 = time.time()
         try:
-            if model.device == torch.device('meta'):
+            if hasattr(model, 'device') and model.device == torch.device('meta'):
                 set_execution_device(model, device)
             elif hasattr(model, 'to'):
                 model.to(device)
