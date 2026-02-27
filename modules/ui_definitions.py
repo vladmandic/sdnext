@@ -666,6 +666,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('hidden_options', "Hidden options"), {
         # internal options
         "diffusers_version": OptionInfo("", "Diffusers version", gr.Textbox, {"visible": False}),
+        "transformers_version": OptionInfo("", "Transformers version", gr.Textbox, {"visible": False}),
         "disabled_extensions": OptionInfo([], "Disable these extensions", gr.Textbox, {"visible": False}),
         "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint", gr.Textbox, {"visible": False}),
         "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
