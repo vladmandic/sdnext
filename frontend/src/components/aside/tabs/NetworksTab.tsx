@@ -5,7 +5,7 @@ import { useExtraNetworks, usePromptStyles, useNetworkDetail, useRefreshNetworks
 import { useCivitMetadataScan } from "@/api/hooks/useCivitai";
 import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
 import { useGenerationStore } from "@/stores/generationStore";
-import type { ExtraNetworkV2, NetworkDetail, PromptStyle } from "@/api/types/models";
+import type { ExtraNetworkV2, NetworkDetail, PromptStyleV2 } from "@/api/types/models";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
@@ -30,7 +30,7 @@ const EXCLUDED_VERSIONS = new Set(["ref", "reference", "ready", "download"]);
 
 type SidebarGroup = { header?: string; items: string[] };
 
-function isExtraNetwork(item: ExtraNetworkV2 | PromptStyle): item is ExtraNetworkV2 {
+function isExtraNetwork(item: ExtraNetworkV2 | PromptStyleV2): item is ExtraNetworkV2 {
   return "type" in item && !!item.type;
 }
 
@@ -38,9 +38,9 @@ function isReferenceName(name: string): boolean {
   return name.toLowerCase().includes("reference/");
 }
 
-function isItemActive(item: ExtraNetworkV2 | PromptStyle, prompt: string, options: Record<string, unknown> | undefined): boolean {
+function isItemActive(item: ExtraNetworkV2 | PromptStyleV2, prompt: string, options: Record<string, unknown> | undefined): boolean {
   if (!isExtraNetwork(item)) {
-    const style = item as PromptStyle;
+    const style = item as PromptStyleV2;
     return !!style.prompt && prompt.includes(style.prompt);
   }
   const t = item.type?.toLowerCase() ?? "";
@@ -96,7 +96,7 @@ export function NetworksTab() {
   const networks = networksResp?.items;
 
   const filtered = useMemo(() => {
-    const items: (ExtraNetworkV2 | PromptStyle)[] = [];
+    const items: (ExtraNetworkV2 | PromptStyleV2)[] = [];
     if (filter === "Style") {
       const lowerSearch = search.toLowerCase();
       for (const s of styles ?? []) {
@@ -232,7 +232,7 @@ export function NetworksTab() {
     setSelectedSubfolder("All");
   }
 
-  function handleClick(item: ExtraNetworkV2 | PromptStyle) {
+  function handleClick(item: ExtraNetworkV2 | PromptStyleV2) {
     if ("type" in item && item.type) {
       const network = item as ExtraNetworkV2;
       const t = network.type.toLowerCase();
@@ -253,7 +253,7 @@ export function NetworksTab() {
         setOptions.mutate({ sd_vae: network.title ?? network.name });
       }
     } else {
-      const style = item as PromptStyle;
+      const style = item as PromptStyleV2;
       if (style.prompt) {
         const current = useGenerationStore.getState().prompt;
         useGenerationStore.getState().setParam("prompt", current ? `${current} ${style.prompt}` : style.prompt);
@@ -374,7 +374,7 @@ function DetailRow({ label, value }: { label: string; value: string | null | und
   );
 }
 
-function NetworkDetailPopover({ item }: { item: ExtraNetworkV2 | PromptStyle }) {
+function NetworkDetailPopover({ item }: { item: ExtraNetworkV2 | PromptStyleV2 }) {
   const [open, setOpen] = useState(false);
   const isNetwork = "type" in item && item.type;
   const network = isNetwork ? (item as ExtraNetworkV2) : null;
@@ -394,7 +394,7 @@ function NetworkDetailPopover({ item }: { item: ExtraNetworkV2 | PromptStyle }) 
       <PopoverContent side="right" align="start" className="w-64 p-3 space-y-2" onClick={(e) => e.stopPropagation()}>
         <p className="text-xs font-semibold truncate">{item.name}</p>
         {!network ? (
-          <StyleDetail item={item as PromptStyle} />
+          <StyleDetail item={item as PromptStyleV2} />
         ) : isLoading ? (
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground py-2">
             <Loader2 className="h-3 w-3 animate-spin" />
@@ -467,7 +467,7 @@ function NetworkDetailContent({ detail }: { detail: NetworkDetail }) {
   );
 }
 
-function StyleDetail({ item }: { item: PromptStyle }) {
+function StyleDetail({ item }: { item: PromptStyleV2 }) {
   return (
     <div className="space-y-1">
       {item.prompt && (
@@ -487,7 +487,7 @@ function StyleDetail({ item }: { item: PromptStyle }) {
   );
 }
 
-function NetworkCard({ item, active, onClick }: { item: ExtraNetworkV2 | PromptStyle; active: boolean; onClick: () => void }) {
+function NetworkCard({ item, active, onClick }: { item: ExtraNetworkV2 | PromptStyleV2; active: boolean; onClick: () => void }) {
   const isNetwork = "type" in item && item.type;
   const network = isNetwork ? (item as ExtraNetworkV2) : null;
   const typeBadge = network ? (network.version || network.type) : "Style";

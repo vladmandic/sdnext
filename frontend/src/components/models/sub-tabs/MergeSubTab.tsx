@@ -44,7 +44,7 @@ export function MergeSubTab() {
   const methodDoc = methodsInfo?.docs[method] ?? "";
 
   const modelOptions = (models ?? []).map((m) => ({ value: m.title, label: m.model_name }));
-  const vaeOptions = [{ value: "", label: "(None)" }, ...(vaes ?? []).map((v) => ({ value: v.model_name, label: v.model_name }))];
+  const vaeOptions = [{ value: "", label: "(None)" }, ...(vaes ?? []).map((v) => ({ value: v.name, label: v.name }))];
 
   function handleMerge() {
     if (!customName || !primary || !secondary) return;

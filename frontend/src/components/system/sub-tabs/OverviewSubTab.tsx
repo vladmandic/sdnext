@@ -2,27 +2,6 @@ import { useGpuStatus, useMemory, useLoadedModels, useServerInfo } from "@/api/h
 import { GroupedModels } from "@/components/layout/LoadedModelsPanel";
 import { formatBytes } from "@/lib/utils";
 
-function parseSystemLoad(raw: string) {
-  const gpu = raw.match(/GPU (\d+)%/)?.[1];
-  const vram = raw.match(/VRAM (\d+)%/)?.[1];
-  const temp = raw.match(/Temp (\d+)C/)?.[1];
-  const fan = raw.match(/Fan (\d+)%/)?.[1];
-  return {
-    gpu: gpu ? Number(gpu) : null,
-    vram: vram ? Number(vram) : null,
-    temp: temp ? Number(temp) : null,
-    fan: fan ? Number(fan) : null,
-  };
-}
-
-function parsePower(raw: string) {
-  const parts = raw.match(/([\d.]+)\s*W/g);
-  if (!parts || parts.length < 2) return null;
-  const current = parseFloat(parts[0]);
-  const limit = parseFloat(parts[1]);
-  return { current, limit };
-}
-
 export function OverviewSubTab() {
   const { data: gpus } = useGpuStatus();
   const { data: memory } = useMemory();
@@ -30,9 +9,7 @@ export function OverviewSubTab() {
   const { data: serverInfo } = useServerInfo();
 
   const gpu = gpus?.[0];
-  const gpuData = gpu?.data as Record<string, string> | undefined;
-  const systemLoad = gpuData?.["System load"] ? parseSystemLoad(gpuData["System load"]) : null;
-  const power = gpuData?.Power ? parsePower(gpuData.Power) : null;
+  const metrics = gpu?.metrics;
 
   const vramAllocated = memory?.cuda?.allocated?.current;
   const vramTotal = memory?.cuda?.system?.total;
@@ -44,15 +21,12 @@ export function OverviewSubTab() {
       {gpu && (
         <Section title="GPU">
           <Row label="Name" value={gpu.name} />
-          {systemLoad?.temp != null && <BarRow label="Temp" value={systemLoad.temp} max={100} unit="C" />}
-          {systemLoad?.gpu != null && <BarRow label="GPU Load" value={systemLoad.gpu} max={100} unit="%" />}
-          {systemLoad?.vram != null && <BarRow label="VRAM Load" value={systemLoad.vram} max={100} unit="%" />}
-          {systemLoad?.fan != null && <Row label="Fan" value={`${systemLoad.fan}%`} />}
-          {power && (
-            <Row label="Power" value={`${power.current}W / ${power.limit}W`} />
-          )}
-          {gpuData?.State && gpuData.State !== "ok" && (
-            <Row label="State" value={gpuData.State} />
+          {metrics?.temperature != null && <BarRow label="Temp" value={metrics.temperature} max={100} unit="C" />}
+          {metrics?.load_gpu != null && <BarRow label="GPU Load" value={metrics.load_gpu} max={100} unit="%" />}
+          {metrics?.load_vram != null && <BarRow label="VRAM Load" value={metrics.load_vram} max={100} unit="%" />}
+          {metrics?.fan_speed != null && <Row label="Fan" value={`${metrics.fan_speed}%`} />}
+          {metrics?.power_current != null && metrics?.power_limit != null && (
+            <Row label="Power" value={`${metrics.power_current}W / ${metrics.power_limit}W`} />
           )}
         </Section>
       )}

@@ -94,7 +94,7 @@ export function StatusBar() {
       {memory?.cuda?.allocated && (
         <LoadedModelsPanel>
           <button type="button" className="hover:text-foreground transition-colors cursor-pointer">
-            VRAM {formatBytes(memory.cuda.allocated.current)} / {formatBytes(memory.cuda.system?.total ?? 0)}
+            VRAM {formatBytes(memory.cuda.allocated.current ?? 0)} / {formatBytes(memory.cuda.system?.total ?? 0)}
           </button>
         </LoadedModelsPanel>
       )}

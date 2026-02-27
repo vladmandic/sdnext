@@ -1,18 +1,16 @@
-import { useServerInfo, useVersion } from "@/api/hooks/useServer";
+import { useServerInfo } from "@/api/hooks/useServer";
 import { BookOpen, Github, MessageCircle } from "lucide-react";
 
 export function InfoTab() {
   const { data: serverInfo } = useServerInfo();
-  const { data: version } = useVersion();
 
   return (
     <div className="p-3 space-y-4">
       <div className="space-y-2 text-xs">
-        <Row label="Version" value={version?.app ?? serverInfo?.version?.app} />
-        <Row label="Updated" value={version?.updated} />
+        <Row label="Version" value={serverInfo?.version?.app} />
+        <Row label="Updated" value={serverInfo?.version?.updated} />
         <Row label="Backend" value={serverInfo?.backend} />
         <Row label="Platform" value={serverInfo?.platform} />
-        <Row label="GPU" value={serverInfo?.gpu} />
       </div>
 
       <div className="space-y-1.5 pt-2 border-t border-border">

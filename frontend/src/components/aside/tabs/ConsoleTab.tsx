@@ -54,7 +54,7 @@ export function ConsoleTab() {
         </button>
         <button
           type="button"
-          onClick={clearLog}
+          onClick={() => clearLog.mutate()}
           className="p-1.5 rounded text-muted-foreground hover:text-foreground transition-colors"
           title="Clear log"
         >

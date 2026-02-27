@@ -20,7 +20,7 @@ export function QuickSettingsTab() {
     const choices: Record<string, string[]> = {};
     if (models) choices["sd_model_checkpoint"] = models.map((m) => m.title);
     if (models) choices["sd_model_refiner"] = [SENTINEL_NONE, ...models.map((m) => m.title)];
-    if (vaes) choices["sd_vae"] = [SENTINEL_AUTOMATIC, SENTINEL_NONE, ...vaes.map((v) => v.model_name)];
+    if (vaes) choices["sd_vae"] = [SENTINEL_AUTOMATIC, SENTINEL_NONE, ...vaes.map((v) => v.name)];
     return choices;
   }, [models, vaes]);
 

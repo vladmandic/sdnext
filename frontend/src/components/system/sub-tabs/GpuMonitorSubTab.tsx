@@ -9,11 +9,11 @@ const chartStore = {
   vram: [] as number[],
   _lastId: 0,
   _listeners: new Set<() => void>(),
-  push(chart: [number, number], id: number) {
+  push(vramPct: number, gpuPct: number, id: number) {
     if (id === this._lastId) return;
     this._lastId = id;
-    this.gpu = [...this.gpu, chart[1]].slice(-MAX_POINTS);
-    this.vram = [...this.vram, chart[0]].slice(-MAX_POINTS);
+    this.gpu = [...this.gpu, gpuPct].slice(-MAX_POINTS);
+    this.vram = [...this.vram, vramPct].slice(-MAX_POINTS);
     for (const l of this._listeners) l();
   },
   subscribe(listener: () => void) {
@@ -52,15 +52,13 @@ function Sparkline({ data, color, height = 40 }: { data: number[]; color: string
 export function GpuMonitorSubTab() {
   const { data: gpus, dataUpdatedAt } = useGpuStatus();
   const gpu = gpus?.[0];
-  const chart = gpu?.chart as [number, number] | undefined;
 
   useEffect(() => {
-    if (chart) chartStore.push(chart, dataUpdatedAt);
-  }, [chart, dataUpdatedAt]);
+    if (gpu) chartStore.push(gpu.chart_vram_pct ?? 0, gpu.chart_gpu_pct ?? 0, dataUpdatedAt);
+  }, [gpu, dataUpdatedAt]);
 
   const gpuHistory = useSyncExternalStore(chartStore.subscribe, useCallback(() => chartStore.gpu, []));
   const vramHistory = useSyncExternalStore(chartStore.subscribe, useCallback(() => chartStore.vram, []));
-  const gpuData = gpu?.data as Record<string, string> | undefined;
 
   return (
     <div className="space-y-4">
@@ -71,7 +69,7 @@ export function GpuMonitorSubTab() {
               <div>
                 <div className="flex justify-between text-3xs text-muted-foreground mb-0.5">
                   <span>GPU Load</span>
-                  <span className="tabular-nums">{chart?.[1] ?? 0}%</span>
+                  <span className="tabular-nums">{gpu.chart_gpu_pct ?? 0}%</span>
                 </div>
                 <div className="border border-border rounded overflow-hidden">
                   <Sparkline data={gpuHistory} color="hsl(var(--accent))" />
@@ -80,7 +78,7 @@ export function GpuMonitorSubTab() {
               <div>
                 <div className="flex justify-between text-3xs text-muted-foreground mb-0.5">
                   <span>VRAM Load</span>
-                  <span className="tabular-nums">{chart?.[0] ?? 0}%</span>
+                  <span className="tabular-nums">{gpu.chart_vram_pct ?? 0}%</span>
                 </div>
                 <div className="border border-border rounded overflow-hidden">
                   <Sparkline data={vramHistory} color="hsl(var(--chart-2, var(--accent)))" />
@@ -89,10 +87,10 @@ export function GpuMonitorSubTab() {
             </div>
           </Section>
 
-          {gpuData && (
+          {gpu.details && Object.keys(gpu.details).length > 0 && (
             <Section title="Details">
-              {Object.entries(gpuData).map(([key, val]) => (
-                <Row key={key} label={key} value={String(val)} />
+              {Object.entries(gpu.details).map(([key, val]) => (
+                <Row key={key} label={key} value={val} />
               ))}
             </Section>
           )}

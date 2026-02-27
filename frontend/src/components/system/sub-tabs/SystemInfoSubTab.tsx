@@ -67,7 +67,7 @@ export function SystemInfoSubTab() {
 
           <Row label="Backend" value={data.backend} />
           <Row label="Pipeline" value={data.pipeline} />
-          <Row label="Cross Attention" value={data.crossatention} />
+          <Row label="Cross Attention" value={data.cross_attention} />
 
           {data.flags && data.flags.length > 0 && (
             <Section title="Flags">
