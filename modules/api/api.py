@@ -57,9 +57,6 @@ class Api:
         self.add_api_route("/sdapi/v1/options", server.set_config, methods=["POST"])
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel)
         self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu_status, methods=["GET"], response_model=list[models.ResGPU])
-        self.add_api_route("/sdapi/v2/server-info", server.get_server_info, methods=["GET"], tags=["Server"])
-        self.add_api_route("/sdapi/v2/options-info", server.get_options_info, methods=["GET"], tags=["Server"])
-        self.add_api_route("/sdapi/v2/secrets-status", server.get_secrets_status, methods=["GET"], tags=["Server"])
         self.add_api_route("/sdapi/v2/huggingface/settings", server.get_hf_settings, methods=["GET"], tags=["HuggingFace"])
         self.add_api_route("/sdapi/v2/huggingface/settings", server.post_hf_settings, methods=["POST"], tags=["HuggingFace"])
         self.add_api_route("/sdapi/v2/huggingface/me", server.get_hf_profile, methods=["GET"], tags=["HuggingFace"])
@@ -74,7 +71,6 @@ class Api:
         self.add_api_route("/sdapi/v1/mask", self.process.post_mask, methods=["POST"], tags=["Processing"])
         self.add_api_route("/sdapi/v1/detect", self.process.post_detect, methods=["POST"], tags=["Processing"])
         self.add_api_route("/sdapi/v1/prompt-enhance", self.process.post_prompt_enhance, methods=["POST"], response_model=models.ResPromptEnhance, tags=["Generation"])
-        self.add_api_route("/sdapi/v2/prompt-enhance/models", self.process.get_prompt_enhance_models, methods=["GET"], tags=["Generation"])
 
         # api dealing with optional scripts
         self.add_api_route("/sdapi/v1/scripts", script.get_scripts_list, methods=["GET"], response_model=models.ResScripts, tags=["Scripts"])
@@ -87,9 +83,6 @@ class Api:
         self.add_api_route("/sdapi/v1/upscalers", endpoints.get_upscalers, methods=["GET"], response_model=list[models.ItemUpscaler])
         self.add_api_route("/sdapi/v1/sd-models", endpoints.get_sd_models, methods=["GET"], response_model=list[models.ItemModel])
         self.add_api_route("/sdapi/v1/controlnets", endpoints.get_controlnets, methods=["GET"], response_model=list[str])
-        self.add_api_route("/sdapi/v2/control-models", endpoints.get_control_models, methods=["GET"], response_model=list[str], tags=["Enumerators"])
-        self.add_api_route("/sdapi/v2/control-modes", endpoints.get_control_modes, methods=["GET"], response_model=dict[str, list[str]], tags=["Enumerators"])
-        self.add_api_route("/sdapi/v2/ip-adapters", endpoints.get_ip_adapters, methods=["GET"], response_model=list[str], tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/face-restorers", endpoints.get_restorers, methods=["GET"], response_model=list[models.ItemDetailer])
         self.add_api_route("/sdapi/v1/detailers", endpoints.get_detailers, methods=["GET"], response_model=list[models.ItemDetailer])
         self.add_api_route("/sdapi/v1/prompt-styles", endpoints.get_prompt_styles, methods=["GET"], response_model=list[models.ItemStyle])
@@ -156,7 +149,8 @@ class Api:
 
         # v2 async job queue api
         from modules.api.v2 import register_v2
-        register_v2(self.app)
+        v2_deps = [Depends(self.auth)] if self.credentials else []
+        register_v2(self.app, dependencies=v2_deps)
 
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute
