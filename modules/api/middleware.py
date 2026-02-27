@@ -16,6 +16,7 @@ import modules.errors as errors
 
 errors.install()
 ignore_endpoints = [
+    '/sdapi/v1/version',
     '/sdapi/v1/log',
     '/sdapi/v1/browser',
     '/sdapi/v1/gpu',

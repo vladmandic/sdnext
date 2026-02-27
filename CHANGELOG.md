@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-02-25
+## Update for 2026-02-27
 
-### Highlights for 2026-02-25
+### Highlights for 2026-02-27
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, so we have two deep fine-tunes: *FireRed-Image-Edit* and *SkyWorks-UniPic-3*  
@@ -11,9 +11,10 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-02-25
+### Details for 2026-02-27
 
 - **Models**
+  - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
   - [FireRed Image Edit](https://huggingface.co/FireRedTeam/FireRed-Image-Edit-1.0)  
     *Note*: FireRed is a fine-tune of Qwen-Image-Edit regardless of its claim as a new base-model  
   - [Skyworks UniPic-3](https://huggingface.co/Skywork/Unipic3), *Consistency and DMD* variants to reference/community section  

@@ -28,8 +28,8 @@ aspect_ratios_buckets = {
 
 def google_requirements():
     install('google-genai==1.52.0')
-    install('pydantic==2.11.7', ignore=True, quiet=True)
-    reload('pydantic', '2.11.7')
+    # install('pydantic==2.11.7', ignore=True, quiet=True)
+    # reload('pydantic', '2.11.7')
 
 
 def get_size_buckets(width: int, height: int) -> str:
