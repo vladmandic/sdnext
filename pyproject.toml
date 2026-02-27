@@ -383,6 +383,11 @@ exclude = [
         "**/__pycache__",
         "venv",
         ]
+extraPaths = [
+        "scripts",
+        "pipelines",
+        "extensions-builtin",
+        ]
 reportMissingImports = "none"
 reportInvalidTypeForm = "none"
 
