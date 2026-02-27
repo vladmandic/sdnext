@@ -30,6 +30,14 @@ ignore_endpoints = [
     '/sdapi/v2/browser',
     '/sdapi/v2/loaded-models',
     '/sdapi/v2/server-info',
+    '/sdapi/v2/memory',
+    '/sdapi/v2/gpu',
+    '/sdapi/v2/system-info',
+    '/sdapi/v2/sd-vae',
+    '/sdapi/v2/upscalers',
+    '/sdapi/v2/prompt-styles',
+    '/sdapi/v2/options',
+    '/sdapi/v2/log',
 ]
 
 
