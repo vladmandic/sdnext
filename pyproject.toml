@@ -386,7 +386,6 @@ exclude = [
 extraPaths = [
         "scripts",
         "pipelines",
-        "extensions-builtin",
         ]
 reportMissingImports = "none"
 reportInvalidTypeForm = "none"
