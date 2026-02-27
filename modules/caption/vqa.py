@@ -91,7 +91,8 @@ def is_thinking_model(model_name: str) -> bool:
     model_lower = model_name.lower()
     # Check for known thinking models
     thinking_indicators = [
-        'thinking',  # Qwen3-VL-*-Thinking models
+        'thinking',    # Qwen3-VL-*-Thinking models
+        'reasoning',   # Ministral-3-*-Reasoning models
         'moondream3',  # Moondream 3 supports thinking
         'moondream 3',
         'moondream2',  # Moondream 2 supports reasoning mode
@@ -351,7 +352,9 @@ class VQA:
 
         # dispatch to appropriate loader (same logic as caption)
         repo_lower = repo.lower()
-        if 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower:
+        if 'mistral' in repo_lower:
+            self._load_mistral(repo)
+        elif 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower:
             self._load_qwen(repo)
         elif 'gemma' in repo_lower and 'pali' not in repo_lower:
             self._load_gemma(repo)
@@ -450,6 +453,7 @@ class VQA:
 
     # Map Qwen VL config model_type strings to their model classes.
     _QWEN_VL_MODEL_TYPE_MAP = {
+        'qwen3_5': 'Qwen3_5ForConditionalGeneration',
         'qwen3_vl': 'Qwen3VLForConditionalGeneration',
         'qwen2_5_vl': 'Qwen2_5_VLForConditionalGeneration',
         'qwen2_vl': 'Qwen2VLForConditionalGeneration',
@@ -460,9 +464,9 @@ class VQA:
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
             self.model = None
-            if 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
-                cls_name = transformers.Qwen3VLForConditionalGeneration
-            elif 'Qwen2.5-VL' in repo or 'Qwen2_5_VL' in repo or 'MiMo-VL' in repo:
+            if 'Qwen3.5' in repo:
+                cls_name = transformers.Qwen3_5ForConditionalGeneration
+            elif 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
                 cls_name = transformers.Qwen2_5_VLForConditionalGeneration
             elif 'Qwen2-VL' in repo or 'Qwen2VL' in repo:
                 cls_name = transformers.Qwen2VLForConditionalGeneration
@@ -691,6 +695,78 @@ class VQA:
             debug(f'VQA caption: handler=gemma response_before_clean="{response}"')
 
         response = strip_think_xml_tags(response, keep=get_keep_thinking())
+        return response
+
+    def _load_mistral(self, repo: str):
+        """Load Mistral3 vision model and processor."""
+        if self.model is None or self.loaded != repo:
+            log.debug(f'Caption load: vlm="{repo}"')
+            self.model = None
+            quant_args = model_quant.create_config(module='LLM')
+            self.model = transformers.Mistral3ForConditionalGeneration.from_pretrained(
+                repo,
+                torch_dtype=devices.dtype,
+                use_safetensors=True,
+                cache_dir=shared.opts.hfcache_dir,
+                **quant_args,
+            )
+            if 'LLM' in shared.opts.cuda_compile:
+                self.model = sd_models_compile.compile_torch(self.model)
+            self.processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            self.loaded = repo
+            devices.torch_gc()
+
+    def _mistral(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
+        self._load_mistral(repo)
+        sd_models.move_model(self.model, devices.device)
+        cls_name = self.model.__class__.__name__
+        debug(f'VQA caption: handler=mistral model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
+
+        question = question.replace('<', '').replace('>', '').replace('_', ' ')
+        system_prompt = system_prompt or shared.opts.caption_vlm_system
+
+        conversation = []
+        if system_prompt and len(system_prompt) > 4:
+            conversation.append({"role": "system", "content": [{"type": "text", "text": system_prompt}]})
+        user_content = []
+        if image is not None:
+            user_content.append({"type": "image", "image": b64(image)})
+        if question and len(question) > 1:
+            user_content.append({"type": "text", "text": question})
+        conversation.append({"role": "user", "content": user_content})
+
+        prefill_value = vlm_prefill if prefill is None else prefill
+        prefill_text = prefill_value.strip()
+        use_prefill = len(prefill_text) > 0
+
+        if use_prefill:
+            conversation.append({"role": "assistant", "content": [{"type": "text", "text": prefill_text}]})
+
+        if debug_enabled:
+            debug(f'VQA caption: handler=mistral conversation_roles={[msg["role"] for msg in conversation]}')
+            debug(f'VQA caption: handler=mistral full_conversation={truncate_b64_in_conversation(conversation)}')
+
+        try:
+            if use_prefill:
+                text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=False, continue_final_message=True, tokenize=False)
+            else:
+                text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
+        except (TypeError, ValueError) as e:
+            debug(f'VQA caption: handler=mistral chat_template fallback: {e}')
+            text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
+
+        if debug_enabled:
+            debug(f'VQA caption: handler=mistral text_prompt="{text_prompt}"')
+        inputs = self.processor(text=[text_prompt], images=[image], padding=True, return_tensors="pt").to(device=devices.device, dtype=devices.dtype)
+        input_len = inputs["input_ids"].shape[-1]
+        gen_kwargs = get_kwargs()
+        debug(f'VQA caption: handler=mistral generation_kwargs={gen_kwargs} input_len={input_len}')
+        with devices.inference_context():
+            generation = self.model.generate(**inputs, **gen_kwargs)
+        generation = generation[0][input_len:]
+        response = self.processor.decode(generation, skip_special_tokens=True)
+        if debug_enabled:
+            debug(f'VQA caption: handler=mistral response_before_clean="{response}"')
         return response
 
     def _load_paligemma(self, repo: str):
@@ -1289,6 +1365,9 @@ class VQA:
                 # Format dict answer as readable string (string answers pass through unchanged)
                 if isinstance(answer, dict):
                     answer = vqa_detection.format_florence_response(answer)
+            elif 'mistral' in vqa_model.lower():
+                handler = 'mistral'
+                answer = self._mistral(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
             elif 'qwen' in vqa_model.lower() or 'torii' in vqa_model.lower() or 'mimo' in vqa_model.lower():
                 handler = 'qwen'
                 answer = self._qwen(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)

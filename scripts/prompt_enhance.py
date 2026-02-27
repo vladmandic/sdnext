@@ -51,6 +51,7 @@ def is_thinking_model(model_name: str) -> bool:
     # Match VQA's detection patterns for consistency
     thinking_indicators = [
         'thinking',      # Qwen3-VL-*-Thinking models
+        'reasoning',     # Ministral-3-*-Reasoning models
         'moondream3',    # Moondream 3 supports thinking
         'moondream 3',
         'moondream2',    # Moondream 2 supports reasoning mode
@@ -257,12 +258,16 @@ class Script(scripts_manager.Script):
             if model_subfolder:
                 load_args['subfolder'] = model_subfolder # Comma was incorrect here
 
-            if 'Qwen3-VL' in model_repo or 'Qwen3VL' in model_repo:
+            if 'Qwen3.5' in model_repo:
+                cls_name = transformers.Qwen3_5ForConditionalGeneration
+            elif 'Qwen3-VL' in model_repo or 'Qwen3VL' in model_repo:
                 cls_name = transformers.Qwen3VLForConditionalGeneration
             elif 'Qwen2.5-VL' in model_repo or 'Qwen2_5_VL' in model_repo:
                 cls_name = transformers.Qwen2_5_VLForConditionalGeneration
             elif 'Qwen2-VL' in model_repo or 'Qwen2VL' in model_repo:
                 cls_name = transformers.Qwen2VLForConditionalGeneration
+            elif 'Mistral-Small-3.2' in model_repo:
+                cls_name = transformers.Mistral3ForConditionalGeneration
             else:
                 cls_name = transformers.AutoModelForCausalLM
 
