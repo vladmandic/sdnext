@@ -66,7 +66,6 @@ def download_diffusers_model(hub_id: str, cache_dir: str = None, download_config
     if download_config is None:
         download_config = {
             "force_download": False,
-            "resume_download": True,
             "cache_dir": shared.opts.diffusers_dir,
             "load_connected_pipeline": True,
         }
@@ -181,9 +180,9 @@ def find_diffuser(name: str, full=False):
         suffix = '/'.join(parts[2:]) # subfolder
         if len(suffix) > 0:
             suffix = '/' + suffix
-    models = list(hf_api.list_models(model_name=name, library=['diffusers'], full=True, limit=20, sort="downloads", direction=-1))
+    models = list(hf_api.list_models(model_name=name, filter="diffusers", full=True, limit=20, sort="downloads"))
     if len(models) == 0:
-        models = list(hf_api.list_models(model_name=name, full=True, limit=20, sort="downloads", direction=-1)) # widen search
+        models = list(hf_api.list_models(model_name=name, full=True, limit=20, sort="downloads")) # widen search
     models = [m for m in models if m.id.startswith(name)] # filter exact
     log.debug(f'Search model: repo="{name}" {len(models) > 0}')
     if len(models) > 0:

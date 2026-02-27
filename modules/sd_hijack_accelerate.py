@@ -81,9 +81,7 @@ def restore_accelerate():
 
 
 def hijack_hfhub():
-    import contextlib
-    import huggingface_hub.file_download
-    huggingface_hub.file_download.FileLock = contextlib.nullcontext
+    pass  # FileLock was removed in huggingface_hub v1.x; file locking is no longer used during downloads
 
 
 def torch_conv_forward(self, input, weight, bias): # pylint: disable=redefined-builtin

@@ -119,8 +119,6 @@ timer.startup.record("bnb")
 
 import huggingface_hub # pylint: disable=W0611,C0411
 logging.getLogger("huggingface_hub.file_download").setLevel(logging.ERROR)
-if huggingface_hub.__version__.startswith('0.'):
-    huggingface_hub.is_offline_mode = lambda: False
 timer.startup.record("hfhub")
 
 import accelerate # pylint: disable=W0611,C0411
