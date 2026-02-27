@@ -8,6 +8,47 @@ from modules.api.v2.models import (
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Caption"])
 
+_VLM_GROUP_RULES = [
+    # Gemma — official first (vendor prefix), then finetunes
+    ("google gemma", "Gemma"),
+    ("paligemma", "Gemma"),
+    ("gemma", "Gemma Finetunes"),
+    # Qwen3.5
+    ("alibaba qwen 3.5", "Qwen3.5"),
+    ("qwen 3.5", "Qwen3.5 Finetunes"),
+    # Qwen3-VL — official (vendor prefix) vs finetunes
+    ("alibaba qwen 3 vl", "Qwen3-VL"),
+    ("qwen 3 vl", "Qwen3-VL Finetunes"),
+    # Qwen2.5-VL — official vs finetunes
+    ("alibaba qwen 2.5 vl", "Qwen2.5-VL"),
+    ("qwen 2.5 vl", "Qwen2.5-VL Finetunes"),
+    ("qwen 2.5 omni", "Qwen2.5-VL"),
+    ("qwen 2.0 vl", "Qwen2-VL"),
+    ("qwen", "Qwen"),
+    # Mistral
+    ("mistral", "Mistral Finetunes"),
+    ("florence", "Florence"),
+    ("promptgen", "Florence"),
+    ("cogflorence", "Florence"),
+    ("smol", "SmolVLM"),
+    ("fastvlm", "FastVLM"),
+    ("moondream", "Moondream"),
+    ("ovis", "Ovis"),
+    ("blip", "BLIP"),
+    ("git ", "GIT"),
+    ("joycaption", "JoyCaption"),
+    ("joytag", "JoyCaption"),
+    ("toriigate", "ToriiGate"),
+]
+
+
+def _vlm_group(name: str) -> str:
+    lower = name.lower()
+    for pattern, group in _VLM_GROUP_RULES:
+        if pattern in lower:
+            return group
+    return "Other"
+
 
 @router.get("/caption/openclip/models", response_model=list[str])
 async def get_openclip_models_v2():
@@ -31,7 +72,10 @@ async def post_openclip_v2(req: ReqOpenClipV2):
 async def get_vlm_models_v2():
     """List available VLM models with capabilities."""
     from modules.api.caption import get_vqa_models
-    return get_vqa_models()
+    models = get_vqa_models()
+    for m in models:
+        m["group"] = _vlm_group(m.get("name", ""))
+    return models
 
 
 @router.post("/caption/vlm", response_model=ResVqaV2)

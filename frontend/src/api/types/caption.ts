@@ -89,6 +89,7 @@ export interface VqaResponse {
 
 export interface VlmModel {
   name: string;
+  group: string;
   repo: string;
   prompts: string[];
   capabilities: string[];

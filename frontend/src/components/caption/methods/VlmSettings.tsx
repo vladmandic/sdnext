@@ -1,7 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Lightbulb } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { Combobox } from "@/components/ui/combobox";
+import { Combobox, type ComboboxGroup } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -17,7 +17,6 @@ export function VlmSettings() {
   const set = useCaptionSettingsStore((st) => st.setVlm);
 
   const { data: models } = useVlmModels();
-  const modelNames = useMemo(() => models?.map((m) => m.name) ?? [], [models]);
   const selectedModel = useMemo(() => models?.find((m) => m.name === s.model), [models, s.model]);
   const prompts = useMemo(() => selectedModel?.prompts ?? ["Use Prompt", "Short Caption", "Normal Caption", "Long Caption"], [selectedModel]);
 
@@ -25,6 +24,15 @@ export function VlmSettings() {
     const map = new Map<string, VlmModel>();
     for (const m of models ?? []) map.set(m.name, m);
     return map;
+  }, [models]);
+
+  const vlmGroups = useMemo<ComboboxGroup[]>(() => {
+    if (!models?.length) return [];
+    const order = ["Gemma", "Gemma Finetunes", "Qwen3.5", "Qwen3.5 Finetunes", "Qwen3-VL", "Qwen3-VL Finetunes", "Qwen2.5-VL", "Qwen2.5-VL Finetunes", "Qwen2-VL", "Qwen", "Mistral Finetunes", "Florence", "SmolVLM", "FastVLM", "Moondream", "Ovis", "BLIP", "GIT", "JoyCaption", "ToriiGate", "Other"];
+    const buckets: Record<string, string[]> = {};
+    for (const m of models) (buckets[m.group] ??= []).push(m.name);
+    for (const opts of Object.values(buckets)) opts.sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return order.filter((g) => buckets[g]?.length).map((g) => ({ heading: g, options: buckets[g] }));
   }, [models]);
 
   const renderModelLabel = useCallback((value: string, label: string) => {
@@ -58,8 +66,8 @@ export function VlmSettings() {
         <Combobox
           value={s.model}
           onValueChange={handleModelChange}
-          options={modelNames.length > 0 ? modelNames : [VLM_DEFAULT]}
-          placeholder={modelNames.length === 0 ? "Loading..." : "Select model"}
+          groups={vlmGroups.length > 0 ? vlmGroups : [{ heading: "", options: [VLM_DEFAULT] }]}
+          placeholder={vlmGroups.length === 0 ? "Loading..." : "Select model"}
           className="w-full text-xs"
           renderLabel={renderModelLabel}
         />

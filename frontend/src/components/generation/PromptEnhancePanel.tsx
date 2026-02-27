@@ -2,7 +2,7 @@ import { useCallback, useMemo } from "react";
 import { Lightbulb, Eye } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Combobox } from "@/components/ui/combobox";
+import { Combobox, type ComboboxGroup, type ComboboxOption } from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,13 +35,21 @@ export function PromptEnhancePanel() {
     [models, store.model],
   );
 
-  const modelOptions = useMemo(
-    () => (models ?? []).map((m) => ({
-      value: m.name,
-      label: m.name.split("/").pop() ?? m.name,
-    })),
-    [models],
-  );
+  const enhanceGroups = useMemo<ComboboxGroup[]>(() => {
+    if (!models?.length) return [];
+    const order = ["Gemma", "Gemma Finetunes", "Qwen3.5", "Qwen3.5 Finetunes", "Qwen3", "Qwen3-VL", "Qwen3-VL Finetunes", "Qwen2.5", "Qwen2.5-VL", "Qwen2.5-VL Finetunes", "Qwen2-VL", "Qwen2", "Qwen", "Llama", "SmolLM", "Phi", "Mistral", "Mistral Finetunes", "Other"];
+    const buckets: Record<string, ComboboxOption[]> = {};
+    for (const m of models) {
+      const opt: ComboboxOption = { value: m.name, label: m.name.split("/").pop() ?? m.name };
+      (buckets[m.group] ??= []).push(opt);
+    }
+    for (const opts of Object.values(buckets)) opts.sort((a, b) => {
+      const la = typeof a === "string" ? a : a.label;
+      const lb = typeof b === "string" ? b : b.label;
+      return la.localeCompare(lb, undefined, { numeric: true });
+    });
+    return order.filter((g) => buckets[g]?.length).map((g) => ({ heading: g, options: buckets[g] }));
+  }, [models]);
 
   const modelsByName = useMemo(() => {
     const map = new Map<string, PromptEnhanceModel>();
@@ -69,7 +77,7 @@ export function PromptEnhancePanel() {
         <Combobox
           value={store.model}
           onValueChange={store.setModel}
-          options={modelOptions}
+          groups={enhanceGroups}
           placeholder="Select model..."
           searchPlaceholder="Search models..."
           className="h-6 text-2xs"

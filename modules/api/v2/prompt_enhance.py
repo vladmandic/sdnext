@@ -7,13 +7,61 @@ from modules.api.v2.models import (
 
 router = APIRouter(prefix="/sdapi/v2", tags=["Prompt Enhance"])
 
+_ENHANCE_GROUP_RULES = [
+    # Gemma official (google/ only)
+    ("google/gemma", "Gemma"),
+    # Gemma Finetunes
+    ("nidum", "Gemma Finetunes"),
+    ("allura", "Gemma Finetunes"),
+    ("davidau/gemma", "Gemma Finetunes"),
+    ("coder3101/gemma", "Gemma Finetunes"),
+    ("coder3101/big-tiger-gemma", "Gemma Finetunes"),
+    ("p-e-w/gemma", "Gemma Finetunes"),
+    # Qwen3.5
+    ("qwen/qwen3.5", "Qwen3.5"),
+    ("qwen3.5", "Qwen3.5 Finetunes"),
+    # Qwen3-VL official vs finetunes
+    ("qwen/qwen3-vl", "Qwen3-VL"),
+    ("qwen3-vl", "Qwen3-VL Finetunes"),
+    # Qwen3
+    ("qwen3", "Qwen3"),
+    # Qwen2.5-VL official vs finetunes
+    ("qwen/qwen2.5-vl", "Qwen2.5-VL"),
+    ("qwen2.5-vl", "Qwen2.5-VL Finetunes"),
+    ("qwen2.5-omni", "Qwen2.5-VL"),
+    # Qwen2.5
+    ("qwen2.5", "Qwen2.5"),
+    ("qwen2-vl", "Qwen2-VL"),
+    ("qwen2", "Qwen2"),
+    ("qwen", "Qwen"),
+    # Mistral official
+    ("mistralai/", "Mistral"),
+    # Mistral Finetunes
+    ("mistral", "Mistral Finetunes"),
+    # Llama
+    ("llama", "Llama"),
+    ("dolphin", "Llama"),
+    # SmolLM
+    ("smollm", "SmolLM"),
+    # Phi
+    ("phi", "Phi"),
+]
+
+
+def _enhance_group(repo: str) -> str:
+    lower = repo.lower()
+    for pattern, group in _ENHANCE_GROUP_RULES:
+        if pattern in lower:
+            return group
+    return "Other"
+
 
 @router.get("/prompt-enhance/models", response_model=list[ItemPromptEnhanceModelV2])
 async def get_prompt_enhance_models_v2():
     """List available prompt enhancement models with capability flags."""
     from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model
     return [
-        ItemPromptEnhanceModelV2(name=repo, vision=is_vision_model(repo), thinking=is_thinking_model(repo))
+        ItemPromptEnhanceModelV2(name=repo, group=_enhance_group(repo), vision=is_vision_model(repo), thinking=is_thinking_model(repo))
         for repo in Options.models
     ]
 

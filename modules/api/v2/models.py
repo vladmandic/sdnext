@@ -506,6 +506,7 @@ class ResTaggerV2(BaseModel):
 
 class ItemVlmModelV2(BaseModel):
     name: str = Field(title="Name")
+    group: str = Field(default="Other", title="Group", description="Architecture family")
     repo: str = Field(title="Repository")
     prompts: list[str] = Field(title="Prompts")
     capabilities: list[str] = Field(title="Capabilities")
@@ -560,6 +561,7 @@ class ItemDetailerV2(BaseModel):
 
 class ItemPromptEnhanceModelV2(BaseModel):
     name: str = Field(title="Name")
+    group: str = Field(default="Other", title="Group", description="Architecture family")
     vision: bool = Field(title="Vision", description="Supports image input")
     thinking: bool = Field(title="Thinking", description="Supports reasoning mode")
 

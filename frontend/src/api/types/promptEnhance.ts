@@ -1,5 +1,6 @@
 export interface PromptEnhanceModel {
   name: string;
+  group: string;
   vision: boolean;
   thinking: boolean;
 }
