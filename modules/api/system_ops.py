@@ -27,6 +27,18 @@ def post_restart():
     return {"status": "restarting"}
 
 
+def post_shutdown():
+    """
+    Shut down the server.
+
+    Triggers a clean exit after a 1-second delay so the HTTP response
+    is sent before the process terminates.
+    """
+    log.info('API: shutdown request received')
+    threading.Timer(1.0, os._exit, args=[0]).start()
+    return {"status": "shutting_down"}
+
+
 def post_profiling():
     """
     Toggle profiling mode.
@@ -274,6 +286,7 @@ def get_storage():
 def register_api():
     api = shared.api
     api.add_api_route("/sdapi/v2/server/restart", post_restart, methods=["POST"], tags=["System"])
+    api.add_api_route("/sdapi/v2/server/shutdown", post_shutdown, methods=["POST"], tags=["System"])
     api.add_api_route("/sdapi/v2/server/profiling", post_profiling, methods=["POST"], tags=["System"])
     api.add_api_route("/sdapi/v2/update/check", get_update_check, methods=["GET"], tags=["System"])
     api.add_api_route("/sdapi/v2/update/apply", post_update_apply, methods=["POST"], tags=["System"])

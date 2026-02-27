@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 from typing import Optional
@@ -169,12 +170,14 @@ async def list_video_engine_models(engine: str):
 
 @router.post("/video/load", response_model=VideoLoadResponse, tags=["Video"])
 async def load_video_model(request: dict):
-    from modules.video_models import video_ui
     engine = request.get('engine', '')
     model = request.get('model', '')
     if not engine or not model:
         raise HTTPException(status_code=400, detail="Both 'engine' and 'model' fields are required")
-    messages = list(video_ui.model_load(engine, model))
+    def _load():
+        from modules.video_models import video_ui
+        return list(video_ui.model_load(engine, model))
+    messages = await asyncio.to_thread(_load)
     return {"engine": engine, "model": model, "messages": messages}
 
 
@@ -186,18 +189,23 @@ async def list_framepack_variants():
 
 @router.post("/framepack/load", response_model=FramePackLoadResponse, tags=["Video"])
 async def load_framepack_model(request: dict):
-    from modules.framepack import framepack_wrappers
     variant = request.get('variant', 'bi-directional')
     attention = request.get('attention', 'Default')
-    messages = []
-    for item in framepack_wrappers.load_model(variant, attention):
-        if isinstance(item, tuple) and len(item) > 2 and isinstance(item[2], str):
-            messages.append(item[2])
+    def _load():
+        from modules.framepack import framepack_wrappers
+        messages = []
+        for item in framepack_wrappers.load_model(variant, attention):
+            if isinstance(item, tuple) and len(item) > 2 and isinstance(item[2], str):
+                messages.append(item[2])
+        return messages
+    messages = await asyncio.to_thread(_load)
     return {"variant": variant, "messages": messages}
 
 
 @router.post("/framepack/unload", response_model=MessageResponse, tags=["Video"])
 async def unload_framepack_model():
-    from modules.framepack import framepack_wrappers
-    list(framepack_wrappers.unload_model())
+    def _unload():
+        from modules.framepack import framepack_wrappers
+        list(framepack_wrappers.unload_model())
+    await asyncio.to_thread(_unload)
     return {"messages": ["Model unloaded"]}
