@@ -18,7 +18,7 @@ export function CivitResultList({ pages, hasNextPage, isFetchingNextPage, fetchN
   if (models.length === 0) return null;
 
   return (
-    <div className="border border-border rounded-md">
+    <div className="border border-border rounded-md overflow-hidden">
       <div className="divide-y divide-border/50">
         {models.map((m) => (
           <CivitResultCard key={m.id} model={m} onClick={() => onSelectModel(m.id)} />
