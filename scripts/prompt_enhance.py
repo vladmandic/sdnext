@@ -102,23 +102,30 @@ def keep_think_block_open(text_prompt: str) -> str:
 @dataclass
 class Options:
     img2img = [
+        # Gemma
         'google/gemma-3-4b-it',
+        'google/gemma-3n-E2B-it',
+        'google/gemma-3n-E4B-it',
+        # Gemma Finetunes
+        'nidum/Nidum-Gemma-3-4B-it-Uncensored',
         'allura-org/Gemma-3-Glitter-4B',
+        'coder3101/gemma-3-27b-it-heretic-v2',
+        'p-e-w/gemma-3-12b-it-heretic',
+        'DavidAU/gemma-3-4b-it-heretic-uncensored-abliterated-Extreme',
         'DavidAU/Gemma-3-4B-VL-it-Gemini-Pro-Heretic-Uncensored-Thinking',
         'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning',
+        'coder3101/Big-Tiger-Gemma-27B-v3-heretic-v2',
+        # Qwen3.5
         'Qwen/Qwen3.5-27B',
         'coder3101/Qwen3.5-27B-heretic',
-        'Qwen/Qwen2.5-VL-3B-Instruct',
-        'coder3101/Qwen2.5-VL-3B-Instruct-heretic',
-        'coder3101/Qwen2.5-VL-7B-Instruct-heretic',
-        'coder3101/Qwen2.5-VL-32B-Instruct-heretic',
-        'coder3101/Qwen2.5-VL-72B-Instruct-heretic',
+        # Qwen3-VL
         'Qwen/Qwen3-VL-2B-Instruct',
         'Qwen/Qwen3-VL-2B-Thinking',
         'Qwen/Qwen3-VL-4B-Instruct',
         'Qwen/Qwen3-VL-4B-Thinking',
         'Qwen/Qwen3-VL-8B-Instruct',
         'Qwen/Qwen3-VL-8B-Thinking',
+        # Qwen3-VL Finetunes
         'coder3101/Qwen3-VL-2B-Instruct-heretic',
         'coder3101/Qwen3-VL-2B-Thinking-heretic',
         'coder3101/Qwen3-VL-4B-Instruct-heretic',
@@ -127,7 +134,26 @@ class Options:
         'coder3101/Qwen3-VL-32B-Instruct-heretic-v2',
         'coder3101/Qwen3-VL-32B-Thinking-heretic-v2',
         'prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it',
+        # Qwen2.5-VL
+        'Qwen/Qwen2.5-VL-3B-Instruct',
+        # Qwen2.5-VL Finetunes
+        'coder3101/Qwen2.5-VL-3B-Instruct-heretic',
+        'coder3101/Qwen2.5-VL-7B-Instruct-heretic',
+        'coder3101/Qwen2.5-VL-32B-Instruct-heretic',
+        'coder3101/Qwen2.5-VL-72B-Instruct-heretic',
+        # Mistral
+        'mistralai/Ministral-3-3B-Instruct-2512-BF16',
+        'mistralai/Ministral-3-8B-Instruct-2512-BF16',
+        'mistralai/Ministral-3-14B-Instruct-2512-BF16',
+        'mistralai/Devstral-Small-2-24B-Instruct-2512',
+        'mistralai/Ministral-3-3B-Reasoning-2512',
+        'mistralai/Ministral-3-8B-Reasoning-2512',
+        'mistralai/Ministral-3-14B-Reasoning-2512',
+        # Mistral Finetunes
         'coder3101/Mistral-Small-3.2-24B-Instruct-2506-heretic',
+        'coder3101/Ministral-3-3B-Reasoning-2512-heretic',
+        'coder3101/Ministral-3-8B-Reasoning-2512-heretic',
+        'coder3101/Ministral-3-14B-Reasoning-2512-heretic',
     ]
     cloud = [
         'google/gemini-3.1-pro-preview',

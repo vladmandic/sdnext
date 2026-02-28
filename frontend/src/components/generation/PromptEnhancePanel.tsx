@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { Lightbulb, Eye } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -13,11 +13,11 @@ import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import { stripPua } from "@/lib/utils";
 import type { PromptEnhanceModel } from "@/api/types/promptEnhance";
 
-function SwitchRow({ label, checked, onCheckedChange }: { label: string; checked: boolean; onCheckedChange: (v: boolean) => void }) {
+function SwitchRow({ label, checked, onCheckedChange, disabled }: { label: string; checked: boolean; onCheckedChange: (v: boolean) => void; disabled?: boolean }) {
   return (
-    <div className="flex items-center justify-between">
+    <div className={`flex items-center justify-between${disabled ? " opacity-40" : ""}`}>
       <Label className="text-2xs text-muted-foreground">{label}</Label>
-      <Switch size="sm" checked={checked} onCheckedChange={onCheckedChange} />
+      <Switch size="sm" checked={checked} onCheckedChange={onCheckedChange} disabled={disabled} />
     </div>
   );
 }
@@ -57,10 +57,19 @@ export function PromptEnhancePanel() {
     return map;
   }, [models]);
 
+  const isVision = selectedModel?.vision ?? false;
+
+  const setUseVision = store.setUseVision;
+  useEffect(() => {
+    if (!selectedModel) return;
+    setUseVision(selectedModel.vision);
+  }, [selectedModel, setUseVision]);
+
   const renderModelLabel = useCallback((value: string, label: string) => {
     const model = modelsByName.get(value);
     return (
-      <span className="inline-flex items-center gap-0.5">
+      <span className="inline-flex items-center gap-1">
+        {model?.cached && <span className="shrink-0 size-1.5 rounded-full bg-green-500" />}
         {stripPua(label)}
         {model?.thinking && <Lightbulb className="shrink-0 size-[1em]" />}
         {model?.vision && <Eye className="shrink-0 size-[1em]" />}
@@ -109,9 +118,7 @@ export function PromptEnhancePanel() {
 
       {/* ── Options ── */}
       <SectionLabel>Options</SectionLabel>
-      {selectedModel?.vision && (
-        <SwitchRow label="Use vision" checked={store.useVision} onCheckedChange={store.setUseVision} />
-      )}
+      <SwitchRow label="Use vision" checked={store.useVision} onCheckedChange={store.setUseVision} disabled={!isVision} />
       {selectedModel?.thinking && (
         <SwitchRow label="Thinking mode" checked={store.thinking} onCheckedChange={store.setThinking} />
       )}
