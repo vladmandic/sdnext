@@ -42,6 +42,7 @@ export function CivitSearchBar({ query, tag, onQueryChange, onTagChange, onSearc
   }
 
   function selectTag(name: string) {
+    onQueryChange("");
     onTagChange(name);
     setTagFocused(false);
   }
@@ -52,18 +53,20 @@ export function CivitSearchBar({ query, tag, onQueryChange, onTagChange, onSearc
         <Input
           placeholder="Search CivitAI..."
           value={query}
-          onChange={(e) => onQueryChange(e.target.value)}
+          onChange={(e) => { onQueryChange(e.target.value); if (e.target.value) onTagChange(""); }}
           onKeyDown={handleKeyDown}
+          disabled={!!tag}
           className="h-6 text-2xs flex-1"
         />
         <div className="relative w-36">
           <Input
             placeholder="Tag..."
             value={tag}
-            onChange={(e) => onTagChange(e.target.value)}
+            onChange={(e) => { onTagChange(e.target.value); if (e.target.value) onQueryChange(""); }}
             onKeyDown={handleKeyDown}
             onFocus={handleTagFocus}
             onBlur={handleTagBlur}
+            disabled={!!query}
             className="h-6 text-2xs"
           />
           {showSuggestions && (
