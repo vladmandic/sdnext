@@ -323,18 +323,16 @@ class Script(scripts_manager.Script):
             if model_subfolder:
                 load_args['subfolder'] = model_subfolder # Comma was incorrect here
 
-            if 'Qwen3.5' in model_repo:
-                cls_name = transformers.Qwen3_5ForConditionalGeneration
-            elif 'Qwen3-VL' in model_repo or 'Qwen3VL' in model_repo:
-                cls_name = transformers.Qwen3VLForConditionalGeneration
-            elif 'Qwen2.5-VL' in model_repo or 'Qwen2_5_VL' in model_repo:
-                cls_name = transformers.Qwen2_5_VLForConditionalGeneration
-            elif 'Qwen2-VL' in model_repo or 'Qwen2VL' in model_repo:
-                cls_name = transformers.Qwen2VLForConditionalGeneration
-            elif 'Mistral-Small-3.2' in model_repo:
-                cls_name = transformers.Mistral3ForConditionalGeneration
-            else:
-                cls_name = transformers.AutoModelForCausalLM
+            model_config = transformers.AutoConfig.from_pretrained(load_args['pretrained_model_name_or_path'], trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
+            model_type = getattr(model_config, 'model_type', '')
+            model_type_cls = {
+                'qwen3_5': transformers.Qwen3_5ForConditionalGeneration,
+                'qwen3_vl': transformers.Qwen3VLForConditionalGeneration,
+                'qwen2_5_vl': transformers.Qwen2_5_VLForConditionalGeneration,
+                'qwen2_vl': transformers.Qwen2VLForConditionalGeneration,
+                'mistral3': transformers.Mistral3ForConditionalGeneration,
+            }
+            cls_name = model_type_cls.get(model_type, transformers.AutoModelForCausalLM)
 
             sd_models.set_caption_load_options()
             try:
