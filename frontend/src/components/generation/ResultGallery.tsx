@@ -107,7 +107,7 @@ export const ResultGallery = memo(function ResultGallery() {
           <Trash2 size={14} />
         </button>
       </div>
-      <div className="flex gap-1.5 overflow-x-auto" style={{ scrollbarWidth: "thin" }}>
+      <div className="flex gap-1.5 overflow-x-auto">
         {allImages.map((item) => {
           const isSelected = item.resultId === selectedResultId && item.imageIndex === selectedImageIndex;
           return (
