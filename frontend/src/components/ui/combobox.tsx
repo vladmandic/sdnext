@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Check, ChevronDown } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./command";
@@ -74,9 +74,8 @@ export function Combobox({
         value={v}
         keywords={typeof opt === "string" ? undefined : [l]}
         onSelect={() => { onValueChange(v); setOpen(false); }}
-        className="text-2xs"
+        className={cn("text-2xs", v === value && "font-semibold !text-primary")}
       >
-        <Check size={14} className={cn("shrink-0", v === value ? "opacity-100" : "opacity-0")} />
         {renderLabel ? renderLabel(v, l) : l}
       </CommandItem>
     );

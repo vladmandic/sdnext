@@ -1,6 +1,6 @@
 import { useModelList, useLoadModel, useRefreshModels, useReloadModel, useUnloadModel, useCurrentCheckpoint, useIsModelLoading } from "@/api/hooks/useModels";
 import { useOptionsSubset } from "@/api/hooks/useSettings";
-import { RefreshCw, Check, ChevronsUpDown, ArrowBigDownDash, FolderSync } from "lucide-react";
+import { RefreshCw, ChevronsUpDown, ArrowBigDownDash, FolderSync } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -66,9 +66,8 @@ export function ModelSelector() {
                     key={model.title}
                     value={model.title}
                     onSelect={() => handleSelect(model.title)}
-                    className="text-xs"
+                    className={cn("text-xs", model.title === currentModel && "font-semibold !text-primary")}
                   >
-                    <Check size={14} className={cn("mr-1 flex-shrink-0", model.title === currentModel ? "opacity-100" : "opacity-0")} />
                     <span className="truncate flex-1">{model.title}</span>
                     {model.hash && (
                       <span className="text-3xs text-muted-foreground font-mono pl-2">{model.hash.slice(0, 8)}</span>
