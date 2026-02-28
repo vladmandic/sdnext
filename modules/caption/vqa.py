@@ -509,6 +509,7 @@ class VQA:
             return
 
         log.debug(f'VQA load: pre-loading model="{model_name}" repo="{repo}"')
+        sd_models.set_huggingface_options()
 
         # dispatch to appropriate loader (same logic as caption)
         repo_lower = repo.lower()
@@ -564,21 +565,34 @@ class VQA:
             # log.warning(f'VQA load: no pre-loader for model="{model_name}"')
             return
 
+        sd_models.move_model(self.model, devices.device)
+        log.info(f'VQA load: model="{model_name}" loaded')
+
+    def _unload_current(self):
+        """Free current model memory before loading a new one."""
+        if self.model is not None:
+            sd_models.move_model(self.model, devices.cpu, force=True)
+            self.model = None
+            self.processor = None
+            devices.torch_gc(force=True, reason='vqa model switch')
+
     def _load_fastvlm(self, repo: str):
         """Load FastVLM model and tokenizer."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
             quant_args = model_quant.create_config(module='LLM')
-            self.model = None
+            self._unload_current()
             self.processor = transformers.AutoTokenizer.from_pretrained(repo, trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
             self.model = transformers.AutoModelForCausalLM.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 trust_remote_code=True,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
+            self.model.eval()
             self.loaded = repo
             devices.torch_gc()
 
@@ -623,7 +637,7 @@ class VQA:
         """Load Qwen VL model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             if 'Qwen3.5' in repo:
                 cls_name = transformers.Qwen3_5ForConditionalGeneration
             elif 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
@@ -644,9 +658,11 @@ class VQA:
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
+            self.model.eval()
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
             if 'LLM' in shared.opts.cuda_compile:
                 self.model = sd_models_compile.compile_torch(self.model)
@@ -749,7 +765,7 @@ class VQA:
         """Load Gemma 3 model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             if '3n' in repo:
                 cls = transformers.Gemma3nForConditionalGeneration  # pylint: disable=no-member
             else:
@@ -759,9 +775,11 @@ class VQA:
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
+            self.model.eval()
             if 'LLM' in shared.opts.cuda_compile:
                 self.model = sd_models_compile.compile_torch(self.model)
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
@@ -863,15 +881,17 @@ class VQA:
         """Load Mistral3 vision model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             quant_args = model_quant.create_config(module='LLM')
             self.model = transformers.Mistral3ForConditionalGeneration.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
+            self.model.eval()
             if 'LLM' in shared.opts.cuda_compile:
                 self.model = sd_models_compile.compile_torch(self.model)
             self.processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
@@ -935,14 +955,16 @@ class VQA:
         """Load PaliGemma model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
+            self._unload_current()
             self.processor = transformers.PaliGemmaProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
-            self.model = None
             self.model = transformers.PaliGemmaForConditionalGeneration.from_pretrained(
                 repo,
                 cache_dir=shared.opts.hfcache_dir,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
             )
+            self.model.eval()
             self.loaded = repo
             devices.torch_gc()
 
@@ -965,7 +987,7 @@ class VQA:
         """Load Ovis model (requires flash-attn)."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             # Ovis remote code calls AutoConfig.register("aimv2", ...) at module scope
             # without exist_ok=True, which fails on reload or when the type is already
             # registered by a newer transformers version.
@@ -978,10 +1000,12 @@ class VQA:
                     multimodal_max_length=32768,
                     trust_remote_code=True,
                     use_safetensors=True,
+                    low_cpu_mem_usage=True,
                     cache_dir=shared.opts.hfcache_dir,
                 )
             finally:
                 transformers.AutoConfig.register = _orig
+            self.model.eval()
             self.loaded = repo
             devices.torch_gc()
 
@@ -1022,15 +1046,17 @@ class VQA:
         """Load SmolVLM model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             quant_args = model_quant.create_config(module='LLM')
             self.model = transformers.AutoModelForVision2Seq.from_pretrained(
                 repo,
                 cache_dir=shared.opts.hfcache_dir,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 **quant_args,
             )
+            self.model.eval()
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
             if 'LLM' in shared.opts.cuda_compile:
                 self.model = sd_models_compile.compile_torch(self.model)
@@ -1117,13 +1143,15 @@ class VQA:
         """Load Microsoft GIT model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             self.model = transformers.GitForCausalLM.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            self.model.eval()
             self.processor = transformers.GitProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
             self.loaded = repo
             devices.torch_gc()
@@ -1148,13 +1176,15 @@ class VQA:
         """Load Salesforce BLIP model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             self.model = transformers.BlipForQuestionAnswering.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            self.model.eval()
             self.processor = transformers.BlipProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
             self.loaded = repo
             devices.torch_gc()
@@ -1173,13 +1203,15 @@ class VQA:
         """Load ViLT model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             self.model = transformers.ViltForQuestionAnswering.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            self.model.eval()
             self.processor = transformers.ViltProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
             self.loaded = repo
             devices.torch_gc()
@@ -1200,13 +1232,15 @@ class VQA:
         """Load Pix2Struct model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             self.model = transformers.Pix2StructForConditionalGeneration.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            self.model.eval()
             self.processor = transformers.Pix2StructProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
             self.loaded = repo
             devices.torch_gc()
@@ -1228,13 +1262,14 @@ class VQA:
         """Load Moondream 2 model and tokenizer."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             self.model = transformers.AutoModelForCausalLM.from_pretrained(
                 repo,
                 revision="2025-06-21",
                 trust_remote_code=True,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
             self.processor = transformers.AutoTokenizer.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
@@ -1327,16 +1362,18 @@ class VQA:
         if self.model is None or self.loaded != cache_key:
             log.debug(f'Caption load: vlm="{repo_name}" revision="{effective_revision}" path="{shared.opts.hfcache_dir}"')
             transformers.dynamic_module_utils.get_imports = get_imports
-            self.model = None
+            self._unload_current()
             quant_args = model_quant.create_config(module='LLM')
             self.model = transformers.Florence2ForConditionalGeneration.from_pretrained(
                 repo_name,
                 revision=effective_revision,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
+            self.model.eval()
             self.processor = transformers.AutoProcessor.from_pretrained(repo_name, max_pixels=1024*1024, trust_remote_code=True, revision=effective_revision, cache_dir=shared.opts.hfcache_dir)
             transformers.dynamic_module_utils.get_imports = _get_imports
             self.loaded = cache_key
@@ -1381,7 +1418,7 @@ class VQA:
     def _load_sa2(self, repo: str):
         """Load SA2VA model and tokenizer."""
         if self.model is None or self.loaded != repo:
-            self.model = None
+            self._unload_current()
             self.model = transformers.AutoModel.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
@@ -1484,6 +1521,7 @@ class VQA:
 
         from modules import modelloader
         modelloader.hf_login()
+        sd_models.set_huggingface_options()
 
         try:
             if model_name is None:
