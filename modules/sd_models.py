@@ -73,6 +73,17 @@ def set_huggingface_options():
         sd_hijack_safetensors.restore_safetensors()
 
 
+def set_caption_load_options():
+    if shared.opts.caption_to_gpu:
+        sd_hijack_accelerate.hijack_accelerate()
+    else:
+        sd_hijack_accelerate.restore_accelerate()
+    if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
+        sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
+    else:
+        sd_hijack_safetensors.restore_safetensors()
+
+
 def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
     ops = {}
     if hasattr(sd_model, "vae"):

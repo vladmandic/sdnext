@@ -509,64 +509,67 @@ class VQA:
             return
 
         log.debug(f'VQA load: pre-loading model="{model_name}" repo="{repo}"')
-        sd_models.set_huggingface_options()
+        sd_models.set_caption_load_options()
 
-        # dispatch to appropriate loader (same logic as caption)
-        repo_lower = repo.lower()
-        if 'mistral' in repo_lower:
-            self._load_mistral(repo)
-        elif 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower:
-            self._load_qwen(repo)
-        elif 'gemma' in repo_lower and 'pali' not in repo_lower:
-            self._load_gemma(repo)
-        elif 'smol' in repo_lower:
-            self._load_smol(repo)
-        elif 'florence' in repo_lower:
-            self._load_florence(repo)
-        elif 'moondream2' in repo_lower:
-            self._load_moondream(repo)
-        elif 'git' in repo_lower:
-            self._load_git(repo)
-        elif 'blip' in repo_lower:
-            self._load_blip(repo)
-        elif 'vilt' in repo_lower:
-            self._load_vilt(repo)
-        elif 'pix' in repo_lower:
-            self._load_pix(repo)
-        elif 'paligemma' in repo_lower:
-            self._load_paligemma(repo)
-        elif 'ovis' in repo_lower:
-            self._load_ovis(repo)
-        elif 'sa2' in repo_lower:
-            self._load_sa2(repo)
-        elif 'fastvlm' in repo_lower:
-            self._load_fastvlm(repo)
-        elif 'moondream3' in repo_lower:
-            from modules.caption import moondream3
-            moondream3.load_model(repo)
-            log.info(f'VQA load: model="{model_name}" loaded (external handler)')
-            return
-        elif 'joytag' in repo_lower:
-            from modules.caption import joytag
-            joytag.load()
-            log.info(f'VQA load: model="{model_name}" loaded (external handler)')
-            return
-        elif 'joycaption' in repo_lower:
-            from modules.caption import joycaption
-            joycaption.load(repo)
-            log.info(f'VQA load: model="{model_name}" loaded (external handler)')
-            return
-        elif 'deepseek' in repo_lower:
-            from modules.caption import deepseek
-            deepseek.load(repo)
-            log.info(f'VQA load: model="{model_name}" loaded (external handler)')
-            return
-        else:
-            # log.warning(f'VQA load: no pre-loader for model="{model_name}"')
-            return
+        # Dispatch to appropriate loader (same logic as caption)
+        try:
+            repo_lower = repo.lower()
+            if 'mistral' in repo_lower:
+                self._load_mistral(repo)
+            elif 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower:
+                self._load_qwen(repo)
+            elif 'gemma' in repo_lower and 'pali' not in repo_lower:
+                self._load_gemma(repo)
+            elif 'smol' in repo_lower:
+                self._load_smol(repo)
+            elif 'florence' in repo_lower:
+                self._load_florence(repo)
+            elif 'moondream2' in repo_lower:
+                self._load_moondream(repo)
+            elif 'git' in repo_lower:
+                self._load_git(repo)
+            elif 'blip' in repo_lower:
+                self._load_blip(repo)
+            elif 'vilt' in repo_lower:
+                self._load_vilt(repo)
+            elif 'pix' in repo_lower:
+                self._load_pix(repo)
+            elif 'paligemma' in repo_lower:
+                self._load_paligemma(repo)
+            elif 'ovis' in repo_lower:
+                self._load_ovis(repo)
+            elif 'sa2' in repo_lower:
+                self._load_sa2(repo)
+            elif 'fastvlm' in repo_lower:
+                self._load_fastvlm(repo)
+            elif 'moondream3' in repo_lower:
+                from modules.caption import moondream3
+                moondream3.load_model(repo)
+                log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+                return
+            elif 'joytag' in repo_lower:
+                from modules.caption import joytag
+                joytag.load()
+                log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+                return
+            elif 'joycaption' in repo_lower:
+                from modules.caption import joycaption
+                joycaption.load(repo)
+                log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+                return
+            elif 'deepseek' in repo_lower:
+                from modules.caption import deepseek
+                deepseek.load(repo)
+                log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+                return
+            else:
+                log.warning(f'VQA load: no pre-loader for model="{model_name}"')
+                return
 
-        sd_models.move_model(self.model, devices.device)
-        log.info(f'VQA load: model="{model_name}" loaded')
+            sd_models.move_model(self.model, devices.device)
+            log.info(f'VQA load: model="{model_name}" loaded')
+        finally:
+            sd_models.set_huggingface_options()
 
     def _unload_current(self):
         """Free current model memory before loading a new one."""
@@ -1521,7 +1524,7 @@ class VQA:
 
         from modules import modelloader
         modelloader.hf_login()
-        sd_models.set_huggingface_options()
+        sd_models.set_caption_load_options()
 
         try:
             if model_name is None:
@@ -1612,6 +1615,7 @@ class VQA:
             errors.display(e, 'VQA')
             answer = 'error'
 
+        sd_models.set_huggingface_options()
         if shared.opts.caption_offload and self.model is not None:
             sd_models.move_model(self.model, devices.cpu, force=True)
         devices.torch_gc(force=True, reason='vqa')

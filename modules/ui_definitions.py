@@ -118,6 +118,7 @@ def create_settings(cmd_opts):
         "diffusers_offload_mode": OptionInfo(startup_offload_mode, "Model offload mode", gr.Radio, {"choices": ['none', 'balanced', 'group', 'model', 'sequential']}),
         "diffusers_offload_nonblocking": OptionInfo(False, "Non-blocking move operations"),
         "caption_offload": OptionInfo(True, "Offload caption models"),
+        "caption_to_gpu": OptionInfo(True, "Load caption models direct to GPU"),
         "offload_balanced_sep": OptionInfo("<h2>Balanced Offload</h2>", "", gr.HTML),
         "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward"),
         "diffusers_offload_streams": OptionInfo(False, "Offload using streams"),

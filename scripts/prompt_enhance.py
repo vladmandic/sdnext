@@ -336,17 +336,20 @@ class Script(scripts_manager.Script):
             else:
                 cls_name = transformers.AutoModelForCausalLM
 
-            sd_models.set_huggingface_options()
-            self.llm = cls_name.from_pretrained(
-                **load_args,
-                trust_remote_code=True,
-                torch_dtype=devices.dtype,
-                low_cpu_mem_usage=True,
-                cache_dir=shared.opts.hfcache_dir,
-                # _attn_implementation="eager",
-                **gguf_args,
-                **quant_args,
-            )
+            sd_models.set_caption_load_options()
+            try:
+                self.llm = cls_name.from_pretrained(
+                    **load_args,
+                    trust_remote_code=True,
+                    torch_dtype=devices.dtype,
+                    low_cpu_mem_usage=True,
+                    cache_dir=shared.opts.hfcache_dir,
+                    # _attn_implementation="eager",
+                    **gguf_args,
+                    **quant_args,
+                )
+            finally:
+                sd_models.set_huggingface_options()
             self.llm.eval()
             if model_repo in self.options.img2img:
                 cls = transformers.AutoProcessor # required to encode image
