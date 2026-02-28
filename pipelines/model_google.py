@@ -2,7 +2,6 @@ import io
 import os
 import time
 from PIL import Image
-from installer import install, reload
 from modules.logger import log
 
 
@@ -27,6 +26,7 @@ aspect_ratios_buckets = {
 
 
 def google_requirements():
+    from installer import install # , reload
     install('google-genai==1.52.0')
     # install('pydantic==2.11.7', ignore=True, quiet=True)
     # reload('pydantic', '2.11.7')

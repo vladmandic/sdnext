@@ -51,7 +51,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
 
     def upscale(self, image, info, upscaler, upscale_mode, upscale_by,  upscale_to_width, upscale_to_height, upscale_crop):
         if upscale_mode == 1:
-            upscale_by = max(upscale_to_width/image.width, upscale_to_height/image.height)
+            upscale_by = max(upscale_to_width / image.width, upscale_to_height / image.height)
             info["Postprocess upscale to"] = f"{upscale_to_width}x{upscale_to_height}"
         else:
             info["Postprocess upscale by"] = upscale_by

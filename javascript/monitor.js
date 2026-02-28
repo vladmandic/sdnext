@@ -1,4 +1,5 @@
 class ConnectionMonitorState {
+  static delay = 1000;
   static element;
   static version = '';
   static commit = '';
@@ -58,14 +59,18 @@ async function wsMonitorLoop(url) {
     const ws = new WebSocket(`${url}/queue/join`);
     ws.onopen = () => {};
     ws.onmessage = (evt) => updateIndicator(true);
-    ws.onclose = () => setTimeout(() => wsMonitorLoop(url), 10000);
+    ws.onclose = () => {
+      // happens regularly if there is no traffic
+      setTimeout(() => wsMonitorLoop(url), ConnectionMonitorState.delay);
+    };
     ws.onerror = (e) => {
+      // actual error
       updateIndicator(false, {}, e.message);
-      setTimeout(() => monitorConnection(url), 10000); // eslint-disable-line no-use-before-define
+      setTimeout(() => wsMonitorLoop(url), ConnectionMonitorState.delay);
     };
   } catch (e) {
     updateIndicator(false, {}, e.message);
-    setTimeout(() => monitorConnection(url), 10000); // eslint-disable-line no-use-before-define
+    setTimeout(monitorConnection, ConnectionMonitorState.delay); // eslint-disable-line no-use-before-define
   }
 }
 
@@ -91,7 +96,7 @@ async function monitorConnection() {
     const url = res.url.split('/sdapi')[0].replace('https:', 'wss:').replace('http:', 'ws:'); // update global url as ws need fqdn
     wsMonitorLoop(url);
   } catch {
-    monitorConnection(false, data);
-    setTimeout(monitorConnection, 10000);
+    updateIndicator(false, data);
+    setTimeout(monitorConnection, ConnectionMonitorState.delay);
   }
 }

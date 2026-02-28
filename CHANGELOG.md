@@ -100,6 +100,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - handle missing preview image  
   - ui connection monitor  
   - kandinsky 5 t2i/i2i model type detection  
+  - kanvas notify core on image size change  
 
 ## Update for 2026-02-04
 

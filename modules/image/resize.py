@@ -139,7 +139,9 @@ def resize_image(resize_mode: int, im: Image.Image | torch.Tensor, width: int, h
     if not isinstance(im, Image.Image):
         log.error(f'Resize image: image={type(im)} invalid type')
         return im
-    if (resize_mode == 0) or ((im.width == width) and (im.height == height)) or (width == 0 and height == 0): # none
+    if ((im.width == width) and (im.height == height)) or ((width == 0) and (height == 0)): # same
+        res = im.copy()
+    elif resize_mode == 0: # none
         res = im.copy()
     elif resize_mode == 1: # fixed
         res = resize(im, width, height)

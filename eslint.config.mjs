@@ -147,6 +147,7 @@ const jsConfig = defineConfig([
       'prefer-rest-params': 'off',
       'prefer-template': 'warn',
       'promise/no-nesting': 'off',
+      '@typescript-eslint/no-for-in-array': 'off',
       radix: 'off',
       '@stylistic/brace-style': [
         'error',

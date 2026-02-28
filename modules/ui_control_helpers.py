@@ -16,6 +16,7 @@ busy = False # used to synchronize select_input and generate_click
 input_source = None
 input_init = None
 input_mask = None
+input_prev = None
 
 
 def initialize():
@@ -130,7 +131,7 @@ def process_kanvas(x): # only used when kanvas overrides gr.Image object
 
 
 def select_input(input_mode, input_image, init_image, init_type, input_video, input_batch, input_folder):
-    global busy, input_source, input_init, input_mask # pylint: disable=global-statement
+    global busy, input_source, input_init, input_mask, input_prev # pylint: disable=global-statement
     t0 = time.time()
     busy = False
     selected_input = input_image # default: Image or Kanvas
@@ -140,10 +141,16 @@ def select_input(input_mode, input_image, init_image, init_type, input_video, in
         selected_input = input_batch
     elif input_mode == 'Folder':
         selected_input = input_folder
+
     size = [gr.update(), gr.update()]
     if selected_input is None:
+        # log.debug(f'Select input: image={selected_input}')
         input_source = None
         return [gr.Tabs.update(), None, ''] + size
+    elif selected_input == input_prev:
+        # log.debug(f'Select input: image={selected_input} no change')
+        return [gr.Tabs.update(), None, ''] + size
+    input_prev = selected_input
 
     busy = True
     input_type = type(selected_input)

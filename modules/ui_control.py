@@ -101,13 +101,14 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
         shared.mem_mon.reset()
         jobid = shared.state.begin('Control')
         progress.start_task(job_id)
+        t = time.perf_counter()
         try:
-            t = time.perf_counter()
             for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
                 progress.record_results(job_id, results)
                 yield return_controls(results, t)
         except GeneratorExit:
             log.error("Control: generator exit")
+            return return_controls(results, t)
         except Exception as e:
             log.error(f"Control exception: {e}")
             errors.display(e, 'Control')
