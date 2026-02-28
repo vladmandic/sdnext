@@ -93,4 +93,5 @@ export interface VlmModel {
   repo: string;
   prompts: string[];
   capabilities: string[];
+  cached: boolean;
 }

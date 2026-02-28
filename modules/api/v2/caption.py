@@ -72,9 +72,11 @@ async def post_openclip_v2(req: ReqOpenClipV2):
 async def get_vlm_models_v2():
     """List available VLM models with capabilities."""
     from modules.api.caption import get_vqa_models
+    from modules import ui_symbols
     models = get_vqa_models()
     for m in models:
         m["group"] = _vlm_group(m.get("name", ""))
+        m["cached"] = ui_symbols.is_model_cached(m.get("repo", ""))
     return models
 
 

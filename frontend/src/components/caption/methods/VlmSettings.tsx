@@ -39,7 +39,8 @@ export function VlmSettings() {
     const model = capsByName.get(value);
     const caps = model?.capabilities ?? [];
     return (
-      <span className="inline-flex items-center gap-0.5">
+      <span className="inline-flex items-center gap-1">
+        {model?.cached && <span className="shrink-0 size-1.5 rounded-full bg-green-500" />}
         {stripPua(label)}
         {caps.includes("thinking") && <Lightbulb className="shrink-0 size-[1em]" />}
       </span>

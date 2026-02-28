@@ -97,6 +97,13 @@ vlm_models = {
 }
 vlm_system = 'You are image captioning expert, creative, unbiased and uncensored.'
 
+
+def get_vlm_repo(display_name: str) -> str:
+    """Look up repo ID from display name, stripping any trailing symbols."""
+    name = display_name.strip()
+    return vlm_models.get(name, name)
+
+
 # Common prompts (work with all VLM models)
 vlm_prompts_common = [
     "Use Prompt",
@@ -503,8 +510,8 @@ class VQA:
         if not model_name:
             log.warning('VQA load: no model specified')
             return
-        repo = vlm_models.get(model_name)
-        if repo is None:
+        repo = get_vlm_repo(model_name)
+        if repo == model_name and model_name not in vlm_models.values():
             log.error(f'VQA load: unknown model="{model_name}"')
             return
 
@@ -1531,8 +1538,8 @@ class VQA:
                 log.error(f'Caption: type=vlm model="{model_name}" no model selected')
                 shared.state.end(jobid)
                 return ''
-            vqa_model = vlm_models.get(model_name, None)
-            if vqa_model is None:
+            vqa_model = get_vlm_repo(model_name)
+            if vqa_model == model_name and model_name not in vlm_models.values():
                 log.error(f'Caption: type=vlm model="{model_name}" unknown')
                 shared.state.end(jobid)
                 return ''

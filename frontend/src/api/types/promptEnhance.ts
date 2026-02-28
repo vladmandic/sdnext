@@ -3,6 +3,7 @@ export interface PromptEnhanceModel {
   group: string;
   vision: boolean;
   thinking: boolean;
+  cached: boolean;
 }
 
 export interface PromptEnhanceRequest {

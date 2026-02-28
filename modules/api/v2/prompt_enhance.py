@@ -60,8 +60,9 @@ def _enhance_group(repo: str) -> str:
 async def get_prompt_enhance_models_v2():
     """List available prompt enhancement models with capability flags."""
     from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model
+    from modules import ui_symbols
     return [
-        ItemPromptEnhanceModelV2(name=repo, group=_enhance_group(repo), vision=is_vision_model(repo), thinking=is_thinking_model(repo))
+        ItemPromptEnhanceModelV2(name=repo, group=_enhance_group(repo), vision=is_vision_model(repo), thinking=is_thinking_model(repo), cached=ui_symbols.is_model_cached(repo))
         for repo in Options.models
     ]
 

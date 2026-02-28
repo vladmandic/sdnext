@@ -510,6 +510,7 @@ class ItemVlmModelV2(BaseModel):
     repo: str = Field(title="Repository")
     prompts: list[str] = Field(title="Prompts")
     capabilities: list[str] = Field(title="Capabilities")
+    cached: bool = Field(default=False, title="Cached", description="Model is available in local HF cache")
 
 class ItemTaggerModelV2(BaseModel):
     name: str = Field(title="Name")
@@ -564,6 +565,7 @@ class ItemPromptEnhanceModelV2(BaseModel):
     group: str = Field(default="Other", title="Group", description="Architecture family")
     vision: bool = Field(title="Vision", description="Supports image input")
     thinking: bool = Field(title="Thinking", description="Supports reasoning mode")
+    cached: bool = Field(default=False, title="Cached", description="Model is available in local HF cache")
 
 class ReqPromptEnhanceV2(BaseModel):
     prompt: str = Field(title="Prompt", description="Prompt to enhance")
