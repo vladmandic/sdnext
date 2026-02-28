@@ -569,7 +569,7 @@ class VQA:
             sd_models.move_model(self.model, devices.device)
             log.info(f'VQA load: model="{model_name}" loaded')
         finally:
-            sd_models.set_huggingface_options()
+            sd_models.set_huggingface_options(quiet=True)
 
     def _unload_current(self):
         """Free current model memory before loading a new one."""
@@ -1615,7 +1615,7 @@ class VQA:
             errors.display(e, 'VQA')
             answer = 'error'
 
-        sd_models.set_huggingface_options()
+        sd_models.set_huggingface_options(quiet=True)
         if shared.opts.caption_offload and self.model is not None:
             sd_models.move_model(self.model, devices.cpu, force=True)
         devices.torch_gc(force=True, reason='vqa')

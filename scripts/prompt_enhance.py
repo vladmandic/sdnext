@@ -349,7 +349,7 @@ class Script(scripts_manager.Script):
                     **quant_args,
                 )
             finally:
-                sd_models.set_huggingface_options()
+                sd_models.set_huggingface_options(quiet=True)
             self.llm.eval()
             if model_repo in self.options.img2img:
                 cls = transformers.AutoProcessor # required to encode image

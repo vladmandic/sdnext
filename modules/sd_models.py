@@ -61,13 +61,14 @@ i2i_pipes = [
 ]
 
 
-def set_huggingface_options():
+def set_huggingface_options(quiet=False):
     if shared.opts.diffusers_to_gpu: # and model_type.startswith('Stable Diffusion'):
         sd_hijack_accelerate.hijack_accelerate()
     else:
         sd_hijack_accelerate.restore_accelerate()
     if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
-        log.debug(f'Loader: runai enabled chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
+        if not quiet:
+            log.debug(f'Loader: runai enabled chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
         sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
     else:
         sd_hijack_safetensors.restore_safetensors()
@@ -79,8 +80,11 @@ def set_caption_load_options():
     else:
         sd_hijack_accelerate.restore_accelerate()
     if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
+        log.debug(f'Caption loader: to_gpu={shared.opts.caption_to_gpu} runai chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
         sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
     else:
+        if shared.opts.caption_to_gpu:
+            log.debug(f'Caption loader: to_gpu={shared.opts.caption_to_gpu}')
         sd_hijack_safetensors.restore_safetensors()
 
 
