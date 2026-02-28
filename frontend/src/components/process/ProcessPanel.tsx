@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo } from "react";
 import { Play, Loader2 } from "lucide-react";
 import { useProcessStore } from "@/stores/processStore";
 import { useJobQueueStore, selectDomainActive } from "@/stores/jobStore";
-import { useUpscalerList } from "@/api/hooks/useModels";
+import { useUpscalerList, useUpscalerGroups } from "@/api/hooks/useModels";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { uploadFile } from "@/lib/upload";
 import { ParamSlider } from "@/components/generation/ParamSlider";
@@ -21,15 +21,15 @@ export function ProcessPanel() {
   const isProcessing = useJobQueueStore(selectDomainActive("upscale"));
 
   const { data: upscalers } = useUpscalerList();
-  const upscalerNames = useMemo(() => upscalers?.map((u) => u.name) ?? [], [upscalers]);
+  const upscalerGroups = useUpscalerGroups();
 
   // Auto-select first non-"None" upscaler
   useEffect(() => {
-    if (upscaler === "None" && upscalerNames.length > 0) {
-      const first = upscalerNames.find((n) => n !== "None");
-      if (first) setUpscaler(first);
+    if (upscaler === "None" && upscalers && upscalers.length > 0) {
+      const first = upscalers.find((u) => u.name !== "None");
+      if (first) setUpscaler(first.name);
     }
-  }, [upscalerNames, upscaler, setUpscaler]);
+  }, [upscalers, upscaler, setUpscaler]);
 
   const buildRequest = useCallback(async () => {
     if (!image) throw new Error("No image selected");
@@ -51,7 +51,7 @@ export function ProcessPanel() {
           <Combobox
             value={upscaler}
             onValueChange={setUpscaler}
-            options={upscalerNames}
+            groups={upscalerGroups}
             placeholder="Select upscaler..."
             className="h-6 text-2xs"
           />

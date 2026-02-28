@@ -5,6 +5,7 @@ export interface VaeV2 {
 
 export interface UpscalerV2 {
   name: string;
+  group: string;
   model_name: string | null;
   model_path: string | null;
   scale: number | null;

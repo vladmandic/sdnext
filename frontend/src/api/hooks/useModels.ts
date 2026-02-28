@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { useMutation, useMutationState, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../client";
 import type { VaeV2, UpscalerV2, SdModelsResponse, SamplerV2, CheckpointInfoV2 } from "../types/models";
+import type { ComboboxGroup } from "@/components/ui/combobox";
 
 const MODEL_MUTATION_KEY = ["model-operation"];
 
@@ -39,6 +41,34 @@ export function useUpscalerList() {
     queryFn: () => api.get<UpscalerV2[]>("/sdapi/v2/upscalers"),
     staleTime: 300_000,
   });
+}
+
+const UPSCALER_GROUP_ORDER = [
+  "None", "Resize", "Latent", "VIPS", "DCC Interpolation", "HQX", "ICB",
+  "ESRGAN", "RealESRGAN", "SwinIR", "SCUNet", "Spandrel", "chaiNNer",
+  "Diffusion", "Asymmetric VAE", "WAN", "Aura SR", "SeedVR2",
+];
+
+function stripGroupPrefix(name: string, group: string): string {
+  if (name === group || name === "None") return name;
+  if (name.startsWith(group + " ")) return name.slice(group.length + 1);
+  return name;
+}
+
+export function useUpscalerGroups(opts?: { excludeLatent?: boolean }) {
+  const { data: upscalers } = useUpscalerList();
+  return useMemo<ComboboxGroup[]>(() => {
+    if (!upscalers?.length) return [];
+    const buckets: Record<string, { value: string; label: string }[]> = {};
+    for (const u of upscalers) {
+      if (opts?.excludeLatent && u.name.startsWith("Latent")) continue;
+      const g = u.group || "Other";
+      (buckets[g] ??= []).push({ value: u.name, label: stripGroupPrefix(u.name, g) });
+    }
+    const ordered = UPSCALER_GROUP_ORDER.filter((g) => buckets[g]?.length);
+    const extra = Object.keys(buckets).filter((g) => !UPSCALER_GROUP_ORDER.includes(g));
+    return [...ordered, ...extra].map((g) => ({ heading: g, options: buckets[g] }));
+  }, [upscalers, opts?.excludeLatent]);
 }
 
 export function useCurrentCheckpoint() {

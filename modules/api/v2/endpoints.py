@@ -377,6 +377,7 @@ async def get_upscalers_v2():
     return [
         ItemUpscalerV2(
             name=str(u.name),
+            group=str(u.scaler.name) if u.scaler and u.scaler.name else "Other",
             model_name=str(u.scaler.model_name) if u.scaler and u.scaler.model_name else None,
             model_path=str(u.data_path) if u.data_path else None,
             scale=u.scale,

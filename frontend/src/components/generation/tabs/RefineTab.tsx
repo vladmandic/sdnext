@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
-import { useSamplerList, useUpscalerList } from "@/api/hooks/useModels";
+import { useSamplerList, useUpscalerGroups } from "@/api/hooks/useModels";
 import { HIRES_RESIZE_MODES, HIRES_CONTEXT_MODES } from "@/lib/constants";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
@@ -35,7 +35,7 @@ export function RefineTab() {
     refinerNegative: s.refinerNegative,
   })));
   const setParam = useGenerationStore((s) => s.setParam);
-  const { data: upscalers } = useUpscalerList();
+  const upscalerGroups = useUpscalerGroups();
   const { data: samplers } = useSamplerList();
 
   // Local state for size mode toggle (scale vs fixed)
@@ -92,7 +92,7 @@ export function RefineTab() {
                 <Combobox
                   value={state.hiresUpscaler}
                   onValueChange={set.hiresUpscaler}
-                  options={upscalers?.map((u) => u.name) ?? []}
+                  groups={upscalerGroups}
                   className="h-6 text-2xs"
                 />
               </ParamRow>

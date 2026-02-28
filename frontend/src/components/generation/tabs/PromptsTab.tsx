@@ -5,7 +5,7 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useIsImg2Img } from "@/hooks/useIsImg2Img";
 import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
-import { useUpscalerList } from "@/api/hooks/useModels";
+import { useUpscalerGroups } from "@/api/hooks/useModels";
 import { Link2, Link2Off, ArrowLeftRight, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
@@ -40,7 +40,7 @@ export function PromptsTab() {
   const setMegapixelTarget = useImg2ImgStore((s) => s.setMegapixelTarget);
   const resizeMethod = useImg2ImgStore((s) => s.resizeMethod);
   const setResizeMethod = useImg2ImgStore((s) => s.setResizeMethod);
-  const { data: upscalers } = useUpscalerList();
+  const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
   const [aspectLocked, setAspectLocked] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
 
@@ -196,7 +196,7 @@ export function PromptsTab() {
             <Combobox
               value={resizeMethod}
               onValueChange={setResizeMethod}
-              options={upscalers?.map((u) => u.name).filter((n) => !n.startsWith("Latent")) ?? ["Resize Lanczos"]}
+              groups={upscalerGroups}
               className="h-6 text-2xs flex-1"
             />
           </div>

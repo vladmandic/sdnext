@@ -233,6 +233,7 @@ class ItemVaeV2(BaseModel):
 
 class ItemUpscalerV2(BaseModel):
     name: str = Field(title="Name", description="Upscaler display name")
+    group: str = Field(title="Group", description="Upscaler family name")
     model_name: Optional[str] = Field(default=None, title="Model Name", description="Underlying model name")
     model_path: Optional[str] = Field(default=None, title="Path", description="Path to the model file")
     scale: Optional[float] = Field(default=None, title="Scale", description="Default upscale factor")
