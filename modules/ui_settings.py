@@ -192,6 +192,7 @@ def create_ui(disabled_tabs=None):
     def unload_sd_weights():
         sd_models.unload_model_weights(op='model')
         sd_models.unload_model_weights(op='refiner')
+        sd_models.unload_auxiliary_models()
 
     def reload_sd_weights():
         sd_models.reload_model_weights(force=True)

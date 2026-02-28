@@ -77,6 +77,7 @@ def load_model(model: str, cls: str, repo: str, dataframes: list):
 
 def unload_model():
     sd_models.unload_model_weights(op='model')
+    sd_models.unload_auxiliary_models()
     return 'Model unloaded'
 
 

@@ -1394,6 +1394,33 @@ def unload_model_weights(op='model'):
         log.debug(f'Unload {op}: {memory_stats()}  fn={fn}')
 
 
+def unload_auxiliary_models():
+    unloaded = []
+    try:
+        from modules.caption import vqa, openclip, tagger
+        inst = vqa.get_instance()
+        if inst.model is not None:
+            inst.unload()
+            unloaded.append('vqa')
+        openclip.unload_clip_model()
+        tagger.unload_model()
+    except Exception:
+        pass
+    try:
+        from modules.scripts_manager import scripts_txt2img
+        if scripts_txt2img is not None:
+            instances = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename]
+            for inst in instances:
+                if inst.llm is not None:
+                    inst.unload()
+                    unloaded.append('prompt-enhance')
+    except Exception:
+        pass
+    if unloaded:
+        devices.torch_gc(force=True, reason='unload auxiliary')
+        log.debug(f'Unload auxiliary: {", ".join(unloaded)}')
+
+
 def hf_auth_check(checkpoint_info, force:bool=False):
     if shared.opts.offline_mode:
         log.info('Offline mode: skipping auth check')

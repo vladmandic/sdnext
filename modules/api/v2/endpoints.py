@@ -413,6 +413,7 @@ async def unload_checkpoint_v2():
         from modules import sd_models
         sd_models.unload_model_weights(op='model')
         sd_models.unload_model_weights(op='refiner')
+        sd_models.unload_auxiliary_models()
     await asyncio.to_thread(_unload)
     return ResSetCheckpointV2(ok=True, checkpoint=_build_checkpoint_info())
 
