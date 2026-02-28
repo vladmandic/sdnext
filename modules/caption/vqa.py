@@ -627,6 +627,8 @@ class VQA:
             if 'Qwen3.5' in repo:
                 cls_name = transformers.Qwen3_5ForConditionalGeneration
             elif 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
+                cls_name = transformers.Qwen3VLForConditionalGeneration
+            elif 'Qwen2.5-VL' in repo or 'Qwen2_5_VL' in repo or 'MiMo-VL' in repo:
                 cls_name = transformers.Qwen2_5_VLForConditionalGeneration
             elif 'Qwen2-VL' in repo or 'Qwen2VL' in repo:
                 cls_name = transformers.Qwen2VLForConditionalGeneration
