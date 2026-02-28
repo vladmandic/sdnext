@@ -21,6 +21,9 @@ export default defineConfig(({ mode }) => {
         type: "module",
       },
       workbox: {
+        // Force new service worker to activate immediately instead of waiting for all tabs to close
+        skipWaiting: true,
+        clientsClaim: true,
         // Only precache the app shell, not API calls or dynamic content
         globPatterns: ["**/*.{js,css,html,svg,png,woff2,wasm}"],
         // Don't cache API responses or uploaded files
