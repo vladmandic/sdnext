@@ -458,11 +458,8 @@ def update_token_counter(text: str):
             max_length = 0
 
         try:
-            try:
-                ids = getattr(tokenizer(prompt_list), 'input_ids', [])
-            except TypeError:
-                for p in prompt_list:
-                    ids.append(getattr(tokenizer(p), 'input_ids', []))
+            for p in prompt_list:
+                ids.append(getattr(tokenizer(p), 'input_ids', []))
         except Exception as e:
             shared.log.warning("Token counter:", e)
             return gr.update(value=f"<span class='gr-box gr-text-input'>??/{max_length}</span>", visible=True)
