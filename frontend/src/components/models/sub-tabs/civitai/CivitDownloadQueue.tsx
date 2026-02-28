@@ -36,7 +36,7 @@ export function CivitDownloadQueue() {
   if (totalCount === 0) return null;
 
   return (
-    <div className="border border-border rounded-md">
+    <div className="border border-border rounded-md overflow-hidden">
       <button type="button" onClick={() => setOpen(!open)} className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-muted/30">
         {open ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         <span className="text-xs font-medium">Downloads ({totalCount})</span>
@@ -46,7 +46,7 @@ export function CivitDownloadQueue() {
           {activeItems.map((item) => (
             <div key={item.id} className="space-y-1">
               <div className="flex items-center gap-2 text-2xs">
-                <span className="truncate flex-1" title={item.filename}>{item.filename}</span>
+                <span className="truncate flex-1 min-w-0" title={item.filename}>{item.filename}</span>
                 <Badge variant={statusColor(item.status)} className="text-4xs px-1 py-0">{item.status}</Badge>
                 <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => cancelDownload.mutate(item.id)}>
                   <X className="h-2.5 w-2.5" />
@@ -59,7 +59,7 @@ export function CivitDownloadQueue() {
           ))}
           {queuedItems.map((item) => (
             <div key={item.id} className="flex items-center gap-2 text-2xs">
-              <span className="truncate flex-1" title={item.filename}>{item.filename}</span>
+              <span className="truncate flex-1 min-w-0" title={item.filename}>{item.filename}</span>
               <Badge variant="outline" className="text-4xs px-1 py-0">queued</Badge>
               <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => cancelDownload.mutate(item.id)}>
                 <X className="h-2.5 w-2.5" />
@@ -68,7 +68,7 @@ export function CivitDownloadQueue() {
           ))}
           {completedItems.slice(0, 5).map((item) => (
             <div key={item.id} className="flex items-center gap-2 text-2xs text-muted-foreground">
-              <span className="truncate flex-1" title={item.filename}>{item.filename}</span>
+              <span className="truncate flex-1 min-w-0" title={item.filename}>{item.filename}</span>
               <Badge variant={statusColor(item.status)} className="text-4xs px-1 py-0">{item.status}</Badge>
             </div>
           ))}
