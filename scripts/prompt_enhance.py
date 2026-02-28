@@ -313,7 +313,10 @@ class Script(scripts_manager.Script):
         try:
             t0 = time.time()
             if self.llm is not None:
+                sd_models.move_model(self.llm, devices.cpu, force=True)
                 self.llm = None
+                self.tokenizer = None
+                devices.torch_gc(force=True, reason='prompt enhance model switch')
                 log.debug(f'Prompt enhance: name="{self.model}" unload')
             self.model = None
             load_args = { 'pretrained_model_name_or_path': model_repo if not gguf_args else model_gguf }
@@ -333,10 +336,12 @@ class Script(scripts_manager.Script):
             else:
                 cls_name = transformers.AutoModelForCausalLM
 
+            sd_models.set_huggingface_options()
             self.llm = cls_name.from_pretrained(
                 **load_args,
                 trust_remote_code=True,
                 torch_dtype=devices.dtype,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
                 # _attn_implementation="eager",
                 **gguf_args,
@@ -721,7 +726,7 @@ class Script(scripts_manager.Script):
                 if top_p > 0:
                     gen_kwargs['top_p'] = float(top_p)
                 outputs = self.llm.generate(**inputs, **gen_kwargs)
-                if shared.opts.diffusers_offload_mode != 'none':
+                if shared.opts.caption_offload:
                     sd_models.move_model(self.llm, devices.cpu, force=True)
                     devices.torch_gc(force=True, reason='prompt enhance offload')
             outputs_cropped = outputs[:, input_len:]
