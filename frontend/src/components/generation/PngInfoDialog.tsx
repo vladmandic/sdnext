@@ -241,7 +241,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
   return (
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent
-        className="sm:max-w-3xl max-h-[85vh] p-0 gap-0 overflow-hidden"
+        className="sm:max-w-3xl max-h-[85vh] p-0 gap-0 overflow-hidden flex flex-col"
         showCloseButton
         onPaste={handlePaste}
         onDrop={handleDrop}
@@ -267,7 +267,7 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
             </label>
           </div>
         ) : (
-          <div className="flex flex-1 min-h-0 relative">
+          <div className="flex flex-1 min-h-0 overflow-hidden relative">
             {/* Drag overlay */}
             {dragging && (
               <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/80 backdrop-blur-sm border-2 border-dashed border-primary rounded-b-lg">
@@ -291,8 +291,8 @@ export function PngInfoDialog({ open, onOpenChange }: PngInfoDialogProps) {
             </div>
 
             {/* Right pane — metadata */}
-            <div className="flex-1 flex flex-col min-h-0 min-w-0">
-              <ScrollArea className="flex-1">
+            <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+              <ScrollArea className="flex-1 min-h-0">
                 <div className="p-4 space-y-3">
                   {pngInfo.isPending ? (
                     <p className="text-xs text-muted-foreground animate-pulse">Extracting info...</p>
