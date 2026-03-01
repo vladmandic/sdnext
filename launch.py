@@ -5,7 +5,6 @@ import os
 import sys
 import time
 import shlex
-import threading
 import subprocess
 
 import installer
@@ -211,7 +210,6 @@ def start_server(immediate=True, server=None):
     server = importlib.util.module_from_spec(module_spec)
     log.debug(f'Starting module: {server}')
     module_spec.loader.exec_module(server)
-    threading.Thread(target=installer.run_deferred_tasks, daemon=True).start()
 
     uvicorn = None
     if args.test:
@@ -252,9 +250,10 @@ def main():
     if args.skip_git or args.skip_all:
         log.info('Skipping GIT operations')
     log.info(f'Platform: {installer.print_dict(installer.get_platform())}')
+    installer.check_version()
     installer.check_venv()
     log.info(f'Args: {sys.argv[1:]}')
-    if not args.skip_env or args.skip_all:
+    if not args.skip_env and not args.skip_all:
         installer.set_environment()
     if args.uv:
         installer.install('uv', 'uv')
@@ -263,6 +262,7 @@ def main():
     installer.check_onnx()
     installer.check_transformers()
     installer.check_diffusers()
+    installer.check_modified_files()
     if args.test:
         log.info('Startup: mode=test')
         installer.quick_allowed = False
@@ -295,6 +295,7 @@ def main():
     args = installer.parse_args(parser)
     log.info(f'Installer time: {init_summary()}')
     get_custom_args()
+    installer.update_wiki()
 
     uv, instance = start_server(immediate=True, server=None)
     if installer.restart_required:

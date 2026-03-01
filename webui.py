@@ -92,6 +92,8 @@ def initialize():
     def _scan_models():
         modules.modelloader.cleanup_models()
         modules.sd_checkpoint.setup_model()
+        from modules.sd_checkpoint import write_metadata
+        write_metadata()
     def _scan_lora():
         from modules.lora import lora_load
         lora_load.list_available_networks()
@@ -300,6 +302,16 @@ def start_ui():
                     gradio_auth_creds += [x.strip() for x in line.split(',') if x.strip()]
     if len(gradio_auth_creds) > 0:
         log.info(f'Authentication enabled: users={len(list(gradio_auth_creds))}')
+    auth_pairs = []
+    for cred in gradio_auth_creds:
+        if ':' not in cred:
+            log.warning(f'Ignoring malformed auth entry: "{cred}"')
+            continue
+        user, password = cred.split(':', 1)
+        if len(user) == 0 or len(password) == 0:
+            log.warning(f'Ignoring malformed auth entry: "{cred}"')
+            continue
+        auth_pairs.append((user, password))
 
     global local_url # pylint: disable=global-statement
     stdout = io.StringIO()
@@ -320,7 +332,7 @@ def start_ui():
             ssl_certfile=shared.cmd_opts.tls_certfile,
             ssl_verify=not shared.cmd_opts.tls_selfsign,
             debug=False,
-            auth=[tuple(cred.split(':')) for cred in gradio_auth_creds] if gradio_auth_creds else None,
+            auth=auth_pairs if auth_pairs else None,
             prevent_thread_lock=True,
             max_threads=64,
             show_api=False,

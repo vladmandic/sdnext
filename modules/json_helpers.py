@@ -74,7 +74,7 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
     return data
 
 
-def writefile(data, filename, mode='w', silent=False, atomic=False):
+def writefile(obj, filename, mode='w', silent=False, atomic=False):
     import tempfile
     global locking_available # pylint: disable=global-statement
     lock_file = None
@@ -86,6 +86,7 @@ def writefile(data, filename, mode='w', silent=False, atomic=False):
 
     try:
         t0 = time.time()
+        data = obj.copy()
         # skipkeys=True, ensure_ascii=True, check_circular=True, allow_nan=True
         if type(data) == dict:
             output = json.dumps(data, indent=2, default=default)

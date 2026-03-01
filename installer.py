@@ -110,6 +110,13 @@ def print_dict(d):
     return ' '.join([f'{k}={v}' for k, v in d.items()])
 
 
+def env_flag(name: str, default: bool = False) -> bool:
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return str(value).strip().lower() in ('1', 'true', 'yes', 'on')
+
+
 def print_profile(profiler: cProfile.Profile, msg: str):
     profiler.disable()
     from modules.errors import profile
@@ -1256,7 +1263,6 @@ def get_version(force=False):
                 log.warning('Version: detached state detected')
         except Exception as e:
             log.warning(f'Version: where=branch {e}')
-        cwd = os.getcwd()
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
                 res = subprocess.run('git rev-parse --abbrev-ref HEAD', capture_output=True, shell=True, check=True, cwd='extensions-builtin/sdnext-modernui')
@@ -1268,8 +1274,6 @@ def get_version(force=False):
         except Exception as e:
             log.warning(f'Version: where=modernui {e}')
             version['ui'] = 'unknown'
-        finally:
-            os.chdir(cwd)
         try:
             if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
                 version['kanvas'] = 'disabled'
@@ -1283,8 +1287,6 @@ def get_version(force=False):
         except Exception as e:
             log.warning(f'Version: where=kanvas {e}')
             version['kanvas'] = 'unknown'
-        finally:
-            os.chdir(cwd)
     ts('version', t_start)
     return version
 
@@ -1298,17 +1300,13 @@ def check_ui(ver):
     t_start = time.time()
     if not same(ver):
         log.debug(f'Branch mismatch: {ver}')
-        cwd = os.getcwd()
         try:
-            os.chdir('extensions-builtin/sdnext-modernui')
             target = 'dev' if 'dev' in ver['branch'] else 'main'
-            git('checkout ' + target, ignore=True, optional=True)
-            os.chdir(cwd)
+            git('checkout ' + target, folder='extensions-builtin/sdnext-modernui', ignore=True, optional=True)
             ver = get_version(force=True)
             log.debug(f'Branch sync: {ver}')
         except Exception as e:
             log.debug(f'Branch switch: {e}')
-        os.chdir(cwd)
     ts('ui', t_start)
 
 
@@ -1431,30 +1429,6 @@ def update_wiki():
     ts('wiki', t_start)
 
 
-def run_deferred_tasks():
-    t_start = time.time()
-    log.debug('Starting deferred tasks')
-    time.sleep(1.0) # wait for server to start
-    try:
-        from modules.sd_checkpoint import write_metadata
-        write_metadata()
-    except Exception as e:
-        log.error(f'Deferred task error: write_metadata {e}')
-    try:
-        check_version()
-    except Exception as e:
-        log.error(f'Deferred task error: check_version {e}')
-    try:
-        check_modified_files()
-    except Exception as e:
-        log.error(f'Deferred task error: check_modified_files {e}')
-    try:
-        update_wiki()
-    except Exception as e:
-        log.error(f'Deferred task error: update_wiki {e}')
-    log.debug(f'Deferred tasks complete: time={round(time.time() - t_start, 2)}')
-
-
 @lru_cache
 def get_state():
     state = {
@@ -1540,19 +1514,19 @@ def check_timestamp():
 
 def add_args(parser):
     group_install = parser.add_argument_group('Install')
-    group_install.add_argument('--quick', default=os.environ.get("SD_QUICK",False), action='store_true', help="Bypass version checks, default: %(default)s")
-    group_install.add_argument('--reset', default=os.environ.get("SD_RESET",False), action='store_true', help="Reset main repository to latest version, default: %(default)s")
-    group_install.add_argument('--upgrade', '--update', default=os.environ.get("SD_UPGRADE",False), action='store_true', help="Upgrade main repository to latest version, default: %(default)s")
-    group_install.add_argument('--requirements', default=os.environ.get("SD_REQUIREMENTS",False), action='store_true', help="Force re-check of requirements, default: %(default)s")
-    group_install.add_argument('--reinstall', default=os.environ.get("SD_REINSTALL",False), action='store_true', help="Force reinstallation of all requirements, default: %(default)s")
-    group_install.add_argument('--uv', default=os.environ.get("SD_UV",False), action='store_true', help="Use uv instead of pip to install the packages")
-    group_install.add_argument('--optional', default=os.environ.get("SD_OPTIONAL",False), action='store_true', help="Force installation of optional requirements, default: %(default)s")
-    group_install.add_argument('--skip-requirements', default=os.environ.get("SD_SKIPREQUIREMENTS",False), action='store_true', help="Skips checking and installing requirements, default: %(default)s")
-    group_install.add_argument('--skip-extensions', default=os.environ.get("SD_SKIPEXTENSION",False), action='store_true', help="Skips running individual extension installers, default: %(default)s")
-    group_install.add_argument('--skip-git', default=os.environ.get("SD_SKIPGIT",False), action='store_true', help="Skips running all GIT operations, default: %(default)s")
-    group_install.add_argument('--skip-torch', default=os.environ.get("SD_SKIPTORCH",False), action='store_true', help="Skips running Torch checks, default: %(default)s")
-    group_install.add_argument('--skip-all', default=os.environ.get("SD_SKIPALL",False), action='store_true', help="Skips running all checks, default: %(default)s")
-    group_install.add_argument('--skip-env', default=os.environ.get("SD_SKIPENV",False), action='store_true', help="Skips setting of env variables during startup, default: %(default)s")
+    group_install.add_argument('--quick', default=env_flag("SD_QUICK", False), action='store_true', help="Bypass version checks, default: %(default)s")
+    group_install.add_argument('--reset', default=env_flag("SD_RESET", False), action='store_true', help="Reset main repository to latest version, default: %(default)s")
+    group_install.add_argument('--upgrade', '--update', default=env_flag("SD_UPGRADE", False), action='store_true', help="Upgrade main repository to latest version, default: %(default)s")
+    group_install.add_argument('--requirements', default=env_flag("SD_REQUIREMENTS", False), action='store_true', help="Force re-check of requirements, default: %(default)s")
+    group_install.add_argument('--reinstall', default=env_flag("SD_REINSTALL", False), action='store_true', help="Force reinstallation of all requirements, default: %(default)s")
+    group_install.add_argument('--uv', default=env_flag("SD_UV", False), action='store_true', help="Use uv instead of pip to install the packages")
+    group_install.add_argument('--optional', default=env_flag("SD_OPTIONAL", False), action='store_true', help="Force installation of optional requirements, default: %(default)s")
+    group_install.add_argument('--skip-requirements', default=env_flag("SD_SKIPREQUIREMENTS", False), action='store_true', help="Skips checking and installing requirements, default: %(default)s")
+    group_install.add_argument('--skip-extensions', default=env_flag("SD_SKIPEXTENSION", False), action='store_true', help="Skips running individual extension installers, default: %(default)s")
+    group_install.add_argument('--skip-git', default=env_flag("SD_SKIPGIT", False), action='store_true', help="Skips running all GIT operations, default: %(default)s")
+    group_install.add_argument('--skip-torch', default=env_flag("SD_SKIPTORCH", False), action='store_true', help="Skips running Torch checks, default: %(default)s")
+    group_install.add_argument('--skip-all', default=env_flag("SD_SKIPALL", False), action='store_true', help="Skips running all checks, default: %(default)s")
+    group_install.add_argument('--skip-env', default=env_flag("SD_SKIPENV", False), action='store_true', help="Skips setting of env variables during startup, default: %(default)s")
 
 
 def parse_args(parser):
