@@ -546,7 +546,7 @@ class ReqPngInfoV2(BaseModel):
 class ResPngInfoV2(BaseModel):
     ok: bool = Field(title="OK")
     info: str = Field(default="", title="Info", description="Raw generation parameters string")
-    items: dict[str, str] = Field(default_factory=dict, title="Items", description="All metadata fields from the image")
+    items: dict[str, Any] = Field(default_factory=dict, title="Items", description="All metadata fields from the image")
     parameters: dict[str, Any] = Field(default_factory=dict, title="Parameters", description="Parsed generation parameters")
 
 
