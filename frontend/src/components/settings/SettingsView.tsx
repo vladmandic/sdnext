@@ -9,8 +9,9 @@ import { SettingsSection } from "./SettingsSection";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
-import { Save, RotateCcw, Search, ListRestart, Plug, Unplug } from "lucide-react";
+import { Save, RotateCcw, Search, ListRestart, Plug, Unplug, Check } from "lucide-react";
 import { useUiStore } from "@/stores/uiStore";
 import type { CornerStyle, ColorMode } from "@/stores/uiStore";
 import { useConnectionStore } from "@/stores/connectionStore";
@@ -80,13 +81,24 @@ function buildSettingDef(
   };
 }
 
-function AppearanceRow({ label, description, children }: { label: string; description: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <div className="flex flex-col gap-0.5">
-        <span className="text-xs font-medium">{label}</span>
-        <span className="text-2xs text-muted-foreground">{description}</span>
+function SettingRow({ label, description, inline, children }: { label: string; description?: string; inline?: boolean; children: React.ReactNode }) {
+  const labelBlock = (
+    <div className="flex flex-col gap-0.5">
+      <span className="text-xs font-medium">{label}</span>
+      {description && <span className="text-3xs text-muted-foreground leading-tight">{description}</span>}
+    </div>
+  );
+  if (inline) {
+    return (
+      <div className="flex items-center justify-between gap-3">
+        {labelBlock}
+        {children}
       </div>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-1">
+      {labelBlock}
       {children}
     </div>
   );
@@ -136,11 +148,11 @@ function AppearancePanel() {
     <div>
       <h3 className="text-sm font-medium mb-4">Appearance</h3>
       <div className="space-y-4">
-        <AppearanceRow label="Color mode" description="Overall color scheme of the interface">
+        <SettingRow label="Color mode" description="Overall color scheme of the interface">
           <SegmentedControl options={COLOR_MODES} value={colorMode} onChange={setColorMode} />
-        </AppearanceRow>
+        </SettingRow>
 
-        <AppearanceRow label="Accent color" description="Primary color used for buttons, links, and highlights">
+        <SettingRow label="Accent color" description="Primary color used for buttons, links, and highlights" inline>
           <div className="flex items-center gap-2">
             <input
               type="color"
@@ -157,59 +169,61 @@ function AppearancePanel() {
               className="h-7 w-20 text-xs font-mono"
             />
           </div>
-        </AppearanceRow>
+        </SettingRow>
 
-        <AppearanceRow label="Corner style" description="Shape of toggle switches and segmented controls">
+        <SettingRow label="Corner style" description="Shape of toggle switches and segmented controls">
           <SegmentedControl options={CORNER_STYLES} value={cornerStyle} onChange={setCornerStyle} />
-        </AppearanceRow>
+        </SettingRow>
 
-        <AppearanceRow label="Border radius" description="Roundness of cards, inputs, and panels">
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
+        <SettingRow label="Border radius" description="Roundness of cards, inputs, and panels">
+          <div className="flex items-center gap-2 flex-1">
+            <Slider
               min={0}
               max={1}
               step={0.05}
-              value={borderRadius}
-              onChange={(e) => setBorderRadius(parseFloat(e.target.value))}
-              className="w-24 accent-primary"
+              value={[borderRadius]}
+              onValueChange={([v]) => setBorderRadius(v)}
+              className="flex-1"
             />
-            <span className="text-xs text-muted-foreground w-12 text-right">{borderRadius.toFixed(2)}rem</span>
+            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">{borderRadius.toFixed(2)}rem</span>
           </div>
-        </AppearanceRow>
+        </SettingRow>
 
-        <AppearanceRow label="UI scale" description="Base font size — all spacing and controls scale proportionally">
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
+        <SettingRow label="UI scale" description="Base font size — all spacing and controls scale proportionally">
+          <div className="flex items-center gap-2 flex-1">
+            <Slider
               min={12}
               max={20}
               step={1}
-              value={uiScale}
-              onChange={(e) => setUiScale(parseInt(e.target.value, 10))}
-              className="w-24 accent-primary"
+              value={[uiScale]}
+              onValueChange={([v]) => setUiScale(v)}
+              className="flex-1"
             />
-            <span className="text-xs text-muted-foreground w-8 text-right">{uiScale}px</span>
+            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">{uiScale}px</span>
           </div>
-        </AppearanceRow>
+        </SettingRow>
 
-        <AppearanceRow label="Canvas label scale" description="Size of frame labels and floating control panels on the canvas">
-          <div className="flex items-center gap-2">
-            <input
-              type="range"
+        <SettingRow label="Canvas label scale" description="Size of frame labels and floating control panels on the canvas">
+          <div className="flex items-center gap-2 flex-1">
+            <Slider
               min={0.5}
               max={2}
               step={0.1}
-              value={canvasLabelScale}
-              onChange={(e) => setCanvasLabelScale(parseFloat(e.target.value))}
-              className="w-24 accent-primary"
+              value={[canvasLabelScale]}
+              onValueChange={([v]) => setCanvasLabelScale(v)}
+              className="flex-1"
             />
-            <span className="text-xs text-muted-foreground w-8 text-right">{canvasLabelScale.toFixed(1)}x</span>
+            <span className="text-xs text-muted-foreground tabular-nums w-14 text-right">{canvasLabelScale.toFixed(1)}x</span>
           </div>
-        </AppearanceRow>
+        </SettingRow>
       </div>
     </div>
   );
+}
+
+function maskValue(v: string) {
+  if (v.length <= 4) return "\u2022".repeat(v.length);
+  return `${v.slice(0, 2)}${"•".repeat(Math.min(v.length - 4, 6))}${v.slice(-2)}`;
 }
 
 function ConnectionPanel() {
@@ -221,14 +235,14 @@ function ConnectionPanel() {
   const storeReset = useConnectionStore((s) => s.reset);
 
   const [urlInput, setUrlInput] = useState(backendUrl);
-  const [userInput, setUserInput] = useState(username);
-  const [passInput, setPassInput] = useState(password);
   const [status, setStatus] = useState<"idle" | "checking" | "connected" | "unreachable">("idle");
 
-  // Sync inputs when store changes externally (e.g. reset)
+  const authConfigured = username.length > 0 || password.length > 0;
+  const [editingAuth, setEditingAuth] = useState(false);
+  const [userDraft, setUserDraft] = useState("");
+  const [passDraft, setPassDraft] = useState("");
+
   useEffect(() => { setUrlInput(backendUrl); }, [backendUrl]);
-  useEffect(() => { setUserInput(username); }, [username]);
-  useEffect(() => { setPassInput(password); }, [password]);
 
   const checkConnection = useCallback(async (baseUrl: string) => {
     setStatus("checking");
@@ -240,30 +254,29 @@ function ConnectionPanel() {
     }
   }, []);
 
-  // Check connection on mount if a custom URL is stored
   useEffect(() => {
     if (backendUrl) {
       checkConnection(backendUrl);
     } else {
-      setStatus("connected"); // default origin is always "connected"
+      setStatus("connected");
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const saveAuth = useCallback((user: string, pass: string) => {
+    storeSetAuth(user, pass);
+    if (user && pass) api.setAuth(user, pass);
+    else api.clearAuth();
+  }, [storeSetAuth]);
 
   const handleConnect = useCallback(async () => {
     const effectiveUrl = urlInput.replace(/\/$/, "") || window.location.origin;
     api.setBaseUrl(effectiveUrl);
-    if (userInput && passInput) {
-      api.setAuth(userInput, passInput);
-    } else {
-      api.clearAuth();
-    }
     storeSetUrl(urlInput.replace(/\/$/, ""));
-    storeSetAuth(userInput, passInput);
     ws.updateUrl(api.getWebSocketUrl("/sdapi/v2/ws"));
     queryClient.invalidateQueries();
     await checkConnection(effectiveUrl);
     toast.success("Connection updated");
-  }, [urlInput, userInput, passInput, storeSetUrl, storeSetAuth, checkConnection]);
+  }, [urlInput, storeSetUrl, checkConnection]);
 
   const handleReset = useCallback(() => {
     storeReset();
@@ -272,6 +285,7 @@ function ConnectionPanel() {
     ws.updateUrl(api.getWebSocketUrl("/sdapi/v2/ws"));
     queryClient.invalidateQueries();
     setStatus("connected");
+    setEditingAuth(false);
     toast.success("Connection reset to default");
   }, [storeReset]);
 
@@ -279,40 +293,57 @@ function ConnectionPanel() {
     <div>
       <h3 className="text-sm font-medium mb-4">Connection</h3>
       <div className="space-y-4">
-        <AppearanceRow label="Backend URL" description="Leave empty to use the current origin">
+        <SettingRow label="Backend URL" description="Leave empty to use the current origin">
           <div className="flex items-center gap-2">
             <Input
               value={urlInput}
               onChange={(e) => setUrlInput(e.target.value)}
               placeholder={window.location.origin}
-              className="h-7 w-56 text-xs font-mono"
+              className="h-7 text-xs font-mono flex-1"
             />
             {status === "checking" && <span className="text-xs text-muted-foreground">Checking...</span>}
             {status === "connected" && <span className="text-xs text-emerald-500">Connected</span>}
             {status === "unreachable" && <span className="text-xs text-destructive">Unreachable</span>}
           </div>
-        </AppearanceRow>
+        </SettingRow>
 
-        <AppearanceRow label="Username" description="For basic auth (optional)">
-          <Input
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            placeholder="username"
-            className="h-7 w-40 text-xs"
-            autoComplete="username"
-          />
-        </AppearanceRow>
-
-        <AppearanceRow label="Password" description="For basic auth (optional)">
-          <Input
-            type="password"
-            value={passInput}
-            onChange={(e) => setPassInput(e.target.value)}
-            placeholder="password"
-            className="h-7 w-40 text-xs"
-            autoComplete="current-password"
-          />
-        </AppearanceRow>
+        <SettingRow label="Credentials" description="Basic auth username and password (optional)">
+          {authConfigured && !editingAuth ? (
+            <div className="flex items-center gap-2">
+              <Check className="h-3 w-3 text-green-500 shrink-0" />
+              <span className="text-xs text-muted-foreground font-mono">{maskValue(username)}</span>
+              <span className="text-xs text-muted-foreground">/</span>
+              <span className="text-xs text-muted-foreground font-mono">{maskValue(password)}</span>
+              <Button size="xs" variant="ghost" onClick={() => { setEditingAuth(true); setUserDraft(""); setPassDraft(""); }}>Change</Button>
+              <Button size="xs" variant="ghost" className="text-destructive" onClick={() => saveAuth("", "")}>Remove</Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Input
+                value={userDraft}
+                onChange={(e) => setUserDraft(e.target.value)}
+                placeholder="Username"
+                autoComplete="off"
+                className="h-6 text-2xs flex-1"
+              />
+              <Input
+                value={passDraft}
+                onChange={(e) => setPassDraft(e.target.value)}
+                placeholder="Password"
+                autoComplete="off"
+                className="h-6 text-2xs flex-1"
+              />
+              <Button
+                size="xs"
+                disabled={!userDraft.trim() || !passDraft.trim()}
+                onClick={() => { saveAuth(userDraft.trim(), passDraft.trim()); setEditingAuth(false); setUserDraft(""); setPassDraft(""); }}
+              >
+                Save
+              </Button>
+              {editingAuth && <Button size="xs" variant="ghost" onClick={() => { setEditingAuth(false); setUserDraft(""); setPassDraft(""); }}>Cancel</Button>}
+            </div>
+          )}
+        </SettingRow>
 
         <div className="flex gap-2 pt-2">
           <Button size="sm" onClick={handleConnect} className="text-xs">
