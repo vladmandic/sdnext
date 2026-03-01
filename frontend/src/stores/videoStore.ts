@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { VideoResult } from "@/api/types/video";
+import { putVideoResult, trimVideoResults, clearAllVideoResults, getAllVideoResults } from "@/lib/videoHistoryDb";
 
 interface VideoState {
   activeVideoTab: string;
@@ -69,12 +71,18 @@ interface VideoState {
   ltxConditionStrength: number;
   ltxAudioEnable: boolean;
 
-  // Runtime state
-  resultVideoUrl: string | null;
+  // Result history
+  results: VideoResult[];
+  selectedResultId: string | null;
+  _historyLimit: number;
 
   setParam: <K extends keyof VideoState>(key: K, value: VideoState[K]) => void;
   setParams: (params: Partial<VideoState>) => void;
-  setResultVideo: (url: string | null) => void;
+  addResult: (result: VideoResult) => void;
+  selectResult: (id: string | null) => void;
+  clearResults: () => void;
+  setHistoryLimit: (limit: number) => void;
+  hydrateFromDb: () => void;
   reset: () => void;
 }
 
@@ -150,11 +158,42 @@ export const useVideoStore = create<VideoState>()(
     (set) => ({
       ...defaultParams,
 
-      resultVideoUrl: null,
+      results: [],
+      selectedResultId: null,
+      _historyLimit: 50,
 
       setParam: (key, value) => set({ [key]: value }),
       setParams: (params) => set(params),
-      setResultVideo: (url) => set({ resultVideoUrl: url }),
+
+      addResult: (result) =>
+        set((state) => {
+          putVideoResult(result).then(() => trimVideoResults(state._historyLimit));
+          return {
+            results: [result, ...state.results].slice(0, 100),
+            selectedResultId: result.id,
+          };
+        }),
+
+      selectResult: (id) => set({ selectedResultId: id }),
+
+      clearResults: () => {
+        clearAllVideoResults();
+        set({ results: [], selectedResultId: null });
+      },
+
+      setHistoryLimit: (limit) => set({ _historyLimit: limit }),
+
+      hydrateFromDb: () => {
+        getAllVideoResults().then((dbResults) => {
+          if (useVideoStore.getState().results.length === 0 && dbResults.length > 0) {
+            useVideoStore.setState({
+              results: dbResults,
+              selectedResultId: dbResults[0]?.id ?? null,
+            });
+          }
+        });
+      },
+
       reset: () => set({ ...defaultParams }),
     }),
     {
@@ -165,6 +204,7 @@ export const useVideoStore = create<VideoState>()(
           if (key === "initImage" || key === "lastImage") continue;
           p[key] = state[key];
         }
+        p._historyLimit = state._historyLimit;
         return p as Partial<VideoState>;
       },
     },
