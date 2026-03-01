@@ -4,7 +4,9 @@ import { useProcessStore } from "@/stores/processStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useUiStore } from "@/stores/uiStore";
-import { fileToBase64 } from "@/lib/image";
+import { fileToBase64, base64ToFile } from "@/lib/image";
+import { resolveImageSrc } from "@/lib/utils";
+import type { DragPayload } from "@/stores/dragStore";
 
 export function extractFrameFromVideo(videoUrl: string, time: number): Promise<Blob> {
   return new Promise((resolve, reject) => {
@@ -206,4 +208,42 @@ export function restoreVideoSettings(params: Record<string, unknown>) {
   if (Object.keys(updates).length > 0) {
     useVideoStore.getState().setParams(updates);
   }
+}
+
+export async function sendResultToCanvas(result: { images: string[] }, imageIndex: number): Promise<void> {
+  const raw = result.images[imageIndex];
+  const src = resolveImageSrc(raw);
+  const file = await fetchRemoteImage(src, "result.png");
+  await sendImageToCanvas(file);
+}
+
+export async function sendResultToUpscale(result: { images: string[] }, imageIndex: number): Promise<void> {
+  const raw = result.images[imageIndex];
+  const src = resolveImageSrc(raw);
+  const res = await fetch(src);
+  const blob = await res.blob();
+  sendFrameToUpscale(blob);
+}
+
+export async function payloadToFile(payload: DragPayload): Promise<File> {
+  if (payload.type === "result-image" && payload.resultId != null && payload.imageIndex != null) {
+    const result = useGenerationStore.getState().results.find((r) => r.id === payload.resultId);
+    if (result) {
+      const raw = result.images[payload.imageIndex];
+      if (raw) {
+        const src = resolveImageSrc(raw);
+        if (src.startsWith("data:") || src.startsWith("blob:") || src.startsWith("/") || src.startsWith("http")) {
+          return fetchRemoteImage(src, "result.png");
+        }
+        // Raw base64 (no data: prefix)
+        return base64ToFile(raw, "result.png");
+      }
+    }
+  }
+
+  if (payload.type === "gallery-image" && payload.filePath) {
+    return fetchRemoteImage(`/file=${payload.filePath}`, payload.filePath.split("/").pop() ?? "gallery.png");
+  }
+
+  throw new Error("Cannot resolve drag payload to file");
 }

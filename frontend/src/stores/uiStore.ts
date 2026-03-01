@@ -22,9 +22,18 @@ interface UiState {
   // Aside tabs
   activeAsideTab: AsideTab;
 
+  // Result gallery
+  resultThumbSize: number;
+
   // Canvas preferences
   autoFitFrame: boolean;
   reprocessOnGenerate: boolean;
+
+  // Model defaults
+  autoApplyModelDefaults: boolean;
+
+  // Command palette
+  recentCommandIds: string[];
 
   // Appearance
   colorMode: ColorMode;
@@ -39,8 +48,10 @@ interface UiState {
   setSidebarView: (view: SidebarView) => void;
   setImagesSubTab: (tab: ImagesSubTab) => void;
   toggleViewCollapsed: () => void;
+  setResultThumbSize: (size: number) => void;
   setAutoFitFrame: (enabled: boolean) => void;
   setAutoUpdateProcessed: (enabled: boolean) => void;
+  setAutoApplyModelDefaults: (enabled: boolean) => void;
   toggleLeftPanel: () => void;
   setLeftPanelWidth: (width: number) => void;
   toggleRightPanel: () => void;
@@ -52,6 +63,7 @@ interface UiState {
   setBorderRadius: (radius: number) => void;
   setUiScale: (scale: number) => void;
   setCanvasLabelScale: (scale: number) => void;
+  addRecentCommand: (id: string) => void;
 }
 
 export type { SidebarView, ImagesSubTab, CornerStyle, ColorMode };
@@ -67,8 +79,11 @@ export const useUiStore = create<UiState>()(
       leftPanelWidth: 380,
       rightPanelCollapsed: true,
       activeAsideTab: "networks" as AsideTab,
+      resultThumbSize: 56,
       autoFitFrame: true,
       reprocessOnGenerate: true,
+      autoApplyModelDefaults: false,
+      recentCommandIds: [],
       colorMode: "dark" as ColorMode,
       accentColor: "#00bcd4",
       cornerStyle: "rounded" as CornerStyle,
@@ -80,8 +95,10 @@ export const useUiStore = create<UiState>()(
       setSidebarView: (view) => set({ activeSidebarView: view }),
       setImagesSubTab: (tab) => set({ activeImagesSubTab: tab }),
       toggleViewCollapsed: () => set((s) => ({ viewCollapsed: !s.viewCollapsed })),
+      setResultThumbSize: (size) => set({ resultThumbSize: Math.max(40, Math.min(160, size)) }),
       setAutoFitFrame: (enabled) => set({ autoFitFrame: enabled }),
       setAutoUpdateProcessed: (enabled) => set({ reprocessOnGenerate: enabled }),
+      setAutoApplyModelDefaults: (enabled) => set({ autoApplyModelDefaults: enabled }),
       toggleLeftPanel: () => set((s) => ({ leftPanelCollapsed: !s.leftPanelCollapsed })),
       setLeftPanelWidth: (width) => set({ leftPanelWidth: Math.max(280, Math.min(600, width)) }),
       toggleRightPanel: () => set((s) => ({ rightPanelCollapsed: !s.rightPanelCollapsed })),
@@ -93,6 +110,10 @@ export const useUiStore = create<UiState>()(
       setBorderRadius: (radius) => set({ borderRadius: Math.max(0, Math.min(1, radius)) }),
       setUiScale: (scale) => set({ uiScale: Math.max(12, Math.min(20, scale)) }),
       setCanvasLabelScale: (scale) => set({ canvasLabelScale: Math.max(0.5, Math.min(2, scale)) }),
+      addRecentCommand: (id) => set((s) => {
+        const filtered = s.recentCommandIds.filter((c) => c !== id);
+        return { recentCommandIds: [id, ...filtered].slice(0, 5) };
+      }),
     }),
     { name: "sdnext-ui-v2" },
   ),

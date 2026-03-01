@@ -10,12 +10,26 @@ import { useUiStore } from "@/stores/uiStore";
 import { useHistoryInit } from "@/hooks/useHistoryInit";
 import { useJobTracker } from "@/hooks/useJobTracker";
 import { useGlobalWs } from "@/hooks/useGlobalWs";
+import { useShortcutDispatcher } from "@/hooks/useShortcutDispatcher";
+import { useShortcut } from "@/hooks/useShortcut";
+import { useModelDefaultsSuggester } from "@/hooks/useModelDefaultsSuggester";
+import { ShortcutOverlay } from "@/components/ShortcutOverlay";
+import { CommandPalette } from "@/components/CommandPalette";
+import { ComparisonDialog } from "@/components/comparison/ComparisonDialog";
 import { cn } from "@/lib/utils";
 
 export function AppShell() {
   useHistoryInit();
   useJobTracker();
   useGlobalWs();
+  useShortcutDispatcher();
+  useModelDefaultsSuggester();
+
+  // Global layout shortcuts
+  useShortcut("toggle-sidebar", () => useUiStore.getState().toggleSidebar());
+  useShortcut("toggle-left-panel", () => useUiStore.getState().toggleLeftPanel());
+  useShortcut("toggle-right-panel", () => useUiStore.getState().toggleRightPanel());
+
   const leftPanelCollapsed = useUiStore((s) => s.leftPanelCollapsed);
   const viewCollapsed = useUiStore((s) => s.viewCollapsed);
   const leftPanelWidth = useUiStore((s) => s.leftPanelWidth);
@@ -69,6 +83,10 @@ export function AppShell() {
 
         <StatusBar />
       </div>
+
+      <ShortcutOverlay />
+      <CommandPalette />
+      <ComparisonDialog />
     </div>
   );
 }

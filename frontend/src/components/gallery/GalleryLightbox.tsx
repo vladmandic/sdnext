@@ -1,8 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
+import { useShortcut } from "@/hooks/useShortcut";
+import { useShortcutScope } from "@/hooks/useShortcutScope";
+import { useDragSource } from "@/hooks/useDragSource";
+import { useImageZoomPan } from "@/hooks/useImageZoomPan";
 import { isVideoFile } from "@/lib/mediaType";
 import { VideoPlayer } from "@/components/video/VideoPlayer";
-import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw, GitCompareArrows } from "lucide-react";
+import { useComparisonStore } from "@/stores/comparisonStore";
 
 export function GalleryLightbox() {
   const lightboxIndex = useGalleryStore((s) => s.lightboxIndex);
@@ -12,12 +17,8 @@ export function GalleryLightbox() {
   const navigateLightbox = useGalleryStore((s) => s.navigateLightbox);
   const selectFile = useGalleryStore((s) => s.selectFile);
 
-  const [scale, setScale] = useState(1);
-  const [translate, setTranslate] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
+  const zoom = useImageZoomPan();
   const [prevIndex, setPrevIndex] = useState(lightboxIndex);
-  const dragStart = useRef({ x: 0, y: 0 });
-  const imgRef = useRef<HTMLDivElement>(null);
 
   const isOpen = lightboxIndex !== null;
   const file = isOpen ? files[lightboxIndex] : null;
@@ -30,11 +31,17 @@ export function GalleryLightbox() {
     return `/file=${file.fullPath}`;
   }, [file]);
 
+  const lightboxDrag = useDragSource({
+    type: "gallery-image",
+    fileId: file?.id,
+    filePath: file?.fullPath,
+    src: thumb?.data,
+  });
+
   // Reset transform on navigation (adjust state during render pattern)
   if (prevIndex !== lightboxIndex) {
     setPrevIndex(lightboxIndex);
-    setScale(1);
-    setTranslate({ x: 0, y: 0 });
+    zoom.resetTransform();
   }
 
   // Sync selection
@@ -46,50 +53,26 @@ export function GalleryLightbox() {
     navigateLightbox(delta, maxIndex);
   }, [navigateLightbox, maxIndex]);
 
-  const resetTransform = useCallback(() => {
-    setScale(1);
-    setTranslate({ x: 0, y: 0 });
-  }, []);
+  const handleCompare = useCallback(() => {
+    if (!fullUrl || lightboxIndex === null) return;
+    const nextIndex = lightboxIndex < maxIndex ? lightboxIndex + 1 : lightboxIndex - 1;
+    if (nextIndex < 0 || nextIndex > maxIndex) return;
+    const nextFile = files[nextIndex];
+    const nextUrl = `/file=${nextFile.fullPath}`;
+    const aName = file?.relativePath.split("/").pop() ?? "Image A";
+    const bName = nextFile.relativePath.split("/").pop() ?? "Image B";
+    useComparisonStore.getState().openComparison({ src: fullUrl, label: aName }, { src: nextUrl, label: bName });
+  }, [fullUrl, lightboxIndex, maxIndex, files, file]);
 
-  // Keyboard
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case "Escape": closeLightbox(); break;
-        case "ArrowLeft": navigate(-1); break;
-        case "ArrowRight": navigate(1); break;
-        case "+": case "=": setScale((s) => Math.min(8, s * 1.25)); break;
-        case "-": setScale((s) => Math.max(0.25, s / 1.25)); break;
-        case "0": resetTransform(); break;
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [isOpen, closeLightbox, navigate, resetTransform]);
-
-  // Mouse wheel zoom
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
-    setScale((s) => Math.max(0.25, Math.min(8, s * factor)));
-  }, []);
-
-  // Pan handlers
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (scale <= 1) return;
-    setIsDragging(true);
-    dragStart.current = { x: e.clientX - translate.x, y: e.clientY - translate.y };
-  }, [scale, translate]);
-
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging) return;
-    setTranslate({ x: e.clientX - dragStart.current.x, y: e.clientY - dragStart.current.y });
-  }, [isDragging]);
-
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-  }, []);
+  // Keyboard shortcuts (scoped to "lightbox", only active when open)
+  useShortcutScope("lightbox", isOpen);
+  useShortcut("lightbox-close", () => closeLightbox(), isOpen);
+  useShortcut("lightbox-prev", () => navigate(-1), isOpen);
+  useShortcut("lightbox-next", () => navigate(1), isOpen);
+  useShortcut("lightbox-zoom-in", () => zoom.setScale((s) => s * 1.25), isOpen);
+  useShortcut("lightbox-zoom-in-eq", () => zoom.setScale((s) => s * 1.25), isOpen);
+  useShortcut("lightbox-zoom-out", () => zoom.setScale((s) => s / 1.25), isOpen);
+  useShortcut("lightbox-zoom-reset", () => zoom.resetTransform(), isOpen);
 
   if (!isOpen || !file) return null;
 
@@ -104,10 +87,13 @@ export function GalleryLightbox() {
         <div className="flex items-center gap-1">
           {!isVideo && (
             <>
-              <LightboxButton onClick={() => setScale((s) => Math.min(8, s * 1.25))}><ZoomIn size={16} /></LightboxButton>
-              <LightboxButton onClick={() => setScale((s) => Math.max(0.25, s / 1.25))}><ZoomOut size={16} /></LightboxButton>
-              <LightboxButton onClick={resetTransform}><RotateCcw size={16} /></LightboxButton>
-              <span className="text-3xs text-white/50 tabular-nums w-10 text-center">{Math.round(scale * 100)}%</span>
+              <LightboxButton onClick={() => zoom.setScale((s) => s * 1.25)}><ZoomIn size={16} /></LightboxButton>
+              <LightboxButton onClick={() => zoom.setScale((s) => s / 1.25)}><ZoomOut size={16} /></LightboxButton>
+              <LightboxButton onClick={zoom.resetTransform}><RotateCcw size={16} /></LightboxButton>
+              <span className="text-3xs text-white/50 tabular-nums w-10 text-center">{Math.round(zoom.scale * 100)}%</span>
+              {files.length > 1 && (
+                <LightboxButton onClick={handleCompare}><GitCompareArrows size={16} /></LightboxButton>
+              )}
             </>
           )}
           <LightboxButton onClick={closeLightbox}><X size={16} /></LightboxButton>
@@ -124,14 +110,13 @@ export function GalleryLightbox() {
         </div>
       ) : (
         <div
-          ref={imgRef}
           className="flex-1 flex items-center justify-center overflow-hidden select-none"
-          style={{ cursor: scale > 1 ? (isDragging ? "grabbing" : "grab") : "default" }}
-          onWheel={handleWheel}
-          onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e); }}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
+          style={{ cursor: zoom.style.cursor }}
+          onWheel={zoom.handlers.onWheel}
+          onMouseDown={(e) => { e.stopPropagation(); zoom.handlers.onMouseDown(e); }}
+          onMouseMove={zoom.handlers.onMouseMove}
+          onMouseUp={zoom.handlers.onMouseUp}
+          onMouseLeave={zoom.handlers.onMouseLeave}
           onClick={(e) => e.stopPropagation()}
         >
           {fullUrl && (
@@ -139,8 +124,8 @@ export function GalleryLightbox() {
               src={fullUrl}
               alt={filename}
               className="max-w-full max-h-full object-contain transition-transform duration-100"
-              style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` }}
-              draggable={false}
+              style={{ transform: zoom.style.transform }}
+              {...lightboxDrag}
             />
           )}
         </div>
