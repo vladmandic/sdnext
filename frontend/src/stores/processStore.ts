@@ -8,11 +8,13 @@ interface ProcessState {
   resultImageUrl: string | null;
   resultWidth: number | null;
   resultHeight: number | null;
+  compareMode: boolean;
 
   setImage: (file: File | null) => void;
   setUpscaler: (upscaler: string) => void;
   setScale: (scale: number) => void;
   setResult: (url: string | null, width?: number, height?: number) => void;
+  setCompareMode: (enabled: boolean) => void;
   reset: () => void;
 }
 
@@ -24,6 +26,7 @@ export const useProcessStore = create<ProcessState>()((set, get) => ({
   resultImageUrl: null,
   resultWidth: null,
   resultHeight: null,
+  compareMode: false,
 
   setImage: (file) => {
     const prev = get().imagePreviewUrl;
@@ -34,11 +37,13 @@ export const useProcessStore = create<ProcessState>()((set, get) => ({
       resultImageUrl: null,
       resultWidth: null,
       resultHeight: null,
+      compareMode: false,
     });
   },
 
   setUpscaler: (upscaler) => set({ upscaler }),
   setScale: (scale) => set({ scale }),
+  setCompareMode: (enabled) => set({ compareMode: enabled }),
   setResult: (url, width, height) => set({
     resultImageUrl: url,
     resultWidth: width ?? null,

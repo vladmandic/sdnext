@@ -16,9 +16,11 @@ export interface GenerationResult {
   inputMask?: MaskLine[];
   /** Control unit settings + images captured at generation time. */
   controlUnits?: ControlUnitSnapshot[];
+  /** Pre-hires-fix base image URL, stored when generation used enable_hr. */
+  baseImage?: string;
 }
 
-interface GenerationState {
+export interface GenerationState {
   // Prompt
   prompt: string;
   negativePrompt: string;

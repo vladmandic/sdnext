@@ -1,9 +1,14 @@
 import { useCallback, useEffect } from "react";
-import { Upload, X, Download, Loader2 } from "lucide-react";
+import { Upload, X, Download, Loader2, GitCompareArrows, Maximize2 } from "lucide-react";
 import { useProcessStore } from "@/stores/processStore";
+import { useComparisonStore } from "@/stores/comparisonStore";
 import { useJobQueueStore, selectDomainActive } from "@/stores/jobStore";
+import { useDropTarget } from "@/hooks/useDropTarget";
+import { payloadToFile } from "@/lib/sendTo";
+import type { DragPayload } from "@/stores/dragStore";
 import { Button } from "@/components/ui/button";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
+import { SwipeMode } from "@/components/comparison/SwipeMode";
 
 export function ProcessView() {
   const imagePreviewUrl = useProcessStore((s) => s.imagePreviewUrl);
@@ -12,22 +17,29 @@ export function ProcessView() {
   const resultWidth = useProcessStore((s) => s.resultWidth);
   const resultHeight = useProcessStore((s) => s.resultHeight);
   const setImage = useProcessStore((s) => s.setImage);
+  const compareMode = useProcessStore((s) => s.compareMode);
+  const setCompareMode = useProcessStore((s) => s.setCompareMode);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file?.type.startsWith("image/")) setImage(file);
-  }, [setImage]);
+  const canCompare = !!imagePreviewUrl && !!resultImageUrl;
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-  }, []);
+  const dropTarget = useDropTarget({
+    onDropPayload: useCallback((payload: DragPayload) => { payloadToFile(payload).then((f: File) => setImage(f)).catch(() => {}); }, [setImage]),
+    onFileDrop: useCallback((file: File) => setImage(file), [setImage]),
+  });
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
     if (file) setImage(file);
     e.target.value = "";
   }, [setImage]);
+
+  const handleFullscreen = useCallback(() => {
+    if (!imagePreviewUrl || !resultImageUrl) return;
+    useComparisonStore.getState().openComparison(
+      { src: imagePreviewUrl, label: "Original" },
+      { src: resultImageUrl, label: "Upscaled" },
+    );
+  }, [imagePreviewUrl, resultImageUrl]);
 
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
@@ -47,10 +59,32 @@ export function ProcessView() {
     return () => window.removeEventListener("paste", onPaste);
   }, [setImage]);
 
+  // Inline swipe comparison mode
+  if (compareMode && canCompare) {
+    return (
+      <div className="h-full flex flex-col">
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b border-border flex-shrink-0">
+          <Button variant="secondary" size="sm" onClick={() => setCompareMode(false)}>
+            Exit Compare
+          </Button>
+          <Button variant="ghost" size="icon-sm" onClick={handleFullscreen} title="Fullscreen comparison">
+            <Maximize2 size={14} />
+          </Button>
+        </div>
+        <div className="flex-1 min-h-0">
+          <SwipeMode
+            imageA={{ src: imagePreviewUrl!, label: "Original" }}
+            imageB={{ src: resultImageUrl!, label: "Upscaled" }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <ResizablePanelGroup orientation="horizontal" className="h-full">
       <ResizablePanel defaultSize={50} minSize={30}>
-        <div className="relative h-full group" onDrop={handleDrop} onDragOver={handleDragOver}>
+        <div className={`relative h-full group${dropTarget.isOver ? " ring-2 ring-primary ring-inset" : ""}`} {...dropTarget}>
           {imagePreviewUrl ? (
             <>
               <img src={imagePreviewUrl} alt="Input" className="w-full h-full object-contain" />
@@ -87,6 +121,12 @@ export function ProcessView() {
             <div className="relative h-full w-full group">
               <img src={resultImageUrl} alt="Result" className="w-full h-full object-contain" />
               <div className="absolute bottom-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                {canCompare && (
+                  <Button variant="secondary" size="sm" onClick={() => setCompareMode(true)}>
+                    <GitCompareArrows size={14} />
+                    Compare
+                  </Button>
+                )}
                 {resultWidth && resultHeight && (
                   <span className="text-xs bg-background/80 px-2 py-1 rounded text-foreground">{resultWidth} x {resultHeight}</span>
                 )}
