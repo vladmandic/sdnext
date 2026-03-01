@@ -181,7 +181,9 @@ def register_api(app: FastAPI): # register api
         """Return a thumbnail and metadata (EXIF, dimensions, size, mtime) for a single image or video file."""
         try:
             decoded = unquote(file).replace('%3A', ':')
-            if decoded.lower().endswith('.mp4'):
+            video_extensions = {'.mp4', '.webm', '.mov', '.avi', '.mkv', '.flv', '.wmv', '.m4v'}
+            ext = os.path.splitext(decoded)[1].lower()
+            if ext in video_extensions:
                 return JSONResponse(content=get_video_thumbnail(decoded))
             else:
                 return JSONResponse(content=get_image_thumbnail(decoded))

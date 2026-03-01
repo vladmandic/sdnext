@@ -2,18 +2,50 @@ import { useMemo } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { parseGenerationInfo } from "@/lib/parseGenerationInfo";
+import { isVideoFile } from "@/lib/mediaType";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
 import { Copy, Download, ExternalLink, ImageIcon } from "lucide-react";
 
+interface VideoMeta {
+  codec: string;
+  frames: string;
+  duration: string;
+  fps: string;
+}
+
+function parseVideoExif(exif: string): VideoMeta | null {
+  if (!exif) return null;
+  const result: VideoMeta = { codec: "", frames: "", duration: "", fps: "" };
+  let matched = false;
+  for (const part of exif.split(",")) {
+    const trimmed = part.trim();
+    const [key, ...rest] = trimmed.split(":");
+    const val = rest.join(":").trim();
+    const k = key.trim().toLowerCase();
+    if (k === "codec") { result.codec = val; matched = true; }
+    else if (k === "frames") { result.frames = val; matched = true; }
+    else if (k === "duration") { result.duration = val; matched = true; }
+    else if (k === "fps") { result.fps = val; matched = true; }
+  }
+  return matched ? result : null;
+}
+
 export function GalleryMetadata() {
   const selectedFile = useGalleryStore((s) => s.selectedFile);
   const selectedThumb = useGalleryStore((s) => s.selectedThumb);
 
+  const isVideo = selectedFile ? isVideoFile(selectedFile.relativePath) : false;
+
   const genInfo = useMemo(() => {
     return parseGenerationInfo(selectedThumb?.exif);
   }, [selectedThumb]);
+
+  const videoMeta = useMemo(() => {
+    if (!isVideo || !selectedThumb?.exif) return null;
+    return parseVideoExif(selectedThumb.exif);
+  }, [isVideo, selectedThumb]);
 
   if (!selectedFile || !selectedThumb) {
     return (
@@ -58,11 +90,21 @@ export function GalleryMetadata() {
       <div className="p-3 space-y-3">
         {/* Preview */}
         <div className="rounded-md overflow-hidden border border-border bg-muted">
-          <img
-            src={selectedThumb.data}
-            alt={filename}
-            className="w-full object-contain max-h-48"
-          />
+          {isVideo ? (
+            <video
+              src={fullUrl}
+              poster={selectedThumb.data}
+              controls
+              muted
+              className="w-full object-contain max-h-48"
+            />
+          ) : (
+            <img
+              src={selectedThumb.data}
+              alt={filename}
+              className="w-full object-contain max-h-48"
+            />
+          )}
         </div>
 
         {/* File info */}
@@ -77,7 +119,24 @@ export function GalleryMetadata() {
           </div>
         </div>
 
-        {genInfo.prompt && (
+        {/* Video metadata */}
+        {videoMeta && (
+          <>
+            <Separator />
+            <div>
+              <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Video</h3>
+              <div className="space-y-1">
+                {videoMeta.duration && <MetaRow label="Duration" value={videoMeta.duration} />}
+                {videoMeta.fps && <MetaRow label="FPS" value={videoMeta.fps} />}
+                {videoMeta.frames && <MetaRow label="Frames" value={videoMeta.frames} />}
+                {videoMeta.codec && <MetaRow label="Codec" value={videoMeta.codec} />}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Image generation info (hidden for videos) */}
+        {!isVideo && genInfo.prompt && (
           <>
             <Separator />
             <div>
@@ -93,7 +152,7 @@ export function GalleryMetadata() {
           </>
         )}
 
-        {genInfo.negativePrompt && (
+        {!isVideo && genInfo.negativePrompt && (
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">Negative</h3>
@@ -106,7 +165,7 @@ export function GalleryMetadata() {
           </div>
         )}
 
-        {Object.keys(genInfo.params).length > 0 && (
+        {!isVideo && Object.keys(genInfo.params).length > 0 && (
           <>
             <Separator />
             <div>

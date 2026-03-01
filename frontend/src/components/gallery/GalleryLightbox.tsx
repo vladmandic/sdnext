@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
+import { isVideoFile } from "@/lib/mediaType";
+import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCcw } from "lucide-react";
 
 export function GalleryLightbox() {
@@ -92,6 +94,7 @@ export function GalleryLightbox() {
   if (!isOpen || !file) return null;
 
   const filename = file.relativePath.split("/").pop() ?? file.relativePath;
+  const isVideo = isVideoFile(file.relativePath);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/90 flex flex-col" onClick={closeLightbox}>
@@ -99,36 +102,49 @@ export function GalleryLightbox() {
       <div className="flex items-center justify-between px-4 py-2 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
         <span className="text-xs text-white/70 truncate max-w-[50%]">{filename}</span>
         <div className="flex items-center gap-1">
-          <LightboxButton onClick={() => setScale((s) => Math.min(8, s * 1.25))}><ZoomIn size={16} /></LightboxButton>
-          <LightboxButton onClick={() => setScale((s) => Math.max(0.25, s / 1.25))}><ZoomOut size={16} /></LightboxButton>
-          <LightboxButton onClick={resetTransform}><RotateCcw size={16} /></LightboxButton>
-          <span className="text-3xs text-white/50 tabular-nums w-10 text-center">{Math.round(scale * 100)}%</span>
+          {!isVideo && (
+            <>
+              <LightboxButton onClick={() => setScale((s) => Math.min(8, s * 1.25))}><ZoomIn size={16} /></LightboxButton>
+              <LightboxButton onClick={() => setScale((s) => Math.max(0.25, s / 1.25))}><ZoomOut size={16} /></LightboxButton>
+              <LightboxButton onClick={resetTransform}><RotateCcw size={16} /></LightboxButton>
+              <span className="text-3xs text-white/50 tabular-nums w-10 text-center">{Math.round(scale * 100)}%</span>
+            </>
+          )}
           <LightboxButton onClick={closeLightbox}><X size={16} /></LightboxButton>
         </div>
       </div>
 
-      {/* Image area */}
-      <div
-        ref={imgRef}
-        className="flex-1 flex items-center justify-center overflow-hidden select-none"
-        style={{ cursor: scale > 1 ? (isDragging ? "grabbing" : "grab") : "default" }}
-        onWheel={handleWheel}
-        onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e); }}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {fullUrl && (
-          <img
-            src={fullUrl}
-            alt={filename}
-            className="max-w-full max-h-full object-contain transition-transform duration-100"
-            style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` }}
-            draggable={false}
-          />
-        )}
-      </div>
+      {/* Content area */}
+      {isVideo ? (
+        <div
+          className="flex-1 min-h-0 overflow-hidden select-none"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <VideoPlayer src={fullUrl} />
+        </div>
+      ) : (
+        <div
+          ref={imgRef}
+          className="flex-1 flex items-center justify-center overflow-hidden select-none"
+          style={{ cursor: scale > 1 ? (isDragging ? "grabbing" : "grab") : "default" }}
+          onWheel={handleWheel}
+          onMouseDown={(e) => { e.stopPropagation(); handleMouseDown(e); }}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {fullUrl && (
+            <img
+              src={fullUrl}
+              alt={filename}
+              className="max-w-full max-h-full object-contain transition-transform duration-100"
+              style={{ transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})` }}
+              draggable={false}
+            />
+          )}
+        </div>
+      )}
 
       {/* Navigation arrows */}
       {lightboxIndex > 0 && (
