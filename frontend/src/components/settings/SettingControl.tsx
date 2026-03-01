@@ -9,6 +9,8 @@ import { Slider } from "@/components/ui/slider";
 import { Combobox } from "@/components/ui/combobox";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { Check } from "lucide-react";
+import { PathInput } from "./PathInput";
 
 function renderSelect(choices: string[] | undefined, value: unknown, onChange: (value: unknown) => void, setting: SettingDef) {
   if (!choices || choices.length === 0) {
@@ -42,6 +44,7 @@ function SecretControl({ value, onChange }: { value: unknown; onChange: (value: 
   if (configured && !editing) {
     return (
       <div className="flex items-center gap-2">
+        <Check className="h-3 w-3 text-green-500 shrink-0" />
         <span className="text-xs text-muted-foreground font-mono">{masked}</span>
         <Button size="xs" variant="ghost" onClick={() => { setEditing(true); setDraft(""); }}>Change</Button>
         <Button size="xs" variant="ghost" className="text-destructive" onClick={() => { onChange(""); }}>Remove</Button>
@@ -52,7 +55,6 @@ function SecretControl({ value, onChange }: { value: unknown; onChange: (value: 
   return (
     <div className="flex items-center gap-2">
       <Input
-        type="password"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         placeholder="Enter token..."
@@ -78,9 +80,10 @@ interface SettingControlProps {
   value: unknown;
   onChange: (value: unknown) => void;
   dynamicChoices?: string[];
+  getSettingValue?: (key: string) => unknown;
 }
 
-export function SettingControl({ setting, value, onChange, dynamicChoices }: SettingControlProps) {
+export function SettingControl({ setting, value, onChange, dynamicChoices, getSettingValue }: SettingControlProps) {
   if (setting.isSecret) {
     return <SecretControl value={value} onChange={onChange} />;
   }
@@ -209,6 +212,13 @@ export function SettingControl({ setting, value, onChange, dynamicChoices }: Set
           />
         </div>
       );
+
+    case "path": {
+      const basePath = setting.baseFolderKey && getSettingValue
+        ? String(getSettingValue(setting.baseFolderKey) ?? "")
+        : "";
+      return <PathInput value={String(value ?? "")} onChange={(v) => onChange(v)} basePath={basePath} placeholder={setting.description} />;
+    }
 
     case "input":
     default:
