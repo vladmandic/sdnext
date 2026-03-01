@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
@@ -6,6 +6,7 @@ import { useFramePackVariants, useLoadFramePack, useUnloadFramePack } from "@/ap
 import { ParamSection } from "@/components/generation/ParamSection";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { ParamGrid } from "@/components/generation/ParamRow";
+import { SectionTimeline } from "@/components/video/SectionTimeline";
 import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -34,8 +35,12 @@ export function FramePackTab() {
   const fpPreview = useVideoStore((s) => s.fpPreview);
   const fpAttention = useVideoStore((s) => s.fpAttention);
   const fpVaeType = useVideoStore((s) => s.fpVaeType);
+  const fps = useVideoStore((s) => s.fps);
+  const interpolate = useVideoStore((s) => s.interpolate);
   const seed = useVideoStore((s) => s.seed);
   const setParam = useVideoStore((s) => s.setParam);
+
+  const [rawEdit, setRawEdit] = useState(false);
 
   const { data: variants } = useFramePackVariants();
   const loadFP = useLoadFramePack();
@@ -91,12 +96,28 @@ export function FramePackTab() {
       </ParamSection>
 
       <ParamSection title="Sections" defaultOpen={false}>
-        <Textarea
-          value={fpSectionPrompt}
-          onChange={(e) => setParam("fpSectionPrompt", e.target.value)}
-          placeholder="Section prompts (comma or newline separated)"
-          className="text-xs min-h-12 resize-y"
-        />
+        <div className="flex items-center justify-between mb-1">
+          <Label className="text-2xs text-muted-foreground">Raw edit</Label>
+          <Switch checked={rawEdit} onCheckedChange={setRawEdit} />
+        </div>
+        {rawEdit ? (
+          <Textarea
+            value={fpSectionPrompt}
+            onChange={(e) => setParam("fpSectionPrompt", e.target.value)}
+            placeholder="Section prompts (comma or newline separated)"
+            className="text-xs min-h-12 resize-y"
+          />
+        ) : (
+          <SectionTimeline
+            fps={fps}
+            duration={fpDuration}
+            latentWindowSize={fpLatentWindowSize}
+            variant={fpVariant}
+            interpolate={interpolate}
+            value={fpSectionPrompt}
+            onChange={(v) => setParam("fpSectionPrompt", v)}
+          />
+        )}
       </ParamSection>
 
       <ParamSection title="Advanced" defaultOpen={false}>
