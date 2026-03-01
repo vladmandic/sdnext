@@ -67,8 +67,17 @@ export const CanvasView = memo(function CanvasView() {
 
   const dropTarget = useDropTarget({
     onDropPayload: useCallback((payload: DragPayload, e: React.DragEvent) => {
-      payloadToFile(payload).then((f: File) => handleCanvasFileDrop(f, e)).catch(() => {});
-    }, [handleCanvasFileDrop]),
+      // Hit-test synchronously before the event is recycled by React
+      const unit = hitTestControlFrame(e);
+      payloadToFile(payload).then((f: File) => {
+        if (unit >= 0) {
+          setUnitImage(unit, f);
+          setUnitParam(unit, "processedImage", null);
+        } else {
+          handleFile(f);
+        }
+      }).catch(() => {});
+    }, [hitTestControlFrame, handleFile, setUnitImage, setUnitParam]),
     onFileDrop: handleCanvasFileDrop,
   });
 
