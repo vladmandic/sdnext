@@ -28,7 +28,7 @@ export default defineConfig(({ mode }) => {
         globPatterns: ["**/*.{js,css,html,svg,png,woff2,wasm}"],
         // Don't cache API responses or uploaded files
         navigateFallback: mode === "production" ? "/ui/index.html" : "/index.html",
-        navigateFallbackDenylist: [/^\/sdapi/, /^\/internal/, /^\/file/],
+        navigateFallbackDenylist: [/^\/sdapi/, /^\/internal/, /^\/file/, /\.wasm$/],
         runtimeCaching: [
           {
             // Cache font files

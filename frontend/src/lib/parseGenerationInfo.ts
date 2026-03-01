@@ -1,5 +1,8 @@
 import type { ParsedGenerationInfo } from "@/api/types/gallery";
 
+const RE_PARAM = /\s*([\w ]+):\s*("(?:\\"|[^"])*"|[^,]*)(?:,|$)/g;
+const RE_SIZE = /^(\d+)x(\d+)$/;
+
 export function parseGenerationInfo(raw: string | null | undefined): ParsedGenerationInfo {
   const result: ParsedGenerationInfo = { prompt: "", negativePrompt: "", params: {} };
   if (!raw) return result;
@@ -30,14 +33,31 @@ export function parseGenerationInfo(raw: string | null | undefined): ParsedGener
   return result;
 }
 
-function parseParams(line: string, params: Record<string, string>) {
-  const pairs = line.split(",");
-  for (const pair of pairs) {
-    const colonIdx = pair.indexOf(":");
-    if (colonIdx > 0) {
-      const key = pair.slice(0, colonIdx).trim();
-      const value = pair.slice(colonIdx + 1).trim();
-      if (key && value) params[key] = value;
+function parseParams(text: string, params: Record<string, string>) {
+  RE_PARAM.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  while ((match = RE_PARAM.exec(text)) !== null) {
+    const key = match[1].trim();
+    let value = match[2].trim();
+    if (value.startsWith('"') && value.endsWith('"')) {
+      try { value = JSON.parse(value); } catch { value = value.slice(1, -1); }
+    }
+    if (!key || !value) continue;
+
+    // Split "Size" → "Size-1" / "Size-2", "Batch" → batch count/size, etc.
+    const sizeMatch = RE_SIZE.exec(value);
+    if (sizeMatch) {
+      if (key === "Size" || key === "Hires fixed" || key === "Hires size") {
+        params[`${key}-1`] = sizeMatch[1];
+        params[`${key}-2`] = sizeMatch[2];
+      } else if (key === "Batch") {
+        params["Batch count"] = sizeMatch[1];
+        params["Batch size"] = sizeMatch[2];
+      } else {
+        params[key] = value;
+      }
+    } else {
+      params[key] = value;
     }
   }
 }
