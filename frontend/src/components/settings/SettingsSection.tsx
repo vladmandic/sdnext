@@ -1,8 +1,10 @@
+import { useCallback } from "react";
 import type { SettingSectionDef } from "@/lib/settingsSchema";
 import type { OptionsMap } from "@/api/types/settings";
 import { SettingControl } from "./SettingControl";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { RotateCcw } from "lucide-react";
 
 interface SettingsSectionProps {
@@ -14,6 +16,11 @@ interface SettingsSectionProps {
 }
 
 export function SettingsSection({ section, values, dirty, onSettingChange, dynamicChoices }: SettingsSectionProps) {
+  const getSettingValue = useCallback(
+    (key: string) => dirty[key] ?? values[key],
+    [dirty, values],
+  );
+
   return (
     <div className="space-y-4">
       <h2 className="text-sm font-semibold text-foreground">{section.title}</h2>
@@ -58,15 +65,17 @@ export function SettingsSection({ section, values, dirty, onSettingChange, dynam
               value={currentValue}
               onChange={(v) => onSettingChange(setting.key, v)}
               dynamicChoices={dynamicChoices?.[setting.key]}
+              getSettingValue={getSettingValue}
             />
           );
+          const indented = !!setting.baseFolderKey;
           return inline ? (
-            <div key={setting.key} className="flex items-center justify-between gap-3">
+            <div key={setting.key} className={cn("flex items-center justify-between gap-3", indented && "pl-4")}>
               {labelBlock}
               {controlBlock}
             </div>
           ) : (
-            <div key={setting.key} className="flex flex-col gap-1">
+            <div key={setting.key} className={cn("flex flex-col gap-1", indented && "pl-4")}>
               {labelBlock}
               {controlBlock}
             </div>

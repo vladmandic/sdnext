@@ -1,6 +1,6 @@
 import type { OptionInfoMeta } from "@/api/types/settings";
 
-export type SettingComponent = "slider" | "switch" | "select" | "radio" | "input" | "number" | "color" | "separator" | "multiselect";
+export type SettingComponent = "slider" | "switch" | "select" | "radio" | "input" | "number" | "color" | "separator" | "multiselect" | "path";
 
 export interface SettingDef {
   key: string;
@@ -15,6 +15,7 @@ export interface SettingDef {
   description?: string;
   requiresRestart?: boolean;
   isSecret?: boolean;
+  baseFolderKey?: string;
 }
 
 export interface SettingSectionDef {
@@ -85,6 +86,24 @@ export const settingsSchema: SettingSectionDef[] = [
       { key: "grid_save", label: "Save grids", component: "switch", defaultValue: true, description: "Save image grids when batch > 1" },
       { key: "grid_format", label: "Grid format", component: "select", defaultValue: "jpg", description: "Grid image format" },
       { key: "use_save_to_dirs_for_ui", label: "Save to subdirs", component: "switch", defaultValue: false, description: "Save images into date-based subdirectories" },
+    ],
+  },
+  {
+    id: "saving-paths",
+    title: "Image Paths",
+    settings: [
+      { key: "outdir_samples", label: "Output folder", component: "input" },
+      { key: "outdir_txt2img_samples", label: "Text-to-image", component: "path", baseFolderKey: "outdir_samples" },
+      { key: "outdir_img2img_samples", label: "Image-to-image", component: "path", baseFolderKey: "outdir_samples" },
+      { key: "outdir_control_samples", label: "Control", component: "path", baseFolderKey: "outdir_samples" },
+      { key: "outdir_extras_samples", label: "Extras", component: "path", baseFolderKey: "outdir_samples" },
+      { key: "outdir_save", label: "Manual save", component: "path", baseFolderKey: "outdir_samples" },
+      { key: "outdir_video", label: "Video", component: "path", baseFolderKey: "outdir_samples" },
+      { key: "outdir_init_images", label: "Init images", component: "path", baseFolderKey: "outdir_samples" },
+      { key: "outdir_grids", label: "Grids folder", component: "input" },
+      { key: "outdir_txt2img_grids", label: "Text-to-image grids", component: "path", baseFolderKey: "outdir_grids" },
+      { key: "outdir_img2img_grids", label: "Image-to-image grids", component: "path", baseFolderKey: "outdir_grids" },
+      { key: "outdir_control_grids", label: "Control grids", component: "path", baseFolderKey: "outdir_grids" },
     ],
   },
   {

@@ -74,6 +74,7 @@ function buildSettingDef(
     ...(curated.setting.step !== undefined && { step: curated.setting.step }),
     ...(curated.setting.defaultValue !== undefined && { defaultValue: curated.setting.defaultValue }),
     ...(curated.setting.requiresRestart && { requiresRestart: true }),
+    ...(curated.setting.baseFolderKey && { baseFolderKey: curated.setting.baseFolderKey }),
     // choices: prefer backend (base), fall back to curated if backend has none
     choices: base.choices ?? curated.setting.choices,
   };
