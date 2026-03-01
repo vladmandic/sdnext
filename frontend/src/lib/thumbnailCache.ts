@@ -95,6 +95,18 @@ export async function deleteFolder(folder: string): Promise<void> {
   });
 }
 
+export async function deleteThumbsByHashes(hashes: string[]): Promise<void> {
+  if (hashes.length === 0) return;
+  const db = await openDb();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    for (const hash of hashes) store.delete(hash);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
 export async function cleanupFolder(folder: string, maxEntries: number): Promise<void> {
   const db = await openDb();
   const entries = await new Promise<CachedThumb[]>((resolve, reject) => {

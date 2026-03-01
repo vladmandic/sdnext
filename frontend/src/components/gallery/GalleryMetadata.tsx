@@ -1,12 +1,13 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { parseGenerationInfo } from "@/lib/parseGenerationInfo";
+import { sendImageToCanvas, sendPromptToGeneration, fetchRemoteImage } from "@/lib/sendTo";
 import { isVideoFile } from "@/lib/mediaType";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Button } from "@/components/ui/button";
-import { Copy, Download, ExternalLink, ImageIcon } from "lucide-react";
+import { Copy, Download, ExternalLink, ImageIcon, Check, Paintbrush, Wand2 } from "lucide-react";
 
 interface VideoMeta {
   codec: string;
@@ -31,6 +32,16 @@ function parseVideoExif(exif: string): VideoMeta | null {
   }
   return matched ? result : null;
 }
+
+const PARAM_TO_STORE_KEY: Record<string, string> = {
+  Steps: "steps",
+  Sampler: "sampler",
+  "CFG scale": "cfgScale",
+  "CFG Scale": "cfgScale",
+  Seed: "seed",
+  "Size-1": "width",
+  "Size-2": "height",
+};
 
 export function GalleryMetadata() {
   const selectedFile = useGalleryStore((s) => s.selectedFile);
@@ -85,6 +96,32 @@ export function GalleryMetadata() {
     }
   };
 
+  const useAllSettings = () => {
+    const gen = useGenerationStore.getState();
+    if (genInfo.prompt) gen.setParam("prompt", genInfo.prompt);
+    if (genInfo.negativePrompt) gen.setParam("negativePrompt", genInfo.negativePrompt);
+    const updates: Record<string, unknown> = {};
+    for (const [paramKey, storeKey] of Object.entries(PARAM_TO_STORE_KEY)) {
+      const val = genInfo.params[paramKey];
+      if (val !== undefined) {
+        const num = Number(val);
+        updates[storeKey] = Number.isNaN(num) ? val : num;
+      }
+    }
+    if (Object.keys(updates).length > 0) gen.setParams(updates as Partial<typeof gen>);
+  };
+
+  const handleSendToCanvas = async () => {
+    const file = await fetchRemoteImage(fullUrl, filename);
+    await sendImageToCanvas(file);
+  };
+
+  const handleSendToImg2Img = () => {
+    sendPromptToGeneration(genInfo.prompt, genInfo.negativePrompt || undefined);
+  };
+
+  const hasGenParams = !isVideo && (genInfo.prompt || Object.keys(genInfo.params).length > 0);
+
   return (
     <ScrollArea className="h-full">
       <div className="p-3 space-y-3">
@@ -111,11 +148,11 @@ export function GalleryMetadata() {
         <div>
           <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">File</h3>
           <div className="space-y-1">
-            <MetaRow label="Name" value={filename} />
+            <MetaRow label="Name" value={filename} copyable />
             <MetaRow label="Size" value={formatSize(selectedThumb.size)} />
-            <MetaRow label="Dimensions" value={`${selectedThumb.width} x ${selectedThumb.height}`} />
+            <MetaRow label="Dimensions" value={`${selectedThumb.width} x ${selectedThumb.height}`} copyable />
             <MetaRow label="Modified" value={formatDate(selectedThumb.mtime)} />
-            <MetaRow label="Path" value={selectedFile.relativePath} />
+            <MetaRow label="Path" value={selectedFile.relativePath} copyable />
           </div>
         </div>
 
@@ -172,7 +209,7 @@ export function GalleryMetadata() {
               <h3 className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Parameters</h3>
               <div className="space-y-0.5">
                 {Object.entries(genInfo.params).map(([key, value]) => (
-                  <MetaRow key={key} label={key} value={value} />
+                  <MetaRow key={key} label={key} value={value} copyable />
                 ))}
               </div>
             </div>
@@ -183,6 +220,21 @@ export function GalleryMetadata() {
 
         {/* Actions */}
         <div className="space-y-1.5">
+          {hasGenParams && (
+            <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" onClick={useAllSettings}>
+              <Wand2 size={12} /> Use all settings
+            </Button>
+          )}
+          {!isVideo && (
+            <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" onClick={handleSendToCanvas}>
+              <Paintbrush size={12} /> Send to canvas
+            </Button>
+          )}
+          {hasGenParams && (
+            <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" onClick={handleSendToImg2Img}>
+              <ImageIcon size={12} /> Send prompt to generation
+            </Button>
+          )}
           <Button variant="outline" size="sm" className="w-full h-6 text-2xs justify-start gap-2" asChild>
             <a href={fullUrl} target="_blank" rel="noopener noreferrer">
               <ExternalLink size={12} /> Open full size
@@ -199,11 +251,28 @@ export function GalleryMetadata() {
   );
 }
 
-function MetaRow({ label, value }: { label: string; value: string }) {
+function MetaRow({ label, value, copyable }: { label: string; value: string; copyable?: boolean }) {
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(value).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+
   return (
-    <div className="flex items-start gap-2">
+    <div className="group/row flex items-start gap-2">
       <span className="text-3xs text-muted-foreground w-16 flex-shrink-0">{label}</span>
-      <span className="text-2xs text-foreground break-all">{value}</span>
+      <span className="text-2xs text-foreground break-all flex-1">{value}</span>
+      {copyable && (
+        <button
+          onClick={handleCopy}
+          className="opacity-0 group-hover/row:opacity-100 p-0.5 rounded text-muted-foreground hover:text-foreground transition-opacity flex-shrink-0"
+          title="Copy"
+        >
+          {copied ? <Check size={10} className="text-green-500" /> : <Copy size={10} />}
+        </button>
+      )}
     </div>
   );
 }

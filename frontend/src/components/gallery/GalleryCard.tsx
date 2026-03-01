@@ -3,19 +3,24 @@ import type { GalleryFile, CachedThumb } from "@/api/types/gallery";
 import { useDragSource } from "@/hooks/useDragSource";
 import { isVideoFile } from "@/lib/mediaType";
 import { cn } from "@/lib/utils";
+import { Check } from "lucide-react";
 
 interface GalleryCardProps {
   file: GalleryFile;
   thumb: CachedThumb | undefined;
   size: number;
+  height?: number;
   selected: boolean;
-  onClick: () => void;
+  isSelected: boolean;
+  isSelectMode: boolean;
+  onClick: (e: React.MouseEvent) => void;
   onDoubleClick: () => void;
+  onContextMenu?: () => void;
 }
 
 const HOVER_DELAY = 300;
 
-export const GalleryCard = memo(function GalleryCard({ file, thumb, size, selected, onClick, onDoubleClick }: GalleryCardProps) {
+export const GalleryCard = memo(function GalleryCard({ file, thumb, size, height, selected, isSelected, isSelectMode, onClick, onDoubleClick, onContextMenu }: GalleryCardProps) {
   const filename = file.relativePath.split("/").pop() ?? file.relativePath;
   const isVideo = isVideoFile(file.relativePath);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -46,18 +51,21 @@ export const GalleryCard = memo(function GalleryCard({ file, thumb, size, select
     }
   }, [isVideo]);
 
+  const cardHeight = height ?? size;
+
   return (
     <button
       onClick={onClick}
       onDoubleClick={onDoubleClick}
+      onContextMenu={onContextMenu}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       {...dragProps}
       className={cn(
         "group relative rounded-md overflow-hidden bg-muted border transition-all cursor-pointer",
-        selected ? "border-primary ring-1 ring-primary/30" : "border-border hover:border-primary/40",
+        selected ? "border-primary ring-1 ring-primary/30" : isSelected ? "border-primary ring-1 ring-primary/20" : "border-border hover:border-primary/40",
       )}
-      style={{ width: size, height: size }}
+      style={{ width: size, height: cardHeight }}
     >
       {thumb ? (
         isVideo ? (
@@ -89,6 +97,28 @@ export const GalleryCard = memo(function GalleryCard({ file, thumb, size, select
           <div className="w-6 h-6 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />
         </div>
       )}
+
+      {/* Selection tint overlay */}
+      {isSelected && (
+        <div className="absolute inset-0 bg-primary/10 pointer-events-none" />
+      )}
+
+      {/* Selection checkbox */}
+      {(isSelectMode || isSelected) && (
+        <div className={cn(
+          "absolute top-1 left-1 w-5 h-5 rounded-sm flex items-center justify-center transition-colors",
+          isSelected ? "bg-primary text-primary-foreground" : "bg-black/40 text-white/60",
+        )}>
+          {isSelected && <Check size={12} strokeWidth={3} />}
+        </div>
+      )}
+
+      {/* Hover checkbox (when not in select mode) */}
+      {!isSelectMode && !isSelected && (
+        <div className="absolute top-1 left-1 w-5 h-5 rounded-sm flex items-center justify-center bg-black/40 text-white/60 opacity-0 group-hover:opacity-100 transition-opacity">
+        </div>
+      )}
+
       {/* Hover overlay */}
       <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         <div className="absolute bottom-0 left-0 right-0 p-1.5">

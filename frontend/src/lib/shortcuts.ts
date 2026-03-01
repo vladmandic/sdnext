@@ -1,6 +1,6 @@
 export type ShortcutScope = "global" | "canvas" | "gallery" | "lightbox" | "comparison";
 
-export type ShortcutCategory = "Global" | "Canvas" | "Lightbox" | "Comparison" | "Navigation";
+export type ShortcutCategory = "Global" | "Canvas" | "Gallery" | "Lightbox" | "Comparison" | "Navigation";
 
 export interface ShortcutDef {
   id: string;
@@ -33,6 +33,12 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
   "canvas-brush-larger": { id: "canvas-brush-larger", key: "]", scope: "canvas", category: "Canvas", label: "Larger brush" },
   "canvas-delete": { id: "canvas-delete", key: "Delete", scope: "canvas", category: "Canvas", label: "Remove layer" },
   "canvas-delete-backspace": { id: "canvas-delete-backspace", key: "Backspace", scope: "canvas", category: "Canvas", label: "Remove layer" },
+
+  // Gallery
+  "gallery-toggle-info": { id: "gallery-toggle-info", key: "i", scope: "gallery", category: "Gallery", label: "Toggle metadata panel" },
+  "gallery-select-all": { id: "gallery-select-all", key: "a", ctrl: true, scope: "gallery", category: "Gallery", label: "Select all" },
+  "gallery-deselect": { id: "gallery-deselect", key: "Escape", scope: "gallery", category: "Gallery", label: "Deselect all" },
+  "gallery-delete": { id: "gallery-delete", key: "Delete", scope: "gallery", category: "Gallery", label: "Delete selected" },
 
   // Lightbox
   "lightbox-close": { id: "lightbox-close", key: "Escape", scope: "lightbox", category: "Lightbox", label: "Close lightbox" },

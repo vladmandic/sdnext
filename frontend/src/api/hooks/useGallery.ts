@@ -1,10 +1,10 @@
-import { useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useEffect, useRef } from "react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { api } from "../client";
 import type { BrowserFolder, BrowserSubdir, BrowserThumb, GalleryFile, CachedThumb } from "../types/gallery";
 import { useGalleryStore } from "@/stores/galleryStore";
-import { computeThumbHash, getThumb, putThumb, batchGetThumbs } from "@/lib/thumbnailCache";
-import { getCachedFolder, setCachedFolder, updateCachedThumbs, mergeChildCaches } from "@/lib/folderCache";
+import { computeThumbHash, getThumb, putThumb, batchGetThumbs, deleteThumbsByHashes } from "@/lib/thumbnailCache";
+import { getCachedFolder, setCachedFolder, updateCachedThumbs, mergeChildCaches, invalidateFolder } from "@/lib/folderCache";
 import { Semaphore } from "@/lib/concurrency";
 
 const thumbSemaphore = new Semaphore(16);
@@ -491,4 +491,66 @@ export function useBackgroundPreloader(files: GalleryFile[]) {
       clearTimeout(timer);
     };
   }, [isLoadingFiles, files, setThumb]);
+}
+
+// ---------------------------------------------------------------------------
+// Bulk operation mutations
+// ---------------------------------------------------------------------------
+
+async function cleanupThumbsForFiles(files: GalleryFile[]) {
+  try {
+    const hashes = await Promise.all(files.map((f) => computeThumbHash(f.fullPath)));
+    await deleteThumbsByHashes(hashes);
+  } catch {
+    // Non-fatal
+  }
+}
+
+export function useDeleteFiles() {
+  return useMutation({
+    mutationFn: (files: string[]) => api.post<{ deleted: string[]; errors: { file: string; error: string }[] }>("/sdapi/v2/browser/delete", { files }),
+    onSuccess: (data) => {
+      if (data.deleted.length === 0) return;
+      const store = useGalleryStore.getState();
+      const deletedSet = new Set(data.deleted);
+      const deletedFiles = store.files.filter((f) => deletedSet.has(f.fullPath));
+      const deletedIds = deletedFiles.map((f) => f.id);
+      store.removeFilesFromStore(deletedIds);
+      if (store.activeFolder) invalidateFolder(store.activeFolder);
+      cleanupThumbsForFiles(deletedFiles);
+    },
+  });
+}
+
+export function useMoveFiles() {
+  return useMutation({
+    mutationFn: (params: { files: string[]; destination: string }) => api.post<{ moved: string[]; errors: { file: string; error: string }[] }>("/sdapi/v2/browser/move", params),
+    onSuccess: (data, variables) => {
+      if (data.moved.length === 0) return;
+      const store = useGalleryStore.getState();
+      const movedSet = new Set(data.moved);
+      const movedFiles = store.files.filter((f) => movedSet.has(f.fullPath));
+      const movedIds = movedFiles.map((f) => f.id);
+      store.removeFilesFromStore(movedIds);
+      if (store.activeFolder) invalidateFolder(store.activeFolder);
+      invalidateFolder(variables.destination);
+      cleanupThumbsForFiles(movedFiles);
+    },
+  });
+}
+
+export function useDownloadFiles() {
+  const downloadFn = useCallback(async (files: string[]) => {
+    const blob = await api.postBinary("/sdapi/v2/browser/download", { files });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "gallery.zip";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  return useMutation({ mutationFn: downloadFn });
 }

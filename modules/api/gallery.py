@@ -1,10 +1,12 @@
 import io
 import os
+import shutil
 import time
 import base64
+import zipfile
 from urllib.parse import quote, unquote
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.websockets import WebSocket, WebSocketState
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from PIL import Image
@@ -35,6 +37,52 @@ OPTS_FOLDERS = [
 
 class ReqFiles(BaseModel):
     folder: str = Field(title="Folder")
+
+class ReqDelete(BaseModel):
+    files: list[str] = Field(title="File paths to delete")
+
+class ReqMove(BaseModel):
+    files: list[str] = Field(title="Source file paths")
+    destination: str = Field(title="Target folder path")
+
+class ReqDownload(BaseModel):
+    files: list[str] = Field(title="File paths to download")
+
+
+### security helpers
+
+def _get_allowed_roots():
+    """Collect all resolved gallery root folders."""
+    roots = set()
+    base_samples = shared.opts.outdir_samples
+    base_grids = shared.opts.outdir_grids
+    if base_samples:
+        roots.add(os.path.abspath(os.path.realpath(base_samples)))
+    if base_grids:
+        roots.add(os.path.abspath(os.path.realpath(base_grids)))
+    for opt_key in OPTS_FOLDERS:
+        val = getattr(shared.opts, opt_key, None)
+        if val:
+            base = base_grids if 'grid' in opt_key else base_samples
+            resolved = resolve_output_path(base, val) if base else val
+            roots.add(os.path.abspath(os.path.realpath(resolved)))
+    for f in shared.opts.browser_folders.split(','):
+        f = f.strip()
+        if f:
+            roots.add(os.path.abspath(os.path.realpath(f)))
+    reference_dir = os.path.join('models', 'Reference')
+    roots.add(os.path.abspath(os.path.realpath(reference_dir)))
+    return roots
+
+
+def is_allowed_path(filepath: str) -> bool:
+    """Check if a file path is within allowed gallery folders."""
+    resolved = os.path.abspath(os.path.realpath(filepath))
+    for root in _get_allowed_roots():
+        if resolved.startswith(root + os.sep) or resolved == root:
+            return True
+    return False
+
 
 ### ws connection manager
 
@@ -244,11 +292,92 @@ def register_api(app: FastAPI): # register api
                 subdirs.append({'path': d, 'label': label})
         return JSONResponse(content=subdirs)
 
+    def delete_files(req: ReqDelete):
+        """Delete gallery files after validating paths are within allowed folders."""
+        deleted = []
+        errors = []
+        for filepath in req.files:
+            if not is_allowed_path(filepath):
+                errors.append({'file': filepath, 'error': 'Path not allowed'})
+                continue
+            resolved = os.path.abspath(os.path.realpath(filepath))
+            try:
+                if os.path.isfile(resolved):
+                    os.remove(resolved)
+                    deleted.append(filepath)
+                    folder = os.path.dirname(resolved)
+                    files_cache.delete_cached_directory(folder)
+                else:
+                    errors.append({'file': filepath, 'error': 'File not found'})
+            except Exception as e:
+                errors.append({'file': filepath, 'error': str(e)})
+        log.debug(f'Gallery delete: deleted={len(deleted)} errors={len(errors)}')
+        return JSONResponse(content={'deleted': deleted, 'errors': errors})
+
+    def move_files(req: ReqMove):
+        """Move gallery files to a destination folder after path validation."""
+        if not is_allowed_path(req.destination):
+            return JSONResponse(content={'moved': [], 'errors': [{'file': req.destination, 'error': 'Destination not allowed'}]}, status_code=403)
+        dest_resolved = os.path.abspath(os.path.realpath(req.destination))
+        if not os.path.isdir(dest_resolved):
+            return JSONResponse(content={'moved': [], 'errors': [{'file': req.destination, 'error': 'Destination is not a directory'}]}, status_code=400)
+        moved = []
+        errors = []
+        source_folders = set()
+        for filepath in req.files:
+            if not is_allowed_path(filepath):
+                errors.append({'file': filepath, 'error': 'Path not allowed'})
+                continue
+            resolved = os.path.abspath(os.path.realpath(filepath))
+            try:
+                if os.path.isfile(resolved):
+                    source_folders.add(os.path.dirname(resolved))
+                    dest_path = os.path.join(dest_resolved, os.path.basename(resolved))
+                    shutil.move(resolved, dest_path)
+                    moved.append(filepath)
+                else:
+                    errors.append({'file': filepath, 'error': 'File not found'})
+            except Exception as e:
+                errors.append({'file': filepath, 'error': str(e)})
+        for folder in source_folders:
+            files_cache.delete_cached_directory(folder)
+        files_cache.delete_cached_directory(dest_resolved)
+        log.debug(f'Gallery move: moved={len(moved)} errors={len(errors)} dest="{req.destination}"')
+        return JSONResponse(content={'moved': moved, 'errors': errors})
+
+    def download_files(req: ReqDownload):
+        """Create a zip archive of gallery files and stream it to the client."""
+        for filepath in req.files:
+            if not is_allowed_path(filepath):
+                return JSONResponse(content={'error': f'Path not allowed: {filepath}'}, status_code=403)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w', zipfile.ZIP_STORED) as zf:
+            seen_names = set()
+            for filepath in req.files:
+                resolved = os.path.abspath(os.path.realpath(filepath))
+                if not os.path.isfile(resolved):
+                    continue
+                name = os.path.basename(resolved)
+                # Deduplicate filenames in zip
+                if name in seen_names:
+                    base, ext = os.path.splitext(name)
+                    counter = 1
+                    while f'{base}_{counter}{ext}' in seen_names:
+                        counter += 1
+                    name = f'{base}_{counter}{ext}'
+                seen_names.add(name)
+                zf.write(resolved, name)
+        buf.seek(0)
+        return StreamingResponse(buf, media_type='application/zip', headers={'Content-Disposition': 'attachment; filename="gallery.zip"'})
+
     shared.api.add_api_route("/sdapi/v2/browser/folders", get_folders, methods=["GET"], response_model=list[str], tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/thumb", get_thumb, methods=["GET"], response_model=dict, tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/files", ht_files, methods=["GET"], response_model=list, tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/folder-info", get_folder_info, methods=["GET"], tags=["Gallery"])
     shared.api.add_api_route("/sdapi/v2/browser/subdirs", get_subdirs, methods=["GET"], tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v2/browser/delete", delete_files, methods=["POST"], tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v2/browser/move", move_files, methods=["POST"], tags=["Gallery"])
+    shared.api.add_api_route("/sdapi/v2/browser/download", download_files, methods=["POST"], tags=["Gallery"])
 
     @app.websocket("/sdapi/v2/browser/files")
     async def ws_files(ws: WebSocket):
