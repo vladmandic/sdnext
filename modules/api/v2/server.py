@@ -13,18 +13,8 @@ router = APIRouter(prefix="/sdapi/v2", tags=["Server"])
 
 
 def _detect_video_capability() -> bool:
-    """Check whether video generation is available (av module + any video model registered)."""
-    import importlib.util
-    if importlib.util.find_spec("av") is None:
-        return False
-    try:
-        from modules.video_models import video_models
-        registry = getattr(video_models, 'video_models', None)
-        if registry and len(registry) > 0:
-            return True
-    except Exception:
-        pass
-    return False
+    """Video generation is always available."""
+    return True
 
 
 @router.get("/server-info", response_model=ResServerInfoV2)

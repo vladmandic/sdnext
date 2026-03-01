@@ -17,7 +17,6 @@ def rename(src:str, dst:str):
 
 
 def install_requirements(attention:str='SDPA'):
-    install('av')
     import av
     import torchvision
     torchvision.io.video.av = av
