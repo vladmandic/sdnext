@@ -4,7 +4,7 @@ import os
 from typing import Optional
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
-from modules.api.v2.models import JobResponse, JobListResponse, JobResult, ImageRef, StatusResponse, VideoEngine, VideoModel, VideoLoadResponse, MessageResponse, FramePackLoadResponse
+from modules.api.v2.models import JobResponse, JobListResponse, JobResult, ImageRef, StatusResponse, VideoEngine, VideoModel, VideoModelEnriched, VideoLoadResponse, MessageResponse, FramePackLoadResponse
 
 
 router = APIRouter(prefix="/sdapi/v2", tags=["v2"])
@@ -147,15 +147,39 @@ async def get_job_processed(job_id: str, index: int):
     return _serve_job_file(_get_completed_job(job_id), 'processed', index)
 
 
+def _parse_video_mode(name: str) -> str:
+    lower = name.lower()
+    if 'flf2v' in lower:
+        return 'flf2v'
+    if 'vace' in lower:
+        return 'vace'
+    if 'animate' in lower:
+        return 'animate'
+    if 'i2v' in lower:
+        return 'i2v'
+    return 't2v'
+
+
 @router.get("/video/engines", response_model=list[VideoEngine], tags=["Video"])
 async def list_video_engines():
     from modules.video_models import models_def
+    from modules.video_models import video_load
+    from modules.ui_symbols import is_model_cached
+    current_loaded = video_load.loaded_model
     result = []
     for engine_name, model_list in models_def.models.items():
         if engine_name == 'None':
             continue
         model_names = [m.name for m in model_list if m.name != 'None']
-        result.append({'engine': engine_name, 'models': model_names})
+        details = []
+        for m in model_list:
+            if m.name == 'None':
+                continue
+            cached = is_model_cached(m.repo) if m.repo else False
+            loaded = m.name == current_loaded if current_loaded else False
+            mode = _parse_video_mode(m.name)
+            details.append(VideoModelEnriched(name=m.name, repo=m.repo or '', url=m.url or '', cached=cached, loaded=loaded, mode=mode))
+        result.append({'engine': engine_name, 'models': model_names, 'model_details': details})
     return result
 
 

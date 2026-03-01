@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
-import { ImageDropInput } from "@/components/video/ImageDropInput";
 import { VideoOutputSection } from "./VideoOutputSection";
 
 export function FramePackTab() {
@@ -36,8 +35,6 @@ export function FramePackTab() {
   const fpAttention = useVideoStore((s) => s.fpAttention);
   const fpVaeType = useVideoStore((s) => s.fpVaeType);
   const seed = useVideoStore((s) => s.seed);
-  const initImage = useVideoStore((s) => s.initImage);
-  const lastImage = useVideoStore((s) => s.lastImage);
   const setParam = useVideoStore((s) => s.setParam);
 
   const { data: variants } = useFramePackVariants();
@@ -91,8 +88,6 @@ export function FramePackTab() {
           <ParamSlider label="End wt" value={fpEndWeight} onChange={(v) => setParam("fpEndWeight", v)} min={0} max={2} step={0.05} />
         </ParamGrid>
         <ParamSlider label="Vision wt" value={fpVisionWeight} onChange={(v) => setParam("fpVisionWeight", v)} min={0} max={2} step={0.05} />
-        <ImageDropInput label="Init image" value={initImage} onChange={(v) => setParam("initImage", v)} />
-        <ImageDropInput label="End image" value={lastImage} onChange={(v) => setParam("lastImage", v)} />
       </ParamSection>
 
       <ParamSection title="Sections" defaultOpen={false}>

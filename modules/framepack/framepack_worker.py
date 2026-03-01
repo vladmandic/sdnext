@@ -184,6 +184,17 @@ def worker(
         if use_preview:
             preview = framepack_vae.vae_decode(d['denoised'], 'Preview')
             stream.output_queue.push(('progress', (preview, desc)))
+            # Bridge to v2 job WS: set preview as current_image for progress poller
+            try:
+                from PIL import Image as PILImage
+                import numpy as np
+                if isinstance(preview, np.ndarray):
+                    shared.state.current_image = PILImage.fromarray(preview)
+                elif isinstance(preview, PILImage.Image):
+                    shared.state.current_image = preview
+                shared.state.id_live_preview += 1
+            except Exception:
+                pass
         else:
             stream.output_queue.push(('progress', (None, desc)))
         timer.process.add('preview', time.time() - t_preview)
@@ -311,7 +322,7 @@ def worker(
                 if is_last_section:
                     break
 
-            total_generated_frames, _video_filename = save_video(
+            total_generated_frames, _video_filename, _thumb = save_video(
                 p=None,
                 pixels=history_pixels,
                 audio=None,

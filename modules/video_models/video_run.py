@@ -130,7 +130,6 @@ def generate(*args, **kwargs):
         shared.sd_model.vae = shared.sd_model.orig_vae
 
     # run processing
-    shared.state.disable_preview = True
     log.debug(f'Video: cls={shared.sd_model.__class__.__name__} width={p.width} height={p.height} frames={p.frames} steps={p.steps}')
     err = None
     t0 = time.time()
@@ -141,7 +140,6 @@ def generate(*args, **kwargs):
         err = str(e)
         errors.display(e, 'video')
     t1 = time.time()
-    shared.state.disable_preview = False
     shared.opts.data['schedulers_dynamic_shift'] = orig_dynamic_shift
     shared.opts.data['schedulers_shift'] = orig_sampler_shift
     p.close()
@@ -162,7 +160,7 @@ def generate(*args, **kwargs):
     else:
         audio = None
 
-    _num_frames, video_file = video_save.save_video(
+    _num_frames, video_file, _thumb = video_save.save_video(
         p=p,
         pixels=pixels,
         audio=audio,

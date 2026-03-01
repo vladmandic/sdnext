@@ -35,7 +35,19 @@ function routeResult(domain: JobDomain, result: JobResult, snapshot: TrackedJob[
   } else if (domain === "video" || domain === "framepack" || domain === "ltx") {
     const vid = result.images[0];
     if (vid) {
-      useVideoStore.getState().setResultVideo(`${api.getBaseUrl()}${vid.url}`);
+      const thumb = result.images[1];
+      useVideoStore.getState().addResult({
+        id: crypto.randomUUID(),
+        videoUrl: `${api.getBaseUrl()}${vid.url}`,
+        thumbnailUrl: thumb ? `${api.getBaseUrl()}${thumb.url}` : undefined,
+        width: vid.width,
+        height: vid.height,
+        format: vid.format,
+        size: vid.size,
+        params: result.params,
+        domain: domain as "video" | "framepack" | "ltx",
+        timestamp: Date.now(),
+      });
     }
   } else if (domain === "upscale") {
     const img = result.images[0];

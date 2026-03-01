@@ -1,18 +1,25 @@
-import { useCallback, useMemo } from "react";
-import { Play, Square } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
+import { Play, Square, Sparkles, Settings2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
+import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
 import { useJobQueueStore, selectDomainActive, selectDomainProgress, selectDomainRunning } from "@/stores/jobStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
-import { uploadFile } from "@/lib/upload";
+import { usePromptEnhance } from "@/api/hooks/usePromptEnhance";
+import { uploadFile, uploadBlob } from "@/lib/upload";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Label } from "@/components/ui/label";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { PromptEnhanceWorkspace } from "@/components/generation/PromptEnhanceWorkspace";
 import { ModelsVideoTab } from "./tabs/ModelsVideoTab";
 import { FramePackTab } from "./tabs/FramePackTab";
 import { LtxVideoTab } from "./tabs/LtxVideoTab";
 import type { JobDomain } from "@/stores/jobStore";
+import type { PromptEnhanceRequest } from "@/api/types/promptEnhance";
 
 const tabs = [
   { id: "models", label: "Models" },
@@ -137,8 +144,6 @@ export function VideoPanel() {
   const prompt = useVideoStore((s) => s.prompt);
   const negative = useVideoStore((s) => s.negative);
   const setParam = useVideoStore((s) => s.setParam);
-  const setResultVideo = useVideoStore((s) => s.setResultVideo);
-
   const domain = tabToDomain(activeVideoTab);
   const isVideoActive = useJobQueueStore(selectDomainActive("video"));
   const isFramepackActive = useJobQueueStore(selectDomainActive("framepack"));
@@ -149,11 +154,63 @@ export function VideoPanel() {
 
   const cancelJob = useCancelJob();
 
+  // Prompt enhance
+  const [enhanceOpen, setEnhanceOpen] = useState(false);
+  const enhanceStore = usePromptEnhanceStore();
+  const pinned = usePromptEnhanceStore((s) => s.pinned);
+  const setPendingResult = usePromptEnhanceStore((s) => s.setPendingResult);
+  const enhanceMutation = usePromptEnhance();
+
+  const handleEnhance = useCallback(async () => {
+    if (!prompt.trim()) {
+      toast.warning("Enter a prompt first");
+      return;
+    }
+    let image: string | undefined;
+    if (enhanceStore.useVision) {
+      const initImg = useVideoStore.getState().initImage;
+      if (initImg) image = await uploadBlob(initImg, "vision.png");
+    }
+    const req: PromptEnhanceRequest = {
+      prompt,
+      type: "video",
+      model: enhanceStore.model || undefined,
+      system_prompt: enhanceStore.systemPrompt || undefined,
+      prefix: enhanceStore.prefix || undefined,
+      suffix: enhanceStore.suffix || undefined,
+      nsfw: enhanceStore.nsfw,
+      seed: enhanceStore.seed,
+      do_sample: enhanceStore.doSample,
+      max_tokens: enhanceStore.maxTokens,
+      temperature: enhanceStore.temperature,
+      repetition_penalty: enhanceStore.repetitionPenalty,
+      top_k: enhanceStore.topK || undefined,
+      top_p: enhanceStore.topP || undefined,
+      thinking: enhanceStore.thinking,
+      keep_thinking: enhanceStore.keepThinking,
+      use_vision: enhanceStore.useVision,
+      prefill: enhanceStore.prefill || undefined,
+      keep_prefill: enhanceStore.keepPrefill,
+      image,
+    };
+    enhanceMutation.mutate(req, {
+      onSuccess: (res) => {
+        setPendingResult({ prompt: res.prompt, seed: res.seed, originalPrompt: prompt });
+        setEnhanceOpen(true);
+        toast.success(`Prompt enhanced (seed: ${res.seed})`);
+      },
+      onError: (err) => {
+        toast.error(`Enhance failed: ${err instanceof Error ? err.message : "Unknown error"}`);
+      },
+    });
+  }, [prompt, enhanceStore, enhanceMutation, setPendingResult]);
+
+  const handleAcceptEnhanced = useCallback((p: string) => setParam("prompt", p), [setParam]);
+
   const buildRequest = useCallback(async () => {
-    setResultVideo(null);
     const payload = await buildJobPayload(activeVideoTab);
     return { payload, snapshot: {} };
-  }, [activeVideoTab, setResultVideo]);
+  }, [activeVideoTab]);
 
   const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ domain, buildRequest }), [domain, buildRequest]));
 
@@ -171,6 +228,48 @@ export function VideoPanel() {
       <div className="p-3 space-y-1">
         {/* Prompt - always visible */}
         <div className="space-y-1.5 mb-3">
+          <div className="flex items-center justify-between mb-1">
+            <Label className="text-2xs text-muted-foreground">Prompt</Label>
+            <div className="flex items-center gap-0.5">
+              <button
+                type="button"
+                onClick={handleEnhance}
+                disabled={enhanceMutation.isPending}
+                className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+                title="Enhance prompt"
+              >
+                {enhanceMutation.isPending ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />}
+              </button>
+              <Popover open={enhanceOpen} onOpenChange={setEnhanceOpen}>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="p-0.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    title="Enhance settings"
+                  >
+                    <Settings2 size={13} />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent
+                  side="right"
+                  align="start"
+                  className="w-96 p-0"
+                  onInteractOutside={(e) => { if (pinned) e.preventDefault(); }}
+                  onEscapeKeyDown={(e) => { if (pinned) e.preventDefault(); }}
+                >
+                  <ScrollArea className="max-h-[80vh]">
+                    <PromptEnhanceWorkspace
+                      onEnhance={handleEnhance}
+                      isPending={enhanceMutation.isPending}
+                      onClose={() => setEnhanceOpen(false)}
+                      onAccept={handleAcceptEnhanced}
+                      onSelectPrompt={handleAcceptEnhanced}
+                    />
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
           <Textarea
             value={prompt}
             onChange={(e) => setParam("prompt", e.target.value)}

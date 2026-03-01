@@ -129,9 +129,19 @@ class MessageResponse(BaseModel):
     messages: list[str]
 
 
+class VideoModelEnriched(BaseModel):
+    name: str
+    repo: str = ''
+    url: str = ''
+    cached: bool = False
+    loaded: bool = False
+    mode: str = 't2v'
+
+
 class VideoEngine(BaseModel):
     engine: str
     models: list[str]
+    model_details: list[VideoModelEnriched] = Field(default_factory=list)
 
 
 class VideoModel(BaseModel):

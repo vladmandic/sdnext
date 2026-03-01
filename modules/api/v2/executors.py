@@ -421,6 +421,9 @@ def execute_video(params: dict, job_id: str) -> dict:
             'format': ext or 'mp4',
             'size': os.path.getsize(path),
         })
+        thumb_path = os.path.splitext(path)[0] + '.thumb.jpg'
+        if os.path.isfile(thumb_path):
+            image_refs.append({'index': 1, 'path': thumb_path, 'url': f'/sdapi/v2/jobs/{job_id}/images/1', 'width': 0, 'height': 0, 'format': 'jpg', 'size': os.path.getsize(thumb_path)})
 
     return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k not in ('type', 'init_image', 'last_image')}}
 
@@ -482,6 +485,9 @@ def execute_framepack(params: dict, job_id: str) -> dict:
             'format': ext or 'mp4',
             'size': os.path.getsize(path),
         })
+        thumb_path = os.path.splitext(path)[0] + '.thumb.jpg'
+        if os.path.isfile(thumb_path):
+            image_refs.append({'index': 1, 'path': thumb_path, 'url': f'/sdapi/v2/jobs/{job_id}/images/1', 'width': 0, 'height': 0, 'format': 'jpg', 'size': os.path.getsize(thumb_path)})
 
     return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k not in ('type', 'init_image', 'end_image')}}
 
@@ -545,6 +551,9 @@ def execute_ltx(params: dict, job_id: str) -> dict:
             'format': ext or 'mp4',
             'size': os.path.getsize(path),
         })
+        thumb_path = os.path.splitext(path)[0] + '.thumb.jpg'
+        if os.path.isfile(thumb_path):
+            image_refs.append({'index': 1, 'path': thumb_path, 'url': f'/sdapi/v2/jobs/{job_id}/images/1', 'width': 0, 'height': 0, 'format': 'jpg', 'size': os.path.getsize(thumb_path)})
 
     return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k not in ('type', 'condition_image', 'condition_last')}}
 

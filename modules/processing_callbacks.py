@@ -164,6 +164,11 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = No
             shared.state.current_latent = kwargs['latents']
             shared.state.current_noise_pred = current_noise_pred
 
+        # Video latent preview: extract middle frame from 5D [B,C,T,H,W] to 4D [B,C,H,W]
+        if shared.state.current_latent is not None and shared.state.current_latent.ndim == 5:
+            _b, _c, t, _h, _w = shared.state.current_latent.shape
+            shared.state.current_latent = shared.state.current_latent[:, :, t // 2, :, :]
+
         if hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "sigmas") and hasattr(pipe.scheduler, "step_index") and pipe.scheduler.step_index is not None:
             try:
                 shared.state.current_sigma = pipe.scheduler.sigmas[pipe.scheduler.step_index-1]

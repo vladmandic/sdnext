@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 import { Switch } from "@/components/ui/switch";
-import { ImageDropInput } from "@/components/video/ImageDropInput";
 import { VideoOutputSection } from "./VideoOutputSection";
 
 export function LtxVideoTab() {
@@ -28,8 +27,6 @@ export function LtxVideoTab() {
   const ltxDecodeTimestep = useVideoStore((s) => s.ltxDecodeTimestep);
   const ltxNoiseScale = useVideoStore((s) => s.ltxNoiseScale);
   const ltxAudioEnable = useVideoStore((s) => s.ltxAudioEnable);
-  const initImage = useVideoStore((s) => s.initImage);
-  const lastImage = useVideoStore((s) => s.lastImage);
   const setParam = useVideoStore((s) => s.setParam);
 
   const { data: engines } = useVideoEngines();
@@ -81,8 +78,6 @@ export function LtxVideoTab() {
 
       <ParamSection title="Condition" defaultOpen={false}>
         <ParamSlider label="Strength" value={ltxConditionStrength} onChange={(v) => setParam("ltxConditionStrength", v)} min={0} max={1} step={0.05} />
-        <ImageDropInput label="Condition image" value={initImage} onChange={(v) => setParam("initImage", v)} />
-        <ImageDropInput label="Condition last" value={lastImage} onChange={(v) => setParam("lastImage", v)} />
       </ParamSection>
 
       <ParamSection title="Upsample" defaultOpen={false}>

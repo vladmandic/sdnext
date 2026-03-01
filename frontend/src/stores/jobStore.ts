@@ -256,3 +256,8 @@ export function selectDomainProgress(domain: JobDomain) {
     return running?.progress ?? 0;
   };
 }
+
+export function selectVideoDomainActiveJob(state: JobQueueState): TrackedJob | undefined {
+  const videoDomains: JobDomain[] = ["video", "framepack", "ltx"];
+  return Array.from(state.jobs.values()).find((j) => videoDomains.includes(j.domain) && (j.status === "running" || j.status === "pending"));
+}

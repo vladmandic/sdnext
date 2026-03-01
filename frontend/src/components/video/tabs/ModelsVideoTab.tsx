@@ -1,4 +1,4 @@
-import { useMemo, useCallback } from "react";
+import { useMemo, useCallback, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
@@ -10,8 +10,8 @@ import { Combobox } from "@/components/ui/combobox";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { ImageDropInput } from "@/components/video/ImageDropInput";
 import { VideoOutputSection } from "./VideoOutputSection";
+import type { VideoModelDetail } from "@/api/types/video";
 
 export function ModelsVideoTab() {
   const engine = useVideoStore((s) => s.engine);
@@ -26,8 +26,6 @@ export function ModelsVideoTab() {
   const samplerShift = useVideoStore((s) => s.samplerShift);
   const dynamicShift = useVideoStore((s) => s.dynamicShift);
   const initStrength = useVideoStore((s) => s.initStrength);
-  const initImage = useVideoStore((s) => s.initImage);
-  const lastImage = useVideoStore((s) => s.lastImage);
   const vaeType = useVideoStore((s) => s.vaeType);
   const vaeTileFrames = useVideoStore((s) => s.vaeTileFrames);
   const setParam = useVideoStore((s) => s.setParam);
@@ -41,6 +39,45 @@ export function ModelsVideoTab() {
     const eng = engines.find((e) => e.engine === engine);
     return eng?.models ?? [];
   }, [engines, engine]);
+
+  const modelDetailsMap = useMemo(() => {
+    const map = new Map<string, VideoModelDetail>();
+    if (!engines) return map;
+    for (const eng of engines) {
+      for (const d of eng.model_details ?? []) {
+        map.set(d.name, d);
+      }
+    }
+    return map;
+  }, [engines]);
+
+  const loadedModelName = useMemo(() => {
+    if (!engines) return null;
+    for (const eng of engines) {
+      for (const d of eng.model_details ?? []) {
+        if (d.loaded) return d.name;
+      }
+    }
+    return null;
+  }, [engines]);
+
+  const renderModelLabel = useCallback((_value: string, label: string): ReactNode => {
+    const detail = modelDetailsMap.get(_value);
+    if (!detail) return label;
+    return (
+      <span className="flex items-center gap-1.5">
+        {detail.loaded ? (
+          <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" title="Loaded" />
+        ) : detail.cached ? (
+          <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" title="Cached" />
+        ) : null}
+        <span className="truncate">{label}</span>
+        {detail.mode !== "t2v" && (
+          <span className="text-4xs font-medium uppercase bg-muted px-1 rounded shrink-0">{detail.mode}</span>
+        )}
+      </span>
+    );
+  }, [modelDetailsMap]);
 
   const handleLoad = useCallback(() => {
     if (!engine || !model) return;
@@ -60,8 +97,14 @@ export function ModelsVideoTab() {
           </div>
           <div className="flex items-center gap-2">
             <Label className="text-2xs text-muted-foreground w-16 shrink-0">Model</Label>
-            <Combobox value={model} onValueChange={(v) => setParam("model", v)} options={modelNames} placeholder={engine ? "Select model..." : "Select engine first"} className="h-6 text-2xs flex-1" />
+            <Combobox value={model} onValueChange={(v) => setParam("model", v)} options={modelNames} placeholder={engine ? "Select model..." : "Select engine first"} className="h-6 text-2xs flex-1" renderLabel={renderModelLabel} />
           </div>
+          {loadedModelName && (
+            <div className="flex items-center gap-1.5 text-3xs text-muted-foreground">
+              <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+              <span className="truncate">Loaded: {loadedModelName}</span>
+            </div>
+          )}
           <Button size="sm" variant="secondary" onClick={handleLoad} disabled={!engine || !model || loadModel.isPending} className="w-full">
             {loadModel.isPending ? <Loader2 size={14} className="animate-spin" /> : null}
             Load Model
@@ -93,8 +136,6 @@ export function ModelsVideoTab() {
 
       <ParamSection title="Inputs" defaultOpen={false}>
         <ParamSlider label="Strength" value={initStrength} onChange={(v) => setParam("initStrength", v)} min={0} max={1} step={0.05} />
-        <ImageDropInput label="Init image" value={initImage} onChange={(v) => setParam("initImage", v)} />
-        <ImageDropInput label="Last image" value={lastImage} onChange={(v) => setParam("lastImage", v)} />
       </ParamSection>
 
       <ParamSection title="Decode" defaultOpen={false}>
