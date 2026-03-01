@@ -119,36 +119,91 @@ export function appendToGenerationPrompt(text: string) {
 }
 
 export function restoreVideoSettings(params: Record<string, unknown>) {
-  const store = useVideoStore.getState();
-  const keyMap: Record<string, string> = {
-    engine: "engine",
-    model: "model",
-    prompt: "prompt",
-    negative: "negative",
-    width: "width",
-    height: "height",
-    frames: "frames",
-    steps: "steps",
-    seed: "seed",
-    guidance_scale: "guidanceScale",
-    guidance_true: "guidanceTrue",
-    sampler_shift: "samplerShift",
-    dynamic_shift: "dynamicShift",
-    init_strength: "initStrength",
-    vae_type: "vaeType",
-    vae_tile_frames: "vaeTileFrames",
-    fps: "fps",
-    interpolate: "interpolate",
-    codec: "codec",
-    format: "format",
+  const num = (v: unknown, fallback?: number) => (typeof v === "number" ? v : fallback);
+  const str = (v: unknown, fallback?: string) => (typeof v === "string" ? v : fallback);
+  const bool = (v: unknown, fallback?: boolean) => (typeof v === "boolean" ? v : fallback);
+
+  const sharedKeyMap: Record<string, (p: Record<string, unknown>) => unknown> = {
+    engine: (p) => str(p.engine),
+    model: (p) => str(p.model),
+    prompt: (p) => str(p.prompt),
+    negative: (p) => str(p.negative),
+    width: (p) => num(p.width),
+    height: (p) => num(p.height),
+    frames: (p) => num(p.frames),
+    steps: (p) => num(p.steps),
+    seed: (p) => num(p.seed),
+    guidanceScale: (p) => num(p.guidance_scale),
+    guidanceTrue: (p) => num(p.guidance_true),
+    sampler: (p) => num(p.sampler),
+    samplerShift: (p) => num(p.sampler_shift),
+    dynamicShift: (p) => bool(p.dynamic_shift),
+    initStrength: (p) => num(p.init_strength),
+    vaeType: (p) => str(p.vae_type),
+    vaeTileFrames: (p) => num(p.vae_tile_frames),
   };
+
+  const outputKeyMap: Record<string, (p: Record<string, unknown>) => unknown> = {
+    fps: (p) => num(p.fps),
+    interpolate: (p) => num(p.interpolate),
+    codec: (p) => str(p.codec),
+    format: (p) => str(p.format),
+    codecOptions: (p) => str(p.codec_options),
+    saveVideo: (p) => bool(p.save_video),
+    saveFrames: (p) => bool(p.save_frames),
+    saveSafetensors: (p) => bool(p.save_safetensors),
+  };
+
+  const fpKeyMap: Record<string, (p: Record<string, unknown>) => unknown> = {
+    fpVariant: (p) => str(p.fp_variant),
+    fpResolution: (p) => num(p.fp_resolution),
+    fpDuration: (p) => num(p.fp_duration),
+    fpLatentWindowSize: (p) => num(p.fp_latent_window_size),
+    fpSteps: (p) => num(p.fp_steps),
+    fpShift: (p) => num(p.fp_shift),
+    fpCfgScale: (p) => num(p.fp_cfg_scale),
+    fpCfgDistilled: (p) => num(p.fp_cfg_distilled),
+    fpCfgRescale: (p) => num(p.fp_cfg_rescale),
+    fpStartWeight: (p) => num(p.fp_start_weight),
+    fpEndWeight: (p) => num(p.fp_end_weight),
+    fpVisionWeight: (p) => num(p.fp_vision_weight),
+    fpSectionPrompt: (p) => str(p.fp_section_prompt),
+    fpSystemPrompt: (p) => str(p.fp_system_prompt),
+    fpTeacache: (p) => bool(p.fp_teacache),
+    fpOptimizedPrompt: (p) => bool(p.fp_optimized_prompt),
+    fpCfgZero: (p) => bool(p.fp_cfg_zero),
+    fpPreview: (p) => bool(p.fp_preview),
+    fpAttention: (p) => str(p.fp_attention),
+    fpVaeType: (p) => str(p.fp_vae_type),
+  };
+
+  const ltxKeyMap: Record<string, (p: Record<string, unknown>) => unknown> = {
+    ltxModel: (p) => str(p.ltx_model),
+    ltxSteps: (p) => num(p.ltx_steps),
+    ltxDecodeTimestep: (p) => num(p.ltx_decode_timestep),
+    ltxNoiseScale: (p) => num(p.ltx_noise_scale),
+    ltxUpsampleEnable: (p) => bool(p.ltx_upsample_enable),
+    ltxUpsampleRatio: (p) => num(p.ltx_upsample_ratio),
+    ltxRefineEnable: (p) => bool(p.ltx_refine_enable),
+    ltxRefineStrength: (p) => num(p.ltx_refine_strength),
+    ltxConditionStrength: (p) => num(p.ltx_condition_strength),
+    ltxAudioEnable: (p) => bool(p.ltx_audio_enable),
+  };
+
+  const domain = str(params.domain ?? params.type, "") as string;
+  const maps: Record<string, (p: Record<string, unknown>) => unknown>[] = [sharedKeyMap, outputKeyMap];
+  if (domain === "framepack" || domain === "") maps.push(fpKeyMap);
+  if (domain === "ltx" || domain === "") maps.push(ltxKeyMap);
+
   const updates: Record<string, unknown> = {};
-  for (const [apiKey, storeKey] of Object.entries(keyMap)) {
-    if (apiKey in params && params[apiKey] !== undefined) {
-      updates[storeKey] = params[apiKey];
+  for (const map of maps) {
+    for (const [storeKey, extractor] of Object.entries(map)) {
+      const value = extractor(params);
+      if (value !== undefined) updates[storeKey] = value;
     }
   }
+
   if (Object.keys(updates).length > 0) {
-    store.setParams(updates);
+    useVideoStore.getState().setParams(updates);
   }
 }

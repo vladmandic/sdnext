@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { VideoOutputSection } from "./VideoOutputSection";
+import { VideoPresetSelector } from "../VideoPresetSelector";
 import type { VideoModelDetail } from "@/api/types/video";
 
 export function ModelsVideoTab() {
@@ -89,6 +90,7 @@ export function ModelsVideoTab() {
 
   return (
     <div className="space-y-1">
+      <VideoPresetSelector domain="video" />
       <ParamSection title="Model">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">

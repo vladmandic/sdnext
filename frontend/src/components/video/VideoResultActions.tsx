@@ -1,9 +1,10 @@
 import { useState, useCallback } from "react";
-import { MoreVertical, ImagePlus, Scissors, ArrowUpFromLine, RotateCcw, FastForward } from "lucide-react";
+import { MoreVertical, ImagePlus, Scissors, ArrowUpFromLine, RotateCcw, FastForward, GitCompare } from "lucide-react";
 import { toast } from "sonner";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { FramePickerDialog } from "./FramePickerDialog";
+import { ParamDiffDialog } from "./ParamDiffDialog";
 import { extractFrameFromVideo, sendFrameToVideoInit, sendFrameToUpscale, restoreVideoSettings } from "@/lib/sendTo";
 import type { VideoResult } from "@/api/types/video";
 
@@ -13,6 +14,7 @@ interface VideoResultActionsProps {
 
 export function VideoResultActions({ result }: VideoResultActionsProps) {
   const [framePickerOpen, setFramePickerOpen] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
 
   const handleSendFirstFrame = useCallback(async () => {
     try {
@@ -100,6 +102,10 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
             <FastForward size={14} />
             <span>Extend Video</span>
           </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => setDiffOpen(true)}>
+            <GitCompare size={14} />
+            <span>Compare Settings</span>
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -108,6 +114,13 @@ export function VideoResultActions({ result }: VideoResultActionsProps) {
         open={framePickerOpen}
         onOpenChange={setFramePickerOpen}
         onCapture={handleFrameCapture}
+      />
+
+      <ParamDiffDialog
+        open={diffOpen}
+        onOpenChange={setDiffOpen}
+        resultParams={result.params}
+        domain={result.domain}
       />
     </>
   );

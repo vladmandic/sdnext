@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { VideoOutputSection } from "./VideoOutputSection";
+import { VideoPresetSelector } from "../VideoPresetSelector";
 
 export function FramePackTab() {
   const fpVariant = useVideoStore((s) => s.fpVariant);
@@ -62,6 +63,7 @@ export function FramePackTab() {
 
   return (
     <div className="space-y-1">
+      <VideoPresetSelector domain="framepack" />
       <ParamSection title="Model">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">

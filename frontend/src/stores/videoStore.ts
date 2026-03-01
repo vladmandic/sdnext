@@ -29,6 +29,8 @@ interface VideoState {
   codec: string;
   format: string;
   codecOptions: string;
+  outputPreset: string;
+  outputQuality: number;
   saveVideo: boolean;
   saveFrames: boolean;
   saveSafetensors: boolean;
@@ -111,6 +113,8 @@ const defaultParams = {
   codec: "libx264",
   format: "mp4",
   codecOptions: "crf:16",
+  outputPreset: "balanced",
+  outputQuality: 70,
   saveVideo: true,
   saveFrames: false,
   saveSafetensors: false,

@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 import { Switch } from "@/components/ui/switch";
 import { VideoOutputSection } from "./VideoOutputSection";
+import { VideoPresetSelector } from "../VideoPresetSelector";
 
 export function LtxVideoTab() {
   const ltxModel = useVideoStore((s) => s.ltxModel);
@@ -48,6 +49,7 @@ export function LtxVideoTab() {
 
   return (
     <div className="space-y-1">
+      <VideoPresetSelector domain="ltx" />
       <ParamSection title="Model">
         <div className="space-y-1.5">
           <div className="flex items-center gap-2">
