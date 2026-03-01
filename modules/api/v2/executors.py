@@ -159,8 +159,9 @@ def execute_generate(params: dict, job_id: str) -> dict:
         elif save_images and img is not None:
             # Fallback: save image manually if not saved by the pipeline
             from modules import images as img_module
+            from modules.paths import resolve_output_path
             try:
-                output_dir = shared.opts.outdir_txt2img_samples if not inits else shared.opts.outdir_img2img_samples
+                output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples if not inits else shared.opts.outdir_img2img_samples)
                 path_info = img_module.save_image(img, output_dir, "", seed=params.get('seed', -1), prompt=params.get('prompt', ''))
                 if path_info and len(path_info) > 0:
                     fpath = path_info[0] if isinstance(path_info, (list, tuple)) else str(path_info)
@@ -182,7 +183,8 @@ def execute_generate(params: dict, job_id: str) -> dict:
     processed_refs = []
     if output_processed:
         from modules import images as img_module
-        output_dir = shared.opts.outdir_extras_samples if hasattr(shared.opts, 'outdir_extras_samples') else shared.opts.outdir_txt2img_samples
+        from modules.paths import resolve_output_path
+        output_dir = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_extras_samples if hasattr(shared.opts, 'outdir_extras_samples') else shared.opts.outdir_txt2img_samples)
         for pi, proc_img in enumerate(output_processed):
             try:
                 path_info = img_module.save_image(proc_img, output_dir, "control-", prompt="processed")
