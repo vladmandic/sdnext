@@ -12,6 +12,21 @@ from modules.api.v2.models import (
 router = APIRouter(prefix="/sdapi/v2", tags=["Server"])
 
 
+def _detect_video_capability() -> bool:
+    """Check whether video generation is available (av module + any video model registered)."""
+    import importlib.util
+    if importlib.util.find_spec("av") is None:
+        return False
+    try:
+        from modules.video_models import video_models
+        registry = getattr(video_models, 'video_models', None)
+        if registry and len(registry) > 0:
+            return True
+    except Exception:
+        pass
+    return False
+
+
 @router.get("/server-info", response_model=ResServerInfoV2)
 async def get_server_info_v2():
     """Return server version, backend, platform, capabilities, and loaded model."""
@@ -21,11 +36,12 @@ async def get_server_info_v2():
     ver = installer.get_version()
     model_name = getattr(shared.opts, 'sd_model_checkpoint', None)
     model_type = type(model_data.sd_model).__name__ if model_data.sd_model is not None else None
+    capabilities = ServerCapabilities(video=_detect_video_capability())
     return ResServerInfoV2(
         version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in VersionInfoV2.model_fields}),
         backend=shared.backend.name if hasattr(shared.backend, 'name') else str(shared.backend),
         platform=devices.get_device_name() if hasattr(devices, 'get_device_name') else str(shared.device),
-        capabilities=ServerCapabilities(),
+        capabilities=capabilities,
         model=ServerModelInfo(name=model_name, type=model_type),
     )
 

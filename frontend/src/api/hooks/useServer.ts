@@ -29,6 +29,11 @@ export function useGpuStatus() {
   });
 }
 
+export function useCapabilities() {
+  const { data } = useServerInfo();
+  return data?.capabilities ?? null;
+}
+
 export function useLoadedModels() {
   return useQuery({
     queryKey: ["loaded-models"],

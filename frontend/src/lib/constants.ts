@@ -5,12 +5,14 @@ import {
   Settings2, Layers, FileCode, Palette,
   BookOpen, Github, MessageCircle, Users,
   Gauge, LayoutGrid, Box, Puzzle, Settings, Monitor, Clock, Info, Terminal,
+  ListOrdered,
 } from "lucide-react";
 
 export interface NavItem {
   id: string;
   label: string;
   icon: LucideIcon;
+  capability?: keyof import("@/api/types/server").ServerCapabilities;
 }
 
 export interface SubTabItem {
@@ -25,7 +27,7 @@ export interface ExternalLink {
   url: string;
 }
 
-export type AsideTab = "quick-settings" | "networks" | "models" | "extensions" | "settings" | "system" | "history" | "info" | "console";
+export type AsideTab = "quick-settings" | "networks" | "models" | "queue" | "extensions" | "settings" | "system" | "history" | "info" | "console";
 
 export interface AsideTabItem {
   id: AsideTab;
@@ -37,7 +39,8 @@ export interface AsideTabItem {
 export const ASIDE_TABS: AsideTabItem[] = [
   { id: "quick-settings", label: "Quick Settings", icon: Gauge },
   { id: "networks", label: "Networks", icon: LayoutGrid },
-  { id: "models", label: "Models", icon: Box, hasSeparatorAfter: true },
+  { id: "models", label: "Models", icon: Box },
+  { id: "queue", label: "Queue", icon: ListOrdered, hasSeparatorAfter: true },
   { id: "extensions", label: "Extensions", icon: Puzzle },
   { id: "settings", label: "Settings", icon: Settings },
   { id: "system", label: "System", icon: Monitor },
@@ -49,7 +52,7 @@ export const ASIDE_TABS: AsideTabItem[] = [
 /** Primary sidebar navigation */
 export const NAV_ITEMS: NavItem[] = [
   { id: "images", label: "Images", icon: ImageIcon },
-  { id: "video", label: "Video", icon: Video },
+  { id: "video", label: "Video", icon: Video, capability: "video" },
   { id: "process", label: "Process", icon: Sparkles },
   { id: "caption", label: "Caption", icon: MessageSquare },
   { id: "gallery", label: "Gallery", icon: Images },

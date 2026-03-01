@@ -1,6 +1,7 @@
 import { NAV_ITEMS, IMAGES_SUB_TABS, EXTERNAL_LINKS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
 import type { SidebarView, ImagesSubTab } from "@/stores/uiStore";
+import { useCapabilities } from "@/api/hooks/useServer";
 import { cn } from "@/lib/utils";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,8 @@ export function Sidebar() {
   const toggleViewCollapsed = useUiStore((s) => s.toggleViewCollapsed);
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+
+  const capabilities = useCapabilities();
 
   const hasSubTabs = activeView === "images" && !viewCollapsed;
 
@@ -46,13 +49,16 @@ export function Sidebar() {
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             const isActive = activeView === item.id;
+            const isGated = item.capability != null && capabilities != null && !capabilities[item.capability];
             return (
               <Tooltip key={item.id}>
                 <TooltipTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
+                    disabled={isGated}
                     onClick={() => {
+                      if (isGated) return;
                       if (isActive) {
                         toggleViewCollapsed();
                       } else {
@@ -63,12 +69,15 @@ export function Sidebar() {
                     className={cn(
                       "w-full aspect-square text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-sidebar-accent",
                       isActive && "bg-sidebar-accent text-primary",
+                      isGated && "opacity-40 pointer-events-none",
                     )}
                   >
                     <Icon size={20} />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="right">{item.label}</TooltipContent>
+                <TooltipContent side="right">
+                  {isGated ? `${item.label} is not available` : item.label}
+                </TooltipContent>
               </Tooltip>
             );
           })}
