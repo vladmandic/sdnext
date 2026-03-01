@@ -1,5 +1,6 @@
 import { memo, useCallback, useRef } from "react";
 import type { GalleryFile, CachedThumb } from "@/api/types/gallery";
+import { useGalleryStore } from "@/stores/galleryStore";
 import { useDragSource } from "@/hooks/useDragSource";
 import { isVideoFile } from "@/lib/mediaType";
 import { cn } from "@/lib/utils";
@@ -129,5 +130,42 @@ export const GalleryCard = memo(function GalleryCard({ file, thumb, size, height
         </div>
       </div>
     </button>
+  );
+});
+
+/** Self-subscribing card that reads its own thumb/selection from the store. */
+interface ConnectedGalleryCardProps {
+  file: GalleryFile;
+  index: number;
+  size: number;
+  height?: number;
+  onClick: (file: GalleryFile, index: number, e: React.MouseEvent) => void;
+  onDoubleClick: (index: number) => void;
+  onContextMenu?: (file: GalleryFile, index: number) => void;
+}
+
+export const ConnectedGalleryCard = memo(function ConnectedGalleryCard({ file, index, size, height, onClick, onDoubleClick, onContextMenu }: ConnectedGalleryCardProps) {
+  const thumb = useGalleryStore((s) => s.thumbs.get(file.id));
+  const selected = useGalleryStore((s) => s.selectedFile?.id === file.id);
+  const isSelected = useGalleryStore((s) => s.selectedIds.has(file.id));
+  const isSelectMode = useGalleryStore((s) => s.selectedIds.size > 0);
+
+  const handleClick = useCallback((e: React.MouseEvent) => onClick(file, index, e), [file, index, onClick]);
+  const handleDoubleClick = useCallback(() => onDoubleClick(index), [index, onDoubleClick]);
+  const handleContextMenu = useCallback(() => onContextMenu?.(file, index), [file, index, onContextMenu]);
+
+  return (
+    <GalleryCard
+      file={file}
+      thumb={thumb}
+      size={size}
+      height={height}
+      selected={selected}
+      isSelected={isSelected}
+      isSelectMode={isSelectMode}
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      onContextMenu={handleContextMenu}
+    />
   );
 });

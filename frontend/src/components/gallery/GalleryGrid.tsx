@@ -2,8 +2,8 @@ import { useMemo, useRef, useCallback, useEffect, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useThumbnailLoader, useBackgroundPreloader } from "@/api/hooks/useGallery";
-import type { GalleryFile, CachedThumb } from "@/api/types/gallery";
-import { GalleryCard } from "./GalleryCard";
+import type { GalleryFile } from "@/api/types/gallery";
+import { ConnectedGalleryCard } from "./GalleryCard";
 import { MasonryGrid } from "./MasonryGrid";
 import { sendImageToCanvas, fetchRemoteImage } from "@/lib/sendTo";
 import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from "@/components/ui/context-menu";
@@ -19,27 +19,19 @@ interface GalleryGridProps {
 
 export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest }: GalleryGridProps) {
   const files = useGalleryStore((s) => s.files);
-  const thumbs = useGalleryStore((s) => s.thumbs);
   const sort = useGalleryStore((s) => s.sort);
   const searchQuery = useGalleryStore((s) => s.searchQuery);
   const thumbSize = useGalleryStore((s) => s.thumbSize);
-  const selectedFile = useGalleryStore((s) => s.selectedFile);
-  const selectFile = useGalleryStore((s) => s.selectFile);
   const setSortedFiles = useGalleryStore((s) => s.setSortedFiles);
-  const openLightbox = useGalleryStore((s) => s.openLightbox);
-  const selectedIds = useGalleryStore((s) => s.selectedIds);
-  const toggleSelect = useGalleryStore((s) => s.toggleSelect);
-  const selectAll = useGalleryStore((s) => s.selectAll);
-  const deselectAll = useGalleryStore((s) => s.deselectAll);
   const layoutMode = useGalleryStore((s) => s.layoutMode);
-
-  const isSelectMode = selectedIds.size > 0;
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(800);
 
   // Track which card was right-clicked for context menu
-  const [contextFileId, setContextFileId] = useState<string | null>(null);
+  const contextFileRef = useRef<GalleryFile | null>(null);
+  // Force-update only for context menu content rendering
+  const [, setContextTick] = useState(0);
 
   // ResizeObserver for responsive columns
   useEffect(() => {
@@ -57,8 +49,8 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
   // Keep a non-reactive ref to thumbs for sort comparisons so that
   // individual thumb loads don't trigger re-sort (which would cascade
   // into visibleFileIds change → thumbnail loader abort → stall).
-  const thumbsRef = useRef(thumbs);
-  thumbsRef.current = thumbs;
+  const thumbsRef = useRef(useGalleryStore.getState().thumbs);
+  useEffect(() => useGalleryStore.subscribe((s) => { thumbsRef.current = s.thumbs; }), []);
 
   // Filter + sort — only recompute when files/search/sort change, NOT on every thumb load
   const sorted = useMemo(() => {
@@ -99,7 +91,6 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
   const cols = Math.max(1, Math.floor((containerWidth + GAP) / (thumbSize + GAP)));
   const rowCount = Math.ceil(sorted.length / cols);
 
-  // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual is compatible; compiler limitation
   const virtualizer = useVirtualizer({
     count: rowCount,
     getScrollElement: () => containerRef.current,
@@ -123,41 +114,66 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
   useThumbnailLoader(visibleFileIds, sorted);
   useBackgroundPreloader(sorted);
 
-  const handleClick = useCallback((file: GalleryFile, thumb: CachedThumb | undefined, index: number, e: React.MouseEvent) => {
+  const handleClick = useCallback((file: GalleryFile, index: number, e: React.MouseEvent) => {
+    const s = useGalleryStore.getState();
     if (e.shiftKey || e.ctrlKey || e.metaKey) {
-      toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
-    } else if (isSelectMode) {
-      toggleSelect(file.id, index, false, false);
+      s.toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
+    } else if (s.selectedIds.size > 0) {
+      s.toggleSelect(file.id, index, false, false);
     } else {
-      selectFile(file, thumb ?? null);
+      s.selectFile(file, s.thumbs.get(file.id) ?? null);
     }
-  }, [selectFile, toggleSelect, isSelectMode]);
+  }, []);
 
   const handleDoubleClick = useCallback((index: number) => {
-    openLightbox(index);
-  }, [openLightbox]);
+    useGalleryStore.getState().openLightbox(index);
+  }, []);
 
-  const handleContextMenu = useCallback((fileId: string) => {
-    setContextFileId(fileId);
-    // If right-clicked file is not in selection, select it alone
-    if (!selectedIds.has(fileId)) {
-      const idx = sorted.findIndex((f) => f.id === fileId);
-      if (idx >= 0) toggleSelect(fileId, idx, false, false);
+  const handleContextMenu = useCallback((file: GalleryFile, index: number) => {
+    contextFileRef.current = file;
+    setContextTick((t) => t + 1);
+    const s = useGalleryStore.getState();
+    if (!s.selectedIds.has(file.id)) {
+      s.toggleSelect(file.id, index, false, false);
     }
-  }, [selectedIds, sorted, toggleSelect]);
-
-  const contextFile = contextFileId ? sorted.find((f) => f.id === contextFileId) : null;
+  }, []);
 
   const handleCopyPath = useCallback(() => {
-    if (contextFile) navigator.clipboard.writeText(contextFile.fullPath).catch(() => {});
-  }, [contextFile]);
+    const f = contextFileRef.current;
+    if (f) navigator.clipboard.writeText(f.fullPath).catch(() => {});
+  }, []);
 
   const handleOpenLightbox = useCallback(() => {
-    if (contextFile) {
-      const idx = sorted.findIndex((f) => f.id === contextFile.id);
-      if (idx >= 0) openLightbox(idx);
+    const f = contextFileRef.current;
+    if (f) {
+      const s = useGalleryStore.getState();
+      const idx = s.sortedFiles.findIndex((sf) => sf.id === f.id);
+      if (idx >= 0) s.openLightbox(idx);
     }
-  }, [contextFile, sorted, openLightbox]);
+  }, []);
+
+  const handleSelectCtx = useCallback(() => {
+    const f = contextFileRef.current;
+    if (f) {
+      const s = useGalleryStore.getState();
+      const idx = s.sortedFiles.indexOf(f);
+      s.toggleSelect(f.id, idx >= 0 ? idx : 0, false, false);
+    }
+  }, []);
+
+  const handleDeselectAll = useCallback(() => useGalleryStore.getState().deselectAll(), []);
+  const handleSelectAll = useCallback(() => useGalleryStore.getState().selectAll(), []);
+
+  const handleSendToCanvas = useCallback(() => {
+    const f = contextFileRef.current;
+    if (f) {
+      fetchRemoteImage(`/file=${f.fullPath}`, f.relativePath.split("/").pop() ?? "image.png")
+        .then((blob) => sendImageToCanvas(blob));
+    }
+  }, []);
+
+  // Read selection count only for context menu labels — use primitive
+  const selectionCount = useGalleryStore((s) => s.selectedIds.size);
 
   if (files.length === 0) {
     return (
@@ -197,19 +213,15 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
                       const idx = rowStart + c;
                       if (idx >= sorted.length) return null;
                       const file = sorted[idx];
-                      const thumb = thumbs.get(file.id);
                       return (
-                        <GalleryCard
+                        <ConnectedGalleryCard
                           key={file.id}
                           file={file}
-                          thumb={thumb}
+                          index={idx}
                           size={thumbSize}
-                          selected={selectedFile?.id === file.id}
-                          isSelected={selectedIds.has(file.id)}
-                          isSelectMode={isSelectMode}
-                          onClick={(e) => handleClick(file, thumb, idx, e)}
-                          onDoubleClick={() => handleDoubleClick(idx)}
-                          onContextMenu={() => handleContextMenu(file.id)}
+                          onClick={handleClick}
+                          onDoubleClick={handleDoubleClick}
+                          onContextMenu={handleContextMenu}
                         />
                       );
                     })}
@@ -221,27 +233,27 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent className="w-48">
-        {selectedIds.size > 0 ? (
-          <ContextMenuItem onClick={deselectAll}>
+        {selectionCount > 0 ? (
+          <ContextMenuItem onClick={handleDeselectAll}>
             <XSquare size={14} /> Deselect all
           </ContextMenuItem>
         ) : (
-          <ContextMenuItem onClick={() => contextFile && toggleSelect(contextFile.id, sorted.indexOf(contextFile), false, false)}>
+          <ContextMenuItem onClick={handleSelectCtx}>
             <CheckSquare size={14} /> Select
           </ContextMenuItem>
         )}
-        <ContextMenuItem onClick={selectAll}>
+        <ContextMenuItem onClick={handleSelectAll}>
           <CheckCheck size={14} /> Select all
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem variant="destructive" onClick={onDeleteRequest}>
-          <Trash2 size={14} /> Delete{selectedIds.size > 1 ? ` (${selectedIds.size})` : ""}
+          <Trash2 size={14} /> Delete{selectionCount > 1 ? ` (${selectionCount})` : ""}
         </ContextMenuItem>
         <ContextMenuItem onClick={onMoveRequest}>
           <FolderInput size={14} /> Move to...
         </ContextMenuItem>
         <ContextMenuItem onClick={onDownloadRequest}>
-          <Download size={14} /> Download{selectedIds.size > 1 ? ` (${selectedIds.size})` : ""}
+          <Download size={14} /> Download{selectionCount > 1 ? ` (${selectionCount})` : ""}
         </ContextMenuItem>
         <ContextMenuSeparator />
         <ContextMenuItem onClick={handleOpenLightbox}>
@@ -250,12 +262,7 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
         <ContextMenuItem onClick={handleCopyPath}>
           <Copy size={14} /> Copy path
         </ContextMenuItem>
-        <ContextMenuItem onClick={() => {
-          if (contextFile) {
-            fetchRemoteImage(`/file=${contextFile.fullPath}`, contextFile.relativePath.split("/").pop() ?? "image.png")
-              .then((f) => sendImageToCanvas(f));
-          }
-        }}>
+        <ContextMenuItem onClick={handleSendToCanvas}>
           <Paintbrush size={14} /> Send to canvas
         </ContextMenuItem>
       </ContextMenuContent>

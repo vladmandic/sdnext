@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useState } from "react";
 import { useBrowserFiles, useDeleteFiles, useMoveFiles, useDownloadFiles } from "@/api/hooks/useGallery";
 import { useGalleryStore } from "@/stores/galleryStore";
 import { useShortcut } from "@/hooks/useShortcut";
@@ -15,10 +15,9 @@ import { FolderOpen } from "lucide-react";
 
 export function GalleryView() {
   const activeFolder = useGalleryStore((s) => s.activeFolder);
-  const files = useGalleryStore((s) => s.files);
-  const searchQuery = useGalleryStore((s) => s.searchQuery);
+  const fileCount = useGalleryStore((s) => s.files.length);
   const metadataPanelOpen = useGalleryStore((s) => s.metadataPanelOpen);
-  const selectedIds = useGalleryStore((s) => s.selectedIds);
+  const selectionCount = useGalleryStore((s) => s.selectedIds.size);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
@@ -31,8 +30,8 @@ export function GalleryView() {
   useShortcutScope("gallery");
   useShortcut("gallery-toggle-info", () => useGalleryStore.getState().toggleMetadataPanel());
   useShortcut("gallery-select-all", (e) => { e.preventDefault(); useGalleryStore.getState().selectAll(); });
-  useShortcut("gallery-deselect", () => useGalleryStore.getState().deselectAll(), selectedIds.size > 0);
-  useShortcut("gallery-delete", () => { if (selectedIds.size > 0) setDeleteDialogOpen(true); }, selectedIds.size > 0);
+  useShortcut("gallery-deselect", () => useGalleryStore.getState().deselectAll(), selectionCount > 0);
+  useShortcut("gallery-delete", () => { if (useGalleryStore.getState().selectedIds.size > 0) setDeleteDialogOpen(true); }, selectionCount > 0);
 
   const getSelectedPaths = useCallback(() => {
     const store = useGalleryStore.getState();
@@ -40,8 +39,8 @@ export function GalleryView() {
   }, []);
 
   const handleDeleteRequest = useCallback(() => {
-    if (selectedIds.size > 0) setDeleteDialogOpen(true);
-  }, [selectedIds.size]);
+    if (useGalleryStore.getState().selectedIds.size > 0) setDeleteDialogOpen(true);
+  }, []);
 
   const handleDeleteConfirm = useCallback(() => {
     const paths = getSelectedPaths();
@@ -50,8 +49,8 @@ export function GalleryView() {
   }, [getSelectedPaths, deleteMutation]);
 
   const handleMoveRequest = useCallback(() => {
-    if (selectedIds.size > 0) setMoveDialogOpen(true);
-  }, [selectedIds.size]);
+    if (useGalleryStore.getState().selectedIds.size > 0) setMoveDialogOpen(true);
+  }, []);
 
   const handleMoveConfirm = useCallback((destination: string) => {
     const paths = getSelectedPaths();
@@ -65,11 +64,11 @@ export function GalleryView() {
     downloadMutation.mutate(paths);
   }, [getSelectedPaths, downloadMutation]);
 
-  const filteredCount = useMemo(() => {
-    if (!searchQuery) return files.length;
-    const q = searchQuery.toLowerCase();
-    return files.filter((f) => f.relativePath.toLowerCase().includes(q)).length;
-  }, [files, searchQuery]);
+  const filteredCount = useGalleryStore((s) => {
+    if (!s.searchQuery) return s.files.length;
+    const q = s.searchQuery.toLowerCase();
+    return s.files.filter((f) => f.relativePath.toLowerCase().includes(q)).length;
+  });
 
   if (!activeFolder) {
     return (
@@ -84,7 +83,7 @@ export function GalleryView() {
   return (
     <div className="flex flex-col h-full">
       <GalleryToolbar
-        totalCount={files.length}
+        totalCount={fileCount}
         filteredCount={filteredCount}
         onDeleteRequest={handleDeleteRequest}
         onMoveRequest={handleMoveRequest}
@@ -112,14 +111,14 @@ export function GalleryView() {
 
       <DeleteConfirmDialog
         open={deleteDialogOpen}
-        count={selectedIds.size}
+        count={selectionCount}
         isPending={deleteMutation.isPending}
         onConfirm={handleDeleteConfirm}
         onCancel={() => setDeleteDialogOpen(false)}
       />
       <MoveToDialog
         open={moveDialogOpen}
-        count={selectedIds.size}
+        count={selectionCount}
         isPending={moveMutation.isPending}
         onConfirm={handleMoveConfirm}
         onCancel={() => setMoveDialogOpen(false)}

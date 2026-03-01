@@ -1,8 +1,8 @@
-import { useMemo, useRef, useCallback } from "react";
+import { useMemo, useRef, useCallback, useEffect } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useGalleryStore } from "@/stores/galleryStore";
 import type { GalleryFile, CachedThumb } from "@/api/types/gallery";
-import { GalleryCard } from "./GalleryCard";
+import { ConnectedGalleryCard } from "./GalleryCard";
 
 const GAP = 6;
 
@@ -27,19 +27,11 @@ interface MasonryGridProps {
 }
 
 export function MasonryGrid({ sorted, containerRef, containerWidth }: MasonryGridProps) {
-  const thumbs = useGalleryStore((s) => s.thumbs);
   const thumbSize = useGalleryStore((s) => s.thumbSize);
-  const selectedFile = useGalleryStore((s) => s.selectedFile);
-  const selectFile = useGalleryStore((s) => s.selectFile);
-  const openLightbox = useGalleryStore((s) => s.openLightbox);
-  const selectedIds = useGalleryStore((s) => s.selectedIds);
-  const toggleSelect = useGalleryStore((s) => s.toggleSelect);
-
-  const isSelectMode = selectedIds.size > 0;
 
   // Snapshot thumbs to avoid layout thrash on individual thumb loads
-  const thumbsRef = useRef(thumbs);
-  thumbsRef.current = thumbs;
+  const thumbsRef = useRef<Map<string, CachedThumb>>(useGalleryStore.getState().thumbs);
+  useEffect(() => useGalleryStore.subscribe((s) => { thumbsRef.current = s.thumbs; }), []);
 
   // Compute masonry layout: bin-pack items into columns
   const { rows, totalHeight } = useMemo(() => {
@@ -88,7 +80,6 @@ export function MasonryGrid({ sorted, containerRef, containerWidth }: MasonryGri
     return { rows: masonryRows, totalHeight: total, cols, colWidth };
   }, [sorted, containerWidth, thumbSize]);
 
-  // eslint-disable-next-line react-hooks/incompatible-library -- @tanstack/react-virtual is compatible; compiler limitation
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => containerRef.current,
@@ -96,19 +87,20 @@ export function MasonryGrid({ sorted, containerRef, containerWidth }: MasonryGri
     overscan: 3,
   });
 
-  const handleClick = useCallback((file: GalleryFile, thumb: CachedThumb | undefined, index: number, e: React.MouseEvent) => {
+  const handleClick = useCallback((file: GalleryFile, index: number, e: React.MouseEvent) => {
+    const s = useGalleryStore.getState();
     if (e.shiftKey || e.ctrlKey || e.metaKey) {
-      toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
-    } else if (isSelectMode) {
-      toggleSelect(file.id, index, false, false);
+      s.toggleSelect(file.id, index, e.shiftKey, e.ctrlKey || e.metaKey);
+    } else if (s.selectedIds.size > 0) {
+      s.toggleSelect(file.id, index, false, false);
     } else {
-      selectFile(file, thumb ?? null);
+      s.selectFile(file, s.thumbs.get(file.id) ?? null);
     }
-  }, [selectFile, toggleSelect, isSelectMode]);
+  }, []);
 
   const handleDoubleClick = useCallback((index: number) => {
-    openLightbox(index);
-  }, [openLightbox]);
+    useGalleryStore.getState().openLightbox(index);
+  }, []);
 
   const cols = Math.max(2, Math.floor((containerWidth + GAP) / (thumbSize + GAP)));
   const colWidth = (containerWidth - (cols + 1) * GAP) / cols;
@@ -121,7 +113,6 @@ export function MasonryGrid({ sorted, containerRef, containerWidth }: MasonryGri
         return (
           <div key={vRow.index} className="absolute left-0 w-full" style={{ top: row.y }}>
             {row.items.map((item) => {
-              const thumb = thumbs.get(item.file.id);
               const x = GAP + item.col * (colWidth + GAP);
               return (
                 <div
@@ -129,16 +120,13 @@ export function MasonryGrid({ sorted, containerRef, containerWidth }: MasonryGri
                   className="absolute"
                   style={{ left: x, top: item.y - row.y, width: colWidth }}
                 >
-                  <GalleryCard
+                  <ConnectedGalleryCard
                     file={item.file}
-                    thumb={thumb}
+                    index={item.globalIndex}
                     size={Math.round(colWidth)}
                     height={item.height}
-                    selected={selectedFile?.id === item.file.id}
-                    isSelected={selectedIds.has(item.file.id)}
-                    isSelectMode={isSelectMode}
-                    onClick={(e) => handleClick(item.file, thumb, item.globalIndex, e)}
-                    onDoubleClick={() => handleDoubleClick(item.globalIndex)}
+                    onClick={handleClick}
+                    onDoubleClick={handleDoubleClick}
                   />
                 </div>
               );

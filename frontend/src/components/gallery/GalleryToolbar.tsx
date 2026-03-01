@@ -39,11 +39,9 @@ export function GalleryToolbar({ totalCount, filteredCount, onDeleteRequest, onM
   const setLayoutMode = useGalleryStore((s) => s.setLayoutMode);
   const metadataPanelOpen = useGalleryStore((s) => s.metadataPanelOpen);
   const toggleMetadataPanel = useGalleryStore((s) => s.toggleMetadataPanel);
-  const selectedIds = useGalleryStore((s) => s.selectedIds);
+  const selectionCount = useGalleryStore((s) => s.selectedIds.size);
   const selectAll = useGalleryStore((s) => s.selectAll);
   const deselectAll = useGalleryStore((s) => s.deselectAll);
-
-  const selectionCount = selectedIds.size;
 
   const [localSearch, setLocalSearch] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);

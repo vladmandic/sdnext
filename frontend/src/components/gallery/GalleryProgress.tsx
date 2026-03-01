@@ -2,18 +2,30 @@ import { useGalleryStore } from "@/stores/galleryStore";
 
 export function GalleryProgress() {
   const isLoadingFiles = useGalleryStore((s) => s.isLoadingFiles);
+  const loadProgress = useGalleryStore((s) => s.loadProgress);
   const fileCount = useGalleryStore((s) => s.files.length);
   const thumbCount = useGalleryStore((s) => s.thumbs.size);
 
   // Phase 1: file list streaming via WebSocket
   if (isLoadingFiles) {
+    const loaded = loadProgress.loaded;
+    const total = loadProgress.total;
+    const hasTotal = total !== null && total > 0;
+    const pct = hasTotal ? Math.min(100, (loaded / total) * 100) : 0;
     return (
       <div className="flex items-center gap-2 px-3 py-1 border-b border-border/50 bg-muted/30 flex-shrink-0">
         <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden">
-          <div className="h-full bg-primary rounded-full animate-[indeterminate_1.5s_ease-in-out_infinite] origin-left" />
+          {hasTotal ? (
+            <div
+              className="h-full bg-primary rounded-full transition-[width] duration-300 ease-linear"
+              style={{ width: `${pct}%` }}
+            />
+          ) : (
+            <div className="h-full bg-primary rounded-full animate-[indeterminate_1.5s_ease-in-out_infinite] origin-left" />
+          )}
         </div>
         <span className="text-3xs text-muted-foreground tabular-nums whitespace-nowrap">
-          Loading files...
+          {loaded > 0 ? `${loaded} files${hasTotal ? ` / ${total}` : ""}…` : "Loading files…"}
         </span>
       </div>
     );
