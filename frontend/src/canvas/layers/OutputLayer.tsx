@@ -44,6 +44,7 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
 
   // Use displaySrc (synchronous) alongside image state so clearing is immediate
   const hasImage = !!displaySrc && !!image;
+  const isPreview = !!previewImage;
   return (
     <Layer listening={false}>
       {hasImage && (
@@ -53,6 +54,7 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
           y={0}
           width={placeholderWidth}
           height={placeholderHeight}
+          opacity={isPreview ? 0.85 : 1}
         />
       )}
       <Rect

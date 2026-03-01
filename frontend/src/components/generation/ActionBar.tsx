@@ -8,12 +8,16 @@ import { snapshotUnits } from "@/stores/controlStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
-import { Play, Square, SkipForward, Loader2, History, FileSearch, ChevronDown } from "lucide-react";
+import { Play, Square, SkipForward, History, FileSearch, ChevronDown } from "lucide-react";
+import { ProgressRing } from "@/components/ui/progress-ring";
+import { formatDuration } from "@/lib/utils";
 import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
+import { useShortcut } from "@/hooks/useShortcut";
 import { Button } from "@/components/ui/button";
 import { PngInfoDialog } from "@/components/generation/PngInfoDialog";
 import { BatchDialog } from "@/components/generation/BatchDialog";
+import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
 
 export const ActionBar = memo(function ActionBar() {
   const prompt = useGenerationStore((s) => s.prompt);
@@ -27,6 +31,7 @@ export const ActionBar = memo(function ActionBar() {
 
   const [pngInfoOpen, setPngInfoOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [diffOpen, setDiffOpen] = useState(false);
   const cancelJob = useCancelJob();
 
   const buildRequest = useCallback(async () => {
@@ -62,16 +67,25 @@ export const ActionBar = memo(function ActionBar() {
     }
   }, [runningJob]);
 
-  const handleRestore = useCallback(() => {
+  const handleHistoryClick = useCallback((e: React.MouseEvent) => {
     if (!lastResult) return;
-    restoreFromResult(lastResult);
-    toast.success("Settings restored from last generation");
+    if (e.shiftKey) {
+      setDiffOpen(true);
+    } else {
+      restoreFromResult(lastResult);
+      toast.success("Settings restored from last generation");
+    }
   }, [lastResult]);
 
   const progressPct = Math.round(progress * 100);
+  const eta = runningJob?.domain === "generate" ? runningJob.eta ?? 0 : 0;
   const canSubmit = hasLayers || !!prompt;
   const phase = runningJob?.domain === "generate" ? runningJob.task : "";
   const phaseLabel = phase || "Generating";
+
+  // Global keyboard shortcuts for generation
+  useShortcut("generate", () => { if (canSubmit && !isSubmitting) submit(); });
+  useShortcut("skip", handleSkip);
 
   return (
     <div className="flex items-center gap-2">
@@ -85,7 +99,7 @@ export const ActionBar = memo(function ActionBar() {
           size="sm"
           className="flex-1 rounded-r-none"
         >
-          {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+          {isGenerating ? <ProgressRing progress={progress} size={14} strokeWidth={2} /> : <Play size={14} />}
           {isGenerating
             ? `${phaseLabel}${progressPct > 0 ? ` ${progressPct}%` : ""}${pendingCount > 0 ? ` [+${pendingCount}]` : ""}`
             : `Generate${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
@@ -124,14 +138,15 @@ export const ActionBar = memo(function ActionBar() {
         <>
           <Button
             type="button"
-            onClick={handleRestore}
+            onClick={handleHistoryClick}
             disabled={!lastResult}
             variant="secondary"
             size="icon-sm"
-            title="Restore settings from last generation"
+            title="Restore settings (Shift+click to compare)"
           >
             <History size={14} />
           </Button>
+          <GenerationDiffDialog open={diffOpen} onOpenChange={setDiffOpen} result={lastResult ?? null} />
           <Button
             type="button"
             onClick={() => setPngInfoOpen(true)}
@@ -161,8 +176,9 @@ export const ActionBar = memo(function ActionBar() {
       {/* Progress indicator */}
       {isGenerating && (
         <div className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
-          <Loader2 size={12} className="animate-spin" />
+          <ProgressRing progress={progress} size={16} strokeWidth={2} />
           {progressPct > 0 && <span>{progressPct}%</span>}
+          {eta > 0 && <span className="text-3xs text-muted-foreground/70">~{formatDuration(eta)}</span>}
         </div>
       )}
     </div>
