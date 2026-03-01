@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-02-27
+## Update for 2026-03-01
 
-### Highlights for 2026-02-27
+### Highlights for 2026-03-01
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, so we have two deep fine-tunes: *FireRed-Image-Edit* and *SkyWorks-UniPic-3*  
@@ -11,7 +11,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-02-27
+### Details for 2026-03-01
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -36,7 +36,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 - **Compute**
   - **ROCm** support for additional AMD GPUs: `gfx103X`, thanks @crashingalexsan  
   - **Cuda** `torch==2.10` removed support for `rtx1000` series, use following before first startup:  
-    > set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'  
+    > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
 - **UI**
   - **localization** improved translation quality and new translations locales:  
     *en, en1, en2, en3, en4, hr, es, it, fr, de, pt, ru, zh, ja, ko, hi, ar, bn, ur, id, vi, tr, sr, po, he, xx, yy, qq, tlh*  
@@ -74,6 +74,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - remove requirements: `clip`, `open-clip`  
   - captioning part-2, thanks @CalamitousFelicitousness  
   - add new build of `insightface`, thanks @hameerabbasi  
+  - reduce use of generators with ui interactor  
 - **Obsolete**
   - remove `normalbae` pre-processor  
   - remove `dwpose` pre-processor  

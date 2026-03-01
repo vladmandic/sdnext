@@ -121,7 +121,91 @@ def Blocks_get_config_file(self, *args, **kwargs):
     return config
 
 
+def reset_gradio_sessions(job_id):
+    from modules import shared
+    try:
+        app = shared.demo.app
+        session_hash = job_id
+        if session_hash in app.iterators and len(app.iterators[session_hash]) > 0:
+            async def force_reset():
+                async with app.lock:
+                    for fn_index in list(app.iterators[session_hash].keys()):
+                        app.iterators[session_hash][fn_index] = None
+                        if session_hash not in app.iterators_to_reset:
+                            app.iterators_to_reset[session_hash] = set()
+                        app.iterators_to_reset[session_hash].add(fn_index)
+            import asyncio
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    asyncio.ensure_future(force_reset()) # noqa: RUF006
+                else:
+                    loop.run_until_complete(force_reset())
+            except RuntimeError:
+                # No event loop, create one
+                asyncio.run(force_reset())
+            log.debug(f'Gradio reset: job={job_id} session={session_hash}')
+    except Exception as e:
+        log.error(f'Gradio reset: {e}')
+
+
 def patch_gradio():
+    orig_cancel_tasks = gradio.utils.cancel_tasks
+    orig_restore_session_state = gradio.route_utils.restore_session_state
+    orig_call_prediction = gradio.queueing.Queue.call_prediction
+
+    async def wrap_cancel_tasks(task_ids: set[str]):
+        log.error(f'Gradio cancel: task={task_ids}')
+        return await orig_cancel_tasks(task_ids)
+
+    def wrap_restore_session_state(*args, **kwargs):
+        app = kwargs.get("app", args[0] if len(args) > 0 else None)
+        body = kwargs.get("body", args[1] if len(args) > 1 else None)
+        session_hash = getattr(body, "session_hash", None)
+        fn_index = getattr(body, "fn_index", None)
+        try:
+            return orig_restore_session_state(*args, **kwargs)
+        except GeneratorExit:
+            # Force proper iterator cleanup when GeneratorExit occurs
+            if (
+                app is not None
+                and session_hash is not None
+                and fn_index is not None
+                and session_hash in app.iterators
+                and fn_index in app.iterators[session_hash]
+            ):
+                try:
+                    app.iterators[session_hash][fn_index] = None
+                    app.iterators_to_reset[session_hash].add(fn_index)
+                    log.debug(f"Gradio reset: session={session_hash} fn={fn_index}")
+                except Exception as e:
+                    log.error(f"Gradio reset: {e}")
+            raise
+
+    async def wrap_call_prediction(self, events, batch):
+        try:
+            response = await orig_call_prediction(self, events, batch)
+            # If the backend returns None/empty during cancellation, frontend stays disabled.
+            if response is None or response == {}:
+                log.debug(f"Gradio queue: events={len(events)} batch={batch} empty response")
+                return {"is_generating": False, "data": [], "error": "empty response"}
+            return response
+        except GeneratorExit as e:
+            log.error(f"Gradio queue: events={len(events)} batch={batch} error: {e}")
+            return {"is_generating": False, "data": [None, None, None, None, "cancelled", ""], "error": None}
+        except Exception as e:
+            log.error(f"Gradio queue: events={len(events)} batch={batch} error: {e}")
+            raise
+        except BaseException as e:
+            log.error(f"Gradio queue: events={len(events)} batch={batch} error: {e}")
+            raise
+
+    gradio.queueing.Queue.call_prediction = wrap_call_prediction
+    gradio.route_utils.restore_session_state = wrap_restore_session_state
+    gradio.utils.cancel_tasks = wrap_cancel_tasks
+
+
+def patch_gradio_future():
     def wrap_gradio_js(fn):
         def wrapper(*args, js=None, _js=None, **kwargs):
             if _js is not None:
@@ -150,6 +234,7 @@ def patch_gradio():
     gradio.components.Image.edit = lambda *args, **kwargs: None
     # gradio.components.image.Image.__init__ missing tool, brush_radius, mask_opacity, edit()
 
+
 def init():
     global hijacked, original_IOComponent_init, original_Block_get_config, original_BlockContext_init, original_Blocks_get_config_file # pylint: disable=global-statement
     if hijacked:
@@ -161,6 +246,7 @@ def init():
     original_Block_get_config = patches.patch(__name__, obj=gr.blocks.Block, field="get_config", replacement=Block_get_config)
     original_BlockContext_init = patches.patch(__name__, obj=gr.blocks.BlockContext, field="__init__", replacement=BlockContext_init)
     original_Blocks_get_config_file = patches.patch(__name__, obj=gr.blocks.Blocks, field="get_config_file", replacement=Blocks_get_config_file)
+    patch_gradio()
     if not gr.__version__.startswith('3.43'):
-        patch_gradio()
+        patch_gradio_future()
     hijacked = True

@@ -216,7 +216,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
         if shared.opts.diffusers_offload_min_gpu_memory > shared.opts.diffusers_offload_max_gpu_memory:
             shared.opts.diffusers_offload_min_gpu_memory = shared.opts.diffusers_offload_max_gpu_memory
             log.warning(f'Offload: type=balanced op=validate: watermark low={shared.opts.diffusers_offload_min_gpu_memory} reset')
-        if shared.opts.diffusers_offload_max_gpu_memory * shared.gpu_memory < 4:
+        if shared.opts.diffusers_offload_max_gpu_memory * shared.gpu_memory < 3:
             log.warning(f'Offload: type=balanced op=validate: watermark high={shared.opts.diffusers_offload_max_gpu_memory} low memory')
 
     def model_size(self):

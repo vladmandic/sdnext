@@ -16,6 +16,7 @@ units: list[unit.Unit] = [] # main state variable
 controls: list[gr.components.Component] = [] # list of gr controls
 debug = log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: CONTROL')
+use_generator = os.environ.get('SD_USE_GENERATOR', None) is not None
 
 
 def return_stats(t: float = None):
@@ -89,7 +90,7 @@ def get_units(*values):
                 break
 
 
-def generate_click(job_id: str, state: str, active_tab: str, *args):
+def generate_click_generator(job_id: str, state: str, active_tab: str, *args):
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
@@ -118,7 +119,7 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
             shared.state.end(jobid)
 
 
-def generate_click_alt(job_id: str, state: str, active_tab: str, *args):
+def generate_click(job_id: str, state: str, active_tab: str, *args):
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
@@ -345,7 +346,8 @@ def create_ui(_blocks: gr.Blocks=None):
                 result_txt,
                 output_html_log,
             ]
-            generate_fn = generate_click_alt if shared.cmd_opts.remote else generate_click
+
+            generate_fn = generate_click_generator if use_generator else generate_click
             control_dict = dict(
                 fn=generate_fn,
                 _js="submit_control",

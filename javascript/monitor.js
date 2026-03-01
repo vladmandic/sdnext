@@ -1,4 +1,5 @@
 class ConnectionMonitorState {
+  static ws = undefined;
   static delay = 1000;
   static element;
   static version = '';
@@ -56,16 +57,14 @@ async function updateIndicator(online, data = {}, msg = undefined) {
 
 async function wsMonitorLoop(url) {
   try {
-    const ws = new WebSocket(`${url}/queue/join`);
-    ws.onopen = () => {};
-    ws.onmessage = (evt) => updateIndicator(true);
-    ws.onclose = () => {
-      // happens regularly if there is no traffic
-      setTimeout(() => wsMonitorLoop(url), ConnectionMonitorState.delay);
+    ConnectionMonitorState.ws = new WebSocket(`${url}/queue/join`);
+    ConnectionMonitorState.ws.onopen = () => {};
+    ConnectionMonitorState.ws.onmessage = (evt) => updateIndicator(true);
+    ConnectionMonitorState.ws.onclose = () => {
+      setTimeout(() => wsMonitorLoop(url), ConnectionMonitorState.delay); // happens regularly if there is no traffic
     };
-    ws.onerror = (e) => {
-      // actual error
-      updateIndicator(false, {}, e.message);
+    ConnectionMonitorState.ws.onerror = (e) => {
+      updateIndicator(false, {}, e.message); // actual error
       setTimeout(() => wsMonitorLoop(url), ConnectionMonitorState.delay);
     };
   } catch (e) {

@@ -500,7 +500,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     if not cap.isOpened():
                         if is_generator:
                             yield terminate(f'Video open failed: path={inputs}')
-                        return [], '', '', 'Error: video open failed'
+                        return terminate(f'Video open failed: path={inputs}')
                     frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                     fps = int(cap.get(cv2.CAP_PROP_FPS))
                     w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -513,7 +513,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 except Exception as e:
                     if is_generator:
                         yield terminate(f'Video open failed: path={inputs} {e}')
-                    return [], '', '', 'Error: video open failed'
+                    return terminate(f'Video open failed: path={inputs} {e}')
 
             while status:
                 processed_image = None
@@ -535,7 +535,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         shared.state.interrupted = False
                         if is_generator:
                             yield terminate('Interrupted')
-                        return [], '', '', 'Interrupted'
+                        return terminate('Interrupted')
                     # get input
                     if isinstance(input_image, str) and os.path.exists(input_image):
                         try:
@@ -580,9 +580,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                 and getattr(p, 'init_images', None) is None \
                                 and getattr(p, 'image', None) is None:
                                 if is_generator:
-                                    log.debug(f'Control args: {p.task_args}')
                                     yield terminate(f'Mode={p.extra_generation_params.get("Control type", None)} input image is none')
-                                return [], '', '', 'Error: Input image is none'
+                                return terminate(f'Mode={p.extra_generation_params.get("Control type", None)} input image is none')
                         if unit_type == 'lite':
                             instance.apply(selected_models, processed_image, control_conditioning)
 
@@ -695,7 +694,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     if len(info_txt) > 0:
         html_txt = html_txt + infotext_to_html(info_txt[0])
     if is_generator:
-        jobid = shared.state.begin('UI')
         yield (output_images, blended_image, html_txt, output_filename)
-        shared.state.end(jobid)
-    return (output_images, blended_image, html_txt, output_filename)
+    else:
+        return (output_images, blended_image, html_txt, output_filename)
