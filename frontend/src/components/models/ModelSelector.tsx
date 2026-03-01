@@ -46,7 +46,7 @@ export function ModelSelector() {
             variant="secondary"
             size="sm"
             disabled={isModelLoading}
-            className={cn("w-full max-w-md justify-between text-xs h-7 px-2", isModelLoading && "opacity-60")}
+            className={cn("min-w-0 max-w-md justify-between text-xs h-7 px-2", isModelLoading && "opacity-60")}
           >
             <span className="flex items-center gap-2 truncate">
               {isModelLoading && <RefreshCw size={12} className="animate-spin flex-shrink-0" />}

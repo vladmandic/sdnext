@@ -1,5 +1,6 @@
 import { useUiStore } from "@/stores/uiStore";
 import { ModelSelector } from "@/components/models/ModelSelector";
+import { PresetSelector } from "@/components/generation/PresetSelector";
 import { ConnectionIndicator } from "@/components/connection/ConnectionIndicator";
 import { PanelLeftOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,13 +24,24 @@ export function Toolbar() {
         </Button>
       )}
 
-      {/* Model selector */}
-      <div className="flex-1 min-w-0 flex items-center gap-2">
+      {/* Model selector — shrinks to fit, keeps truncated model name */}
+      <div className="min-w-0 flex-shrink">
         <ModelSelector />
       </div>
 
+      {/* Separator */}
+      <div className="h-5 w-px bg-border flex-shrink-0" />
+
+      {/* Parameter presets */}
+      <div className="flex-shrink-0">
+        <PresetSelector />
+      </div>
+
+      {/* Spacer */}
+      <div className="flex-1 min-w-0" />
+
       {/* Right side controls */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 flex-shrink-0">
         <ConnectionIndicator />
       </div>
     </header>
