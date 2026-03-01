@@ -12,7 +12,11 @@ import { OutputLayer } from "./layers/OutputLayer";
 import { ProcessedCompositeLayer } from "./layers/ProcessedCompositeLayer";
 import { ControlFrameLayer } from "./layers/ControlFrameLayer";
 import type { CanvasLayout } from "./useControlFrameLayout";
-import type Konva from "konva";
+import Konva from "konva";
+
+// Only allow left mouse button to initiate Konva node drags.
+// Default is [0, 1] which lets middle-click drag images.
+Konva.dragButtons = [0];
 
 const PADDING = 32;
 const LABEL_HEIGHT = 19;

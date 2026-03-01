@@ -65,7 +65,10 @@ export const useImg2ImgStore = create<Img2ImgState>()((_set) => ({
 
   addMaskLine: (line) => _set((s) => ({ maskLines: [...s.maskLines, line] })),
 
-  clearMask: () => _set({ maskLines: [], maskData: null }),
+  clearMask: () => {
+    _set({ maskLines: [], maskData: null });
+    useCanvasStore.getState().removeMaskLayers();
+  },
 
   setResizeMode: (mode) => _set({ resizeMode: mode }),
   setSizeMode: (mode) => _set({ sizeMode: mode }),

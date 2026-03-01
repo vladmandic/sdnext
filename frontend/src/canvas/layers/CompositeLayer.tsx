@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { Layer, Group, Image as KonvaImage, Transformer, Line } from "react-konva";
-import { useCanvasStore, type ImageLayer as ImageLayerType } from "@/stores/canvasStore";
+import { useCanvasStore, type ImageLayer as ImageLayerType, type MaskObjectLayer } from "@/stores/canvasStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useSnap } from "@/canvas/tools/useSnap";
 import type Konva from "konva";
@@ -18,19 +18,33 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
   const setActiveLayer = useCanvasStore((s) => s.setActiveLayer);
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
-  const snap = useSnap(frameW, frameH, trRef);
+  const snap = useSnap(frameW, frameH, trRef, 0, 0, displayScale);
+
+  const maskVisible = useCanvasStore((s) => s.maskVisible);
+  const maskColor = useCanvasStore((s) => s.maskColor);
+  const maskAlpha = maskColor.length > 7 ? parseInt(maskColor.slice(7, 9), 16) / 255 : 1;
 
   const imageMap = useRef<Map<string, HTMLImageElement>>(new Map());
   const nodeMap = useRef<Map<string, Konva.Image>>(new Map());
 
   const imageLayers = layers.filter((l) => l.type === "image") as ImageLayerType[];
+  const maskLayers = layers.filter((l) => l.type === "mask") as MaskObjectLayer[];
 
-  // Load/unload HTMLImageElements as layers change
+  // Load/unload HTMLImageElements as layers change (images + masks)
   useEffect(() => {
     const current = new Set<string>();
     for (const layer of imageLayers) {
       current.add(layer.id);
       if (!imageMap.current.has(layer.id)) {
+        const img = new window.Image();
+        img.src = layer.imageData;
+        imageMap.current.set(layer.id, img);
+      }
+    }
+    for (const layer of maskLayers) {
+      current.add(layer.id);
+      const existing = imageMap.current.get(layer.id);
+      if (!existing || existing.src !== layer.imageData) {
         const img = new window.Image();
         img.src = layer.imageData;
         imageMap.current.set(layer.id, img);
@@ -43,22 +57,26 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
         nodeMap.current.delete(id);
       }
     }
-  }, [imageLayers]);
+  }, [imageLayers, maskLayers]);
 
-  // Attach transformer to active layer node
+  // Attach transformer to active layer node (image or unlocked mask)
   useEffect(() => {
     if (!trRef.current) return;
     if (activeLayerId && activeTool === "move") {
-      const node = nodeMap.current.get(activeLayerId);
-      if (node) {
-        trRef.current.nodes([node]);
-        trRef.current.getLayer()?.batchDraw();
-        return;
+      const activeLayer = layers.find((l) => l.id === activeLayerId);
+      // Only attach transformer to unlocked layers
+      if (activeLayer && !activeLayer.locked) {
+        const node = nodeMap.current.get(activeLayerId);
+        if (node) {
+          trRef.current.nodes([node]);
+          trRef.current.getLayer()?.batchDraw();
+          return;
+        }
       }
     }
     trRef.current.nodes([]);
     trRef.current.getLayer()?.batchDraw();
-  }, [activeLayerId, activeTool, trRef, imageLayers]);
+  }, [activeLayerId, activeTool, trRef, layers]);
 
   const handleDragEnd = useCallback((layerId: string, e: Konva.KonvaEventObject<DragEvent>) => {
     snap.clearGuides();
@@ -110,6 +128,27 @@ export function CompositeLayer({ trRef, displayScale }: CompositeLayerProps) {
             rotation={layer.rotation}
             opacity={layer.opacity}
             visible={layer.visible}
+            draggable={activeTool === "move" && !layer.locked}
+            onDragMove={snap.handleDragMove}
+            onDragEnd={(e) => handleDragEnd(layer.id, e)}
+            onTransformEnd={(e) => handleTransformEnd(layer.id, e)}
+            onClick={(e) => handleClick(layer.id, e)}
+          />
+        ))}
+        {/* eslint-disable-next-line react-hooks/refs -- imageMap synced with maskLayers in effect above */}
+        {maskVisible && maskLayers.map((layer) => (
+          <KonvaImage
+            key={layer.id}
+            ref={(node) => setNodeRef(layer.id, node)}
+            image={imageMap.current.get(layer.id)}
+            x={layer.x}
+            y={layer.y}
+            scaleX={layer.scaleX}
+            scaleY={layer.scaleY}
+            rotation={layer.rotation}
+            opacity={layer.visible ? maskAlpha : 0}
+            visible={layer.visible}
+            listening={!layer.locked}
             draggable={activeTool === "move" && !layer.locked}
             onDragMove={snap.handleDragMove}
             onDragEnd={(e) => handleDragEnd(layer.id, e)}

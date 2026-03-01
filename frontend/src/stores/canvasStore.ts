@@ -32,6 +32,19 @@ export interface ImageLayer extends CanvasLayer {
   scaleY: number;
 }
 
+export interface MaskObjectLayer extends CanvasLayer {
+  type: "mask";
+  imageData: string;       // object URL of colored display image
+  base64: string;          // colored PNG base64 for persistence
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  scaleX: number;
+  scaleY: number;
+  rotation: number;
+}
+
 interface ViewportState {
   x: number;
   y: number;
@@ -71,6 +84,9 @@ interface CanvasState {
   clearLayers: () => void;
   restoreImageLayer: (base64: string, w: number, h: number) => void;
   getImageLayers: () => ImageLayer[];
+  getMaskLayers: () => MaskObjectLayer[];
+  replaceMaskLayers: (newLayers: MaskObjectLayer[]) => void;
+  removeMaskLayers: () => void;
 }
 
 /** Serializable snapshot of canvas state stored in IndexedDB. */
@@ -90,16 +106,24 @@ interface PersistedCanvasState {
 
 const canvasIdbStorage = createIdbStorage("sdnext-canvas", "state");
 
-function rehydrateLayer(layer: CanvasLayer): CanvasLayer | ImageLayer {
-  if (layer.type !== "image") return layer;
-  const img = layer as ImageLayer;
-  if (!img.base64) return layer;
-  const blob = base64ToBlob(img.base64);
-  return {
-    ...img,
-    imageData: URL.createObjectURL(blob),
-    file: new File([blob], img.name || "restored.png", { type: "image/png" }),
-  };
+function rehydrateLayer(layer: CanvasLayer): CanvasLayer | ImageLayer | MaskObjectLayer {
+  if (layer.type === "image") {
+    const img = layer as ImageLayer;
+    if (!img.base64) return layer;
+    const blob = base64ToBlob(img.base64);
+    return {
+      ...img,
+      imageData: URL.createObjectURL(blob),
+      file: new File([blob], img.name || "restored.png", { type: "image/png" }),
+    };
+  }
+  if (layer.type === "mask") {
+    const ml = layer as MaskObjectLayer;
+    if (!ml.base64) return layer;
+    const blob = base64ToBlob(ml.base64);
+    return { ...ml, imageData: URL.createObjectURL(blob) };
+  }
+  return layer;
 }
 
 export const useCanvasStore = create<CanvasState>()(
@@ -169,8 +193,8 @@ export const useCanvasStore = create<CanvasState>()(
       removeLayer: (id) =>
         set((s) => {
           const layer = s.layers.find((l) => l.id === id);
-          if (layer && layer.type === "image") {
-            URL.revokeObjectURL((layer as ImageLayer).imageData);
+          if (layer && (layer.type === "image" || layer.type === "mask")) {
+            URL.revokeObjectURL((layer as ImageLayer | MaskObjectLayer).imageData);
           }
           return {
             layers: s.layers.filter((l) => l.id !== id),
@@ -202,8 +226,8 @@ export const useCanvasStore = create<CanvasState>()(
       clearLayers: () => {
         const { layers } = get();
         for (const layer of layers) {
-          if (layer.type === "image") {
-            URL.revokeObjectURL((layer as ImageLayer).imageData);
+          if (layer.type === "image" || layer.type === "mask") {
+            URL.revokeObjectURL((layer as ImageLayer | MaskObjectLayer).imageData);
           }
         }
         set({ layers: [], activeLayerId: null });
@@ -244,6 +268,29 @@ export const useCanvasStore = create<CanvasState>()(
       },
 
       getImageLayers: () => get().layers.filter((l) => l.type === "image") as ImageLayer[],
+
+      getMaskLayers: () => get().layers.filter((l) => l.type === "mask") as MaskObjectLayer[],
+
+      replaceMaskLayers: (newLayers) => {
+        const { layers } = get();
+        for (const l of layers) {
+          if (l.type === "mask") URL.revokeObjectURL((l as MaskObjectLayer).imageData);
+        }
+        set((s) => ({
+          layers: [...s.layers.filter((l) => l.type !== "mask"), ...newLayers],
+        }));
+      },
+
+      removeMaskLayers: () => {
+        const { layers } = get();
+        for (const l of layers) {
+          if (l.type === "mask") URL.revokeObjectURL((l as MaskObjectLayer).imageData);
+        }
+        set((s) => ({
+          layers: s.layers.filter((l) => l.type !== "mask"),
+          activeLayerId: s.activeLayerId && s.layers.find((l) => l.id === s.activeLayerId)?.type === "mask" ? null : s.activeLayerId,
+        }));
+      },
     }),
     {
       name: "sdnext-canvas",
@@ -251,10 +298,15 @@ export const useCanvasStore = create<CanvasState>()(
       partialize: (state): PersistedCanvasState => ({
         viewport: state.viewport,
         layers: state.layers.map((layer) => {
-          if (layer.type !== "image") return layer;
-          // Strip non-serializable fields from image layers
-          const { file: _file, imageData: _url, ...rest } = layer as ImageLayer;
-          return { ...rest, imageData: "", file: undefined } as unknown as CanvasLayer;
+          if (layer.type === "image") {
+            const { file: _file, imageData: _url, ...rest } = layer as ImageLayer;
+            return { ...rest, imageData: "", file: undefined } as unknown as CanvasLayer;
+          }
+          if (layer.type === "mask") {
+            const { imageData: _url, ...rest } = layer as MaskObjectLayer;
+            return { ...rest, imageData: "" } as unknown as CanvasLayer;
+          }
+          return layer;
         }),
         activeLayerId: state.activeLayerId,
         activeTool: state.activeTool,

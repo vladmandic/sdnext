@@ -46,12 +46,14 @@ const anchorFreeEdges: Record<string, { left?: boolean; right?: boolean; top?: b
   "bottom-right": { right: true, bottom: true },
 };
 
-export function useSnap(frameW: number, frameH: number, trRef: React.RefObject<Konva.Transformer | null>, frameX = 0, frameY = 0) {
+export function useSnap(frameW: number, frameH: number, trRef: React.RefObject<Konva.Transformer | null>, frameX = 0, frameY = 0, displayScale = 1) {
   const [guides, setGuides] = useState<Guide[]>([]);
   const scaleRef = useRef(1);
+  const dsRef = useRef(displayScale);
 
   const viewportScale = useCanvasStore((s) => s.viewport.scale);
   useEffect(() => { scaleRef.current = viewportScale; }, [viewportScale]);
+  useEffect(() => { dsRef.current = displayScale; }, [displayScale]);
 
   const xTargets = useMemo(() => [frameX, frameX + frameW / 2, frameX + frameW], [frameX, frameW]);
   const yTargets = useMemo(() => [frameY, frameY + frameH / 2, frameY + frameH], [frameY, frameH]);
@@ -61,11 +63,13 @@ export function useSnap(frameW: number, frameH: number, trRef: React.RefObject<K
     const layer = node.getLayer();
     if (!layer) return;
 
-    const threshold = SNAP_THRESHOLD_PX / scaleRef.current;
+    const ds = dsRef.current;
+    const threshold = SNAP_THRESHOLD_PX / (scaleRef.current * ds);
     const rect = node.getClientRect({ relativeTo: layer });
 
-    const xEdges = [rect.x, rect.x + rect.width / 2, rect.x + rect.width];
-    const yEdges = [rect.y, rect.y + rect.height / 2, rect.y + rect.height];
+    // getClientRect includes the displayScale Group transform — convert back to pixel space
+    const xEdges = [rect.x / ds, (rect.x + rect.width / 2) / ds, (rect.x + rect.width) / ds];
+    const yEdges = [rect.y / ds, (rect.y + rect.height / 2) / ds, (rect.y + rect.height) / ds];
 
     const xSnap = findBestSnap(xEdges, xTargets, threshold);
     const ySnap = findBestSnap(yEdges, yTargets, threshold);
@@ -96,13 +100,16 @@ export function useSnap(frameW: number, frameH: number, trRef: React.RefObject<K
     const layer = node.getLayer();
     if (!layer) return;
 
-    const threshold = SNAP_THRESHOLD_PX / scaleRef.current;
+    const ds = dsRef.current;
+    const threshold = SNAP_THRESHOLD_PX / (scaleRef.current * ds);
     const rect = node.getClientRect({ relativeTo: layer });
+    // Convert display-space rect to pixel-space
+    const pxRect = { x: rect.x / ds, y: rect.y / ds, width: rect.width / ds, height: rect.height / ds };
     const newGuides: Guide[] = [];
 
     // Right edge: adjust scaleX, left edge stays fixed
     if (free.right) {
-      const rightEdge = rect.x + rect.width;
+      const rightEdge = pxRect.x + pxRect.width;
       for (const t of xTargets) {
         if (Math.abs(rightEdge - t) < threshold) {
           node.scaleX(node.scaleX() + (t - rightEdge) / node.width());
@@ -114,7 +121,7 @@ export function useSnap(frameW: number, frameH: number, trRef: React.RefObject<K
 
     // Left edge: shift x and adjust scaleX to keep right edge fixed
     if (free.left) {
-      const leftEdge = rect.x;
+      const leftEdge = pxRect.x;
       for (const t of xTargets) {
         if (Math.abs(leftEdge - t) < threshold) {
           const dx = t - leftEdge;
@@ -128,7 +135,7 @@ export function useSnap(frameW: number, frameH: number, trRef: React.RefObject<K
 
     // Bottom edge: adjust scaleY, top edge stays fixed
     if (free.bottom) {
-      const bottomEdge = rect.y + rect.height;
+      const bottomEdge = pxRect.y + pxRect.height;
       for (const t of yTargets) {
         if (Math.abs(bottomEdge - t) < threshold) {
           node.scaleY(node.scaleY() + (t - bottomEdge) / node.height());
@@ -140,7 +147,7 @@ export function useSnap(frameW: number, frameH: number, trRef: React.RefObject<K
 
     // Top edge: shift y and adjust scaleY to keep bottom edge fixed
     if (free.top) {
-      const topEdge = rect.y;
+      const topEdge = pxRect.y;
       for (const t of yTargets) {
         if (Math.abs(topEdge - t) < threshold) {
           const dy = t - topEdge;

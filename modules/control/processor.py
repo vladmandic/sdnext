@@ -93,7 +93,9 @@ def preprocess_image(
             p.init_img_width = getattr(p, 'init_img_width', input_image.width) # pylint: disable=attribute-defined-outside-init
             p.init_img_height = getattr(p, 'init_img_height', input_image.height) # pylint: disable=attribute-defined-outside-init
             input_image = images.resize_image(p.resize_mode_before, input_image, p.width_before, p.height_before, p.resize_name_before, context=p.resize_context_before)
-    if (input_image is not None) and (init_image is not None) and (init_image.size != input_image.size):
+    if input_type == 1 and init_image is not None and input_image is not None:
+        init_image = input_image # init same as control: reuse already-resized image
+    elif (input_image is not None) and (init_image is not None) and (init_image.size != input_image.size):
         debug_log(f'Control resize init: image={init_image} target={input_image}')
         init_image = images.resize_image(resize_mode=1, im=init_image, width=input_image.width, height=input_image.height)
     if (input_image is not None) and (p.override is not None) and (p.override.size != input_image.size):

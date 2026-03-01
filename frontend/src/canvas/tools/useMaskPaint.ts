@@ -3,6 +3,7 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useGenerationStore } from "@/stores/generationStore";
 import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
+import { bakeMaskStrokes } from "@/lib/bakeMask";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type Konva from "konva";
 
@@ -107,6 +108,16 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
       if (!isDrawing.current) {
         cursor?.getLayer()?.batchDraw();
       }
+    } else {
+      // Switched away from mask tool — restore cursor and hide the circle
+      const cursor = cursorRef.current;
+      if (cursor?.visible()) {
+        cursor.visible(false);
+        cursor.getLayer()?.batchDraw();
+      }
+      if (stage.container().style.cursor === "none") {
+        stage.container().style.cursor = "";
+      }
     }
 
     if (!isDrawing.current) return;
@@ -132,6 +143,8 @@ export function useMaskPaint({ stageRef, spaceHeld }: UseMaskPaintOptions) {
         strokeWidth: strokeWidthRef.current,
         tool: toolRef.current,
       });
+      // Bake strokes into mask objects (async, fire-and-forget)
+      bakeMaskStrokes();
     }
 
     const line = activeLineRef.current;

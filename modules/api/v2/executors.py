@@ -104,6 +104,22 @@ def execute_generate(params: dict, job_id: str) -> dict:
         run_args['override_script_name'] = override_script_name
         run_args['override_script_args'] = override_script_args
 
+    # Apply masking options from request params (reset ALL opts to prevent stale values from triggering expensive operations like SAM segmentation)
+    if mask is not None:
+        from modules import masking
+        # mask_blur from API is in pixels; masking.opts expects a fraction of image size
+        # Convert using the same formula as the legacy path: fraction = round(4 * px / size, 3)
+        mask_blur_px = params.get('mask_blur', 0)
+        size = min(params.get('width', 512), params.get('height', 512))
+        masking.opts.mask_blur = round(4 * mask_blur_px / size, 3) if mask_blur_px > 0 and size > 0 else 0
+        masking.opts.mask_only = params.get('inpaint_full_res', False)
+        masking.opts.invert = params.get('inpainting_mask_invert', 0) == 1
+        masking.opts.auto_mask = 'None'
+        masking.opts.auto_segment = 'None'
+        masking.opts.mask_erode = 0
+        masking.opts.mask_dilate = 0
+        extra_p_args['inpaint_full_res_padding'] = params.get('inpaint_full_res_padding', 32)
+
     # Run generation
     jobid = shared.state.begin('API-V2', api=True)
     try:

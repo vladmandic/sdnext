@@ -20,6 +20,10 @@ class GenerateParams(BaseModel):
     inputs: Optional[list[str]] = None
     inits: Optional[list[str]] = None
     mask: Optional[str] = None
+    mask_blur: int = 0
+    inpaint_full_res: bool = False
+    inpaint_full_res_padding: int = 32
+    inpainting_mask_invert: int = 0
     control: Optional[list[dict]] = None
     ip_adapter: Optional[list[dict]] = None
     extra: Optional[dict] = None

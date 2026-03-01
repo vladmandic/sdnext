@@ -421,6 +421,8 @@ def run_mask(input_image: Image.Image, input_mask: Image.Image = None, return_ty
             mask = run_rembg(input_image, input_mask)
     elif isinstance(mask, Image.Image):
         mask = np.array(mask)
+    if mask is not None and len(mask.shape) == 3:
+        mask = cv2.cvtColor(mask, cv2.COLOR_RGBA2GRAY if mask.shape[2] == 4 else cv2.COLOR_RGB2GRAY)
 
     # early exit if no input mask or auto-mask
     if mask is None:
@@ -463,7 +465,10 @@ def run_mask(input_image: Image.Image, input_mask: Image.Image = None, return_ty
         return Image.fromarray(binary_mask)
     elif return_type == 'Masked':
         orig = np.array(input_image)
-        mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
+        if orig.ndim == 3 and orig.shape[2] == 4:
+            mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2BGRA)
+        else:
+            mask = cv2.cvtColor(mask, cv2.COLOR_GRAY2RGB)
         masked_image = cv2.bitwise_and(orig, mask)
         return Image.fromarray(masked_image)
     elif return_type == 'Grayscale':
@@ -474,6 +479,8 @@ def run_mask(input_image: Image.Image, input_mask: Image.Image = None, return_ty
     elif return_type == 'Composite':
         colored_mask = cv2.applyColorMap(mask, COLORMAP.index(opts.seg_colormap)) # recolor mask
         orig = np.array(input_image)
+        if orig.ndim == 3 and orig.shape[2] == 4:
+            orig = cv2.cvtColor(orig, cv2.COLOR_RGBA2RGB)
         combined_image = cv2.addWeighted(orig, opts.weight_original, colored_mask, opts.weight_mask, 0)
         return Image.fromarray(combined_image)
     else:

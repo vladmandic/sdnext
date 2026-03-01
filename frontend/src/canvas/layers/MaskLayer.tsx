@@ -1,9 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Layer, Line, Circle, Group, Image as KonvaImage } from "react-konva";
+import { useCallback, useEffect, useRef } from "react";
+import { Layer, Line, Circle, Group } from "react-konva";
 import { useCanvasStore } from "@/stores/canvasStore";
-import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useGenerationStore } from "@/stores/generationStore";
-import type { MaskLine } from "@/stores/img2imgStore";
 import type Konva from "konva";
 
 interface MaskLayerProps {
@@ -20,64 +18,17 @@ function parseMaskColor(color: string) {
 }
 
 /**
- * Render committed mask strokes to an offscreen DOM canvas at full opacity.
- * Overlapping strokes merge naturally (red on red = red). Returns the canvas
- * element to be used as a Konva Image source displayed with a single alpha.
- */
-function renderMaskCanvas(lines: MaskLine[], color: string, w: number, h: number): HTMLCanvasElement {
-  const canvas = document.createElement("canvas");
-  canvas.width = w;
-  canvas.height = h;
-  const ctx = canvas.getContext("2d")!;
-
-  for (const line of lines) {
-    ctx.lineJoin = "round";
-    ctx.lineCap = "round";
-    ctx.lineWidth = line.strokeWidth;
-
-    if (line.tool === "brush") {
-      ctx.globalCompositeOperation = "source-over";
-      ctx.strokeStyle = color;
-    } else {
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.strokeStyle = "#fff"; // color irrelevant, destination-out erases
-    }
-
-    ctx.beginPath();
-    const pts = line.points;
-    if (pts.length >= 2) {
-      ctx.moveTo(pts[0], pts[1]);
-      for (let i = 2; i < pts.length; i += 2) {
-        ctx.lineTo(pts[i], pts[i + 1]);
-      }
-    }
-    ctx.stroke();
-  }
-
-  return canvas;
-}
-
-/**
- * Committed strokes are rendered to a flat offscreen canvas (no alpha
- * compounding), then displayed as a single KonvaImage with the mask
- * alpha applied once. The active Line and cursor are controlled
- * imperatively by useMaskPaint — only committed-stroke changes cause
- * a React re-render.
+ * Active-stroke overlay for mask painting. Committed strokes are baked
+ * into MaskObjectLayers (rendered in CompositeLayer). This layer only
+ * shows the live stroke being drawn and the brush cursor.
  */
 export function MaskLayer({ displayScale, setActiveLineNode: parentSetActiveLine, setCursorNode: parentSetCursor }: MaskLayerProps) {
   const maskVisible = useCanvasStore((s) => s.maskVisible);
   const maskColor = useCanvasStore((s) => s.maskColor);
-  const maskLines = useImg2ImgStore((s) => s.maskLines);
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
 
   const { rgb, alpha } = parseMaskColor(maskColor);
-
-  // Flatten committed strokes to a single canvas — overlaps merge
-  const maskCanvas = useMemo(() => {
-    if (maskLines.length === 0 || frameW <= 0 || frameH <= 0) return null;
-    return renderMaskCanvas(maskLines, rgb, frameW, frameH);
-  }, [maskLines, rgb, frameW, frameH]);
 
   // Sync the active line's stroke color when maskColor changes
   const activeLineNodeRef = useRef<Konva.Line | null>(null);
@@ -101,13 +52,9 @@ export function MaskLayer({ displayScale, setActiveLineNode: parentSetActiveLine
   if (!maskVisible || frameW <= 0 || frameH <= 0) return null;
 
   return (
-    <Layer>
+    <Layer listening={false}>
       <Group scaleX={displayScale} scaleY={displayScale}>
         <Group clipFunc={(ctx) => { ctx.rect(0, 0, frameW, frameH); }}>
-          {/* Committed strokes — flat canvas, single alpha, no compounding */}
-          {maskCanvas && (
-            <KonvaImage image={maskCanvas} x={0} y={0} opacity={alpha} />
-          )}
           {/* Active stroke — drawn live by useMaskPaint */}
           <Line
             ref={setActiveLineNode}
