@@ -1,6 +1,7 @@
-import { useEffect, useCallback } from "react";
+import { useCallback } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useShortcut } from "@/hooks/useShortcut";
 import { Move, Paintbrush, Eraser, Eye, EyeOff, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -26,37 +27,23 @@ export function CanvasToolbar() {
 
   const handleSizeChange = useCallback(([v]: number[]) => setBrushSize(v), [setBrushSize]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      // Skip if typing in an input
-      const tag = (e.target as HTMLElement)?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
-
-      switch (e.key.toLowerCase()) {
-        case "v":
-          setActiveTool("move");
-          break;
-        case "b":
-          setActiveTool(activeTool === "maskBrush" ? "move" : "maskBrush");
-          break;
-        case "e":
-          setActiveTool(activeTool === "maskEraser" ? "move" : "maskEraser");
-          break;
-        case "escape":
-          setActiveTool("move");
-          break;
-        case "[":
-          setBrushSize(Math.max(1, brushSize - 5));
-          break;
-        case "]":
-          setBrushSize(Math.min(200, brushSize + 5));
-          break;
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activeTool, brushSize, setActiveTool, setBrushSize]);
+  // Keyboard shortcuts (dispatched via the global shortcut system, scoped to "canvas")
+  useShortcut("canvas-move", () => setActiveTool("move"));
+  useShortcut("canvas-brush", () => {
+    const tool = useCanvasStore.getState().activeTool;
+    setActiveTool(tool === "maskBrush" ? "move" : "maskBrush");
+  });
+  useShortcut("canvas-eraser", () => {
+    const tool = useCanvasStore.getState().activeTool;
+    setActiveTool(tool === "maskEraser" ? "move" : "maskEraser");
+  });
+  useShortcut("canvas-deselect", () => setActiveTool("move"));
+  useShortcut("canvas-brush-smaller", () => {
+    setBrushSize(Math.max(1, useCanvasStore.getState().brushSize - 5));
+  });
+  useShortcut("canvas-brush-larger", () => {
+    setBrushSize(Math.min(200, useCanvasStore.getState().brushSize + 5));
+  });
 
   return (
     <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-2 px-3 py-1.5 rounded-lg bg-background/80 backdrop-blur-sm border border-border shadow-lg">

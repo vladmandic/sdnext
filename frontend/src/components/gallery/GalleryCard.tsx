@@ -1,5 +1,6 @@
 import { memo, useCallback, useRef } from "react";
 import type { GalleryFile, CachedThumb } from "@/api/types/gallery";
+import { useDragSource } from "@/hooks/useDragSource";
 import { isVideoFile } from "@/lib/mediaType";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,7 @@ export const GalleryCard = memo(function GalleryCard({ file, thumb, size, select
   const isVideo = isVideoFile(file.relativePath);
   const videoRef = useRef<HTMLVideoElement>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dragProps = useDragSource({ type: "gallery-image", fileId: file.id, filePath: file.fullPath, src: thumb?.data });
 
   const handleMouseEnter = useCallback(() => {
     if (!isVideo) return;
@@ -50,6 +52,7 @@ export const GalleryCard = memo(function GalleryCard({ file, thumb, size, select
       onDoubleClick={onDoubleClick}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      {...dragProps}
       className={cn(
         "group relative rounded-md overflow-hidden bg-muted border transition-all cursor-pointer",
         selected ? "border-primary ring-1 ring-primary/30" : "border-border hover:border-primary/40",

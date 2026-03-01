@@ -8,6 +8,9 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from "@/components/ui/resizable";
 import { useCaptionStore } from "@/stores/captionStore";
 import { useGenerationStore } from "@/stores/generationStore";
+import { useDropTarget } from "@/hooks/useDropTarget";
+import { payloadToFile } from "@/lib/sendTo";
+import type { DragPayload } from "@/stores/dragStore";
 
 export function CaptionView() {
   const image = useCaptionStore((s) => s.image);
@@ -17,15 +20,10 @@ export function CaptionView() {
   const method = useCaptionStore((s) => s.method);
   const setImage = useCaptionStore((s) => s.setImage);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files?.[0];
-    if (file?.type.startsWith("image/")) setImage(file);
-  }, [setImage]);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-  }, []);
+  const dropTarget = useDropTarget({
+    onDropPayload: useCallback((payload: DragPayload) => { payloadToFile(payload).then((f: File) => setImage(f)).catch(() => {}); }, [setImage]),
+    onFileDrop: useCallback((file: File) => setImage(file), [setImage]),
+  });
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0] ?? null;
@@ -93,7 +91,7 @@ export function CaptionView() {
           <div className="px-4 py-2 border-b border-border">
             <h3 className="text-sm font-medium">Input Image</h3>
           </div>
-          <div className="flex-1 relative min-h-0" onDrop={handleDrop} onDragOver={handleDragOver}>
+          <div className={`flex-1 relative min-h-0${dropTarget.isOver ? " ring-2 ring-primary ring-inset" : ""}`} {...dropTarget}>
             {!image || !imagePreviewUrl ? (
               <label className="flex flex-col items-center justify-center h-full cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
                 <Upload size={48} className="mb-3 opacity-40" />

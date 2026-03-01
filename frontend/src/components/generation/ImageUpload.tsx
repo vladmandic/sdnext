@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Upload, X } from "lucide-react";
+import { INTERNAL_MIME } from "@/stores/dragStore";
+import { payloadToFile } from "@/lib/sendTo";
+import type { DragPayload } from "@/stores/dragStore";
 import { Button } from "@/components/ui/button";
 
 interface ImageUploadProps {
@@ -34,6 +37,15 @@ export function ImageUpload({ image, onImageChange, label = "Drop image", compac
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
+    // Check for internal drag payload first
+    const raw = e.dataTransfer.getData(INTERNAL_MIME);
+    if (raw) {
+      try {
+        const payload = JSON.parse(raw) as DragPayload;
+        payloadToFile(payload).then((f) => handleFile(f)).catch(() => {});
+        return;
+      } catch { /* fall through */ }
+    }
     const file = e.dataTransfer.files?.[0];
     if (file?.type.startsWith("image/")) handleFile(file);
   }, [handleFile]);

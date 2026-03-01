@@ -2,6 +2,10 @@ import { useCallback, useRef, memo, useState } from "react";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
+import { useShortcutScope } from "@/hooks/useShortcutScope";
+import { useDropTarget } from "@/hooks/useDropTarget";
+import { payloadToFile } from "@/lib/sendTo";
+import type { DragPayload } from "@/stores/dragStore";
 import { fileToBase64 } from "@/lib/image";
 import { CanvasStage } from "@/canvas/CanvasStage";
 import { CanvasToolbar } from "@/canvas/CanvasToolbar";
@@ -11,6 +15,7 @@ import { RotateCcw, X, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const CanvasView = memo(function CanvasView() {
+  useShortcutScope("canvas");
   const setViewport = useCanvasStore((s) => s.setViewport);
   const addImageLayer = useCanvasStore((s) => s.addImageLayer);
   const clearLayers = useCanvasStore((s) => s.clearLayers);
@@ -35,43 +40,37 @@ export const CanvasView = memo(function CanvasView() {
     addImageLayer(file, base64, objectUrl, img.naturalWidth, img.naturalHeight);
   }, [addImageLayer]);
 
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    const dt = e.dataTransfer;
-    if (!dt?.files) return;
-
-    // Hit-test: convert screen coords to canvas coords
+  // Hit-test control frames, returning the unitIndex or -1 for canvas
+  const hitTestControlFrame = useCallback((e: React.DragEvent): number => {
     const container = containerRef.current;
-    if (container) {
-      const rect = container.getBoundingClientRect();
-      const screenX = e.clientX - rect.left;
-      const screenY = e.clientY - rect.top;
-      const canvasX = (screenX - viewport.x) / viewport.scale;
-      const canvasY = (screenY - viewport.y) / viewport.scale;
-
-      // Check if drop hits a control frame
-      for (const frame of layout.controlFrames) {
-        if (canvasX >= frame.x && canvasX <= frame.x + frame.width && canvasY >= frame.y && canvasY <= frame.y + frame.height) {
-          const file = dt.files[0];
-          if (file?.type.startsWith("image/")) {
-            setUnitImage(frame.unitIndex, file);
-            setUnitParam(frame.unitIndex, "processedImage", null);
-          }
-          return;
-        }
+    if (!container) return -1;
+    const rect = container.getBoundingClientRect();
+    const canvasX = (e.clientX - rect.left - viewport.x) / viewport.scale;
+    const canvasY = (e.clientY - rect.top - viewport.y) / viewport.scale;
+    for (const frame of layout.controlFrames) {
+      if (canvasX >= frame.x && canvasX <= frame.x + frame.width && canvasY >= frame.y && canvasY <= frame.y + frame.height) {
+        return frame.unitIndex;
       }
     }
+    return -1;
+  }, [viewport, layout.controlFrames]);
 
-    // Fall through to canvas image layer — always accept drops
-    for (const file of dt.files) {
-      if (file.type.startsWith("image/")) handleFile(file);
+  const handleCanvasFileDrop = useCallback((file: File, e: React.DragEvent) => {
+    const unit = hitTestControlFrame(e);
+    if (unit >= 0) {
+      setUnitImage(unit, file);
+      setUnitParam(unit, "processedImage", null);
+    } else {
+      handleFile(file);
     }
-  }, [handleFile, viewport, layout.controlFrames, setUnitImage, setUnitParam]);
+  }, [hitTestControlFrame, handleFile, setUnitImage, setUnitParam]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-  }, []);
+  const dropTarget = useDropTarget({
+    onDropPayload: useCallback((payload: DragPayload, e: React.DragEvent) => {
+      payloadToFile(payload).then((f: File) => handleCanvasFileDrop(f, e)).catch(() => {});
+    }, [handleCanvasFileDrop]),
+    onFileDrop: handleCanvasFileDrop,
+  });
 
   const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -131,9 +130,8 @@ export const CanvasView = memo(function CanvasView() {
   return (
     <div
       ref={containerRef}
-      className="relative w-full h-full overflow-hidden"
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
+      className={`relative w-full h-full overflow-hidden${dropTarget.isOver ? " ring-2 ring-primary ring-inset" : ""}`}
+      {...dropTarget}
       onPaste={handlePaste}
       tabIndex={0}
     >

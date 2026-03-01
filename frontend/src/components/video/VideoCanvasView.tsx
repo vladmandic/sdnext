@@ -10,6 +10,9 @@ import { FrameHeader, INPUT_COLOR_ACTIVE, INPUT_COLOR_INACTIVE, OUTPUT_COLOR } f
 import { VideoPlayer } from "@/components/video/VideoPlayer";
 import { VideoCompare } from "@/components/video/VideoCompare";
 import { VideoResultActions } from "@/components/video/VideoResultActions";
+import { useDropTarget } from "@/hooks/useDropTarget";
+import { payloadToFile } from "@/lib/sendTo";
+import type { DragPayload } from "@/stores/dragStore";
 import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { fileToBase64 } from "@/lib/image";
@@ -112,30 +115,27 @@ export function VideoCanvasView() {
     e.target.value = "";
   }, [handleFileSelected]);
 
-  // Drag/drop handler on the whole canvas container
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
-    e.preventDefault();
-    const file = e.dataTransfer.files[0];
-    if (!file || !file.type.startsWith("image/")) return;
-
-    // Hit-test: determine which frame the drop lands on
+  // Hit-test: determine which video frame a drop lands on based on screen coords
+  const hitTestTarget = useCallback((e: React.DragEvent): "init" | "last" => {
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const screenX = e.clientX - rect.left;
-    // Convert screen X to canvas X
     const canvasX = (screenX - viewport.x) / viewport.scale;
+    const { lastX, displayW } = layout;
+    if (canvasX >= lastX && canvasX < lastX + displayW) return "last";
+    return "init";
+  }, [viewport, layout]);
 
-    const { lastX, outputX, displayW } = layout;
-    let target: "init" | "last" = "init";
-    if (canvasX >= lastX && canvasX < lastX + displayW) target = "last";
-    else if (canvasX >= outputX) target = "init"; // default to init if dropped on output
+  const handleDropFile = useCallback(async (file: File, e: React.DragEvent) => {
+    await handleFileSelected(hitTestTarget(e), file);
+  }, [handleFileSelected, hitTestTarget]);
 
-    await handleFileSelected(target, file);
-  }, [viewport, layout, handleFileSelected]);
-
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-  }, []);
+  const dropTarget = useDropTarget({
+    onDropPayload: useCallback((payload: DragPayload, e: React.DragEvent) => {
+      const target = hitTestTarget(e);
+      payloadToFile(payload).then((f: File) => handleFileSelected(target, f)).catch(() => {});
+    }, [hitTestTarget, handleFileSelected]),
+    onFileDrop: handleDropFile,
+  });
 
   // Paste handler
   const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
@@ -161,9 +161,8 @@ export function VideoCanvasView() {
 
   return (
     <div
-      className="h-full flex flex-col"
-      onDrop={handleDrop}
-      onDragOver={handleDragOver}
+      className={cn("h-full flex flex-col", dropTarget.isOver && "ring-2 ring-primary ring-inset")}
+      {...dropTarget}
       onPaste={handlePaste}
       tabIndex={-1}
     >

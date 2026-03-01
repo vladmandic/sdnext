@@ -1,5 +1,5 @@
 import { useGenerationStore } from "@/stores/generationStore";
-import type { GenerationResult } from "@/stores/generationStore";
+import type { GenerationResult, GenerationState } from "@/stores/generationStore";
 import { useScriptStore } from "@/stores/scriptStore";
 import { useControlStore, resolveUnitImage } from "@/stores/controlStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
@@ -321,23 +321,21 @@ export async function buildControlRequest(): Promise<BuildResult> {
   return { request, inputBlob };
 }
 
-/** Restore generation store state from a previous result. */
-export function restoreFromResult(result: GenerationResult): void {
+/** Extract generation store params from a result without applying them. */
+export function extractParamsFromResult(result: GenerationResult): Partial<GenerationState> {
   const p = result.parameters;
 
-  // Parse the info JSON for resolved values (actual seed used, etc.)
   let info: GenerationInfo | null = null;
   try { info = JSON.parse(result.info) as GenerationInfo; }
   catch { /* ignore */ }
 
-  // Handle both control (extra) and legacy (override_settings) field names
   const overrides = (p.extra ?? p.override_settings ?? {}) as Record<string, unknown>;
 
   const num = (v: unknown, fallback: number) => typeof v === "number" ? v : fallback;
   const str = (v: unknown, fallback: string) => typeof v === "string" ? v : fallback;
   const bool = (v: unknown, fallback: boolean) => typeof v === "boolean" ? v : fallback;
 
-  useGenerationStore.getState().setParams({
+  return {
     // Prompt
     prompt: str(p.prompt, ""),
     negativePrompt: str(p.negative_prompt, ""),
@@ -493,7 +491,16 @@ export function restoreFromResult(result: GenerationResult): void {
       detailerRenoise: num(p.detailer_sigma_adjust ?? overrides.detailer_sigma_adjust, 1.0),
       detailerRenoiseEnd: num(p.detailer_sigma_adjust_max ?? overrides.detailer_sigma_adjust_max, 1.0),
     } : {}),
-  });
+  };
+}
+
+/** Restore generation store state from a previous result. */
+export function restoreFromResult(result: GenerationResult): void {
+  const params = extractParamsFromResult(result);
+  useGenerationStore.getState().setParams(params);
+
+  const p = result.parameters;
+  const num = (v: unknown, fallback: number) => typeof v === "number" ? v : fallback;
 
   // Restore input image and mask if present (img2img history)
   if (result.inputImage) {
