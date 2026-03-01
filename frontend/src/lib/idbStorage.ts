@@ -61,6 +61,12 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
   let pendingValue: string | null = null;
   let timer: ReturnType<typeof setTimeout> | null = null;
 
+  // Gate: suppress writes until the first getItem resolves (hydration complete).
+  // Without this, Zustand persist middleware can queue a setItem with pre-hydration
+  // (empty/default) state before hydration finishes reading from IDB, and the
+  // debounced flush writes that stale state over the real data.
+  let hydrated = false;
+
   function flush() {
     if (pendingKey !== null && pendingValue !== null) {
       const k = pendingKey;
@@ -77,8 +83,9 @@ export function createIdbStorage(dbName: string, storeName: string, debounceMs =
   }
 
   return {
-    getItem: (key) => idbGet(key),
+    getItem: (key) => idbGet(key).then((v) => { hydrated = true; return v; }),
     setItem: (key, value) => {
+      if (!hydrated) return;
       pendingKey = key;
       pendingValue = value;
       if (timer) clearTimeout(timer);
