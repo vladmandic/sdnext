@@ -5,6 +5,8 @@ export interface CivitImage {
   height: number;
   type: string;
   nsfwLevel: number;
+  hash?: string | null;
+  meta?: Record<string, unknown> | null;
 }
 
 export interface CivitFileHashes {
@@ -195,6 +197,26 @@ export interface CivitCheckLocalRequest {
 
 export interface CivitCheckLocalResponse {
   found: Record<string, { filename: string; type: string }>;
+}
+
+export interface CivitImageDetail {
+  id: number;
+  url: string;
+  width: number;
+  height: number;
+  hash: string;
+  type: string;
+  nsfwLevel: number | string;
+  nsfw: boolean;
+  createdAt: string;
+  postId: number;
+  username: string;
+  baseModel: string;
+  meta?: Record<string, unknown> | null;
+}
+
+export interface CivitImagesResponse {
+  items: CivitImageDetail[];
 }
 
 export interface CivitSearchParams {

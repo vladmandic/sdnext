@@ -131,6 +131,20 @@ class CivitaiClient:
                 pass
         return result
 
+    def get_images_raw(self, *, model_version_id: int | None = None, model_id: int | None = None, limit: int | None = None, token: str | None = None) -> list[dict]:
+        params: dict = {}
+        if model_version_id is not None:
+            params['modelVersionId'] = model_version_id
+        if model_id is not None:
+            params['modelId'] = model_id
+        if limit is not None:
+            params['limit'] = limit
+        r = self._get('/images', params=params, token=token)
+        if r.status_code != 200:
+            return []
+        data = r.json()
+        return data.get('items', [])
+
     def get_tags(self, *, query: str = "", limit: int = 20, page: int = 1) -> CivitTagResponse:
         params: dict = {}
         if query:

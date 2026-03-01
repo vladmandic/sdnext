@@ -101,6 +101,12 @@ def get_creators(query: str = '', limit: int = 20, page: int = 1):
     return client.get_creators(query=query, limit=limit, page=page).dict(by_alias=True)
 
 
+def get_images(model_id: int = None, model_version_id: int = None, limit: int = 20):
+    """Get images with generation metadata from CivitAI."""
+    from modules.civitai.client_civitai import client
+    return {"items": client.get_images_raw(model_id=model_id, model_version_id=model_version_id, limit=limit)}
+
+
 def get_me(token: str = None):
     """Get authenticated CivitAI user profile."""
     from modules.civitai.client_civitai import client
@@ -520,6 +526,7 @@ def register_api():
     api.add_api_route("/sdapi/v2/civitai/options", get_options, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/tags", get_tags, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/creators", get_creators, methods=["GET"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/images", get_images, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/me", get_me, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/download", post_download, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/download/{download_id}/cancel", post_download_cancel, methods=["POST"], tags=["CivitAI"])

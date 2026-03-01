@@ -10,6 +10,8 @@ class CivitImage(BaseModel):
     height: int = 0
     type: str = "Unknown"
     nsfw_level: int = Field(0, alias="nsfwLevel")
+    hash: str | None = None
+    meta: dict | None = None
 
 
 class CivitFileHashes(BaseModel):

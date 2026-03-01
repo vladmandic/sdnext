@@ -253,3 +253,17 @@ export function useCivitMetadataScan() {
     },
   });
 }
+
+export function useCivitVersionImages(versionIds: number[], enabled = false) {
+  return useQuery({
+    queryKey: ["civitai-version-images", versionIds],
+    queryFn: async () => {
+      const versions = await Promise.all(
+        versionIds.map((vid) => api.get<CivitVersion>(`/sdapi/v2/civitai/version/${vid}`)),
+      );
+      return versions.flatMap((v) => v.images ?? []);
+    },
+    enabled: enabled && versionIds.length > 0,
+    staleTime: 120_000,
+  });
+}

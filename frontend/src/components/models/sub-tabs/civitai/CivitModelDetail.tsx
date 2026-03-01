@@ -1,11 +1,15 @@
-import { useState, useMemo } from "react";
-import { Check, ChevronDown, ChevronRight, Download, Loader2, Bookmark, Ban, MessageSquareText, X, Heart, Star, ArrowDownToLine } from "lucide-react";
-import { useCivitModel, useCivitDownload, useCivitResolvePath, useCivitBookmarks, useCivitAddBookmark, useCivitRemoveBookmark, useCivitBanned, useCivitAddBanned, useCivitRemoveBanned, useCivitCheckLocal } from "@/api/hooks/useCivitai";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
+import { Check, ChevronDown, ChevronRight, ChevronLeft, Download, Loader2, Bookmark, Ban, MessageSquareText, X, Heart, Star, ArrowDownToLine, Image as ImageIcon, Send, Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { useCivitModel, useCivitDownload, useCivitResolvePath, useCivitBookmarks, useCivitAddBookmark, useCivitRemoveBookmark, useCivitBanned, useCivitAddBanned, useCivitRemoveBanned, useCivitCheckLocal, useCivitVersionImages } from "@/api/hooks/useCivitai";
 import type { CivitVersion, CivitFile, CivitImage, CivitStats } from "@/api/types/civitai";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { fetchRemoteImage, sendImageToCanvas, sendFrameToVideoInit, sendPromptToGeneration, sendPromptToVideo, appendToGenerationPrompt } from "@/lib/sendTo";
 
 interface CivitModelDetailProps {
   modelId: number | null;
@@ -28,13 +32,20 @@ function civitThumbnail(url: string, width = 450): string {
   return url.replace(/\/(width=\d+|original=true)\//, `/width=${width}/`);
 }
 
-function ImageStrip({ images, className }: { images: CivitImage[]; className?: string }) {
+function ImageStrip({ images, className, onImageClick }: { images: CivitImage[]; className?: string; onImageClick?: (index: number) => void }) {
   const filtered = images.filter((img) => !img.url.toLowerCase().endsWith(".mp4"));
   if (filtered.length === 0) return null;
   return (
     <div className={`flex gap-2 overflow-x-auto pb-1 ${className ?? ""}`}>
-      {filtered.slice(0, 8).map((img) => (
-        <img key={img.id} src={civitThumbnail(img.url)} alt="" className="h-28 w-auto rounded object-cover shrink-0" loading="lazy" />
+      {filtered.slice(0, 8).map((img, i) => (
+        <img
+          key={img.url}
+          src={civitThumbnail(img.url)}
+          alt=""
+          className={`h-28 w-auto rounded object-cover shrink-0 ${onImageClick ? "cursor-pointer hover:ring-2 hover:ring-primary/60 transition-shadow" : ""}`}
+          loading="lazy"
+          onClick={onImageClick ? () => onImageClick(i) : undefined}
+        />
       ))}
     </div>
   );
@@ -75,9 +86,10 @@ interface VersionSectionProps {
   modelId: number;
   modelNsfw: boolean;
   localFiles: Record<string, { filename: string; type: string }>;
+  onImageClick?: (image: CivitImage) => void;
 }
 
-function VersionSection({ version, modelType, modelName, creatorName, modelId, modelNsfw, localFiles }: VersionSectionProps) {
+function VersionSection({ version, modelType, modelName, creatorName, modelId, modelNsfw, localFiles, onImageClick }: VersionSectionProps) {
   const [open, setOpen] = useState(false);
   const [showTriggers, setShowTriggers] = useState(false);
   const download = useCivitDownload();
@@ -123,8 +135,11 @@ function VersionSection({ version, modelType, modelName, creatorName, modelId, m
 
       {open && (
         <div className="px-4 pb-4 space-y-4">
-          {/* Version images */}
-          <ImageStrip images={version.images} className="!h-24 [&_img]:h-24" />
+          {/* Version images — cap at 10 to match version API metadata coverage */}
+          <ImageStrip images={version.images.filter((img) => !img.url.toLowerCase().endsWith(".mp4")).slice(0, 10)} className="!h-24 [&_img]:h-24" onImageClick={onImageClick ? (i) => {
+            const filtered = version.images.filter((img) => !img.url.toLowerCase().endsWith(".mp4")).slice(0, 10);
+            if (filtered[i]) onImageClick(filtered[i]);
+          } : undefined} />
 
           {/* Version description */}
           {version.description && <HtmlDescription html={version.description} />}
@@ -141,7 +156,12 @@ function VersionSection({ version, modelType, modelName, creatorName, modelId, m
                 <div className="mt-2 max-h-24 overflow-y-auto rounded-md bg-muted/30 p-3">
                   <div className="flex flex-wrap gap-1.5">
                     {version.trainedWords.map((w) => (
-                      <Badge key={w} variant="secondary" className="text-3xs px-1.5 py-0.5 max-w-full">
+                      <Badge
+                        key={w}
+                        variant="secondary"
+                        className="text-3xs px-1.5 py-0.5 max-w-full cursor-pointer hover:bg-accent"
+                        onClick={() => { appendToGenerationPrompt(w); toast.success("Added to prompt", { description: w }); }}
+                      >
                         <span className="truncate">{w}</span>
                       </Badge>
                     ))}
@@ -183,6 +203,181 @@ function VersionSection({ version, modelType, modelName, creatorName, modelId, m
   );
 }
 
+// Metadata keys to display with human-readable labels
+const META_DISPLAY_KEYS: [string, string][] = [
+  ["prompt", "Prompt"],
+  ["negativePrompt", "Negative"],
+  ["steps", "Steps"],
+  ["sampler", "Sampler"],
+  ["cfgScale", "CFG"],
+  ["seed", "Seed"],
+  ["clipSkip", "CLIP Skip"],
+  ["Size", "Size"],
+];
+
+function ImageLightbox({ images, index, onClose, onCloseAll, onNavigate }: { images: CivitImage[]; index: number; onClose: () => void; onCloseAll: () => void; onNavigate: (i: number) => void }) {
+  const img = images[index];
+  const meta = img?.meta ?? {};
+  const hasPrompt = typeof meta.prompt === "string" && meta.prompt.length > 0;
+  const hasNegative = typeof meta.negativePrompt === "string" && meta.negativePrompt.length > 0;
+
+  const navigate = useCallback((delta: number) => {
+    const next = index + delta;
+    if (next >= 0 && next < images.length) onNavigate(next);
+  }, [index, images.length, onNavigate]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case "Escape": e.stopImmediatePropagation(); onClose(); break;
+        case "ArrowLeft": navigate(-1); break;
+        case "ArrowRight": navigate(1); break;
+      }
+    };
+    window.addEventListener("keydown", handler, true);
+    return () => window.removeEventListener("keydown", handler, true);
+  }, [onClose, navigate]);
+
+  if (!img) return null;
+  const fullUrl = img.url.replace(/\/(width=\d+)\//, "/original=true/");
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/90 flex" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      {/* Image area */}
+      <div className="flex-1 flex items-center justify-center min-w-0 relative" onClick={(e) => e.stopPropagation()}>
+        <img src={fullUrl} alt="" className="max-w-full max-h-full object-contain" draggable={false} />
+        {index > 0 && (
+          <button className="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-colors" onClick={() => navigate(-1)}>
+            <ChevronLeft size={24} />
+          </button>
+        )}
+        {index < images.length - 1 && (
+          <button className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 text-white/70 hover:text-white hover:bg-black/70 transition-colors" onClick={() => navigate(1)}>
+            <ChevronRight size={24} />
+          </button>
+        )}
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 text-3xs text-white/40 tabular-nums">
+          {index + 1} / {images.length} | {img.width}x{img.height}
+        </div>
+      </div>
+
+      {/* Metadata sidebar */}
+      <div className="w-80 shrink-0 bg-background/95 border-l border-border/50 overflow-y-auto p-4 space-y-3" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-medium">Image Details</span>
+          <div className="flex items-center gap-1">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="ghost" className="h-7 px-2 text-xs gap-1">
+                  <Send size={12} />Use
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuLabel className="text-3xs">Image</DropdownMenuLabel>
+                <DropdownMenuItem onClick={async () => {
+                  try {
+                    const file = await fetchRemoteImage(fullUrl);
+                    await sendImageToCanvas(file);
+                    onCloseAll();
+                    toast.success("Sent to Canvas");
+                  } catch { toast.error("Failed to send image"); }
+                }}>
+                  <ImageIcon size={14} className="mr-2" />Send to Canvas
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={async () => {
+                  try {
+                    const file = await fetchRemoteImage(fullUrl);
+                    const blob = new Blob([await file.arrayBuffer()], { type: file.type });
+                    await sendFrameToVideoInit(blob);
+                    onCloseAll();
+                    toast.success("Sent to Video Init");
+                  } catch { toast.error("Failed to send image"); }
+                }}>
+                  <ImageIcon size={14} className="mr-2" />Send to Video Init
+                </DropdownMenuItem>
+                {hasPrompt && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuLabel className="text-3xs">Prompt</DropdownMenuLabel>
+                    <DropdownMenuItem onClick={() => {
+                      sendPromptToGeneration(meta.prompt as string, hasNegative ? meta.negativePrompt as string : undefined);
+                      toast.success("Prompt sent to Generation");
+                    }}>
+                      <Sparkles size={14} className="mr-2" />Use in Generation
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => {
+                      sendPromptToVideo(meta.prompt as string, hasNegative ? meta.negativePrompt as string : undefined);
+                      toast.success("Prompt sent to Video");
+                    }}>
+                      <Sparkles size={14} className="mr-2" />Use in Video
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={async () => {
+                      try {
+                        const file = await fetchRemoteImage(fullUrl);
+                        await sendImageToCanvas(file);
+                        sendPromptToGeneration(meta.prompt as string, hasNegative ? meta.negativePrompt as string : undefined);
+                        onCloseAll();
+                        toast.success("Image + Prompt sent to Canvas");
+                      } catch { toast.error("Failed to send"); }
+                    }}>
+                      <Send size={14} className="mr-2" />Image + Prompt → Canvas
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <button className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors" onClick={onClose}>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+        {Object.keys(meta).length > 0 ? (
+          <div className="space-y-2.5 pt-1">
+            {META_DISPLAY_KEYS.map(([key, label]) => {
+              const val = meta[key];
+              if (val === undefined || val === null || val === "") return null;
+              const isLong = typeof val === "string" && val.length > 60;
+              const isPromptField = key === "prompt" || key === "negativePrompt";
+              return (
+                <div key={key}>
+                  <div className="flex items-center justify-between mb-0.5">
+                    <p className="text-3xs font-medium text-muted-foreground">{label}</p>
+                    {isPromptField && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button type="button" className="text-3xs text-primary hover:underline">Use</button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-36">
+                          <DropdownMenuItem onClick={() => {
+                            sendPromptToGeneration(String(val));
+                            toast.success(`${label} sent to Generation`);
+                          }}>Generation</DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => {
+                            sendPromptToVideo(String(val));
+                            toast.success(`${label} sent to Video`);
+                          }}>Video</DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </div>
+                  {isLong ? (
+                    <p className="text-xs text-foreground whitespace-pre-wrap break-words max-h-32 overflow-y-auto bg-muted/30 rounded p-2">{String(val)}</p>
+                  ) : (
+                    <p className="text-xs text-foreground">{String(val)}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground/60 italic pt-2">No generation metadata available</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
   const { data: model, isLoading } = useCivitModel(modelId);
   const { data: bookmarks } = useCivitBookmarks();
@@ -191,6 +386,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
   const removeBookmark = useCivitRemoveBookmark();
   const addBan = useCivitAddBanned();
   const removeBan = useCivitRemoveBanned();
+  const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
 
   const allHashes = useMemo(() => {
     if (!model) return [];
@@ -208,21 +404,72 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
   const isBookmarked = model ? (bookmarks?.some((b) => b.name === model.name) ?? false) : false;
   const isBanned = model ? (banned?.some((b) => b.name === model.name) ?? false) : false;
 
-  // Collect all images from all versions for the hero strip
-  const allImages = useMemo(() => {
+  // Collect all non-video images from all versions for the hero strip
+  // Limit to 10 per version — the version API only returns ~10 images with metadata,
+  // so capping here ensures every displayed image can have generation params.
+  const baseImages = useMemo(() => {
     if (!model) return [];
     const imgs: CivitImage[] = [];
     for (const v of model.modelVersions) {
+      let count = 0;
       for (const img of v.images) {
-        imgs.push(img);
+        if (count >= 10) break;
+        if (!img.url.toLowerCase().endsWith(".mp4")) {
+          imgs.push(img);
+          count++;
+        }
       }
     }
     return imgs;
   }, [model]);
 
+  // Collect version IDs that have images so we can fetch metadata per-version
+  const versionIds = useMemo(() => {
+    if (!model) return [];
+    return model.modelVersions.filter((v) => v.images.length > 0).map((v) => v.id);
+  }, [model]);
+
+  // Fetch version details (which include images WITH meta) for all versions
+  const { data: versionImages } = useCivitVersionImages(versionIds, versionIds.length > 0);
+
+  // Merge metadata from version images into base images by UUID in URL
+  const allImages = useMemo(() => {
+    if (!versionImages?.length) return baseImages;
+    const uuidRe = /\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\//;
+    const metaByUuid = new Map<string, Record<string, unknown>>();
+    for (const img of versionImages) {
+      if (img.meta && typeof img.meta === "object") {
+        const m = uuidRe.exec(img.url);
+        if (m) metaByUuid.set(m[1], img.meta as Record<string, unknown>);
+      }
+    }
+    if (metaByUuid.size === 0) return baseImages;
+    return baseImages.map((img) => {
+      const m = uuidRe.exec(img.url);
+      const meta = m ? metaByUuid.get(m[1]) : undefined;
+      return meta ? { ...img, meta } : img;
+    });
+  }, [baseImages, versionImages]);
+
+  const openLightbox = useCallback((thumbIndex: number) => {
+    setLightboxIndex(thumbIndex);
+  }, []);
+
+  // State to hold the dialog portal container so the lightbox can be portalled inside it
+  // (avoids Radix focus-trap/inert issues while escaping DialogContent CSS transforms)
+  const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  const capturePortal = useCallback((node: HTMLDivElement | null) => {
+    if (node) {
+      let el: HTMLElement | null = node;
+      while (el && el.parentElement !== document.body) el = el.parentElement;
+      setPortalContainer((prev) => prev === el ? prev : el);
+    }
+  }, []);
+
   return (
-    <Dialog open={modelId !== null} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent showCloseButton={false} className="sm:max-w-5xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden">
+    <Dialog open={modelId !== null} onOpenChange={(open) => { if (!open) { if (lightboxIndex !== null) return; onClose(); } }}>
+      <DialogContent showCloseButton={false} className="sm:max-w-5xl max-h-[85vh] flex flex-col p-0 gap-0 overflow-hidden" onPointerDownOutside={(e) => { if (lightboxIndex !== null) e.preventDefault(); }} onInteractOutside={(e) => { if (lightboxIndex !== null) e.preventDefault(); }}>
+        <div ref={capturePortal} className="hidden" />
         {isLoading ? (
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin" />
@@ -279,7 +526,7 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
                 )}
 
                 {/* Image gallery */}
-                <ImageStrip images={allImages} />
+                <ImageStrip images={allImages} onImageClick={openLightbox} />
 
                 {/* Model description */}
                 {model.description && <HtmlDescription html={model.description} />}
@@ -289,16 +536,26 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
                 {/* Versions */}
                 <div className="space-y-3">
                   {model.modelVersions.map((v) => (
-                    <VersionSection key={v.id} version={v} modelType={model.type} modelName={model.name} creatorName={model.creator.username} modelId={model.id} modelNsfw={model.nsfw} localFiles={localFiles} />
+                    <VersionSection key={v.id} version={v} modelType={model.type} modelName={model.name} creatorName={model.creator.username} modelId={model.id} modelNsfw={model.nsfw} localFiles={localFiles} onImageClick={(img) => {
+                      const idx = allImages.findIndex((a) => a.url === img.url);
+                      if (idx >= 0) setLightboxIndex(idx);
+                    }} />
                   ))}
                 </div>
               </div>
             </div>
+
           </>
         ) : (
           <p className="text-sm text-muted-foreground py-8 text-center">Model not found</p>
         )}
       </DialogContent>
+
+      {/* Image lightbox — portalled into dialog portal container to stay within Radix focus scope */}
+      {lightboxIndex !== null && allImages.length > 0 && portalContainer && createPortal(
+        <ImageLightbox images={allImages} index={lightboxIndex} onClose={() => setLightboxIndex(null)} onCloseAll={() => { setLightboxIndex(null); onClose(); }} onNavigate={setLightboxIndex} />,
+        portalContainer,
+      )}
     </Dialog>
   );
 }
