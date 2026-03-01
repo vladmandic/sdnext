@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { useCanvasStore } from "@/stores/canvasStore";
 import type { SizeMode } from "@/lib/sizeCompute";
 
@@ -60,27 +61,37 @@ const defaultState = {
   inpaintingMaskInvert: false,
 };
 
-export const useImg2ImgStore = create<Img2ImgState>()((_set) => ({
-  ...defaultState,
+export const useImg2ImgStore = create<Img2ImgState>()(
+  persist(
+    (_set) => ({
+      ...defaultState,
 
-  addMaskLine: (line) => _set((s) => ({ maskLines: [...s.maskLines, line] })),
+      addMaskLine: (line) => _set((s) => ({ maskLines: [...s.maskLines, line] })),
 
-  clearMask: () => {
-    _set({ maskLines: [], maskData: null });
-    useCanvasStore.getState().removeMaskLayers();
-  },
+      clearMask: () => {
+        _set({ maskLines: [], maskData: null });
+        useCanvasStore.getState().removeMaskLayers();
+      },
 
-  setResizeMode: (mode) => _set({ resizeMode: mode }),
-  setSizeMode: (mode) => _set({ sizeMode: mode }),
-  setScaleFactor: (factor) => _set({ scaleFactor: factor }),
-  setMegapixelTarget: (target) => _set({ megapixelTarget: target }),
-  setResizeMethod: (method) => _set({ resizeMethod: method }),
-  setMaskBlur: (blur) => _set({ maskBlur: blur }),
-  setInpaintFullRes: (v) => _set({ inpaintFullRes: v }),
-  setInpaintFullResPadding: (v) => _set({ inpaintFullResPadding: v }),
-  setInpaintingMaskInvert: (v) => _set({ inpaintingMaskInvert: v }),
+      setResizeMode: (mode) => _set({ resizeMode: mode }),
+      setSizeMode: (mode) => _set({ sizeMode: mode }),
+      setScaleFactor: (factor) => _set({ scaleFactor: factor }),
+      setMegapixelTarget: (target) => _set({ megapixelTarget: target }),
+      setResizeMethod: (method) => _set({ resizeMethod: method }),
+      setMaskBlur: (blur) => _set({ maskBlur: blur }),
+      setInpaintFullRes: (v) => _set({ inpaintFullRes: v }),
+      setInpaintFullResPadding: (v) => _set({ inpaintFullResPadding: v }),
+      setInpaintingMaskInvert: (v) => _set({ inpaintingMaskInvert: v }),
 
-  hasLayers: () => useCanvasStore.getState().layers.length > 0,
+      hasLayers: () => useCanvasStore.getState().layers.length > 0,
 
-  reset: () => _set(defaultState),
-}));
+      reset: () => _set(defaultState),
+    }),
+    {
+      name: "sdnext-img2img",
+      partialize: ({ resizeMode, sizeMode, scaleFactor, megapixelTarget, resizeMethod, maskBlur, inpaintFullRes, inpaintFullResPadding, inpaintingMaskInvert }) => ({
+        resizeMode, sizeMode, scaleFactor, megapixelTarget, resizeMethod, maskBlur, inpaintFullRes, inpaintFullResPadding, inpaintingMaskInvert,
+      }),
+    },
+  ),
+);
