@@ -88,7 +88,7 @@ from .variants import (
     GaussLegendre4SScheduler,
 )
 
-__all__ = [ # noqa: RUF022
+__all__ = [
     # Base
     "RESUnifiedScheduler",
     "RESMultistepScheduler",
