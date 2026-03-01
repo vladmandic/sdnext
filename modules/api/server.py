@@ -97,17 +97,15 @@ def get_config():
     """Return all current application options as a key-value dictionary."""
     from modules import secrets_manager
     options = {}
-    for k in shared.opts.data.keys():
-        info = shared.opts.data_labels.get(k)
-        if info is not None:
-            if getattr(info, 'secret', False):
-                continue  # handled below
-            options[k] = shared.opts.data.get(k, info.default)
-        else:
-            options[k] = shared.opts.data.get(k, None)
     for k, info in shared.opts.data_labels.items():
         if getattr(info, 'secret', False):
             options[k] = secrets_manager.get_mask(k, info.env_var)
+        else:
+            options[k] = shared.opts.data.get(k, info.default)
+    # Include any keys in data that aren't in data_labels (e.g. from extensions loaded after registration)
+    for k in shared.opts.data.keys():
+        if k not in options:
+            options[k] = shared.opts.data[k]
     if 'sd_lyco' in options:
         del options['sd_lyco']
     if 'sd_lora' in options:
