@@ -6,6 +6,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 const QuickSettingsTab = lazy(() => import("./tabs/QuickSettingsTab").then((m) => ({ default: m.QuickSettingsTab })));
 const NetworksTab = lazy(() => import("./tabs/NetworksTab").then((m) => ({ default: m.NetworksTab })));
 const ModelsTab = lazy(() => import("./tabs/ModelsTab").then((m) => ({ default: m.ModelsTab })));
+const QueueTab = lazy(() => import("./tabs/QueueTab").then((m) => ({ default: m.QueueTab })));
 const ExtensionsTab = lazy(() => import("./tabs/ExtensionsTab").then((m) => ({ default: m.ExtensionsTab })));
 const SettingsTab = lazy(() => import("./tabs/SettingsTab").then((m) => ({ default: m.SettingsTab })));
 const SystemTab = lazy(() => import("./tabs/SystemTab").then((m) => ({ default: m.SystemTab })));
@@ -17,6 +18,7 @@ const TAB_COMPONENTS: Record<string, React.LazyExoticComponent<React.ComponentTy
   "quick-settings": QuickSettingsTab,
   "networks": NetworksTab,
   "models": ModelsTab,
+  "queue": QueueTab,
   "extensions": ExtensionsTab,
   "settings": SettingsTab,
   "system": SystemTab,

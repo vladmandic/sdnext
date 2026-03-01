@@ -1,6 +1,7 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { ASIDE_TABS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
+import { useJobQueueStore, selectHasActiveJobs } from "@/stores/jobStore";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
@@ -9,6 +10,8 @@ export function AsideIconStrip() {
   const collapsed = useUiStore((s) => s.rightPanelCollapsed);
   const openAsideTab = useUiStore((s) => s.openAsideTab);
   const toggleRightPanel = useUiStore((s) => s.toggleRightPanel);
+
+  const hasActiveJobs = useJobQueueStore(selectHasActiveJobs);
 
   function handleTabClick(tabId: typeof activeTab) {
     if (collapsed) {
@@ -45,13 +48,16 @@ export function AsideIconStrip() {
                 type="button"
                 onClick={() => handleTabClick(tab.id)}
                 className={cn(
-                  "flex items-center justify-center w-9 h-9 rounded-md transition-colors",
+                  "relative flex items-center justify-center w-9 h-9 rounded-md transition-colors",
                   activeTab === tab.id
                     ? "bg-accent text-accent-foreground"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
                 )}
               >
                 <tab.icon className="h-4 w-4" />
+                {tab.id === "queue" && hasActiveJobs && (
+                  <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary animate-pulse" />
+                )}
               </button>
             </TooltipTrigger>
             <TooltipContent side="left">{tab.label}</TooltipContent>

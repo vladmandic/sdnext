@@ -8,11 +8,12 @@ import { snapshotUnits } from "@/stores/controlStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
-import { Play, Square, SkipForward, Loader2, History, FileSearch } from "lucide-react";
+import { Play, Square, SkipForward, Loader2, History, FileSearch, ChevronDown } from "lucide-react";
 import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PngInfoDialog } from "@/components/generation/PngInfoDialog";
+import { BatchDialog } from "@/components/generation/BatchDialog";
 
 export const ActionBar = memo(function ActionBar() {
   const prompt = useGenerationStore((s) => s.prompt);
@@ -25,6 +26,7 @@ export const ActionBar = memo(function ActionBar() {
   const pendingCount = useJobQueueStore(selectPendingCount);
 
   const [pngInfoOpen, setPngInfoOpen] = useState(false);
+  const [batchOpen, setBatchOpen] = useState(false);
   const cancelJob = useCancelJob();
 
   const buildRequest = useCallback(async () => {
@@ -73,20 +75,36 @@ export const ActionBar = memo(function ActionBar() {
 
   return (
     <div className="flex items-center gap-2">
-      {/* Generate button */}
-      <Button
-        type="button"
-        onClick={submit}
-        disabled={!canSubmit || isSubmitting}
-        variant="default"
-        size="sm"
-        className="flex-1"
-      >
-        {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
-        {isGenerating
-          ? `${phaseLabel}${progressPct > 0 ? ` ${progressPct}%` : ""}${pendingCount > 0 ? ` [+${pendingCount}]` : ""}`
-          : `Generate${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
-      </Button>
+      {/* Generate button group */}
+      <div className="flex flex-1 min-w-0">
+        <Button
+          type="button"
+          onClick={submit}
+          disabled={!canSubmit || isSubmitting}
+          variant="default"
+          size="sm"
+          className="flex-1 rounded-r-none"
+        >
+          {isGenerating ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+          {isGenerating
+            ? `${phaseLabel}${progressPct > 0 ? ` ${progressPct}%` : ""}${pendingCount > 0 ? ` [+${pendingCount}]` : ""}`
+            : `Generate${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
+        </Button>
+        {!isGenerating && (
+          <Button
+            type="button"
+            variant="default"
+            size="sm"
+            className="px-1.5 rounded-l-none border-l border-primary-foreground/20"
+            onClick={() => setBatchOpen(true)}
+            disabled={!canSubmit}
+            title="Batch generation"
+          >
+            <ChevronDown size={14} />
+          </Button>
+        )}
+      </div>
+      <BatchDialog open={batchOpen} onOpenChange={setBatchOpen} buildRequest={buildRequest} />
 
       {/* Stop button */}
       {isGenerating && (
