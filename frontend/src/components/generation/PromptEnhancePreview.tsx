@@ -7,9 +7,10 @@ import { Check, RotateCcw, X, Loader2 } from "lucide-react";
 interface PromptEnhancePreviewProps {
   onEnhance: () => void;
   isPending: boolean;
+  onAccept?: (prompt: string) => void;
 }
 
-export function PromptEnhancePreview({ onEnhance, isPending }: PromptEnhancePreviewProps) {
+export function PromptEnhancePreview({ onEnhance, isPending, onAccept: onAcceptProp }: PromptEnhancePreviewProps) {
   const pendingResult = usePromptEnhanceStore((s) => s.pendingResult);
   const setPendingResult = usePromptEnhanceStore((s) => s.setPendingResult);
   const addToHistory = usePromptEnhanceStore((s) => s.addToHistory);
@@ -23,7 +24,11 @@ export function PromptEnhancePreview({ onEnhance, isPending }: PromptEnhancePrev
   if (!pendingResult) return null;
 
   const handleAccept = () => {
-    setParam("prompt", pendingResult.prompt);
+    if (onAcceptProp) {
+      onAcceptProp(pendingResult.prompt);
+    } else {
+      setParam("prompt", pendingResult.prompt);
+    }
     addToHistory({
       prompt: pendingResult.prompt,
       originalPrompt: pendingResult.originalPrompt,

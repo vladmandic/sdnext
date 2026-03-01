@@ -9,9 +9,11 @@ interface PromptEnhanceWorkspaceProps {
   onEnhance: () => void;
   isPending: boolean;
   onClose: () => void;
+  onAccept?: (prompt: string) => void;
+  onSelectPrompt?: (prompt: string) => void;
 }
 
-export function PromptEnhanceWorkspace({ onEnhance, isPending, onClose }: PromptEnhanceWorkspaceProps) {
+export function PromptEnhanceWorkspace({ onEnhance, isPending, onClose, onAccept, onSelectPrompt }: PromptEnhanceWorkspaceProps) {
   const pinned = usePromptEnhanceStore((s) => s.pinned);
   const setPinned = usePromptEnhanceStore((s) => s.setPinned);
   const pendingResult = usePromptEnhanceStore((s) => s.pendingResult);
@@ -52,7 +54,7 @@ export function PromptEnhanceWorkspace({ onEnhance, isPending, onClose }: Prompt
       {/* Preview */}
       {pendingResult && (
         <>
-          <PromptEnhancePreview onEnhance={onEnhance} isPending={isPending} />
+          <PromptEnhancePreview onEnhance={onEnhance} isPending={isPending} onAccept={onAccept} />
           <Separator />
         </>
       )}
@@ -66,7 +68,7 @@ export function PromptEnhanceWorkspace({ onEnhance, isPending, onClose }: Prompt
       {history.length > 0 && (
         <>
           <Separator />
-          <PromptEnhanceHistory />
+          <PromptEnhanceHistory onSelectPrompt={onSelectPrompt} />
         </>
       )}
     </div>

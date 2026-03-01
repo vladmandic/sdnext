@@ -15,7 +15,11 @@ function formatRelativeTime(timestamp: number): string {
   return `${days}d ago`;
 }
 
-export function PromptEnhanceHistory() {
+interface PromptEnhanceHistoryProps {
+  onSelectPrompt?: (prompt: string) => void;
+}
+
+export function PromptEnhanceHistory({ onSelectPrompt }: PromptEnhanceHistoryProps = {}) {
   const history = usePromptEnhanceStore((s) => s.history);
   const clearHistory = usePromptEnhanceStore((s) => s.clearHistory);
   const setParam = useGenerationStore((s) => s.setParam);
@@ -47,7 +51,11 @@ export function PromptEnhanceHistory() {
               key={item.id}
               type="button"
               onClick={() => {
-                setParam("prompt", item.prompt);
+                if (onSelectPrompt) {
+                  onSelectPrompt(item.prompt);
+                } else {
+                  setParam("prompt", item.prompt);
+                }
                 toast.success("Prompt loaded from history");
               }}
               className="flex items-start gap-2 w-full text-left p-1.5 rounded hover:bg-muted/50 transition-colors group"
