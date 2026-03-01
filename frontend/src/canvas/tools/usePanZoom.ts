@@ -3,8 +3,11 @@ import { useCanvasStore } from "@/stores/canvasStore";
 import { ZOOM_LIMITS } from "@/lib/constants";
 import type Konva from "konva";
 
-export function usePanZoom(stageRef: React.RefObject<Konva.Stage | null>) {
-  const setViewport = useCanvasStore((s) => s.setViewport);
+type SetViewportFn = (v: { x?: number; y?: number; scale?: number }) => void;
+
+export function usePanZoom(stageRef: React.RefObject<Konva.Stage | null>, setViewportOverride?: SetViewportFn) {
+  const canvasSetViewport = useCanvasStore((s) => s.setViewport);
+  const setViewport = setViewportOverride ?? canvasSetViewport;
   const spaceHeld = useRef(false);
   const isPanning = useRef(false);
   const lastPointer = useRef({ x: 0, y: 0 });

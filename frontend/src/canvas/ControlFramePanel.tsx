@@ -14,14 +14,14 @@ import { contrastText, downloadImage, generateImageFilename, resolveImageSrc } f
 import { fileToBase64 } from "@/lib/image";
 import { ELEMENT_GAP, PROCESSED_HEADER_HEIGHT, type CanvasLayout, type ControlFramePosition } from "./useControlFrameLayout";
 
-const HEADER_HEIGHT = 36;
+export const HEADER_HEIGHT = 36;
 const DRAWER_MAX_HEIGHT = 420;
-const PANEL_WIDTH = 320;
+export const PANEL_WIDTH = 320;
 const STROKE_HALF = 1;
 const CONTROL_COLOR = "#f59e0b";
-const INPUT_COLOR_ACTIVE = "#4ade80";
-const INPUT_COLOR_INACTIVE = "#6b7280";
-const OUTPUT_COLOR = "#60a5fa";
+export const INPUT_COLOR_ACTIVE = "#4ade80";
+export const INPUT_COLOR_INACTIVE = "#6b7280";
+export const OUTPUT_COLOR = "#60a5fa";
 const PROCESSED_COLOR = "#c084fc";
 const INPUT_PANEL_KEY = -1;
 
@@ -34,7 +34,7 @@ const INPUT_PANEL_KEY = -1;
 // Visual affordance: hats are flat bars = nothing to expand.
 //                    Panels have rounded top + border = expandable.
 
-interface FrameHeaderProps {
+export interface FrameHeaderProps {
   mode: "panel" | "hat";
   color: string;
   label: string;
@@ -59,7 +59,7 @@ interface FrameHeaderProps {
   onToggleCollapsed?: () => void;
 }
 
-function FrameHeader({ mode, color, label, sizeText, canvasX, canvasY = 0, frameW, viewport, labelScale, actions, subHeader, drawer, collapsed, onToggleCollapsed }: FrameHeaderProps) {
+export function FrameHeader({ mode, color, label, sizeText, canvasX, canvasY = 0, frameW, viewport, labelScale, actions, subHeader, drawer, collapsed, onToggleCollapsed }: FrameHeaderProps) {
   const textColor = contrastText(color);
   const combinedScale = viewport.scale * labelScale;
 
