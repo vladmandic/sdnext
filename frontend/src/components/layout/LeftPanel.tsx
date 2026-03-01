@@ -38,7 +38,7 @@ export function LeftPanel() {
 
   if (activeView === "images") {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full min-w-0">
         {/* Action bar */}
         <div className="px-3 py-2 border-b border-border">
           <ActionBar />
@@ -46,7 +46,7 @@ export function LeftPanel() {
 
         {/* Sub-tab content */}
         <ScrollArea className="flex-1 min-h-0">
-          <div className="p-3">
+          <div className="p-3 min-w-0">
             <ImagesSubTabContent activeSubTab={activeSubTab} />
           </div>
         </ScrollArea>

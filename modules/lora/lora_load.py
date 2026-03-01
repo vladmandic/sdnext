@@ -192,6 +192,8 @@ def list_available_networks():
             if entry.alias in available_network_aliases:
                 forbidden_network_aliases[entry.alias.lower()] = 1
             available_network_aliases[entry.name] = entry
+            if entry.fullname != entry.name:
+                available_network_aliases[entry.fullname] = entry
             if entry.shorthash:
                 available_network_hash_lookup[entry.shorthash] = entry
         except OSError as e: # should catch FileNotFoundError and PermissionError etc.

@@ -1,16 +1,16 @@
 import { useState, useMemo } from "react";
-import { RefreshCw, ImageOff, Info, Loader2, ScanSearch, ExternalLink } from "lucide-react";
-import { toast } from "sonner";
-import { useExtraNetworks, usePromptStyles, useNetworkDetail, useRefreshNetworks } from "@/api/hooks/useNetworks";
+import { RefreshCw, ImageOff, Loader2, ScanSearch } from "lucide-react";
+import { useExtraNetworks, usePromptStyles, useRefreshNetworks } from "@/api/hooks/useNetworks";
 import { useCivitMetadataScan } from "@/api/hooks/useCivitai";
 import { useOptions, useSetOptions } from "@/api/hooks/useSettings";
 import { useGenerationStore } from "@/stores/generationStore";
-import type { ExtraNetworkV2, NetworkDetail, PromptStyleV2 } from "@/api/types/models";
+import type { ExtraNetworkV2, PromptStyleV2 } from "@/api/types/models";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
+import { NetworkDetailDialog } from "./NetworkDetailDialog";
 import { cn } from "@/lib/utils";
 import { api } from "@/api/client";
+import { toast } from "sonner";
 
 const TYPE_FILTERS = ["Model", "LoRA", "Style", "Wildcards", "Embedding", "VAE"] as const;
 type TypeFilter = (typeof TYPE_FILTERS)[number];
@@ -357,135 +357,6 @@ export function NetworksTab() {
   );
 }
 
-function formatBytes(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-  return `${(bytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-}
-
-function DetailRow({ label, value }: { label: string; value: string | null | undefined }) {
-  if (!value) return null;
-  return (
-    <div className="flex gap-2 text-2xs leading-tight">
-      <span className="text-muted-foreground shrink-0 w-16">{label}</span>
-      <span className="truncate font-medium">{value}</span>
-    </div>
-  );
-}
-
-function NetworkDetailPopover({ item }: { item: ExtraNetworkV2 | PromptStyleV2 }) {
-  const [open, setOpen] = useState(false);
-  const isNetwork = "type" in item && item.type;
-  const network = isNetwork ? (item as ExtraNetworkV2) : null;
-  const { data: detail, isLoading } = useNetworkDetail(network?.type ?? "", item.name, open && !!network);
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          onClick={(e) => { e.stopPropagation(); }}
-          className="p-0.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-        >
-          <Info className="h-3 w-3" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent side="right" align="start" className="w-64 p-3 space-y-2" onClick={(e) => e.stopPropagation()}>
-        <p className="text-xs font-semibold truncate">{item.name}</p>
-        {!network ? (
-          <StyleDetail item={item as PromptStyleV2} />
-        ) : isLoading ? (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground py-2">
-            <Loader2 className="h-3 w-3 animate-spin" />
-            Loading...
-          </div>
-        ) : detail && detail.name ? (
-          <NetworkDetailContent detail={detail} />
-        ) : (
-          <p className="text-2xs text-muted-foreground">No detail available.</p>
-        )}
-      </PopoverContent>
-    </Popover>
-  );
-}
-
-function getCivitInfo(info: Record<string, unknown> | null | undefined) {
-  if (!info || typeof info.id !== "number" || info.id <= 0) return null;
-  const versions = Array.isArray(info.modelVersions) ? info.modelVersions as Array<Record<string, unknown>> : [];
-  const firstVersion = versions[0];
-  const trainedWords = Array.isArray(firstVersion?.trainedWords) ? (firstVersion.trainedWords as string[]).filter(Boolean) : [];
-  const baseModel = typeof firstVersion?.baseModel === "string" ? firstVersion.baseModel : null;
-  return {
-    id: info.id as number,
-    name: typeof info.name === "string" ? info.name : null,
-    trainedWords,
-    baseModel,
-  };
-}
-
-function NetworkDetailContent({ detail }: { detail: NetworkDetail }) {
-  const civit = getCivitInfo(detail.info);
-  return (
-    <div className="space-y-1">
-      <DetailRow label="Type" value={detail.type} />
-      <DetailRow label="Alias" value={detail.alias} />
-      <DetailRow label="Hash" value={detail.hash} />
-      <DetailRow label="Version" value={detail.version} />
-      <DetailRow label="Size" value={detail.size != null ? formatBytes(detail.size) : null} />
-      <DetailRow label="Modified" value={detail.mtime ? new Date(detail.mtime).toLocaleDateString() : null} />
-      <DetailRow label="Tags" value={detail.tags?.replaceAll("|", ", ")} />
-      <DetailRow label="File" value={detail.filename?.split("/").pop()} />
-      {detail.description && (
-        <p className="text-2xs text-muted-foreground pt-1 border-t border-border mt-1">{detail.description}</p>
-      )}
-      {civit && (
-        <div className="pt-1 border-t border-border mt-1 space-y-1">
-          <div className="flex items-center gap-1.5">
-            <span className="text-2xs font-semibold">CivitAI</span>
-            <a
-              href={`https://civitai.com/models/${civit.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <ExternalLink className="h-2.5 w-2.5" />
-            </a>
-          </div>
-          {civit.name && <DetailRow label="Name" value={civit.name} />}
-          {civit.baseModel && <DetailRow label="Base" value={civit.baseModel} />}
-          {civit.trainedWords.length > 0 && (
-            <div className="flex gap-2 text-2xs leading-tight">
-              <span className="text-muted-foreground shrink-0 w-16">Triggers</span>
-              <span className="font-medium break-words">{civit.trainedWords.join(", ")}</span>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function StyleDetail({ item }: { item: PromptStyleV2 }) {
-  return (
-    <div className="space-y-1">
-      {item.prompt && (
-        <div className="text-2xs">
-          <span className="text-muted-foreground">Prompt: </span>
-          <span className="break-words">{item.prompt}</span>
-        </div>
-      )}
-      {item.negative_prompt && (
-        <div className="text-2xs">
-          <span className="text-muted-foreground">Negative: </span>
-          <span className="break-words">{item.negative_prompt}</span>
-        </div>
-      )}
-      {item.filename && <DetailRow label="File" value={item.filename.split("/").pop()} />}
-    </div>
-  );
-}
 
 function NetworkCard({ item, active, onClick }: { item: ExtraNetworkV2 | PromptStyleV2; active: boolean; onClick: () => void }) {
   const isNetwork = "type" in item && item.type;
@@ -518,7 +389,7 @@ function NetworkCard({ item, active, onClick }: { item: ExtraNetworkV2 | PromptS
         <p className="text-2xs font-medium truncate leading-tight">{item.name}</p>
         <div className="flex items-center justify-between gap-1">
           <Badge variant="secondary" className="text-4xs px-1 py-0">{typeBadge}</Badge>
-          <NetworkDetailPopover item={item} />
+          <NetworkDetailDialog item={item} />
         </div>
       </div>
     </button>
