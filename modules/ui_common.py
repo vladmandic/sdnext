@@ -442,7 +442,7 @@ def update_token_counter(text: str):
     prompt_list = [prompt]
     ids = []
     if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
-        if shared.opts.prompt_detailed_tokens:
+        if shared.opts.prompt_detailed_tokens and shared.opts.prompt_attention == 'native':
             p_split = re.compile(r'\bBREAK\b|\n' if shared.opts.sd_textencder_linebreak else r'\bBREAK\b')
             prompt_list = re.split(p_split, prompt)
 
