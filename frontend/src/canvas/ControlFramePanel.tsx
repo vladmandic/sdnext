@@ -178,10 +178,10 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
   if (!unit) return null;
 
   const imageDims = isOwner ? unit.imageDims : null;
-  const panelColor = isReference ? INPUT_COLOR_REFERENCE : CONTROL_COLOR;
-  const textColor = contrastText(panelColor);
   const unifiedIndex = unitIndex + 2;
   const isReference = unit.unitType === "reference";
+  const panelColor = isReference ? INPUT_COLOR_REFERENCE : CONTROL_COLOR;
+  const textColor = contrastText(panelColor);
   const roleLabel = isReference ? "Reference" : `Control: ${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType}`;
   const labelText = `Input ${unifiedIndex} (${roleLabel})`;
 
