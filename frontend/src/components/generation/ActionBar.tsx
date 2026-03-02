@@ -1,5 +1,5 @@
 import { useGenerationStore } from "@/stores/generationStore";
-import { useJobQueueStore, selectRunningJob, selectDomainActive, selectPendingCount } from "@/stores/jobStore";
+import { useJobQueueStore, selectRunningJob, selectGenerateActive, selectPendingCount } from "@/stores/jobStore";
 import { useCanvasStore } from "@/stores/canvasStore";
 import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { buildControlRequest, restoreFromResult } from "@/lib/requestBuilder";
@@ -8,15 +8,17 @@ import { snapshotUnits } from "@/stores/controlStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
-import { Play, Square, SkipForward, History, FileSearch, ChevronDown } from "lucide-react";
+import { Play, Square, SkipForward, History, FileSearch, ChevronDown, Layers, Grid3X3 } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
 import { formatDuration } from "@/lib/utils";
 import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
 import { useShortcut } from "@/hooks/useShortcut";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { PngInfoDialog } from "@/components/generation/PngInfoDialog";
 import { BatchDialog } from "@/components/generation/BatchDialog";
+import { XyzGridDialog } from "@/components/generation/XyzGridDialog";
 import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
 
 export const ActionBar = memo(function ActionBar() {
@@ -25,12 +27,13 @@ export const ActionBar = memo(function ActionBar() {
   const lastResult = useGenerationStore((s) => s.results[0]);
   const hasLayers = useCanvasStore((s) => s.layers.length > 0);
 
-  const isActive = useJobQueueStore(selectDomainActive("generate"));
+  const isActive = useJobQueueStore(selectGenerateActive);
   const runningJob = useJobQueueStore(selectRunningJob);
   const pendingCount = useJobQueueStore(selectPendingCount);
 
   const [pngInfoOpen, setPngInfoOpen] = useState(false);
   const [batchOpen, setBatchOpen] = useState(false);
+  const [xyzOpen, setXyzOpen] = useState(false);
   const [diffOpen, setDiffOpen] = useState(false);
   const cancelJob = useCancelJob();
 
@@ -51,7 +54,7 @@ export const ActionBar = memo(function ActionBar() {
   const { submit, isSubmitting } = useSubmitToQueue(useMemo(() => ({ domain: "generate" as const, buildRequest }), [buildRequest]));
 
   const isGenerating = isActive || isSubmitting;
-  const runningGenJob = useJobQueueStore(useMemo(() => selectDomainActive("generate"), []));
+  const runningGenJob = useJobQueueStore(selectGenerateActive);
   const progress = runningJob?.domain === "generate" ? runningJob.progress : 0;
 
   const handleInterrupt = useCallback(() => {
@@ -105,20 +108,31 @@ export const ActionBar = memo(function ActionBar() {
             : `Generate${pendingCount > 0 ? ` [${pendingCount}]` : ""}`}
         </Button>
         {!isGenerating && (
-          <Button
-            type="button"
-            variant="default"
-            size="sm"
-            className="px-1.5 rounded-l-none border-l border-primary-foreground/20"
-            onClick={() => setBatchOpen(true)}
-            disabled={!canSubmit}
-            title="Batch generation"
-          >
-            <ChevronDown size={14} />
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="default"
+                size="sm"
+                className="px-1.5 rounded-l-none border-l border-primary-foreground/20"
+                disabled={!canSubmit}
+              >
+                <ChevronDown size={14} />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setBatchOpen(true)}>
+                <Layers size={14} /> Batch Generation
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setXyzOpen(true)}>
+                <Grid3X3 size={14} /> XYZ Grid
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
       <BatchDialog open={batchOpen} onOpenChange={setBatchOpen} buildRequest={buildRequest} />
+      {xyzOpen && <XyzGridDialog open={xyzOpen} onOpenChange={setXyzOpen} buildRequest={buildRequest} />}
 
       {/* Stop button */}
       {isGenerating && (
