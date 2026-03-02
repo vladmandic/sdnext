@@ -12,6 +12,7 @@ import { REFERENCE_HEIGHT } from "@/canvas/useControlFrameLayout";
 import { resolveGenerationSize } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
 import type { ControlRequest, GenerationInfo } from "@/api/types/generation";
+import { BACKEND_UNIT_TYPE } from "@/api/types/control";
 
 export interface BuildResult {
   request: ControlRequest;
@@ -183,15 +184,14 @@ export async function buildControlRequest(): Promise<BuildResult> {
 
   // Control units: partition by type — IP-adapter vs control types
   const enabledIPUnits = control.units.filter((u) => u.enabled && u.unitType === "ip" && u.images.length > 0);
-  const TYPE_MAP: Record<string, string> = { controlnet: "controlnet", t2i: "t2i adapter", xs: "xs", lite: "lite", reference: "reference" };
 
   // Resolve images for control units (may reference another unit's image via "unit:N")
   const controlUnitEntries = control.units
     .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
-    .filter((e) => e.unit.enabled && e.unit.unitType !== "ip" && e.unit.unitType !== "asset" && e.image);
-  const assetUnitEntries = control.units
+    .filter((e) => e.unit.enabled && e.unit.unitType !== "ip" && e.unit.unitType !== "reference" && e.image);
+  const referenceUnitEntries = control.units
     .map((u, i) => ({ unit: u, image: resolveUnitImage(control.units, i) }))
-    .filter((e) => e.unit.enabled && e.unit.unitType === "asset" && e.image);
+    .filter((e) => e.unit.enabled && e.unit.unitType === "reference" && e.image);
 
   if (enabledIPUnits.length > 0) {
     request.ip_adapter = await Promise.all(
@@ -239,19 +239,19 @@ export async function buildControlRequest(): Promise<BuildResult> {
           start: e.unit.start,
           end: e.unit.end,
           override: overrideRef,
-          unit_type: TYPE_MAP[e.unit.unitType] ?? e.unit.unitType,
+          unit_type: BACKEND_UNIT_TYPE[e.unit.unitType] ?? e.unit.unitType,
           mode: e.unit.mode,
           ...(e.unit.unitType === "controlnet" ? { guess: e.unit.guess } : {}),
           ...(e.unit.unitType === "t2i" ? { factor: e.unit.factor } : {}),
-          ...(e.unit.unitType === "reference" ? { attention: e.unit.attention, fidelity: e.unit.fidelity, query_weight: e.unit.queryWeight, adain_weight: e.unit.adainWeight } : {}),
+          ...(e.unit.unitType === "style_transfer" ? { attention: e.unit.attention, fidelity: e.unit.fidelity, query_weight: e.unit.queryWeight, adain_weight: e.unit.adainWeight } : {}),
           ...(Object.keys(e.unit.processorParams).length > 0 && !hasManualPreview ? { process_params: e.unit.processorParams } : {}),
         };
       }),
     );
   }
 
-  if (assetUnitEntries.length > 0) {
-    request.init_control = await Promise.all(assetUnitEntries.map(async (e) => {
+  if (referenceUnitEntries.length > 0) {
+    request.init_control = await Promise.all(referenceUnitEntries.map(async (e) => {
       if (e.unit.fitMode === "free" && e.image) {
         const ft = e.unit.freeTransform ?? { x: 0, y: 0, scaleX: 1, scaleY: 1, rotation: 0 };
         const composed = await compositeControlImage(e.image, ft, gen.width, gen.height, displayScale);

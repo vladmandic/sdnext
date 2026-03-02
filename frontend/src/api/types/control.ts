@@ -1,6 +1,26 @@
 import type { FitMode, FreeTransform } from "@/lib/image";
 
-export type ControlUnitType = "controlnet" | "t2i" | "xs" | "lite" | "reference" | "ip" | "asset";
+export type ControlUnitType = "controlnet" | "t2i" | "xs" | "lite" | "style_transfer" | "ip" | "reference";
+
+/** Map frontend unit type → backend API string (only types that differ or need explicit mapping). */
+export const BACKEND_UNIT_TYPE: Partial<Record<ControlUnitType, string>> = {
+  controlnet: "controlnet",
+  t2i: "t2i adapter",
+  xs: "xs",
+  lite: "lite",
+  style_transfer: "reference",
+};
+
+/** Human-readable labels for each unit type. */
+export const UNIT_TYPE_LABELS: Record<ControlUnitType, string> = {
+  reference: "Reference",
+  controlnet: "ControlNet",
+  t2i: "T2I-Adapter",
+  xs: "XS",
+  lite: "Lite",
+  style_transfer: "Style Transfer",
+  ip: "IP-Adapter",
+};
 
 export interface ControlUnit {
   enabled: boolean;
@@ -19,7 +39,7 @@ export interface ControlUnit {
   guess: boolean;
   // T2I-Adapter-specific
   factor: number;
-  // Reference-specific
+  // Style Transfer-specific
   attention: string;
   fidelity: number;
   queryWeight: number;

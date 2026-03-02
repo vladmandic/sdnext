@@ -103,12 +103,12 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
   }, [controlModes, unit.model]);
 
   const type = unit.unitType;
-  const showProcessor = type !== "reference" && type !== "ip" && type !== "asset";
-  const showModel = type !== "reference" && type !== "ip" && type !== "asset";
+  const showProcessor = type !== "style_transfer" && type !== "ip" && type !== "reference";
+  const showModel = type !== "style_transfer" && type !== "ip" && type !== "reference";
   const showTiming = type === "controlnet" || type === "xs" || type === "ip";
   const showGuess = type === "controlnet";
   const showFactor = type === "t2i";
-  const showReference = type === "reference";
+  const showStyleTransfer = type === "style_transfer";
   const showIPAdapter = type === "ip";
   const showControlImage = type !== "ip";
 
@@ -303,8 +303,8 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
         <ParamSlider label="Factor" value={unit.factor} onChange={(v) => setUnitParam(index, "factor", v)} min={0.01} max={2} step={0.01} />
       )}
 
-      {/* Reference fields */}
-      {showReference && (
+      {/* Style Transfer fields */}
+      {showStyleTransfer && (
         <>
           <div className="flex items-center gap-2">
             <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Attention</Label>

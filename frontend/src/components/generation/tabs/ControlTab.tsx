@@ -9,16 +9,9 @@ import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Plus, Trash2, PenLine } from "lucide-react";
 import type { ControlUnitType } from "@/api/types/control";
+import { UNIT_TYPE_LABELS } from "@/api/types/control";
 
-const UNIT_TYPE_OPTIONS: { value: ControlUnitType; label: string }[] = [
-  { value: "asset", label: "Asset" },
-  { value: "controlnet", label: "ControlNet" },
-  { value: "t2i", label: "T2I-Adapter" },
-  { value: "xs", label: "XS" },
-  { value: "lite", label: "Lite" },
-  { value: "reference", label: "Reference" },
-  { value: "ip", label: "IP-Adapter" },
-];
+const UNIT_TYPE_OPTIONS: { value: ControlUnitType; label: string }[] = (Object.entries(UNIT_TYPE_LABELS) as [ControlUnitType, string][]).map(([value, label]) => ({ value, label }));
 
 export function ControlTab() {
   const units = useControlStore((s) => s.units);
@@ -69,7 +62,7 @@ function ControlUnitRow({ index, canRemove }: ControlUnitRowProps) {
     ];
     units.forEach((u, i) => {
       if (i !== index && u.imageSource === "separate") {
-        opts.push({ value: `unit:${i}`, label: `Unit ${i} (${u.unitType})` });
+        opts.push({ value: `unit:${i}`, label: `Unit ${i} (${UNIT_TYPE_LABELS[u.unitType] ?? u.unitType})` });
       }
     });
     return opts;

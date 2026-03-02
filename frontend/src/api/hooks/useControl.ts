@@ -1,13 +1,15 @@
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { api } from "../client";
 import type { ControlUnitType, PreprocessorInfo, PreprocessResponse } from "../types/control";
+import { BACKEND_UNIT_TYPE } from "../types/control";
 
-const TYPES_WITH_MODELS: Set<ControlUnitType> = new Set(["controlnet", "t2i", "xs", "lite", "reference"]);
+const TYPES_WITH_MODELS: Set<ControlUnitType> = new Set(["controlnet", "t2i", "xs", "lite", "style_transfer"]);
 
 export function useControlModels(unitType: ControlUnitType) {
+  const backendType = BACKEND_UNIT_TYPE[unitType] ?? unitType;
   return useQuery({
     queryKey: ["control-models", unitType],
-    queryFn: () => api.get<string[]>(`/sdapi/v2/control-models?unit_type=${unitType}`),
+    queryFn: () => api.get<string[]>(`/sdapi/v2/control-models?unit_type=${backendType}`),
     staleTime: 5 * 60 * 1000,
     enabled: TYPES_WITH_MODELS.has(unitType),
   });

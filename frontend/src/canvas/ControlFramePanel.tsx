@@ -1,6 +1,7 @@
 import { useMemo, useCallback, type ReactNode } from "react";
 import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
+import { UNIT_TYPE_LABELS } from "@/api/types/control";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
 import { ControlUnitControls } from "@/components/generation/tabs/control/ControlUnitControls";
@@ -175,8 +176,8 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
 
   const imageDims = isOwner ? unit.imageDims : null;
   const textColor = contrastText(CONTROL_COLOR);
-  const labelText = `Unit ${unitIndex} (${unit.unitType})`;
-  const isAsset = unit.unitType === "asset";
+  const labelText = `Unit ${unitIndex} (${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType})`;
+  const isReference = unit.unitType === "reference";
 
   let sizeText: string | null = null;
   if (isOwner) {
@@ -256,7 +257,7 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
           <span className="text-base font-medium truncate" style={{ color: textColor }}>{labelText}</span>
           <div className="flex items-center gap-0.5 shrink-0">
             {actions}
-            {!isAsset && (
+            {!isReference && (
               <Button
                 variant="ghost"
                 size="icon-xs"
@@ -277,7 +278,7 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
         )}
       </div>
 
-      {!isAsset && !collapsed && (
+      {!isReference && !collapsed && (
         <div
           className="p-3 overflow-y-auto bg-background/95 backdrop-blur-sm border-t border-border/50"
           style={{ maxHeight: DRAWER_MAX_HEIGHT }}

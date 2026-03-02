@@ -3,7 +3,7 @@ import type { ControlUnit, ControlUnitType, ControlUnitSnapshot } from "@/api/ty
 import type { FreeTransform } from "@/lib/image";
 import { fileToBase64, base64ToFile, stripDataPrefix } from "@/lib/image";
 
-function defaultUnit(unitType: ControlUnitType = "asset"): ControlUnit {
+function defaultUnit(unitType: ControlUnitType = "reference"): ControlUnit {
   return {
     enabled: false,
     unitType,
@@ -247,9 +247,13 @@ export const useControlStore = create<ControlState>()((set) => ({
         } else {
           imageSource = "canvas";
         }
+        // Migrate old unit types: "asset" → "reference", "reference" → "style_transfer"
+        let unitType = s.unitType as string;
+        if (unitType === "asset") unitType = "reference";
+        else if (unitType === "reference") unitType = "style_transfer";
         return {
           enabled: s.enabled,
-          unitType: s.unitType,
+          unitType: unitType as ControlUnitType,
           imageSource,
           processor: s.processor,
           model: s.model,
