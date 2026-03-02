@@ -1,5 +1,6 @@
 import io
 import os
+import re
 import time
 import json
 import base64
@@ -31,7 +32,12 @@ vlm_models = {
     "Gemma 3 4B VL Heretic Thinking": "DavidAU/Gemma-3-4B-VL-it-Gemini-Pro-Heretic-Uncensored-Thinking",
     "Gemma 3 27B VL Heretic Reasoning": "DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning",
     # Qwen3.5
+    "Alibaba Qwen 3.5 0.8B": "Qwen/Qwen3.5-0.8B",
+    "Alibaba Qwen 3.5 2B": "Qwen/Qwen3.5-2B",
+    "Alibaba Qwen 3.5 4B": "Qwen/Qwen3.5-4B",
+    "Alibaba Qwen 3.5 9B": "Qwen/Qwen3.5-9B",
     "Alibaba Qwen 3.5 27B": "Qwen/Qwen3.5-27B",
+    "Alibaba Qwen 3.5 35B-A3B": "Qwen/Qwen3.5-35B-A3B",
     "Qwen 3.5 27B Heretic": "coder3101/Qwen3.5-27B-heretic",
     "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
     "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
@@ -265,6 +271,8 @@ def is_thinking_model(model_name: str) -> bool:
         'moondream2',  # Moondream 2 supports reasoning mode
         'moondream 2',
         'mimo',
+        'qwen3.5',    # Qwen3.5 native thinking (repo names)
+        'qwen 3.5',   # Qwen3.5 native thinking (display names)
     ]
     return any(indicator in model_lower for indicator in thinking_indicators)
 
@@ -638,6 +646,7 @@ class VQA:
     # Map Qwen VL config model_type strings to their model classes.
     _QWEN_VL_MODEL_TYPE_MAP = {
         'qwen3_5': 'Qwen3_5ForConditionalGeneration',
+        'qwen3_5_moe': 'Qwen3_5MoeForConditionalGeneration',
         'qwen3_vl': 'Qwen3VLForConditionalGeneration',
         'qwen2_5_vl': 'Qwen2_5_VLForConditionalGeneration',
         'qwen2_vl': 'Qwen2VLForConditionalGeneration',
@@ -648,7 +657,9 @@ class VQA:
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
             self._unload_current()
-            if 'Qwen3.5' in repo:
+            if 'Qwen3.5' in repo and re.search(r'-A\d+B', repo):
+                cls_name = transformers.Qwen3_5MoeForConditionalGeneration
+            elif 'Qwen3.5' in repo:
                 cls_name = transformers.Qwen3_5ForConditionalGeneration
             elif 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
                 cls_name = transformers.Qwen3VLForConditionalGeneration
@@ -719,19 +730,23 @@ class VQA:
             debug(f'VQA caption: handler=qwen full_conversation={truncate_b64_in_conversation(conversation)}')
             debug(f'VQA caption: handler=qwen is_thinking={is_thinking} thinking_mode={thinking_mode} prefill="{prefill_text}"')
 
+        # Qwen3.5 uses native enable_thinking parameter in the chat template
+        is_qwen35 = 'qwen3.5' in (model_name or '').lower() or 'qwen3.5' in repo.lower()
+        template_kwargs = {'enable_thinking': thinking_mode} if is_qwen35 else {}
+
         # Generate base prompt using template
-        # Qwen-Thinking template automatically adds "<|im_start|>assistant\n<think>\n" when add_generation_prompt=True
         try:
             text_prompt = self.processor.apply_chat_template(
                 conversation,
                 add_generation_prompt=True,
+                **template_kwargs,
             )
         except (TypeError, ValueError) as e:
             debug(f'VQA caption: handler=qwen chat_template fallback add_generation_prompt=True: {e}')
             text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=True)
 
-        # Manually handle thinking tags and prefill
-        if is_thinking:
+        # Manual think handling - skip for Qwen3.5 (template handles it natively)
+        if is_thinking and not is_qwen35:
             if not thinking_mode:
                 # User wants to SKIP thinking.
                 # Since template opened the block with <think>, we close it immediately.
@@ -744,7 +759,7 @@ class VQA:
                 if use_prefill:
                     text_prompt += prefill_text
         else:
-            # Standard model (not forcing <think>)
+            # Standard model or Qwen3.5 (no manual <think> manipulation needed)
             if use_prefill:
                 text_prompt += prefill_text
 

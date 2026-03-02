@@ -57,6 +57,8 @@ def is_thinking_model(model_name: str) -> bool:
         'moondream2',    # Moondream 2 supports reasoning mode
         'moondream 2',
         'mimo',          # XiaomiMiMo models
+        'qwen3.5',      # Qwen3.5 native thinking (repo names)
+        'qwen 3.5',     # Qwen3.5 native thinking (display names)
     ]
     return any(indicator in model_lower for indicator in thinking_indicators)
 
@@ -116,7 +118,12 @@ class Options:
         'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning',
         'coder3101/Big-Tiger-Gemma-27B-v3-heretic-v2',
         # Qwen3.5
+        'Qwen/Qwen3.5-0.8B',
+        'Qwen/Qwen3.5-2B',
+        'Qwen/Qwen3.5-4B',
+        'Qwen/Qwen3.5-9B',
         'Qwen/Qwen3.5-27B',
+        'Qwen/Qwen3.5-35B-A3B',
         'coder3101/Qwen3.5-27B-heretic',
         # Qwen3-VL
         'Qwen/Qwen3-VL-2B-Instruct',
@@ -175,7 +182,12 @@ class Options:
         'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning': {},
         'coder3101/Big-Tiger-Gemma-27B-v3-heretic-v2': {},
         # Qwen3.5
+        'Qwen/Qwen3.5-0.8B': {},
+        'Qwen/Qwen3.5-2B': {},
+        'Qwen/Qwen3.5-4B': {},
+        'Qwen/Qwen3.5-9B': {},
         'Qwen/Qwen3.5-27B': {},
+        'Qwen/Qwen3.5-35B-A3B': {},
         'coder3101/Qwen3.5-27B-heretic': {},
         # Qwen3
         'Qwen/Qwen3-0.6B': {},
@@ -353,6 +365,7 @@ class Script(scripts_manager.Script):
             model_type = getattr(model_config, 'model_type', '')
             model_type_cls = {
                 'qwen3_5': transformers.Qwen3_5ForConditionalGeneration,
+                'qwen3_5_moe': transformers.Qwen3_5MoeForConditionalGeneration,
                 'qwen3_vl': transformers.Qwen3VLForConditionalGeneration,
                 'qwen2_5_vl': transformers.Qwen2_5_VLForConditionalGeneration,
                 'qwen2_vl': transformers.Qwen2VLForConditionalGeneration,
@@ -686,13 +699,17 @@ class Script(scripts_manager.Script):
                 return 'Model not recognized'
 
         try:
-            # Generate text prompt using template (WITHOUT enable_thinking parameter)
-            # Let template naturally generate <think> for thinking models
+            # Qwen3.5 uses native enable_thinking parameter in the chat template
+            is_qwen35 = 'qwen3.5' in model.lower()
+            template_kwargs = {'enable_thinking': thinking} if is_qwen35 else {}
+
+            # Generate text prompt using template
             try:
                 text_prompt = self.tokenizer.apply_chat_template(
                     chat_template,
                     add_generation_prompt=True,
                     tokenize=False,
+                    **template_kwargs,
                 )
             except TypeError:
                 text_prompt = self.tokenizer.apply_chat_template(
@@ -700,8 +717,8 @@ class Script(scripts_manager.Script):
                     tokenize=False,
                 )
 
-            # Manually handle thinking tags and prefill (VQA Qwen approach)
-            if is_thinking:
+            # Manual think handling - skip for Qwen3.5 (template handles it natively)
+            if is_thinking and not is_qwen35:
                 if not thinking:
                     # User wants to SKIP thinking
                     # Template opened the block with <think>, close it immediately
@@ -715,7 +732,7 @@ class Script(scripts_manager.Script):
                         text_prompt += prefill_text
                     debug_log('Prompt enhance: thinking enabled, prefill inside think block')
             else:
-                # Standard model (no <think> block)
+                # Standard model or Qwen3.5 (no manual <think> manipulation needed)
                 if use_prefill:
                     text_prompt += prefill_text
 
