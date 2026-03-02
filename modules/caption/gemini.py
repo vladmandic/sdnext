@@ -53,14 +53,11 @@ class GoogleGeminiPipeline():
         log.debug(f'Cloud: model="{self.model}" args={args_log}')
         return args
 
-    def __call__(self, question, image, model, instructions, prefill, kwargs):
+    def __call__(self, question, image, model, instructions, prefill, thinking, kwargs):
         from google.genai import types
         config = {
             'system_instruction': instructions or shared.opts.caption_vlm_system,
-            # 'thinking_config': {
-            #     'include_thoughts': False,
-            #     'thinking_level': 'low',
-            # }
+            'thinking_config': types.ThinkingConfig(thinking_level="high" if thinking else "low")
         }
         if 'temperature' in kwargs:
             config['temperature'] = kwargs['temperature']
@@ -70,25 +67,35 @@ class GoogleGeminiPipeline():
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         if prefill:
             question += prefill
+        debug_log(f'Gemini question: "{question}"')
 
-        data = io.BytesIO()
-        image.save(data, format='JPEG')
-        data = data.getvalue()
+        if image:
+            data = io.BytesIO()
+            image.save(data, format='JPEG')
+            data = data.getvalue()
+            contents = [types.Part.from_bytes(data=data, mime_type='image/jpeg'), question]
+        else:
+            contents = [question]
 
-        response = self.client.models.generate_content(
-            model=model,
-            contents=[types.Part.from_bytes(data=data, mime_type='image/jpeg'), question],
-            config=config,
-        )
-        debug_log(f'Gemini response: {response}')
-        answer = response.text
+        answer = ''
+        try:
+            response = self.client.models.generate_content(
+                model=model,
+                contents=contents,
+                config=config,
+            )
+            debug_log(f'Gemini response: {response}')
+            answer = response.text
+        except Exception as e:
+            log.error(f'Gemini: {e}')
+            answer = f'Error: {e}'
         return answer
 
 
 ai = None
 
-def predict(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode, gen_kwargs):
+def predict(question, image, vqa_model, system_prompt, model_name, prefill, thinking, gen_kwargs):
     global ai # pylint: disable=global-statement
     if ai is None:
         ai = GoogleGeminiPipeline(model_name)
-    return ai(question, image, vqa_model, system_prompt, prefill, gen_kwargs)
+    return ai(question, image, vqa_model, system_prompt, prefill, thinking, gen_kwargs)

@@ -28,7 +28,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
     when available (*cuda-only*), thanks @CalamitousFelicitousness  
 - **Features**
   - pipelines: add **ZImageInpaint**, thanks @CalamitousFelicitousness  
-  - **captioning**: add support for cloud-based Gemini models  
+  - **captioning** and **prompt enhance**: add support for cloud-based Gemini models `flash-3.0` and `pro-3.1`  
   - **hires**: allow using different lora in refiner prompt  
   - **nunchaku** models are now listed in networks tab as reference models  
     instead of being used implicitly via quantization, thanks @CalamitousFelicitousness  

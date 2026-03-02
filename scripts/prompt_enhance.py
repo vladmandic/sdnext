@@ -30,11 +30,17 @@ def b64(image):
         return encoded
 
 
+def is_cloud_model(model_name: str) -> bool:
+    if not model_name:
+        return False
+    return model_name in Options.cloud
+
+
 def is_vision_model(model_name: str) -> bool:
     """Check if model supports vision/image input."""
     if not model_name:
         return False
-    return model_name in Options.img2img
+    return model_name in Options.img2img or model_name in Options.cloud
 
 
 def is_thinking_model(model_name: str) -> bool:
@@ -59,6 +65,8 @@ def get_model_display_name(model_repo: str) -> str:
     symbols = []
     if model_repo in Options.img2img:
         symbols.append(ui_symbols.vision)
+    if model_repo in Options.cloud:
+        symbols.append(ui_symbols.cloud)
     if is_thinking_model(model_repo):
         symbols.append(ui_symbols.reasoning)
     return f"{model_repo} {' '.join(symbols)}" if symbols else model_repo
@@ -69,7 +77,7 @@ def get_model_repo_from_display(display_name: str) -> str:
     if not display_name:
         return display_name
     result = display_name
-    for symbol in [ui_symbols.vision, ui_symbols.reasoning]:
+    for symbol in [ui_symbols.vision, ui_symbols.reasoning, ui_symbols.cloud]:
         result = result.replace(symbol, '')
     return result.strip()
 
@@ -102,6 +110,10 @@ class Options:
         'Qwen/Qwen3-VL-4B-Thinking',
         'Qwen/Qwen3-VL-8B-Instruct',
         'Qwen/Qwen3-VL-8B-Thinking',
+    ]
+    cloud = [
+        'google/gemini-3.1-pro-preview',
+        'google/gemini-3-flash-preview',
     ]
     models = {
         'google/gemma-3-1b-it': {},
@@ -136,17 +148,14 @@ class Options:
         'cognitivecomputations/Dolphin3.0-Llama3.2-3B': {},
         'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
         'allura-org/Gemma-3-Glitter-4B': {},
-        # 'llava/Llama-3-8B-v1.1-Extracted': {
-        #     'repo': 'hunyuanvideo-community/HunyuanVideo',
-        #     'subfolder': 'text_encoder',
-        #     'tokenizer': 'tokenizer',
-        # },
         'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF': {
             'repo': 'meta-llama/Llama-3.2-1B-Instruct', # original repo so we can load missing components
             'type': 'llama', # required so gguf loader knows what to do
             'gguf': 'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF', # gguf repo
             'file': 'Llama-3.2-1B-Instruct-Uncensored.i1-Q4_0.gguf', # gguf file inside repo
         },
+        'google/gemini-3.1-pro-preview': {},
+        'google/gemini-3-flash-preview': {},
     }
     # default = list(models)[1] # gemma-3-4b-it
     default = 'google/gemma-3-4b-it'
@@ -160,9 +169,9 @@ class Options:
     censored = ["i cannot", "i can't", "i am sorry", "against my programming", "i am not able", "i am unable", 'i am not allowed']
 
     max_delim_index: int = 60
-    max_tokens: int = 512
+    max_tokens: int = 1024
     do_sample: bool = True
-    temperature: float = 0.8
+    temperature: float = 0.7
     repetition_penalty: float = 1.2
     top_k: int = 0
     top_p: float = 0.0
@@ -206,11 +215,12 @@ class Script(scripts_manager.Script):
         if self.busy:
             log.debug('Prompt enhance: busy')
             return
-        self.busy = True
-        if self.model is not None and self.model == name:
-            self.busy = False # ensure busy is reset even if model is already loaded
+        if is_cloud_model(name):
+            return
+        if (self.model is not None) and (self.model == name):
             return
 
+        self.busy = True
         from modules import modelloader, model_quant, ggml
         modelloader.hf_login()
         model_repo = model_repo or self.options.models.get(name, {}).get('repo', None) or name
@@ -385,15 +395,54 @@ class Script(scripts_manager.Script):
         filtered = re.sub(pattern, '', prompt)
         return filtered, matches
 
-    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None, top_k:int=None, top_p:float=None, thinking:bool=False, seed:int=-1, image=None, nsfw:bool=None, use_vision:bool=True, prefill:str='', keep_prefill:bool=False, keep_thinking:bool=False):
+    def get_image(self, image):
+        current_image = None
+        try:
+            if image is not None and isinstance(image, gr.Image):
+                current_image = image.value
+            elif image is not None and isinstance(image, Image.Image): # if image is already a PIL image
+                current_image = image
+            if current_image is not None and (current_image.width <= 64 or current_image.height <= 64):
+                current_image = None
+            # Fallback to Kanvas/Control input if no image from Gradio component (e.g., when Kanvas is active)
+            if current_image is None and ui_control_helpers.input_source is not None:
+                if isinstance(ui_control_helpers.input_source, list) and len(ui_control_helpers.input_source) > 0:
+                    current_image = ui_control_helpers.input_source[0]
+                elif isinstance(ui_control_helpers.input_source, Image.Image):
+                    current_image = ui_control_helpers.input_source
+        except Exception:
+            current_image = None
+        return current_image
+
+    def enhance(self,
+                model: str=None,
+                prompt:str=None,
+                system:str=None,
+                prefix:str=None,
+                suffix:str=None,
+                sample:bool=None,
+                tokens:int=None,
+                temperature:float=None,
+                penalty:float=None,
+                top_k:int=None,
+                top_p:float=None,
+                thinking:bool=False,
+                seed:int=-1,
+                image=None,
+                nsfw:bool=None,
+                use_vision:bool=True,
+                prefill:str='',
+                keep_prefill:bool=False,
+                keep_thinking:bool=False,
+               ):
         # Strip symbols from model name if present
         model = get_model_repo_from_display(model) if model else self.options.default
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
-        # Handle vision toggle - if disabled or non-VL model, don't use image
-        if use_vision and is_vision_model(model):
+        image = None
+        if use_vision and is_vision_model(model): # handle vision toggle
             image = image or self.image
-        else:
-            image = None
+        if image is None:
+            use_vision = False
         prefix = prefix or ''
         suffix = suffix or ''
         tokens = tokens or self.options.max_tokens
@@ -404,16 +453,19 @@ class Script(scripts_manager.Script):
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
-        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" use_vision={use_vision} image={image is not None}')
+        debug_log(f'Prompt enhance: model="{model}" class="{self.llm.__class__.__name__ if self.llm else None}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" vision={use_vision} image={image is not None}')
 
         while self.busy:
             time.sleep(0.1)
-        self.load(model)
+
+        if not is_cloud_model(model):
+            self.load(model)
+
         if seed is None or seed == -1:
             random.seed()
             seed = int(random.randrange(4294967294))
         torch.manual_seed(seed)
-        if self.llm is None:
+        if (self.llm is None) and (not is_cloud_model(model)):
             log.error('Prompt enhance: model not loaded')
             return prompt
         prompt_text, networks = self.extract(prompt) # Use prompt_text after extraction
@@ -422,22 +474,8 @@ class Script(scripts_manager.Script):
         current_image = None
         # Only process images if vision is enabled and model supports it
         if use_vision and is_vision_model(model):
-            try:
-                if image is not None and isinstance(image, gr.Image):
-                    current_image = image.value
-                elif image is not None and isinstance(image, Image.Image): # if image is already a PIL image
-                    current_image = image
-                if current_image is not None and (current_image.width <= 64 or current_image.height <= 64):
-                    current_image = None
-                # Fallback to Kanvas/Control input if no image from Gradio component (e.g., when Kanvas is active)
-                if current_image is None and ui_control_helpers.input_source is not None:
-                    if isinstance(ui_control_helpers.input_source, list) and len(ui_control_helpers.input_source) > 0:
-                        current_image = ui_control_helpers.input_source[0]
-                    elif isinstance(ui_control_helpers.input_source, Image.Image):
-                        current_image = ui_control_helpers.input_source
-            except Exception:
-                current_image = None
-        debug_log(f'Prompt enhance: current_image={current_image is not None} size={f"{current_image.width}x{current_image.height}" if current_image else "N/A"}')
+            current_image = self.get_image(image)
+        debug_log(f'Prompt enhance: image={current_image}')
 
         # Check if vision was requested but no image is available
         if use_vision and is_vision_model(model) and current_image is None:
@@ -466,7 +504,9 @@ class Script(scripts_manager.Script):
         has_system = system is not None and len(system) > 4
 
         if current_image is not None and isinstance(current_image, Image.Image):
-            if (self.tokenizer is None) or (not self.tokenizer.is_processor):
+            if is_cloud_model(model):
+                pass
+            elif (self.tokenizer is None) or (not self.tokenizer.is_processor):
                 log.error('Prompt enhance: image not supported by model')
                 return prompt_text # Return original text part if image cannot be processed
             if prompt_text is not None and len(prompt_text) > 0:
@@ -501,7 +541,7 @@ class Script(scripts_manager.Script):
                 system = self.options.t2i_prompt
                 system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
                 system += self.options.details_prompt
-            if not self.tokenizer.is_processor:
+            if (self.tokenizer is None) or (not self.tokenizer.is_processor):
                 chat_template = [
                     { "role": "system", "content": system },
                     { "role": "user",   "content": prompt_text },
@@ -521,9 +561,28 @@ class Script(scripts_manager.Script):
         use_prefill = len(prefill_text) > 0
         is_thinking = is_thinking_model(model)
 
-        debug_log(f'Prompt enhance: chat_template roles={[msg["role"] for msg in chat_template]} is_thinking={is_thinking} thinking={thinking} use_prefill={use_prefill}')
+        debug_log(f'Prompt template: roles={[msg["role"] for msg in chat_template]} thinking={is_thinking}:{thinking} prefill={use_prefill}')
         t0 = time.time()
         self.busy = True
+
+        if is_cloud_model(model):
+            if 'gemini' in model:
+                from modules.caption import gemini
+                kwargs = {
+                    'temperature': temperature,
+                    'max_output_tokens': tokens,
+                }
+                model_name = model.replace('google/', '')
+                response = gemini.predict(prompt_text, current_image, model_name, system, model, False, thinking, kwargs)
+                t1 = time.time()
+                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} temperature={temperature} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
+                debug_log(f'Prompt enhance: response="{response}"')
+                self.busy = False
+                return response
+
+            else:
+                return 'Model not recognized'
+
         try:
             # Generate text prompt using template (WITHOUT enable_thinking parameter)
             # Let template naturally generate <think> for thinking models
@@ -572,7 +631,7 @@ class Script(scripts_manager.Script):
             inputs = inputs.to(devices.device).to(devices.dtype)
 
             input_len = inputs['input_ids'].shape[1]
-            debug_log(f'Prompt enhance: input_len={input_len} input_ids_shape={inputs["input_ids"].shape} sample={sample} temp={temperature} penalty={penalty} max_tokens={tokens}')
+            debug_log(f'Prompt enhance: len={input_len} shape={inputs["input_ids"].shape} sample={sample} temp={temperature} penalty={penalty} max={tokens}')
         except Exception as e:
             log.error(f'Prompt enhance tokenize: {e}')
             errors.display(e, 'Prompt enhance')
@@ -618,7 +677,7 @@ class Script(scripts_manager.Script):
         if not is_censored:
             response = self.clean(response, keep_thinking=keep_thinking, prefill_text=prefill_text, keep_prefill=keep_prefill)
             response = self.post(response, prefix, suffix, networks)
-        log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} keep_thinking={keep_thinking} prefill="{prefill_text[:20] if prefill_text else ""}" keep_prefill={keep_prefill} tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
+        log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} keep={keep_thinking}:{keep_prefill} prefill="{prefill_text[:20] if prefill_text else None}" tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
         debug_log(f'Prompt enhance: prompt="{prompt_text}"')
         debug_log(f'Prompt enhance: response_after_clean="{response}"')
         self.busy = False
@@ -705,7 +764,7 @@ class Script(scripts_manager.Script):
                         gr.HTML('<br>')
                 with gr.Accordion('Options', open=False, elem_id='prompt_enhance_options'):
                     with gr.Row():
-                        max_tokens = gr.Slider(label='Max tokens', value=self.options.max_tokens, minimum=10, maximum=1024, step=1, interactive=True)
+                        max_tokens = gr.Slider(label='Max tokens', value=self.options.max_tokens, minimum=10, maximum=4096, step=1, interactive=True)
                         do_sample = gr.Checkbox(label='Use samplers', value=self.options.do_sample, interactive=True)
                     with gr.Row():
                         temperature = gr.Slider(label='Temperature', value=self.options.temperature, minimum=0.0, maximum=1.0, step=0.01, interactive=True)
