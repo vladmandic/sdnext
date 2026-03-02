@@ -573,7 +573,7 @@ class Script(scripts_manager.Script):
                     'max_output_tokens': tokens,
                 }
                 model_name = model.replace('google/', '')
-                response = gemini.predict(prompt_text, current_image, model_name, system, model, False, thinking, kwargs)
+                response = gemini.predict(prompt_text, current_image, model_name, system, model, prefill_text, thinking, kwargs)
                 t1 = time.time()
                 log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} temperature={temperature} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
                 debug_log(f'Prompt enhance: response="{response}"')

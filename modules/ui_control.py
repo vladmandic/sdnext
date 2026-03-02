@@ -90,7 +90,7 @@ def get_units(*values):
                 break
 
 
-def generate_click_generator(job_id: str, state: str, active_tab: str, *args):
+def generate_click_generator(job_id: str, state: str, active_tab: str, *args): # pylint: disable=inconsistent-return-statements
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
@@ -103,6 +103,7 @@ def generate_click_generator(job_id: str, state: str, active_tab: str, *args):
         jobid = shared.state.begin('Control')
         progress.start_task(job_id)
         t = time.perf_counter()
+        results = {}
         try:
             for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
                 progress.record_results(job_id, results)
