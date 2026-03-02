@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "./popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "./command";
 
-export type ComboboxOption = string | { value: string; label: string };
+export type ComboboxOption = string | { value: string; label: string; disabled?: boolean };
 
 export interface ComboboxGroup {
   heading: string;
@@ -68,12 +68,14 @@ export function Combobox({
   const renderItem = (opt: ComboboxOption) => {
     const v = getOptionValue(opt);
     const l = getOptionLabel(opt);
+    const isDisabled = typeof opt !== "string" && !!opt.disabled;
     return (
       <CommandItem
         key={v}
         value={v}
         keywords={typeof opt === "string" ? undefined : [l]}
-        onSelect={() => { onValueChange(v); setOpen(false); }}
+        onSelect={() => { if (!isDisabled) { onValueChange(v); setOpen(false); } }}
+        disabled={isDisabled}
         className={cn("text-2xs", v === value && "font-semibold !text-primary")}
       >
         {renderLabel ? renderLabel(v, l) : l}

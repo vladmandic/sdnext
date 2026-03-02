@@ -685,12 +685,12 @@ Add a role selector to the Input frame header:
 
 Full refactor to the unified "Input #" system:
 
-- [ ] Merge Input frame and Unit frames into a single `Input` concept with roles
-- [ ] Implement role picker on the "+" button (Initial / Reference / Control)
-- [ ] Enforce max-one Initial constraint (disable option when one exists)
-- [ ] Implement control sub-type compatibility constraints
-- [ ] Unify numbering (single global counter for all inputs)
-- [ ] Update image source dropdown to use unified input references
+- [x] Merge Input frame and Unit frames into a single `Input` concept with roles
+- [x] Implement role picker on the "+" button (Initial / Reference / Control)
+- [x] Enforce max-one Initial constraint (disable option when one exists)
+- [x] Implement control sub-type compatibility constraints
+- [x] Unify numbering (single global counter for all inputs)
+- [x] Update image source dropdown to use unified input references
 - [ ] Update `requestBuilder.ts` to map roles to backend API fields
 
 ### Phase 4 — Canvas Rendering Updates

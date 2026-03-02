@@ -179,8 +179,10 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
 
   const imageDims = isOwner ? unit.imageDims : null;
   const textColor = contrastText(CONTROL_COLOR);
-  const labelText = `Unit ${unitIndex} (${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType})`;
+  const unifiedIndex = unitIndex + 2;
   const isReference = unit.unitType === "reference";
+  const roleLabel = isReference ? "Reference" : `Control: ${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType}`;
+  const labelText = `Input ${unifiedIndex} (${roleLabel})`;
 
   let sizeText: string | null = null;
   if (isOwner) {
@@ -461,7 +463,7 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
     </>
   );
 
-  const label = isReference ? "Input (Reference)" : "Input";
+  const label = isReference ? "Input 1 (Reference)" : "Input 1 (Initial)";
 
   return (
     <FrameHeader
@@ -662,7 +664,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
         if (activeSlots.length === 0) return null;
         return activeSlots.map((slot, slotIdx) => {
           const imageY = frame.y + frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT + slotIdx * (frame.height + ELEMENT_GAP + PROCESSED_HEADER_HEIGHT);
-          const slotLabel = activeSlots.length > 1 ? `Processed (Unit ${slot.unitIndex})` : "Processed";
+          const slotLabel = activeSlots.length > 1 ? `Processed (Input ${slot.unitIndex + 2})` : "Processed";
           const unit = units[slot.unitIndex];
           return (
             <ProcessedFrameHeader

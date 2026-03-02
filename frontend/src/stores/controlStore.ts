@@ -50,6 +50,7 @@ interface ControlState {
   compositeProcessed: string | null;
 
   addUnit: () => void;
+  addUnitWithType: (unitType: ControlUnitType) => void;
   removeUnit: (index: number) => void;
   setUnitCount: (count: number) => void;
   setUnitParam: <K extends keyof ControlUnit>(index: number, key: K, value: ControlUnit[K]) => void;
@@ -81,6 +82,18 @@ export const useControlStore = create<ControlState>()((set) => ({
         enabled: true,
       };
       return { units: [...state.units, newUnit] };
+    }),
+
+  addUnitWithType: (unitType) =>
+    set((state) => {
+      if (state.units.length >= 10) return state;
+      return {
+        units: [...state.units, {
+          ...defaultUnit(unitType),
+          enabled: true,
+          imageSource: unitType === "ip" ? "canvas" : "separate",
+        }],
+      };
     }),
 
   removeUnit: (index) =>
