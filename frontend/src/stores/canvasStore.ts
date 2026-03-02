@@ -63,9 +63,11 @@ interface CanvasState {
   selection: { x: number; y: number; width: number; height: number } | null;
   maskVisible: boolean;
   maskColor: string;
+  inputRole: "initial" | "reference";
   selectedControlFrame: number | null;
   panelCollapsedOverrides: Map<number, boolean>;  // explicit user overrides
 
+  setInputRole: (role: "initial" | "reference") => void;
   setViewport: (viewport: Partial<ViewportState>) => void;
   addLayer: (layer: CanvasLayer) => void;
   addImageLayer: (file: File, base64: string, objectUrl: string, w: number, h: number) => void;
@@ -95,6 +97,7 @@ interface PersistedCanvasState {
   layers: CanvasLayer[];
   activeLayerId: string | null;
   activeTool: ToolType;
+  inputRole: "initial" | "reference";
   brushSize: number;
   brushHardness: number;
   brushColor: string;
@@ -140,9 +143,11 @@ export const useCanvasStore = create<CanvasState>()(
       selection: null,
       maskVisible: true,
       maskColor: "#ff000080",
+      inputRole: "initial",
       selectedControlFrame: null,
       panelCollapsedOverrides: new Map<number, boolean>(),
 
+      setInputRole: (role) => set({ inputRole: role }),
       setViewport: (viewport) =>
         set((s) => ({ viewport: { ...s.viewport, ...viewport } })),
 
@@ -297,6 +302,7 @@ export const useCanvasStore = create<CanvasState>()(
       storage: createJSONStorage(() => canvasIdbStorage),
       partialize: (state): PersistedCanvasState => ({
         viewport: state.viewport,
+        inputRole: state.inputRole,
         layers: state.layers.map((layer) => {
           if (layer.type === "image") {
             const { file: _file, imageData: _url, ...rest } = layer as ImageLayer;
@@ -326,6 +332,7 @@ export const useCanvasStore = create<CanvasState>()(
           viewport: saved.viewport ?? current.viewport,
           activeLayerId: saved.activeLayerId ?? current.activeLayerId,
           activeTool: saved.activeTool ?? current.activeTool,
+          inputRole: saved.inputRole ?? "initial",
           brushSize: saved.brushSize ?? current.brushSize,
           brushHardness: saved.brushHardness ?? current.brushHardness,
           brushColor: saved.brushColor ?? current.brushColor,

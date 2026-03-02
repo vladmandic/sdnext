@@ -373,6 +373,7 @@ class ServerCapabilities(BaseModel):
 class ServerModelInfo(BaseModel):
     name: Optional[str] = None
     type: Optional[str] = None
+    supports_strength: bool = True
 
 class ResServerInfoV2(BaseModel):
     version: VersionInfoV2

@@ -1,3 +1,4 @@
+import inspect
 import os
 import re
 import time
@@ -26,13 +27,23 @@ async def get_server_info_v2():
     ver = installer.get_version()
     model_name = getattr(shared.opts, 'sd_model_checkpoint', None)
     model_type = type(model_data.sd_model).__name__ if model_data.sd_model is not None else None
+    supports_strength = True
+    if model_data.sd_model is not None:
+        try:
+            pipe = model_data.sd_model
+            if hasattr(pipe, 'pipe'):
+                pipe = pipe.pipe
+            sig = inspect.signature(type(pipe).__call__, follow_wrapped=True)
+            supports_strength = 'strength' in sig.parameters
+        except Exception:
+            supports_strength = True
     capabilities = ServerCapabilities(video=_detect_video_capability())
     return ResServerInfoV2(
         version=VersionInfoV2(**{k: str(v) for k, v in ver.items() if k in VersionInfoV2.model_fields}),
         backend=shared.backend.name if hasattr(shared.backend, 'name') else str(shared.backend),
         platform=devices.get_device_name() if hasattr(devices, 'get_device_name') else str(shared.device),
         capabilities=capabilities,
-        model=ServerModelInfo(name=model_name, type=model_type),
+        model=ServerModelInfo(name=model_name, type=model_type, supports_strength=supports_strength),
     )
 
 

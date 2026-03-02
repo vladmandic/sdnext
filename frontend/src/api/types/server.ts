@@ -17,6 +17,7 @@ export interface ServerCapabilities {
 export interface ServerModelInfo {
   name: string | null;
   type: string | null;
+  supports_strength: boolean;
 }
 
 export interface ServerInfo {

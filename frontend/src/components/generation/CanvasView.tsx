@@ -20,6 +20,7 @@ export const CanvasView = memo(function CanvasView() {
   const addImageLayer = useCanvasStore((s) => s.addImageLayer);
   const clearLayers = useCanvasStore((s) => s.clearLayers);
   const hasLayers = useCanvasStore((s) => s.layers.length > 0);
+  const inputRole = useCanvasStore((s) => s.inputRole);
   const clearMask = useImg2ImgStore((s) => s.clearMask);
   const viewport = useCanvasStore((s) => s.viewport);
   const setUnitImage = useControlStore((s) => s.setUnitImage);
@@ -179,8 +180,8 @@ export const CanvasView = memo(function CanvasView() {
         )}
       </div>
 
-      {/* Canvas toolbar for mask painting — only when images present */}
-      {hasLayers && <CanvasToolbar />}
+      {/* Canvas toolbar for mask painting — only in initial mode with images */}
+      {hasLayers && inputRole !== "reference" && <CanvasToolbar />}
 
       {/* Floating control panels (persistent, collapsible) */}
       <ControlFramePanels layout={layout} onPickImage={handlePickImage} onClearImage={handleClearImage} onClearAll={handleClearAll} />

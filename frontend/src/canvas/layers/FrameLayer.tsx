@@ -2,9 +2,7 @@ import { useCallback } from "react";
 import { Layer, Group, Rect, Text } from "react-konva";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useCanvasStore } from "@/stores/canvasStore";
-
-const ACTIVE_COLOR = "#4ade80";
-const INACTIVE_COLOR = "#6b7280";
+import { INPUT_COLOR_ACTIVE, INPUT_COLOR_REFERENCE, INPUT_COLOR_INACTIVE } from "@/canvas/ControlFramePanel";
 
 interface FrameLayerProps {
   displayScale: number;
@@ -15,6 +13,8 @@ export function FrameLayer({ displayScale, onPickImage }: FrameLayerProps) {
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
   const hasLayers = useCanvasStore((s) => s.layers.length > 0);
+  const inputRole = useCanvasStore((s) => s.inputRole);
+  const borderColor = !hasLayers ? INPUT_COLOR_INACTIVE : inputRole === "reference" ? INPUT_COLOR_REFERENCE : INPUT_COLOR_ACTIVE;
 
   const handleClick = useCallback((e: import("konva/lib/Node").KonvaEventObject<MouseEvent>) => {
     if (e.evt.button !== 0) return;
@@ -62,7 +62,7 @@ export function FrameLayer({ displayScale, onPickImage }: FrameLayerProps) {
           y={0}
           width={frameW}
           height={frameH}
-          stroke={hasLayers ? ACTIVE_COLOR : INACTIVE_COLOR}
+          stroke={borderColor}
           strokeWidth={2 / displayScale}
           dash={hasLayers ? undefined : [8 / displayScale, 4 / displayScale]}
           listening={false}

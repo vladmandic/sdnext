@@ -1,9 +1,10 @@
-import { useMemo, useCallback, type ReactNode } from "react";
+import { useMemo, useCallback, useEffect, type ReactNode } from "react";
 import { useCanvasStore, type ImageLayer } from "@/stores/canvasStore";
 import { useControlStore } from "@/stores/controlStore";
 import { UNIT_TYPE_LABELS } from "@/api/types/control";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useUiStore } from "@/stores/uiStore";
+import { useServerInfo } from "@/api/hooks/useServer";
 import { ControlUnitControls } from "@/components/generation/tabs/control/ControlUnitControls";
 import { LayerPanel } from "@/components/generation/LayerPanel";
 import { MaskParams } from "@/components/generation/MaskParams";
@@ -13,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { contrastText, downloadImage, generateImageFilename, resolveImageSrc } from "@/lib/utils";
 import { fileToBase64 } from "@/lib/image";
+import { toast } from "sonner";
 import { ELEMENT_GAP, PROCESSED_HEADER_HEIGHT, type CanvasLayout, type ControlFramePosition } from "./useControlFrameLayout";
 
 export const HEADER_HEIGHT = 36;
@@ -21,6 +23,7 @@ export const PANEL_WIDTH = 320;
 const STROKE_HALF = 1;
 const CONTROL_COLOR = "#f59e0b";
 export const INPUT_COLOR_ACTIVE = "#4ade80";
+export const INPUT_COLOR_REFERENCE = "#38bdf8";
 export const INPUT_COLOR_INACTIVE = "#6b7280";
 export const OUTPUT_COLOR = "#60a5fa";
 const PROCESSED_COLOR = "#c084fc";
@@ -370,6 +373,8 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
   onClearAll?: () => void;
 }) {
   const layers = useCanvasStore((s) => s.layers);
+  const inputRole = useCanvasStore((s) => s.inputRole);
+  const setInputRole = useCanvasStore((s) => s.setInputRole);
   const panelCollapsedOverrides = useCanvasStore((s) => s.panelCollapsedOverrides);
   const togglePanelCollapsed = useCanvasStore((s) => s.togglePanelCollapsed);
   const denoisingStrength = useGenerationStore((s) => s.denoisingStrength);
@@ -377,6 +382,23 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
   const pixelW = useGenerationStore((s) => s.width);
   const pixelH = useGenerationStore((s) => s.height);
   const hasLayers = layers.length > 0;
+  const isReference = inputRole === "reference";
+  const supportsStrength = useServerInfo().data?.model.supports_strength ?? true;
+
+  // Auto-switch to reference when model doesn't support strength
+  useEffect(() => {
+    if (!supportsStrength && inputRole === "initial") {
+      setInputRole("reference");
+    }
+  }, [supportsStrength]); // eslint-disable-line react-hooks/exhaustive-deps -- only react to model capability changes
+
+  const handleRoleChange = useCallback((role: "initial" | "reference") => {
+    if (role === inputRole) return;
+    if (role === "initial" && !supportsStrength) {
+      toast.info("This model uses the image as a reference — denoising strength has no effect.");
+    }
+    setInputRole(role);
+  }, [inputRole, setInputRole, supportsStrength]);
 
   const firstImage = layers.find((l): l is ImageLayer => l.type === "image");
 
@@ -390,7 +412,7 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
 
   const handleDenoising = useCallback((v: number) => setParam("denoisingStrength", v), [setParam]);
 
-  const inputColor = hasLayers ? INPUT_COLOR_ACTIVE : INPUT_COLOR_INACTIVE;
+  const inputColor = !hasLayers ? INPUT_COLOR_INACTIVE : isReference ? INPUT_COLOR_REFERENCE : INPUT_COLOR_ACTIVE;
   const textColor = contrastText(inputColor);
 
   const actions = hasLayers ? (
@@ -404,25 +426,55 @@ function InputFramePanel({ canvasX, frameW, genSize, viewport, labelScale, onPic
     </>
   ) : undefined;
 
+  const roleToggle = (
+    <div className="flex items-center gap-0.5 rounded-full p-0.5" style={{ backgroundColor: "rgba(0,0,0,0.15)" }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); handleRoleChange("initial"); }}
+        className="px-2 py-0.5 text-xs font-medium rounded-full transition-colors"
+        style={{
+          backgroundColor: !isReference ? "rgba(255,255,255,0.25)" : "transparent",
+          color: textColor,
+        }}
+      >
+        Initial
+      </button>
+      <button
+        onClick={(e) => { e.stopPropagation(); handleRoleChange("reference"); }}
+        className="px-2 py-0.5 text-xs font-medium rounded-full transition-colors"
+        style={{
+          backgroundColor: isReference ? "rgba(255,255,255,0.25)" : "transparent",
+          color: textColor,
+        }}
+      >
+        Reference
+      </button>
+    </div>
+  );
+
   const drawer = (
     <>
-      <ParamSlider label="Denoise" value={denoisingStrength} onChange={handleDenoising} min={0} max={1} step={0.05} disabled={!hasLayers} />
+      {!isReference && (
+        <ParamSlider label="Denoise" value={denoisingStrength} onChange={handleDenoising} min={0} max={1} step={0.05} disabled={!hasLayers} />
+      )}
       <LayerPanel />
-      <MaskParams />
+      {!isReference && <MaskParams />}
     </>
   );
+
+  const label = isReference ? "Input (Reference)" : "Input";
 
   return (
     <FrameHeader
       mode="panel"
       color={inputColor}
-      label="Input"
+      label={label}
       sizeText={sizeText}
       canvasX={canvasX}
       frameW={frameW}
       viewport={viewport}
       labelScale={labelScale}
       actions={actions}
+      subHeader={roleToggle}
       drawer={drawer}
       collapsed={collapsed}
       onToggleCollapsed={() => togglePanelCollapsed(INPUT_PANEL_KEY, collapsed)}

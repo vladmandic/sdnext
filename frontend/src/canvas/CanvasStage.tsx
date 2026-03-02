@@ -36,6 +36,7 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
   // Note: setSelectedControlFrame removed - panels are now persistent
   const frameW = useGenerationStore((s) => s.width);
   const frameH = useGenerationStore((s) => s.height);
+  const inputRole = useCanvasStore((s) => s.inputRole);
 
   const panZoom = usePanZoom(stageRef);
   const maskPaint = useMaskPaint({ stageRef, spaceHeld: panZoom.spaceHeld });
@@ -122,7 +123,7 @@ export function CanvasStage({ layout, onPickImage }: CanvasStageProps) {
           <ControlFrameLayer frames={controlFrames} onPickImage={onPickImage} />
           <CompositeLayer trRef={trRef} displayScale={displayScale} />
           <FrameLayer displayScale={displayScale} onPickImage={onPickImage ? () => onPickImage(-1) : undefined} />
-          <MaskLayer displayScale={displayScale} setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />
+          {inputRole !== "reference" && <MaskLayer displayScale={displayScale} setActiveLineNode={maskPaint.setActiveLineNode} setCursorNode={maskPaint.setCursorNode} />}
           <OutputLayer offsetX={outputX} placeholderWidth={displayW} placeholderHeight={displayH} />
           {showProcessedFrame && (
             <ProcessedCompositeLayer offsetX={processedX} width={displayW} height={displayH} />

@@ -27,7 +27,9 @@ export async function buildControlRequest(): Promise<BuildResult> {
   const canvas = useCanvasStore.getState();
   const ui = useUiStore.getState();
 
-  const isImg2Img = canvas.getImageLayers().length > 0;
+  const hasInputImage = canvas.getImageLayers().length > 0;
+  const inputRole = canvas.inputRole;
+  const isImg2Img = hasInputImage && inputRole === "initial";
 
   const request: ControlRequest = {
     prompt: gen.prompt,
@@ -262,8 +264,19 @@ export async function buildControlRequest(): Promise<BuildResult> {
     }));
   }
 
-  // img2img: add inputs, mask, inpainting params
+  // Reference mode: flatten layers → upload → init_control (no denoising, no mask)
   let inputBlob: Blob | undefined;
+  if (hasInputImage && inputRole === "reference") {
+    const imageLayers = canvas.layers.filter((l) => l.type === "image") as ImageLayer[];
+    const flattenedBlob = await flattenCanvas(imageLayers, gen.width, gen.height);
+    if (flattenedBlob) {
+      inputBlob = flattenedBlob;
+      const ref = await uploadBlob(flattenedBlob, "input.png");
+      request.init_control = [...(request.init_control ?? []), ref];
+    }
+  }
+
+  // img2img: add inputs, mask, inpainting params
   if (isImg2Img) {
     const frameW = gen.width;
     const frameH = gen.height;
