@@ -24,12 +24,28 @@ export default defineConfig(({ mode }) => {
         // Force new service worker to activate immediately instead of waiting for all tabs to close
         skipWaiting: true,
         clientsClaim: true,
-        // Only precache the app shell, not API calls or dynamic content
-        globPatterns: ["**/*.{js,css,html,svg,png,woff2,wasm}"],
-        // Don't cache API responses or uploaded files
-        navigateFallback: mode === "production" ? "/ui/index.html" : "/index.html",
-        navigateFallbackDenylist: [/^\/sdapi/, /^\/internal/, /^\/file/, /\.wasm$/],
+        // Don't precache anything — Vite already content-hashes JS/CSS bundles so the
+        // browser cache alone keeps them fresh.  Precaching caused stale index.html to be
+        // served from the SW cache on normal refreshes, requiring Shift+Ctrl+R.
+        globPatterns: [],
+        // Explicitly disable navigateFallback — it requires the URL to be in precache,
+        // which conflicts with globPatterns: [].  SPA navigation is handled by the
+        // backend serving index.html for /ui/* routes, and the NetworkFirst rule below.
+        navigateFallback: null,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
+          {
+            // App shell (index.html) — always check network first so deploys are instant
+            urlPattern: /\/(?:ui\/)?(?:index\.html)?$/,
+            handler: "NetworkFirst",
+            options: { cacheName: "app-shell", expiration: { maxEntries: 1, maxAgeSeconds: 24 * 60 * 60 } },
+          },
+          {
+            // Hashed JS/CSS/wasm assets — immutable, cache-first is safe
+            urlPattern: /\/assets\/.*\.(?:js|css|wasm)$/,
+            handler: "CacheFirst",
+            options: { cacheName: "assets", expiration: { maxEntries: 60, maxAgeSeconds: 30 * 24 * 60 * 60 } },
+          },
           {
             // Cache font files
             urlPattern: /\.(?:woff2?|ttf|otf|eot)$/,
