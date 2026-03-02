@@ -429,8 +429,42 @@ export async function fetchThumb(file: GalleryFile): Promise<CachedThumb | null>
   }
 }
 
+// ---------------------------------------------------------------------------
+// Batched thumb dispatch — accumulate individual setThumb calls and flush
+// once per animation frame via setThumbsBatch (single Map copy per frame).
+// ---------------------------------------------------------------------------
+
+const thumbBatchBuffer: [string, CachedThumb][] = [];
+const folderCacheBatchBuffer: [string, [string, CachedThumb][]][] = [];
+let thumbBatchRaf = 0;
+
+function flushThumbBatch() {
+  thumbBatchRaf = 0;
+  if (thumbBatchBuffer.length > 0) {
+    const entries = thumbBatchBuffer.splice(0);
+    useGalleryStore.getState().setThumbsBatch(entries);
+  }
+  if (folderCacheBatchBuffer.length > 0) {
+    const folderUpdates = folderCacheBatchBuffer.splice(0);
+    // Group by folder for a single updateCachedThumbs call per folder
+    const byFolder = new Map<string, [string, CachedThumb][]>();
+    for (const [folder, pairs] of folderUpdates) {
+      const existing = byFolder.get(folder);
+      if (existing) existing.push(...pairs);
+      else byFolder.set(folder, [...pairs]);
+    }
+    for (const [folder, pairs] of byFolder) updateCachedThumbs(folder, pairs);
+  }
+}
+
+function scheduleThumbFlush() {
+  if (thumbBatchRaf === 0) {
+    thumbBatchRaf = requestAnimationFrame(flushThumbBatch);
+  }
+}
+
 /** Dispatch a single thumbnail fetch if not already cached or in-flight. */
-function dispatchThumb(file: GalleryFile, setThumb: (id: string, thumb: CachedThumb) => void) {
+function dispatchThumb(file: GalleryFile) {
   if (inflightIds.has(file.id) || useGalleryStore.getState().thumbs.has(file.id)) return;
   inflightIds.add(file.id);
   // Capture folder at dispatch time — not completion time — so the thumb
@@ -439,8 +473,9 @@ function dispatchThumb(file: GalleryFile, setThumb: (id: string, thumb: CachedTh
   fetchThumb(file).then((thumb) => {
     inflightIds.delete(file.id);
     if (thumb) {
-      setThumb(file.id, thumb);
-      if (folder) updateCachedThumbs(folder, [[file.id, thumb]]);
+      thumbBatchBuffer.push([file.id, thumb]);
+      if (folder) folderCacheBatchBuffer.push([folder, [[file.id, thumb]]]);
+      scheduleThumbFlush();
     }
   });
 }
@@ -450,7 +485,6 @@ function dispatchThumb(file: GalleryFile, setThumb: (id: string, thumb: CachedTh
  * Never aborts in-flight loads; uses a shared inflight set to avoid duplicates.
  */
 export function useThumbnailLoader(visibleFileIds: string[], files: GalleryFile[]) {
-  const setThumb = useGalleryStore((s) => s.setThumb);
   const filesRef = useRef(files);
   useEffect(() => { filesRef.current = files; }, [files]);
 
@@ -458,9 +492,9 @@ export function useThumbnailLoader(visibleFileIds: string[], files: GalleryFile[
     const fileMap = new Map(filesRef.current.map((f) => [f.id, f]));
     for (const id of visibleFileIds) {
       const file = fileMap.get(id);
-      if (file) dispatchThumb(file, setThumb);
+      if (file) dispatchThumb(file);
     }
-  }, [visibleFileIds, setThumb]);
+  }, [visibleFileIds]);
 }
 
 /**
@@ -470,7 +504,6 @@ export function useThumbnailLoader(visibleFileIds: string[], files: GalleryFile[
  */
 export function useBackgroundPreloader(files: GalleryFile[]) {
   const isLoadingFiles = useGalleryStore((s) => s.isLoadingFiles);
-  const setThumb = useGalleryStore((s) => s.setThumb);
   const cancelRef = useRef(false);
 
   useEffect(() => {
@@ -479,18 +512,24 @@ export function useBackgroundPreloader(files: GalleryFile[]) {
     cancelRef.current = false;
 
     // Small delay to let visible-area loader grab semaphore slots first
+    const CHUNK = 50;
     const timer = setTimeout(() => {
-      for (const file of files) {
-        if (cancelRef.current) break;
-        dispatchThumb(file, setThumb);
+      let i = 0;
+      function processChunk() {
+        if (cancelRef.current || i >= files.length) return;
+        const end = Math.min(i + CHUNK, files.length);
+        for (; i < end; i++) dispatchThumb(files[i]);
+        if (typeof requestIdleCallback !== "undefined") requestIdleCallback(processChunk);
+        else setTimeout(processChunk, 0);
       }
+      processChunk();
     }, 500);
 
     return () => {
       cancelRef.current = true;
       clearTimeout(timer);
     };
-  }, [isLoadingFiles, files, setThumb]);
+  }, [isLoadingFiles, files]);
 }
 
 // ---------------------------------------------------------------------------

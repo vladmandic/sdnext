@@ -95,7 +95,7 @@ export const GalleryCard = memo(function GalleryCard({ file, thumb, size, height
         )
       ) : (
         <div className="w-full h-full flex items-center justify-center">
-          <div className="w-6 h-6 rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground animate-spin" />
+          <div className="w-6 h-6 rounded-full border-2 border-muted-foreground/20 animate-pulse" />
         </div>
       )}
 

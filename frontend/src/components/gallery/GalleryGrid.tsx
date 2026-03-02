@@ -98,18 +98,22 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
     overscan: 3,
   });
 
-  // Compute visible file IDs for thumbnail loading
+  // Compute visible file IDs for thumbnail loading — memoize on the actual
+  // row range (two numbers) rather than the virtualizer array reference,
+  // which is a new array on every render and would re-fire the thumb loader.
   const visibleRange = virtualizer.getVirtualItems();
+  const rangeStart = visibleRange[0]?.index ?? 0;
+  const rangeEnd = visibleRange.length > 0 ? visibleRange[visibleRange.length - 1].index : -1;
   const visibleFileIds = useMemo(() => {
     const ids: string[] = [];
-    for (const vItem of visibleRange) {
-      const rowStart = vItem.index * cols;
+    for (let row = rangeStart; row <= rangeEnd; row++) {
+      const rowStart = row * cols;
       for (let c = 0; c < cols && rowStart + c < sorted.length; c++) {
         ids.push(sorted[rowStart + c].id);
       }
     }
     return ids;
-  }, [visibleRange, cols, sorted]);
+  }, [rangeStart, rangeEnd, cols, sorted]);
 
   useThumbnailLoader(visibleFileIds, sorted);
   useBackgroundPreloader(sorted);
@@ -196,7 +200,7 @@ export function GalleryGrid({ onDeleteRequest, onMoveRequest, onDownloadRequest 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
-        <div ref={containerRef} className="flex-1 overflow-auto">
+        <div ref={containerRef} className="h-full overflow-auto">
           {layoutMode === "masonry" ? (
             <MasonryGrid sorted={sorted} containerRef={containerRef} containerWidth={containerWidth} />
           ) : (

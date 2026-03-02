@@ -18,6 +18,7 @@ export function GalleryView() {
   const fileCount = useGalleryStore((s) => s.files.length);
   const metadataPanelOpen = useGalleryStore((s) => s.metadataPanelOpen);
   const selectionCount = useGalleryStore((s) => s.selectedIds.size);
+  const lightboxOpen = useGalleryStore((s) => s.lightboxIndex !== null);
 
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [moveDialogOpen, setMoveDialogOpen] = useState(false);
@@ -107,7 +108,7 @@ export function GalleryView() {
           </>
         )}
       </ResizablePanelGroup>
-      <GalleryLightbox />
+      {lightboxOpen && <GalleryLightbox />}
 
       <DeleteConfirmDialog
         open={deleteDialogOpen}

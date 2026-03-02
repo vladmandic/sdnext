@@ -11,8 +11,13 @@ import { useComparisonStore } from "@/stores/comparisonStore";
 
 export function GalleryLightbox() {
   const lightboxIndex = useGalleryStore((s) => s.lightboxIndex);
-  const files = useGalleryStore((s) => s.sortedFiles);
-  const thumbs = useGalleryStore((s) => s.thumbs);
+  const file = useGalleryStore((s) => (s.lightboxIndex !== null ? s.sortedFiles[s.lightboxIndex] ?? null : null));
+  const thumb = useGalleryStore((s) => {
+    if (s.lightboxIndex === null) return undefined;
+    const f = s.sortedFiles[s.lightboxIndex];
+    return f ? s.thumbs.get(f.id) : undefined;
+  });
+  const fileCount = useGalleryStore((s) => s.sortedFiles.length);
   const closeLightbox = useGalleryStore((s) => s.closeLightbox);
   const navigateLightbox = useGalleryStore((s) => s.navigateLightbox);
   const selectFile = useGalleryStore((s) => s.selectFile);
@@ -21,9 +26,7 @@ export function GalleryLightbox() {
   const [prevIndex, setPrevIndex] = useState(lightboxIndex);
 
   const isOpen = lightboxIndex !== null;
-  const file = isOpen ? files[lightboxIndex] : null;
-  const thumb = file ? thumbs.get(file.id) : null;
-  const maxIndex = files.length - 1;
+  const maxIndex = fileCount - 1;
 
   // Full-size image URL
   const fullUrl = useMemo(() => {
@@ -57,12 +60,14 @@ export function GalleryLightbox() {
     if (!fullUrl || lightboxIndex === null) return;
     const nextIndex = lightboxIndex < maxIndex ? lightboxIndex + 1 : lightboxIndex - 1;
     if (nextIndex < 0 || nextIndex > maxIndex) return;
-    const nextFile = files[nextIndex];
+    const sortedFiles = useGalleryStore.getState().sortedFiles;
+    const nextFile = sortedFiles[nextIndex];
+    if (!nextFile) return;
     const nextUrl = `/file=${nextFile.fullPath}`;
     const aName = file?.relativePath.split("/").pop() ?? "Image A";
     const bName = nextFile.relativePath.split("/").pop() ?? "Image B";
     useComparisonStore.getState().openComparison({ src: fullUrl, label: aName }, { src: nextUrl, label: bName });
-  }, [fullUrl, lightboxIndex, maxIndex, files, file]);
+  }, [fullUrl, lightboxIndex, maxIndex, file]);
 
   // Keyboard shortcuts (scoped to "lightbox", only active when open)
   useShortcutScope("lightbox", isOpen);
@@ -91,7 +96,7 @@ export function GalleryLightbox() {
               <LightboxButton onClick={() => zoom.setScale((s) => s / 1.25)}><ZoomOut size={16} /></LightboxButton>
               <LightboxButton onClick={zoom.resetTransform}><RotateCcw size={16} /></LightboxButton>
               <span className="text-3xs text-white/50 tabular-nums w-10 text-center">{Math.round(zoom.scale * 100)}%</span>
-              {files.length > 1 && (
+              {fileCount > 1 && (
                 <LightboxButton onClick={handleCompare}><GitCompareArrows size={16} /></LightboxButton>
               )}
             </>
@@ -152,7 +157,7 @@ export function GalleryLightbox() {
       {/* Bottom bar */}
       <div className="flex items-center justify-center px-4 py-1.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
         <span className="text-3xs text-white/40 tabular-nums">
-          {lightboxIndex + 1} / {files.length}
+          {lightboxIndex + 1} / {fileCount}
           {thumb && ` | ${thumb.width}x${thumb.height}`}
         </span>
       </div>
