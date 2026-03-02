@@ -133,10 +133,9 @@ async function buildJobPayload(tab: string) {
 
 function canGenerate(tab: string) {
   const s = useVideoStore.getState();
-  if (!s.prompt) return false;
   if (tab === "models") return !!(s.engine && s.model);
   if (tab === "ltx") return !!s.ltxModel;
-  return true; // framepack only needs prompt
+  return true;
 }
 
 export function VideoPanel() {

@@ -22,10 +22,8 @@ import { XyzGridDialog } from "@/components/generation/XyzGridDialog";
 import { GenerationDiffDialog } from "@/components/generation/GenerationDiffDialog";
 
 export const ActionBar = memo(function ActionBar() {
-  const prompt = useGenerationStore((s) => s.prompt);
   const clearSelection = useGenerationStore((s) => s.clearSelection);
   const lastResult = useGenerationStore((s) => s.results[0]);
-  const hasLayers = useCanvasStore((s) => s.layers.length > 0);
 
   const isActive = useJobQueueStore(selectGenerateActive);
   const runningJob = useJobQueueStore(selectRunningJob);
@@ -82,12 +80,11 @@ export const ActionBar = memo(function ActionBar() {
 
   const progressPct = Math.round(progress * 100);
   const eta = runningJob?.domain === "generate" ? runningJob.eta ?? 0 : 0;
-  const canSubmit = hasLayers || !!prompt;
   const phase = runningJob?.domain === "generate" ? runningJob.task : "";
   const phaseLabel = phase || "Generating";
 
   // Global keyboard shortcuts for generation
-  useShortcut("generate", () => { if (canSubmit && !isSubmitting) submit(); });
+  useShortcut("generate", () => { if (!isSubmitting) submit(); });
   useShortcut("skip", handleSkip);
 
   return (
@@ -97,7 +94,7 @@ export const ActionBar = memo(function ActionBar() {
         <Button
           type="button"
           onClick={submit}
-          disabled={!canSubmit || isSubmitting}
+          disabled={isSubmitting}
           variant="default"
           size="sm"
           className="flex-1 rounded-r-none"
@@ -115,7 +112,6 @@ export const ActionBar = memo(function ActionBar() {
                 variant="default"
                 size="sm"
                 className="px-1.5 rounded-l-none border-l border-primary-foreground/20"
-                disabled={!canSubmit}
               >
                 <ChevronDown size={14} />
               </Button>
