@@ -1,7 +1,7 @@
 import { memo, useCallback } from "react";
 import { Slider } from "@/components/ui/slider";
 import { NumberInput } from "@/components/ui/number-input";
-import { Label } from "@/components/ui/label";
+import { ParamLabel } from "./ParamLabel";
 
 interface ParamSliderProps {
   label: string;
@@ -11,15 +11,16 @@ interface ParamSliderProps {
   max: number;
   step?: number;
   disabled?: boolean;
+  tooltip?: string;
 }
 
-export const ParamSlider = memo(function ParamSlider({ label, value, onChange, min, max, step = 1, disabled }: ParamSliderProps) {
+export const ParamSlider = memo(function ParamSlider({ label, value, onChange, min, max, step = 1, disabled, tooltip }: ParamSliderProps) {
   const handleSliderChange = useCallback(([v]: number[]) => onChange(v), [onChange]);
 
   return (
     <div className={disabled ? "opacity-50 pointer-events-none" : undefined}>
       <div className="flex items-center justify-between mb-0.5">
-        <Label className="text-2xs text-muted-foreground">{label}</Label>
+        <ParamLabel className="text-2xs text-muted-foreground" tooltip={tooltip}>{label}</ParamLabel>
         <NumberInput
           min={min}
           max={max}

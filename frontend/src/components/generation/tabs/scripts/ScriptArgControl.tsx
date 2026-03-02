@@ -1,7 +1,7 @@
 import { ParamSlider } from "../../ParamSlider";
+import { ParamLabel } from "../../ParamLabel";
 import { Switch } from "@/components/ui/switch";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Combobox } from "@/components/ui/combobox";
 import type { ScriptArg } from "@/api/types/script";
 
@@ -16,7 +16,7 @@ export function ScriptArgControl({ arg, value, onChange, disabled }: ScriptArgCo
   if (arg.choices && arg.choices.length > 0) {
     return (
       <div className={`flex items-center gap-2${disabled ? " opacity-50 pointer-events-none" : ""}`}>
-        <Label className="text-2xs text-muted-foreground flex-shrink-0">{arg.label}</Label>
+        <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">{arg.label}</ParamLabel>
         <Combobox
           value={String(value ?? arg.choices[0])}
           onValueChange={(v) => onChange(v)}
@@ -44,7 +44,7 @@ export function ScriptArgControl({ arg, value, onChange, disabled }: ScriptArgCo
   if (typeof (value ?? arg.value) === "boolean") {
     return (
       <div className={`flex items-center gap-2${disabled ? " opacity-50 pointer-events-none" : ""}`}>
-        <Label className="text-2xs text-muted-foreground flex-shrink-0">{arg.label}</Label>
+        <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">{arg.label}</ParamLabel>
         <Switch checked={Boolean(value ?? arg.value)} onCheckedChange={(checked) => onChange(checked)} disabled={disabled} />
       </div>
     );
@@ -52,7 +52,7 @@ export function ScriptArgControl({ arg, value, onChange, disabled }: ScriptArgCo
 
   return (
     <div className={`flex items-center gap-2${disabled ? " opacity-50 pointer-events-none" : ""}`}>
-      <Label className="text-2xs text-muted-foreground flex-shrink-0">{arg.label}</Label>
+      <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">{arg.label}</ParamLabel>
       <Input
         value={String(value ?? arg.value ?? "")}
         onChange={(e) => onChange(e.target.value)}

@@ -3,7 +3,7 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { ParamSection } from "@/components/generation/ParamSection";
 import { ParamSlider } from "@/components/generation/ParamSlider";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
+import { ParamLabel } from "./ParamLabel";
 
 export function MaskParams() {
   const maskLineCount = useImg2ImgStore((s) => s.maskLines.length);
@@ -26,7 +26,7 @@ export function MaskParams() {
       <ParamSlider label="Blur" value={maskBlur} onChange={setMaskBlur} min={0} max={64} step={1} />
 
       <div className="flex items-center justify-between">
-        <Label className="text-2xs text-muted-foreground">Inpaint full res</Label>
+        <ParamLabel className="text-2xs text-muted-foreground">Inpaint full res</ParamLabel>
         <Switch checked={inpaintFullRes} onCheckedChange={handleFullResToggle} />
       </div>
 
@@ -35,7 +35,7 @@ export function MaskParams() {
       )}
 
       <div className="flex items-center justify-between">
-        <Label className="text-2xs text-muted-foreground">Invert mask</Label>
+        <ParamLabel className="text-2xs text-muted-foreground">Invert mask</ParamLabel>
         <Switch checked={inpaintingMaskInvert} onCheckedChange={handleInvertToggle} />
       </div>
     </ParamSection>

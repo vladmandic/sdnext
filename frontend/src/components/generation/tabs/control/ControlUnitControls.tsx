@@ -9,6 +9,7 @@ import { ParamSection } from "../../ParamSection";
 import { ParamGrid } from "../../ParamRow";
 import { ImageUpload } from "../../ImageUpload";
 import { Switch } from "@/components/ui/switch";
+import { ParamLabel } from "../../ParamLabel";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -122,7 +123,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* Processor */}
       {showProcessor && (
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Processor</Label>
+          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Processor</ParamLabel>
           <Combobox
             value={unit.processor}
             onValueChange={handleProcessorChange}
@@ -135,7 +136,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* Model */}
       {showModel && (
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Model</Label>
+          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Model</ParamLabel>
           <Combobox
             value={unit.model}
             onValueChange={(v) => setUnitParam(index, "model", v)}
@@ -148,7 +149,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {/* Mode */}
       {showModel && modesForModel && modesForModel.length > 0 && (
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Mode</Label>
+          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Mode</ParamLabel>
           <Combobox
             value={unit.mode}
             onValueChange={(v) => setUnitParam(index, "mode", v)}
@@ -167,7 +168,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {showIPAdapter && (
         <>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Adapter</Label>
+            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Adapter</ParamLabel>
             <Combobox
               value={unit.adapter}
               onValueChange={(v) => setUnitParam(index, "adapter", v)}
@@ -177,7 +178,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
           </div>
           <ParamSlider label="Scale" value={unit.scale} onChange={(v) => setUnitParam(index, "scale", v)} min={0} max={2} step={0.01} />
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Crop</Label>
+            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Crop</ParamLabel>
             <Switch checked={unit.crop} onCheckedChange={(checked) => setUnitParam(index, "crop", checked)} />
           </div>
         </>
@@ -269,7 +270,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
           {showControlImage && (
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <Label className="text-2xs text-muted-foreground">Control Image</Label>
+                <ParamLabel className="text-2xs text-muted-foreground">Control Image</ParamLabel>
                 {showProcessor && resolvedImage && unit.processor !== "None" && (
                   <Button
                     variant="outline"
@@ -307,7 +308,7 @@ export function ControlUnitControls({ index, compact }: ControlUnitControlsProps
       {showStyleTransfer && (
         <>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Attention</Label>
+            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Attention</ParamLabel>
             <Combobox
               value={unit.attention}
               onValueChange={(v) => setUnitParam(index, "attention", v)}

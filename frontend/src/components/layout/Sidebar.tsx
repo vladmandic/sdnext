@@ -3,7 +3,7 @@ import { useUiStore } from "@/stores/uiStore";
 import type { SidebarView, ImagesSubTab } from "@/stores/uiStore";
 import { useCapabilities } from "@/api/hooks/useServer";
 import { cn } from "@/lib/utils";
-import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Separator } from "@/components/ui/separator";
@@ -83,9 +83,23 @@ export function Sidebar() {
           })}
         </div>
 
-        {/* External links */}
+        {/* Help + External links */}
         <div className="flex flex-col gap-0.5 px-1.5 pb-2">
           <Separator className="mb-1.5 bg-sidebar-border" />
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                className={cn(
+                  "flex items-center justify-center w-full aspect-square rounded-md transition-colors",
+                  "text-sidebar-foreground/30 hover:text-sidebar-foreground/60 hover:bg-sidebar-accent",
+                )}
+              >
+                <HelpCircle size={16} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Help</TooltipContent>
+          </Tooltip>
           {EXTERNAL_LINKS.map((link) => {
             const Icon = link.icon;
             return (

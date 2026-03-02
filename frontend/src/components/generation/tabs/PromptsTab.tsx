@@ -15,7 +15,7 @@ import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
 import { ParamGrid } from "../ParamRow";
 import { NumberInput } from "@/components/ui/number-input";
-import { Label } from "@/components/ui/label";
+import { ParamLabel } from "../ParamLabel";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -143,7 +143,7 @@ export function PromptsTab() {
 
         {/* Width / Height row */}
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground shrink-0">Width</Label>
+          <ParamLabel className="text-2xs text-muted-foreground shrink-0">Width</ParamLabel>
           <NumberInput
             value={isFixed ? state.width : genSize.width}
             onChange={setWidth}
@@ -176,7 +176,7 @@ export function PromptsTab() {
             disabled={!isFixed}
             className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <Label className="text-2xs text-muted-foreground shrink-0">Height</Label>
+          <ParamLabel className="text-2xs text-muted-foreground shrink-0">Height</ParamLabel>
         </div>
 
         {/* Scale slider */}
@@ -192,7 +192,7 @@ export function PromptsTab() {
         {/* Resize method (shown when scale/megapixel active) */}
         {!isFixed && (
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Resize</Label>
+            <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">Resize</ParamLabel>
             <Combobox
               value={resizeMethod}
               onValueChange={setResizeMethod}

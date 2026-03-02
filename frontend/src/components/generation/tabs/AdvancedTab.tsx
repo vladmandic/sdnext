@@ -4,6 +4,7 @@ import { useShallow } from "zustand/react/shallow";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
 import { Switch } from "@/components/ui/switch";
+import { ParamLabel } from "../ParamLabel";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
@@ -52,7 +53,7 @@ export function AdvancedTab() {
         <ParamSlider label="CLIP skip" value={state.clipSkip} onChange={set.clipSkip} min={0} max={12} step={0.1} />
 
         <div className="flex items-center gap-2">
-          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">VAE type</Label>
+          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">VAE type</ParamLabel>
           <Combobox
             value={state.vaeType}
             onValueChange={set.vaeType}
@@ -63,11 +64,11 @@ export function AdvancedTab() {
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground flex-shrink-0">Tiling</Label>
+            <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">Tiling</ParamLabel>
             <Switch checked={state.tiling} onCheckedChange={set.tiling} />
           </div>
           <div className="flex items-center gap-2">
-            <Label className="text-2xs text-muted-foreground flex-shrink-0">HiDiffusion</Label>
+            <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">HiDiffusion</ParamLabel>
             <Switch checked={state.hidiffusion} onCheckedChange={set.hidiffusion} />
           </div>
         </div>

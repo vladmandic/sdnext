@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ParamLabel } from "../ParamLabel";
 import type { GenerationInfo } from "@/api/types/generation";
 
 const SAMPLER_GROUP_ORDER = ["Standard", "FlowMatch", "Res4Lyf"] as const;
@@ -183,19 +184,19 @@ export function SamplerTab() {
         <div className="grid grid-cols-2 gap-2">
           <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.lowOrder} onCheckedChange={set.lowOrder} />
-            Low order
+            <ParamLabel className="text-2xs text-muted-foreground">Low order</ParamLabel>
           </label>
           <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.thresholding} onCheckedChange={set.thresholding} />
-            Thresholding
+            <ParamLabel className="text-2xs text-muted-foreground">Thresholding</ParamLabel>
           </label>
           <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.dynamic} onCheckedChange={set.dynamic} />
-            Dynamic
+            <ParamLabel className="text-2xs text-muted-foreground">Dynamic</ParamLabel>
           </label>
           <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.rescale} onCheckedChange={set.rescale} />
-            Rescale
+            <ParamLabel className="text-2xs text-muted-foreground">Rescale</ParamLabel>
           </label>
         </div>
       </ParamSection>

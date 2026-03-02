@@ -7,6 +7,7 @@ import { ParamSection } from "../ParamSection";
 import { ParamRow, ParamGrid } from "../ParamRow";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import { ParamLabel } from "../ParamLabel";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -79,7 +80,7 @@ export function DetailTab() {
     <div className="flex flex-col gap-3 text-sm">
       <ParamSection title="Detailer">
         <div className="flex items-center justify-between">
-          <Label className="text-2xs text-muted-foreground">Enabled</Label>
+          <ParamLabel className="text-2xs text-muted-foreground">Enabled</ParamLabel>
           <Switch checked={state.detailerEnabled} onCheckedChange={set.detailerEnabled} />
         </div>
 
@@ -163,19 +164,19 @@ export function DetailTab() {
             <div className="grid grid-cols-2 gap-2">
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
                 <Checkbox checked={state.detailerSegmentation} onCheckedChange={set.detailerSegmentation} />
-                Segmentation
+                <ParamLabel className="text-2xs text-muted-foreground">Segmentation</ParamLabel>
               </label>
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
                 <Checkbox checked={state.detailerIncludeDetections} onCheckedChange={set.detailerIncludeDetections} />
-                Include detections
+                <ParamLabel className="text-2xs text-muted-foreground">Include detections</ParamLabel>
               </label>
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
                 <Checkbox checked={state.detailerMerge} onCheckedChange={set.detailerMerge} />
-                Merge
+                <ParamLabel className="text-2xs text-muted-foreground">Merge</ParamLabel>
               </label>
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
                 <Checkbox checked={state.detailerSort} onCheckedChange={set.detailerSort} />
-                Sort
+                <ParamLabel className="text-2xs text-muted-foreground">Sort</ParamLabel>
               </label>
             </div>
           </ParamSection>
