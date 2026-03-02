@@ -5,6 +5,7 @@ import { SettingControl } from "./SettingControl";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { highlightMatch } from "@/lib/highlightMatch";
 import { RotateCcw } from "lucide-react";
 
 interface SettingsSectionProps {
@@ -13,9 +14,11 @@ interface SettingsSectionProps {
   dirty: Record<string, unknown>;
   onSettingChange: (key: string, value: unknown) => void;
   dynamicChoices?: Record<string, string[]>;
+  searchQuery?: string;
+  onNavigateToSection?: (id: string) => void;
 }
 
-export function SettingsSection({ section, values, dirty, onSettingChange, dynamicChoices }: SettingsSectionProps) {
+export function SettingsSection({ section, values, dirty, onSettingChange, dynamicChoices, searchQuery, onNavigateToSection }: SettingsSectionProps) {
   const getSettingValue = useCallback(
     (key: string) => dirty[key] ?? values[key],
     [dirty, values],
@@ -23,7 +26,17 @@ export function SettingsSection({ section, values, dirty, onSettingChange, dynam
 
   return (
     <div className="space-y-4">
-      <h2 className="text-sm font-semibold text-foreground">{section.title}</h2>
+      {searchQuery && onNavigateToSection ? (
+        <button
+          type="button"
+          onClick={() => onNavigateToSection(section.id)}
+          className="text-sm font-semibold text-primary hover:underline text-left"
+        >
+          {section.title} <span className="text-3xs font-normal text-muted-foreground">(go to section)</span>
+        </button>
+      ) : (
+        <h2 className="text-sm font-semibold text-foreground">{section.title}</h2>
+      )}
       <div className="space-y-3">
         {section.settings.map((setting) => {
           if (setting.component === "separator") {
@@ -41,7 +54,7 @@ export function SettingsSection({ section, values, dirty, onSettingChange, dynam
           const labelBlock = (
             <div className="flex flex-col gap-0.5">
               <Label className="text-xs font-medium flex items-center gap-1.5">
-                {setting.label}
+                {highlightMatch(setting.label, searchQuery ?? "")}
                 {isDirty && <Badge variant="outline" className="text-4xs px-1 py-0 h-3.5 text-primary border-primary/30">modified</Badge>}
                 {isDirty && setting.defaultValue !== undefined && (
                   <button
@@ -55,7 +68,7 @@ export function SettingsSection({ section, values, dirty, onSettingChange, dynam
                 {setting.requiresRestart && <Badge variant="outline" className="text-4xs px-1 py-0 h-3.5 text-amber-500 border-amber-500/30">restart</Badge>}
               </Label>
               {setting.description && (
-                <span className="text-3xs text-muted-foreground leading-tight">{setting.description}</span>
+                <span className="text-3xs text-muted-foreground leading-tight">{highlightMatch(setting.description, searchQuery ?? "")}</span>
               )}
             </div>
           );

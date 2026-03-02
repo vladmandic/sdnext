@@ -124,6 +124,7 @@ export function PromptEditor() {
           </div>
         </div>
         <Textarea
+          data-tour="prompt-editor"
           value={prompt}
           onChange={(e) => setParam("prompt", e.target.value)}
           placeholder="Describe what you want to generate..."

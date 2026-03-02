@@ -1,5 +1,6 @@
 import { NAV_ITEMS, IMAGES_SUB_TABS, EXTERNAL_LINKS } from "@/lib/constants";
 import { useUiStore } from "@/stores/uiStore";
+import { useTutorialStore } from "@/stores/tutorialStore";
 import type { SidebarView, ImagesSubTab } from "@/stores/uiStore";
 import { useCapabilities } from "@/api/hooks/useServer";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,7 @@ export function Sidebar() {
   const toggleViewCollapsed = useUiStore((s) => s.toggleViewCollapsed);
   const toggleLeftPanel = useUiStore((s) => s.toggleLeftPanel);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const startTutorial = useTutorialStore((s) => s.start);
 
   const capabilities = useCapabilities();
 
@@ -90,6 +92,7 @@ export function Sidebar() {
             <TooltipTrigger asChild>
               <button
                 type="button"
+                onClick={startTutorial}
                 className={cn(
                   "flex items-center justify-center w-full aspect-square rounded-md transition-colors",
                   "text-sidebar-foreground/30 hover:text-sidebar-foreground/60 hover:bg-sidebar-accent",
@@ -126,7 +129,7 @@ export function Sidebar() {
 
       {/* Column 2: Sub-tab labels (only for views with sub-tabs) */}
       {hasSubTabs && (
-        <div className="flex flex-col border-l border-sidebar-border py-2 overflow-y-auto">
+        <div data-tour="sidebar-subtabs" className="flex flex-col border-l border-sidebar-border py-2 overflow-y-auto">
           {IMAGES_SUB_TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;

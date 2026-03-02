@@ -35,6 +35,9 @@ interface UiState {
   // Command palette
   recentCommandIds: string[];
 
+  // Settings search
+  pendingSettingsSearch: string | null;
+
   // Appearance
   colorMode: ColorMode;
   accentColor: string;
@@ -64,6 +67,7 @@ interface UiState {
   setUiScale: (scale: number) => void;
   setCanvasLabelScale: (scale: number) => void;
   addRecentCommand: (id: string) => void;
+  setPendingSettingsSearch: (query: string | null) => void;
 }
 
 export type { SidebarView, ImagesSubTab, CornerStyle, ColorMode };
@@ -84,6 +88,7 @@ export const useUiStore = create<UiState>()(
       reprocessOnGenerate: true,
       autoApplyModelDefaults: false,
       recentCommandIds: [],
+      pendingSettingsSearch: null,
       colorMode: "dark" as ColorMode,
       accentColor: "#00bcd4",
       cornerStyle: "rounded" as CornerStyle,
@@ -114,7 +119,14 @@ export const useUiStore = create<UiState>()(
         const filtered = s.recentCommandIds.filter((c) => c !== id);
         return { recentCommandIds: [id, ...filtered].slice(0, 5) };
       }),
+      setPendingSettingsSearch: (query) => set({ pendingSettingsSearch: query }),
     }),
-    { name: "sdnext-ui-v2" },
+    {
+      name: "sdnext-ui-v2",
+      partialize: (state) => {
+        const { pendingSettingsSearch: _pending, ...rest } = state;
+        return rest;
+      },
+    },
   ),
 );

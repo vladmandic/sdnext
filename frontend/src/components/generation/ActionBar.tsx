@@ -90,7 +90,7 @@ export const ActionBar = memo(function ActionBar() {
   return (
     <div className="flex items-center gap-2">
       {/* Generate button group */}
-      <div className="flex flex-1 min-w-0">
+      <div className="flex flex-1 min-w-0" data-tour="generate-button">
         <Button
           type="button"
           onClick={submit}

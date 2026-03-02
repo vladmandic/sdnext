@@ -16,6 +16,7 @@ import { useModelDefaultsSuggester } from "@/hooks/useModelDefaultsSuggester";
 import { ShortcutOverlay } from "@/components/ShortcutOverlay";
 import { CommandPalette } from "@/components/CommandPalette";
 import { ComparisonDialog } from "@/components/comparison/ComparisonDialog";
+import { TutorialOverlay } from "@/components/TutorialOverlay";
 import { cn } from "@/lib/utils";
 
 export function AppShell() {
@@ -87,6 +88,7 @@ export function AppShell() {
       <ShortcutOverlay />
       <CommandPalette />
       <ComparisonDialog />
+      <TutorialOverlay />
     </div>
   );
 }

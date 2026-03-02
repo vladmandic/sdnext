@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { useOptions, useSetOptions, useOptionsInfo } from "@/api/hooks/useSettings";
 import { useModelList, useSamplerList, useVaeList, useUpscalerList } from "@/api/hooks/useModels";
@@ -376,6 +376,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
   const [dirty, setDirty] = useState<Record<string, unknown>>({});
   const [activeSection, setActiveSection] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const curatedMap = useMemo(() => getSettingsMap(), []);
 
@@ -504,6 +505,23 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirtyCount]);
 
+  // Watch for command palette "Search settings" action
+  const pendingSearch = useUiStore((s) => s.pendingSettingsSearch);
+  const clearPendingSearch = useUiStore((s) => s.setPendingSettingsSearch);
+  useEffect(() => {
+    if (pendingSearch === null) return;
+    clearPendingSearch(null);
+    requestAnimationFrame(() => {
+      setSearchQuery(pendingSearch);
+      searchInputRef.current?.focus();
+    });
+  }, [pendingSearch, clearPendingSearch]);
+
+  const handleNavigateToSection = useCallback((id: string) => {
+    setActiveSection(id);
+    setSearchQuery("");
+  }, []);
+
   const backendReady = !isLoading && !isInfoLoading && !!options && !!optionsInfo;
 
   return (
@@ -514,6 +532,7 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
           <div className="relative">
             <Search size={14} className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input
+              ref={searchInputRef}
               placeholder="Search..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -643,6 +662,8 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
                   dirty={dirty}
                   onSettingChange={handleSettingChange}
                   dynamicChoices={dynamicChoices}
+                  searchQuery={searchQuery}
+                  onNavigateToSection={handleNavigateToSection}
                 />
               ))}
               {filteredSections.length === 0 && (

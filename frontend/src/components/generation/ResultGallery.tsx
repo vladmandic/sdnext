@@ -175,7 +175,7 @@ export const ResultGallery = memo(function ResultGallery() {
 
   if (results.length === 0) {
     return (
-      <div className="text-2xs text-muted-foreground text-center py-2">
+      <div data-tour="result-gallery" className="text-2xs text-muted-foreground text-center py-2">
         No results yet
       </div>
     );
@@ -192,7 +192,7 @@ export const ResultGallery = memo(function ResultGallery() {
   );
 
   return (
-    <div className="flex flex-col gap-1">
+    <div data-tour="result-gallery" className="flex flex-col gap-1">
       <div className="flex items-center gap-1 justify-between">
         {/* Thumb size control */}
         <div className="flex items-center gap-1 min-w-0">

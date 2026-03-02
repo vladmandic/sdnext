@@ -1,6 +1,6 @@
-export type ShortcutScope = "global" | "canvas" | "gallery" | "lightbox" | "comparison";
+export type ShortcutScope = "global" | "canvas" | "gallery" | "lightbox" | "comparison" | "tutorial";
 
-export type ShortcutCategory = "Global" | "Canvas" | "Gallery" | "Lightbox" | "Comparison" | "Navigation";
+export type ShortcutCategory = "Global" | "Canvas" | "Gallery" | "Lightbox" | "Comparison" | "Navigation" | "Tutorial";
 
 export interface ShortcutDef {
   id: string;
@@ -60,6 +60,9 @@ export const SHORTCUTS: Record<string, ShortcutDef> = {
   "comparison-zoom-in": { id: "comparison-zoom-in", key: "=", scope: "comparison", category: "Comparison", label: "Zoom in" },
   "comparison-zoom-out": { id: "comparison-zoom-out", key: "-", scope: "comparison", category: "Comparison", label: "Zoom out" },
   "comparison-zoom-reset": { id: "comparison-zoom-reset", key: "0", scope: "comparison", category: "Comparison", label: "Reset zoom" },
+
+  // Tutorial
+  "tutorial-close": { id: "tutorial-close", key: "Escape", scope: "tutorial", category: "Tutorial", label: "Close tutorial" },
 };
 
 export function matchesEvent(def: ShortcutDef, e: KeyboardEvent): boolean {

@@ -4,7 +4,7 @@ import {
   RefreshCw, Download, Upload,
   PanelLeft, PanelRight, Sidebar,
   ImageIcon, Video, Sparkles, MessageSquare, Images,
-  GitCompareArrows,
+  GitCompareArrows, Settings,
 } from "lucide-react";
 import { api } from "@/api/client";
 import { useUiStore } from "@/stores/uiStore";
@@ -182,6 +182,19 @@ export function buildActions(): PaletteAction[] {
     keywords: ["panel", "aside", "networks"],
     shortcutId: "toggle-right-panel",
     action: () => useUiStore.getState().toggleRightPanel(),
+  });
+
+  // --- Settings search ---
+  actions.push({
+    id: "search-settings",
+    label: "Search settings...",
+    icon: Settings,
+    group: "Navigation",
+    keywords: ["settings", "search", "find", "option", "preference", "configure"],
+    action: () => {
+      useUiStore.getState().setPendingSettingsSearch("");
+      useUiStore.getState().openAsideTab("settings");
+    },
   });
 
   // --- Navigation: views ---
