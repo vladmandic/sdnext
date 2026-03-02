@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { useSubmitJob } from "@/api/hooks/useJobs";
 import { useJobQueueStore, type JobSnapshot } from "@/stores/jobStore";
+import { putJobPayload } from "@/lib/jobPayloadDb";
 import type { JobRequest } from "@/api/types/v2";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -33,7 +34,9 @@ export function BatchDialog({ open, onOpenChange, buildRequest }: BatchDialogPro
       for (let i = 0; i < count; i++) {
         const seedPayload = { ...payload, seed: resolvedBase + i } as JobRequest;
         const job = await submitJob.mutateAsync(seedPayload);
-        trackJob(job.id, "generate", snapshot);
+        const priority = (seedPayload as { priority?: number }).priority ?? 0;
+        trackJob(job.id, "generate", snapshot, seedPayload, priority);
+        putJobPayload({ id: job.id, domain: "generate", request: seedPayload, priority, snapshot: { controlUnits: snapshot.controlUnits }, createdAt: Date.now() });
       }
       toast.success(`Queued ${count} jobs`, { description: `Seeds ${resolvedBase}–${resolvedBase + count - 1}` });
       onOpenChange(false);

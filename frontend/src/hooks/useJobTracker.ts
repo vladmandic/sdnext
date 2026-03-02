@@ -6,6 +6,7 @@ import { useGenerationStore } from "@/stores/generationStore";
 import { useControlStore } from "@/stores/controlStore";
 import { useVideoStore } from "@/stores/videoStore";
 import { useProcessStore } from "@/stores/processStore";
+import { deleteJobPayload } from "@/lib/jobPayloadDb";
 import type { JobResult, JobWsEvent } from "@/api/types/v2";
 import { toast } from "sonner";
 
@@ -131,13 +132,16 @@ export function useJobTracker() {
             case "completed":
               s.completeJob(jobId, data.result);
               routeResult(s.jobs.get(jobId)?.domain ?? "generate", data.result, s.jobs.get(jobId)?.snapshot ?? {});
+              deleteJobPayload(jobId);
               break;
             case "error":
               s.failJob(jobId, data.error);
               toast.error("Generation failed", { description: data.error, duration: 8000 });
+              deleteJobPayload(jobId);
               break;
             case "cancelled":
               s.updateStatus(jobId, "cancelled");
+              deleteJobPayload(jobId);
               break;
           }
         });

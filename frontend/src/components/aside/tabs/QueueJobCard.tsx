@@ -1,5 +1,5 @@
-import { useCallback } from "react";
-import { X, RotateCcw, Eye, Image, Video, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { X, RotateCcw, Eye, Image, Video, Sparkles, ChevronUp, ChevronDown, Copy, Trash2 } from "lucide-react";
 import type { TrackedJob, JobDomain } from "@/stores/jobStore";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { Badge } from "@/components/ui/badge";
@@ -32,18 +32,43 @@ function statusBadgeVariant(status: string): "default" | "secondary" | "destruct
   }
 }
 
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+function useElapsed(startTime: number, active: boolean): number {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const update = () => setElapsed(Math.floor((performance.now() / 1000) - (startTime / 1000) + (Date.now() - performance.now()) / 1000));
+    const id = setInterval(update, 1000);
+    return () => clearInterval(id);
+  }, [startTime, active]);
+  return elapsed;
+}
+
 interface QueueJobCardProps {
   job: TrackedJob;
   onView?: (job: TrackedJob) => void;
   onRetry?: (job: TrackedJob) => void;
+  onDuplicate?: (job: TrackedJob) => void;
+  onRemove?: (job: TrackedJob) => void;
+  onMoveUp?: (job: TrackedJob) => void;
+  onMoveDown?: (job: TrackedJob) => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
 }
 
-export function QueueJobCard({ job, onView, onRetry }: QueueJobCardProps) {
+export function QueueJobCard({ job, onView, onRetry, onDuplicate, onRemove, onMoveUp, onMoveDown, canMoveUp, canMoveDown }: QueueJobCardProps) {
   const cancelJob = useCancelJob();
   const DomainIcon = DOMAIN_ICONS[job.domain] ?? Image;
   const isRunning = job.status === "running";
   const isPending = job.status === "pending";
   const isTerminal = job.status === "completed" || job.status === "failed" || job.status === "cancelled";
+  const elapsed = useElapsed(job.createdAt, isRunning);
 
   const handleCancel = useCallback(() => {
     cancelJob.mutate(job.id);
@@ -60,17 +85,42 @@ export function QueueJobCard({ job, onView, onRetry }: QueueJobCardProps) {
         <Badge variant={statusBadgeVariant(job.status)} className="text-4xs px-1 py-0 shrink-0">
           {job.status}
         </Badge>
-        {/* Action buttons */}
+        {/* Reorder buttons for pending */}
+        {isPending && onMoveUp && (
+          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => onMoveUp(job)} disabled={!canMoveUp} title="Move up">
+            <ChevronUp className="h-2.5 w-2.5" />
+          </Button>
+        )}
+        {isPending && onMoveDown && (
+          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => onMoveDown(job)} disabled={!canMoveDown} title="Move down">
+            <ChevronDown className="h-2.5 w-2.5" />
+          </Button>
+        )}
+        {/* View result */}
         {isTerminal && onView && job.result && (
           <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => onView(job)} title="View result">
             <Eye className="h-2.5 w-2.5" />
           </Button>
         )}
-        {job.status === "failed" && onRetry && (
+        {/* Duplicate */}
+        {isTerminal && onDuplicate && job.request && (
+          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => onDuplicate(job)} title="Duplicate">
+            <Copy className="h-2.5 w-2.5" />
+          </Button>
+        )}
+        {/* Retry failed */}
+        {job.status === "failed" && onRetry && job.request && (
           <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => onRetry(job)} title="Retry">
             <RotateCcw className="h-2.5 w-2.5" />
           </Button>
         )}
+        {/* Remove terminal */}
+        {isTerminal && onRemove && (
+          <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => onRemove(job)} title="Remove">
+            <Trash2 className="h-2.5 w-2.5" />
+          </Button>
+        )}
+        {/* Cancel running/pending */}
         {(isRunning || isPending) && (
           <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={handleCancel} title="Cancel">
             <X className="h-2.5 w-2.5" />
@@ -87,6 +137,14 @@ export function QueueJobCard({ job, onView, onRetry }: QueueJobCardProps) {
           <span className="text-4xs text-muted-foreground tabular-nums w-8 text-right">
             {job.step > 0 ? `${job.step}/${job.steps}` : `${Math.round(job.progress * 100)}%`}
           </span>
+        </div>
+      )}
+
+      {/* ETA and elapsed for running */}
+      {isRunning && (
+        <div className="flex items-center gap-2 text-4xs text-muted-foreground">
+          <span>{formatDuration(elapsed)} elapsed</span>
+          {job.eta > 0 && <span>ETA: ~{formatDuration(job.eta)}</span>}
         </div>
       )}
 

@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 import { toast } from "sonner";
 import { useSubmitJob } from "@/api/hooks/useJobs";
 import { useJobQueueStore, type JobDomain, type JobSnapshot } from "@/stores/jobStore";
+import { putJobPayload } from "@/lib/jobPayloadDb";
 import type { JobRequest } from "@/api/types/v2";
 
 interface SubmitOptions {
@@ -19,7 +20,9 @@ export function useSubmitToQueue({ domain, buildRequest }: SubmitOptions) {
     try {
       const { payload, snapshot } = await buildRequest();
       const job = await submitJob.mutateAsync(payload);
-      trackJob(job.id, domain, snapshot);
+      const priority = (payload as { priority?: number }).priority ?? 0;
+      trackJob(job.id, domain, snapshot, payload, priority);
+      putJobPayload({ id: job.id, domain, request: payload, priority, snapshot: { controlUnits: snapshot.controlUnits }, createdAt: Date.now() });
     } catch (err) {
       toast.error("Failed to submit job", { description: err instanceof Error ? err.message : String(err) });
     } finally {
