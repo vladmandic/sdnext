@@ -585,7 +585,7 @@ async def get_extensions_v2():
                     branch=branch,
                     commit_hash=ext.commit_hash,
                     version=ext.version,
-                    commit_date=ext.commit_date,
+                    commit_date=str(ext.commit_date) if ext.commit_date is not None else None,
                     enabled=ext.enabled,
                 ))
         return result
