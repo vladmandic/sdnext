@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { JobResult, JobStatus } from "@/api/types/v2";
+import type { JobRequest, JobResult, JobStatus } from "@/api/types/v2";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 
@@ -26,6 +26,8 @@ export interface TrackedJob {
   error: string | null;
   createdAt: number;
   snapshot: JobSnapshot;
+  request: JobRequest | null;
+  priority: number;
 }
 
 const MAX_TRACKED_JOBS = 50;
@@ -38,7 +40,8 @@ interface JobQueueState {
   jobs: Map<string, TrackedJob>;
   activeJobId: string | null;
 
-  trackJob: (id: string, domain: JobDomain, snapshot: JobSnapshot) => void;
+  trackJob: (id: string, domain: JobDomain, snapshot: JobSnapshot, request?: JobRequest, priority?: number) => void;
+  rehydrateJob: (job: TrackedJob) => void;
   updateStatus: (id: string, status: JobStatus) => void;
   updateProgress: (id: string, progress: number, eta: number, step: number, steps: number, task?: string, textinfo?: string | null) => void;
   updatePreview: (id: string, previewUrl: string) => void;
@@ -67,7 +70,7 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
   jobs: new Map(),
   activeJobId: null,
 
-  trackJob: (id, domain, snapshot) =>
+  trackJob: (id, domain, snapshot, request?, priority?) =>
     set((state) => {
       const next = new Map(state.jobs);
       next.set(id, {
@@ -85,8 +88,18 @@ export const useJobQueueStore = create<JobQueueState>()((set) => ({
         error: null,
         createdAt: Date.now(),
         snapshot,
+        request: request ?? null,
+        priority: priority ?? 0,
       });
       return { jobs: pruneOldTerminal(next), activeJobId: state.activeJobId ?? id };
+    }),
+
+  rehydrateJob: (job) =>
+    set((state) => {
+      const next = new Map(state.jobs);
+      if (next.has(job.id)) return state;
+      next.set(job.id, job);
+      return { jobs: pruneOldTerminal(next) };
     }),
 
   updateStatus: (id, status) =>
@@ -261,3 +274,28 @@ export function selectVideoDomainActiveJob(state: JobQueueState): TrackedJob | u
   const videoDomains: JobDomain[] = ["video", "framepack", "ltx"];
   return Array.from(state.jobs.values()).find((j) => videoDomains.includes(j.domain) && (j.status === "running" || j.status === "pending"));
 }
+
+export function selectPendingJobsSorted(state: JobQueueState): TrackedJob[] {
+  return Array.from(state.jobs.values())
+    .filter((j) => j.status === "pending")
+    .sort((a, b) => b.priority - a.priority || a.createdAt - b.createdAt);
+}
+
+// --- Pre-built stable selector instances ---
+// Use these instead of calling factory functions inline (e.g. selectDomainActive("generate"))
+// to avoid creating new closures on every render, which can trigger
+// useSyncExternalStore tearing cascades in React 19 production mode.
+
+export const selectGenerateActive = selectDomainActive("generate");
+export const selectUpscaleActive = selectDomainActive("upscale");
+export const selectVideoActive = selectDomainActive("video");
+export const selectFramepackActive = selectDomainActive("framepack");
+export const selectLtxActive = selectDomainActive("ltx");
+
+export const selectVideoProgress = selectDomainProgress("video");
+export const selectFramepackProgress = selectDomainProgress("framepack");
+export const selectLtxProgress = selectDomainProgress("ltx");
+
+export const selectVideoRunning = selectDomainRunning("video");
+export const selectFramepackRunning = selectDomainRunning("framepack");
+export const selectLtxRunning = selectDomainRunning("ltx");

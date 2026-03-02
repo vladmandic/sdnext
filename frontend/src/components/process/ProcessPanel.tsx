@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { Play, Loader2 } from "lucide-react";
 import { useProcessStore } from "@/stores/processStore";
-import { useJobQueueStore, selectDomainActive } from "@/stores/jobStore";
+import { useJobQueueStore, selectUpscaleActive } from "@/stores/jobStore";
 import { useUpscalerList, useUpscalerGroups } from "@/api/hooks/useModels";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { uploadFile } from "@/lib/upload";
@@ -18,7 +18,7 @@ export function ProcessPanel() {
   const setScale = useProcessStore((s) => s.setScale);
   const setResult = useProcessStore((s) => s.setResult);
 
-  const isProcessing = useJobQueueStore(selectDomainActive("upscale"));
+  const isProcessing = useJobQueueStore(selectUpscaleActive);
 
   const { data: upscalers } = useUpscalerList();
   const upscalerGroups = useUpscalerGroups();

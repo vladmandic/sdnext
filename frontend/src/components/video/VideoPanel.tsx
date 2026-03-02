@@ -3,7 +3,7 @@ import { Play, Square, Sparkles, Settings2, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useVideoStore } from "@/stores/videoStore";
 import { usePromptEnhanceStore } from "@/stores/promptEnhanceStore";
-import { useJobQueueStore, selectDomainActive, selectDomainProgress, selectDomainRunning } from "@/stores/jobStore";
+import { useJobQueueStore, selectVideoActive, selectFramepackActive, selectLtxActive, selectDomainProgress, selectDomainRunning } from "@/stores/jobStore";
 import { useSubmitToQueue } from "@/hooks/useSubmitToQueue";
 import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
@@ -145,12 +145,14 @@ export function VideoPanel() {
   const negative = useVideoStore((s) => s.negative);
   const setParam = useVideoStore((s) => s.setParam);
   const domain = tabToDomain(activeVideoTab);
-  const isVideoActive = useJobQueueStore(selectDomainActive("video"));
-  const isFramepackActive = useJobQueueStore(selectDomainActive("framepack"));
-  const isLtxActive = useJobQueueStore(selectDomainActive("ltx"));
+  const isVideoActive = useJobQueueStore(selectVideoActive);
+  const isFramepackActive = useJobQueueStore(selectFramepackActive);
+  const isLtxActive = useJobQueueStore(selectLtxActive);
   const isGenerating = isVideoActive || isFramepackActive || isLtxActive;
-  const progress = useJobQueueStore(selectDomainProgress(domain));
-  const runningVideoJob = useJobQueueStore(selectDomainRunning(domain));
+  const selectProgress = useMemo(() => selectDomainProgress(domain), [domain]);
+  const selectRunning = useMemo(() => selectDomainRunning(domain), [domain]);
+  const progress = useJobQueueStore(selectProgress);
+  const runningVideoJob = useJobQueueStore(selectRunning);
 
   const cancelJob = useCancelJob();
 

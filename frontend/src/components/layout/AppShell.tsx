@@ -26,7 +26,6 @@ export function AppShell() {
   useShortcutDispatcher();
   useModelDefaultsSuggester();
 
-  // Global layout shortcuts
   useShortcut("toggle-sidebar", () => useUiStore.getState().toggleSidebar());
   useShortcut("toggle-left-panel", () => useUiStore.getState().toggleLeftPanel());
   useShortcut("toggle-right-panel", () => useUiStore.getState().toggleRightPanel());
@@ -45,7 +44,6 @@ export function AppShell() {
         <Toolbar />
 
         <div className="flex flex-1 min-h-0">
-          {/* Left panel */}
           <aside
             className={cn(
               "border-r border-border bg-card flex-shrink-0 overflow-hidden transition-[width] duration-200",
@@ -56,7 +54,6 @@ export function AppShell() {
             {!leftHidden && <LeftPanel />}
           </aside>
 
-          {/* Main + Aside content */}
           <ResizablePanelGroup orientation="horizontal" id="layout-main" className="flex-1">
             <ResizablePanel id="panel-main" minSize="30%">
               <main className="h-full overflow-auto">
@@ -78,7 +75,6 @@ export function AppShell() {
             )}
           </ResizablePanelGroup>
 
-          {/* Icon strip */}
           <AsideIconStrip />
         </div>
 

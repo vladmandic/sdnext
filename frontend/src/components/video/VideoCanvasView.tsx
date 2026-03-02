@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Download, Trash2, Film, Columns2, X, ImagePlus } from "lucide-react";
 import { useVideoStore } from "@/stores/videoStore";
 import { useVideoCanvasStore } from "@/stores/videoCanvasStore";
-import { useJobQueueStore, selectDomainActive, selectDomainProgress, selectVideoDomainActiveJob } from "@/stores/jobStore";
+import { useJobQueueStore, selectVideoActive, selectFramepackActive, selectLtxActive, selectVideoProgress, selectFramepackProgress, selectLtxProgress, selectVideoDomainActiveJob } from "@/stores/jobStore";
 import { useUiStore } from "@/stores/uiStore";
 import { useVideoFrameLayout } from "@/canvas/useVideoFrameLayout";
 import { VideoCanvasStage } from "@/canvas/VideoCanvasStage";
@@ -45,13 +45,13 @@ export function VideoCanvasView() {
 
   const selectedResult = useMemo(() => results.find((r) => r.id === selectedResultId) ?? null, [results, selectedResultId]);
 
-  const isVideoActive = useJobQueueStore(selectDomainActive("video"));
-  const isFramepackActive = useJobQueueStore(selectDomainActive("framepack"));
-  const isLtxActive = useJobQueueStore(selectDomainActive("ltx"));
+  const isVideoActive = useJobQueueStore(selectVideoActive);
+  const isFramepackActive = useJobQueueStore(selectFramepackActive);
+  const isLtxActive = useJobQueueStore(selectLtxActive);
   const isGenerating = isVideoActive || isFramepackActive || isLtxActive;
-  const videoProgress = useJobQueueStore(selectDomainProgress("video"));
-  const fpProgress = useJobQueueStore(selectDomainProgress("framepack"));
-  const ltxProgress = useJobQueueStore(selectDomainProgress("ltx"));
+  const videoProgress = useJobQueueStore(selectVideoProgress);
+  const fpProgress = useJobQueueStore(selectFramepackProgress);
+  const ltxProgress = useJobQueueStore(selectLtxProgress);
   const progress = Math.max(videoProgress, fpProgress, ltxProgress);
   const progressPct = Math.round(progress * 100);
 

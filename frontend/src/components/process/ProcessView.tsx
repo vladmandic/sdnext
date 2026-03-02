@@ -2,7 +2,7 @@ import { useCallback, useEffect } from "react";
 import { Upload, X, Download, Loader2, GitCompareArrows, Maximize2 } from "lucide-react";
 import { useProcessStore } from "@/stores/processStore";
 import { useComparisonStore } from "@/stores/comparisonStore";
-import { useJobQueueStore, selectDomainActive } from "@/stores/jobStore";
+import { useJobQueueStore, selectUpscaleActive } from "@/stores/jobStore";
 import { useDropTarget } from "@/hooks/useDropTarget";
 import { payloadToFile } from "@/lib/sendTo";
 import type { DragPayload } from "@/stores/dragStore";
@@ -12,7 +12,7 @@ import { SwipeMode } from "@/components/comparison/SwipeMode";
 
 export function ProcessView() {
   const imagePreviewUrl = useProcessStore((s) => s.imagePreviewUrl);
-  const isProcessing = useJobQueueStore(selectDomainActive("upscale"));
+  const isProcessing = useJobQueueStore(selectUpscaleActive);
   const resultImageUrl = useProcessStore((s) => s.resultImageUrl);
   const resultWidth = useProcessStore((s) => s.resultWidth);
   const resultHeight = useProcessStore((s) => s.resultHeight);
