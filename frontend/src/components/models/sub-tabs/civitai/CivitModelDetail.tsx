@@ -107,6 +107,17 @@ function VersionSection({ version, modelType, modelName, creatorName, modelId, m
 
   const { data: resolved } = useCivitResolvePath(resolveParams, open);
 
+  const downloadedCount = useMemo(() => {
+    let count = 0;
+    for (const f of version.files) {
+      if (f.hashes.SHA256 && localFiles[f.hashes.SHA256]) count++;
+    }
+    return count;
+  }, [version.files, localFiles]);
+  const totalFiles = version.files.length;
+  const hasAll = totalFiles > 0 && downloadedCount === totalFiles;
+  const hasSome = downloadedCount > 0 && !hasAll;
+
   function handleDownload(file: CivitFile) {
     download.mutate({
       url: file.downloadUrl,
@@ -130,6 +141,16 @@ function VersionSection({ version, modelType, modelName, creatorName, modelId, m
         {open ? <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />}
         <span className="text-sm font-medium truncate min-w-0">{version.name}</span>
         <Badge variant="outline" className="text-3xs px-1.5 py-0.5 shrink-0">{version.baseModel}</Badge>
+        {hasAll && (
+          <span title={`All ${totalFiles} file${totalFiles > 1 ? "s" : ""} downloaded`}>
+            <Check className="h-4 w-4 shrink-0 text-green-500" />
+          </span>
+        )}
+        {hasSome && (
+          <span title={`${downloadedCount}/${totalFiles} file${totalFiles > 1 ? "s" : ""} downloaded`}>
+            <Check className="h-4 w-4 shrink-0 text-yellow-500" />
+          </span>
+        )}
         <StatsRow stats={version.stats} className="ml-auto shrink-0 !text-3xs !gap-2" />
       </button>
 

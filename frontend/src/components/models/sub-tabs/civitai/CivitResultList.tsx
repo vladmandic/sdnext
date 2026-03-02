@@ -1,6 +1,8 @@
+import { useMemo } from "react";
 import { Loader2 } from "lucide-react";
 import type { InfiniteData } from "@tanstack/react-query";
 import type { CivitSearchResponse } from "@/api/types/civitai";
+import { useCivitCheckLocal } from "@/api/hooks/useCivitai";
 import { Button } from "@/components/ui/button";
 import { CivitResultCard } from "./CivitResultCard";
 
@@ -13,7 +15,22 @@ interface CivitResultListProps {
 }
 
 export function CivitResultList({ pages, hasNextPage, isFetchingNextPage, fetchNextPage, onSelectModel }: CivitResultListProps) {
-  const models = pages?.pages.flatMap((p) => p.items) ?? [];
+  const models = useMemo(() => pages?.pages.flatMap((p) => p.items) ?? [], [pages]);
+
+  const allHashes = useMemo(() => {
+    const hashes: string[] = [];
+    for (const m of models) {
+      for (const v of m.modelVersions) {
+        for (const f of v.files) {
+          if (f.hashes.SHA256) hashes.push(f.hashes.SHA256);
+        }
+      }
+    }
+    return hashes;
+  }, [models]);
+
+  const { data: localCheck } = useCivitCheckLocal(allHashes);
+  const localFiles = localCheck?.found ?? {};
 
   if (models.length === 0) return null;
 
@@ -21,7 +38,7 @@ export function CivitResultList({ pages, hasNextPage, isFetchingNextPage, fetchN
     <div className="border border-border rounded-md overflow-hidden">
       <div className="divide-y divide-border/50">
         {models.map((m) => (
-          <CivitResultCard key={m.id} model={m} onClick={() => onSelectModel(m.id)} />
+          <CivitResultCard key={m.id} model={m} localFiles={localFiles} onClick={() => onSelectModel(m.id)} />
         ))}
       </div>
       {hasNextPage && (

@@ -1,10 +1,12 @@
-import { Download, Bookmark, Ban } from "lucide-react";
+import { useMemo } from "react";
+import { Download, Bookmark, Ban, Check } from "lucide-react";
 import type { CivitModel } from "@/api/types/civitai";
 import { useCivitBookmarks, useCivitAddBookmark, useCivitRemoveBookmark, useCivitBanned, useCivitAddBanned, useCivitRemoveBanned } from "@/api/hooks/useCivitai";
 import { Badge } from "@/components/ui/badge";
 
 interface CivitResultCardProps {
   model: CivitModel;
+  localFiles: Record<string, { filename: string; type: string }>;
   onClick: () => void;
 }
 
@@ -30,7 +32,7 @@ function formatCount(n: number): string {
   return String(n);
 }
 
-export function CivitResultCard({ model, onClick }: CivitResultCardProps) {
+export function CivitResultCard({ model, localFiles, onClick }: CivitResultCardProps) {
   const preview = getPreviewUrl(model);
   const { data: bookmarks } = useCivitBookmarks();
   const { data: banned } = useCivitBanned();
@@ -41,6 +43,20 @@ export function CivitResultCard({ model, onClick }: CivitResultCardProps) {
 
   const isBookmarked = bookmarks?.some((b) => b.name === model.name) ?? false;
   const isBanned = banned?.some((b) => b.name === model.name) ?? false;
+
+  const { downloadedCount, totalFiles } = useMemo(() => {
+    let downloaded = 0;
+    let total = 0;
+    for (const v of model.modelVersions) {
+      for (const f of v.files) {
+        total++;
+        if (f.hashes.SHA256 && localFiles[f.hashes.SHA256]) downloaded++;
+      }
+    }
+    return { downloadedCount: downloaded, totalFiles: total };
+  }, [model.modelVersions, localFiles]);
+  const hasAll = totalFiles > 0 && downloadedCount === totalFiles;
+  const hasSome = downloadedCount > 0 && !hasAll;
 
   return (
     <button type="button" onClick={onClick} className="flex items-center gap-2.5 w-full px-2 py-1.5 hover:bg-muted/30 cursor-pointer text-left rounded-sm">
@@ -61,6 +77,8 @@ export function CivitResultCard({ model, onClick }: CivitResultCardProps) {
             <Download className="h-2.5 w-2.5" />
             {formatCount(model.stats.downloadCount)}
           </span>
+          {hasAll && <Check className="h-3 w-3 text-green-500 shrink-0" />}
+          {hasSome && <Check className="h-3 w-3 text-yellow-500 shrink-0" />}
         </div>
       </div>
       <div className="flex items-center gap-0.5 shrink-0">
