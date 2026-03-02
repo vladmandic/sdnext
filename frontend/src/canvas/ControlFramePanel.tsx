@@ -178,7 +178,8 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
   if (!unit) return null;
 
   const imageDims = isOwner ? unit.imageDims : null;
-  const textColor = contrastText(CONTROL_COLOR);
+  const panelColor = isReference ? INPUT_COLOR_REFERENCE : CONTROL_COLOR;
+  const textColor = contrastText(panelColor);
   const unifiedIndex = unitIndex + 2;
   const isReference = unit.unitType === "reference";
   const roleLabel = isReference ? "Reference" : `Control: ${UNIT_TYPE_LABELS[unit.unitType] ?? unit.unitType}`;
@@ -186,7 +187,9 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
 
   let sizeText: string | null = null;
   if (isOwner) {
-    if (unit.fitMode === "free") {
+    if (isReference) {
+      sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h}` : `${genW}\u00d7${genH}`;
+    } else if (unit.fitMode === "free") {
       sizeText = imageDims ? `${imageDims.w}\u00d7${imageDims.h} free` : `${genW}\u00d7${genH}`;
     } else {
       const fitSuffix = unit.fitMode === "contain" ? "fit" : unit.fitMode === "cover" ? "crop" : "stretch";
@@ -219,7 +222,7 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
     : unit.fitMode === "fill" ? <Move size={16} style={{ color: textColor }} />
     : <Hand size={16} style={{ color: textColor }} />;
 
-  const subHeader = isOwner && unit.image ? (
+  const subHeader = isOwner && unit.image && !isReference ? (
     <div className="flex items-center gap-0.5">
       <Button
         variant="ghost"
@@ -254,10 +257,10 @@ function UnitPanel({ unitIndex, isOwner, collapsed, genSize, onPickImage, onClea
   return (
     <div
       className="flex flex-col overflow-hidden rounded-t-md border shadow-lg"
-      style={{ borderColor: CONTROL_COLOR }}
+      style={{ borderColor: panelColor }}
       onClick={handlePanelClick}
     >
-      <div className="flex flex-col shrink-0 rounded-t-md" style={{ backgroundColor: CONTROL_COLOR }}>
+      <div className="flex flex-col shrink-0 rounded-t-md" style={{ backgroundColor: panelColor }}>
         <div className="flex items-center justify-between px-3" style={{ minHeight: HEADER_HEIGHT }}>
           <span className="text-base font-medium truncate" style={{ color: textColor }}>{labelText}</span>
           <div className="flex items-center gap-0.5 shrink-0">

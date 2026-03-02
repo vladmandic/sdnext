@@ -691,11 +691,11 @@ Full refactor to the unified "Input #" system:
 - [x] Implement control sub-type compatibility constraints
 - [x] Unify numbering (single global counter for all inputs)
 - [x] Update image source dropdown to use unified input references
-- [ ] Update `requestBuilder.ts` to map roles to backend API fields
+- [x] Update `requestBuilder.ts` to map roles to backend API fields
 
 ### Phase 4 — Canvas Rendering Updates
 
-- [ ] Initial inputs render with multi-layer Konva canvas
-- [ ] Reference inputs render with simple image display
-- [ ] Control inputs render with image display + fit modes
-- [ ] Output and Processed frames remain unchanged
+- [x] Initial inputs render with multi-layer Konva canvas
+- [x] Reference inputs render with simple image display
+- [x] Control inputs render with image display + fit modes
+- [x] Output and Processed frames remain unchanged
