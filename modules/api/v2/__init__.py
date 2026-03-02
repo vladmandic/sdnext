@@ -35,5 +35,8 @@ def register_v2(app, dependencies=None):
     from modules.api.v2.prompt_enhance import router as prompt_enhance_router
     app.include_router(prompt_enhance_router, dependencies=deps)
 
+    from modules.api.v2.xyz_grid import router as xyz_grid_router
+    app.include_router(xyz_grid_router, dependencies=deps)
+
     from modules.logger import log
     log.info('API v2: registered')

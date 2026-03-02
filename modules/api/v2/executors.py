@@ -576,6 +576,11 @@ def execute_ltx(params: dict, job_id: str) -> dict:
     return {'images': image_refs, 'info': {}, 'params': {k: v for k, v in params.items() if k not in ('type', 'condition_image', 'condition_last')}}
 
 
+def execute_xyz_grid_dispatch(params: dict, job_id: str) -> dict:
+    from modules.api.v2.xyz_grid import execute_xyz_grid
+    return execute_xyz_grid(params, job_id)
+
+
 EXECUTORS = {
     'generate': execute_generate,
     'upscale': execute_upscale,
@@ -586,4 +591,5 @@ EXECUTORS = {
     'video': execute_video,
     'framepack': execute_framepack,
     'ltx': execute_ltx,
+    'xyz-grid': execute_xyz_grid_dispatch,
 }

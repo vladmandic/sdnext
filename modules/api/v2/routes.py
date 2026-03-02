@@ -43,7 +43,7 @@ async def submit_job(request: dict):
     job_type = request.get('type')
     if not job_type:
         raise HTTPException(status_code=400, detail="Missing 'type' field")
-    valid_types = {'generate', 'upscale', 'caption', 'enhance', 'detect', 'preprocess', 'video', 'framepack', 'ltx'}
+    valid_types = {'generate', 'upscale', 'caption', 'enhance', 'detect', 'preprocess', 'video', 'framepack', 'ltx', 'xyz-grid'}
     if job_type not in valid_types:
         raise HTTPException(status_code=400, detail=f"Invalid job type: {job_type}. Must be one of: {', '.join(sorted(valid_types))}")
     priority = request.pop('priority', 0)

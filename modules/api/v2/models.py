@@ -70,8 +70,47 @@ class PreprocessParams(BaseModel):
     params: Optional[dict] = None
 
 
+class XyzAxisInputModel(BaseModel):
+    type: str = Field(description="Axis label, e.g. '[Param] Steps'")
+    values: str = Field(description="Comma-separated values or range syntax")
+
+
+class XyzGridParams(BaseModel):
+    type: str = Field("xyz-grid", pattern="^xyz-grid$")
+    prompt: str = ""
+    negative_prompt: str = ""
+    steps: int = 20
+    width: int = 512
+    height: int = 512
+    cfg_scale: float = 7.0
+    seed: int = -1
+    batch_size: int = 1
+    sampler_name: str = "Default"
+    denoising_strength: float = 0.5
+    inputs: Optional[list[str]] = None
+    inits: Optional[list[str]] = None
+    mask: Optional[str] = None
+    control: Optional[list[dict]] = None
+    ip_adapter: Optional[list[dict]] = None
+    save_images: bool = True
+    clip_skip: int = 1
+    cfg_end: float = 1.0
+    override_settings: dict = Field(default_factory=dict)
+    x_axis: Optional[XyzAxisInputModel] = None
+    y_axis: Optional[XyzAxisInputModel] = None
+    z_axis: Optional[XyzAxisInputModel] = None
+    draw_legend: bool = True
+    include_grid: bool = True
+    include_subgrids: bool = False
+    include_images: bool = True
+    include_time: bool = False
+    include_text: bool = False
+    margin_size: int = 0
+    random_seeds: bool = False
+
+
 JobRequest = Annotated[
-    Union[GenerateParams, UpscaleParams, CaptionParams, EnhanceParams, DetectParams, PreprocessParams],
+    Union[GenerateParams, UpscaleParams, CaptionParams, EnhanceParams, DetectParams, PreprocessParams, XyzGridParams],
     Field(discriminator="type"),
 ]
 
