@@ -37,6 +37,7 @@ caption = '\uf46b' # Telescope icon in Noto Sans. Previously '♻'
 bullet = '⃝'
 vision = '\uf06e'  # Font Awesome eye icon (more minimalistic)
 reasoning = '\uf0eb'  # Font Awesome lightbulb icon (represents thinking/reasoning)
+cloud = '☁'
 sort_alpha_asc = '\uf15d'
 sort_alpha_dsc = '\uf15e'
 sort_size_asc = '\uf160'

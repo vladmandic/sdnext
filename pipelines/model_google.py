@@ -47,7 +47,7 @@ class GoogleNanoBananaPipeline():
         self.client = None
         self.config = None
         google_requirements()
-        log.debug(f'Load model: type=NanoBanana model="{model_name}"')
+        log.debug(f'Load model: type=GoogleGemini model="{model_name}"')
 
     def txt2img(self, prompt):
         return self.client.models.generate_content(

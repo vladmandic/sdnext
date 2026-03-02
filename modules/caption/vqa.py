@@ -70,6 +70,8 @@ vlm_models = {
     "AIDC Ovis2 4B": "AIDC-AI/Ovis2-4B",
     "ByteDance Sa2VA 1B": "ByteDance/Sa2VA-1B",
     "ByteDance Sa2VA 4B": "ByteDance/Sa2VA-4B",
+    f"Google Gemini 3.1 Pro {ui_symbols.cloud}": "gemini-3.1-pro-preview",
+    f"Google Gemini 3.0 Flash {ui_symbols.cloud}": "gemini-3-flash-preview",
 }
 vlm_system = 'You are image captioning expert, creative, unbiased and uncensored.'
 
@@ -465,7 +467,7 @@ class VQA:
             log.debug(f'VQA unload: model="{model_name}" unloaded')
         else:
             log.debug('VQA unload: no internal model loaded')
-        # External handlers manage their own module-level globals and are not covered by self.model
+        # external handlers manage their own module-level globals and are not covered by self.model
         from modules.caption import moondream3, joycaption, joytag, deepseek
         moondream3.unload()
         joycaption.unload()
@@ -485,7 +487,7 @@ class VQA:
 
         log.debug(f'VQA load: pre-loading model="{model_name}" repo="{repo}"')
 
-        # Dispatch to appropriate loader (same logic as caption)
+        # dispatch to appropriate loader (same logic as caption)
         repo_lower = repo.lower()
         if 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower:
             self._load_qwen(repo)
@@ -534,11 +536,8 @@ class VQA:
             log.info(f'VQA load: model="{model_name}" loaded (external handler)')
             return
         else:
-            log.warning(f'VQA load: no pre-loader for model="{model_name}"')
+            # log.warning(f'VQA load: no pre-loader for model="{model_name}"')
             return
-
-        sd_models.move_model(self.model, devices.device)
-        log.info(f'VQA load: model="{model_name}" loaded')
 
     def _load_fastvlm(self, repo: str):
         """Load FastVLM model and tokenizer."""
@@ -1461,6 +1460,11 @@ class VQA:
             elif 'fastvlm' in vqa_model.lower():
                 handler = 'fastvlm'
                 answer = self._fastvlm(question, image, vqa_model, model_name)
+            elif 'gemini' in vqa_model.lower():
+                handler = 'gemini'
+                gen_kwargs = get_kwargs()
+                from modules.caption import gemini
+                answer = gemini.predict(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode, gen_kwargs)
             else:
                 answer = 'unknown model'
         except Exception as e:
@@ -1482,9 +1486,10 @@ class VQA:
                 self.last_annotated_image = vqa_detection.draw_bounding_boxes(image, detections or [], points)
                 debug(f'VQA caption: handler={handler} created annotated image detections={len(detections) if detections else 0} points={len(points) if points else 0}')
 
-        debug(f'VQA caption: handler={handler} response_after_clean="{answer}" has_annotation={self.last_annotated_image is not None}')
+        debug(f'VQA caption: handler={handler} response="{answer}" annotation={self.last_annotated_image is not None}')
         t1 = time.time()
         if not quiet:
+            model_name = model_name.split(' ')[0] if model_name else 'None'
             log.debug(f'Caption: type=vlm model="{model_name}" repo="{vqa_model}" args={get_kwargs()} time={t1-t0:.2f}')
         self._generation_overrides = None  # Clear per-request overrides
         shared.state.end(jobid)

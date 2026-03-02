@@ -20,17 +20,16 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - [Skyworks UniPic-3](https://huggingface.co/Skywork/Unipic3), *Consistency and DMD* variants to reference/community section  
     *Note*: UniPic-3 is a fine-tune of Qwen-Image-Edit with new distillation regardless of its claim of major changes  
 - **Image manipulation**
-  - use high-quality [sharpfin](https://github.com/drhead/Sharpfin) accelerated library  
-    when available (cuda-only), thanks @CalamitousFelicitousness  
   - add support for [spandrel](https://github.com/chaiNNer-org/spandrel)  
     **upscaling** engine with suport for new upscaling model families  
   - add two new ai upscalers: *RealPLKSR NomosWebPhoto* and *RealPLKSR AnimeSharpV2*  
   - add two new **interpolation** methods: *HQX* and *ICB*  
+  - use high-quality [sharpfin](https://github.com/drhead/Sharpfin) accelerated library  
+    when available (*cuda-only*), thanks @CalamitousFelicitousness  
 - **Features**
   - pipelines: add **ZImageInpaint**, thanks @CalamitousFelicitousness  
-  - add `--remote` command line flag that reduces client/server chatter and improves link stability  
-    for long-running generates, useful when running on remote servers  
-  - hires: allow using different lora in refiner prompt  
+  - **captioning**: add support for cloud-based Gemini models  
+  - **hires**: allow using different lora in refiner prompt  
   - **nunchaku** models are now listed in networks tab as reference models  
     instead of being used implicitly via quantization, thanks @CalamitousFelicitousness  
 - **Compute**
