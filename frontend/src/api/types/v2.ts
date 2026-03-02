@@ -149,6 +149,46 @@ export interface LtxJobParams {
   priority?: number;
 }
 
+export interface XyzAxisInput {
+  type: string;
+  values: string;
+}
+
+export interface XyzGridJobParams {
+  type: "xyz-grid";
+  prompt?: string;
+  negative_prompt?: string;
+  steps?: number;
+  width?: number;
+  height?: number;
+  cfg_scale?: number;
+  seed?: number;
+  batch_size?: number;
+  sampler_name?: string;
+  denoising_strength?: number;
+  inputs?: string[];
+  inits?: string[];
+  mask?: string;
+  control?: Record<string, unknown>[];
+  ip_adapter?: Record<string, unknown>[];
+  save_images?: boolean;
+  clip_skip?: number;
+  cfg_end?: number;
+  override_settings?: Record<string, unknown>;
+  x_axis?: XyzAxisInput | null;
+  y_axis?: XyzAxisInput | null;
+  z_axis?: XyzAxisInput | null;
+  draw_legend?: boolean;
+  include_grid?: boolean;
+  include_subgrids?: boolean;
+  include_images?: boolean;
+  include_time?: boolean;
+  include_text?: boolean;
+  margin_size?: number;
+  random_seeds?: boolean;
+  priority?: number;
+}
+
 export type JobRequest =
   | GenerateJobRequest
   | UpscaleJobParams
@@ -158,7 +198,8 @@ export type JobRequest =
   | PreprocessJobParams
   | VideoGenerateParams
   | FramePackJobParams
-  | LtxJobParams;
+  | LtxJobParams
+  | XyzGridJobParams;
 
 // --- Job response types ---
 

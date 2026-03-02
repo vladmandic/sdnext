@@ -3,7 +3,7 @@ import type { JobRequest, JobResult, JobStatus } from "@/api/types/v2";
 import type { MaskLine } from "@/stores/img2imgStore";
 import type { ControlUnitSnapshot } from "@/api/types/control";
 
-export type JobDomain = "generate" | "upscale" | "video" | "framepack" | "ltx";
+export type JobDomain = "generate" | "upscale" | "video" | "framepack" | "ltx" | "xyz-grid";
 
 export interface JobSnapshot {
   inputImage?: string;

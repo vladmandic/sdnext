@@ -12,6 +12,7 @@ const DOMAIN_ICONS: Record<JobDomain, typeof Image> = {
   video: Video,
   framepack: Video,
   ltx: Video,
+  "xyz-grid": Image,
 };
 
 const DOMAIN_LABELS: Record<JobDomain, string> = {
@@ -20,6 +21,7 @@ const DOMAIN_LABELS: Record<JobDomain, string> = {
   video: "Video",
   framepack: "FramePack",
   ltx: "LTX",
+  "xyz-grid": "XYZ Grid",
 };
 
 function statusBadgeVariant(status: string): "default" | "secondary" | "destructive" | "outline" {

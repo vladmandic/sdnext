@@ -10,6 +10,7 @@ const JOB_TYPE_TO_DOMAIN: Record<string, JobDomain> = {
   video: "video",
   framepack: "framepack",
   ltx: "ltx",
+  "xyz-grid": "xyz-grid",
 };
 
 function jobToDomain(type: string): JobDomain {
