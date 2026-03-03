@@ -98,11 +98,16 @@ warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvisi
 warnings.filterwarnings(action="ignore", message="numpy.dtype size changed")
 try:
     import torch._logging # pylint: disable=ungrouped-imports
-    torch._logging._internal.DEFAULT_LOG_LEVEL = logging.ERROR # pylint: disable=protected-access
-    torch._logging.set_logs(all=logging.ERROR, bytecode=False, aot_graphs=False, aot_joint_graph=False, ddp_graphs=False, graph=False, graph_code=False, graph_breaks=False, graph_sizes=False, guards=False, recompiles=False, recompiles_verbose=False, trace_source=False, trace_call=False, trace_bytecode=False, output_code=False, kernel_code=False, schedule=False, perf_hints=False, post_grad_graphs=False, onnx_diagnostics=False, fusion=False, overlap=False, export=None, modules=None, cudagraphs=False, sym_node=False, compiled_autograd_verbose=False) # pylint: disable=protected-access
+    _compile_debug = os.environ.get('SD_COMPILE_DEBUG', None) is not None
+    if _compile_debug:
+        torch._logging._internal.DEFAULT_LOG_LEVEL = logging.ERROR # pylint: disable=protected-access
+        torch._logging.set_logs(dynamo=logging.WARNING, aot=logging.WARNING, inductor=logging.WARNING) # pylint: disable=protected-access
+    else:
+        torch._logging._internal.DEFAULT_LOG_LEVEL = logging.ERROR # pylint: disable=protected-access
+        torch._logging.set_logs(all=logging.ERROR, bytecode=False, aot_graphs=False, aot_joint_graph=False, ddp_graphs=False, graph=False, graph_code=False, graph_breaks=False, graph_sizes=False, guards=False, recompiles=False, recompiles_verbose=False, trace_source=False, trace_call=False, trace_bytecode=False, output_code=False, kernel_code=False, schedule=False, perf_hints=False, post_grad_graphs=False, onnx_diagnostics=False, fusion=False, overlap=False, export=None, modules=None, cudagraphs=False, sym_node=False, compiled_autograd_verbose=False) # pylint: disable=protected-access
     import torch._dynamo
-    torch._dynamo.config.verbose = False # pylint: disable=protected-access
-    torch._dynamo.config.suppress_errors = True # pylint: disable=protected-access
+    torch._dynamo.config.verbose = _compile_debug # pylint: disable=protected-access
+    torch._dynamo.config.suppress_errors = not _compile_debug # pylint: disable=protected-access
 except Exception as e:
     log.warning(f'Torch logging: {e}')
 if ".dev" in torch.__version__ or "+git" in torch.__version__:
