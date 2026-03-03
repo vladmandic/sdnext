@@ -135,6 +135,10 @@ export interface GenerationState {
   detailerSort: boolean;
   detailerClasses: string;
 
+  // Color Correction
+  colorCorrectionEnabled: boolean;
+  colorCorrectionMethod: string;
+
   // Latent Corrections
   hdrMode: number;
   hdrBrightness: number;
@@ -283,6 +287,8 @@ const defaultParams = {
   detailerMerge: false,
   detailerSort: false,
   detailerClasses: "",
+  colorCorrectionEnabled: false,
+  colorCorrectionMethod: "histogram",
   hdrMode: 0,
   hdrBrightness: 0,
   hdrSharpen: 0,

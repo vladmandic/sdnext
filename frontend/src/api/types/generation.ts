@@ -108,6 +108,7 @@ export interface ControlRequest {
   detailer_models?: string[];
   detailer_augment?: boolean;
   img2img_color_correction?: boolean;
+  color_correction_method?: string;
   img2img_background_color?: string;
   img2img_fix_steps?: boolean;
   mask_apply_overlay?: boolean;

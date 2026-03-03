@@ -571,6 +571,7 @@ def create_settings(cmd_opts):
 
         "postprocessing_sep_img2img": OptionInfo("<h2>Inpaint</h2>", "", gr.HTML),
         "img2img_color_correction": OptionInfo(False, "Apply color correction"),
+        "color_correction_method": OptionInfo("histogram", "Color correction method", gr.Radio, {"choices": ["histogram", "wavelet", "adain"]}),
         "mask_apply_overlay": OptionInfo(True, "Apply mask as overlay"),
         "img2img_background_color": OptionInfo("#ffffff", "Image transparent color fill", gr.ColorPicker, {}),
         "inpainting_mask_weight": OptionInfo(1.0, "Inpainting conditioning mask strength", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),

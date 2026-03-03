@@ -333,7 +333,8 @@ def process_samples(p: StableDiffusionProcessing, samples):
                     image_without_cc = apply_overlay(image, p.paste_to, i, p.overlay_images)
                     info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
                     images.save_image(image_without_cc, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=_p_or_opt(p, 'samples_format'), info=info, p=p, suffix="-before-color-correct")
-                image = apply_color_correction(p.color_corrections[i], image)
+                method = p.color_correction_method if p.color_correction_method is not None else getattr(shared.opts, 'color_correction_method', 'histogram')
+                image = apply_color_correction(p.color_corrections[i], image, method=method)
 
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 pp = scripts_manager.PostprocessImageArgs(image)

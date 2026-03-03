@@ -14,6 +14,8 @@ import { uploadFile } from "@/lib/upload";
 
 export function ColorTab() {
   const state = useGenerationStore(useShallow((s) => ({
+    colorCorrectionEnabled: s.colorCorrectionEnabled,
+    colorCorrectionMethod: s.colorCorrectionMethod,
     hdrMode: s.hdrMode,
     hdrBrightness: s.hdrBrightness,
     hdrSharpen: s.hdrSharpen,
@@ -49,6 +51,8 @@ export function ColorTab() {
   const setParam = useGenerationStore((s) => s.setParam);
 
   const set = useMemo(() => ({
+    colorCorrectionEnabled: (checked: boolean) => setParam("colorCorrectionEnabled", checked),
+    colorCorrectionMethod: (v: string) => setParam("colorCorrectionMethod", v),
     hdrMode: (v: string) => setParam("hdrMode", Number(v)),
     hdrBrightness: (v: number) => setParam("hdrBrightness", v),
     hdrSharpen: (v: number) => setParam("hdrSharpen", v),
@@ -99,6 +103,25 @@ export function ColorTab() {
 
   return (
     <div className="flex flex-col gap-3 text-sm">
+      <ParamSection title="Color Correction" defaultOpen={false}>
+        <p className="text-2xs text-muted-foreground">Matches output colors to the input image. Active for img2img and inpainting.</p>
+        <div className="flex items-center gap-2">
+          <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Enabled</Label>
+          <Switch checked={state.colorCorrectionEnabled} onCheckedChange={set.colorCorrectionEnabled} />
+        </div>
+        {state.colorCorrectionEnabled && (
+          <div className="flex items-center gap-2">
+            <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Method</Label>
+            <Combobox
+              value={state.colorCorrectionMethod}
+              onValueChange={set.colorCorrectionMethod}
+              options={[{ value: "histogram", label: "Histogram" }, { value: "wavelet", label: "Wavelet" }, { value: "adain", label: "AdaIN" }]}
+              className="h-6 text-2xs flex-1"
+            />
+          </div>
+        )}
+      </ParamSection>
+
       <ParamSection title="Latent Corrections" defaultOpen={false}>
         <div className="flex items-center gap-2">
           <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">Mode</Label>

@@ -100,6 +100,8 @@ export async function buildControlRequest(): Promise<BuildResult> {
     grading_grain: gen.gradingGrain,
     grading_lut_file: gen.gradingLutFile || undefined,
     grading_lut_strength: gen.gradingLutStrength,
+    img2img_color_correction: gen.colorCorrectionEnabled,
+    color_correction_method: gen.colorCorrectionMethod,
     schedulers_sigma: gen.sigmaMethod,
     schedulers_timestep_spacing: gen.timestepSpacing,
     schedulers_beta_schedule: gen.betaSchedule,
@@ -425,6 +427,10 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
     tokenMergingMethod: str(p.token_merging_method, "None"),
     tomeRatio: num(p.tome_ratio, 0.0),
     todoRatio: num(p.todo_ratio, 0.0),
+
+    // Color correction
+    colorCorrectionEnabled: bool(p.img2img_color_correction, false),
+    colorCorrectionMethod: str(p.color_correction_method, "histogram"),
 
     // Latent corrections
     hdrMode: num(p.hdr_mode, 0),

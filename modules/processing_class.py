@@ -84,6 +84,7 @@ class StableDiffusionProcessing:
                  detailer_augment: bool = None,
                  # img2img and mask
                  img2img_color_correction: bool = None,
+                 color_correction_method: str = None,
                  img2img_background_color: str = None,
                  img2img_fix_steps: bool = None,
                  mask_apply_overlay: bool = None,
@@ -363,6 +364,7 @@ class StableDiffusionProcessing:
         self.detailer_models = detailer_models
         self.detailer_augment = detailer_augment
         self.img2img_color_correction = img2img_color_correction
+        self.color_correction_method = color_correction_method
         self.img2img_background_color = img2img_background_color
         self.img2img_fix_steps = img2img_fix_steps
         self.mask_apply_overlay = mask_apply_overlay
