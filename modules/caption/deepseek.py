@@ -13,6 +13,7 @@ import sys
 import importlib
 from transformers import AutoModelForCausalLM
 from modules import shared, devices, paths, sd_models
+from modules.sd_offload import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 
 
@@ -57,10 +58,11 @@ def load(repo: str):
         )
         vl_gpt.to(dtype=devices.dtype)
         vl_gpt.eval()  # required: trust_remote_code model
+        register_aux('deepseek', vl_gpt)
         loaded_repo = repo
         devices.torch_gc()
         log.info(f'Caption: type=vlm model="DeepSeek VL2" repo="{repo}"')
-    sd_models.move_model(vl_gpt, devices.device)
+    move_aux_to_gpu('deepseek')
     return True
 
 
@@ -69,6 +71,7 @@ def unload():
     global vl_gpt, vl_chat_processor, loaded_repo  # pylint: disable=global-statement
     if vl_gpt is not None:
         log.debug(f'DeepSeek unload: model="{loaded_repo}"')
+        deregister_aux('deepseek')
         sd_models.move_model(vl_gpt, devices.cpu, force=True)
         vl_gpt = None
         vl_chat_processor = None
@@ -102,18 +105,19 @@ def predict(question, image, repo):
     ).to(device=devices.device, dtype=devices.dtype)
     inputs_embeds = vl_gpt.prepare_inputs_embeds(**prepare_inputs)
     inputs_embeds = inputs_embeds.to(device=devices.device, dtype=devices.dtype)
-    with devices.inference_context():
-        outputs = vl_gpt.language.generate(
-            inputs_embeds=inputs_embeds,
-            attention_mask=prepare_inputs.attention_mask,
-            pad_token_id=vl_chat_processor.tokenizer.eos_token_id,
-            bos_token_id=vl_chat_processor.tokenizer.bos_token_id,
-            eos_token_id=vl_chat_processor.tokenizer.eos_token_id,
-            max_new_tokens=shared.opts.caption_vlm_max_length,
-            do_sample=False,
-            use_cache=True
-        )
-    if shared.opts.caption_offload:
-        sd_models.move_model(vl_gpt, devices.cpu, force=True)
+    try:
+        with devices.inference_context():
+            outputs = vl_gpt.language.generate(
+                inputs_embeds=inputs_embeds,
+                attention_mask=prepare_inputs.attention_mask,
+                pad_token_id=vl_chat_processor.tokenizer.eos_token_id,
+                bos_token_id=vl_chat_processor.tokenizer.bos_token_id,
+                eos_token_id=vl_chat_processor.tokenizer.eos_token_id,
+                max_new_tokens=shared.opts.caption_vlm_max_length,
+                do_sample=False,
+                use_cache=True
+            )
+    finally:
+        offload_aux('deepseek')
     answer = vl_chat_processor.tokenizer.decode(outputs[0].cpu().tolist(), skip_special_tokens=True)
     return answer

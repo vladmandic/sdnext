@@ -9,7 +9,8 @@ import torch
 import transformers
 import transformers.dynamic_module_utils
 from PIL import Image
-from modules import shared, devices, errors, model_quant, sd_models, sd_models_compile
+from modules import shared, devices, errors, model_quant, sd_models, sd_models_compile, ui_symbols
+from modules.sd_offload import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log, console
 from modules.caption import vqa_detection
 from modules.caption.models_def import vlm_models, vlm_system, vlm_default, vlm_prefill, vlm_prompts, vlm_prompt_mapping, vlm_prompt_placeholders, vlm_prompts_common, vlm_prompts_florence, vlm_prompts_moondream, vlm_prompts_moondream2, vlm_prompts_promptgen
@@ -581,7 +582,7 @@ class VQA:
                 log.warning(f'VQA load: no pre-loader for model="{model_name}"')
                 return
 
-            sd_models.move_model(self.model, devices.device)
+            move_aux_to_gpu('vqa')
             log.info(f'VQA load: model="{model_name}" loaded')
         finally:
             sd_models.set_huggingface_options(quiet=True)
@@ -589,6 +590,7 @@ class VQA:
     def _unload_current(self):
         """Free current model memory before loading a new one."""
         if self.model is not None:
+            deregister_aux('vqa')
             sd_models.move_model(self.model, devices.cpu, force=True)
             self.model = None
             self.processor = None
@@ -611,13 +613,14 @@ class VQA:
                 **quant_args,
             )
             self.model.eval()
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _fastvlm(self, question: str, image: Image.Image, repo: str, model_name: str = None):
         debug(f'VQA caption: handler=fastvlm model_name="{model_name}" repo="{repo}" question="{question}" image_size={image.size if image else None}')
         self._load_fastvlm(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         if len(question) < 2:
             question = "Describe the image."
         question = question.replace('<', '').replace('>', '')
@@ -686,13 +689,14 @@ class VQA:
             self.model.eval()
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
             if 'LLM' in shared.opts.cuda_compile:
-                self.model = sd_models_compile.compile_torch(self.model)
+                self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _qwen(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
         self._load_qwen(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         # Get model class name for logging
         cls_name = self.model.__class__.__name__
         debug(f'VQA caption: handler=qwen model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
@@ -806,14 +810,15 @@ class VQA:
             )
             self.model.eval()
             if 'LLM' in shared.opts.cuda_compile:
-                self.model = sd_models_compile.compile_torch(self.model)
+                self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _gemma(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
         self._load_gemma(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         # Get model class name for logging
         cls_name = self.model.__class__.__name__
         debug(f'VQA caption: handler=gemma model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
@@ -918,14 +923,15 @@ class VQA:
             )
             self.model.eval()
             if 'LLM' in shared.opts.cuda_compile:
-                self.model = sd_models_compile.compile_torch(self.model)
+                self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
             self.processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _mistral(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
         self._load_mistral(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         cls_name = self.model.__class__.__name__
         debug(f'VQA caption: handler=mistral model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
 
@@ -990,12 +996,13 @@ class VQA:
                 low_cpu_mem_usage=True,
             )
             self.model.eval()
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _paligemma(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_paligemma(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         model_inputs = self.processor(text=question, images=image, return_tensors="pt").to(devices.device, devices.dtype)
         input_len = model_inputs["input_ids"].shape[-1]
@@ -1031,6 +1038,7 @@ class VQA:
             finally:
                 transformers.AutoConfig.register = _orig
             self.model.eval()
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
@@ -1041,7 +1049,7 @@ class VQA:
             log.error(f'Caption: vlm="{repo}" flash-attn is not available')
             return ''
         self._load_ovis(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         text_tokenizer = self.model.get_text_tokenizer()
         visual_tokenizer = self.model.get_visual_tokenizer()
         max_partition = 9
@@ -1084,13 +1092,14 @@ class VQA:
             self.model.eval()
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
             if 'LLM' in shared.opts.cuda_compile:
-                self.model = sd_models_compile.compile_torch(self.model)
+                self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _smol(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
         self._load_smol(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         # Get model class name for logging
         cls_name = self.model.__class__.__name__
         debug(f'VQA caption: handler=smol model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
@@ -1178,12 +1187,13 @@ class VQA:
             )
             self.model.eval()
             self.processor = transformers.GitProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _git(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_git(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         pixel_values = self.processor(images=image, return_tensors="pt").pixel_values
         git_dict = {}
         git_dict['pixel_values'] = pixel_values.to(devices.device, devices.dtype)
@@ -1211,12 +1221,13 @@ class VQA:
             )
             self.model.eval()
             self.processor = transformers.BlipProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _blip(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_blip(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         inputs = self.processor(image, question, return_tensors="pt")
         inputs = inputs.to(devices.device, devices.dtype)
         with devices.inference_context():
@@ -1238,12 +1249,13 @@ class VQA:
             )
             self.model.eval()
             self.processor = transformers.ViltProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _vilt(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_vilt(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         inputs = self.processor(image, question, return_tensors="pt")
         inputs = inputs.to(devices.device)
         with devices.inference_context():
@@ -1267,12 +1279,13 @@ class VQA:
             )
             self.model.eval()
             self.processor = transformers.Pix2StructProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _pix(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_pix(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         if len(question) > 0:
             inputs = self.processor(images=image, text=question, return_tensors="pt")
         else:
@@ -1300,12 +1313,13 @@ class VQA:
             self.processor = transformers.AutoTokenizer.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
             self.loaded = repo
             self.model.eval()  # required: trust_remote_code model
+            register_aux('vqa', self.model)
             devices.torch_gc()
 
     def _moondream(self, question: str, image: Image.Image, repo: str, model_name: str = None, thinking_mode: bool = False):
         debug(f'VQA caption: handler=moondream model_name="{model_name}" repo="{repo}" question="{question}" thinking_mode={thinking_mode}')
         self._load_moondream(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         with devices.inference_context():
             if question == 'CAPTION':
@@ -1401,12 +1415,13 @@ class VQA:
             self.model.eval()
             self.processor = transformers.AutoProcessor.from_pretrained(repo_name, max_pixels=1024*1024, trust_remote_code=True, revision=effective_revision, cache_dir=shared.opts.hfcache_dir)
             transformers.dynamic_module_utils.get_imports = _get_imports
+            register_aux('vqa', self.model)
             self.loaded = cache_key
             devices.torch_gc()
 
     def _florence(self, question: str, image: Image.Image, repo: str, revision: str = None, model_name: str = None): # pylint: disable=unused-argument
         self._load_florence(repo, revision)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         if question.startswith('<'):
             task = question.split('>', 1)[0] + '>'
         else:
@@ -1459,12 +1474,13 @@ class VQA:
                 use_fast=False,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _sa2(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_sa2(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         if question.startswith('<'):
             task = question.split('>', 1)[0] + '>'
         else:
@@ -1636,11 +1652,11 @@ class VQA:
         except Exception as e:
             errors.display(e, 'VQA')
             answer = 'error'
-
-        sd_models.set_huggingface_options(quiet=True)
-        if shared.opts.caption_offload and self.model is not None:
-            sd_models.move_model(self.model, devices.cpu, force=True)
-        devices.torch_gc(force=True, reason='vqa')
+        finally:
+            sd_models.set_huggingface_options(quiet=True)
+            if self.model is not None:
+                offload_aux('vqa')
+            devices.torch_gc(force=True, reason='vqa')
 
         # Clean the answer
         answer = clean(answer, question, prefill)
@@ -1725,6 +1741,7 @@ class VQA:
                 writer.close()
         finally:
             shared.opts.caption_offload = orig_offload
+            offload_aux('vqa')
         shared.state.end(jobid)
         return '\n\n'.join(prompts)
 
