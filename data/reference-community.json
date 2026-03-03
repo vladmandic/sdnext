@@ -119,7 +119,7 @@
   "ShuttleAI Shuttle 3.1 Aesthetic": {
     "path": "shuttleai/shuttle-3.1-aesthetic",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
-    "preview": "shuttleai--shuttle-3_1-aestetic.jpg",
+    "preview": "shuttleai--shuttle-3.1-aesthetic.jpg",
     "tags": "community",
     "date": "2024 November",
     "skip": true
