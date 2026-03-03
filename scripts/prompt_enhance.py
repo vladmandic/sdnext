@@ -11,6 +11,7 @@ import gradio as gr
 from PIL import Image
 from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, ui_symbols
 from modules import ui_control_helpers
+from modules.sd_offload import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 
 
@@ -311,7 +312,7 @@ class Script(scripts_manager.Script):
         if self.llm is None or 'LLM' not in shared.opts.cuda_compile:
             return
         from modules.sd_models_compile import compile_torch
-        self.llm = compile_torch(self.llm)
+        self.llm = compile_torch(self.llm, apply_to_components=False, op="LLM")
 
     def load(self, name:str=None, model_repo:str=None, model_gguf:str=None, model_type:str=None, model_file:str=None):
         # Strip symbols from display name if present
@@ -351,6 +352,7 @@ class Script(scripts_manager.Script):
         try:
             t0 = time.time()
             if self.llm is not None:
+                deregister_aux('prompt_enhance')
                 sd_models.move_model(self.llm, devices.cpu, force=True)
                 self.llm = None
                 self.tokenizer = None
@@ -388,6 +390,7 @@ class Script(scripts_manager.Script):
             finally:
                 sd_models.set_huggingface_options(quiet=True)
             self.llm.eval()
+            register_aux('prompt_enhance', self.llm)
             if model_repo in self.options.img2img:
                 cls = transformers.AutoProcessor # required to encode image
             else:
@@ -423,6 +426,7 @@ class Script(scripts_manager.Script):
         if self.llm is not None:
             model_name = self.model
             log.debug(f'Prompt enhance: unloading model="{model_name}"')
+            deregister_aux('prompt_enhance')
             sd_models.move_model(self.llm, devices.cpu, force=True)
             self.model = None
             self.llm = None
@@ -568,7 +572,7 @@ class Script(scripts_manager.Script):
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
-        debug_log(f'Prompt enhance: model="{model}" class="{self.llm.__class__.__name__ if self.llm else None}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" vision={use_vision} image={image is not None}')
+        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm is not None else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" use_vision={use_vision} image={image is not None}')
 
         while self.busy:
             time.sleep(0.1)
@@ -758,7 +762,7 @@ class Script(scripts_manager.Script):
             return prompt_text # Return original text part on error
         try:
             with devices.inference_context():
-                sd_models.move_model(self.llm, devices.device)
+                move_aux_to_gpu('prompt_enhance')
                 gen_kwargs = {
                     'do_sample': sample,
                     'temperature': float(temperature),
@@ -770,9 +774,6 @@ class Script(scripts_manager.Script):
                 if top_p > 0:
                     gen_kwargs['top_p'] = float(top_p)
                 outputs = self.llm.generate(**inputs, **gen_kwargs)
-                if shared.opts.caption_offload:
-                    sd_models.move_model(self.llm, devices.cpu, force=True)
-                    devices.torch_gc(force=True, reason='prompt enhance offload')
             outputs_cropped = outputs[:, input_len:]
             response = self.tokenizer.batch_decode(
                 outputs_cropped,
@@ -788,6 +789,9 @@ class Script(scripts_manager.Script):
             errors.display(e, 'Prompt enhance')
             self.busy = False
             response = f'Error: {str(e)}'
+        finally:
+            offload_aux('prompt_enhance')
+            devices.torch_gc(force=True, reason='prompt enhance offload')
         t1 = time.time()
 
         if isinstance(response, list):
