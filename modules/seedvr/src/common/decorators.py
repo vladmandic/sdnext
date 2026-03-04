@@ -118,9 +118,9 @@ def log_runtime(func: Callable) -> Callable:
 
     @functools.wraps(func)
     def wrapped(*args, **kwargs):
-        torch.distributed.barrier()
+        barrier_if_distributed()
         result = func(*args, **kwargs)
-        torch.distributed.barrier()
+        barrier_if_distributed()
         return result
 
     return wrapped
