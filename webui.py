@@ -50,7 +50,7 @@ import modules.api.middleware
 
 if not modules.loader.initialized:
     timer.startup.record("libraries")
-modules.loader.initialized = True
+    modules.loader.initialized = True
 
 
 sys.excepthook = custom_excepthook
@@ -101,7 +101,7 @@ def initialize():
         modules.modelloader.load_upscalers()
 
     scans = [_scan_vae, _scan_unet, _scan_te, _scan_models, _scan_lora, _scan_upscalers]
-    with ThreadPoolExecutor(max_workers=len(scans), thread_name_prefix='sdnext-scan') as pool:
+    with ThreadPoolExecutor(max_workers=min(len(scans), os.cpu_count() or 1), thread_name_prefix='sdnext-scan') as pool:
         futures = {pool.submit(fn): fn.__name__ for fn in scans}
         for future in as_completed(futures):
             name = futures[future]

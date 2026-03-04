@@ -13,6 +13,7 @@ import cProfile
 import importlib
 import importlib.util
 import importlib.metadata
+import functools
 
 
 class Dot(dict): # dot notation access to dictionary attributes
@@ -82,11 +83,38 @@ try:
     ts = init.ts
     elapsed = init.elapsed
 except Exception:
-    ts = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
-    elapsed = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
+    def _noop(*args, **kwargs):
+        """No-op placeholder function."""
+        pass
+    ts = _noop
+    elapsed = _noop
 
 
-@lru_cache
+# === Helper Functions for DRY ===
+
+def decode_result(result: subprocess.CompletedProcess) -> str:
+    """Decode subprocess stdout/stderr to string."""
+    txt = result.stdout.decode(encoding="utf8", errors="ignore")
+    if len(result.stderr) > 0:
+        txt += ('\n' if len(txt) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
+    return txt.strip()
+
+
+def timed(name: str):
+    """Decorator to time function execution."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            t_start = time.time()
+            try:
+                return func(*args, **kwargs)
+            finally:
+                ts(name, t_start)
+        return wrapper
+    return decorator
+
+
+@lru_cache(maxsize=None)
 def get_logfile():
     log_size = os.path.getsize(log_file) if os.path.exists(log_file) else 0
     log.info(f'Logger: file="{os.path.abspath(log_file)}" level={logging.getLevelName(logging.DEBUG if args.debug else logging.INFO)} host="{hostname}" size={log_size} mode={"append" if not log_rolled else "create"}')
@@ -108,7 +136,7 @@ def custom_excepthook(exc_type, exc_value, exc_traceback):
 def print_dict(d):
     if d is None:
         return ''
-    return ' '.join([f'{k}={v}' for k, v in d.items()])
+    return ' '.join(f'{k}={v}' for k, v in d.items())
 
 
 def env_flag(name: str, default: bool = False) -> bool:
@@ -157,7 +185,7 @@ def installed(package, friendly: str = None, quiet = False): # pylint: disable=r
         for pkg in pkgs:
             if '!=' in pkg:
                 p = pkg.split('!=')
-                return True # check for not equal always return true
+                continue # skip version check for not-equal constraints
             elif '>=' in pkg:
                 p = pkg.split('>=')
             else:
@@ -202,10 +230,7 @@ def uninstall(package, quiet = False):
 
 def run(cmd: str, arg: str):
     result = subprocess.run(f'"{cmd}" {arg}', shell=True, check=False, env=os.environ, capture_output=True)
-    txt = result.stdout.decode(encoding="utf8", errors="ignore")
-    if len(result.stderr) > 0:
-        txt += ('\n' if len(txt) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
-    txt = txt.strip()
+    txt = decode_result(result)
     debug(f'Exec {cmd}: {txt}')
     return txt
 
@@ -233,31 +258,27 @@ def cleanup_broken_packages():
 def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     t_start = time.time()
     originalArg = arg
-    arg = arg.replace('>=', '==')
+    modifiedArg = arg.replace('>=', '==')
     if opts.get('offline_mode', False):
         log.warning('Offline mode enabled')
         return 'offline'
-    package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
+    package = modifiedArg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
     uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
-    if not quiet and '-r ' not in arg:
+    if not quiet and '-r ' not in modifiedArg:
         log.info(f'Install: package="{package}" mode={"uv" if uv else "pip"}')
     env_args = os.environ.get("PIP_EXTRA_ARGS", "")
-    all_args = f'{pip_log}{arg} {env_args}'.strip()
+    all_args = f'{pip_log}{modifiedArg} {env_args}'.strip()
     if not quiet:
         log.debug(f'Running: {pipCmd}="{all_args}"')
     result = subprocess.run(f'"{sys.executable}" -m {pipCmd} {all_args}', shell=True, check=False, env=os.environ, capture_output=True)
-    txt = result.stdout.decode(encoding="utf8", errors="ignore")
-    if len(result.stderr) > 0:
-        if uv and result.returncode != 0:
-            err = result.stderr.decode(encoding="utf8", errors="ignore")
-            log.warning(f'Install: cmd="{pipCmd}" args="{all_args}" cannot use uv, fallback to pip')
-            debug(f'Install: uv pip error: {err}')
-            cleanup_broken_packages()
-            return pip(originalArg, ignore, quiet, uv=False)
-        else:
-            txt += ('\n' if len(txt) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
-    txt = txt.strip()
+    txt = decode_result(result)
+    if uv and result.returncode != 0:
+        log.warning(f'Install: cmd="{pipCmd}" args="{all_args}" cannot use uv, fallback to pip')
+        debug(f'Install: uv pip error: {txt}')
+        cleanup_broken_packages()
+        ts('pip', t_start)
+        return pip(modifiedArg, ignore, quiet, uv=False)
     debug(f'Install {pipCmd}: {txt}')
     if result.returncode != 0 and not ignore:
         errors.append(f'pip: {package}')
@@ -294,10 +315,7 @@ def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = Fal
     if git_cmd != "git":
         git_cmd = os.path.abspath(git_cmd)
     result = subprocess.run(f'"{git_cmd}" {arg}', check=False, shell=True, env=os.environ, capture_output=True, cwd=folder or '.')
-    stdout = result.stdout.decode(encoding="utf8", errors="ignore")
-    if len(result.stderr) > 0:
-        stdout += ('\n' if len(stdout) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
-    stdout = stdout.strip()
+    stdout = decode_result(result)
     if result.returncode != 0 and not ignore:
         if folder is None:
             folder = 'root'
@@ -364,9 +382,9 @@ def update(folder, keep_branch = False, rebase = True):
         debug(f'Install update: folder={folder} args={arg} {res}')
     else:
         b = branch(folder)
-        if branch is None:
+        if b is None:
             res = git(f'pull {arg}', folder)
-            debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
+            debug(f'Install update: folder={folder} branch=None args={arg} {res}')
         else:
             res = git(f'pull origin {b} {arg}', folder)
             debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
@@ -435,16 +453,16 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if args.quick:
         return
     log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
-    if int(sys.version_info.minor) == 9:
+    if sys.version_info.minor == 9:
         log.error(f"Python: version={platform.python_version()} is end-of-life")
-    if int(sys.version_info.minor) == 10:
+    if sys.version_info.minor == 10:
         log.warning(f"Python: version={platform.python_version()} is not actively supported")
-    if int(sys.version_info.minor) >= 12:
+    if sys.version_info.minor >= 12:
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
-    if int(sys.version_info.minor) >= 13:
+    if sys.version_info.minor >= 13:
         log.warning(f"Python: version={platform.python_version()} not all features are available")
-    if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
-        if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
+    if not (sys.version_info.major == 3 and sys.version_info.minor in supported_minors):
+        if (sys.version_info.major == 3 and sys.version_info.minor in experimental_minors):
             log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
         else:
             log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
@@ -452,15 +470,17 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
                 log.error(reason)
             if not args.ignore and not args.experimental:
                 sys.exit(1)
-    if not args.skip_git:
+    if args.skip_git:
+        log.debug('Git: skipped')
+    else:
         git_cmd = os.environ.get('GIT', "git")
         if shutil.which(git_cmd) is None:
             log.error('Git not found')
             if not args.ignore:
                 sys.exit(1)
-    else:
-        git_version = git('--version', folder=None, ignore=False)
-        log.debug(f'Git: version={git_version.replace("git version", "").strip()}')
+        else:
+            git_version = git('--version', folder=None, ignore=False)
+            log.debug(f'Git: version={git_version.replace("git version", "").strip()}')
     ts('python', t_start)
 
 
@@ -835,13 +855,13 @@ def check_torch():
             if is_cuda_available:
                 if args.use_cuda:
                     log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is selected - reinstalling')
-                    install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
+                    install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # force reinstall
                 else:
                     log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is available - consider reinstalling')
             elif is_rocm_available:
                 if args.use_rocm:
                     log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is selected - reinstalling')
-                    install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
+                    install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # force reinstall
                 else:
                     log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is available - consider reinstalling')
         if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
@@ -926,12 +946,10 @@ def run_extension_installer(folder):
                 seperator = ';' if sys.platform == 'win32' else ':'
                 env['PYTHONPATH'] += seperator + os.environ.get('PYTHONPATH', None)
             result = subprocess.run(f'"{sys.executable}" "{path_installer}"', shell=True, env=env, check=False, capture_output=True, cwd=folder)
-            txt = result.stdout.decode(encoding="utf8", errors="ignore")
+            txt = decode_result(result)
             debug(f'Extension installer: file="{path_installer}" {txt}')
             if result.returncode != 0:
                 errors.append(f'ext: {os.path.basename(folder)}')
-                if len(result.stderr) > 0:
-                    txt = txt + '\n' + result.stderr.decode(encoding="utf8", errors="ignore")
                 log.error(f'Extension installer error: {path_installer}')
                 log.debug(txt)
     except Exception as e:
@@ -1450,7 +1468,7 @@ def update_wiki():
     ts('wiki', t_start)
 
 
-@lru_cache
+@lru_cache(maxsize=None)
 def get_state():
     state = {
         'version': version,
@@ -1488,10 +1506,11 @@ def get_state():
             except Exception:
                 return ext, ''
 
-        with ThreadPoolExecutor(max_workers=min(len(ext_dirs), 8), thread_name_prefix='sdnext-git') as pool:
-            for ext, commit in pool.map(_get_commit, ext_dirs):
-                if commit:
-                    state['extensions'][ext] = commit
+        if ext_dirs:
+            with ThreadPoolExecutor(max_workers=min(len(ext_dirs), 8), thread_name_prefix='sdnext-git') as pool:
+                for ext, commit in pool.map(_get_commit, ext_dirs):
+                    if commit:
+                        state['extensions'][ext] = commit
     except Exception:
         pass
     return state
@@ -1555,7 +1574,7 @@ def parse_args(parser):
     global args # pylint: disable=global-statement
     if "USED_VSCODE_COMMAND_PICKARGS" in os.environ:
         import shlex
-        argv = shlex.split(" ".join(sys.argv[1:])) if "USED_VSCODE_COMMAND_PICKARGS" in os.environ else sys.argv[1:]
+        argv = shlex.split(" ".join(sys.argv[1:]))
         log.debug('VSCode Launch')
         args = parser.parse_args(argv)
     else:
@@ -1616,7 +1635,7 @@ def read_options():
         with open(args.config, encoding="utf8") as file:
             try:
                 opts = json.load(file)
-                if type(opts) is str:
+                if isinstance(opts, str):
                     opts = json.loads(opts)
             except Exception as e:
                 log.error(f'Error reading options file: {file} {e}')
@@ -1642,13 +1661,6 @@ def ensure_base_requirements():
         except ImportError as e:
             local_log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
             local_log.critical(f'Import: setuptools {e}')
-            os._exit(1)
-        try:
-            distutils = importlib.import_module('distutils')
-            sys.modules['distutils'] = distutils
-        except ImportError as e:
-            local_log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
-            local_log.critical(f'Import: distutils {e}')
             os._exit(1)
         try:
             distutils = importlib.import_module('distutils')

@@ -60,14 +60,10 @@ def get_custom_args():
         default = parser.get_default(arg)
         current = getattr(args, arg)
         if current != default:
-            custom[arg] = getattr(args, arg)
+            custom[arg] = current
     log.info(f'Command line args: {sys.argv[1:]} {installer.print_dict(custom)}')
     if os.environ.get('SD_ENV_DEBUG', None) is not None:
-        env = os.environ.copy()
-        if 'PATH' in env:
-            del env['PATH']
-        if 'PS1' in env:
-            del env['PS1']
+        env = {k: v for k, v in os.environ.items() if k not in ('PATH', 'PS1')}
         log.trace(f'Environment: {installer.print_dict(env)}')
     env = [f'{k}={v}' for k, v in os.environ.items() if k.startswith('SD_')]
     ld = [f'{k}={v}' for k, v in os.environ.items() if k.startswith('LD_')]
@@ -76,7 +72,7 @@ def get_custom_args():
 
 
 @lru_cache
-def commit_hash(): # compatbility function
+def commit_hash(): # compatibility function
     global stored_commit_hash # pylint: disable=global-statement
     if stored_commit_hash is not None:
         return stored_commit_hash
@@ -89,7 +85,7 @@ def commit_hash(): # compatbility function
 
 
 @lru_cache
-def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compatbility function
+def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compatibility function
     if desc is not None:
         log.info(desc)
     if live:
@@ -106,28 +102,28 @@ def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compat
     return result.stdout.decode(encoding="utf8", errors="ignore")
 
 
-def check_run(command): # compatbility function
+def check_run(command): # compatibility function
     result = subprocess.run(command, check=False, capture_output=True, shell=True)
     return result.returncode == 0
 
 
 @lru_cache
-def is_installed(pkg): # compatbility function
+def is_installed(pkg): # compatibility function
     return installer.installed(pkg)
 
 
 @lru_cache
-def repo_dir(name): # compatbility function
+def repo_dir(name): # compatibility function
     return os.path.join(script_path, dir_repos, name)
 
 
 @lru_cache
-def run_python(code, desc=None, errdesc=None): # compatbility function
+def run_python(code, desc=None, errdesc=None): # compatibility function
     return run(f'"{sys.executable}" -c "{code}"', desc, errdesc)
 
 
 @lru_cache
-def run_pip(pkg, desc=None): # compatbility function
+def run_pip(pkg, desc=None): # compatibility function
     forbidden = ['onnxruntime', 'opencv-python']
     if desc is None:
         desc = pkg
@@ -140,15 +136,15 @@ def run_pip(pkg, desc=None): # compatbility function
 
 
 @lru_cache
-def check_run_python(code): # compatbility function
+def check_run_python(code): # compatibility function
     return check_run(f'"{sys.executable}" -c "{code}"')
 
 
-def git_clone(url, tgt, _name, commithash=None): # compatbility function
+def git_clone(url, tgt, _name, commithash=None): # compatibility function
     installer.clone(url, tgt, commithash)
 
 
-def run_extension_installer(ext_dir): # compatbility function
+def run_extension_installer(ext_dir): # compatibility function
     installer.run_extension_installer(ext_dir)
 
 
@@ -157,9 +153,7 @@ def get_memory_stats(detailed:bool=False):
     if not detailed:
         res = ram_stats()
         return f'{res["used"]}/{res["total"]}'
-    else:
-        res = memory_stats()
-        return res
+    return memory_stats()
 
 
 def clean_server():
@@ -173,16 +167,15 @@ def clean_server():
                          'fastapi', 'urllib', 'uvicorn', 'web', 'http', 'google', 'starlette', 'socket']
     removed_removed = []
     for module_loaded in modules_loaded:
-        for module_to_remove in modules_to_remove:
-            if module_loaded.startswith(module_to_remove):
-                try:
-                    del sys.modules[module_loaded]
-                    removed_removed.append(module_loaded)
-                except Exception:
-                    pass
+        if any(module_loaded.startswith(module_to_remove) for module_to_remove in modules_to_remove):
+            try:
+                del sys.modules[module_loaded]
+                removed_removed.append(module_loaded)
+            except Exception:
+                pass
     collected = gc.collect() # python gc
     modules_cleaned = sorted(sys.modules.keys())
-    modules_keys = [m.split('.')[0] for m in modules_cleaned if not m.startswith('_')]
+    modules_keys = list(set(m.split('.')[0] for m in modules_cleaned if not m.startswith('_')))
     modules_sorted = {}
     for module_key in modules_keys:
         modules_sorted[module_key] = len([m for m in modules_cleaned if m.startswith(module_key)])
@@ -302,6 +295,8 @@ def main():
         log.warning('Restart is recommended due to packages updates...')
     t_server = time.time()
     t_monitor = time.time()
+    status_interval = float(args.status)
+    monitor_interval = float(args.monitor)
     while True:
         try:
             alive = uv.thread.is_alive()
@@ -310,20 +305,19 @@ def main():
             alive = False
             requests = 0
         t_current = time.time()
-        if float(args.status) > 0 and (t_current - t_server) > float(args.status):
+        if status_interval > 0 and (t_current - t_server) > status_interval:
             s = instance.state.status()
             if (s.timestamp is None) or (s.step == 0): # dont spam during active job
                 log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {s}')
             t_server = t_current
-        if float(args.monitor) > 0 and t_current - t_monitor > float(args.monitor):
+        if monitor_interval > 0 and t_current - t_monitor > monitor_interval:
             log.trace(f'Monitor: {get_memory_stats(detailed=True)}')
             t_monitor = t_current
         if not alive:
             if uv is not None and uv.wants_restart:
                 clean_server()
                 log.info('Server restarting...')
-                # uv, instance = start_server(immediate=False, server=instance)
-                os.execv(sys.executable, ['python'] + sys.argv)
+                os.execv(sys.executable, [sys.executable] + sys.argv)
             else:
                 log.info('Exiting...')
                 break
