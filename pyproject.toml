@@ -317,6 +317,7 @@ messages_control.disable=[
         "unpacking-non-sequence",
         "unsubscriptable-object",
         "useless-return",
+        "use-maxsplit-arg",
         "use-dict-literal",
         "use-symbolic-message-instead",
         "useless-suppression",

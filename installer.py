@@ -469,7 +469,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = '31058485f1eea5a33e60ce9456c83e16bc4fc221' # diffusers commit hash
+    target_commit = '4a2833c1c226362677e165a363fecb4da331e122' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -496,12 +496,12 @@ def check_transformers():
         return
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
-    target_commit = 'a28c974c7ac74c83dbf379e93ceecc2661730f63' # transformers commit hash
+    target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
     else:
-        target_transformers = None  # use git commit
+        target_transformers = '4.57.6'
         target_tokenizers = '0.22.2'
     if target_transformers is not None:
         # Pinned release version (e.g. DirectML)
