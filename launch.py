@@ -317,6 +317,7 @@ def main():
             if uv is not None and uv.wants_restart:
                 clean_server()
                 log.info('Server restarting...')
+                # uv, instance = start_server(immediate=False, server=instance)
                 os.execv(sys.executable, [sys.executable] + sys.argv)
             else:
                 log.info('Exiting...')
