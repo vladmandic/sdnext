@@ -42,9 +42,6 @@ def add_compute_args(p):
     p.add_argument("--use-nightly", default=env_flag("SD_USENIGHTLY", False), action='store_true', help="Force use nightly torch builds, default: %(default)s")
     p.add_argument("--no-half", default=env_flag("SD_NOHALF", False), action='store_true', help="Do not switch the model to 16-bit float, default: %(default)s")
     p.add_argument("--no-half-vae", default=env_flag("SD_NOHALFVAE", False), action='store_true', help="Do not switch VAE model to 16-bit float, default: %(default)s")
-    p.add_argument("--precision", type=str, help="Evaluate at this precision, default: %(default)s", choices=["full", "autocast"], default="autocast")
-    p.add_argument("--upcast-sampling", default=env_flag("SD_UPCASTSAMPLING", False), action='store_true', help="Upcast sampling, default: %(default)s")
-
 
 def add_ui_args(p):
     p.add_argument('--theme', type=str, default=os.environ.get("SD_THEME", None), help='Override UI theme')
@@ -85,8 +82,8 @@ def add_log_args(p):
     p.add_argument('--debug', default=not env_flag("SD_NODEBUG", False), action='store_true', help="Run with debug logging, default: %(default)s")
     p.add_argument("--trace", default=env_flag("SD_TRACE", False), action='store_true', help="Run with trace logging, default: %(default)s")
     p.add_argument("--profile", default=env_flag("SD_PROFILE", False), action='store_true', help="Run profiler, default: %(default)s")
-    p.add_argument('--docs', default=not env_flag("SD_NODOCS", False), action='store_true', help="Mount API docs, default: %(default)s")
-    p.add_argument("--api-log", default=not env_flag("SD_NOAPILOG", False), action='store_true', help="Log all API requests")
+    p.add_argument('--docs', default=not env_flag("SD_NODOCS", False), action='store_true', help=argparse.SUPPRESS)
+    p.add_argument("--api-log", default=not env_flag("SD_NOAPILOG", False), action='store_true', help=argparse.SUPPRESS)
 
 
 parsed = None
@@ -158,6 +155,8 @@ def compatibility_args():
     group_compat.add_argument("--disable-queue", default=env_flag("SD_DISABLEQUEUE", False), action='store_true', help=argparse.SUPPRESS)
     group_compat.add_argument("--no-hashing", default=env_flag("SD_NOHASHING", False), action='store_true', help=argparse.SUPPRESS)
     group_compat.add_argument("--no-metadata", default=env_flag("SD_NOMETADATA", False), action='store_true', help=argparse.SUPPRESS)
+    group_compat.add_argument("--precision", type=str, choices=["full", "autocast"], default="autocast", help=argparse.SUPPRESS)
+    group_compat.add_argument("--upcast-sampling", default=env_flag("SD_UPCASTSAMPLING", False), action='store_true', help=argparse.SUPPRESS)
 
 
 def settings_args(opts, args):
