@@ -2,6 +2,9 @@
 venv/
 __pycache__
 .ruff_cache
+.vscode/
+.idea/
+**/.DS_Store
 /*.json
 /*.yaml
 /params.txt
@@ -14,14 +17,9 @@ __pycache__
 /data/cache.json
 /data/themes.json
 /data/installer.json
-config_states
 node_modules
 pnpm-lock.yaml
 package-lock.json
-.history
-cache
-**/.DS_Store
-tunableop_results*.csv
 
 # all models and temp files
 *.log
@@ -44,31 +42,29 @@ tunableop_results*.csv
 /*.mp3
 /*.lnk
 /*.swp
-!webui.bat
-!webui.sh
-!package.json
-!requirements.txt
 
 # all dynamic stuff
 /extensions/**/*
 /outputs/**/*
-/embeddings/**/*
 /models/**/*
-/interrogate/**/*
-/train/log/**/*
-/textual_inversion/**/*
-/detected_maps/**/*
 /tmp
-/log
-/cert
-.vscode/
-.idea/
-/localizations
 .*/
+cache
+tunableop_results*.csv
 
 # force included
+!webui.bat
+!webui.sh
+!package.json
+!requirements.txt
 !/data
 !/models/VAE-approx
 !/models/VAE-approx/model.pt
 !/models/Reference
 !/models/Reference/**/*
+
+# copilot instructions
+!/.github/
+!/.github/copilot-instructions.md
+!/.github/instructions/
+!/.github/instructions/**/*
