@@ -305,7 +305,7 @@ class StableDiffusionProcessing:
         self.state: str = ''
         self.ops = []
         self.skip = []
-        self.color_corrections = []
+        self.color_corrections = None
         self.is_control = False
         self.is_hr_pass = False
         self.is_refiner_pass = False

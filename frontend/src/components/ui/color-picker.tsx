@@ -1,13 +1,14 @@
 import { useCallback, useRef } from "react";
-import { Label } from "@/components/ui/label";
+import { ParamLabel } from "@/components/generation/ParamLabel";
 
 interface ColorPickerProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  tooltip?: string;
 }
 
-export function ColorPicker({ label, value, onChange }: ColorPickerProps) {
+export function ColorPicker({ label, value, onChange, tooltip }: ColorPickerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleChange = useCallback(
@@ -19,7 +20,7 @@ export function ColorPicker({ label, value, onChange }: ColorPickerProps) {
 
   return (
     <div className="flex items-center gap-2">
-      <Label className="text-2xs text-muted-foreground w-16 flex-shrink-0">{label}</Label>
+      <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0" tooltip={tooltip}>{label}</ParamLabel>
       <div className="flex items-center gap-1.5 flex-1">
         <input
           ref={inputRef}

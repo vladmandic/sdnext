@@ -30,9 +30,7 @@ export function MaskParams() {
         <Switch checked={inpaintFullRes} onCheckedChange={handleFullResToggle} />
       </div>
 
-      {inpaintFullRes && (
-        <ParamSlider label="Padding" value={inpaintFullResPadding} onChange={setInpaintFullResPadding} min={0} max={256} step={4} />
-      )}
+      <ParamSlider label="Padding" value={inpaintFullResPadding} onChange={setInpaintFullResPadding} min={0} max={256} step={4} disabled={!inpaintFullRes} />
 
       <div className="flex items-center justify-between">
         <ParamLabel className="text-2xs text-muted-foreground">Invert mask</ParamLabel>

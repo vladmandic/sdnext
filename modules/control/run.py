@@ -285,7 +285,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 detailer_blur: int = None, detailer_padding: int = None,
                 detailer_sigma_adjust: float = None, detailer_sigma_adjust_max: float = None,
                 detailer_models: list = None, detailer_augment: bool = None,
-                img2img_color_correction: bool = None, img2img_background_color: str = None,
+                img2img_color_correction: bool = None, color_correction_method: str = None, img2img_background_color: str = None,
                 img2img_fix_steps: bool = None, mask_apply_overlay: bool = None,
                 include_mask: bool = None, inpainting_mask_weight: float = None,
                 # output and saving
@@ -467,7 +467,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         detailer_sigma_adjust=detailer_sigma_adjust, detailer_sigma_adjust_max=detailer_sigma_adjust_max,
         detailer_models=detailer_models, detailer_augment=detailer_augment,
         # img2img and mask
-        img2img_color_correction=img2img_color_correction, img2img_background_color=img2img_background_color,
+        img2img_color_correction=img2img_color_correction, color_correction_method=color_correction_method, img2img_background_color=img2img_background_color,
         img2img_fix_steps=img2img_fix_steps, mask_apply_overlay=mask_apply_overlay,
         include_mask=include_mask, inpainting_mask_weight=inpainting_mask_weight,
         # output and saving

@@ -77,8 +77,8 @@ export function RefineTab() {
           />
         </div>
 
-        {state.hiresEnabled && (
-          <>
+        <div className={state.hiresEnabled ? "" : "opacity-40 pointer-events-none"}>
+          <div className="flex flex-col gap-2">
             <ParamGrid>
               <ParamRow label="Mode">
                 <Combobox
@@ -86,6 +86,7 @@ export function RefineTab() {
                   onValueChange={set.hiresResizeMode}
                   options={HIRES_RESIZE_MODES}
                   className="h-6 text-2xs"
+                  disabled={!state.hiresEnabled}
                 />
               </ParamRow>
               <ParamRow label="Upscaler">
@@ -94,6 +95,7 @@ export function RefineTab() {
                   onValueChange={set.hiresUpscaler}
                   groups={upscalerGroups}
                   className="h-6 text-2xs"
+                  disabled={!state.hiresEnabled}
                 />
               </ParamRow>
             </ParamGrid>
@@ -105,22 +107,24 @@ export function RefineTab() {
                   onValueChange={set.hiresResizeContext}
                   options={HIRES_CONTEXT_MODES}
                   className="h-6 text-2xs"
+                  disabled={!state.hiresEnabled}
                 />
               </ParamRow>
             )}
 
             {/* Size controls */}
             {state.hiresResizeMode === 0 ? (
-              <ParamSlider label="Scale" value={state.hiresScale} onChange={set.hiresScale} min={1} max={4} step={0.1} />
+              <ParamSlider label="Scale" value={state.hiresScale} onChange={set.hiresScale} min={1} max={4} step={0.1} disabled={!state.hiresEnabled} />
             ) : (
               <div className="flex flex-col gap-2">
                 <ParamRow label="Size">
                   <div className="flex h-6 rounded-md border border-border overflow-hidden w-fit">
                     <button
                       type="button"
+                      disabled={!state.hiresEnabled}
                       onClick={() => setSizeMode("scale")}
                       className={cn(
-                        "px-3 text-3xs font-medium transition-colors",
+                        "px-3 text-3xs font-medium transition-colors disabled:cursor-not-allowed",
                         sizeMode === "scale"
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted/50 text-muted-foreground hover:bg-muted"
@@ -130,9 +134,10 @@ export function RefineTab() {
                     </button>
                     <button
                       type="button"
+                      disabled={!state.hiresEnabled}
                       onClick={() => setSizeMode("fixed")}
                       className={cn(
-                        "px-3 text-3xs font-medium transition-colors border-l border-border",
+                        "px-3 text-3xs font-medium transition-colors border-l border-border disabled:cursor-not-allowed",
                         sizeMode === "fixed"
                           ? "bg-primary text-primary-foreground"
                           : "bg-muted/50 text-muted-foreground hover:bg-muted"
@@ -144,7 +149,7 @@ export function RefineTab() {
                 </ParamRow>
 
                 {sizeMode === "scale" ? (
-                  <ParamSlider label="Scale" value={state.hiresScale} onChange={set.hiresScale} min={1} max={4} step={0.1} />
+                  <ParamSlider label="Scale" value={state.hiresScale} onChange={set.hiresScale} min={1} max={4} step={0.1} disabled={!state.hiresEnabled} />
                 ) : (
                   <ParamRow label="Dims">
                     <div className="flex items-center gap-2">
@@ -153,6 +158,7 @@ export function RefineTab() {
                         onChange={set.hiresResizeX}
                         placeholder="Width"
                         step={8} min={0} max={8192} fallback={0}
+                        disabled={!state.hiresEnabled}
                         className="flex-1 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                       <span className="text-3xs text-muted-foreground">x</span>
@@ -161,6 +167,7 @@ export function RefineTab() {
                         onChange={set.hiresResizeY}
                         placeholder="Height"
                         step={8} min={0} max={8192} fallback={0}
+                        disabled={!state.hiresEnabled}
                         className="flex-1 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
                       />
                     </div>
@@ -179,20 +186,21 @@ export function RefineTab() {
                 ]}
                 placeholder="Same as primary"
                 className="h-6 text-2xs"
+                disabled={!state.hiresEnabled}
               />
             </ParamRow>
 
             <ParamGrid>
-              <ParamSlider label="Denoise" value={state.hiresDenoising} onChange={set.hiresDenoising} min={0} max={1} step={0.05} />
-              <ParamSlider label="Steps" value={state.hiresSteps} onChange={set.hiresSteps} min={0} max={150} />
+              <ParamSlider label="Denoise" value={state.hiresDenoising} onChange={set.hiresDenoising} min={0} max={1} step={0.05} disabled={!state.hiresEnabled} />
+              <ParamSlider label="Steps" value={state.hiresSteps} onChange={set.hiresSteps} min={0} max={150} disabled={!state.hiresEnabled} />
             </ParamGrid>
 
             <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-              <Checkbox checked={state.hiresForce} onCheckedChange={set.hiresForce} />
+              <Checkbox checked={state.hiresForce} onCheckedChange={set.hiresForce} disabled={!state.hiresEnabled} />
               Force hires
             </label>
-          </>
-        )}
+          </div>
+        </div>
       </ParamSection>
 
       <ParamSection title="Refiner" defaultOpen={false}>

@@ -84,8 +84,8 @@ export function DetailTab() {
           <Switch checked={state.detailerEnabled} onCheckedChange={set.detailerEnabled} />
         </div>
 
-        {state.detailerEnabled && (
-          <>
+        <div className={state.detailerEnabled ? "" : "opacity-40 pointer-events-none"}>
+          <div className="flex flex-col gap-2">
             <div className="flex flex-col gap-1">
               <Label className="text-2xs text-muted-foreground">Models</Label>
               <div className="flex flex-wrap gap-1 mb-1">
@@ -104,6 +104,7 @@ export function DetailTab() {
                 options={models?.filter((m) => !state.detailerModels.includes(m.name)).map((m) => m.name) ?? []}
                 placeholder="Add model..."
                 className="h-6 text-2xs flex-1"
+                disabled={!state.detailerEnabled}
               />
             </div>
 
@@ -114,6 +115,7 @@ export function DetailTab() {
                 onChange={set.detailerPrompt}
                 placeholder="Detailer prompt (optional)"
                 className="min-h-12 text-xs resize-none"
+                disabled={!state.detailerEnabled}
               />
             </div>
 
@@ -124,38 +126,40 @@ export function DetailTab() {
                 onChange={set.detailerNegative}
                 placeholder="Detailer negative prompt (optional)"
                 className="min-h-9 text-xs resize-none"
+                disabled={!state.detailerEnabled}
               />
             </div>
-          </>
-        )}
+          </div>
+        </div>
       </ParamSection>
 
-      {state.detailerEnabled && (
-        <>
+      <div className={state.detailerEnabled ? "" : "opacity-40 pointer-events-none"}>
+        <div className="flex flex-col gap-3">
           <ParamSection title="Generation">
             <ParamGrid>
-              <ParamSlider label="Steps" value={state.detailerSteps} onChange={set.detailerSteps} min={0} max={99} />
-              <ParamSlider label="Strength" value={state.detailerStrength} onChange={set.detailerStrength} min={0} max={1} step={0.01} />
+              <ParamSlider label="Steps" value={state.detailerSteps} onChange={set.detailerSteps} min={0} max={99} disabled={!state.detailerEnabled} />
+              <ParamSlider label="Strength" value={state.detailerStrength} onChange={set.detailerStrength} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
             </ParamGrid>
-            <ParamSlider label="Resolution" value={state.detailerResolution} onChange={set.detailerResolution} min={256} max={4096} step={8} />
+            <ParamSlider label="Resolution" value={state.detailerResolution} onChange={set.detailerResolution} min={256} max={4096} step={8} disabled={!state.detailerEnabled} />
           </ParamSection>
 
           <ParamSection title="Detection" defaultOpen={false}>
             <ParamGrid>
-              <ParamSlider label="Confidence" value={state.detailerConfidence} onChange={set.detailerConfidence} min={0} max={1} step={0.01} />
-              <ParamSlider label="IoU" value={state.detailerIou} onChange={set.detailerIou} min={0} max={1} step={0.01} />
-              <ParamSlider label="Min size" value={state.detailerMinSize} onChange={set.detailerMinSize} min={0} max={1} step={0.01} />
-              <ParamSlider label="Max size" value={state.detailerMaxSize} onChange={set.detailerMaxSize} min={0} max={1} step={0.01} />
-              <ParamSlider label="Padding" value={state.detailerPadding} onChange={set.detailerPadding} min={0} max={100} />
-              <ParamSlider label="Blur" value={state.detailerBlur} onChange={set.detailerBlur} min={0} max={100} />
+              <ParamSlider label="Confidence" value={state.detailerConfidence} onChange={set.detailerConfidence} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
+              <ParamSlider label="IoU" value={state.detailerIou} onChange={set.detailerIou} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
+              <ParamSlider label="Min size" value={state.detailerMinSize} onChange={set.detailerMinSize} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
+              <ParamSlider label="Max size" value={state.detailerMaxSize} onChange={set.detailerMaxSize} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
+              <ParamSlider label="Padding" value={state.detailerPadding} onChange={set.detailerPadding} min={0} max={100} disabled={!state.detailerEnabled} />
+              <ParamSlider label="Blur" value={state.detailerBlur} onChange={set.detailerBlur} min={0} max={100} disabled={!state.detailerEnabled} />
             </ParamGrid>
-            <ParamSlider label="Max detect" value={state.detailerMaxDetected} onChange={set.detailerMaxDetected} min={1} max={10} />
+            <ParamSlider label="Max detect" value={state.detailerMaxDetected} onChange={set.detailerMaxDetected} min={1} max={10} disabled={!state.detailerEnabled} />
             <ParamRow label="Classes">
               <Input
                 value={state.detailerClasses}
                 onChange={set.detailerClasses}
                 placeholder="e.g. person, face"
                 className="h-6 text-2xs px-2"
+                disabled={!state.detailerEnabled}
               />
             </ParamRow>
           </ParamSection>
@@ -163,19 +167,19 @@ export function DetailTab() {
           <ParamSection title="Options" defaultOpen={false}>
             <div className="grid grid-cols-2 gap-2">
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-                <Checkbox checked={state.detailerSegmentation} onCheckedChange={set.detailerSegmentation} />
+                <Checkbox checked={state.detailerSegmentation} onCheckedChange={set.detailerSegmentation} disabled={!state.detailerEnabled} />
                 <ParamLabel className="text-2xs text-muted-foreground">Segmentation</ParamLabel>
               </label>
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-                <Checkbox checked={state.detailerIncludeDetections} onCheckedChange={set.detailerIncludeDetections} />
+                <Checkbox checked={state.detailerIncludeDetections} onCheckedChange={set.detailerIncludeDetections} disabled={!state.detailerEnabled} />
                 <ParamLabel className="text-2xs text-muted-foreground">Include detections</ParamLabel>
               </label>
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-                <Checkbox checked={state.detailerMerge} onCheckedChange={set.detailerMerge} />
+                <Checkbox checked={state.detailerMerge} onCheckedChange={set.detailerMerge} disabled={!state.detailerEnabled} />
                 <ParamLabel className="text-2xs text-muted-foreground">Merge</ParamLabel>
               </label>
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-                <Checkbox checked={state.detailerSort} onCheckedChange={set.detailerSort} />
+                <Checkbox checked={state.detailerSort} onCheckedChange={set.detailerSort} disabled={!state.detailerEnabled} />
                 <ParamLabel className="text-2xs text-muted-foreground">Sort</ParamLabel>
               </label>
             </div>
@@ -183,12 +187,12 @@ export function DetailTab() {
 
           <ParamSection title="Noise" defaultOpen={false}>
             <ParamGrid>
-              <ParamSlider label="Renoise" value={state.detailerRenoise} onChange={set.detailerRenoise} min={0.5} max={1.5} step={0.01} />
-              <ParamSlider label="End" value={state.detailerRenoiseEnd} onChange={set.detailerRenoiseEnd} min={0} max={1} step={0.01} />
+              <ParamSlider label="Renoise" value={state.detailerRenoise} onChange={set.detailerRenoise} min={0.5} max={1.5} step={0.01} disabled={!state.detailerEnabled} />
+              <ParamSlider label="End" value={state.detailerRenoiseEnd} onChange={set.detailerRenoiseEnd} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
             </ParamGrid>
           </ParamSection>
-        </>
-      )}
+        </div>
+      </div>
     </div>
   );
 }

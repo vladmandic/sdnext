@@ -119,20 +119,14 @@ export function PromptEnhancePanel() {
       {/* ── Options ── */}
       <SectionLabel>Options</SectionLabel>
       <SwitchRow label="Use vision" checked={store.useVision} onCheckedChange={store.setUseVision} disabled={!isVision} />
-      {selectedModel?.thinking && (
-        <SwitchRow label="Thinking mode" checked={store.thinking} onCheckedChange={store.setThinking} />
-      )}
-      {selectedModel?.thinking && store.thinking && (
-        <SwitchRow label="Keep thinking" checked={store.keepThinking} onCheckedChange={store.setKeepThinking} />
-      )}
+      <SwitchRow label="Thinking mode" checked={store.thinking} onCheckedChange={store.setThinking} disabled={!selectedModel?.thinking} />
+      <SwitchRow label="Keep thinking" checked={store.keepThinking} onCheckedChange={store.setKeepThinking} disabled={!selectedModel?.thinking || !store.thinking} />
       <SwitchRow label="NSFW" checked={store.nsfw} onCheckedChange={store.setNsfw} />
       <div className="flex flex-col gap-0.5">
         <Label className="text-3xs text-muted-foreground">Prefill</Label>
         <Input value={store.prefill} onChange={(e) => store.setPrefill(e.target.value)} placeholder="Prefill model response..." className="h-6 text-2xs px-2" />
       </div>
-      {store.prefill.length > 0 && (
-        <SwitchRow label="Keep prefill" checked={store.keepPrefill} onCheckedChange={store.setKeepPrefill} />
-      )}
+      <SwitchRow label="Keep prefill" checked={store.keepPrefill} onCheckedChange={store.setKeepPrefill} disabled={store.prefill.length === 0} />
 
       {/* ── Sampling ── */}
       <SectionLabel>Sampling</SectionLabel>

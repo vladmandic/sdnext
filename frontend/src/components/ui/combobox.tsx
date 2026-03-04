@@ -19,6 +19,7 @@ interface ComboboxBaseProps {
   emptyText?: string;
   className?: string;
   align?: "start" | "center" | "end";
+  disabled?: boolean;
   renderLabel?: (value: string, label: string) => ReactNode;
 }
 
@@ -52,6 +53,7 @@ export function Combobox({
   emptyText = "No results",
   className,
   align = "start",
+  disabled,
   renderLabel,
 }: ComboboxProps) {
   const [open, setOpen] = useState(false);
@@ -88,6 +90,7 @@ export function Combobox({
       <PopoverTrigger asChild>
         <button
           type="button"
+          disabled={disabled}
           className={cn(
             "border-input bg-transparent flex w-full items-center justify-between gap-2 rounded-md border px-3 py-2 text-2xs shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50",
             className,

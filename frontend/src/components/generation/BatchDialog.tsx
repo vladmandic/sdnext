@@ -71,20 +71,19 @@ export function BatchDialog({ open, onOpenChange, buildRequest }: BatchDialogPro
             <Label htmlFor="auto-seed" className="text-xs">Random base seed</Label>
             <Switch id="auto-seed" checked={autoSeed} onCheckedChange={setAutoSeed} />
           </div>
-          {!autoSeed && (
-            <div className="space-y-1.5">
-              <Label htmlFor="base-seed" className="text-xs">Base seed</Label>
-              <Input
-                id="base-seed"
-                type="number"
-                min={0}
-                max={999999999}
-                value={baseSeed}
-                onChange={(e) => setBaseSeed(Number(e.target.value) || 0)}
-                className="h-8"
-              />
-            </div>
-          )}
+          <div className="space-y-1.5">
+            <Label htmlFor="base-seed" className="text-xs">Base seed</Label>
+            <Input
+              id="base-seed"
+              type="number"
+              min={0}
+              max={999999999}
+              value={baseSeed}
+              onChange={(e) => setBaseSeed(Number(e.target.value) || 0)}
+              className="h-8"
+              disabled={autoSeed}
+            />
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>Cancel</Button>
