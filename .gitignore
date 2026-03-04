@@ -60,6 +60,9 @@ jobs.db-shm
 cache
 tunableop_results*.csv
 
+# working docs
+/docs/
+
 # frontend
 frontend/node_modules/
 frontend/dist/
