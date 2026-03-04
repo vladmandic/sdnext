@@ -480,6 +480,7 @@ Plus a lot of internal improvements and fixes
   - firefox: remove obsolete checks, thanks @awsr  
   - runai streamer: cleanup logging, thanks @CalamitousFelicitousness  
   - gradio: event handlers, thanks @awsr  
+  - seedvr: handle non-cuda environments, thanks @resonantsky  
 
 ## Update for 2025-11-06
 
