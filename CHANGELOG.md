@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-01
+## Update for 2026-03-04
 
-### Highlights for 2026-03-01
+### Highlights for 2026-03-04
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, so we have two deep fine-tunes: *FireRed-Image-Edit* and *SkyWorks-UniPic-3*  
@@ -11,7 +11,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-01
+### Details for 2026-03-04
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -28,7 +28,8 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
     when available (*cuda-only*), thanks @CalamitousFelicitousness  
 - **Features**
   - pipelines: add **ZImageInpaint**, thanks @CalamitousFelicitousness  
-  - **captioning** and **prompt enhance**: add support for cloud-based Gemini models `flash-3.0` and `pro-3.1`  
+  - **captioning** and **prompt enhance**: add support for all cloud-based Gemini models  
+    *3.1/3.0/2.5 pro/flash/flash-lite*  
   - **hires**: allow using different lora in refiner prompt  
   - **nunchaku** models are now listed in networks tab as reference models  
     instead of being used implicitly via quantization, thanks @CalamitousFelicitousness  

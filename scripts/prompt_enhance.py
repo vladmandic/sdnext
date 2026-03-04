@@ -155,7 +155,10 @@ class Options:
             'file': 'Llama-3.2-1B-Instruct-Uncensored.i1-Q4_0.gguf', # gguf file inside repo
         },
         'google/gemini-3.1-pro-preview': {},
+        'google/gemini-3.1-flash-lite-preview': {},
         'google/gemini-3-flash-preview': {},
+        'google/gemini-2.5-pro': {},
+        'google/gemini-2.5-flash': {},
     }
     # default = list(models)[1] # gemma-3-4b-it
     default = 'google/gemma-3-4b-it'
