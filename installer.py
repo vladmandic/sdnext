@@ -1507,7 +1507,7 @@ def get_state():
                 return ext, ''
 
         if ext_dirs:
-            with ThreadPoolExecutor(max_workers=min(len(ext_dirs), 8), thread_name_prefix='sdnext-git') as pool:
+            with ThreadPoolExecutor(max_workers=min(len(ext_dirs), os.cpu_count() or 8), thread_name_prefix='sdnext-git') as pool:
                 for ext, commit in pool.map(_get_commit, ext_dirs):
                     if commit:
                         state['extensions'][ext] = commit
