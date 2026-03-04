@@ -85,8 +85,4 @@ class FlashAttentionVarlen(nn.Module):
 
     def forward(self, *args, **kwargs):
         kwargs["deterministic"] = torch.are_deterministic_algorithms_enabled()
-        try:
-            from flash_attn import flash_attn_varlen_func
-            return flash_attn_varlen_func(*args, **kwargs)
-        except ImportError:
-            return pytorch_varlen_attention(*args, **kwargs)
+        return pytorch_varlen_attention(*args, **kwargs)

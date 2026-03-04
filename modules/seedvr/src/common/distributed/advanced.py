@@ -16,13 +16,15 @@
 Advanced distributed functions for sequence parallel.
 """
 
+from __future__ import annotations
+
+import logging
 from typing import Optional, List
 import torch
-import torch.distributed as dist
-from torch.distributed.device_mesh import DeviceMesh, init_device_mesh
-from torch.distributed.fsdp import ShardingStrategy
 
-from .basic import get_global_rank, get_world_size
+from .basic import _is_dist, get_global_rank, get_world_size
+
+logger = logging.getLogger(__name__)
 
 
 _DATA_PARALLEL_GROUP = None
@@ -61,7 +63,10 @@ def get_data_parallel_rank() -> int:
     Get data parallel rank.
     """
     group = get_data_parallel_group()
-    return dist.get_rank(group) if group else get_global_rank()
+    if group and _is_dist():
+        import torch.distributed as dist
+        return dist.get_rank(group)
+    return get_global_rank()
 
 
 def get_data_parallel_world_size() -> int:
@@ -69,7 +74,10 @@ def get_data_parallel_world_size() -> int:
     Get data parallel world size.
     """
     group = get_data_parallel_group()
-    return dist.get_world_size(group) if group else get_world_size()
+    if group and _is_dist():
+        import torch.distributed as dist
+        return dist.get_world_size(group)
+    return get_world_size()
 
 
 def get_sequence_parallel_rank() -> int:
@@ -77,7 +85,10 @@ def get_sequence_parallel_rank() -> int:
     Get sequence parallel rank.
     """
     group = get_sequence_parallel_group()
-    return dist.get_rank(group) if group else 0
+    if group and _is_dist():
+        import torch.distributed as dist
+        return dist.get_rank(group)
+    return 0
 
 
 def get_sequence_parallel_world_size() -> int:
@@ -85,7 +96,10 @@ def get_sequence_parallel_world_size() -> int:
     Get sequence parallel world size.
     """
     group = get_sequence_parallel_group()
-    return dist.get_world_size(group) if group else 1
+    if group and _is_dist():
+        import torch.distributed as dist
+        return dist.get_world_size(group)
+    return 1
 
 
 def get_model_shard_cpu_intra_group() -> Optional[dist.ProcessGroup]:
@@ -120,11 +134,14 @@ def init_sequence_parallel(sequence_parallel_size: int):
     """
     Initialize sequence parallel.
     """
+    if not _is_dist():
+        logger.debug("Skipping init_sequence_parallel: distributed not initialized")
+        return
+    import torch.distributed as dist
     global _DATA_PARALLEL_GROUP
     global _SEQUENCE_PARALLEL_GROUP
     global _SEQUENCE_PARALLEL_CPU_GROUP
     global _SEQUENCE_PARALLEL_GLOBAL_RANKS
-    assert dist.is_initialized()
     world_size = dist.get_world_size()
     rank = dist.get_rank()
     data_parallel_size = world_size // sequence_parallel_size
@@ -142,17 +159,22 @@ def init_sequence_parallel(sequence_parallel_size: int):
 
 def init_model_shard_group(
     *,
-    sharding_strategy: ShardingStrategy,
-    device_mesh: Optional[DeviceMesh] = None,
+    sharding_strategy=None,
+    device_mesh=None,
 ):
     """
     Initialize process group of model sharding.
     """
+    if not _is_dist():
+        logger.debug("Skipping init_model_shard_group: distributed not initialized")
+        return
+    import torch.distributed as dist
+    from torch.distributed.device_mesh import init_device_mesh
+    from torch.distributed.fsdp import ShardingStrategy
     global _MODEL_SHARD_INTER_GROUP
     global _MODEL_SHARD_INTRA_GROUP
     global _MODEL_SHARD_CPU_INTER_GROUP
     global _MODEL_SHARD_CPU_INTRA_GROUP
-    assert dist.is_initialized()
     world_size = dist.get_world_size()
     if device_mesh is not None:
         num_shards_per_group = device_mesh.shape[1]
@@ -182,7 +204,10 @@ def get_sequence_parallel_global_ranks() -> List[int]:
     that the caller rank belongs to.
     """
     if _SEQUENCE_PARALLEL_GLOBAL_RANKS is None:
-        return [dist.get_rank()]
+        if _is_dist():
+            import torch.distributed as dist
+            return [dist.get_rank()]
+        return [0]
     return _SEQUENCE_PARALLEL_GLOBAL_RANKS
 
 
