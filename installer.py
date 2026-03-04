@@ -63,6 +63,7 @@ args = Dot({
 })
 git_commit = "unknown"
 diffusers_commit = "unknown"
+transformers_commit = "unknown"
 restart_required = False
 extensions_commit = { # force specific commit for extensions
     'sd-webui-controlnet': 'ecd33eb',
@@ -468,7 +469,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = 'a80b19218b4bd4faf2d6d8c428dcf1ae6f11e43d' # diffusers commit hash
+    target_commit = '31058485f1eea5a33e60ce9456c83e16bc4fc221' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -495,23 +496,36 @@ def check_transformers():
         return
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
+    target_commit = 'a28c974c7ac74c83dbf379e93ceecc2661730f63' # transformers commit hash
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
-    elif args.new:
-        target_transformers = '5.0.0rc2'
-        target_tokenizers = '0.22.2'
     else:
-        target_transformers = '4.57.5'
+        target_transformers = None  # use git commit
         target_tokenizers = '0.22.2'
-    if (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
-        if pkg_transformers is None:
-            log.info(f'Install: package="transformers" version={target_transformers}')
-        else:
-            log.info(f'Update: package="transformers" current={pkg_transformers.version} target={target_transformers}')
-        pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
-        pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True, uv=False)
-        pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True, uv=False)
+    if target_transformers is not None:
+        # Pinned release version (e.g. DirectML)
+        if (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
+            if pkg_transformers is None:
+                log.info(f'Install: package="transformers" version={target_transformers}')
+            else:
+                log.info(f'Update: package="transformers" current={pkg_transformers.version} target={target_transformers}')
+            pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
+            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True, uv=False)
+            pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True, uv=False)
+    else:
+        # Git commit-pinned version
+        current = opts.get('transformers_version', '')
+        if (pkg_transformers is None) or (current != target_commit):
+            if pkg_transformers is None:
+                log.info(f'Install: package="transformers" commit={target_commit}')
+            else:
+                log.info(f'Update: package="transformers" current={pkg_transformers.version} hash={current} target={target_commit}')
+            pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
+            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True, uv=False)
+            pip(f'install --upgrade git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True, uv=False)
+            global transformers_commit # pylint: disable=global-statement
+            transformers_commit = target_commit
     ts('transformers', t_start)
 
 
@@ -1297,6 +1311,8 @@ def check_ui(ver):
         ui = ver['ui'] if ver is not None and 'ui' in ver else 'unknown'
         return (core == ui) or (core == 'master' and ui == 'main') or (core == 'dev' and ui == 'dev') or (core == 'HEAD')
 
+    if 'vladmandic/sdnext' not in ver.get('url', ''):
+        return
     t_start = time.time()
     if not same(ver):
         log.debug(f'Branch mismatch: {ver}')
@@ -1373,7 +1389,12 @@ def check_version(reset=True): # pylint: disable=unused-argument
     commits = None
     branch_names = []
     try:
-        branches = requests.get('https://api.github.com/repos/vladmandic/sdnext/branches', timeout=10).json()
+        if ver and 'url' in ver:
+            url_parts = ver['url'].replace('https://github.com/', '').split('/tree/')[0]
+            api_base = f'https://api.github.com/repos/{url_parts}'
+        else:
+            api_base = 'https://api.github.com/repos/vladmandic/sdnext'
+        branches = requests.get(f'{api_base}/branches', timeout=10).json()
         branch_names = [b['name'] for b in branches if 'name' in b]
         log.trace(f'Repository branches: active={branch_name} available={branch_names}')
     except Exception as e:
@@ -1384,7 +1405,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         ts('latest', t_start)
         return
     try:
-        commits = requests.get(f'https://api.github.com/repos/vladmandic/sdnext/branches/{branch_name}', timeout=10).json()
+        commits = requests.get(f'{api_base}/branches/{branch_name}', timeout=10).json()
         latest = commits['commit']['sha']
         if len(latest) != 40:
             log.error(f'Repository error: commit={latest} invalid')

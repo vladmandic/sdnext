@@ -476,6 +476,7 @@ Plus a lot of internal improvements and fixes
   - control: safe load non-sparse controlnet  
   - control: fix marigold preprocessor with bfloat16  
   - auth: fix password being shown in clear text during login  
+  - github: better handling of forks  
   - firefox: remove obsolete checks, thanks @awsr  
   - runai streamer: cleanup logging, thanks @CalamitousFelicitousness  
   - gradio: event handlers, thanks @awsr  

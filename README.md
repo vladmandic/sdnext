@@ -42,7 +42,7 @@ All individual features are not listed here, instead check [ChangeLog](CHANGELOG
 
 **Desktop** interface  
 <div align="center">
-<img src="https://github.com/user-attachments/assets/d6119a63-6ee5-4597-95f6-29ed0701d3b5" alt="screenshot-modernui-desktop" width="90%">
+<img src="https://github.com/vladmandic/sdnext/raw/dev/html/screenshot-robot.jpg" alt="screenshot-modernui-desktop" width="90%">
 </div>
 
 **Mobile** interface  
