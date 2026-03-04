@@ -30,6 +30,8 @@ interface Img2ImgState {
   inpaintFullRes: boolean;
   inpaintFullResPadding: number;
   inpaintingMaskInvert: boolean;
+  maskApplyOverlay: boolean;
+  inpaintingMaskWeight: number;
 
   // Actions
   addMaskLine: (line: MaskLine) => void;
@@ -43,6 +45,8 @@ interface Img2ImgState {
   setInpaintFullRes: (v: boolean) => void;
   setInpaintFullResPadding: (v: number) => void;
   setInpaintingMaskInvert: (v: boolean) => void;
+  setMaskApplyOverlay: (v: boolean) => void;
+  setInpaintingMaskWeight: (v: number) => void;
   hasLayers: () => boolean;
   reset: () => void;
 }
@@ -59,6 +63,8 @@ const defaultState = {
   inpaintFullRes: false,
   inpaintFullResPadding: 32,
   inpaintingMaskInvert: false,
+  maskApplyOverlay: true,
+  inpaintingMaskWeight: 1.0,
 };
 
 export const useImg2ImgStore = create<Img2ImgState>()(
@@ -82,6 +88,8 @@ export const useImg2ImgStore = create<Img2ImgState>()(
       setInpaintFullRes: (v) => _set({ inpaintFullRes: v }),
       setInpaintFullResPadding: (v) => _set({ inpaintFullResPadding: v }),
       setInpaintingMaskInvert: (v) => _set({ inpaintingMaskInvert: v }),
+      setMaskApplyOverlay: (v) => _set({ maskApplyOverlay: v }),
+      setInpaintingMaskWeight: (v) => _set({ inpaintingMaskWeight: v }),
 
       hasLayers: () => useCanvasStore.getState().layers.length > 0,
 
@@ -89,8 +97,8 @@ export const useImg2ImgStore = create<Img2ImgState>()(
     }),
     {
       name: "sdnext-img2img",
-      partialize: ({ resizeMode, sizeMode, scaleFactor, megapixelTarget, resizeMethod, maskBlur, inpaintFullRes, inpaintFullResPadding, inpaintingMaskInvert }) => ({
-        resizeMode, sizeMode, scaleFactor, megapixelTarget, resizeMethod, maskBlur, inpaintFullRes, inpaintFullResPadding, inpaintingMaskInvert,
+      partialize: ({ resizeMode, sizeMode, scaleFactor, megapixelTarget, resizeMethod, maskBlur, inpaintFullRes, inpaintFullResPadding, inpaintingMaskInvert, maskApplyOverlay, inpaintingMaskWeight }) => ({
+        resizeMode, sizeMode, scaleFactor, megapixelTarget, resizeMethod, maskBlur, inpaintFullRes, inpaintFullResPadding, inpaintingMaskInvert, maskApplyOverlay, inpaintingMaskWeight,
       }),
     },
   ),

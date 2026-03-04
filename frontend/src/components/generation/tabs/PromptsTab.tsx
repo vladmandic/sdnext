@@ -5,8 +5,9 @@ import { useImg2ImgStore } from "@/stores/img2imgStore";
 import { useIsImg2Img } from "@/hooks/useIsImg2Img";
 import { useShallow } from "zustand/react/shallow";
 import { usePromptStyles } from "@/api/hooks/useNetworks";
+import { useOptionsSubset } from "@/api/hooks/useSettings";
 import { useUpscalerGroups } from "@/api/hooks/useModels";
-import { Link2, Link2Off, ArrowLeftRight, X } from "lucide-react";
+import { Link2Off, ArrowLeftRight, ChevronDown, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveGenerationSize, formatMegapixels } from "@/lib/sizeCompute";
 import type { SizeMode } from "@/lib/sizeCompute";
@@ -18,7 +19,17 @@ import { NumberInput } from "@/components/ui/number-input";
 import { ParamLabel } from "../ParamLabel";
 import { Button } from "@/components/ui/button";
 import { Combobox } from "@/components/ui/combobox";
+import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface AspectPreset { label: string; w: number; h: number }
+
+function parseAspectRatios(raw: string): AspectPreset[] {
+  return raw.split(",").map((s) => s.trim()).filter(Boolean).map((s) => {
+    const [w, h] = s.split(":").map(Number);
+    return (w > 0 && h > 0) ? { label: s, w, h } : null;
+  }).filter((p): p is AspectPreset => p !== null);
+}
 
 export function PromptsTab() {
   const state = useGenerationStore(useShallow((s) => ({
@@ -41,7 +52,11 @@ export function PromptsTab() {
   const resizeMethod = useImg2ImgStore((s) => s.resizeMethod);
   const setResizeMethod = useImg2ImgStore((s) => s.setResizeMethod);
   const upscalerGroups = useUpscalerGroups({ excludeLatent: true });
-  const [aspectLocked, setAspectLocked] = useState(false);
+  const { data: aspectOpts } = useOptionsSubset(["aspect_ratios"]);
+  const aspectPresets = useMemo(() => parseAspectRatios(typeof aspectOpts?.aspect_ratios === "string" ? aspectOpts.aspect_ratios : "1:1, 4:3, 3:2, 16:9, 16:10, 21:9, 2:3, 3:4, 9:16, 10:16, 9:21"), [aspectOpts]);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
+  const aspectLocked = activePreset !== null;
+  const [aspectOpen, setAspectOpen] = useState(false);
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
 
   const showSizeModes = isImg2Img && autoFitFrame;
@@ -53,25 +68,45 @@ export function PromptsTab() {
     [effectiveSizeMode, state.width, state.height, scaleFactor, megapixelTarget],
   );
 
-  const aspectRatio = state.width / state.height;
+  const lockedRatio = useMemo(() => {
+    if (!activePreset) return null;
+    const [w, h] = activePreset.split(":").map(Number);
+    return (w > 0 && h > 0) ? w / h : null;
+  }, [activePreset]);
 
   const setWidth = useCallback((w: number) => {
     const rounded = Math.round(w / 8) * 8;
     setParam("width", rounded);
-    if (aspectLocked) setParam("height", Math.round(rounded / aspectRatio / 8) * 8);
-  }, [setParam, aspectLocked, aspectRatio]);
+    if (lockedRatio) setParam("height", Math.round(rounded / lockedRatio / 8) * 8);
+  }, [setParam, lockedRatio]);
 
   const setHeight = useCallback((h: number) => {
     const rounded = Math.round(h / 8) * 8;
     setParam("height", rounded);
-    if (aspectLocked) setParam("width", Math.round(rounded * aspectRatio / 8) * 8);
-  }, [setParam, aspectLocked, aspectRatio]);
+    if (lockedRatio) setParam("width", Math.round(rounded * lockedRatio / 8) * 8);
+  }, [setParam, lockedRatio]);
 
   const swapDimensions = useCallback(() => {
     const w = state.width;
     setParam("width", state.height);
     setParam("height", w);
-  }, [setParam, state.width, state.height]);
+    if (activePreset) {
+      const parts = activePreset.split(":");
+      if (parts.length === 2) setActivePreset(`${parts[1]}:${parts[0]}`);
+    }
+  }, [setParam, state.width, state.height, activePreset]);
+
+  const selectPreset = useCallback((preset: AspectPreset | null) => {
+    if (!preset) { setActivePreset(null); setAspectOpen(false); return; }
+    setActivePreset(preset.label);
+    const pixels = state.width * state.height;
+    const ratio = preset.w / preset.h;
+    const newW = Math.round(Math.sqrt(pixels * ratio) / 8) * 8;
+    const newH = Math.round(newW / ratio / 8) * 8;
+    setParam("width", newW);
+    setParam("height", newH);
+    setAspectOpen(false);
+  }, [state.width, state.height, setParam]);
 
   const set = useMemo(() => ({
     batchCount: (v: number) => setParam("batchCount", v),
@@ -151,15 +186,51 @@ export function PromptsTab() {
             disabled={!isFixed}
             className="flex-1 min-w-12 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <Button
-            variant="ghost" size="icon-xs"
-            onClick={() => setAspectLocked(!aspectLocked)}
-            className={cn(aspectLocked ? "text-primary" : "text-muted-foreground")}
-            title={aspectLocked ? "Unlock aspect ratio" : "Lock aspect ratio — changing one dimension adjusts the other to maintain proportions"}
-            disabled={!isFixed}
-          >
-            {aspectLocked ? <Link2 size={12} /> : <Link2Off size={12} />}
-          </Button>
+          <Popover open={aspectOpen} onOpenChange={setAspectOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                disabled={!isFixed}
+                className={cn(
+                  "inline-flex items-center justify-center gap-0 h-6 w-9 shrink-0 rounded-md transition-colors",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  "disabled:pointer-events-none disabled:opacity-50",
+                  aspectLocked ? "text-primary px-1" : "text-muted-foreground px-1",
+                )}
+                title={aspectLocked ? `Aspect ratio locked to ${activePreset}` : "Select aspect ratio preset"}
+              >
+                {aspectLocked ? <span className="text-3xs font-medium leading-none">{activePreset}</span> : <Link2Off size={12} />}
+                <ChevronDown size={8} className="ml-0.5 opacity-60" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent className="w-32 p-1" align="center" sideOffset={6}>
+              <button
+                type="button"
+                onClick={() => selectPreset(null)}
+                className={cn(
+                  "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
+                  "hover:bg-accent hover:text-accent-foreground",
+                  !aspectLocked && "text-primary font-medium",
+                )}
+              >
+                Custom
+              </button>
+              {aspectPresets.map((p) => (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => selectPreset(p)}
+                  className={cn(
+                    "w-full text-left text-2xs px-2 py-1 rounded-sm transition-colors",
+                    "hover:bg-accent hover:text-accent-foreground",
+                    activePreset === p.label && "text-primary font-medium",
+                  )}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </PopoverContent>
+          </Popover>
           <Button
             variant="ghost" size="icon-xs"
             onClick={swapDimensions}

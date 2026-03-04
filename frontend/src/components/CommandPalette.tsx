@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { matchSorter } from "match-sorter";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useUiStore } from "@/stores/uiStore";
 import { buildActions } from "@/lib/actionRegistry";
@@ -15,10 +16,21 @@ import {
 
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    listRef.current?.scrollTo(0, 0);
+  }, [search]);
   const recentIds = useUiStore((s) => s.recentCommandIds);
   const addRecentCommand = useUiStore((s) => s.addRecentCommand);
 
   useShortcut("command-palette", () => setOpen((o) => !o));
+
+  const handleOpenChange = useCallback((next: boolean) => {
+    setOpen(next);
+    if (!next) setSearch("");
+  }, []);
 
   const actions = useMemo(() => (open ? buildActions() : []), [open]);
 
@@ -27,10 +39,21 @@ export function CommandPalette() {
     return recentIds.map((id) => actions.find((a) => a.id === id)).filter(Boolean) as typeof actions;
   }, [open, recentIds, actions]);
 
+  const filteredActions = useMemo(() => {
+    if (!search.trim()) return actions;
+    return matchSorter(actions, search, { keys: ["label", "keywords", "id"] });
+  }, [actions, search]);
+
+  const filteredRecent = useMemo(() => {
+    if (!search.trim()) return recentActions;
+    return matchSorter(recentActions, search, { keys: ["label", "keywords", "id"] });
+  }, [recentActions, search]);
+
   const handleSelect = useCallback((actionId: string) => {
     const action = actions.find((a) => a.id === actionId);
     if (!action) return;
     setOpen(false);
+    setSearch("");
     addRecentCommand(actionId);
     // Defer action so the dialog closes first
     requestAnimationFrame(() => action.action());
@@ -38,23 +61,23 @@ export function CommandPalette() {
 
   const grouped = useMemo(() => {
     const map = new Map<string, typeof actions>();
-    for (const a of actions) {
+    for (const a of filteredActions) {
       if (a.group === "Recent") continue;
       if (!map.has(a.group)) map.set(a.group, []);
       map.get(a.group)!.push(a);
     }
     return map;
-  }, [actions]);
+  }, [filteredActions]);
 
   return (
-    <CommandDialog open={open} onOpenChange={setOpen} title="Command Palette" description="Search for a command to run..." showCloseButton={false}>
-      <CommandInput placeholder="Type a command..." />
-      <CommandList>
+    <CommandDialog open={open} onOpenChange={handleOpenChange} shouldFilter={false} title="Command Palette" description="Search for a command to run..." showCloseButton={false}>
+      <CommandInput placeholder="Type a command..." value={search} onValueChange={setSearch} />
+      <CommandList ref={listRef}>
         <CommandEmpty>No results found.</CommandEmpty>
 
-        {recentActions.length > 0 && (
+        {filteredRecent.length > 0 && (
           <CommandGroup heading="Recent">
-            {recentActions.map((a) => (
+            {filteredRecent.map((a) => (
               <PaletteItem key={`recent-${a.id}`} action={a} onSelect={handleSelect} />
             ))}
           </CommandGroup>
@@ -77,7 +100,7 @@ function PaletteItem({ action, onSelect }: { action: ReturnType<typeof buildActi
   const shortcutDef = action.shortcutId ? SHORTCUTS[action.shortcutId] : undefined;
 
   return (
-    <CommandItem value={`${action.id} ${action.label} ${action.keywords.join(" ")}`} onSelect={() => onSelect(action.id)}>
+    <CommandItem value={action.id} onSelect={() => onSelect(action.id)}>
       <Icon size={16} />
       <span>{action.label}</span>
       {shortcutDef && <CommandShortcut>{formatShortcut(shortcutDef)}</CommandShortcut>}

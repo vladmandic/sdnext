@@ -5,6 +5,7 @@ import { useDetailerModels } from "@/api/hooks/useDetailer";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
 import { ParamRow, ParamGrid } from "../ParamRow";
+import { getParamHelp } from "@/data/parameterHelp";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ParamLabel } from "../ParamLabel";
@@ -140,20 +141,20 @@ export function DetailTab() {
               <ParamSlider label="Steps" value={state.detailerSteps} onChange={set.detailerSteps} min={0} max={99} disabled={!state.detailerEnabled} />
               <ParamSlider label="Strength" value={state.detailerStrength} onChange={set.detailerStrength} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
             </ParamGrid>
-            <ParamSlider label="Resolution" value={state.detailerResolution} onChange={set.detailerResolution} min={256} max={4096} step={8} disabled={!state.detailerEnabled} />
+            <ParamSlider label="Resolution" tooltip={getParamHelp("detailer resolution")} value={state.detailerResolution} onChange={set.detailerResolution} min={256} max={4096} step={8} disabled={!state.detailerEnabled} />
           </ParamSection>
 
           <ParamSection title="Detection" defaultOpen={false}>
             <ParamGrid>
-              <ParamSlider label="Confidence" value={state.detailerConfidence} onChange={set.detailerConfidence} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
-              <ParamSlider label="IoU" value={state.detailerIou} onChange={set.detailerIou} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
+              <ParamSlider label="Confidence" tooltip={getParamHelp("min confidence")} value={state.detailerConfidence} onChange={set.detailerConfidence} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
+              <ParamSlider label="IoU" tooltip={getParamHelp("max overlap")} value={state.detailerIou} onChange={set.detailerIou} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
               <ParamSlider label="Min size" value={state.detailerMinSize} onChange={set.detailerMinSize} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
               <ParamSlider label="Max size" value={state.detailerMaxSize} onChange={set.detailerMaxSize} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
-              <ParamSlider label="Padding" value={state.detailerPadding} onChange={set.detailerPadding} min={0} max={100} disabled={!state.detailerEnabled} />
-              <ParamSlider label="Blur" value={state.detailerBlur} onChange={set.detailerBlur} min={0} max={100} disabled={!state.detailerEnabled} />
+              <ParamSlider label="Padding" tooltip={getParamHelp("detailer padding")} value={state.detailerPadding} onChange={set.detailerPadding} min={0} max={100} disabled={!state.detailerEnabled} />
+              <ParamSlider label="Blur" tooltip={getParamHelp("detailer blur")} value={state.detailerBlur} onChange={set.detailerBlur} min={0} max={100} disabled={!state.detailerEnabled} />
             </ParamGrid>
-            <ParamSlider label="Max detect" value={state.detailerMaxDetected} onChange={set.detailerMaxDetected} min={1} max={10} disabled={!state.detailerEnabled} />
-            <ParamRow label="Classes">
+            <ParamSlider label="Max detect" tooltip={getParamHelp("max detected")} value={state.detailerMaxDetected} onChange={set.detailerMaxDetected} min={1} max={10} disabled={!state.detailerEnabled} />
+            <ParamRow label="Classes" tooltip={getParamHelp("detailer classes")}>
               <Input
                 value={state.detailerClasses}
                 onChange={set.detailerClasses}
@@ -168,7 +169,7 @@ export function DetailTab() {
             <div className="grid grid-cols-2 gap-2">
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
                 <Checkbox checked={state.detailerSegmentation} onCheckedChange={set.detailerSegmentation} disabled={!state.detailerEnabled} />
-                <ParamLabel className="text-2xs text-muted-foreground">Segmentation</ParamLabel>
+                <ParamLabel className="text-2xs text-muted-foreground" tooltip={getParamHelp("use segmentation")}>Segmentation</ParamLabel>
               </label>
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
                 <Checkbox checked={state.detailerIncludeDetections} onCheckedChange={set.detailerIncludeDetections} disabled={!state.detailerEnabled} />
@@ -176,11 +177,11 @@ export function DetailTab() {
               </label>
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
                 <Checkbox checked={state.detailerMerge} onCheckedChange={set.detailerMerge} disabled={!state.detailerEnabled} />
-                <ParamLabel className="text-2xs text-muted-foreground">Merge</ParamLabel>
+                <ParamLabel className="text-2xs text-muted-foreground" tooltip={getParamHelp("merge detailers")}>Merge</ParamLabel>
               </label>
               <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
                 <Checkbox checked={state.detailerSort} onCheckedChange={set.detailerSort} disabled={!state.detailerEnabled} />
-                <ParamLabel className="text-2xs text-muted-foreground">Sort</ParamLabel>
+                <ParamLabel className="text-2xs text-muted-foreground" tooltip={getParamHelp("sort detections")}>Sort</ParamLabel>
               </label>
             </div>
           </ParamSection>
@@ -188,7 +189,7 @@ export function DetailTab() {
           <ParamSection title="Noise" defaultOpen={false}>
             <ParamGrid>
               <ParamSlider label="Renoise" value={state.detailerRenoise} onChange={set.detailerRenoise} min={0.5} max={1.5} step={0.01} disabled={!state.detailerEnabled} />
-              <ParamSlider label="End" value={state.detailerRenoiseEnd} onChange={set.detailerRenoiseEnd} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
+              <ParamSlider label="End" tooltip={getParamHelp("renoise end")} value={state.detailerRenoiseEnd} onChange={set.detailerRenoiseEnd} min={0} max={1} step={0.01} disabled={!state.detailerEnabled} />
             </ParamGrid>
           </ParamSection>
         </div>

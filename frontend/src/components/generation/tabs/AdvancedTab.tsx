@@ -64,7 +64,7 @@ export function AdvancedTab() {
 
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2">
-            <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">Tiling</ParamLabel>
+            <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0">Texture tiling</ParamLabel>
             <Switch checked={state.tiling} onCheckedChange={set.tiling} />
           </div>
           <div className="flex items-center gap-2">

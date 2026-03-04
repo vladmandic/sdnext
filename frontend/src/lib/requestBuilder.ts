@@ -323,6 +323,8 @@ export async function buildControlRequest(): Promise<BuildResult> {
       request.inpaint_full_res = img2img.inpaintFullRes;
       request.inpaint_full_res_padding = img2img.inpaintFullResPadding;
       request.inpainting_mask_invert = img2img.inpaintingMaskInvert ? 1 : 0;
+      request.mask_apply_overlay = img2img.maskApplyOverlay;
+      request.inpainting_mask_weight = img2img.inpaintingMaskWeight;
     }
   }
 
@@ -536,6 +538,12 @@ export function restoreFromResult(result: GenerationResult): void {
       }
     }
   }
+
+  const bool = (v: unknown, fallback: boolean) => typeof v === "boolean" ? v : fallback;
+
+  // Restore mask params
+  if (p.mask_apply_overlay !== undefined) useImg2ImgStore.getState().setMaskApplyOverlay(bool(p.mask_apply_overlay, true));
+  if (p.inpainting_mask_weight !== undefined) useImg2ImgStore.getState().setInpaintingMaskWeight(num(p.inpainting_mask_weight, 1.0));
 
   // Restore control units if present
   if (result.controlUnits && result.controlUnits.length > 0) {

@@ -92,7 +92,7 @@ function App() {
   }, [borderRadius]);
 
   return (
-    <TooltipProvider delayDuration={100}>
+    <TooltipProvider delayDuration={300} skipDelayDuration={300}>
       <AppShell />
       <Toaster position="bottom-right" richColors closeButton theme={resolvedTheme} />
     </TooltipProvider>

@@ -10,7 +10,9 @@ import { Input } from "@/components/ui/input";
 import { NumberInput } from "@/components/ui/number-input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { ParamLabel } from "../ParamLabel";
+import { getParamHelp } from "@/data/parameterHelp";
 import type { GenerationInfo } from "@/api/types/generation";
 
 const SAMPLER_GROUP_ORDER = ["Standard", "FlowMatch", "Res4Lyf"] as const;
@@ -81,7 +83,7 @@ export function SamplerTab() {
     maxShift: (v: number) => setParam("maxShift", v),
     lowOrder: (c: boolean | "indeterminate") => setParam("lowOrder", !!c),
     thresholding: (c: boolean | "indeterminate") => setParam("thresholding", !!c),
-    dynamic: (c: boolean | "indeterminate") => setParam("dynamic", !!c),
+    dynamic: (c: boolean) => setParam("dynamic", c),
     rescale: (c: boolean | "indeterminate") => setParam("rescale", !!c),
     seed: (v: number) => setParam("seed", v),
     seedRandom: () => setParam("seed", -1),
@@ -95,7 +97,7 @@ export function SamplerTab() {
   return (
     <div className="flex flex-col gap-3 text-sm">
       <ParamSection title="Sampler">
-        <ParamRow label="Method">
+        <ParamRow label="Method" tooltip={getParamHelp("sampling method")}>
           <Combobox
             value={state.sampler}
             onValueChange={set.sampler}
@@ -108,7 +110,7 @@ export function SamplerTab() {
 
       <ParamSection title="Scheduler" defaultOpen={false}>
         <ParamGrid>
-          <ParamRow label="Sigma">
+          <ParamRow label="Sigma" tooltip={getParamHelp("sigma method")}>
             <Combobox
               value={state.sigmaMethod}
               onValueChange={set.sigmaMethod}
@@ -116,7 +118,7 @@ export function SamplerTab() {
               className="h-6 text-2xs"
             />
           </ParamRow>
-          <ParamRow label="Spacing">
+          <ParamRow label="Spacing" tooltip={getParamHelp("timestep spacing")}>
             <Combobox
               value={state.timestepSpacing}
               onValueChange={set.timestepSpacing}
@@ -124,7 +126,7 @@ export function SamplerTab() {
               className="h-6 text-2xs"
             />
           </ParamRow>
-          <ParamRow label="Beta">
+          <ParamRow label="Beta" tooltip={getParamHelp("beta schedule")}>
             <Combobox
               value={state.betaSchedule}
               onValueChange={set.betaSchedule}
@@ -132,7 +134,7 @@ export function SamplerTab() {
               className="h-6 text-2xs"
             />
           </ParamRow>
-          <ParamRow label="Prediction">
+          <ParamRow label="Prediction" tooltip={getParamHelp("prediction method")}>
             <Combobox
               value={state.predictionMethod}
               onValueChange={set.predictionMethod}
@@ -145,7 +147,7 @@ export function SamplerTab() {
 
       <ParamSection title="Timesteps" defaultOpen={false}>
         <ParamGrid>
-          <ParamRow label="Preset">
+          <ParamRow label="Preset" tooltip={getParamHelp("timesteps preset")}>
             <Combobox
               value={state.timestepsPreset}
               onValueChange={set.timestepsPreset}
@@ -153,7 +155,7 @@ export function SamplerTab() {
               className="h-6 text-2xs"
             />
           </ParamRow>
-          <ParamRow label="Override">
+          <ParamRow label="Override" tooltip={getParamHelp("timesteps override")}>
             <Input
               value={state.timestepsOverride}
               onChange={set.timestepsOverride}
@@ -166,18 +168,22 @@ export function SamplerTab() {
 
       <ParamSection title="Sigma" defaultOpen={false}>
         <ParamGrid>
-          <ParamSlider label="Start" value={state.sigmaAdjustStart} onChange={set.sigmaAdjustStart} min={0} max={1} step={0.01} />
-          <ParamSlider label="End" value={state.sigmaAdjustEnd} onChange={set.sigmaAdjustEnd} min={0} max={1} step={0.01} />
+          <ParamSlider label="Start" tooltip={getParamHelp("adjust start")} value={state.sigmaAdjustStart} onChange={set.sigmaAdjustStart} min={0} max={1} step={0.01} />
+          <ParamSlider label="End" tooltip={getParamHelp("adjust end")} value={state.sigmaAdjustEnd} onChange={set.sigmaAdjustEnd} min={0} max={1} step={0.01} />
         </ParamGrid>
-        <ParamSlider label="Adjust" value={state.sigmaAdjust} onChange={set.sigmaAdjust} min={0.5} max={1.5} step={0.01} />
+        <ParamSlider label="Adjust" tooltip={getParamHelp("sigma adjust")} value={state.sigmaAdjust} onChange={set.sigmaAdjust} min={0.5} max={1.5} step={0.01} />
       </ParamSection>
 
       <ParamSection title="Shifts" defaultOpen={false}>
+        <ParamSlider label="Flow shift" value={state.flowShift} onChange={set.flowShift} min={0.1} max={10} step={0.1} disabled={state.dynamic} />
+        <div className="flex items-center gap-2">
+          <ParamLabel className="text-2xs text-muted-foreground flex-shrink-0" tooltip={getParamHelp("dynamic")}>Dynamic shift</ParamLabel>
+          <Switch checked={state.dynamic} onCheckedChange={set.dynamic} />
+        </div>
         <ParamGrid>
-          <ParamSlider label="Base shift" value={state.baseShift} onChange={set.baseShift} min={0} max={1} step={0.01} />
-          <ParamSlider label="Max shift" value={state.maxShift} onChange={set.maxShift} min={0} max={4} step={0.01} />
+          <ParamSlider label="Base shift" value={state.baseShift} onChange={set.baseShift} min={0} max={1} step={0.01} disabled={!state.dynamic} />
+          <ParamSlider label="Max shift" value={state.maxShift} onChange={set.maxShift} min={0} max={4} step={0.01} disabled={!state.dynamic} />
         </ParamGrid>
-        <ParamSlider label="Flow shift" value={state.flowShift} onChange={set.flowShift} min={0.1} max={10} step={0.1} />
       </ParamSection>
 
       <ParamSection title="Options" defaultOpen={false}>
@@ -189,10 +195,6 @@ export function SamplerTab() {
           <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.thresholding} onCheckedChange={set.thresholding} />
             <ParamLabel className="text-2xs text-muted-foreground">Thresholding</ParamLabel>
-          </label>
-          <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
-            <Checkbox checked={state.dynamic} onCheckedChange={set.dynamic} />
-            <ParamLabel className="text-2xs text-muted-foreground">Dynamic</ParamLabel>
           </label>
           <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
             <Checkbox checked={state.rescale} onCheckedChange={set.rescale} />
@@ -244,7 +246,7 @@ export function SamplerTab() {
           </div>
         </ParamRow>
 
-        <ParamSlider label="Var. str." value={state.subseedStrength} onChange={set.subseedStrength} min={0} max={1} step={0.01} />
+        <ParamSlider label="Var. str." tooltip={getParamHelp("variation strength")} value={state.subseedStrength} onChange={set.subseedStrength} min={0} max={1} step={0.01} />
       </ParamSection>
     </div>
   );

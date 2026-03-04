@@ -5,6 +5,7 @@ import { useModelList, useSamplerList, useVaeList, useUpscalerList } from "@/api
 import type { OptionInfoMeta } from "@/api/types/settings";
 import type { SettingSectionDef, SettingDef } from "@/lib/settingsSchema";
 import { settingsSchema, getSettingsMap, metaToSettingDef } from "@/lib/settingsSchema";
+import { getParamHelpPlain } from "@/data/parameterHelp";
 import { SettingsSection } from "./SettingsSection";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -37,18 +38,38 @@ const COLOR_MODES: { value: ColorMode; label: string }[] = [
 const GRADIO_ONLY_KEYS = new Set([
   // Model selector — accessible from the toolbar
   "sd_model_checkpoint",
-  // UI section
+  // UI section — Gradio/ModernUI layout and appearance
   "theme_type", "theme_style", "gradio_theme", "quicksettings_list",
   "ui_request_timeout", "ui_disabled", "compact_view", "ui_columns",
   "logmonitor_show", "logmonitor_refresh_period", "send_seed", "send_size",
   "font_size", "ui_locale",
   "extra_networks_card_size", "extra_networks_card_cover", "extra_networks_card_square",
+  "autolaunch", "motd", "subpath", "gpu_monitor",
+  // ModernUI extension settings
+  "uiux_grid_image_size", "uiux_panel_min_width", "uiux_hide_legacy",
+  "uiux_persist_layout", "uiux_no_slider_layout",
+  "uiux_show_labels_aside", "uiux_show_labels_main", "uiux_show_labels_tabs",
+  "uiux_show_input_range_ticks", "uiux_no_headers_params", "uiux_show_outline_params",
+  "uiux_default_layout", "uiux_mobile_scale",
   // Extra networks section
   "extra_networks_show", "extra_networks_view",
   "extra_networks_sidebar_width", "extra_networks_height", "extra_networks_fetch",
   // Live preview section
   "live_preview_refresh_period", "notification_audio_enable", "notification_audio_path",
+  // Inpaint settings — per-request in generation UI
+  "img2img_color_correction", "color_correction_method",
+  "mask_apply_overlay", "inpainting_mask_weight",
+  "img2img_background_color", "initial_noise_multiplier",
+  // Aspect ratios — will be consumed by generation panel directly
+  "aspect_ratios",
 ]);
+
+/** Remap settings from one backend section to another (e.g. out of the now-empty "User Interface" section) */
+const SECTION_REMAP: Record<string, string> = {
+  return_grid: "saving-images",
+  return_mask: "saving-images",
+  return_mask_composite: "saving-images",
+};
 
 /** Sentinel strings matching backend defaults in modules/shared.py — used for model/VAE "no selection" states */
 const SENTINEL_NONE = "None";
@@ -65,10 +86,11 @@ function buildSettingDef(
   const curated = curatedMap.get(key);
   if (!curated) return metaToSettingDef(key, info);
   const base = metaToSettingDef(key, info);
+  const label = curated.setting.label;
   return {
     ...base,
-    label: curated.setting.label,
-    ...(curated.setting.description !== undefined && { description: curated.setting.description }),
+    label,
+    description: getParamHelpPlain(label) || base.description,
     component: curated.setting.component,
     ...(curated.setting.min !== undefined && { min: curated.setting.min }),
     ...(curated.setting.max !== undefined && { max: curated.setting.max }),
@@ -401,16 +423,18 @@ export function SettingsView({ onDirtyChange }: SettingsViewProps = {}) {
       if (section.hidden) continue;
 
       const settings: SettingDef[] = [];
+      let pendingSeparator: SettingDef | null = null;
       for (const [key, info] of Object.entries(meta)) {
-        if (info.section_id !== section.id) continue;
+        if ((SECTION_REMAP[key] ?? info.section_id) !== section.id) continue;
         if (!info.visible || info.hidden || info.is_legacy) continue;
         if (GRADIO_ONLY_KEYS.has(key)) continue;
         if (info.component === "separator") {
-          if (info.label) settings.push({ key, label: info.label, component: "separator" });
+          if (info.label) pendingSeparator = { key, label: info.label, component: "separator" };
           continue;
         }
         if (!(key in options)) continue;
 
+        if (pendingSeparator) { settings.push(pendingSeparator); pendingSeparator = null; }
         settings.push(buildSettingDef(key, info, curatedMap));
       }
 

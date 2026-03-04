@@ -6,6 +6,7 @@ import { HIRES_RESIZE_MODES, HIRES_CONTEXT_MODES } from "@/lib/constants";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
 import { ParamRow, ParamGrid } from "../ParamRow";
+import { getParamHelp } from "@/data/parameterHelp";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -80,7 +81,7 @@ export function RefineTab() {
         <div className={state.hiresEnabled ? "" : "opacity-40 pointer-events-none"}>
           <div className="flex flex-col gap-2">
             <ParamGrid>
-              <ParamRow label="Mode">
+              <ParamRow label="Mode" tooltip={getParamHelp("resize mode")}>
                 <Combobox
                   value={String(state.hiresResizeMode)}
                   onValueChange={set.hiresResizeMode}
@@ -192,7 +193,7 @@ export function RefineTab() {
 
             <ParamGrid>
               <ParamSlider label="Denoise" value={state.hiresDenoising} onChange={set.hiresDenoising} min={0} max={1} step={0.05} disabled={!state.hiresEnabled} />
-              <ParamSlider label="Steps" value={state.hiresSteps} onChange={set.hiresSteps} min={0} max={150} disabled={!state.hiresEnabled} />
+              <ParamSlider label="Steps" tooltip={getParamHelp("hires steps")} value={state.hiresSteps} onChange={set.hiresSteps} min={0} max={150} disabled={!state.hiresEnabled} />
             </ParamGrid>
 
             <label className="flex items-center gap-1.5 text-2xs text-muted-foreground cursor-pointer">
@@ -205,8 +206,8 @@ export function RefineTab() {
 
       <ParamSection title="Refiner" defaultOpen={false}>
         <ParamGrid>
-          <ParamSlider label="Start" value={state.refinerStart} onChange={set.refinerStart} min={0} max={1} step={0.01} />
-          <ParamSlider label="Steps" value={state.refinerSteps} onChange={set.refinerSteps} min={0} max={150} />
+          <ParamSlider label="Start" tooltip={getParamHelp("refiner start")} value={state.refinerStart} onChange={set.refinerStart} min={0} max={1} step={0.01} />
+          <ParamSlider label="Steps" tooltip={getParamHelp("refiner steps")} value={state.refinerSteps} onChange={set.refinerSteps} min={0} max={150} />
         </ParamGrid>
 
         <div className="flex flex-col gap-1">
