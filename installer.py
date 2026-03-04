@@ -453,16 +453,16 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if args.quick:
         return
     log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
-    if sys.version_info.minor == 9:
+    if int(sys.version_info.minor) == 9:
         log.error(f"Python: version={platform.python_version()} is end-of-life")
-    if sys.version_info.minor == 10:
+    if int(sys.version_info.minor) == 10:
         log.warning(f"Python: version={platform.python_version()} is not actively supported")
-    if sys.version_info.minor >= 12:
+    if int(sys.version_info.minor) >= 12:
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
-    if sys.version_info.minor >= 13:
+    if int(sys.version_info.minor) >= 13:
         log.warning(f"Python: version={platform.python_version()} not all features are available")
-    if not (sys.version_info.major == 3 and sys.version_info.minor in supported_minors):
-        if (sys.version_info.major == 3 and sys.version_info.minor in experimental_minors):
+    if not (sys.version_info.major == 3 and int(sys.version_info.minor) in supported_minors):
+        if (sys.version_info.major == 3 and int(sys.version_info.minor) in experimental_minors):
             log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
         else:
             log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
