@@ -461,8 +461,8 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
     if int(sys.version_info.minor) >= 13:
         log.warning(f"Python: version={platform.python_version()} not all features are available")
-    if not (sys.version_info.major == 3 and int(sys.version_info.minor) in supported_minors):
-        if (sys.version_info.major == 3 and int(sys.version_info.minor) in experimental_minors):
+    if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
+        if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
             log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
         else:
             log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
