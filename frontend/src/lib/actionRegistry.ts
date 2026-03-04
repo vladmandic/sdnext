@@ -1,30 +1,25 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  Play, Square, SkipForward, RotateCcw, Trash2,
+  Play, Square, SkipForward, RotateCcw,
   RefreshCw, Download, Upload,
-  PanelLeft, PanelRight, Sidebar,
   ImageIcon, Video, Sparkles, MessageSquare, Images,
-  GitCompareArrows, Settings,
+  Settings,
 } from "lucide-react";
-import { api } from "@/api/client";
-import { useUiStore } from "@/stores/uiStore";
-import { useGenerationStore } from "@/stores/generationStore";
-import { useComparisonStore } from "@/stores/comparisonStore";
-import { resolveImageSrc } from "@/lib/utils";
-import { useJobQueueStore, selectRunningJob } from "@/stores/jobStore";
-import { sendToJob } from "@/hooks/useJobTracker";
 import { NAV_ITEMS, IMAGES_SUB_TABS, ASIDE_TABS } from "@/lib/constants";
-import type { SidebarView, ImagesSubTab } from "@/stores/uiStore";
+import { PARAM_MAP } from "@/lib/paramMap";
+import type { NavigateTarget } from "@/lib/navigateToParam";
+import type { ImagesSubTab } from "@/stores/uiStore";
 import type { AsideTab } from "@/lib/constants";
 
 export interface PaletteAction {
   id: string;
   label: string;
   icon: LucideIcon;
-  group: "Recent" | "Actions" | "Navigation";
+  group: string;
   keywords: string[];
   shortcutId?: string;
-  action: () => void;
+  target: NavigateTarget;
+  showOnlyInSearch?: boolean;
 }
 
 const NAV_ICONS: Record<string, LucideIcon> = {
@@ -35,10 +30,16 @@ const NAV_ICONS: Record<string, LucideIcon> = {
   gallery: Images,
 };
 
+const TAB_ICONS: Record<string, LucideIcon> = {};
+for (const t of IMAGES_SUB_TABS) TAB_ICONS[t.id] = t.icon;
+
+const TAB_LABELS: Record<string, string> = {};
+for (const t of IMAGES_SUB_TABS) TAB_LABELS[t.id] = t.label;
+
 export function buildActions(): PaletteAction[] {
   const actions: PaletteAction[] = [];
 
-  // --- Generation actions ---
+  // --- Generation buttons ---
   actions.push({
     id: "generate",
     label: "Generate",
@@ -46,11 +47,7 @@ export function buildActions(): PaletteAction[] {
     group: "Actions",
     keywords: ["run", "create", "start"],
     shortcutId: "generate",
-    action: () => {
-      // Trigger a click on the generate button (the actual submission logic lives in ActionBar)
-      const btn = document.querySelector<HTMLButtonElement>("[data-action='generate']");
-      btn?.click();
-    },
+    target: { param: "generate" },
   });
 
   actions.push({
@@ -59,12 +56,7 @@ export function buildActions(): PaletteAction[] {
     icon: Square,
     group: "Actions",
     keywords: ["stop", "cancel", "abort"],
-    action: () => {
-      const job = selectRunningJob(useJobQueueStore.getState());
-      if (job && job.domain === "generate") {
-        sendToJob(job.id, { type: "interrupt" });
-      }
-    },
+    target: { param: "stop" },
   });
 
   actions.push({
@@ -74,21 +66,7 @@ export function buildActions(): PaletteAction[] {
     group: "Actions",
     keywords: ["next", "advance"],
     shortcutId: "skip",
-    action: () => {
-      const job = selectRunningJob(useJobQueueStore.getState());
-      if (job && job.domain === "generate") {
-        sendToJob(job.id, { type: "skip" });
-      }
-    },
-  });
-
-  actions.push({
-    id: "reset-params",
-    label: "Reset all parameters",
-    icon: Trash2,
-    group: "Actions",
-    keywords: ["clear", "default"],
-    action: () => useGenerationStore.getState().reset(),
+    target: { param: "skip" },
   });
 
   actions.push({
@@ -97,20 +75,17 @@ export function buildActions(): PaletteAction[] {
     icon: RotateCcw,
     group: "Actions",
     keywords: ["undo", "previous", "history"],
-    action: () => {
-      const btn = document.querySelector<HTMLButtonElement>("[data-action='restore']");
-      btn?.click();
-    },
+    target: { param: "restore" },
   });
 
-  // --- Model actions ---
+  // --- Model actions → navigate to Models panel ---
   actions.push({
     id: "refresh-models",
     label: "Refresh model list",
     icon: RefreshCw,
     group: "Actions",
     keywords: ["model", "checkpoint", "scan"],
-    action: () => { api.post("/sdapi/v2/checkpoint/refresh"); },
+    target: { aside: "models" },
   });
 
   actions.push({
@@ -119,7 +94,7 @@ export function buildActions(): PaletteAction[] {
     icon: Download,
     group: "Actions",
     keywords: ["model", "checkpoint", "load"],
-    action: () => { api.post("/sdapi/v2/checkpoint/reload"); },
+    target: { aside: "models" },
   });
 
   actions.push({
@@ -128,60 +103,7 @@ export function buildActions(): PaletteAction[] {
     icon: Upload,
     group: "Actions",
     keywords: ["model", "checkpoint", "free", "memory"],
-    action: () => { api.post("/sdapi/v2/checkpoint/unload"); },
-  });
-
-  // --- Comparison ---
-  actions.push({
-    id: "compare-results",
-    label: "Compare Results",
-    icon: GitCompareArrows,
-    group: "Actions",
-    keywords: ["compare", "diff", "side by side", "before", "after"],
-    action: () => {
-      const gen = useGenerationStore.getState();
-      if (gen.results.length >= 2) {
-        const a = gen.results[0];
-        const b = gen.results[1];
-        const srcA = resolveImageSrc(a.images[0]);
-        const srcB = resolveImageSrc(b.images[0]);
-        useComparisonStore.getState().openComparison(
-          { src: srcA, label: "Latest", resultId: a.id, imageIndex: 0 },
-          { src: srcB, label: "Previous", resultId: b.id, imageIndex: 0 },
-        );
-      }
-    },
-  });
-
-  // --- Layout actions ---
-  actions.push({
-    id: "toggle-sidebar",
-    label: "Toggle sidebar",
-    icon: Sidebar,
-    group: "Actions",
-    keywords: ["sidebar", "nav", "collapse"],
-    shortcutId: "toggle-sidebar",
-    action: () => useUiStore.getState().toggleSidebar(),
-  });
-
-  actions.push({
-    id: "toggle-left-panel",
-    label: "Toggle left panel",
-    icon: PanelLeft,
-    group: "Actions",
-    keywords: ["panel", "params", "settings"],
-    shortcutId: "toggle-left-panel",
-    action: () => useUiStore.getState().toggleLeftPanel(),
-  });
-
-  actions.push({
-    id: "toggle-right-panel",
-    label: "Toggle right panel",
-    icon: PanelRight,
-    group: "Actions",
-    keywords: ["panel", "aside", "networks"],
-    shortcutId: "toggle-right-panel",
-    action: () => useUiStore.getState().toggleRightPanel(),
+    target: { aside: "models" },
   });
 
   // --- Settings search ---
@@ -191,10 +113,7 @@ export function buildActions(): PaletteAction[] {
     icon: Settings,
     group: "Navigation",
     keywords: ["settings", "search", "find", "option", "preference", "configure"],
-    action: () => {
-      useUiStore.getState().setPendingSettingsSearch("");
-      useUiStore.getState().openAsideTab("settings");
-    },
+    target: { aside: "settings" },
   });
 
   // --- Navigation: views ---
@@ -205,7 +124,7 @@ export function buildActions(): PaletteAction[] {
       icon: NAV_ICONS[nav.id] ?? nav.icon,
       group: "Navigation",
       keywords: ["view", "page", "navigate", nav.label.toLowerCase()],
-      action: () => useUiStore.getState().setSidebarView(nav.id as SidebarView),
+      target: { view: nav.id },
     });
   }
 
@@ -217,10 +136,7 @@ export function buildActions(): PaletteAction[] {
       icon: tab.icon,
       group: "Navigation",
       keywords: ["tab", "images", tab.label.toLowerCase()],
-      action: () => {
-        useUiStore.getState().setSidebarView("images");
-        useUiStore.getState().setImagesSubTab(tab.id as ImagesSubTab);
-      },
+      target: { tab: tab.id as ImagesSubTab },
     });
   }
 
@@ -232,7 +148,22 @@ export function buildActions(): PaletteAction[] {
       icon: tab.icon,
       group: "Navigation",
       keywords: ["panel", "aside", tab.label.toLowerCase()],
-      action: () => useUiStore.getState().openAsideTab(tab.id as AsideTab),
+      target: { aside: tab.id as AsideTab },
+    });
+  }
+
+  // --- Parameter navigation (search-only) ---
+  for (const entry of PARAM_MAP) {
+    const tabLabel = TAB_LABELS[entry.tab] ?? entry.tab;
+    const icon = TAB_ICONS[entry.tab] ?? Settings;
+    actions.push({
+      id: `param-${entry.tab}-${entry.param}`,
+      label: entry.label,
+      icon,
+      group: tabLabel,
+      keywords: [...entry.keywords, entry.param, entry.section],
+      target: { tab: entry.tab, section: entry.section, param: entry.param },
+      showOnlyInSearch: true,
     });
   }
 

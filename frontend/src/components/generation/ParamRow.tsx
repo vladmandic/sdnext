@@ -10,7 +10,7 @@ interface ParamRowProps {
 /** Label stacked above its control. Use inside ParamGrid for 2-column pairs. */
 export function ParamRow({ label, children, disabled, tooltip }: ParamRowProps) {
   return (
-    <div className={disabled ? "opacity-50 pointer-events-none" : undefined}>
+    <div data-param={label.toLowerCase()} className={disabled ? "opacity-50 pointer-events-none" : undefined}>
       <ParamLabel className="text-2xs text-muted-foreground mb-0.5 block" tooltip={tooltip}>{label}</ParamLabel>
       {children}
     </div>

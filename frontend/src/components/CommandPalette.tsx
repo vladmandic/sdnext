@@ -3,6 +3,7 @@ import { matchSorter } from "match-sorter";
 import { useShortcut } from "@/hooks/useShortcut";
 import { useUiStore } from "@/stores/uiStore";
 import { buildActions } from "@/lib/actionRegistry";
+import { navigateToParam } from "@/lib/navigateToParam";
 import { SHORTCUTS, formatShortcut } from "@/lib/shortcuts";
 import {
   CommandDialog,
@@ -40,8 +41,10 @@ export function CommandPalette() {
   }, [open, recentIds, actions]);
 
   const filteredActions = useMemo(() => {
-    if (!search.trim()) return actions;
-    return matchSorter(actions, search, { keys: ["label", "keywords", "id"] });
+    const isSearching = search.trim().length > 0;
+    const base = isSearching ? actions : actions.filter((a) => !a.showOnlyInSearch);
+    if (!isSearching) return base;
+    return matchSorter(base, search, { keys: ["label", "keywords", "id"] });
   }, [actions, search]);
 
   const filteredRecent = useMemo(() => {
@@ -55,8 +58,7 @@ export function CommandPalette() {
     setOpen(false);
     setSearch("");
     addRecentCommand(actionId);
-    // Defer action so the dialog closes first
-    requestAnimationFrame(() => action.action());
+    requestAnimationFrame(() => navigateToParam(action.target));
   }, [actions, addRecentCommand]);
 
   const grouped = useMemo(() => {

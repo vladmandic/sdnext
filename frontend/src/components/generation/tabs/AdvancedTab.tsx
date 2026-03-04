@@ -52,7 +52,7 @@ export function AdvancedTab() {
       <ParamSection title="Advanced">
         <ParamSlider label="CLIP skip" value={state.clipSkip} onChange={set.clipSkip} min={0} max={12} step={0.1} />
 
-        <div className="flex items-center gap-2">
+        <div data-param="vae type" className="flex items-center gap-2">
           <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0">VAE type</ParamLabel>
           <Combobox
             value={state.vaeType}

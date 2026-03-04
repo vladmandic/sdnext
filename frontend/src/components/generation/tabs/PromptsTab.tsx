@@ -177,7 +177,7 @@ export function PromptsTab() {
         )}
 
         {/* Width / Height row */}
-        <div className="flex items-center gap-2">
+        <div data-param="width" className="flex items-center gap-2">
           <ParamLabel className="text-2xs text-muted-foreground shrink-0">Width</ParamLabel>
           <NumberInput
             value={isFixed ? state.width : genSize.width}

@@ -93,6 +93,7 @@ export const ActionBar = memo(function ActionBar() {
       <div className="flex flex-1 min-w-0" data-tour="generate-button">
         <Button
           type="button"
+          data-param="generate"
           onClick={submit}
           disabled={isSubmitting}
           variant="default"
@@ -134,6 +135,7 @@ export const ActionBar = memo(function ActionBar() {
       {isGenerating && (
         <Button
           type="button"
+          data-param="stop"
           onClick={handleInterrupt}
           variant="destructive"
           size="icon-sm"
@@ -148,6 +150,7 @@ export const ActionBar = memo(function ActionBar() {
         <>
           <Button
             type="button"
+            data-param="restore"
             onClick={handleHistoryClick}
             disabled={!lastResult}
             variant="secondary"
@@ -159,6 +162,7 @@ export const ActionBar = memo(function ActionBar() {
           <GenerationDiffDialog open={diffOpen} onOpenChange={setDiffOpen} result={lastResult ?? null} />
           <Button
             type="button"
+            data-param="png-info"
             onClick={() => setPngInfoOpen(true)}
             variant="secondary"
             size="icon-sm"
@@ -174,6 +178,7 @@ export const ActionBar = memo(function ActionBar() {
       {runningGenJob && (
         <Button
           type="button"
+          data-param="skip"
           onClick={handleSkip}
           variant="secondary"
           size="icon-sm"

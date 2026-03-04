@@ -87,7 +87,7 @@ export function DetailTab() {
 
         <div className={state.detailerEnabled ? "" : "opacity-40 pointer-events-none"}>
           <div className="flex flex-col gap-2">
-            <div className="flex flex-col gap-1">
+            <div data-param="models" className="flex flex-col gap-1">
               <Label className="text-2xs text-muted-foreground">Models</Label>
               <div className="flex flex-wrap gap-1 mb-1">
                 {state.detailerModels.map((m) => (

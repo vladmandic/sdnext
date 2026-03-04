@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 
 interface ParamSectionProps {
@@ -12,8 +12,17 @@ export function ParamSection({ title, defaultOpen = true, action, children }: Pa
   const [open, setOpen] = useState(defaultOpen);
   const toggle = useCallback(() => setOpen((o) => !o), []);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent<{ section: string }>).detail;
+      if (detail.section === title.toLowerCase()) setOpen(true);
+    };
+    document.addEventListener("param-section-expand", handler);
+    return () => document.removeEventListener("param-section-expand", handler);
+  }, [title]);
+
   return (
-    <div className="mb-3">
+    <div data-section={title.toLowerCase()} className="mb-3">
       <div className="flex items-center mb-1.5">
         <button
           type="button"

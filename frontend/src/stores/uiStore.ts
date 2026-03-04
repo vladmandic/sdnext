@@ -3,7 +3,7 @@ import { persist } from "zustand/middleware";
 import type { AsideTab } from "@/lib/constants";
 
 type SidebarView = "images" | "video" | "process" | "caption" | "gallery";
-type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "control" | "scripts";
+type ImagesSubTab = "prompts" | "sampler" | "guidance" | "refine" | "detail" | "advanced" | "color" | "control" | "scripts";
 type CornerStyle = "rounded" | "square";
 type ColorMode = "dark" | "light" | "system";
 

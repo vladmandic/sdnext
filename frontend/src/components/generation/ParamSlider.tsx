@@ -18,7 +18,7 @@ export const ParamSlider = memo(function ParamSlider({ label, value, onChange, m
   const handleSliderChange = useCallback(([v]: number[]) => onChange(v), [onChange]);
 
   return (
-    <div className={disabled ? "opacity-50 pointer-events-none" : undefined}>
+    <div data-param={label.toLowerCase()} className={disabled ? "opacity-50 pointer-events-none" : undefined}>
       <div className="flex items-center justify-between mb-0.5">
         <ParamLabel className="text-2xs text-muted-foreground" tooltip={tooltip}>{label}</ParamLabel>
         <NumberInput

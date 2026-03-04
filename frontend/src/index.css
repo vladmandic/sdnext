@@ -139,3 +139,15 @@
   50.1% { transform: scaleX(1); transform-origin: right; }
   100% { transform: scaleX(0); transform-origin: right; }
 }
+
+@keyframes param-highlight {
+  0%, 17%, 33%, 50%, 67%, 83% { box-shadow: 0 0 16px 4px oklch(from var(--primary) l c calc(h + 180) / 0.8); }
+  8%, 25%, 42%, 58%, 75%      { box-shadow: 0 0 4px 2px oklch(from var(--primary) l c calc(h + 180) / 0.3); }
+  100%                         { box-shadow: 0 0 0 0 transparent; }
+}
+[data-highlight] {
+  animation: param-highlight 8.4s ease-in-out forwards;
+  border-radius: var(--radius);
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}

@@ -109,7 +109,7 @@ export function ColorTab() {
           <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0" tooltip={getParamHelp("color correction enabled")}>Enabled</ParamLabel>
           <Switch checked={state.colorCorrectionEnabled} onCheckedChange={set.colorCorrectionEnabled} />
         </div>
-        <div className="flex items-center gap-2">
+        <div data-param="method" className="flex items-center gap-2">
           <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0" tooltip={getParamHelp("color correction method")}>Method</ParamLabel>
           <Combobox
             value={state.colorCorrectionMethod}
