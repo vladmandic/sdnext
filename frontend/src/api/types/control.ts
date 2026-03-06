@@ -31,6 +31,7 @@ export const UNIT_TYPE_LABELS: Record<ControlUnitType, string> = {
 };
 
 export interface ControlUnit {
+  id: string;
   enabled: boolean;
   unitType: ControlUnitType;
   processor: string;

@@ -71,9 +71,9 @@ export function CivitSearchBar({ query, tag, onQueryChange, onTagChange, onSearc
           />
           {showSuggestions && (
             <div className="absolute top-full left-0 right-0 z-50 mt-1 max-h-48 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
-              {tagResults!.items.map((t) => (
+              {tagResults!.items.map((t, i) => (
                 <button
-                  key={t.name}
+                  key={`${t.name}-${i}`}
                   type="button"
                   className="flex w-full items-center justify-between px-2 py-1.5 text-xs hover:bg-muted/50"
                   onMouseDown={(e) => e.preventDefault()}

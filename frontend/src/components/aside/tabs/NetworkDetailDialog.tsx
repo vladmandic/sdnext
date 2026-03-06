@@ -104,9 +104,9 @@ function TriggerWords({ words }: { words: string[] }) {
       </button>
       {expanded && (
         <div className="flex flex-wrap gap-1.5">
-          {words.map((w) => (
+          {words.map((w, i) => (
             <button
-              key={w}
+              key={`${w}-${i}`}
               type="button"
               onClick={() => handleClick(w)}
               className="inline-flex items-center rounded-full border border-transparent bg-secondary text-secondary-foreground px-2 py-0.5 text-2xs font-medium cursor-pointer hover:bg-primary/20 select-none transition-colors"
@@ -157,9 +157,9 @@ function NetworkDialogBody({ detail, previewUrl }: { detail: NetworkDetail; prev
             <div className="space-y-1.5 pt-2 border-t border-border">
               <span className="text-xs font-medium">Tags</span>
               <div className="flex flex-wrap gap-1.5">
-                {tags.map((t) => (
+                {tags.map((t, i) => (
                   <button
-                    key={t}
+                    key={`${t}-${i}`}
                     type="button"
                     onClick={() => {
                       const current = useGenerationStore.getState().prompt;

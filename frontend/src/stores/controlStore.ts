@@ -5,6 +5,7 @@ import { fileToBase64, base64ToFile, stripDataPrefix } from "@/lib/image";
 
 function defaultUnit(unitType: ControlUnitType = "reference"): ControlUnit {
   return {
+    id: crypto.randomUUID(),
     enabled: false,
     unitType,
     processor: "None",
@@ -265,6 +266,7 @@ export const useControlStore = create<ControlState>()((set) => ({
         if (unitType === "asset") unitType = "reference";
         else if (unitType === "reference") unitType = "style_transfer";
         return {
+          id: crypto.randomUUID(),
           enabled: s.enabled,
           unitType: unitType as ControlUnitType,
           imageSource,

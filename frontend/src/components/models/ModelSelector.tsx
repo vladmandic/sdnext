@@ -63,7 +63,7 @@ export function ModelSelector() {
               <CommandGroup>
                 {models?.map((model) => (
                   <CommandItem
-                    key={model.title}
+                    key={model.hash || model.title}
                     value={model.title}
                     onSelect={() => handleSelect(model.title)}
                     className={cn("text-xs", model.title === currentModel && "font-semibold !text-primary")}

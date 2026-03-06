@@ -345,7 +345,7 @@ export function NetworksTab() {
           {isLoading && <p className="text-xs text-muted-foreground p-2">Loading networks...</p>}
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-1.5">
             {displayItems.map((item) => (
-              <NetworkCard key={item.name} item={item} active={isItemActive(item, prompt, options)} onClick={() => handleClick(item)} />
+              <NetworkCard key={isExtraNetwork(item) ? `${item.type}-${item.name}` : item.name} item={item} active={isItemActive(item, prompt, options)} onClick={() => handleClick(item)} />
             ))}
           </div>
           {!isLoading && displayItems.length === 0 && (
@@ -368,11 +368,13 @@ function NetworkCard({ item, active, onClick }: { item: ExtraNetworkV2 | PromptS
     : null;
 
   return (
-    <button
-      type="button"
+    <div
+      role="button"
+      tabIndex={0}
       onClick={onClick}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(); } }}
       className={cn(
-        "flex flex-col rounded-md border overflow-hidden transition-colors text-left",
+        "flex flex-col rounded-md border overflow-hidden transition-colors text-left cursor-pointer",
         active
           ? "border-primary bg-primary/15"
           : "border-border hover:border-primary/50 hover:bg-primary/5",
@@ -392,6 +394,6 @@ function NetworkCard({ item, active, onClick }: { item: ExtraNetworkV2 | PromptS
           <NetworkDetailDialog item={item} />
         </div>
       </div>
-    </button>
+    </div>
   );
 }

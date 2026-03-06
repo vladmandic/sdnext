@@ -22,7 +22,7 @@ export function ProcessView() {
 
   const canCompare = !!imagePreviewUrl && !!resultImageUrl;
 
-  const dropTarget = useDropTarget({
+  const { isOver, ...dropHandlers } = useDropTarget({
     onDropPayload: useCallback((payload: DragPayload) => { payloadToFile(payload).then((f: File) => setImage(f)).catch(() => {}); }, [setImage]),
     onFileDrop: useCallback((file: File) => setImage(file), [setImage]),
   });
@@ -84,7 +84,7 @@ export function ProcessView() {
   return (
     <ResizablePanelGroup orientation="horizontal" className="h-full">
       <ResizablePanel defaultSize={50} minSize={30}>
-        <div className={`relative h-full group${dropTarget.isOver ? " ring-2 ring-primary ring-inset" : ""}`} {...dropTarget}>
+        <div className={`relative h-full group${isOver ? " ring-2 ring-primary ring-inset" : ""}`} {...dropHandlers}>
           {imagePreviewUrl ? (
             <>
               <img src={imagePreviewUrl} alt="Input" className="w-full h-full object-contain" />

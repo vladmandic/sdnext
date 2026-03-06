@@ -360,12 +360,12 @@ const ResultThumb = memo(function ResultThumb({ item, result, size, selected, is
   const [hovered, setHovered] = useState(false);
   const [previewRect, setPreviewRect] = useState<DOMRect | null>(null);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const btnRef = useRef<HTMLButtonElement>(null);
+  const thumbRef = useRef<HTMLDivElement>(null);
 
   const handleMouseEnter = useCallback(() => {
     hoverTimer.current = setTimeout(() => {
       setHovered(true);
-      if (btnRef.current) setPreviewRect(btnRef.current.getBoundingClientRect());
+      if (thumbRef.current) setPreviewRect(thumbRef.current.getBoundingClientRect());
     }, 300);
   }, []);
 
@@ -378,11 +378,14 @@ const ResultThumb = memo(function ResultThumb({ item, result, size, selected, is
 
   return (
     <>
-      <button
-        ref={btnRef}
+      <div
+        ref={thumbRef}
+        role="button"
+        tabIndex={0}
         onClick={(e) => onClick(e, item.resultId, item.imageIndex)}
         onDoubleClick={() => onDoubleClick(item.resultId)}
         onContextMenu={(e) => onContextMenu(e, item.resultId, item.imageIndex)}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onClick(e as unknown as React.MouseEvent, item.resultId, item.imageIndex); } }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
         className={cn(
@@ -412,7 +415,7 @@ const ResultThumb = memo(function ResultThumb({ item, result, size, selected, is
             />
           </div>
         )}
-      </button>
+      </div>
       {hovered && previewRect && (
         <ResultThumbPreview result={result} imageIndex={item.imageIndex} anchorRect={previewRect} />
       )}

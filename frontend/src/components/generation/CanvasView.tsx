@@ -66,7 +66,7 @@ export const CanvasView = memo(function CanvasView() {
     }
   }, [hitTestControlFrame, handleFile, setUnitImage, setUnitParam]);
 
-  const dropTarget = useDropTarget({
+  const { isOver, ...dropHandlers } = useDropTarget({
     onDropPayload: useCallback((payload: DragPayload, e: React.DragEvent) => {
       // Hit-test synchronously before the event is recycled by React
       const unit = hitTestControlFrame(e);
@@ -140,8 +140,8 @@ export const CanvasView = memo(function CanvasView() {
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-full overflow-hidden${dropTarget.isOver ? " ring-2 ring-primary ring-inset" : ""}`}
-      {...dropTarget}
+      className={`relative w-full h-full overflow-hidden${isOver ? " ring-2 ring-primary ring-inset" : ""}`}
+      {...dropHandlers}
       onPaste={handlePaste}
       tabIndex={0}
     >

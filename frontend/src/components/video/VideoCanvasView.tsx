@@ -129,7 +129,7 @@ export function VideoCanvasView() {
     await handleFileSelected(hitTestTarget(e), file);
   }, [handleFileSelected, hitTestTarget]);
 
-  const dropTarget = useDropTarget({
+  const { isOver, ...dropHandlers } = useDropTarget({
     onDropPayload: useCallback((payload: DragPayload, e: React.DragEvent) => {
       const target = hitTestTarget(e);
       payloadToFile(payload).then((f: File) => handleFileSelected(target, f)).catch(() => {});
@@ -161,8 +161,8 @@ export function VideoCanvasView() {
 
   return (
     <div
-      className={cn("h-full flex flex-col", dropTarget.isOver && "ring-2 ring-primary ring-inset")}
-      {...dropTarget}
+      className={cn("h-full flex flex-col", isOver && "ring-2 ring-primary ring-inset")}
+      {...dropHandlers}
       onPaste={handlePaste}
       tabIndex={-1}
     >

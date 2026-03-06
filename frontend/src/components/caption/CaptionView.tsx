@@ -20,7 +20,7 @@ export function CaptionView() {
   const method = useCaptionStore((s) => s.method);
   const setImage = useCaptionStore((s) => s.setImage);
 
-  const dropTarget = useDropTarget({
+  const { isOver, ...dropHandlers } = useDropTarget({
     onDropPayload: useCallback((payload: DragPayload) => { payloadToFile(payload).then((f: File) => setImage(f)).catch(() => {}); }, [setImage]),
     onFileDrop: useCallback((file: File) => setImage(file), [setImage]),
   });
@@ -91,7 +91,7 @@ export function CaptionView() {
           <div className="px-4 py-2 border-b border-border">
             <h3 className="text-sm font-medium">Input Image</h3>
           </div>
-          <div className={`flex-1 relative min-h-0${dropTarget.isOver ? " ring-2 ring-primary ring-inset" : ""}`} {...dropTarget}>
+          <div className={`flex-1 relative min-h-0${isOver ? " ring-2 ring-primary ring-inset" : ""}`} {...dropHandlers}>
             {!image || !imagePreviewUrl ? (
               <label className="flex flex-col items-center justify-center h-full cursor-pointer text-muted-foreground hover:text-foreground transition-colors">
                 <Upload size={48} className="mb-3 opacity-40" />

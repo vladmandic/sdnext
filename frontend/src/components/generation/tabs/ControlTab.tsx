@@ -93,8 +93,8 @@ export function ControlTab() {
 
       <div className="flex flex-col gap-1.5">
         <CanvasInputRow />
-        {units.map((_, i) => (
-          <ControlUnitRow key={i} index={i} unifiedIndex={i + 2} canRemove={units.length > 1} />
+        {units.map((unit, i) => (
+          <ControlUnitRow key={unit.id} index={i} unifiedIndex={i + 2} canRemove={units.length > 1} />
         ))}
       </div>
 

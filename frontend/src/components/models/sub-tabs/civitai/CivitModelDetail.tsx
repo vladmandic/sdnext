@@ -176,9 +176,9 @@ function VersionSection({ version, modelType, modelName, creatorName, modelId, m
               {showTriggers && (
                 <div className="mt-2 max-h-24 overflow-y-auto rounded-md bg-muted/30 p-3">
                   <div className="flex flex-wrap gap-1.5">
-                    {version.trainedWords.map((w) => (
+                    {version.trainedWords.map((w, i) => (
                       <Badge
-                        key={w}
+                        key={`${w}-${i}`}
                         variant="secondary"
                         className="text-3xs px-1.5 py-0.5 max-w-full cursor-pointer hover:bg-accent"
                         onClick={() => { appendToGenerationPrompt(w); toast.success("Added to prompt", { description: w }); }}
@@ -540,8 +540,8 @@ export function CivitModelDetail({ modelId, onClose }: CivitModelDetailProps) {
                 {/* Tags */}
                 {model.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1.5">
-                    {model.tags.slice(0, 16).map((t) => (
-                      <Badge key={t} variant="secondary" className="text-3xs px-1.5 py-0.5">{t}</Badge>
+                    {model.tags.slice(0, 16).map((t, i) => (
+                      <Badge key={`${t}-${i}`} variant="secondary" className="text-3xs px-1.5 py-0.5">{t}</Badge>
                     ))}
                   </div>
                 )}
