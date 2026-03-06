@@ -53,7 +53,7 @@ async def get_extra_networks_v2(
     search: str | None = Query(default=None, description="Case-insensitive search across name, title, filename, tags"),
     subfolder: str | None = Query(default=None, description="Filter by subfolder component in filename"),
     offset: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=500),
+    limit: int | None = Query(default=None, ge=1, description="Max items to return (omit for all)"),
 ):
     """List extra networks with optional filtering and pagination."""
     matched = []
@@ -87,7 +87,8 @@ async def get_extra_networks_v2(
                 mtime=mtime,
             ))
     total = len(matched)
-    return ResExtraNetworksV2(items=matched[offset:offset + limit], total=total, offset=offset, limit=limit)
+    page_items = matched[offset:offset + limit] if limit is not None else matched[offset:]
+    return ResExtraNetworksV2(items=page_items, total=total, offset=offset, limit=limit or total)
 
 
 # --- Options ---
@@ -203,7 +204,7 @@ async def get_sd_models_v2(
     search: str | None = Query(default=None, description="Case-insensitive search on title/filename"),
     type: str | None = Query(default=None, description="Filter by model type", alias="type"),
     offset: int = Query(default=0, ge=0),
-    limit: int = Query(default=50, ge=1, le=500),
+    limit: int | None = Query(default=None, ge=1, description="Max items to return (omit for all)"),
 ):
     """List registered checkpoint models with search and type filtering."""
     from modules import sd_checkpoint
@@ -240,7 +241,8 @@ async def get_sd_models_v2(
         ))
     matched.sort(key=lambda m: m.title.lower())
     total = len(matched)
-    return ResModelsV2(items=matched[offset:offset + limit], total=total, offset=offset, limit=limit)
+    page = matched[offset:offset + limit] if limit is not None else matched[offset:]
+    return ResModelsV2(items=page, total=total, offset=offset, limit=limit or total)
 
 
 # --- Samplers ---

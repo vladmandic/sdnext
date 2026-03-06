@@ -40,12 +40,12 @@ def _job_to_response(job: dict) -> JobResponse:
 @router.post("/jobs", response_model=JobResponse, status_code=202, tags=["Jobs"])
 async def submit_job(request: dict):
     from modules.api.v2.job_queue import job_queue
+    from modules.api.v2.executors import EXECUTORS
     job_type = request.get('type')
     if not job_type:
         raise HTTPException(status_code=400, detail="Missing 'type' field")
-    valid_types = {'generate', 'upscale', 'caption', 'enhance', 'detect', 'preprocess', 'video', 'framepack', 'ltx', 'xyz-grid'}
-    if job_type not in valid_types:
-        raise HTTPException(status_code=400, detail=f"Invalid job type: {job_type}. Must be one of: {', '.join(sorted(valid_types))}")
+    if job_type not in EXECUTORS:
+        raise HTTPException(status_code=400, detail=f"Invalid job type: {job_type}. Must be one of: {', '.join(sorted(EXECUTORS))}")
     priority = request.pop('priority', 0)
     job = job_queue.submit(job_type=job_type, params=request, priority=priority)
     return _job_to_response(job)
