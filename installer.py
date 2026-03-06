@@ -200,14 +200,33 @@ def uninstall(package, quiet = False):
     return res
 
 
-def run(cmd: str, arg: str):
-    result = subprocess.run(f'"{cmd}" {arg}', shell=True, check=False, env=os.environ, capture_output=True)
-    txt = result.stdout.decode(encoding="utf8", errors="ignore")
-    if len(result.stderr) > 0:
-        txt += ('\n' if len(txt) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
-    txt = txt.strip()
-    debug(f'Exec {cmd}: {txt}')
-    return txt
+def sub_run(cmd: str, *args: str, **kwargs):
+    """Run command and arguments with `subprocess.run`.
+
+    Default run options are `shell=True, check=False, env=os.environ`.
+
+    Args:
+        cmd (str): Main command to run.
+        *args (str): Additional command arguments.
+        **kwargs: `subprocess.run` option overrides.
+
+    Returns:
+        tuple[CompletedProcess[str], str]: Tuple with the results and the combined `stdout` and `stderr` values.
+    """
+    options = {
+        "shell": True,
+        "check": False,
+        "env": os.environ,
+    }
+    options |= kwargs  # Override defaults with passed kwargs
+    result = subprocess.run(f'"{cmd}" {" ".join(args)}', **options, capture_output=True, text=True)
+    result.stdout = result.stdout.strip()
+    result.stderr = result.stderr.strip()
+    txt = result.stdout
+    if result.stderr:
+        # Put newline between outputs only if stdout isn't empty
+        txt += "\n" + result.stderr if txt else result.stderr
+    return result, txt
 
 
 def cleanup_broken_packages():
