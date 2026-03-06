@@ -7,15 +7,18 @@ interface WsEvents {
   open: () => void;
   close: (event: CloseEvent) => void;
   error: (event: Event) => void;
+  max_retries: () => void;
 }
 
 export class WebSocketManager {
   private ws: WebSocket | null = null;
   private url: string;
   private reconnectAttempts = 0;
+  private maxReconnectAttempts = 10;
   private reconnectDelay = 1000;
   private maxReconnectDelay = 30_000;
   private shouldReconnect = true;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Map<keyof WsEvents, Set<(...args: never[]) => void>>();
 
   constructor(url: string) {
@@ -23,7 +26,7 @@ export class WebSocketManager {
   }
 
   connect(): void {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
 
     this.ws = new WebSocket(this.url);
     this.ws.binaryType = "arraybuffer";
@@ -53,10 +56,22 @@ export class WebSocketManager {
       if (event.code === 1008) {
         this.shouldReconnect = false;
       }
+      // Don't retry on custom application close codes (e.g. 4004 "Job not found")
+      if (event.code >= 4000 && event.code < 5000) {
+        this.shouldReconnect = false;
+      }
       if (this.shouldReconnect) {
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+          this.shouldReconnect = false;
+          this.emit("max_retries");
+          return;
+        }
         const delay = Math.min(this.reconnectDelay * Math.pow(2, this.reconnectAttempts), this.maxReconnectDelay);
         this.reconnectAttempts++;
-        setTimeout(() => this.connect(), delay);
+        this.reconnectTimer = setTimeout(() => {
+          this.reconnectTimer = null;
+          if (this.shouldReconnect) this.connect();
+        }, delay);
       }
     };
 
@@ -67,6 +82,10 @@ export class WebSocketManager {
 
   disconnect(): void {
     this.shouldReconnect = false;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
     this.ws?.close();
     this.ws = null;
   }
