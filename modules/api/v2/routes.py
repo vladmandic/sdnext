@@ -122,6 +122,11 @@ def _serve_job_file(job: dict, key: str, index: int):
         raise HTTPException(status_code=404, detail=f"{key} index {index} out of range")
     if not os.path.isfile(file_path):
         raise HTTPException(status_code=404, detail="File not found on disk")
+    from modules import shared
+    from modules.api.security import is_confined_to
+    allowed = [r for r in [getattr(shared.opts, 'outdir_samples', None), getattr(shared.opts, 'outdir_grids', None), getattr(shared.opts, 'outdir_video', None)] if r]
+    if allowed and not is_confined_to(file_path, allowed):
+        raise HTTPException(status_code=403, detail="Access denied")
     ext = os.path.splitext(file_path)[1].lstrip('.').lower()
     media_types = {'png': 'image/png', 'jpeg': 'image/jpeg', 'jpg': 'image/jpeg', 'webp': 'image/webp', 'jxl': 'image/jxl', 'mp4': 'video/mp4', 'webm': 'video/webm', 'gif': 'image/gif'}
     return FileResponse(file_path, media_type=media_types.get(ext, 'application/octet-stream'))

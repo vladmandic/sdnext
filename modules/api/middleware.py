@@ -1,4 +1,3 @@
-import ssl
 import time
 import logging
 from asyncio.exceptions import CancelledError
@@ -42,7 +41,6 @@ ignore_endpoints = [
 
 
 def setup_middleware(app: FastAPI, cmd_opts):
-    ssl._create_default_https_context = ssl._create_unverified_context # pylint: disable=protected-access
     uvicorn_logger=logging.getLogger("uvicorn.error")
     uvicorn_logger.disabled = True
     from fastapi.middleware.cors import CORSMiddleware
@@ -61,14 +59,21 @@ def setup_middleware(app: FastAPI, cmd_opts):
     else:
         app.add_middleware(CORSMiddleware, allow_origins=cors_origins, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
 
+    rate_limited_paths = {'/sdapi/v1/txt2img', '/sdapi/v1/img2img', '/sdapi/v1/control', '/sdapi/v2/jobs'}
+
     @app.middleware("http")
     async def log_and_time(req: Request, call_next):
         try:
             ts = time.time()
+            endpoint = req.scope.get('path', 'err')
+            if cmd_opts.listen and endpoint in rate_limited_paths and req.method == 'POST':
+                from modules.api.security import generation_limiter
+                client_ip = req.client.host if req.client else "unknown"
+                if not generation_limiter.is_allowed(client_ip):
+                    return JSONResponse(status_code=429, content={"error": "Rate limit exceeded"})
             res: Response = await call_next(req)
             duration = str(round(time.time() - ts, 4))
             res.headers["X-Process-Time"] = duration
-            endpoint = req.scope.get('path', 'err')
             token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
             if (cmd_opts.api_log) and endpoint.startswith('/sdapi'):
                 if any([endpoint.startswith(x) for x in ignore_endpoints]): # noqa C419 # pylint: disable=use-a-generator
