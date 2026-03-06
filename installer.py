@@ -1267,14 +1267,14 @@ def get_version(force=False):
         except Exception:
             pass
         try:
-            ver = sub_run('git log --pretty=format:"%h %ad" -1 --date=short', check=True)[0].stdout or '  '
+            ver = sub_run('git', 'log --pretty=format:"%h %ad" -1 --date=short', check=True)[0].stdout or '  '
             commit, updated = ver.split(' ')
             version['commit'], version['updated'] = commit, updated
         except Exception as e:
             log.warning(f'Version: where=commit {e}')
         try:
-            origin = sub_run('git remote get-url origin', check=True)[0].stdout
-            branch_name = sub_run('git rev-parse --abbrev-ref HEAD', check=True)[0].stdout
+            origin = sub_run('git', 'remote get-url origin', check=True)[0].stdout
+            branch_name = sub_run('git', 'rev-parse --abbrev-ref HEAD', check=True)[0].stdout
             version['url'] = origin.removesuffix('.git') + '/tree/' + branch_name
             version['branch'] = branch_name
             if version['branch'] == 'HEAD':
@@ -1283,7 +1283,7 @@ def get_version(force=False):
             log.warning(f'Version: where=branch {e}')
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
-                branch_ui = sub_run('git rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout
+                branch_ui = sub_run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout
                 version['ui'] = 'dev' if 'dev' in branch_ui else 'main'
             else:
                 version['ui'] = 'unavailable'
@@ -1294,7 +1294,7 @@ def get_version(force=False):
             if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
                 version['kanvas'] = 'disabled'
             elif os.path.exists('extensions-builtin/sdnext-kanvas'):
-                branch_kanvas = sub_run('git rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout
+                branch_kanvas = sub_run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout
                 version['kanvas'] = 'dev' if 'dev' in branch_kanvas else 'main'
             else:
                 version['kanvas'] = 'unavailable'
@@ -1483,7 +1483,7 @@ def get_state():
         def _get_commit(item):
             ext, ext_dir = item
             try:
-                return ext, sub_run('git rev-parse HEAD', cwd=ext_dir)[0].stdout
+                return ext, sub_run('git', 'rev-parse HEAD', cwd=ext_dir)[0].stdout
             except Exception:
                 return ext, ''
 
