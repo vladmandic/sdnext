@@ -26,6 +26,9 @@ def get_js(request: Request):
     ext = file.split('.')[-1]
     if ext not in ['js', 'css', 'map', 'html', 'wasm', 'ttf', 'mjs', 'json']:
         raise HTTPException(status_code=400, detail=f"invalid file extension: {ext}")
+    from modules.api.security import is_confined_to, get_js_allowed_roots
+    if not is_confined_to(file, get_js_allowed_roots()):
+        raise HTTPException(status_code=403, detail="Access denied")
     if not os.path.exists(file):
         log.error(f"API: file not found: {file}")
         raise HTTPException(status_code=404, detail=f"file not found: {file}")
