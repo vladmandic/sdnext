@@ -45,15 +45,41 @@ export function OutputLayer({ offsetX, placeholderWidth, placeholderHeight }: Ou
   // Use displaySrc (synchronous) alongside image state so clearing is immediate
   const hasImage = !!displaySrc && !!image;
   const isPreview = !!previewImage;
+
+  // Fit image inside the frame when aspect ratios differ (e.g. detailer preview
+  // at 1024x1024 on a 16:9 output frame).  Frame never changes shape.
+  let imgX = offsetX;
+  let imgY = 0;
+  let imgW = placeholderWidth;
+  let imgH = placeholderHeight;
+  if (isPreview && hasImage && image) {
+    const natW = image.naturalWidth;
+    const natH = image.naturalHeight;
+    const frameAR = placeholderWidth / placeholderHeight;
+    const imageAR = natW / natH;
+    // Only use fit mode when aspect ratios meaningfully differ (>1% tolerance)
+    if (Math.abs(frameAR - imageAR) / frameAR > 0.01) {
+      if (imageAR > frameAR) {
+        imgW = placeholderWidth;
+        imgH = placeholderWidth / imageAR;
+        imgY = (placeholderHeight - imgH) / 2;
+      } else {
+        imgH = placeholderHeight;
+        imgW = placeholderHeight * imageAR;
+        imgX = offsetX + (placeholderWidth - imgW) / 2;
+      }
+    }
+  }
+
   return (
     <Layer listening={false}>
       {hasImage && (
         <KonvaImage
           image={image}
-          x={offsetX}
-          y={0}
-          width={placeholderWidth}
-          height={placeholderHeight}
+          x={imgX}
+          y={imgY}
+          width={imgW}
+          height={imgH}
           opacity={isPreview ? 0.85 : 1}
         />
       )}
