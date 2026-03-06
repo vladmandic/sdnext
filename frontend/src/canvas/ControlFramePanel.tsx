@@ -16,6 +16,7 @@ import { contrastText, downloadImage, generateImageFilename, resolveImageSrc } f
 import { fileToBase64 } from "@/lib/image";
 import { toast } from "sonner";
 import { ELEMENT_GAP, PROCESSED_HEADER_HEIGHT, type CanvasLayout, type ControlFramePosition } from "./useControlFrameLayout";
+import { resolveOutputSize } from "@/lib/sizeCompute";
 
 export const HEADER_HEIGHT = 36;
 const DRAWER_MAX_HEIGHT = 420;
@@ -643,8 +644,15 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
   const labelScale = useUiStore((s) => s.canvasLabelScale);
   const units = useControlStore((s) => s.units);
 
+  const hiresEnabled = useGenerationStore((s) => s.hiresEnabled);
+  const hiresScale = useGenerationStore((s) => s.hiresScale);
+  const hiresResizeX = useGenerationStore((s) => s.hiresResizeX);
+  const hiresResizeY = useGenerationStore((s) => s.hiresResizeY);
+
   const { genSize, displayW } = layout;
   const genSizeText = `${genSize.width}\u00d7${genSize.height}`;
+  const outputSize = resolveOutputSize(genSize, hiresEnabled, hiresScale, hiresResizeX, hiresResizeY);
+  const outputSizeText = `${outputSize.width}\u00d7${outputSize.height}`;
 
   return (
     <>
@@ -699,7 +707,7 @@ export function ControlFramePanels({ layout, onPickImage, onClearImage, onClearA
         viewport={viewport}
         frameW={displayW}
         labelScale={labelScale}
-        sizeText={genSizeText}
+        sizeText={outputSizeText}
       />
 
       {layout.showProcessedFrame && (

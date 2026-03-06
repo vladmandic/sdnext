@@ -36,6 +36,32 @@ export function resolveGenerationSize(
   }
 }
 
+/** Compute final output size after hires fix (if enabled). */
+export function resolveOutputSize(
+  base: { width: number; height: number },
+  hiresEnabled: boolean,
+  hiresScale: number,
+  hiresResizeX: number,
+  hiresResizeY: number,
+): { width: number; height: number } {
+  if (!hiresEnabled) return base;
+  // Fixed dims: use explicit target
+  if (hiresResizeX > 0 || hiresResizeY > 0) {
+    return {
+      width: hiresResizeX || base.width,
+      height: hiresResizeY || base.height,
+    };
+  }
+  // Scale mode
+  if (hiresScale > 1) {
+    return {
+      width: Math.max(64, snapTo8(base.width * hiresScale)),
+      height: Math.max(64, snapTo8(base.height * hiresScale)),
+    };
+  }
+  return base;
+}
+
 export function containFit(w: number, h: number, boxW: number, boxH: number): { width: number; height: number } {
   if (w === 0 || h === 0) return { width: boxW, height: boxH };
   const scale = Math.min(boxW / w, boxH / h);
