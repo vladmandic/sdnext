@@ -97,10 +97,15 @@ export const ZOOM_LIMITS = { min: 0.1, max: 16 };
 
 export const RESIZE_MODES = ["None", "Fixed", "Crop", "Fill", "Outpaint", "Context aware"];
 
-/** Hires fix resize modes with numeric values for API */
-export const HIRES_RESIZE_MODES = [
-  { value: "0", label: "None" },
-  { value: "1", label: "Fixed" },
+/** Hires fix size modes (Scale uses hr_resize_x/y=0, Fixed uses explicit dims) */
+export const HIRES_SIZE_MODES = [
+  { value: "scale", label: "Scale" },
+  { value: "fixed", label: "Fixed" },
+] as const;
+
+/** Hires fix fit methods when using fixed dimensions (maps to hr_resize_mode) */
+export const HIRES_FIT_MODES = [
+  { value: "1", label: "Stretch" },
   { value: "2", label: "Crop" },
   { value: "3", label: "Fill" },
   { value: "4", label: "Outpaint" },

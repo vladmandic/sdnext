@@ -1,8 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useCallback } from "react";
 import { useGenerationStore } from "@/stores/generationStore";
 import { useShallow } from "zustand/react/shallow";
 import { useSamplerList, useUpscalerGroups } from "@/api/hooks/useModels";
-import { HIRES_RESIZE_MODES, HIRES_CONTEXT_MODES } from "@/lib/constants";
+import { HIRES_SIZE_MODES, HIRES_FIT_MODES, HIRES_CONTEXT_MODES } from "@/lib/constants";
 import { ParamSlider } from "../ParamSlider";
 import { ParamSection } from "../ParamSection";
 import { ParamRow, ParamGrid } from "../ParamRow";
@@ -13,9 +13,6 @@ import { Label } from "@/components/ui/label";
 import { NumberInput } from "@/components/ui/number-input";
 import { Textarea } from "@/components/ui/textarea";
 import { Combobox } from "@/components/ui/combobox";
-import { cn } from "@/lib/utils";
-
-type SizeMode = "scale" | "fixed";
 
 export function RefineTab() {
   const state = useGenerationStore(useShallow((s) => ({
@@ -39,11 +36,8 @@ export function RefineTab() {
   const upscalerGroups = useUpscalerGroups();
   const { data: samplers } = useSamplerList();
 
-  // Local state for size mode toggle (scale vs fixed)
-  const [sizeMode, setSizeMode] = useState<SizeMode>(() => {
-    // Initialize based on whether fixed dimensions are set
-    return state.hiresResizeX > 0 || state.hiresResizeY > 0 ? "fixed" : "scale";
-  });
+  // Derive size mode from store: fixed dims set = "fixed", otherwise "scale"
+  const sizeMode = state.hiresResizeX > 0 || state.hiresResizeY > 0 ? "fixed" : "scale";
 
   const set = useMemo(() => ({
     hiresEnabled: (checked: boolean) => setParam("hiresEnabled", checked),
@@ -63,7 +57,24 @@ export function RefineTab() {
     refinerNegative: (e: React.ChangeEvent<HTMLTextAreaElement>) => setParam("refinerNegative", e.target.value),
   }), [setParam]);
 
-  // Context dropdown only for mode 5 (Context aware)
+  const handleSizeMode = useCallback((v: string) => {
+    if (v === "scale") {
+      // Zero out fixed dims so backend uses scale multiplier
+      setParam("hiresResizeX", 0);
+      setParam("hiresResizeY", 0);
+      setParam("hiresResizeMode", 0);
+    } else {
+      // Switch to fixed: seed dims from base resolution × scale
+      const s = useGenerationStore.getState();
+      const scale = s.hiresScale > 1 ? s.hiresScale : 2;
+      setParam("hiresResizeX", Math.round(s.width * scale / 8) * 8);
+      setParam("hiresResizeY", Math.round(s.height * scale / 8) * 8);
+      if (s.hiresResizeMode === 0) {
+        setParam("hiresResizeMode", 2); // default to Crop
+      }
+    }
+  }, [setParam]);
+
   const showContextDropdown = state.hiresResizeMode === 5;
 
   return (
@@ -80,101 +91,72 @@ export function RefineTab() {
 
         <div className={state.hiresEnabled ? "" : "opacity-40 pointer-events-none"}>
           <div className="flex flex-col gap-2">
-            <ParamGrid>
-              <ParamRow label="Mode" tooltip={getParamHelp("resize mode")}>
-                <Combobox
-                  value={String(state.hiresResizeMode)}
-                  onValueChange={set.hiresResizeMode}
-                  options={HIRES_RESIZE_MODES}
-                  className="h-6 text-2xs"
-                  disabled={!state.hiresEnabled}
-                />
-              </ParamRow>
-              <ParamRow label="Upscaler">
-                <Combobox
-                  value={state.hiresUpscaler}
-                  onValueChange={set.hiresUpscaler}
-                  groups={upscalerGroups}
-                  className="h-6 text-2xs"
-                  disabled={!state.hiresEnabled}
-                />
-              </ParamRow>
-            </ParamGrid>
+            <ParamRow label="Upscaler">
+              <Combobox
+                value={state.hiresUpscaler}
+                onValueChange={set.hiresUpscaler}
+                groups={upscalerGroups}
+                className="h-6 text-2xs"
+                disabled={!state.hiresEnabled}
+              />
+            </ParamRow>
 
-            {showContextDropdown && (
-              <ParamRow label="Context">
-                <Combobox
-                  value={state.hiresResizeContext}
-                  onValueChange={set.hiresResizeContext}
-                  options={HIRES_CONTEXT_MODES}
-                  className="h-6 text-2xs"
-                  disabled={!state.hiresEnabled}
-                />
-              </ParamRow>
-            )}
+            <ParamRow label="Size" tooltip={getParamHelp("hires size")}>
+              <Combobox
+                value={sizeMode}
+                onValueChange={handleSizeMode}
+                options={HIRES_SIZE_MODES}
+                className="h-6 text-2xs"
+                disabled={!state.hiresEnabled}
+              />
+            </ParamRow>
 
-            {/* Size controls */}
-            {state.hiresResizeMode === 0 ? (
+            {sizeMode === "scale" ? (
               <ParamSlider label="Scale" value={state.hiresScale} onChange={set.hiresScale} min={1} max={4} step={0.1} disabled={!state.hiresEnabled} />
             ) : (
-              <div className="flex flex-col gap-2">
-                <ParamRow label="Size">
-                  <div className="flex h-6 rounded-md border border-border overflow-hidden w-fit">
-                    <button
-                      type="button"
+              <>
+                <ParamRow label="Dims">
+                  <div className="flex items-center gap-2">
+                    <NumberInput
+                      value={state.hiresResizeX}
+                      onChange={set.hiresResizeX}
+                      placeholder="Width"
+                      step={8} min={0} max={8192} fallback={0}
                       disabled={!state.hiresEnabled}
-                      onClick={() => setSizeMode("scale")}
-                      className={cn(
-                        "px-3 text-3xs font-medium transition-colors disabled:cursor-not-allowed",
-                        sizeMode === "scale"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                      )}
-                    >
-                      Scale
-                    </button>
-                    <button
-                      type="button"
+                      className="flex-1 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    <span className="text-3xs text-muted-foreground">x</span>
+                    <NumberInput
+                      value={state.hiresResizeY}
+                      onChange={set.hiresResizeY}
+                      placeholder="Height"
+                      step={8} min={0} max={8192} fallback={0}
                       disabled={!state.hiresEnabled}
-                      onClick={() => setSizeMode("fixed")}
-                      className={cn(
-                        "px-3 text-3xs font-medium transition-colors border-l border-border disabled:cursor-not-allowed",
-                        sizeMode === "fixed"
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-muted/50 text-muted-foreground hover:bg-muted"
-                      )}
-                    >
-                      Fixed
-                    </button>
+                      className="flex-1 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
                   </div>
                 </ParamRow>
-
-                {sizeMode === "scale" ? (
-                  <ParamSlider label="Scale" value={state.hiresScale} onChange={set.hiresScale} min={1} max={4} step={0.1} disabled={!state.hiresEnabled} />
-                ) : (
-                  <ParamRow label="Dims">
-                    <div className="flex items-center gap-2">
-                      <NumberInput
-                        value={state.hiresResizeX}
-                        onChange={set.hiresResizeX}
-                        placeholder="Width"
-                        step={8} min={0} max={8192} fallback={0}
-                        disabled={!state.hiresEnabled}
-                        className="flex-1 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      <span className="text-3xs text-muted-foreground">x</span>
-                      <NumberInput
-                        value={state.hiresResizeY}
-                        onChange={set.hiresResizeY}
-                        placeholder="Height"
-                        step={8} min={0} max={8192} fallback={0}
-                        disabled={!state.hiresEnabled}
-                        className="flex-1 h-6 text-2xs text-center px-1 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </div>
+                <ParamRow label="Fit" tooltip={getParamHelp("hires fit")}>
+                  <Combobox
+                    value={String(state.hiresResizeMode)}
+                    onValueChange={set.hiresResizeMode}
+                    options={HIRES_FIT_MODES}
+                    className="h-6 text-2xs"
+                    disabled={!state.hiresEnabled}
+                  />
+                </ParamRow>
+                {showContextDropdown && (
+                  <ParamRow label="Context">
+                    <Combobox
+                      value={state.hiresResizeContext}
+                      onValueChange={set.hiresResizeContext}
+                      options={HIRES_CONTEXT_MODES}
+                      className="h-6 text-2xs"
+                      disabled={!state.hiresEnabled}
+                    />
                   </ParamRow>
                 )}
-              </div>
+              </>
             )}
 
             <ParamRow label="Sampler">
