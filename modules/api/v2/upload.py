@@ -127,6 +127,23 @@ MAX_FILES_PER_REQUEST = 20
 upload_router = APIRouter(prefix="/sdapi/v2", tags=["Upload"])
 
 
+IMAGE_SIGNATURES = {
+    b'\x89PNG': 'image/png',
+    b'\xff\xd8\xff': 'image/jpeg',
+    b'RIFF': 'image/webp',
+    b'GIF8': 'image/gif',
+}
+
+
+def _detect_image_type(data: bytes) -> str | None:
+    for sig, mime in IMAGE_SIGNATURES.items():
+        if data[:len(sig)] == sig:
+            if sig == b'RIFF' and data[8:12] != b'WEBP':
+                continue
+            return mime
+    return None
+
+
 @upload_router.post("/upload", response_model=UploadResponse)
 async def upload_files(files: list[UploadFile]):
     store = get_upload_store()
@@ -135,10 +152,19 @@ async def upload_files(files: list[UploadFile]):
         raise HTTPException(status_code=400, detail=f"Maximum {MAX_FILES_PER_REQUEST} files per request")
     refs: list[UploadRef] = []
     for f in files:
-        data = await f.read()
-        if len(data) > MAX_FILE_SIZE:
-            raise HTTPException(status_code=400, detail=f"File '{f.filename}' exceeds {MAX_FILE_SIZE // (1024*1024)}MB limit")
-        entry = store.store(data, f.filename or "upload.png", f.content_type or "image/png")
+        chunks = []
+        total_read = 0
+        while True:
+            chunk = await f.read(64 * 1024)
+            if not chunk:
+                break
+            total_read += len(chunk)
+            if total_read > MAX_FILE_SIZE:
+                raise HTTPException(status_code=400, detail=f"File '{f.filename}' exceeds {MAX_FILE_SIZE // (1024*1024)}MB limit")
+            chunks.append(chunk)
+        data = b"".join(chunks)
+        content_type = _detect_image_type(data) or f.content_type or "application/octet-stream"
+        entry = store.store(data, f.filename or "upload.png", content_type)
         refs.append(UploadRef(
             ref=f"upload:{entry.ref_id}",
             name=entry.name,
