@@ -1275,8 +1275,8 @@ def get_version(force=False):
         try:
             origin = sub_run('git remote get-url origin', check=True)[0].stdout
             branch_name = sub_run('git rev-parse --abbrev-ref HEAD', check=True)[0].stdout
-            version['url'] = origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', '')
-            version['branch'] = branch_name.replace('\n', '')
+            version['url'] = origin.removesuffix('.git') + '/tree/' + branch_name
+            version['branch'] = branch_name
             if version['branch'] == 'HEAD':
                 log.warning('Version: detached state detected')
         except Exception as e:
