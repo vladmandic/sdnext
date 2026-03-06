@@ -123,6 +123,7 @@ def get_me(token: str = None):
 def post_download(request: dict):
     """Queue a download. Returns the download item with its ID."""
     from modules.civitai.download_civitai import download_manager
+    from modules.api.security import validate_download_url, is_confined_to
     url = request.get('url', '')
     filename = request.get('filename', '')
     folder = request.get('folder', '')
@@ -138,6 +139,7 @@ def post_download(request: dict):
     nsfw = request.get('nsfw', False)
     if not url:
         return JSONResponse(content={"error": "url is required"}, status_code=400)
+    validate_download_url(url)
     if not folder:
         from modules.civitai.filemanage_civitai import resolve_save_path
         folder = str(resolve_save_path(
@@ -148,6 +150,9 @@ def post_download(request: dict):
     elif not os.path.isabs(folder):
         from modules import paths
         folder = os.path.join(paths.models_path, folder)
+    from modules import paths as _paths
+    if not is_confined_to(folder, [_paths.models_path]):
+        return JSONResponse(content={"error": "path outside models directory"}, status_code=400)
     item = download_manager.enqueue(
         url=url,
         folder=folder,

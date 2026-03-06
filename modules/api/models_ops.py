@@ -161,8 +161,10 @@ def post_civitai_download(url: str, name: str = "", path: str = "", model_type: 
     """
     from modules.civitai.download_civitai import download_manager
     from modules.civitai.filemanage_civitai import get_type_folder
+    from modules.api.security import validate_download_url, is_confined_to
     if not url:
         return {"status": "Error: no url provided"}
+    validate_download_url(url)
     if not path:
         folder = str(get_type_folder(model_type or 'Checkpoint'))
     elif os.path.isabs(path):
@@ -170,6 +172,9 @@ def post_civitai_download(url: str, name: str = "", path: str = "", model_type: 
     else:
         from modules import paths
         folder = os.path.join(paths.models_path, path)
+    from modules import paths
+    if not is_confined_to(folder, [paths.models_path]):
+        return {"status": "Error: path outside models directory"}
     item = download_manager.enqueue(
         url=url,
         folder=folder,
