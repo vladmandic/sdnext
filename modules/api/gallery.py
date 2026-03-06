@@ -381,10 +381,19 @@ def register_api(app: FastAPI): # register api
 
     @app.websocket("/sdapi/v2/browser/files")
     async def ws_files(ws: WebSocket):
+        if shared.cmd_opts.auth or shared.cmd_opts.auth_file:
+            from modules.api.security import ws_tickets
+            ticket = ws.query_params.get("ticket")
+            if not ticket or not ws_tickets.validate(ticket):
+                await ws.close(code=1008, reason="Invalid or expired ticket")
+                return
         try:
             await manager.connect(ws)
             folder = await ws.receive_text()
             folder = unquote(folder).replace('%3A', ':')
+            if not is_allowed_path(folder):
+                await ws.close(code=1008, reason="Path not allowed")
+                return
             t0 = time.time()
             numFiles = 0
             files = files_cache.list_files(folder, recursive=True)

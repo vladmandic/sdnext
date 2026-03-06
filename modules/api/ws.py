@@ -116,6 +116,13 @@ async def handle_command(ws: WebSocket, data: dict):
 
 
 async def ws_endpoint(ws: WebSocket):
+    from modules import shared
+    if shared.cmd_opts.auth or shared.cmd_opts.auth_file:
+        from modules.api.security import ws_tickets
+        ticket = ws.query_params.get("ticket")
+        if not ticket or not ws_tickets.validate(ticket):
+            await ws.close(code=1008, reason="Invalid or expired ticket")
+            return
     await manager.connect(ws)
     push_task = None
     try:

@@ -2,7 +2,7 @@ import { api } from "./client";
 import { WebSocketManager } from "./websocket";
 
 /** Module-level WebSocket singleton: connect once, survive component mount/unmount cycles */
-export const ws = new WebSocketManager(api.getWebSocketUrl("/sdapi/v2/ws"));
+export const ws = new WebSocketManager(api.getWebSocketUrl("/sdapi/v2/ws"), () => api.getWsTicket());
 
 let wsConnected = false;
 let wsStarted = false;

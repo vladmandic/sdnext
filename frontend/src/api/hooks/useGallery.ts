@@ -128,13 +128,23 @@ interface StreamResult {
  * Returns a promise that resolves with the file list when #END# is received.
  * If `onFile` is provided, it is called for each file as they arrive (for progress).
  */
-function streamFiles(
+async function getWsUrlWithTicket(basePath: string): Promise<string> {
+  const wsUrl = api.getWebSocketUrl(basePath);
+  try {
+    const ticket = await api.getWsTicket();
+    return `${wsUrl}?ticket=${ticket}`;
+  } catch {
+    return wsUrl;
+  }
+}
+
+async function streamFiles(
   folder: string,
   signal: AbortSignal,
   onFile?: (file: GalleryFile) => void,
 ): Promise<StreamResult> {
+  const wsUrl = await getWsUrlWithTicket("/sdapi/v2/browser/files");
   return new Promise((resolve, reject) => {
-    const wsUrl = api.getWebSocketUrl("/sdapi/v2/browser/files");
     const ws = new WebSocket(wsUrl);
     const allFiles: GalleryFile[] = [];
 
@@ -243,7 +253,7 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
     }, FILE_BATCH_INTERVAL);
   };
 
-  const wsUrl = api.getWebSocketUrl("/sdapi/v2/browser/files");
+  getWsUrlWithTicket("/sdapi/v2/browser/files").then((wsUrl) => {
   const ws = new WebSocket(wsUrl);
 
   const cleanupWs = () => {
@@ -322,6 +332,7 @@ function startFileStream(folder: string, ac: AbortController, hasChildSeed: bool
     flush();
     useGalleryStore.getState().setLoadingFiles(false);
   };
+  });
 }
 
 // ---------------------------------------------------------------------------

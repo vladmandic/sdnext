@@ -115,6 +115,12 @@ class Api:
         from modules.api import loras
         loras.register_api()
 
+        # websocket ticket api
+        from modules.api.security import ws_tickets
+        def post_ws_ticket():
+            return {"ticket": ws_tickets.create()}
+        self.add_api_route("/sdapi/v2/ws-ticket", post_ws_ticket, methods=["POST"], tags=["WebSocket"])
+
         # websocket api
         from modules.api import ws
         ws.register_ws(self.app)

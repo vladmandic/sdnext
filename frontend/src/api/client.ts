@@ -127,6 +127,11 @@ export class ApiClient {
     const host = this.baseUrl.replace(/^https?:\/\//, "");
     return `${wsProto}://${host}${path}`;
   }
+
+  async getWsTicket(): Promise<string> {
+    const resp = await this.post<{ ticket: string }>("/sdapi/v2/ws-ticket");
+    return resp.ticket;
+  }
 }
 
 export const api = new ApiClient();

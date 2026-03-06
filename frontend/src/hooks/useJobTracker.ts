@@ -116,7 +116,7 @@ export function useJobTracker() {
 
       for (const job of toOpen) {
         const wsUrl = api.getWebSocketUrl(`/sdapi/v2/jobs/${job.id}/ws`);
-        const manager = new WebSocketManager(wsUrl);
+        const manager = new WebSocketManager(wsUrl, () => api.getWsTicket());
         const jobId = job.id;
 
         const offMessage = manager.on("message", (raw: unknown) => {

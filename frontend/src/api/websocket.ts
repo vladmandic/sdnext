@@ -13,6 +13,7 @@ interface WsEvents {
 export class WebSocketManager {
   private ws: WebSocket | null = null;
   private url: string;
+  private ticketFn: (() => Promise<string>) | null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 10;
   private reconnectDelay = 1000;
@@ -21,14 +22,27 @@ export class WebSocketManager {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private listeners = new Map<keyof WsEvents, Set<(...args: never[]) => void>>();
 
-  constructor(url: string) {
+  constructor(url: string, ticketFn?: () => Promise<string>) {
     this.url = url;
+    this.ticketFn = ticketFn ?? null;
   }
 
   connect(): void {
     if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
 
-    this.ws = new WebSocket(this.url);
+    if (this.ticketFn) {
+      this.ticketFn()
+        .then((ticket) => this.openSocket(`${this.url}${this.url.includes("?") ? "&" : "?"}ticket=${ticket}`))
+        .catch(() => this.openSocket(this.url));
+    } else {
+      this.openSocket(this.url);
+    }
+  }
+
+  private openSocket(url: string): void {
+    if (this.ws?.readyState === WebSocket.OPEN || this.ws?.readyState === WebSocket.CONNECTING) return;
+
+    this.ws = new WebSocket(url);
     this.ws.binaryType = "arraybuffer";
 
     this.ws.onopen = () => {
