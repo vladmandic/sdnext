@@ -10,7 +10,6 @@ import { sendToJob } from "@/hooks/useJobTracker";
 import { useCancelJob } from "@/api/hooks/useJobs";
 import { Play, Square, SkipForward, History, FileSearch, ChevronDown, Layers, Grid3X3 } from "lucide-react";
 import { ProgressRing } from "@/components/ui/progress-ring";
-import { formatDuration } from "@/lib/utils";
 import { useState, useCallback, useMemo, memo } from "react";
 import { toast } from "sonner";
 import { useShortcut } from "@/hooks/useShortcut";
@@ -79,7 +78,6 @@ export const ActionBar = memo(function ActionBar() {
   }, [lastResult]);
 
   const progressPct = Math.round(progress * 100);
-  const eta = runningJob?.domain === "generate" ? runningJob.eta ?? 0 : 0;
   const phase = runningJob?.domain === "generate" ? runningJob.task : "";
   const phaseLabel = phase || "Generating";
 
@@ -188,14 +186,6 @@ export const ActionBar = memo(function ActionBar() {
         </Button>
       )}
 
-      {/* Progress indicator */}
-      {isGenerating && (
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground tabular-nums">
-          <ProgressRing progress={progress} size={16} strokeWidth={2} />
-          {progressPct > 0 && <span>{progressPct}%</span>}
-          {eta > 0 && <span className="text-3xs text-muted-foreground/70">~{formatDuration(eta)}</span>}
-        </div>
-      )}
     </div>
   );
 });
