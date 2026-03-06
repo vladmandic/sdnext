@@ -81,6 +81,7 @@ export async function buildControlRequest(): Promise<BuildResult> {
     hdr_max_boundary: gen.hdrMaxBoundary,
     hdr_color_picker: gen.hdrColorPicker,
     hdr_tint_ratio: gen.hdrTintRatio,
+    hdr_apply_hires: gen.hdrApplyHires,
     grading_brightness: gen.gradingBrightness,
     grading_contrast: gen.gradingContrast,
     grading_saturation: gen.gradingSaturation,
@@ -447,6 +448,7 @@ export function extractParamsFromResult(result: GenerationResult): Partial<Gener
     hdrMaxBoundary: num(p.hdr_max_boundary, 1.0),
     hdrColorPicker: str(p.hdr_color_picker, "#000000"),
     hdrTintRatio: num(p.hdr_tint_ratio, 0),
+    hdrApplyHires: p.hdr_apply_hires !== false,
 
     // Color grading
     gradingBrightness: num(p.grading_brightness, 0),

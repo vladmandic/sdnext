@@ -152,6 +152,7 @@ export interface GenerationState {
   hdrMaxBoundary: number;
   hdrColorPicker: string;
   hdrTintRatio: number;
+  hdrApplyHires: boolean;
 
   // Color Grading
   gradingBrightness: number;
@@ -301,6 +302,7 @@ const defaultParams = {
   hdrMaxBoundary: 1.0,
   hdrColorPicker: "#000000",
   hdrTintRatio: 0,
+  hdrApplyHires: true,
   gradingBrightness: 0,
   gradingContrast: 0,
   gradingSaturation: 0,

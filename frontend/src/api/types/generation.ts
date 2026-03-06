@@ -66,6 +66,7 @@ export interface ControlRequest {
   hdr_max_boundary?: number;
   hdr_color_picker?: string;
   hdr_tint_ratio?: number;
+  hdr_apply_hires?: boolean;
   grading_brightness?: number;
   grading_contrast?: number;
   grading_saturation?: number;

@@ -126,6 +126,7 @@ class StableDiffusionProcessing:
                  hdr_max_boundary: float = 1.0,
                  hdr_color_picker: str = "#000000",
                  hdr_tint_ratio: float = 0,
+                 hdr_apply_hires: bool = True,
                  # color grading (pixel-space post-processing)
                  grading_brightness: float = 0.0,
                  grading_contrast: float = 0.0,
@@ -593,6 +594,7 @@ class StableDiffusionProcessing:
         self.hdr_max_boundary=hdr_max_boundary
         self.hdr_color_picker=hdr_color_picker
         self.hdr_tint_ratio=hdr_tint_ratio
+        self.hdr_apply_hires=hdr_apply_hires
 
         # globals
         self.embedder = None

@@ -85,14 +85,17 @@ def correction(p, timestep, latent):
         latent = soft_clamp_tensor(latent, threshold=p.hdr_threshold, boundary=p.hdr_boundary)
         p.extra_generation_params["Latent clamp"] = f'{p.hdr_threshold}/{p.hdr_boundary}'
     if 600 < timestep < 900 and p.hdr_color != 0:
-        latent[1:] = center_tensor(latent[1:], channel_shift=p.hdr_color, full_shift=float(p.hdr_mode))
+        n = getattr(p, '_correction_steps_mid', 1)
+        latent[1:] = center_tensor(latent[1:], channel_shift=p.hdr_color / n, full_shift=float(p.hdr_mode))
         p.extra_generation_params["Latent color"] = f'{p.hdr_color}'
     if 600 < timestep < 900 and p.hdr_tint_ratio != 0:
-        latent = color_adjust(latent, p.hdr_color_picker, p.hdr_tint_ratio)
+        n = getattr(p, '_correction_steps_mid', 1)
+        latent = color_adjust(latent, p.hdr_color_picker, p.hdr_tint_ratio / n)
         p.extra_generation_params["Latent tint"] = f'{p.hdr_tint_ratio}'
         p.extra_generation_params["Latent tint color"] = p.hdr_color_picker
     if timestep < 200 and (p.hdr_brightness != 0):
-        latent[0:1] = center_tensor(latent[0:1], full_shift=float(p.hdr_mode), offset=p.hdr_brightness)
+        n = getattr(p, '_correction_steps_late', 1)
+        latent[0:1] = center_tensor(latent[0:1], full_shift=float(p.hdr_mode), offset=p.hdr_brightness / n)
         p.extra_generation_params["Latent brightness"] = f'{p.hdr_brightness}'
     if timestep < 350 and p.hdr_sharpen != 0:
         per_step_ratio = 2 ** (timestep / 250) * p.hdr_sharpen / 16
@@ -155,14 +158,42 @@ def _repack_latents(latents, pack_type, pipe, p):
     return latents
 
 
+def _count_steps_in_range(pipe, low, high):
+    """Count scheduler timesteps that fall within (low, high) exclusive."""
+    timesteps = getattr(getattr(pipe, 'scheduler', None), 'timesteps', None)
+    if timesteps is None:
+        return 1
+    count = sum(1 for t in timesteps.tolist() if low < t < high)
+    return max(count, 1)
+
+
+def _count_steps_below(pipe, threshold):
+    """Count scheduler timesteps below a threshold."""
+    timesteps = getattr(getattr(pipe, 'scheduler', None), 'timesteps', None)
+    if timesteps is None:
+        return 1
+    count = sum(1 for t in timesteps.tolist() if t < threshold)
+    return max(count, 1)
+
+
 def correction_callback(p, timestep, kwargs, pipe=None, initial: bool = False):
     if initial:
         if not any([p.hdr_clamp, p.hdr_mode, p.hdr_maximize, p.hdr_sharpen, p.hdr_color, p.hdr_brightness, p.hdr_tint_ratio]):
             p._correction_skip = True
             return kwargs
-        else:
-            p._correction_skip = False
-            p._correction_warned = False
+        # always skip for detailer passes (already-corrected image, different resolution)
+        if getattr(p, 'recursion', False):
+            p._correction_skip = True
+            return kwargs
+        # optionally skip for hires pass
+        if getattr(p, 'is_hr_pass', False) and not getattr(p, 'hdr_apply_hires', True):
+            p._correction_skip = True
+            return kwargs
+        p._correction_skip = False
+        p._correction_warned = False
+        if pipe is not None:
+            p._correction_steps_mid = _count_steps_in_range(pipe, 600, 900)
+            p._correction_steps_late = _count_steps_below(pipe, 200)
     elif getattr(p, '_correction_skip', False):
         return kwargs
     latents = kwargs["latents"]

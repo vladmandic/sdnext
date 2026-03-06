@@ -29,6 +29,7 @@ export function ColorTab() {
     hdrMaxBoundary: s.hdrMaxBoundary,
     hdrColorPicker: s.hdrColorPicker,
     hdrTintRatio: s.hdrTintRatio,
+    hdrApplyHires: s.hdrApplyHires,
     gradingBrightness: s.gradingBrightness,
     gradingContrast: s.gradingContrast,
     gradingSaturation: s.gradingSaturation,
@@ -66,6 +67,7 @@ export function ColorTab() {
     hdrMaxBoundary: (v: number) => setParam("hdrMaxBoundary", v),
     hdrColorPicker: (v: string) => setParam("hdrColorPicker", v),
     hdrTintRatio: (v: number) => setParam("hdrTintRatio", v),
+    hdrApplyHires: (checked: boolean) => setParam("hdrApplyHires", checked),
     gradingBrightness: (v: number) => setParam("gradingBrightness", v),
     gradingContrast: (v: number) => setParam("gradingContrast", v),
     gradingSaturation: (v: number) => setParam("gradingSaturation", v),
@@ -133,8 +135,8 @@ export function ColorTab() {
         </div>
 
         <ParamGrid>
-          <ParamSlider label="Brightness" value={state.hdrBrightness} onChange={set.hdrBrightness} min={-1} max={1} step={0.1} tooltip={getParamHelp("latent brightness")} />
-          <ParamSlider label="Sharpen" value={state.hdrSharpen} onChange={set.hdrSharpen} min={-1} max={1} step={0.1} tooltip={getParamHelp("latent sharpen")} />
+          <ParamSlider label="Brightness" value={state.hdrBrightness} onChange={set.hdrBrightness} min={-1} max={1} step={0.05} tooltip={getParamHelp("latent brightness")} />
+          <ParamSlider label="Sharpen" value={state.hdrSharpen} onChange={set.hdrSharpen} min={-1} max={1} step={0.05} tooltip={getParamHelp("latent sharpen")} />
         </ParamGrid>
         <ParamSlider label="Color" value={state.hdrColor} onChange={set.hdrColor} min={0} max={4} step={0.1} tooltip={getParamHelp("latent color")} />
 
@@ -158,6 +160,11 @@ export function ColorTab() {
 
         <ColorPicker label="Tint color" value={state.hdrColorPicker} onChange={set.hdrColorPicker} />
         <ParamSlider label="Tint strength" value={state.hdrTintRatio} onChange={set.hdrTintRatio} min={-1} max={1} step={0.05} />
+
+        <div className="flex items-center gap-2">
+          <ParamLabel className="text-2xs text-muted-foreground w-16 flex-shrink-0" tooltip={getParamHelp("apply to hires")}>Apply to hires</ParamLabel>
+          <Switch checked={state.hdrApplyHires} onCheckedChange={set.hdrApplyHires} />
+        </div>
       </ParamSection>
 
       <ParamSection title="Basic" defaultOpen={false}>
