@@ -31,8 +31,8 @@ def dirname(path_: str, r: int = 1) -> str:
 
 
 def spawn(command: str | list[str], cwd: os.PathLike = '.') -> str:
-    process = subprocess.run(command, cwd=cwd, shell=True, check=False, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    return process.stdout.decode(encoding="utf8", errors="ignore")
+    process = subprocess.run(command, cwd=cwd, shell=True, check=False, capture_output=True, text=True)
+    return process.stdout
 
 
 def load_library_global(path_: str):
