@@ -6,7 +6,7 @@ import ctypes
 import shutil
 import zipfile
 import urllib.request
-from installer import arguments
+from installer import args
 from modules.logger import log
 from modules import rocm
 
@@ -82,8 +82,8 @@ def install():
     commit = os.environ.get("ZLUDA_HASH", "5e717459179dc272b7d7d23391f0fad66c7459cf")
     if os.environ.get("ZLUDA_NIGHTLY", "0") == "1":
         log.warning("Environment variable 'ZLUDA_NIGHTLY' will be removed. Please use command-line argument '--use-nightly' instead.")
-        arguments.use_nightly = True
-    if arguments.use_nightly:
+        args.use_nightly = True
+    if args.use_nightly:
         platform = "nightly-" + platform
     log.debug(f'Install ZLUDA: rocm={rocm.version} platform={platform} commit={commit}')
     ssl._create_default_https_context = ssl._create_unverified_context # pylint: disable=protected-access

@@ -233,7 +233,7 @@ def start_server(immediate=True, server=None):
 def main():
     global args # pylint: disable=global-statement
     init_args() # setup argparser and default folders
-    installer.arguments = args
+    installer.args = args
     installer.setup_logging(debug=args.debug, trace=args.trace, filename=args.log)
     log.info('Starting SD.Next')
     installer.get_logfile()

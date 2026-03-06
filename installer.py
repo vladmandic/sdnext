@@ -40,7 +40,7 @@ first_call = True
 quick_allowed = True
 errors = []
 opts = {}
-arguments = Dot({
+args = Dot({
     'debug': False,
     'reset': False,
     'profile': False,
@@ -89,7 +89,7 @@ except Exception:
 @lru_cache
 def get_logfile():
     log_size = os.path.getsize(log_file) if os.path.exists(log_file) else 0
-    log.info(f'Logger: file="{os.path.abspath(log_file)}" level={logging.getLevelName(logging.DEBUG if arguments.debug else logging.INFO)} host="{hostname}" size={log_size} mode={"append" if not log_rolled else "create"}')
+    log.info(f'Logger: file="{os.path.abspath(log_file)}" level={logging.getLevelName(logging.DEBUG if args.debug else logging.INFO)} host="{hostname}" size={log_size} mode={"append" if not log_rolled else "create"}')
     return log_file
 
 
@@ -169,13 +169,13 @@ def installed(package, friendly: str = None, quiet = False): # pylint: disable=r
                 if len(p) > 1:
                     exact = pkg_version == p[1]
                     if not exact and not quiet:
-                        if arguments.experimental:
+                        if args.experimental:
                             log.warning(f'Install: package="{p[0]}" installed={pkg_version} required={p[1]} allowing experimental')
                         else:
                             log.warning(f'Install: package="{p[0]}" installed={pkg_version} required={p[1]} version mismatch')
                             global restart_required # pylint: disable=global-statement
                             restart_required = True
-                    ok = ok and (exact or arguments.experimental)
+                    ok = ok and (exact or args.experimental)
             else:
                 if not quiet:
                     log.debug(f'Install: package="{p[0]}" install required')
@@ -257,7 +257,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
         log.warning('Offline mode enabled')
         return 'offline'
     package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
-    uv = uv and arguments.uv and not package.startswith('git+')
+    uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
     if not quiet and '-r ' not in arg:
         log.info(f'Install: package="{package}" mode={"uv" if uv else "pip"}')
@@ -285,13 +285,13 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
 def install(package, friendly: str = None, ignore: bool = False, reinstall: bool = False, no_deps: bool = False, quiet: bool = False, force: bool = False, no_build_isolation: bool = False):
     t_start = time.time()
     res = ''
-    if arguments.reinstall or arguments.upgrade:
+    if args.reinstall or args.upgrade:
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False
-    if (arguments.reinstall) or (reinstall) or (not installed(package, friendly, quiet=quiet)):
+    if (args.reinstall) or (reinstall) or (not installed(package, friendly, quiet=quiet)):
         deps = '' if not no_deps else '--no-deps '
         isolation = '' if not no_build_isolation else '--no-build-isolation '
-        cmd = f"install{' --upgrade' if not arguments.uv else ''}{' --force-reinstall' if force else ''} {deps}{isolation}{package}"
+        cmd = f"install{' --upgrade' if not args.uv else ''}{' --force-reinstall' if force else ''} {deps}{isolation}{package}"
         res = pip(cmd, ignore=ignore, uv=package != "uv" and not package.startswith('git+'))
     ts('install', t_start)
     return res
@@ -300,7 +300,7 @@ def install(package, friendly: str = None, ignore: bool = False, reinstall: bool
 # execute git command
 def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = False): # pylint: disable=unused-argument
     t_start = time.time()
-    if arguments.skip_git:
+    if args.skip_git:
         return ''
     if 'google.colab' in sys.modules:
         return ''
@@ -380,7 +380,7 @@ def update(folder, keep_branch = False, rebase = True):
         else:
             res = git(f'pull origin {b} {arg}', folder)
             debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
-        if not arguments.experimental:
+        if not args.experimental:
             commit = extensions_commit.get(os.path.basename(folder), None)
             if commit is not None:
                 res = git(f'checkout {commit}', folder)
@@ -442,7 +442,7 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
         supported_minors = [10, 11, 12, 13]
         experimental_minors = [14]
     t_start = time.time()
-    if arguments.quick:
+    if args.quick:
         return
     log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
     if int(sys.version_info.minor) == 9:
@@ -460,13 +460,13 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
             log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
             if reason is not None:
                 log.error(reason)
-            if not arguments.ignore and not arguments.experimental:
+            if not args.ignore and not args.experimental:
                 sys.exit(1)
-    if not arguments.skip_git:
+    if not args.skip_git:
         git_cmd = os.environ.get('GIT', "git")
         if shutil.which(git_cmd) is None:
             log.error('Git not found')
-            if not arguments.ignore:
+            if not args.ignore:
                 sys.exit(1)
     else:
         git_version = git('--version', folder=None, ignore=False)
@@ -477,7 +477,7 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
 # check diffusers version
 def check_diffusers():
     t_start = time.time()
-    if arguments.skip_all:
+    if args.skip_all:
         return
     target_commit = '8ec0a5ccad96957c10388d2d2acc7fdd8e0fab84' # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
@@ -485,13 +485,13 @@ def check_diffusers():
     pkg = package_spec('diffusers')
     minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
     current = opts.get('diffusers_version', '') if minor > -1 else ''
-    if (minor == -1) or ((current != target_commit) and (not arguments.experimental)):
+    if (minor == -1) or ((current != target_commit) and (not args.experimental)):
         if minor == -1:
             log.info(f'Install: package="diffusers" commit={target_commit}')
         else:
             log.info(f'Update: package="diffusers" current={pkg.version} hash={current} target={target_commit}')
             pip('uninstall --yes diffusers', ignore=True, quiet=True, uv=False)
-        if arguments.skip_git:
+        if args.skip_git:
             log.warning('Git: marked as not available but required for diffusers installation')
         pip(f'install --upgrade git+https://github.com/huggingface/diffusers@{target_commit}', ignore=False, quiet=True, uv=False)
         global diffusers_commit # pylint: disable=global-statement
@@ -502,12 +502,12 @@ def check_diffusers():
 # check transformers version
 def check_transformers():
     t_start = time.time()
-    if arguments.skip_all or arguments.skip_git or arguments.experimental:
+    if args.skip_all or args.skip_git or args.experimental:
         return
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
     target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
-    if arguments.use_directml:
+    if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
     else:
@@ -515,7 +515,7 @@ def check_transformers():
         target_tokenizers = '0.22.2'
     if target_transformers is not None:
         # Pinned release version (e.g. DirectML)
-        if (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not arguments.experimental))):
+        if (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" version={target_transformers}')
             else:
@@ -542,7 +542,7 @@ def check_transformers():
 # check onnx version
 def check_onnx():
     t_start = time.time()
-    if arguments.skip_all or arguments.skip_requirements:
+    if args.skip_all or args.skip_requirements:
         return
     if not installed('onnx', quiet=True):
         install('onnx', 'onnx', ignore=True)
@@ -555,7 +555,7 @@ def install_cuda():
     t_start = time.time()
     log.info('CUDA: nVidia toolkit detected')
     ts('cuda', t_start)
-    if arguments.use_nightly:
+    if args.use_nightly:
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu130')
     else:
         cmd = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cu128 torchvision==0.25.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
@@ -565,7 +565,7 @@ def install_cuda():
 def install_rocm_zluda():
     torch_command = ''
     t_start = time.time()
-    if arguments.skip_all or arguments.skip_requirements:
+    if args.skip_all or args.skip_requirements:
         return torch_command
     from modules import rocm
 
@@ -582,7 +582,7 @@ def install_rocm_zluda():
         log.warning('ROCm: no agent was found')
     else:
         log.info(f'ROCm: agents={[gpu.name for gpu in amd_gpus]}')
-        if arguments.device_id is None:
+        if args.device_id is None:
             index = 0
             for idx, gpu in enumerate(amd_gpus):
                 index = idx
@@ -593,11 +593,11 @@ def install_rocm_zluda():
             os.environ.setdefault('HIP_VISIBLE_DEVICES', str(index))
             device = amd_gpus[index]
         else:
-            device_id = int(arguments.device_id)
+            device_id = int(args.device_id)
             if device_id < len(amd_gpus):
                 device = amd_gpus[device_id]
 
-    if sys.platform == "win32" and not arguments.use_zluda and device is not None and device.therock is not None and not installed("rocm"):
+    if sys.platform == "win32" and not args.use_zluda and device is not None and device.therock is not None and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
         install(f"rocm[devel,libraries] --index-url https://rocm.nightlies.amd.com/{device.therock}")
         rocm.refresh()
@@ -608,18 +608,18 @@ def install_rocm_zluda():
     log.info(msg)
 
     if sys.platform == "win32":
-        if arguments.use_zluda:
+        if args.use_zluda:
             torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.7.1+cu118 torchvision==0.22.1+cu118 --index-url https://download.pytorch.org/whl/cu118')
 
-            if arguments.device_id is not None:
+            if args.device_id is not None:
                 if os.environ.get('HIP_VISIBLE_DEVICES', None) is not None:
                     log.warning('Setting HIP_VISIBLE_DEVICES and --device-id at the same time may be mistake.')
-                os.environ['HIP_VISIBLE_DEVICES'] = arguments.device_id
-                del arguments.device_id
+                os.environ['HIP_VISIBLE_DEVICES'] = args.device_id
+                del args.device_id
 
             from modules import zluda_installer
             try:
-                if arguments.reinstall or zluda_installer.is_reinstall_needed():
+                if args.reinstall or zluda_installer.is_reinstall_needed():
                     zluda_installer.uninstall()
                 zluda_installer.install()
                 zluda_installer.set_default_agent(device)
@@ -642,7 +642,7 @@ def install_rocm_zluda():
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
     else:
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
-        if arguments.use_nightly:
+        if args.use_nightly:
             if rocm.version is None or float(rocm.version) >= 7.1: # assume the latest if version check fails
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1')
             else: # oldest rocm version on nightly is 7.0
@@ -683,10 +683,10 @@ def install_rocm_zluda():
 def install_ipex():
     t_start = time.time()
     #check_python(supported_minors=[10, 11, 12, 13, 14], reason='IPEX backend requires a Python version between 3.10 and 3.13')
-    arguments.use_ipex = True # pylint: disable=attribute-defined-outside-init
+    args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
 
-    if arguments.use_nightly:
+    if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+xpu torchvision==0.25.0+xpu --index-url https://download.pytorch.org/whl/xpu')
@@ -706,7 +706,7 @@ def install_openvino():
     else:
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cpu torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cpu')
 
-    if not (arguments.skip_all or arguments.skip_requirements):
+    if not (args.skip_all or args.skip_requirements):
         install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.4.1'), 'openvino')
         install(os.environ.get('NNCF_COMMAND', 'nncf==2.19.0'), 'nncf')
     ts('openvino', t_start)
@@ -718,13 +718,13 @@ def install_torch_addons():
     triton_command = os.environ.get('TRITON_COMMAND', None)
     if triton_command is not None and triton_command != 'skip':
         install(triton_command, 'triton', quiet=True)
-    xformers_package = os.environ.get('XFORMERS_PACKAGE', '--pre xformers') if opts.get('cross_attention_optimization', '') == 'xFormers' or arguments.use_xformers else 'none'
+    xformers_package = os.environ.get('XFORMERS_PACKAGE', '--pre xformers') if opts.get('cross_attention_optimization', '') == 'xFormers' or args.use_xformers else 'none'
     if 'xformers' in xformers_package:
         try:
             install(xformers_package, ignore=True, no_deps=True)
         except Exception as e:
             log.debug(f'xFormers cannot install: {e}')
-    elif not arguments.experimental and not arguments.use_xformers and opts.get('cross_attention_optimization', '') != 'xFormers':
+    elif not args.experimental and not args.use_xformers and opts.get('cross_attention_optimization', '') != 'xFormers':
         uninstall('xformers')
     if opts.get('cuda_compile_backend', '') == 'hidet':
         install('hidet', 'hidet')
@@ -738,7 +738,7 @@ def install_torch_addons():
         install('torchao==0.10.0', 'torchao')
     if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
         install('pillow-jxl-plugin==1.3.5', 'pillow-jxl-plugin')
-    if not arguments.experimental:
+    if not args.experimental:
         uninstall('wandb', quiet=True)
         uninstall('pynvml', quiet=True)
     ts('addons', t_start)
@@ -763,25 +763,25 @@ def check_cudnn():
 def check_torch():
     log.info('Torch: verifying installation')
     t_start = time.time()
-    if arguments.skip_torch:
+    if args.skip_torch:
         log.info('Torch: skip tests')
         return
-    if arguments.profile:
+    if args.profile:
         pr = cProfile.Profile()
         pr.enable()
-    allow_cuda = not (arguments.use_rocm or arguments.use_directml or arguments.use_ipex or arguments.use_openvino)
-    allow_rocm = not (arguments.use_cuda or arguments.use_directml or arguments.use_ipex or arguments.use_openvino)
-    allow_ipex = not (arguments.use_cuda or arguments.use_rocm or arguments.use_directml or arguments.use_openvino)
-    allow_directml = not (arguments.use_cuda or arguments.use_rocm or arguments.use_ipex or arguments.use_openvino)
-    allow_openvino = not (arguments.use_cuda or arguments.use_rocm or arguments.use_ipex or arguments.use_directml)
-    log.debug(f'Torch overrides: cuda={arguments.use_cuda} rocm={arguments.use_rocm} ipex={arguments.use_ipex} directml={arguments.use_directml} openvino={arguments.use_openvino} zluda={arguments.use_zluda}')
+    allow_cuda = not (args.use_rocm or args.use_directml or args.use_ipex or args.use_openvino)
+    allow_rocm = not (args.use_cuda or args.use_directml or args.use_ipex or args.use_openvino)
+    allow_ipex = not (args.use_cuda or args.use_rocm or args.use_directml or args.use_openvino)
+    allow_directml = not (args.use_cuda or args.use_rocm or args.use_ipex or args.use_openvino)
+    allow_openvino = not (args.use_cuda or args.use_rocm or args.use_ipex or args.use_directml)
+    log.debug(f'Torch overrides: cuda={args.use_cuda} rocm={args.use_rocm} ipex={args.use_ipex} directml={args.use_directml} openvino={args.use_openvino} zluda={args.use_zluda}')
     # log.debug(f'Torch allowed: cuda={allow_cuda} rocm={allow_rocm} ipex={allow_ipex} diml={allow_directml} openvino={allow_openvino}')
     torch_command = os.environ.get('TORCH_COMMAND', '')
 
     if sys.platform != 'win32':
-        if arguments.use_zluda:
+        if args.use_zluda:
             log.error('ZLUDA is only supported on Windows')
-        if arguments.use_directml:
+        if args.use_directml:
             log.error('DirectML is only supported on Windows')
 
     if torch_command != '':
@@ -789,21 +789,21 @@ def check_torch():
         is_ipex_available = False
         is_rocm_available = False
     else:
-        is_cuda_available = allow_cuda and (arguments.use_cuda or shutil.which('nvidia-smi') is not None or os.path.exists(os.path.join(os.environ.get('SystemRoot') or r'C:\Windows', 'System32', 'nvidia-smi.exe')))
-        is_ipex_available = allow_ipex and (arguments.use_ipex or shutil.which('sycl-ls') is not None or shutil.which('sycl-ls.exe') is not None or os.environ.get('ONEAPI_ROOT') is not None or os.path.exists('/opt/intel/oneapi') or os.path.exists("C:/Program Files (x86)/Intel/oneAPI") or os.path.exists("C:/oneAPI") or os.path.exists("C:/Program Files/Intel/Intel Graphics Software"))
+        is_cuda_available = allow_cuda and (args.use_cuda or shutil.which('nvidia-smi') is not None or os.path.exists(os.path.join(os.environ.get('SystemRoot') or r'C:\Windows', 'System32', 'nvidia-smi.exe')))
+        is_ipex_available = allow_ipex and (args.use_ipex or shutil.which('sycl-ls') is not None or shutil.which('sycl-ls.exe') is not None or os.environ.get('ONEAPI_ROOT') is not None or os.path.exists('/opt/intel/oneapi') or os.path.exists("C:/Program Files (x86)/Intel/oneAPI") or os.path.exists("C:/oneAPI") or os.path.exists("C:/Program Files/Intel/Intel Graphics Software"))
         is_rocm_available = False
 
         if not is_cuda_available and not is_ipex_available and allow_rocm:
             from modules import rocm
-            is_rocm_available = allow_rocm and (arguments.use_rocm or arguments.use_zluda or rocm.is_installed) # late eval to avoid unnecessary import
+            is_rocm_available = allow_rocm and (args.use_rocm or args.use_zluda or rocm.is_installed) # late eval to avoid unnecessary import
 
-        if is_cuda_available and arguments.use_cuda: # prioritize cuda
+        if is_cuda_available and args.use_cuda: # prioritize cuda
             torch_command = install_cuda()
-        elif is_rocm_available and (arguments.use_rocm or arguments.use_zluda): # prioritize rocm
+        elif is_rocm_available and (args.use_rocm or args.use_zluda): # prioritize rocm
             torch_command = install_rocm_zluda()
-        elif allow_ipex and arguments.use_ipex: # prioritize ipex
+        elif allow_ipex and args.use_ipex: # prioritize ipex
             torch_command = install_ipex()
-        elif allow_openvino and arguments.use_openvino: # prioritize openvino
+        elif allow_openvino and args.use_openvino: # prioritize openvino
             torch_command = install_openvino()
         elif is_cuda_available:
             torch_command = install_cuda()
@@ -815,17 +815,17 @@ def check_torch():
             machine = platform.machine()
             if sys.platform == 'darwin':
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
-            elif allow_directml and arguments.use_directml and ('arm' not in machine and 'aarch' not in machine):
+            elif allow_directml and args.use_directml and ('arm' not in machine and 'aarch' not in machine):
                 log.info('DirectML: selected')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.4.1 torchvision torch-directml==0.2.4.dev240913')
-                if 'torch' in torch_command and not arguments.version:
+                if 'torch' in torch_command and not args.version:
                     install(torch_command, 'torch torchvision')
                 install('onnxruntime-directml', 'onnxruntime-directml', ignore=True)
             else:
                 log.warning('Torch: CPU-only version installed')
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch torchvision')
 
-    if arguments.version:
+    if args.version:
         return
 
     if 'torch' in torch_command:
@@ -843,13 +843,13 @@ def check_torch():
             pass
         if 'cpu' in torch.__version__:
             if is_cuda_available:
-                if arguments.use_cuda:
+                if args.use_cuda:
                     log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is selected - reinstalling')
                     install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
                 else:
                     log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is available - consider reinstalling')
             elif is_rocm_available:
-                if arguments.use_rocm:
+                if args.use_rocm:
                     log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is selected - reinstalling')
                     install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
                 else:
@@ -870,7 +870,7 @@ def check_torch():
                 log.info(f'Torch detected: gpu="{torch.cuda.get_device_name(device)}" vram={round(torch.cuda.get_device_properties(device).total_memory / 1024 / 1024)} arch={torch.cuda.get_device_capability(device)} cores={torch.cuda.get_device_properties(device).multi_processor_count}')
         else:
             try:
-                if arguments.use_directml and allow_directml:
+                if args.use_directml and allow_directml:
                     import torch_directml # pylint: disable=import-error
                     dml_ver = package_version("torch-directml")
                     log.warning(f'Torch backend: DirectML ({dml_ver})')
@@ -881,15 +881,15 @@ def check_torch():
                 log.warning("Torch reports CUDA not available")
     except Exception as e:
         log.error(f'Torch cannot load: {e}')
-        if not arguments.ignore:
+        if not args.ignore:
             sys.exit(1)
 
     if is_rocm_available:
         rocm.postinstall()
-    if not arguments.skip_all:
+    if not args.skip_all:
         install_torch_addons()
     check_cudnn()
-    if arguments.profile:
+    if args.profile:
         pr.disable()
         print_profile(pr, 'Torch')
     ts('torch', t_start)
@@ -898,9 +898,9 @@ def check_torch():
 # check modified files
 def check_modified_files():
     t_start = time.time()
-    if arguments.quick:
+    if args.quick:
         return
-    if arguments.skip_git:
+    if args.skip_git:
         return
     try:
         res = git('status --porcelain')
@@ -959,7 +959,7 @@ def list_extensions_folder(folder, quiet=False):
 
 # run installer for each installed and enabled extension and optionally update them
 def install_extensions(force=False):
-    if arguments.profile:
+    if args.profile:
         pr = cProfile.Profile()
         pr.enable()
     pkgs = [f"{d.metadata['Name']}=={d.version}" for d in importlib.metadata.distributions()]
@@ -968,7 +968,7 @@ def install_extensions(force=False):
     extensions_duplicates = []
     extensions_enabled = []
     extensions_disabled = [e.lower() for e in opts.get('disabled_extensions', [])]
-    extension_folders = [extensions_builtin_dir] if arguments.safe else [extensions_builtin_dir, extensions_dir]
+    extension_folders = [extensions_builtin_dir] if args.safe else [extensions_builtin_dir, extensions_dir]
     res = []
     for folder in extension_folders:
         if not os.path.isdir(folder):
@@ -983,13 +983,13 @@ def install_extensions(force=False):
                 extensions_duplicates.append(ext)
                 continue
             extensions_enabled.append(ext)
-            if arguments.upgrade or force:
+            if args.upgrade or force:
                 try:
                     res.append(update(os.path.join(folder, ext)))
                 except Exception:
                     res.append(f'Extension update error: {os.path.join(folder, ext)}')
                     log.error(f'Extension update error: {os.path.join(folder, ext)}')
-            if not arguments.skip_extensions:
+            if not args.skip_extensions:
                 commit = extensions_commit.get(os.path.basename(ext), None)
                 if commit is not None:
                     log.debug(f'Extension force: name="{ext}" commit={commit}')
@@ -1007,7 +1007,7 @@ def install_extensions(force=False):
     log.info(f'Extensions enabled: {extensions_enabled}')
     if len(extensions_duplicates) > 0:
         log.warning(f'Extensions duplicates: {extensions_duplicates}')
-    if arguments.profile:
+    if args.profile:
         pr.disable()
         print_profile(pr, 'Extensions')
     # ts('extensions', t_start)
@@ -1017,7 +1017,7 @@ def install_extensions(force=False):
 # initialize and optionally update submodules
 def install_submodules(force=True):
     t_start = time.time()
-    if arguments.profile:
+    if args.profile:
         pr = cProfile.Profile()
         pr.enable()
     log.info('Verifying submodules')
@@ -1034,14 +1034,14 @@ def install_submodules(force=True):
     for submodule in submodules:
         try:
             name = submodule.split()[1].strip()
-            if arguments.upgrade:
+            if args.upgrade:
                 res.append(update(name))
             else:
                 branch(name)
         except Exception:
             log.error(f'Submodule update error: {submodule}')
     setup_logging()
-    if arguments.profile:
+    if args.profile:
         pr.disable()
         print_profile(pr, 'Submodule')
     ts('submodules', t_start)
@@ -1090,7 +1090,7 @@ def install_pydantic():
 
 
 def install_scipy():
-    if arguments.new or (sys.version_info >= (3, 14)):
+    if args.new or (sys.version_info >= (3, 14)):
         install('scipy==1.17.0', ignore=True, quiet=True)
     else:
         install('scipy==1.14.1', ignore=True, quiet=True)
@@ -1149,9 +1149,9 @@ def install_optional():
 
 def install_requirements():
     t_start = time.time()
-    if arguments.skip_requirements and not arguments.requirements:
+    if args.skip_requirements and not args.requirements:
         return
-    if arguments.profile:
+    if args.profile:
         pr = cProfile.Profile()
         pr.enable()
     if int(sys.version_info.minor) >= 13:
@@ -1161,11 +1161,11 @@ def install_requirements():
         quick_allowed = False
         log.info('Install requirements: this may take a while...')
         pip('install -r requirements.txt')
-    if arguments.optional:
+    if args.optional:
         quick_allowed = False
         install_optional()
     log.info('Install: verifying requirements')
-    if arguments.new:
+    if args.new:
         log.debug('Install: flag=new')
     with open('requirements.txt', encoding='utf8') as f:
         lines = [line.strip() for line in f.readlines() if line.strip() != '' and not line.startswith('#') and line is not None]
@@ -1175,7 +1175,7 @@ def install_requirements():
     install_pydantic()
     install_opencv()
     install_scipy()
-    if arguments.profile:
+    if args.profile:
         pr.disable()
         print_profile(pr, 'Requirements')
     ts('requirements', t_start)
@@ -1233,7 +1233,7 @@ def set_environment():
 def check_extensions():
     newest_all = os.path.getmtime('requirements.txt')
     from modules.paths import extensions_builtin_dir, extensions_dir
-    extension_folders = [extensions_builtin_dir] if arguments.safe else [extensions_builtin_dir, extensions_dir]
+    extension_folders = [extensions_builtin_dir] if args.safe else [extensions_builtin_dir, extensions_dir]
     disabled_extensions_all = opts.get('disable_all_extensions', 'none')
     if disabled_extensions_all != 'none':
         log.info(f'Extensions: disabled={disabled_extensions_all}')
@@ -1360,27 +1360,27 @@ def check_venv():
 def check_version(reset=True): # pylint: disable=unused-argument
     if opts.get('offline_mode', False):
         log.warning('Offline mode enabled')
-        arguments.skip_git = True # pylint: disable=attribute-defined-outside-init
-        arguments.skip_all = True # pylint: disable=attribute-defined-outside-init
+        args.skip_git = True # pylint: disable=attribute-defined-outside-init
+        args.skip_all = True # pylint: disable=attribute-defined-outside-init
         return
     t_start = time.time()
-    if arguments.skip_all:
+    if args.skip_all:
         return
     if not os.path.exists('.git'):
         log.warning('Not a git repository')
-        arguments.skip_git = True # pylint: disable=attribute-defined-outside-init
+        args.skip_git = True # pylint: disable=attribute-defined-outside-init
     ver = get_version()
     log.info(f'Version: {print_dict(ver)}')
     branch_name = ver.get('branch', None) if ver is not None else 'master'
     if branch_name is None or branch_name == 'unknown':
         branch_name = 'master'
-    if arguments.version or arguments.skip_git:
+    if args.version or args.skip_git:
         return
     check_ui(ver)
     commit = git('rev-parse HEAD')
     global git_commit # pylint: disable=global-statement
     git_commit = commit[:7]
-    if arguments.quick:
+    if args.quick:
         return
     try:
         import requests
@@ -1409,7 +1409,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         latest = commits['commit']['sha']
         if len(latest) != 40:
             log.error(f'Repository error: commit={latest} invalid')
-        elif latest != commit and arguments.upgrade:
+        elif latest != commit and args.upgrade:
             global quick_allowed # pylint: disable=global-statement
             quick_allowed = False
             log.info('Updating main repository')
@@ -1441,7 +1441,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
 
 def update_wiki():
     t_start = time.time()
-    if arguments.upgrade:
+    if args.upgrade:
         log.info('Updating Wiki')
         try:
             update(os.path.join(os.path.dirname(__file__), "wiki"))
@@ -1472,7 +1472,7 @@ def get_state():
     try:
         from concurrent.futures.thread import ThreadPoolExecutor
         from modules.paths import extensions_builtin_dir, extensions_dir
-        extension_folders = [extensions_builtin_dir] if arguments.safe else [extensions_builtin_dir, extensions_dir]
+        extension_folders = [extensions_builtin_dir] if args.safe else [extensions_builtin_dir, extensions_dir]
         ext_dirs = []
         for folder in extension_folders:
             if not os.path.isdir(folder):
@@ -1525,9 +1525,9 @@ def update_state():
 def check_timestamp():
     if not quick_allowed or not os.path.isfile(log_file):
         return False
-    if arguments.quick:
+    if args.quick:
         return True
-    if arguments.skip_git:
+    if args.skip_git:
         return True
     return check_state()
 
@@ -1551,28 +1551,28 @@ def add_args(parser):
 
 def parse_args(parser):
     # command line args
-    global arguments # pylint: disable=global-statement
+    global args # pylint: disable=global-statement
     if "USED_VSCODE_COMMAND_PICKARGS" in os.environ:
         import shlex
         argv = shlex.split(" ".join(sys.argv[1:])) if "USED_VSCODE_COMMAND_PICKARGS" in os.environ else sys.argv[1:]
         log.debug('VSCode Launch')
-        arguments = parser.parse_args(argv)
+        args = parser.parse_args(argv)
     else:
-        arguments = parser.parse_args()
-    return arguments
+        args = parser.parse_args()
+    return args
 
 
 def extensions_preload(parser):
     t_start = time.time()
-    if arguments.profile:
+    if args.profile:
         pr = cProfile.Profile()
         pr.enable()
-    if arguments.safe:
+    if args.safe:
         log.info('Running in safe mode without user extensions')
     try:
         from modules.script_loading import preload_extensions
         from modules.paths import extensions_builtin_dir, extensions_dir
-        extension_folders = [extensions_builtin_dir] if arguments.safe else [extensions_builtin_dir, extensions_dir]
+        extension_folders = [extensions_builtin_dir] if args.safe else [extensions_builtin_dir, extensions_dir]
         preload_time = {}
         for ext_dir in extension_folders:
             t0 = time.time()
@@ -1582,7 +1582,7 @@ def extensions_preload(parser):
         log.debug(f'Extension preload: {preload_time}')
     except Exception:
         log.error('Error running extension preloading')
-    if arguments.profile:
+    if args.profile:
         pr.disable()
         print_profile(pr, 'Preload')
     ts('preload', t_start)
@@ -1611,8 +1611,8 @@ def git_reset(folder='.'):
 def read_options():
     t_start = time.time()
     global opts # pylint: disable=global-statement
-    if os.path.isfile(arguments.config):
-        with open(arguments.config, encoding="utf8") as file:
+    if os.path.isfile(args.config):
+        with open(args.config, encoding="utf8") as file:
             try:
                 opts = json.load(file)
                 if type(opts) is str:
