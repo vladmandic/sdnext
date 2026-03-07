@@ -63,6 +63,7 @@ def add_http_args(p):
     p.add_argument("--share", default=env_flag("SD_SHARE", False), action='store_true', help="Enable UI accessible through Gradio site, default: %(default)s")
     p.add_argument("--insecure", default=env_flag("SD_INSECURE", False), action='store_true', help="Enable extensions tab regardless of other options, default: %(default)s")
     p.add_argument("--listen", default=env_flag("SD_LISTEN", False), action='store_true', help="Launch web server using public IP address, default: %(default)s")
+    p.add_argument("--api-rate-limit", default=env_flag("SD_APIRATELIMIT", False), action='store_true', help="Enable per-IP rate limiting on generation API endpoints, default: %(default)s")
     p.add_argument("--port", type=int, default=os.environ.get("SD_PORT", 7860), help="Launch web server with given server port, default: %(default)s")
 
 

@@ -1,3 +1,4 @@
+import ssl
 import time
 import logging
 from asyncio.exceptions import CancelledError
@@ -13,6 +14,7 @@ from modules.logger import log
 import modules.errors as errors
 
 
+ssl._create_default_https_context = ssl._create_unverified_context # pylint: disable=protected-access
 errors.install()
 ignore_endpoints = [
     '/sdapi/v1/version',
@@ -66,7 +68,7 @@ def setup_middleware(app: FastAPI, cmd_opts):
         try:
             ts = time.time()
             endpoint = req.scope.get('path', 'err')
-            if cmd_opts.listen and endpoint in rate_limited_paths and req.method == 'POST':
+            if cmd_opts.api_rate_limit and endpoint in rate_limited_paths and req.method == 'POST':
                 from modules.api.security import generation_limiter
                 client_ip = req.client.host if req.client else "unknown"
                 if not generation_limiter.is_allowed(client_ip):

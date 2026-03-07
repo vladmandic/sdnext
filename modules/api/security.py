@@ -75,7 +75,13 @@ def _domain_matches_allowed(hostname: str) -> bool:
 
 
 def validate_download_url(url: str):
-    """Raise HTTPException(400) if *url* is not a safe download target."""
+    """Raise HTTPException(400) if *url* is not a safe download target.
+
+    Domain allowlist and private-IP blocking are only enforced when
+    ``--listen`` is set (server is network-exposed).  Local users can
+    download from any source without restrictions.
+    """
+    from modules import shared
     parsed = urlparse(url)
     # Scheme check
     if parsed.scheme == 'http':
@@ -83,20 +89,20 @@ def validate_download_url(url: str):
             raise HTTPException(status_code=400, detail="Only HTTPS URLs are allowed for remote downloads")
     elif parsed.scheme != 'https':
         raise HTTPException(status_code=400, detail=f"Unsupported URL scheme: {parsed.scheme}")
-    # Domain allowlist
     hostname = (parsed.hostname or '').lower()
     if not hostname:
         raise HTTPException(status_code=400, detail="Invalid URL: no hostname")
-    if not _domain_matches_allowed(hostname):
-        raise HTTPException(status_code=400, detail=f"Downloads from '{hostname}' are not allowed")
-    # DNS resolution → block private IPs (SSRF)
-    try:
-        for info in socket.getaddrinfo(hostname, parsed.port or 443, proto=socket.IPPROTO_TCP):
-            ip_str = info[4][0]
-            if _is_private_ip(ip_str):
-                raise HTTPException(status_code=400, detail="URL resolves to a private/internal address")
-    except socket.gaierror:
-        raise HTTPException(status_code=400, detail=f"Cannot resolve hostname: {hostname}") from None
+    # Domain allowlist + private IP blocking only when network-exposed
+    if shared.cmd_opts.listen:
+        if not _domain_matches_allowed(hostname):
+            raise HTTPException(status_code=400, detail=f"Downloads from '{hostname}' are not allowed")
+        try:
+            for info in socket.getaddrinfo(hostname, parsed.port or 443, proto=socket.IPPROTO_TCP):
+                ip_str = info[4][0]
+                if _is_private_ip(ip_str):
+                    raise HTTPException(status_code=400, detail="URL resolves to a private/internal address")
+        except socket.gaierror:
+            raise HTTPException(status_code=400, detail=f"Cannot resolve hostname: {hostname}") from None
 
 
 # ---------------------------------------------------------------------------
