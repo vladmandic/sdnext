@@ -253,7 +253,7 @@ def open_folder(result_gallery, gallery_index = 0):
         if platform.system() == "Darwin":
             opener = "open"
         elif "microsoft-standard-WSL2" in platform.uname().release:
-            opener = "wslview"
+            opener = "wslview" if shutil.which("wslview") is not None else "wsl-open"
         else:
             opener = "xdg-open"
         subprocess.Popen([opener, path])  # pylint: disable=consider-using-with
