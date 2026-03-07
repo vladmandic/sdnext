@@ -214,8 +214,8 @@ function AppearancePanel() {
         <SettingRow label="UI scale" description="Base font size — all spacing and controls scale proportionally">
           <div className="flex items-center gap-2 flex-1">
             <Slider
-              min={12}
-              max={20}
+              min={8}
+              max={28}
               step={1}
               value={[uiScale]}
               onValueChange={([v]) => setUiScale(v)}

@@ -38,6 +38,9 @@ interface UiState {
   // Settings search
   pendingSettingsSearch: string | null;
 
+  // Quick settings customization
+  quickSettingsKeys: string[] | null;
+
   // Appearance
   colorMode: ColorMode;
   accentColor: string;
@@ -67,6 +70,7 @@ interface UiState {
   setUiScale: (scale: number) => void;
   setCanvasLabelScale: (scale: number) => void;
   addRecentCommand: (id: string) => void;
+  setQuickSettingsKeys: (keys: string[] | null) => void;
   setPendingSettingsSearch: (query: string | null) => void;
 }
 
@@ -89,11 +93,12 @@ export const useUiStore = create<UiState>()(
       autoApplyModelDefaults: false,
       recentCommandIds: [],
       pendingSettingsSearch: null,
+      quickSettingsKeys: null,
       colorMode: "dark" as ColorMode,
       accentColor: "#00bcd4",
       cornerStyle: "rounded" as CornerStyle,
       borderRadius: 0.5,
-      uiScale: 16,
+      uiScale: 18,
       canvasLabelScale: 1,
 
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
@@ -113,12 +118,13 @@ export const useUiStore = create<UiState>()(
       setAccentColor: (color) => set({ accentColor: color }),
       setCornerStyle: (style) => set({ cornerStyle: style }),
       setBorderRadius: (radius) => set({ borderRadius: Math.max(0, Math.min(1, radius)) }),
-      setUiScale: (scale) => set({ uiScale: Math.max(12, Math.min(20, scale)) }),
+      setUiScale: (scale) => set({ uiScale: Math.max(8, Math.min(28, scale)) }),
       setCanvasLabelScale: (scale) => set({ canvasLabelScale: Math.max(0.5, Math.min(2, scale)) }),
       addRecentCommand: (id) => set((s) => {
         const filtered = s.recentCommandIds.filter((c) => c !== id);
         return { recentCommandIds: [id, ...filtered].slice(0, 5) };
       }),
+      setQuickSettingsKeys: (keys) => set({ quickSettingsKeys: keys }),
       setPendingSettingsSearch: (query) => set({ pendingSettingsSearch: query }),
     }),
     {
