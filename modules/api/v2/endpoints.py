@@ -1,3 +1,13 @@
+"""V2 enumerator and configuration endpoints.
+
+Endpoints that have a v1 equivalent delegate to the same backend function
+where possible (e.g. get_options_v2 -> server.get_config, control-models ->
+endpoints.get_control_models).  Endpoints that build richer response schemas
+(extra-networks, sd-models, samplers) access the same underlying data sources
+(shared.extra_networks, sd_models.checkpoints_list, sd_samplers_diffusers.config)
+as their v1 counterparts.
+"""
+
 import asyncio
 from datetime import datetime
 from typing import Any

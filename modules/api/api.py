@@ -11,15 +11,6 @@ from modules.api import models, endpoints, script, helpers, server, generate, pr
 errors.install()
 
 
-# V1 API freeze policy
-# --------------------
-# The /sdapi/v1/ surface is FROZEN.
-# Allowed changes: critical security fixes, crash/data-loss bugs.
-# NOT allowed: new endpoints, new response fields, changed response schemas,
-#   new query parameters, removed endpoints.
-# All new functionality goes to /sdapi/v2/.
-
-
 class Api:
     def __init__(self, app: FastAPI, queue_lock: Lock):
         self.credentials = {}

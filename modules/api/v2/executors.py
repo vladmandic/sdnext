@@ -1,3 +1,20 @@
+"""V2 job executors.
+
+Each executor calls through to the same backend processing code as the
+corresponding v1 endpoint.  This ensures both API versions produce
+identical results:
+
+    v2 generate  -> modules.control.run.control_run()          (same as v1 /control, /txt2img, /img2img)
+    v2 upscale   -> modules.postprocessing.run_extras()        (same as v1 /extra-single-image)
+    v2 caption   -> modules.api.caption.do_vqa/openclip/tagger (same as v1 /vqa, /openclip, /tagger)
+    v2 enhance   -> scripts.prompt_enhance.enhance()           (same as v1 /prompt-enhance)
+    v2 detect    -> shared.yolo.predict()                      (same as v1 /detect)
+    v2 preprocess-> modules.control.processors.Processor       (same as v1 /preprocess)
+
+Do NOT duplicate processing logic here.  If v1 has a function for it,
+call that function.
+"""
+
 import os
 import inspect
 from modules.logger import log
