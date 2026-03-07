@@ -134,18 +134,9 @@ class ItemModel(BaseModel):
     hash: str | None = Field(title="Short hash", description="Short hash identifier for the model")
     config: str | None = Field(title="Config file", description="Path to the model configuration file")
 
-class ItemHypernetwork(BaseModel):
-    name: str = Field(title="Name", description="Hypernetwork name")
-    path: str | None = Field(title="Path", description="Path to the hypernetwork file")
-
 class ItemDetailer(BaseModel):
     name: str = Field(title="Name", description="Detailer model name")
     path: str | None = Field(title="Path", description="Path to the detailer model file")
-
-class ItemGAN(BaseModel):
-    name: str = Field(title="Name", description="GAN model name")
-    path: str | None = Field(title="Path", description="Path to the model file")
-    scale: int | None = Field(title="Scale", description="Upscale factor")
 
 class ItemStyle(BaseModel):
     name: str = Field(title="Name", description="Style name")
@@ -202,11 +193,6 @@ class ResExtraNetworkDetails(BaseModel):
     offset: int = Field(title="Offset", description="Number of items skipped")
     limit: int = Field(title="Limit", description="Maximum items returned per page")
 
-class ItemArtist(BaseModel):
-    name: str = Field(title="Name")
-    score: float = Field(title="Score")
-    category: str = Field(title="Category")
-
 class ItemEmbedding(BaseModel):
     step: int | None = Field(title="Step", description="The number of steps that were used to train this embedding, if available")
     sd_checkpoint: str | None = Field(title="SD Checkpoint", description="The hash of the checkpoint this embedding was trained on, if available")
@@ -252,9 +238,9 @@ class ItemControlUnit(BaseModel):
 class ScriptArg(BaseModel):
     label: str = Field(default=None, title="Label", description="Name of the argument in UI")
     value: Any | None = Field(default=None, title="Value", description="Default value of the argument")
-    minimum: Any | None = Field(default=None, title="Minimum", description="Minimum allowed value for the argumentin UI")
-    maximum: Any | None = Field(default=None, title="Minimum", description="Maximum allowed value for the argumentin UI")
-    step: Any | None = Field(default=None, title="Minimum", description="Step for changing value of the argumentin UI")
+    minimum: Any | None = Field(default=None, title="Minimum", description="Minimum allowed value for the argument in UI")
+    maximum: Any | None = Field(default=None, title="Maximum", description="Maximum allowed value for the argument in UI")
+    step: Any | None = Field(default=None, title="Step", description="Step for changing value of the argument in UI")
     choices: Any | None = Field(default=None, title="Choices", description="Possible values for the argument")
 
 class ItemScript(BaseModel):
@@ -266,7 +252,7 @@ class ItemScript(BaseModel):
 class ItemExtension(BaseModel):
     name: str = Field(title="Name", description="Extension name")
     remote: str = Field(title="Remote", description="Extension Repository URL")
-    branch: str = Field(default="uknnown", title="Branch", description="Extension Repository Branch")
+    branch: str = Field(default="unknown", title="Branch", description="Extension Repository Branch")
     commit_hash: str = Field(title="Commit Hash", description="Extension Repository Commit Hash")
     version: str = Field(title="Version", description="Extension Version")
     commit_date: str | int = Field(title="Commit Date", description="Extension Repository Commit Date")
@@ -456,12 +442,6 @@ class ResStatus(BaseModel):
 class ReqLatentHistory(BaseModel):
     name: str = Field(title="Name", description="Name of the history item to select")
 
-
-class ResTrain(BaseModel):
-    info: str = Field(title="Train info", description="Response string from train embedding task.")
-
-class ResCreate(BaseModel):
-    info: str = Field(title="Create info", description="Response string from create embedding task.")
 
 class ResPreprocess(BaseModel):
     info: str = Field(title="Preprocess info", description="Response string from preprocessing task.")
