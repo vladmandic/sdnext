@@ -199,8 +199,6 @@ def get_schedulers():
     """List all available schedulers with their class names and options."""
     from modules.sd_samplers import list_samplers
     all_schedulers = list_samplers()
-    for s in all_schedulers:
-        log.critical(s)
     return all_schedulers
 
 def post_unload_checkpoint():

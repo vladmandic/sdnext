@@ -25,6 +25,7 @@ Core processing logic is shared between direct and dispatch handlers via
 ``do_openclip``, ``do_tagger``, and ``do_vqa`` functions to avoid duplication.
 """
 
+import threading
 from typing import Literal, Annotated
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from fastapi.exceptions import HTTPException
@@ -356,11 +357,19 @@ def parse_tagger_scores(tags: str) -> dict:
     return scores or None
 
 
+_tagger_lock = threading.Lock()
+
+
 def do_tagger(image, req):
     """Core tagger logic shared by direct and dispatch endpoints.
 
     Returns (tags, scores).
     """
+    with _tagger_lock:
+        return _do_tagger_locked(image, req)
+
+
+def _do_tagger_locked(image, req):
     from modules.caption import tagger
     is_deepbooru = req.model.lower() in ('deepbooru', 'deepdanbooru')
     original_opts = {
