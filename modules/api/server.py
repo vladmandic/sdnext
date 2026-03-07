@@ -96,8 +96,12 @@ def post_log(req: models.ReqPostLog):
     return {}
 
 
-def get_config():
-    """Return all current application options as a key-value dictionary."""
+def get_config(keys: str = None):
+    """Return current application options as a key-value dictionary.
+
+    Optionally filter by a comma-separated list of key names via the ``keys`` query parameter.
+    When ``keys`` is omitted the full options dict is returned (backward compatible).
+    """
     from modules import secrets_manager
     options = {}
     for k, info in shared.opts.data_labels.items():
@@ -113,6 +117,9 @@ def get_config():
         del options['sd_lyco']
     if 'sd_lora' in options:
         del options['sd_lora']
+    if keys:
+        requested = [k.strip() for k in keys.split(',') if k.strip()]
+        return {k: v for k, v in options.items() if k in requested}
     return options
 
 def set_config(req: dict[str, Any]):

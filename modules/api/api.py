@@ -11,6 +11,15 @@ from modules.api import models, endpoints, script, helpers, server, generate, pr
 errors.install()
 
 
+# V1 API freeze policy
+# --------------------
+# The /sdapi/v1/ surface is FROZEN.
+# Allowed changes: critical security fixes, crash/data-loss bugs.
+# NOT allowed: new endpoints, new response fields, changed response schemas,
+#   new query parameters, removed endpoints.
+# All new functionality goes to /sdapi/v2/.
+
+
 class Api:
     def __init__(self, app: FastAPI, queue_lock: Lock):
         self.credentials = {}
@@ -55,6 +64,7 @@ class Api:
         self.add_api_route("/sdapi/v1/memory", server.get_memory, methods=["GET"], response_model=models.ResMemory)
         self.add_api_route("/sdapi/v1/options", server.get_config, methods=["GET"], response_model=models.OptionsModel)
         self.add_api_route("/sdapi/v1/options", server.set_config, methods=["POST"])
+        self.add_api_route("/sdapi/v1/options-info", server.get_options_info, methods=["GET"], tags=["Server"])
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel)
         self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu_status, methods=["GET"], response_model=list[models.ResGPU])
         self.add_api_route("/sdapi/v2/huggingface/settings", server.get_hf_settings, methods=["GET"], tags=["HuggingFace"])
