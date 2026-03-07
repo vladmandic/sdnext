@@ -75,6 +75,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - captioning part-2, thanks @CalamitousFelicitousness  
   - add new build of `insightface`, thanks @hameerabbasi  
   - reduce use of generators with ui interactor  
+  - better subprocess execute, thanks @awsr  
 - **Obsolete**
   - remove `normalbae` pre-processor  
   - remove `dwpose` pre-processor  
@@ -97,11 +98,12 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - lora unwanted unload  
   - improve preview error handler  
   - gallery over remote/unsecure connections  
-  - ltx2-i2v  
+  - fix `ltx2-i2v`  
   - handle missing preview image  
   - ui connection monitor  
   - kandinsky 5 t2i/i2i model type detection  
   - kanvas notify core on image size change  
+  - command arg `--reinstall` stricter enforcement  
 
 ## Update for 2026-02-04
 

@@ -269,6 +269,7 @@ def main():
     if args.reinstall:
         log.info('Startup: mode=reinstall')
         installer.quick_allowed = False
+
     if args.skip_all:
         log.info('Startup: skip=all')
         installer.quick_allowed = True

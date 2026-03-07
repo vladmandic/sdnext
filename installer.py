@@ -224,7 +224,7 @@ def cleanup_broken_packages():
                 record_file = os.path.join(dist_info, 'RECORD')
                 if not os.path.isfile(record_file):
                     pkg_name = entry.split('-')[0]
-                    log.warning(f'Install: removing broken package metadata: {pkg_name} path={dist_info}')
+                    log.warning(f'Install: package={pkg_name} path="{dist_info}" removing metadata')
                     shutil.rmtree(dist_info, ignore_errors=True)
     except Exception:
         pass
@@ -271,6 +271,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
 def install(package, friendly: str = None, ignore: bool = False, reinstall: bool = False, no_deps: bool = False, quiet: bool = False, force: bool = False, no_build_isolation: bool = False):
     t_start = time.time()
     res = ''
+    force = force or args.reinstall
     if args.reinstall or args.upgrade:
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False
@@ -442,7 +443,8 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if int(sys.version_info.minor) >= 12:
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
     if int(sys.version_info.minor) >= 13:
-        log.warning(f"Python: version={platform.python_version()} not all features are available")
+        # log.warning(f"Python: version={platform.python_version()} not all features are available")
+        pass
     if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
         if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
             log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
@@ -819,10 +821,10 @@ def check_torch():
         return
 
     if 'torch' in torch_command:
-        if not installed('torch'):
-            log.info(f'Install: package="torch" download and install in progress... cmd="{torch_command}"')
-            install('--upgrade pip', 'pip', reinstall=True) # pytorch rocm is too large for older pip
-        install(torch_command, 'torch torchvision', quiet=True)
+        if not installed('torch') or args.reinstall:
+            log.info(f'Install: package="torch" cmd="{torch_command}" download and install in progress... ')
+            install('--upgrade pip', 'pip', reinstall=args.reinstall) # pytorch rocm is too large for older pip
+            install(torch_command, 'torch torchvision', quiet=False)
 
     try:
         import torch
@@ -1149,7 +1151,7 @@ def install_requirements():
         pr.enable()
     if int(sys.version_info.minor) >= 13:
         install('audioop-lts')
-    if not installed('diffusers', quiet=True): # diffusers are not installed, so run initial installation
+    if not installed('diffusers', quiet=True) or args.reinstall: # diffusers are not installed, so run initial installation
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False
         log.info('Install requirements: this may take a while...')
@@ -1163,8 +1165,10 @@ def install_requirements():
     with open('requirements.txt', encoding='utf8') as f:
         lines = [line.strip() for line in f.readlines() if line.strip() != '' and not line.startswith('#') and line is not None]
         for line in lines:
-            if not installed(line, quiet=True):
-                _res = install(line)
+            if not installed(line, quiet=True) or args.reinstall:
+                if args.reinstall:
+                    log.trace(f'Install: package="{line}" reinstall')
+                _res = install(line, reinstall=args.reinstall)
     install_pydantic()
     install_opencv()
     install_scipy()
