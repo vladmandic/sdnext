@@ -200,7 +200,7 @@ def uninstall(package, quiet = False):
     return res
 
 
-def sub_run(cmd: str, *args: str, **kwargs):
+def run(cmd: str, *args: str, **kwargs):
     """Run command and arguments with `subprocess.run`.
 
     Default run options are `shell=True, check=False, env=os.environ`.
@@ -264,7 +264,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     all_args = f'{pip_log}{arg} {env_args}'.strip()
     if not quiet:
         log.debug(f'Running: {pipCmd}="{all_args}"')
-    result, txt = sub_run(sys.executable, "-m", pipCmd, all_args)
+    result, txt = run(sys.executable, "-m", pipCmd, all_args)
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
             log.warning(f'Install: cmd="{pipCmd}" args="{all_args}" cannot use uv, fallback to pip')
@@ -306,7 +306,7 @@ def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = Fal
     git_cmd = os.environ.get('GIT', "git")
     if git_cmd != "git":
         git_cmd = os.path.abspath(git_cmd)
-    result, txt = sub_run(git_cmd, arg, cwd=folder or ".")
+    result, txt = run(git_cmd, arg, cwd=folder or ".")
     if result.returncode != 0 and not ignore:
         if folder is None:
             folder = 'root'
@@ -934,7 +934,7 @@ def run_extension_installer(folder):
             if os.environ.get('PYTHONPATH', None) is not None:
                 seperator = ';' if sys.platform == 'win32' else ':'
                 env['PYTHONPATH'] += seperator + os.environ.get('PYTHONPATH', None)
-            result, txt = sub_run(sys.executable, path_installer, env=env, cwd=folder)
+            result, txt = run(sys.executable, path_installer, env=env, cwd=folder)
             debug(f'Extension installer: file="{path_installer}" {result.stdout}')
             if result.returncode != 0:
                 errors.append(f'ext: {os.path.basename(folder)}')
@@ -1266,14 +1266,14 @@ def get_version(force=False):
         except Exception:
             pass
         try:
-            ver = sub_run('git', 'log --pretty=format:"%h %ad" -1 --date=short', check=True)[0].stdout or '  '
+            ver = run('git', 'log --pretty=format:"%h %ad" -1 --date=short', check=True)[0].stdout or '  '
             commit, updated = ver.split(' ')
             version['commit'], version['updated'] = commit, updated
         except Exception as e:
             log.warning(f'Version: where=commit {e}')
         try:
-            origin = sub_run('git', 'remote get-url origin', check=True)[0].stdout
-            branch_name = sub_run('git', 'rev-parse --abbrev-ref HEAD', check=True)[0].stdout
+            origin = run('git', 'remote get-url origin', check=True)[0].stdout
+            branch_name = run('git', 'rev-parse --abbrev-ref HEAD', check=True)[0].stdout
             version['url'] = origin.removesuffix('.git') + '/tree/' + branch_name
             version['branch'] = branch_name
             if version['branch'] == 'HEAD':
@@ -1282,7 +1282,7 @@ def get_version(force=False):
             log.warning(f'Version: where=branch {e}')
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
-                branch_ui = sub_run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout
+                branch_ui = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout
                 version['ui'] = 'dev' if 'dev' in branch_ui else 'main'
             else:
                 version['ui'] = 'unavailable'
@@ -1293,7 +1293,7 @@ def get_version(force=False):
             if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
                 version['kanvas'] = 'disabled'
             elif os.path.exists('extensions-builtin/sdnext-kanvas'):
-                branch_kanvas = sub_run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout
+                branch_kanvas = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout
                 version['kanvas'] = 'dev' if 'dev' in branch_kanvas else 'main'
             else:
                 version['kanvas'] = 'unavailable'
@@ -1482,7 +1482,7 @@ def get_state():
         def _get_commit(item):
             ext, ext_dir = item
             try:
-                return ext, sub_run('git', 'rev-parse HEAD', cwd=ext_dir)[0].stdout
+                return ext, run('git', 'rev-parse HEAD', cwd=ext_dir)[0].stdout
             except Exception:
                 return ext, ''
 
