@@ -129,11 +129,10 @@ export const settingsSchema: SettingSectionDef[] = [
   },
 ];
 
-export const QUICK_SETTINGS_GROUPS = [
-  { title: "Model", keys: ["sd_model_checkpoint", "sd_vae", "sd_model_refiner", "sd_model_dict"] },
-  { title: "Performance", keys: ["cross_attention_optimization", "cuda_compile_backend", "cuda_compile_mode", "diffusers_offload_mode"] },
-  { title: "Output", keys: ["samples_save", "save_init_img", "image_watermark_enabled", "batch_frame_mode"] },
-  { title: "Preview", keys: ["live_previews_enable"] },
+export const DEFAULT_QUICK_SETTINGS_KEYS = [
+  "sd_model_checkpoint", "sd_vae", "sd_unet",
+  "sdnq_quantize_weights", "sdnq_quantize_weights_mode", "sdnq_quantize_weights_mode_te",
+  "sdnq_use_dynamic_quantization", "sdnq_use_svd",
 ];
 
 export function getSettingsMap(): Map<string, { section: SettingSectionDef; setting: SettingDef }> {
