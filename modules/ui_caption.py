@@ -270,6 +270,7 @@ def create_ui():
                         with gr.Row():
                             wd_show_scores = gr.Checkbox(label='Show confidence scores', value=shared.opts.tagger_show_scores, elem_id='wd_show_scores')
                     gr.HTML('<style>#wd_character_threshold:has(input:disabled), #wd_include_rating:has(input:disabled) { opacity: 0.5; }</style>')
+                    gr.HTML('<style>#vlm_batch_files, #vlm_batch_folder, #clip_batch_files, #clip_batch_folder, #wd_batch_files, #wd_batch_folder { max-height: 10em; overflow-y: auto !important; }</style>')
                     with gr.Accordion(label='Caption: Batch', open=False, visible=True):
                         with gr.Row():
                             wd_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='wd_batch_files')
