@@ -214,12 +214,11 @@ def sub_run(cmd: str, *args: str, **kwargs):
         tuple[CompletedProcess[str], str]: Tuple with the results and the combined `stdout` and `stderr` values.
     """
     options = {
-        "shell": True,
         "check": False,
         "env": os.environ,
     }
     options |= kwargs  # Override defaults with passed kwargs
-    result = subprocess.run(f'"{cmd}" {" ".join(args)}', **options, capture_output=True, text=True)
+    result = subprocess.run(f'"{cmd}" {" ".join(args)}', **options, shell=True, capture_output=True, text=True)
     result.stdout = result.stdout.strip()
     result.stderr = result.stderr.strip()
     txt = result.stdout
