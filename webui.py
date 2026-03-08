@@ -373,12 +373,6 @@ def start_ui():
     shared.api = create_api(app)
     shared.api.register()
     modules.progress.setup_progress_api()
-    # mount pre-built react frontend
-    frontend_dir = os.path.join(os.path.dirname(__file__), "frontend", "dist")
-    if os.path.isdir(frontend_dir):
-        from starlette.staticfiles import StaticFiles
-        app.mount("/ui", StaticFiles(directory=frontend_dir, html=True), name="frontend")
-        log.info(f'Frontend: path={frontend_dir}')
     modules.ui_extra_networks.init_api()
     timer.startup.record("api")
 
