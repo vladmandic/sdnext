@@ -7,6 +7,13 @@ from fastapi.exceptions import HTTPException
 from modules import shared, sd_samplers
 from modules.logger import log
 
+_upload_store_getter = None
+
+
+def register_upload_store(getter_fn):
+    global _upload_store_getter
+    _upload_store_getter = getter_fn
+
 
 def validate_sampler_name(name):
     config = sd_samplers.all_samplers_map.get(name, None)
@@ -39,8 +46,9 @@ def decode_base64_to_image(encoding, quiet=False):
 def _resolve_upload_ref(encoding: str, quiet: bool = False):
     ref_id = encoding[len("upload:"):]
     try:
-        from modules.api.v2.upload import get_upload_store
-        store = get_upload_store()
+        if _upload_store_getter is None:
+            raise RuntimeError("Upload store not registered")
+        store = _upload_store_getter()
         image = store.resolve_to_image(ref_id)
         if image is not None:
             return image

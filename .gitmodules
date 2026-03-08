@@ -20,3 +20,8 @@
 [submodule "extensions-builtin/sdnext-kanvas"]
 	path = extensions-builtin/sdnext-kanvas
 	url = https://github.com/vladmandic/sdnext-kanvas
+[submodule "extensions-builtin/enso"]
+	path = extensions-builtin/enso
+	url = https://github.com/CalamitousFelicitousness/enso.git
+	branch = master
+	ignore = dirty

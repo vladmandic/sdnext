@@ -58,9 +58,6 @@ class Api:
         self.add_api_route("/sdapi/v1/options-info", server.get_options_info, methods=["GET"], tags=["Server"])
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel)
         self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu_status, methods=["GET"], response_model=list[models.ResGPU])
-        self.add_api_route("/sdapi/v2/huggingface/settings", server.get_hf_settings, methods=["GET"], tags=["HuggingFace"])
-        self.add_api_route("/sdapi/v2/huggingface/settings", server.post_hf_settings, methods=["POST"], tags=["HuggingFace"])
-        self.add_api_route("/sdapi/v2/huggingface/me", server.get_hf_profile, methods=["GET"], tags=["HuggingFace"])
 
         # core api using locking
         self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img, tags=["Generation"])
@@ -91,8 +88,6 @@ class Api:
         self.add_api_route("/sdapi/v1/sd-vae", endpoints.get_sd_vaes, methods=["GET"], response_model=list[models.ItemVae])
         self.add_api_route("/sdapi/v1/extensions", endpoints.get_extensions_list, methods=["GET"], response_model=list[models.ItemExtension])
         self.add_api_route("/sdapi/v1/extra-networks", endpoints.get_extra_networks, methods=["GET"], response_model=list[models.ItemExtraNetwork])
-        self.add_api_route("/sdapi/v2/extra-networks/detail", endpoints.get_extra_network_detail, methods=["GET"], response_model=models.ItemExtraNetworkDetail, tags=["Enumerators"])
-        self.add_api_route("/sdapi/v2/extra-networks/details", endpoints.get_extra_network_details, methods=["GET"], response_model=models.ResExtraNetworkDetails, tags=["Enumerators"])
 
         # functional api
         self.add_api_route("/sdapi/v1/png-info", endpoints.post_pnginfo, methods=["POST"], response_model=models.ResImageInfo, tags=["Functional"])
@@ -116,20 +111,6 @@ class Api:
         from modules.api import loras
         loras.register_api()
 
-        # websocket ticket api
-        from modules.api.security import ws_tickets
-        def post_ws_ticket():
-            return {"ticket": ws_tickets.create()}
-        self.add_api_route("/sdapi/v2/ws-ticket", post_ws_ticket, methods=["POST"], tags=["WebSocket"])
-
-        # websocket api
-        from modules.api import ws
-        ws.register_ws(self.app)
-
-        # gallery api
-        from modules.api import gallery
-        gallery.register_api(self.app)
-
         # nudenet api
         from modules.api import nudenet
         nudenet.register_api()
@@ -141,23 +122,6 @@ class Api:
         # civitai api
         from modules.civitai import api_civitai
         api_civitai.register_api()
-
-        # loaded-models inventory api
-        from modules.api import loaded_models
-        loaded_models.register_api()
-
-        # model operations api
-        from modules.api import models_ops
-        models_ops.register_api()
-
-        # system operations api
-        from modules.api import system_ops
-        system_ops.register_api()
-
-        # v2 async job queue api
-        from modules.api.v2 import register_v2
-        v2_deps = [Depends(self.auth)] if self.credentials else []
-        register_v2(self.app, dependencies=v2_deps)
 
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute
