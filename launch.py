@@ -97,13 +97,13 @@ def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compat
         if result.returncode != 0:
             raise RuntimeError(f"""{errdesc or 'Error running command'} Command: {command} Error code: {result.returncode}""")
         return ''
-    result = subprocess.run(command, capture_output=True, check=False, shell=True, env=os.environ if custom_env is None else custom_env)
+    result = subprocess.run(command, capture_output=True, check=False, shell=True, env=os.environ if custom_env is None else custom_env, text=True)
     if result.returncode != 0:
         raise RuntimeError(f"""{errdesc or 'Error running command'}: {command} code: {result.returncode}
-{result.stdout.decode(encoding="utf8", errors="ignore") if len(result.stdout)>0 else ''}
-{result.stderr.decode(encoding="utf8", errors="ignore") if len(result.stderr)>0 else ''}
+{result.stdout}
+{result.stderr}
 """)
-    return result.stdout.decode(encoding="utf8", errors="ignore")
+    return result.stdout
 
 
 def check_run(command): # compatbility function
