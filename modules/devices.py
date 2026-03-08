@@ -104,8 +104,8 @@ def get_gpu_info():
         elif torch.cuda.is_available() and torch.version.cuda:
             try:
                 import subprocess
-                result = subprocess.run('nvidia-smi --query-gpu=driver_version --format=csv,noheader', shell=True, check=False, env=os.environ, capture_output=True)
-                version = result.stdout.decode(encoding="utf8", errors="ignore").strip()
+                result = subprocess.run('nvidia-smi --query-gpu=driver_version --format=csv,noheader', shell=True, check=False, env=os.environ, capture_output=True, text=True)
+                version = result.stdout.strip()
                 return version
             except Exception:
                 return ''

@@ -419,6 +419,7 @@ def batch(
     Returns:
         Combined tag results
     """
+    import os
     from pathlib import Path
 
     # Load model
@@ -429,55 +430,15 @@ def batch(
 
     # Collect image files
     image_files = []
-    image_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif'}
-
-    # From file picker
-    if batch_files:
-        for f in batch_files:
-            if isinstance(f, dict):
-                image_files.append(Path(f['name']))
-            elif hasattr(f, 'name'):
-                image_files.append(Path(f.name))
-            else:
-                image_files.append(Path(f))
-
-    # From folder picker
-    if batch_folder:
-        folder_path = None
-        if isinstance(batch_folder, list) and len(batch_folder) > 0:
-            f = batch_folder[0]
-            if isinstance(f, dict):
-                folder_path = Path(f['name']).parent
-            elif hasattr(f, 'name'):
-                folder_path = Path(f.name).parent
-        if folder_path and folder_path.is_dir():
-            if recursive:
-                for ext in image_extensions:
-                    image_files.extend(folder_path.rglob(f'*{ext}'))
-            else:
-                for ext in image_extensions:
-                    image_files.extend(folder_path.glob(f'*{ext}'))
-
-    # From string path
-    if batch_str and batch_str.strip():
+    if batch_files is not None:
+        image_files += [f.name for f in batch_files]
+    if batch_folder is not None:
+        image_files += [f.name for f in batch_folder]
+    if batch_str is not None and len(batch_str) > 0 and os.path.exists(batch_str) and os.path.isdir(batch_str):
+        image_extensions = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif'}
         folder_path = Path(batch_str.strip())
-        if folder_path.is_dir():
-            if recursive:
-                for ext in image_extensions:
-                    image_files.extend(folder_path.rglob(f'*{ext}'))
-            else:
-                for ext in image_extensions:
-                    image_files.extend(folder_path.glob(f'*{ext}'))
-
-    # Remove duplicates while preserving order
-    seen = set()
-    unique_files = []
-    for f in image_files:
-        f_resolved = f.resolve()
-        if f_resolved not in seen:
-            seen.add(f_resolved)
-            unique_files.append(f)
-    image_files = unique_files
+        for ext in image_extensions:
+            image_files.extend(str(p) for p in (folder_path.rglob(f'*{ext}') if recursive else folder_path.glob(f'*{ext}')))
 
     if not image_files:
         log.warning('WaifuDiffusion batch: no images found')
@@ -496,25 +457,26 @@ def batch(
 
     with pbar:
         task = pbar.add_task(total=len(image_files), description='starting...')
-        for img_path in image_files:
-            pbar.update(task, advance=1, description=str(img_path.name))
+        for file in image_files:
+            file_name = os.path.basename(file)
+            pbar.update(task, advance=1, description=file_name)
             try:
                 if shared.state.interrupted:
                     log.info('WaifuDiffusion batch: interrupted')
                     break
 
-                image = Image.open(img_path)
+                image = Image.open(file)
                 tags_str = tagger.predict(image, **kwargs)
 
                 if save_output:
                     from modules.caption import tagger as tagger_module
-                    tagger_module.save_tags_to_file(img_path, tags_str, save_append)
+                    tagger_module.save_tags_to_file(Path(file), tags_str, save_append)
 
-                results.append(f'{img_path.name}: {tags_str[:100]}...' if len(tags_str) > 100 else f'{img_path.name}: {tags_str}')
+                results.append(f'{file_name}: {tags_str[:100]}...' if len(tags_str) > 100 else f'{file_name}: {tags_str}')
 
             except Exception as e:
-                log.error(f'WaifuDiffusion batch: file="{img_path}" error={e}')
-                results.append(f'{img_path.name}: ERROR - {e}')
+                log.error(f'WaifuDiffusion batch: file="{file}" error={e}')
+                results.append(f'{file_name}: ERROR - {e}')
 
     elapsed = time.time() - t0
     log.info(f'WaifuDiffusion batch: complete images={len(results)} time={elapsed:.1f}s')
