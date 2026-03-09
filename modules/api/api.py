@@ -125,6 +125,10 @@ class Api:
         from modules.civitai import api_civitai
         api_civitai.register_api()
 
+        # upload api
+        from modules.api import upload
+        upload.register_api()
+
     def add_api_route(self, path: str, fn, auth: bool = True, **kwargs):
         if auth and self.credentials:
             deps = list(kwargs.get('dependencies', []))

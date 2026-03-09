@@ -504,9 +504,9 @@ def create_model_from_signature(func: Callable, model_name: str, base_model: typ
             extra = 'allow' if varkw else 'ignore'
         config = CustomConfig
         if base_model == BaseModel:
-             create_model_args = {'__config__': config}
+            create_model_args = {'__config__': config}
         else:
-             create_model_args = {'__base__': base_model}
+            create_model_args = {'__base__': base_model}
 
     model = create_model(
         model_name,

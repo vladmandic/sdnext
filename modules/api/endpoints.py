@@ -3,7 +3,6 @@ from modules import shared
 from modules.api import models, helpers
 
 
-
 def get_samplers():
     from modules import sd_samplers_diffusers
     all_samplers = []
