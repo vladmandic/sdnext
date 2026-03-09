@@ -1,7 +1,7 @@
 import torch
 
 from .common import dtype_dict
-from .packed_int import pack_int_asymetric, unpack_int_asymetric
+from .packed_int import pack_int, unpack_int
 
 
 float_bits_to_uint_dict = {
@@ -12,6 +12,9 @@ float_bits_to_uint_dict = {
     5: "uint5",
     6: "uint6",
     7: "uint7",
+    10: "uint10",
+    12: "uint12",
+    14: "uint14",
 }
 
 
@@ -51,8 +54,8 @@ def pack_float(x: torch.FloatTensor, weights_dtype: str) -> torch.Tensor:
         ~(-(1 << total_bits)),
     ).view(torch.uint32)
 
-    if total_bits < 8:
-        x = pack_int_asymetric(x, float_bits_to_uint_dict[total_bits])
+    if total_bits not in {8, 16}:
+        x = pack_int(x, float_bits_to_uint_dict[total_bits])
     else:
         x = x.to(dtype=dtype_dict[weights_dtype]["storage_dtype"])
 
@@ -72,8 +75,8 @@ def unpack_float(x: torch.Tensor, shape: torch.Size, weights_dtype: str) -> torc
     mantissa_difference = 23 - mantissa_bits
     exponent_difference = 8 - exponent_bits
 
-    if total_bits < 8:
-        x = unpack_int_asymetric(x, shape, float_bits_to_uint_dict[total_bits])
+    if total_bits not in {8, 16}:
+        x = unpack_int(x, float_bits_to_uint_dict[total_bits], shape)
 
     x = x.to(dtype=torch.uint32).view(torch.int32)
     x = torch.bitwise_left_shift(
