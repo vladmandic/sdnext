@@ -367,7 +367,6 @@ class StyleDatabase:
                         # self.load_style(fn)
                     elif os.path.isdir(fn) and not fn.startswith('.'):
                         list_folder(fn)
-                self.styles = dict(sorted(self.styles.items(), key=lambda style: style[1].filename))
                 if self.built_in:
                     fn = os.path.join('html', 'art-styles.json')
                     future_items[executor.submit(self.load_style, fn, 'Reference')] = fn
@@ -376,6 +375,7 @@ class StyleDatabase:
 
         self.built_in = shared.opts.extra_networks_styles
         list_folder(self.path)
+        self.styles = dict(sorted(self.styles.items(), key=lambda style: style[1].filename))
         t1 = time.time()
         log.info(f'Available Styles: path="{self.path}" items={len(self.styles.keys())} time={t1-t0:.2f}')
 
