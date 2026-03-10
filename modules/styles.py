@@ -362,11 +362,7 @@ class StyleDatabase:
             candidates = list(files_cache.list_files(folder, ext_filter=['.json'], recursive=files_cache.not_hidden))
             with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
                 for fn in candidates:
-                    if os.path.isfile(fn) and fn.lower().endswith(".json"):
-                        future_items[executor.submit(self.load_style, fn, None)] = fn
-                        # self.load_style(fn)
-                    elif os.path.isdir(fn) and not fn.startswith('.'):
-                        list_folder(fn)
+                    future_items[executor.submit(self.load_style, fn, None)] = fn
                 if self.built_in:
                     fn = os.path.join('html', 'art-styles.json')
                     future_items[executor.submit(self.load_style, fn, 'Reference')] = fn
