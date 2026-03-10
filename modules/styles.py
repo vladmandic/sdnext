@@ -359,9 +359,9 @@ class StyleDatabase:
         def list_folder(folder):
             import concurrent
             future_items = {}
-            candidates = list(files_cache.list_files(folder, ext_filter=['.json'], recursive=files_cache.not_hidden))
+            style_files = list(files_cache.list_files(folder, ext_filter=['.json'], recursive=files_cache.not_hidden))
             with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
-                for fn in candidates:
+                for fn in style_files:
                     future_items[executor.submit(self.load_style, fn, None)] = fn
                 if self.built_in:
                     fn = os.path.join('html', 'art-styles.json')
