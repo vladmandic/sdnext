@@ -309,7 +309,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
 
     if use_svd:
         try:
-            weight, svd_up, svd_down = apply_svdquant(weight, rank=svd_rank, niter=svd_steps, dtype=scale_dtype)
+            weight, svd_up, svd_down = apply_svdquant(weight, rank=svd_rank, niter=svd_steps, dtype=torch_dtype)
             if use_quantized_matmul:
                 svd_up = svd_up.t_()
                 svd_down = svd_down.t_()
@@ -422,10 +422,8 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
 
     if use_svd:
         try:
-            svd_weight, svd_up, svd_down = apply_svdquant(weight, rank=svd_rank, niter=svd_steps)
+            svd_weight, svd_up, svd_down = apply_svdquant(weight, rank=svd_rank, niter=svd_steps, dtype=torch_dtype)
             svd_up, svd_down = prepare_svd_for_matmul(svd_up, svd_down, use_quantized_matmul)
-            svd_up = svd_up.to(dtype=torch_dtype)
-            svd_down = svd_down.to(dtype=torch_dtype)
         except Exception:
             svd_up, svd_down = None, None
             svd_weight = weight

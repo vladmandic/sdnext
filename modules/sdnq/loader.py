@@ -184,6 +184,9 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
 
             if dtype is not None and module.sdnq_dequantizer.result_dtype not in {torch.float32, torch.float64}:
                 module.sdnq_dequantizer.result_dtype = dtype
+                if module.svd_up is not None:
+                    module.svd_up.data = module.svd_up.to(dtype=dtype)
+                    module.svd_down.data = module.svd_down.to(dtype=dtype)
 
             upcast_scale = bool(
                 dequantize_fp32
@@ -208,9 +211,6 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
             module.scale.data = module.scale.to(dtype=scale_dtype)
             if module.zero_point is not None:
                 module.zero_point.data = module.zero_point.to(dtype=scale_dtype)
-            if module.svd_up is not None:
-                module.svd_up.data = module.svd_up.to(dtype=scale_dtype)
-                module.svd_down.data = module.svd_down.to(dtype=scale_dtype)
 
             if current_use_quantized_matmul is not None and current_use_quantized_matmul != module.sdnq_dequantizer.use_quantized_matmul:
                 if not module.sdnq_dequantizer.re_quantize_for_matmul and not dtype_dict[module.sdnq_dequantizer.weights_dtype]["is_packed"]:
