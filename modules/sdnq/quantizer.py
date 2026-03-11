@@ -161,11 +161,8 @@ def get_minimum_dtype(weights_dtype: str, param_name: str, modules_dtype_dict: d
         for key, value in modules_dtype_dict.items():
             if check_param_name_in(param_name, value) is not None:
                 key = key.lower()
-                if key in {"8bit", "8bits"}:
-                    if dtype_dict[weights_dtype]["num_bits"] != 8:
-                        return "int8"
-                elif key.startswith("minimum_"):
-                    minimum_bits_str = key.removeprefix("minimum_").removesuffix("bits").removesuffix("bit")
+                if key.startswith("minimum") or key.endswith("bit") or key.endswith("bits"):
+                    minimum_bits_str = key.removeprefix("minimum").removeprefix("-").removeprefix("_").removesuffix("bits").removesuffix("bit").removesuffix("-").removesuffix("_")
                     if minimum_bits_str.startswith("uint"):
                         is_unsigned = True
                         minimum_bits_str = minimum_bits_str.removeprefix("uint")
