@@ -13,9 +13,14 @@ dtype_dict = {
     "int16": {"min": -32768, "max": 32767, "num_bits": 16, "sign": 1, "exponent": 0, "mantissa": 15, "target_dtype": torch.int16, "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": True, "is_packed": False},
     "int8": {"min": -128, "max": 127, "num_bits": 8, "sign": 1, "exponent": 0, "mantissa": 7, "target_dtype": torch.int8, "torch_dtype": torch.int8, "storage_dtype": torch.int8, "is_unsigned": False, "is_integer": True, "is_packed": False},
     ### Custom Integers
+    "int15": {"min": -16384, "max": 16383, "num_bits": 15, "sign": 1, "exponent": 0, "mantissa": 14, "target_dtype": "int15", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": True, "is_packed": True},
     "int14": {"min": -8192, "max": 8191, "num_bits": 14, "sign": 1, "exponent": 0, "mantissa": 13, "target_dtype": "int14", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": True, "is_packed": True},
+    "int13": {"min": -4096, "max": 4095, "num_bits": 13, "sign": 1, "exponent": 0, "mantissa": 12, "target_dtype": "int13", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": True, "is_packed": True},
     "int12": {"min": -2048, "max": 2047, "num_bits": 12, "sign": 1, "exponent": 0, "mantissa": 11, "target_dtype": "int12", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": True, "is_packed": True},
+    "int11": {"min": -1024, "max": 1023, "num_bits": 11, "sign": 1, "exponent": 0, "mantissa": 10, "target_dtype": "int11", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": True, "is_packed": True},
     "int10": {"min": -512, "max": 511, "num_bits": 10, "sign": 1, "exponent": 0, "mantissa": 9, "target_dtype": "int10", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": True, "is_packed": True},
+    "int9": {"min": -256, "max": 255, "num_bits": 9, "sign": 1, "exponent": 0, "mantissa": 8, "target_dtype": "int9", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": True, "is_packed": True},
+    #
     "int7": {"min": -64, "max": 63, "num_bits": 7, "sign": 1, "exponent": 0, "mantissa": 6, "target_dtype": "int7", "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True, "is_packed": True},
     "int6": {"min": -32, "max": 31, "num_bits": 6, "sign": 1, "exponent": 0, "mantissa": 5, "target_dtype": "int6", "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True, "is_packed": True},
     "int5": {"min": -16, "max": 15, "num_bits": 5, "sign": 1, "exponent": 0, "mantissa": 4, "target_dtype": "int5", "torch_dtype": torch.int8, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": True, "is_packed": True},
@@ -27,9 +32,14 @@ dtype_dict = {
     "uint16": {"min": 0, "max": 65535, "num_bits": 16, "sign": 0, "exponent": 0, "mantissa": 16, "target_dtype": torch.uint16, "torch_dtype": torch.uint16, "storage_dtype": torch.uint16, "is_unsigned": True, "is_integer": True, "is_packed": False},
     "uint8": {"min": 0, "max": 255, "num_bits": 8, "sign": 0, "exponent": 0, "mantissa": 8, "target_dtype": torch.uint8, "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True, "is_packed": False},
     ### Custom Unsigned Integers
+    "uint15": {"min": 0, "max": 32768, "num_bits": 15, "sign": 0, "exponent": 0, "mantissa": 15, "target_dtype": "uint15", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": True, "is_packed": True},
     "uint14": {"min": 0, "max": 16384, "num_bits": 14, "sign": 0, "exponent": 0, "mantissa": 14, "target_dtype": "uint14", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": True, "is_packed": True},
+    "uint13": {"min": 0, "max": 8192, "num_bits": 13, "sign": 0, "exponent": 0, "mantissa": 13, "target_dtype": "uint13", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": True, "is_packed": True},
     "uint12": {"min": 0, "max": 4096, "num_bits": 12, "sign": 0, "exponent": 0, "mantissa": 12, "target_dtype": "uint12", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": True, "is_packed": True},
+    "uint11": {"min": 0, "max": 2048, "num_bits": 11, "sign": 0, "exponent": 0, "mantissa": 11, "target_dtype": "uint11", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": True, "is_packed": True},
     "uint10": {"min": 0, "max": 1024, "num_bits": 10, "sign": 0, "exponent": 0, "mantissa": 10, "target_dtype": "uint10", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": True, "is_packed": True},
+    "uint9": {"min": 0, "max": 512, "num_bits": 9, "sign": 0, "exponent": 0, "mantissa": 9, "target_dtype": "uint9", "torch_dtype": torch.int16, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": True, "is_packed": True},
+    #
     "uint7": {"min": 0, "max": 127, "num_bits": 7, "sign": 0, "exponent": 0, "mantissa": 7, "target_dtype": "uint7", "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True, "is_packed": True},
     "uint6": {"min": 0, "max": 63, "num_bits": 6, "sign": 0, "exponent": 0, "mantissa": 6, "target_dtype": "uint6", "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True, "is_packed": True},
     "uint5": {"min": 0, "max": 31, "num_bits": 5, "sign": 0, "exponent": 0, "mantissa": 5, "target_dtype": "uint5", "torch_dtype": torch.uint8, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": True, "is_packed": True},
@@ -50,11 +60,23 @@ dtype_dict = {
     "float16_e4m11fn": {"min": -511.875, "max": 511.875, "num_bits": 16, "sign": 1, "exponent": 4, "mantissa": 11, "min_normal": 0.007816314697265625, "target_dtype": "fp16", "torch_dtype": torch.float32, "storage_dtype": torch.uint16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float16_e5m10fn": {"min": -131008.0, "max": 131008.0, "num_bits": 16, "sign": 1, "exponent": 5, "mantissa": 10, "min_normal": 3.0547380447387695e-05, "target_dtype": "fp16", "torch_dtype": torch.float32, "storage_dtype": torch.uint16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     #
+    "float15_e1m13fn": {"min": -3.999755859375, "max": 3.999755859375, "num_bits": 15, "sign": 1, "exponent": 1, "mantissa": 13, "min_normal": 1.0001220703125, "target_dtype": "fp15", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float15_e2m12fn": {"min": -7.9990234375, "max": 7.9990234375, "num_bits": 15, "sign": 1, "exponent": 2, "mantissa": 12, "min_normal": 0.5001220703125, "target_dtype": "fp15", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float15_e3m11fn": {"min": -31.9921875, "max": 31.9921875, "num_bits": 15, "sign": 1, "exponent": 3, "mantissa": 11, "min_normal": 0.12506103515625, "target_dtype": "fp15", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float15_e4m10fn": {"min": -511.75, "max": 511.75, "num_bits": 15, "sign": 1, "exponent": 4, "mantissa": 10, "min_normal": 0.00782012939453125, "target_dtype": "fp15", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float15_e5m9fn": {"min": -130944.0, "max": 130944.0, "num_bits": 15, "sign": 1, "exponent": 5, "mantissa": 9, "min_normal": 3.057718276977539e-05, "target_dtype": "fp15", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    #
     "float14_e1m12fn": {"min": -3.99951171875, "max": 3.99951171875, "num_bits": 14, "sign": 1, "exponent": 1, "mantissa": 12, "min_normal": 1.000244140625, "target_dtype": "fp14", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float14_e2m11fn": {"min": -7.998046875, "max": 7.998046875, "num_bits": 14, "sign": 1, "exponent": 2, "mantissa": 11, "min_normal": 0.500244140625, "target_dtype": "fp14", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float14_e3m10fn": {"min": -31.984375, "max": 31.984375, "num_bits": 14, "sign": 1, "exponent": 3, "mantissa": 10, "min_normal": 0.1251220703125, "target_dtype": "fp14", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float14_e4m9fn": {"min": -511.5, "max": 511.5, "num_bits": 14, "sign": 1, "exponent": 4, "mantissa": 9, "min_normal": 0.0078277587890625, "target_dtype": "fp14", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float14_e5m8fn": {"min": -130816.0, "max": 130816.0, "num_bits": 14, "sign": 1, "exponent": 5, "mantissa": 8, "min_normal": 3.063678741455078e-05, "target_dtype": "fp14", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    #
+    "float13_e1m11fn": {"min": -3.9990234375, "max": 3.9990234375, "num_bits": 13, "sign": 1, "exponent": 1, "mantissa": 11, "min_normal": 1.00048828125, "target_dtype": "fp13", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float13_e2m10fn": {"min": -7.99609375, "max": 7.99609375, "num_bits": 13, "sign": 1, "exponent": 2, "mantissa": 10, "min_normal": 0.50048828125, "target_dtype": "fp13", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float13_e3m9fn": {"min": -31.96875, "max": 31.96875, "num_bits": 13, "sign": 1, "exponent": 3, "mantissa": 9, "min_normal": 0.125244140625, "target_dtype": "fp13", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float13_e4m8fn": {"min": -511.0, "max": 511.0, "num_bits": 13, "sign": 1, "exponent": 4, "mantissa": 8, "min_normal": 0.007843017578125, "target_dtype": "fp13", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float13_e5m7fn": {"min": -130560.0, "max": 130560.0, "num_bits": 13, "sign": 1, "exponent": 5, "mantissa": 7, "min_normal": 3.075599670410156e-05, "target_dtype": "fp13", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     #
     "float12_e1m10fn": {"min": -3.998046875, "max": 3.998046875, "num_bits": 12, "sign": 1, "exponent": 1, "mantissa": 10, "min_normal": 1.0009765625, "target_dtype": "fp12", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float12_e2m9fn": {"min": -7.9921875, "max": 7.9921875, "num_bits": 12, "sign": 1, "exponent": 2, "mantissa": 9, "min_normal": 0.5009765625, "target_dtype": "fp12", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
@@ -62,11 +84,23 @@ dtype_dict = {
     "float12_e4m7fn": {"min": -510.0, "max": 510.0, "num_bits": 12, "sign": 1, "exponent": 4, "mantissa": 7, "min_normal": 0.00787353515625, "target_dtype": "fp12", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float12_e5m6fn": {"min": -130048.0, "max": 130048.0, "num_bits": 12, "sign": 1, "exponent": 5, "mantissa": 6, "min_normal": 3.0994415283203125e-05, "target_dtype": "fp12", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     #
+    "float11_e1m9fn": {"min": -3.99609375, "max": 3.99609375, "num_bits": 11, "sign": 1, "exponent": 1, "mantissa": 9, "min_normal": 1.001953125, "target_dtype": "fp11", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float11_e2m8fn": {"min": -7.984375, "max": 7.984375, "num_bits": 11, "sign": 1, "exponent": 2, "mantissa": 8, "min_normal": 0.501953125, "target_dtype": "fp11", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float11_e3m7fn": {"min": -31.875, "max": 31.875, "num_bits": 11, "sign": 1, "exponent": 3, "mantissa": 7, "min_normal": 0.1259765625, "target_dtype": "fp11", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float11_e4m6fn": {"min": -508.0, "max": 508.0, "num_bits": 11, "sign": 1, "exponent": 4, "mantissa": 6, "min_normal": 0.0079345703125, "target_dtype": "fp11", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float11_e5m5fn": {"min": -129024.0, "max": 129024.0, "num_bits": 11, "sign": 1, "exponent": 5, "mantissa": 5, "min_normal": 3.147125244140625e-05, "target_dtype": "fp11", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    #
     "float10_e1m8fn": {"min": -3.9921875, "max": 3.9921875, "num_bits": 10, "sign": 1, "exponent": 1, "mantissa": 8, "min_normal": 1.00390625, "target_dtype": "fp10", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float10_e2m7fn": {"min": -7.96875, "max": 7.96875, "num_bits": 10, "sign": 1, "exponent": 2, "mantissa": 7, "min_normal": 0.50390625, "target_dtype": "fp10", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float10_e3m6fn": {"min": -31.75, "max": 31.75, "num_bits": 10, "sign": 1, "exponent": 3, "mantissa": 6, "min_normal": 0.126953125, "target_dtype": "fp10", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float10_e4m5fn": {"min": -504.0, "max": 504.0, "num_bits": 10, "sign": 1, "exponent": 4, "mantissa": 5, "min_normal": 0.008056640625, "target_dtype": "fp10", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float10_e5m4fn": {"min": -126976.0, "max": 126976.0, "num_bits": 10, "sign": 1, "exponent": 5, "mantissa": 4, "min_normal": 3.24249267578125e-05, "target_dtype": "fp10", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    #
+    "float9_e1m7fn": {"min": -3.984375, "max": 3.984375, "num_bits": 9, "sign": 1, "exponent": 1, "mantissa": 7, "min_normal": 1.0078125, "target_dtype": "fp9", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float9_e2m6fn": {"min": -7.9375, "max": 7.9375, "num_bits": 9, "sign": 1, "exponent": 2, "mantissa": 6, "min_normal": 0.5078125, "target_dtype": "fp9", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float9_e3m5fn": {"min": -31.5, "max": 31.5, "num_bits": 9, "sign": 1, "exponent": 3, "mantissa": 5, "min_normal": 0.12890625, "target_dtype": "fp9", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float9_e4m4fn": {"min": -496.0, "max": 496.0, "num_bits": 9, "sign": 1, "exponent": 4, "mantissa": 4, "min_normal": 0.00830078125, "target_dtype": "fp9", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
+    "float9_e5m3fn": {"min": -122880.0, "max": 122880.0, "num_bits": 9, "sign": 1, "exponent": 5, "mantissa": 3, "min_normal": 3.4332275390625e-05, "target_dtype": "fp9", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": False, "is_integer": False, "is_packed": True},
     #
     "float8_e1m6fn": {"min": -3.96875, "max": 3.96875, "num_bits": 8, "sign": 1, "exponent": 1, "mantissa": 6, "min_normal": 1.015625, "target_dtype": "fp8", "torch_dtype": torch.float32, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": False, "is_packed": True},
     "float8_e2m5fn": {"min": -7.875, "max": 7.875, "num_bits": 8, "sign": 1, "exponent": 2, "mantissa": 5, "min_normal": 0.515625, "target_dtype": "fp8", "torch_dtype": torch.float32, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": False, "is_packed": True},
@@ -106,11 +140,23 @@ dtype_dict = {
     "float16_e4m12fnu": {"min": 0, "max": 511.9375, "num_bits": 16, "sign": 0, "exponent": 4, "mantissa": 12, "min_normal": 0.007814407348632812, "target_dtype": "fp16", "torch_dtype": torch.float32, "storage_dtype": torch.uint16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float16_e5m11fnu": {"min": 0, "max": 131040.0, "num_bits": 16, "sign": 0, "exponent": 5, "mantissa": 11, "min_normal": 3.053247928619385e-05, "target_dtype": "fp16", "torch_dtype": torch.float32, "storage_dtype": torch.uint16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     #
+    "float15_e1m14fnu": {"min": 0, "max": 3.9998779296875, "num_bits": 15, "sign": 0, "exponent": 1, "mantissa": 14, "min_normal": 1.00006103515625, "target_dtype": "fp15", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float15_e2m13fnu": {"min": 0, "max": 7.99951171875, "num_bits": 15, "sign": 0, "exponent": 2, "mantissa": 13, "min_normal": 0.50006103515625, "target_dtype": "fp15", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float15_e3m12fnu": {"min": 0, "max": 31.99609375, "num_bits": 15, "sign": 0, "exponent": 3, "mantissa": 12, "min_normal": 0.125030517578125, "target_dtype": "fp15", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float15_e4m11fnu": {"min": 0, "max": 511.875, "num_bits": 15, "sign": 0, "exponent": 4, "mantissa": 11, "min_normal": 0.007816314697265625, "target_dtype": "fp15", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float15_e5m10fnu": {"min": 0, "max": 131008.0, "num_bits": 15, "sign": 0, "exponent": 5, "mantissa": 10, "min_normal": 3.0547380447387695e-05, "target_dtype": "fp15", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    #
     "float14_e1m13fnu": {"min": 0, "max": 3.999755859375, "num_bits": 14, "sign": 0, "exponent": 1, "mantissa": 13, "min_normal": 1.0001220703125, "target_dtype": "fp14", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float14_e2m12fnu": {"min": 0, "max": 7.9990234375, "num_bits": 14, "sign": 0, "exponent": 2, "mantissa": 12, "min_normal": 0.5001220703125, "target_dtype": "fp14", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float14_e3m11fnu": {"min": 0, "max": 31.9921875, "num_bits": 14, "sign": 0, "exponent": 3, "mantissa": 11, "min_normal": 0.12506103515625, "target_dtype": "fp14", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float14_e4m10fnu": {"min": 0, "max": 511.75, "num_bits": 14, "sign": 0, "exponent": 4, "mantissa": 10, "min_normal": 0.00782012939453125, "target_dtype": "fp14", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float14_e5m9fnu": {"min": 0, "max": 130944.0, "num_bits": 14, "sign": 0, "exponent": 5, "mantissa": 9, "min_normal": 3.057718276977539e-05, "target_dtype": "fp14", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    #
+    "float13_e1m12fnu": {"min": 0, "max": 3.99951171875, "num_bits": 13, "sign": 0, "exponent": 1, "mantissa": 12, "min_normal": 1.000244140625, "target_dtype": "fp13", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float13_e2m11fnu": {"min": 0, "max": 7.998046875, "num_bits": 13, "sign": 0, "exponent": 2, "mantissa": 11, "min_normal": 0.500244140625, "target_dtype": "fp13", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float13_e3m10fnu": {"min": 0, "max": 31.984375, "num_bits": 13, "sign": 0, "exponent": 3, "mantissa": 10, "min_normal": 0.1251220703125, "target_dtype": "fp13", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float13_e4m9fnu": {"min": 0, "max": 511.5, "num_bits": 13, "sign": 0, "exponent": 4, "mantissa": 9, "min_normal": 0.0078277587890625, "target_dtype": "fp13", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float13_e5m8fnu": {"min": 0, "max": 130816.0, "num_bits": 13, "sign": 0, "exponent": 5, "mantissa": 8, "min_normal": 3.063678741455078e-05, "target_dtype": "fp13", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     #
     "float12_e1m11fnu": {"min": 0, "max": 3.9990234375, "num_bits": 12, "sign": 0, "exponent": 1, "mantissa": 11, "min_normal": 1.00048828125, "target_dtype": "fp12", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float12_e2m10fnu": {"min": 0, "max": 7.99609375, "num_bits": 12, "sign": 0, "exponent": 2, "mantissa": 10, "min_normal": 0.50048828125, "target_dtype": "fp12", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
@@ -118,11 +164,23 @@ dtype_dict = {
     "float12_e4m8fnu": {"min": 0, "max": 511.0, "num_bits": 12, "sign": 0, "exponent": 4, "mantissa": 8, "min_normal": 0.007843017578125, "target_dtype": "fp12", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float12_e5m7fnu": {"min": 0, "max": 130560.0, "num_bits": 12, "sign": 0, "exponent": 5, "mantissa": 7, "min_normal": 3.075599670410156e-05, "target_dtype": "fp12", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     #
+    "float11_e1m10fnu": {"min": 0, "max": 3.998046875, "num_bits": 11, "sign": 0, "exponent": 1, "mantissa": 10, "min_normal": 1.0009765625, "target_dtype": "fp11", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float11_e2m9fnu": {"min": 0, "max": 7.9921875, "num_bits": 11, "sign": 0, "exponent": 2, "mantissa": 9, "min_normal": 0.5009765625, "target_dtype": "fp11", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float11_e3m8fnu": {"min": 0, "max": 31.9375, "num_bits": 11, "sign": 0, "exponent": 3, "mantissa": 8, "min_normal": 0.12548828125, "target_dtype": "fp11", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float11_e4m7fnu": {"min": 0, "max": 510.0, "num_bits": 11, "sign": 0, "exponent": 4, "mantissa": 7, "min_normal": 0.00787353515625, "target_dtype": "fp11", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float11_e5m6fnu": {"min": 0, "max": 130048.0, "num_bits": 11, "sign": 0, "exponent": 5, "mantissa": 6, "min_normal": 3.0994415283203125e-05, "target_dtype": "fp11", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    #
     "float10_e1m9fnu": {"min": 0, "max": 3.99609375, "num_bits": 10, "sign": 0, "exponent": 1, "mantissa": 9, "min_normal": 1.001953125, "target_dtype": "fp10", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float10_e2m8fnu": {"min": 0, "max": 7.984375, "num_bits": 10, "sign": 0, "exponent": 2, "mantissa": 8, "min_normal": 0.501953125, "target_dtype": "fp10", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float10_e3m7fnu": {"min": 0, "max": 31.875, "num_bits": 10, "sign": 0, "exponent": 3, "mantissa": 7, "min_normal": 0.1259765625, "target_dtype": "fp10", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float10_e4m6fnu": {"min": 0, "max": 508.0, "num_bits": 10, "sign": 0, "exponent": 4, "mantissa": 6, "min_normal": 0.0079345703125, "target_dtype": "fp10", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float10_e5m5fnu": {"min": 0, "max": 129024.0, "num_bits": 10, "sign": 0, "exponent": 5, "mantissa": 5, "min_normal": 3.147125244140625e-05, "target_dtype": "fp10", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    #
+    "float9_e1m8fnu": {"min": 0, "max": 3.9921875, "num_bits": 9, "sign": 0, "exponent": 1, "mantissa": 8, "min_normal": 1.00390625, "target_dtype": "fp9", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float9_e2m7fnu": {"min": 0, "max": 7.96875, "num_bits": 9, "sign": 0, "exponent": 2, "mantissa": 7, "min_normal": 0.50390625, "target_dtype": "fp9", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float9_e3m6fnu": {"min": 0, "max": 31.75, "num_bits": 9, "sign": 0, "exponent": 3, "mantissa": 6, "min_normal": 0.126953125, "target_dtype": "fp9", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float9_e4m5fnu": {"min": 0, "max": 504.0, "num_bits": 9, "sign": 0, "exponent": 4, "mantissa": 5, "min_normal": 0.008056640625, "target_dtype": "fp9", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
+    "float9_e5m4fnu": {"min": 0, "max": 126976.0, "num_bits": 9, "sign": 0, "exponent": 5, "mantissa": 4, "min_normal": 3.24249267578125e-05, "target_dtype": "fp9", "torch_dtype": torch.float32, "storage_dtype": torch.int16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     #
     "float8_e1m7fnu": {"min": 0, "max": 3.984375, "num_bits": 8, "sign": 0, "exponent": 1, "mantissa": 7, "min_normal": 1.0078125, "target_dtype": "fp8", "torch_dtype": torch.float32, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float8_e2m6fnu": {"min": 0, "max": 7.9375, "num_bits": 8, "sign": 0, "exponent": 2, "mantissa": 6, "min_normal": 0.5078125, "target_dtype": "fp8", "torch_dtype": torch.float32, "storage_dtype": torch.uint8, "is_unsigned": True, "is_integer": False, "is_packed": True},
@@ -166,9 +224,13 @@ dtype_dict = {
 dtype_dict["fp32"] = dtype_dict["float32"]
 dtype_dict["bf16"] = dtype_dict["bfloat16"]
 dtype_dict["fp16"] = dtype_dict["float16"]
+dtype_dict["fp15"] = dtype_dict["float15_e5m9fn"]
 dtype_dict["fp14"] = dtype_dict["float14_e5m8fn"]
+dtype_dict["fp13"] = dtype_dict["float13_e5m7fn"]
 dtype_dict["fp12"] = dtype_dict["float12_e5m6fn"]
+dtype_dict["fp11"] = dtype_dict["float11_e5m5fn"]
 dtype_dict["fp10"] = dtype_dict["float10_e5m4fn"]
+dtype_dict["fp9"] = dtype_dict["float9_e4m4fn"]
 dtype_dict["fp8"] = dtype_dict["float8_e4m3fn"]
 dtype_dict["fp7"] = dtype_dict["float7_e3m3fn"]
 dtype_dict["fp6"] = dtype_dict["float6_e3m2fn"]
@@ -228,14 +290,22 @@ weights_dtype_order = [
     "uint7", "float7_e1m6fnu", "float7_e2m5fnu", "float7_e3m4fnu", "float7_e4m3fnu", "float7_e5m2fnu",
     "int8", "float8_e4m3fn", "float8_e5m2", "float8_e1m6fn", "float8_e2m5fn", "float8_e3m4fn", "float8_e4m3fn_sdnq", "float8_e5m2fn",
     "uint8", "float8_e1m7fnu", "float8_e2m6fnu", "float8_e3m5fnu", "float8_e4m4fnu", "float8_e5m3fnu",
-    "int10", "float10_e1m8fn", "float10_e2m7fn", "float10_e3m6fn", "float10_e4m5fn_sdnq", "float10_e5m4fn",
+    "int9", "float9_e1m7fn", "float9_e2m6fn", "float9_e3m5fn", "float9_e4m4fn", "float9_e5m3fn",
+    "uint9", "float9_e1m8fnu", "float9_e2m7fnu", "float9_e3m6fnu", "float9_e4m5fnu", "float9_e5m4fnu",
+    "int10", "float10_e1m8fn", "float10_e2m7fn", "float10_e3m6fn", "float10_e4m5fn", "float10_e5m4fn",
     "uint10", "float10_e1m9fnu", "float10_e2m8fnu", "float10_e3m7fnu", "float10_e4m6fnu", "float10_e5m5fnu",
-    "int12", "float12_e1m10fn", "float12_e2m9fn", "float12_e3m8fn", "float12_e4m7fn_sdnq", "float12_e5m6fn",
+    "int11", "float11_e1m9fn", "float11_e2m8fn", "float11_e3m7fn", "float11_e4m6fn", "float11_e5m5fn",
+    "uint11", "float11_e1m10fnu", "float11_e2m9fnu", "float11_e3m8fnu", "float11_e4m7fnu", "float11_e5m6fnu",
+    "int12", "float12_e1m10fn", "float12_e2m9fn", "float12_e3m8fn", "float12_e4m7fn", "float12_e5m6fn",
     "uint12", "float12_e1m11fnu", "float12_e2m10fnu", "float12_e3m9fnu", "float12_e4m8fnu", "float12_e5m7fnu",
 ]
 weights_dtype_order_fp32 = weights_dtype_order + [
-    "int14", "float14_e1m12fn", "float14_e2m11fn", "float14_e3m10fn", "float14_e4m9fn_sdnq", "float14_e5m8fn",
+    "int13", "float13_e1m11fn", "float13_e2m10fn", "float13_e3m9fn", "float13_e4m8fn", "float13_e5m7fn",
+    "uint13", "float13_e1m12fnu", "float13_e2m11fnu", "float13_e3m10fnu", "float13_e4m9fnu", "float13_e5m8fnu",
+    "int14", "float14_e1m12fn", "float14_e2m11fn", "float14_e3m10fn", "float14_e4m9fn", "float14_e5m8fn",
     "uint14", "float14_e1m13fnu", "float14_e2m12fnu", "float14_e3m11fnu", "float14_e4m10fnu", "float14_e5m9fnu",
+    "int15", "float15_e1m13fn", "float15_e2m12fn", "float15_e3m11fn", "float15_e4m10fn", "float15_e5m9fn",
+    "uint15", "float15_e1m14fnu", "float15_e2m13fnu", "float15_e3m12fnu", "float15_e4m11fnu", "float15_e5m10fnu",
     "int16", "float16", "float16_e1m14fn", "float16_e2m13fn", "float16_e3m12fn", "float16_e4m11fn", "float16_e5m10fn",
     "uint16", "float16_e1m15fnu", "float16_e2m14fnu", "float16_e3m13fnu", "float16_e4m12fnu", "float16_e5m11fnu",
 ]

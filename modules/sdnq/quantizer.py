@@ -44,7 +44,8 @@ def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: int | list[in
 
 @devices.inference_context()
 def quantize_weight(weight: torch.FloatTensor, reduction_axes: int | list[int], weights_dtype: str, dtype: torch.dtype = None, use_stochastic_rounding: bool = False) -> tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
-    weight = weight.to(dtype=torch.float32)
+    if weight.dtype != torch.float64:
+        weight = weight.to(dtype=torch.float32)
 
     if dtype_dict[weights_dtype]["is_unsigned"]:
         scale, zero_point = get_scale_asymmetric(weight, reduction_axes, weights_dtype)
@@ -66,7 +67,8 @@ def quantize_weight(weight: torch.FloatTensor, reduction_axes: int | list[int], 
     else:
         if use_stochastic_rounding:
             mantissa_difference = 1 << (23 - dtype_dict[weights_dtype]["mantissa"])
-            quantized_weight = quantized_weight.view(dtype=torch.int32).add_(torch.randint_like(quantized_weight, low=0, high=mantissa_difference, dtype=torch.int32)).bitwise_and_(-mantissa_difference).view(dtype=torch.float32)
+            quantized_weight = quantized_weight.to(dtype=torch.float32).view(dtype=torch.int32)
+            quantized_weight = quantized_weight.add_(torch.randint_like(quantized_weight, low=0, high=mantissa_difference, dtype=torch.int32)).bitwise_and_(-mantissa_difference).view(dtype=torch.float32)
         quantized_weight.nan_to_num_()
     quantized_weight = quantized_weight.clamp_(dtype_dict[weights_dtype]["min"], dtype_dict[weights_dtype]["max"]).to(dtype_dict[weights_dtype]["torch_dtype"])
     return quantized_weight, scale, zero_point
@@ -79,7 +81,8 @@ def apply_svdquant(weight: torch.FloatTensor, rank: int = 32, niter: int = 8, dt
         reshape_weight = True
         weight_shape = weight.shape
         weight = weight.flatten(1,-1)
-    weight = weight.to(dtype=torch.float32)
+    if weight.dtype != torch.float64:
+        weight = weight.to(dtype=torch.float32)
     U, S, svd_down = torch.svd_lowrank(weight, q=rank, niter=niter)
     svd_up = torch.mul(U, S.unsqueeze(0))
     svd_down = svd_down.t_()
@@ -417,7 +420,8 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
     if torch_dtype is None:
         torch_dtype = weight.dtype
     weights_dtype_order_to_use = weights_dtype_order_fp32 if torch_dtype in {torch.float32, torch.float64} else weights_dtype_order
-    weight = weight.to(dtype=torch.float32)
+    if weight.dtype != torch.float64:
+        weight = weight.to(dtype=torch.float32)
     weight_std = weight.std().square_().clamp_(min=1e-8)
 
     if use_svd:
@@ -458,7 +462,7 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             svd_down = svd_down.t_()
             svd_is_transposed = True
 
-        quantization_loss = torch.nn.functional.mse_loss(weight, sdnq_dequantizer(quantized_weight, scale, zero_point, svd_up, svd_down, skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul, dtype=torch.float32, skip_compile=True)).div_(weight_std)
+        quantization_loss = torch.nn.functional.mse_loss(weight, sdnq_dequantizer(quantized_weight, scale, zero_point, svd_up, svd_down, skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul, dtype=weight.dtype, skip_compile=True)).div_(weight_std)
         if quantization_loss <= dynamic_loss_threshold:
             return (quantized_weight, scale, zero_point, svd_up, svd_down, sdnq_dequantizer)
     return None
@@ -569,7 +573,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=Non
             if check_param_name_in(param_name, modules_to_not_convert) is not None:
                 continue
             layer_class_name = module.__class__.__name__
-            if layer_class_name in allowed_types and module.weight.dtype in {torch.float32, torch.float16, torch.bfloat16}:
+            if layer_class_name in allowed_types and module.weight.dtype in {torch.float64, torch.float32, torch.float16, torch.bfloat16}:
                 if (layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quant_conv:
                     continue
                 quant_kwargs = {
@@ -811,7 +815,16 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         if self.pre_quantized:
             layer, tensor_name = get_module_from_name(model, param_name)
             if param_value is not None:
-                return_dtype = param_value.dtype if tensor_name == "weight" else torch.float32 if self.quantization_config.dequantize_fp32 else kwargs.get("dtype", param_value.dtype if self.torch_dtype is None else self.torch_dtype)
+                if tensor_name == "weight":
+                    return_dtype = param_value.dtype
+                elif self.quantization_config.dequantize_fp32:
+                    if param_value.dtype != torch.float64 and self.torch_dtype != torch.float64:
+                        return_dtype = torch.float32
+                    else:
+                        return_dtype = torch.float64
+                else:
+                    return_dtype = kwargs.get("dtype", param_value.dtype if self.torch_dtype is None else self.torch_dtype)
+
                 if param_value.dtype == return_dtype and devices.same_device(param_value.device, target_device):
                     param_value = param_value.clone()
                 else:
@@ -861,10 +874,10 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         }
         quant_kwargs = get_quant_kwargs(quant_kwargs, self.quantization_config.modules_quant_config)
 
-        if param_value.dtype == torch.float32 and devices.same_device(param_value.device, target_device):
+        if param_value.dtype in {torch.float32, torch.float64} and devices.same_device(param_value.device, target_device):
             param_value = param_value.clone()
         else:
-            param_value = param_value.to(target_device, non_blocking=self.quantization_config.non_blocking).to(dtype=torch.float32)
+            param_value = param_value.to(target_device, non_blocking=self.quantization_config.non_blocking).to(dtype=torch.float32 if param_value.dtype != torch.float64 else torch.float64)
 
         layer, tensor_name = get_module_from_name(model, param_name)
         layer.weight = torch.nn.Parameter(param_value, requires_grad=False)

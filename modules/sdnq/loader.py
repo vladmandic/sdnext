@@ -165,7 +165,7 @@ def post_process_model(model):
 def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None):
     has_children = list(model.children())
     if not has_children:
-        if dtype is not None and getattr(model, "dtype", torch.float32) != torch.float32:
+        if dtype is not None and getattr(model, "dtype", torch.float32) not in {torch.float32, torch.float64}:
             model = model.to(dtype=dtype)
         return model
     for module_name, module in model.named_children():
@@ -182,7 +182,7 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
                 current_use_quantized_matmul = current_use_quantized_matmul and channel_size >= 32 and output_channel_size >= 32 # pylint: disable=possibly-used-before-assignment
                 current_use_quantized_matmul = current_use_quantized_matmul and output_channel_size % 16 == 0 and channel_size % 16 == 0 # pylint: disable=possibly-used-before-assignment
 
-            if dtype is not None and module.sdnq_dequantizer.result_dtype != torch.float32:
+            if dtype is not None and module.sdnq_dequantizer.result_dtype not in {torch.float32, torch.float64}:
                 module.sdnq_dequantizer.result_dtype = dtype
 
             upcast_scale = bool(
@@ -194,7 +194,16 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
                     and (not use_tensorwise_fp8_matmul or dtype_dict[module.sdnq_dequantizer.quantized_matmul_dtype]["num_bits"] == 16)
                 )
             )
-            scale_dtype = torch.float32 if upcast_scale or dequantize_fp32 or (dequantize_fp32 is None and module.scale.dtype == torch.float32) else module.sdnq_dequantizer.result_dtype
+
+            if upcast_scale or dequantize_fp32:
+                if module.scale.dtype in {torch.float32, torch.float64}:
+                    scale_dtype = module.scale.dtype
+                else:
+                    scale_dtype = torch.float32 if module.sdnq_dequantizer.result_dtype != torch.float64 else torch.float64
+            elif dequantize_fp32 is None and module.scale.dtype in {torch.float32, torch.float64}:
+                scale_dtype = module.scale.dtype
+            else:
+                scale_dtype = module.sdnq_dequantizer.result_dtype
 
             module.scale.data = module.scale.to(dtype=scale_dtype)
             if module.zero_point is not None:

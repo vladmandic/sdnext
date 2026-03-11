@@ -12,9 +12,13 @@ float_bits_to_uint_dict = {
     5: "uint5",
     6: "uint6",
     7: "uint7",
+    9: "uint9",
     10: "uint10",
+    11: "uint11",
     12: "uint12",
+    13: "uint13",
     14: "uint14",
+    15: "uint15",
 }
 
 
@@ -62,7 +66,7 @@ def pack_float(x: torch.FloatTensor, weights_dtype: str) -> torch.Tensor:
     return x
 
 
-def unpack_float(x: torch.Tensor, shape: torch.Size, weights_dtype: str) -> torch.FloatTensor:
+def unpack_float(x: torch.Tensor, weights_dtype: str, shape: torch.Size) -> torch.FloatTensor:
     exponent_bits = dtype_dict[weights_dtype]["exponent"]
     mantissa_bits = dtype_dict[weights_dtype]["mantissa"]
     total_bits = dtype_dict[weights_dtype]["num_bits"]

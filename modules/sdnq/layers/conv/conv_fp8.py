@@ -32,7 +32,7 @@ def conv_fp8_matmul(
         svd_bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
     if quantized_weight_shape is not None:
-        weight = unpack_float(weight, quantized_weight_shape, weights_dtype).to(dtype=torch.float8_e4m3fn).t_()
+        weight = unpack_float(weight, weights_dtype, quantized_weight_shape).to(dtype=torch.float8_e4m3fn).t_()
         scale = scale.t()
     input, input_scale = quantize_fp_mm_input(input)
     input, weight = check_mats(input, weight)
