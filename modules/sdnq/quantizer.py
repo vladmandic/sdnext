@@ -15,7 +15,7 @@ from diffusers.utils import get_module_from_name
 from accelerate import init_empty_weights
 
 from modules import devices, shared
-from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, weights_dtype_order, weights_dtype_order_fp32, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm, check_torch_compile
+from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, weights_dtype_order, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm, check_torch_compile
 from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int
 from .packed_float import pack_float
@@ -242,7 +242,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
     if quantized_matmul_dtype is None:
         if dtype_dict[weights_dtype]["is_integer"]:
             quantized_matmul_dtype = "int8"
-        elif dtype_dict[weights_dtype]["num_bits"] <= 12:
+        elif dtype_dict[weights_dtype]["num_bits"] < 16:
             quantized_matmul_dtype = "float8_e4m3fn"
         else:
             quantized_matmul_dtype = "float16"
@@ -416,7 +416,6 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
 def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dtype="int2", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=1e-2, use_svd=False, use_quantized_matmul=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=False, param_name=None): # pylint: disable=unused-argument
     if torch_dtype is None:
         torch_dtype = weight.dtype
-    weights_dtype_order_to_use = weights_dtype_order_fp32 if torch_dtype in {torch.float32, torch.float64} else weights_dtype_order
     if weight.dtype != torch.float64:
         weight = weight.to(dtype=torch.float32)
     weight_std = weight.std().square_().clamp_(min=1e-8)
@@ -436,11 +435,11 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
 
     quantization_loss = None
     svd_is_transposed = False
-    for i in range(weights_dtype_order_to_use.index(weights_dtype), len(weights_dtype_order_to_use)):
+    for i in range(weights_dtype_order.index(weights_dtype), len(weights_dtype_order)):
         quantized_weight, scale, zero_point, _, _, sdnq_dequantizer = sdnq_quantize_layer_weight(
             svd_weight,
             layer_class_name=layer_class_name,
-            weights_dtype=weights_dtype_order_to_use[i],
+            weights_dtype=weights_dtype_order[i],
             quantized_matmul_dtype=quantized_matmul_dtype,
             torch_dtype=torch_dtype,
             group_size=group_size,

@@ -298,8 +298,6 @@ weights_dtype_order = [
     "uint11", "float11_e1m10fnu", "float11_e2m9fnu", "float11_e3m8fnu", "float11_e4m7fnu", "float11_e5m6fnu",
     "int12", "float12_e1m10fn", "float12_e2m9fn", "float12_e3m8fn", "float12_e4m7fn", "float12_e5m6fn",
     "uint12", "float12_e1m11fnu", "float12_e2m10fnu", "float12_e3m9fnu", "float12_e4m8fnu", "float12_e5m7fnu",
-]
-weights_dtype_order_fp32 = weights_dtype_order + [
     "int13", "float13_e1m11fn", "float13_e2m10fn", "float13_e3m9fn", "float13_e4m8fn", "float13_e5m7fn",
     "uint13", "float13_e1m12fnu", "float13_e2m11fnu", "float13_e3m10fnu", "float13_e4m9fnu", "float13_e5m8fnu",
     "int14", "float14_e1m12fn", "float14_e2m11fn", "float14_e3m10fn", "float14_e4m9fn", "float14_e5m8fn",
