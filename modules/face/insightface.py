@@ -33,7 +33,6 @@ def get_app(mp_name, threshold=0.5, resolution=640):
             model_path = hf.hf_hub_download(
                 repo_id='vladmandic/insightface-faceanalysis',
                 filename=f'{mp_name}.zip',
-                local_dir_use_symlinks=False,
                 cache_dir=opts.hfcache_dir,
                 local_dir=local_dir
             )
