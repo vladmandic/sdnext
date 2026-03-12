@@ -96,8 +96,8 @@ def create_settings(cmd_opts):
         "model_modular_enable": OptionInfo(False, "Enable modular pipelines (experimental)"),
         "model_google_sep": OptionInfo("<h2>Google GenAI</h2>", "", gr.HTML),
         "google_use_vertexai": OptionInfo(False, "Google cloud use VertexAI endpoints"),
-        "google_api_key": OptionInfo("", "Google cloud API key", gr.Textbox),
-        "google_project_id": OptionInfo("", "Google Cloud project ID", gr.Textbox),
+        "google_api_key": OptionInfo("", "Google cloud API key", gr.Textbox, secret=True, env_var='GOOGLE_API_KEY'),
+        "google_project_id": OptionInfo("", "Google Cloud project ID", gr.Textbox, secret=True, env_var='GOOGLE_PROJECT_ID'),
         "google_location_id": OptionInfo("", "Google Cloud location ID", gr.Textbox),
         "model_sd3_sep": OptionInfo("<h2>Stable Diffusion 3.x</h2>", "", gr.HTML),
         "model_sd3_disable_te5": OptionInfo(False, "Disable T5 text encoder"),
@@ -118,6 +118,7 @@ def create_settings(cmd_opts):
         "diffusers_offload_mode": OptionInfo(startup_offload_mode, "Model offload mode", gr.Radio, {"choices": ['none', 'balanced', 'group', 'model', 'sequential']}),
         "diffusers_offload_nonblocking": OptionInfo(False, "Non-blocking move operations"),
         "caption_offload": OptionInfo(True, "Offload caption models"),
+        "caption_to_gpu": OptionInfo(True, "Load caption models direct to GPU"),
         "offload_balanced_sep": OptionInfo("<h2>Balanced Offload</h2>", "", gr.HTML),
         "diffusers_offload_pre": OptionInfo(True, "Offload during pre-forward"),
         "diffusers_offload_streams": OptionInfo(False, "Offload using streams"),
@@ -150,7 +151,7 @@ def create_settings(cmd_opts):
         "sdnq_quantize_weights_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1}),
         "sdnq_svd_rank": OptionInfo(32, "SVD rank size", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
         "sdnq_svd_steps": OptionInfo(8, "SVD steps", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1}),
-        "sdnq_dynamic_loss_threshold": OptionInfo(1e-2, "Dynamic loss threshold", gr.Slider, {"minimum": 1e-8, "maximum": 1, "step": 1e-4}),
+        "sdnq_dynamic_loss_threshold": OptionInfo(1e-2, "Dynamic loss threshold", gr.Slider, {"minimum": 1e-4, "maximum": 1e-1, "step": 1e-4}),
         "sdnq_use_svd": OptionInfo(False, "Use SVD quantization", gr.Checkbox),
         "sdnq_use_dynamic_quantization": OptionInfo(False, "Use Dynamic quantization", gr.Checkbox),
         "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
@@ -158,7 +159,7 @@ def create_settings(cmd_opts):
         "sdnq_use_quantized_matmul": OptionInfo(False, "Use quantized MatMul", gr.Checkbox),
         "sdnq_use_quantized_matmul_conv": OptionInfo(False, "Use quantized MatMul with conv", gr.Checkbox),
         "sdnq_quantize_with_gpu": OptionInfo(True, "Quantize using GPU", gr.Checkbox),
-        "sdnq_dequantize_fp32": OptionInfo(True, "Dequantize using full precision", gr.Checkbox),
+        "sdnq_dequantize_fp32": OptionInfo(False, "Dequantize using full precision", gr.Checkbox),
         "sdnq_quantize_shuffle_weights": OptionInfo(False, "Shuffle weights in post mode", gr.Checkbox),
 
         "nunchaku_sep": OptionInfo("<h2>Nunchaku Engine</h2>", "", gr.HTML),
@@ -570,6 +571,7 @@ def create_settings(cmd_opts):
 
         "postprocessing_sep_img2img": OptionInfo("<h2>Inpaint</h2>", "", gr.HTML),
         "img2img_color_correction": OptionInfo(False, "Apply color correction"),
+        "color_correction_method": OptionInfo("histogram", "Color correction method", gr.Radio, {"choices": ["histogram", "wavelet", "adain"]}),
         "mask_apply_overlay": OptionInfo(True, "Apply mask as overlay"),
         "img2img_background_color": OptionInfo("#ffffff", "Image transparent color fill", gr.ColorPicker, {}),
         "inpainting_mask_weight": OptionInfo(1.0, "Inpainting conditioning mask strength", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01}),
@@ -599,7 +601,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('huggingface', "Huggingface"), {
         "huggingface_sep": OptionInfo("<h2>Huggingface</h2>", "", gr.HTML),
         "diffuser_cache_config": OptionInfo(True, "Use cached model config when available"),
-        "huggingface_token": OptionInfo('', 'HuggingFace token', gr.Textbox, {"lines": 2}),
+        "huggingface_token": OptionInfo('', 'HuggingFace token', gr.Textbox, {"lines": 2}, secret=True, env_var='HF_TOKEN'),
         "hf_transfer_mode": OptionInfo("rust", "HuggingFace download method", gr.Radio, {"choices": ['requests', 'rust', 'xet']}),
         "huggingface_mirror": OptionInfo('', 'HuggingFace mirror', gr.Textbox),
         "offline_mode": OptionInfo(False, 'Force offline mode', gr.Checkbox),
@@ -607,7 +609,10 @@ def create_settings(cmd_opts):
         "diffusers_model_load_variant": OptionInfo("default", "Preferred Model variant", gr.Radio, {"choices": ['default', 'fp32', 'fp16']}),
         "diffusers_vae_load_variant": OptionInfo("default", "Preferred VAE variant", gr.Radio, {"choices": ['default', 'fp32', 'fp16']}),
         "custom_diffusers_pipeline": OptionInfo('', 'Load custom Diffusers pipeline'),
-        "civitai_token": OptionInfo('', 'HuggingFace token', gr.Textbox, {"lines": 2, "visible": False}),
+        "civitai_token": OptionInfo('', 'CivitAI token', gr.Textbox, {"lines": 2, "visible": False}, secret=True, env_var='CIVITAI_TOKEN'),
+        "civitai_save_subfolder_enabled": OptionInfo(False, 'CivitAI save to subfolders', gr.Checkbox, {"visible": False}),
+        "civitai_save_subfolder": OptionInfo('{{BASEMODEL}}', 'CivitAI subfolder template', gr.Textbox, {"visible": False}),
+        "civitai_discard_hash_mismatch": OptionInfo(True, 'CivitAI discard downloads with hash mismatch', gr.Checkbox, {"visible": False}),
     }))
 
     # --- Extra Networks ---
@@ -663,6 +668,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('hidden_options', "Hidden options"), {
         # internal options
         "diffusers_version": OptionInfo("", "Diffusers version", gr.Textbox, {"visible": False}),
+        "transformers_version": OptionInfo("", "Transformers version", gr.Textbox, {"visible": False}),
         "disabled_extensions": OptionInfo([], "Disable these extensions", gr.Textbox, {"visible": False}),
         "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint", gr.Textbox, {"visible": False}),
         "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
