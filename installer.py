@@ -200,25 +200,13 @@ def uninstall(package, quiet = False):
     return res
 
 
-def run(cmd: str, *args: str, **kwargs):
-    """Run command and arguments with `subprocess.run`.
-
-    Default run options are `shell=True, check=False, env=os.environ`.
-
-    Args:
-        cmd (str): Main command to run.
-        *args (str): Additional command arguments.
-        **kwargs: `subprocess.run` option overrides.
-
-    Returns:
-        tuple[CompletedProcess[str], str]: Tuple with the results and the combined `stdout` and `stderr` values.
-    """
+def run(cmd: str, *nargs: str, **kwargs):
     options = {
         "check": False,
         "env": os.environ,
     }
     options |= kwargs  # Override defaults with passed kwargs
-    result = subprocess.run(f'"{cmd}" {" ".join(args)}', **options, shell=True, capture_output=True, text=True)
+    result = subprocess.run(f'"{cmd}" {" ".join(nargs)}', **options, shell=True, capture_output=True, text=True, check=False)
     result.stdout = result.stdout.strip()
     result.stderr = result.stderr.strip()
     txt = result.stdout
