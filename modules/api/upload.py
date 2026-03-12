@@ -10,17 +10,18 @@ from modules.images import FilenameGenerator
 
 
 """
-new endpoint: /sdapi/v1/upload
+new endpoint: `/sdapi/v1/upload`
 - if path is not given, file fill be uploaded to system temp folder
 - if path is given, its considered as relative to sdnext root (datadir) and must exist
 - absolute paths or paths outside of sdnext root are not allowed
 
-example using post with formdata:
-> curl -X POST "http://localhost:7860/sdapi/v1/upload" -F "file=@/home/vlado/dev/sdnext/config.json" -F overwrite=true -F path=data
+example using post with form-data:
+> curl -X POST "http://localhost:7860/sdapi/v1/upload" -F "file=@sdnext/config.json" -F overwrite=true -F path=data
 
-example using put with raw bytes:
-> curl -X PUT "http://localhost:7860/sdapi/v1/upload" -T config.json -H "filename:config.json" -H "path:data/" -H "overwrite:true"
+example using put with raw-bytes:
+> curl -X PUT "http://localhost:7860/sdapi/v1/upload" -T sdnext/config.json -H "filename:config.json" -H "path:data" -H "overwrite:true"
 """
+
 
 class ResUpload(BaseModel):
     input: str
