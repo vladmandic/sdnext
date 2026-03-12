@@ -3,8 +3,8 @@
 import torch
 
 from ...common import compile_func, int_mm_func # noqa: TID252
-from ...packed_int import unpack_int_symetric # noqa: TID252
 from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
+from ...packed_int import unpack_int # noqa: TID252
 
 from .forward import get_conv_args, process_conv_input
 from ..linear.linear_int8 import quantize_int_mm_input # noqa: TID252
@@ -36,7 +36,7 @@ def conv_int8_matmul(
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
     if quantized_weight_shape is not None:
-        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8).t_()
+        weight = unpack_int(weight, weights_dtype, quantized_weight_shape, dtype=torch.int8).t_()
         scale = scale.t()
     input, scale = quantize_int_mm_input(input, scale)
     input, weight = check_mats(input, weight)

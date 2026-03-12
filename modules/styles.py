@@ -359,15 +359,10 @@ class StyleDatabase:
         def list_folder(folder):
             import concurrent
             future_items = {}
-            candidates = list(files_cache.list_files(folder, ext_filter=['.json'], recursive=files_cache.not_hidden))
+            style_files = list(files_cache.list_files(folder, ext_filter=['.json'], recursive=files_cache.not_hidden))
             with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
-                for fn in candidates:
-                    if os.path.isfile(fn) and fn.lower().endswith(".json"):
-                        future_items[executor.submit(self.load_style, fn, None)] = fn
-                        # self.load_style(fn)
-                    elif os.path.isdir(fn) and not fn.startswith('.'):
-                        list_folder(fn)
-                self.styles = dict(sorted(self.styles.items(), key=lambda style: style[1].filename))
+                for fn in style_files:
+                    future_items[executor.submit(self.load_style, fn, None)] = fn
                 if self.built_in:
                     fn = os.path.join('html', 'art-styles.json')
                     future_items[executor.submit(self.load_style, fn, 'Reference')] = fn
@@ -376,6 +371,7 @@ class StyleDatabase:
 
         self.built_in = shared.opts.extra_networks_styles
         list_folder(self.path)
+        self.styles = dict(sorted(self.styles.items(), key=lambda style: style[1].filename))
         t1 = time.time()
         log.info(f'Available Styles: path="{self.path}" items={len(self.styles.keys())} time={t1-t0:.2f}')
 

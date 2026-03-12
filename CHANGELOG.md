@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-05
+## Update for 2026-03-09
 
-### Highlights for 2026-03-05
+### Highlights for 2026-03-09
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, so we have two deep fine-tunes: *FireRed-Image-Edit* and *SkyWorks-UniPic-3*  
@@ -11,7 +11,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-05
+### Details for 2026-03-09
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -47,6 +47,8 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - **themes** add *CTD-NT64Light*, *CTD-NT64Medium* and *CTD-NT64Dark*, thanks @resonantsky  
   - **themes** add *Vlad-Neomorph*  
   - **gallery** add option to auto-refresh gallery, thanks @awsr  
+- **API**
+  - new `/sdapi/v1/upload` endpoint with support for both POST with form-data or PUT using raw-bytes  
 - **Internal**
   - `python==3.13` full support  
   - `python==3.14` initial support  
@@ -75,6 +77,8 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - captioning part-2, thanks @CalamitousFelicitousness  
   - add new build of `insightface`, thanks @hameerabbasi  
   - reduce use of generators with ui interactor  
+  - better subprocess execute, thanks @awsr  
+  - better wslopen handling, thanks @awsr  
 - **Obsolete**
   - remove `normalbae` pre-processor  
   - remove `dwpose` pre-processor  
@@ -97,12 +101,12 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - lora unwanted unload  
   - improve preview error handler  
   - gallery over remote/unsecure connections  
-  - ltx2-i2v  
+  - fix `ltx2-i2v`  
   - handle missing preview image  
   - ui connection monitor  
   - kandinsky 5 t2i/i2i model type detection  
   - kanvas notify core on image size change  
-  - lora additional z-image types  
+  - command arg `--reinstall` stricter enforcement  
 
 ## Update for 2026-02-04
 

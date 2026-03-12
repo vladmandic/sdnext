@@ -249,12 +249,14 @@ def open_folder(result_gallery, gallery_index = 0):
         path = os.path.normpath(folder)
         if platform.system() == "Windows":
             os.startfile(path) # pylint: disable=no-member
-        elif platform.system() == "Darwin":
-            subprocess.Popen(["open", path]) # pylint: disable=consider-using-with
+            return
+        if platform.system() == "Darwin":
+            opener = "open"
         elif "microsoft-standard-WSL2" in platform.uname().release:
-            subprocess.Popen(["wsl-open", path]) # pylint: disable=consider-using-with
+            opener = "wslview" if shutil.which("wslview") is not None else "wsl-open"
         else:
-            subprocess.Popen(["xdg-open", path]) # pylint: disable=consider-using-with
+            opener = "xdg-open"
+        subprocess.Popen([opener, path])  # pylint: disable=consider-using-with
 
 
 def create_output_panel(tabname, preview=True, prompt=None, height=None, transfer=True, scale=1, result_info=None):

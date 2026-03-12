@@ -135,7 +135,7 @@ def main_args():
 
 
 def compatibility_args():
-    # removed args are added here as hidden in fixed format for compatbility reasons
+    # removed args are added here as hidden in fixed format for compatibility reasons
     from modules.paths import data_path
     group_compat = parser.add_argument_group('Compatibility options')
     group_compat.add_argument('--backend', type=str, choices=['diffusers', 'original'], help=argparse.SUPPRESS)
@@ -162,7 +162,7 @@ def compatibility_args():
 
 
 def settings_args(opts, args):
-    # removed args are added here as hidden in fixed format for compatbility reasons
+    # removed args are added here as hidden in fixed format for compatibility reasons
     from modules.paths import data_path
     group_compat = parser.add_argument_group('Compatibility options')
     group_compat.add_argument("--allow-code", default=env_flag("SD_ALLOWCODE", False), action='store_true', help=argparse.SUPPRESS)

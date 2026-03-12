@@ -200,14 +200,20 @@ def uninstall(package, quiet = False):
     return res
 
 
-def run(cmd: str, arg: str):
-    result = subprocess.run(f'"{cmd}" {arg}', shell=True, check=False, env=os.environ, capture_output=True)
-    txt = result.stdout.decode(encoding="utf8", errors="ignore")
-    if len(result.stderr) > 0:
-        txt += ('\n' if len(txt) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
-    txt = txt.strip()
-    debug(f'Exec {cmd}: {txt}')
-    return txt
+def run(cmd: str, *nargs: str, **kwargs):
+    options = {
+        "check": False,
+        "env": os.environ,
+    }
+    options |= kwargs  # Override defaults with passed kwargs
+    result = subprocess.run(f'"{cmd}" {" ".join(nargs)}', **options, shell=True, capture_output=True, text=True, check=False)
+    result.stdout = result.stdout.strip()
+    result.stderr = result.stderr.strip()
+    txt = result.stdout
+    if result.stderr:
+        # Put newline between outputs only if stdout isn't empty
+        txt += "\n" + result.stderr if txt else result.stderr
+    return result, txt
 
 
 def cleanup_broken_packages():
@@ -224,7 +230,7 @@ def cleanup_broken_packages():
                 record_file = os.path.join(dist_info, 'RECORD')
                 if not os.path.isfile(record_file):
                     pkg_name = entry.split('-')[0]
-                    log.warning(f'Install: removing broken package metadata: {pkg_name} path={dist_info}')
+                    log.warning(f'Install: package={pkg_name} path="{dist_info}" removing metadata')
                     shutil.rmtree(dist_info, ignore_errors=True)
     except Exception:
         pass
@@ -246,18 +252,13 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     all_args = f'{pip_log}{arg} {env_args}'.strip()
     if not quiet:
         log.debug(f'Running: {pipCmd}="{all_args}"')
-    result = subprocess.run(f'"{sys.executable}" -m {pipCmd} {all_args}', shell=True, check=False, env=os.environ, capture_output=True)
-    txt = result.stdout.decode(encoding="utf8", errors="ignore")
+    result, txt = run(sys.executable, "-m", pipCmd, all_args)
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
-            err = result.stderr.decode(encoding="utf8", errors="ignore")
             log.warning(f'Install: cmd="{pipCmd}" args="{all_args}" cannot use uv, fallback to pip')
-            debug(f'Install: uv pip error: {err}')
+            debug(f'Install: uv pip error: {result.stderr}')
             cleanup_broken_packages()
             return pip(originalArg, ignore, quiet, uv=False)
-        else:
-            txt += ('\n' if len(txt) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
-    txt = txt.strip()
     debug(f'Install {pipCmd}: {txt}')
     if result.returncode != 0 and not ignore:
         errors.append(f'pip: {package}')
@@ -271,6 +272,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
 def install(package, friendly: str = None, ignore: bool = False, reinstall: bool = False, no_deps: bool = False, quiet: bool = False, force: bool = False, no_build_isolation: bool = False):
     t_start = time.time()
     res = ''
+    force = force or args.reinstall
     if args.reinstall or args.upgrade:
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False
@@ -293,25 +295,21 @@ def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = Fal
     git_cmd = os.environ.get('GIT', "git")
     if git_cmd != "git":
         git_cmd = os.path.abspath(git_cmd)
-    result = subprocess.run(f'"{git_cmd}" {arg}', check=False, shell=True, env=os.environ, capture_output=True, cwd=folder or '.')
-    stdout = result.stdout.decode(encoding="utf8", errors="ignore")
-    if len(result.stderr) > 0:
-        stdout += ('\n' if len(stdout) > 0 else '') + result.stderr.decode(encoding="utf8", errors="ignore")
-    stdout = stdout.strip()
+    result, txt = run(git_cmd, arg, cwd=folder or ".")
     if result.returncode != 0 and not ignore:
         if folder is None:
             folder = 'root'
-        if "couldn't find remote ref" in stdout: # not a git repo
+        if "couldn't find remote ref" in txt: # not a git repo
             log.error(f'Git: folder="{folder}" could not identify repository')
-        elif "no submodule mapping found" in stdout:
+        elif "no submodule mapping found" in txt:
             log.warning(f'Git: folder="{folder}" submodules changed')
-        elif 'or stash them' in stdout:
+        elif 'or stash them' in txt:
             log.error(f'Git: folder="{folder}" local changes detected')
         else:
-            log.error(f'Git: folder="{folder}" arg="{arg}" output={stdout}')
+            log.error(f'Git: folder="{folder}" arg="{arg}" output={txt}')
         errors.append(f'git: {folder}')
     ts('git', t_start)
-    return stdout
+    return txt
 
 
 # reattach as needed as head can get detached
@@ -442,7 +440,8 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if int(sys.version_info.minor) >= 12:
         os.environ.setdefault('SETUPTOOLS_USE_DISTUTILS', 'local') # hack for python 3.11 setuptools
     if int(sys.version_info.minor) >= 13:
-        log.warning(f"Python: version={platform.python_version()} not all features are available")
+        # log.warning(f"Python: version={platform.python_version()} not all features are available")
+        pass
     if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
         if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
             log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
@@ -819,10 +818,10 @@ def check_torch():
         return
 
     if 'torch' in torch_command:
-        if not installed('torch'):
-            log.info(f'Install: package="torch" download and install in progress... cmd="{torch_command}"')
-            install('--upgrade pip', 'pip', reinstall=True) # pytorch rocm is too large for older pip
-        install(torch_command, 'torch torchvision', quiet=True)
+        if not installed('torch') or args.reinstall:
+            log.info(f'Install: package="torch" cmd="{torch_command}" download and install in progress... ')
+            install('--upgrade pip', 'pip', reinstall=args.reinstall) # pytorch rocm is too large for older pip
+            install(torch_command, 'torch torchvision', quiet=False)
 
     try:
         import torch
@@ -925,13 +924,10 @@ def run_extension_installer(folder):
             if os.environ.get('PYTHONPATH', None) is not None:
                 seperator = ';' if sys.platform == 'win32' else ':'
                 env['PYTHONPATH'] += seperator + os.environ.get('PYTHONPATH', None)
-            result = subprocess.run(f'"{sys.executable}" "{path_installer}"', shell=True, env=env, check=False, capture_output=True, cwd=folder)
-            txt = result.stdout.decode(encoding="utf8", errors="ignore")
-            debug(f'Extension installer: file="{path_installer}" {txt}')
+            result, txt = run(sys.executable, path_installer, env=env, cwd=folder)
+            debug(f'Extension installer: file="{path_installer}" {result.stdout}')
             if result.returncode != 0:
                 errors.append(f'ext: {os.path.basename(folder)}')
-                if len(result.stderr) > 0:
-                    txt = txt + '\n' + result.stderr.decode(encoding="utf8", errors="ignore")
                 log.error(f'Extension installer error: {path_installer}')
                 log.debug(txt)
     except Exception as e:
@@ -1149,7 +1145,7 @@ def install_requirements():
         pr.enable()
     if int(sys.version_info.minor) >= 13:
         install('audioop-lts')
-    if not installed('diffusers', quiet=True): # diffusers are not installed, so run initial installation
+    if not installed('diffusers', quiet=True) or args.reinstall: # diffusers are not installed, so run initial installation
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False
         log.info('Install requirements: this may take a while...')
@@ -1163,8 +1159,10 @@ def install_requirements():
     with open('requirements.txt', encoding='utf8') as f:
         lines = [line.strip() for line in f.readlines() if line.strip() != '' and not line.startswith('#') and line is not None]
         for line in lines:
-            if not installed(line, quiet=True):
-                _res = install(line)
+            if not installed(line, quiet=True) or args.reinstall:
+                if args.reinstall:
+                    log.trace(f'Install: package="{line}" reinstall')
+                _res = install(line, reinstall=args.reinstall)
     install_pydantic()
     install_opencv()
     install_scipy()
@@ -1260,29 +1258,24 @@ def get_version(force=False):
         except Exception:
             pass
         try:
-            res = subprocess.run('git log --pretty=format:"%h %ad" -1 --date=short', capture_output=True, shell=True, check=True)
-            ver = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else '  '
+            ver = run('git', 'log --pretty=format:"%h %ad" -1 --date=short', check=True)[0].stdout or '  '
             commit, updated = ver.split(' ')
             version['commit'], version['updated'] = commit, updated
         except Exception as e:
             log.warning(f'Version: where=commit {e}')
         try:
-            res = subprocess.run('git remote get-url origin', capture_output=True, shell=True, check=True)
-            origin = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-            res = subprocess.run('git rev-parse --abbrev-ref HEAD', capture_output=True, shell=True, check=True)
-            branch_name = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-            version['url'] = origin.replace('\n', '').removesuffix('.git') + '/tree/' + branch_name.replace('\n', '')
-            version['branch'] = branch_name.replace('\n', '')
+            origin = run('git', 'remote get-url origin', check=True)[0].stdout
+            branch_name = run('git', 'rev-parse --abbrev-ref HEAD', check=True)[0].stdout
+            version['url'] = origin.removesuffix('.git') + '/tree/' + branch_name
+            version['branch'] = branch_name
             if version['branch'] == 'HEAD':
                 log.warning('Version: detached state detected')
         except Exception as e:
             log.warning(f'Version: where=branch {e}')
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
-                res = subprocess.run('git rev-parse --abbrev-ref HEAD', capture_output=True, shell=True, check=True, cwd='extensions-builtin/sdnext-modernui')
-                branch_ui = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-                branch_ui = 'dev' if 'dev' in branch_ui else 'main'
-                version['ui'] = branch_ui
+                branch_ui = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout
+                version['ui'] = 'dev' if 'dev' in branch_ui else 'main'
             else:
                 version['ui'] = 'unavailable'
         except Exception as e:
@@ -1292,10 +1285,8 @@ def get_version(force=False):
             if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
                 version['kanvas'] = 'disabled'
             elif os.path.exists('extensions-builtin/sdnext-kanvas'):
-                res = subprocess.run('git rev-parse --abbrev-ref HEAD', capture_output=True, shell=True, check=True, cwd='extensions-builtin/sdnext-kanvas')
-                branch_kanvas = res.stdout.decode(encoding = 'utf8', errors='ignore') if len(res.stdout) > 0 else ''
-                branch_kanvas = 'dev' if 'dev' in branch_kanvas else 'main'
-                version['kanvas'] = branch_kanvas
+                branch_kanvas = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-kanvas')[0].stdout
+                version['kanvas'] = 'dev' if 'dev' in branch_kanvas else 'main'
             else:
                 version['kanvas'] = 'unavailable'
         except Exception as e:
@@ -1483,8 +1474,7 @@ def get_state():
         def _get_commit(item):
             ext, ext_dir = item
             try:
-                res = subprocess.run('git rev-parse HEAD', capture_output=True, shell=True, check=False, cwd=ext_dir)
-                return ext, res.stdout.decode(encoding='utf8', errors='ignore').strip()
+                return ext, run('git', 'rev-parse HEAD', cwd=ext_dir)[0].stdout
             except Exception:
                 return ext, ''
 

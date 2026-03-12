@@ -130,6 +130,10 @@ class Api:
             if isinstance(route, APIRoute) and len(route.path) > 1 and route.path.endswith('/') and route.path[:-1] in paths:
                 route.include_in_schema = False
 
+        # upload api
+        from modules.api import upload
+        upload.register_api()
+
     def add_api_route(self, path: str, fn, auth: bool = True, **kwargs):
         if auth and self.credentials:
             deps = list(kwargs.get('dependencies', []))

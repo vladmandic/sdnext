@@ -66,9 +66,10 @@ class FilenameGenerator:
     }
     default_time_format = '%Y%m%d%H%M%S'
 
-    def __init__(self, p, seed, prompt, image=None, grid=False, width=None, height=None):
+    def __init__(self, p=None, seed:int=-1, prompt:str='', image=None, grid=False, width=None, height=None):
         if p is None:
             debug_log('Filename generator init skip')
+            return
         else:
             debug_log(f'Filename generator init: seed={seed} prompt="{prompt}"')
         self.p = p
