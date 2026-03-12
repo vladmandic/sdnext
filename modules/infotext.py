@@ -96,6 +96,7 @@ mapping = [
     # Other
     ('Parser', 'prompt_attention'),
     ('Color correction', 'img2img_color_correction'),
+    ('Color correction method', 'color_correction_method'),
     # Samplers
     ('Sampler eta delta', 'eta_noise_seed_delta'),
     ('Sampler eta multiplier', 'initial_noise_multiplier'),
