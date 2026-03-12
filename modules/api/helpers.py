@@ -7,6 +7,13 @@ from fastapi.exceptions import HTTPException
 from modules import shared, sd_samplers
 from modules.logger import log
 
+_upload_store_getter = None
+
+
+def register_upload_store(getter_fn):
+    global _upload_store_getter
+    _upload_store_getter = getter_fn
+
 
 def validate_sampler_name(name):
     config = sd_samplers.all_samplers_map.get(name, None)
@@ -18,6 +25,8 @@ def validate_sampler_name(name):
 def decode_base64_to_image(encoding, quiet=False):
     if encoding is None:
         return None
+    if isinstance(encoding, str) and encoding.startswith("upload:"):
+        return _resolve_upload_ref(encoding, quiet)
     if encoding.startswith("data:image/"):
         encoding = encoding.split(";")[1].split(",")[1]
     try:
@@ -32,6 +41,25 @@ def decode_base64_to_image(encoding, quiet=False):
         if not quiet:
             raise HTTPException(status_code=500, detail="Invalid encoded image") from e
         return None
+
+
+def _resolve_upload_ref(encoding: str, quiet: bool = False):
+    ref_id = encoding[len("upload:"):]
+    try:
+        if _upload_store_getter is None:
+            raise RuntimeError("Upload store not registered")
+        store = _upload_store_getter()
+        image = store.resolve_to_image(ref_id)
+        if image is not None:
+            return image
+    except Exception as e:
+        log.warning(f'API cannot resolve upload ref={ref_id}: {e}')
+        if not quiet:
+            raise HTTPException(status_code=400, detail=f"Upload reference not found: {encoding}") from e
+        return None
+    if not quiet:
+        raise HTTPException(status_code=400, detail=f"Upload reference not found: {encoding}")
+    return None
 
 
 def encode_pil_to_base64(image):
