@@ -193,6 +193,24 @@ def atomic_save_video(filename: str,
     shared.state.end(savejob)
 
 
+def save_thumbnail(video_path, tensor=None):
+    try:
+        base = os.path.splitext(video_path)[0]
+        thumb_path = f'{base}.thumb.jpg'
+        if tensor is not None and len(tensor) > 0:
+            frame = Image.fromarray(tensor[0].numpy())
+        else:
+            from modules.video import get_video_params
+            _frames, _fps, _dur, _w, _h, _codec, frame = get_video_params(video_path, capture=True)
+        if frame is not None:
+            frame.thumbnail((512, 512), Image.Resampling.LANCZOS)
+            frame.save(thumb_path, quality=80)
+            return thumb_path
+    except Exception as e:
+        log.debug(f'Video thumbnail: {e}')
+    return None
+
+
 def save_video(
         p:processing.StableDiffusionProcessingVideo,
         pixels:torch.Tensor=None,
@@ -229,17 +247,18 @@ def save_video(
         except Exception as e:
             log.error(f'Video output: file="{output_video}" write error {e}')
             errors.display(e, 'video')
-        return 0, output_video
+        thumb = save_thumbnail(output_video)
+        return 0, output_video, thumb
 
     if pixels is None:
-        return 0, output_video
+        return 0, output_video, None
     if isinstance(pixels, np.ndarray):
         pixels = numpy_to_tensor(pixels)
     if isinstance(pixels, list) and isinstance(pixels[0], Image.Image):
         pixels = images_to_tensor(pixels)
     if not torch.is_tensor(pixels):
         log.error(f'Video: type={type(pixels)} not a tensor')
-        return 0, output_video
+        return 0, output_video, None
     t_save = time.time()
     n, _c, t, h, w = pixels.shape
     size = pixels.element_size() * pixels.numel()
@@ -297,4 +316,5 @@ def save_video(
         log.error(f'Video save: raw={size} {e}')
         errors.display(e, 'video')
     timer.process.add('save', time.time()-t_save)
-    return t, output_video
+    thumb = save_thumbnail(output_video) if output_video is not None else None
+    return t, output_video, thumb
