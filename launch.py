@@ -76,7 +76,7 @@ def get_custom_args():
 
 
 @lru_cache
-def commit_hash(): # compatbility function
+def commit_hash(): # compatibility function
     global stored_commit_hash # pylint: disable=global-statement
     if stored_commit_hash is not None:
         return stored_commit_hash
@@ -89,7 +89,7 @@ def commit_hash(): # compatbility function
 
 
 @lru_cache
-def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compatbility function
+def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compatibility function
     if desc is not None:
         log.info(desc)
     if live:
@@ -106,28 +106,28 @@ def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compat
     return result.stdout
 
 
-def check_run(command): # compatbility function
+def check_run(command): # compatibility function
     result = subprocess.run(command, check=False, capture_output=True, shell=True)
     return result.returncode == 0
 
 
 @lru_cache
-def is_installed(pkg): # compatbility function
+def is_installed(pkg): # compatibility function
     return installer.installed(pkg)
 
 
 @lru_cache
-def repo_dir(name): # compatbility function
+def repo_dir(name): # compatibility function
     return os.path.join(script_path, dir_repos, name)
 
 
 @lru_cache
-def run_python(code, desc=None, errdesc=None): # compatbility function
+def run_python(code, desc=None, errdesc=None): # compatibility function
     return run(f'"{sys.executable}" -c "{code}"', desc, errdesc)
 
 
 @lru_cache
-def run_pip(pkg, desc=None): # compatbility function
+def run_pip(pkg, desc=None): # compatibility function
     forbidden = ['onnxruntime', 'opencv-python']
     if desc is None:
         desc = pkg
@@ -140,15 +140,15 @@ def run_pip(pkg, desc=None): # compatbility function
 
 
 @lru_cache
-def check_run_python(code): # compatbility function
+def check_run_python(code): # compatibility function
     return check_run(f'"{sys.executable}" -c "{code}"')
 
 
-def git_clone(url, tgt, _name, commithash=None): # compatbility function
+def git_clone(url, tgt, _name, commithash=None): # compatibility function
     installer.clone(url, tgt, commithash)
 
 
-def run_extension_installer(ext_dir): # compatbility function
+def run_extension_installer(ext_dir): # compatibility function
     installer.run_extension_installer(ext_dir)
 
 
