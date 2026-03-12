@@ -255,9 +255,11 @@ def start_common():
         log.error('Legacy option: backend=original is no longer supported')
         shared.cmd_opts.backend = 'diffusers'
     try:
-        from installer import diffusers_commit
+        from installer import diffusers_commit, transformers_commit
         if diffusers_commit != 'unknown':
             shared.opts.diffusers_version = diffusers_commit # update installed diffusers version
+        if transformers_commit != 'unknown':
+            shared.opts.transformers_version = transformers_commit # update installed transformers version
     except Exception:
         pass
     if shared.opts.clean_temp_dir_at_start:
