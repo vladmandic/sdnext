@@ -147,12 +147,13 @@ def post_download(request: dict):
             nsfw=nsfw, creator=creator, model_id=model_id,
             version_id=version_id, version_name=version_name,
         ))
-    elif not os.path.isabs(folder):
-        from modules import paths
-        folder = os.path.join(paths.models_path, folder)
-    from modules import paths as _paths
-    if not is_confined_to(folder, [_paths.models_path]):
-        return JSONResponse(content={"error": "path outside models directory"}, status_code=400)
+    else:
+        if not os.path.isabs(folder):
+            from modules import paths
+            folder = os.path.join(paths.models_path, folder)
+        from modules import paths as _paths
+        if not is_confined_to(folder, [_paths.models_path]):
+            return JSONResponse(content={"error": "path outside models directory"}, status_code=400)
     item = download_manager.enqueue(
         url=url,
         folder=folder,
