@@ -6,6 +6,7 @@ device = None
 
 
 def get_gpu_status():
+    """Return real-time GPU metrics (utilization, temperature, memory, clock speeds) via vendor-specific APIs (NVML, ROCm SMI, XPU SMI)."""
     global device # pylint: disable=global-statement
     if device is None:
         try:
