@@ -206,7 +206,6 @@ def post_unload_checkpoint():
     from modules import sd_models
     sd_models.unload_model_weights(op='model')
     sd_models.unload_model_weights(op='refiner')
-    sd_models.unload_auxiliary_models()
     return {}
 
 def post_reload_checkpoint(force:bool=False):

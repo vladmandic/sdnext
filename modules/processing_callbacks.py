@@ -75,7 +75,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = No
             time.sleep(0.1)
     if latents is None:
         return kwargs
-    elif (getattr(p, 'nan_skip', None) if (p is not None and getattr(p, 'nan_skip', None) is not None) else shared.opts.nan_skip):
+    elif shared.opts.nan_skip:
         assert not torch.isnan(latents[..., 0, 0]).all(), f'NaN detected at step {step}: Skipping...'
     if p is None:
         return kwargs

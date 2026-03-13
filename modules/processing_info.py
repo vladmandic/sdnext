@@ -161,15 +161,15 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if 'color' in p.ops:
         args["Color correction"] = True
 
-    def _p_or_opt(key):
+    def get_opt(key):
         val = getattr(p, key, None)
         if val is not None:
             return val
         return getattr(shared.opts, key, None)
 
-    _token_method = _p_or_opt('token_merging_method')
-    _tome = _p_or_opt('tome_ratio')
-    _todo = _p_or_opt('todo_ratio')
+    _token_method = get_opt('token_merging_method')
+    _tome = get_opt('tome_ratio')
+    _todo = get_opt('todo_ratio')
     if _token_method == 'ToMe': # tome/todo
         args['ToMe'] = _tome if _tome != 0 else None
     elif _token_method == 'ToDo':
@@ -179,23 +179,23 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
 
     # samplers
     if getattr(p, 'sampler_name', None) is not None and p.sampler_name.lower() != 'default':
-        _eta_delta = _p_or_opt('eta_noise_seed_delta')
+        _eta_delta = get_opt('eta_noise_seed_delta')
         args["Sampler eta delta"] = _eta_delta if _eta_delta != 0 and sd_samplers_common.is_sampler_using_eta_noise_seed_delta(p) else None
         args["Sampler eta multiplier"] = p.initial_noise_multiplier if getattr(p, 'initial_noise_multiplier', 1.0) != 1.0 else None
-        args['Sampler timesteps'] = _p_or_opt('schedulers_timesteps') if _p_or_opt('schedulers_timesteps') != shared.opts.data_labels.get('schedulers_timesteps').default else None
-        args['Sampler spacing'] = _p_or_opt('schedulers_timestep_spacing') if _p_or_opt('schedulers_timestep_spacing') != shared.opts.data_labels.get('schedulers_timestep_spacing').default else None
-        args['Sampler sigma'] = _p_or_opt('schedulers_sigma') if _p_or_opt('schedulers_sigma') != shared.opts.data_labels.get('schedulers_sigma').default else None
-        args['Sampler order'] = _p_or_opt('schedulers_solver_order') if _p_or_opt('schedulers_solver_order') != shared.opts.data_labels.get('schedulers_solver_order').default else None
-        args['Sampler type'] = _p_or_opt('schedulers_prediction_type') if _p_or_opt('schedulers_prediction_type') != shared.opts.data_labels.get('schedulers_prediction_type').default else None
-        args['Sampler beta schedule'] = _p_or_opt('schedulers_beta_schedule') if _p_or_opt('schedulers_beta_schedule') != shared.opts.data_labels.get('schedulers_beta_schedule').default else None
-        args['Sampler low order'] = _p_or_opt('schedulers_use_loworder') if _p_or_opt('schedulers_use_loworder') != shared.opts.data_labels.get('schedulers_use_loworder').default else None
-        args['Sampler dynamic'] = _p_or_opt('schedulers_use_thresholding') if _p_or_opt('schedulers_use_thresholding') != shared.opts.data_labels.get('schedulers_use_thresholding').default else None
-        args['Sampler rescale'] = _p_or_opt('schedulers_rescale_betas') if _p_or_opt('schedulers_rescale_betas') != shared.opts.data_labels.get('schedulers_rescale_betas').default else None
-        args['Sampler beta start'] = _p_or_opt('schedulers_beta_start') if _p_or_opt('schedulers_beta_start') != shared.opts.data_labels.get('schedulers_beta_start').default else None
-        args['Sampler beta end'] = _p_or_opt('schedulers_beta_end') if _p_or_opt('schedulers_beta_end') != shared.opts.data_labels.get('schedulers_beta_end').default else None
-        args['Sampler range'] = _p_or_opt('schedulers_timesteps_range') if _p_or_opt('schedulers_timesteps_range') != shared.opts.data_labels.get('schedulers_timesteps_range').default else None
-        args['Sampler shift'] = _p_or_opt('schedulers_shift') if _p_or_opt('schedulers_shift') != shared.opts.data_labels.get('schedulers_shift').default else None
-        args['Sampler dynamic shift'] = _p_or_opt('schedulers_dynamic_shift') if _p_or_opt('schedulers_dynamic_shift') != shared.opts.data_labels.get('schedulers_dynamic_shift').default else None
+        args['Sampler timesteps'] = get_opt('schedulers_timesteps') if get_opt('schedulers_timesteps') != shared.opts.data_labels.get('schedulers_timesteps').default else None
+        args['Sampler spacing'] = get_opt('schedulers_timestep_spacing') if get_opt('schedulers_timestep_spacing') != shared.opts.data_labels.get('schedulers_timestep_spacing').default else None
+        args['Sampler sigma'] = get_opt('schedulers_sigma') if get_opt('schedulers_sigma') != shared.opts.data_labels.get('schedulers_sigma').default else None
+        args['Sampler order'] = get_opt('schedulers_solver_order') if get_opt('schedulers_solver_order') != shared.opts.data_labels.get('schedulers_solver_order').default else None
+        args['Sampler type'] = get_opt('schedulers_prediction_type') if get_opt('schedulers_prediction_type') != shared.opts.data_labels.get('schedulers_prediction_type').default else None
+        args['Sampler beta schedule'] = get_opt('schedulers_beta_schedule') if get_opt('schedulers_beta_schedule') != shared.opts.data_labels.get('schedulers_beta_schedule').default else None
+        args['Sampler low order'] = get_opt('schedulers_use_loworder') if get_opt('schedulers_use_loworder') != shared.opts.data_labels.get('schedulers_use_loworder').default else None
+        args['Sampler dynamic'] = get_opt('schedulers_use_thresholding') if get_opt('schedulers_use_thresholding') != shared.opts.data_labels.get('schedulers_use_thresholding').default else None
+        args['Sampler rescale'] = get_opt('schedulers_rescale_betas') if get_opt('schedulers_rescale_betas') != shared.opts.data_labels.get('schedulers_rescale_betas').default else None
+        args['Sampler beta start'] = get_opt('schedulers_beta_start') if get_opt('schedulers_beta_start') != shared.opts.data_labels.get('schedulers_beta_start').default else None
+        args['Sampler beta end'] = get_opt('schedulers_beta_end') if get_opt('schedulers_beta_end') != shared.opts.data_labels.get('schedulers_beta_end').default else None
+        args['Sampler range'] = get_opt('schedulers_timesteps_range') if get_opt('schedulers_timesteps_range') != shared.opts.data_labels.get('schedulers_timesteps_range').default else None
+        args['Sampler shift'] = get_opt('schedulers_shift') if get_opt('schedulers_shift') != shared.opts.data_labels.get('schedulers_shift').default else None
+        args['Sampler dynamic shift'] = get_opt('schedulers_dynamic_shift') if get_opt('schedulers_dynamic_shift') != shared.opts.data_labels.get('schedulers_dynamic_shift').default else None
 
     # model specific
     if shared.sd_model_type == 'h1':

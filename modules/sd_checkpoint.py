@@ -114,7 +114,7 @@ class CheckpointInfo:
 
 def setup_model():
     list_models()
-    sd_hijack_accelerate.hijack_hfhub()
+    # sd_hijack_accelerate.hijack_hfhub()
     # sd_hijack_accelerate.hijack_torch_conv()
 
 

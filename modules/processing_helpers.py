@@ -567,8 +567,7 @@ def save_intermediate(p, latents, suffix):
         info=create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, [], iteration=p.iteration, position_in_batch=i)
         decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, output_type='pil', vae_type=p.vae_type, width=p.width, height=p.height)
         for j in range(len(decoded)):
-            _fmt = p.samples_format if p.samples_format is not None else shared.opts.samples_format
-            images.save_image(decoded[j], path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=_fmt, info=info, p=p, suffix=suffix)
+            images.save_image(decoded[j], path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix=suffix)
 
 
 def update_sampler(p, sd_model, second_pass=False):
