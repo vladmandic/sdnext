@@ -24,8 +24,6 @@ def hf_init():
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'true')
     elif opts.hf_transfer_mode == 'rust':
         install('hf_transfer')
-        import huggingface_hub
-        huggingface_hub.utils._runtime.is_hf_transfer_available = lambda: True  # pylint: disable=protected-access
         os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'false')
         os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'true')
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'true')
@@ -58,7 +56,7 @@ def hf_search(keyword):
     import huggingface_hub as hf
     t0 = time.time()
     hf_api = hf.HfApi()
-    models = hf_api.list_models(model_name=keyword, full=True, library="diffusers", limit=50, sort="downloads", direction=-1)
+    models = hf_api.list_models(model_name=keyword, full=True, filter="diffusers", limit=50, sort="downloads")
     data = []
     for model in models:
         tags = [t for t in model.tags if not t.startswith('diffusers') and not t.startswith('license') and not t.startswith('arxiv') and len(t) > 2]
