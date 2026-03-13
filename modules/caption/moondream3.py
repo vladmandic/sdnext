@@ -9,6 +9,7 @@ import collections
 import transformers
 from PIL import Image
 from modules import shared, devices, sd_models
+from modules.sd_offload import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 from modules.caption import vqa_detection
 
@@ -69,11 +70,12 @@ def load_model(repo: str):
         if hasattr(moondream3_model, 'model') and hasattr(moondream3_model.model, 'use_flex_decoding'):
             moondream3_model.model.use_flex_decoding = False
 
+        register_aux('moondream3', moondream3_model)
         loaded = repo
         devices.torch_gc()
 
     # Move model to active device
-    sd_models.move_model(moondream3_model, devices.device)
+    move_aux_to_gpu('moondream3')
     return moondream3_model
 
 
@@ -402,8 +404,7 @@ def predict(question: str, image: Image.Image, repo: str, model_name: str = None
         errors.display(e, 'Moondream3')
         return f"Error: {str(e)}"
     finally:
-        if shared.opts.caption_offload and moondream3_model is not None:
-            sd_models.move_model(moondream3_model, devices.cpu, force=True)
+        offload_aux('moondream3')
 
 
 def clear_cache():
@@ -419,6 +420,7 @@ def unload():
     global moondream3_model, loaded  # pylint: disable=global-statement
     if moondream3_model is not None:
         log.debug(f'Moondream3 unload: model="{loaded}"')
+        deregister_aux('moondream3')
         sd_models.move_model(moondream3_model, devices.cpu, force=True)
         moondream3_model = None
         loaded = None
