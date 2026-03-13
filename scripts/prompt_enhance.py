@@ -260,6 +260,15 @@ class Options:
         'coder3101/Ministral-3-8B-Reasoning-2512-heretic': {},
         'coder3101/Ministral-3-14B-Reasoning-2512-heretic': {},
     }
+    models_cls = {
+        'qwen3_5': 'Qwen3_5ForConditionalGeneration',
+        'qwen3_5_moe': 'Qwen3_5MoeForConditionalGeneration',
+        'qwen3_vl': 'Qwen3VLForConditionalGeneration',
+        'qwen2_5_vl': 'Qwen2_5_VLForConditionalGeneration',
+        'qwen2_vl': 'Qwen2VLForConditionalGeneration',
+        'mistral3': 'Mistral3ForConditionalGeneration',
+    }
+
     # default = list(models)[1] # gemma-3-4b-it
     default = 'google/gemma-3-4b-it'
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
@@ -363,15 +372,12 @@ class Script(scripts_manager.Script):
 
             model_config = transformers.AutoConfig.from_pretrained(load_args['pretrained_model_name_or_path'], trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
             model_type = getattr(model_config, 'model_type', '')
-            model_type_cls = {
-                'qwen3_5': transformers.Qwen3_5ForConditionalGeneration,
-                'qwen3_5_moe': transformers.Qwen3_5MoeForConditionalGeneration,
-                'qwen3_vl': transformers.Qwen3VLForConditionalGeneration,
-                'qwen2_5_vl': transformers.Qwen2_5_VLForConditionalGeneration,
-                'qwen2_vl': transformers.Qwen2VLForConditionalGeneration,
-                'mistral3': transformers.Mistral3ForConditionalGeneration,
-            }
-            cls_name = model_type_cls.get(model_type, transformers.AutoModelForCausalLM)
+            cls_name = transformers.AutoModelForCausalLM
+            custom_cls_name = self.options.models_cls.get(model_type, None)
+            if custom_cls_name:
+                custom_cls = getattr(transformers, custom_cls_name, None)
+                if custom_cls:
+                    cls_name = custom_cls
 
             sd_models.set_caption_load_options()
             try:
@@ -396,10 +402,7 @@ class Script(scripts_manager.Script):
             tokenizer_args = { 'pretrained_model_name_or_path': model_repo }
             if model_tokenizer:
                 tokenizer_args['subfolder'] = model_tokenizer
-            self.tokenizer = cls.from_pretrained(
-                **tokenizer_args,
-                cache_dir=shared.opts.hfcache_dir,
-            )
+            self.tokenizer = cls.from_pretrained(**tokenizer_args, cache_dir=shared.opts.hfcache_dir)
             self.tokenizer.is_processor = model_repo in self.options.img2img
 
             if debug_enabled:

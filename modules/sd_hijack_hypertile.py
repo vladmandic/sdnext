@@ -184,7 +184,7 @@ def split_attention(layer: nn.Module, tile_size: int=256, min_tile_size: int=128
 
 def context_hypertile_vae(p):
     from modules import shared
-    if p.sd_model is None or not get_opt(p, 'hypertile_vae_enabled'):
+    if shared.sd_model is None or not get_opt(p, 'hypertile_vae_enabled'):
         return nullcontext()
     if shared.opts.cross_attention_optimization == 'Sub-quadratic':
         log.warning('Hypertile UNet is not compatible with Sub-quadratic cross-attention optimization')
@@ -194,7 +194,7 @@ def context_hypertile_vae(p):
     error_reported = False
     set_resolution(p)
     max_h, max_w = 0, 0
-    vae = getattr(p.sd_model, "vae", None)
+    vae = getattr(shared.sd_model, "vae", None)
     if height == 0 or width == 0:
         log.warning('Hypertile VAE disabled: resolution unknown')
         return nullcontext()
@@ -215,7 +215,7 @@ def context_hypertile_vae(p):
 
 def context_hypertile_unet(p):
     from modules import shared
-    if p.sd_model is None or not get_opt(p, 'hypertile_unet_enabled'):
+    if shared.sd_model is None or not get_opt(p, 'hypertile_unet_enabled'):
         return nullcontext()
     if shared.opts.cross_attention_optimization == 'Sub-quadratic' and not shared.cmd_opts.experimental:
         log.warning('Hypertile UNet is not compatible with Sub-quadratic cross-attention optimization')
@@ -224,7 +224,7 @@ def context_hypertile_unet(p):
     error_reported = False
     set_resolution(p)
     max_h, max_w = 0, 0
-    unet = getattr(p.sd_model, "unet", None)
+    unet = getattr(shared.sd_model, "unet", None)
     if height == 0 or width == 0:
         log.warning('Hypertile VAE disabled: resolution unknown')
         return nullcontext()

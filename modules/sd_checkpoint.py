@@ -6,7 +6,7 @@ import time
 import json
 import collections
 from PIL import Image
-from modules import shared, paths, modelloader, hashes, sd_hijack_accelerate
+from modules import shared, paths, modelloader, hashes
 from modules.logger import log
 from modules.json_helpers import writefile
 
