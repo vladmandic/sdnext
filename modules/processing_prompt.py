@@ -82,7 +82,7 @@ def set_prompt(p,
                prompts_2: list[str],
                negative_prompts_2: list[str],
               ) -> dict:
-    prompt_attention = prompt_attention or shared.opts.prompt_attention
+    prompt_attention = prompt_attention or getattr(p, 'prompt_attention', None) or shared.opts.prompt_attention
     if (prompt_attention != 'fixed') and ('Onnx' not in cls) and ('prompt' not in p.task_args) and (
         ('StableDiffusion' in cls) or
         ('StableCascade' in cls) or
@@ -92,7 +92,13 @@ def set_prompt(p,
     ):
         jobid = shared.state.begin('TE Encode')
         try:
-            prompt_parser_diffusers.embedder = prompt_parser_diffusers.PromptEmbedder(prompts, negative_prompts, steps, clip_skip, p)
+            prompt_parser_diffusers.embedder = prompt_parser_diffusers.PromptEmbedder(
+                prompts, negative_prompts, steps, clip_skip, p,
+                prompt_attention=prompt_attention,
+                prompt_mean_norm=getattr(p, 'prompt_mean_norm', None),
+                diffusers_zeros_prompt_pad=getattr(p, 'diffusers_zeros_prompt_pad', None),
+                te_pooled_embeds=getattr(p, 'te_pooled_embeds', None),
+            )
         except Exception as e:
             prompt_parser_diffusers.embedder = None
             log.error(f'Prompt parser encode: {e}')
