@@ -37,7 +37,7 @@ def get_stepwise(param, step, steps): # from https://github.com/cheald/sd-webui-
 
 
 def prompt(p):
-    if l.opt('lora_apply_tags') == 0:
+    if shared.opts.lora_apply_tags == 0:
         return
     all_tags = []
     for loaded in l.loaded_networks:
@@ -47,14 +47,14 @@ def prompt(p):
         loaded.tags = list(tags)
         if len(loaded.tags) == 0:
             loaded.tags.append(loaded.name)
-        if l.opt('lora_apply_tags') > 0:
-            loaded.tags = loaded.tags[:l.opt('lora_apply_tags')]
+        if shared.opts.lora_apply_tags > 0:
+            loaded.tags = loaded.tags[:shared.opts.lora_apply_tags]
         all_tags.extend(loaded.tags)
     if len(all_tags) > 0:
         all_tags = list(set(all_tags))
         all_tags = [t for t in all_tags if t not in p.prompt]
         if len(all_tags) > 0:
-            log.debug(f"Network load: type=LoRA tags={all_tags} max={l.opt('lora_apply_tags')} apply")
+            log.debug(f"Network load: type=LoRA tags={all_tags} max={shared.opts.lora_apply_tags} apply")
         all_tags = ', '.join(all_tags)
         p.extra_generation_params["LoRA tags"] = all_tags
         if '_tags_' in p.prompt:
@@ -99,10 +99,10 @@ def parse(p, params_list, step=0):
     for params in params_list:
         name = params.positional[0]
 
-        default_multiplier = params.positional[1] if len(params.positional) > 1 else l.opt('extra_networks_default_multiplier')
+        default_multiplier = params.positional[1] if len(params.positional) > 1 else shared.opts.extra_networks_default_multiplier
         default_multiplier = to_float(default_multiplier)
         if isinstance(default_multiplier, str) and "@" not in default_multiplier:
-            default_multiplier = l.opt('extra_networks_default_multiplier')
+            default_multiplier = shared.opts.extra_networks_default_multiplier
 
         te_multiplier = params.named.get("te", default_multiplier)
         if isinstance(te_multiplier, str) and "@" in te_multiplier:
@@ -174,7 +174,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         return [f'{name}:{te}:{unet}' for name, te, unet in zip(names, te_multipliers, unet_multipliers, strict=False)]
 
     def changed(self, requested: list[str], include: list[str] = None, exclude: list[str] = None) -> bool:
-        if l.opt('lora_force_reload'):
+        if shared.opts.lora_force_reload:
             debug_log(f'Network check: type=LoRA requested={requested} status=forced')
             return True
         sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
@@ -205,13 +205,6 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             exclude = []
         if include is None:
             include = []
-        l._request_opts = {
-            'lora_fuse_native': getattr(p, 'lora_fuse_native', None),
-            'lora_fuse_diffusers': getattr(p, 'lora_fuse_diffusers', None),
-            'lora_force_reload': getattr(p, 'lora_force_reload', None),
-            'extra_networks_default_multiplier': getattr(p, 'extra_networks_default_multiplier', None),
-            'lora_apply_tags': getattr(p, 'lora_apply_tags', None),
-        }
         self.errors.clear()
         if self.active:
             if self.model != shared.opts.sd_model_checkpoint: # reset if model changed
@@ -261,7 +254,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
                 log.info(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_native else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
 
     def deactivate(self, p, force=False):
-        if len(lora_diffusers.diffuser_loaded) > 0 and (l.opt('lora_force_reload') or force):
+        if len(lora_diffusers.diffuser_loaded) > 0 and (shared.opts.lora_force_reload or force):
             unload_diffusers()
         if force:
             networks.network_deactivate()
@@ -271,4 +264,3 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             for k, v in self.errors.items():
                 log.error(f'Network: type=LoRA name="{k}" errors={v}')
             self.errors.clear()
-        l._request_opts = {}

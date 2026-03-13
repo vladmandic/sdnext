@@ -57,7 +57,7 @@ def network_activate(include=None, exclude=None):
                         continue
                     backup_size += network_backup_weights(module, network_layer_name, wanted_names)
                     batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name)
-                    if l.opt('lora_fuse_native'):
+                    if shared.opts.lora_fuse_native:
                         network_apply_direct(module, batch_updown, batch_ex_bias, device=device)
                     else:
                         network_apply_weights(module, batch_updown, batch_ex_bias, device=device)
@@ -87,7 +87,7 @@ def network_deactivate(include=None, exclude=None):
         exclude = []
     if include is None:
         include = []
-    if not l.opt('lora_fuse_native') or shared.opts.lora_force_diffusers:
+    if not shared.opts.lora_fuse_native or shared.opts.lora_force_diffusers:
         return
     if len(l.previously_loaded_networks) == 0:
         return
@@ -125,7 +125,7 @@ def network_deactivate(include=None, exclude=None):
                             pbar.update(task, advance=1)
                         continue
                     batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True)
-                    if l.opt('lora_fuse_native'):
+                    if shared.opts.lora_fuse_native:
                         network_apply_direct(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
                     else:
                         network_apply_weights(module, batch_updown, batch_ex_bias, device=device, deactivate=True)

@@ -18,13 +18,3 @@ module_types = [
 loaded_networks: list = [] # no type due to circular import
 previously_loaded_networks: list = [] # no type due to circular import
 extra_network_lora = None # initialized in extra_networks.py
-_request_opts: dict = {}
-
-
-def opt(key):
-    """Read per-request override, fall back to shared.opts."""
-    val = _request_opts.get(key)
-    if val is not None:
-        return val
-    from modules import shared
-    return getattr(shared.opts, key)
