@@ -283,7 +283,7 @@ def run_ltx(task_id,
         except Exception:
             aac_sample_rate = 24000
 
-        num_frames, video_file = save_video(
+        num_frames, video_file, _thumb = save_video(
             p=p,
             pixels=frames,
             audio=audio,
