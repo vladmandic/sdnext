@@ -11,6 +11,7 @@ import gradio as gr
 from PIL import Image
 from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, ui_symbols
 from modules import ui_control_helpers
+from modules.sd_offload import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 
 
@@ -51,11 +52,14 @@ def is_thinking_model(model_name: str) -> bool:
     # Match VQA's detection patterns for consistency
     thinking_indicators = [
         'thinking',      # Qwen3-VL-*-Thinking models
+        'reasoning',     # Ministral-3-*-Reasoning models
         'moondream3',    # Moondream 3 supports thinking
         'moondream 3',
         'moondream2',    # Moondream 2 supports reasoning mode
         'moondream 2',
         'mimo',          # XiaomiMiMo models
+        'qwen3.5',      # Qwen3.5 native thinking (repo names)
+        'qwen 3.5',     # Qwen3.5 native thinking (display names)
     ]
     return any(indicator in model_lower for indicator in thinking_indicators)
 
@@ -101,53 +105,128 @@ def keep_think_block_open(text_prompt: str) -> str:
 @dataclass
 class Options:
     img2img = [
+        # Gemma
         'google/gemma-3-4b-it',
+        'google/gemma-3n-E2B-it',
+        'google/gemma-3n-E4B-it',
+        # Gemma Finetunes
+        'nidum/Nidum-Gemma-3-4B-it-Uncensored',
         'allura-org/Gemma-3-Glitter-4B',
-        'Qwen/Qwen2.5-VL-3B-Instruct',
+        'coder3101/gemma-3-27b-it-heretic-v2',
+        'p-e-w/gemma-3-12b-it-heretic',
+        'DavidAU/gemma-3-4b-it-heretic-uncensored-abliterated-Extreme',
+        'DavidAU/Gemma-3-4B-VL-it-Gemini-Pro-Heretic-Uncensored-Thinking',
+        'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning',
+        'coder3101/Big-Tiger-Gemma-27B-v3-heretic-v2',
+        # Qwen3.5
+        'Qwen/Qwen3.5-0.8B',
+        'Qwen/Qwen3.5-2B',
+        'Qwen/Qwen3.5-4B',
+        'Qwen/Qwen3.5-9B',
+        'Qwen/Qwen3.5-27B',
+        'Qwen/Qwen3.5-35B-A3B',
+        'coder3101/Qwen3.5-27B-heretic',
+        # Qwen3-VL
         'Qwen/Qwen3-VL-2B-Instruct',
         'Qwen/Qwen3-VL-2B-Thinking',
         'Qwen/Qwen3-VL-4B-Instruct',
         'Qwen/Qwen3-VL-4B-Thinking',
         'Qwen/Qwen3-VL-8B-Instruct',
         'Qwen/Qwen3-VL-8B-Thinking',
+        # Qwen3-VL Finetunes
+        'coder3101/Qwen3-VL-2B-Instruct-heretic',
+        'coder3101/Qwen3-VL-2B-Thinking-heretic',
+        'coder3101/Qwen3-VL-4B-Instruct-heretic',
+        'coder3101/Qwen3-VL-4B-Thinking-heretic',
+        'coder3101/Qwen3-VL-8B-Instruct-heretic',
+        'coder3101/Qwen3-VL-32B-Instruct-heretic-v2',
+        'coder3101/Qwen3-VL-32B-Thinking-heretic-v2',
+        'prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it',
+        # Qwen2.5-VL
+        'Qwen/Qwen2.5-VL-3B-Instruct',
+        # Qwen2.5-VL Finetunes
+        'coder3101/Qwen2.5-VL-3B-Instruct-heretic',
+        'coder3101/Qwen2.5-VL-7B-Instruct-heretic',
+        'coder3101/Qwen2.5-VL-32B-Instruct-heretic',
+        'coder3101/Qwen2.5-VL-72B-Instruct-heretic',
+        # Mistral
+        'mistralai/Ministral-3-3B-Instruct-2512-BF16',
+        'mistralai/Ministral-3-8B-Instruct-2512-BF16',
+        'mistralai/Ministral-3-14B-Instruct-2512-BF16',
+        'mistralai/Devstral-Small-2-24B-Instruct-2512',
+        'mistralai/Ministral-3-3B-Reasoning-2512',
+        'mistralai/Ministral-3-8B-Reasoning-2512',
+        'mistralai/Ministral-3-14B-Reasoning-2512',
+        # Mistral Finetunes
+        'coder3101/Mistral-Small-3.2-24B-Instruct-2506-heretic',
+        'coder3101/Ministral-3-3B-Reasoning-2512-heretic',
+        'coder3101/Ministral-3-8B-Reasoning-2512-heretic',
+        'coder3101/Ministral-3-14B-Reasoning-2512-heretic',
     ]
     cloud = [
         'google/gemini-3.1-pro-preview',
         'google/gemini-3-flash-preview',
     ]
     models = {
+        # Gemma
         'google/gemma-3-1b-it': {},
         'google/gemma-3-4b-it': {},
         'google/gemma-3n-E2B-it': {},
         'google/gemma-3n-E4B-it': {},
-        'Qwen/Qwen3-0.6B-FP8': {},
-        'Qwen/Qwen3-1.7B-FP8': {},
-        'Qwen/Qwen3-4B-FP8': {},
+        # Gemma Finetunes
+        'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
+        'allura-org/Gemma-3-Glitter-4B': {},
+        'coder3101/gemma-3-27b-it-heretic-v2': {},
+        'p-e-w/gemma-3-12b-it-heretic': {},
+        'DavidAU/gemma-3-4b-it-heretic-uncensored-abliterated-Extreme': {},
+        'DavidAU/Gemma-3-4B-VL-it-Gemini-Pro-Heretic-Uncensored-Thinking': {},
+        'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning': {},
+        'coder3101/Big-Tiger-Gemma-27B-v3-heretic-v2': {},
+        # Qwen3.5
+        'Qwen/Qwen3.5-0.8B': {},
+        'Qwen/Qwen3.5-2B': {},
+        'Qwen/Qwen3.5-4B': {},
+        'Qwen/Qwen3.5-9B': {},
+        'Qwen/Qwen3.5-27B': {},
+        'Qwen/Qwen3.5-35B-A3B': {},
+        'coder3101/Qwen3.5-27B-heretic': {},
+        # Qwen3
         'Qwen/Qwen3-0.6B': {},
         'Qwen/Qwen3-1.7B': {},
         'Qwen/Qwen3-4B': {},
         'Qwen/Qwen3-4B-Instruct-2507': {},
-        'Qwen/Qwen2.5-0.5B-Instruct': {},
-        'Qwen/Qwen2.5-1.5B-Instruct': {},
-        'Qwen/Qwen2.5-3B-Instruct': {},
-        'Qwen/Qwen2.5-VL-3B-Instruct': {},
+        # Qwen3-VL
         'Qwen/Qwen3-VL-2B-Instruct': {},
         'Qwen/Qwen3-VL-2B-Thinking': {},
         'Qwen/Qwen3-VL-4B-Instruct': {},
         'Qwen/Qwen3-VL-4B-Thinking': {},
         'Qwen/Qwen3-VL-8B-Instruct': {},
         'Qwen/Qwen3-VL-8B-Thinking': {},
-        'microsoft/Phi-4-mini-instruct': {},
-        'HuggingFaceTB/SmolLM2-135M-Instruct': {},
-        'HuggingFaceTB/SmolLM2-360M-Instruct': {},
-        'HuggingFaceTB/SmolLM2-1.7B-Instruct': {},
-        'HuggingFaceTB/SmolLM3-3B': {},
+        # Qwen3-VL Finetunes
+        'coder3101/Qwen3-VL-2B-Instruct-heretic': {},
+        'coder3101/Qwen3-VL-2B-Thinking-heretic': {},
+        'coder3101/Qwen3-VL-4B-Instruct-heretic': {},
+        'coder3101/Qwen3-VL-4B-Thinking-heretic': {},
+        'coder3101/Qwen3-VL-8B-Instruct-heretic': {},
+        'coder3101/Qwen3-VL-32B-Instruct-heretic-v2': {},
+        'coder3101/Qwen3-VL-32B-Thinking-heretic-v2': {},
+        'prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it': {},
+        # Qwen2.5
+        'Qwen/Qwen2.5-0.5B-Instruct': {},
+        'Qwen/Qwen2.5-1.5B-Instruct': {},
+        'Qwen/Qwen2.5-3B-Instruct': {},
+        # Qwen2.5-VL
+        'Qwen/Qwen2.5-VL-3B-Instruct': {},
+        # Qwen2.5-VL Finetunes
+        'coder3101/Qwen2.5-VL-3B-Instruct-heretic': {},
+        'coder3101/Qwen2.5-VL-7B-Instruct-heretic': {},
+        'coder3101/Qwen2.5-VL-32B-Instruct-heretic': {},
+        'coder3101/Qwen2.5-VL-72B-Instruct-heretic': {},
+        # Llama
         'meta-llama/Llama-3.2-1B-Instruct': {},
         'meta-llama/Llama-3.2-3B-Instruct': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-3B': {},
-        'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
-        'allura-org/Gemma-3-Glitter-4B': {},
         'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF': {
             'repo': 'meta-llama/Llama-3.2-1B-Instruct', # original repo so we can load missing components
             'type': 'llama', # required so gguf loader knows what to do
@@ -159,6 +238,27 @@ class Options:
         'google/gemini-3-flash-preview': {},
         'google/gemini-2.5-pro': {},
         'google/gemini-2.5-flash': {},
+        # SmolLM
+        'HuggingFaceTB/SmolLM2-135M-Instruct': {},
+        'HuggingFaceTB/SmolLM2-360M-Instruct': {},
+        'HuggingFaceTB/SmolLM2-1.7B-Instruct': {},
+        'HuggingFaceTB/SmolLM3-3B': {},
+        # Phi
+        'microsoft/Phi-4-mini-instruct': {},
+        # Mistral
+        'mistralai/Ministral-3-3B-Instruct-2512-BF16': {},
+        'mistralai/Ministral-3-8B-Instruct-2512-BF16': {},
+        'mistralai/Ministral-3-14B-Instruct-2512-BF16': {},
+        'mistralai/Devstral-Small-2-24B-Instruct-2512': {},
+        'mistralai/Ministral-3-3B-Reasoning-2512': {},
+        'mistralai/Ministral-3-8B-Reasoning-2512': {},
+        'mistralai/Ministral-3-14B-Reasoning-2512': {},
+        # Mistral Finetunes
+        'coder3101/Mistral-Small-3.2-24B-Instruct-2506-heretic': {},
+        'p-e-w/Mistral-Nemo-Instruct-2407-heretic-noslop': {},
+        'coder3101/Ministral-3-3B-Reasoning-2512-heretic': {},
+        'coder3101/Ministral-3-8B-Reasoning-2512-heretic': {},
+        'coder3101/Ministral-3-14B-Reasoning-2512-heretic': {},
     }
     # default = list(models)[1] # gemma-3-4b-it
     default = 'google/gemma-3-4b-it'
@@ -210,7 +310,7 @@ class Script(scripts_manager.Script):
         if self.llm is None or 'LLM' not in shared.opts.cuda_compile:
             return
         from modules.sd_models_compile import compile_torch
-        self.llm = compile_torch(self.llm)
+        self.llm = compile_torch(self.llm, apply_to_components=False, op="LLM")
 
     def load(self, name:str=None, model_repo:str=None, model_gguf:str=None, model_type:str=None, model_file:str=None):
         # Strip symbols from display name if present
@@ -250,32 +350,45 @@ class Script(scripts_manager.Script):
         try:
             t0 = time.time()
             if self.llm is not None:
+                deregister_aux('prompt_enhance')
+                sd_models.move_model(self.llm, devices.cpu, force=True)
                 self.llm = None
+                self.tokenizer = None
+                devices.torch_gc(force=True, reason='prompt enhance model switch')
                 log.debug(f'Prompt enhance: name="{self.model}" unload')
             self.model = None
             load_args = { 'pretrained_model_name_or_path': model_repo if not gguf_args else model_gguf }
             if model_subfolder:
                 load_args['subfolder'] = model_subfolder # Comma was incorrect here
 
-            if 'Qwen3-VL' in model_repo or 'Qwen3VL' in model_repo:
-                cls_name = transformers.Qwen3VLForConditionalGeneration
-            elif 'Qwen2.5-VL' in model_repo or 'Qwen2_5_VL' in model_repo:
-                cls_name = transformers.Qwen2_5_VLForConditionalGeneration
-            elif 'Qwen2-VL' in model_repo or 'Qwen2VL' in model_repo:
-                cls_name = transformers.Qwen2VLForConditionalGeneration
-            else:
-                cls_name = transformers.AutoModelForCausalLM
+            model_config = transformers.AutoConfig.from_pretrained(load_args['pretrained_model_name_or_path'], trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
+            model_type = getattr(model_config, 'model_type', '')
+            model_type_cls = {
+                'qwen3_5': transformers.Qwen3_5ForConditionalGeneration,
+                'qwen3_5_moe': transformers.Qwen3_5MoeForConditionalGeneration,
+                'qwen3_vl': transformers.Qwen3VLForConditionalGeneration,
+                'qwen2_5_vl': transformers.Qwen2_5_VLForConditionalGeneration,
+                'qwen2_vl': transformers.Qwen2VLForConditionalGeneration,
+                'mistral3': transformers.Mistral3ForConditionalGeneration,
+            }
+            cls_name = model_type_cls.get(model_type, transformers.AutoModelForCausalLM)
 
-            self.llm = cls_name.from_pretrained(
-                **load_args,
-                trust_remote_code=True,
-                torch_dtype=devices.dtype,
-                cache_dir=shared.opts.hfcache_dir,
-                # _attn_implementation="eager",
-                **gguf_args,
-                **quant_args,
-            )
+            sd_models.set_caption_load_options()
+            try:
+                self.llm = cls_name.from_pretrained(
+                    **load_args,
+                    trust_remote_code=True,
+                    torch_dtype=devices.dtype,
+                    low_cpu_mem_usage=True,
+                    cache_dir=shared.opts.hfcache_dir,
+                    # _attn_implementation="eager",
+                    **gguf_args,
+                    **quant_args,
+                )
+            finally:
+                sd_models.set_huggingface_options(quiet=True)
             self.llm.eval()
+            register_aux('prompt_enhance', self.llm)
             if model_repo in self.options.img2img:
                 cls = transformers.AutoProcessor # required to encode image
             else:
@@ -311,6 +424,7 @@ class Script(scripts_manager.Script):
         if self.llm is not None:
             model_name = self.model
             log.debug(f'Prompt enhance: unloading model="{model_name}"')
+            deregister_aux('prompt_enhance')
             sd_models.move_model(self.llm, devices.cpu, force=True)
             self.model = None
             self.llm = None
@@ -456,7 +570,7 @@ class Script(scripts_manager.Script):
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
-        debug_log(f'Prompt enhance: model="{model}" class="{self.llm.__class__.__name__ if self.llm else None}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" vision={use_vision} image={image is not None}')
+        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm is not None else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" use_vision={use_vision} image={image is not None}')
 
         while self.busy:
             time.sleep(0.1)
@@ -587,13 +701,17 @@ class Script(scripts_manager.Script):
                 return 'Model not recognized'
 
         try:
-            # Generate text prompt using template (WITHOUT enable_thinking parameter)
-            # Let template naturally generate <think> for thinking models
+            # Qwen3.5 uses native enable_thinking parameter in the chat template
+            is_qwen35 = 'qwen3.5' in model.lower()
+            template_kwargs = {'enable_thinking': thinking} if is_qwen35 else {}
+
+            # Generate text prompt using template
             try:
                 text_prompt = self.tokenizer.apply_chat_template(
                     chat_template,
                     add_generation_prompt=True,
                     tokenize=False,
+                    **template_kwargs,
                 )
             except TypeError:
                 text_prompt = self.tokenizer.apply_chat_template(
@@ -601,8 +719,8 @@ class Script(scripts_manager.Script):
                     tokenize=False,
                 )
 
-            # Manually handle thinking tags and prefill (VQA Qwen approach)
-            if is_thinking:
+            # Manual think handling - skip for Qwen3.5 (template handles it natively)
+            if is_thinking and not is_qwen35:
                 if not thinking:
                     # User wants to SKIP thinking
                     # Template opened the block with <think>, close it immediately
@@ -616,7 +734,7 @@ class Script(scripts_manager.Script):
                         text_prompt += prefill_text
                     debug_log('Prompt enhance: thinking enabled, prefill inside think block')
             else:
-                # Standard model (no <think> block)
+                # Standard model or Qwen3.5 (no manual <think> manipulation needed)
                 if use_prefill:
                     text_prompt += prefill_text
 
@@ -642,7 +760,7 @@ class Script(scripts_manager.Script):
             return prompt_text # Return original text part on error
         try:
             with devices.inference_context():
-                sd_models.move_model(self.llm, devices.device)
+                move_aux_to_gpu('prompt_enhance')
                 gen_kwargs = {
                     'do_sample': sample,
                     'temperature': float(temperature),
@@ -654,9 +772,6 @@ class Script(scripts_manager.Script):
                 if top_p > 0:
                     gen_kwargs['top_p'] = float(top_p)
                 outputs = self.llm.generate(**inputs, **gen_kwargs)
-                if shared.opts.diffusers_offload_mode != 'none':
-                    sd_models.move_model(self.llm, devices.cpu, force=True)
-                    devices.torch_gc(force=True, reason='prompt enhance offload')
             outputs_cropped = outputs[:, input_len:]
             response = self.tokenizer.batch_decode(
                 outputs_cropped,
@@ -672,6 +787,9 @@ class Script(scripts_manager.Script):
             errors.display(e, 'Prompt enhance')
             self.busy = False
             response = f'Error: {str(e)}'
+        finally:
+            offload_aux('prompt_enhance')
+            devices.torch_gc(force=True, reason='prompt enhance offload')
         t1 = time.time()
 
         if isinstance(response, list):
