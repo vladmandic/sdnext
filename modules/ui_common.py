@@ -459,7 +459,7 @@ def update_token_counter(text: str):
 
         try:
             try:
-                ids = getattr(tokenizer(prompt_list), 'input_ids', [])
+                ids: list = getattr(tokenizer(prompt_list), 'input_ids', [])
             except TypeError:
                 for p in prompt_list:
                     ids.append(getattr(tokenizer(p), 'input_ids', []))
