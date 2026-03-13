@@ -18,6 +18,7 @@ from modules.modeldata import model_data
 from modules.sd_checkpoint import CheckpointInfo, select_checkpoint, list_models, checkpoint_titles, get_closest_checkpoint_match, update_model_hashes, write_metadata, checkpoints_list # pylint: disable=unused-import
 from modules.sd_offload import get_module_names, disable_offload, set_diffuser_offload, apply_balanced_offload, set_accelerate # pylint: disable=unused-import
 from modules.sd_models_utils import NoWatermark, get_signature, get_call, path_to_repo, apply_function_to_model, read_state_dict, get_state_dict_from_checkpoint # pylint: disable=unused-import
+from modules.secrets_manager import sanitize_dict, SecretStr
 
 
 model_dir = "Stable-diffusion"
@@ -60,15 +61,30 @@ i2i_pipes = [
 ]
 
 
-def set_huggingface_options():
+def set_huggingface_options(quiet=False):
     if shared.opts.diffusers_to_gpu: # and model_type.startswith('Stable Diffusion'):
         sd_hijack_accelerate.hijack_accelerate()
     else:
         sd_hijack_accelerate.restore_accelerate()
     if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
-        log.debug(f'Loader: runai enabled chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
+        if not quiet:
+            log.debug(f'Loader: runai enabled chunk={os.environ.get("RUNAI_STREAMER_CHUNK_BYTESIZE", "N/A")} limit={os.environ.get("RUNAI_STREAMER_MEMORY_LIMIT", "N/A")}')
         sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
     else:
+        sd_hijack_safetensors.restore_safetensors()
+
+
+def set_caption_load_options():
+    if shared.opts.caption_to_gpu:
+        sd_hijack_accelerate.hijack_accelerate()
+    else:
+        sd_hijack_accelerate.restore_accelerate()
+    if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
+        log.debug(f'Caption loader: to_gpu={shared.opts.caption_to_gpu} runai chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
+        sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
+    else:
+        if shared.opts.caption_to_gpu:
+            log.debug(f'Caption loader: to_gpu={shared.opts.caption_to_gpu}')
         sd_hijack_safetensors.restore_safetensors()
 
 
@@ -298,7 +314,7 @@ def load_diffuser_initial(diffusers_load_config, op='model'):
         log.info(f'Load model {op}: path="{model_name}"')
         model_file = modelloader.download_diffusers_model(hub_id=model_name, variant=diffusers_load_config.get('variant', None))
         try:
-            log.debug(f'Load {op}: config={diffusers_load_config}')
+            log.debug(f'Load {op}: config={sanitize_dict(diffusers_load_config)}')
             sd_model = diffusers.DiffusionPipeline.from_pretrained(model_file, **diffusers_load_config)
         except Exception as e:
             log.error(f'Failed loading model: {model_file} {e}')
@@ -624,9 +640,9 @@ def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_con
             diffusers_load_config.pop('requires_safety_checker', None)
             diffusers_load_config.pop('config_files', None)
             diffusers_load_config.pop('local_files_only', None)
-            log.debug(f'Setting {op}: pipeline={sd_model.__class__.__name__} config={diffusers_load_config}') # pylint: disable=protected-access
+            log.debug(f'Setting {op}: pipeline={sd_model.__class__.__name__} config={sanitize_dict(diffusers_load_config)}') # pylint: disable=protected-access
     except Exception as e:
-        log.error(f'Load {op}: file="{checkpoint_info.path}" pipeline={shared.opts.diffusers_pipeline} config={diffusers_load_config} {e}')
+        log.error(f'Load {op}: file="{checkpoint_info.path}" pipeline={shared.opts.diffusers_pipeline} config={sanitize_dict(diffusers_load_config)} {e}')
         if 'Weights for this component appear to be missing in the checkpoint' in str(e):
             log.error(f'Load {op}: file="{checkpoint_info.path}" is not a complete model')
         else:
@@ -783,6 +799,9 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         "requires_safety_checker": False, # sd15 specific but we cant know ahead of time
         # "use_safetensors": True,
     }
+    hf_token = shared.opts.huggingface_token
+    if hf_token:
+        diffusers_load_config['token'] = SecretStr(hf_token)
     if revision is not None:
         diffusers_load_config['revision'] = revision
     if shared.opts.diffusers_model_load_variant != 'default':
@@ -1377,6 +1396,33 @@ def unload_model_weights(op='model'):
         model_data.sd_refiner = None
         devices.torch_gc(force=True, reason='unload')
         log.debug(f'Unload {op}: {memory_stats()}  fn={fn}')
+
+
+def unload_auxiliary_models():
+    unloaded = []
+    try:
+        from modules.caption import vqa, openclip, tagger
+        inst = vqa.get_instance()
+        if inst.model is not None:
+            inst.unload()
+            unloaded.append('vqa')
+        openclip.unload_clip_model()
+        tagger.unload_model()
+    except Exception:
+        pass
+    try:
+        from modules.scripts_manager import scripts_txt2img
+        if scripts_txt2img is not None:
+            instances = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename]
+            for inst in instances:
+                if inst.llm is not None:
+                    inst.unload()
+                    unloaded.append('prompt-enhance')
+    except Exception:
+        pass
+    if unloaded:
+        devices.torch_gc(force=True, reason='unload auxiliary')
+        log.debug(f'Unload auxiliary: {", ".join(unloaded)}')
 
 
 def hf_auth_check(checkpoint_info, force:bool=False):
