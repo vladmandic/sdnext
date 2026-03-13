@@ -85,16 +85,16 @@ def correction(p, timestep, latent):
         latent = soft_clamp_tensor(latent, threshold=p.hdr_threshold, boundary=p.hdr_boundary)
         p.extra_generation_params["Latent clamp"] = f'{p.hdr_threshold}/{p.hdr_boundary}'
     if 600 < timestep < 900 and p.hdr_color != 0:
-        n = getattr(p, '_correction_steps_mid', 1)
+        n = getattr(p, 'correction_steps_mid', 1)
         latent[1:] = center_tensor(latent[1:], channel_shift=p.hdr_color / n, full_shift=float(p.hdr_mode))
         p.extra_generation_params["Latent color"] = f'{p.hdr_color}'
     if 600 < timestep < 900 and p.hdr_tint_ratio != 0:
-        n = getattr(p, '_correction_steps_mid', 1)
+        n = getattr(p, 'correction_steps_mid', 1)
         latent = color_adjust(latent, p.hdr_color_picker, p.hdr_tint_ratio / n)
         p.extra_generation_params["Latent tint"] = f'{p.hdr_tint_ratio}'
         p.extra_generation_params["Latent tint color"] = p.hdr_color_picker
     if timestep < 200 and (p.hdr_brightness != 0):
-        n = getattr(p, '_correction_steps_late', 1)
+        n = getattr(p, 'correction_steps_late', 1)
         latent[0:1] = center_tensor(latent[0:1], full_shift=float(p.hdr_mode), offset=p.hdr_brightness / n)
         p.extra_generation_params["Latent brightness"] = f'{p.hdr_brightness}'
     if timestep < 350 and p.hdr_sharpen != 0:
@@ -179,35 +179,35 @@ def _count_steps_below(pipe, threshold):
 def correction_callback(p, timestep, kwargs, pipe=None, initial: bool = False):
     if initial:
         if not any([p.hdr_clamp, p.hdr_mode, p.hdr_maximize, p.hdr_sharpen, p.hdr_color, p.hdr_brightness, p.hdr_tint_ratio]):
-            p._correction_skip = True
+            p.correction_skip = True
             return kwargs
         # always skip for detailer passes (already-corrected image, different resolution)
         if getattr(p, 'recursion', False):
-            p._correction_skip = True
+            p.correction_skip = True
             return kwargs
         # optionally skip for hires pass
         if getattr(p, 'is_hr_pass', False) and not getattr(p, 'hdr_apply_hires', True):
-            p._correction_skip = True
+            p.correction_skip = True
             return kwargs
-        p._correction_skip = False
-        p._correction_warned = False
+        p.correction_skip = False
+        p.correction_warned = False
         if pipe is not None:
-            p._correction_steps_mid = _count_steps_in_range(pipe, 600, 900)
-            p._correction_steps_late = _count_steps_below(pipe, 200)
-    elif getattr(p, '_correction_skip', False):
+            p.correction_steps_mid = _count_steps_in_range(pipe, 600, 900)
+            p.correction_steps_late = _count_steps_below(pipe, 200)
+    elif getattr(p, 'correction_skip', False):
         return kwargs
     latents = kwargs["latents"]
     if len(latents.shape) <= 3:  # packed latent
         if pipe is None:
-            if not getattr(p, '_correction_warned', False):
+            if not getattr(p, 'correction_warned', False):
                 log.warning(f'Latent correction: shape={latents.shape} packed latent but no pipe reference')
-                p._correction_warned = True
+                p.correction_warned = True
             return kwargs
         unpacked, pack_type = _unpack_latents(latents, pipe, p)
         if pack_type == 'unknown':
-            if not getattr(p, '_correction_warned', False):
+            if not getattr(p, 'correction_warned', False):
                 log.warning(f'Latent correction: shape={latents.shape} unknown packed format')
-                p._correction_warned = True
+                p.correction_warned = True
             return kwargs
         for i in range(unpacked.shape[0]):
             unpacked[i] = correction(p, timestep, unpacked[i])
@@ -228,7 +228,7 @@ def correction_callback(p, timestep, kwargs, pipe=None, initial: bool = False):
         latents = latents.permute(1, 0, 2, 3).unsqueeze(0)
         kwargs["latents"] = latents
     else:
-        if not getattr(p, '_correction_warned', False):
+        if not getattr(p, 'correction_warned', False):
             log.warning(f'Latent correction: shape={latents.shape} unknown latent')
-            p._correction_warned = True
+            p.correction_warned = True
     return kwargs

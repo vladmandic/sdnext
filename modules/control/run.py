@@ -691,7 +691,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                 and getattr(p, 'init_images', None) is None \
                                 and getattr(p, 'image', None) is None:
                                 if is_generator:
-                                    log.debug(f'Control args: {p.task_args}')
                                     yield terminate(f'Mode={p.extra_generation_params.get("Control type", None)} input image is none')
                                 return terminate(f'Mode={p.extra_generation_params.get("Control type", None)} input image is none')
                         if unit_type == 'lite':
