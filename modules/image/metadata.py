@@ -10,11 +10,20 @@ from modules.image.watermark import get_watermark
 
 def safe_decode_string(s: bytes):
     remove_prefix = lambda text, prefix: text[len(prefix):] if text.startswith(prefix) else text # pylint: disable=unnecessary-lambda-assignment
-    for encoding in ['utf_16_be', 'utf-8', 'utf-16', 'ascii', 'latin_1', 'cp1252', 'cp437']: # try different encodings
+    s = remove_prefix(s, b'UNICODE')
+    s = remove_prefix(s, b'ASCII')
+    s = remove_prefix(s, b'\x00')
+    # Detect UTF-16LE: even length and every other byte (odd positions) is 0x00 in the first ~20 bytes
+    if len(s) >= 2 and len(s) % 2 == 0 and all(b == 0 for b in s[1:min(len(s), 20):2]):
         try:
-            s = remove_prefix(s, b'UNICODE')
-            s = remove_prefix(s, b'ASCII')
-            s = remove_prefix(s, b'\x00')
+            val = s.decode('utf-16-le', errors='strict')
+            val = re.sub(r'[\x00-\x09]', '', val).strip()
+            if val:
+                return val
+        except Exception:
+            pass
+    for encoding in ['utf-8', 'utf-16', 'utf-16-be', 'ascii', 'latin_1', 'cp1252', 'cp437']: # try different encodings
+        try:
             val = s.decode(encoding, errors="strict")
             val = re.sub(r'[\x00-\x09]', '', val).strip() # remove remaining special characters
             if len(val) == 0: # remove empty strings
@@ -150,7 +159,15 @@ def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[s
     geninfo += parse_invoke_metadata(items)
     geninfo += parse_novelai_metadata(items)
 
-    for key in ['exif', 'ExifOffset', 'JpegIFOffset', 'JpegIFByteCount', 'ExifVersion', 'icc_profile', 'jfif', 'jfif_version', 'jfif_unit', 'jfif_density', 'adobe', 'photoshop', 'loop', 'duration', 'dpi']: # remove unwanted tags
+    # Extract XMP dc:subject tags into a readable field
+    xmp_raw = items.get('xmp')
+    if xmp_raw and isinstance(xmp_raw, (str, bytes)):
+        xmp_str = xmp_raw if isinstance(xmp_raw, str) else xmp_raw.decode('utf-8', errors='replace')
+        xmp_tags = re.findall(r'<rdf:li>([^<]+)</rdf:li>', xmp_str)
+        if xmp_tags:
+            items['xmp_tags'] = ', '.join(xmp_tags)
+
+    for key in ['exif', 'ExifOffset', 'JpegIFOffset', 'JpegIFByteCount', 'ExifVersion', 'icc_profile', 'jfif', 'jfif_version', 'jfif_unit', 'jfif_density', 'adobe', 'photoshop', 'loop', 'duration', 'dpi', 'xmp']: # remove unwanted tags
         items.pop(key, None)
 
     try:
