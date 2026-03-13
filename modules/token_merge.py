@@ -1,3 +1,4 @@
+from modules.logger import log
 from modules import shared
 
 
@@ -20,7 +21,7 @@ def apply_token_merging(sd_model, p=None):
         if current_tome == tome:
             return
         if hypertile and not shared.cmd_opts.experimental:
-            shared.log.warning('Token merging not supported with HyperTile for UNet')
+            log.warning('Token merging not supported with HyperTile for UNet')
             return
         try:
             import installer
@@ -34,10 +35,10 @@ def apply_token_merging(sd_model, p=None):
                 merge_crossattn=False,
                 merge_mlp=False
             )
-            shared.log.info(f'Applying ToMe: ratio={tome}')
+            log.info(f'Applying ToMe: ratio={tome}')
             sd_model.applied_tome = tome
         except Exception:
-            shared.log.warning(f'Token merging not supported: pipeline={sd_model.__class__.__name__}')
+            log.warning(f'Token merging not supported: pipeline={sd_model.__class__.__name__}')
     else:
         sd_model.applied_tome = 0
 
@@ -45,7 +46,7 @@ def apply_token_merging(sd_model, p=None):
         if current_todo == todo:
             return
         if hypertile and not shared.cmd_opts.experimental:
-            shared.log.warning('Token merging not supported with HyperTile for UNet')
+            log.warning('Token merging not supported with HyperTile for UNet')
             return
         try:
             from modules.todo.todo_utils import patch_attention_proc
@@ -61,10 +62,10 @@ def apply_token_merging(sd_model, p=None):
                         "ratio_level_2": 0.0,
                         }
             patch_attention_proc(sd_model.unet, token_merge_args=token_merge_args)
-            shared.log.info(f'Applying ToDo: ratio={todo}')
+            log.info(f'Applying ToDo: ratio={todo}')
             sd_model.applied_todo = todo
         except Exception:
-            shared.log.warning(f'Token merging not supported: pipeline={sd_model.__class__.__name__}')
+            log.warning(f'Token merging not supported: pipeline={sd_model.__class__.__name__}')
     else:
         sd_model.applied_todo = 0
 

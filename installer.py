@@ -495,12 +495,14 @@ def check_transformers():
         return
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
-    target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
+    # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
+    target_commit = 'a28c974c7ac74c83dbf379e93ceecc2661730f63' # transformers commit hash == 4.57.6
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
     else:
-        target_transformers = '4.57.6'
+        # target_transformers = '4.57.6'
+        target_transformers = None
         target_tokenizers = '0.22.2'
     if target_transformers is not None:
         # Pinned release version (e.g. DirectML)

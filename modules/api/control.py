@@ -179,7 +179,7 @@ class APIControl:
             u = req.control[i]
             ut = u.unit_type if u.unit_type is not None else default_type
             if ut not in unit_types:
-                shared.log.error(f'Control unknown unit type: type={ut} available={unit_types}')
+                log.error(f'Control unknown unit type: type={ut} available={unit_types}')
                 continue
             if (len(self.units) > i) and (self.units[i].process_id == u.process) and (self.units[i].model_id == u.model) and (self.units[i].type == ut):
                 unit = self.units[i]

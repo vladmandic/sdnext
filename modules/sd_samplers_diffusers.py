@@ -486,7 +486,7 @@ class DiffusionSampler:
             try:
                 cls_source = inspect.getsource(constructor)
                 if '"flow_prediction"' not in cls_source and "'flow_prediction'" not in cls_source:
-                    shared.log.warning(f'Sampler: "{name}" does not support flow_prediction')
+                    log.warning(f'Sampler: "{name}" does not support flow_prediction')
                     self.sampler = None
                     return
             except (TypeError, OSError):

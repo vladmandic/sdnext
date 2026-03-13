@@ -510,7 +510,7 @@ def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
     if sd_model is None:
         sd_model = shared.sd_model
     if sd_model is None:
-        shared.log.warning('Processing: op=update model not loaded')
+        log.warning('Processing: op=update model not loaded')
         return None
     updated_model = sd_model
     if sd_models.get_diffusers_task(sd_model) == sd_models.DiffusersTaskType.INPAINTING and getattr(p, 'image_mask', None) is None and p.task_args.get('image_mask', None) is None and getattr(p, 'mask', None) is None:

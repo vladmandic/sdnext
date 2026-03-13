@@ -3,7 +3,6 @@ import dataclasses
 import torch
 from modules.logger import log
 from modules import shared, devices
-from modules.timer import process as process_timer
 
 
 move_stream = None

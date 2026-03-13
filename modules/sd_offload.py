@@ -7,7 +7,7 @@ import torch
 import accelerate.hooks
 import accelerate.utils.modeling
 from modules.logger import log
-from modules import shared, devices, errors, model_quant, sd_models, sd_models_aux
+from modules import shared, devices, errors, model_quant, sd_models, sd_offload_aux
 from modules.timer import process as process_timer
 
 
@@ -244,7 +244,7 @@ class OffloadHook(accelerate.hooks.ModelHook):
             if shared.opts.diffusers_offload_pre:
                 t0 = time.time()
                 debug_move(f'Offload: type=balanced op=pre module={module.__class__.__name__}')
-                sd_models_aux.evict_aux(reason=f'pre:{module.__class__.__name__}')
+                sd_offload_aux.evict_aux(reason=f'pre:{module.__class__.__name__}')
                 for pipe in get_pipe_variants():
                     for module_name in get_module_names(pipe):
                         module_instance = getattr(pipe, module_name, None)
