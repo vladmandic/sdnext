@@ -279,9 +279,32 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 guidance_name: str = 'Default', guidance_scale: float = 6.0, guidance_rescale: float = 0.0, guidance_start: float = 0.0, guidance_stop: float = 1.0,
                 cfg_scale: float = 6.0, clip_skip: float = 1.0, image_cfg_scale: float = 6.0, diffusers_guidance_rescale: float = 0.7, pag_scale: float = 0.0, pag_adaptive: float = 0.5, cfg_end: float = 1.0,
                 vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
-                detailer_enabled: bool = False, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,
+                detailer_enabled: bool = False, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024, detailer_segmentation: bool = None, detailer_include_detections: bool = None, detailer_merge: bool = None, detailer_sort: bool = None, detailer_classes: str = None,
+                detailer_conf: float = None, detailer_iou: float = None, detailer_max: int = None,
+                detailer_min_size: float = None, detailer_max_size: float = None,
+                detailer_blur: int = None, detailer_padding: int = None,
+                detailer_sigma_adjust: float = None, detailer_sigma_adjust_max: float = None,
+                detailer_models: list = None, detailer_augment: bool = None,
+                img2img_color_correction: bool = None, color_correction_method: str = None, img2img_background_color: str = None,
+                img2img_fix_steps: bool = None, mask_apply_overlay: bool = None,
+                include_mask: bool = None, inpainting_mask_weight: float = None,
+                # output and saving
+                samples_save: bool = None, samples_format: str = None,
+                save_images_before_highres_fix: bool = None, save_images_before_refiner: bool = None,
+                save_images_before_detailer: bool = None, save_images_before_color_correction: bool = None,
+                grid_save: bool = None, grid_format: str = None, return_grid: bool = None,
+                save_mask: bool = None, save_mask_composite: bool = None,
+                return_mask: bool = None, return_mask_composite: bool = None,
+                keep_incomplete: bool = None, image_metadata: bool = None, jpeg_quality: int = None,
                 hdr_mode: int = 0, hdr_brightness: float = 0, hdr_color: float = 0, hdr_sharpen: float = 0, hdr_clamp: bool = False, hdr_boundary: float = 4.0, hdr_threshold: float = 0.95,
-                hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str = None, hdr_tint_ratio: float = 0,
+                hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str = None, hdr_tint_ratio: float = 0, hdr_apply_hires: bool = True,
+                grading_brightness: float = 0.0, grading_contrast: float = 0.0, grading_saturation: float = 0.0, grading_hue: float = 0.0,
+                grading_gamma: float = 1.0, grading_sharpness: float = 0.0, grading_color_temp: float = 6500,
+                grading_shadows: float = 0.0, grading_midtones: float = 0.0, grading_highlights: float = 0.0,
+                grading_clahe_clip: float = 0.0, grading_clahe_grid: int = 8,
+                grading_shadows_tint: str = "#000000", grading_highlights_tint: str = "#ffffff", grading_split_tone_balance: float = 0.5,
+                grading_vignette: float = 0.0, grading_grain: float = 0.0,
+                grading_lut_file: str = "", grading_lut_strength: float = 1.0,
                 resize_mode_before: int = 0, resize_name_before: str = 'None', resize_context_before: str = 'None', width_before: int = 512, height_before: int = 512, scale_by_before: float = 1.0, selected_scale_tab_before: int = 0,
                 resize_mode_after: int = 0, resize_name_after: str = 'None', resize_context_after: str = 'None', width_after: int = 0, height_after: int = 0, scale_by_after: float = 1.0, selected_scale_tab_after: int = 0,
                 resize_mode_mask: int = 0, resize_name_mask: str = 'None', resize_context_mask: str = 'None', width_mask: int = 0, height_mask: int = 0, scale_by_mask: float = 1.0, selected_scale_tab_mask: int = 0,
@@ -289,6 +312,31 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 enable_hr: bool = False, hr_sampler_index: int = None, hr_denoising_strength: float = 0.0, hr_resize_mode: int = 0, hr_resize_context: str = 'None', hr_upscaler: str = None, hr_force: bool = False, hr_second_pass_steps: int = 20,
                 hr_scale: float = 1.0, hr_resize_x: int = 0, hr_resize_y: int = 0, refiner_steps: int = 5, refiner_start: float = 0.0, refiner_prompt: str = '', refiner_negative: str = '',
                 video_skip_frames: int = 0, video_type: str = 'None', video_duration: float = 2.0, video_loop: bool = False, video_pad: int = 0, video_interpolate: int = 0,
+                # scheduler/noise overrides
+                schedulers_prediction_type: str = None, schedulers_beta_schedule: str = None, schedulers_timesteps: str = None,
+                schedulers_sigma: str = None, schedulers_use_thresholding: bool = None, schedulers_use_loworder: bool = None,
+                schedulers_solver_order: int = None, uni_pc_variant: str = None, schedulers_beta_start: float = None,
+                schedulers_beta_end: float = None, schedulers_shift: float = None, schedulers_dynamic_shift: bool = None,
+                schedulers_base_shift: float = None, schedulers_max_shift: float = None, schedulers_rescale_betas: bool = None,
+                schedulers_timestep_spacing: str = None, schedulers_timesteps_range: int = None,
+                schedulers_sigma_adjust: float = None, schedulers_sigma_adjust_min: float = None, schedulers_sigma_adjust_max: float = None,
+                scheduler_eta: float = None, eta_noise_seed_delta: int = None, enable_batch_seeds: bool = None,
+                diffusers_generator_device: str = None, nan_skip: bool = None,
+                sequential_seed: bool = None,
+                # prompt/attention overrides
+                prompt_attention: str = None, prompt_mean_norm: bool = None, diffusers_zeros_prompt_pad: bool = None,
+                te_pooled_embeds: bool = None, lora_apply_te: bool = None, te_complex_human_instruction: str = None, te_use_mask: bool = None,
+                # generation modifier overrides (hijack)
+                freeu_enabled: bool = None, freeu_b1: float = None, freeu_b2: float = None, freeu_s1: float = None, freeu_s2: float = None,
+                hypertile_unet_enabled: bool = None, hypertile_hires_only: bool = None, hypertile_unet_tile: int = None, hypertile_unet_min_tile: int = None,
+                hypertile_unet_swap_size: int = None, hypertile_unet_depth: int = None,
+                hypertile_vae_enabled: bool = None, hypertile_vae_tile: int = None, hypertile_vae_swap_size: int = None,
+                teacache_enabled: bool = None, teacache_thresh: float = None,
+                token_merging_method: str = None, tome_ratio: float = None, todo_ratio: float = None,
+                # lora behavior
+                lora_fuse_native: bool = None, lora_fuse_diffusers: bool = None,
+                lora_force_reload: bool = None, extra_networks_default_multiplier: float = None,
+                lora_apply_tags: int = None,
                 extra: dict = None,
                 override_script_name: str = None,
                 override_script_args = None,
@@ -408,15 +456,76 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         detailer_steps = detailer_steps,
         detailer_strength = detailer_strength,
         detailer_resolution = detailer_resolution,
+        detailer_segmentation = detailer_segmentation,
+        detailer_include_detections = detailer_include_detections,
+        detailer_merge = detailer_merge,
+        detailer_sort = detailer_sort,
+        detailer_classes = detailer_classes,
+        detailer_conf=detailer_conf, detailer_iou=detailer_iou, detailer_max=detailer_max,
+        detailer_min_size=detailer_min_size, detailer_max_size=detailer_max_size,
+        detailer_blur=detailer_blur, detailer_padding=detailer_padding,
+        detailer_sigma_adjust=detailer_sigma_adjust, detailer_sigma_adjust_max=detailer_sigma_adjust_max,
+        detailer_models=detailer_models, detailer_augment=detailer_augment,
+        # img2img and mask
+        img2img_color_correction=img2img_color_correction, color_correction_method=color_correction_method, img2img_background_color=img2img_background_color,
+        img2img_fix_steps=img2img_fix_steps, mask_apply_overlay=mask_apply_overlay,
+        include_mask=include_mask, inpainting_mask_weight=inpainting_mask_weight,
+        # output and saving
+        samples_save=samples_save, samples_format=samples_format,
+        save_images_before_highres_fix=save_images_before_highres_fix, save_images_before_refiner=save_images_before_refiner,
+        save_images_before_detailer=save_images_before_detailer, save_images_before_color_correction=save_images_before_color_correction,
+        grid_save=grid_save, grid_format=grid_format, return_grid=return_grid,
+        save_mask=save_mask, save_mask_composite=save_mask_composite,
+        return_mask=return_mask, return_mask_composite=return_mask_composite,
+        keep_incomplete=keep_incomplete, image_metadata=image_metadata, jpeg_quality=jpeg_quality,
         # inpaint
         inpaint_full_res = masking.opts.mask_only,
         inpainting_mask_invert = 1 if masking.opts.invert else 0,
         # hdr
         hdr_mode=hdr_mode, hdr_brightness=hdr_brightness, hdr_color=hdr_color, hdr_sharpen=hdr_sharpen, hdr_clamp=hdr_clamp,
-        hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundary=hdr_max_boundary, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio,
+        hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundary=hdr_max_boundary, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio, hdr_apply_hires=hdr_apply_hires,
+        # grading
+        grading_brightness=grading_brightness, grading_contrast=grading_contrast, grading_saturation=grading_saturation, grading_hue=grading_hue,
+        grading_gamma=grading_gamma, grading_sharpness=grading_sharpness, grading_color_temp=grading_color_temp,
+        grading_shadows=grading_shadows, grading_midtones=grading_midtones, grading_highlights=grading_highlights,
+        grading_clahe_clip=grading_clahe_clip, grading_clahe_grid=grading_clahe_grid,
+        grading_shadows_tint=grading_shadows_tint, grading_highlights_tint=grading_highlights_tint, grading_split_tone_balance=grading_split_tone_balance,
+        grading_vignette=grading_vignette, grading_grain=grading_grain,
+        grading_lut_file=grading_lut_file.name if hasattr(grading_lut_file, 'name') else (grading_lut_file or ''), grading_lut_strength=grading_lut_strength,
         # path
         outpath_samples=resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_control_samples),
         outpath_grids=resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_control_grids),
+        # scheduler/noise overrides
+        schedulers_prediction_type=schedulers_prediction_type, schedulers_beta_schedule=schedulers_beta_schedule,
+        schedulers_timesteps=schedulers_timesteps, schedulers_sigma=schedulers_sigma,
+        schedulers_use_thresholding=schedulers_use_thresholding, schedulers_use_loworder=schedulers_use_loworder,
+        schedulers_solver_order=schedulers_solver_order, uni_pc_variant=uni_pc_variant,
+        schedulers_beta_start=schedulers_beta_start, schedulers_beta_end=schedulers_beta_end,
+        schedulers_shift=schedulers_shift, schedulers_dynamic_shift=schedulers_dynamic_shift,
+        schedulers_base_shift=schedulers_base_shift, schedulers_max_shift=schedulers_max_shift,
+        schedulers_rescale_betas=schedulers_rescale_betas, schedulers_timestep_spacing=schedulers_timestep_spacing,
+        schedulers_timesteps_range=schedulers_timesteps_range,
+        schedulers_sigma_adjust=schedulers_sigma_adjust, schedulers_sigma_adjust_min=schedulers_sigma_adjust_min,
+        schedulers_sigma_adjust_max=schedulers_sigma_adjust_max,
+        scheduler_eta=scheduler_eta, eta_noise_seed_delta=eta_noise_seed_delta,
+        enable_batch_seeds=enable_batch_seeds, diffusers_generator_device=diffusers_generator_device, nan_skip=nan_skip,
+        sequential_seed=sequential_seed,
+        # prompt/attention overrides
+        prompt_attention=prompt_attention, prompt_mean_norm=prompt_mean_norm,
+        diffusers_zeros_prompt_pad=diffusers_zeros_prompt_pad, te_pooled_embeds=te_pooled_embeds,
+        lora_apply_te=lora_apply_te, te_complex_human_instruction=te_complex_human_instruction, te_use_mask=te_use_mask,
+        # generation modifier overrides (hijack)
+        freeu_enabled=freeu_enabled, freeu_b1=freeu_b1, freeu_b2=freeu_b2, freeu_s1=freeu_s1, freeu_s2=freeu_s2,
+        hypertile_unet_enabled=hypertile_unet_enabled, hypertile_hires_only=hypertile_hires_only,
+        hypertile_unet_tile=hypertile_unet_tile, hypertile_unet_min_tile=hypertile_unet_min_tile,
+        hypertile_unet_swap_size=hypertile_unet_swap_size, hypertile_unet_depth=hypertile_unet_depth,
+        hypertile_vae_enabled=hypertile_vae_enabled, hypertile_vae_tile=hypertile_vae_tile, hypertile_vae_swap_size=hypertile_vae_swap_size,
+        teacache_enabled=teacache_enabled, teacache_thresh=teacache_thresh,
+        token_merging_method=token_merging_method, tome_ratio=tome_ratio, todo_ratio=todo_ratio,
+        # lora behavior
+        lora_fuse_native=lora_fuse_native, lora_fuse_diffusers=lora_fuse_diffusers,
+        lora_force_reload=lora_force_reload, extra_networks_default_multiplier=extra_networks_default_multiplier,
+        lora_apply_tags=lora_apply_tags,
         # overrides
         override_settings=extra
     )
@@ -523,7 +632,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     if input_image is not None:
                         p.ops.append('img2img')
                     if pipe is None: # pipe may have been reset externally
-                        pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
+                        if video is None:
+                            break # non-video: pipeline was consumed, no need to re-process remaining inputs
+                        pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, active_units, control_conditioning, control_guidance_start, control_guidance_end, inits)
                         debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
                     pipe.restore_pipeline = restore_pipeline
                     shared.sd_model.restore_pipeline = restore_pipeline
@@ -567,7 +678,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         continue
                     index += 1
 
-                    processed_image, blended_image = preprocess_image(p, pipe, input_image, init_image, mask, input_type, unit_type, active_process, active_model, selected_models, has_models)
+                    processed_image, blended_image = preprocess_image(p, pipe, input_image, init_image, mask, input_type, unit_type, active_process, active_model, selected_models, has_models, active_units)
                     if is_generator:
                         yield (None, blended_image, '') # result is control_output, proces_output
 
@@ -580,6 +691,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                 and getattr(p, 'init_images', None) is None \
                                 and getattr(p, 'image', None) is None:
                                 if is_generator:
+                                    log.debug(f'Control args: {p.task_args}')
                                     yield terminate(f'Mode={p.extra_generation_params.get("Control type", None)} input image is none')
                                 return terminate(f'Mode={p.extra_generation_params.get("Control type", None)} input image is none')
                         if unit_type == 'lite':
@@ -647,7 +759,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     for _i, output_image in enumerate(output):
                         if output_image is not None:
                             output_images.append(output_image)
-                            if shared.opts.include_mask and not script_run:
+                            _inc_mask = getattr(p, 'include_mask', None)
+                            if (_inc_mask if _inc_mask is not None else shared.opts.include_mask) and not script_run:
                                 if processed_image is not None and isinstance(processed_image, Image.Image):
                                     output_images.append(processed_image)
 
