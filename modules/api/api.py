@@ -111,6 +111,10 @@ class Api:
         from modules.api import loras
         loras.register_api()
 
+        # gallery api
+        from modules.api import gallery
+        gallery.register_api(self.app)
+
         # nudenet api
         from modules.api import nudenet
         nudenet.register_api()
