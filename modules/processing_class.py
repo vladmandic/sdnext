@@ -66,6 +66,53 @@ class StableDiffusionProcessing:
                  detailer_steps: int = 10,
                  detailer_strength: float = 0.3,
                  detailer_resolution: int = 1024,
+                 detailer_segmentation: bool = None,
+                 detailer_include_detections: bool = None,
+                 detailer_merge: bool = None,
+                 detailer_sort: bool = None,
+                 detailer_classes: str = None,
+                 detailer_conf: float = None,
+                 detailer_iou: float = None,
+                 detailer_max: int = None,
+                 detailer_min_size: float = None,
+                 detailer_max_size: float = None,
+                 detailer_blur: int = None,
+                 detailer_padding: int = None,
+                 detailer_sigma_adjust: float = None,
+                 detailer_sigma_adjust_max: float = None,
+                 detailer_models: list = None,
+                 detailer_augment: bool = None,
+                 # img2img and mask
+                 img2img_color_correction: bool = None,
+                 color_correction_method: str = None,
+                 img2img_background_color: str = None,
+                 img2img_fix_steps: bool = None,
+                 mask_apply_overlay: bool = None,
+                 include_mask: bool = None,
+                 inpainting_mask_weight: float = None,
+                 # output and saving
+                 samples_save: bool = None,
+                 samples_format: str = None,
+                 save_images_before_highres_fix: bool = None,
+                 save_images_before_refiner: bool = None,
+                 save_images_before_detailer: bool = None,
+                 save_images_before_color_correction: bool = None,
+                 grid_save: bool = None,
+                 grid_format: str = None,
+                 return_grid: bool = None,
+                 save_mask: bool = None,
+                 save_mask_composite: bool = None,
+                 return_mask: bool = None,
+                 return_mask_composite: bool = None,
+                 keep_incomplete: bool = None,
+                 image_metadata: bool = None,
+                 jpeg_quality: int = None,
+                 # lora behavior
+                 lora_fuse_native: bool = None,
+                 lora_fuse_diffusers: bool = None,
+                 lora_force_reload: bool = None,
+                 extra_networks_default_multiplier: float = None,
+                 lora_apply_tags: int = None,
                  # hdr corrections
                  hdr_mode: int = 0,
                  hdr_brightness: float = 0,
@@ -77,8 +124,29 @@ class StableDiffusionProcessing:
                  hdr_maximize: bool = False,
                  hdr_max_center: float = 0.6,
                  hdr_max_boundary: float = 1.0,
-                 hdr_color_picker: str = None,
+                 hdr_color_picker: str = "#000000",
                  hdr_tint_ratio: float = 0,
+                 hdr_apply_hires: bool = True,
+                 # color grading (pixel-space post-processing)
+                 grading_brightness: float = 0.0,
+                 grading_contrast: float = 0.0,
+                 grading_saturation: float = 0.0,
+                 grading_hue: float = 0.0,
+                 grading_gamma: float = 1.0,
+                 grading_sharpness: float = 0.0,
+                 grading_color_temp: float = 6500,
+                 grading_shadows: float = 0.0,
+                 grading_midtones: float = 0.0,
+                 grading_highlights: float = 0.0,
+                 grading_clahe_clip: float = 0.0,
+                 grading_clahe_grid: int = 8,
+                 grading_shadows_tint: str = "#000000",
+                 grading_highlights_tint: str = "#ffffff",
+                 grading_split_tone_balance: float = 0.5,
+                 grading_vignette: float = 0.0,
+                 grading_grain: float = 0.0,
+                 grading_lut_file: str = "",
+                 grading_lut_strength: float = 1.0,
                  # img2img
                  init_images: list = None,
                  init_control: list = None,
@@ -151,7 +219,62 @@ class StableDiffusionProcessing:
                  # xyz flag
                  xyz: bool = False,
                  # scripts
-                 script_args: list = None,
+                 script_args: list = [],
+                 # scheduler/noise overrides
+                 schedulers_prediction_type: str = None,
+                 schedulers_beta_schedule: str = None,
+                 schedulers_timesteps: str = None,
+                 schedulers_sigma: str = None,
+                 schedulers_use_thresholding: bool = None,
+                 schedulers_use_loworder: bool = None,
+                 schedulers_solver_order: int = None,
+                 uni_pc_variant: str = None,
+                 schedulers_beta_start: float = None,
+                 schedulers_beta_end: float = None,
+                 schedulers_shift: float = None,
+                 schedulers_dynamic_shift: bool = None,
+                 schedulers_base_shift: float = None,
+                 schedulers_max_shift: float = None,
+                 schedulers_rescale_betas: bool = None,
+                 schedulers_timestep_spacing: str = None,
+                 schedulers_timesteps_range: int = None,
+                 schedulers_sigma_adjust: float = None,
+                 schedulers_sigma_adjust_min: float = None,
+                 schedulers_sigma_adjust_max: float = None,
+                 scheduler_eta: float = None,
+                 eta_noise_seed_delta: int = None,
+                 enable_batch_seeds: bool = None,
+                 diffusers_generator_device: str = None,
+                 nan_skip: bool = None,
+                 sequential_seed: bool = None,
+                 # prompt/attention overrides
+                 prompt_attention: str = None,
+                 prompt_mean_norm: bool = None,
+                 diffusers_zeros_prompt_pad: bool = None,
+                 te_pooled_embeds: bool = None,
+                 lora_apply_te: bool = None,
+                 te_complex_human_instruction: str = None,
+                 te_use_mask: bool = None,
+                 # generation modifier overrides (hijack)
+                 freeu_enabled: bool = None,
+                 freeu_b1: float = None,
+                 freeu_b2: float = None,
+                 freeu_s1: float = None,
+                 freeu_s2: float = None,
+                 hypertile_unet_enabled: bool = None,
+                 hypertile_hires_only: bool = None,
+                 hypertile_unet_tile: int = None,
+                 hypertile_unet_min_tile: int = None,
+                 hypertile_unet_swap_size: int = None,
+                 hypertile_unet_depth: int = None,
+                 hypertile_vae_enabled: bool = None,
+                 hypertile_vae_tile: int = None,
+                 hypertile_vae_swap_size: int = None,
+                 teacache_enabled: bool = None,
+                 teacache_thresh: float = None,
+                 token_merging_method: str = None,
+                 tome_ratio: float = None,
+                 todo_ratio: float = None,
                  # overrides
                  override_settings: dict[str, Any] = None,
                  override_settings_restore_afterwards: bool = True,
@@ -183,7 +306,7 @@ class StableDiffusionProcessing:
         self.state: str = ''
         self.ops = []
         self.skip = []
-        self.color_corrections = []
+        self.color_corrections = None
         self.is_control = False
         self.is_hr_pass = False
         self.is_refiner_pass = False
@@ -225,6 +348,50 @@ class StableDiffusionProcessing:
         self.detailer_steps = detailer_steps
         self.detailer_strength = detailer_strength
         self.detailer_resolution = detailer_resolution
+        self.detailer_segmentation = detailer_segmentation
+        self.detailer_include_detections = detailer_include_detections
+        self.detailer_merge = detailer_merge
+        self.detailer_sort = detailer_sort
+        self.detailer_classes = detailer_classes
+        self.detailer_conf = detailer_conf
+        self.detailer_iou = detailer_iou
+        self.detailer_max = detailer_max
+        self.detailer_min_size = detailer_min_size
+        self.detailer_max_size = detailer_max_size
+        self.detailer_blur = detailer_blur
+        self.detailer_padding = detailer_padding
+        self.detailer_sigma_adjust = detailer_sigma_adjust
+        self.detailer_sigma_adjust_max = detailer_sigma_adjust_max
+        self.detailer_models = detailer_models
+        self.detailer_augment = detailer_augment
+        self.img2img_color_correction = img2img_color_correction
+        self.color_correction_method = color_correction_method
+        self.img2img_background_color = img2img_background_color
+        self.img2img_fix_steps = img2img_fix_steps
+        self.mask_apply_overlay = mask_apply_overlay
+        self.include_mask = include_mask
+        self.inpainting_mask_weight = inpainting_mask_weight
+        self.samples_save = samples_save
+        self.samples_format = samples_format
+        self.save_images_before_highres_fix = save_images_before_highres_fix
+        self.save_images_before_refiner = save_images_before_refiner
+        self.save_images_before_detailer = save_images_before_detailer
+        self.save_images_before_color_correction = save_images_before_color_correction
+        self.grid_save = grid_save
+        self.grid_format = grid_format
+        self.return_grid = return_grid
+        self.save_mask = save_mask
+        self.save_mask_composite = save_mask_composite
+        self.return_mask = return_mask
+        self.return_mask_composite = return_mask_composite
+        self.keep_incomplete = keep_incomplete
+        self.image_metadata = image_metadata
+        self.jpeg_quality = jpeg_quality
+        self.lora_fuse_native = lora_fuse_native
+        self.lora_fuse_diffusers = lora_fuse_diffusers
+        self.lora_force_reload = lora_force_reload
+        self.extra_networks_default_multiplier = extra_networks_default_multiplier
+        self.lora_apply_tags = lora_apply_tags
         self.init_images = init_images
         self.init_control = init_control
         self.resize_mode = resize_mode
@@ -318,6 +485,62 @@ class StableDiffusionProcessing:
             log.error(f'Override: {override_settings} {e}')
             self.override_settings = {}
 
+        # scheduler/noise overrides
+        self.schedulers_prediction_type = schedulers_prediction_type
+        self.schedulers_beta_schedule = schedulers_beta_schedule
+        self.schedulers_timesteps = schedulers_timesteps
+        self.schedulers_sigma = schedulers_sigma
+        self.schedulers_use_thresholding = schedulers_use_thresholding
+        self.schedulers_use_loworder = schedulers_use_loworder
+        self.schedulers_solver_order = schedulers_solver_order
+        self.uni_pc_variant = uni_pc_variant
+        self.schedulers_beta_start = schedulers_beta_start
+        self.schedulers_beta_end = schedulers_beta_end
+        self.schedulers_shift = schedulers_shift
+        self.schedulers_dynamic_shift = schedulers_dynamic_shift
+        self.schedulers_base_shift = schedulers_base_shift
+        self.schedulers_max_shift = schedulers_max_shift
+        self.schedulers_rescale_betas = schedulers_rescale_betas
+        self.schedulers_timestep_spacing = schedulers_timestep_spacing
+        self.schedulers_timesteps_range = schedulers_timesteps_range
+        self.schedulers_sigma_adjust = schedulers_sigma_adjust
+        self.schedulers_sigma_adjust_min = schedulers_sigma_adjust_min
+        self.schedulers_sigma_adjust_max = schedulers_sigma_adjust_max
+        self.scheduler_eta = scheduler_eta
+        self.eta_noise_seed_delta = eta_noise_seed_delta
+        self.enable_batch_seeds = enable_batch_seeds
+        self.diffusers_generator_device = diffusers_generator_device
+        self.nan_skip = nan_skip
+        self.sequential_seed = sequential_seed
+        # prompt/attention overrides
+        self.prompt_attention = prompt_attention
+        self.prompt_mean_norm = prompt_mean_norm
+        self.diffusers_zeros_prompt_pad = diffusers_zeros_prompt_pad
+        self.te_pooled_embeds = te_pooled_embeds
+        self.lora_apply_te = lora_apply_te
+        self.te_complex_human_instruction = te_complex_human_instruction
+        self.te_use_mask = te_use_mask
+        # generation modifier overrides (hijack)
+        self.freeu_enabled = freeu_enabled
+        self.freeu_b1 = freeu_b1
+        self.freeu_b2 = freeu_b2
+        self.freeu_s1 = freeu_s1
+        self.freeu_s2 = freeu_s2
+        self.hypertile_unet_enabled = hypertile_unet_enabled
+        self.hypertile_hires_only = hypertile_hires_only
+        self.hypertile_unet_tile = hypertile_unet_tile
+        self.hypertile_unet_min_tile = hypertile_unet_min_tile
+        self.hypertile_unet_swap_size = hypertile_unet_swap_size
+        self.hypertile_unet_depth = hypertile_unet_depth
+        self.hypertile_vae_enabled = hypertile_vae_enabled
+        self.hypertile_vae_tile = hypertile_vae_tile
+        self.hypertile_vae_swap_size = hypertile_vae_swap_size
+        self.teacache_enabled = teacache_enabled
+        self.teacache_thresh = teacache_thresh
+        self.token_merging_method = token_merging_method
+        self.tome_ratio = tome_ratio
+        self.todo_ratio = todo_ratio
+
         self.prompts = []
         self.negative_prompts = []
         self.all_prompts = []
@@ -339,7 +562,7 @@ class StableDiffusionProcessing:
         self.comments = {}
         self.sampler = None
         self.nmask = None
-        self.initial_noise_multiplier = initial_noise_multiplier or shared.opts.initial_noise_multiplier
+        self.initial_noise_multiplier = initial_noise_multiplier if initial_noise_multiplier is not None else shared.opts.initial_noise_multiplier
         self.image_conditioning = None
         self.prompt_for_display: str = None
 
@@ -371,6 +594,7 @@ class StableDiffusionProcessing:
         self.hdr_max_boundary=hdr_max_boundary
         self.hdr_color_picker=hdr_color_picker
         self.hdr_tint_ratio=hdr_tint_ratio
+        self.hdr_apply_hires=hdr_apply_hires
 
         # globals
         self.embedder = None
@@ -534,7 +758,8 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.mask_for_overlay = Image.fromarray(np_mask)
         self.overlay_images = []
 
-        add_color_corrections = shared.opts.img2img_color_correction and self.color_corrections is None
+        _cc = self.img2img_color_correction if self.img2img_color_correction is not None else shared.opts.img2img_color_correction
+        add_color_corrections = _cc and self.color_corrections is None
         if add_color_corrections:
             self.color_corrections = []
         processed_images = []
@@ -550,12 +775,13 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
             self.init_img_height = getattr(self, 'init_img_height', img.height) # pylint: disable=attribute-defined-outside-init
             if shared.opts.save_init_img:
                 images.save_image(img, path=resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_init_images), basename=None, forced_filename=self.init_img_hash, suffix="-init-image")
-            image = flatten(img, shared.opts.img2img_background_color)
+            image = flatten(img, self.img2img_background_color if self.img2img_background_color is not None else shared.opts.img2img_background_color)
             if crop_region is None and self.resize_mode > 0:
                 image = images.resize_image(self.resize_mode, image, self.width, self.height, upscaler_name=self.resize_name, context=self.resize_context)
                 self.width = image.width
                 self.height = image.height
-            if self.image_mask is not None and shared.opts.mask_apply_overlay:
+            _overlay = self.mask_apply_overlay if self.mask_apply_overlay is not None else shared.opts.mask_apply_overlay
+            if self.image_mask is not None and _overlay:
                 image_masked = Image.new('RGBa', (image.width, image.height))
                 image_to_paste = image.convert("RGBA").convert("RGBa")
                 image_to_mask = ImageOps.invert(self.mask_for_overlay.convert('L')) if self.mask_for_overlay is not None else None
