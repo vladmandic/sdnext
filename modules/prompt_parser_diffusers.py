@@ -54,8 +54,16 @@ class PromptEmbedder:
                  steps,
                  clip_skip,
                  p,
+                 prompt_attention=None,
+                 prompt_mean_norm=None,
+                 diffusers_zeros_prompt_pad=None,
+                 te_pooled_embeds=None,
                 ):
         t0 = time.time()
+        self.prompt_attention_value = prompt_attention or shared.opts.prompt_attention
+        self.prompt_mean_norm = prompt_mean_norm if prompt_mean_norm is not None else shared.opts.prompt_mean_norm
+        self.diffusers_zeros_prompt_pad = diffusers_zeros_prompt_pad if diffusers_zeros_prompt_pad is not None else shared.opts.diffusers_zeros_prompt_pad
+        self.te_pooled_embeds = te_pooled_embeds if te_pooled_embeds is not None else shared.opts.te_pooled_embeds
         self.prompts = prompts
         self.negative_prompts = negative_prompts
         self.batchsize = len(self.prompts)
@@ -112,8 +120,8 @@ class PromptEmbedder:
             debug("Prompt cache: scheduled prompt")
             cache.clear()
             return False
-        if self.attention != shared.opts.prompt_attention:
-            debug(f"Prompt cache: parser={shared.opts.prompt_attention} changed")
+        if self.attention != self.prompt_attention_value:
+            debug(f"Prompt cache: parser={self.prompt_attention_value} changed")
             cache.clear()
             return False
 
@@ -205,7 +213,7 @@ class PromptEmbedder:
         if negative_prompt is None:
             negative_prompt = ''
         global last_attention # pylint: disable=global-statement
-        self.attention = shared.opts.prompt_attention
+        self.attention = self.prompt_attention_value
         last_attention = self.attention
         if self.attention == "xhinker":
             (
@@ -224,7 +232,8 @@ class PromptEmbedder:
                 negative_embed,
                 negative_pooled,
                 negative_prompt_attention_mask
-            ) = get_weighted_text_embeddings(pipe, positive_prompt, negative_prompt, self.clip_skip)
+            ) = get_weighted_text_embeddings(pipe, positive_prompt, negative_prompt, self.clip_skip,
+                                             prompt_mean_norm=self.prompt_mean_norm, diffusers_zeros_prompt_pad=self.diffusers_zeros_prompt_pad, te_pooled_embeds=self.te_pooled_embeds)
         def _store(target, value):
             if value is None:
                 return
@@ -293,7 +302,7 @@ class PromptEmbedder:
                     except IndexError:
                         res.append(batch[i][0])  # if not scheduled, return default
                 if any(res[0].shape[1] != r.shape[1] for r in res):
-                    res = pad_to_same_length(self.pipe, res)
+                    res = pad_to_same_length(self.pipe, res, diffusers_zeros_prompt_pad=self.diffusers_zeros_prompt_pad)
                 return torch.cat(res)
         except Exception as e:
             log.error(f"Prompt encode: {e}")
@@ -463,12 +472,13 @@ def normalize_prompt(pairs: list):
     return pairs
 
 
-def get_prompts_with_weights(pipe, prompt: str):
+def get_prompts_with_weights(pipe, prompt: str, prompt_mean_norm=None):
     t0 = time.time()
     manager = DiffusersTextualInversionManager(pipe, pipe.tokenizer or pipe.tokenizer_2)
     prompt = manager.maybe_convert_prompt(prompt, pipe.tokenizer or pipe.tokenizer_2)
     texts_and_weights = prompt_parser.parse_prompt_attention(prompt)
-    if shared.opts.prompt_mean_norm:
+    _prompt_mean_norm = prompt_mean_norm if prompt_mean_norm is not None else shared.opts.prompt_mean_norm
+    if _prompt_mean_norm:
         texts_and_weights = normalize_prompt(texts_and_weights)
     texts, text_weights = zip(*texts_and_weights, strict=False)
     avg_weight = 0
@@ -531,11 +541,12 @@ def prepare_embedding_providers(pipe, clip_skip) -> list[EmbeddingsProvider]:
     return embeddings_providers
 
 
-def pad_to_same_length(pipe, embeds, empty_embedding_providers=None):
+def pad_to_same_length(pipe, embeds, empty_embedding_providers=None, diffusers_zeros_prompt_pad=None):
     if not hasattr(pipe, 'encode_prompt') and ('StableCascade' not in pipe.__class__.__name__):
         return embeds
     device = devices.device
-    if shared.opts.diffusers_zeros_prompt_pad or 'StableDiffusion3' in pipe.__class__.__name__:
+    _zeros_pad = diffusers_zeros_prompt_pad if diffusers_zeros_prompt_pad is not None else shared.opts.diffusers_zeros_prompt_pad
+    if _zeros_pad or 'StableDiffusion3' in pipe.__class__.__name__:
         empty_embed = [torch.zeros((1, 77, embeds[0].shape[2]), device=device, dtype=embeds[0].dtype)]
     else:
         try:
@@ -589,7 +600,7 @@ def split_prompts(pipe, prompt, SD3 = False):
     return prompt, prompt2, prompt3, prompt4
 
 
-def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int = None):
+def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int = None, prompt_mean_norm=None, diffusers_zeros_prompt_pad=None, te_pooled_embeds=None):
     device = devices.device
     if prompt is None:
         prompt = ''
@@ -617,12 +628,14 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
         negative_prompt_embeds = [negative_prompt_embeds_t5, negative_prompt_embeds_llama3]
         return prompt_embeds, pooled_prompt_embeds, None, negative_prompt_embeds, negative_pooled_prompt_embeds, None
 
+    _zeros_pad = diffusers_zeros_prompt_pad if diffusers_zeros_prompt_pad is not None else shared.opts.diffusers_zeros_prompt_pad
+    _te_pooled = te_pooled_embeds if te_pooled_embeds is not None else shared.opts.te_pooled_embeds
     if prompt != prompt_2:
-        ps = [get_prompts_with_weights(pipe, p) for p in [prompt, prompt_2]]
-        ns = [get_prompts_with_weights(pipe, p) for p in [neg_prompt, neg_prompt_2]]
+        ps = [get_prompts_with_weights(pipe, p, prompt_mean_norm=prompt_mean_norm) for p in [prompt, prompt_2]]
+        ns = [get_prompts_with_weights(pipe, p, prompt_mean_norm=prompt_mean_norm) for p in [neg_prompt, neg_prompt_2]]
     else:
-        ps = 2 * [get_prompts_with_weights(pipe, prompt)]
-        ns = 2 * [get_prompts_with_weights(pipe, neg_prompt)]
+        ps = 2 * [get_prompts_with_weights(pipe, prompt, prompt_mean_norm=prompt_mean_norm)]
+        ns = 2 * [get_prompts_with_weights(pipe, neg_prompt, prompt_mean_norm=prompt_mean_norm)]
 
     positives, positive_weights = zip(*ps, strict=False)
     negatives, negative_weights = zip(*ns, strict=False)
@@ -665,7 +678,7 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
             weights = weights[pos + 1:]
         prompt_embeds.append(torch.cat(provider_embed, dim=1))
         # negative prompt has no keywords
-        if shared.opts.diffusers_zeros_prompt_pad and len(negatives[i]) == 1 and negatives[i][0] in {"", " "}:
+        if _zeros_pad and len(negatives[i]) == 1 and negatives[i][0] in {"", " "}:
             embed, ntokens = torch.zeros_like(embed), torch.zeros_like(ptokens)
         else:
             embed, ntokens = embedding_providers[i].get_embeddings_for_weighted_prompt_fragments(text_batch=[negatives[i]], fragment_weights_batch=[negative_weights[i]], device=device, should_return_tokens=True)
@@ -682,7 +695,7 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
         debug(f'Prompt: pooled={pooled_prompt_embeds[0].shape} time={(time.time() - t0):.3f}')
     elif prompt_embeds[-1].shape[-1] > 768:
         t0 = time.time()
-        if shared.opts.te_pooled_embeds:
+        if _te_pooled:
             pooled_prompt_embeds = embedding_providers[-1].text_encoder.text_projection(prompt_embeds[-1][
                 torch.arange(prompt_embeds[-1].shape[0], device=device),
                 (ptokens.to(dtype=torch.int, device=device) == 49407)
@@ -698,7 +711,7 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
         else:
             try:
                 pooled_prompt_embeds = embedding_providers[-1].get_pooled_embeddings(texts=[prompt_2], device=device) if prompt_embeds[-1].shape[-1] > 768 else None
-                if shared.opts.diffusers_zeros_prompt_pad and neg_prompt_2 in {"", " "}:
+                if _zeros_pad and neg_prompt_2 in {"", " "}:
                     negative_pooled_prompt_embeds = torch.zeros_like(pooled_prompt_embeds) if negative_prompt_embeds[-1].shape[-1] > 768 else None
                 else:
                     negative_pooled_prompt_embeds = embedding_providers[-1].get_pooled_embeddings(texts=[neg_prompt_2], device=device) if negative_prompt_embeds[-1].shape[-1] > 768 else None
@@ -716,7 +729,7 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
         negative_pooled_prompt_embeds = None
     debug(f'Prompt: positive={prompt_embeds.shape if prompt_embeds is not None else None} pooled={pooled_prompt_embeds.shape if pooled_prompt_embeds is not None else None} negative={negative_prompt_embeds.shape if negative_prompt_embeds is not None else None} pooled={negative_pooled_prompt_embeds.shape if negative_pooled_prompt_embeds is not None else None}')
     if prompt_embeds.shape[1] != negative_prompt_embeds.shape[1]:
-        [prompt_embeds, negative_prompt_embeds] = pad_to_same_length(pipe, [prompt_embeds, negative_prompt_embeds], empty_embedding_providers=empty_embedding_providers)
+        [prompt_embeds, negative_prompt_embeds] = pad_to_same_length(pipe, [prompt_embeds, negative_prompt_embeds], empty_embedding_providers=empty_embedding_providers, diffusers_zeros_prompt_pad=diffusers_zeros_prompt_pad)
     if SD3:
         device = devices.device
         t5_prompt_embed = pipe._get_t5_prompt_embeds( # pylint: disable=protected-access
