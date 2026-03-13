@@ -452,7 +452,7 @@ def update_token_counter(text: str):
             tokenizer = tokenizer.tokenizer
         has_bos_token = getattr(tokenizer, 'bos_token_id', None) is not None
         has_eos_token = getattr(tokenizer, 'eos_token_id', None) is not None
-        model_max_length = getattr(tokenizer, 'model_max_length', 0)
+        model_max_length = getattr(tokenizer, 'model_max_length', 77)
         max_length = model_max_length - int(has_bos_token) - int(has_eos_token)
         if max_length is None or max_length < 0 or max_length > 10000:
             max_length = 0
