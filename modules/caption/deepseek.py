@@ -13,7 +13,7 @@ import sys
 import importlib
 from transformers import AutoModelForCausalLM
 from modules import shared, devices, paths, sd_models
-from modules.sd_offload import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
+from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 
 

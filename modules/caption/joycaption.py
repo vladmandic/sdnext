@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from transformers import AutoProcessor, LlavaForConditionalGeneration
 from modules import shared, devices, sd_models, model_quant
-from modules.sd_offload import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
+from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 
 
