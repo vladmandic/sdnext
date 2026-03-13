@@ -5,6 +5,7 @@ import re
 import shutil
 import platform
 import subprocess
+from weakref import WeakSet
 import gradio as gr
 from modules import paths, call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext, processing
 from modules.logger import log
@@ -13,6 +14,8 @@ from modules.logger import log
 folder_symbol = ui_symbols.folder
 debug = log.trace if os.environ.get('SD_PASTE_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: PASTE')
+
+warn_once_set = WeakSet()
 
 
 def gr_show(visible=True):
@@ -464,7 +467,9 @@ def update_token_counter(text: str):
                 for p in prompt_list:
                     ids.append(getattr(tokenizer(p), 'input_ids', []))
         except Exception as e:
-            shared.log.warning("Token counter:", e)
+            if tokenizer not in warn_once_set:
+                log.warning(f"Token counter: {e}")
+                warn_once_set.add(tokenizer)
             return gr.update(value=f"<span class='gr-box gr-text-input'>??/{max_length}</span>", visible=True)
 
         token_counts = [len(group) - int(has_bos_token) - int(has_eos_token) for group in ids]
