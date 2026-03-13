@@ -13,20 +13,10 @@ from modules.vae import sd_vae_taesd
 debug_enabled = os.environ.get('SD_HDR_DEBUG', None) is not None
 debug = log.trace if debug_enabled else lambda *args, **kwargs: None
 debug('Trace: HDR')
-skip_correction = False
-warned = False
-
-
-def warn_once(message):
-    global warned # pylint: disable=global-statement
-    if not warned:
-        log.warning(f'VAE: {message}')
-        warned = True
 
 
 def sharpen_tensor(tensor, ratio=0):
     if ratio == 0:
-        # debug("Sharpen: Early exit")
         return tensor
     kernel = torch.ones((3, 3), dtype=tensor.dtype, device=tensor.device)
     kernel[1, 1] = 5.0
@@ -52,18 +42,14 @@ def soft_clamp_tensor(tensor, threshold=0.8, boundary=4):
     min_replace = ((tensor + threshold) / (min_vals + threshold)) * (-boundary + threshold) - threshold
     under_mask = tensor < -threshold
     tensor = torch.where(over_mask, max_replace, torch.where(under_mask, min_replace, tensor))
-    # debug(f'HDR soft clamp: threshold={threshold} boundary={boundary} shape={tensor.shape}')
     return tensor
 
 
 def center_tensor(tensor, channel_shift=0.0, full_shift=0.0, offset=0.0):
     if channel_shift == 0 and full_shift == 0 and offset == 0:
         return tensor
-    # debug(f'HDR center: Before Adjustment: Full mean={tensor.mean().item()} Channel means={tensor.mean(dim=(-1, -2)).float().cpu().numpy()}')
     tensor -= tensor.mean(dim=(-1, -2), keepdim=True) * channel_shift
     tensor -= tensor.mean() * full_shift - offset
-    # debug(f'HDR center: channel-shift={channel_shift} full-shift={full_shift}')
-    # debug(f'HDR center: After Adjustment: Full mean={tensor.mean().item()} Channel means={tensor.mean(dim=(-1, -2)).float().cpu().numpy()}')
     return tensor
 
 
@@ -75,11 +61,12 @@ def maximize_tensor(tensor, boundary=1.0):
     max_val = tensor.max()
     normalization_factor = boundary / max(abs(min_val), abs(max_val))
     tensor *= normalization_factor
-    # debug(f'HDR maximize: boundary={boundary} min={min_val} max={max_val} factor={normalization_factor}')
     return tensor
 
 
 def get_color(colorstr):
+    if not colorstr:
+        colorstr = "#000000"
     rgb = torch.tensor(tuple(int(colorstr.lstrip('#')[i:i + 2], 16) for i in (0, 2, 4))).to(dtype=torch.float32)
     rgb = (rgb / 255).unsqueeze(-1).unsqueeze(-1).repeat(1, 64, 64).to(dtype=devices.dtype, device=devices.device)
     color = sd_vae_taesd.encode(rgb).squeeze(0)[0:3, 5, 5]
@@ -88,7 +75,6 @@ def get_color(colorstr):
 
 def color_adjust(tensor, colorstr, ratio):
     color = get_color(colorstr)
-    # debug(f'HDR tint: str={colorstr} color={color} ratio={ratio}')
     for i in range(3):
         tensor[i] = center_tensor(tensor[i], full_shift=1, offset=color[i]*(ratio/2))
     return tensor
@@ -97,44 +83,136 @@ def color_adjust(tensor, colorstr, ratio):
 def correction(p, timestep, latent):
     if timestep > 950 and p.hdr_clamp:
         latent = soft_clamp_tensor(latent, threshold=p.hdr_threshold, boundary=p.hdr_boundary)
-        p.extra_generation_params["HDR clamp"] = f'{p.hdr_threshold}/{p.hdr_boundary}'
+        p.extra_generation_params["Latent clamp"] = f'{p.hdr_threshold}/{p.hdr_boundary}'
     if 600 < timestep < 900 and p.hdr_color != 0:
-        latent[1:] = center_tensor(latent[1:], channel_shift=p.hdr_color, full_shift=float(p.hdr_mode))  # Color
-        p.extra_generation_params["HDR color"] = f'{p.hdr_color}'
+        n = getattr(p, '_correction_steps_mid', 1)
+        latent[1:] = center_tensor(latent[1:], channel_shift=p.hdr_color / n, full_shift=float(p.hdr_mode))
+        p.extra_generation_params["Latent color"] = f'{p.hdr_color}'
     if 600 < timestep < 900 and p.hdr_tint_ratio != 0:
-        latent = color_adjust(latent, p.hdr_color_picker, p.hdr_tint_ratio)
-        p.extra_generation_params["HDR tint"] = f'{p.hdr_tint_ratio}'
-    if timestep < 200 and (p.hdr_brightness != 0): # do it late so it doesn't change the composition
-        latent[0:1] = center_tensor(latent[0:1], full_shift=float(p.hdr_mode), offset=p.hdr_brightness)  # Brightness
-        p.extra_generation_params["HDR brightness"] = f'{p.hdr_brightness}'
+        n = getattr(p, '_correction_steps_mid', 1)
+        latent = color_adjust(latent, p.hdr_color_picker, p.hdr_tint_ratio / n)
+        p.extra_generation_params["Latent tint"] = f'{p.hdr_tint_ratio}'
+        p.extra_generation_params["Latent tint color"] = p.hdr_color_picker
+    if timestep < 200 and (p.hdr_brightness != 0):
+        n = getattr(p, '_correction_steps_late', 1)
+        latent[0:1] = center_tensor(latent[0:1], full_shift=float(p.hdr_mode), offset=p.hdr_brightness / n)
+        p.extra_generation_params["Latent brightness"] = f'{p.hdr_brightness}'
     if timestep < 350 and p.hdr_sharpen != 0:
         per_step_ratio = 2 ** (timestep / 250) * p.hdr_sharpen / 16
         if abs(per_step_ratio) > 0.01:
             latent = sharpen_tensor(latent, ratio=per_step_ratio)
-        p.extra_generation_params["HDR sharpen"] = f'{p.hdr_sharpen}'
+        p.extra_generation_params["Latent sharpen"] = f'{p.hdr_sharpen}'
     if 1 < timestep < 100 and p.hdr_maximize:
         latent = center_tensor(latent, channel_shift=p.hdr_max_center, full_shift=1.0)
         latent = maximize_tensor(latent, boundary=p.hdr_max_boundary)
-        p.extra_generation_params["HDR max"] = f'{p.hdr_max_center}/{p.hdr_max_boundary}'
+        p.extra_generation_params["Latent max"] = f'{p.hdr_max_center}/{p.hdr_max_boundary}'
     return latent
 
 
-def correction_callback(p, timestep, kwargs, initial: bool = False):
-    global skip_correction # pylint: disable=global-statement
+def _unpack_latents(latents, pipe, p):
+    """Unpack packed latents to standard [B, C, H, W] format for correction."""
+    vae_scale = getattr(pipe, 'vae_scale_factor', 8)
+    if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
+        width = max(getattr(p, 'width', 0), getattr(p, 'hr_upscale_to_x', 0))
+        height = max(getattr(p, 'height', 0), getattr(p, 'hr_upscale_to_y', 0))
+    else:
+        width = getattr(p, 'width', 1024)
+        height = getattr(p, 'height', 1024)
+    if hasattr(pipe, '_unpack_latents') and hasattr(pipe, 'vae_scale_factor'):
+        # Flux 1 / Bria: use pipeline's own unpack method
+        unpacked = pipe._unpack_latents(latents, height, width, vae_scale)  # pylint: disable=protected-access
+        return unpacked, 'flux1'
+    if hasattr(pipe, '_unpatchify_latents'):
+        # Flux 2: manual reshape [B, seq_len, patch_channels] -> [B, C, H, W]
+        b, seq_len, patch_ch = latents.shape
+        channels = patch_ch // 4
+        h_patches = height // vae_scale // 2
+        w_patches = width // vae_scale // 2
+        if h_patches * w_patches != seq_len:
+            h_patches = w_patches = int(seq_len ** 0.5)
+        unpacked = latents.view(b, h_patches, w_patches, channels, 2, 2)
+        unpacked = unpacked.permute(0, 3, 1, 4, 2, 5).reshape(b, channels, h_patches * 2, w_patches * 2)
+        return unpacked, 'flux2'
+    return latents, 'unknown'
+
+
+def _repack_latents(latents, pack_type, pipe, p):
+    """Repack standard [B, C, H, W] latents back to packed format."""
+    if p.hr_resize_mode > 0 and (p.hr_upscaler != 'None' or p.hr_resize_mode == 5) and p.is_hr_pass:
+        height = max(getattr(p, 'height', 0), getattr(p, 'hr_upscale_to_y', 0))
+        width = max(getattr(p, 'width', 0), getattr(p, 'hr_upscale_to_x', 0))
+    else:
+        height = getattr(p, 'height', 1024)
+        width = getattr(p, 'width', 1024)
+    if pack_type == 'flux1':
+        # Flux 1 / Bria: use pipeline's pack method
+        return pipe._pack_latents(latents, latents.shape[0], latents.shape[1], height, width)  # pylint: disable=protected-access
+    if pack_type == 'flux2':
+        # Flux 2: manual repack [B, C, H, W] -> [B, seq_len, patch_channels]
+        b, channels, h, w = latents.shape
+        h_patches = h // 2
+        w_patches = w // 2
+        latents = latents.reshape(b, channels, h_patches, 2, w_patches, 2)
+        latents = latents.permute(0, 2, 4, 1, 3, 5).reshape(b, h_patches * w_patches, channels * 4)
+        return latents
+    return latents
+
+
+def _count_steps_in_range(pipe, low, high):
+    """Count scheduler timesteps that fall within (low, high) exclusive."""
+    timesteps = getattr(getattr(pipe, 'scheduler', None), 'timesteps', None)
+    if timesteps is None:
+        return 1
+    count = sum(1 for t in timesteps.tolist() if low < t < high)
+    return max(count, 1)
+
+
+def _count_steps_below(pipe, threshold):
+    """Count scheduler timesteps below a threshold."""
+    timesteps = getattr(getattr(pipe, 'scheduler', None), 'timesteps', None)
+    if timesteps is None:
+        return 1
+    count = sum(1 for t in timesteps.tolist() if t < threshold)
+    return max(count, 1)
+
+
+def correction_callback(p, timestep, kwargs, pipe=None, initial: bool = False):
     if initial:
         if not any([p.hdr_clamp, p.hdr_mode, p.hdr_maximize, p.hdr_sharpen, p.hdr_color, p.hdr_brightness, p.hdr_tint_ratio]):
-            skip_correction = True
+            p._correction_skip = True
             return kwargs
-        else:
-            skip_correction = False
-    elif skip_correction:
+        # always skip for detailer passes (already-corrected image, different resolution)
+        if getattr(p, 'recursion', False):
+            p._correction_skip = True
+            return kwargs
+        # optionally skip for hires pass
+        if getattr(p, 'is_hr_pass', False) and not getattr(p, 'hdr_apply_hires', True):
+            p._correction_skip = True
+            return kwargs
+        p._correction_skip = False
+        p._correction_warned = False
+        if pipe is not None:
+            p._correction_steps_mid = _count_steps_in_range(pipe, 600, 900)
+            p._correction_steps_late = _count_steps_below(pipe, 200)
+    elif getattr(p, '_correction_skip', False):
         return kwargs
     latents = kwargs["latents"]
-    # debug(f'HDR correction: latents={latents.shape}')
-    if len(latents.shape) <= 3: # packed latent
-        warn_once(f'HDR correction: shape={latents.shape} packed latent')
-        return kwargs
-    if len(latents.shape) == 4: # standard batched latent
+    if len(latents.shape) <= 3:  # packed latent
+        if pipe is None:
+            if not getattr(p, '_correction_warned', False):
+                log.warning(f'Latent correction: shape={latents.shape} packed latent but no pipe reference')
+                p._correction_warned = True
+            return kwargs
+        unpacked, pack_type = _unpack_latents(latents, pipe, p)
+        if pack_type == 'unknown':
+            if not getattr(p, '_correction_warned', False):
+                log.warning(f'Latent correction: shape={latents.shape} unknown packed format')
+                p._correction_warned = True
+            return kwargs
+        for i in range(unpacked.shape[0]):
+            unpacked[i] = correction(p, timestep, unpacked[i])
+        kwargs["latents"] = _repack_latents(unpacked, pack_type, pipe, p)
+    elif len(latents.shape) == 4:  # standard batched latent
         for i in range(latents.shape[0]):
             latents[i] = correction(p, timestep, latents[i])
             if debug_enabled:
@@ -142,12 +220,15 @@ def correction_callback(p, timestep, kwargs, initial: bool = False):
                 debug(f"Channel Means: {latents[i].mean(dim=(-1, -2), keepdim=True).flatten().float().cpu().numpy()}")
                 debug(f"Channel Mins: {latents[i].min(-1, keepdim=True)[0].min(-2, keepdim=True)[0].flatten().float().cpu().numpy()}")
                 debug(f"Channel Maxes: {latents[i].max(-1, keepdim=True)[0].min(-2, keepdim=True)[0].flatten().float().cpu().numpy()}")
-    elif len(latents.shape) == 5 and latents.shape[0] == 1: # probably animatediff
+        kwargs["latents"] = latents
+    elif len(latents.shape) == 5 and latents.shape[0] == 1:  # probably animatediff
         latents = latents.squeeze(0).permute(1, 0, 2, 3)
         for i in range(latents.shape[0]):
             latents[i] = correction(p, timestep, latents[i])
         latents = latents.permute(1, 0, 2, 3).unsqueeze(0)
+        kwargs["latents"] = latents
     else:
-        warn_once(f'HDR correction: shape={latents.shape} unknown latent')
-    kwargs["latents"] = latents
+        if not getattr(p, '_correction_warned', False):
+            log.warning(f'Latent correction: shape={latents.shape} unknown latent')
+            p._correction_warned = True
     return kwargs
