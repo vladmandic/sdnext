@@ -217,7 +217,7 @@ class State:
         self.sampling_steps = 0
         self.textinfo = None
         self.prediction_type = "epsilon"
-        self.api = api or self.api
+        self.api = api if api is not None else False
         self.time_start = time.time()
         self.history('begin', self.id)
         if debug_output:
@@ -225,7 +225,7 @@ class State:
         modules.devices.torch_gc()
         return self.id
 
-    def end(self, task_id=None):
+    def end(self, task_id=None, api=None):
         import modules.devices
         if debug_output:
             log.trace(f'State end: {self}')
@@ -236,6 +236,8 @@ class State:
                 self.job = prev_job['job']
                 self.duration = round(time.time() - prev_job['timestamp'], 3) if prev_job['timestamp'] is not None else None
         self.time_start = time.time()
+        if api is not None:
+            self.api = api
         self.history('end', task_id or self.id)
         self.clear()
         modules.devices.torch_gc()

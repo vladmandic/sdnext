@@ -296,7 +296,7 @@ class APIControl:
                     output_info += item
                 else:
                     pass
-            shared.state.end(jobid)
+            shared.state.end(jobid, api=False)
 
         # return
         b64images = list(map(helpers.encode_pil_to_base64, output_images)) if send_images else []

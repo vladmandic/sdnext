@@ -120,7 +120,7 @@ class APIGenerate:
                 processed = process_images(p)
             processed = scripts_manager.scripts_txt2img.after(p, processed, *script_args)
             p.close()
-            shared.state.end(jobid)
+            shared.state.end(jobid, api=False)
         if processed is None or processed.images is None or len(processed.images) == 0:
             b64images = []
         else:
@@ -173,7 +173,7 @@ class APIGenerate:
                 processed = process_images(p)
             processed = scripts_manager.scripts_img2img.after(p, processed, *script_args)
             p.close()
-            shared.state.end(jobid)
+            shared.state.end(jobid, api=False)
         if processed is None or processed.images is None or len(processed.images) == 0:
             b64images = []
         else:
