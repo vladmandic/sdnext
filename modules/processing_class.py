@@ -411,6 +411,7 @@ class StableDiffusionProcessing:
         self.enable_hr = enable_hr
         self.firstphase_width = firstphase_width
         self.firstphase_height = firstphase_height
+        # hires
         self.hr_scale = hr_scale
         self.hr_force = hr_force
         self.hr_resize_mode = hr_resize_mode
@@ -422,11 +423,33 @@ class StableDiffusionProcessing:
         self.hr_upscale_to_x = hr_resize_x
         self.hr_upscale_to_y = hr_resize_y
         self.hr_denoising_strength = hr_denoising_strength
+        # grading
+        self.grading_brightness = grading_brightness
+        self.grading_contrast = grading_contrast
+        self.grading_saturation = grading_saturation
+        self.grading_hue = grading_hue
+        self.grading_gamma = grading_gamma
+        self.grading_sharpness = grading_sharpness
+        self.grading_color_temp = grading_color_temp
+        self.grading_shadows = grading_shadows
+        self.grading_midtones = grading_midtones
+        self.grading_highlights = grading_highlights
+        self.grading_clahe_clip = grading_clahe_clip
+        self.grading_clahe_grid = grading_clahe_grid
+        self.grading_shadows_tint = grading_shadows_tint
+        self.grading_highlights_tint = grading_highlights_tint
+        self.grading_split_tone_balance = grading_split_tone_balance
+        self.grading_vignette = grading_vignette
+        self.grading_grain = grading_grain
+        self.grading_lut_file = grading_lut_file
+        self.grading_lut_strength = grading_lut_strength
+        # refiner
         self.refiner_steps = refiner_steps
         self.refiner_start = refiner_start
         self.refiner_prompt = refiner_prompt
         self.refiner_negative = refiner_negative
         self.hr_refiner_start = hr_refiner_start
+        # other
         self.outpath_samples = outpath_samples
         self.outpath_grids = outpath_grids
         self.do_not_save_samples = do_not_save_samples

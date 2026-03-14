@@ -192,7 +192,7 @@ class APIProcess:
         Returns model repository IDs with capability flags indicating vision
         (image-conditioned enhancement) and thinking (reasoning mode) support.
         """
-        from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model
+        from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model # pylint: disable=no-name-in-module
         result = []
         for repo in Options.models.keys():
             result.append({
