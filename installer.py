@@ -1171,7 +1171,7 @@ def install_requirements():
                 if args.reinstall:
                     log.trace(f'Install: package="{line}" reinstall')
                 _res = install(line, reinstall=args.reinstall)
-    install_compel()
+    install('compel==2.3.1', no_deps=True) # install without deps to avoid transformers version conflict
     install_pydantic()
     install_opencv()
     install_scipy()
