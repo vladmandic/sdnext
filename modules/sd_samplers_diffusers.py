@@ -345,6 +345,14 @@ samplers_data_diffusers = [
     SamplerData('Same as primary', None, [], {}),
 ]
 
+# stubs for Enso v2 sampler endpoint — real implementation pending
+def get_sampler_compatibility(model): # pylint: disable=unused-argument
+    return {}
+
+def _get_cls_caps():
+    return {}
+
+
 def get_override(key, default=None):
     if key in scheduler_overrides:
         return scheduler_overrides[key]
