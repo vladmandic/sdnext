@@ -1,6 +1,5 @@
 import os
 import time
-from typing import Any
 from fastapi import Request, Depends
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse
@@ -85,27 +84,6 @@ def post_log(req: models.ReqPostLog):
     if req.error is not None:
         log.error(f'UI: {req.error}')
     return {}
-
-
-def get_config():
-    options = {}
-    for k in shared.opts.data.keys():
-        if shared.opts.data_labels.get(k) is not None:
-            options.update({k: shared.opts.data.get(k, shared.opts.data_labels.get(k).default)})
-        else:
-            options.update({k: shared.opts.data.get(k, None)})
-    if 'sd_lyco' in options:
-        del options['sd_lyco']
-    if 'sd_lora' in options:
-        del options['sd_lora']
-    return options
-
-def set_config(req: dict[str, Any]):
-    updated = []
-    for k, v in req.items():
-        updated.append({ k: shared.opts.set(k, v) })
-    shared.opts.save()
-    return { "updated": updated }
 
 def get_cmd_flags():
     return vars(shared.cmd_opts)

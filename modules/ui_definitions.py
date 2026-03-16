@@ -18,34 +18,34 @@ options_templates = {}
 
 
 def list_checkpoint_titles():
-    import modules.sd_models
+    import modules.sd_models # pylint: disable=redefined-outer-name
     return modules.sd_models.checkpoint_titles()
 
 
 def refresh_checkpoints():
-    import modules.sd_models
+    import modules.sd_models # pylint: disable=redefined-outer-name
     return modules.sd_models.list_models()
 
 
 def refresh_vaes():
-    import modules.sd_vae
+    import modules.sd_vae # pylint: disable=redefined-outer-name
     modules.sd_vae.refresh_vae_list()
 
 
 def refresh_upscalers():
-    import modules.modelloader
+    import modules.modelloader # pylint: disable=redefined-outer-name
     modules.modelloader.load_upscalers()
 
 
 def list_samplers():
-    import modules.sd_samplers
+    import modules.sd_samplers # pylint: disable=redefined-outer-name
     modules.sd_samplers.set_samplers()
     return modules.sd_samplers.all_samplers
 
 
 def get_openvino_device_list():
     try:
-        import modules.intel.openvino
+        import modules.intel.openvino  # pylint: disable=redefined-outer-name
         return modules.intel.openvino.get_device_list()
     except Exception:
         return []

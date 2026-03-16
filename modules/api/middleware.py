@@ -12,7 +12,7 @@ from fastapi.exceptions import HTTPException
 from fastapi.encoders import jsonable_encoder
 from modules.logger import log
 import modules.errors as errors
-
+from modules.api.validate import validate_request
 
 errors.install()
 ignore_endpoints = [
@@ -43,24 +43,23 @@ def setup_middleware(app: FastAPI, cmd_opts):
 
     @app.middleware("http")
     async def api_preprocess(req: Request, call_next):
-        log.critical(f'HERE SCOPE: {req.scope}')
-        log.critical(f'HERE client: {req.client}')
         try:
             ts = time.time()
             res: Response = await call_next(req)
             duration = str(round(time.time() - ts, 4))
             res.headers["X-Process-Time"] = duration
             endpoint = req.scope.get('path', 'err')
+            client = req.scope.get('client', ('0:0.0.0', 0))[0]
             token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
+            validate_request(client, endpoint)
             if (cmd_opts.api_log) and endpoint.startswith('/sdapi'):
                 if any([endpoint.startswith(x) for x in ignore_endpoints]): # noqa C419 # pylint: disable=use-a-generator
                     return res
-                log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {cli} {host} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
+                log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {client} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
                     user = app.tokens.get(token) if hasattr(app, 'tokens') else None,
                     code = res.status_code,
                     ver = req.scope.get('http_version', '0.0'),
-                    cli = req.scope.get('client', ('0:0.0.0', 0))[0],
-                    host = req.client.host,
+                    client = client,
                     prot = req.scope.get('scheme', 'err'),
                     method = req.scope.get('method', 'err'),
                     endpoint = endpoint,
@@ -84,6 +83,8 @@ def setup_middleware(app: FastAPI, cmd_opts):
             return JSONResponse(status_code=err['code'], content=jsonable_encoder(err))
         if err['code'] == 404 and 'file=html/' in req.url.path: # dont spam with locales
             return JSONResponse(status_code=err['code'], content=jsonable_encoder(err))
+        if err["code"] == 429:  # dont spam with rate limit errors
+            return JSONResponse(status_code=err["code"], content=jsonable_encoder(err))
 
         if not any([req.url.path.endswith(x) for x in ignore_endpoints]): # noqa C419 # pylint: disable=use-a-generator
             log.error(f"API error: {req.method}: {req.url} {err}")

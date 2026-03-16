@@ -53,9 +53,6 @@ class Api:
         self.add_api_route("/sdapi/v1/skip", server.post_skip, methods=["POST"])
         self.add_api_route("/sdapi/v1/shutdown", server.post_shutdown, methods=["POST"])
         self.add_api_route("/sdapi/v1/memory", server.get_memory, methods=["GET"], response_model=models.ResMemory)
-        self.add_api_route("/sdapi/v1/options", server.get_config, methods=["GET"], response_model=models.OptionsModel)
-        self.add_api_route("/sdapi/v1/options", server.set_config, methods=["POST"])
-        self.add_api_route("/sdapi/v1/options-info", server.get_options_info, methods=["GET"], tags=["Server"])
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel)
         self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu_status, methods=["GET"], response_model=list[models.ResGPU])
 
@@ -102,6 +99,10 @@ class Api:
         self.add_api_route("/sdapi/v1/latents", endpoints.post_latent_history, methods=["POST"], response_model=int, tags=["Functional"])
         self.add_api_route("/sdapi/v1/modules", endpoints.get_modules, methods=["GET"], tags=["Functional"])
         self.add_api_route("/sdapi/v1/sampler", endpoints.get_sampler, methods=["GET"], response_model=dict, tags=["Functional"])
+
+        # options api
+        from modules.api import options
+        options.register_api(self.app)
 
         # caption api
         from modules.api import caption

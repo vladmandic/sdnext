@@ -1,4 +1,3 @@
-from modules.logger import log
 from modules import shared
 from modules.api import models, helpers
 

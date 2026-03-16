@@ -319,6 +319,8 @@ def main():
         if float(args.monitor) > 0 and t_current - t_monitor > float(args.monitor):
             log.trace(f'Monitor: {get_memory_stats(detailed=True)}')
             t_monitor = t_current
+            from modules.api.validate import get_stats
+            get_stats()
         if not alive:
             if uv is not None and uv.wants_restart:
                 clean_server()
