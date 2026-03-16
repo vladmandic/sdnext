@@ -7,15 +7,37 @@ vlm_models = {
     "Google Gemma 3n E4B": "google/gemma-3n-E4B-it", # 1.5GB
     "Nidum Gemma 3 4B Uncensored": "nidum/Nidum-Gemma-3-4B-it-Uncensored",
     "Allura Gemma 3 Glitter 4B": "allura-org/Gemma-3-Glitter-4B",
+    # Qwen3.5
+    "Alibaba Qwen 3.5 0.8B": "Qwen/Qwen3.5-0.8B",
+    "Alibaba Qwen 3.5 2B": "Qwen/Qwen3.5-2B",
+    "Alibaba Qwen 3.5 4B": "Qwen/Qwen3.5-4B",
+    "Alibaba Qwen 3.5 9B": "Qwen/Qwen3.5-9B",
+    "Alibaba Qwen 3.5 27B": "Qwen/Qwen3.5-27B",
+    "Alibaba Qwen 3.5 35B-A3B": "Qwen/Qwen3.5-35B-A3B",
+    "Qwen 3.5 27B Heretic": "coder3101/Qwen3.5-27B-heretic",
     "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
     "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
     "Alibaba Qwen 2.5 VL 3B": "Qwen/Qwen2.5-VL-3B-Instruct",
+    # Qwen2.5-VL Finetunes
+    "Qwen 2.5 VL 3B Heretic": "coder3101/Qwen2.5-VL-3B-Instruct-heretic",
+    "Qwen 2.5 VL 7B Heretic": "coder3101/Qwen2.5-VL-7B-Instruct-heretic",
+    "Qwen 2.5 VL 32B Heretic": "coder3101/Qwen2.5-VL-32B-Instruct-heretic",
+    "Qwen 2.5 VL 72B Heretic": "coder3101/Qwen2.5-VL-72B-Instruct-heretic",
     "Alibaba Qwen 3 VL 2B": "Qwen/Qwen3-VL-2B-Instruct",
     f"Alibaba Qwen 3 VL 2B Thinking {ui_symbols.reasoning}": "Qwen/Qwen3-VL-2B-Thinking",
     "Alibaba Qwen 3 VL 4B": "Qwen/Qwen3-VL-4B-Instruct",
     f"Alibaba Qwen 3 VL 4B Thinking {ui_symbols.reasoning}": "Qwen/Qwen3-VL-4B-Thinking",
     "Alibaba Qwen 3 VL 8B": "Qwen/Qwen3-VL-8B-Instruct",
     f"Alibaba Qwen 3 VL 8B Thinking {ui_symbols.reasoning}": "Qwen/Qwen3-VL-8B-Thinking",
+    # Qwen3-VL Finetunes
+    "Qwen 3 VL 2B Heretic": "coder3101/Qwen3-VL-2B-Instruct-heretic",
+    f"Qwen 3 VL 2B Thinking Heretic {ui_symbols.reasoning}": "coder3101/Qwen3-VL-2B-Thinking-heretic",
+    "Qwen 3 VL 4B Heretic": "coder3101/Qwen3-VL-4B-Instruct-heretic",
+    f"Qwen 3 VL 4B Thinking Heretic {ui_symbols.reasoning}": "coder3101/Qwen3-VL-4B-Thinking-heretic",
+    "Qwen 3 VL 8B Heretic": "coder3101/Qwen3-VL-8B-Instruct-heretic",
+    "Qwen 3 VL 32B Heretic v2": "coder3101/Qwen3-VL-32B-Instruct-heretic-v2",
+    f"Qwen 3 VL 32B Thinking Heretic v2 {ui_symbols.reasoning}": "coder3101/Qwen3-VL-32B-Thinking-heretic-v2",
+    "Qwen 3 VL 8B Abliterated Caption": "prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it",
     "XiaomiMiMo MiMo VL 7B RL": "XiaomiMiMo/MiMo-VL-7B-RL-2508", # 8.3GB
     "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
     "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
@@ -50,6 +72,8 @@ vlm_models = {
     "AIDC Ovis2 4B": "AIDC-AI/Ovis2-4B",
     "ByteDance Sa2VA 1B": "ByteDance/Sa2VA-1B",
     "ByteDance Sa2VA 4B": "ByteDance/Sa2VA-4B",
+    # Mistral Finetunes
+    "Mistral Small 3.2 24B Heretic": "coder3101/Mistral-Small-3.2-24B-Instruct-2506-heretic",
     f"Google Gemini 3.1 Pro {ui_symbols.cloud}": "gemini-3.1-pro-preview",
     f"Google Gemini 3.1 Flash Lite {ui_symbols.cloud}": "gemini-3.1-flash-lite-preview",
     f"Google Gemini 3.0 Flash {ui_symbols.cloud}": "gemini-3-flash-preview",
@@ -146,3 +170,9 @@ vlm_prompt_placeholders = {
 vlm_prompts = vlm_prompts_common + vlm_prompts_florence + vlm_prompts_promptgen + vlm_prompts_moondream + vlm_prompts_moondream2
 
 vlm_prefill = 'Answer: the image shows'
+
+
+def get_vlm_repo(display_name: str) -> str:
+    """Look up repo ID from display name, stripping any trailing symbols."""
+    name = display_name.strip()
+    return vlm_models.get(name, name)
