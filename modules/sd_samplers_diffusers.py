@@ -349,7 +349,7 @@ samplers_data_diffusers = [
 def get_sampler_compatibility(model): # pylint: disable=unused-argument
     return {}
 
-def _get_cls_caps():
+def get_sampler_capability():
     return {}
 
 
