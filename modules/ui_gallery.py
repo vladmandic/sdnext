@@ -59,19 +59,17 @@ def create_ui():
     with gr.Blocks() as tab:
         with gr.Row(elem_id='tab-gallery-sort-buttons'):
             sort_buttons = []
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_alpha_asc, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_alpha_dsc, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_size_asc, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_size_dsc, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_num_asc, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_num_dsc, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_time_asc, elem_classes=['gallery-sort']))
-            sort_buttons.append(ToolButton(value=ui_symbols.sort_time_dsc, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_nameA := ToolButton(value=ui_symbols.sort_alpha_asc, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_nameD := ToolButton(value=ui_symbols.sort_alpha_dsc, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_sizeA := ToolButton(value=ui_symbols.sort_size_asc, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_sizeD := ToolButton(value=ui_symbols.sort_size_dsc, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_resA := ToolButton(value=ui_symbols.sort_num_asc, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_resD := ToolButton(value=ui_symbols.sort_num_dsc, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_modA := ToolButton(value=ui_symbols.sort_time_asc, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_modD := ToolButton(value=ui_symbols.sort_time_dsc, elem_classes=['gallery-sort']))
             gr.Textbox(show_label=False, placeholder='Search', elem_id='tab-gallery-search')
             gr.HTML('', elem_id='tab-gallery-status')
             gr.HTML('', elem_id='tab-gallery-progress')
-            for btn in sort_buttons:
-                btn.click(fn=None, _js='gallerySort', inputs=[btn], outputs=[])
         with gr.Row():
             with gr.Column():
                 gr.HTML('', elem_id='tab-gallery-folders')
@@ -82,4 +80,14 @@ def create_ui():
                 gallery_video = gr.Video(None, elem_id='tab-gallery-video', show_label=False, visible=False)
                 gallery_images, gen_info, html_info, _html_info_formatted, html_log = ui_common.create_output_panel("gallery")
                 btn_gallery_image.click(fn=read_media, _js='gallerySendImage', inputs=[html_info], outputs=[gallery_images, gallery_video, html_info, gen_info, html_log])
+
+    sort_nameA.click(fn=None, _js='() => gallerySort("nameA")')
+    sort_nameD.click(fn=None, _js='() => gallerySort("nameD")')
+    sort_sizeA.click(fn=None, _js='() => gallerySort("sizeA")')
+    sort_sizeD.click(fn=None, _js='() => gallerySort("sizeD")')
+    sort_resA.click(fn=None, _js='() => gallerySort("resA")')
+    sort_resD.click(fn=None, _js='() => gallerySort("resD")')
+    sort_modA.click(fn=None, _js='() => gallerySort("modA")')
+    sort_modD.click(fn=None, _js='() => gallerySort("modD")')
+
     return [(tab, 'Gallery', 'tab-gallery')]
