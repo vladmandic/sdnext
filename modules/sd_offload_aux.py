@@ -62,8 +62,9 @@ def move_aux_to_gpu(name: str) -> None:
     # 1. Evict other auxiliary models first
     evict_aux(exclude=name, reason='pre')
     # 2. If balanced offload active, evict diffusers pipeline modules if memory is tight
-    from modules.sd_offload import apply_balanced_offload
-    shared.sd_model = apply_balanced_offload(shared.sd_model)
+    if shared.sd_loaded:
+        from modules.sd_offload import apply_balanced_offload
+        shared.sd_model = apply_balanced_offload(shared.sd_model)
     # 3. Move to GPU (stream + sync)
     if shared.opts.diffusers_offload_streams:
         global move_stream  # pylint: disable=global-statement

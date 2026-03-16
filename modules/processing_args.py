@@ -230,7 +230,10 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     if 'use_mask_in_transformer' in possible:
         args['use_mask_in_transformer'] = shared.opts.te_use_mask
 
-    timesteps = re.split(',| ', shared.opts.schedulers_timesteps)
+    sched_timesteps = getattr(p, 'schedulers_timesteps', None)
+    if sched_timesteps is None:
+        sched_timesteps = shared.opts.schedulers_timesteps
+    timesteps = re.split(',| ', sched_timesteps)
     if len(timesteps) > 2:
         if ('timesteps' in possible) and hasattr(model.scheduler, 'set_timesteps') and ("timesteps" in set(inspect.signature(model.scheduler.set_timesteps).parameters.keys())):
             p.timesteps = [int(x) for x in timesteps if x.isdigit()]

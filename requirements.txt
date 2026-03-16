@@ -24,7 +24,6 @@ rich==14.1.0
 safetensors==0.7.0
 peft==0.18.1
 httpx==0.28.1
-compel==2.2.1
 requests==2.32.3
 tqdm==4.67.3
 accelerate==1.12.0

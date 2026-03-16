@@ -364,6 +364,8 @@ def start_ui():
         log.info(f'API redocs: {local_url[:-1]}/redocs') # pylint: disable=unsubscriptable-object
     if share_url is not None:
         log.info(f'Share URL: {share_url}')
+    if getattr(shared.cmd_opts, 'enso', False):
+        log.info(f'Enso URL: {local_url[:-1]}/enso') # pylint: disable=unsubscriptable-object
     # log.debug(f'Gradio functions: registered={len(shared.demo.fns)}')
     shared.demo.server.wants_restart = False
     modules.api.middleware.setup_middleware(app, shared.cmd_opts)

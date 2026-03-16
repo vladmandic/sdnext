@@ -526,7 +526,8 @@ def create_model_from_signature(func: Callable, model_name: str, base_model: typ
             args.remove(arg)
     non_default_args = len(args) - len(defaults)
     defaults = (...,) * non_default_args + defaults
-    keyword_only_params = {param: kwonlydefaults.get(param, Any) for param in kwonlyargs}
+    kw_defaults = kwonlydefaults or {}
+    keyword_only_params = {param: (annotations.get(param, Any), kw_defaults.get(param, ...)) for param in kwonlyargs}
     for k, v in annotations.items():
         if v == list[Image.Image]:
             annotations[k] = list[str]
