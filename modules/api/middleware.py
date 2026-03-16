@@ -42,7 +42,9 @@ def setup_middleware(app: FastAPI, cmd_opts):
         app.add_middleware(CORSMiddleware, allow_origin_regex=cmd_opts.cors_regex, allow_methods=['*'], allow_credentials=True, allow_headers=['*'])
 
     @app.middleware("http")
-    async def log_and_time(req: Request, call_next):
+    async def api_preprocess(req: Request, call_next):
+        log.critical(f'HERE SCOPE: {req.scope}')
+        log.critical(f'HERE client: {req.client}')
         try:
             ts = time.time()
             res: Response = await call_next(req)
@@ -53,11 +55,12 @@ def setup_middleware(app: FastAPI, cmd_opts):
             if (cmd_opts.api_log) and endpoint.startswith('/sdapi'):
                 if any([endpoint.startswith(x) for x in ignore_endpoints]): # noqa C419 # pylint: disable=use-a-generator
                     return res
-                log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {cli} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
+                log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {cli} {host} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
                     user = app.tokens.get(token) if hasattr(app, 'tokens') else None,
                     code = res.status_code,
                     ver = req.scope.get('http_version', '0.0'),
                     cli = req.scope.get('client', ('0:0.0.0', 0))[0],
+                    host = req.client.host,
                     prot = req.scope.get('scheme', 'err'),
                     method = req.scope.get('method', 'err'),
                     endpoint = endpoint,
@@ -65,7 +68,7 @@ def setup_middleware(app: FastAPI, cmd_opts):
                 ))
             return res
         except CancelledError:
-            log.warning('WebSocket closed (ignore asyncio.exceptions.CancelledError)')
+            log.warning('WebSocket closed')
         except BaseException as e:
             return handle_exception(req, e)
 

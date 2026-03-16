@@ -301,6 +301,7 @@ messages_control.disable=[
         "raw-checker-failed",
         "simplifiable-if-expression",
         "suppressed-message",
+        "subprocess-run-check",
         "too-few-public-methods",
         "too-many-instance-attributes",
         "too-many-locals",
