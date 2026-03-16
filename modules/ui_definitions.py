@@ -18,34 +18,34 @@ options_templates = {}
 
 
 def list_checkpoint_titles():
-    import modules.sd_models  # pylint: disable=redefined-outer-name
+    import modules.sd_models
     return modules.sd_models.checkpoint_titles()
 
 
 def refresh_checkpoints():
-    import modules.sd_models  # pylint: disable=redefined-outer-name
+    import modules.sd_models
     return modules.sd_models.list_models()
 
 
 def refresh_vaes():
-    import modules.sd_vae  # pylint: disable=redefined-outer-name
+    import modules.sd_vae
     modules.sd_vae.refresh_vae_list()
 
 
 def refresh_upscalers():
-    import modules.modelloader  # pylint: disable=redefined-outer-name
+    import modules.modelloader
     modules.modelloader.load_upscalers()
 
 
 def list_samplers():
-    import modules.sd_samplers  # pylint: disable=redefined-outer-name
+    import modules.sd_samplers
     modules.sd_samplers.set_samplers()
     return modules.sd_samplers.all_samplers
 
 
 def get_openvino_device_list():
     try:
-        import modules.intel.openvino  # pylint: disable=redefined-outer-name
+        import modules.intel.openvino
         return modules.intel.openvino.get_device_list()
     except Exception:
         return []
@@ -665,103 +665,101 @@ def create_settings(cmd_opts):
     }))
 
     # --- Hidden Options ---
-    options_templates.update(options_section(('hidden_options', "Hidden options"), {
-        # internal options
-        "diffusers_version": OptionInfo("", "Diffusers version", gr.Textbox, {"visible": False}),
-        "transformers_version": OptionInfo("", "Transformers version", gr.Textbox, {"visible": False}),
-        "disabled_extensions": OptionInfo([], "Disable these extensions", gr.Textbox, {"visible": False}),
-        "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint", gr.Textbox, {"visible": False}),
-        "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
-
-        # Caption settings (controlled via Caption Tab UI)
-        "caption_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["VLM", "OpenCLiP", "Tagger"], "visible": False}),
-        "tagger_show_scores": OptionInfo(False, "Tagger: show confidence scores in results", gr.Checkbox, {"visible": False}),
-        "caption_openclip_model": OptionInfo("ViT-L-14/openai", "OpenCLiP: default model", gr.Dropdown, lambda: {"choices": modules.caption.openclip.get_clip_models(), "visible": False}, refresh=modules.caption.openclip.refresh_clip_models),
-        "caption_openclip_mode": OptionInfo(modules.caption.openclip.caption_types[0], "OpenCLiP: default mode", gr.Dropdown, {"choices": modules.caption.openclip.caption_types, "visible": False}),
-        "caption_openclip_blip_model": OptionInfo(list(modules.caption.openclip.caption_models)[0], "OpenCLiP: default captioner", gr.Dropdown, {"choices": list(modules.caption.openclip.caption_models), "visible": False}),
-        "caption_openclip_num_beams": OptionInfo(1, "OpenCLiP: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
-        "caption_openclip_max_length": OptionInfo(74, "OpenCLiP: max length", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1, "visible": False}),
-        "caption_openclip_min_flavors": OptionInfo(2, "OpenCLiP: min flavors", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1, "visible": False}),
-        "caption_openclip_max_flavors": OptionInfo(16, "OpenCLiP: max flavors", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1, "visible": False}),
-        "caption_openclip_flavor_count": OptionInfo(1024, "OpenCLiP: intermediate flavors", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 64, "visible": False}),
-        "caption_openclip_chunk_size": OptionInfo(1024, "OpenCLiP: chunk size", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 64, "visible": False}),
-        "caption_vlm_model": OptionInfo(modules.caption.vqa.vlm_default, "VLM: default model", gr.Dropdown, {"choices": list(modules.caption.vqa.vlm_models), "visible": False}),
-        "caption_vlm_prompt": OptionInfo(modules.caption.vqa.vlm_prompts[2], "VLM: default prompt", DropdownEditable, {"choices": modules.caption.vqa.vlm_prompts, "visible": False}),
-        "caption_vlm_system": OptionInfo(modules.caption.vqa.vlm_system, "VLM: system prompt", gr.Textbox, {"visible": False}),
-        "caption_vlm_num_beams": OptionInfo(1, "VLM: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
-        "caption_vlm_max_length": OptionInfo(512, "VLM: max length", gr.Slider, {"minimum": 1, "maximum": 4096, "step": 1, "visible": False}),
-        "caption_vlm_do_sample": OptionInfo(True, "VLM: use sample method", gr.Checkbox, {"visible": False}),
-        "caption_vlm_temperature": OptionInfo(0.8, "VLM: temperature", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
-        "caption_vlm_top_k": OptionInfo(0, "VLM: top-k", gr.Slider, {"minimum": 0, "maximum": 99, "step": 1, "visible": False}),
-        "caption_vlm_top_p": OptionInfo(0, "VLM: top-p", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
-        "caption_vlm_keep_prefill": OptionInfo(False, "VLM: keep prefill text in output", gr.Checkbox, {"visible": False}),
-        "caption_vlm_keep_thinking": OptionInfo(False, "VLM: keep reasoning trace in output", gr.Checkbox, {"visible": False}),
-        "caption_vlm_thinking_mode": OptionInfo(False, "VLM: enable thinking/reasoning mode", gr.Checkbox, {"visible": False}),
-        "tagger_threshold": OptionInfo(0.50, "Tagger: general tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
-        "tagger_include_rating": OptionInfo(False, "Tagger: include rating tags", gr.Checkbox, {"visible": False}),
-        "tagger_max_tags": OptionInfo(74, "Tagger: max tags", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1, "visible": False}),
-        "tagger_sort_alpha": OptionInfo(False, "Tagger: sort alphabetically", gr.Checkbox, {"visible": False}),
-        "tagger_use_spaces": OptionInfo(False, "Tagger: use spaces for tags", gr.Checkbox, {"visible": False}),
-        "tagger_escape_brackets": OptionInfo(True, "Tagger: escape brackets", gr.Checkbox, {"visible": False}),
-        "tagger_exclude_tags": OptionInfo("", "Tagger: exclude tags", gr.Textbox, {"visible": False}),
-        "waifudiffusion_model": OptionInfo("wd-eva02-large-tagger-v3", "WaifuDiffusion: default model", gr.Dropdown, {"choices": [], "visible": False}),
-        "waifudiffusion_character_threshold": OptionInfo(0.85, "WaifuDiffusion: character tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
-
-        # control settings are handled separately
-        "control_hires": OptionInfo(False, "Hires use Control", gr.Checkbox, {"visible": False}),
-        "control_aspect_ratio": OptionInfo(False, "Aspect ratio resize", gr.Checkbox, {"visible": False}),
-        "control_max_units": OptionInfo(4, "Maximum number of units", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1, "visible": False}),
-        "control_tiles": OptionInfo("1x1, 1x2, 1x3, 1x4, 2x1, 2x1, 2x2, 2x3, 2x4, 3x1, 3x2, 3x3, 3x4, 4x1, 4x2, 4x3, 4x4", "Tiling options", gr.Textbox, {"visible": False}),
-        "control_move_processor": OptionInfo(False, "Processor move to CPU when complete", gr.Checkbox, {"visible": False}),
-        "control_unload_processor": OptionInfo(False, "Processor unload after use", gr.Checkbox, {"visible": False}),
-
-        # sampler settings are handled separately
-        "show_samplers": OptionInfo([], "Show samplers in user interface", gr.CheckboxGroup, lambda: {"choices": [x.name for x in list_samplers()], "visible": False}),
-        'eta_noise_seed_delta': OptionInfo(0, "Noise seed delta (eta)", gr.Number, {"precision": 0, "visible": False}),
-        "scheduler_eta": OptionInfo(1.0, "Noise multiplier (eta)", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
-        "schedulers_solver_order": OptionInfo(0, "Solver order (where", gr.Slider, {"minimum": 0, "maximum": 5, "step": 1, "visible": False}),
-        "schedulers_use_loworder": OptionInfo(True, "Use simplified solvers in final steps", gr.Checkbox, {"visible": False}),
-        "schedulers_prediction_type": OptionInfo("default", "Override model prediction type", gr.Radio, {"choices": ['default', 'epsilon', 'sample', 'v_prediction', 'flow_prediction'], "visible": False}),
-        "schedulers_sigma": OptionInfo("default", "Sigma algorithm", gr.Radio, {"choices": ['default', 'karras', 'exponential', 'polyexponential'], "visible": False}),
-        "schedulers_beta_schedule": OptionInfo("default", "Beta schedule", gr.Dropdown, {"choices": ['default', 'linear', 'scaled_linear', 'squaredcos_cap_v2', 'sigmoid'], "visible": False}),
-        "schedulers_use_thresholding": OptionInfo(False, "Use dynamic thresholding", gr.Checkbox, {"visible": False}),
-        "schedulers_timestep_spacing": OptionInfo("default", "Timestep spacing", gr.Dropdown, {"choices": ['default', 'linspace', 'leading', 'trailing'], "visible": False}),
-        'schedulers_timesteps': OptionInfo('', "Timesteps", gr.Textbox, {"visible": False}),
-        "schedulers_rescale_betas": OptionInfo(False, "Rescale betas with zero terminal SNR", gr.Checkbox, {"visible": False}),
-        'schedulers_beta_start': OptionInfo(0, "Beta start", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.00001}),
-        'schedulers_beta_end': OptionInfo(0, "Beta end", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.00001}),
-        'schedulers_timesteps_range': OptionInfo(1000, "Timesteps range", gr.Slider, {"minimum": 250, "maximum": 4000, "step": 1}),
-        'schedulers_shift': OptionInfo(3, "Sampler shift", gr.Slider, {"minimum": 0.1, "maximum": 10, "step": 0.1, "visible": False}),
-        'schedulers_dynamic_shift': OptionInfo(False, "Sampler dynamic shift", gr.Checkbox, {"visible": False}),
-        'schedulers_sigma_adjust': OptionInfo(1.0, "Sigma adjust", gr.Slider, {"minimum": 0.5, "maximum": 1.5, "step": 0.01, "visible": False}),
-        'schedulers_sigma_adjust_min': OptionInfo(0.2, "Sigma adjust start", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
-        'schedulers_sigma_adjust_max': OptionInfo(0.8, "Sigma adjust end", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
-        'schedulers_base_shift': OptionInfo(0.5, "Sampler base shift", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
-        'schedulers_max_shift': OptionInfo(1.15, "Sampler max shift", gr.Slider, {"minimum": 0.0, "maximum": 4.0, "step": 0.01, "visible": False}),
-        'uni_pc_variant': OptionInfo("bh2", "UniPC variant", gr.Radio, {"choices": ["bh1", "bh2", "vary_coeff"], "visible": False}),
-        'uni_pc_skip_type': OptionInfo("time_uniform", "UniPC skip type", gr.Radio, {"choices": ["time_uniform", "time_quadratic", "logSNR"], "visible": False}),
-
-        # detailer settings are handled separately
-        "detailer_model": OptionInfo("Detailer", "Detailer model", gr.Radio, lambda: {"choices": [x.name() for x in shared.detailers], "visible": False}),
-        "detailer_classes": OptionInfo("", "Detailer classes", gr.Textbox, { "visible": False}),
-        "detailer_conf": OptionInfo(0.6, "Min confidence", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05, "visible": False}),
-        "detailer_max": OptionInfo(2, "Max detected", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1, "visible": False}),
-        "detailer_iou": OptionInfo(0.5, "Max overlap", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05, "visible": False}),
-        "detailer_sigma_adjust": OptionInfo(1.0, "Detailer sigma adjust", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05, "visible": False}),
-        "detailer_sigma_adjust_max": OptionInfo(1.0, "Detailer sigma end", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05, "visible": False}),
-        "detailer_min_size": OptionInfo(0.0, "Min object size", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05, "visible": False}),
-        "detailer_max_size": OptionInfo(1.0, "Max object size", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05, "visible": False}),
-        "detailer_padding": OptionInfo(20, "Item padding", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1, "visible": False}),
-        "detailer_blur": OptionInfo(10, "Item edge blur", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1, "visible": False}),
-        "detailer_models": OptionInfo(['face-yolo8n'], "Detailer models", gr.Dropdown, lambda: {"multiselect":True, "choices": list(shared.yolo.list) if shared.yolo else [], "visible": False}),
-        "detailer_args": OptionInfo("", "Detailer args", gr.Textbox, { "visible": False}),
-        "detailer_merge": OptionInfo(False, "Merge multiple results from each detailer model", gr.Checkbox, {"visible": False}),
-        "detailer_sort": OptionInfo(False, "Sort detailer output by location", gr.Checkbox, {"visible": False}),
-        "detailer_save": OptionInfo(False, "Include detection results", gr.Checkbox, {"visible": False}),
-        "detailer_seg": OptionInfo(False, "Use segmentation", gr.Checkbox, {"visible": False}),
-    }))
-
-    # Placeholder for more settings
-    # ... more settings ...
+    options_templates.update(
+        options_section(
+            ("hidden_options", "Hidden options"),
+            {
+                # internal options
+                "diffusers_version": OptionInfo("", "Diffusers version", gr.Textbox, {"visible": False}),
+                "transformers_version": OptionInfo("", "Transformers version", gr.Textbox, {"visible": False}),
+                "disabled_extensions": OptionInfo([], "Disable these extensions", gr.Textbox, {"visible": False}),
+                "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint", gr.Textbox, {"visible": False}),
+                "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
+                # Caption settings (controlled via Caption Tab UI)
+                "caption_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["VLM", "OpenCLiP", "Tagger"], "visible": False}),
+                "tagger_show_scores": OptionInfo(False, "Tagger: show confidence scores in results", gr.Checkbox, {"visible": False}),
+                "caption_openclip_model": OptionInfo("ViT-L-14/openai", "OpenCLiP: default model", gr.Dropdown, lambda: {"choices": modules.caption.openclip.get_clip_models(), "visible": False}, refresh=modules.caption.openclip.refresh_clip_models),
+                "caption_openclip_mode": OptionInfo(modules.caption.openclip.caption_types[0], "OpenCLiP: default mode", gr.Dropdown, {"choices": modules.caption.openclip.caption_types, "visible": False}),
+                "caption_openclip_blip_model": OptionInfo(list(modules.caption.openclip.caption_models)[0], "OpenCLiP: default captioner", gr.Dropdown, {"choices": list(modules.caption.openclip.caption_models), "visible": False}),
+                "caption_openclip_num_beams": OptionInfo(1, "OpenCLiP: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
+                "caption_openclip_max_length": OptionInfo(74, "OpenCLiP: max length", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1, "visible": False}),
+                "caption_openclip_min_flavors": OptionInfo(2, "OpenCLiP: min flavors", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1, "visible": False}),
+                "caption_openclip_max_flavors": OptionInfo(16, "OpenCLiP: max flavors", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1, "visible": False}),
+                "caption_openclip_flavor_count": OptionInfo(1024, "OpenCLiP: intermediate flavors", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 64, "visible": False}),
+                "caption_openclip_chunk_size": OptionInfo(1024, "OpenCLiP: chunk size", gr.Slider, {"minimum": 256, "maximum": 4096, "step": 64, "visible": False}),
+                "caption_vlm_model": OptionInfo(modules.caption.vqa.vlm_default, "VLM: default model", gr.Dropdown, {"choices": list(modules.caption.vqa.vlm_models), "visible": False}),
+                "caption_vlm_prompt": OptionInfo(modules.caption.vqa.vlm_prompts[2], "VLM: default prompt", DropdownEditable, {"choices": modules.caption.vqa.vlm_prompts, "visible": False}),
+                "caption_vlm_system": OptionInfo(modules.caption.vqa.vlm_system, "VLM: system prompt", gr.Textbox, {"visible": False}),
+                "caption_vlm_num_beams": OptionInfo(1, "VLM: num beams", gr.Slider, {"minimum": 1, "maximum": 16, "step": 1, "visible": False}),
+                "caption_vlm_max_length": OptionInfo(512, "VLM: max length", gr.Slider, {"minimum": 1, "maximum": 4096, "step": 1, "visible": False}),
+                "caption_vlm_do_sample": OptionInfo(True, "VLM: use sample method", gr.Checkbox, {"visible": False}),
+                "caption_vlm_temperature": OptionInfo(0.8, "VLM: temperature", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
+                "caption_vlm_top_k": OptionInfo(0, "VLM: top-k", gr.Slider, {"minimum": 0, "maximum": 99, "step": 1, "visible": False}),
+                "caption_vlm_top_p": OptionInfo(0, "VLM: top-p", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.01, "visible": False}),
+                "caption_vlm_keep_prefill": OptionInfo(False, "VLM: keep prefill text in output", gr.Checkbox, {"visible": False}),
+                "caption_vlm_keep_thinking": OptionInfo(False, "VLM: keep reasoning trace in output", gr.Checkbox, {"visible": False}),
+                "caption_vlm_thinking_mode": OptionInfo(False, "VLM: enable thinking/reasoning mode", gr.Checkbox, {"visible": False}),
+                "tagger_threshold": OptionInfo(0.50, "Tagger: general tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
+                "tagger_include_rating": OptionInfo(False, "Tagger: include rating tags", gr.Checkbox, {"visible": False}),
+                "tagger_max_tags": OptionInfo(74, "Tagger: max tags", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1, "visible": False}),
+                "tagger_sort_alpha": OptionInfo(False, "Tagger: sort alphabetically", gr.Checkbox, {"visible": False}),
+                "tagger_use_spaces": OptionInfo(False, "Tagger: use spaces for tags", gr.Checkbox, {"visible": False}),
+                "tagger_escape_brackets": OptionInfo(True, "Tagger: escape brackets", gr.Checkbox, {"visible": False}),
+                "tagger_exclude_tags": OptionInfo("", "Tagger: exclude tags", gr.Textbox, {"visible": False}),
+                "waifudiffusion_model": OptionInfo("wd-eva02-large-tagger-v3", "WaifuDiffusion: default model", gr.Dropdown, {"choices": [], "visible": False}),
+                "waifudiffusion_character_threshold": OptionInfo(0.85, "WaifuDiffusion: character tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
+                # control settings are handled separately
+                "control_hires": OptionInfo(False, "Hires use Control", gr.Checkbox, {"visible": False}),
+                "control_aspect_ratio": OptionInfo(False, "Aspect ratio resize", gr.Checkbox, {"visible": False}),
+                "control_max_units": OptionInfo(4, "Maximum number of units", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1, "visible": False}),
+                "control_tiles": OptionInfo("1x1, 1x2, 1x3, 1x4, 2x1, 2x1, 2x2, 2x3, 2x4, 3x1, 3x2, 3x3, 3x4, 4x1, 4x2, 4x3, 4x4", "Tiling options", gr.Textbox, {"visible": False}),
+                "control_move_processor": OptionInfo(False, "Processor move to CPU when complete", gr.Checkbox, {"visible": False}),
+                "control_unload_processor": OptionInfo(False, "Processor unload after use", gr.Checkbox, {"visible": False}),
+                # sampler settings are handled separately
+                "show_samplers": OptionInfo([], "Show samplers in user interface", gr.CheckboxGroup, lambda: {"choices": [x.name for x in list_samplers()], "visible": False}),
+                "eta_noise_seed_delta": OptionInfo(0, "Noise seed delta (eta)", gr.Number, {"precision": 0, "visible": False}),
+                "scheduler_eta": OptionInfo(1.0, "Noise multiplier (eta)", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
+                "schedulers_solver_order": OptionInfo(0, "Solver order (where", gr.Slider, {"minimum": 0, "maximum": 5, "step": 1, "visible": False}),
+                "schedulers_use_loworder": OptionInfo(True, "Use simplified solvers in final steps", gr.Checkbox, {"visible": False}),
+                "schedulers_prediction_type": OptionInfo("default", "Override model prediction type", gr.Radio, {"choices": ["default", "epsilon", "sample", "v_prediction", "flow_prediction"], "visible": False}),
+                "schedulers_sigma": OptionInfo("default", "Sigma algorithm", gr.Radio, {"choices": ["default", "karras", "exponential", "polyexponential"], "visible": False}),
+                "schedulers_beta_schedule": OptionInfo("default", "Beta schedule", gr.Dropdown, {"choices": ["default", "linear", "scaled_linear", "squaredcos_cap_v2", "sigmoid"], "visible": False}),
+                "schedulers_use_thresholding": OptionInfo(False, "Use dynamic thresholding", gr.Checkbox, {"visible": False}),
+                "schedulers_timestep_spacing": OptionInfo("default", "Timestep spacing", gr.Dropdown, {"choices": ["default", "linspace", "leading", "trailing"], "visible": False}),
+                "schedulers_timesteps": OptionInfo("", "Timesteps", gr.Textbox, {"visible": False}),
+                "schedulers_rescale_betas": OptionInfo(False, "Rescale betas with zero terminal SNR", gr.Checkbox, {"visible": False}),
+                "schedulers_beta_start": OptionInfo(0, "Beta start", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.00001}),
+                "schedulers_beta_end": OptionInfo(0, "Beta end", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.00001}),
+                "schedulers_timesteps_range": OptionInfo(1000, "Timesteps range", gr.Slider, {"minimum": 250, "maximum": 4000, "step": 1}),
+                "schedulers_shift": OptionInfo(3, "Sampler shift", gr.Slider, {"minimum": 0.1, "maximum": 10, "step": 0.1, "visible": False}),
+                "schedulers_dynamic_shift": OptionInfo(False, "Sampler dynamic shift", gr.Checkbox, {"visible": False}),
+                "schedulers_sigma_adjust": OptionInfo(1.0, "Sigma adjust", gr.Slider, {"minimum": 0.5, "maximum": 1.5, "step": 0.01, "visible": False}),
+                "schedulers_sigma_adjust_min": OptionInfo(0.2, "Sigma adjust start", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
+                "schedulers_sigma_adjust_max": OptionInfo(0.8, "Sigma adjust end", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
+                "schedulers_base_shift": OptionInfo(0.5, "Sampler base shift", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),
+                "schedulers_max_shift": OptionInfo(1.15, "Sampler max shift", gr.Slider, {"minimum": 0.0, "maximum": 4.0, "step": 0.01, "visible": False}),
+                "uni_pc_variant": OptionInfo("bh2", "UniPC variant", gr.Radio, {"choices": ["bh1", "bh2", "vary_coeff"], "visible": False}),
+                "uni_pc_skip_type": OptionInfo("time_uniform", "UniPC skip type", gr.Radio, {"choices": ["time_uniform", "time_quadratic", "logSNR"], "visible": False}),
+                # detailer settings are handled separately
+                "detailer_model": OptionInfo("Detailer", "Detailer model", gr.Radio, lambda: {"choices": [x.name() for x in shared.detailers], "visible": False}),
+                "detailer_classes": OptionInfo("", "Detailer classes", gr.Textbox, {"visible": False}),
+                "detailer_conf": OptionInfo(0.6, "Min confidence", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05, "visible": False}),
+                "detailer_max": OptionInfo(2, "Max detected", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1, "visible": False}),
+                "detailer_iou": OptionInfo(0.5, "Max overlap", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05, "visible": False}),
+                "detailer_sigma_adjust": OptionInfo(1.0, "Detailer sigma adjust", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05, "visible": False}),
+                "detailer_sigma_adjust_max": OptionInfo(1.0, "Detailer sigma end", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05, "visible": False}),
+                "detailer_min_size": OptionInfo(0.0, "Min object size", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05, "visible": False}),
+                "detailer_max_size": OptionInfo(1.0, "Max object size", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05, "visible": False}),
+                "detailer_padding": OptionInfo(20, "Item padding", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1, "visible": False}),
+                "detailer_blur": OptionInfo(10, "Item edge blur", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1, "visible": False}),
+                "detailer_models": OptionInfo(["face-yolo8n"], "Detailer models", gr.Dropdown, lambda: {"multiselect": True, "choices": list(shared.yolo.list) if shared.yolo else [], "visible": False}),
+                "detailer_args": OptionInfo("", "Detailer args", gr.Textbox, {"visible": False}),
+                "detailer_merge": OptionInfo(False, "Merge multiple results from each detailer model", gr.Checkbox, {"visible": False}),
+                "detailer_sort": OptionInfo(False, "Sort detailer output by location", gr.Checkbox, {"visible": False}),
+                "detailer_save": OptionInfo(False, "Include detection results", gr.Checkbox, {"visible": False}),
+                "detailer_segmentation": OptionInfo(False, "Use segmentation", gr.Checkbox, {"visible": False}),
+            },
+        )
+    )
 
     return options_templates

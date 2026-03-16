@@ -143,7 +143,7 @@ class YoloRestorer(Detailer):
             log.error(f'Detailer predict: {e}')
             return result
 
-        classes_str = classes if classes is not None else shared.opts.detailer_classes
+        classes_str = classes if classes is not None else get_opt(p, 'detailer_classes')
         desired = classes_str.split(',')
         desired = [d.lower().strip() for d in desired]
         desired = [d for d in desired if len(d) > 0]
@@ -265,7 +265,7 @@ class YoloRestorer(Detailer):
         color = (0, 190, 190)
         log.debug(f'Detailer: draw={items}')
         for i, item in enumerate(items):
-            use_seg = segmentation if segmentation is not None else shared.opts.detailer_seg
+            use_seg = segmentation if segmentation is not None else get_opt(None, "detailer_segmentation")
             if use_seg and item.mask is not None:
                 mask = item.mask.convert('L')
             else:
@@ -299,25 +299,23 @@ class YoloRestorer(Detailer):
             return np_image
 
         models = []
-        p_models = getattr(p, 'detailer_models', None)
-        if p_models is not None and len(p_models) > 0:
-            models = p_models
+        models = get_opt(p, 'detailer_models') or []
+        if models is not None and len(models) > 0:
+            pass
         elif len(shared.opts.detailer_args) > 0:
             models = [m.strip() for m in re.split(r'[\n,;]+', shared.opts.detailer_args)]
             models = [m for m in models if len(m) > 0]
-        if len(models) == 0:
-            models = shared.opts.detailer_models
         if len(models) == 0:
             log.warning('Detailer: model=None')
             return np_image
         log.debug(f'Detailer: models={models}')
 
         # resolve per-request detailer settings with fallback to global opts
-        use_seg = getattr(p, 'detailer_segmentation', None)
-        use_save = getattr(p, 'detailer_include_detections', None)
-        use_merge = getattr(p, 'detailer_merge', None)
-        use_sort = getattr(p, 'detailer_sort', None)
-        use_classes = getattr(p, 'detailer_classes', None)
+        use_seg = get_opt(p, "detailer_segmentation")
+        use_save = get_opt(p, "detailer_include_detections")
+        use_merge = get_opt(p, "detailer_merge")
+        use_sort = get_opt(p, "detailer_sort")
+        use_classes = get_opt(p, "detailer_classes")
 
         # create backups
         orig_p = p.__dict__.copy()
@@ -326,7 +324,6 @@ class YoloRestorer(Detailer):
         np_images = []
         annotated = Image.fromarray(np_image)
         image = None
-        do_save = use_save if use_save is not None else shared.opts.detailer_save
 
         for i, model_val in enumerate(models):
             if ':' in model_val:
@@ -349,8 +346,7 @@ class YoloRestorer(Detailer):
                 log.info(f'Detailer: model="{name}" no items detected')
                 continue
 
-            do_merge = use_merge if use_merge is not None else shared.opts.detailer_merge
-            if do_merge and len(items) > 1:
+            if use_merge and len(items) > 1:
                 log.debug(f'Detailer: model="{name}" items={len(items)} merge')
                 items = self.merge(items)
 
@@ -421,10 +417,9 @@ class YoloRestorer(Detailer):
             pc.schedulers_sigma_adjust_max = get_opt(p, 'detailer_sigma_adjust_max')
             pc.mask_apply_overlay = True
 
-            do_sort = use_sort if use_sort is not None else shared.opts.detailer_sort
-            if do_sort:
+            if use_sort:
                 items = sorted(items, key=lambda x: x.box[0]) # sort items left-to-right to improve consistency
-            if do_save:
+            if use_save:
                 annotated = self.draw_masks(annotated, items, segmentation=use_seg)
 
             for j, item in enumerate(items):
@@ -480,7 +475,7 @@ class YoloRestorer(Detailer):
 
         if image is not None:
             np_images.append(np.array(image))
-        if do_save and annotated is not None:
+        if use_save and annotated is not None:
             np_images.append(annotated) # save debug image with boxes
         return np_images
 
