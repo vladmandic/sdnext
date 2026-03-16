@@ -35,10 +35,7 @@
     "lint-win": "npm run format-win && npm run eslint && npm run eslint-ui && npm run ruff-win && npm run pylint-win",
     "test": ". venv/bin/activate; python launch.py --debug --test",
     "todo": "grep -oIPR 'TODO.*' *.py modules/ pipelines/ | sort -u",
-    "debug": "grep -ohIPR 'SD_.*?_DEBUG' *.py modules/ pipelines/ | sort -u",
-    "enso:dev": "cd extensions-builtin/enso && npm run dev",
-    "enso:build": "cd extensions-builtin/enso && npm run build",
-    "enso:lint": "cd extensions-builtin/enso && npm run lint"
+    "debug": "grep -ohIPR 'SD_.*?_DEBUG' *.py modules/ pipelines/ | sort -u"
   },
   "devDependencies": {
     "@eslint/compat": "^2.0.0",

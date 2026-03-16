@@ -18,10 +18,5 @@
   path = extensions-builtin/sdnext-modernui
   url = https://github.com/BinaryQuantumSoul/sdnext-modernui
 [submodule "extensions-builtin/sdnext-kanvas"]
-  path = extensions-builtin/sdnext-kanvas
-  url = https://github.com/vladmandic/sdnext-kanvas
-[submodule "extensions-builtin/enso"]
-	path = extensions-builtin/enso
-	url = https://github.com/CalamitousFelicitousness/enso.git
-	branch = master
-	ignore = dirty
+	path = extensions-builtin/sdnext-kanvas
+	url = https://github.com/vladmandic/sdnext-kanvas
