@@ -15,6 +15,7 @@ pyyaml
 toml
 voluptuous
 fasteners
+limits
 orjson
 websockets
 
