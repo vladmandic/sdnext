@@ -28,15 +28,15 @@ class Limiter():
             if v > 1:
                 log.trace(f'API stats: {k}={v}')
 
-    def check(self, key, quiet: bool = False):
+    def check(self, client: str, api: str, quiet: bool = False):
         if self.limit <= 0:
             return True
-        cost = request_cost.get(key, 1)
-        status = self.strategy.hit(self.limiter, key, cost=cost)
+        cost = request_cost.get(api, 1)
+        status = self.strategy.hit(self.limiter, client, api, cost=cost)
         if not status and not quiet:
-            log.warning(f'API: key={key} rate limit exceeded')
+            log.warning(f'API: client={client} api={api} rate limit exceeded')
             from fastapi.exceptions import HTTPException
-            raise HTTPException(status_code=429, detail=f"{key}: rate limit exceeded")
+            raise HTTPException(status_code=429, detail=f"{client}:{api}: rate limit exceeded")
         return status
 
 
@@ -57,4 +57,4 @@ def validate_request(client, endpoint):
     if key not in limiter.summary:
         limiter.summary[key] = 0
     limiter.summary[key] += 1
-    return limiter.check(key)
+    return limiter.check(client, api)
