@@ -43,6 +43,9 @@ package-lock.json
 /*.lnk
 /*.swp
 
+# enso frontend (git-cloned on demand, not a submodule)
+extensions-builtin/enso/
+
 # all dynamic stuff
 /extensions/**/*
 /outputs/**/*

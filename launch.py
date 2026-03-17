@@ -283,6 +283,11 @@ def main():
         else:
             log.info('Startup: launch=full')
             installer.install_submodules()
+            if args.enso:
+                from modules import enso
+                enso.install()
+                if args.upgrade:
+                    enso.update()
             init_paths()
             installer.install_extensions()
             installer.install_requirements() # redo requirements since extensions may change them

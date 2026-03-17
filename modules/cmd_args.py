@@ -73,6 +73,7 @@ def add_diag_args(p):
     p.add_argument('--safe', default=env_flag("SD_SAFE", False), action='store_true', help="Run in safe mode with no user extensions")
     p.add_argument('--test', default=env_flag("SD_TEST", False), action='store_true', help="Run test only and exit")
     p.add_argument('--version', default=False, action='store_true', help="Print version information")
+    p.add_argument('--enso', default=env_flag("SD_ENSO", False), action='store_true', help="Enable Enso frontend, default: %(default)s")
     p.add_argument("--monitor", default=os.environ.get("SD_MONITOR", 0), help="Run memory monitor, default: %(default)s")
     p.add_argument("--status", default=os.environ.get("SD_STATUS", 120), help="Run server is-alive status, default: %(default)s")
 
