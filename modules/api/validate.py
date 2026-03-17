@@ -10,9 +10,14 @@ request_cost = {  # value is cost, 0=not rate limited, 1=default, >1 more expens
     "/run/predict": 0,
     "/sdapi/v1/browser/thumb": 0,
     "/sdapi/v1/network/thumb": 0,
+    "/sdapi/v2/browser/thumb": 0,
+    "/sdapi/v2/network/thumb": 0,
     "/sdapi/v1/txt2img": 5,
     "/sdapi/v1/img2img": 5,
     "/sdapi/v1/control": 5,
+    "/sdapi/v2/txt2img": 5,
+    "/sdapi/v2/img2img": 5,
+    "/sdapi/v2/control": 5,
 }
 backend = limits.storage.MemoryStorage()
 strategy = limits.strategies.SlidingWindowCounterRateLimiter(backend)
