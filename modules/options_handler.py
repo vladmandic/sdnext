@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import sys
 import json
 import threading
 from typing import TYPE_CHECKING
@@ -16,55 +17,79 @@ if TYPE_CHECKING:
 
 cmd_opts = cmd_args.parse_args()
 compatibility_opts = ['clip_skip', 'uni_pc_lower_order_final', 'uni_pc_order']
+secrets_pattern = ['_version', '_token', '_key', '_secret', '_password']
 
 
 class Options:
     data_labels: dict[str, OptionInfo | LegacyOption]
     data: dict[str, Any]
+    secrets: dict[str, Any]
     typemap = {int: float}
     debug = os.environ.get('SD_CONFIG_DEBUG', None) is not None
+    secrets_debug = os.environ.get("SD_SECRETS_DEBUG", None) is not None
 
-    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] = None, restricted_opts: set[str] | None = None, *, filename = ''):
+    def __init__(self, options_templates: dict[str, OptionInfo | LegacyOption] = None, restricted: set[str] | None = None, *, filename = '', secrets = ''):
         if options_templates is None:
             options_templates = {}
-        if restricted_opts is None:
-            restricted_opts = set()
+        if restricted is None:
+            restricted = set()
         super().__setattr__('data_labels', options_templates)
         super().__setattr__('data', {k: v.default for k, v in options_templates.items()})
+        super().__setattr__('secrets', {})
         self.filename: str = filename or cmd_opts.config
-        self.restricted_opts = restricted_opts
+        self.secretsfn: str = secrets or cmd_opts.secrets
+        self.restricted: set[str] = restricted
         self.legacy = [k for k, v in options_templates.items() if isinstance(v, LegacyOption)]
         self.load()
 
-    def __setattr__(self, key, value): # pylint: disable=inconsistent-return-statements
-        if key in self.data or key in self.data_labels:
-            if cmd_opts.freeze:
-                log.warning(f'Settings are frozen: {key}')
-                return
-            if cmd_opts.hide_ui_dir_config and key in self.restricted_opts:
-                log.warning(f'Settings key is restricted: {key}')
-                return
-            if self.debug:
-                log.trace(f'Settings set: {key}={value}')
-            if key in self.legacy:
-                log.warning(f'Settings set: {key}={value} legacy')
-            self.data[key] = value
-            return
-        return super().__setattr__(key, value) # pylint: disable=super-with-arguments
+    def __getattr__(self, item):
+        if item == 'secrets':
+            return super().__getattribute__('secrets')
+        if item == 'data':
+            return super().__getattribute__('data')
+        if item in self.secrets:
+            if self.secrets_debug:
+                fn = f"{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}"  # pylint: disable=protected-access
+                log.trace(f"Secret: get={item} fn={fn}")
+            return self.secrets[item]
+        if item in self.data:
+            return self.data[item]
+        if item in self.data_labels:
+            return self.data_labels[item].default
+        return super().__getattribute__(item)  # pylint: disable=super-with-arguments
 
     def get(self, item):
+        if item in self.secrets:
+            if self.secrets_debug:
+                fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+                log.trace(f"Secret: get={item} fn={fn}")
+            return self.secrets[item]
         if item in self.data:
             return self.data[item]
         if item in self.data_labels:
             return self.data_labels[item].default
-        return super().__getattribute__(item) # pylint: disable=super-with-arguments
+        return super().__getattribute__(item)  # pylint: disable=super-with-arguments
 
-    def __getattr__(self, item):
-        if item in self.data:
-            return self.data[item]
-        if item in self.data_labels:
-            return self.data_labels[item].default
-        return super().__getattribute__(item) # pylint: disable=super-with-arguments
+    def __setattr__(self, key, value):  # pylint: disable=inconsistent-return-statements
+        if (key in self.data_labels) or (key in self.data) or (key in self.secrets):
+            if cmd_opts.freeze:
+                log.warning(f"Settings are frozen: {key}")
+                return
+            if cmd_opts.hide_ui_dir_config and key in self.restricted:
+                log.warning(f"Settings key is restricted: {key}")
+                return
+            if self.debug:
+                log.trace(f"Settings set: {key}={value}")
+            if key in self.legacy:
+                log.warning(f"Settings set: {key}={value} legacy")
+            if any(key.endswith(pattern) for pattern in secrets_pattern):
+                if self.secrets_debug:
+                    log.trace(f"Secret: set={key}")
+                self.secrets[key] = value
+            else:
+                self.data[key] = value
+            return
+        return super().__setattr__(key, value)  # pylint: disable=super-with-arguments
 
     def set(self, key, value):
         """sets an option and calls its onchange callback, returning True if the option changed and False otherwise"""
@@ -102,28 +127,22 @@ class Options:
         components = [k for k, v in self.data_labels.items() if v.visible]
         return components
 
-    def save_atomic(self, filename=None, silent=False):
+    def save_atomic(self, silent=False):
         if self.debug:
-            log.debug(f'Settings: save settings="{self.filename}" override="{filename}" cmd="{cmd_opts.config}" cwd="{os.getcwd()}"')
-        if filename is None:
-            filename = self.filename
-        filename = os.path.abspath(filename)
+            log.debug(f'Settings: save settings="{self.filename}" secrets="{self.secretsfn}" cmd="{cmd_opts.config}" cwd="{os.getcwd()}"')
+        filename = os.path.abspath(self.filename)
+        secretsfn = os.path.abspath(self.secretsfn)
         if cmd_opts.freeze:
             log.warning(f'Setting: fn="{filename}" save disabled')
             return
         try:
-            diff = {}
             unused_settings = []
-
-            # if self.debug:
-            #     log.debug('Settings: user')
-            #     for k, v in self.data.items():
-            #         log.trace(f'  Config: item={k} value={v} default={self.data_labels[k].default if k in self.data_labels else None}')
-
             if self.debug:
-                log.debug(f'Settings: total={len(self.data.keys())} known={len(self.data_labels.keys())}')
+                log.debug(f'Settings: total={len(self.data.keys())} secrets={len(self.secrets.keys())} known={len(self.data_labels.keys())}')
 
-            for k, v in self.data.items():
+            all_options = self.data | self.secrets
+            diff = {}
+            for k, v in all_options.items():
                 if k in self.data_labels:
                     default = self.data_labels[k].default
                     if isinstance(v, list):
@@ -142,16 +161,24 @@ class Options:
                             unused_settings.append(k)
                         if self.debug:
                             log.trace(f'Settings unknown: {k}={v}')
-            writefile(diff, filename, silent=silent)
+            options = {}
+            secrets = {}
+            for k, v in diff.items():
+                if any(k.endswith(pattern) for pattern in secrets_pattern):
+                    secrets[k] = v
+                else:
+                    options[k] = v
+            writefile(options, filename, silent=silent)
+            writefile(secrets, secretsfn, silent=silent)
             if self.debug:
                 log.trace(f'Settings save: count={len(diff.keys())} {diff}')
             if len(unused_settings) > 0:
                 log.debug(f"Settings: unused={unused_settings}")
         except Exception as err:
-            log.error(f'Settings: fn="{filename}" {err}')
+            log.error(f'Settings: config="{filename}" secrets="{secretsfn}" {err}')
 
-    def save(self, filename=None, silent=False):
-        threading.Thread(target=self.save_atomic, args=(filename, silent)).start()
+    def save(self, silent=False):
+        threading.Thread(target=self.save_atomic, args=(silent,)).start()
 
     def same_type(self, x, y):
         if x is None or y is None:
@@ -160,15 +187,15 @@ class Options:
         type_y = self.typemap.get(type(y), type(y))
         return type_x == type_y
 
-    def load(self, filename=None):
-        if filename is None:
-            filename = self.filename
-        filename = os.path.abspath(filename)
+    def load(self):
+        filename = os.path.abspath(self.filename)
+        secretsfn = os.path.abspath(self.secretsfn)
         if not os.path.isfile(filename):
-            log.debug(f'Settings: fn="{filename}" created')
-            self.save(filename)
+            log.debug(f'Settings: config="{filename}" secrets="{secretsfn}" created')
+            self.save()
             return
         self.data = readfile(filename, lock=True, as_type="dict")
+        self.secrets = readfile(secretsfn, lock=True, as_type="dict")
         if self.data.get('quicksettings') is not None and self.data.get('quicksettings_list') is None:
             self.data['quicksettings_list'] = [i.strip() for i in self.data.get('quicksettings', '').split(',')]
         unknown_settings = []

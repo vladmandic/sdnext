@@ -27,6 +27,7 @@ def add_core_args(p):
 
 def add_config_arg(p, data_dir):
     p.add_argument("--config", type=str, default=os.environ.get("SD_CONFIG", os.path.join(data_dir, 'config.json')), help="Use specific server configuration file, default: %(default)s")
+    p.add_argument("--secrets", type=str, default=os.environ.get("SD_SECRETS", os.path.join(data_dir, 'secrets.json')), help="Use specific server secrets file, default: %(default)s")
 
 
 def add_compute_args(p):
@@ -42,9 +43,11 @@ def add_compute_args(p):
     p.add_argument("--no-half", default=env_flag("SD_NOHALF", False), action='store_true', help="Do not switch the model to 16-bit float, default: %(default)s")
     p.add_argument("--no-half-vae", default=env_flag("SD_NOHALFVAE", False), action='store_true', help="Do not switch VAE model to 16-bit float, default: %(default)s")
 
+
 def add_ui_args(p):
     p.add_argument('--theme', type=str, default=os.environ.get("SD_THEME", None), help='Override UI theme')
     p.add_argument('--locale', type=str, default=os.environ.get("SD_LOCALE", None), help='Override UI locale')
+    p.add_argument("--enso", default=env_flag("SD_ENSO", False), action="store_true", help="Enable Enso frontend, default: %(default)s")
 
 
 def add_http_args(p):

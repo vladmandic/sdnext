@@ -1619,6 +1619,15 @@ def read_options():
                     opts = json.loads(opts)
             except Exception as e:
                 log.error(f'Error reading options file: {file} {e}')
+    if os.path.isfile(args.secrets):
+        with open(args.secrets, encoding="utf8") as file:
+            try:
+                secrets = json.load(file)
+                if type(secrets) is str:
+                    secrets = json.loads(secrets)
+                opts = opts | secrets
+            except Exception as e:
+                log.error(f"Error reading secrets file: {file} {e}")
     ts('options', t_start)
 
 

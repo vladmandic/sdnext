@@ -272,7 +272,7 @@ def post_settings(request: dict):
         shared.opts.data['civitai_save_subfolder'] = save_subfolder
     if discard_hash_mismatch is not None:
         shared.opts.data['civitai_discard_hash_mismatch'] = discard_hash_mismatch
-    shared.opts.save(shared.config_filename)
+    shared.opts.save()
     return get_settings()
 
 
@@ -606,5 +606,3 @@ def register_api():
     # Legacy endpoints (backward compatibility)
     api.add_api_route("/sdapi/v1/civitai", legacy_get_civitai, methods=["GET"], response_model=list, tags=["Models"])
     api.add_api_route("/sdapi/v1/civitai", legacy_post_civitai, methods=["POST"], response_model=list, tags=["Models"])
-
-    log.debug('CivitAI API: registered endpoints')
