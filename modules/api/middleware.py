@@ -22,6 +22,11 @@ ignore_endpoints = [
     '/sdapi/v1/gpu',
     '/sdapi/v1/network/thumb',
     '/sdapi/v1/progress',
+    '/sdapi/v2/browser',
+    '/sdapi/v2/gpu',
+    '/sdapi/v2/network/thumb',
+    '/sdapi/v2/progress',
+    '/sdapi/v2/ws-ticket',
 ]
 
 
@@ -53,7 +58,7 @@ def setup_middleware(app: FastAPI, cmd_opts):
             token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
             validate_request(client, endpoint)
             if (cmd_opts.api_log) and endpoint.startswith('/sdapi'):
-                if any([endpoint.startswith(x) for x in ignore_endpoints]): # noqa C419 # pylint: disable=use-a-generator
+                if any([endpoint.startswith(x) for x in ignore_endpoints]) and not cmd_opts.api_log_all: # noqa C419 # pylint: disable=use-a-generator
                     return res
                 log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {client} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
                     user = app.tokens.get(token) if hasattr(app, 'tokens') else None,

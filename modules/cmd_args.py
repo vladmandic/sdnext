@@ -85,6 +85,7 @@ def add_log_args(p):
     p.add_argument("--profile", default=env_flag("SD_PROFILE", False), action='store_true', help="Run profiler, default: %(default)s")
     p.add_argument('--docs', default=not env_flag("SD_NODOCS", False), action='store_true', help=argparse.SUPPRESS)
     p.add_argument("--api-log", default=not env_flag("SD_NOAPILOG", False), action='store_true', help=argparse.SUPPRESS)
+    p.add_argument("--api-log-all", default=env_flag("SD_API_LOG_ALL", False), action='store_true', help="Log all API requests including high-frequency endpoints, default: %(default)s")
 
 
 parsed = None
