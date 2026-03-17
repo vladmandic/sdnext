@@ -27,6 +27,8 @@ ignore_endpoints = [
     '/sdapi/v2/network/thumb',
     '/sdapi/v2/progress',
     '/sdapi/v2/ws-ticket',
+    '/sdapi/v2/memory',
+    '/sdapi/v2/loaded-models',
 ]
 
 
