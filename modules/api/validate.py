@@ -30,8 +30,8 @@ def get_stats():
             log.trace(f'API stats: {k}={v}')
 
 
-def rate_limit(key):
-    cost = request_cost.get(key, 1)
+def rate_limit(key, endpoint):
+    cost = request_cost.get(endpoint, 1)
     if not strategy.hit(limiter, key, cost=cost):
         log.warning(f'API: key={key} rate limit exceeded')
         raise HTTPException(status_code=429, detail=f'{key}: rate limit exceeded')
@@ -43,4 +43,4 @@ def validate_request(client, endpoint):
     if key not in requests_summary:
         requests_summary[key] = 0
     requests_summary[key] += 1
-    rate_limit(key)
+    rate_limit(key, api)
