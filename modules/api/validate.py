@@ -1,10 +1,7 @@
 import re
-import limits
-from fastapi.exceptions import HTTPException
 from modules.logger import log
 
 
-requests_summary = {}
 request_cost = {  # value is cost, 0=not rate limited, 1=default, >1 more expensive
     "/file": 0,
     "/run/predict": 0,
@@ -14,28 +11,50 @@ request_cost = {  # value is cost, 0=not rate limited, 1=default, >1 more expens
     "/sdapi/v1/img2img": 5,
     "/sdapi/v1/control": 5,
 }
-backend = limits.storage.MemoryStorage()
-strategy = limits.strategies.SlidingWindowCounterRateLimiter(backend)
-limiter = limits.parse("300/minute")
 
 
-def get_stats():
-    for k, v in requests_summary.items():
-        if v > 1:
-            log.trace(f'API stats: {k}={v}')
+class Limiter():
+    def __init__(self, limit):
+        import limits
+        self.limit = limit
+        self.backend = limits.storage.MemoryStorage()
+        self.strategy = limits.strategies.SlidingWindowCounterRateLimiter(self.backend)
+        self.limiter = limits.parse(f'{self.limit}/minute')
+        self.summary = {}
+        log.info(f'API: limit={self.limit} strategy={self.strategy.__class__.__name__} backend={self.backend.__class__.__name__}')
+
+    def stats(self):
+        for k, v in self.summary.items():
+            if v > 1:
+                log.trace(f'API stats: {k}={v}')
+
+    def check(self, key, quiet: bool = False):
+        if self.limit <= 0:
+            return True
+        cost = request_cost.get(key, 1)
+        status = self.strategy.hit(self.limiter, key, cost=cost)
+        if not status and not quiet:
+            log.warning(f'API: key={key} rate limit exceeded')
+            from fastapi.exceptions import HTTPException
+            raise HTTPException(status_code=429, detail=f"{key}: rate limit exceeded")
+        return status
 
 
-def rate_limit(key):
-    cost = request_cost.get(key, 1)
-    if not strategy.hit(limiter, key, cost=cost):
-        log.warning(f'API: key={key} rate limit exceeded')
-        raise HTTPException(status_code=429, detail=f'{key}: rate limit exceeded')
+limiter = Limiter(300)
+
+
+def get_api_stats():
+    limiter.stats()
 
 
 def validate_request(client, endpoint):
+    global limiter # pylint: disable=global-statement
+    from modules.shared import opts
+    if opts.server_rate_limit != limiter.limit:
+        limiter = Limiter(opts.server_rate_limit)
     api = re.match(r"^[^?#&=]+", endpoint).group(0)
     key = f"{client}:{api}"
-    if key not in requests_summary:
-        requests_summary[key] = 0
-    requests_summary[key] += 1
-    rate_limit(key)
+    if key not in limiter.summary:
+        limiter.summary[key] = 0
+    limiter.summary[key] += 1
+    return limiter.check(key)

@@ -251,6 +251,14 @@ def create_settings(cmd_opts):
         "dynamic_attention_trigger_rate": OptionInfo(1, "Dynamic Attention trigger rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4)*2, "step": 0.01}),
     }))
 
+    # --- Server Settings ---
+    options_templates.update(options_section(('server', "Server Settings"), {
+        "server_listen": OptionInfo(False, "Listen on all interfaces", gr.Checkbox),
+        "server_status": OptionInfo(120, "Automatic server status monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
+        "server_monitor": OptionInfo(0, "Automatic server memory monitor rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
+        "server_rate_limit": OptionInfo(300, "API base rate limit rate", gr.Number, {"minimum": 0, "maximum": 1000, "step": 1}),
+    }))
+
     # --- Backend Settings ---
     options_templates.update(options_section(('backends', "Backend Settings"), {
         "other_sep": OptionInfo("<h2>Torch Options</h2>", "", gr.HTML),

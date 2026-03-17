@@ -311,16 +311,18 @@ def main():
             alive = False
             requests = 0
         t_current = time.time()
-        if float(args.status) > 0 and (t_current - t_server) > float(args.status):
+        status_rate = float(args.status) if args.status >= 0 else installer.opts.get('server_status', 120)
+        monitor_rate = float(args.monitor) if args.monitor >= 0 else installer.opts.get('server_monitor', 0)
+        if float(status_rate) > 0 and (t_current - t_server) > float(status_rate):
             s = instance.state.status()
             if (s.timestamp is None) or (s.step == 0): # dont spam during active job
                 log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {s}')
             t_server = t_current
-        if float(args.monitor) > 0 and t_current - t_monitor > float(args.monitor):
+        if float(monitor_rate) > 0 and t_current - t_monitor > float(monitor_rate):
             log.trace(f'Monitor: {get_memory_stats(detailed=True)}')
             t_monitor = t_current
-            from modules.api.validate import get_stats
-            get_stats()
+            from modules.api.validate import get_api_stats
+            get_api_stats()
         if not alive:
             if uv is not None and uv.wants_restart:
                 clean_server()
