@@ -505,7 +505,7 @@ class YoloRestorer(Detailer):
             shared.opts.detailer_sigma_adjust_max = renoise_end
             shared.opts.detailer_save = save
             shared.opts.detailer_sort = sort
-            shared.opts.detailer_seg = seg
+            shared.opts.detailer_segmentation = seg
             # shared.opts.detailer_resolution = resolution
             shared.opts.save(silent=True)
             log.debug(f'Detailer settings: models={detailers} classes={classes} strength={strength} conf={min_confidence} max={max_detected} iou={iou} size={min_size}-{max_size} padding={padding} steps={steps} resolution={resolution} save={save} sort={sort} seg={seg}')
@@ -516,7 +516,7 @@ class YoloRestorer(Detailer):
             with gr.Row():
                 enabled = gr.Checkbox(label="Enable detailer pass", elem_id=f"{tab}_detailer_enabled", value=False)
             with gr.Row():
-                seg = gr.Checkbox(label="Use segmentation", elem_id=f"{tab}_detailer_seg", value=shared.opts.detailer_seg, visible=True)
+                seg = gr.Checkbox(label="Use segmentation", elem_id=f"{tab}_detailer_seg", value=shared.opts.detailer_segmentation, visible=True)
                 save = gr.Checkbox(label="Include detections", elem_id=f"{tab}_detailer_save", value=shared.opts.detailer_save, visible=True)
             with gr.Row():
                 merge = gr.Checkbox(label="Merge detailers", elem_id=f"{tab}_detailer_merge", value=shared.opts.detailer_merge, visible=True)
