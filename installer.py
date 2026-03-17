@@ -1317,10 +1317,11 @@ def check_ui(ver):
     if not same(ver):
         log.debug(f'Branch mismatch: {ver}')
         try:
-            target = 'dev' if 'dev' in ver['branch'] else 'main'
-            git('checkout ' + target, folder='extensions-builtin/sdnext-modernui', ignore=True, optional=True)
-            ver = get_version(force=True)
-            log.debug(f'Branch sync: {ver}')
+            target = 'dev' if 'dev' in ver['branch'] else None
+            if target:
+                git('checkout ' + target, folder='extensions-builtin/sdnext-modernui', ignore=True, optional=True)
+                ver = get_version(force=True)
+                log.debug(f'Branch sync: {ver}')
         except Exception as e:
             log.debug(f'Branch switch: {e}')
     ts('ui', t_start)
