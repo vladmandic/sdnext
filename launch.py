@@ -292,6 +292,11 @@ def main():
             else:
                 log.warning(f'Setup complete with errors: {installer.errors}')
                 log.warning(f'See log file for more details: {installer.log_file}')
+        if args.enso and not args.skip_git:
+            from modules import enso
+            enso.install()
+            if args.upgrade:
+                enso.update()
     installer.extensions_preload(parser) # adds additional args from extensions
     args = installer.parse_args(parser)
     log.info(f'Installer time: {init_summary()}')
