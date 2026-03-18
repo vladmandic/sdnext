@@ -410,7 +410,7 @@ def test_triton(early: bool = False):
         if debug:
             from modules import errors
             errors.display(e, 'Triton')
-    triton_version = False
+    triton_version = None
     if triton_ok:
         if triton_version is None:
             try:
