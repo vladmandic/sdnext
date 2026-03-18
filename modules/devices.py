@@ -4,8 +4,10 @@ import time
 import contextlib
 import importlib.metadata
 import torch
+from installer import torch_info
+from modules.logger import log
 from modules import rocm, attention
-from modules.errors import log, display, install as install_traceback
+from modules.errors import display, install as install_traceback
 
 
 debug = os.environ.get('SD_DEVICE_DEBUG', None) is not None
@@ -398,17 +400,35 @@ def test_triton(early: bool = False):
             test_triton_func(torch.randn(16, device=device), torch.randn(16, device=device), torch.randn(16, device=device))
             triton_ok = True
         else:
+            torch_info.set(triton=False)
             triton_ok = False
     except Exception as e:
+        torch_info.set(triton=False)
         triton_ok = False
         line = str(e).splitlines()[0]
         log.warning(f"Triton test fail: {line}")
         if debug:
             from modules import errors
             errors.display(e, 'Triton')
+    triton_version = False
+    if triton_ok:
+        if triton_version is None:
+            try:
+                import torch._inductor.triton as torch_triton
+
+                triton_version = torch_triton.__version__
+            except Exception:
+                pass
+        if triton_version is None:
+            try:
+                import triton
+                triton_version = triton.__version__
+            except Exception:
+                pass
+        torch_info.set(triton=triton_version)
     t1 = time.time()
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    log.debug(f'Triton: pass={triton_ok} fn={fn} time={t1-t0:.2f}')
+    log.debug(f'Triton: pass={triton_ok} version={triton_version} fn={fn} time={t1-t0:.2f}')
     if not triton_ok and opts is not None:
         opts.sdnq_dequantize_compile = False
     return triton_ok
@@ -469,6 +489,7 @@ def set_sdpa_params():
             torch.backends.cuda.enable_math_sdp('Math' in opts.sdp_options or 'Math attention' in opts.sdp_options)
             if hasattr(torch.backends.cuda, "allow_fp16_bf16_reduction_math_sdp"): # only valid for torch >= 2.5
                 torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)
+            torch_info.set(attention="sdpa")
             log.debug(f'Torch attention: type="sdpa" kernels={opts.sdp_options} overrides={opts.sdp_overrides}')
         except Exception as err:
             log.warning(f'Torch attention: type="sdpa" {err}')
@@ -559,6 +580,10 @@ def set_dtype():
         inference_context = contextlib.nullcontext
     else:
         inference_context = torch.no_grad
+    if dtype == dtype_vae:
+        torch_info.set(dtype=str(dtype))
+    else:
+        torch_info.set(dtype=str(dtype), vae=str(dtype_vae))
 
 
 def set_cuda_params():

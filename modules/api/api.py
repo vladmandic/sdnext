@@ -39,12 +39,14 @@ class Api:
     def register(self):
         # fetch js/css
         self.add_api_route("/js", server.get_js, methods=["GET"], auth=False)
+
         # server api
         self.add_api_route("/sdapi/v1/motd", server.get_motd, methods=["GET"], response_model=str)
         self.add_api_route("/sdapi/v1/log", server.get_log, methods=["GET"], response_model=list[str])
         self.add_api_route("/sdapi/v1/log", server.post_log, methods=["POST"])
         self.add_api_route("/sdapi/v1/start", self.get_session_start, methods=["GET"])
         self.add_api_route("/sdapi/v1/version", server.get_version, methods=["GET"])
+        self.add_api_route("/sdapi/v1/torch", server.get_torch, methods=["GET"])
         self.add_api_route("/sdapi/v1/status", server.get_status, methods=["GET"], response_model=models.ResStatus)
         self.add_api_route("/sdapi/v1/platform", server.get_platform, methods=["GET"])
         self.add_api_route("/sdapi/v1/progress", server.get_progress, methods=["GET"], response_model=models.ResProgress)
@@ -54,7 +56,8 @@ class Api:
         self.add_api_route("/sdapi/v1/shutdown", server.post_shutdown, methods=["POST"])
         self.add_api_route("/sdapi/v1/memory", server.get_memory, methods=["GET"], response_model=models.ResMemory)
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel)
-        self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu_status, methods=["GET"], response_model=list[models.ResGPU])
+        self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu, methods=["GET"])
+        self.add_api_route("/sdapi/v1/gpu-smi", gpu.get_gpu_smi, methods=["GET"], response_model=list[models.ResGPU])
 
         # core api using locking
         self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img, tags=["Generation"])

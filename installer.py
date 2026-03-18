@@ -20,6 +20,11 @@ class Dot(dict): # dot notation access to dictionary attributes
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+class Torch(dict):
+    def set(self, **kwargs):
+        for k, v in kwargs.items():
+            self[k] = v
+
 version = {
     'app': 'sd.next',
     'updated': 'unknown',
@@ -75,6 +80,8 @@ control_extensions = [ # 3rd party extensions marked as safe for control ui
     'IP Adapters',
     'Remove background',
 ]
+gpu_info = []
+torch_info = Torch()
 
 
 try:
@@ -588,7 +595,7 @@ def install_rocm_zluda():
             if device_id < len(amd_gpus):
                 device = amd_gpus[device_id]
 
-    if sys.platform == "win32" and not args.use_zluda and device is not None and device.therock is not None and not installed("rocm"):
+    if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
         install(f"rocm[devel,libraries] --index-url https://rocm.nightlies.amd.com/{device.therock}")
         rocm.refresh()
@@ -750,6 +757,18 @@ def check_cudnn():
                 os.environ['CUDA_PATH'] = cuda_path
 
 
+def get_cuda_arch(capability):
+    major, minor = capability
+    mapping = {9: "Hopper",
+               8: "Ada Lovelace" if minor == 9 else "Ampere",
+               7: "Turing" if minor == 5 else "Volta",
+               6: "Pascal",
+               5: "Maxwell",
+               3: "Kepler"}
+    name = mapping.get(major, "Unknown")
+    return f"{major}.{minor} {name}"
+
+
 # check torch version
 def check_torch():
     log.info('Torch: verifying installation')
@@ -832,6 +851,7 @@ def check_torch():
             log.info(f'Torch backend: type=IPEX version={ipex.__version__}')
         except Exception:
             pass
+        torch_info.set(version=torch.__version__)
         if 'cpu' in torch.__version__:
             if is_cuda_available:
                 if args.use_cuda:
@@ -845,20 +865,44 @@ def check_torch():
                     install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
                 else:
                     log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is available - consider reinstalling')
+            if args.use_openvino:
+                torch_info.set(type='openvino')
+            else:
+                torch_info.set(type='cpu')
+
         if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
             if shutil.which('icpx') is not None:
                 log.info(f'{os.popen("icpx --version").read().rstrip()}')
+            torch_info.set(type='xpu', oneapi=torch.xpu.runtime_version(), dpc=torch.xpu.dpcpp_version(), driver=torch.xpu.driver_version())
             for device in range(torch.xpu.device_count()):
-                log.info(f'Torch detected: gpu="{torch.xpu.get_device_name(device)}" vram={round(torch.xpu.get_device_properties(device).total_memory / 1024 / 1024)} units={torch.xpu.get_device_properties(device).max_compute_units}')
+                gpu = {
+                    'gpu': torch.xpu.get_device_name(device),
+                    'vram': round(torch.xpu.get_device_properties(device).total_memory / 1024 / 1024),
+                    'units': torch.xpu.get_device_properties(device).max_compute_units,
+                }
+                log.info(f'Torch detected: {gpu}')
+                gpu_info.append(gpu)
+
         elif torch.cuda.is_available() and (allow_cuda or allow_rocm):
-            if torch.version.cuda and allow_cuda:
-                log.info(f'Torch backend: version="{torch.__version__}" type=CUDA CUDA={torch.version.cuda} cuDNN={torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else "N/A"}')
+            if args.use_zluda:
+                torch_info.set(type="zluda", cuda=torch.version.cuda)
+            elif torch.version.cuda and allow_cuda:
+                torch_info.set(type='cuda', cuda=torch.version.cuda, cudnn=torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else 'N/A')
             elif torch.version.hip and allow_rocm:
-                log.info(f'Torch backend: version="{torch.__version__}" type=ROCm HIP={torch.version.hip}')
+                torch_info.set(type='rocm', hip=torch.version.hip)
             else:
                 log.warning('Unknown Torch backend')
+            log.info(f"Torch backend: {torch_info}")
             for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
-                log.info(f'Torch detected: gpu="{torch.cuda.get_device_name(device)}" vram={round(torch.cuda.get_device_properties(device).total_memory / 1024 / 1024)} arch={torch.cuda.get_device_capability(device)} cores={torch.cuda.get_device_properties(device).multi_processor_count}')
+                gpu = {
+                    'gpu': torch.cuda.get_device_name(device),
+                    'vram': round(torch.cuda.get_device_properties(device).total_memory / 1024 / 1024),
+                    'arch': get_cuda_arch(torch.cuda.get_device_capability(device)),
+                    'cores': torch.cuda.get_device_properties(device).multi_processor_count,
+                }
+                gpu_info.append(gpu)
+                log.info(f'Torch detected: {gpu}')
+
         else:
             try:
                 if args.use_directml and allow_directml:
@@ -867,7 +911,11 @@ def check_torch():
                     log.warning(f'Torch backend: DirectML ({dml_ver})')
                     log.warning('DirectML: end-of-life')
                     for i in range(0, torch_directml.device_count()):
-                        log.info(f'Torch detected GPU: {torch_directml.device_name(i)}')
+                        gpu = {
+                            'gpu': torch_directml.device_name(i),
+                        }
+                        gpu_info.append(gpu)
+                        log.info(f'Torch detected GPU: {gpu}')
             except Exception:
                 log.warning("Torch reports CUDA not available")
     except Exception as e:

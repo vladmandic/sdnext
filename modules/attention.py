@@ -2,7 +2,7 @@ from functools import wraps
 import torch
 from modules import rocm
 from modules.errors import log
-from installer import install, installed
+from installer import install, installed, torch_info
 
 
 def set_dynamic_attention():
@@ -10,6 +10,7 @@ def set_dynamic_attention():
         sdpa_pre_dyanmic_atten = torch.nn.functional.scaled_dot_product_attention
         from modules.sd_hijack_dynamic_atten import dynamic_scaled_dot_product_attention
         torch.nn.functional.scaled_dot_product_attention = dynamic_scaled_dot_product_attention
+        torch_info.set(attention='dynamic')
         return sdpa_pre_dyanmic_atten
     except Exception as err:
         log.error(f'Torch attention: type="dynamic attention" {err}')
@@ -20,6 +21,7 @@ def set_triton_flash_attention(backend: str):
     try:
         if backend in {"rocm", "zluda"}: # flash_attn_triton_amd only works with AMD
             from modules.flash_attn_triton_amd import interface_fa
+
             sdpa_pre_triton_flash_atten = torch.nn.functional.scaled_dot_product_attention
             @wraps(sdpa_pre_triton_flash_atten)
             def sdpa_triton_flash_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
@@ -42,6 +44,7 @@ def set_triton_flash_attention(backend: str):
                         kwargs["enable_gqa"] = enable_gqa
                     return sdpa_pre_triton_flash_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
             torch.nn.functional.scaled_dot_product_attention = sdpa_triton_flash_atten
+            torch_info.set(attention='triton')
             log.debug('Torch attention: type="Triton Flash attention"')
     except Exception as err:
         log.error(f'Torch attention: type="Triton Flash attention" {err}')
@@ -78,6 +81,7 @@ def set_flex_attention():
             return flex_attention(query, key, value, score_mod=score_mod, block_mask=block_mask, scale=scale, enable_gqa=enable_gqa)
 
         torch.nn.functional.scaled_dot_product_attention = sdpa_flex_atten
+        torch_info.set(attention="flex")
         log.debug('Torch attention: type="Flex attention"')
     except Exception as err:
         log.error(f'Torch attention: type="Flex attention" {err}')
@@ -93,6 +97,7 @@ def set_ck_flash_attention(backend: str, device: torch.device):
         else:
             install('flash-attn')
         from flash_attn import flash_attn_func
+
         sdpa_pre_flash_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_flash_atten)
         def sdpa_flash_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
@@ -120,6 +125,7 @@ def set_ck_flash_attention(backend: str, device: torch.device):
                     kwargs["enable_gqa"] = enable_gqa
                 return sdpa_pre_flash_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
         torch.nn.functional.scaled_dot_product_attention = sdpa_flash_atten
+        torch_info.set(attention="flash")
         log.debug('Torch attention: type="Flash attention"')
     except Exception as err:
         log.error(f'Torch attention: type="Flash attention" {err}')
@@ -174,6 +180,7 @@ def set_sage_attention(backend: str, device: torch.device):
                     kwargs["enable_gqa"] = enable_gqa
                 return sdpa_pre_sage_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
         torch.nn.functional.scaled_dot_product_attention = sdpa_sage_atten
+        torch_info.set(attention="sage")
         log.debug(f'Torch attention: type="Sage attention" backend={"cuda" if use_cuda_backend else "auto"}')
     except Exception as err:
         log.error(f'Torch attention: type="Sage attention" {err}')
@@ -208,19 +215,22 @@ def set_diffusers_attention(pipe, quiet:bool=False):
 
     log.quiet(quiet, f'Setting model: attention="{shared.opts.cross_attention_optimization}"')
     if shared.opts.cross_attention_optimization == "Disabled":
-        pass # do nothing
-    elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product": # The default set by Diffusers
+        torch_info.set(attention="disabled")
+    elif shared.opts.cross_attention_optimization == "Scaled-Dot-Product":  # The default set by Diffusers
+        torch_info.set(attention="sdpa")
         # set_attn(pipe, p.AttnProcessor2_0(), name="Scaled-Dot-Product")
-        pass
     elif shared.opts.cross_attention_optimization == "xFormers":
         if hasattr(pipe, 'enable_xformers_memory_efficient_attention'):
+            torch_info.set(attention="xformers")
             pipe.enable_xformers_memory_efficient_attention()
         else:
             log.warning(f"Attention: xFormers is not compatible with {pipe.__class__.__name__}")
     elif shared.opts.cross_attention_optimization == "Batch matrix-matrix":
+        torch_info.set(attention="bmm")
         set_attn(pipe, p.AttnProcessor(), name="Batch matrix-matrix")
     elif shared.opts.cross_attention_optimization == "Dynamic Attention BMM":
         from modules.sd_hijack_dynamic_atten import DynamicAttnProcessorBMM
+        torch_info.set(attention="dynamic_bmm")
         set_attn(pipe, DynamicAttnProcessorBMM(), name="Dynamic Attention BMM")
 
     if shared.opts.attention_slicing != "Default" and hasattr(pipe, "enable_attention_slicing") and hasattr(pipe, "disable_attention_slicing"):
