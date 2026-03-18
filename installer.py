@@ -1317,7 +1317,12 @@ def check_ui(ver):
     if not same(ver):
         log.debug(f'Branch mismatch: {ver}')
         try:
-            target = 'dev' if 'dev' in ver['branch'] else None
+            if 'dev' in ver['branch']:
+                target = 'dev'
+            elif 'main' in ver['branch'] or 'master' in ver['branch']:
+                target = 'main'
+            else:
+                target =None
             if target:
                 git('checkout ' + target, folder='extensions-builtin/sdnext-modernui', ignore=True, optional=True)
                 ver = get_version(force=True)
