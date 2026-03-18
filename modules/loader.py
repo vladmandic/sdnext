@@ -124,6 +124,7 @@ timer.startup.record("bnb")
 
 import huggingface_hub # pylint: disable=W0611,C0411
 logging.getLogger("huggingface_hub.file_download").setLevel(logging.ERROR)
+logging.getLogger("huggingface_hub.utils._http").setLevel(logging.ERROR)
 timer.startup.record("hfhub")
 
 import accelerate # pylint: disable=W0611,C0411
