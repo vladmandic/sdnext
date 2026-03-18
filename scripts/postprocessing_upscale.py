@@ -1,7 +1,8 @@
 from PIL import Image
 import gradio as gr
-from modules import scripts_postprocessing, shared
+from modules import scripts_postprocessing, shared, modelloader
 from modules.ui_components import ToolButton
+from modules.ui_common import create_refresh_button
 import modules.ui_symbols as symbols
 from modules.logger import log
 
@@ -29,6 +30,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
 
                 with gr.Row():
                     extras_upscaler_1 = gr.Dropdown(label='Upscaler', elem_id="extras_upscaler_1", choices=[x.name for x in shared.sd_upscalers], value=shared.sd_upscalers[0].name)
+                    create_refresh_button(extras_upscaler_1, modelloader.load_upscalers, lambda: {"choices": modelloader.load_upscalers()}, "process_upscalers_refresh")
 
                 with gr.Row():
                     extras_upscaler_2 = gr.Dropdown(label='Refine upscaler', elem_id="extras_upscaler_2", choices=[x.name for x in shared.sd_upscalers], value=shared.sd_upscalers[0].name)
