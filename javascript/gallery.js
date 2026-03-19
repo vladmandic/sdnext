@@ -32,7 +32,7 @@ const gallerySorter = {
   resD: { name: 'Resolution Descending', func: (b, a) => a.width * a.height - b.width * b.height },
   modA: { name: 'Modified Ascending', func: (a, b) => a.mtime - b.mtime },
   modD: { name: 'Modified Descending', func: (b, a) => a.mtime - b.mtime },
-  none: { name: 'None', func: null },
+  none: { name: 'None', func: undefined },
 };
 
 let sortMode = gallerySorter.none;
