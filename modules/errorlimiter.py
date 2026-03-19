@@ -1,6 +1,6 @@
 from __future__ import annotations
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, ClassVar
 from threading import Lock
 
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ class ErrorLimiterAbort(RuntimeError):
 
 
 class ErrorLimiter:
-    _store: dict[str, int] = {}
+    _store: ClassVar[dict[str, int]] = {}
 
     @classmethod
     def start(cls, name: str, limit: int = 5):
