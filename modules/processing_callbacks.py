@@ -40,7 +40,7 @@ def diffusers_callback_legacy(step: int, timestep: int, latents: torch.FloatTens
         latents = torch.from_numpy(latents)
     shared.state.sampling_step = step
     shared.state.current_latent = latents
-    latents = processing_correction.correction_callback(p, timestep, {'latents': latents})
+    latents = processing_correction.correction_callback(p, timestep, {'latents': latents}, step=step)
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
     if shared.state.paused:
@@ -93,7 +93,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = No
             debug_callback(f"Callback: IP Adapter scales={ip_adapter_scales}")
             pipe.set_ip_adapter_scale(ip_adapter_scales)
     if step != getattr(pipe, 'num_timesteps', 0):
-        kwargs = processing_correction.correction_callback(p, timestep, kwargs, pipe=pipe, initial=step == 0)
+        kwargs = processing_correction.correction_callback(p, timestep, kwargs, pipe=pipe, initial=step == 0, step=step)
     kwargs = prompt_callback(step, kwargs)  # monkey patch for diffusers callback issues
 
     if step == 0:
