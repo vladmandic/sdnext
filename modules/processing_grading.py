@@ -69,6 +69,11 @@ class GradingParams:
     lut_file: str = ""
     lut_strength: float = 1.0
 
+    def __post_init__(self):
+        for f in fields(self):
+            if f.type is float:
+                setattr(self, f.name, float(getattr(self, f.name)))
+
 
 _defaults = GradingParams()
 
@@ -112,18 +117,22 @@ def _apply_shadows_midtones_highlights(img: torch.Tensor, shadows: float, midton
     kornia = _ensure_kornia()
     lab = kornia.color.rgb_to_lab(img)
     L = lab[:, 0:1, :, :] / 100.0  # normalize to [0, 1]
+    strength = 2.0  # scale slider values for more visible effect
     if shadows != 0:
+        s = shadows * strength
         shadow_mask = (1.0 - L).clamp(0, 1) ** 2
-        gamma = 1.0 / (1.0 + shadows) if shadows > 0 else 1.0 - shadows
+        gamma = 1.0 / (1.0 + s) if s > 0 else 1.0 - s
         L = L + shadow_mask * (L.clamp(min=1e-6) ** gamma - L)
     if highlights != 0:
+        h = highlights * strength
         highlight_mask = L.clamp(0, 1) ** 2
-        gamma = 1.0 / (1.0 + highlights) if highlights > 0 else 1.0 - highlights
+        gamma = 1.0 / (1.0 + h) if h > 0 else 1.0 - h
         L = L + highlight_mask * (L.clamp(min=1e-6) ** gamma - L)
     if midtones != 0:
+        m = midtones * strength
         mid_mask = 1.0 - 2.0 * (L - 0.5).abs()
         mid_mask = mid_mask.clamp(0, 1) ** 2
-        gamma = 1.0 / (1.0 + midtones) if midtones > 0 else 1.0 - midtones
+        gamma = 1.0 / (1.0 + m) if m > 0 else 1.0 - m
         L = L + mid_mask * (L.clamp(min=1e-6) ** gamma - L)
     lab[:, 0:1, :, :] = L.clamp(0, 1) * 100.0
     return kornia.color.lab_to_rgb(lab).clamp(0, 1)
@@ -207,7 +216,7 @@ def grade_image(image: Image.Image, params: GradingParams) -> Image.Image:
     if params.gamma != 1.0:
         tensor = kornia.enhance.adjust_gamma(tensor, params.gamma)
     if params.sharpness != 0:
-        tensor = kornia.enhance.sharpness(tensor, params.sharpness)
+        tensor = kornia.enhance.sharpness(tensor, 1.0 + params.sharpness * 4.0)
     if params.color_temp != 6500:
         tensor = _apply_color_temp(tensor, params.color_temp)
 
@@ -215,7 +224,11 @@ def grade_image(image: Image.Image, params: GradingParams) -> Image.Image:
     if params.shadows != 0 or params.midtones != 0 or params.highlights != 0:
         tensor = _apply_shadows_midtones_highlights(tensor, params.shadows, params.midtones, params.highlights)
     if params.clahe_clip > 0:
-        tensor = kornia.enhance.equalize_clahe(tensor, clip_limit=params.clahe_clip, grid_size=(params.clahe_grid, params.clahe_grid))
+        lab = kornia.color.rgb_to_lab(tensor)
+        L = lab[:, 0:1, :, :] / 100.0
+        L = kornia.enhance.equalize_clahe(L, clip_limit=params.clahe_clip, grid_size=(params.clahe_grid, params.clahe_grid))
+        lab[:, 0:1, :, :] = L * 100.0
+        tensor = kornia.color.lab_to_rgb(lab).clamp(0, 1)
 
     # split toning
     if params.shadows_tint != "#000000" or params.highlights_tint != "#ffffff":

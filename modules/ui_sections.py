@@ -205,7 +205,7 @@ def create_color_inputs(tab):
                 grading_midtones = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label='Midtones', elem_id=f"{tab}_grading_midtones")
                 grading_highlights = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label='Highlights', elem_id=f"{tab}_grading_highlights")
             with gr.Row(elem_id=f"{tab}_grading_clahe_row"):
-                grading_clahe_clip = gr.Slider(minimum=0.0, maximum=40.0, step=1.0, value=0, label='CLAHE clip', elem_id=f"{tab}_grading_clahe_clip")
+                grading_clahe_clip = gr.Slider(minimum=0.0, maximum=5.0, step=0.25, value=0, label='CLAHE clip', elem_id=f"{tab}_grading_clahe_clip")
                 grading_clahe_grid = gr.Slider(minimum=2, maximum=16, step=1, value=8, label='CLAHE grid', elem_id=f"{tab}_grading_clahe_grid")
         with gr.Group():
             with gr.Row(elem_id=f"{tab}_grading_split_row"):
