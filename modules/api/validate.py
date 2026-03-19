@@ -29,6 +29,8 @@ log_cost = {
     "/sdapi/v1/platform": 60,
     "/sdapi/v1/checkpoint": 60,
 }
+log_exclude_suffix = ['.css', '.js', '.ico', '.svg']
+log_exclude_prefix = ['/assets']
 
 class Limiter():
     def __init__(self, limit):
@@ -65,6 +67,10 @@ class Limiter():
     def check_log(self, client: str, api: str):
         if self.log_limit < 0:
             return True
+        if any(api.endswith(s) for s in log_exclude_suffix):
+            return False
+        if any(api.startswith(s) for s in log_exclude_prefix):
+            return False
         cost = log_cost.get(api, 1)
         if cost < 0:
             return False

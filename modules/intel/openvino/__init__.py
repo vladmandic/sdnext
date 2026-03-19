@@ -17,9 +17,9 @@ from torch.utils._pytree import tree_flatten
 
 from types import MappingProxyType
 from hashlib import sha256
-import functools
 
-from modules import shared, devices, sd_models, sd_models_utils
+import installer
+from modules import shared, devices, sd_models_utils
 from modules.logger import log
 
 
@@ -31,6 +31,7 @@ try:
     filterwarnings = warnings.filterwarnings
     warnings.filterwarnings = lambda *args, **kwargs: None
     import openvino.runtime # pylint: disable=unused-import
+    installer.torch_info.set(openvino=openvino.runtime.get_version())
     warnings.filterwarnings = filterwarnings
 except Exception:
     pass

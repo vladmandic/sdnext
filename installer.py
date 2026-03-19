@@ -873,12 +873,15 @@ def check_torch():
         if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
             if shutil.which('icpx') is not None:
                 log.info(f'{os.popen("icpx --version").read().rstrip()}')
-            torch_info.set(type='xpu', oneapi=torch.xpu.runtime_version(), dpc=torch.xpu.dpcpp_version(), driver=torch.xpu.driver_version())
+            torch_info.set(type='xpu')
             for device in range(torch.xpu.device_count()):
+                props = torch.xpu.get_device_properties(device)
                 gpu = {
                     'gpu': torch.xpu.get_device_name(device),
-                    'vram': round(torch.xpu.get_device_properties(device).total_memory / 1024 / 1024),
-                    'units': torch.xpu.get_device_properties(device).max_compute_units,
+                    'platform': props.platform_name,
+                    'driver': props.driver_version,
+                    'vram': round(props.total_memory / 1024 / 1024),
+                    'units': props.max_compute_units,
                 }
                 log.info(f'Torch detected: {gpu}')
                 gpu_info.append(gpu)
