@@ -1,15 +1,37 @@
 from __future__ import annotations
 from contextlib import contextmanager
 from typing import TYPE_CHECKING
+from threading import Lock
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+_instance_id = 0
+_lock = Lock()
+
+
+def _make_unique(name: str):
+    global _instance_id
+    with _lock:  # Guard against race conditions
+        new_name = f"{name}__{_instance_id}"
+        _instance_id += 1
+        return new_name
+
 
 class ErrorLimiterTrigger(BaseException):  # Use BaseException to avoid being caught by "except Exception:".
+    name: str
+    identifier: str | None
+
     def __init__(self, name: str, *args):
         super().__init__(*args)
-        self.name = name
+        if "__" in name:
+            self.name, self.identifier = name.rsplit("__", 1)
+            if self.name == "":  # Edge case if the only "__" was at the beginning of the name
+                self.name = self.identifier
+                self.identifier = None
+        else:
+            self.name = name  # Possible if implemented manually
+            self.identifier = None
 
 
 class ErrorLimiterAbort(RuntimeError):
@@ -64,10 +86,11 @@ def limit_errors(name: str, limit: int = 5):
     Yields:
         Callable: Notification function to indicate that an error occurred.
     """
+    name_id = _make_unique(name)
     try:
-        ErrorLimiter.start(name, limit)
-        yield lambda: ErrorLimiter.notify(name)
+        ErrorLimiter.start(name_id, limit)
+        yield lambda: ErrorLimiter.notify(name_id)
     except ErrorLimiterTrigger as e:
         raise ErrorLimiterAbort(f"HALTING. Too many errors during '{e.name}'") from None
     finally:
-        ErrorLimiter.end(name)
+        ErrorLimiter.end(name_id)
