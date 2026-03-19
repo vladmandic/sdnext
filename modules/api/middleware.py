@@ -12,17 +12,9 @@ from fastapi.exceptions import HTTPException
 from fastapi.encoders import jsonable_encoder
 from modules.logger import log
 import modules.errors as errors
-from modules.api.validate import validate_request
+from modules.api.validate import validate_request, validate_log
 
 errors.install()
-ignore_endpoints = [
-    '/sdapi/v1/version',
-    '/sdapi/v1/log',
-    '/sdapi/v1/browser',
-    '/sdapi/v1/gpu-smi',
-    '/sdapi/v1/network/thumb',
-    '/sdapi/v1/progress',
-]
 
 
 def setup_middleware(app: FastAPI, cmd_opts):
@@ -52,8 +44,8 @@ def setup_middleware(app: FastAPI, cmd_opts):
             client = req.scope.get('client', ('0:0.0.0', 0))[0]
             token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
             validate_request(client, endpoint)
-            if (cmd_opts.api_log) and endpoint.startswith('/sdapi'):
-                if any([endpoint.startswith(x) for x in ignore_endpoints]): # noqa C419 # pylint: disable=use-a-generator
+            if (cmd_opts.api_log):
+                if not validate_log(client, endpoint):
                     return res
                 log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {client} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
                     user = app.tokens.get(token) if hasattr(app, 'tokens') else None,
@@ -86,7 +78,9 @@ def setup_middleware(app: FastAPI, cmd_opts):
         if err["code"] == 429:  # dont spam with rate limit errors
             return JSONResponse(status_code=err["code"], content=jsonable_encoder(err))
 
-        if not any([req.url.path.endswith(x) for x in ignore_endpoints]): # noqa C419 # pylint: disable=use-a-generator
+        endpoint = req.scope.get("path", "err")
+        client = req.scope.get("client", ("0:0.0.0", 0))[0]
+        if not validate_log(client, endpoint):
             log.error(f"API error: {req.method}: {req.url} {err}")
 
         if not isinstance(e, HTTPException) and err['error'] != 'TypeError': # do not print backtrace on known httpexceptions

@@ -345,11 +345,12 @@ samplers_data_diffusers = [
     SamplerData('Same as primary', None, [], {}),
 ]
 
-# stubs for Enso v2 sampler endpoint — real implementation pending
-def get_sampler_compatibility(model): # pylint: disable=unused-argument
+
+def get_sampler_compatibility(sd_model):  # pylint: disable=unused-argument # TODO enso-required
     return {}
 
-def get_sampler_capability():
+
+def get_sampler_capability(): # TODO enso-required
     return {}
 
 
@@ -367,7 +368,7 @@ class DiffusionSampler:
         self.config = {}
         self.sampler = None
 
-        if getattr(model, "default_scheduler", None) is None and (model is not None): # sanity check
+        if model is not None and getattr(model, "default_scheduler", None) is None and (model is not None): # sanity check
             model.default_scheduler = copy.deepcopy(model.scheduler)
         for key, value in config.get('All', {}).items(): # apply global defaults
             self.config[key] = value
