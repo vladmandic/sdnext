@@ -19,28 +19,13 @@ def _make_unique(name: str):
         return new_name
 
 
-class ErrorLimiterTrigger(BaseException):  # Use BaseException to avoid being caught by "except Exception:".
-    name: str
-    identifier: str | None
-
+class _ErrorLimiterTrigger(BaseException):  # Use BaseException to avoid being caught by "except Exception:".
     def __init__(self, name: str, *args):
         super().__init__(*args)
-        if "__" in name:
-            self.name, self.identifier = name.rsplit("__", 1)
-            if self.name == "":  # Edge case if the only "__" was at the beginning of the name
-                self.name = self.identifier
-                self.identifier = None
-        else:
-            self.name = name  # Possible if implemented manually
-            self.identifier = None
+        self.name = name.rsplit("__", 1)[0]
 
 
-class ErrorLimiterAbort(RuntimeError):
-    def __init__(self, msg: str):
-        super().__init__(msg)
-
-
-class ErrorLimiter:
+class _ErrorLimiter:
     _store: ClassVar[dict[str, int]] = {}
 
     @classmethod
@@ -48,18 +33,19 @@ class ErrorLimiter:
         cls._store[name] = limit
 
     @classmethod
-    def notify(cls, name: str | Iterable[str]):  # Can be manually triggered if execution is spread across multiple files
-        if isinstance(name, str):
-            name = (name,)
-        for key in name:
-            if key in cls._store.keys():
-                cls._store[key] = cls._store[key] - 1
-                if cls._store[key] <= 0:
-                    raise ErrorLimiterTrigger(key)
+    def notify(cls, key: str):
+        cls._store[key] = cls._store[key] - 1
+        if cls._store[key] <= 0:
+            raise _ErrorLimiterTrigger(key)
 
     @classmethod
     def end(cls, name: str):
         cls._store.pop(name)
+
+
+class ErrorLimiterAbort(RuntimeError):
+    def __init__(self, msg: str):
+        super().__init__(msg)
 
 
 @contextmanager
@@ -89,9 +75,9 @@ def limit_errors(name: str, limit: int = 5):
     """
     name_id = _make_unique(name)
     try:
-        ErrorLimiter.start(name_id, limit)
-        yield lambda: ErrorLimiter.notify(name_id)
-    except ErrorLimiterTrigger as e:
+        _ErrorLimiter.start(name_id, limit)
+        yield lambda: _ErrorLimiter.notify(name_id)
+    except _ErrorLimiterTrigger as e:
         raise ErrorLimiterAbort(f"HALTING. Too many errors during '{e.name}'") from None
     finally:
-        ErrorLimiter.end(name_id)
+        _ErrorLimiter.end(name_id)

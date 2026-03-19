@@ -18,7 +18,7 @@ def network_activate(include=None, exclude=None):
     if include is None:
         include = []
     t0 = time.time()
-    with limit_errors("network_activate"):
+    with limit_errors("network_activate") as elimit:
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         if shared.opts.diffusers_offload_mode == "sequential":
             sd_models.disable_offload(sd_model)
@@ -56,7 +56,7 @@ def network_activate(include=None, exclude=None):
                             pbar.update(task, advance=1)
                         continue
                     backup_size += network_backup_weights(module, network_layer_name, wanted_names)
-                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name)
+                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
                     if shared.opts.lora_fuse_native:
                         network_apply_direct(module, batch_updown, batch_ex_bias, device=device)
                     else:
@@ -92,7 +92,7 @@ def network_deactivate(include=None, exclude=None):
     if len(l.previously_loaded_networks) == 0:
         return
     t0 = time.time()
-    with limit_errors("network_deactivate"):
+    with limit_errors("network_deactivate") as elimit:
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         if shared.opts.diffusers_offload_mode == "sequential":
             sd_models.disable_offload(sd_model)
@@ -124,7 +124,7 @@ def network_deactivate(include=None, exclude=None):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
-                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True)
+                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True, elimit=elimit)
                     if shared.opts.lora_fuse_native:
                         network_apply_direct(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
                     else:
