@@ -80,29 +80,64 @@ def color_adjust(tensor, colorstr, ratio):
     return tensor
 
 
-def correction(p, timestep, latent):
-    if timestep > 950 and p.hdr_clamp:
+def correction(p, timestep, latent, step=0):
+    total = getattr(p, 'correction_total_steps', 0)
+    if total > 0:
+        progress = step / total  # 0.0 = first step, ~1.0 = last step
+        is_early = progress < 0.05
+        is_mid = 0.2 <= progress <= 0.7
+        is_late = progress >= 0.8
+        is_sharpen = progress >= 0.7
+        is_very_late = progress >= 0.9
+    else:
+        # fallback to timestep-based ranges for non-flow-match schedulers
+        is_early = timestep > 950
+        is_mid = 600 < timestep < 900
+        is_late = timestep < 200
+        is_sharpen = timestep < 350
+        is_very_late = 1 < timestep < 100
+    if is_early and p.hdr_clamp:
         latent = soft_clamp_tensor(latent, threshold=p.hdr_threshold, boundary=p.hdr_boundary)
         p.extra_generation_params["Latent clamp"] = f'{p.hdr_threshold}/{p.hdr_boundary}'
-    if 600 < timestep < 900 and p.hdr_color != 0:
+    if is_mid and p.hdr_color != 0:
         n = getattr(p, 'correction_steps_mid', 1)
-        latent[1:] = center_tensor(latent[1:], channel_shift=p.hdr_color / n, full_shift=float(p.hdr_mode))
+        num_channels = latent.shape[0]
+        if num_channels <= 4:
+            # SDXL-style: channel 0 is brightness, channels 1+ are color
+            latent[1:] = center_tensor(latent[1:], channel_shift=p.hdr_color / n, full_shift=float(p.hdr_mode))
+        else:
+            # Multi-channel latents (Flux 2, etc.): apply to all channels
+            latent = center_tensor(latent, channel_shift=p.hdr_color / n, full_shift=float(p.hdr_mode))
         p.extra_generation_params["Latent color"] = f'{p.hdr_color}'
-    if 600 < timestep < 900 and p.hdr_tint_ratio != 0:
+    if is_mid and p.hdr_tint_ratio != 0:
         n = getattr(p, 'correction_steps_mid', 1)
-        latent = color_adjust(latent, p.hdr_color_picker, p.hdr_tint_ratio / n)
+        num_channels = latent.shape[0]
+        if num_channels <= 4:
+            # SDXL-style: TAESD color encoding maps to 4-channel latent space
+            latent = color_adjust(latent, p.hdr_color_picker, p.hdr_tint_ratio / n)
+        else:
+            # Multi-channel latents: apply uniform offset to all channels based on tint ratio
+            latent = center_tensor(latent, full_shift=1.0, offset=p.hdr_tint_ratio / n)
         p.extra_generation_params["Latent tint"] = f'{p.hdr_tint_ratio}'
         p.extra_generation_params["Latent tint color"] = p.hdr_color_picker
-    if timestep < 200 and (p.hdr_brightness != 0):
+    if is_late and p.hdr_brightness != 0:
         n = getattr(p, 'correction_steps_late', 1)
-        latent[0:1] = center_tensor(latent[0:1], full_shift=float(p.hdr_mode), offset=p.hdr_brightness / n)
+        num_channels = latent.shape[0]
+        if num_channels <= 4:
+            # SDXL-style: brightness is in channel 0 (luminance)
+            latent[0:1] = center_tensor(latent[0:1], full_shift=float(p.hdr_mode), offset=p.hdr_brightness / n)
+        else:
+            # Multi-channel latents (Flux 2, etc.): scale intensity to avoid color shifts
+            scale = 1.0 + (p.hdr_brightness / n) * 0.25
+            latent = latent * scale
         p.extra_generation_params["Latent brightness"] = f'{p.hdr_brightness}'
-    if timestep < 350 and p.hdr_sharpen != 0:
-        per_step_ratio = 2 ** (timestep / 250) * p.hdr_sharpen / 16
+    if is_sharpen and p.hdr_sharpen != 0:
+        progress_in_range = (step - int(total * 0.7)) / max(int(total * 0.3), 1) if total > 0 else timestep / 350
+        per_step_ratio = 2 ** (progress_in_range * 1.4) * p.hdr_sharpen / 16
         if abs(per_step_ratio) > 0.01:
             latent = sharpen_tensor(latent, ratio=per_step_ratio)
         p.extra_generation_params["Latent sharpen"] = f'{p.hdr_sharpen}'
-    if 1 < timestep < 100 and p.hdr_maximize:
+    if is_very_late and p.hdr_maximize:
         latent = center_tensor(latent, channel_shift=p.hdr_max_center, full_shift=1.0)
         latent = maximize_tensor(latent, boundary=p.hdr_max_boundary)
         p.extra_generation_params["Latent max"] = f'{p.hdr_max_center}/{p.hdr_max_boundary}'
@@ -176,7 +211,7 @@ def _count_steps_below(pipe, threshold):
     return max(count, 1)
 
 
-def correction_callback(p, timestep, kwargs, pipe=None, initial: bool = False):
+def correction_callback(p, timestep, kwargs, pipe=None, initial: bool = False, step: int = 0):
     if initial:
         if not any([p.hdr_clamp, p.hdr_mode, p.hdr_maximize, p.hdr_sharpen, p.hdr_color, p.hdr_brightness, p.hdr_tint_ratio]):
             p.correction_skip = True
@@ -191,12 +226,20 @@ def correction_callback(p, timestep, kwargs, pipe=None, initial: bool = False):
             return kwargs
         p.correction_skip = False
         p.correction_warned = False
-        if pipe is not None:
+        total = getattr(pipe, 'num_timesteps', 0) if pipe is not None else 0
+        if total > 0:
+            p.correction_total_steps = total
+            p.correction_steps_mid = max(int(total * 0.5), 1)  # 20%-70% range
+            p.correction_steps_late = max(int(total * 0.2), 1)  # last 20%
+        elif pipe is not None:
+            p.correction_total_steps = 0
             p.correction_steps_mid = _count_steps_in_range(pipe, 600, 900)
             p.correction_steps_late = _count_steps_below(pipe, 200)
     elif getattr(p, 'correction_skip', False):
         return kwargs
     latents = kwargs["latents"]
+    if debug_enabled:
+        debug(f'Correction callback: step={step} timestep={timestep} latents_shape={latents.shape} total={getattr(p, "correction_total_steps", "unset")} skip={getattr(p, "correction_skip", "unset")}')
     if len(latents.shape) <= 3:  # packed latent
         if pipe is None:
             if not getattr(p, 'correction_warned', False):
@@ -210,11 +253,11 @@ def correction_callback(p, timestep, kwargs, pipe=None, initial: bool = False):
                 p.correction_warned = True
             return kwargs
         for i in range(unpacked.shape[0]):
-            unpacked[i] = correction(p, timestep, unpacked[i])
+            unpacked[i] = correction(p, timestep, unpacked[i], step=step)
         kwargs["latents"] = _repack_latents(unpacked, pack_type, pipe, p)
     elif len(latents.shape) == 4:  # standard batched latent
         for i in range(latents.shape[0]):
-            latents[i] = correction(p, timestep, latents[i])
+            latents[i] = correction(p, timestep, latents[i], step=step)
             if debug_enabled:
                 debug(f"Full Mean: {latents[i].mean().item()}")
                 debug(f"Channel Means: {latents[i].mean(dim=(-1, -2), keepdim=True).flatten().float().cpu().numpy()}")
@@ -224,7 +267,7 @@ def correction_callback(p, timestep, kwargs, pipe=None, initial: bool = False):
     elif len(latents.shape) == 5 and latents.shape[0] == 1:  # probably animatediff
         latents = latents.squeeze(0).permute(1, 0, 2, 3)
         for i in range(latents.shape[0]):
-            latents[i] = correction(p, timestep, latents[i])
+            latents[i] = correction(p, timestep, latents[i], step=step)
         latents = latents.permute(1, 0, 2, 3).unsqueeze(0)
         kwargs["latents"] = latents
     else:

@@ -168,9 +168,9 @@ def create_latent_inputs(tab):
                 hdr_mode = gr.Dropdown(label="Correction mode", choices=["Relative values", "Absolute values"], type="index", value="Relative values", elem_id=f"{tab}_hdr_mode", show_label=False)
                 hdr_apply_hires = gr.Checkbox(label="Apply to hires", value=True, elem_id=f"{tab}_hdr_apply_hires")
             with gr.Row(elem_id=f"{tab}_correction_row"):
-                hdr_brightness = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label="Latent brightness", elem_id=f"{tab}_hdr_brightness")
-                hdr_sharpen = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label="Latent sharpen", elem_id=f"{tab}_hdr_sharpen")
-                hdr_color = gr.Slider(minimum=0.0, maximum=4.0, step=0.1, value=0.0, label="Latent color", elem_id=f"{tab}_hdr_color")
+                hdr_brightness = gr.Slider(minimum=-4.0, maximum=4.0, step=0.05, value=0, label="Latent brightness", elem_id=f"{tab}_hdr_brightness")
+                hdr_sharpen = gr.Slider(minimum=-4.0, maximum=4.0, step=0.05, value=0, label="Latent sharpen", elem_id=f"{tab}_hdr_sharpen")
+                hdr_color = gr.Slider(minimum=0.0, maximum=16.0, step=0.1, value=0.0, label="Latent color", elem_id=f"{tab}_hdr_color")
             with gr.Row(elem_id=f"{tab}_hdr_clamp_row"):
                 hdr_clamp = gr.Checkbox(label="Clamp", value=False, elem_id=f"{tab}_hdr_clamp")
                 hdr_boundary = gr.Slider(minimum=0.0, maximum=10.0, step=0.1, value=4.0, label="Range", elem_id=f"{tab}_hdr_boundary")
@@ -181,7 +181,7 @@ def create_latent_inputs(tab):
                 hdr_max_boundary = gr.Slider(minimum=0.5, maximum=2.0, step=0.1, value=1.0, label="Max range", elem_id=f"{tab}_hdr_max_boundary")
             with gr.Row(elem_id=f"{tab}_hdr_color_row"):
                 hdr_color_picker = gr.ColorPicker(label="Tint color", show_label=True, container=False, value=None, elem_id=f"{tab}_hdr_color_picker")
-                hdr_tint_ratio = gr.Slider(label="Tint strength", minimum=-1.0, maximum=1.0, step=0.05, value=0.0, elem_id=f"{tab}_hdr_tint_ratio")
+                hdr_tint_ratio = gr.Slider(label="Tint strength", minimum=-4.0, maximum=4.0, step=0.05, value=0.0, elem_id=f"{tab}_hdr_tint_ratio")
         return hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires
 
 
@@ -205,7 +205,7 @@ def create_color_inputs(tab):
                 grading_midtones = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label='Midtones', elem_id=f"{tab}_grading_midtones")
                 grading_highlights = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label='Highlights', elem_id=f"{tab}_grading_highlights")
             with gr.Row(elem_id=f"{tab}_grading_clahe_row"):
-                grading_clahe_clip = gr.Slider(minimum=0.0, maximum=40.0, step=1.0, value=0, label='CLAHE clip', elem_id=f"{tab}_grading_clahe_clip")
+                grading_clahe_clip = gr.Slider(minimum=0.0, maximum=5.0, step=0.25, value=0, label='CLAHE clip', elem_id=f"{tab}_grading_clahe_clip")
                 grading_clahe_grid = gr.Slider(minimum=2, maximum=16, step=1, value=8, label='CLAHE grid', elem_id=f"{tab}_grading_clahe_grid")
         with gr.Group():
             with gr.Row(elem_id=f"{tab}_grading_split_row"):
