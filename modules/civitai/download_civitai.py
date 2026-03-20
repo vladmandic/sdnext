@@ -406,14 +406,24 @@ def download_civit_preview(model_path: str, preview_url: str):
     return 200, str(total_size), ''
 
 
-def download_civit_model(model_url: str, model_name: str = '', model_path: str = '', model_type: str = '', token: str = None):
+def download_civit_model(model_url: str, model_name: str = '', model_path: str = '', model_type: str = '', token: str = None,
+                         base_model: str = '', model_id: int = 0, version_id: int = 0):
     """Legacy function — delegates to DownloadManager for non-blocking downloads."""
     if not model_url:
         log.error('Model download: no url provided')
         return None
+    if not version_id:
+        import re
+        match = re.search(r'/api/download/models/(\d+)', model_url)
+        if match:
+            version_id = int(match.group(1))
     from modules.civitai.filemanage_civitai import get_type_folder
     if not model_path:
-        folder = str(get_type_folder(model_type or 'Checkpoint'))
+        if getattr(shared.opts, 'civitai_save_subfolder_enabled', False):
+            from modules.civitai.filemanage_civitai import resolve_save_path
+            folder = str(resolve_save_path(model_type or 'Checkpoint', model_name=model_name, base_model=base_model))
+        else:
+            folder = str(get_type_folder(model_type or 'Checkpoint'))
     elif os.path.isabs(model_path):
         folder = model_path
     else:
@@ -424,6 +434,8 @@ def download_civit_model(model_url: str, model_name: str = '', model_path: str =
         filename=model_name or "Unknown",
         model_type=model_type,
         token=token,
+        model_id=model_id,
+        version_id=version_id,
     )
     # Wait for completion (legacy blocking behavior)
     while item.status in ("queued", "downloading", "verifying"):
