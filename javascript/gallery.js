@@ -5,8 +5,6 @@ let currentImage = null;
 let currentGalleryFolder = null;
 let pruneImagesTimer;
 let outstanding = 0;
-let lastSort = 0;
-let lastSortName = 'None';
 let gallerySelection = { files: [], index: -1 };
 let maintenanceController = new AbortController();
 const folderStylesheet = new CSSStyleSheet();
@@ -24,6 +22,20 @@ const el = {
 };
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
+
+const gallerySorter = {
+  nameA: { name: 'Name Ascending', func: (a, b) => a.name.localeCompare(b.name) },
+  nameD: { name: 'Name Descending', func: (b, a) => a.name.localeCompare(b.name) },
+  sizeA: { name: 'Size Ascending', func: (a, b) => a.size - b.size },
+  sizeD: { name: 'Size Descending', func: (b, a) => a.size - b.size },
+  resA: { name: 'Resolution Ascending', func: (a, b) => a.width * a.height - b.width * b.height },
+  resD: { name: 'Resolution Descending', func: (b, a) => a.width * a.height - b.width * b.height },
+  modA: { name: 'Modified Ascending', func: (a, b) => a.mtime - b.mtime },
+  modD: { name: 'Modified Descending', func: (b, a) => a.mtime - b.mtime },
+  none: { name: 'None', func: undefined },
+};
+
+let sortMode = gallerySorter.none;
 
 async function getHash(str) {
   let hex = '';
@@ -683,7 +695,7 @@ const gallerySendImage = (_images) => [currentImage]; // invoked by gradio butto
  */
 function updateStatusWithSort(...messages) {
   if (!el.status) return;
-  messages.unshift(['Sort', lastSortName]);
+  messages.unshift(['Sort', sortMode.name]);
   const fragment = document.createDocumentFragment();
   for (let i = 0; i < messages.length; i++) {
     const div = document.createElement('div');
@@ -858,11 +870,14 @@ const findDuplicates = (arr, key) => {
   });
 };
 
-async function gallerySort(btn) {
+async function gallerySort(key) {
+  if (!Object.hasOwn(gallerySorter, key)) {
+    error(`Gallery: "${key}" is not a valid gallery sorting key`);
+    return;
+  }
   const t0 = performance.now();
   const arr = Array.from(el.files.children).filter((node) => node.name); // filter out separators
   if (arr.length === 0) return; // no files to sort
-  if (btn) lastSort = btn.charCodeAt(0);
   const fragment = document.createDocumentFragment();
 
   // Helper to get directory path from a file node
@@ -885,60 +900,17 @@ async function gallerySort(btn) {
     folderGroups.get(dir).push(file);
   }
 
-  // Sort function based on current sort mode
-  let sortFn;
-  switch (lastSort) {
-    case 61789: // name asc
-      lastSortName = 'Name Ascending';
-      sortFn = (a, b) => a.name.localeCompare(b.name);
-      break;
-    case 61790: // name dsc
-      lastSortName = 'Name Descending';
-      sortFn = (a, b) => b.name.localeCompare(a.name);
-      break;
-    case 61792: // size asc
-      lastSortName = 'Size Ascending';
-      sortFn = (a, b) => a.size - b.size;
-      break;
-    case 61793: // size dsc
-      lastSortName = 'Size Descending';
-      sortFn = (a, b) => b.size - a.size;
-      break;
-    case 61794: // resolution asc
-      lastSortName = 'Resolution Ascending';
-      sortFn = (a, b) => a.width * a.height - b.width * b.height;
-      break;
-    case 61795: // resolution dsc
-      lastSortName = 'Resolution Descending';
-      sortFn = (a, b) => b.width * b.height - a.width * a.height;
-      break;
-    case 61662:
-      lastSortName = 'Modified Ascending';
-      sortFn = (a, b) => a.mtime - b.mtime;
-      break;
-    case 61661:
-      lastSortName = 'Modified Descending';
-      sortFn = (a, b) => b.mtime - a.mtime;
-      break;
-    default:
-      lastSortName = 'None';
-      sortFn = null;
-      break;
-  }
+  sortMode = gallerySorter[key];
 
   // Sort root files
-  if (sortFn) {
-    rootFiles.sort(sortFn);
-  }
+  rootFiles.sort(sortMode.func);
   rootFiles.forEach((node) => fragment.appendChild(node));
 
   // Sort folder names alphabetically, then sort files within each folder
   const sortedFolderNames = Array.from(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
   for (const folderName of sortedFolderNames) {
     const files = folderGroups.get(folderName);
-    if (sortFn) {
-      files.sort(sortFn);
-    }
+    files.sort(sortMode.func);
     files.forEach((node) => fragment.appendChild(node));
   }
 
@@ -963,7 +935,7 @@ async function gallerySort(btn) {
   }
 
   const t1 = performance.now();
-  log(`gallerySort: char=${lastSort} len=${arr.length} time=${Math.floor(t1 - t0)} sort=${lastSortName}`);
+  log(`gallerySort: sort=${sortMode.name} len=${arr.length} time=${Math.floor(t1 - t0)}`);
   updateStatusWithSort(['Images', arr.length.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
   refreshGallerySelection();
 }
