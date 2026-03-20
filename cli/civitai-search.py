@@ -113,6 +113,11 @@ def search_civitai(
         return []
 
     t0 = time.time()
+    import re
+    url_match = re.match(r'https?://civitai\.com/models/(\d+)', query.strip())
+    if url_match:
+        query = url_match.group(1)
+        log.info(f'CivitAI: extracted model id={query} from URL')
     dct = { 'query': query }
     if len(tag) > 0:
         dct['tag'] = tag

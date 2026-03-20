@@ -483,11 +483,21 @@ def create_ui():
                     outputs=[models_outcome]
                 )
 
-            with gr.Tab(label="CivitAI", elem_id="models_civitai_tab"):
+            with gr.Tab(label="CivitAI", elem_id="models_civitai_tab") as civitai_tab:
                 from modules.civitai.search_civitai import search_civitai, create_model_cards, base_models
 
-                def civitai_search(civit_search_text, civit_search_tag, civit_nsfw, civit_type, civit_base, civit_token):
-                    results = search_civitai(query=civit_search_text, tag=civit_search_tag, nsfw=civit_nsfw, types=civit_type, base=civit_base, token=civit_token)
+                sort_fallback = ['', 'Most Downloaded', 'Highest Rated', 'Most Liked', 'Most Discussed',
+                                 'Most Collected', 'Most Images', 'Newest', 'Oldest']
+                type_fallback = ['', 'Checkpoint', 'TextualInversion', 'Hypernetwork', 'AestheticGradient',
+                                 'LORA', 'LoCon', 'DoRA', 'Controlnet', 'Upscaler', 'MotionModule',
+                                 'VAE', 'Poses', 'Wildcards', 'Workflows', 'Detection', 'Other']
+                def civitai_search(civit_search_text, civit_search_tag, civit_nsfw, civit_type,
+                                   civit_base, civit_token, civit_sort, civit_period):
+                    if civit_search_text and civit_search_tag:
+                        civit_search_tag = ''  # query+tag is broken at API level, keyword wins
+                    results = search_civitai(query=civit_search_text, tag=civit_search_tag, nsfw=civit_nsfw,
+                                             types=civit_type, base=civit_base, token=civit_token,
+                                             sort=civit_sort, period=civit_period)
                     html = create_model_cards(results)
                     return html
 
@@ -496,48 +506,113 @@ def create_ui():
                     opts.civitai_token = token
                     opts.save()
 
-                def civitai_download(model_urls, model_names, model_types, model_path, civit_token, model_output):
+                def civitai_download(model_urls, model_names, model_types, model_bases,
+                                     model_ids, version_ids, model_path, civit_token, model_output):
                     from modules.civitai.download_civitai import download_civit_model
-                    for model_url, model_name, model_type in zip(model_urls, model_names, model_types, strict=False):
+                    for model_url, model_name, model_type, model_base, model_id, version_id in zip(
+                            model_urls, model_names, model_types, model_bases, model_ids, version_ids, strict=False):
                         msg = f"<h4>Initiating download</h4><div>{model_name} | {model_type} | <a href='{model_url}'>{model_url}</a></div><br>"
                         yield msg + model_output
-                        download_civit_model(model_url, model_name, model_path, model_type, civit_token)
+                        download_civit_model(model_url, model_name, model_path, model_type, civit_token,
+                                             base_model=model_base, model_id=int(model_id or 0), version_id=int(version_id or 0))
                         yield model_output
+
+                def civitai_toggle_subfolder(enabled, template):
+                    opts.data['civitai_save_subfolder_enabled'] = enabled
+                    if enabled and not template:
+                        template = '{{BASEMODEL}}'
+                    opts.data['civitai_save_subfolder'] = template
+                    opts.save()
+                    return gr.update(value=template, interactive=enabled)
 
                 with gr.Row():
                     gr.HTML('<h2>Search & Download</h2>')
                 with gr.Row(elem_id='civitai_search_row'):
-                    civit_search_text = gr.Textbox(label='', placeholder='keyword', elem_id="civit_search_text")
-                    civit_search_tag = gr.Textbox(label='', placeholder='tag', elem_id="civit_search_text")
+                    civit_search_text = gr.Textbox(label='', placeholder='keyword, model id, or civitai url', elem_id="civit_search_text")
+                    civit_search_tag = gr.Textbox(label='', placeholder='tag', elem_id="civit_search_tag")
                     civit_search_text_btn = ToolButton(value=ui_symbols.search, interactive=True, elem_id="civit_text_search")
-                with gr.Accordion(label='Advanced', open=False, elem_id="civitai_search_options"):
+                with gr.Accordion(label='Options', open=False, elem_id="civitai_search_options"):
                     civit_download_btn = gr.Button(value="Download model", variant='primary', elem_id="civitai_download_btn", visible=False)
                     with gr.Row():
-                        civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models', elem_id="civitai_token")
+                        civit_type = gr.Dropdown(choices=type_fallback, label='Model type', value='', elem_id='civit_type')
+                        civit_base = gr.Dropdown(choices=base_models, label='Base model', value='')
+                    with gr.Row():
+                        civit_sort = gr.Dropdown(choices=sort_fallback, label='Sort', value='', elem_id='civit_sort')
+                        civit_period = gr.Dropdown(
+                            choices=['', 'AllTime', 'Year', 'Month', 'Week', 'Day'],
+                            label='Time period', value='', elem_id='civit_period',
+                        )
                     with gr.Row():
                         civit_nsfw = gr.Checkbox(label='NSFW allowed', value=True)
                     with gr.Row():
-                        civit_type = gr.Textbox(label='Target model type', placeholder='Checkpoint, LORA, ...', value='')
-                    with gr.Row():
-                        # civit_base = gr.Textbox(label='Base model', placeholder='SDXL, ...')
-                        civit_base = gr.Dropdown(choices=base_models, label='Base model', value='')
+                        civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models', elem_id="civitai_token")
                     with gr.Row():
                         civit_folder = gr.Textbox(label='Download folder', placeholder='optional folder for downloads')
+                    with gr.Row():
+                        civit_subfolder_enabled = gr.Checkbox(
+                            label='Sort downloads into subfolders',
+                            value=getattr(opts, 'civitai_save_subfolder_enabled', False),
+                            elem_id='civit_subfolder_enabled',
+                        )
+                        civit_subfolder_template = gr.Textbox(
+                            label='Subfolder template',
+                            value=getattr(opts, 'civitai_save_subfolder', '') if getattr(opts, 'civitai_save_subfolder_enabled', False) else '',
+                            placeholder='e.g. {{BASEMODEL}} or {{CREATOR}}/{{BASEMODEL}}',
+                            interactive=getattr(opts, 'civitai_save_subfolder_enabled', False),
+                            elem_id='civit_subfolder_template',
+                        )
                 with gr.Row():
                     civitai_models_output = gr.HTML('', elem_id="civitai_models_output")
-                # sort, period, limit
-                _dummy = gr.Label(visible=False)  # dummy component to get argspec later
-                civit_inputs = [civit_search_text, civit_search_tag, civit_nsfw, civit_type, civit_base, civit_token]
+                _dummy = gr.Label(visible=False)
+                civit_inputs = [civit_search_text, civit_search_tag, civit_nsfw, civit_type,
+                                civit_base, civit_token, civit_sort, civit_period]
                 civit_search_text_btn.click(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
                 civit_search_text.submit(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
                 civit_search_tag.submit(fn=civitai_search, inputs=civit_inputs, outputs=[civitai_models_output])
                 civit_token.change(fn=civitai_update_token, inputs=[civit_token], outputs=[])
+                civit_subfolder_enabled.change(
+                    fn=civitai_toggle_subfolder,
+                    inputs=[civit_subfolder_enabled, civit_subfolder_template],
+                    outputs=[civit_subfolder_template],
+                )
+                civit_subfolder_template.change(
+                    fn=lambda v: (setattr(opts, 'civitai_save_subfolder', v), opts.save()),
+                    inputs=[civit_subfolder_template], outputs=[],
+                )
                 civit_download_btn.click(
                     fn=civitai_download,
                     _js="downloadCivitModel",
-                    inputs=[_dummy, _dummy, _dummy, civit_folder, civit_token, civitai_models_output],
+                    inputs=[_dummy, _dummy, _dummy, _dummy, _dummy, _dummy, civit_folder, civit_token, civitai_models_output],
                     outputs=[civitai_models_output],
                     show_progress='full',
+                )
+
+                _civitai_loaded = False
+
+                def civitai_on_tab_enter():
+                    nonlocal _civitai_loaded
+                    if _civitai_loaded:
+                        return [gr.update(), gr.update(), gr.update(), gr.update(), gr.update()]
+                    _civitai_loaded = True
+                    from modules.civitai.client_civitai import client
+                    options = client.discover_options()
+                    type_choices = [''] + (options.get('types', []) or type_fallback[1:])
+                    sort_choices = [''] + (options.get('sort', []) or sort_fallback[1:])
+                    base_choices = [''] + (options.get('base_models', []) or base_models[1:])
+                    results = search_civitai(query='', sort='Most Downloaded', period='AllTime', limit=20)
+                    html = create_model_cards(results)
+                    return [
+                        gr.update(choices=type_choices),
+                        gr.update(choices=sort_choices, value='Most Downloaded'),
+                        gr.update(choices=base_choices),
+                        gr.update(value='AllTime'),
+                        html,
+                    ]
+
+                civitai_tab.select(
+                    fn=civitai_on_tab_enter,
+                    inputs=[],
+                    outputs=[civit_type, civit_sort, civit_base, civit_period, civitai_models_output],
                 )
 
             with gr.Tab(label="Huggingface", elem_id="models_huggingface_tab"):
