@@ -206,6 +206,7 @@ def list_available_networks():
     t1 = time.time()
     l.timer.list = t1 - t0
     log.info(f'Available LoRAs: path="{shared.cmd_opts.lora_dir}" items={len(available_networks)} folders={len(forbidden_network_aliases)} time={t1 - t0:.2f}')
+    return available_networks
 
 
 def network_download(name):
