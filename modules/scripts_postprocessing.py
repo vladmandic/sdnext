@@ -18,7 +18,7 @@ class ScriptPostprocessing:
     args_from = None
     args_to = None
     order = 1000 # scripts will be ordred by this value in postprocessing UI
-    name = None # this function should return the title of the script
+    name = 'unknown' # this function should return the title of the script
     group = None # A gr.Group component that has all script's UI inside it
 
     def ui(self):
@@ -38,6 +38,9 @@ class ScriptPostprocessing:
 
     def image_changed(self):
         pass
+
+    def __str__(self):
+        return f"ScriptPostprocessing(name={self.name} filename={self.filename})"
 
 
 def wrap_call(func, filename, funcname, *args, default=None, **kwargs):
@@ -60,6 +63,9 @@ class ScriptPostprocessingRunner:
         for script_class, path, _basedir, _script_module in scripts_data:
             script: ScriptPostprocessing = script_class()
             script.filename = path
+            if script.name is None or script.name == "unknown":
+                log.warning(f'Script: path={path} cls={script_class} invalid')
+                continue
             if script.name == "Simple Upscale":
                 continue
             self.scripts.append(script)
@@ -68,7 +74,9 @@ class ScriptPostprocessingRunner:
         script.args_from = len(inputs)
         script.args_to = len(inputs)
         script.controls = wrap_call(script.ui, script.filename, "ui")
-        for control in script.controls.values() if script.controls is not None else []:
+        if script.controls is None:
+            script.controls = {}
+        for control in script.controls.values():
             control.custom_script_source = os.path.basename(script.filename)
         inputs += list(script.controls.values())
         script.args_to = len(inputs)

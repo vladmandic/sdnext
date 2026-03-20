@@ -1,7 +1,7 @@
 import os
 import gradio as gr
 from PIL import Image
-from modules.scripts_postprocessing import ScriptPostprocessing, PostprocessedImage
+from modules import scripts_postprocessing
 
 
 models = [
@@ -18,7 +18,7 @@ models = [
 ]
 
 
-class ScriptPostprocessingUpscale(ScriptPostprocessing):
+class ScriptPostprocessingRembg(scripts_postprocessing.ScriptPostprocessing):
     name = "Remove background"
     order = 20000
     model = None
@@ -59,7 +59,7 @@ class ScriptPostprocessingUpscale(ScriptPostprocessing):
                 "alpha_matting_erode_size": alpha_matting_erode_size,
             }
 
-    def process(self, pp: PostprocessedImage, model, merge_alpha, refine, mask_only, postprocess_mask, alpha_matting, alpha_matting_foreground_threshold, alpha_matting_background_threshold, alpha_matting_erode_size): # pylint: disable=arguments-differ
+    def process(self, pp: scripts_postprocessing.PostprocessedImage, model, merge_alpha, refine, mask_only, postprocess_mask, alpha_matting, alpha_matting_foreground_threshold, alpha_matting_background_threshold, alpha_matting_erode_size): # pylint: disable=arguments-differ
         from modules.logger import log
         if not model or model == "none":
             return pp
@@ -108,7 +108,7 @@ class ScriptPostprocessingUpscale(ScriptPostprocessing):
             image = flattened
 
         if isinstance(pp, Image.Image):
-            pp = PostprocessedImage(image=image, info={ **info, 'Rembg': model })
+            pp = scripts_postprocessing.PostprocessedImage(image=image, info={**info, "Rembg": model})
         else:
             pp.image = image
             pp.info['Rembg'] = model

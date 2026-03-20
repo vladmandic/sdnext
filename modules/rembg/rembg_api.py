@@ -40,5 +40,4 @@ async def post_rembg(
 
 
 def register_api(app):
-    print('HERE')
     app.add_api_route("/sdapi/v1/rembg", post_rembg, methods=["POST"], tags=["REMBG"])
