@@ -112,62 +112,86 @@ class PydanticModelGenerator:
 
 class ItemSampler(BaseModel):
     name: str = Field(title="Name")
-    options: dict
+    options: dict = Field(title="Options")
 
 class ItemVae(BaseModel):
-    model_name: str = Field(title="Model Name")
-    filename: str = Field(title="Filename")
+    model_name: str = Field(title="Model Name", description="VAE model display name")
+    filename: str = Field(title="Filename", description="Path to the VAE file")
 
 class ItemUpscaler(BaseModel):
-    name: str = Field(title="Name")
-    model_name: str | None = Field(title="Model Name")
-    model_path: str | None = Field(title="Path")
-    model_url: str | None = Field(title="URL")
-    scale: float | None = Field(title="Scale")
+    name: str = Field(title="Name", description="Upscaler display name")
+    model_name: str | None = Field(title="Model Name", description="Underlying model name")
+    model_path: str | None = Field(title="Path", description="Path to the model file")
+    model_url: str | None = Field(title="URL", description="Download URL for the model")
+    scale: float | None = Field(title="Scale", description="Default upscale factor")
 
 class ItemModel(BaseModel):
-    title: str = Field(title="Title")
-    model_name: str = Field(title="Model Name")
-    filename: str = Field(title="Filename")
-    type: str = Field(title="Model type")
-    sha256: str | None = Field(title="SHA256 hash")
-    hash: str | None = Field(title="Short hash")
-    config: str | None = Field(title="Config file")
-
-class ItemHypernetwork(BaseModel):
-    name: str = Field(title="Name")
-    path: str | None = Field(title="Path")
+    title: str = Field(title="Title", description="Full model title including hash")
+    model_name: str = Field(title="Model Name", description="Model display name")
+    filename: str = Field(title="Filename", description="Path to the model file")
+    type: str = Field(title="Model type", description="Model architecture type (e.g., SD, SDXL, Flux)")
+    sha256: str | None = Field(title="SHA256 hash", description="Full SHA256 hash of the model file")
+    hash: str | None = Field(title="Short hash", description="Short hash identifier for the model")
+    config: str | None = Field(title="Config file", description="Path to the model configuration file")
 
 class ItemDetailer(BaseModel):
-    name: str = Field(title="Name")
-    path: str | None = Field(title="Path")
-
-class ItemGAN(BaseModel):
-    name: str = Field(title="Name")
-    path: str | None = Field(title="Path")
-    scale: int | None = Field(title="Scale")
+    name: str = Field(title="Name", description="Detailer model name")
+    path: str | None = Field(title="Path", description="Path to the detailer model file")
 
 class ItemStyle(BaseModel):
-    name: str = Field(title="Name")
-    prompt: str | None = Field(title="Prompt")
-    negative_prompt: str | None = Field(title="Negative Prompt")
-    extra: str | None = Field(title="Extra")
-    filename: str | None = Field(title="Filename")
-    preview: str | None = Field(title="Preview")
+    name: str = Field(title="Name", description="Style name")
+    prompt: str | None = Field(title="Prompt", description="Prompt template text")
+    negative_prompt: str | None = Field(title="Negative Prompt", description="Negative prompt template text")
+    extra: str | None = Field(title="Extra", description="Additional style data")
+    filename: str | None = Field(title="Filename", description="Path to the styles file")
+    preview: str | None = Field(title="Preview", description="URL to the style preview image")
 
 class ItemExtraNetwork(BaseModel):
-    name: str = Field(title="Name")
-    type: str = Field(title="Type")
-    title: str | None = Field(title="Title")
-    fullname: str | None = Field(title="Fullname")
-    filename: str | None = Field(title="Filename")
-    hash: str | None = Field(title="Hash")
-    preview: str | None = Field(title="Preview image URL")
+    name: str = Field(title="Name", description="Network short name")
+    type: str = Field(title="Type", description="Network type (lora, checkpoint, embedding, etc.)")
+    title: str | None = Field(title="Title", description="Display title")
+    fullname: str | None = Field(title="Fullname", description="Fully qualified network name")
+    filename: str | None = Field(title="Filename", description="Path to the network file")
+    hash: str | None = Field(title="Hash", description="Short hash identifier")
+    preview: str | None = Field(title="Preview image URL", description="URL to the preview thumbnail")
+    version: str | None = Field(default=None, title="Model version or class", description="Model version string or architecture class")
+    tags: str | None = Field(default=None, title="Tags", description="Pipe-separated tag list")
 
-class ItemArtist(BaseModel):
-    name: str = Field(title="Name")
-    score: float = Field(title="Score")
-    category: str = Field(title="Category")
+class ItemExtraNetworkDetail(BaseModel):
+    name: str = Field(title="Name", description="Network short name")
+    type: str = Field(title="Type", description="Network type (lora, checkpoint, embedding, etc.)")
+    title: str | None = Field(default=None, title="Title", description="Display title")
+    filename: str | None = Field(default=None, title="Filename", description="Path to the network file")
+    hash: str | None = Field(default=None, title="Hash", description="Short hash identifier")
+    alias: str | None = Field(default=None, title="Alias", description="Short alias for prompt use")
+    size: int | None = Field(default=None, title="File size in bytes", description="File size in bytes on disk")
+    mtime: str | None = Field(default=None, title="Last modified ISO timestamp", description="Last modification time in ISO 8601 format")
+    version: str | None = Field(default=None, title="Model version or class", description="Model version string or architecture class")
+    tags: str | None = Field(default=None, title="Tags", description="Pipe-separated tag list")
+    description: str | None = Field(default=None, title="Description", description="Human-readable model description")
+    info: dict | None = Field(default=None, title="Sidecar JSON info", description="Metadata from sidecar JSON file")
+
+class ItemExtraNetworkFull(BaseModel):
+    name: str = Field(title="Name", description="Network short name")
+    type: str = Field(title="Type", description="Network type (lora, checkpoint, embedding, etc.)")
+    title: str | None = Field(default=None, title="Title", description="Display title")
+    fullname: str | None = Field(default=None, title="Fullname", description="Fully qualified network name")
+    filename: str | None = Field(default=None, title="Filename", description="Path to the network file")
+    hash: str | None = Field(default=None, title="Hash", description="Short hash identifier")
+    preview: str | None = Field(default=None, title="Preview image URL", description="URL to the preview thumbnail")
+    alias: str | None = Field(default=None, title="Alias", description="Short alias for prompt use")
+    size: int | None = Field(default=None, title="File size in bytes", description="File size in bytes on disk")
+    mtime: str | None = Field(default=None, title="Last modified ISO timestamp", description="Last modification time in ISO 8601 format")
+    version: str | None = Field(default=None, title="Model version or class", description="Model version string or architecture class")
+    tags: str | None = Field(default=None, title="Tags", description="Pipe-separated tag list")
+    description: str | None = Field(default=None, title="Description", description="Human-readable model description")
+    info: dict | None = Field(default=None, title="Sidecar JSON info", description="Metadata from sidecar JSON file")
+
+class ResExtraNetworkDetails(BaseModel):
+    items: list[ItemExtraNetworkFull] = Field(title="Items", description="List of extra network items with full detail")
+    total: int = Field(title="Total", description="Total number of matching items before pagination")
+    offset: int = Field(title="Offset", description="Number of items skipped")
+    limit: int = Field(title="Limit", description="Maximum items returned per page")
 
 class ItemEmbedding(BaseModel):
     step: int | None = Field(title="Step", description="The number of steps that were used to train this embedding, if available")
@@ -201,12 +225,22 @@ class ItemFace(BaseModel):
     pm_start: float = Field(title="PhotoMaker Start", default=0.5, ge=0, le=1, description="PhotoMaker start value, must be between 0.0 and 1.0.")
     fs_cache: bool = Field(title="FaceSwap Cache", default=True, description="Should the FaceSwap model be cached?")
 
+class ItemControlUnit(BaseModel):
+    process: str = Field(title="Preprocessor", default="", description="Preprocessor name (e.g. 'Canny', 'OpenPose')")
+    model: str = Field(title="Control model", default="", description="Control model filename or path")
+    strength: float = Field(title="Strength", default=1.0, description="Control influence strength (0.0-2.0)")
+    start: float = Field(title="Start", default=0.0, description="Step fraction at which control begins (0.0-1.0)")
+    end: float = Field(title="End", default=1.0, description="Step fraction at which control ends (0.0-1.0)")
+    override: str | None = Field(title="Override image", default=None, description="Base64-encoded pre-processed control image")
+    unit_type: str | None = Field(title="Unit type", default=None, description="Control unit type: 'controlnet', 't2i adapter', 'xs', 'lite', 'reference', or 'ip'")
+    image: str | None = Field(title="Image", default=None, description="Base64-encoded control input image")
+
 class ScriptArg(BaseModel):
     label: str = Field(default=None, title="Label", description="Name of the argument in UI")
     value: Any | None = Field(default=None, title="Value", description="Default value of the argument")
-    minimum: Any | None = Field(default=None, title="Minimum", description="Minimum allowed value for the argumentin UI")
-    maximum: Any | None = Field(default=None, title="Minimum", description="Maximum allowed value for the argumentin UI")
-    step: Any | None = Field(default=None, title="Minimum", description="Step for changing value of the argumentin UI")
+    minimum: Any | None = Field(default=None, title="Minimum", description="Minimum allowed value for the argument in UI")
+    maximum: Any | None = Field(default=None, title="Maximum", description="Maximum allowed value for the argument in UI")
+    step: Any | None = Field(default=None, title="Step", description="Step for changing value of the argument in UI")
     choices: Any | None = Field(default=None, title="Choices", description="Possible values for the argument")
 
 class ItemScript(BaseModel):
@@ -218,7 +252,7 @@ class ItemScript(BaseModel):
 class ItemExtension(BaseModel):
     name: str = Field(title="Name", description="Extension name")
     remote: str = Field(title="Remote", description="Extension Repository URL")
-    branch: str = Field(default="uknnown", title="Branch", description="Extension Repository Branch")
+    branch: str = Field(default="unknown", title="Branch", description="Extension Repository Branch")
     commit_hash: str = Field(title="Commit Hash", description="Extension Repository Commit Hash")
     version: str = Field(title="Version", description="Extension Version")
     commit_date: str | int = Field(title="Commit Date", description="Extension Repository Commit Date")
@@ -244,6 +278,8 @@ ReqTxt2Img = PydanticModelGenerator(
         {"key": "save_images", "type": bool, "default": False},
         {"key": "alwayson_scripts", "type": dict, "default": {}},
         {"key": "ip_adapter", "type": Optional[list[ItemIPAdapter]], "default": None, "exclude": True},
+        {"key": "control_units", "type": Optional[list[ItemControlUnit]], "default": None, "exclude": True},
+        {"key": "init_control", "type": Optional[list], "default": None, "exclude": True},
         {"key": "face", "type": Optional[ItemFace], "default": None, "exclude": True},
         {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
     ]
@@ -254,8 +290,8 @@ StableDiffusionTxt2ImgProcessingAPI = ReqTxt2Img
 
 class ResTxt2Img(BaseModel):
     images: list[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
-    parameters: dict
-    info: str
+    parameters: dict = Field(title="Parameters", description="The request parameters echoed back.")
+    info: str = Field(title="Info", description="Generation info string with all parameters used.")
 
 ReqImg2Img = PydanticModelGenerator(
     "StableDiffusionProcessingImg2Img",
@@ -274,6 +310,8 @@ ReqImg2Img = PydanticModelGenerator(
         {"key": "save_images", "type": bool, "default": False},
         {"key": "alwayson_scripts", "type": dict, "default": {}},
         {"key": "ip_adapter", "type": Optional[list[ItemIPAdapter]], "default": None, "exclude": True},
+        {"key": "control_units", "type": Optional[list[ItemControlUnit]], "default": None, "exclude": True},
+        {"key": "init_control", "type": Optional[list], "default": None, "exclude": True},
         {"key": "face_id", "type": Optional[ItemFace], "default": None, "exclude": True},
         {"key": "extra", "type": Optional[dict], "default": {}, "exclude": True},
     ]
@@ -284,8 +322,8 @@ StableDiffusionImg2ImgProcessingAPI = ReqImg2Img
 
 class ResImg2Img(BaseModel):
     images: list[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
-    parameters: dict
-    info: str
+    parameters: dict = Field(title="Parameters", description="The request parameters echoed back.")
+    info: str = Field(title="Info", description="Generation info string with all parameters used.")
 
 class FileData(BaseModel):
     data: str = Field(title="File data", description="Base64 representation of the file")
@@ -308,12 +346,25 @@ class ResProcess(BaseModel):
 
 class ReqPromptEnhance(BaseModel):
     prompt: str = Field(title="Prompt", description="Prompt to enhance")
-    type: str = Field(title="Type", default='text', description="Type of enhancement to perform")
+    type: str = Field(title="Type", default='text', description="Type of enhancement: text, image, video")
     model: str | None = Field(title="Model", default=None, description="Model to use for enhancement")
     system_prompt: str | None = Field(title="System prompt", default=None, description="Model system prompt")
     image: str | None = Field(title="Image", default=None, description="Image to work on, must be a Base64 string containing the image's data.")
     seed: int = Field(title="Seed", default=-1, description="Seed used to generate the prompt")
     nsfw: bool = Field(title="NSFW", default=True, description="Should NSFW content be allowed?")
+    prefix: Optional[str] = Field(title="Prefix", default=None, description="Text prepended to enhanced prompt")
+    suffix: Optional[str] = Field(title="Suffix", default=None, description="Text appended to enhanced prompt")
+    do_sample: Optional[bool] = Field(title="Sample", default=None, description="Enable sampling")
+    max_tokens: Optional[int] = Field(title="Max tokens", default=None, description="Max generation tokens")
+    temperature: Optional[float] = Field(title="Temperature", default=None, description="Controls randomness in token selection (0=deterministic, higher=more creative)")
+    repetition_penalty: Optional[float] = Field(title="Repetition penalty", default=None, description="Penalizes repeated tokens to reduce repetition (1.0=no penalty)")
+    top_k: Optional[int] = Field(title="Top K", default=None, description="Limits token selection to the K most likely candidates")
+    top_p: Optional[float] = Field(title="Top P", default=None, description="Nucleus sampling threshold (0-1)")
+    thinking: bool = Field(title="Thinking", default=False, description="Enable thinking/reasoning mode")
+    keep_thinking: bool = Field(title="Keep thinking", default=False, description="Keep thinking tokens in output")
+    use_vision: bool = Field(title="Use vision", default=True, description="Use vision if model supports it")
+    prefill: Optional[str] = Field(title="Prefill", default=None, description="Text to prefill the model response with")
+    keep_prefill: bool = Field(title="Keep prefill", default=False, description="Keep prefill text in the output")
 
 class ResPromptEnhance(BaseModel):
     prompt: str = Field(title="Prompt", description="Enhanced prompt")
@@ -392,12 +443,6 @@ class ReqLatentHistory(BaseModel):
     name: str = Field(title="Name", description="Name of the history item to select")
 
 
-class ResTrain(BaseModel):
-    info: str = Field(title="Train info", description="Response string from train embedding task.")
-
-class ResCreate(BaseModel):
-    info: str = Field(title="Create info", description="Response string from create embedding task.")
-
 class ResPreprocess(BaseModel):
     info: str = Field(title="Preprocess info", description="Response string from preprocessing task.")
 
@@ -448,9 +493,17 @@ class ResScripts(BaseModel):
     control: list = Field(default=None, title="Control", description="Titles of scripts (control)")
 
 class ResGPU(BaseModel): # definition of http response
-    name: str = Field(title="GPU Name")
-    data: dict = Field(title="Name/Value data")
-    chart: list[float, float] = Field(title="Exactly two items to place on chart")
+    name: str = Field(title="GPU Name", description="GPU device name")
+    data: dict = Field(title="Name/Value data", description="Key-value pairs of GPU metrics (utilization, temperature, clocks, memory, etc.)")
+    chart: list[float, float] = Field(title="Exactly two items to place on chart", description="Two numeric values for chart display (e.g., GPU utilization %, VRAM usage %)")
+
+class ItemLoadedModel(BaseModel):
+    name: str = Field(title="Model Name", description="Model or component name")
+    category: str = Field(title="Category", description="Model category (pipeline, component, controlnet, lora, ipadapter, upscaler, detailer, caption, enhance)")
+    device: Optional[str] = Field(default=None, title="Device", description="Device where the model is loaded (e.g., cuda:0, cpu)")
+    size_bytes: Optional[int] = Field(default=None, title="Size (bytes)", description="Total parameter memory footprint in bytes")
+    dtype: Optional[str] = Field(default=None, title="Dtype", description="Effective data type (e.g., float16, nf4)")
+    extra: Optional[dict] = Field(default=None, title="Extra metadata", description="Additional metadata (role, class, quantization method, etc.)")
 
 # helper function
 
@@ -473,7 +526,8 @@ def create_model_from_signature(func: Callable, model_name: str, base_model: typ
             args.remove(arg)
     non_default_args = len(args) - len(defaults)
     defaults = (...,) * non_default_args + defaults
-    keyword_only_params = {param: kwonlydefaults.get(param, Any) for param in kwonlyargs}
+    kw_defaults = kwonlydefaults or {}
+    keyword_only_params = {param: (annotations.get(param, Any), kw_defaults.get(param, ...)) for param in kwonlyargs}
     for k, v in annotations.items():
         if v == list[Image.Image]:
             annotations[k] = list[str]

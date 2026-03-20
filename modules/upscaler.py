@@ -51,6 +51,9 @@ class Upscaler:
         except Exception:
             pass
 
+    def __str__(self):
+        return f"Upscaler(name={self.name}, model_path={self.model_path}, user_path={self.user_path})"
+
     def find_folder(self, folder, scalers, loaded):
         for fn in os.listdir(folder): # from folder
             file_name = os.path.join(folder, fn)
@@ -160,6 +163,9 @@ class UpscalerData:
         self.scaler = upscaler
         self.scale = scale
         self.model = model
+
+    def __str__(self):
+        return f"UpscalerData(name={self.name}, path={self.data_path}, scale={self.scale})"
 
 
 def compile_upscaler(model):

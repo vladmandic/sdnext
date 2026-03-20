@@ -67,12 +67,12 @@ class FilenameGenerator:
     default_time_format = '%Y%m%d%H%M%S'
 
     def __init__(self, p=None, seed:int=-1, prompt:str='', image=None, grid=False, width=None, height=None):
+        self.p = p
         if p is None:
             debug_log('Filename generator init skip')
             return
         else:
             debug_log(f'Filename generator init: seed={seed} prompt="{prompt}"')
-        self.p = p
         if seed is not None and int(seed) > 0:
             self.seed = seed
         elif p is not None and getattr(p, 'all_seeds', None) is not None and len(p.all_seeds) > 0:

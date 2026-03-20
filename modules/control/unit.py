@@ -88,6 +88,8 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
         self.fidelity = 0.5
         self.query_weight = 1.0
         self.adain_weight = 1.0
+        # preprocessor param overrides
+        self.process_params = {}
         # control mode
         self.choices = ['default']
         # control tile

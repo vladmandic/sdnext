@@ -31,6 +31,7 @@ const jsConfig = defineConfig([
         ...globals.jquery,
         panzoom: 'readonly',
         authFetch: 'readonly',
+        initServerInfo: 'readonly',
         log: 'readonly',
         debug: 'readonly',
         error: 'readonly',

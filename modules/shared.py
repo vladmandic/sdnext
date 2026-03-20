@@ -162,8 +162,10 @@ from modules.shared_legacy import get_legacy_options
 options_templates.update(get_legacy_options())
 from modules.options_handler import Options
 config_filename = cmd_opts.config
-opts = Options(options_templates, restricted_opts, filename=config_filename)
+secrets_filename = cmd_opts.secrets
+opts = Options(options_templates, restricted=restricted_opts, filename=config_filename, secrets=secrets_filename)
 cmd_opts = cmd_args.settings_args(opts, cmd_opts)
+cmd_opts = cmd_args.override_args(opts, cmd_opts)
 if cmd_opts.locale is not None:
     opts.data['ui_locale'] = cmd_opts.locale
 

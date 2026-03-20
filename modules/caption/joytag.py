@@ -17,6 +17,7 @@ import einops
 from einops.layers.torch import Rearrange
 import huggingface_hub
 from modules import shared, devices, sd_models
+from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 from modules.image import convert
 
@@ -1050,8 +1051,9 @@ def load():
         model.eval()  # required: custom loader, not from_pretrained
         with open(os.path.join(folder, 'top_tags.txt'), encoding='utf8') as f:
             tags = [line.strip() for line in f.readlines() if line.strip()]
+        register_aux('joytag', model)
         log.info(f'Caption: type=vlm model="JoyTag" repo="{MODEL_REPO}" tags={len(tags)}')
-    sd_models.move_model(model, devices.device)
+    move_aux_to_gpu('joytag')
 
 
 def unload():
@@ -1059,6 +1061,7 @@ def unload():
     global model, tags  # pylint: disable=global-statement
     if model is not None:
         log.debug('JoyTag unload')
+        deregister_aux('joytag')
         sd_models.move_model(model, devices.cpu, force=True)
         model = None
         tags = None
@@ -1070,11 +1073,12 @@ def unload():
 def predict(image: Image.Image):
     load()
     image_tensor = prepare_image(image, model.image_size).unsqueeze(0).to(device=devices.device, dtype=devices.dtype)
-    with devices.inference_context():
-        preds = model({'image': image_tensor})
-        tag_preds = preds['tags'].sigmoid().cpu()
-    if shared.opts.caption_offload:
-        sd_models.move_model(model, devices.cpu, force=True)
+    try:
+        with devices.inference_context():
+            preds = model({'image': image_tensor})
+            tag_preds = preds['tags'].sigmoid().cpu()
+    finally:
+        offload_aux('joytag')
     scores = {tags[i]: tag_preds[0][i] for i in range(len(tags))}
     if shared.opts.tagger_show_scores:
         predicted_tags = [f'{tag}:{score:.2f}' for tag, score in scores.items() if score > THRESHOLD]

@@ -20,6 +20,11 @@ class Dot(dict): # dot notation access to dictionary attributes
     __setattr__ = dict.__setitem__
     __delattr__ = dict.__delitem__
 
+class Torch(dict):
+    def set(self, **kwargs):
+        for k, v in kwargs.items():
+            self[k] = v
+
 version = {
     'app': 'sd.next',
     'updated': 'unknown',
@@ -75,6 +80,8 @@ control_extensions = [ # 3rd party extensions marked as safe for control ui
     'IP Adapters',
     'Remove background',
 ]
+gpu_info = []
+torch_info = Torch()
 
 
 try:
@@ -200,25 +207,13 @@ def uninstall(package, quiet = False):
     return res
 
 
-def run(cmd: str, *args: str, **kwargs):
-    """Run command and arguments with `subprocess.run`.
-
-    Default run options are `shell=True, check=False, env=os.environ`.
-
-    Args:
-        cmd (str): Main command to run.
-        *args (str): Additional command arguments.
-        **kwargs: `subprocess.run` option overrides.
-
-    Returns:
-        tuple[CompletedProcess[str], str]: Tuple with the results and the combined `stdout` and `stderr` values.
-    """
+def run(cmd: str, *nargs: str, **kwargs):
     options = {
         "check": False,
         "env": os.environ,
     }
     options |= kwargs  # Override defaults with passed kwargs
-    result = subprocess.run(f'"{cmd}" {" ".join(args)}', **options, shell=True, capture_output=True, text=True)
+    result = subprocess.run(f'"{cmd}" {" ".join(nargs)}', **options, shell=True, capture_output=True, text=True)
     result.stdout = result.stdout.strip()
     result.stderr = result.stderr.strip()
     txt = result.stdout
@@ -480,7 +475,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = '8ec0a5ccad96957c10388d2d2acc7fdd8e0fab84' # diffusers commit hash
+    target_commit = "e5aa719241f9b74d6700be3320a777799bfab70a" # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -507,12 +502,14 @@ def check_transformers():
         return
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
-    target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
+    # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
+    target_commit = "aad13b87ed59f2afcfaebc985f403301887a35fc" # transformers commit hash == 5.3.0
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
     else:
-        target_transformers = '4.57.6'
+        # target_transformers = '4.57.6'
+        target_transformers = None
         target_tokenizers = '0.22.2'
     if target_transformers is not None:
         # Pinned release version (e.g. DirectML)
@@ -598,7 +595,7 @@ def install_rocm_zluda():
             if device_id < len(amd_gpus):
                 device = amd_gpus[device_id]
 
-    if sys.platform == "win32" and not args.use_zluda and device is not None and device.therock is not None and not installed("rocm"):
+    if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
         check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
         install(f"rocm[devel,libraries] --index-url https://rocm.nightlies.amd.com/{device.therock}")
         rocm.refresh()
@@ -760,6 +757,18 @@ def check_cudnn():
                 os.environ['CUDA_PATH'] = cuda_path
 
 
+def get_cuda_arch(capability):
+    major, minor = capability
+    mapping = {9: "Hopper",
+               8: "Ada Lovelace" if minor == 9 else "Ampere",
+               7: "Turing" if minor == 5 else "Volta",
+               6: "Pascal",
+               5: "Maxwell",
+               3: "Kepler"}
+    name = mapping.get(major, "Unknown")
+    return f"{major}.{minor} {name}"
+
+
 # check torch version
 def check_torch():
     log.info('Torch: verifying installation')
@@ -842,6 +851,7 @@ def check_torch():
             log.info(f'Torch backend: type=IPEX version={ipex.__version__}')
         except Exception:
             pass
+        torch_info.set(version=torch.__version__)
         if 'cpu' in torch.__version__:
             if is_cuda_available:
                 if args.use_cuda:
@@ -855,20 +865,47 @@ def check_torch():
                     install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
                 else:
                     log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is available - consider reinstalling')
+            if args.use_openvino:
+                torch_info.set(type='openvino')
+            else:
+                torch_info.set(type='cpu')
+
         if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
             if shutil.which('icpx') is not None:
                 log.info(f'{os.popen("icpx --version").read().rstrip()}')
+            torch_info.set(type='xpu')
             for device in range(torch.xpu.device_count()):
-                log.info(f'Torch detected: gpu="{torch.xpu.get_device_name(device)}" vram={round(torch.xpu.get_device_properties(device).total_memory / 1024 / 1024)} units={torch.xpu.get_device_properties(device).max_compute_units}')
+                props = torch.xpu.get_device_properties(device)
+                gpu = {
+                    'gpu': torch.xpu.get_device_name(device),
+                    'platform': props.platform_name,
+                    'driver': props.driver_version,
+                    'vram': round(props.total_memory / 1024 / 1024),
+                    'units': props.max_compute_units,
+                }
+                log.info(f'Torch detected: {gpu}')
+                gpu_info.append(gpu)
+
         elif torch.cuda.is_available() and (allow_cuda or allow_rocm):
-            if torch.version.cuda and allow_cuda:
-                log.info(f'Torch backend: version="{torch.__version__}" type=CUDA CUDA={torch.version.cuda} cuDNN={torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else "N/A"}')
+            if args.use_zluda:
+                torch_info.set(type="zluda", cuda=torch.version.cuda)
+            elif torch.version.cuda and allow_cuda:
+                torch_info.set(type='cuda', cuda=torch.version.cuda, cudnn=torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else 'N/A')
             elif torch.version.hip and allow_rocm:
-                log.info(f'Torch backend: version="{torch.__version__}" type=ROCm HIP={torch.version.hip}')
+                torch_info.set(type='rocm', hip=torch.version.hip)
             else:
                 log.warning('Unknown Torch backend')
+            log.info(f"Torch backend: {torch_info}")
             for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
-                log.info(f'Torch detected: gpu="{torch.cuda.get_device_name(device)}" vram={round(torch.cuda.get_device_properties(device).total_memory / 1024 / 1024)} arch={torch.cuda.get_device_capability(device)} cores={torch.cuda.get_device_properties(device).multi_processor_count}')
+                gpu = {
+                    'gpu': torch.cuda.get_device_name(device),
+                    'vram': round(torch.cuda.get_device_properties(device).total_memory / 1024 / 1024),
+                    'arch': get_cuda_arch(torch.cuda.get_device_capability(device)),
+                    'cores': torch.cuda.get_device_properties(device).multi_processor_count,
+                }
+                gpu_info.append(gpu)
+                log.info(f'Torch detected: {gpu}')
+
         else:
             try:
                 if args.use_directml and allow_directml:
@@ -877,7 +914,11 @@ def check_torch():
                     log.warning(f'Torch backend: DirectML ({dml_ver})')
                     log.warning('DirectML: end-of-life')
                     for i in range(0, torch_directml.device_count()):
-                        log.info(f'Torch detected GPU: {torch_directml.device_name(i)}')
+                        gpu = {
+                            'gpu': torch_directml.device_name(i),
+                        }
+                        gpu_info.append(gpu)
+                        log.info(f'Torch detected GPU: {gpu}')
             except Exception:
                 log.warning("Torch reports CUDA not available")
     except Exception as e:
@@ -1077,6 +1118,12 @@ def install_gradio():
             install(pkg, quiet=True)
 
 
+def install_compel():
+    if installed('compel', quiet=True):
+        return
+    install("compel==2.3.1", no_deps=True)
+
+
 def install_pydantic():
     """
     if args.new or (sys.version_info >= (3, 14)):
@@ -1175,6 +1222,7 @@ def install_requirements():
                 if args.reinstall:
                     log.trace(f'Install: package="{line}" reinstall')
                 _res = install(line, reinstall=args.reinstall)
+    install_compel()
     install_pydantic()
     install_opencv()
     install_scipy()
@@ -1320,10 +1368,16 @@ def check_ui(ver):
     if not same(ver):
         log.debug(f'Branch mismatch: {ver}')
         try:
-            target = 'dev' if 'dev' in ver['branch'] else 'main'
-            git('checkout ' + target, folder='extensions-builtin/sdnext-modernui', ignore=True, optional=True)
-            ver = get_version(force=True)
-            log.debug(f'Branch sync: {ver}')
+            if 'dev' in ver['branch']:
+                target = 'dev'
+            elif 'main' in ver['branch'] or 'master' in ver['branch']:
+                target = 'main'
+            else:
+                target =None
+            if target:
+                git('checkout ' + target, folder='extensions-builtin/sdnext-modernui', ignore=True, optional=True)
+                ver = get_version(force=True)
+                log.debug(f'Branch sync: {ver}')
         except Exception as e:
             log.debug(f'Branch switch: {e}')
     ts('ui', t_start)
@@ -1622,6 +1676,15 @@ def read_options():
                     opts = json.loads(opts)
             except Exception as e:
                 log.error(f'Error reading options file: {file} {e}')
+    if os.path.isfile(args.secrets):
+        with open(args.secrets, encoding="utf8") as file:
+            try:
+                secrets = json.load(file)
+                if type(secrets) is str:
+                    secrets = json.loads(secrets)
+                opts = opts | secrets
+            except Exception as e:
+                log.error(f"Error reading secrets file: {file} {e}")
     ts('options', t_start)
 
 

@@ -3,7 +3,7 @@ import json
 import time
 import numpy as np
 from PIL import Image, ImageOps
-from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, timer
+from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer
 from modules.logger import log
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 from modules.processing_class import ( # pylint: disable=unused-import
@@ -261,7 +261,10 @@ def process_init(p: StableDiffusionProcessing):
         if type(seed) == list:
             p.all_seeds = [int(s) for s in seed]
         else:
-            if shared.opts.sequential_seed:
+            _sequential_seed = getattr(p, 'sequential_seed', None)
+            if _sequential_seed is None:
+                _sequential_seed = shared.opts.sequential_seed
+            if _sequential_seed:
                 p.all_seeds = [int(seed) + (x if p.subseed_strength == 0 else 0) for x in range(len(p.all_prompts))]
             else:
                 p.all_seeds = []
@@ -279,6 +282,11 @@ def process_init(p: StableDiffusionProcessing):
             p.all_prompts, p.all_negative_prompts = shared.prompt_styles.apply_styles_to_prompts(p.all_prompts, p.all_negative_prompts, p.styles, p.all_seeds)
             p.prompts = p.all_prompts[(p.iteration * p.batch_size):((p.iteration+1) * p.batch_size)]
             p.negative_prompts = p.all_negative_prompts[(p.iteration * p.batch_size):((p.iteration+1) * p.batch_size)]
+
+
+def get_opt(p, key):
+    val = getattr(p, key, None)
+    return val if val is not None else getattr(shared.opts, key)
 
 
 def process_samples(p: StableDiffusionProcessing, samples):
@@ -305,9 +313,9 @@ def process_samples(p: StableDiffusionProcessing, samples):
 
             if p.detailer_enabled:
                 p.ops.append('detailer')
-                if not p.do_not_save_samples and shared.opts.save_images_before_detailer:
+                if not p.do_not_save_samples and get_opt(p, 'save_images_before_detailer'):
                     info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                    images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-detailer")
+                    images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=get_opt(p, 'samples_format'), info=info, p=p, suffix="-before-detailer")
                 sample = detailer.detail(sample, p)
                 if isinstance(sample, list):
                     if len(sample) > 0:
@@ -321,11 +329,12 @@ def process_samples(p: StableDiffusionProcessing, samples):
 
             if p.color_corrections is not None and i < len(p.color_corrections):
                 p.ops.append('color')
-                if not p.do_not_save_samples and shared.opts.save_images_before_color_correction:
+                if not p.do_not_save_samples and get_opt(p, 'save_images_before_color_correction'):
                     image_without_cc = apply_overlay(image, p.paste_to, i, p.overlay_images)
                     info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                    images.save_image(image_without_cc, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix="-before-color-correct")
-                image = apply_color_correction(p.color_corrections[i], image)
+                    images.save_image(image_without_cc, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=get_opt(p, 'samples_format'), info=info, p=p, suffix="-before-color-correct")
+                method = p.color_correction_method if p.color_correction_method is not None else getattr(shared.opts, 'color_correction_method', 'histogram')
+                image = apply_color_correction(p.color_corrections[i], image, method=method)
 
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
                 pp = scripts_manager.PostprocessImageArgs(image)
@@ -333,30 +342,66 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 if pp.image is not None:
                     image = pp.image
 
-            if shared.opts.mask_apply_overlay:
+            grading_params = processing_grading.GradingParams(
+                brightness=getattr(p, 'grading_brightness', 0.0),
+                contrast=getattr(p, 'grading_contrast', 0.0),
+                saturation=getattr(p, 'grading_saturation', 0.0),
+                hue=getattr(p, 'grading_hue', 0.0),
+                gamma=getattr(p, 'grading_gamma', 1.0),
+                sharpness=getattr(p, 'grading_sharpness', 0.0),
+                color_temp=getattr(p, 'grading_color_temp', 6500),
+                shadows=getattr(p, 'grading_shadows', 0.0),
+                midtones=getattr(p, 'grading_midtones', 0.0),
+                highlights=getattr(p, 'grading_highlights', 0.0),
+                clahe_clip=getattr(p, 'grading_clahe_clip', 0.0),
+                clahe_grid=getattr(p, 'grading_clahe_grid', 8),
+                shadows_tint=getattr(p, 'grading_shadows_tint', '#000000'),
+                highlights_tint=getattr(p, 'grading_highlights_tint', '#ffffff'),
+                split_tone_balance=getattr(p, 'grading_split_tone_balance', 0.5),
+                vignette=getattr(p, 'grading_vignette', 0.0),
+                grain=getattr(p, 'grading_grain', 0.0),
+                lut_file=getattr(p, 'grading_lut_file', ''),
+                lut_strength=getattr(p, 'grading_lut_strength', 1.0),
+            )
+            if processing_grading.is_active(grading_params):
+                p.ops.append('grading')
+                image = processing_grading.grade_image(image, grading_params)
+
+            _overlay = getattr(p, 'mask_apply_overlay', None)
+            if _overlay is None:
+                _overlay = shared.opts.mask_apply_overlay
+            if _overlay:
                 image = apply_overlay(image, p.paste_to, i, p.overlay_images)
 
-            if hasattr(p, 'mask_for_overlay') and p.mask_for_overlay and any([shared.opts.save_mask, shared.opts.save_mask_composite, shared.opts.return_mask, shared.opts.return_mask_composite]):
+            _save_mask = get_opt(p, 'save_mask')
+            _save_mask_composite = get_opt(p, 'save_mask_composite')
+            _return_mask = get_opt(p, 'return_mask')
+            _return_mask_composite = get_opt(p, 'return_mask_composite')
+            if hasattr(p, 'mask_for_overlay') and p.mask_for_overlay and any([_save_mask, _save_mask_composite, _return_mask, _return_mask_composite]):
                 image_mask = p.mask_for_overlay.convert('RGB')
                 image1 = image.convert('RGBA').convert('RGBa')
                 image2 = Image.new('RGBa', image.size)
                 mask = images.resize_image(3, p.mask_for_overlay, image.width, image.height).convert('L')
                 image_mask_composite = Image.composite(image1, image2, mask).convert('RGBA')
                 info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                if shared.opts.save_mask:
-                    images.save_image(image_mask, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask")
-                if shared.opts.save_mask_composite:
-                    images.save_image(image_mask_composite, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p, suffix="-mask-composite")
-                if shared.opts.return_mask:
+                _fmt = get_opt(p, 'samples_format')
+                if _save_mask:
+                    images.save_image(image_mask, p.outpath_samples, "", p.seeds[i], p.prompts[i], _fmt, info=info, p=p, suffix="-mask")
+                if _save_mask_composite:
+                    images.save_image(image_mask_composite, p.outpath_samples, "", p.seeds[i], p.prompts[i], _fmt, info=info, p=p, suffix="-mask-composite")
+                if _return_mask:
                     out_infotexts.append(info)
                     out_images.append(image_mask)
-                if shared.opts.return_mask_composite:
+                if _return_mask_composite:
                     out_infotexts.append(info)
                     out_images.append(image_mask_composite)
 
-            if shared.opts.include_mask:
+            _inc_mask = getattr(p, 'include_mask', None)
+            if _inc_mask is None:
+                _inc_mask = shared.opts.include_mask
+            if _inc_mask:
                 info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                if shared.opts.mask_apply_overlay and p.overlay_images is not None and len(p.overlay_images) > 0:
+                if _overlay and p.overlay_images is not None and len(p.overlay_images) > 0:
                     p.image_mask = create_binary_mask(p.overlay_images[0])
                     p.image_mask = ImageOps.invert(p.image_mask)
                     out_infotexts.append(info)
@@ -375,8 +420,8 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 image = images.resize_image(p.resize_mode_after, image, p.width_after, p.height_after, p.resize_name_after, context=p.resize_context_after)
 
         info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-        if shared.opts.samples_save and not p.do_not_save_samples and p.outpath_samples is not None:
-            images.save_image(image, p.outpath_samples, "", p.seeds[i], p.prompts[i], shared.opts.samples_format, info=info, p=p) # main save image
+        if get_opt(p, 'samples_save') and not p.do_not_save_samples and p.outpath_samples is not None:
+            images.save_image(image, p.outpath_samples, "", p.seeds[i], p.prompts[i], get_opt(p, 'samples_format'), info=info, p=p) # main save image
 
         image.info["parameters"] = info
         out_infotexts.append(info)
@@ -454,13 +499,14 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
             if shared.state.interrupted:
                 log.debug(f'Process: batch={n+1}/{p.n_iter} interrupted')
-                p.do_not_save_samples = not shared.opts.keep_incomplete
+                _keep = get_opt(p, 'keep_incomplete')
+                p.do_not_save_samples = not _keep
                 if shared.state.current_image is not None and isinstance(shared.state.current_image, Image.Image):
                     samples = [shared.state.current_image]
                     infotexts = [create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, index=0)]
                 else:
                     samples = []
-                if not shared.opts.keep_incomplete:
+                if not _keep:
                     break
 
             if p.scripts is not None and isinstance(p.scripts, scripts_manager.ScriptRunner):
@@ -498,18 +544,20 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
         p.color_corrections = None
         index_of_first_image = 0
-        if (shared.opts.return_grid or shared.opts.grid_save) and (not p.do_not_save_grid) and (len(output_images) > 1):
+        _return_grid = get_opt(p, 'return_grid')
+        _grid_save = get_opt(p, 'grid_save')
+        if (_return_grid or _grid_save) and (not p.do_not_save_grid) and (len(output_images) > 1):
             if images.check_grid_size(output_images):
                 r, c = images.get_grid_size(output_images, p.batch_size)
                 grid = images.image_grid(output_images, p.batch_size)
                 grid_text = f'{r}x{c}'
                 grid_info = create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, index=0, grid=grid_text)
-                if shared.opts.return_grid:
+                if _return_grid:
                     infotexts.insert(0, grid_info)
                     output_images.insert(0, grid)
                     index_of_first_image = 1
-                if shared.opts.grid_save:
-                    images.save_image(grid, p.outpath_grids, "", p.all_seeds[0], p.all_prompts[0], shared.opts.grid_format, info=grid_info, p=p, grid=True) # main save grid
+                if _grid_save:
+                    images.save_image(grid, p.outpath_grids, "", p.all_seeds[0], p.all_prompts[0], get_opt(p, 'grid_format'), info=grid_info, p=p, grid=True) # main save grid
 
     results = get_processed(
         p,

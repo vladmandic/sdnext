@@ -11,6 +11,9 @@ String.prototype.format = function (args) { // eslint-disable-line no-extend-nat
 let selectedURL = '';
 let selectedName = '';
 let selectedType = '';
+let selectedBase = '';
+let selectedModelId = '';
+let selectedVersionId = '';
 
 function clearModelDetails() {
   const el = gradioApp().getElementById('model-details') || gradioApp().getElementById('civitai_models_output') || gradioApp().getElementById('models_outcome');
@@ -84,7 +87,7 @@ async function modelCardClick(id) {
   data = data[0]; // assuming the first item is the one we want
 
   const versionsHTML = data.versions.map((v) => modelVersionsHTML.format({
-    url: `<div class="link" onclick="startCivitDownload('${v.files[0]?.url}', '${v.files[0]?.name}', '${data.type}')"> \udb80\uddda </div>`,
+    url: `<div class="link" onclick="startCivitDownload('${v.files[0]?.url}', '${v.files[0]?.name}', '${data.type}', '${v.base || ''}', ${data.id}, ${v.id})"> \udb80\uddda </div>`,
     name: v.name || 'unknown',
     type: v.files[0]?.type || 'unknown',
     base: v.base || 'unknown',
@@ -113,11 +116,14 @@ async function modelCardClick(id) {
   el.innerHTML = modelHTML;
 }
 
-function startCivitDownload(url, name, type) {
-  log('startCivitDownload', { url, name, type });
+function startCivitDownload(url, name, type, base, modelId, versionId) {
+  log('startCivitDownload', { url, name, type, base, modelId, versionId });
   selectedURL = [url];
   selectedName = [name];
   selectedType = [type];
+  selectedBase = [base || ''];
+  selectedModelId = [modelId || 0];
+  selectedVersionId = [versionId || 0];
   const civitDownloadBtn = gradioApp().getElementById('civitai_download_btn');
   if (civitDownloadBtn) civitDownloadBtn.click();
 }
@@ -128,20 +134,44 @@ function startCivitAllDownload(evt) {
   selectedURL = [];
   selectedName = [];
   selectedType = [];
+  selectedBase = [];
+  selectedModelId = [];
+  selectedVersionId = [];
   for (const version of versions) {
-    const parsed = version.querySelector('td:nth-child(1) div')?.getAttribute('onclick')?.match(/startCivitDownload\('([^']+)', '([^']+)', '([^']+)'\)/);
-    if (!parsed || parsed.length < 4) continue;
+    const parsed = version.querySelector('td:nth-child(1) div')?.getAttribute('onclick')?.match(/startCivitDownload\('([^']+)', '([^']+)', '([^']+)', '([^']*)', (\d+), (\d+)\)/);
+    if (!parsed || parsed.length < 7) continue;
     selectedURL.push(parsed[1]);
     selectedName.push(parsed[2]);
     selectedType.push(parsed[3]);
+    selectedBase.push(parsed[4]);
+    selectedModelId.push(parseInt(parsed[5], 10));
+    selectedVersionId.push(parseInt(parsed[6], 10));
   }
   const civitDownloadBtn = gradioApp().getElementById('civitai_download_btn');
   if (civitDownloadBtn) civitDownloadBtn.click();
 }
 
-function downloadCivitModel(modelUrl, modelName, modelType, modelPath, civitToken, innerHTML) {
-  log('downloadCivitModel', { modelUrl, modelName, modelType, modelPath, civitToken });
+function downloadCivitModel(modelUrl, modelName, modelType, modelBase, mId, vId, modelPath, civitToken, innerHTML) {
+  log('downloadCivitModel', { modelUrl, modelName, modelType, modelBase, mId, vId, modelPath, civitToken });
   const el = gradioApp().getElementById('civitai_models_output') || gradioApp().getElementById('models_outcome');
   const currentHTML = el?.innerHTML || '';
-  return [selectedURL, selectedName, selectedType, modelPath, civitToken, currentHTML];
+  return [selectedURL, selectedName, selectedType, selectedBase, selectedModelId, selectedVersionId, modelPath, civitToken, currentHTML];
 }
+
+let civitMutualExcludeBound = false;
+
+function civitaiMutualExclude() {
+  if (civitMutualExcludeBound) return;
+  const searchEl = gradioApp().querySelector('#civit_search_text textarea');
+  const tagEl = gradioApp().querySelector('#civit_search_tag textarea');
+  if (!searchEl || !tagEl) return;
+  civitMutualExcludeBound = true;
+  searchEl.addEventListener('input', () => {
+    tagEl.closest('.gradio-textbox')?.classList.toggle('disabled-look', !!searchEl.value.trim());
+  });
+  tagEl.addEventListener('input', () => {
+    searchEl.closest('.gradio-textbox')?.classList.toggle('disabled-look', !!tagEl.value.trim());
+  });
+}
+
+onUiLoaded(civitaiMutualExclude);

@@ -2,14 +2,25 @@ from modules.logger import log
 from modules import shared
 
 
-def apply_token_merging(sd_model):
+def apply_token_merging(sd_model, p=None):
+    def _opt(key):
+        if p is not None:
+            val = getattr(p, key, None)
+            if val is not None:
+                return val
+        return getattr(shared.opts, key, None)
+
     current_tome = getattr(sd_model, 'applied_tome', 0)
     current_todo = getattr(sd_model, 'applied_todo', 0)
+    method = _opt('token_merging_method')
+    tome = _opt('tome_ratio')
+    todo = _opt('todo_ratio')
+    hypertile = _opt('hypertile_unet_enabled')
 
-    if shared.opts.token_merging_method == 'ToMe' and shared.opts.tome_ratio > 0:
-        if current_tome == shared.opts.tome_ratio:
+    if method == 'ToMe' and tome > 0:
+        if current_tome == tome:
             return
-        if shared.opts.hypertile_unet_enabled and not shared.cmd_opts.experimental:
+        if hypertile and not shared.cmd_opts.experimental:
             log.warning('Token merging not supported with HyperTile for UNet')
             return
         try:
@@ -18,29 +29,29 @@ def apply_token_merging(sd_model):
             import tomesd
             tomesd.apply_patch(
                 sd_model,
-                ratio=shared.opts.tome_ratio,
+                ratio=tome,
                 use_rand=False, # can cause issues with some samplers
                 merge_attn=True,
                 merge_crossattn=False,
                 merge_mlp=False
             )
-            log.info(f'Applying ToMe: ratio={shared.opts.tome_ratio}')
-            sd_model.applied_tome = shared.opts.tome_ratio
+            log.info(f'Applying ToMe: ratio={tome}')
+            sd_model.applied_tome = tome
         except Exception:
             log.warning(f'Token merging not supported: pipeline={sd_model.__class__.__name__}')
     else:
         sd_model.applied_tome = 0
 
-    if shared.opts.token_merging_method == 'ToDo' and shared.opts.todo_ratio > 0:
-        if current_todo == shared.opts.todo_ratio:
+    if method == 'ToDo' and todo > 0:
+        if current_todo == todo:
             return
-        if shared.opts.hypertile_unet_enabled and not shared.cmd_opts.experimental:
+        if hypertile and not shared.cmd_opts.experimental:
             log.warning('Token merging not supported with HyperTile for UNet')
             return
         try:
             from modules.todo.todo_utils import patch_attention_proc
             token_merge_args = {
-                        "ratio": shared.opts.todo_ratio,
+                        "ratio": todo,
                         "merge_tokens": "keys/values",
                         "merge_method": "downsample",
                         "downsample_method": "nearest",
@@ -51,8 +62,8 @@ def apply_token_merging(sd_model):
                         "ratio_level_2": 0.0,
                         }
             patch_attention_proc(sd_model.unet, token_merge_args=token_merge_args)
-            log.info(f'Applying ToDo: ratio={shared.opts.todo_ratio}')
-            sd_model.applied_todo = shared.opts.todo_ratio
+            log.info(f'Applying ToDo: ratio={todo}')
+            sd_model.applied_todo = todo
         except Exception:
             log.warning(f'Token merging not supported: pipeline={sd_model.__class__.__name__}')
     else:

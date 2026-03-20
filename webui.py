@@ -255,9 +255,11 @@ def start_common():
         log.error('Legacy option: backend=original is no longer supported')
         shared.cmd_opts.backend = 'diffusers'
     try:
-        from installer import diffusers_commit
+        from installer import diffusers_commit, transformers_commit
         if diffusers_commit != 'unknown':
             shared.opts.diffusers_version = diffusers_commit # update installed diffusers version
+        if transformers_commit != 'unknown':
+            shared.opts.transformers_version = transformers_commit # update installed transformers version
     except Exception:
         pass
     if shared.opts.clean_temp_dir_at_start:
@@ -362,6 +364,8 @@ def start_ui():
         log.info(f'API redocs: {local_url[:-1]}/redocs') # pylint: disable=unsubscriptable-object
     if share_url is not None:
         log.info(f'Share URL: {share_url}')
+    if getattr(shared.cmd_opts, 'enso', False):
+        log.info(f'Enso URL: {local_url[:-1]}/enso') # pylint: disable=unsubscriptable-object
     # log.debug(f'Gradio functions: registered={len(shared.demo.fns)}')
     shared.demo.server.wants_restart = False
     modules.api.middleware.setup_middleware(app, shared.cmd_opts)

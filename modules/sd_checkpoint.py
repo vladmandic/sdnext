@@ -6,7 +6,7 @@ import time
 import json
 import collections
 from PIL import Image
-from modules import shared, paths, modelloader, hashes, sd_hijack_accelerate
+from modules import shared, paths, modelloader, hashes
 from modules.logger import log
 from modules.json_helpers import writefile
 
@@ -114,7 +114,7 @@ class CheckpointInfo:
 
 def setup_model():
     list_models()
-    sd_hijack_accelerate.hijack_hfhub()
+    # sd_hijack_accelerate.hijack_hfhub()
     # sd_hijack_accelerate.hijack_torch_conv()
 
 
@@ -279,8 +279,8 @@ def get_closest_checkpoint_match(s: str) -> CheckpointInfo:
 
     # civitai search
     if shared.opts.sd_checkpoint_autodownload and s.startswith("https://civitai.com/api/download/models"):
-        from modules.civitai.download_civitai import download_civit_model_thread
-        fn = download_civit_model_thread(model_name=None, model_url=s, model_path='', model_type='Model', token=None)
+        from modules.civitai.download_civitai import download_civit_model
+        fn = download_civit_model(model_url=s, model_name='', model_path='', model_type='Model', token=shared.opts.civitai_token)
         if fn is not None:
             checkpoint_info = CheckpointInfo(fn)
             log.debug(f'Search model: name="{s}" matched="{checkpoint_info.path}" type=civitai')

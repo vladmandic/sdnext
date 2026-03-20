@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from transformers import AutoProcessor, LlavaForConditionalGeneration
 from modules import shared, devices, sd_models, model_quant
+from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 
 
@@ -74,7 +75,8 @@ def load(repo: str = None):
             cache_dir=shared.opts.hfcache_dir,
             **quant_args,
         )
-    sd_models.move_model(llava_model, devices.device)
+        register_aux('joycaption', llava_model)
+    move_aux_to_gpu('joycaption')
 
 
 def unload():
@@ -82,6 +84,7 @@ def unload():
     global llava_model, processor  # pylint: disable=global-statement
     if llava_model is not None:
         log.debug(f'JoyCaption unload: model="{opts.repo}"')
+        deregister_aux('joycaption')
         sd_models.move_model(llava_model, devices.cpu, force=True)
         llava_model = None
         processor = None
@@ -124,5 +127,4 @@ def predict(question: str, image, vqa_model: str = None) -> str:
         caption = caption.replace('\n\n', '\n').strip()
         return caption
     finally:
-        if shared.opts.caption_offload:
-            sd_models.move_model(llava_model, devices.cpu, force=True)
+        offload_aux('joycaption')

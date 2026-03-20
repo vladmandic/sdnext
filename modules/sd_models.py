@@ -60,15 +60,30 @@ i2i_pipes = [
 ]
 
 
-def set_huggingface_options():
+def set_huggingface_options(quiet=False):
     if shared.opts.diffusers_to_gpu: # and model_type.startswith('Stable Diffusion'):
         sd_hijack_accelerate.hijack_accelerate()
     else:
         sd_hijack_accelerate.restore_accelerate()
     if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
-        log.debug(f'Loader: runai enabled chunk={os.environ["RUNAI_STREAMER_CHUNK_BYTESIZE"]} limit={os.environ["RUNAI_STREAMER_MEMORY_LIMIT"]}')
+        if not quiet:
+            log.debug(f'Loader: runai enabled chunk={os.environ.get("RUNAI_STREAMER_CHUNK_BYTESIZE", "N/A")} limit={os.environ.get("RUNAI_STREAMER_MEMORY_LIMIT", "N/A")}')
         sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
     else:
+        sd_hijack_safetensors.restore_safetensors()
+
+
+def set_caption_load_options():
+    if shared.opts.caption_to_gpu:
+        sd_hijack_accelerate.hijack_accelerate()
+    else:
+        sd_hijack_accelerate.restore_accelerate()
+    if (shared.opts.runai_streamer_diffusers or shared.opts.runai_streamer_transformers) and (sys.platform == 'linux'):
+        log.debug(f'Caption loader: to_gpu={shared.opts.caption_to_gpu} runai chunk={os.environ.get("RUNAI_STREAMER_CHUNK_BYTESIZE", "N/A")} limit={os.environ.get("RUNAI_STREAMER_MEMORY_LIMIT", "N/A")}')
+        sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
+    else:
+        if shared.opts.caption_to_gpu:
+            log.debug(f'Caption loader: to_gpu={shared.opts.caption_to_gpu}')
         sd_hijack_safetensors.restore_safetensors()
 
 
@@ -783,6 +798,8 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         "requires_safety_checker": False, # sd15 specific but we cant know ahead of time
         # "use_safetensors": True,
     }
+    if shared.opts.huggingface_token and len(shared.opts.huggingface_token) > 0:
+        diffusers_load_config['token'] = shared.opts.huggingface_token
     if revision is not None:
         diffusers_load_config['revision'] = revision
     if shared.opts.diffusers_model_load_variant != 'default':

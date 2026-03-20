@@ -76,7 +76,7 @@ def get_custom_args():
 
 
 @lru_cache
-def commit_hash(): # compatbility function
+def commit_hash(): # compatibility function
     global stored_commit_hash # pylint: disable=global-statement
     if stored_commit_hash is not None:
         return stored_commit_hash
@@ -89,7 +89,7 @@ def commit_hash(): # compatbility function
 
 
 @lru_cache
-def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compatbility function
+def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compatibility function
     if desc is not None:
         log.info(desc)
     if live:
@@ -106,28 +106,28 @@ def run(command, desc=None, errdesc=None, custom_env=None, live=False): # compat
     return result.stdout
 
 
-def check_run(command): # compatbility function
+def check_run(command): # compatibility function
     result = subprocess.run(command, check=False, capture_output=True, shell=True)
     return result.returncode == 0
 
 
 @lru_cache
-def is_installed(pkg): # compatbility function
+def is_installed(pkg): # compatibility function
     return installer.installed(pkg)
 
 
 @lru_cache
-def repo_dir(name): # compatbility function
+def repo_dir(name): # compatibility function
     return os.path.join(script_path, dir_repos, name)
 
 
 @lru_cache
-def run_python(code, desc=None, errdesc=None): # compatbility function
+def run_python(code, desc=None, errdesc=None): # compatibility function
     return run(f'"{sys.executable}" -c "{code}"', desc, errdesc)
 
 
 @lru_cache
-def run_pip(pkg, desc=None): # compatbility function
+def run_pip(pkg, desc=None): # compatibility function
     forbidden = ['onnxruntime', 'opencv-python']
     if desc is None:
         desc = pkg
@@ -140,15 +140,15 @@ def run_pip(pkg, desc=None): # compatbility function
 
 
 @lru_cache
-def check_run_python(code): # compatbility function
+def check_run_python(code): # compatibility function
     return check_run(f'"{sys.executable}" -c "{code}"')
 
 
-def git_clone(url, tgt, _name, commithash=None): # compatbility function
+def git_clone(url, tgt, _name, commithash=None): # compatibility function
     installer.clone(url, tgt, commithash)
 
 
-def run_extension_installer(ext_dir): # compatbility function
+def run_extension_installer(ext_dir): # compatibility function
     installer.run_extension_installer(ext_dir)
 
 
@@ -292,6 +292,11 @@ def main():
             else:
                 log.warning(f'Setup complete with errors: {installer.errors}')
                 log.warning(f'See log file for more details: {installer.log_file}')
+        if args.enso and not args.skip_git:
+            from modules import enso
+            enso.install()
+            if args.upgrade:
+                enso.update()
     installer.extensions_preload(parser) # adds additional args from extensions
     args = installer.parse_args(parser)
     log.info(f'Installer time: {init_summary()}')
@@ -311,14 +316,18 @@ def main():
             alive = False
             requests = 0
         t_current = time.time()
-        if float(args.status) > 0 and (t_current - t_server) > float(args.status):
+        status_rate = float(args.status) if args.status >= 0 else installer.opts.get('server_status', 120)
+        monitor_rate = float(args.monitor) if args.monitor >= 0 else installer.opts.get('server_monitor', 0)
+        if float(status_rate) > 0 and (t_current - t_server) > float(status_rate):
             s = instance.state.status()
             if (s.timestamp is None) or (s.step == 0): # dont spam during active job
                 log.trace(f'Server: alive={alive} requests={requests} memory={get_memory_stats()} {s}')
             t_server = t_current
-        if float(args.monitor) > 0 and t_current - t_monitor > float(args.monitor):
+        if float(monitor_rate) > 0 and t_current - t_monitor > float(monitor_rate):
             log.trace(f'Monitor: {get_memory_stats(detailed=True)}')
             t_monitor = t_current
+            from modules.api.validate import get_api_stats
+            get_api_stats()
         if not alive:
             if uv is not None and uv.wants_restart:
                 clean_server()

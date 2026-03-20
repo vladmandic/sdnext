@@ -10,6 +10,7 @@ from modules.sd_samplers_common import SamplerData, flow_models
 
 debug = os.environ.get('SD_SAMPLER_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
+scheduler_overrides = {}  # set by sd_samplers.create_sampler() before constructor call
 
 # Diffusers schedulers
 try:
@@ -345,6 +346,20 @@ samplers_data_diffusers = [
 ]
 
 
+def get_sampler_compatibility(sd_model):  # pylint: disable=unused-argument # TODO enso-required
+    return {}
+
+
+def get_sampler_capability(): # TODO enso-required
+    return {}
+
+
+def get_override(key, default=None):
+    if key in scheduler_overrides:
+        return scheduler_overrides[key]
+    return getattr(shared.opts, key, default)
+
+
 class DiffusionSampler:
     def __init__(self, name, constructor, model, **kwargs):
         if name == 'Default':
@@ -353,7 +368,7 @@ class DiffusionSampler:
         self.config = {}
         self.sampler = None
 
-        if getattr(model, "default_scheduler", None) is None and (model is not None): # sanity check
+        if model is not None and getattr(model, "default_scheduler", None) is None and (model is not None): # sanity check
             model.default_scheduler = copy.deepcopy(model.scheduler)
         for key, value in config.get('All', {}).items(): # apply global defaults
             self.config[key] = value
@@ -376,69 +391,72 @@ class DiffusionSampler:
             if key in self.config:
                 self.config[key] = value
 
-        # finally apply user preferences
-        if shared.opts.schedulers_prediction_type != 'default':
-            self.config['prediction_type'] = shared.opts.schedulers_prediction_type
-        if shared.opts.schedulers_beta_schedule != 'default':
-            if shared.opts.schedulers_beta_schedule == 'linear':
+        if get_override('schedulers_prediction_type') != 'default':
+            self.config['prediction_type'] = get_override('schedulers_prediction_type')
+        sched_beta = get_override('schedulers_beta_schedule')
+        if sched_beta != 'default':
+            if sched_beta == 'linear':
                 self.config['beta_schedule'] = 'linear'
-            elif shared.opts.schedulers_beta_schedule == 'scaled':
+            elif sched_beta == 'scaled':
                 self.config['beta_schedule'] = 'scaled_linear'
-            elif shared.opts.schedulers_beta_schedule == 'cosine':
+            elif sched_beta == 'cosine':
                 self.config['beta_schedule'] = 'squaredcos_cap_v2'
-            elif shared.opts.schedulers_beta_schedule == 'sigmoid':
+            elif sched_beta == 'sigmoid':
                 self.config['beta_schedule'] = 'sigmoid'
 
-        timesteps = re.split(',| ', shared.opts.schedulers_timesteps)
+        timesteps = re.split(',| ', get_override('schedulers_timesteps'))
         timesteps = [int(x) for x in timesteps if x.isdigit()]
+        sched_sigma = get_override('schedulers_sigma')
         if len(timesteps) == 0:
             if 'sigma_schedule' in self.config:
-                self.config['sigma_schedule'] = shared.opts.schedulers_sigma if shared.opts.schedulers_sigma != 'default' else None
-            if shared.opts.schedulers_sigma == 'default' and shared.sd_model_type in flow_models and 'use_flow_sigmas' in self.config:
+                self.config['sigma_schedule'] = sched_sigma if sched_sigma != 'default' else None
+            if sched_sigma == 'default' and shared.sd_model_type in flow_models and 'use_flow_sigmas' in self.config:
                 self.config['use_flow_sigmas'] = True
-            elif shared.opts.schedulers_sigma == 'betas' and 'use_beta_sigmas' in self.config:
+            elif sched_sigma == 'betas' and 'use_beta_sigmas' in self.config:
                 self.config['use_beta_sigmas'] = True
-            elif shared.opts.schedulers_sigma == 'karras' and 'use_karras_sigmas' in self.config:
+            elif sched_sigma == 'karras' and 'use_karras_sigmas' in self.config:
                 self.config['use_karras_sigmas'] = True
-            elif shared.opts.schedulers_sigma == 'flowmatch' and 'use_flow_sigmas' in self.config:
+            elif sched_sigma == 'flowmatch' and 'use_flow_sigmas' in self.config:
                 self.config['use_flow_sigmas'] = True
-            elif shared.opts.schedulers_sigma == 'exponential' and 'use_exponential_sigmas' in self.config:
+            elif sched_sigma == 'exponential' and 'use_exponential_sigmas' in self.config:
                 self.config['use_exponential_sigmas'] = True
-            elif shared.opts.schedulers_sigma == 'lambdas' and 'use_lu_lambdas' in self.config:
+            elif sched_sigma == 'lambdas' and 'use_lu_lambdas' in self.config:
                 self.config['use_lu_lambdas'] = True
         else:
             pass # timesteps are set using set_timesteps in set_pipeline_args
 
         if 'thresholding' in self.config:
-            self.config['thresholding'] = shared.opts.schedulers_use_thresholding
+            self.config['thresholding'] = get_override('schedulers_use_thresholding')
         if 'lower_order_final' in self.config:
-            self.config['lower_order_final'] = shared.opts.schedulers_use_loworder
-        if 'solver_order' in self.config and int(shared.opts.schedulers_solver_order) > 0:
-            self.config['solver_order'] = int(shared.opts.schedulers_solver_order)
+            self.config['lower_order_final'] = get_override('schedulers_use_loworder')
+        if 'solver_order' in self.config and int(get_override('schedulers_solver_order')) > 0:
+            self.config['solver_order'] = int(get_override('schedulers_solver_order'))
         if 'predict_x0' in self.config:
-            self.config['solver_type'] = shared.opts.uni_pc_variant
-        if 'beta_start' in self.config and shared.opts.schedulers_beta_start > 0:
-            self.config['beta_start'] = shared.opts.schedulers_beta_start
-        if 'beta_end' in self.config and shared.opts.schedulers_beta_end > 0:
-            self.config['beta_end'] = shared.opts.schedulers_beta_end
+            self.config['solver_type'] = get_override('uni_pc_variant')
+        if 'beta_start' in self.config and get_override('schedulers_beta_start') > 0:
+            self.config['beta_start'] = get_override('schedulers_beta_start')
+        if 'beta_end' in self.config and get_override('schedulers_beta_end') > 0:
+            self.config['beta_end'] = get_override('schedulers_beta_end')
+        sched_shift = get_override('schedulers_shift')
         if 'shift' in self.config:
-            self.config['shift'] = shared.opts.schedulers_shift if shared.opts.schedulers_shift > 0 else 3
+            self.config['shift'] = sched_shift if sched_shift > 0 else 3
         if 'flow_shift' in self.config:
-            self.config['flow_shift'] = shared.opts.schedulers_shift if shared.opts.schedulers_shift > 0 else 3
+            self.config['flow_shift'] = sched_shift if sched_shift > 0 else 3
         if 'use_dynamic_shifting' in self.config:
-            self.config['use_dynamic_shifting'] = True if shared.opts.schedulers_shift == 0 else shared.opts.schedulers_dynamic_shift
+            self.config['use_dynamic_shifting'] = True if sched_shift == 0 else get_override('schedulers_dynamic_shift')
         if 'base_shift' in self.config:
-            self.config['base_shift'] = shared.opts.schedulers_base_shift
+            self.config['base_shift'] = get_override('schedulers_base_shift')
         if 'max_shift' in self.config:
-            self.config['max_shift'] = shared.opts.schedulers_max_shift
+            self.config['max_shift'] = get_override('schedulers_max_shift')
         if 'use_beta_sigmas' in self.config and 'sigma_schedule' in self.config:
             self.config['use_beta_sigmas'] = 'StableDiffusion3' in model.__class__.__name__
         if 'rescale_betas_zero_snr' in self.config:
-            self.config['rescale_betas_zero_snr'] = shared.opts.schedulers_rescale_betas
-        if 'timestep_spacing' in self.config and shared.opts.schedulers_timestep_spacing != 'default' and shared.opts.schedulers_timestep_spacing is not None:
-            self.config['timestep_spacing'] = shared.opts.schedulers_timestep_spacing
+            self.config['rescale_betas_zero_snr'] = get_override('schedulers_rescale_betas')
+        sched_ts_spacing = get_override('schedulers_timestep_spacing')
+        if 'timestep_spacing' in self.config and sched_ts_spacing != 'default' and sched_ts_spacing is not None:
+            self.config['timestep_spacing'] = sched_ts_spacing
         if 'num_train_timesteps' in self.config:
-            self.config['num_train_timesteps'] = shared.opts.schedulers_timesteps_range
+            self.config['num_train_timesteps'] = get_override('schedulers_timesteps_range')
         if 'EDM' in name:
             del self.config['beta_start']
             del self.config['beta_end']
@@ -473,16 +491,28 @@ class DiffusionSampler:
             self.sampler = None
             return
 
+        if self.config.get('prediction_type') == 'flow_prediction' and 'FlowMatch' not in constructor.__name__:
+            try:
+                cls_source = inspect.getsource(constructor)
+                if '"flow_prediction"' not in cls_source and "'flow_prediction'" not in cls_source:
+                    log.warning(f'Sampler: "{name}" does not support flow_prediction')
+                    self.sampler = None
+                    return
+            except (TypeError, OSError):
+                pass
+
         if hasattr(sampler, 'set_timesteps'):
             accept_sigmas = "sigmas" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
             accepts_timesteps = "timesteps" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
             accept_scale_noise = hasattr(sampler, "scale_noise")
             debug_log(f'Sampler: "{name}" sigmas={accept_sigmas} timesteps={accepts_timesteps}')
-            if ('Flux' in model.__class__.__name__) and (not accept_sigmas):
+            default_accept_sigmas = model is not None and hasattr(model.default_scheduler, 'set_timesteps') and "sigmas" in set(inspect.signature(model.default_scheduler.set_timesteps).parameters.keys())
+            default_accept_scale_noise = model is not None and hasattr(model.default_scheduler, "scale_noise")
+            if default_accept_sigmas and not accept_sigmas:
                 log.warning(f'Sampler: "{name}" does not accept sigmas')
                 self.sampler = None
                 return
-            if ('StableDiffusion3' in model.__class__.__name__) and (not accept_scale_noise):
+            if default_accept_scale_noise and not accept_scale_noise:
                 log.warning(f'Sampler: "{name}" does not implement scale noise')
                 self.sampler = None
                 return

@@ -42,14 +42,15 @@ class ResMask(BaseModel):
     mask: str = Field(default='', title="Image", description="The processed image in base64 format")
 
 class ItemPreprocess(BaseModel):
-    name: str = Field(title="Name")
-    params: dict = Field(title="Params")
+    name: str = Field(title="Name", description="Preprocessor name")
+    group: str = Field(default="Other", title="Group", description="Category group")
+    params: dict = Field(title="Params", description="Configurable parameters for this preprocessor")
 
 class ItemMask(BaseModel):
-    models: list[str] = Field(title="Models")
-    colormaps: list[str] = Field(title="Color maps")
-    params: dict = Field(title="Params")
-    types: list[str] = Field(title="Types")
+    models: list[str] = Field(title="Models", description="Available segmentation model names")
+    colormaps: list[str] = Field(title="Color maps", description="Available color map options for mask visualization")
+    params: dict = Field(title="Params", description="Current masking parameters")
+    types: list[str] = Field(title="Types", description="Available mask return types")
 
 
 class APIProcess:
@@ -57,13 +58,15 @@ class APIProcess:
         self.queue_lock = queue_lock
 
     def get_preprocess(self):
+        """List available image preprocessors with their configurable parameters."""
         from modules.control import processors
         items = []
         for k, v in processors.config.items():
-            items.append(ItemPreprocess(name=k, params=v.get('params', {})))
+            items.append(ItemPreprocess(name=k, group=v.get('group', 'Other'), params=v.get('params', {})))
         return items
 
     def post_preprocess(self, req: ReqPreprocess):
+        """Run an image preprocessor (e.g., canny, depth, pose) on the input image and return the processed result."""
         global processor # pylint: disable=global-statement
         from modules.control import processors
         processors_list = list(processors.config)
@@ -79,14 +82,16 @@ class APIProcess:
         jobid = shared.state.begin('API-PRE', api=True)
         processed = processor(image, local_config=req.params)
         image = encode_pil_to_base64(processed)
-        shared.state.end(jobid)
+        shared.state.end(jobid, api=False)
         return ResPreprocess(model=processor.processor_id, image=image)
 
     def get_mask(self):
+        """List available masking models, color maps, parameters, and mask types."""
         from modules import masking
         return ItemMask(models=list(masking.MODELS), colormaps=masking.COLORMAP, params=vars(masking.opts), types=masking.TYPES)
 
     def post_mask(self, req: ReqMask):
+        """Generate a segmentation mask for the input image. Auto-masks if no mask is provided."""
         from modules import masking
         if req.model:
             if req.model not in masking.MODELS:
@@ -105,13 +110,14 @@ class APIProcess:
         jobid = shared.state.begin('API-MASK', api=True)
         with self.queue_lock:
             processed = masking.run_mask(input_image=image, input_mask=mask, return_type=req.type)
-        shared.state.end(jobid)
+        shared.state.end(jobid, api=False)
         if processed is None:
             return JSONResponse(status_code=400, content={"error": "Mask is none"})
         image = encode_pil_to_base64(processed)
         return ResMask(mask=image)
 
     def post_detect(self, req: ReqFace):
+        """Detect faces/objects in an image using YOLO. Returns bounding boxes, labels, scores, and cropped images."""
         from modules.shared import yolo # pylint: disable=no-name-in-module
         image = decode_base64_to_image(req.image)
         jobid = shared.state.begin('API-FACE', api=True)
@@ -128,34 +134,38 @@ class APIProcess:
                 classes.append(item.cls)
                 labels.append(item.label)
                 boxes.append(item.box)
-        shared.state.end(jobid)
+        shared.state.end(jobid, api=False)
         return ResFace(classes=classes, labels=labels, scores=scores, boxes=boxes, images=images)
 
     def post_prompt_enhance(self, req: models.ReqPromptEnhance):
+        """Enhance a prompt using an LLM. Supports text, image-conditioned, and video prompt enhancement modes."""
         from modules import processing_helpers
         seed = req.seed or -1
         seed = processing_helpers.get_fixed_seed(seed)
         prompt = ''
-        if req.type == 'text':
+        if req.type in ('text', 'image'):
             from modules.scripts_manager import scripts_txt2img
-            model = 'google/gemma-3-1b-it' if req.model is None or len(req.model) < 4 else req.model
+            default_model = 'google/gemma-3-4b-it' if req.type == 'image' else 'google/gemma-3-1b-it'
+            model = default_model if req.model is None or len(req.model) < 4 else req.model
             instance = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename][0]
             prompt = instance.enhance(
                 model=model,
                 prompt=req.prompt,
                 system=req.system_prompt,
-                seed=seed,
-                nsfw=req.nsfw,
-            )
-        elif req.type == 'image':
-            from modules.scripts_manager import scripts_txt2img
-            model = 'google/gemma-3-4b-it' if req.model is None or len(req.model) < 4 else req.model
-            instance = [s for s in scripts_txt2img.scripts if 'prompt_enhance.py' in s.filename][0]
-            prompt = instance.enhance(
-                model=model,
-                prompt=req.prompt,
-                system=req.system_prompt,
-                image=decode_base64_to_image(req.image),
+                prefix=req.prefix,
+                suffix=req.suffix,
+                sample=req.do_sample,
+                tokens=req.max_tokens,
+                temperature=req.temperature,
+                penalty=req.repetition_penalty,
+                top_k=req.top_k,
+                top_p=req.top_p,
+                thinking=req.thinking,
+                keep_thinking=req.keep_thinking,
+                use_vision=req.use_vision,
+                prefill=req.prefill or '',
+                keep_prefill=req.keep_prefill,
+                image=decode_base64_to_image(req.image) if req.image else None,
                 seed=seed,
                 nsfw=req.nsfw,
             )
@@ -175,6 +185,23 @@ class APIProcess:
         res = models.ResPromptEnhance(prompt=prompt, seed=seed)
         return res
 
+    def get_prompt_enhance_models(self):
+        """
+        List available prompt enhancement models.
+
+        Returns model repository IDs with capability flags indicating vision
+        (image-conditioned enhancement) and thinking (reasoning mode) support.
+        """
+        from scripts.prompt_enhance import Options, is_vision_model, is_thinking_model # pylint: disable=no-name-in-module
+        result = []
+        for repo in Options.models.keys():
+            result.append({
+                "name": repo,
+                "vision": is_vision_model(repo),
+                "thinking": is_thinking_model(repo),
+            })
+        return result
+
     def set_upscalers(self, req: dict):
         reqDict = vars(req)
         reqDict['extras_upscaler_1'] = reqDict.pop('upscaler_1', None)
@@ -182,6 +209,7 @@ class APIProcess:
         return reqDict
 
     def extras_single_image_api(self, req: models.ReqProcessImage):
+        """Upscale or postprocess a single image using the configured upscaler pipeline."""
         reqDict = self.set_upscalers(req)
         reqDict['image'] = helpers.decode_base64_to_image(reqDict['image'])
         with self.queue_lock:
@@ -189,6 +217,7 @@ class APIProcess:
         return models.ResProcessImage(image=helpers.encode_pil_to_base64(result[0][0]), html_info=result[1])
 
     def extras_batch_images_api(self, req: models.ReqProcessBatch):
+        """Upscale or postprocess a batch of images using the configured upscaler pipeline."""
         reqDict = self.set_upscalers(req)
         image_list = reqDict.pop('imageList', [])
         image_folder = [helpers.decode_base64_to_image(x.data) for x in image_list]

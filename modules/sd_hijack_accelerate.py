@@ -80,12 +80,6 @@ def restore_accelerate():
     accelerate.utils.set_module_tensor_to_device = orig_set_module
 
 
-def hijack_hfhub():
-    import contextlib
-    import huggingface_hub.file_download
-    huggingface_hub.file_download.FileLock = contextlib.nullcontext
-
-
 def torch_conv_forward(self, input, weight, bias): # pylint: disable=redefined-builtin
     if self.padding_mode != 'zeros':
         return F.conv2d(F.pad(input, self._reversed_padding_repeated_twice, mode=self.padding_mode), weight, bias, self.stride, _pair(0), self.dilation, self.groups) # pylint: disable=protected-access

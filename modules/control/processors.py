@@ -15,34 +15,46 @@ config = {
     # placeholder
     'None': {},
     # pose models
-    'OpenPose': {'class': None, 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
-    'DWPose': {'class': None, 'checkpoint': False, 'model': 'Tiny', 'params': {'min_confidence': 0.3}},
-    'MediaPipe Face': {'class': None, 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
-    # outline models
-    'Canny': {'class': None, 'checkpoint': False, 'params': {'low_threshold': 100, 'high_threshold': 200}},
-    'Edge': {'class': None, 'checkpoint': False, 'params': {'pf': True, 'mode': 'edge'}},
-    'LineArt Realistic': {'class': None, 'checkpoint': True, 'params': {'coarse': False}},
-    'LineArt Anime': {'class': None, 'checkpoint': True, 'params': {}},
-    'HED': {'class': None, 'checkpoint': True, 'params': {'scribble': False, 'safe': False}},
-    'PidiNet': {'class': None, 'checkpoint': True, 'params': {'scribble': False, 'safe': False, 'apply_filter': False}},
+    'OpenPose': {'class': None, 'group': 'Pose', 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
+    'MediaPipe Face': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
+    'DWPose (ONNX)': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
+    'RTMW': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True}},
+    'RTMO': {'class': None, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
+    'ViTPose': {'class': None, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {'min_confidence': 0.3}},
+    # edge models
+    'Canny': {'class': None, 'group': 'Edge', 'checkpoint': False, 'params': {'low_threshold': 100, 'high_threshold': 200}},
+    'Edge': {'class': None, 'group': 'Edge', 'checkpoint': False, 'params': {'pf': True, 'mode': 'edge'}},
+    'LineArt Realistic': {'class': None, 'group': 'Edge', 'checkpoint': True, 'params': {'coarse': False}},
+    'LineArt Anime': {'class': None, 'group': 'Edge', 'checkpoint': True, 'params': {}},
+    'HED': {'class': None, 'group': 'Edge', 'checkpoint': True, 'params': {'scribble': False, 'safe': False}},
+    'PidiNet': {'class': None, 'group': 'Edge', 'checkpoint': True, 'params': {'scribble': False, 'safe': False, 'apply_filter': False}},
+    'MLSD': {'class': None, 'group': 'Edge', 'checkpoint': True, 'params': {'thr_v': 0.1, 'thr_d': 0.1}},
+    'TEED': {'class': None, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'fal/teed'}, 'params': {}},
+    'Anyline': {'class': None, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'TheMistoAI/MistoLine'}, 'params': {}},
     # depth models
-    'Midas Depth Hybrid': {'class': None, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}},
-    'Leres Depth': {'class': None, 'checkpoint': True, 'params': {'boost': False, 'thr_a':0, 'thr_b':0}},
-    'Zoe Depth': {'class': None, 'checkpoint': True, 'params': {'gamma_corrected': False}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_N.safetensors', 'model_type': "zoedepth"}},
-    'Marigold Depth': {'class': None, 'checkpoint': True, 'params': {'denoising_steps': 10, 'ensemble_size': 10, 'processing_res': 512, 'match_input_res': True, 'color_map': 'None'}, 'load_config': {'pretrained_model_or_path': 'Bingxin/Marigold'}},
-    'Normal Bae': {'class': None, 'checkpoint': True, 'params': {}},
+    'Midas Depth Hybrid': {'class': None, 'group': 'Depth', 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}},
+    'Leres Depth': {'class': None, 'group': 'Depth', 'checkpoint': True, 'params': {'boost': False, 'thr_a': 0, 'thr_b': 0}},
+    'Zoe Depth': {'class': None, 'group': 'Depth', 'checkpoint': True, 'params': {'gamma_corrected': False}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_N.safetensors', 'model_type': "zoedepth"}},
+    'Marigold Depth': {'class': None, 'group': 'Depth', 'checkpoint': True, 'params': {'denoising_steps': 4, 'ensemble_size': 4, 'processing_res': 768, 'match_input_res': True, 'color_map': 'None'}, 'load_config': {'pretrained_model_or_path': 'prs-eth/marigold-depth-v1-1'}},
+    'DPT Depth Hybrid': {'class': None, 'group': 'Depth', 'checkpoint': False, 'params': {}},
+    'GLPN Depth': {'class': None, 'group': 'Depth', 'checkpoint': False, 'params': {}},
+    'Depth Anything': {'class': None, 'group': 'Depth', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'LiheYoung/depth_anything_vitl14'}, 'params': {'color_map': 'inferno'}},
+    'Depth Pro': {'class': None, 'group': 'Depth', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'apple/DepthPro-hf'}, 'params': {'color_map': 'inferno'}},
+    'Depth Anything V2 Small': {'class': None, 'group': 'Depth', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'depth-anything/Depth-Anything-V2-Small-hf'}, 'params': {'color_map': 'inferno'}},
+    'Depth Anything V2 Large': {'class': None, 'group': 'Depth', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'depth-anything/Depth-Anything-V2-Large-hf'}, 'params': {'color_map': 'inferno'}},
+    'Marigold Depth LCM': {'class': None, 'group': 'Depth', 'checkpoint': True, 'params': {'denoising_steps': 1, 'ensemble_size': 1, 'processing_res': 768, 'match_input_res': True, 'color_map': 'None'}, 'load_config': {'pretrained_model_or_path': 'prs-eth/marigold-depth-lcm-v1-0'}},
+    'Lotus Depth': {'class': None, 'group': 'Depth', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'jingheya/lotus-depth-g-v2-1-disparity'}, 'params': {'color_map': 'inferno'}},
+    # normal models
+    'Normal Bae': {'class': None, 'group': 'Normal', 'checkpoint': True, 'params': {}},
+    'DSINE': {'class': None, 'group': 'Normal', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'hugoycj/DSINE-hub'}, 'params': {}},
+    'StableNormal': {'class': None, 'group': 'Normal', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'Stable-X/StableNormal'}, 'params': {}},
+    'Marigold Normals': {'class': None, 'group': 'Normal', 'checkpoint': True, 'params': {'denoising_steps': 4, 'ensemble_size': 4, 'processing_res': 768, 'match_input_res': True}, 'load_config': {'pretrained_model_or_path': 'prs-eth/marigold-normals-v1-1'}},
     # segmentation models
-    'SegmentAnything': {'class': None, 'checkpoint': True, 'model': 'Base', 'params': {}},
+    'SegmentAnything': {'class': None, 'group': 'Segmentation', 'checkpoint': True, 'model': 'Base', 'params': {}},
+    'SAM 2.1': {'class': None, 'group': 'Segmentation', 'checkpoint': True, 'model': 'Large', 'load_config': {'pretrained_model_or_path': 'facebook/sam2.1-hiera-large'}, 'params': {}},
+    'OneFormer': {'class': None, 'group': 'Segmentation', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'shi-labs/oneformer_ade20k_swin_large'}, 'params': {}},
     # other models
-    'MLSD': {'class': None, 'checkpoint': True, 'params': {'thr_v': 0.1, 'thr_d': 0.1}},
-    'Shuffle': {'class': None, 'checkpoint': False, 'params': {}},
-    'DPT Depth Hybrid': {'class': None, 'checkpoint': False, 'params': {}},
-    'GLPN Depth': {'class': None, 'checkpoint': False, 'params': {}},
-    'Depth Anything': {'class': None, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'LiheYoung/depth_anything_vitl14' }, 'params': { 'color_map': 'inferno' }},
-    'Depth Pro': {'class': None, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'apple/DepthPro-hf'}, 'params': {'color_map': 'inferno'}},
-    # 'Midas Depth Large': {'class': MidasDetector, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}, 'load_config': {'pretrained_model_or_path': 'Intel/dpt-large', 'model_type': "dpt_large", 'filename': ''}},
-    # 'Zoe Depth Zoe': {'class': ZoeDetector, 'checkpoint': True, 'params': {}},
-    # 'Zoe Depth NK': {'class': ZoeDetector, 'checkpoint': True, 'params': {}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_NK.safetensors', 'model_type': "zoedepth_nk"}},
+    'Shuffle': {'class': None, 'group': 'Other', 'checkpoint': False, 'params': {}},
 }
 
 
@@ -67,36 +79,61 @@ def delay_load_config():
     from modules.control.proc.glpn import GLPNDetector
     from modules.control.proc.depth_anything import DepthAnythingDetector
     from modules.control.proc.depth_pro import DepthProDetector
+    from modules.control.proc.depth_anything_v2 import DepthAnythingV2Detector
+    from modules.control.proc.teed import TEEDDetector
+    from modules.control.proc.anyline import AnylineDetector
+    from modules.control.proc.rtmlib_pose import RtmlibPoseDetector
+    from modules.control.proc.vitpose import ViTPoseDetector
+    from modules.control.proc.sam2 import Sam2Detector
+    from modules.control.proc.oneformer import OneFormerDetector
+    from modules.control.proc.dsine import DSINEDetector
+    from modules.control.proc.stablenormal import StableNormalDetector
+    from modules.control.proc.marigold_normals import MarigoldNormalsDetector
+    from modules.control.proc.lotus import LotusDetector
     config = {
         # placeholder
         'None': {},
         # pose models
-        'OpenPose': {'class': OpenposeDetector, 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
-        'MediaPipe Face': {'class': MediapipeFaceDetector, 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
-        # outline models
-        'Canny': {'class': CannyDetector, 'checkpoint': False, 'params': {'low_threshold': 100, 'high_threshold': 200}},
-        'Edge': {'class': EdgeDetector, 'checkpoint': False, 'params': {'pf': True, 'mode': 'edge'}},
-        'LineArt Realistic': {'class': LineartDetector, 'checkpoint': True, 'params': {'coarse': False}},
-        'LineArt Anime': {'class': LineartAnimeDetector, 'checkpoint': True, 'params': {}},
-        'HED': {'class': HEDdetector, 'checkpoint': True, 'params': {'scribble': False, 'safe': False}},
-        'PidiNet': {'class': PidiNetDetector, 'checkpoint': True, 'params': {'scribble': False, 'safe': False, 'apply_filter': False}},
+        'OpenPose': {'class': OpenposeDetector, 'group': 'Pose', 'checkpoint': True, 'params': {'include_body': True, 'include_hand': False, 'include_face': False}},
+        'MediaPipe Face': {'class': MediapipeFaceDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'max_faces': 1, 'min_confidence': 0.5}},
+        'DWPose (ONNX)': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
+        'RTMW': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3, 'draw_body_pose': True, 'draw_hand_pose': True, 'draw_face_pose': True}},
+        'RTMO': {'class': RtmlibPoseDetector, 'group': 'Pose', 'checkpoint': False, 'params': {'min_confidence': 0.3}},
+        'ViTPose': {'class': ViTPoseDetector, 'group': 'Pose', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'usyd-community/vitpose-plus-base'}, 'params': {'min_confidence': 0.3}},
+        # edge models
+        'Canny': {'class': CannyDetector, 'group': 'Edge', 'checkpoint': False, 'params': {'low_threshold': 100, 'high_threshold': 200}},
+        'Edge': {'class': EdgeDetector, 'group': 'Edge', 'checkpoint': False, 'params': {'pf': True, 'mode': 'edge'}},
+        'LineArt Realistic': {'class': LineartDetector, 'group': 'Edge', 'checkpoint': True, 'params': {'coarse': False}},
+        'LineArt Anime': {'class': LineartAnimeDetector, 'group': 'Edge', 'checkpoint': True, 'params': {}},
+        'HED': {'class': HEDdetector, 'group': 'Edge', 'checkpoint': True, 'params': {'scribble': False, 'safe': False}},
+        'PidiNet': {'class': PidiNetDetector, 'group': 'Edge', 'checkpoint': True, 'params': {'scribble': False, 'safe': False, 'apply_filter': False}},
+        'MLSD': {'class': MLSDdetector, 'group': 'Edge', 'checkpoint': True, 'params': {'thr_v': 0.1, 'thr_d': 0.1}},
+        'TEED': {'class': TEEDDetector, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'fal/teed'}, 'params': {}},
+        'Anyline': {'class': AnylineDetector, 'group': 'Edge', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'TheMistoAI/MistoLine'}, 'params': {}},
         # depth models
-        'Midas Depth Hybrid': {'class': MidasDetector, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}},
-        'Leres Depth': {'class': LeresDetector, 'checkpoint': True, 'params': {'boost': False, 'thr_a':0, 'thr_b':0}},
-        'Zoe Depth': {'class': ZoeDetector, 'checkpoint': True, 'params': {'gamma_corrected': False}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_N.safetensors', 'model_type': "zoedepth"}},
-        'Marigold Depth': {'class': MarigoldDetector, 'checkpoint': True, 'params': {'denoising_steps': 10, 'ensemble_size': 10, 'processing_res': 512, 'match_input_res': True, 'color_map': 'None'}, 'load_config': {'pretrained_model_or_path': 'Bingxin/Marigold'}},
+        'Midas Depth Hybrid': {'class': MidasDetector, 'group': 'Depth', 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}},
+        'Leres Depth': {'class': LeresDetector, 'group': 'Depth', 'checkpoint': True, 'params': {'boost': False, 'thr_a': 0, 'thr_b': 0}},
+        'Zoe Depth': {'class': ZoeDetector, 'group': 'Depth', 'checkpoint': True, 'params': {'gamma_corrected': False}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_N.safetensors', 'model_type': "zoedepth"}},
+        'Marigold Depth': {'class': MarigoldDetector, 'group': 'Depth', 'checkpoint': True, 'params': {'denoising_steps': 4, 'ensemble_size': 4, 'processing_res': 768, 'match_input_res': True, 'color_map': 'None'}, 'load_config': {'pretrained_model_or_path': 'prs-eth/marigold-depth-v1-1'}},
+        'DPT Depth Hybrid': {'class': DPTDetector, 'group': 'Depth', 'checkpoint': False, 'params': {}},
+        'GLPN Depth': {'class': GLPNDetector, 'group': 'Depth', 'checkpoint': False, 'params': {}},
+        'Depth Anything': {'class': DepthAnythingDetector, 'group': 'Depth', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'LiheYoung/depth_anything_vitl14'}, 'params': {'color_map': 'inferno'}},
+        'Depth Pro': {'class': DepthProDetector, 'group': 'Depth', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'apple/DepthPro-hf'}, 'params': {'color_map': 'inferno'}},
+        'Depth Anything V2 Small': {'class': DepthAnythingV2Detector, 'group': 'Depth', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'depth-anything/Depth-Anything-V2-Small-hf'}, 'params': {'color_map': 'inferno'}},
+        'Depth Anything V2 Large': {'class': DepthAnythingV2Detector, 'group': 'Depth', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'depth-anything/Depth-Anything-V2-Large-hf'}, 'params': {'color_map': 'inferno'}},
+        'Marigold Depth LCM': {'class': MarigoldDetector, 'group': 'Depth', 'checkpoint': True, 'params': {'denoising_steps': 1, 'ensemble_size': 1, 'processing_res': 768, 'match_input_res': True, 'color_map': 'None'}, 'load_config': {'pretrained_model_or_path': 'prs-eth/marigold-depth-lcm-v1-0'}},
+        'Lotus Depth': {'class': LotusDetector, 'group': 'Depth', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'jingheya/lotus-depth-g-v2-1-disparity'}, 'params': {'color_map': 'inferno'}},
+        # normal models
+        'Normal Bae': {'class': None, 'group': 'Normal', 'checkpoint': True, 'params': {}},
+        'DSINE': {'class': DSINEDetector, 'group': 'Normal', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'hugoycj/DSINE-hub'}, 'params': {}},
+        'StableNormal': {'class': StableNormalDetector, 'group': 'Normal', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'Stable-X/StableNormal'}, 'params': {}},
+        'Marigold Normals': {'class': MarigoldNormalsDetector, 'group': 'Normal', 'checkpoint': True, 'params': {'denoising_steps': 4, 'ensemble_size': 4, 'processing_res': 768, 'match_input_res': True}, 'load_config': {'pretrained_model_or_path': 'prs-eth/marigold-normals-v1-1'}},
         # segmentation models
-        'SegmentAnything': {'class': SamDetector, 'checkpoint': True, 'model': 'Base', 'params': {}},
+        'SegmentAnything': {'class': SamDetector, 'group': 'Segmentation', 'checkpoint': True, 'model': 'Base', 'params': {}},
+        'SAM 2.1': {'class': Sam2Detector, 'group': 'Segmentation', 'checkpoint': True, 'model': 'Large', 'load_config': {'pretrained_model_or_path': 'facebook/sam2.1-hiera-large'}, 'params': {}},
+        'OneFormer': {'class': OneFormerDetector, 'group': 'Segmentation', 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'shi-labs/oneformer_ade20k_swin_large'}, 'params': {}},
         # other models
-        'MLSD': {'class': MLSDdetector, 'checkpoint': True, 'params': {'thr_v': 0.1, 'thr_d': 0.1}},
-        'Shuffle': {'class': ContentShuffleDetector, 'checkpoint': False, 'params': {}},
-        'DPT Depth Hybrid': {'class': DPTDetector, 'checkpoint': False, 'params': {}},
-        'GLPN Depth': {'class': GLPNDetector, 'checkpoint': False, 'params': {}},
-        'Depth Anything': {'class': DepthAnythingDetector, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'LiheYoung/depth_anything_vitl14' }, 'params': { 'color_map': 'inferno' }},
-        'Depth Pro': {'class': DepthProDetector, 'checkpoint': True, 'load_config': {'pretrained_model_or_path': 'apple/DepthPro-hf'}, 'params': {'color_map': 'inferno'}},
-        # 'Midas Depth Large': {'class': MidasDetector, 'checkpoint': True, 'params': {'bg_th': 0.1, 'depth_and_normal': False}, 'load_config': {'pretrained_model_or_path': 'Intel/dpt-large', 'model_type': "dpt_large", 'filename': ''}},
-        # 'Zoe Depth Zoe': {'class': ZoeDetector, 'checkpoint': True, 'params': {}},
-        # 'Zoe Depth NK': {'class': ZoeDetector, 'checkpoint': True, 'params': {}, 'load_config': {'pretrained_model_or_path': 'halffried/gyre_zoedepth', 'filename': 'ZoeD_M12_NK.safetensors', 'model_type': "zoedepth_nk"}},
+        'Shuffle': {'class': ContentShuffleDetector, 'group': 'Other', 'checkpoint': False, 'params': {}},
     }
 
 
@@ -225,7 +262,7 @@ class Processor:
             # log.debug(f'Control Processor loading: id="{processor_id}" class={cls.__name__}')
             debug(f'Control Processor config={self.load_config}')
             jobid = state.begin('Load processor')
-            if 'DWPose' in processor_id:
+            if processor_id == 'DWPose':
                 det_ckpt = 'https://download.openmmlab.com/mmdetection/v2.0/yolox/yolox_l_8x8_300e_coco/yolox_l_8x8_300e_coco_20211126_140236-d3bd2b23.pth'
                 if 'Tiny' == config['DWPose']['model']:
                     pose_config = 'config/rtmpose-t_8xb64-270e_coco-ubody-wholebody-256x192.py'
@@ -240,6 +277,9 @@ class Processor:
                     log.error(f'Control Processor load failed: id="{processor_id}" error=unknown model type')
                     return f'Processor failed to load: {processor_id}'
                 self.model = cls(det_ckpt=det_ckpt, pose_config=pose_config, pose_ckpt=pose_ckpt, device="cpu")
+            elif processor_id in ('DWPose (ONNX)', 'RTMW', 'RTMO'):
+                model_type = {'DWPose (ONNX)': 'DWPose', 'RTMW': 'RTMW-l', 'RTMO': 'RTMO-l'}[processor_id]
+                self.model = cls.from_pretrained(model_type, **self.load_config)
             elif 'SegmentAnything' in processor_id:
                 if 'Base' == config['SegmentAnything']['model']:
                     self.model = cls.from_pretrained(model_path = 'segments-arnaud/sam_vit_b', filename='sam_vit_b_01ec64.pth', model_type='vit_b', **self.load_config)
@@ -265,6 +305,21 @@ class Processor:
             return f'Processor load filed: {processor_id}'
 
     def __call__(self, image_input: Image, mode: str = 'RGB', width: int = 0, height: int = 0, resize_mode: int = 0, resize_name: str = 'None', scale_tab: int = 1, scale_by: float = 1.0, local_config: dict = None):
+        """Run the preprocessor on an input image and return the processed control map.
+
+        Args:
+            image_input: Source image to preprocess.
+            mode: Output color mode ('RGB', 'L', etc.).
+            width, height: Target dimensions for resize when an override image is provided.
+            resize_mode: Resize strategy index (0 = no resize).
+            resize_name: Resize algorithm name ('None' to skip).
+            scale_tab: Scale mode selector (1 = scale by multiplier).
+            scale_by: Scale multiplier when scale_tab is 1.
+            local_config: Per-call parameter overrides merged on top of the processor's global
+                config[processor_id]['params']. Keys must match the processor's accepted kwargs
+                (e.g. {'low_threshold': 50, 'high_threshold': 150} for Canny). Passed from
+                the API via Unit.process_params.
+        """
         if local_config is None:
             local_config = {}
         if self.override is not None:
@@ -301,8 +356,8 @@ class Processor:
             return image_process
         try:
             t0 = time.time()
-            kwargs = config.get(self.processor_id, {}).get('params', None)
-            if kwargs:
+            kwargs = dict(config.get(self.processor_id, {}).get('params', {}))
+            if local_config:
                 kwargs.update(local_config)
             if self.resize:
                 image_resized = image_input.resize((512, 512), Image.Resampling.LANCZOS)

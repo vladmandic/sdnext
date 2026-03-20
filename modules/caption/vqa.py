@@ -1,5 +1,6 @@
 import io
 import os
+import re
 import time
 import json
 import base64
@@ -9,9 +10,10 @@ import transformers
 import transformers.dynamic_module_utils
 from PIL import Image
 from modules import shared, devices, errors, model_quant, sd_models, sd_models_compile
+from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log, console
 from modules.caption import vqa_detection
-from modules.caption.models_def import vlm_models, vlm_system, vlm_default, vlm_prefill, vlm_prompts, vlm_prompt_mapping, vlm_prompt_placeholders, vlm_prompts_common, vlm_prompts_florence, vlm_prompts_moondream, vlm_prompts_moondream2, vlm_prompts_promptgen
+from modules.caption.models_def import vlm_models, vlm_system, vlm_default, vlm_prefill, vlm_prompts, vlm_prompt_mapping, vlm_prompt_placeholders, vlm_prompts_common, vlm_prompts_florence, vlm_prompts_moondream, vlm_prompts_moondream2, vlm_prompts_promptgen, get_vlm_repo
 
 # Debug logging - function-based to avoid circular import
 debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
@@ -92,11 +94,14 @@ def is_thinking_model(model_name: str) -> bool:
     # Check for known thinking models
     thinking_indicators = [
         'thinking',  # Qwen3-VL-*-Thinking models
+        'reasoning',  # Mistral-3-*-Reasoning models
         'moondream3',  # Moondream 3 supports thinking
         'moondream 3',
         'moondream2',  # Moondream 2 supports reasoning mode
         'moondream 2',
         'mimo',
+        'qwen3.5',  # Qwen3.5 native thinking (repo names)
+        'qwen 3.5',  # Qwen3.5 native thinking (display names)
     ]
     return any(indicator in model_lower for indicator in thinking_indicators)
 
@@ -336,93 +341,113 @@ class VQA:
         joytag.unload()
         deepseek.unload()
 
+    def _unload_current(self):
+        """Free current model memory before loading a new one."""
+        if self.model is not None:
+            deregister_aux('vqa')
+            sd_models.move_model(self.model, devices.cpu, force=True)
+            self.model = None
+            self.processor = None
+            devices.torch_gc(force=True, reason='vqa model switch')
+
     def load(self, model_name: str = None):
         """Load VLM model into memory for the specified model name."""
         model_name = model_name or shared.opts.caption_vlm_model
         if not model_name:
             log.warning('VQA load: no model specified')
             return
-        repo = vlm_models.get(model_name)
-        if repo is None:
+        repo = get_vlm_repo(model_name)
+        if repo == model_name and model_name not in vlm_models.values():
             log.error(f'VQA load: unknown model="{model_name}"')
             return
 
         log.debug(f'VQA load: pre-loading model="{model_name}" repo="{repo}"')
+        sd_models.set_caption_load_options()
 
-        # dispatch to appropriate loader (same logic as caption)
-        repo_lower = repo.lower()
-        if 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower:
-            self._load_qwen(repo)
-        elif 'gemma' in repo_lower and 'pali' not in repo_lower:
-            self._load_gemma(repo)
-        elif 'smol' in repo_lower:
-            self._load_smol(repo)
-        elif 'florence' in repo_lower:
-            self._load_florence(repo)
-        elif 'moondream2' in repo_lower:
-            self._load_moondream(repo)
-        elif 'git' in repo_lower:
-            self._load_git(repo)
-        elif 'blip' in repo_lower:
-            self._load_blip(repo)
-        elif 'vilt' in repo_lower:
-            self._load_vilt(repo)
-        elif 'pix' in repo_lower:
-            self._load_pix(repo)
-        elif 'paligemma' in repo_lower:
-            self._load_paligemma(repo)
-        elif 'ovis' in repo_lower:
-            self._load_ovis(repo)
-        elif 'sa2' in repo_lower:
-            self._load_sa2(repo)
-        elif 'fastvlm' in repo_lower:
-            self._load_fastvlm(repo)
-        elif 'moondream3' in repo_lower:
-            from modules.caption import moondream3
-            moondream3.load_model(repo)
-            log.info(f'VQA load: model="{model_name}" loaded (external handler)')
-            return
-        elif 'joytag' in repo_lower:
-            from modules.caption import joytag
-            joytag.load()
-            log.info(f'VQA load: model="{model_name}" loaded (external handler)')
-            return
-        elif 'joycaption' in repo_lower:
-            from modules.caption import joycaption
-            joycaption.load(repo)
-            log.info(f'VQA load: model="{model_name}" loaded (external handler)')
-            return
-        elif 'deepseek' in repo_lower:
-            from modules.caption import deepseek
-            deepseek.load(repo)
-            log.info(f'VQA load: model="{model_name}" loaded (external handler)')
-            return
-        else:
-            # log.warning(f'VQA load: no pre-loader for model="{model_name}"')
-            return
+        try:
+            # dispatch to appropriate loader (same logic as caption)
+            repo_lower = repo.lower()
+            if 'mistral' in repo_lower:
+                self._load_mistral(repo)
+            elif 'qwen' in repo_lower or 'torii' in repo_lower or 'mimo' in repo_lower:
+                self._load_qwen(repo)
+            elif 'gemma' in repo_lower and 'pali' not in repo_lower:
+                self._load_gemma(repo)
+            elif 'smol' in repo_lower:
+                self._load_smol(repo)
+            elif 'florence' in repo_lower:
+                self._load_florence(repo)
+            elif 'moondream2' in repo_lower:
+                self._load_moondream(repo)
+            elif 'git' in repo_lower:
+                self._load_git(repo)
+            elif 'blip' in repo_lower:
+                self._load_blip(repo)
+            elif 'vilt' in repo_lower:
+                self._load_vilt(repo)
+            elif 'pix' in repo_lower:
+                self._load_pix(repo)
+            elif 'paligemma' in repo_lower:
+                self._load_paligemma(repo)
+            elif 'ovis' in repo_lower:
+                self._load_ovis(repo)
+            elif 'sa2' in repo_lower:
+                self._load_sa2(repo)
+            elif 'fastvlm' in repo_lower:
+                self._load_fastvlm(repo)
+            elif 'moondream3' in repo_lower:
+                from modules.caption import moondream3
+                moondream3.load_model(repo)
+                log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+                return
+            elif 'joytag' in repo_lower:
+                from modules.caption import joytag
+                joytag.load()
+                log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+                return
+            elif 'joycaption' in repo_lower:
+                from modules.caption import joycaption
+                joycaption.load(repo)
+                log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+                return
+            elif 'deepseek' in repo_lower:
+                from modules.caption import deepseek
+                deepseek.load(repo)
+                log.info(f'VQA load: model="{model_name}" loaded (external handler)')
+                return
+            else:
+                log.warning(f'VQA load: no pre-loader for model="{model_name}"')
+                return
+            move_aux_to_gpu('vqa')
+            log.info(f'VQA load: model="{model_name}" loaded')
+        finally:
+            sd_models.set_huggingface_options(quiet=True)
 
     def _load_fastvlm(self, repo: str):
         """Load FastVLM model and tokenizer."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
+            self._unload_current()
             quant_args = model_quant.create_config(module='LLM')
-            self.model = None
             self.processor = transformers.AutoTokenizer.from_pretrained(repo, trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
             self.model = transformers.AutoModelForCausalLM.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 trust_remote_code=True,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
+            self.model.eval()
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _fastvlm(self, question: str, image: Image.Image, repo: str, model_name: str = None):
         debug(f'VQA caption: handler=fastvlm model_name="{model_name}" repo="{repo}" question="{question}" image_size={image.size if image else None}')
         self._load_fastvlm(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         if len(question) < 2:
             question = "Describe the image."
         question = question.replace('<', '').replace('>', '')
@@ -450,6 +475,8 @@ class VQA:
 
     # Map Qwen VL config model_type strings to their model classes.
     _QWEN_VL_MODEL_TYPE_MAP = {
+        'qwen3_5': 'Qwen3_5ForConditionalGeneration',
+        'qwen3_5_moe': 'Qwen3_5MoeForConditionalGeneration',
         'qwen3_vl': 'Qwen3VLForConditionalGeneration',
         'qwen2_5_vl': 'Qwen2_5_VLForConditionalGeneration',
         'qwen2_vl': 'Qwen2VLForConditionalGeneration',
@@ -459,8 +486,12 @@ class VQA:
         """Load Qwen VL model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
-            if 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
+            self._unload_current()
+            if 'Qwen3.5' in repo and re.search(r'-A\d+B', repo):
+                cls_name = transformers.Qwen3_5MoeForConditionalGeneration
+            elif 'Qwen3.5' in repo:
+                cls_name = transformers.Qwen3_5ForConditionalGeneration
+            elif 'Qwen3-VL' in repo or 'Qwen3VL' in repo:
                 cls_name = transformers.Qwen3VLForConditionalGeneration
             elif 'Qwen2.5-VL' in repo or 'Qwen2_5_VL' in repo or 'MiMo-VL' in repo:
                 cls_name = transformers.Qwen2_5_VLForConditionalGeneration
@@ -478,18 +509,21 @@ class VQA:
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
+            self.model.eval()
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
             if 'LLM' in shared.opts.cuda_compile:
-                self.model = sd_models_compile.compile_torch(self.model)
+                self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _qwen(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
         self._load_qwen(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         # Get model class name for logging
         cls_name = self.model.__class__.__name__
         debug(f'VQA caption: handler=qwen model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
@@ -527,19 +561,24 @@ class VQA:
             debug(f'VQA caption: handler=qwen full_conversation={truncate_b64_in_conversation(conversation)}')
             debug(f'VQA caption: handler=qwen is_thinking={is_thinking} thinking_mode={thinking_mode} prefill="{prefill_text}"')
 
+        # Qwen3.5 uses native enable_thinking parameter in the chat template
+        is_qwen35 = 'qwen3.5' in (model_name or '').lower() or 'qwen3.5' in repo.lower()
+        template_kwargs = {'enable_thinking': thinking_mode} if is_qwen35 else {}
+
         # Generate base prompt using template
         # Qwen-Thinking template automatically adds "<|im_start|>assistant\n<think>\n" when add_generation_prompt=True
         try:
             text_prompt = self.processor.apply_chat_template(
                 conversation,
                 add_generation_prompt=True,
+                **template_kwargs,
             )
         except (TypeError, ValueError) as e:
             debug(f'VQA caption: handler=qwen chat_template fallback add_generation_prompt=True: {e}')
             text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=True)
 
-        # Manually handle thinking tags and prefill
-        if is_thinking:
+        # Manual think handling - skip for Qwen3.5 (template handles it natively)
+        if is_thinking and not is_qwen35:
             if not thinking_mode:
                 # User wants to SKIP thinking.
                 # Since template opened the block with <think>, we close it immediately.
@@ -552,7 +591,7 @@ class VQA:
                 if use_prefill:
                     text_prompt += prefill_text
         else:
-            # Standard model (not forcing <think>)
+            # Standard model or Qwen3.5 (no manual <think> manipulation needed)
             if use_prefill:
                 text_prompt += prefill_text
 
@@ -583,7 +622,7 @@ class VQA:
         """Load Gemma 3 model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             if '3n' in repo:
                 cls = transformers.Gemma3nForConditionalGeneration  # pylint: disable=no-member
             else:
@@ -593,18 +632,21 @@ class VQA:
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
+            self.model.eval()
             if 'LLM' in shared.opts.cuda_compile:
-                self.model = sd_models_compile.compile_torch(self.model)
+                self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _gemma(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
         self._load_gemma(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         # Get model class name for logging
         cls_name = self.model.__class__.__name__
         debug(f'VQA caption: handler=gemma model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
@@ -693,24 +735,102 @@ class VQA:
         response = strip_think_xml_tags(response, keep=get_keep_thinking())
         return response
 
+    def _load_mistral(self, repo: str):
+        """Load Mistral3 vision model and processor."""
+        if self.model is None or self.loaded != repo:
+            log.debug(f'Caption load: vlm="{repo}"')
+            self._unload_current()
+            quant_args = model_quant.create_config(module='LLM')
+            self.model = transformers.Mistral3ForConditionalGeneration.from_pretrained(
+                repo,
+                torch_dtype=devices.dtype,
+                use_safetensors=True,
+                low_cpu_mem_usage=True,
+                cache_dir=shared.opts.hfcache_dir,
+                **quant_args,
+            )
+            self.model.eval()
+            if 'LLM' in shared.opts.cuda_compile:
+                self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
+            self.processor = transformers.AutoProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
+            self.loaded = repo
+            devices.torch_gc()
+
+    def _mistral(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
+        self._load_mistral(repo)
+        move_aux_to_gpu('vqa')
+        cls_name = self.model.__class__.__name__
+        debug(f'VQA caption: handler=mistral model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
+
+        question = question.replace('<', '').replace('>', '').replace('_', ' ')
+        system_prompt = system_prompt or shared.opts.caption_vlm_system
+
+        conversation = []
+        if system_prompt and len(system_prompt) > 4:
+            conversation.append({"role": "system", "content": [{"type": "text", "text": system_prompt}]})
+        user_content = []
+        if image is not None:
+            user_content.append({"type": "image", "image": b64(image)})
+        if question and len(question) > 1:
+            user_content.append({"type": "text", "text": question})
+        conversation.append({"role": "user", "content": user_content})
+
+        prefill_value = vlm_prefill if prefill is None else prefill
+        prefill_text = prefill_value.strip()
+        use_prefill = len(prefill_text) > 0
+
+        if use_prefill:
+            conversation.append({"role": "assistant", "content": [{"type": "text", "text": prefill_text}]})
+
+        if debug_enabled:
+            debug(f'VQA caption: handler=mistral conversation_roles={[msg["role"] for msg in conversation]}')
+            debug(f'VQA caption: handler=mistral full_conversation={truncate_b64_in_conversation(conversation)}')
+
+        try:
+            if use_prefill:
+                text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=False, continue_final_message=True, tokenize=False)
+            else:
+                text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
+        except (TypeError, ValueError) as e:
+            debug(f'VQA caption: handler=mistral chat_template fallback: {e}')
+            text_prompt = self.processor.apply_chat_template(conversation, add_generation_prompt=True, tokenize=False)
+
+        if debug_enabled:
+            debug(f'VQA caption: handler=mistral text_prompt="{text_prompt}"')
+        inputs = self.processor(text=[text_prompt], images=[image], padding=True, return_tensors="pt").to(device=devices.device, dtype=devices.dtype)
+        input_len = inputs["input_ids"].shape[-1]
+        gen_kwargs = get_kwargs()
+        debug(f'VQA caption: handler=mistral generation_kwargs={gen_kwargs} input_len={input_len}')
+        with devices.inference_context():
+            generation = self.model.generate(**inputs, **gen_kwargs)
+        generation = generation[0][input_len:]
+        response = self.processor.decode(generation, skip_special_tokens=True)
+        if debug_enabled:
+            debug(f'VQA caption: handler=mistral response_before_clean="{response}"')
+        return response
+
     def _load_paligemma(self, repo: str):
         """Load PaliGemma model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
+            self._unload_current()
             self.processor = transformers.PaliGemmaProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
-            self.model = None
             self.model = transformers.PaliGemmaForConditionalGeneration.from_pretrained(
                 repo,
                 cache_dir=shared.opts.hfcache_dir,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
             )
+            self.model.eval()
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _paligemma(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_paligemma(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         model_inputs = self.processor(text=question, images=image, return_tensors="pt").to(devices.device, devices.dtype)
         input_len = model_inputs["input_ids"].shape[-1]
@@ -727,7 +847,7 @@ class VQA:
         """Load Ovis model (requires flash-attn)."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             # Ovis remote code calls AutoConfig.register("aimv2", ...) at module scope
             # without exist_ok=True, which fails on reload or when the type is already
             # registered by a newer transformers version.
@@ -740,10 +860,13 @@ class VQA:
                     multimodal_max_length=32768,
                     trust_remote_code=True,
                     use_safetensors=True,
+                    low_cpu_mem_usage=True,
                     cache_dir=shared.opts.hfcache_dir,
                 )
             finally:
                 transformers.AutoConfig.register = _orig
+            self.model.eval()
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
@@ -754,7 +877,7 @@ class VQA:
             log.error(f'Caption: vlm="{repo}" flash-attn is not available')
             return ''
         self._load_ovis(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         text_tokenizer = self.model.get_text_tokenizer()
         visual_tokenizer = self.model.get_visual_tokenizer()
         max_partition = 9
@@ -784,24 +907,27 @@ class VQA:
         """Load SmolVLM model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             quant_args = model_quant.create_config(module='LLM')
             self.model = transformers.AutoModelForVision2Seq.from_pretrained(
                 repo,
                 cache_dir=shared.opts.hfcache_dir,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 **quant_args,
             )
+            self.model.eval()
             self.processor = transformers.AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
             if 'LLM' in shared.opts.cuda_compile:
-                self.model = sd_models_compile.compile_torch(self.model)
+                self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _smol(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
         self._load_smol(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         # Get model class name for logging
         cls_name = self.model.__class__.__name__
         debug(f'VQA caption: handler=smol model_name="{model_name}" model_class="{cls_name}" repo="{repo}" question="{question}" system_prompt="{system_prompt}" image_size={image.size if image else None}')
@@ -879,20 +1005,23 @@ class VQA:
         """Load Microsoft GIT model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             self.model = transformers.GitForCausalLM.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            self.model.eval()
             self.processor = transformers.GitProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _git(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_git(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         pixel_values = self.processor(images=image, return_tensors="pt").pixel_values
         git_dict = {}
         git_dict['pixel_values'] = pixel_values.to(devices.device, devices.dtype)
@@ -910,20 +1039,23 @@ class VQA:
         """Load Salesforce BLIP model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             self.model = transformers.BlipForQuestionAnswering.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            self.model.eval()
             self.processor = transformers.BlipProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _blip(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_blip(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         inputs = self.processor(image, question, return_tensors="pt")
         inputs = inputs.to(devices.device, devices.dtype)
         with devices.inference_context():
@@ -935,20 +1067,23 @@ class VQA:
         """Load ViLT model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             self.model = transformers.ViltForQuestionAnswering.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            self.model.eval()
             self.processor = transformers.ViltProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _vilt(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_vilt(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         inputs = self.processor(image, question, return_tensors="pt")
         inputs = inputs.to(devices.device)
         with devices.inference_context():
@@ -962,20 +1097,23 @@ class VQA:
         """Load Pix2Struct model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             self.model = transformers.Pix2StructForConditionalGeneration.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            self.model.eval()
             self.processor = transformers.Pix2StructProcessor.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _pix(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_pix(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         if len(question) > 0:
             inputs = self.processor(images=image, text=question, return_tensors="pt")
         else:
@@ -990,24 +1128,26 @@ class VQA:
         """Load Moondream 2 model and tokenizer."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
-            self.model = None
+            self._unload_current()
             self.model = transformers.AutoModelForCausalLM.from_pretrained(
                 repo,
                 revision="2025-06-21",
                 trust_remote_code=True,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
             )
             self.processor = transformers.AutoTokenizer.from_pretrained(repo, cache_dir=shared.opts.hfcache_dir)
             self.loaded = repo
             self.model.eval()  # required: trust_remote_code model
+            register_aux('vqa', self.model)
             devices.torch_gc()
 
     def _moondream(self, question: str, image: Image.Image, repo: str, model_name: str = None, thinking_mode: bool = False):
         debug(f'VQA caption: handler=moondream model_name="{model_name}" repo="{repo}" question="{question}" thinking_mode={thinking_mode}')
         self._load_moondream(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
         with devices.inference_context():
             if question == 'CAPTION':
@@ -1088,25 +1228,28 @@ class VQA:
 
         if self.model is None or self.loaded != cache_key:
             log.debug(f'Caption load: vlm="{repo_name}" revision="{effective_revision}" path="{shared.opts.hfcache_dir}"')
+            self._unload_current()
             transformers.dynamic_module_utils.get_imports = get_imports
-            self.model = None
             quant_args = model_quant.create_config(module='LLM')
             self.model = transformers.Florence2ForConditionalGeneration.from_pretrained(
                 repo_name,
                 revision=effective_revision,
                 torch_dtype=devices.dtype,
                 use_safetensors=True,
+                low_cpu_mem_usage=True,
                 cache_dir=shared.opts.hfcache_dir,
                 **quant_args,
             )
+            self.model.eval()
             self.processor = transformers.AutoProcessor.from_pretrained(repo_name, max_pixels=1024*1024, trust_remote_code=True, revision=effective_revision, cache_dir=shared.opts.hfcache_dir)
             transformers.dynamic_module_utils.get_imports = _get_imports
+            register_aux('vqa', self.model)
             self.loaded = cache_key
             devices.torch_gc()
 
     def _florence(self, question: str, image: Image.Image, repo: str, revision: str = None, model_name: str = None): # pylint: disable=unused-argument
         self._load_florence(repo, revision)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         if question.startswith('<'):
             task = question.split('>', 1)[0] + '>'
         else:
@@ -1143,7 +1286,7 @@ class VQA:
     def _load_sa2(self, repo: str):
         """Load SA2VA model and tokenizer."""
         if self.model is None or self.loaded != repo:
-            self.model = None
+            self._unload_current()
             self.model = transformers.AutoModel.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
@@ -1159,12 +1302,13 @@ class VQA:
                 use_fast=False,
                 cache_dir=shared.opts.hfcache_dir,
             )
+            register_aux('vqa', self.model)
             self.loaded = repo
             devices.torch_gc()
 
     def _sa2(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
         self._load_sa2(repo)
-        sd_models.move_model(self.model, devices.device)
+        move_aux_to_gpu('vqa')
         if question.startswith('<'):
             task = question.split('>', 1)[0] + '>'
         else:
@@ -1246,14 +1390,15 @@ class VQA:
 
         from modules import modelloader
         modelloader.hf_login()
+        sd_models.set_caption_load_options()
 
         try:
             if model_name is None:
                 log.error(f'Caption: type=vlm model="{model_name}" no model selected')
                 shared.state.end(jobid)
                 return ''
-            vqa_model = vlm_models.get(model_name, None)
-            if vqa_model is None:
+            vqa_model = get_vlm_repo(model_name)
+            if vqa_model == model_name and model_name not in vlm_models.values():
                 log.error(f'Caption: type=vlm model="{model_name}" unknown')
                 shared.state.end(jobid)
                 return ''
@@ -1289,6 +1434,9 @@ class VQA:
                 # Format dict answer as readable string (string answers pass through unchanged)
                 if isinstance(answer, dict):
                     answer = vqa_detection.format_florence_response(answer)
+            elif 'mistral' in vqa_model.lower():
+                handler = 'mistral'
+                answer = self._mistral(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
             elif 'qwen' in vqa_model.lower() or 'torii' in vqa_model.lower() or 'mimo' in vqa_model.lower():
                 handler = 'qwen'
                 answer = self._qwen(question, image, vqa_model, system_prompt, model_name, prefill, thinking_mode)
@@ -1332,10 +1480,11 @@ class VQA:
         except Exception as e:
             errors.display(e, 'VQA')
             answer = 'error'
-
-        if shared.opts.caption_offload and self.model is not None:
-            sd_models.move_model(self.model, devices.cpu, force=True)
-        devices.torch_gc(force=True, reason='vqa')
+        finally:
+            sd_models.set_huggingface_options(quiet=True)
+            if self.model is not None:
+                offload_aux('vqa')
+            devices.torch_gc(force=True, reason='vqa')
 
         # Clean the answer
         answer = clean(answer, question, prefill)
@@ -1420,6 +1569,7 @@ class VQA:
                 writer.close()
         finally:
             shared.opts.caption_offload = orig_offload
+            offload_aux('vqa')
         shared.state.end(jobid)
         return '\n\n'.join(prompts)
 

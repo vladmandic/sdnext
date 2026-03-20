@@ -39,12 +39,14 @@ class Api:
     def register(self):
         # fetch js/css
         self.add_api_route("/js", server.get_js, methods=["GET"], auth=False)
+
         # server api
         self.add_api_route("/sdapi/v1/motd", server.get_motd, methods=["GET"], response_model=str)
         self.add_api_route("/sdapi/v1/log", server.get_log, methods=["GET"], response_model=list[str])
         self.add_api_route("/sdapi/v1/log", server.post_log, methods=["POST"])
         self.add_api_route("/sdapi/v1/start", self.get_session_start, methods=["GET"])
         self.add_api_route("/sdapi/v1/version", server.get_version, methods=["GET"])
+        self.add_api_route("/sdapi/v1/torch", server.get_torch, methods=["GET"])
         self.add_api_route("/sdapi/v1/status", server.get_status, methods=["GET"], response_model=models.ResStatus)
         self.add_api_route("/sdapi/v1/platform", server.get_platform, methods=["GET"])
         self.add_api_route("/sdapi/v1/progress", server.get_progress, methods=["GET"], response_model=models.ResProgress)
@@ -53,25 +55,24 @@ class Api:
         self.add_api_route("/sdapi/v1/skip", server.post_skip, methods=["POST"])
         self.add_api_route("/sdapi/v1/shutdown", server.post_shutdown, methods=["POST"])
         self.add_api_route("/sdapi/v1/memory", server.get_memory, methods=["GET"], response_model=models.ResMemory)
-        self.add_api_route("/sdapi/v1/options", server.get_config, methods=["GET"], response_model=models.OptionsModel)
-        self.add_api_route("/sdapi/v1/options", server.set_config, methods=["POST"])
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel)
-        self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu_status, methods=["GET"], response_model=list[models.ResGPU])
+        self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu, methods=["GET"])
+        self.add_api_route("/sdapi/v1/gpu-smi", gpu.get_gpu_smi, methods=["GET"], response_model=list[models.ResGPU])
 
         # core api using locking
-        self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img)
-        self.add_api_route("/sdapi/v1/img2img", self.generate.post_img2img, methods=["POST"], response_model=models.ResImg2Img)
-        self.add_api_route("/sdapi/v1/control", self.control.post_control, methods=["POST"], response_model=control.ResControl)
-        self.add_api_route("/sdapi/v1/extra-single-image", self.process.extras_single_image_api, methods=["POST"], response_model=models.ResProcessImage)
-        self.add_api_route("/sdapi/v1/extra-batch-images", self.process.extras_batch_images_api, methods=["POST"], response_model=models.ResProcessBatch)
-        self.add_api_route("/sdapi/v1/preprocess", self.process.post_preprocess, methods=["POST"])
-        self.add_api_route("/sdapi/v1/mask", self.process.post_mask, methods=["POST"])
-        self.add_api_route("/sdapi/v1/detect", self.process.post_detect, methods=["POST"])
-        self.add_api_route("/sdapi/v1/prompt-enhance", self.process.post_prompt_enhance, methods=["POST"], response_model=models.ResPromptEnhance)
+        self.add_api_route("/sdapi/v1/txt2img", self.generate.post_text2img, methods=["POST"], response_model=models.ResTxt2Img, tags=["Generation"])
+        self.add_api_route("/sdapi/v1/img2img", self.generate.post_img2img, methods=["POST"], response_model=models.ResImg2Img, tags=["Generation"])
+        self.add_api_route("/sdapi/v1/control", self.control.post_control, methods=["POST"], response_model=control.ResControl, tags=["Generation"])
+        self.add_api_route("/sdapi/v1/extra-single-image", self.process.extras_single_image_api, methods=["POST"], response_model=models.ResProcessImage, tags=["Processing"])
+        self.add_api_route("/sdapi/v1/extra-batch-images", self.process.extras_batch_images_api, methods=["POST"], response_model=models.ResProcessBatch, tags=["Processing"])
+        self.add_api_route("/sdapi/v1/preprocess", self.process.post_preprocess, methods=["POST"], tags=["Processing"])
+        self.add_api_route("/sdapi/v1/mask", self.process.post_mask, methods=["POST"], tags=["Processing"])
+        self.add_api_route("/sdapi/v1/detect", self.process.post_detect, methods=["POST"], tags=["Processing"])
+        self.add_api_route("/sdapi/v1/prompt-enhance", self.process.post_prompt_enhance, methods=["POST"], response_model=models.ResPromptEnhance, tags=["Generation"])
 
         # api dealing with optional scripts
-        self.add_api_route("/sdapi/v1/scripts", script.get_scripts_list, methods=["GET"], response_model=models.ResScripts)
-        self.add_api_route("/sdapi/v1/script-info", script.get_script_info, methods=["GET"], response_model=list[models.ItemScript])
+        self.add_api_route("/sdapi/v1/scripts", script.get_scripts_list, methods=["GET"], response_model=models.ResScripts, tags=["Scripts"])
+        self.add_api_route("/sdapi/v1/script-info", script.get_script_info, methods=["GET"], response_model=list[models.ItemScript], tags=["Scripts"])
 
         # enumerator api
         self.add_api_route("/sdapi/v1/preprocessors", self.process.get_preprocess, methods=["GET"], response_model=list[process.ItemPreprocess])
@@ -80,6 +81,7 @@ class Api:
         self.add_api_route("/sdapi/v1/upscalers", endpoints.get_upscalers, methods=["GET"], response_model=list[models.ItemUpscaler])
         self.add_api_route("/sdapi/v1/sd-models", endpoints.get_sd_models, methods=["GET"], response_model=list[models.ItemModel])
         self.add_api_route("/sdapi/v1/controlnets", endpoints.get_controlnets, methods=["GET"], response_model=list[str])
+        self.add_api_route("/sdapi/v1/face-restorers", endpoints.get_restorers, methods=["GET"], response_model=list[models.ItemDetailer])
         self.add_api_route("/sdapi/v1/detailers", endpoints.get_detailers, methods=["GET"], response_model=list[models.ItemDetailer])
         self.add_api_route("/sdapi/v1/prompt-styles", endpoints.get_prompt_styles, methods=["GET"], response_model=list[models.ItemStyle])
         self.add_api_route("/sdapi/v1/embeddings", endpoints.get_embeddings, methods=["GET"], response_model=models.ResEmbeddings)
@@ -88,26 +90,30 @@ class Api:
         self.add_api_route("/sdapi/v1/extra-networks", endpoints.get_extra_networks, methods=["GET"], response_model=list[models.ItemExtraNetwork])
 
         # functional api
-        self.add_api_route("/sdapi/v1/png-info", endpoints.post_pnginfo, methods=["POST"], response_model=models.ResImageInfo)
-        self.add_api_route("/sdapi/v1/checkpoint", endpoints.get_checkpoint, methods=["GET"])
-        self.add_api_route("/sdapi/v1/checkpoint", endpoints.set_checkpoint, methods=["POST"])
-        self.add_api_route("/sdapi/v1/refresh-checkpoints", endpoints.post_refresh_checkpoints, methods=["POST"])
-        self.add_api_route("/sdapi/v1/unload-checkpoint", endpoints.post_unload_checkpoint, methods=["POST"])
-        self.add_api_route("/sdapi/v1/reload-checkpoint", endpoints.post_reload_checkpoint, methods=["POST"])
-        self.add_api_route("/sdapi/v1/lock-checkpoint", endpoints.post_lock_checkpoint, methods=["POST"])
-        self.add_api_route("/sdapi/v1/refresh-vae", endpoints.post_refresh_vae, methods=["POST"])
-        self.add_api_route("/sdapi/v1/latents", endpoints.get_latent_history, methods=["GET"], response_model=list[str])
-        self.add_api_route("/sdapi/v1/latents", endpoints.post_latent_history, methods=["POST"], response_model=int)
-        self.add_api_route("/sdapi/v1/modules", endpoints.get_modules, methods=["GET"])
-        self.add_api_route("/sdapi/v1/sampler", endpoints.get_sampler, methods=["GET"], response_model=dict)
+        self.add_api_route("/sdapi/v1/png-info", endpoints.post_pnginfo, methods=["POST"], response_model=models.ResImageInfo, tags=["Functional"])
+        self.add_api_route("/sdapi/v1/checkpoint", endpoints.get_checkpoint, methods=["GET"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/checkpoint", endpoints.set_checkpoint, methods=["POST"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/refresh-checkpoints", endpoints.post_refresh_checkpoints, methods=["POST"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/unload-checkpoint", endpoints.post_unload_checkpoint, methods=["POST"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/reload-checkpoint", endpoints.post_reload_checkpoint, methods=["POST"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/lock-checkpoint", endpoints.post_lock_checkpoint, methods=["POST"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/refresh-vae", endpoints.post_refresh_vae, methods=["POST"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/latents", endpoints.get_latent_history, methods=["GET"], response_model=list[str], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/latents", endpoints.post_latent_history, methods=["POST"], response_model=int, tags=["Functional"])
+        self.add_api_route("/sdapi/v1/modules", endpoints.get_modules, methods=["GET"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/sampler", endpoints.get_sampler, methods=["GET"], response_model=dict, tags=["Functional"])
+
+        # options api
+        from modules.api import options
+        options.register_api(self.app)
 
         # caption api
         from modules.api import caption
-        caption.register_api()
+        caption.register_api(self.app)
 
         # lora api
         from modules.api import loras
-        loras.register_api()
+        loras.register_api(self.app)
 
         # gallery api
         from modules.api import gallery
@@ -115,15 +121,26 @@ class Api:
 
         # nudenet api
         from modules.api import nudenet
-        nudenet.register_api()
+        nudenet.register_api(self.app)
 
         # xyz-grid api
         from modules.api import xyz_grid
-        xyz_grid.register_api()
+        xyz_grid.register_api(self.app)
 
         # civitai api
         from modules.civitai import api_civitai
-        api_civitai.register_api()
+        api_civitai.register_api(self.app)
+
+        # rembg api
+        from modules.rembg import rembg_api
+        rembg_api.register_api(self.app)
+
+        # hide trailing-slash duplicates from OpenAPI schema
+        from fastapi.routing import APIRoute
+        paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
+        for route in self.app.routes:
+            if isinstance(route, APIRoute) and len(route.path) > 1 and route.path.endswith('/') and route.path[:-1] in paths:
+                route.include_in_schema = False
 
         # upload api
         from modules.api import upload
@@ -151,6 +168,7 @@ class Api:
         raise HTTPException(status_code=401, detail="Unauthorized", headers={"WWW-Authenticate": "Basic"})
 
     def get_session_start(self, req: Request, agent: str | None = None):
+        """Log a new browser session with client IP, authenticated user, and user-agent string."""
         token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
         user = self.app.tokens.get(token) if hasattr(self.app, 'tokens') else None
         log.info(f'Browser session: user={user} client={req.client.host} agent={agent}')

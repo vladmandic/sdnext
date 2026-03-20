@@ -25,6 +25,7 @@ Core processing logic is shared between direct and dispatch handlers via
 ``do_openclip``, ``do_tagger``, and ``do_vqa`` functions to avoid duplication.
 """
 
+import threading
 from typing import Literal, Annotated
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from fastapi.exceptions import HTTPException
@@ -245,14 +246,16 @@ class ResCaptionDispatch(BaseModel):
 # =============================================================================
 
 def validate_image(image_b64: str):
-    """Validate and decode a base64 image string, returning an RGB PIL Image.
+    """Validate and decode an image string (base64 or upload ref), returning an RGB PIL Image.
 
     Raises:
-        HTTPException(404): If image data is missing or too short to be valid.
+        HTTPException(404): If image data is missing.
     """
-    if image_b64 is None or len(image_b64) < 64:
+    if not image_b64:
         raise HTTPException(status_code=404, detail="Image not found")
     image = helpers.decode_base64_to_image(image_b64)
+    if image is None:
+        raise HTTPException(status_code=404, detail="Image not found")
     return image.convert('RGB')
 
 
@@ -354,11 +357,19 @@ def parse_tagger_scores(tags: str) -> dict:
     return scores or None
 
 
+_tagger_lock = threading.Lock()
+
+
 def do_tagger(image, req):
     """Core tagger logic shared by direct and dispatch endpoints.
 
     Returns (tags, scores).
     """
+    with _tagger_lock:
+        return _do_tagger_locked(image, req)
+
+
+def _do_tagger_locked(image, req):
     from modules.caption import tagger
     is_deepbooru = req.model.lower() in ('deepbooru', 'deepdanbooru')
     original_opts = {
@@ -651,13 +662,12 @@ def get_tagger_models():
 # Route Registration
 # =============================================================================
 
-def register_api():
-    from modules.shared import api
-    api.add_api_route("/sdapi/v1/openclip", get_caption, methods=["GET"], response_model=list[str], tags=["Caption"])
-    api.add_api_route("/sdapi/v1/caption", post_caption_dispatch, methods=["POST"], response_model=ResCaptionDispatch, tags=["Caption"])
-    api.add_api_route("/sdapi/v1/openclip", post_caption, methods=["POST"], response_model=ResCaption, tags=["Caption"])
-    api.add_api_route("/sdapi/v1/vqa", post_vqa, methods=["POST"], response_model=ResVQA, tags=["Caption"])
-    api.add_api_route("/sdapi/v1/vqa/models", get_vqa_models, methods=["GET"], response_model=list[ItemVLMModel], tags=["Caption"])
-    api.add_api_route("/sdapi/v1/vqa/prompts", get_vqa_prompts, methods=["GET"], response_model=ResVLMPrompts, tags=["Caption"])
-    api.add_api_route("/sdapi/v1/tagger", post_tagger, methods=["POST"], response_model=ResTagger, tags=["Caption"])
-    api.add_api_route("/sdapi/v1/tagger/models", get_tagger_models, methods=["GET"], response_model=list[ItemTaggerModel], tags=["Caption"])
+def register_api(app):
+    app.add_api_route("/sdapi/v1/openclip", get_caption, methods=["GET"], response_model=list[str], tags=["Caption"])
+    app.add_api_route("/sdapi/v1/caption", post_caption_dispatch, methods=["POST"], response_model=ResCaptionDispatch, tags=["Caption"])
+    app.add_api_route("/sdapi/v1/openclip", post_caption, methods=["POST"], response_model=ResCaption, tags=["Caption"])
+    app.add_api_route("/sdapi/v1/vqa", post_vqa, methods=["POST"], response_model=ResVQA, tags=["Caption"])
+    app.add_api_route("/sdapi/v1/vqa/models", get_vqa_models, methods=["GET"], response_model=list[ItemVLMModel], tags=["Caption"])
+    app.add_api_route("/sdapi/v1/vqa/prompts", get_vqa_prompts, methods=["GET"], response_model=ResVLMPrompts, tags=["Caption"])
+    app.add_api_route("/sdapi/v1/tagger", post_tagger, methods=["POST"], response_model=ResTagger, tags=["Caption"])
+    app.add_api_route("/sdapi/v1/tagger/models", get_tagger_models, methods=["GET"], response_model=list[ItemTaggerModel], tags=["Caption"])

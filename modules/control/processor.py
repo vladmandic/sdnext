@@ -15,27 +15,48 @@ debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
 processors = [
     'None',
+    # pose
     'OpenPose',
     'DWPose',
     'MediaPipe Face',
+    'DWPose (ONNX)',
+    'RTMW',
+    'RTMO',
+    'ViTPose',
+    # edge
     'Canny',
     'Edge',
     'LineArt Realistic',
     'LineArt Anime',
     'HED',
     'PidiNet',
+    'MLSD',
+    'TEED',
+    'Anyline',
+    # depth
     'Midas Depth Hybrid',
     'Leres Depth',
     'Zoe Depth',
     'Marigold Depth',
-    'Normal Bae',
-    'SegmentAnything',
-    'MLSD',
-    'Shuffle',
     'DPT Depth Hybrid',
     'GLPN Depth',
     'Depth Anything',
     'Depth Pro',
+    'Depth Anything V2 Small',
+    'Depth Anything V2 Large',
+    'Marigold Depth LCM',
+    'Lotus Depth',
+    # normal
+    'Normal Bae',
+    'DSINE',
+    'StableNormal',
+    'Marigold Normals',
+    # segmentation
+    'SegmentAnything',
+    'SAM 2.1',
+    'OneFormer',
+    # other
+    'Shuffle',
 ]
 
 
@@ -51,6 +72,7 @@ def preprocess_image(
         active_model:list = None,
         selected_models:list = None,
         has_models:bool = False,
+        active_units:list = None,
     ):
     if selected_models is None:
         selected_models = []
@@ -71,7 +93,9 @@ def preprocess_image(
             p.init_img_width = getattr(p, 'init_img_width', input_image.width) # pylint: disable=attribute-defined-outside-init
             p.init_img_height = getattr(p, 'init_img_height', input_image.height) # pylint: disable=attribute-defined-outside-init
             input_image = images.resize_image(p.resize_mode_before, input_image, p.width_before, p.height_before, p.resize_name_before, context=p.resize_context_before)
-    if (input_image is not None) and (init_image is not None) and (init_image.size != input_image.size):
+    if input_type == 1 and init_image is not None and input_image is not None:
+        init_image = input_image # init same as control: reuse already-resized image
+    elif (input_image is not None) and (init_image is not None) and (init_image.size != input_image.size):
         debug_log(f'Control resize init: image={init_image} target={input_image}')
         init_image = images.resize_image(resize_mode=1, im=init_image, width=input_image.width, height=input_image.height)
     if (input_image is not None) and (p.override is not None) and (p.override.size != input_image.size):
@@ -111,6 +135,7 @@ def preprocess_image(
             resize_mode = p.resize_mode_before
         else:
             resize_mode = 3 if shared.opts.control_aspect_ratio else 1
+        local_config = getattr(active_units[i], 'process_params', None) if active_units and i < len(active_units) else None
         processed_image = process(
             image_input=masked_image,
             width=p.width,
@@ -120,6 +145,7 @@ def preprocess_image(
             resize_name=p.resize_name_before,
             scale_tab=p.selected_scale_tab_before,
             scale_by=p.scale_by_before,
+            local_config=local_config,
         )
         if processed_image is not None:
             processed_images.append(processed_image)

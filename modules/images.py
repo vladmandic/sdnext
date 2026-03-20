@@ -2,7 +2,7 @@ from modules.image.metadata import image_data, read_info_from_image
 from modules.image.save import save_image, sanitize_filename_part
 from modules.image.resize import resize_image
 from modules.image.namegen import FilenameGenerator
-from modules.image.grid import Grid, image_grid, check_grid_size, get_grid_size, draw_grid_annotations, draw_prompt_matrix, combine_grid
+from modules.image.grid import Grid, image_grid, check_grid_size, get_grid_size, draw_grid_annotations, draw_prompt_matrix, combine_grid, get_font
 
 __all__ = [
     'check_grid_size',
@@ -18,4 +18,5 @@ __all__ = [
     'resize_image',
     'sanitize_filename_part',
     'save_image',
+    'get_font',
 ]

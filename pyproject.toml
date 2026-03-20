@@ -230,15 +230,15 @@ classes.valid-classmethod-first-arg="cls"
 classes.valid-metaclass-classmethod-first-arg="mcs"
 design.exclude-too-few-public-methods=""
 design.ignored-parents=""
-design.max-args=199
-design.max-attributes=99
-design.max-bool-expr=99
-design.max-branches=199
-design.max-locals=99
-design.max-parents=99
-design.max-public-methods=99
-design.max-returns=99
-design.max-statements=199
+design.max-args=250
+design.max-attributes=100
+design.max-bool-expr=100
+design.max-branches=200
+design.max-locals=100
+design.max-parents=100
+design.max-public-methods=100
+design.max-returns=100
+design.max-statements=200
 design.min-public-methods=1
 exceptions.overgeneral-exceptions=["builtins.BaseException","builtins.Exception"]
 format.expected-line-ending-format=""
@@ -301,6 +301,7 @@ messages_control.disable=[
         "raw-checker-failed",
         "simplifiable-if-expression",
         "suppressed-message",
+        "subprocess-run-check",
         "too-few-public-methods",
         "too-many-instance-attributes",
         "too-many-locals",
