@@ -131,6 +131,10 @@ class Api:
         from modules.civitai import api_civitai
         api_civitai.register_api()
 
+        # rembg api
+        from modules.rembg import rembg_api
+        rembg_api.register_api(self.app)
+
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute
         paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
