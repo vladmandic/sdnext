@@ -1,5 +1,5 @@
 import os
-from installer import log, git
+from installer import log, git, run_extension_installer
 from modules.paths import extensions_dir
 
 
@@ -14,6 +14,7 @@ def install():
         return
     log.info(f'Enso: folder="{ENSO_DIR}" installing')
     git(f'clone "{ENSO_REPO}" "{ENSO_DIR}"')
+    run_extension_installer(ENSO_DIR)
 
 
 def update():
@@ -22,3 +23,4 @@ def update():
         return
     log.info(f'Enso: folder="{ENSO_DIR}" updating')
     git('pull', folder=ENSO_DIR)
+    run_extension_installer(ENSO_DIR)
