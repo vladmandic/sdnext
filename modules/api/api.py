@@ -109,11 +109,11 @@ class Api:
 
         # caption api
         from modules.api import caption
-        caption.register_api()
+        caption.register_api(self.app)
 
         # lora api
         from modules.api import loras
-        loras.register_api()
+        loras.register_api(self.app)
 
         # gallery api
         from modules.api import gallery
@@ -121,15 +121,15 @@ class Api:
 
         # nudenet api
         from modules.api import nudenet
-        nudenet.register_api()
+        nudenet.register_api(self.app)
 
         # xyz-grid api
         from modules.api import xyz_grid
-        xyz_grid.register_api()
+        xyz_grid.register_api(self.app)
 
         # civitai api
         from modules.civitai import api_civitai
-        api_civitai.register_api()
+        api_civitai.register_api(self.app)
 
         # rembg api
         from modules.rembg import rembg_api
