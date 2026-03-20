@@ -1,9 +1,15 @@
 # TODO
 
+## Release
+
+- Release: bumb packages  
+- Release: implement `unload_auxiliary_models`  
+
 ## Internal
 
-- Update: `transformers==5.0.0`, owner @CalamitousFelicitousness
-- Deploy: Create executable for SD.Next
+- Feature: Color grading in processing
+- Feature: RIFE in processing
+- Feature: SeedVR2 in processing
 - Deploy: Lite vs Expert mode
 - Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
 - Engine: `TensorRT` acceleration

@@ -1,17 +1,20 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-09
+## Update for 2026-03-20
 
-### Highlights for 2026-03-09
+### Highlights for 2026-03-20
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
-And since its a bit quieter period when it comes to new models, so we have two deep fine-tunes: *FireRed-Image-Edit* and *SkyWorks-UniPic-3*  
-What else? Updated localization with new languages and improved translations, several new upscalers, futher improvements to captioning, some new UI themes  
+And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit* *SkyWorks-UniPic-3* and *Anima-Preview-2*  
+
+*What else*? Really a lot!  
+New color grading module, updated localization with new languages and improved translations, new civitai integration module, several new upscalers, improvements to LLM/VLM in captioning and prompt enhance, a lot of new control preprocessors, new realtime server info panel, some new UI themes  
+And major work on API hardening: security, rate limits, secrets handling, new endpoints, etc.  
 But also many smaller quality-of-life improvements - for full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-09
+### Details for 2026-03-20
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -19,36 +22,61 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
     *Note*: FireRed is a fine-tune of Qwen-Image-Edit regardless of its claim as a new base-model  
   - [Skyworks UniPic-3](https://huggingface.co/Skywork/Unipic3), *Consistency and DMD* variants to reference/community section  
     *Note*: UniPic-3 is a fine-tune of Qwen-Image-Edit with new distillation regardless of its claim of major changes  
+  - [Anima Preview-v2](https://huggingface.co/circlestone-labs/Anima)  
 - **Image manipulation**
+  - new **color grading** module  
+  - update **latent corrections** *(former HDR Corrections)* and expand allowed models  
   - add support for [spandrel](https://github.com/chaiNNer-org/spandrel)  
     **upscaling** engine with suport for new upscaling model families  
   - add two new ai upscalers: *RealPLKSR NomosWebPhoto* and *RealPLKSR AnimeSharpV2*  
   - add two new **interpolation** methods: *HQX* and *ICB*  
   - use high-quality [sharpfin](https://github.com/drhead/Sharpfin) accelerated library  
-    when available (*cuda-only*), thanks @CalamitousFelicitousness  
-- **Features**
-  - pipelines: add **ZImageInpaint**, thanks @CalamitousFelicitousness  
+    when available (*cuda-only*)  
+  - **upscalers**: extend chainner support for additional models  
+- **Captioning / Prompt Enhance**
+  - new models: **Qwen-3.5**, **Mistral-3** in multiple variations  
+  - new models: multiple *heretic* and *abliterated* finetunes for **Qwen, Gemma, Mistral**  
   - **captioning** and **prompt enhance**: add support for all cloud-based Gemini models  
     *3.1/3.0/2.5 pro/flash/flash-lite*  
+  - improve captioning and prompt enhance memory handling/offloading  
+- **Control**
+  - new **pre-processors**:  
+    *anyline, depth_anything v2, dsine, lotus, marigold normals, oneformer, rtmlib pose, sam2, stablenormal, teed, vitpose*  
+- **Features**
+  - **secrets** handling: new `secrets.json` and special handling for tokens/keys/passwords  
+    used to be treated like any other `config.json` param which can cause security issues  
+  - pipelines: add **ZImageInpaint**  
+  - rewritten **civitai** module  
+    browse/discover mode with sort, period, type/base dropdowns; URL paste; subfolder sorting; auto-browse; dynamic dropdowns  
   - **hires**: allow using different lora in refiner prompt  
   - **nunchaku** models are now listed in networks tab as reference models  
-    instead of being used implicitly via quantization, thanks @CalamitousFelicitousness  
+    instead of being used implicitly via quantization  
+  - improve image **metadata** parser for foreign metadata (e.g. XMP)  
 - **Compute**
   - **ROCm** support for additional AMD GPUs: `gfx103X`, thanks @crashingalexsan  
   - **Cuda** `torch==2.10` removed support for `rtx1000` series, use following before first startup:  
     > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
 - **UI**
+  - new panel: **server info** with detailed runtime informaton  
   - **localization** improved translation quality and new translations locales:  
     *en, en1, en2, en3, en4, hr, es, it, fr, de, pt, ru, zh, ja, ko, hi, ar, bn, ur, id, vi, tr, sr, po, he, xx, yy, qq, tlh*  
     yes, this now includes stuff like *latin, esperanto, arabic, hebrew, klingon* and a lot more!  
     and also intruce some pseudo-locales such as: *techno-babbel*, *for-n00bs*  
     *hint*: click on locale icon in bottom-left corner to cycle through available locales, or set default in *settings -> ui*  
-  - **kanvas**: add paste image from clipboard
+  - **server settings** new section in *settings*  
+  - **kanvas** add paste image from clipboard  
   - **themes** add *CTD-NT64Light*, *CTD-NT64Medium* and *CTD-NT64Dark*, thanks @resonantsky  
   - **themes** add *Vlad-Neomorph*  
   - **gallery** add option to auto-refresh gallery, thanks @awsr  
+  - **token counters** add per-section display for supported models, thanks @awsr  
 - **API**
+  - **rate limiting**: global for all endpoints, guards against abuse and denial-of-service type of attacks  
+    configurable in *settings -> server settings*  
   - new `/sdapi/v1/upload` endpoint with support for both POST with form-data or PUT using raw-bytes  
+  - new `/sdapi/v1/torch` endpoint for torch info (backend, version, etc.)  
+  - new `/sdapi/v1/gpu` endpoint for GPU info  
+  - new `/sdapi/v1/rembg` endpoint for background removal  
+  - use rate limiting for api logging  
 - **Internal**
   - `python==3.13` full support  
   - `python==3.14` initial support  
@@ -57,12 +85,19 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
     `clip, numba, skimage, torchsde, omegaconf, antlr, patch-ng, patch-ng, astunparse, addict, inflection, jsonmerge, kornia`,  
     `resize-right, voluptuous, yapf, sqlalchemy, invisible-watermark, pi-heif, ftfy, blendmodes, PyWavelets, imp`  
     these are now installed on-demand when needed  
-  - refactor to/from *image/tensor* logic, thanks @CalamitousFelicitousness  
+  - bump `huggingface_hub==1.5.0`  
+  - bump `transformers==5.3.0`  
+  - refactor to/from *image/tensor* logic  
   - refactor reorganize `cli` scripts  
   - refactor move tests to dedicated `/test/`  
   - refactor all image handling to `modules/image/`  
-  - remove face restoration, thanks @CalamitousFelicitousness  
+  - refactor: many params that were server-global are now ui params that are handled per-request  
+    *schedulers, todo, tome, etc.*  
+  - refactor: error handling during `torch.compile`  
+  - refactor: move `rebmg` to core instead of extensions  
+  - remove face restoration  
   - unified command line parsing  
+  - use explcit image references in `gallery`, thanks @awsr  
   - launch use threads to async execute non-critical tasks  
   - switch from deprecated `pkg_resources` to `importlib`  
   - modernize typing and type annotations  
@@ -74,7 +109,6 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - use `threading` for deferable operatios  
   - use `threading` for io-independent parallel operations  
   - remove requirements: `clip`, `open-clip`  
-  - captioning part-2, thanks @CalamitousFelicitousness  
   - add new build of `insightface`, thanks @hameerabbasi  
   - reduce use of generators with ui interactor  
   - better subprocess execute, thanks @awsr  
@@ -84,29 +118,35 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - remove `dwpose` pre-processor  
   - remove `hdm` model support  
   - remove `xadapter` script  
-  - remove `codeformer` and `gfpgan` face restorers, thanks @CalamitousFelicitousness  
+  - remove `codeformer` and `gfpgan` face restorers  
 - **Checks**
   - switch to `pyproject.toml` for tool configs  
   - update `lint` rules, thanks @awsr  
   - add `ty` to optional lint tooling  
   - add `pyright` to optional lint tooling  
 - **Fixes**
+  - ui `gallery` cache recursive cleanup, thanks @awsr  
+  - ui main results pane sizing  
+  - ui connection monitor  
   - handle `clip` installer doing unwanted `setuptools` update  
   - cleanup for `uv` installer fallback  
-  - add metadata restore to always-on scripts  
-  - improve wildcard weights parsing, thanks @Tillerz  
-  - ui gallery cache recursive cleanup, thanks @awsr  
-  - main results pane sizing  
+  - add `metadata` restore to always-on scripts  
+  - improve `wildcard` weights parsing, thanks @Tillerz  
   - model detection for `anima`  
-  - lora unwanted unload  
-  - improve preview error handler  
-  - gallery over remote/unsecure connections  
+  - handle `lora` unwanted unload  
+  - improve `preview` error handler  
+  - handle `gallery` over remote/unsecure connections  
   - fix `ltx2-i2v`  
-  - handle missing preview image  
-  - ui connection monitor  
+  - handle missing `preview` image  
   - kandinsky 5 t2i/i2i model type detection  
   - kanvas notify core on image size change  
   - command arg `--reinstall` stricter enforcement  
+  - handle `api` state reset  
+  - processing upscaler refresh button  
+  - simplify and validate `rembg` dependencies  
+  - improve video generation progress tracking
+  - handle startup with bad `scripts` more gracefully  
+  - thread-safety for `error-limiter`, thanks @awsr  
 
 ## Update for 2026-02-04
 
