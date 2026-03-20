@@ -1,9 +1,11 @@
 import json
 import html
 import os
+import re
 import shutil
 import platform
 import subprocess
+from weakref import WeakSet
 import gradio as gr
 from modules import paths, call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext, processing
 from modules.logger import log
@@ -12,6 +14,8 @@ from modules.logger import log
 folder_symbol = ui_symbols.folder
 debug = log.trace if os.environ.get('SD_PASTE_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: PASTE')
+
+warn_once_set = WeakSet()
 
 
 def gr_show(visible=True):
@@ -427,32 +431,52 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed_btn: gr.Button, generation_in
         reuse_seed_btn.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress='hidden', inputs=[generation_info, dummy_component], outputs=[seed, dummy_component, subseed_strength])
 
 
-def update_token_counter(text):
-    token_count = 0
-    max_length = 75
+def update_token_counter(text: str):
     if shared.state.job_count > 0:
         log.debug('Tokenizer busy')
-        return f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>"
-    from modules import extra_networks
-    if isinstance(text, list):
-        prompt, _ = extra_networks.parse_prompts(text)
-    else:
-        prompt, _ = extra_networks.parse_prompt(text)
+        return gr.update(value="<span class='gr-box gr-text-input'>--/--</span>", visible=True)
+
+    from modules.extra_networks import parse_prompt
+
+    count_formatted = '0'
+    visible = False
+
+    prompt, _ = parse_prompt(text)
+    prompt_list = [prompt]
+    ids = []
     if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
+        if shared.opts.prompt_attention == 'native':
+            p_split = re.compile(r'\bBREAK\b|\n' if shared.opts.sd_textencder_linebreak else r'\bBREAK\b')
+            prompt_list = re.split(p_split, prompt)
+
         tokenizer = shared.sd_model.tokenizer
         # For multi-modal processors (e.g., PixtralProcessor), use the underlying text tokenizer
         if hasattr(tokenizer, 'tokenizer') and tokenizer.tokenizer is not None:
             tokenizer = tokenizer.tokenizer
-        has_bos_token = hasattr(tokenizer, 'bos_token_id') and tokenizer.bos_token_id is not None
-        has_eos_token = hasattr(tokenizer, 'eos_token_id') and tokenizer.eos_token_id is not None
-        try:
-            ids = tokenizer(prompt)
-            ids = getattr(ids, 'input_ids', [])
-        except Exception:
-            ids = []
-        token_count = len(ids) - int(has_bos_token) - int(has_eos_token)
-        model_max_length = getattr(tokenizer, 'model_max_length', 0)
+        has_bos_token = getattr(tokenizer, 'bos_token_id', None) is not None
+        has_eos_token = getattr(tokenizer, 'eos_token_id', None) is not None
+        model_max_length = getattr(tokenizer, 'model_max_length', 77)
         max_length = model_max_length - int(has_bos_token) - int(has_eos_token)
         if max_length is None or max_length < 0 or max_length > 10000:
             max_length = 0
-    return gr.update(value=f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>", visible=token_count > 0)
+
+        try:
+            try:
+                ids: list = getattr(tokenizer(prompt_list), 'input_ids', [])
+            except TypeError:
+                for p in prompt_list:
+                    ids.append(getattr(tokenizer(p), 'input_ids', []))
+        except Exception as e:
+            if tokenizer not in warn_once_set:
+                log.warning(f"Token counter: {e}")
+                warn_once_set.add(tokenizer)
+            return gr.update(value=f"<span class='gr-box gr-text-input'>??/{max_length}</span>", visible=True)
+
+        token_counts = [len(group) - int(has_bos_token) - int(has_eos_token) for group in ids]
+        if len(token_counts) > 1:
+            visible = True
+            count_formatted = f"{token_counts} {sum(token_counts)}" if shared.opts.prompt_detailed_tokens else str(sum(token_counts))
+        elif len(token_counts) == 1 and token_counts[0] > 0:
+            visible = True
+            count_formatted = str(token_counts[0])
+    return gr.update(value=f"<span class='gr-box gr-text-input'>{count_formatted}/{max_length}</span>", visible=visible)
