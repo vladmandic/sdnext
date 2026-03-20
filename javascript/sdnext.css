@@ -2236,6 +2236,11 @@ div:has(>#tab-gallery-folders) {
   filter: blur(0);
 }
 
+.disabled-look textarea {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
