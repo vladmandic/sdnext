@@ -1,11 +1,16 @@
+from __future__ import annotations
+
 import re
 import time
+from typing import TYPE_CHECKING
 import torch
 import diffusers.models.lora
-from modules.errorlimiter import ErrorLimiter
 from modules.lora import lora_common as l
 from modules import shared, devices, errors, model_quant
 from modules.logger import log
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
 
 
 bnb = None
@@ -76,7 +81,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
     return backup_size
 
 
-def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, use_previous: bool = False):
+def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, use_previous: bool = False, *, elimit: Callable[[], None] | None = None):
     if shared.opts.diffusers_offload_mode == "none":
         try:
             self.to(devices.device)
@@ -142,7 +147,8 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
             if l.debug:
                 errors.display(e, 'LoRA')
                 raise RuntimeError('LoRA apply weight') from e
-            ErrorLimiter.notify(("network_activate", "network_deactivate"))
+            if elimit is not None:
+                elimit()
         continue
     return batch_updown, batch_ex_bias
 
