@@ -2,12 +2,18 @@
 
 ## Release
 
-- Release: bumb packages  
-- Release: implement `unload_auxiliary_models`  
+- Update **README**
+- Bumb packages
+- Implement `unload_auxiliary_models`
+- Release **Launcher**
+- Release **Enso**
+- Update **ROCm**
+- Tips **Color Grading**
 
 ## Internal
 
 - Feature: Color grading in processing
+- Feature: RIFE update
 - Feature: RIFE in processing
 - Feature: SeedVR2 in processing
 - Deploy: Lite vs Expert mode
@@ -47,6 +53,7 @@
 TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image-Base
+
 - [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma): Image and video generator for creative effects and professional filters
 - [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance): Pixel-space model eliminating VAE artifacts for high visual fidelity
 - [Liquid](https://github.com/FoundationVision/Liquid): Unified vision-language auto-regressive generation paradigm
@@ -56,6 +63,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO): foundational multi-modal multi-task generation and understanding
 
 ### Image-Edit
+
 - [Meituan LongCat-Image-Edit-Turbo](https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo):6B instruction-following image editing with high visual consistency
 - [VIBE Image-Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit): (Sana+Qwen-VL)Fast visual instruction-based image editing framework
 - [LucyEdit](https://github.com/huggingface/diffusers/pull/12340):Instruction-guided video editing while preserving motion and identity
@@ -64,6 +72,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [ByteDance DreamO](https://huggingface.co/ByteDance/DreamO): image customization framework for IP adaptation and virtual try-on
 
 ### Video
+
 - [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p): Unified foundation model for synchronized high-fidelity video and audio
 - [Wan family (Wan2.1 / Wan2.2 variants)](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B): MoE-based foundational tools for cinematic T2V/I2V/TI2V
  example: [Wan2.1-T2V-14B-CausVid](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-CausVid)
@@ -86,6 +95,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [Ming (inclusionAI)](https://github.com/inclusionAI/Ming): Unified multimodal model for processing text, audio, image, and video
 
 ### Other/Unsorted
+
 - [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer): Full-sequence diffusion with autoregressive next-token prediction
 - [Self-Forcing](https://github.com/guandeh17/Self-Forcing): Framework for improving temporal consistency in long-horizon video generation
 - [SEVA](https://github.com/huggingface/diffusers/pull/11440): Stable Virtual Camera for novel view synthesis and 3D-consistent video
@@ -102,6 +112,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [ReNO](https://github.com/ExplainableML/ReNO): Reward-based Noise Optimization to improve text-to-image quality during inference
 
 ### Not Planned
+
 - [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
 - [Bria FiboEdit](https://github.com/huggingface/diffusers/commit/d7a1c31f4f85bae5a9e01cdce49bd7346bd8ccd6): Fully JSON based
 - [LoRAdapter](https://github.com/CompVis/LoRAdapter): Not recently updated
@@ -117,7 +128,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 ## Code TODO
 
 > npm run todo
- 
+
 - fc: autodetect distilled based on model
 - fc: autodetect tensor format based on model
 - hypertile: vae breaks when using non-standard sizes

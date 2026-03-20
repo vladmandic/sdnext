@@ -61,7 +61,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - **localization** improved translation quality and new translations locales:  
     *en, en1, en2, en3, en4, hr, es, it, fr, de, pt, ru, zh, ja, ko, hi, ar, bn, ur, id, vi, tr, sr, po, he, xx, yy, qq, tlh*  
     yes, this now includes stuff like *latin, esperanto, arabic, hebrew, klingon* and a lot more!  
-    and also intruce some pseudo-locales such as: *techno-babbel*, *for-n00bs*  
+    and also introduce some pseudo-locales such as: *techno-babbel*, *for-n00bs*  
     *hint*: click on locale icon in bottom-left corner to cycle through available locales, or set default in *settings -> ui*  
   - **server settings** new section in *settings*  
   - **kanvas** add paste image from clipboard  
@@ -97,7 +97,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - refactor: move `rebmg` to core instead of extensions  
   - remove face restoration  
   - unified command line parsing  
-  - use explcit image references in `gallery`, thanks @awsr  
+  - use explicit icon image references in `gallery`, thanks @awsr  
   - launch use threads to async execute non-critical tasks  
   - switch from deprecated `pkg_resources` to `importlib`  
   - modernize typing and type annotations  
