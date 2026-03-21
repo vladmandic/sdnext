@@ -12,6 +12,7 @@ from modules.shared_defaults import get_default_modes
 from modules.shared_items import sdnq_quant_modes, sdnq_matmul_modes
 import modules.caption.openclip
 import modules.caption.vqa
+from modules import rocm_config
 
 
 options_templates = {}
@@ -275,32 +276,83 @@ def create_settings(cmd_opts):
         "torch_gc_threshold": OptionInfo(70, "GC threshold", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
         "inference_mode": OptionInfo("no-grad", "Inference mode", gr.Radio, {"choices": ["no-grad", "inference-mode", "none"]}),
         "torch_malloc": OptionInfo("native", "Memory allocator", gr.Radio, {"choices": ['native', 'cudaMallocAsync'] }),
-
         "onnx_sep": OptionInfo("<h2>ONNX</h2>", "", gr.HTML),
         "onnx_execution_provider": OptionInfo(execution_providers.get_default_execution_provider().value, 'ONNX Execution Provider', gr.Dropdown, lambda: {"choices": execution_providers.available_execution_providers }),
         "onnx_cpu_fallback": OptionInfo(True, 'ONNX allow fallback to CPU'),
         "onnx_cache_converted": OptionInfo(True, 'ONNX cache converted models'),
         "onnx_unload_base": OptionInfo(False, 'ONNX unload base model when processing refiner'),
-
         "olive_sep": OptionInfo("<h2>Olive</h2>", "", gr.HTML),
         "olive_float16": OptionInfo(True, 'Olive use FP16 on optimization'),
         "olive_vae_encoder_float32": OptionInfo(False, 'Olive force FP32 for VAE Encoder'),
         "olive_static_dims": OptionInfo(True, 'Olive use static dimensions'),
         "olive_cache_optimized": OptionInfo(True, 'Olive cache optimized models'),
-
         "ipex_sep": OptionInfo("<h2>IPEX</h2>", "", gr.HTML, {"visible": devices.backend == "ipex"}),
         "ipex_optimize": OptionInfo([], "IPEX Optimize", gr.CheckboxGroup, {"choices": ["Model", "TE", "VAE", "Upscaler"], "visible": devices.backend == "ipex"}),
-
         "openvino_sep": OptionInfo("<h2>OpenVINO</h2>", "", gr.HTML, {"visible": cmd_opts.use_openvino}),
         "openvino_devices": OptionInfo([], "OpenVINO devices to use", gr.CheckboxGroup, {"choices": get_openvino_device_list() if cmd_opts.use_openvino else [], "visible": cmd_opts.use_openvino}),
         "openvino_accuracy": OptionInfo("performance", "OpenVINO accuracy mode", gr.Radio, {"choices": ["performance", "accuracy"], "visible": cmd_opts.use_openvino}),
         "openvino_disable_model_caching": OptionInfo(True, "OpenVINO disable model caching", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
         "openvino_disable_memory_cleanup": OptionInfo(True, "OpenVINO disable memory cleanup after compile", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
-
         "directml_sep": OptionInfo("<h2>DirectML</h2>", "", gr.HTML, {"visible": devices.backend == "directml"}),
         "directml_memory_provider": OptionInfo(default_memory_provider, "DirectML memory stats provider", gr.Radio, {"choices": memory_providers, "visible": devices.backend == "directml"}),
         "directml_catch_nan": OptionInfo(False, "DirectML retry ops for NaN", gr.Checkbox, {"visible": devices.backend == "directml"}),
     }))
+
+
+    # --- ROCm Configuration ---
+    from modules import rocm_config
+    rocm_var_info = rocm_config.get_var_info()
+    rocm_versions = rocm_config.get_versions()
+    rocm_section = {}
+    _labels = {
+        "torch": "Torch", "hip": "HIP", "gpu": "GPU", "vram": "VRAM",
+        "arch": "Arch", "cores": "Cores", "rocm": "ROCm", "miopen": "MIOpen", "rocblas": "rocBLAS", "hipblaslt": "hipBLASLt",
+    }
+    _sw_keys = ["torch", "hip", "rocm"]
+    _gpu_keys = ["gpu", "vram", "arch", "cores"]
+    _lib_keys = ["miopen", "rocblas", "hipblaslt"]
+    _sw_rows  = "<br>".join([f"<b>{_labels.get(k, k)}</b>: {rocm_versions[k]}" for k in _sw_keys  if k in rocm_versions])
+    _gpu_rows = "<br>".join([f"<b>{_labels.get(k, k)}</b>: {rocm_versions[k]}" for k in _gpu_keys if k in rocm_versions])
+    _lib_rows = "<br>".join([f"<b>{_labels.get(k, k)}</b>: {rocm_versions[k]}" for k in _lib_keys if k in rocm_versions])
+    version_html = (
+        f"<h2>ROCm Configuration</h2><hr style='margin:4px 0 8px 0'>"
+        f"<p style='line-height:2'>{_sw_rows}</p>"
+        f"<hr style='margin:6px 0'>"
+        f"<p style='line-height:2'>{_gpu_rows}</p>"
+        f"<hr style='margin:6px 0'>"
+        f"<p style='line-height:2'>{_lib_rows}</p>"
+    )
+    rocm_section["rocm_versions"] = OptionInfo(version_html, "", gr.HTML)
+    if devices.backend == "rocm":
+        try:
+            import json as _json
+            with open(cmd_opts.config, 'r', encoding='utf-8') as _f:
+                _cfg = _json.load(_f)
+        except Exception:
+            _cfg = {}
+        _cudnn_val   = _cfg.get("cudnn_enabled",    "default")
+        _tunable_val = _cfg.get("torch_tunable_ops", "default")
+        _backend_html = (
+            "<h2>Backend Options</h2>"
+            "</p><hr style='margin:8px 0'>"
+            "<p style='line-height:2'>"
+            f"<b>MIOpen / cuDNN enabled</b>: <code>{_cudnn_val}</code>"
+            "&nbsp;<i>- see Backend Settings</i><br>"
+            f"<b>Tunable ops</b>: <code>{_tunable_val}</code>"
+            "&nbsp;<i>- see Backend Settings</i>"
+            
+        )
+        rocm_section["rocm_backend_sep"] = OptionInfo(_backend_html, "", gr.HTML)
+    for var in rocm_var_info:
+        if var["widget"] == "html":
+            rocm_section[var["name"]] = OptionInfo(var["value"], "", gr.HTML)
+        elif var["widget"] == "dropdown":
+            rocm_section[var["name"]] = OptionInfo(var["value"], var["desc"], gr.Dropdown, {"choices": var["options"]}, onchange=rocm_config.sync_from_opts)
+        elif var["widget"] == "textbox":
+            rocm_section[var["name"]] = OptionInfo(var["value"], var["desc"], gr.Textbox, onchange=rocm_config.sync_from_opts)
+        elif var["widget"] == "checkbox":
+            rocm_section[var["name"]] = OptionInfo(var["value"], var["desc"], gr.Checkbox, onchange=rocm_config.sync_from_opts)
+    options_templates.update(options_section(("rocm", "ROCm Configuration"), rocm_section))
 
     # --- Pipeline Modifiers ---
     options_templates.update(options_section(('advanced', "Pipeline Modifiers"), {
