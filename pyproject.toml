@@ -97,7 +97,6 @@ ignore = [
   "RUF008", # Do not use mutable default values for dataclass
   "RUF010", # Use explicit conversion flag
   "RUF012", # Mutable class attributes
-  "RUF013", # PEP 484 prohibits implicit `Optional`
   "RUF015", # Prefer `next(...)` over single element slice
   "RUF022", # All is not sorted
   "RUF046", # Value being cast to `int` is already an integer
