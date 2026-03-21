@@ -2,20 +2,22 @@
 
 ## Release
 
-- Update **README**
 - Bumb packages
 - Implement `unload_auxiliary_models`
 - Release **Launcher**
 - Release **Enso**
 - Update **ROCm**
 - Tips **Color Grading**
+- Tips **Latent Corrections**
 
 ## Internal
 
+- Integrate: [Depth3D](https://github.com/vladmandic/sd-extension-depth3d)
 - Feature: Color grading in processing
 - Feature: RIFE update
 - Feature: RIFE in processing
 - Feature: SeedVR2 in processing
+- Feature: Add video models to `Reference`
 - Deploy: Lite vs Expert mode
 - Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
 - Engine: `TensorRT` acceleration

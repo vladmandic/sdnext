@@ -308,6 +308,7 @@ def main():
         log.warning('Restart is recommended due to packages updates...')
     t_server = time.time()
     t_monitor = time.time()
+
     while True:
         try:
             alive = uv.thread.is_alive()
@@ -326,8 +327,10 @@ def main():
         if float(monitor_rate) > 0 and t_current - t_monitor > float(monitor_rate):
             log.trace(f'Monitor: {get_memory_stats(detailed=True)}')
             t_monitor = t_current
-            from modules.api.validate import get_api_stats
-            get_api_stats()
+            # from modules.api.validate import get_api_stats
+            # get_api_stats()
+            # from modules import memstats
+            # memstats.get_objects()
         if not alive:
             if uv is not None and uv.wants_restart:
                 clean_server()
