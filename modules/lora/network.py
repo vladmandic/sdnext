@@ -58,6 +58,8 @@ class NetworkOnDisk:
             return 'sc'
         if base.startswith("sd3"):
             return 'sd3'
+        if base.startswith("flux2") or "klein" in base:
+            return 'f2'
         if base.startswith("flux"):
             return 'f1'
         if base.startswith("hunyuan_video"):
@@ -75,6 +77,8 @@ class NetworkOnDisk:
             return 'xl'
         if arch.startswith("stable-cascade"):
             return 'sc'
+        if arch.startswith("flux2") or "klein" in arch:
+            return 'f2'
         if arch.startswith("flux"):
             return 'f1'
         if arch.startswith("hunyuan-video"):
@@ -86,6 +90,8 @@ class NetworkOnDisk:
             return 'sd1'
         if str(self.metadata.get('ss_v2', "")) == "True":
             return 'sd2'
+        if 'klein' in self.name.lower() or 'klein' in self.fullname.lower():
+            return 'f2'
         if 'flux' in self.name.lower():
             return 'f1'
         if 'xl' in self.name.lower():

@@ -257,7 +257,11 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                     shared.compiled_model_state.lora_model.append(f"{name}:{lora_scale}")
                 lora_method = lora_overrides.get_method(shorthash)
                 if lora_method == 'diffusers':
-                    net = lora_diffusers.load_diffusers(name, network_on_disk, lora_scale, lora_module)
+                    if shared.sd_model_type == 'f2':
+                        from pipelines.flux import flux2_lora
+                        net = flux2_lora.try_load_lokr(name, network_on_disk, lora_scale)
+                    if net is None:
+                        net = lora_diffusers.load_diffusers(name, network_on_disk, lora_scale, lora_module)
                 elif lora_method == 'nunchaku':
                     pass # handled directly from extra_networks_lora.load_nunchaku
                 else:
@@ -272,7 +276,11 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 continue
         if net is None:
             failed_to_load_networks.append(name)
-            log.error(f'Network load: type=LoRA name="{name}" detected={network_on_disk.sd_version if network_on_disk is not None else None} not found')
+            lora_ver = network_on_disk.sd_version if network_on_disk is not None else None
+            if lora_ver in ('f1', '') and shared.sd_model_type == 'f2':
+                log.error(f'Network load: type=LoRA name="{name}" incompatible: Flux1 LoRA cannot be used with Flux2/Klein')
+            else:
+                log.error(f'Network load: type=LoRA name="{name}" detected={lora_ver} not found')
             continue
         if hasattr(sd_model, 'embedding_db'):
             sd_model.embedding_db.load_diffusers_embedding(None, net.bundle_embeddings)
@@ -308,6 +316,12 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             if l.debug:
                 errors.display(e, 'LoRA')
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, force=True, silent=True) # some layers may end up on cpu without hook
+
+    # Activate native modules loaded via diffusers path (e.g., LoKR on Flux2)
+    native_nets = [net for net in l.loaded_networks if len(net.modules) > 0]
+    if native_nets:
+        from modules.lora import networks
+        networks.network_activate()
 
     if len(l.loaded_networks) > 0 and l.debug:
         log.debug(f'Network load: type=LoRA loaded={[n.name for n in l.loaded_networks]} cache={list(lora_cache)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers}')

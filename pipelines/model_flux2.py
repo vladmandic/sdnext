@@ -31,6 +31,9 @@ def load_flux2(checkpoint_info, diffusers_load_config=None):
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["flux2"] = diffusers.Flux2Pipeline
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["flux2"] = diffusers.Flux2Pipeline
 
+    from pipelines.flux import flux2_lora
+    flux2_lora.apply_patch()
+
     del text_encoder
     del transformer
     sd_hijack_te.init_hijack(pipe)
