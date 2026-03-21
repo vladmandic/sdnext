@@ -93,7 +93,7 @@ def resultsync(req: requests.Response):
         return res
 
 
-async def get(endpoint: str, json: dict = None):
+async def get(endpoint: str, json: dict | None = None):
     global sess # pylint: disable=global-statement
     sess = sess if sess is not None else await session()
     try:
@@ -105,7 +105,7 @@ async def get(endpoint: str, json: dict = None):
         return {}
 
 
-def getsync(endpoint: str, json: dict = None):
+def getsync(endpoint: str, json: dict | None = None):
     try:
         req = requests.get(f'{sd_url}{endpoint}', json=json, verify=False, auth=authsync()) # pylint: disable=missing-timeout
         res = resultsync(req)
@@ -115,7 +115,7 @@ def getsync(endpoint: str, json: dict = None):
         return {}
 
 
-async def post(endpoint: str, json: dict = None):
+async def post(endpoint: str, json: dict | None = None):
     global sess # pylint: disable=global-statement
     # sess = sess if sess is not None else await session()
     if sess and not sess.closed:
@@ -130,7 +130,7 @@ async def post(endpoint: str, json: dict = None):
         return {}
 
 
-def postsync(endpoint: str, json: dict = None):
+def postsync(endpoint: str, json: dict | None = None):
     req = requests.post(f'{sd_url}{endpoint}', json=json, verify=False, auth=authsync()) # pylint: disable=missing-timeout
     res = resultsync(req)
     return res

@@ -19,7 +19,7 @@ class ImageDB:
     def __init__(self,
                  name:str='db',
                  fmt:str='json',
-                 cache_dir:str=None,
+                 cache_dir:str | None=None,
                  dtype:torch.dtype=torch.float16,
                  device:torch.device=torch.device('cpu'),
                  model:str='openai/clip-vit-large-patch14', # 'facebook/dinov2-small'
@@ -123,8 +123,8 @@ class ImageDB:
             self.df = rec
         self.index.add(embed)
 
-    def search(self, filename: str = None, metadata: str = None, embed: np.ndarray = None, k=10, d=1.0): # search by filename/metadata/prompt-embed/image-embed
-        def dct(record: pd.DataFrame, mode: str, distance: float = None):
+    def search(self, filename: str | None = None, metadata: str | None = None, embed: np.ndarray = None, k=10, d=1.0): # search by filename/metadata/prompt-embed/image-embed
+        def dct(record: pd.DataFrame, mode: str, distance: float | None = None):
             if distance is not None:
                 return {'type': mode, 'filename': record[1]['filename'], 'metadata': record[1]['metadata'], 'distance': round(distance, 2)}
             else:

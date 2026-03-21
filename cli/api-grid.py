@@ -79,7 +79,7 @@ def generate(x: int, y: int): # pylint: disable=redefined-outer-name
     return images
 
 
-def merge(images: list[Image.Image], horizontal: bool, labels: list[str] = None):
+def merge(images: list[Image.Image], horizontal: bool, labels: list[str] | None = None):
     rows = 1 if horizontal else len(images)
     cols = math.ceil(len(images) / rows)
     w = max([i.size[0] for i in images])
