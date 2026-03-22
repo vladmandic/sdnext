@@ -476,7 +476,7 @@ def update_token_counter(text: str):
         token_counts = [len(group) - int(has_bos_token) - int(has_eos_token) for group in ids]
         if len(token_counts) > 1:
             visible = True
-            count_formatted = f"{token_counts} {sum(token_counts)}" if shared.opts.prompt_detailed_tokens else str(sum(token_counts))
+            count_formatted = f"{token_counts}/{sum(token_counts)}"
         elif len(token_counts) == 1 and token_counts[0] > 0:
             visible = True
             count_formatted = str(token_counts[0])

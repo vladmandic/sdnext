@@ -12,7 +12,7 @@ _lock = Lock()
 
 
 def _make_unique(name: str):
-    global _instance_id
+    global _instance_id # pylint: disable=global-statement
     with _lock:  # Guard against race conditions
         new_name = f"{name}__{_instance_id}"
         _instance_id += 1
