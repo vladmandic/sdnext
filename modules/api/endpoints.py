@@ -65,7 +65,6 @@ get_restorers = get_detailers  # legacy alias for /sdapi/v1/face-restorers
 def get_ip_adapters():
     """
     List available IP-Adapter models.
-
     Returns adapter names that can be used for image-prompt conditioning during generation.
     """
     from modules import ipadapter
@@ -74,6 +73,11 @@ def get_ip_adapters():
 def get_prompt_styles():
     """List all saved prompt styles with their prompt, negative prompt, and preview."""
     return [{ 'name': v.name, 'prompt': v.prompt, 'negative_prompt': v.negative_prompt, 'extra': v.extra, 'filename': v.filename, 'preview': v.preview} for v in shared.prompt_styles.styles.values()]
+
+def get_unets():
+    """List available UNet models with their names and filenames."""
+    from modules.sd_unet import unet_dict
+    return [{"name": k, "filename": v} for k, v in unet_dict.items()]
 
 def get_embeddings():
     """List loaded and skipped textual-inversion embeddings for the current model."""
@@ -220,6 +224,11 @@ def post_lock_checkpoint(lock:bool=False):
     from modules import modeldata
     modeldata.model_data.locked = lock
     return {}
+
+def post_refresh_unets():
+    """Rescan UNet directories and update the available UNet list."""
+    import modules.sd_unet
+    return modules.sd_unet.refresh_unet_list()
 
 def get_checkpoint():
     """Return information about the currently loaded checkpoint including type, class, title, and hash."""

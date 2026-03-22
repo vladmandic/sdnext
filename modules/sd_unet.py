@@ -102,3 +102,4 @@ def refresh_unet_list():
         name = os.path.splitext(basename)[0] if ".safetensors" in basename else basename
         unet_dict[name] = file
     log.info(f'Available UNets: path="{shared.opts.unet_dir}" items={len(unet_dict)}')
+    return unet_dict

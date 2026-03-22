@@ -219,8 +219,8 @@ def civit_search_metadata(title: str = None, raw: bool = False):
     import concurrent
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_items = {}
-        for fn in candidates:
-            future_items[executor.submit(atomic_civit_search_metadata, fn, results)] = fn
+        for candidate in candidates:
+            future_items[executor.submit(atomic_civit_search_metadata, candidate, results)] = candidate
         for future in concurrent.futures.as_completed(future_items):
             future.result()
             yield results if raw else create_search_metadata_table(results)

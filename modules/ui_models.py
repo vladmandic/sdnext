@@ -12,6 +12,16 @@ from modules.shared import opts, log
 extra_ui = []
 
 
+def update_model_hashes():
+    from modules import sd_unet, sd_checkpoint
+    unets = {}
+    for k, v in sd_unet.unet_dict.items():
+        unets[k] = sd_checkpoint.CheckpointInfo(name=k, filename=v, model_type='unet')
+        print('HERE3', unets[k])
+    yield from sd_models.update_model_hashes(unets, model_type='unet')
+    yield from sd_models.update_model_hashes(model_type='checkpoint')
+
+
 def create_ui():
     log.debug('UI initialize: tab=models')
     dummy_component = gr.Label(visible=False)
@@ -143,7 +153,7 @@ def create_ui():
                 with gr.Row():
                     model_table = gr.HTML(value='', elem_id="model_list_table")
 
-                model_checkhash_btn.click(fn=sd_models.update_model_hashes, inputs=[], outputs=[model_table])
+                model_checkhash_btn.click(fn=update_model_hashes, inputs=[], outputs=[model_table])
                 model_list_btn.click(fn=lambda: create_models_table(list(sd_models.checkpoints_list.values())), inputs=[], outputs=[model_table])
 
             with gr.Tab(label="Metadata", elem_id="models_metadata_tab"):

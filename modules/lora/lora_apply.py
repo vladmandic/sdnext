@@ -4,13 +4,13 @@ import re
 import time
 from typing import TYPE_CHECKING
 import torch
-import diffusers.models.lora
 from modules.lora import lora_common as l
 from modules import shared, devices, errors, model_quant
 from modules.logger import log
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+    import diffusers.models.lora
 
 
 bnb = None
