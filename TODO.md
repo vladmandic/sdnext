@@ -8,7 +8,7 @@
 - Release **Enso**
 - Update **ROCm**
 - Tips **Color Grading**
-- Tips **Latent Corrections**
+- Regen **Localization**
 
 ## Internal
 
