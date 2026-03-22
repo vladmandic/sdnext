@@ -1,0 +1,374 @@
+from typing import Dict, Any, List, Tuple
+
+# --- General MIOpen/rocBLAS variables (dropdown/textbox/checkbox) ---
+GENERAL_VARS: Dict[str, Dict[str, Any]] = {
+
+    "MIOPEN_GEMM_ENFORCE_BACKEND": {
+        "default": "1",
+        "desc": "Enforce GEMM backend",
+        "widget": "dropdown",
+        "options": [("1 - rocBLAS", "1"), ("5 - hipBLASLt", "5")],
+        "restart_required": False,
+    },
+    "MIOPEN_FIND_MODE": {
+        "default": "2",
+        "desc": "MIOpen Find Mode",
+        "widget": "dropdown",
+        "options": [("1 - NORMAL", "1"), ("2 - FAST", "2"), ("3 - HYBRID", "3"), ("5 - DYNAMIC_HYBRID", "5"), ("6 - TRUST_VERIFY", "6"), ("7 - TRUST_VERIFY_FULL", "7")],
+        "restart_required": True,
+    },
+    "MIOPEN_FIND_ENFORCE": {
+        "default": "1",
+        "desc": "MIOpen Find Enforce",
+        "widget": "dropdown",
+        "options": [("1 - NONE", "1"), ("2 - DB_UPDATE", "2"), ("3 - SEARCH", "3"), ("4 - SEARCH_DB_UPDATE", "4"), ("5 - DB_CLEAN", "5")],
+        "restart_required": True,
+    },
+    "MIOPEN_SEARCH_CUTOFF": {
+        "default": "0",
+        "desc": "Enable early termination of suboptimal searches",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": True,
+    },
+    "MIOPEN_SYSTEM_DB_PATH": {
+        "default": "{VIRTUAL_ENV}\\Lib\\site-packages\\_rocm_sdk_devel\\bin\\",
+        "desc": "MIOpen system DB path",
+        "widget": "textbox",
+        "options": None,
+        "restart_required": True,
+    },
+    "MIOPEN_LOG_LEVEL": {
+        "default": "0",
+        "desc": "MIOpen log verbosity level",
+        "widget": "dropdown",
+        "options": [("0 - Default", "0"), ("1 - Quiet", "1"), ("3 - Error", "3"), ("4 - Warning", "4"), ("5 - Info", "5"), ("6 - Detail", "6"), ("7 - Trace", "7")],
+        "restart_required": False,
+    },
+    "MIOPEN_DEBUG_ENABLE": {
+        "default": "0",
+        "desc": "Enable MIOpen logging",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": False,
+    },
+    "ROCBLAS_LAYER": {
+        "default": "0",
+        "desc": "rocBLAS logging",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - Trace", "1"), ("2 - Bench", "2"), ("3 - Trace+Bench", "3"), ("4 - Profile", "4"), ("5 - Trace+Profile", "5"), ("6 - Bench+Profile", "6"), ("7 - All", "7")],
+        "restart_required": False,
+    },
+    "HIPBLASLT_LOG_LEVEL": {
+        "default": "0",
+        "desc": "hipBLASLt logging",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - Error", "1"), ("2 - Trace", "2"), ("3 - Hints", "3"), ("4 - Info", "4"), ("5 - API Trace", "5")],
+        "restart_required": False,
+    },
+    "MIOPEN_DEBUG_CONVOLUTION_DETERMINISTIC": {
+        "default": "0",
+        "desc": "Deterministic convolution (reproducible results, may be slower)",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": False,
+    },
+}
+
+# --- Solver toggles: name -> description string ---
+# These are all checkbox widgets; default "1" unless in _SOLVER_DISABLED_BY_DEFAULT.
+_SOLVER_DESCS: Dict[str, str] = {}
+
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_CONV_FFT":           "Enable FFT solver",
+    "MIOPEN_DEBUG_CONV_DIRECT":        "Enable Direct solver",
+    "MIOPEN_DEBUG_CONV_GEMM":          "Enable GEMM solver",
+    "MIOPEN_DEBUG_CONV_WINOGRAD":      "Enable Winograd solver",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM": "Enable Implicit GEMM solver",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_CONV_IMMED_FALLBACK":              "Enable Immediate Fallback",
+    "MIOPEN_DEBUG_ENABLE_AI_IMMED_MODE_FALLBACK":    "Enable AI Immediate Mode Fallback",
+    "MIOPEN_DEBUG_FORCE_IMMED_MODE_FALLBACK":        "Force Immediate Mode Fallback",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_GCN_ASM_KERNELS":         "Enable GCN ASM kernels",
+    "MIOPEN_DEBUG_HIP_KERNELS":             "Enable HIP kernels",
+    "MIOPEN_DEBUG_OPENCL_CONVOLUTIONS":     "Enable OpenCL convolutions",
+    "MIOPEN_DEBUG_OPENCL_WAVE64_NOWGP":     "Enable OpenCL Wave64 NOWGP",
+    "MIOPEN_DEBUG_ATTN_SOFTMAX":            "Enable Attention Softmax",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_3X3U":                       "Enable Direct ASM 3x3U",
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U":                       "Enable Direct ASM 1x1U",
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1UV2":                     "Enable Direct ASM 1x1UV2",
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_5X10U2V2":                   "Enable Direct ASM 5x10U2V2",
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_7X7C3H224W224":              "Enable Direct ASM 7x7C3H224W224",
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW3X3":                     "Enable Direct ASM WRW3X3",
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1":                     "Enable Direct ASM WRW1X1",
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_PERF_VALS":             "Enable Direct ASM 1x1U Perf Vals",
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_SEARCH_OPTIMIZED":      "Enable Direct ASM 1x1U Search Optimized",
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_AI_HEUR":               "Enable Direct ASM 1x1U AI Heuristic",
+    "MIOPEN_DEBUG_CONV_DIRECT_NAIVE_CONV_FWD":                 "Enable Direct Naive Conv FWD",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD":      "Enable Direct OCL FWD",
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD1X1":   "Enable Direct OCL FWD1X1",
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD11X11": "Enable Direct OCL FWD11X11",
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWDGEN":   "Enable Direct OCL FWDGEN",
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW2":     "Enable Direct OCL WRW2",
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW53":    "Enable Direct OCL WRW53",
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW1X1":   "Enable Direct OCL WRW1X1",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_AMD_WINOGRAD_3X3":               "Enable AMD Winograd 3x3",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS":               "Enable AMD Winograd RxS",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_FWD_BWD":       "Enable AMD Winograd RxS FWD/BWD",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_WRW":           "Enable AMD Winograd RxS WRW",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F3X2":          "Enable AMD Winograd RxS F3x2",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3":          "Enable AMD Winograd RxS F2x3",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3_G1":       "Enable AMD Winograd RxS F2x3 G1",
+    "MIOPEN_DEBUG_AMD_FUSED_WINOGRAD":             "Enable AMD Fused Winograd",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3_PERF_VALS":"Enable AMD Winograd RxS F2x3 Perf Vals",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F2X3":     "Enable AMD Winograd Fury RxS F2x3",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F3X2":     "Enable AMD Winograd Fury RxS F3x2",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RAGE_RXS_F2X3":     "Enable AMD Winograd Rage RxS F2x3",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X2": "Enable AMD Winograd MPASS F3x2",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X3": "Enable AMD Winograd MPASS F3x3",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X4": "Enable AMD Winograd MPASS F3x4",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X5": "Enable AMD Winograd MPASS F3x5",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X6": "Enable AMD Winograd MPASS F3x6",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X3": "Enable AMD Winograd MPASS F5x3",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X4": "Enable AMD Winograd MPASS F5x4",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X2": "Enable AMD Winograd MPASS F7x2",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X3": "Enable AMD Winograd MPASS F7x3",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F2X3":                              "Enable AMD MP BD Winograd F2x3",
+    "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F3X3":                              "Enable AMD MP BD Winograd F3x3",
+    "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F4X3":                              "Enable AMD MP BD Winograd F4x3",
+    "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F5X3":                              "Enable AMD MP BD Winograd F5x3",
+    "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F6X3":                              "Enable AMD MP BD Winograd F6x3",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F2X3": "Enable AMD MP BD XDLOPS Winograd F2x3",
+    "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F3X3": "Enable AMD MP BD XDLOPS Winograd F3x3",
+    "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F4X3": "Enable AMD MP BD XDLOPS Winograd F4x3",
+    "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F5X3": "Enable AMD MP BD XDLOPS Winograd F5x3",
+    "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F6X3": "Enable AMD MP BD XDLOPS Winograd F6x3",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1":                                        "Enable ASM Implicit GEMM FWD V4R1",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1_1X1":                                    "Enable ASM Implicit GEMM FWD V4R1 1x1",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_BWD_V4R1":                                        "Enable ASM Implicit GEMM BWD V4R1",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_WRW_V4R1":                                        "Enable ASM Implicit GEMM WRW V4R1",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_GTC_XDLOPS":                                  "Enable ASM Implicit GEMM FWD GTC XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_BWD_GTC_XDLOPS":                                  "Enable ASM Implicit GEMM BWD GTC XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_WRW_GTC_XDLOPS":                                  "Enable ASM Implicit GEMM WRW GTC XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_GTC_XDLOPS_NHWC":                             "Enable ASM Implicit GEMM FWD GTC XDLOPS NHWC",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_BWD_GTC_XDLOPS_NHWC":                             "Enable ASM Implicit GEMM BWD GTC XDLOPS NHWC",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_WRW_GTC_XDLOPS_NHWC":                             "Enable ASM Implicit GEMM WRW GTC XDLOPS NHWC",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_GTC_DLOPS_NCHWC":                             "Enable ASM Implicit GEMM FWD GTC DLOPS NCHWC",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_GROUP_BWD_XDLOPS":                                "Enable HIP Group BWD XDLOPS",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_BWD_XDLOPS_AI_HEUR":                        "Enable Group HIP BWD XDLOPS AI Heuristic",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_FWD_V4R4_XDLOPS_ADD_VECTOR_LOAD_GEMMN_TUNE_PARAM":   "Enable FWD V4R4 XDLOPS Add Vector Load GEMMN Tune Param",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R1":                        "Enable HIP Implicit GEMM FWD V4R1",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4":                        "Enable HIP Implicit GEMM FWD V4R4",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V1R1":                        "Enable HIP Implicit GEMM BWD V1R1",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V4R1":                        "Enable HIP Implicit GEMM BWD V4R1",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R1":                        "Enable HIP Implicit GEMM WRW V4R1",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4":                        "Enable HIP Implicit GEMM WRW V4R4",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4_XDLOPS":                 "Enable HIP Implicit GEMM FWD V4R4 XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R5_XDLOPS":                 "Enable HIP Implicit GEMM FWD V4R5 XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V1R1_XDLOPS":                 "Enable HIP Implicit GEMM BWD V1R1 XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V4R1_XDLOPS":                 "Enable HIP Implicit GEMM BWD V4R1 XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4_XDLOPS":                 "Enable HIP Implicit GEMM WRW V4R4 XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4_PADDED_GEMM_XDLOPS":    "Enable HIP Implicit GEMM FWD V4R4 Padded GEMM XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4_PADDED_GEMM_XDLOPS":    "Enable HIP Implicit GEMM WRW V4R4 Padded GEMM XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS":                      "Enable HIP Implicit GEMM FWD XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_XDLOPS":                      "Enable HIP Implicit GEMM BWD XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_XDLOPS":                      "Enable HIP Implicit GEMM WRW XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS":                              "Enable Implicit GEMM XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS_EMULATE":                      "Enable Implicit GEMM XDLOPS Emulation",
+    "MIOPEN_DEBUG_IMPLICIT_GEMM_XDLOPS_INLINE_ASM":                        "Enable Implicit GEMM XDLOPS Inline ASM",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_3D_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS": "Enable 3D HIP Implicit GEMM FWD XDLOPS",
+    "MIOPEN_DEBUG_3D_CONV_IMPLICIT_GEMM_HIP_BWD_XDLOPS": "Enable 3D HIP Implicit GEMM BWD XDLOPS",
+    "MIOPEN_DEBUG_3D_CONV_IMPLICIT_GEMM_HIP_WRW_XDLOPS": "Enable 3D HIP Implicit GEMM WRW XDLOPS",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_CONV_CK_IGEMM_FWD_V6R1_DLOPS_NCHW":       "Enable CK iGEMM FWD V6R1 DLOPS NCHW",
+    "MIOPEN_DEBUG_CONV_CK_IGEMM_FWD_BIAS_ACTIV":             "Enable CK iGEMM FWD Bias Activation",
+    "MIOPEN_DEBUG_CONV_CK_IGEMM_FWD_BIAS_RES_ADD_ACTIV":     "Enable CK iGEMM FWD Bias Res Add Activation",
+})
+_SOLVER_DESCS.update({
+    "MIOPEN_DEBUG_CONV_MLIR_IGEMM_WRW_XDLOPS": "Enable MLIR iGEMM WRW XDLOPS",
+    "MIOPEN_DEBUG_CONV_MLIR_IGEMM_BWD_XDLOPS": "Enable MLIR iGEMM BWD XDLOPS",
+})
+
+# Vars whose solver default is "0" (disabled) — CDNA-only, RDNA3/4-only, experimental, or not used in SD inference
+_SOLVER_DISABLED_BY_DEFAULT = {
+    "MIOPEN_DEBUG_FORCE_IMMED_MODE_FALLBACK",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F2X3",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F3X2",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RAGE_RXS_F2X3",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X4",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X5",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X6",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X3",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X4",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X2",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X3",
+    "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F2X3",
+    "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F3X3",
+    "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F4X3",
+    "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F5X3",
+    "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F6X3",
+    "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F2X3",
+    "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F3X3",
+    "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F4X3",
+    "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F5X3",
+    "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F6X3",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_GTC_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_BWD_GTC_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_WRW_GTC_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_GTC_XDLOPS_NHWC",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_BWD_GTC_XDLOPS_NHWC",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_WRW_GTC_XDLOPS_NHWC",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_GTC_DLOPS_NCHWC",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_GROUP_BWD_XDLOPS",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_BWD_XDLOPS_AI_HEUR",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_FWD_V4R4_XDLOPS_ADD_VECTOR_LOAD_GEMMN_TUNE_PARAM",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R5_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V1R1_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V4R1_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4_PADDED_GEMM_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4_PADDED_GEMM_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS_EMULATE",
+    "MIOPEN_DEBUG_IMPLICIT_GEMM_XDLOPS_INLINE_ASM",
+    "MIOPEN_DEBUG_3D_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS",
+    "MIOPEN_DEBUG_3D_CONV_IMPLICIT_GEMM_HIP_BWD_XDLOPS",
+    "MIOPEN_DEBUG_3D_CONV_IMPLICIT_GEMM_HIP_WRW_XDLOPS",
+    "MIOPEN_DEBUG_CONV_CK_IGEMM_FWD_V6R1_DLOPS_NCHW",
+    "MIOPEN_DEBUG_CONV_CK_IGEMM_FWD_BIAS_ACTIV",
+    "MIOPEN_DEBUG_CONV_CK_IGEMM_FWD_BIAS_RES_ADD_ACTIV",
+    "MIOPEN_DEBUG_CONV_MLIR_IGEMM_WRW_XDLOPS",
+    "MIOPEN_DEBUG_CONV_MLIR_IGEMM_BWD_XDLOPS",
+}
+
+# Build full merged var registry
+ROCM_ENV_VARS: Dict[str, Dict[str, Any]] = {}
+ROCM_ENV_VARS.update(GENERAL_VARS)
+for _var, _desc in _SOLVER_DESCS.items():
+    ROCM_ENV_VARS[_var] = {
+        "default": "0" if _var in _SOLVER_DISABLED_BY_DEFAULT else "1",
+        "desc": _desc,
+        "widget": "checkbox",
+        "options": None,
+        "restart_required": False,
+    }
+
+# UI group ordering for solver sections
+SOLVER_GROUPS: List[Tuple[str, List[str]]] = [
+    ("Algorithm/Solver Group Enables", [
+        "MIOPEN_DEBUG_CONV_FFT", "MIOPEN_DEBUG_CONV_DIRECT", "MIOPEN_DEBUG_CONV_GEMM",
+        "MIOPEN_DEBUG_CONV_WINOGRAD", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM",
+    ]),
+    ("Immediate Fallback Mode", [
+        "MIOPEN_DEBUG_CONV_IMMED_FALLBACK", "MIOPEN_DEBUG_ENABLE_AI_IMMED_MODE_FALLBACK",
+        "MIOPEN_DEBUG_FORCE_IMMED_MODE_FALLBACK",
+    ]),
+    ("Build Method Toggles", [
+        "MIOPEN_DEBUG_GCN_ASM_KERNELS", "MIOPEN_DEBUG_HIP_KERNELS",
+        "MIOPEN_DEBUG_OPENCL_CONVOLUTIONS", "MIOPEN_DEBUG_OPENCL_WAVE64_NOWGP",
+        "MIOPEN_DEBUG_ATTN_SOFTMAX",
+    ]),
+    ("Direct ASM Solver Toggles", [
+        "MIOPEN_DEBUG_CONV_DIRECT_ASM_3X3U", "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U",
+        "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1UV2", "MIOPEN_DEBUG_CONV_DIRECT_ASM_5X10U2V2",
+        "MIOPEN_DEBUG_CONV_DIRECT_ASM_7X7C3H224W224", "MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW3X3",
+        "MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1", "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_PERF_VALS",
+        "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_SEARCH_OPTIMIZED", "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_AI_HEUR",
+        "MIOPEN_DEBUG_CONV_DIRECT_NAIVE_CONV_FWD",
+    ]),
+    ("Direct OpenCL Solver Toggles", [
+        "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD", "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD1X1",
+        "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD11X11", "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWDGEN",
+        "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW2", "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW53",
+        "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW1X1",
+    ]),
+    ("Winograd Solver Toggles", [
+        "MIOPEN_DEBUG_AMD_WINOGRAD_3X3", "MIOPEN_DEBUG_AMD_WINOGRAD_RXS",
+        "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_FWD_BWD", "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_WRW",
+        "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F3X2", "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3",
+        "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3_G1", "MIOPEN_DEBUG_AMD_FUSED_WINOGRAD",
+        "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3_PERF_VALS", "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F2X3",
+        "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F3X2", "MIOPEN_DEBUG_AMD_WINOGRAD_RAGE_RXS_F2X3",
+    ]),
+    ("Multi-pass Winograd Toggles", [
+        "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X2", "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X3",
+        "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X4", "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X5",
+        "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X6", "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X3",
+        "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X4", "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X2",
+        "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X3",
+    ]),
+    ("MP BD Winograd Toggles", [
+        "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F2X3", "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F3X3",
+        "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F4X3", "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F5X3",
+        "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_F6X3",
+    ]),
+    ("MP BD XDLOPS Winograd Toggles", [
+        "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F2X3", "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F3X3",
+        "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F4X3", "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F5X3",
+        "MIOPEN_DEBUG_AMD_MP_BD_XDLOPS_WINOGRAD_F6X3",
+    ]),
+    ("ASM Implicit GEMM Toggles", [
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1_1X1",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_BWD_V4R1", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_WRW_V4R1",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_GTC_XDLOPS", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_BWD_GTC_XDLOPS",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_WRW_GTC_XDLOPS", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_GTC_XDLOPS_NHWC",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_BWD_GTC_XDLOPS_NHWC", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_WRW_GTC_XDLOPS_NHWC",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_GTC_DLOPS_NCHWC",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_GROUP_BWD_XDLOPS",
+        "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_BWD_XDLOPS_AI_HEUR",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_FWD_V4R4_XDLOPS_ADD_VECTOR_LOAD_GEMMN_TUNE_PARAM",
+    ]),
+    ("HIP Implicit GEMM Toggles", [
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R1", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V1R1", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V4R1",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R1", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4_XDLOPS", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R5_XDLOPS",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V1R1_XDLOPS", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V4R1_XDLOPS",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4_XDLOPS",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4_PADDED_GEMM_XDLOPS",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4_PADDED_GEMM_XDLOPS",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_XDLOPS",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_XDLOPS", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS",
+        "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_XDLOPS_EMULATE", "MIOPEN_DEBUG_IMPLICIT_GEMM_XDLOPS_INLINE_ASM",
+    ]),
+    ("3D Implicit GEMM Toggles", [
+        "MIOPEN_DEBUG_3D_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS",
+        "MIOPEN_DEBUG_3D_CONV_IMPLICIT_GEMM_HIP_BWD_XDLOPS",
+        "MIOPEN_DEBUG_3D_CONV_IMPLICIT_GEMM_HIP_WRW_XDLOPS",
+    ]),
+    ("CK Implicit GEMM Toggles", [
+        "MIOPEN_DEBUG_CONV_CK_IGEMM_FWD_V6R1_DLOPS_NCHW",
+        "MIOPEN_DEBUG_CONV_CK_IGEMM_FWD_BIAS_ACTIV",
+        "MIOPEN_DEBUG_CONV_CK_IGEMM_FWD_BIAS_RES_ADD_ACTIV",
+    ]),
+    ("MLIR Implicit GEMM Toggles", [
+        "MIOPEN_DEBUG_CONV_MLIR_IGEMM_WRW_XDLOPS",
+        "MIOPEN_DEBUG_CONV_MLIR_IGEMM_BWD_XDLOPS",
+    ]),
+]
