@@ -1,12 +1,12 @@
 import os
 import sys
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Dict, Optional
 
 import installer
 from modules.logger import log
 from modules.json_helpers import readfile, writefile
-from scripts.rocm.rocm_vars import ROCM_ENV_VARS, SOLVER_GROUPS, SOLVER_DISABLED_BY_DEFAULT  # pylint: disable=no-name-in-module
+from scripts.rocm.rocm_vars import ROCM_ENV_VARS  # pylint: disable=no-name-in-module
 from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
 
 

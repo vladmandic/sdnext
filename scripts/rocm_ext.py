@@ -2,6 +2,9 @@ import gradio as gr
 import installer
 from modules import scripts_manager, shared
 
+# rocm_mgr exposes package-internal helpers (prefixed _) that are intentionally called here
+# pylint: disable=protected-access
+
 
 class Script(scripts_manager.Script):
     def title(self):
@@ -73,7 +76,7 @@ class Script(scripts_manager.Script):
                 btn_rdna4 = gr.Button("RDNA4 (RX 9000)", elem_id="rocm_btn_rdna4")
             style_out = gr.HTML("")
             info_out = gr.HTML(value=_info_html, elem_id="rocm_info_table")
-            
+
             # General vars (dropdowns, textboxes, checkboxes)
             with gr.Group():
                 gr.HTML("<h3>MIOpen Settings</h3><hr>")
@@ -92,7 +95,7 @@ class Script(scripts_manager.Script):
                         var_names.append(name)
                         components.append(comp)
             gr.HTML("<br><center><div style='margin:0 Auto'><a href='https://rocm.docs.amd.com/projects/MIOpen/en/develop/reference/env_variables.html' target='_blank'>&#128196; MIOpen Environment Variables Reference</a></div></center><br>")
-           
+
         def _autosave_field(name, value):
             meta = rocm_vars.ROCM_ENV_VARS[name]
             stored = rocm_mgr._dropdown_stored(str(value), meta["options"])
@@ -114,7 +117,7 @@ class Script(scripts_manager.Script):
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 val = saved.get(name, meta["default"])
                 if meta["widget"] == "checkbox":
-                    result.append(gr.update(value=(val == "1")))
+                    result.append(gr.update(value=val == "1"))
                 elif meta["widget"] == "dropdown":
                     result.append(gr.update(value=rocm_mgr._dropdown_display(val, meta["options"])))
                 else:
@@ -138,7 +141,7 @@ class Script(scripts_manager.Script):
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 val = updated.get(name, meta["default"])
                 if meta["widget"] == "checkbox":
-                    result.append(gr.update(value=(val == "1")))
+                    result.append(gr.update(value=val == "1"))
                 elif meta["widget"] == "dropdown":
                     result.append(gr.update(value=rocm_mgr._dropdown_display(val, meta["options"])))
                 else:
@@ -181,7 +184,7 @@ class Script(scripts_manager.Script):
                 meta = rocm_vars.ROCM_ENV_VARS[pname]
                 val = updated.get(pname, meta["default"])
                 if meta["widget"] == "checkbox":
-                    result.append(gr.update(value=(val == "1")))
+                    result.append(gr.update(value=val == "1"))
                 elif meta["widget"] == "dropdown":
                     result.append(gr.update(value=rocm_mgr._dropdown_display(val, meta["options"])))
                 else:
