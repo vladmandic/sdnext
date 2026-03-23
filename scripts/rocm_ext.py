@@ -1,14 +1,6 @@
 import gradio as gr
 import installer
-from modules import scripts_manager
-
-
-def _is_rocm() -> bool:
-    try:
-        from scripts.rocm import rocm_mgr  # pylint: disable=no-name-in-module
-        return rocm_mgr.is_rocm
-    except Exception:
-        return False
+from modules import scripts_manager, shared
 
 
 class Script(scripts_manager.Script):
@@ -16,14 +8,14 @@ class Script(scripts_manager.Script):
         return "ROCm: Advanced Config"
 
     def show(self, _is_img2img):
-        if _is_rocm():
-            return scripts_manager.AlwaysVisible
+        if shared.cmd_opts.use_rocm or installer.torch_info.get('type') == 'rocm':
+            return scripts_manager.AlwaysVisible  # script should be visible only if rocm is detected or forced
         return False
 
     def ui(self, _is_img2img):
         from scripts.rocm import rocm_mgr, rocm_vars  # pylint: disable=no-name-in-module
 
-        if not rocm_mgr.is_rocm:
+        if not shared.cmd_opts.use_rocm and not installer.torch_info.get('type') == 'rocm':  # skip ui creation if not rocm
             with gr.Accordion('ROCm: Advanced Config', open=False, elem_id='rocm_config'):
                 gr.HTML("<p><b>ROCm is not installed.</b> This section is disabled.</p>")
             return []
