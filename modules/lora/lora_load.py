@@ -277,10 +277,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
         if net is None:
             failed_to_load_networks.append(name)
             lora_ver = network_on_disk.sd_version if network_on_disk is not None else None
-            if lora_ver in ('f1', '') and shared.sd_model_type == 'f2':
-                log.error(f'Network load: type=LoRA name="{name}" incompatible: Flux1 LoRA cannot be used with Flux2/Klein')
-            else:
-                log.error(f'Network load: type=LoRA name="{name}" detected={lora_ver} not found')
+            log.error(f'Network load: type=LoRA name="{name}" detected={lora_ver} not loaded')
             continue
         if hasattr(sd_model, 'embedding_db'):
             sd_model.embedding_db.load_diffusers_embedding(None, net.bundle_embeddings)

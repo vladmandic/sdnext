@@ -1,13 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-22
+## Update for 2026-03-23
 
-### Highlights for 2026-03-22
+### Highlights for 2026-03-23
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit* *SkyWorks-UniPic-3* and *Anima-Preview-2*  
 
-If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download `exe` or `zip` and done!
+If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download [exe or zip](https://github.com/vladmandic/sdnext-launcher/releases) and done!
 
 *What else*? Really a lot!  
 New color grading module, updated localization with new languages and improved translations, new civitai integration module, new finetunes loader, several new upscalers, improvements to LLM/VLM in captioning and prompt enhance, a lot of new control preprocessors, new realtime server info panel, some new UI themes  
@@ -16,11 +16,11 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-22
+### Details for 2026-03-23
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
-  - [FireRed Image Edit](https://huggingface.co/FireRedTeam/FireRed-Image-Edit-1.0)  
+  - [FireRed Image Edit](https://huggingface.co/FireRedTeam/FireRed-Image-Edit-1.0) *1.0 and 1.1*  
     *Note*: FireRed is a fine-tune of Qwen-Image-Edit regardless of its claim as a new base-model  
   - [Skyworks UniPic-3](https://huggingface.co/Skywork/Unipic3), *Consistency and DMD* variants to reference/community section  
     *Note*: UniPic-3 is a fine-tune of Qwen-Image-Edit with new distillation regardless of its claim of major changes  
@@ -79,6 +79,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - new `/sdapi/v1/torch` endpoint for torch info (backend, version, etc.)  
   - new `/sdapi/v1/gpu` endpoint for GPU info  
   - new `/sdapi/v1/rembg` endpoint for background removal  
+  - new `/sdadpi/v1/unet` endpoint to list available unets/dits  
   - use rate limiting for api logging  
 - **Internal**
   - `python==3.13` full support  
@@ -150,6 +151,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - improve video generation progress tracking
   - handle startup with bad `scripts` more gracefully  
   - thread-safety for `error-limiter`, thanks @awsr  
+  - add `lora` support for flux2-klein
 
 ## Update for 2026-02-04
 

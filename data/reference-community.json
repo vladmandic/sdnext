@@ -148,8 +148,16 @@
     "date": "2026 March",
     "skip": true
   },
-  "FireRed Image Edit": {
+  "FireRed Image Edit 1.0": {
     "path": "FireRedTeam/FireRed-Image-Edit-1.0",
+    "preview": "FireRedTeam--FireRed-Image-Edit-1.0.jpg",
+    "desc": "FireRed-Image-Edit is a general-purpose image editing model that delivers high-fidelity and consistent editing across a wide range of scenarios. FireRed is a fine-tune of Qwen-Image-Edit.",
+    "tags": "community",
+    "date": "2026 February",
+    "skip": true
+  },
+  "FireRed Image Edit 1.1": {
+    "path": "FireRedTeam/FireRed-Image-Edit-1.1",
     "preview": "FireRedTeam--FireRed-Image-Edit-1.0.jpg",
     "desc": "FireRed-Image-Edit is a general-purpose image editing model that delivers high-fidelity and consistent editing across a wide range of scenarios. FireRed is a fine-tune of Qwen-Image-Edit.",
     "tags": "community",
