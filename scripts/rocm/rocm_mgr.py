@@ -6,7 +6,7 @@ from typing import Dict, Any, Optional
 import installer
 from modules.logger import log
 from modules.json_helpers import readfile, writefile
-from scripts.rocm.rocm_vars import ROCM_ENV_VARS, SOLVER_GROUPS  # pylint: disable=no-name-in-module
+from scripts.rocm.rocm_vars import ROCM_ENV_VARS, SOLVER_GROUPS, SOLVER_DISABLED_BY_DEFAULT  # pylint: disable=no-name-in-module
 from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
 
 
@@ -34,16 +34,96 @@ def _check_rocm() -> bool:
 is_rocm = _check_rocm()
 
 
-CONFIG = Path(os.path.abspath(os.path.join('data', 'rocm-config.json')))
+CONFIG = Path(os.path.abspath(os.path.join('data', 'rocm.json')))
 
 _cache: Optional[Dict[str, str]] = None  # loaded once, invalidated on save
 
-# Vars that must never be set — they interfere with PyTorch dtype handling
-_UNSET_VARS = {
+# Metadata key written into rocm.json to record which architecture profile is active.
+# Not an environment variable — always skipped during env application but preserved in the
+# saved config so that arch-safety enforcement is consistent across restarts.
+_ARCH_KEY = "_rocm_arch"
+
+# Vars that must never appear in the process environment.
+#
+# _DTYPE_UNSAFE: alter FP16 inference dtype — must be cleared regardless of config
+#   MIOPEN_DEBUG_CONVOLUTION_ATTRIB_FP16_ALT_IMPL  — DEBUG alias: routes all FP16 convs through BF16 exponent math
+#   MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL        — API-level alias: same BF16-exponent effect
+#   MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_EXPEREMENTAL_FP16_TRANSFORM — unstable experimental FP16 path
+#   MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_PK_ATOMIC_ADD_FP16     — changes FP16 WrW atomic accumulation
+#
+# SOLVER_DISABLED_BY_DEFAULT: every solver known to be incompatible with this runtime
+#   (FP32-only, training-only WrW/BWD, fixed-geometry mismatches, XDLOPS/CDNA-only, arch-specific).
+#   Actively unsetting these ensures no inherited shell value can re-enable them.
+_DTYPE_UNSAFE = {
     "MIOPEN_DEBUG_CONVOLUTION_ATTRIB_FP16_ALT_IMPL",
+    "MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL",
     "MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_EXPEREMENTAL_FP16_TRANSFORM",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_PK_ATOMIC_ADD_FP16",
 }
+# _UNSET_VARS: hard-blocked vars that are DELETED from the process env and never written,
+# regardless of saved config. Limited to dtype-corrupting vars only.
+# IMPORTANT: SOLVER_DISABLED_BY_DEFAULT is intentionally NOT included here.
+#   When a solver var is absent (unset) MIOpen still calls IsApplicable() on every
+#   conv-find — wasted probing overhead. When a var is explicitly "0" MIOpen skips
+#   IsApplicable() immediately. Solver defaults flow through the config loop as "0"
+#   (their ROCM_ENV_VARS default is "0") so they are explicitly set to "0" in the env.
+_UNSET_VARS = _DTYPE_UNSAFE
+
+# Additional environment vars that must be removed from the process before MIOpen loads.
+# These are not MIOpen solver toggles but can corrupt MIOpen's runtime behaviour:
+#   HIP_PATH / HIP_PATH_71  — point to the system AMD ROCm install; override the venv-bundled
+#                              _rocm_sdk_devel DLLs with a potentially mismatched system version
+#   QML_*/QT_*              — QtQuick shader/disk-cache flags leaked from Qt tools; harmless for
+#                              PyTorch but can conflict with Gradio's embedded Qt helpers
+#   PYENV_VIRTUALENV_DISABLE_PROMPT — pyenv noise that confuses venv detection
+_EXTRA_CLEAR_VARS = {
+    "HIP_PATH",
+    "HIP_PATH_71",
+    "PYENV_VIRTUALENV_DISABLE_PROMPT",
+    "QML_DISABLE_DISK_CACHE",
+    "QML_FORCE_DISK_CACHE",
+    "QT_DISABLE_SHADER_DISK_CACHE",
+    # PERF_VALS vars are NOT boolean toggles — MIOpen reads them as perf-config strings.
+    # If inherited from a parent shell with value "1", MIOpen's GetPerfConfFromEnv parses
+    # "1" as a degenerate config and can return dtype=float32 output from FP16 tensors.
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_PERF_VALS",
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3_PERF_VALS",
+}
+
+# Solvers whose MIOpen IsApplicable() explicitly rejects non-FP32 tensors.
+# They are safe to leave enabled in FP32 mode. When the active dtype is FP16 or BF16
+# we force them OFF so MIOpen skips the IsApplicable probe entirely — avoids overhead on
+# every conv shape find. These are NOT in _UNSET_VARS because they are valid in FP32.
+_FP32_ONLY_SOLVERS = {
+    "MIOPEN_DEBUG_CONV_FFT",           # FFT convolution — FP32 only (MIOpen source: IsFp32 check)
+    "MIOPEN_DEBUG_AMD_WINOGRAD_3X3",   # Winograd 3x3 — FP32 only
+    "MIOPEN_DEBUG_AMD_FUSED_WINOGRAD", # Fused Winograd — FP32 only
+}
+
+
+def _resolve_dtype() -> str:
+    """Return the resolved active compute dtype: 'FP16', 'BF16', 'FP32', or '' (not yet known).
+    Prefers the resolved devices.dtype (post test_fp16/bf16) over the raw opts string."""
+    try:
+        import torch  # pylint: disable=import-outside-toplevel
+        from modules import devices as _dev  # pylint: disable=import-outside-toplevel
+        if _dev.dtype is not None:
+            if _dev.dtype == torch.float16:
+                return 'FP16'
+            if _dev.dtype == torch.bfloat16:
+                return 'BF16'
+            if _dev.dtype == torch.float32:
+                return 'FP32'
+    except Exception:
+        pass
+    try:
+        from modules import shared as _sh  # pylint: disable=import-outside-toplevel
+        v = getattr(getattr(_sh, 'opts', None), 'cuda_dtype', None)
+        if v in ('FP16', 'BF16', 'FP32'):
+            return v
+    except Exception:
+        pass
+    return ''
 
 
 # --- venv helpers ---
@@ -88,46 +168,85 @@ def _dropdown_choices(options):
 def load_config() -> Dict[str, str]:
     global _cache  # pylint: disable=global-statement
     if _cache is None:
-        if CONFIG.exists():
+        file_existed = CONFIG.exists()
+        if file_existed:
             data = readfile(str(CONFIG), lock=True, as_type="dict")
             _cache = data if data else {k: v["default"] for k, v in ROCM_ENV_VARS.items()}
+            # Purge unsafe vars from a stale saved config and re-persist only if the file existed.
+            # When running without a saved config (first run / after Delete), load_config() must
+            # never create the file — that only happens via save_config() on Apply or Apply Profile.
+            dirty = {k for k in _cache if k in _UNSET_VARS or (k != _ARCH_KEY and k not in ROCM_ENV_VARS)}
+            if dirty:
+                _cache = {k: v for k, v in _cache.items() if k not in dirty}
+                writefile(_cache, str(CONFIG))
+                log.debug(f'ROCm load_config: purged {len(dirty)} stale/unsafe var(s) from saved config')
         else:
             _cache = {k: v["default"] for k, v in ROCM_ENV_VARS.items()}
-        log.debug(f'ROCm load_config: path={CONFIG} items={len(_cache)}')
+        log.debug(f'ROCm load_config: path={CONFIG} existed={file_existed} items={len(_cache)}')
     return _cache
 
 
 def save_config(config: Dict[str, str]) -> None:
     global _cache  # pylint: disable=global-statement
-    writefile(config, str(CONFIG))
-    _cache = config
+    sanitized = {k: v for k, v in config.items() if k not in _UNSET_VARS}
+    # Enforce arch-incompatible solvers to "0" before writing.
+    # Prevents malformed edits (UI or JSON hand-edit) from persisting incompatible "1" values.
+    arch = sanitized.get(_ARCH_KEY, "")
+    unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
+    for var in unavailable:
+        if var in sanitized and sanitized[var] != "0":
+            sanitized[var] = "0"
+            log.debug(f'ROCm save_config: clamped arch-incompatible var={var} arch={arch}')
+    writefile(sanitized, str(CONFIG))
+    _cache = sanitized
 
 
 def apply_env(config: Optional[Dict[str, str]] = None) -> None:
     if config is None:
         config = load_config()
-    applied = 0
-    skipped = 0
     for var in _UNSET_VARS:
         if var in os.environ:
             del os.environ[var]
     for var, value in config.items():
-        if var in _UNSET_VARS:
-            skipped += 1
+        if var == _ARCH_KEY:
             continue
+        if var in _UNSET_VARS:
+            continue
+        if var not in ROCM_ENV_VARS:
+            continue
+        meta = ROCM_ENV_VARS.get(var, {})
+        if meta.get("options"):
+            value = _dropdown_stored(str(value), meta["options"])
         expanded = _expand_venv(str(value))
         if expanded == "":
-            skipped += 1
             continue
         os.environ[var] = expanded
-        applied += 1
+    # Arch safety net: hard-force all hardware-incompatible vars to "0" in the env.
+    # This runs *after* the config loop so it overrides any stale "1" that survived in the JSON.
+    # Source of truth: rocm_profiles.UNAVAILABLE[arch] — vars with no supporting hardware.
+    arch = config.get(_ARCH_KEY, "")
+    unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
+    if unavailable:
+        for var in unavailable:
+            os.environ[var] = "0"
+    dtype_str = _resolve_dtype()
+    if dtype_str in ('FP16', 'BF16'):
+        for var in _FP32_ONLY_SOLVERS:
+            os.environ[var] = "0"
 
 
 def apply_all(names: list, values: list) -> None:
     config = load_config().copy()
+    arch = config.get(_ARCH_KEY, "")
+    unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
     for name, value in zip(names, values):
         if name not in ROCM_ENV_VARS:
             log.warning(f'ROCm apply_all: unknown variable={name}')
+            continue
+        # Arch safety net: silently clamp incompatible solvers back to "0".
+        # The UI may send the current checkbox state even for greyed-out vars.
+        if name in unavailable:
+            config[name] = "0"
             continue
         meta = ROCM_ENV_VARS[name]
         if meta["widget"] == "checkbox":
@@ -142,6 +261,8 @@ def apply_all(names: list, values: list) -> None:
                 config[name] = stored
             # else: value was None/invalid — leave the existing saved value untouched
         else:
+            if meta.get("options"):
+                value = _dropdown_stored(str(value), meta["options"])
             config[name] = _collapse_venv(str(value))
     save_config(config)
     apply_env(config)
@@ -149,32 +270,45 @@ def apply_all(names: list, values: list) -> None:
 
 def reset_defaults() -> None:
     defaults = {k: v["default"] for k, v in ROCM_ENV_VARS.items()}
+    # Preserve the active arch key so safety nets survive a defaults reset.
+    arch = load_config().get(_ARCH_KEY, "")
+    if arch:
+        defaults[_ARCH_KEY] = arch
     save_config(defaults)
     apply_env(defaults)
-    log.info('ROCm reset_defaults: config reset to defaults')
+    log.info(f'ROCm reset_defaults: config reset to defaults arch={arch or "(none)"}')
 
 
 def clear_env() -> None:
-    """Remove all managed ROCm vars from os.environ without writing to disk."""
+    """Remove all managed ROCm vars and known noise vars from os.environ without writing to disk."""
     cleared = 0
     for var in ROCM_ENV_VARS:
         if var in os.environ:
             del os.environ[var]
             cleared += 1
-    for var in _UNSET_VARS:
+    for var in _UNSET_VARS | _EXTRA_CLEAR_VARS:
         if var in os.environ:
             del os.environ[var]
+            cleared += 1
     log.info(f'ROCm clear_env: cleared={cleared}')
 
 
 def delete_config() -> None:
-    """Delete the saved config file and clear all vars from the environment."""
+    """Delete the saved config file, clear all vars, and wipe the MIOpen user DB cache."""
+    import shutil  # pylint: disable=import-outside-toplevel
     global _cache  # pylint: disable=global-statement
     clear_env()
     if CONFIG.exists():
         CONFIG.unlink()
         log.info(f'ROCm delete_config: deleted {CONFIG}')
     _cache = None
+    # Delete the MIOpen user DB (~/.miopen/db) — stale entries can cause solver mismatches
+    miopen_db = Path(os.path.expanduser('~')) / '.miopen' / 'db'
+    if miopen_db.exists():
+        shutil.rmtree(miopen_db, ignore_errors=True)
+        log.info(f'ROCm delete_config: wiped MIOpen user DB at {miopen_db}')
+    else:
+        log.debug(f'ROCm delete_config: MIOpen user DB not found at {miopen_db} — nothing to wipe')
 
 
 def apply_profile(name: str) -> None:
@@ -185,6 +319,7 @@ def apply_profile(name: str) -> None:
         return
     config = load_config().copy()
     config.update(profile)
+    config[_ARCH_KEY] = name  # stamp the active arch so safety nets survive restarts
     save_config(config)
     apply_env(config)
     log.info(f'ROCm apply_profile: profile={name} overrides={len(profile)}')

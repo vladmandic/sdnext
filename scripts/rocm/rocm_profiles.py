@@ -78,7 +78,7 @@ RDNA2: Dict[str, str] = {
     # General settings (architecture-independent; set here so all profiles cover them)
     "MIOPEN_SEARCH_CUTOFF": "0",
     "MIOPEN_DEBUG_CONVOLUTION_DETERMINISTIC": "0",
-    # Core algo enables
+    # Core algo enables — FFT is FP32-only but harmless (IsApplicable rejects it for fp16 tensors)
     "MIOPEN_DEBUG_CONV_FFT":               "1",
     "MIOPEN_DEBUG_CONV_DIRECT":            "1",
     "MIOPEN_DEBUG_CONV_GEMM":              "1",
@@ -93,36 +93,58 @@ RDNA2: Dict[str, str] = {
     "MIOPEN_DEBUG_OPENCL_CONVOLUTIONS":    "1",
     "MIOPEN_DEBUG_OPENCL_WAVE64_NOWGP":    "1",
     "MIOPEN_DEBUG_ATTN_SOFTMAX":           "1",
-    # Direct ASM — all work on RDNA2
+    # Direct ASM — dtype notes
+    # 3X3U / 1X1U / 1X1UV2: FP32/FP16 forward — enabled
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_3X3U":                    "1",
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U":                    "1",
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1UV2":                  "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_ASM_5X10U2V2":                "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_ASM_7X7C3H224W224":           "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW3X3":                  "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1":                  "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_PERF_VALS":          "1",
+    # 5X10U2V2: fixed geometry (5×10 stride-2), no SD conv matches — disabled
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_5X10U2V2":                "0",
+    # 7X7C3H224W224: hard-coded ImageNet stem (C=3, H=W=224, K=64) — never matches SD — disabled
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_7X7C3H224W224":           "0",
+    # WRW3X3 / WRW1X1: FP32-only weight-gradient (training only) — disabled for inference
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW3X3":                  "0",
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_WRW1X1":                  "0",
+    # PERF_VALS intentionally blank: MIOpen reads this as a config string not a boolean;
+    # setting to "1" causes GetPerfConfFromEnv to use a degenerate config and return float32
+    "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_PERF_VALS":          "",
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_SEARCH_OPTIMIZED":   "1",
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_AI_HEUR":            "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_NAIVE_CONV_FWD":               "1",
-    # Direct OCL — all work on RDNA2
+    # NAIVE_CONV_FWD: scalar FP32 reference solver — IsApplicable does NOT reliably filter for FP16;
+    # can be selected for unusual shapes (e.g. VAE decoder 3-ch output) and returns dtype=float32
+    "MIOPEN_DEBUG_CONV_DIRECT_NAIVE_CONV_FWD":               "0",
+    # Direct OCL — dtype notes
+    # FWD / FWD1X1: FP32/FP16 forward — enabled
     "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD":      "1",
     "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD1X1":   "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD11X11": "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWDGEN":   "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW2":     "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW53":    "1",
-    "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW1X1":   "1",
-    # Winograd RxS — all base variants work on RDNA2
+    # FWD11X11: requires 11×11 kernel — no SD match — disabled
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD11X11": "0",
+    # FWDGEN: FP32 generic OCL fallback — IsApplicable does NOT reliably reject for FP16;
+    # can produce dtype=float32 output for FP16 inputs — disabled
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWDGEN":   "0",
+    # WRW2 / WRW53 / WRW1X1: training-only weight-gradient — disabled
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW2":     "0",
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW53":    "0",
+    "MIOPEN_DEBUG_CONV_DIRECT_OCL_WRW1X1":   "0",
+    # Winograd RxS — dtype per MIOpen docs
+    # WINOGRAD_3X3: FP32-only — harmless (IsApplicable rejects for fp16); enabled
     "MIOPEN_DEBUG_AMD_WINOGRAD_3X3":                "1",
+    # RXS: covers FP32/FP16 F(3,3) Fwd/Bwd + FP32 F(3,2) WrW — keep enabled (fp16 fwd/bwd path exists)
     "MIOPEN_DEBUG_AMD_WINOGRAD_RXS":                "1",
+    # RXS_FWD_BWD: FP32/FP16 — explicitly the fp16-capable subset
     "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_FWD_BWD":        "1",
-    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_WRW":            "1",
+    # RXS_WRW: FP32 WrW only — training-only, disabled for inference fp16 profile
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_WRW":            "0",
+    # RXS_F3X2: FP32/FP16 Fwd/Bwd
     "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F3X2":           "1",
+    # RXS_F2X3: FP32/FP16 Fwd/Bwd (group convolutions)
     "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3":           "1",
+    # RXS_F2X3_G1: FP32/FP16 Fwd/Bwd (non-group convolutions)
     "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3_G1":        "1",
+    # FUSED_WINOGRAD: FP32-only — harmless (IsApplicable rejects for fp16); enabled
     "MIOPEN_DEBUG_AMD_FUSED_WINOGRAD":              "1",
-    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3_PERF_VALS": "1",
+    # PERF_VALS intentionally blank: same reason as ASM_1X1U — not a boolean, config string
+    "MIOPEN_DEBUG_AMD_WINOGRAD_RXS_F2X3_PERF_VALS": "",
     # Fury/Rage Winograd — NOT available on RDNA2
     "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F2X3": "0",
     "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F3X2": "0",
@@ -137,18 +159,20 @@ RDNA2: Dict[str, str] = {
     "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X4": "0",
     "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X2": "0",
     "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X3": "0",
-    # ASM Implicit GEMM — V4R1 only; no GTC/XDLOPS on RDNA2
+    # ASM Implicit GEMM — forward V4R1 only; no GTC/XDLOPS on RDNA2
+    # BWD (backward data-gradient) and WrW (weight-gradient) are training-only — disabled
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1":     "1",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1_1X1": "1",
-    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_BWD_V4R1":     "1",
-    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_WRW_V4R1":     "1",
-    # HIP Implicit GEMM — non-XDLOPS V4R1/R4 only
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_BWD_V4R1":     "0",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_WRW_V4R1":     "0",
+    # HIP Implicit GEMM — non-XDLOPS V4R1/R4 forward only
+    # BWD (backward data-gradient) and WrW (weight-gradient) are training-only — disabled
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R1": "1",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4": "1",
-    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V1R1": "1",
-    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V4R1": "1",
-    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R1": "1",
-    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4": "1",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V1R1": "0",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V4R1": "0",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R1": "0",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4": "0",
 }
 
 # ---------------------------------------------------------------------------

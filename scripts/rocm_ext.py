@@ -35,12 +35,12 @@ class Script(scripts_manager.Script):
         def _make_component(name, meta, cfg):
             val = cfg.get(name, meta["default"])
             if meta["widget"] == "checkbox":
-                return gr.Checkbox(label=meta["desc"], value=(val == "1"), elem_id=f"rocm_var_{name.lower()}")
+                dtype_tag = meta.get("dtype")
+                label = f"[{dtype_tag}] {meta['desc']}" if dtype_tag else meta["desc"]
+                return gr.Checkbox(label=label, value=(val == "1"), elem_id=f"rocm_var_{name.lower()}")
             elif meta["widget"] == "dropdown":
                 choices = rocm_mgr._dropdown_choices(meta["options"])
                 display = rocm_mgr._dropdown_display(val, meta["options"])
-                if display not in choices:  # corrupted stored value — fall back to default
-                    display = rocm_mgr._dropdown_display(meta["default"], meta["options"])
                 return gr.Dropdown(label=meta["desc"], choices=choices, value=display, elem_id=f"rocm_var_{name.lower()}")
             else:  # textbox
                 return gr.Textbox(label=meta["desc"], value=rocm_mgr._expand_venv(val), lines=1)
@@ -88,15 +88,45 @@ class Script(scripts_manager.Script):
                     gap: 0 !important;
                 }
                 #rocm_config fieldset { border: none !important; padding: 0 !important; margin: 0 !important; box-shadow: none !important; background: transparent !important; }
+                /* No horizontal overflow on the container */
+                #rocm_config { overflow-x: hidden !important; }
+                /* Smaller text for dense solver checkbox lists */
+                #rocm_config .gradio-checkbox label { font-size: 11px !important; line-height: 1.4 !important; }
+
+                /* CSS-only tooltips — script tags are sanitized by Gradio */
+                #rocm_btn_info, #rocm_btn_apply, #rocm_btn_reset, #rocm_btn_clear, #rocm_btn_delete,
+                #rocm_btn_rdna2, #rocm_btn_rdna3, #rocm_btn_rdna4 { position: relative !important; overflow: visible !important; }
+                #rocm_btn_info::after    { content: "Reload DB and device version info"; }
+                #rocm_btn_apply::after   { content: "Save and apply current settings to runtime"; }
+                #rocm_btn_reset::after   { content: "Reset all settings to built-in defaults"; }
+                #rocm_btn_clear::after   { content: "Remove all MIOpen/HIP vars from runtime env"; }
+                #rocm_btn_delete::after  { content: "Delete saved config + wipe MIOpen user DB cache"; }
+                #rocm_btn_rdna2::after   { content: "Apply RDNA2 (RX 6000 series) solver profile"; }
+                #rocm_btn_rdna3::after   { content: "Apply RDNA3 (RX 7000 series) solver profile"; }
+                #rocm_btn_rdna4::after   { content: "Apply RDNA4 (RX 9000 series) solver profile"; }
+                #rocm_btn_info::after, #rocm_btn_apply::after, #rocm_btn_reset::after,
+                #rocm_btn_clear::after, #rocm_btn_delete::after,
+                #rocm_btn_rdna2::after, #rocm_btn_rdna3::after, #rocm_btn_rdna4::after {
+                    display: block; position: absolute; top: calc(100% + 4px); left: 0;
+                    background: var(--background-fill-secondary, #2a2a2a);
+                    color: var(--body-text-color, #ddd);
+                    border: 1px solid var(--border-color-primary, #555);
+                    padding: 3px 8px; border-radius: 4px; font-size: 11px;
+                    white-space: nowrap; pointer-events: none;
+                    opacity: 0; transition: opacity 0.15s; z-index: 999;
+                }
+                #rocm_btn_info:hover::after, #rocm_btn_apply:hover::after, #rocm_btn_reset:hover::after,
+                #rocm_btn_clear:hover::after, #rocm_btn_delete:hover::after,
+                #rocm_btn_rdna2:hover::after, #rocm_btn_rdna3:hover::after, #rocm_btn_rdna4:hover::after { opacity: 1; }
             </style>""")
             with gr.Row():
-                gr.HTML("<p>Advanced configuration for ROCm users.</p><br><p>Set Your database and solver selections based on GPU profile or individually.</p><br><p>Enable cuDNN in Backend Settings to activate MIOpen.</p>")
+                gr.HTML("<p>Advanced configuration for ROCm users.</p><br><p>Set your database and solver selections based on GPU profile or individually.</p><br><p>Enable cuDNN in Backend Settings to activate MIOpen.</p>")
             with gr.Row():
-                btn_info   = gr.Button("Refresh Info", variant="primary", elem_id="rocm_btn_info")
-                btn_apply  = gr.Button("Apply", elem_id="rocm_btn_apply")
-                btn_reset  = gr.Button("Defaults")
-                btn_clear  = gr.Button("Clear Runtime")
-                btn_delete = gr.Button("Delete", elem_id="rocm_btn_delete")
+                btn_info   = gr.Button("Refresh Info",   variant="primary", elem_id="rocm_btn_info",   size="sm")
+                btn_apply  = gr.Button("Apply",          elem_id="rocm_btn_apply",  size="sm")
+                btn_reset  = gr.Button("Defaults",       elem_id="rocm_btn_reset",  size="sm")
+                btn_clear  = gr.Button("Clear vEnv",  elem_id="rocm_btn_clear",  size="sm")
+                btn_delete = gr.Button("Delete UserDb",         elem_id="rocm_btn_delete", size="sm")
             with gr.Row():
                 btn_rdna2 = gr.Button("RDNA2 (RX 6000)", elem_id="rocm_btn_rdna2")
                 btn_rdna3 = gr.Button("RDNA3 (RX 7000)", elem_id="rocm_btn_rdna3")
@@ -123,19 +153,18 @@ class Script(scripts_manager.Script):
                         components.append(comp)
             gr.HTML("<br><center><div style='margin:0 Auto'><a href='https://rocm.docs.amd.com/projects/MIOpen/en/develop/reference/env_variables.html' target='_blank'>&#128196; MIOpen Environment Variables Reference</a></div></center><br>")
            
-        def _autosave_dropdown(name, value):
+        def _autosave_field(name, value):
             meta = rocm_vars.ROCM_ENV_VARS[name]
-            if meta["widget"] == "dropdown":
-                stored = rocm_mgr._dropdown_stored(str(value), meta["options"])
-                config = rocm_mgr.load_config()
-                config[name] = stored
-                rocm_mgr.save_config(config)
-                rocm_mgr.apply_env(config)
+            stored = rocm_mgr._dropdown_stored(str(value), meta["options"])
+            cfg = rocm_mgr.load_config()
+            cfg[name] = stored
+            rocm_mgr.save_config(cfg)
+            rocm_mgr.apply_env(cfg)
 
         for name, comp in zip(var_names, components):
             meta = rocm_vars.ROCM_ENV_VARS[name]
             if meta["widget"] == "dropdown":
-                comp.change(fn=lambda v, n=name: _autosave_dropdown(n, v), inputs=[comp], outputs=[])
+                comp.change(fn=lambda v, n=name: _autosave_field(n, v), inputs=[comp], outputs=[], show_progress='hidden')
 
         def apply_fn(*values):
             rocm_mgr.apply_all(var_names, list(values))
@@ -170,7 +199,7 @@ class Script(scripts_manager.Script):
                 val = updated.get(name, meta["default"])
                 if meta["widget"] == "checkbox":
                     result.append(gr.update(value=(val == "1")))
-                elif meta["widget"] == "radio":
+                elif meta["widget"] == "dropdown":
                     result.append(gr.update(value=rocm_mgr._dropdown_display(val, meta["options"])))
                 else:
                     result.append(gr.update(value=rocm_mgr._expand_venv(val)))
@@ -183,9 +212,8 @@ class Script(scripts_manager.Script):
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 if meta["widget"] == "checkbox":
                     result.append(gr.update(value=False))
-                elif meta["widget"] == "radio":
-                    choices = rocm_mgr._dropdown_choices(meta["options"])
-                    result.append(gr.update(value=choices[0] if choices else None))
+                elif meta["widget"] == "dropdown":
+                    result.append(gr.update(value=rocm_mgr._dropdown_display(meta["default"], meta["options"])))
                 else:
                     result.append(gr.update(value=""))
             return result
@@ -197,9 +225,8 @@ class Script(scripts_manager.Script):
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 if meta["widget"] == "checkbox":
                     result.append(gr.update(value=False))
-                elif meta["widget"] == "radio":
-                    choices = rocm_mgr._dropdown_choices(meta["options"])
-                    result.append(gr.update(value=choices[0] if choices else None))
+                elif meta["widget"] == "dropdown":
+                    result.append(gr.update(value=rocm_mgr._dropdown_display(meta["default"], meta["options"])))
                 else:
                     result.append(gr.update(value=""))
             return result
@@ -215,19 +242,19 @@ class Script(scripts_manager.Script):
                 val = updated.get(pname, meta["default"])
                 if meta["widget"] == "checkbox":
                     result.append(gr.update(value=(val == "1")))
-                elif meta["widget"] == "radio":
+                elif meta["widget"] == "dropdown":
                     result.append(gr.update(value=rocm_mgr._dropdown_display(val, meta["options"])))
                 else:
                     result.append(gr.update(value=rocm_mgr._expand_venv(val)))
             return result
 
-        btn_info.click(fn=_info_html, inputs=[], outputs=[info_out])
-        btn_apply.click(fn=apply_fn, inputs=components, outputs=[style_out] + components)
-        btn_reset.click(fn=reset_fn, inputs=[], outputs=[style_out] + components)
-        btn_clear.click(fn=clear_fn, inputs=[], outputs=[style_out] + components)
-        btn_delete.click(fn=delete_fn, inputs=[], outputs=[style_out] + components)
-        btn_rdna2.click(fn=lambda: profile_fn("RDNA2"), inputs=[], outputs=[style_out] + components)
-        btn_rdna3.click(fn=lambda: profile_fn("RDNA3"), inputs=[], outputs=[style_out] + components)
-        btn_rdna4.click(fn=lambda: profile_fn("RDNA4"), inputs=[], outputs=[style_out] + components)
+        btn_info.click(fn=_info_html, inputs=[], outputs=[info_out], show_progress='hidden')
+        btn_apply.click(fn=apply_fn, inputs=components, outputs=[style_out] + components, show_progress='hidden')
+        btn_reset.click(fn=reset_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
+        btn_clear.click(fn=clear_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
+        btn_delete.click(fn=delete_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
+        btn_rdna2.click(fn=lambda: profile_fn("RDNA2"), inputs=[], outputs=[style_out] + components, show_progress='hidden')
+        btn_rdna3.click(fn=lambda: profile_fn("RDNA3"), inputs=[], outputs=[style_out] + components, show_progress='hidden')
+        btn_rdna4.click(fn=lambda: profile_fn("RDNA4"), inputs=[], outputs=[style_out] + components, show_progress='hidden')
 
         return components
