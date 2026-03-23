@@ -2,12 +2,11 @@
 
 ## Release
 
-- Implement `unload_auxiliary_models`
-- Release **Launcher**
-- Release **Enso**
-- Update **ROCm**
-- Tips **Color Grading**
-- Regen **Localization**
+- Implement: `unload_auxiliary_models`
+- Add notes: **Enso**
+- Update: **ROCm**
+- Tips: **Color Grading**
+- Regen: **Localization**
 
 ## Internal
 
