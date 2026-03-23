@@ -17,7 +17,6 @@ def update_model_hashes():
     unets = {}
     for k, v in sd_unet.unet_dict.items():
         unets[k] = sd_checkpoint.CheckpointInfo(name=k, filename=v, model_type='unet')
-        print('HERE3', unets[k])
     yield from sd_models.update_model_hashes(unets, model_type='unet')
     yield from sd_models.update_model_hashes(model_type='checkpoint')
 

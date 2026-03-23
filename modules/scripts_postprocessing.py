@@ -76,9 +76,14 @@ class ScriptPostprocessingRunner:
         script.controls = wrap_call(script.ui, script.filename, "ui")
         if script.controls is None:
             script.controls = {}
-        for control in script.controls.values():
-            control.custom_script_source = os.path.basename(script.filename)
-        inputs += list(script.controls.values())
+        if isinstance(script.controls, list) or isinstance(script.controls, tuple):
+            for control in script.controls:
+                control.custom_script_source = os.path.basename(script.filename)
+            inputs += script.controls
+        else:
+            for control in script.controls.values():
+                control.custom_script_source = os.path.basename(script.filename)
+            inputs += list(script.controls.values())
         script.args_to = len(inputs)
 
     def scripts_in_preferred_order(self):
@@ -109,11 +114,16 @@ class ScriptPostprocessingRunner:
         for script in self.scripts_in_preferred_order():
             jobid = shared.state.begin(script.name)
             script_args = args[script.args_from:script.args_to]
-            process_args = {}
-            for (name, _component), value in zip(script.controls.items(), script_args, strict=False):
-                process_args[name] = value
-            log.debug(f'Process: script="{script.name}" args={process_args}')
-            script.process(pp, **process_args)
+            process_args = []
+            process_kwargs = {}
+            if isinstance(script.controls, list) or isinstance(script.controls, tuple):
+                for _control, value in zip(script.controls, script_args, strict=False):
+                    process_args.append(value)
+            else:
+                for (name, _component), value in zip(script.controls.items(), script_args, strict=False):
+                    process_kwargs[name] = value
+            log.debug(f'Process: script="{script.name}" args={process_args} kwargs={process_kwargs}')
+            script.process(pp, *process_args, **process_kwargs)
             shared.state.end(jobid)
 
     def create_args_for_run(self, scripts_args):
@@ -139,9 +149,14 @@ class ScriptPostprocessingRunner:
                 continue
             jobid = shared.state.begin(script.name)
             script_args = args[script.args_from:script.args_to]
-            process_args = {}
-            for (name, _component), value in zip(script.controls.items(), script_args, strict=False):
-                process_args[name] = value
-            log.debug(f'Postprocess: script={script.name} args={process_args}')
-            script.postprocess(filenames, **process_args)
+            process_args = []
+            process_kwargs = {}
+            if isinstance(script.controls, list) or isinstance(script.controls, tuple):
+                for _control, value in zip(script.controls, script_args, strict=False):
+                    process_args.append(value)
+            else:
+                for (name, _component), value in zip(script.controls.items(), script_args, strict=False):
+                    process_kwargs[name] = value
+            log.debug(f'Postprocess: script={script.name} args={process_args} kwargs={process_kwargs}')
+            script.postprocess(filenames, *process_args, **process_kwargs)
             shared.state.end(jobid)

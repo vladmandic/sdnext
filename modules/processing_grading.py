@@ -66,7 +66,7 @@ class GradingParams:
     vignette: float = 0.0
     grain: float = 0.0
     # lut
-    lut_file: str = ""
+    lut_cube_file: str = ""
     lut_strength: float = 1.0
 
     def __post_init__(self):
@@ -179,17 +179,17 @@ def _apply_color_temp(img: torch.Tensor, kelvin: float) -> torch.Tensor:
     return (img * scales).clamp(0, 1)
 
 
-def _apply_lut(image: Image.Image, lut_file: str, strength: float) -> Image.Image:
+def _apply_lut(image: Image.Image, lut_cube_file: str, strength: float) -> Image.Image:
     """Apply .cube LUT file via pillow-lut-tools."""
-    if not lut_file or not os.path.isfile(lut_file):
+    if not lut_cube_file or not os.path.isfile(lut_cube_file):
         return image
     pillow_lut = _ensure_pillow_lut()
     try:
-        cube = pillow_lut.load_cube_file(lut_file)
+        cube = pillow_lut.load_cube_file(lut_cube_file)
         if strength != 1.0:
             cube = pillow_lut.amplify_lut(cube, strength)
         result = image.filter(cube)
-        debug(f'Grading LUT: file={os.path.basename(lut_file)} strength={strength}')
+        debug(f'Grading LUT: file={os.path.basename(lut_cube_file)} strength={strength}')
         return result
     except Exception as e:
         log.error(f'Grading LUT: {e}')
@@ -198,8 +198,8 @@ def _apply_lut(image: Image.Image, lut_file: str, strength: float) -> Image.Imag
 
 def grade_image(image: Image.Image, params: GradingParams) -> Image.Image:
     """Full grading pipeline: PIL -> GPU tensor -> kornia ops -> PIL."""
+    log.debug(f"Grading: params={params}")
     kornia = _ensure_kornia()
-    debug(f'Grading: params={params}')
     arr = np.array(image).astype(np.float32) / 255.0
     tensor = torch.from_numpy(arr).permute(2, 0, 1).unsqueeze(0)
     tensor = tensor.to(device=devices.device, dtype=devices.dtype)
@@ -246,7 +246,7 @@ def grade_image(image: Image.Image, params: GradingParams) -> Image.Image:
     result = Image.fromarray(arr)
 
     # LUT applied last (CPU, via pillow-lut-tools)
-    if params.lut_file:
-        result = _apply_lut(result, params.lut_file, params.lut_strength)
+    if params.lut_cube_file:
+        result = _apply_lut(result, params.lut_cube_file, params.lut_strength)
 
     return result

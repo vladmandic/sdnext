@@ -27,7 +27,14 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - [Anima Preview-v2](https://huggingface.co/circlestone-labs/Anima)  
 - **Image manipulation**
   - new **color grading** module  
-  - update **latent corrections** *(former HDR Corrections)* and expand allowed models  
+    apply basic corrections to your images: brightness,contrast,saturation,shadows,highlights  
+    move to professional photo corrections: hue,gamma,sharpness,temperature  
+    correct tone: shadows,midtones,highlights  
+    add effects: vignette,grain  
+    apply professional lut-table using .cube file  
+    *hint* color grading is available as step during generate or as processing item for already existing images  
+  - update **latent corrections** *(former HDR Corrections)*  
+    expand allowed models  
   - add support for [spandrel](https://github.com/chaiNNer-org/spandrel)  
     **upscaling** engine with suport for new upscaling model families  
   - add two new ai upscalers: *RealPLKSR NomosWebPhoto* and *RealPLKSR AnimeSharpV2*  

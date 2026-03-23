@@ -95,7 +95,7 @@ def test_grading_params_defaults():
     assert p.split_tone_balance == 0.5
     assert p.vignette == 0.0
     assert p.grain == 0.0
-    assert p.lut_file == ""
+    assert p.lut_cube_file == ""
     assert p.lut_strength == 1.0
     return True
 

@@ -12,7 +12,6 @@
 ## Internal
 
 - Integrate: [Depth3D](https://github.com/vladmandic/sd-extension-depth3d)
-- Feature: Color grading in processing
 - Feature: RIFE update
 - Feature: RIFE in processing
 - Feature: SeedVR2 in processing
@@ -146,3 +145,5 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - modules/modular_guiders.py:65:58: W0511: TODO: guiders
 - processing: remove duplicate mask params
 - resize image: enable full VAE mode for resize-latent
+
+modules/sd_samplers_diffusers.py:353:31: W0511: TODO enso-required (fixme)

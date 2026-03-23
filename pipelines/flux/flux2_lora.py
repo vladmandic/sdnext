@@ -9,7 +9,6 @@ Installed via apply_patch() during pipeline loading.
 
 import os
 import time
-import torch
 from modules import shared, sd_models
 from modules.logger import log
 from modules.lora import network, network_lokr, lora_convert
@@ -180,7 +179,7 @@ def apply_patch():
     lora_state_dict won't detect them as AI toolkit format. This patch checks for
     bare keys after the original returns and adds the prefix + re-runs conversion.
     """
-    global patched
+    global patched # pylint: disable=global-statement
     if patched:
         return
     patched = True

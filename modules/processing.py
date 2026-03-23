@@ -360,7 +360,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 split_tone_balance=getattr(p, 'grading_split_tone_balance', 0.5),
                 vignette=getattr(p, 'grading_vignette', 0.0),
                 grain=getattr(p, 'grading_grain', 0.0),
-                lut_file=getattr(p, 'grading_lut_file', ''),
+                lut_cube_file=getattr(p, 'grading_lut_file', ''),
                 lut_strength=getattr(p, 'grading_lut_strength', 1.0),
             )
             if processing_grading.is_active(grading_params):
