@@ -18,7 +18,7 @@
     "venv": ". venv/bin/activate",
     "start": ". venv/bin/activate; python launch.py --debug",
     "localize": "node cli/localize.js",
-    "packages": ". venv/bin/activate && pip install --upgrade transformers accelerate huggingface_hub safetensors tokenizers peft pytorch_lightning pylint ruff",
+    "packages": ". venv/bin/activate && pip install --upgrade accelerate huggingface_hub safetensors tokenizers peft pytorch_lightning pylint ruff",
     "format": ". venv/bin/activate && pre-commit run --all-files",
     "format-win": "venv\\scripts\\activate && pre-commit run --all-files",
     "eslint": "eslint . javascript/",

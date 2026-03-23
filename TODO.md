@@ -2,7 +2,6 @@
 
 ## Release
 
-- Bumb packages
 - Implement `unload_auxiliary_models`
 - Release **Launcher**
 - Release **Enso**

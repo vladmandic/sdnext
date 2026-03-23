@@ -475,7 +475,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "e5aa719241f9b74d6700be3320a777799bfab70a" # diffusers commit hash
+    target_commit = "c02c17c6ee7ac508c56925dde4d4a3c587650dc3" # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -1235,6 +1235,7 @@ def install_requirements():
 # set environment variables controling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
+    os.environ.setdefault('PIP_CONSTRAINT', os.path.abspath('constraints.txt'))
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
     os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')

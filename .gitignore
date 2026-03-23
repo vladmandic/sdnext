@@ -58,6 +58,7 @@ tunableop_results*.csv
 !webui.sh
 !package.json
 !requirements.txt
+!constraints.txt
 !/data
 !/models/VAE-approx
 !/models/VAE-approx/model.pt
