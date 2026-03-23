@@ -120,7 +120,7 @@ class Api:
 
         # dicts api
         from modules.api import dicts as dicts_api
-        dicts_api.init(getattr(shared.opts, 'dicts_dir', '') or os.path.join(paths.models_path, 'dicts'))
+        dicts_api.init(getattr(shared.opts, 'dicts_dir', '') or os.path.join(paths.data_path, 'data', 'dicts'))
         dicts_api.register_api(self.app)
 
         # gallery api

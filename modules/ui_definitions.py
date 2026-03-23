@@ -54,7 +54,7 @@ def get_openvino_device_list():
 def list_dict_names():
     """Return list of available tag dictionary names (JSON filenames without extension)."""
     from modules import shared, paths as paths_module
-    dicts_dir = getattr(shared.opts, 'dicts_dir', None) or os.path.join(paths_module.models_path, 'dicts')
+    dicts_dir = getattr(shared.opts, 'dicts_dir', None) or os.path.join(paths_module.data_path, 'data', 'dicts')
     if not os.path.isdir(dicts_dir):
         return []
     return sorted(
@@ -400,7 +400,7 @@ def create_settings(cmd_opts):
         "lora_dir": OptionInfo(os.path.join(paths.models_path, 'Lora'), "Folder with LoRA network(s)", folder=True),
         "styles_dir": OptionInfo(os.path.join(paths.models_path, 'styles'), "File or Folder with user-defined styles", folder=True),
         "wildcards_dir": OptionInfo(os.path.join(paths.models_path, 'wildcards'), "Folder with user-defined wildcards", folder=True),
-        "dicts_dir": OptionInfo(os.path.join(paths.models_path, 'dicts'), "Folder with tag dictionaries", folder=True),
+        "dicts_dir": OptionInfo(os.path.join(paths.data_path, 'data', 'dicts'), "Folder with tag dictionaries", folder=True),
         "embeddings_dir": OptionInfo(os.path.join(paths.models_path, 'embeddings'), "Folder with textual inversion embeddings", folder=True),
         "control_dir": OptionInfo(os.path.join(paths.models_path, 'control'), "Folder with Control models", folder=True),
         "yolo_dir": OptionInfo(os.path.join(paths.models_path, 'yolo'), "Folder with Yolo models", folder=True),
