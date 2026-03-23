@@ -11,24 +11,13 @@ from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
 
 
 def _check_rocm() -> bool:
-    try:
-        from modules import shared
-        if getattr(shared.cmd_opts, 'use_rocm', False):
-            return True
-    except Exception:
-        pass
-    try:
-        if installer.torch_info.get('type') == 'rocm':
-            return True
-    except Exception:
-        pass
-    try:
-        import torch
-        if hasattr(torch.version, 'hip') and torch.version.hip is not None:
-            return True
-    except Exception:
-        pass
-    return False
+    from modules import shared
+    if getattr(shared.cmd_opts, 'use_rocm', False):
+        return True
+    if installer.torch_info.get('type') == 'rocm':
+        return True
+    import torch  # pylint: disable=import-outside-toplevel
+    return hasattr(torch.version, 'hip') and torch.version.hip is not None
 
 
 is_rocm = _check_rocm()
