@@ -391,6 +391,7 @@ extraPaths = [
         ]
 reportMissingImports = "none"
 reportInvalidTypeForm = "none"
+reportPrivateImportUsage = "information"
 
 [tool.ty.environment]
 python = "./venv/bin/python"
