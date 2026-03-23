@@ -4,7 +4,6 @@
 
 - Implement: `unload_auxiliary_models`
 - Add notes: **Enso**
-- Update: **ROCm**
 - Tips: **Color Grading**
 - Regen: **Localization**
 
@@ -63,6 +62,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image-Edit
 
+- [Bria FIBO-Edit](https://huggingface.co/briaai/Fibo-Edit-RMBG): Fully JSON-based instruction-following image editing framework
 - [Meituan LongCat-Image-Edit-Turbo](https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo):6B instruction-following image editing with high visual consistency
 - [VIBE Image-Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit): (Sana+Qwen-VL)Fast visual instruction-based image editing framework
 - [LucyEdit](https://github.com/huggingface/diffusers/pull/12340):Instruction-guided video editing while preserving motion and identity

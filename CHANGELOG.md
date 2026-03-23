@@ -5,7 +5,7 @@
 ### Highlights for 2026-03-23
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
-And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit* *SkyWorks-UniPic-3* and *Anima-Preview-2*  
+And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit* *SkyWorks-UniPic-3* and new *Anima-Preview*  
 
 If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download [exe or zip](https://github.com/vladmandic/sdnext-launcher/releases) and done!
 
@@ -62,8 +62,11 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
     instead of being used implicitly via quantization  
   - improve image **metadata** parser for foreign metadata (e.g. XMP)  
 - **Compute**
+  - **ROCm** advanced configuration and tuning, thanks @resonantsky  
+    see *main interface -> scripts -> rocm advanced config*  
   - **ROCm** support for additional AMD GPUs: `gfx103X`, thanks @crashingalexsan  
-  - **Cuda** `torch==2.10` removed support for `rtx1000` series, use following before first startup:  
+  - **Cuda** `torch==2.10` removed support for `rtx1000` series and older GPUs  
+    use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
     > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
 - **UI**
   - new panel: **server info** with detailed runtime informaton  

@@ -894,7 +894,7 @@ def check_torch():
             elif torch.version.hip and allow_rocm:
                 torch_info.set(type='rocm', hip=torch.version.hip)
             else:
-                log.warning('Unknown Torch backend')
+                log.warning('Torch backend: cannot detect type')
             log.info(f"Torch backend: {torch_info}")
             for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
                 gpu = {
