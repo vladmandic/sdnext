@@ -1,9 +1,10 @@
+import os
 from threading import Lock
 from secrets import compare_digest
 from fastapi import FastAPI, APIRouter, Depends, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.exceptions import HTTPException
-from modules import errors, shared
+from modules import errors, shared, paths
 from modules.logger import log
 from modules.api import models, endpoints, script, helpers, server, generate, process, control, docs, gpu
 
@@ -116,6 +117,11 @@ class Api:
         # lora api
         from modules.api import loras
         loras.register_api(self.app)
+
+        # dicts api
+        from modules.api import dicts as dicts_api
+        dicts_api.init(getattr(shared.opts, 'dicts_dir', '') or os.path.join(paths.models_path, 'dicts'))
+        dicts_api.register_api(self.app)
 
         # gallery api
         from modules.api import gallery

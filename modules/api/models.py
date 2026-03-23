@@ -509,6 +509,19 @@ class ItemLoadedModel(BaseModel):
     dtype: Optional[str] = Field(default=None, title="Dtype", description="Effective data type (e.g., float16, nf4)")
     extra: Optional[dict] = Field(default=None, title="Extra metadata", description="Additional metadata (role, class, quantization method, etc.)")
 
+class ItemDict(BaseModel):
+    name: str = Field(title="Name", description="Dictionary identifier (filename without extension)")
+    version: str = Field(default="", title="Version", description="Dictionary format version string")
+    tag_count: int = Field(default=0, title="Tag count", description="Number of tags in this dictionary")
+    categories: dict = Field(default_factory=dict, title="Categories", description="Category ID to display name mapping")
+    size: int = Field(default=0, title="Size", description="File size in bytes")
+
+class ItemDictContent(BaseModel):
+    name: str = Field(title="Name", description="Dictionary identifier")
+    version: str = Field(default="", title="Version", description="Dictionary format version string")
+    categories: dict = Field(default_factory=dict, title="Categories", description="Category definitions with name and color")
+    tags: list = Field(default_factory=list, title="Tags", description="Tag entries as [name, category_id, post_count] tuples")
+
 # helper function
 
 def create_model_from_signature(func: Callable, model_name: str, base_model: type[BaseModel] = BaseModel, additional_fields: list | None = None, exclude_fields: list[str] | None = None) -> type[BaseModel]:

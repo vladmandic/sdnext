@@ -51,6 +51,19 @@ def get_openvino_device_list():
         return []
 
 
+def list_dict_names():
+    """Return list of available tag dictionary names (JSON filenames without extension)."""
+    from modules import shared, paths as paths_module
+    dicts_dir = getattr(shared.opts, 'dicts_dir', None) or os.path.join(paths_module.models_path, 'dicts')
+    if not os.path.isdir(dicts_dir):
+        return []
+    return sorted(
+        os.path.splitext(f)[0]
+        for f in os.listdir(dicts_dir)
+        if f.endswith('.json') and not f.startswith('.')
+    )
+
+
 def create_settings(cmd_opts):
 
     # Calculate default modes
@@ -387,6 +400,7 @@ def create_settings(cmd_opts):
         "lora_dir": OptionInfo(os.path.join(paths.models_path, 'Lora'), "Folder with LoRA network(s)", folder=True),
         "styles_dir": OptionInfo(os.path.join(paths.models_path, 'styles'), "File or Folder with user-defined styles", folder=True),
         "wildcards_dir": OptionInfo(os.path.join(paths.models_path, 'wildcards'), "Folder with user-defined wildcards", folder=True),
+        "dicts_dir": OptionInfo(os.path.join(paths.models_path, 'dicts'), "Folder with tag dictionaries", folder=True),
         "embeddings_dir": OptionInfo(os.path.join(paths.models_path, 'embeddings'), "Folder with textual inversion embeddings", folder=True),
         "control_dir": OptionInfo(os.path.join(paths.models_path, 'control'), "Folder with Control models", folder=True),
         "yolo_dir": OptionInfo(os.path.join(paths.models_path, 'yolo'), "Folder with Yolo models", folder=True),
@@ -637,6 +651,9 @@ def create_settings(cmd_opts):
 
         "extra_networks_wildcard_sep": OptionInfo("<h2>Wildcards</h2>", "", gr.HTML),
         "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
+
+        "extra_networks_dicts_sep": OptionInfo("<h2>Tag Dictionaries</h2>", "", gr.HTML),
+        "dicts_enabled": OptionInfo([], "Enabled tag dictionaries for prompt autocomplete", gr.CheckboxGroup, lambda: {"choices": list_dict_names()}),
     }))
 
     # --- Extensions ---
