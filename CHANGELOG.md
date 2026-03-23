@@ -14,6 +14,8 @@ New color grading module, updated localization with new languages and improved t
 And major work on API hardening: security, rate limits, secrets handling, new endpoints, etc.  
 But also many smaller quality-of-life improvements - for full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
 
+*Note*: Purely due to size of changes, clean install is recommended!  
+
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
 ### Details for 2026-03-23
@@ -26,22 +28,21 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
     *Note*: UniPic-3 is a fine-tune of Qwen-Image-Edit with new distillation regardless of its claim of major changes  
   - [Anima Preview-v2](https://huggingface.co/circlestone-labs/Anima)  
 - **Image manipulation**
-  - new **color grading** module  
+  - new **Color grading** module  
     apply basic corrections to your images: brightness,contrast,saturation,shadows,highlights  
     move to professional photo corrections: hue,gamma,sharpness,temperature  
     correct tone: shadows,midtones,highlights  
     add effects: vignette,grain  
     apply professional lut-table using .cube file  
     *hint* color grading is available as step during generate or as processing item for already existing images  
-  - update **latent corrections** *(former HDR Corrections)*  
+  - **Upscaling**  
+    add support for [spandrel](https://github.com/chaiNNer-org/spandrel) engine with suport for new upscaling model families  
+    add two new ai upscalers: *RealPLKSR NomosWebPhoto* and *RealPLKSR AnimeSharpV2*  
+    add two new **interpolation** methods: *HQX* and *ICB*  
+    use high-quality [sharpfin](https://github.com/drhead/Sharpfin) accelerated library  
+    extend `chainner` support for additional models  
+  - update **Latent corrections** *(former HDR Corrections)*  
     expand allowed models  
-  - add support for [spandrel](https://github.com/chaiNNer-org/spandrel)  
-    **upscaling** engine with suport for new upscaling model families  
-  - add two new ai upscalers: *RealPLKSR NomosWebPhoto* and *RealPLKSR AnimeSharpV2*  
-  - add two new **interpolation** methods: *HQX* and *ICB*  
-  - use high-quality [sharpfin](https://github.com/drhead/Sharpfin) accelerated library  
-    when available (*cuda-only*)  
-  - **upscalers**: extend chainner support for additional models  
 - **Captioning / Prompt Enhance**
   - new models: **Qwen-3.5**, **Mistral-3** in multiple variations  
   - new models: multiple *heretic* and *abliterated* finetunes for **Qwen, Gemma, Mistral**  
@@ -52,15 +53,15 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - new **pre-processors**:  
     *anyline, depth_anything v2, dsine, lotus, marigold normals, oneformer, rtmlib pose, sam2, stablenormal, teed, vitpose*  
 - **Features**
-  - **secrets** handling: new `secrets.json` and special handling for tokens/keys/passwords  
+  - **Secrets** handling: new `secrets.json` and special handling for tokens/keys/passwords  
     used to be treated like any other `config.json` param which can cause security issues  
   - pipelines: add **ZImageInpaint**  
-  - rewritten **civitai** module  
+  - rewritten **CivitAI** module  
     browse/discover mode with sort, period, type/base dropdowns; URL paste; subfolder sorting; auto-browse; dynamic dropdowns  
-  - **hires**: allow using different lora in refiner prompt  
-  - **nunchaku** models are now listed in networks tab as reference models  
+  - **HiRes**: allow using different lora in refiner prompt  
+  - **Nunchaku** models are now listed in networks tab as reference models  
     instead of being used implicitly via quantization  
-  - improve image **metadata** parser for foreign metadata (e.g. XMP)  
+  - improve image **Metadata** parser for foreign metadata (e.g. XMP)  
 - **Compute**
   - **ROCm** advanced configuration and tuning, thanks @resonantsky  
     see *main interface -> scripts -> rocm advanced config*  
@@ -69,19 +70,19 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
     use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
     > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
 - **UI**
-  - new panel: **server info** with detailed runtime informaton  
-  - **networks** add **UNet/DiT**  
-  - **localization** improved translation quality and new translations locales:  
+  - new panel: **Server Info** with detailed runtime informaton  
+  - **Networks** add **UNet/DiT**  
+  - **Localization** improved translation quality and new translations locales:  
     *en, en1, en2, en3, en4, hr, es, it, fr, de, pt, ru, zh, ja, ko, hi, ar, bn, ur, id, vi, tr, sr, po, he, xx, yy, qq, tlh*  
     yes, this now includes stuff like *latin, esperanto, arabic, hebrew, klingon* and a lot more!  
     and also introduce some pseudo-locales such as: *techno-babbel*, *for-n00bs*  
     *hint*: click on locale icon in bottom-left corner to cycle through available locales, or set default in *settings -> ui*  
-  - **server settings** new section in *settings*  
-  - **kanvas** add paste image from clipboard  
-  - **themes** add *CTD-NT64Light*, *CTD-NT64Medium* and *CTD-NT64Dark*, thanks @resonantsky  
-  - **themes** add *Vlad-Neomorph*  
-  - **gallery** add option to auto-refresh gallery, thanks @awsr  
-  - **token counters** add per-section display for supported models, thanks @awsr  
+  - **Server settings** new section in *settings*  
+  - **Kanvas** add paste image from clipboard  
+  - **Themes** add *CTD-NT64Light*, *CTD-NT64Medium* and *CTD-NT64Dark*, thanks @resonantsky  
+  - **Themes** add *Vlad-Neomorph*  
+  - **Gallery** add option to auto-refresh gallery, thanks @awsr  
+  - **Token counters** add per-section display for supported models, thanks @awsr  
 - **API**
   - **rate limiting**: global for all endpoints, guards against abuse and denial-of-service type of attacks  
     configurable in *settings -> server settings*  
