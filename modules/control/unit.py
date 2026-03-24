@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 from PIL import Image
 import gradio as gr
 from modules.logger import log
@@ -33,10 +34,10 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
 
     def __init__(self,
                  # values
-                 index: int = None,
-                 enabled: bool = None,
-                 strength: float = None,
-                 unit_type: str = None,
+                 index: int | None = None,
+                 enabled: bool | None = None,
+                 strength: float | None = None,
+                 unit_type: str | None = None,
                  start: float = 0,
                  end: float = 1,
                  # ui bindings
@@ -55,7 +56,7 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
                  control_mode = None,
                  control_tile = None,
                  result_txt = None,
-                 extra_controls: list = None,
+                 extra_controls: list | None = None,
         ):
         if extra_controls is None:
             extra_controls = []
@@ -71,15 +72,15 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
         self.end = end or 1
         self.start = min(self.start, self.end)
         self.end = max(self.start, self.end)
-        self.mode = None
+        self.mode: int | None = None
         # processor always exists, adapter and controlnet are optional
-        self.model_name = None
-        self.process_name = None
+        self.model_name: str | None = None
+        self.process_name: str | None = None
         self.process: processors.Processor = processors.Processor()
-        self.adapter: t2iadapter.Adapter = None
-        self.controlnet: controlnet.ControlNet | xs.ControlNetXS = None
+        self.adapter: t2iadapter.Adapter | None = None
+        self.controlnet: controlnet.ControlNet | xs.ControlNetXS | lite.ControlLLLite | None = None
         # map to input image
-        self.override: Image = None
+        self.override: Image.Image | None = None
         # global settings but passed per-unit
         self.factor = 1.0
         self.guess = False
@@ -177,6 +178,8 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
 
         # bind ui controls to properties if present
         if self.type == 't2i adapter':
+            if TYPE_CHECKING:
+                assert isinstance(self.adapter, t2iadapter.Adapter)
             if model_id is not None:
                 if isinstance(model_id, str):
                     self.adapter.load(model_id)
@@ -186,6 +189,8 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
             if extra_controls is not None and len(extra_controls) > 0:
                 extra_controls[0].change(fn=adapter_extra, inputs=extra_controls)
         elif self.type == 'controlnet':
+            if TYPE_CHECKING:
+                assert isinstance(self.controlnet, controlnet.ControlNet)
             if model_id is not None:
                 if isinstance(model_id, str):
                     self.controlnet.load(model_id)
@@ -196,6 +201,8 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
             if extra_controls is not None and len(extra_controls) > 0:
                 extra_controls[0].change(fn=controlnet_extra, inputs=extra_controls)
         elif self.type == 'xs':
+            if TYPE_CHECKING:
+                assert isinstance(self.controlnet, xs.ControlNetXS)
             if model_id is not None:
                 if isinstance(model_id, str):
                     self.controlnet.load(model_id)
@@ -205,6 +212,8 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
             if extra_controls is not None and len(extra_controls) > 0:
                 extra_controls[0].change(fn=controlnetxs_extra, inputs=extra_controls)
         elif self.type == 'lite':
+            if TYPE_CHECKING:
+                assert isinstance(self.controlnet, lite.ControlLLLite)
             if model_id is not None:
                 if isinstance(model_id, str):
                     self.controlnet.load(model_id)
