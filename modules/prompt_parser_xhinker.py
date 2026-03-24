@@ -27,10 +27,7 @@ from diffusers import ChromaPipeline
 from modules.prompt_parser import parse_prompt_attention  # use built-in A1111 parser
 
 
-def get_prompts_tokens_with_weights(
-        clip_tokenizer: CLIPTokenizer
-        , prompt: str = None
-):
+def get_prompts_tokens_with_weights(clip_tokenizer: CLIPTokenizer, prompt: str | None = None):
     """
     Get prompt token ids and weights, this function works for both prompt and negative prompt
 
@@ -754,13 +751,7 @@ def get_weighted_text_embeddings_sdxl_refiner(
     return prompt_embeds, negative_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
 
-def get_weighted_text_embeddings_sdxl_2p(
-        pipe: StableDiffusionXLPipeline
-        , prompt: str = ""
-        , prompt_2: str = None
-        , neg_prompt: str = ""
-        , neg_prompt_2: str = None
-):
+def get_weighted_text_embeddings_sdxl_2p(pipe: StableDiffusionXLPipeline, prompt: str = "", prompt_2: str | None = None, neg_prompt: str = "", neg_prompt_2: str | None = None):
     """
     This function can process long prompt with weights, no length limitation
     for Stable Diffusion XL, support two prompt sets.
@@ -1345,12 +1336,7 @@ def get_weighted_text_embeddings_sd3(
     return sd3_prompt_embeds, sd3_neg_prompt_embeds, pooled_prompt_embeds, negative_pooled_prompt_embeds
 
 
-def get_weighted_text_embeddings_flux1(
-        pipe: FluxPipeline
-        , prompt: str = ""
-        , prompt2: str = None
-        , device=None
-):
+def get_weighted_text_embeddings_flux1(pipe: FluxPipeline, prompt: str = "", prompt2: str | None = None, device=None):
     """
     This function can process long prompt with weights for flux1 model
 

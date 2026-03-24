@@ -753,7 +753,7 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
     return prompt_embeds, pooled_prompt_embeds, None, negative_prompt_embeds, negative_pooled_prompt_embeds, None
 
 
-def get_xhinker_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int = None):
+def get_xhinker_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int | None = None):
     is_sd3 = hasattr(pipe, 'text_encoder_3')
     prompt, prompt_2, _prompt_3, _ = split_prompts(pipe, prompt, is_sd3)
     neg_prompt, neg_prompt_2, _neg_prompt_3, _ = split_prompts(pipe, neg_prompt, is_sd3)
