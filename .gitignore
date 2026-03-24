@@ -17,6 +17,7 @@ __pycache__
 /data/cache.json
 /data/themes.json
 /data/installer.json
+/data/rocm.json
 node_modules
 pnpm-lock.yaml
 package-lock.json
@@ -57,6 +58,7 @@ tunableop_results*.csv
 !webui.sh
 !package.json
 !requirements.txt
+!constraints.txt
 !/data
 !/models/VAE-approx
 !/models/VAE-approx/model.pt

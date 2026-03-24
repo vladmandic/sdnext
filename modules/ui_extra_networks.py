@@ -584,6 +584,8 @@ def register_pages():
     register_page(ExtraNetworksPageLora())
     from modules.ui_extra_networks_wildcards import ExtraNetworksPageWildcards
     register_page(ExtraNetworksPageWildcards())
+    from modules.ui_extra_networks_unet import ExtraNetworksPageUNets
+    register_page(ExtraNetworksPageUNets())
     if shared.opts.latent_history > 0:
         from modules.ui_extra_networks_history import ExtraNetworksPageHistory
         register_page(ExtraNetworksPageHistory())
@@ -596,7 +598,7 @@ def get_pages(title=None):
     visible = shared.opts.extra_networks
     pages: list[ExtraNetworksPage] = []
     if 'All' in visible or visible == []: # default en sort order
-        visible = ['Model', 'Lora', 'Style', 'Wildcards', 'Embedding', 'VAE', 'History', 'Hypernetwork']
+        visible = ['Model', 'Lora', 'UNet/DiT', 'Style', 'Wildcards', 'Embedding', 'VAE', 'History', 'Hypernetwork']
 
     titles = [page.title for page in shared.extra_networks]
     if title is None:
@@ -743,7 +745,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
     with ui.tabs:
         def ui_tab_change(page):
-            scan_visible = page in ['Model', 'Lora', 'VAE', 'Hypernetwork', 'Embedding']
+            scan_visible = page in ['Model', 'Lora', 'VAE', 'UNet/DiT', 'Hypernetwork', 'Embedding']
             save_visible = page in ['Style']
             model_visible = page in ['Model']
             return [gr.update(visible=scan_visible), gr.update(visible=save_visible), gr.update(visible=model_visible)]

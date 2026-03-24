@@ -124,7 +124,7 @@ def process(
 
 
 # defines script for dual-mode usage
-class Script(scripts.Script):
+class ScriptNudeNet(scripts.Script):
     # see below for all available options and callbacks
     # <https://github.com/vladmandic/automatic/blob/master/modules/scripts.py#L26>
 
@@ -148,7 +148,7 @@ class Script(scripts.Script):
 
 
 # defines postprocessing script for dual-mode usage
-class ScriptPostprocessing(scripts_postprocessing.ScriptPostprocessing):
+class ScriptPostprocessingNudeNet(scripts_postprocessing.ScriptPostprocessing):
     name = 'NudeNet'
     order = 10000
 

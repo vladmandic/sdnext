@@ -3,6 +3,7 @@ from functools import partial
 import os
 import re
 import sys
+import types
 import logging
 import warnings
 import urllib3
@@ -133,6 +134,14 @@ timer.startup.record("accelerate")
 import pydantic # pylint: disable=W0611,C0411
 timer.startup.record("pydantic")
 
+try:
+    # transformers==5.x has different dependency stack so switching between v4 and v5 becomes very painful
+    # this temporarily disables dependency version checks so we can use either v4 or v5 until we drop support for v4
+    fake_version_check = types.ModuleType("transformers.dependency_versions_check")
+    sys.modules["transformers.dependency_versions_check"] = fake_version_check # disable transformers version checks
+    fake_version_check.dep_version_check = lambda pkg, hint=None: None
+except Exception:
+    pass
 import transformers # pylint: disable=W0611,C0411
 from transformers import logging as transformers_logging # pylint: disable=W0611,C0411
 transformers_logging.set_verbosity_error()
@@ -175,9 +184,10 @@ except Exception as e:
     sys.exit(1)
 
 try:
-    pass # pylint: disable=W0611,C0411
+    import pillow_jxl # pylint: disable=W0611,C0411
 except Exception:
     pass
+from PIL import Image # pylint: disable=W0611,C0411
 timer.startup.record("pillow")
 
 

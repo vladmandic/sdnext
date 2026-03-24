@@ -15,8 +15,10 @@ torch_version[0], torch_version[1] = int(torch_version[0]), int(torch_version[1]
 
 device_supports_fp64 = torch.xpu.has_fp64_dtype() if hasattr(torch.xpu, "has_fp64_dtype") else torch.xpu.get_device_properties(devices.device).has_fp64
 
-# pylint: disable=protected-access, missing-function-docstring, line-too-long, unnecessary-lambda, no-else-return
+# pylint: disable=protected-access, missing-function-docstring, line-too-long, no-else-return
 
+def return_false(*args, **kwargs):
+    return False
 
 @property
 def is_cuda(self):
@@ -24,7 +26,7 @@ def is_cuda(self):
 
 
 def check_device_type(device, device_type: str) -> bool:
-    if device is None or type(device) not in {str, int, torch.device}:
+    if device is None or not isinstance(device, (str, int, torch.device)):
         return False
     else:
         return bool(torch.device(device).type == device_type)
@@ -137,24 +139,9 @@ def as_tensor(data, dtype=None, device=None):
         return original_as_tensor(data, dtype=dtype, device=device)
 
 
-original_torch_tensor = torch.tensor
-@wraps(torch.tensor)
-def torch_tensor(data, *args, dtype=None, device=None, **kwargs):
-    global device_supports_fp64
-    if check_cuda(device):
-        device = return_xpu(device)
-    if not device_supports_fp64 and check_device_type(device, "xpu"):
-        if dtype == torch.float64:
-            dtype = torch.float32
-        elif dtype is None and (hasattr(data, "dtype") and (data.dtype == torch.float64 or data.dtype == float)):
-            dtype = torch.float32
-    return original_torch_tensor(data, *args, dtype=dtype, device=device, **kwargs)
-
-
 torch.Tensor.original_Tensor_to = torch.Tensor.to
 @wraps(torch.Tensor.to)
 def Tensor_to(self, device=None, *args, **kwargs):
-    global device_supports_fp64
     if check_cuda(device):
         device = return_xpu(device)
     if not device_supports_fp64:
@@ -210,6 +197,24 @@ if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 4):
             return original_UntypedStorage_cuda(self, device=device, non_blocking=non_blocking, **kwargs)
 
 
+original_torch_tensor = torch.tensor
+@wraps(torch.tensor)
+def torch_tensor(data, *args, dtype=None, device=None, **kwargs):
+    if check_cuda(device):
+        if not device_supports_fp64 and (dtype == torch.float64 or (dtype is None and getattr(data, "dtype", None) in {torch.float64, float})):
+            return original_torch_tensor(data, *args, dtype=torch.float32, device=return_xpu(device), **kwargs)
+        else:
+            return original_torch_tensor(data, *args, dtype=dtype, device=return_xpu(device), **kwargs)
+    else:
+        if (
+            not device_supports_fp64 and check_device_type(device, "xpu")
+            and (dtype == torch.float64 or (dtype is None and getattr(data, "dtype", None) in {torch.float64, float}))
+        ):
+            return original_torch_tensor(data, *args, dtype=torch.float32, device=device, **kwargs)
+        else:
+            return original_torch_tensor(data, *args, dtype=dtype, device=device, **kwargs)
+
+
 original_torch_empty = torch.empty
 @wraps(torch.empty)
 def torch_empty(*args, device=None, **kwargs):
@@ -221,11 +226,11 @@ def torch_empty(*args, device=None, **kwargs):
 
 original_torch_randn = torch.randn
 @wraps(torch.randn)
-def torch_randn(*args, device=None, dtype=None, **kwargs):
+def torch_randn(*args, device=None, **kwargs):
     if check_cuda(device):
-        return original_torch_randn(*args, device=return_xpu(device), dtype=dtype, **kwargs)
+        return original_torch_randn(*args, device=return_xpu(device), **kwargs)
     else:
-        return original_torch_randn(*args, device=device, dtype=dtype, **kwargs)
+        return original_torch_randn(*args, device=device, **kwargs)
 
 
 original_torch_ones = torch.ones
@@ -255,34 +260,6 @@ def torch_full(*args, device=None, **kwargs):
         return original_torch_full(*args, device=device, **kwargs)
 
 
-original_torch_arange = torch.arange
-@wraps(torch.arange)
-def torch_arange(*args, device=None, dtype=None, **kwargs):
-    global device_supports_fp64
-    if check_cuda(device):
-        if not device_supports_fp64 and dtype == torch.float64:
-            dtype = torch.float32
-        return original_torch_arange(*args, device=return_xpu(device), dtype=dtype, **kwargs)
-    else:
-        if not device_supports_fp64 and check_device_type(device, "xpu") and dtype == torch.float64:
-            dtype = torch.float32
-        return original_torch_arange(*args, device=device, dtype=dtype, **kwargs)
-
-
-original_torch_linspace = torch.linspace
-@wraps(torch.linspace)
-def torch_linspace(*args, device=None, dtype=None, **kwargs):
-    global device_supports_fp64
-    if check_cuda(device):
-        if not device_supports_fp64 and dtype == torch.float64:
-            dtype = torch.float32
-        return original_torch_linspace(*args, device=return_xpu(device), dtype=dtype, **kwargs)
-    else:
-        if not device_supports_fp64 and check_device_type(device, "xpu") and dtype == torch.float64:
-            dtype = torch.float32
-        return original_torch_linspace(*args, device=device, dtype=dtype, **kwargs)
-
-
 original_torch_eye = torch.eye
 @wraps(torch.eye)
 def torch_eye(*args, device=None, **kwargs):
@@ -290,6 +267,36 @@ def torch_eye(*args, device=None, **kwargs):
         return original_torch_eye(*args, device=return_xpu(device), **kwargs)
     else:
         return original_torch_eye(*args, device=device, **kwargs)
+
+
+original_torch_arange = torch.arange
+@wraps(torch.arange)
+def torch_arange(*args, dtype=None, device=None, **kwargs):
+    if check_cuda(device):
+        if not device_supports_fp64 and dtype == torch.float64:
+            return original_torch_arange(*args, dtype=torch.float32, device=return_xpu(device), **kwargs)
+        else:
+            return original_torch_arange(*args, dtype=dtype, device=return_xpu(device), **kwargs)
+    else:
+        if not device_supports_fp64 and check_device_type(device, "xpu") and dtype == torch.float64:
+            return original_torch_arange(*args, dtype=torch.float32, device=device, **kwargs)
+        else:
+            return original_torch_arange(*args, dtype=dtype, device=device, **kwargs)
+
+
+original_torch_linspace = torch.linspace
+@wraps(torch.linspace)
+def torch_linspace(*args, dtype=None, device=None, **kwargs):
+    if check_cuda(device):
+        if not device_supports_fp64 and dtype == torch.float64:
+            return original_torch_linspace(*args, dtype=torch.float32, device=return_xpu(device), **kwargs)
+        else:
+            return original_torch_linspace(*args, dtype=dtype, device=return_xpu(device), **kwargs)
+    else:
+        if not device_supports_fp64 and check_device_type(device, "xpu") and dtype == torch.float64:
+            return original_torch_linspace(*args, dtype=torch.float32, device=device, **kwargs)
+        else:
+            return original_torch_linspace(*args, dtype=dtype, device=device, **kwargs)
 
 
 original_torch_load = torch.load
@@ -360,24 +367,29 @@ class torch_Generator(original_torch_Generator):
 
 # Hijack Functions:
 def ipex_hijacks():
-    global device_supports_fp64
+    torch.UntypedStorage.__init__ = UntypedStorage_init
     if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 4):
         torch.UntypedStorage.cuda = UntypedStorage_cuda
         torch.UntypedStorage.to = UntypedStorage_to
-    torch.tensor = torch_tensor
+
     torch.Tensor.to = Tensor_to
     torch.Tensor.cuda = Tensor_cuda
     torch.Tensor.pin_memory = Tensor_pin_memory
-    torch.UntypedStorage.__init__ = UntypedStorage_init
+
+    # transformers completely breaks when anything is done to torch.tensor
+    # even straight passthroughs breaks transformers for some reason
+    #torch.tensor = torch_tensor
+    
     torch.empty = torch_empty
     torch.randn = torch_randn
     torch.ones = torch_ones
     torch.zeros = torch_zeros
     torch.full = torch_full
+    torch.eye = torch_eye
     torch.arange = torch_arange
     torch.linspace = torch_linspace
-    torch.eye = torch_eye
     torch.load = torch_load
+
     torch.cuda.synchronize = torch_cuda_synchronize
     torch.cuda.device = torch_cuda_device
     torch.cuda.set_device = torch_cuda_set_device
@@ -437,6 +449,6 @@ def ipex_hijacks():
 
     if not hasattr(torch.cuda.amp, "common"):
         torch.cuda.amp.common = nullcontext()
-    torch.cuda.amp.common.amp_definitely_not_available = lambda: False
+    torch.cuda.amp.common.amp_definitely_not_available = return_false
 
     return device_supports_fp64

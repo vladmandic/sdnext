@@ -93,7 +93,10 @@ class Options:
 
     def set(self, key, value):
         """sets an option and calls its onchange callback, returning True if the option changed and False otherwise"""
-        oldval = self.data.get(key, None)
+        if key in self.secrets:
+            oldval = self.secrets.get(key, None)
+        else:
+            oldval = self.data.get(key, None)
         if oldval is None:
             if key in self.data_labels:
                 oldval = self.data_labels[key].default

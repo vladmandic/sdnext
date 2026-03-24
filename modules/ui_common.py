@@ -439,6 +439,7 @@ def update_token_counter(text: str):
     from modules.extra_networks import parse_prompt
 
     count_formatted = '0'
+    max_length = 0
     visible = False
 
     prompt, _ = parse_prompt(text)
@@ -475,7 +476,7 @@ def update_token_counter(text: str):
         token_counts = [len(group) - int(has_bos_token) - int(has_eos_token) for group in ids]
         if len(token_counts) > 1:
             visible = True
-            count_formatted = f"{token_counts} {sum(token_counts)}" if shared.opts.prompt_detailed_tokens else str(sum(token_counts))
+            count_formatted = f"{token_counts}/{sum(token_counts)}"
         elif len(token_counts) == 1 and token_counts[0] > 0:
             visible = True
             count_formatted = str(token_counts[0])

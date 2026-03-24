@@ -41,18 +41,6 @@ def load_flux(checkpoint_info, diffusers_load_config=None):
     transformer = None
     text_encoder_2 = None
 
-    # handle prequantized models
-    prequantized = model_quant.get_quant(checkpoint_info.path)
-    if prequantized == 'nf4':
-        from pipelines.flux.flux_nf4 import load_flux_nf4
-        transformer, text_encoder_2 = load_flux_nf4(checkpoint_info)
-    elif prequantized == 'qint8' or prequantized == 'qint4':
-        from pipelines.flux.flux_quanto import load_flux_quanto
-        transformer, text_encoder_2 = load_flux_quanto(checkpoint_info)
-    elif prequantized == 'fp4' or prequantized == 'fp8':
-        from pipelines.flux.flux_bnb import load_flux_bnb
-        transformer = load_flux_bnb(checkpoint_info, diffusers_load_config)
-
     # handle transformer svdquant if available, t5 is handled inside load_text_encoder
     if transformer is None and model_quant.check_nunchaku('Model'):
         from pipelines.flux.flux_nunchaku import load_flux_nunchaku

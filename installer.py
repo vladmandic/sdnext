@@ -475,7 +475,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "e5aa719241f9b74d6700be3320a777799bfab70a" # diffusers commit hash
+    target_commit = "c02c17c6ee7ac508c56925dde4d4a3c587650dc3" # diffusers commit hash
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -687,7 +687,7 @@ def install_ipex():
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+xpu torchvision==0.25.0+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+xpu torchvision==0.26.0+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
@@ -700,13 +700,12 @@ def install_openvino():
 
     #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
     if sys.platform == 'darwin':
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0 torchvision==0.25.0')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0 torchvision==0.26.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cpu torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+cpu torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu')
 
     if not (args.skip_all or args.skip_requirements):
-        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.4.1'), 'openvino')
-        install(os.environ.get('NNCF_COMMAND', 'nncf==2.19.0'), 'nncf')
+        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2026.0.0'), 'openvino')
     ts('openvino', t_start)
     return torch_command
 
@@ -730,12 +729,8 @@ def install_torch_addons():
         install('DeepCache')
     if opts.get('cuda_compile_backend', '') == 'olive-ai':
         install('olive-ai')
-    if len(opts.get('optimum_quanto_weights', [])):
-        install('optimum-quanto==0.2.7', 'optimum-quanto')
-    if len(opts.get('torchao_quantization', [])):
-        install('torchao==0.10.0', 'torchao')
     if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
-        install('pillow-jxl-plugin==1.3.5', 'pillow-jxl-plugin')
+        install('pillow-jxl-plugin==1.3.7', 'pillow-jxl-plugin')
     if not args.experimental:
         uninstall('wandb', quiet=True)
         uninstall('pynvml', quiet=True)
@@ -894,7 +889,7 @@ def check_torch():
             elif torch.version.hip and allow_rocm:
                 torch_info.set(type='rocm', hip=torch.version.hip)
             else:
-                log.warning('Unknown Torch backend')
+                log.warning('Torch backend: cannot detect type')
             log.info(f"Torch backend: {torch_info}")
             for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
                 gpu = {
@@ -1184,14 +1179,11 @@ def install_optional():
     install('hf_transfer', ignore=True, quiet=True)
     install('hf_xet', ignore=True, quiet=True)
     install('nvidia-ml-py', ignore=True, quiet=True)
-    install('pillow-jxl-plugin==1.3.5', ignore=True, quiet=True)
+    install('pillow-jxl-plugin==1.3.7', ignore=True, quiet=True)
     install('ultralytics==8.3.40', ignore=True, quiet=True)
     install('open-clip-torch', no_deps=True, quiet=True)
     install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
     # install('git+https://github.com/openai/CLIP.git', 'clip', quiet=True, no_build_isolation=True)
-    # install('torchao==0.10.0', ignore=True, quiet=True)
-    # install('bitsandbytes==0.47.0', ignore=True, quiet=True)
-    # install('optimum-quanto==0.2.7', ignore=True, quiet=True)
     ts('optional', t_start)
 
 
@@ -1235,6 +1227,7 @@ def install_requirements():
 # set environment variables controling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
+    os.environ.setdefault('PIP_CONSTRAINT', os.path.abspath('constraints.txt'))
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
     os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')

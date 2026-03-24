@@ -798,8 +798,8 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         "requires_safety_checker": False, # sd15 specific but we cant know ahead of time
         # "use_safetensors": True,
     }
-    if shared.opts.huggingface_token and len(shared.opts.huggingface_token) > 0:
-        diffusers_load_config['token'] = shared.opts.huggingface_token
+    # if shared.opts.huggingface_token and len(shared.opts.huggingface_token) > 0:
+    #    diffusers_load_config['token'] = shared.opts.huggingface_token
     if revision is not None:
         diffusers_load_config['revision'] = revision
     if shared.opts.diffusers_model_load_variant != 'default':

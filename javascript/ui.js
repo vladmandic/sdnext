@@ -524,6 +524,14 @@ function selectVAE(name) {
   markSelectedCards([desiredVAEName], 'vae');
 }
 
+let desiredUNetName = null;
+function selectUNet(name) {
+  desiredUNetName = name;
+  gradioApp().getElementById('change_unet').click();
+  log(`selectUNet: ${desiredUNetName}`);
+  markSelectedCards([desiredUNetName], 'unet');
+}
+
 function selectReference(name) {
   log(`selectReference: ${name}`);
   desiredCheckpointName = name;

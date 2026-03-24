@@ -24,8 +24,8 @@ warn_once = False
 
 
 class CheckpointInfo:
-    def __init__(self, filename, sha=None, subfolder=None):
-        self.name = None
+    def __init__(self, filename, name=None, sha=None, subfolder=None, model_type: str = 'checkpoint'):
+        self.name = name
         self.hash = sha
         self.filename = filename
         self.type = ''
@@ -62,9 +62,9 @@ class CheckpointInfo:
             self.sha256 = None
             self.type = 'unknown'
         elif os.path.isfile(filename): # ckpt or safetensor
-            self.name = relname
+            self.name = self.name or relname
             self.filename = filename
-            self.sha256 = hashes.sha256_from_cache(self.filename, f"checkpoint/{relname}")
+            self.sha256 = hashes.sha256_from_cache(self.filename, f"{model_type}/{relname}") or hashes.sha256_from_cache(self.filename, f"{model_type}/{name}")
             self.type = ext
             if 'nf4' in filename:
                 self.type = 'transformer'
@@ -74,12 +74,12 @@ class CheckpointInfo:
             else:
                 repo = [r for r in modelloader.diffuser_repos if self.hash == r['hash']]
             if len(repo) == 0:
-                self.name = filename
+                self.name = self.name or filename
                 self.filename = filename
                 self.sha256 = None
                 self.type = 'unknown'
             else:
-                self.name = os.path.join(os.path.basename(shared.opts.diffusers_dir), repo[0]['name'])
+                self.name = self.name or os.path.join(os.path.basename(shared.opts.diffusers_dir), repo[0]["name"])
                 self.filename = repo[0]['path']
                 self.sha256 = repo[0]['hash']
                 self.type = 'diffusers'
@@ -109,7 +109,7 @@ class CheckpointInfo:
         return self.shorthash
 
     def __str__(self):
-        return f'CheckpointInfo(name="{self.name}" filename="{self.filename}" hash={self.shorthash} type={self.type} title="{self.title}" path="{self.path}" subfolder="{self.subfolder}")'
+        return f'CheckpointInfo(name="{self.name}" filename="{self.filename}" sha256={self.sha256} sha={self.shorthash} type={self.type} title="{self.title}" path="{self.path}" subfolder="{self.subfolder}")'
 
 
 def setup_model():
@@ -160,7 +160,7 @@ def list_models():
     checkpoints_list = dict(sorted(checkpoints_list.items(), key=lambda cp: cp[1].filename))
 
 
-def update_model_hashes():
+def update_model_hashes(model_list: dict = None, model_type: str = 'checkpoint'):
     def update_model_hashes_table(rows):
         html = """
             <table class="simple-table">
@@ -186,14 +186,16 @@ def update_model_hashes():
                 log.error(f'Model list: row={row} {e}')
         return html.format(tbody=tbody)
 
-    lst = [ckpt for ckpt in checkpoints_list.values() if ckpt.hash is None]
+    if model_list is None:
+        model_list = checkpoints_list
+    lst = [ckpt for ckpt in model_list.values() if ckpt.hash is None]
     for ckpt in lst:
         ckpt.hash = model_hash(ckpt.filename)
-    lst = [ckpt for ckpt in checkpoints_list.values() if ckpt.sha256 is None or ckpt.shorthash is None]
-    log.info(f'Models list: hash missing={len(lst)} total={len(checkpoints_list)}')
+    lst = [ckpt for ckpt in model_list.values() if ckpt.sha256 is None or ckpt.shorthash is None]
+    log.info(f'Models list: hash missing={len(lst)} total={len(model_list)}')
     updated = []
     for ckpt in lst:
-        ckpt.sha256 = hashes.sha256(ckpt.filename, f"checkpoint/{ckpt.name}")
+        ckpt.sha256 = hashes.sha256(ckpt.filename, f"{model_type}/{ckpt.name}")
         ckpt.shorthash = ckpt.sha256[0:10] if ckpt.sha256 is not None else None
         updated.append(ckpt)
         yield update_model_hashes_table(updated)

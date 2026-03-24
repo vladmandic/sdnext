@@ -176,6 +176,8 @@ class UpscalerESRGAN(Upscaler):
 
 
 def upscale_without_tiling(model, img):
+    if img.mode != 'RGB':
+        img = img.convert('RGB')
     img = np.array(img)
     img = img[:, :, ::-1]
     img = np.ascontiguousarray(np.transpose(img, (2, 0, 1))) / 255

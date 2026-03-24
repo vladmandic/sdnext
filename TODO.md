@@ -2,20 +2,18 @@
 
 ## Release
 
-- Update **README**
-- Bumb packages
-- Implement `unload_auxiliary_models`
-- Release **Launcher**
-- Release **Enso**
-- Update **ROCm**
-- Tips **Color Grading**
+- Implement: `unload_auxiliary_models`
+- Add notes: **Enso**
+- Tips: **Color Grading**
+- Regen: **Localization**
 
 ## Internal
 
-- Feature: Color grading in processing
+- Integrate: [Depth3D](https://github.com/vladmandic/sd-extension-depth3d)
 - Feature: RIFE update
 - Feature: RIFE in processing
 - Feature: SeedVR2 in processing
+- Feature: Add video models to `Reference`
 - Deploy: Lite vs Expert mode
 - Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
 - Engine: `TensorRT` acceleration
@@ -64,6 +62,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image-Edit
 
+- [Bria FIBO-Edit](https://huggingface.co/briaai/Fibo-Edit-RMBG): Fully JSON-based instruction-following image editing framework
 - [Meituan LongCat-Image-Edit-Turbo](https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo):6B instruction-following image editing with high visual consistency
 - [VIBE Image-Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit): (Sana+Qwen-VL)Fast visual instruction-based image editing framework
 - [LucyEdit](https://github.com/huggingface/diffusers/pull/12340):Instruction-guided video editing while preserving motion and identity
@@ -145,3 +144,5 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - modules/modular_guiders.py:65:58: W0511: TODO: guiders
 - processing: remove duplicate mask params
 - resize image: enable full VAE mode for resize-latent
+
+modules/sd_samplers_diffusers.py:353:31: W0511: TODO enso-required (fixme)

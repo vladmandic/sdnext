@@ -172,15 +172,15 @@ def create_latent_inputs(tab):
                 hdr_sharpen = gr.Slider(minimum=-4.0, maximum=4.0, step=0.05, value=0, label="Latent sharpen", elem_id=f"{tab}_hdr_sharpen")
                 hdr_color = gr.Slider(minimum=0.0, maximum=16.0, step=0.1, value=0.0, label="Latent color", elem_id=f"{tab}_hdr_color")
             with gr.Row(elem_id=f"{tab}_hdr_clamp_row"):
-                hdr_clamp = gr.Checkbox(label="Clamp", value=False, elem_id=f"{tab}_hdr_clamp")
-                hdr_boundary = gr.Slider(minimum=0.0, maximum=10.0, step=0.1, value=4.0, label="Range", elem_id=f"{tab}_hdr_boundary")
-                hdr_threshold = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, value=0.95, label="Threshold", elem_id=f"{tab}_hdr_threshold")
+                hdr_clamp = gr.Checkbox(label="Latent clamp", value=False, elem_id=f"{tab}_hdr_clamp")
+                hdr_boundary = gr.Slider(minimum=0.0, maximum=10.0, step=0.1, value=4.0, label="Latent range", elem_id=f"{tab}_hdr_boundary")
+                hdr_threshold = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, value=0.95, label="Latent threshold", elem_id=f"{tab}_hdr_threshold")
             with gr.Row(elem_id=f"{tab}_hdr_max_row"):
-                hdr_maximize = gr.Checkbox(label="Maximize", value=False, elem_id=f"{tab}_hdr_maximize")
-                hdr_max_center = gr.Slider(minimum=0.0, maximum=2.0, step=0.1, value=0.6, label="Center", elem_id=f"{tab}_hdr_max_center")
-                hdr_max_boundary = gr.Slider(minimum=0.5, maximum=2.0, step=0.1, value=1.0, label="Max range", elem_id=f"{tab}_hdr_max_boundary")
+                hdr_maximize = gr.Checkbox(label="Latent maximize", value=False, elem_id=f"{tab}_hdr_maximize")
+                hdr_max_center = gr.Slider(minimum=0.0, maximum=2.0, step=0.1, value=0.6, label="Latent center", elem_id=f"{tab}_hdr_max_center")
+                hdr_max_boundary = gr.Slider(minimum=0.5, maximum=2.0, step=0.1, value=1.0, label="Latent max range", elem_id=f"{tab}_hdr_max_boundary")
             with gr.Row(elem_id=f"{tab}_hdr_color_row"):
-                hdr_color_picker = gr.ColorPicker(label="Tint color", show_label=True, container=False, value=None, elem_id=f"{tab}_hdr_color_picker")
+                hdr_color_picker = gr.ColorPicker(label="Latent tint", show_label=True, container=False, value=None, elem_id=f"{tab}_hdr_color_picker")
                 hdr_tint_ratio = gr.Slider(label="Tint strength", minimum=-4.0, maximum=4.0, step=0.05, value=0.0, elem_id=f"{tab}_hdr_tint_ratio")
         return hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires
 
@@ -197,7 +197,7 @@ def create_color_inputs(tab):
                 grading_hue = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0, label='Hue', elem_id=f"{tab}_grading_hue")
                 grading_gamma = gr.Slider(minimum=0.1, maximum=10.0, step=0.1, value=1.0, label='Gamma', elem_id=f"{tab}_grading_gamma")
                 grading_sharpness = gr.Slider(minimum=0.0, maximum=2.0, step=0.05, value=0, label='Sharpness', elem_id=f"{tab}_grading_sharpness")
-                grading_color_temp = gr.Slider(minimum=2000, maximum=12000, step=100, value=6500, label='Color temp (K)', elem_id=f"{tab}_grading_color_temp")
+                grading_color_temp = gr.Slider(minimum=2000, maximum=12000, step=100, value=6500, label='Color temp', elem_id=f"{tab}_grading_color_temp")
         with gr.Group():
             gr.HTML('<h3>Tone</h3>')
             with gr.Row(elem_id=f"{tab}_grading_tone_row"):
@@ -211,7 +211,7 @@ def create_color_inputs(tab):
             with gr.Row(elem_id=f"{tab}_grading_split_row"):
                 grading_shadows_tint = gr.ColorPicker(label="Shadows tint", value="#000000", elem_id=f"{tab}_grading_shadows_tint")
                 grading_highlights_tint = gr.ColorPicker(label="Highlights tint", value="#ffffff", elem_id=f"{tab}_grading_highlights_tint")
-                grading_split_tone_balance = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0.5, label='Balance', elem_id=f"{tab}_grading_split_tone_balance")
+                grading_split_tone_balance = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0.5, label='Split tone balance', elem_id=f"{tab}_grading_split_tone_balance")
         with gr.Group():
             gr.HTML('<h3>Effects</h3>')
             with gr.Row(elem_id=f"{tab}_grading_effects_row"):
@@ -220,9 +220,9 @@ def create_color_inputs(tab):
         with gr.Group():
             gr.HTML('<h3>LUT</h3>')
             with gr.Row(elem_id=f"{tab}_grading_lut_row"):
-                grading_lut_file = gr.File(label='LUT .cube file', file_types=['.cube'], elem_id=f"{tab}_grading_lut_file")
+                grading_lut_cube_file = gr.File(label='LUT .cube file', file_types=['.cube'], elem_id=f"{tab}_grading_lut_file")
                 grading_lut_strength = gr.Slider(minimum=0.0, maximum=2.0, step=0.05, value=1.0, label='LUT strength', elem_id=f"{tab}_grading_lut_strength")
-        return grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_file, grading_lut_strength
+        return grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_cube_file, grading_lut_strength
 
 
 def create_sampler_and_steps_selection(choices, tabname, default_steps:int=20):

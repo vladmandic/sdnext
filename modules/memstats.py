@@ -1,9 +1,11 @@
 import re
 import sys
 import os
+import types
+from collections import deque
 import psutil
 import torch
-from modules import shared, errors
+from modules import shared, errors, devices
 from modules.logger import log
 
 
@@ -130,28 +132,53 @@ def reset_stats():
 class Object:
     pattern = r"'(.*?)'"
 
+    def get_size(self, obj, seen=None):
+        size = sys.getsizeof(obj)
+        if seen is None:
+            seen = set()
+        obj_id = id(obj)
+        if obj_id in seen:
+            return 0  # Avoid double counting
+        seen.add(obj_id)
+        if isinstance(obj, dict):
+            size += sum(self.get_size(k, seen) + self.get_size(v, seen) for k, v in obj.items())
+        elif isinstance(obj, (list, tuple, set, frozenset, deque)):
+            size += sum(self.get_size(i, seen) for i in obj)
+        return size
+
     def __init__(self, name, obj):
         self.id = id(obj)
         self.name = name
         self.fn = sys._getframe(2).f_code.co_name
-        self.size = sys.getsizeof(obj)
         self.refcount = sys.getrefcount(obj)
         if torch.is_tensor(obj):
             self.type = obj.dtype
             self.size = obj.element_size() * obj.nelement()
         else:
             self.type = re.findall(self.pattern, str(type(obj)))[0]
-            self.size = sys.getsizeof(obj)
+            self.size = self.get_size(obj)
     def __str__(self):
         return f'{self.fn}.{self.name} type={self.type} size={self.size} ref={self.refcount}'
 
 
-def get_objects(gcl=None, threshold:int=0):
+def get_objects(gcl=None, threshold:int=1024*1024):
+    devices.torch_gc(force=True)
     if gcl is None:
+        # gcl = globals()
         gcl = {}
+        log.trace(f'Memory: modules={len(sys.modules)}')
+        for _module_name, module in sys.modules.items():
+            try:
+                if not isinstance(module, types.ModuleType):
+                    continue
+                namespace = vars(module)
+                gcl.update(namespace)
+            except Exception:
+                pass # Some modules may not allow introspection
     objects = []
     seen = []
 
+    log.trace(f'Memory: items={len(gcl)} threshold={threshold}')
     for name, obj in gcl.items():
         if id(obj) in seen:
             continue
@@ -169,6 +196,6 @@ def get_objects(gcl=None, threshold:int=0):
 
     objects = sorted(objects, key=lambda x: x.size, reverse=True)
     for obj in objects:
-        log.trace(obj)
+        log.trace(f'Memory: {obj}')
 
     return objects

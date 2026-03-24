@@ -146,6 +146,10 @@ class ItemStyle(BaseModel):
     filename: str | None = Field(title="Filename", description="Path to the styles file")
     preview: str | None = Field(title="Preview", description="URL to the style preview image")
 
+class ItemUNet(BaseModel):
+    name: str = Field(title="Name", description="UNet/DiT name")
+    filename: str | None = Field(title="Filename", description="Path to the UNet/DiT file")
+
 class ItemExtraNetwork(BaseModel):
     name: str = Field(title="Name", description="Network short name")
     type: str = Field(title="Type", description="Network type (lora, checkpoint, embedding, etc.)")
