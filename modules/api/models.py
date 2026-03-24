@@ -522,6 +522,15 @@ class ItemDictContent(BaseModel):
     categories: dict = Field(default_factory=dict, title="Categories", description="Category definitions with name and color")
     tags: list = Field(default_factory=list, title="Tags", description="Tag entries as [name, category_id, post_count] tuples")
 
+class ItemDictRemote(BaseModel):
+    name: str = Field(title="Name", description="Dictionary identifier")
+    description: str = Field(default="", title="Description", description="Human-readable description")
+    version: str = Field(default="", title="Version", description="Version string")
+    tag_count: int = Field(default=0, title="Tag count", description="Number of tags")
+    size_mb: float = Field(default=0, title="Size (MB)", description="Approximate file size in megabytes")
+    downloaded: bool = Field(default=False, title="Downloaded", description="Whether the dict is available locally")
+    update_available: bool = Field(default=False, title="Update available", description="Whether a newer version exists remotely")
+
 # helper function
 
 def create_model_from_signature(func: Callable, model_name: str, base_model: type[BaseModel] = BaseModel, additional_fields: list | None = None, exclude_fields: list[str] | None = None) -> type[BaseModel]:

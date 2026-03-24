@@ -60,7 +60,7 @@ def list_dict_names():
     return sorted(
         os.path.splitext(f)[0]
         for f in os.listdir(dicts_dir)
-        if f.endswith('.json') and not f.startswith('.')
+        if f.endswith('.json') and not f.startswith('.') and f != 'manifest.json'
     )
 
 
