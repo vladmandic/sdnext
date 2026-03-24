@@ -173,11 +173,15 @@ RDNA2: Dict[str, str] = {
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V4R1": "0",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R1": "0",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4": "0",
+    # Group Conv XDLOPS / CK default kernels — RDNA3/4 only, not available on RDNA2
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS":         "0",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR": "0",
+    "MIOPEN_DEBUG_CK_DEFAULT_KERNELS":                               "0",
 }
 
 # ---------------------------------------------------------------------------
 # RDNA3 — gfx1100 (RX 7000 series)
-# Fury Winograd added; MPASS F3x4 enabled
+# Fury Winograd added; MPASS F3x4 enabled; Group Conv XDLOPS + CK default kernels enabled
 # ---------------------------------------------------------------------------
 RDNA3: Dict[str, str] = {
     **RDNA2,
@@ -186,6 +190,10 @@ RDNA3: Dict[str, str] = {
     "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F3X2": "1",
     # Wider MPASS on RDNA3
     "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X4": "1",
+    # Group Conv XDLOPS / CK — available from gfx1100 (RDNA3) onwards
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS":         "1",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR": "1",
+    "MIOPEN_DEBUG_CK_DEFAULT_KERNELS":                               "1",
 }
 
 # ---------------------------------------------------------------------------
@@ -222,6 +230,9 @@ UNAVAILABLE: Dict[str, set] = {
         "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X4",
         "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X2",
         "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X3",
+        "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS",
+        "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR",
+        "MIOPEN_DEBUG_CK_DEFAULT_KERNELS",
     },
     "RDNA3": _UNAVAILABLE_ALL_RDNA | {
         "MIOPEN_DEBUG_AMD_WINOGRAD_RAGE_RXS_F2X3",
