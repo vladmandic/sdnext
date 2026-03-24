@@ -378,7 +378,7 @@ def outpaint(input_image: Image.Image, outpaint_type: str = 'Edge'):
     return image, mask
 
 
-def run_mask(input_image: Image.Image, input_mask: Image.Image = None, return_type: str = None, mask_blur: int = None, mask_padding: int = None, invert=None):
+def run_mask(input_image: Image.Image, input_mask: Image.Image | None = None, return_type: str | None = None, mask_blur: int | None = None, mask_padding: int | None = None, invert=None):
     if isinstance(input_image, list) and len(input_image) > 0:
         input_image = input_image[0]
     elif isinstance(input_image, dict):
