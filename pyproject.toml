@@ -107,6 +107,9 @@ fixable = ["ALL"]
 unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
+[tool.ruff.lint.per-file-ignores]
+"modules/caption/joytag.py" = ["RUF013"] # Per header comment: "Do not modify directly — sync from upstream"
+
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
