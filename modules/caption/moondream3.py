@@ -87,7 +87,7 @@ def _image_hash(image: Image.Image) -> str:
     return h.hexdigest()
 
 
-def encode_image(image: Image.Image, cache_key: str = None):
+def encode_image(image: Image.Image, cache_key: str | None = None):
     """
     Encode image for reuse across multiple queries.
 
@@ -119,7 +119,7 @@ def encode_image(image: Image.Image, cache_key: str = None):
 
 
 def query(image: Image.Image, question: str, repo: str, stream: bool = False,
-          temperature: float = None, top_p: float = None, max_tokens: int = None,
+          temperature: float | None = None, top_p: float | None = None, max_tokens: int | None = None,
           use_cache: bool = False, reasoning: bool = True):
     """
     Visual question answering with optional streaming.
@@ -180,7 +180,7 @@ def query(image: Image.Image, question: str, repo: str, stream: bool = False,
 
 
 def caption(image: Image.Image, repo: str, length: str = 'normal', stream: bool = False,
-            temperature: float = None, top_p: float = None, max_tokens: int = None):
+            temperature: float | None = None, top_p: float | None = None, max_tokens: int | None = None):
     """
     Generate image captions at different lengths.
 
@@ -290,8 +290,8 @@ def detect(image: Image.Image, object_name: str, repo: str, max_objects: int = 1
     return detections
 
 
-def predict(question: str, image: Image.Image, repo: str, model_name: str = None, thinking_mode: bool = False,
-            mode: str = None, stream: bool = False, use_cache: bool = False, **kwargs):
+def predict(question: str, image: Image.Image, repo: str, model_name: str | None = None, thinking_mode: bool = False,
+            mode: str | None = None, stream: bool = False, use_cache: bool = False, **kwargs):
     """
     Main entry point for Moondream 3 VQA - auto-detects mode from question.
 

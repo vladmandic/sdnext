@@ -50,7 +50,7 @@ class WaifuDiffusionTagger:
         self.model_path = None
         self.image_size = 448  # Standard for WD models
 
-    def load(self, model_name: str = None):
+    def load(self, model_name: str | None = None):
         """Load the ONNX model and tags from HuggingFace."""
         import huggingface_hub
 
@@ -195,15 +195,15 @@ class WaifuDiffusionTagger:
 
     def predict(
         self,
-        image: Image.Image,
-        general_threshold: float = None,
-        character_threshold: float = None,
-        include_rating: bool = None,
-        exclude_tags: str = None,
-        max_tags: int = None,
-        sort_alpha: bool = None,
-        use_spaces: bool = None,
-        escape_brackets: bool = None,
+        image: Image.Image | list[Image.Image] | dict | None,
+        general_threshold: float | None = None,
+        character_threshold: float | None = None,
+        include_rating: bool | None = None,
+        exclude_tags: str | None = None,
+        max_tags: int | None = None,
+        sort_alpha: bool | None = None,
+        use_spaces: bool | None = None,
+        escape_brackets: bool | None = None,
     ) -> str:
         """Run inference and return formatted tag string.
 
@@ -352,7 +352,7 @@ def refresh_models() -> list:
     return get_models()
 
 
-def load_model(model_name: str = None) -> bool:
+def load_model(model_name: str | None = None) -> bool:
     """Load the specified WaifuDiffusion model."""
     return tagger.load(model_name)
 
@@ -362,7 +362,7 @@ def unload_model():
     tagger.unload()
 
 
-def tag(image: Image.Image, model_name: str = None, **kwargs) -> str:
+def tag(image: Image.Image, model_name: str | None = None, **kwargs) -> str:
     """Tag an image using WaifuDiffusion tagger.
 
     Args:

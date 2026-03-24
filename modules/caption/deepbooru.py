@@ -53,13 +53,13 @@ class DeepDanbooru:
     def tag_multi(
         self,
         pil_image,
-        general_threshold: float = None,
-        include_rating: bool = None,
-        exclude_tags: str = None,
-        max_tags: int = None,
-        sort_alpha: bool = None,
-        use_spaces: bool = None,
-        escape_brackets: bool = None,
+        general_threshold: float | None = None,
+        include_rating: bool | None = None,
+        exclude_tags: str | None = None,
+        max_tags: int | None = None,
+        sort_alpha: bool | None = None,
+        use_spaces: bool | None = None,
+        escape_brackets: bool | None = None,
     ):
         """Run inference and return formatted tag string.
 
@@ -134,7 +134,7 @@ def get_models() -> list:
     return ["DeepBooru"]
 
 
-def load_model(model_name: str = None) -> bool: # pylint: disable=unused-argument
+def load_model(model_name: str = "") -> bool: # pylint: disable=unused-argument
     """Load the DeepBooru model."""
     try:
         model.load()
