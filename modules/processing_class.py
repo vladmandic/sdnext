@@ -18,7 +18,7 @@ debug = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else l
 @dataclass(repr=False)
 class StableDiffusionProcessing:
     def __init__(self,
-                 sd_model_checkpoint: str = None, # # used only to set sd_model
+                 sd_model_checkpoint: str | None = None, # # used only to set sd_model
                  sd_model=None, # pylint: disable=unused-argument # local instance of sd_model
                  # base params
                  prompt: str = "",
@@ -834,7 +834,7 @@ class StableDiffusionProcessingControl(StableDiffusionProcessingImg2Img):
         debug(f'Process init: mode={self.__class__.__name__} kwargs={kwargs}') # pylint: disable=protected-access
         super().__init__(**kwargs)
 
-    def init_hr(self, scale:float=None, upscaler:str=None, force:bool=False):
+    def init_hr(self, scale: float | None = None, upscaler: str | None = None, force = False):
         scale = scale or self.scale_by or self.scale_by_before
         upscaler = upscaler or self.hr_upscaler or self.resize_name or self.resize_name_before
         if upscaler is None:
@@ -852,7 +852,7 @@ class StableDiffusionProcessingControl(StableDiffusionProcessingImg2Img):
             self.hr_upscale_to_x, self.hr_upscale_to_y = int(self.hr_resize_x), int(self.hr_resize_y)
 
 
-def switch_class(p: StableDiffusionProcessing, new_class: type, dct: dict = None):
+def switch_class(p: StableDiffusionProcessing, new_class: type, dct: dict | None = None):
     kwargs = {}
     signature = inspect.signature(StableDiffusionProcessing.__init__, follow_wrapped=True) # base class
     possible = list(signature.parameters)
