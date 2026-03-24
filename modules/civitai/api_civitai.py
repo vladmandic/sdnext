@@ -87,12 +87,12 @@ def get_search(
     sort: str = '',
     period: str = '',
     base_models: str = '',
-    nsfw: bool = None,
+    nsfw: bool | None = None,
     limit: int = 20,
-    cursor: str = None,
+    cursor: str | None = None,
     username: str = '',
     favorites: bool = False,
-    token: str = None,
+    token: str | None = None,
 ):
     """Search CivitAI models with pagination."""
     from modules.civitai.client_civitai import client
@@ -110,7 +110,7 @@ def get_search(
     return response.dict(by_alias=True)
 
 
-def get_model(model_id: int, token: str = None):
+def get_model(model_id: int, token: str | None = None):
     """Get a single model by ID (fresh fetch)."""
     from modules.civitai.client_civitai import client
     model = client.get_model(model_id, token=token)
@@ -119,7 +119,7 @@ def get_model(model_id: int, token: str = None):
     return model_to_dict(model)
 
 
-def get_version(version_id: int, token: str = None):
+def get_version(version_id: int, token: str | None = None):
     """Get a single version by ID."""
     from modules.civitai.client_civitai import client
     version = client.get_version(version_id, token=token)
@@ -128,7 +128,7 @@ def get_version(version_id: int, token: str = None):
     return version_to_dict(version)
 
 
-def get_version_by_hash(hash_str: str, token: str = None):
+def get_version_by_hash(hash_str: str, token: str | None = None):
     """Look up a version by file hash."""
     from modules.civitai.client_civitai import client
     version = client.get_version_by_hash(hash_str, token=token)
@@ -155,13 +155,13 @@ def get_creators(query: str = '', limit: int = 20, page: int = 1):
     return client.get_creators(query=query, limit=limit, page=page).dict(by_alias=True)
 
 
-def get_images(model_id: int = None, model_version_id: int = None, limit: int = 20):
+def get_images(model_id: int | None = None, model_version_id: int | None = None, limit: int = 20):
     """Get images with generation metadata from CivitAI."""
     from modules.civitai.client_civitai import client
     return {"items": client.get_images_raw(model_id=model_id, model_version_id=model_version_id, limit=limit)}
 
 
-def get_me(token: str = None):
+def get_me(token: str | None = None):
     """Get authenticated CivitAI user profile."""
     from modules.civitai.client_civitai import client
     profile = client.get_me(token=token)
@@ -300,7 +300,7 @@ def get_resolve_path(
 # Metadata
 # ---------------------------------------------------------------------------
 
-def post_metadata_scan(request: dict = None):
+def post_metadata_scan(request: dict | None = None):
     """Scan local models for CivitAI metadata. Optional ``page`` filters by network type (e.g. 'lora', 'model')."""
     from modules.civitai import metadata_civitai
     page = (request or {}).get('page', None)
@@ -388,7 +388,7 @@ def delete_banned(name: str):
 # User Data — Search History
 # ---------------------------------------------------------------------------
 
-def get_history(search_type: str = None):
+def get_history(search_type: str | None = None):
     from modules.civitai.userdata_civitai import search_history
     return {"history": search_history.list(search_type)}
 
@@ -529,16 +529,16 @@ def post_check_local(request: dict):
 # ---------------------------------------------------------------------------
 
 def legacy_get_civitai(
-    model_id: int = None,
+    model_id: int | None = None,
     query: str = '',
     tag: str = '',
     types: str = '',
     sort: str = '',
     period: str = '',
-    nsfw: bool = None,
+    nsfw: bool | None = None,
     limit: int = 0,
     base: str = '',
-    token: str = None,
+    token: str | None = None,
     exact: bool = True,
 ):
     """Legacy GET /sdapi/v1/civitai — delegates to search or model lookup."""
@@ -559,7 +559,7 @@ def legacy_get_civitai(
     return JSONResponse(content=[], status_code=200)
 
 
-def legacy_post_civitai(page: str = None):
+def legacy_post_civitai(page: str | None = None):
     """Legacy POST /sdapi/v1/civitai — scan metadata."""
     from modules.civitai import metadata_civitai
     result = []

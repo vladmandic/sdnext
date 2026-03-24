@@ -195,20 +195,21 @@ def update_settings(*settings):
 
 
 class Processor:
-    def __init__(self, processor_id: str = None, resize = True):
+    def __init__(self, processor_id: str | None = None, resize = True):
         self.model = None
-        self.processor_id = None
-        self.override = None
+        self.processor_id: str | None = None
+        self.override: Image.Image | None = None
         self.resize = resize
         self.reset()
         self.config(processor_id)
+        self.load_config: dict = {}
         if processor_id is not None:
             self.load()
 
     def __str__(self):
         return f' Processor(id={self.processor_id} model={self.model.__class__.__name__})' if self.processor_id and self.model else ''
 
-    def reset(self, processor_id: str = None):
+    def reset(self, processor_id: str | None = None):
         if self.model is not None:
             debug(f'Control Processor unloaded: id="{self.processor_id}"')
             self.model = None
@@ -237,7 +238,7 @@ class Processor:
             for k, v in from_config.items():
                 self.load_config[k] = v
 
-    def load(self, processor_id: str = None, force: bool = True) -> str:
+    def load(self, processor_id: str | None = None, force: bool = True) -> str:
         from modules.shared import state
         try:
             t0 = time.time()
@@ -304,7 +305,7 @@ class Processor:
             display(e, 'Control Processor load')
             return f'Processor load filed: {processor_id}'
 
-    def __call__(self, image_input: Image, mode: str = 'RGB', width: int = 0, height: int = 0, resize_mode: int = 0, resize_name: str = 'None', scale_tab: int = 1, scale_by: float = 1.0, local_config: dict = None):
+    def __call__(self, image_input: Image, mode: str = 'RGB', width: int = 0, height: int = 0, resize_mode: int = 0, resize_name: str = 'None', scale_tab: int = 1, scale_by: float = 1.0, local_config: dict | None = None):
         """Run the preprocessor on an input image and return the processed control map.
 
         Args:

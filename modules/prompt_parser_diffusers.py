@@ -600,7 +600,7 @@ def split_prompts(pipe, prompt, SD3 = False):
     return prompt, prompt2, prompt3, prompt4
 
 
-def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int = None, prompt_mean_norm=None, diffusers_zeros_prompt_pad=None, te_pooled_embeds=None):
+def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int | None = None, prompt_mean_norm=None, diffusers_zeros_prompt_pad=None, te_pooled_embeds=None):
     device = devices.device
     if prompt is None:
         prompt = ''
@@ -753,7 +753,7 @@ def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", c
     return prompt_embeds, pooled_prompt_embeds, None, negative_prompt_embeds, negative_pooled_prompt_embeds, None
 
 
-def get_xhinker_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int = None):
+def get_xhinker_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int | None = None):
     is_sd3 = hasattr(pipe, 'text_encoder_3')
     prompt, prompt_2, _prompt_3, _ = split_prompts(pipe, prompt, is_sd3)
     neg_prompt, neg_prompt_2, _neg_prompt_3, _ = split_prompts(pipe, neg_prompt, is_sd3)

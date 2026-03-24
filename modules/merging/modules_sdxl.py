@@ -65,7 +65,7 @@ def msg(text, err:bool=False):
     return status
 
 
-def load_base(override:str=None):
+def load_base(override: str | None = None):
     global pipeline # pylint: disable=global-statement
     fn = override or recipe.base
     yield msg(f'base={fn}')
@@ -79,7 +79,7 @@ def load_base(override:str=None):
     pipeline.vae.register_to_config(force_upcast = False)
 
 
-def load_unet(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
+def load_unet(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = None):
     if (recipe.unet is None or len(recipe.unet) == 0) and override is None:
         return
     fn = override or recipe.unet
@@ -99,7 +99,7 @@ def load_unet(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
         yield msg(f'unet: {e}')
 
 
-def load_scheduler(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
+def load_scheduler(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = None):
     if recipe.scheduler is None and override is None:
         return
     config = pipe.scheduler.config.__dict__
@@ -114,7 +114,7 @@ def load_scheduler(pipe: diffusers.StableDiffusionXLPipeline, override:str=None)
 
 
 
-def load_vae(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
+def load_vae(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = None):
     if (recipe.vae is None or len(recipe.vae) == 0)and override is None:
         return
     fn = override or recipe.vae
@@ -135,7 +135,7 @@ def load_vae(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
         yield msg(f'vae: {e}')
 
 
-def load_te1(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
+def load_te1(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = None):
     if (recipe.te1 is None or len(recipe.te1) == 0) and override is None:
         return
     config = pipe.text_encoder.config.__dict__
@@ -156,7 +156,7 @@ def load_te1(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
         yield msg(f'te1: {e}')
 
 
-def load_te2(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
+def load_te2(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = None):
     if (recipe.te2 is None or len(recipe.te2) == 0) and override is None:
         return
     config = pipe.text_encoder_2.config.__dict__
@@ -177,7 +177,7 @@ def load_te2(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
         yield msg(f'te2: {e}')
 
 
-def load_lora(pipe: diffusers.StableDiffusionXLPipeline, override: dict=None, fuse: float=None):
+def load_lora(pipe: diffusers.StableDiffusionXLPipeline, override: dict | None = None, fuse: float | None = None):
     if recipe.lora is None and override is None:
         return
     names = []

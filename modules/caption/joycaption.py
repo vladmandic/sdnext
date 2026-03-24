@@ -53,12 +53,12 @@ class JoyOptions:
         return f'repo="{self.repo}" temp={self.temp} top_k={self.top_k} top_p={self.top_p} sample={self.sample} tokens={self.max_new_tokens}'
 
 
-processor: AutoProcessor = None
-llava_model: LlavaForConditionalGeneration = None
+processor: AutoProcessor | None = None
+llava_model: LlavaForConditionalGeneration | None = None
 opts = JoyOptions()
 
 
-def load(repo: str = None):
+def load(repo: str | None = None):
     """Load JoyCaption model."""
     global llava_model, processor  # pylint: disable=global-statement
     repo = repo or opts.repo
@@ -93,7 +93,7 @@ def unload():
         log.debug('JoyCaption unload: no model loaded')
 
 
-def predict(question: str, image, vqa_model: str = None) -> str:
+def predict(question: str, image, vqa_model: str | None = None) -> str:
     opts.max_new_tokens = shared.opts.caption_vlm_max_length
     load(vqa_model)
 

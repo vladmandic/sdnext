@@ -99,10 +99,10 @@ def search_civitai(
         types:str = '', # (Checkpoint, TextualInversion, Hypernetwork, AestheticGradient, LORA, Controlnet, Poses)
         sort:str = '', # (Highest Rated, Most Downloaded, Newest)
         period:str = '', # (AllTime, Year, Month, Week, Day)
-        nsfw:bool = None, # optional:bool
+        nsfw:bool | None = None, # optional:bool
         limit:int = 0,
         base:list[str] = [], # list
-        token:str = None,
+        token:str | None = None,
         exact:bool = True,
 ):
     import requests
@@ -169,7 +169,7 @@ def search_civitai(
     return exact_models if len(exact_models) > 0 else models
 
 
-def models_to_dct(all_models:list, model_id:int=None):
+def models_to_dct(all_models:list, model_id:int | None=None):
     dct = []
     for model in all_models:
         if model_id is not None and model.id != model_id:

@@ -21,7 +21,7 @@ system_prompts = {
 }
 
 
-def enhance_prompt(enable:bool, model:str=None, image=None, prompt:str='', system_prompt:str='', nsfw:bool=True):
+def enhance_prompt(enable: bool, model: str | None = None, image=None, prompt: str = "", system_prompt: str = "", nsfw: bool = True):
     from modules.caption import vqa
     if not enable:
         return prompt

@@ -111,7 +111,7 @@ class SearchHistory:
                 self._entries = self._entries[:self._max_entries]
             self._save()
 
-    def list(self, search_type: str = None) -> list[dict]:
+    def list(self, search_type: str | None = None) -> list[dict]:
         with self._lock:
             if search_type:
                 return [e for e in self._entries if e.get('type') == search_type]

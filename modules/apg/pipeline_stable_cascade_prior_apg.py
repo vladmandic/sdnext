@@ -372,7 +372,7 @@ class StableCascadePriorPipelineAPG(DiffusionPipeline):
         height: int = 1024,
         width: int = 1024,
         num_inference_steps: int = 20,
-        timesteps: list[float] = None,
+        timesteps: list[float] | None = None,
         guidance_scale: float = 4.0,
         negative_prompt: str | list[str] | None = None,
         prompt_embeds: torch.Tensor | None = None,
@@ -386,7 +386,7 @@ class StableCascadePriorPipelineAPG(DiffusionPipeline):
         output_type: str | None = "pt",
         return_dict: bool = True,
         callback_on_step_end: Callable[[int, int, dict], None] | None = None,
-        callback_on_step_end_tensor_inputs: list[str] = None,
+        callback_on_step_end_tensor_inputs: list[str] | None = None,
     ):
         """
         Function invoked when calling the pipeline for generation.

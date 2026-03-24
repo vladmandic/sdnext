@@ -44,7 +44,7 @@ def worker(
         mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_opt, mp4_ext, mp4_interpolate,
         vae_type,
         variant,
-        metadata:dict=None,
+        metadata: dict | None = None,
     ):
     if metadata is None:
         metadata = {}
@@ -85,7 +85,7 @@ def worker(
     if not is_f1:
         prompts = list(reversed(prompts))
 
-    def text_encode(prompt, i:int=None):
+    def text_encode(prompt, i: int | None = None):
         jobid = shared.state.begin('TE Encode')
         pbar.update(task, description=f'text encode section={i}')
         t0 = time.time()

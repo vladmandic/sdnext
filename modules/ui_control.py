@@ -19,7 +19,7 @@ debug('Trace: CONTROL')
 use_generator = os.environ.get('SD_USE_GENERATOR', None) is not None
 
 
-def return_stats(t: float = None):
+def return_stats(t: float | None = None):
     if t is None:
         elapsed_text = ''
     else:
@@ -48,7 +48,7 @@ def return_stats(t: float = None):
     return f"<div class='performance'><p>{elapsed_text} {summary} {gpu} {cpu}</p></div>"
 
 
-def return_controls(res, t: float = None):
+def return_controls(res, t: float | None = None):
     # return preview, image, video, gallery, text
     debug(f'Control received: type={type(res)} {res}')
     if t is None:

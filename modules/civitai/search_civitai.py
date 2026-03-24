@@ -15,10 +15,10 @@ def search_civitai(
         types: str = '',
         sort: str = '',
         period: str = '',
-        nsfw: bool = None,
+        nsfw: bool | None = None,
         limit: int = 0,
         base: str = '',
-        token: str = None,
+        token: str | None = None,
         exact: bool = True,
 ) -> list[CivitModel]:
     if not query and not tag and not sort:

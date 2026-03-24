@@ -186,11 +186,11 @@ def set_sage_attention(backend: str, device: torch.device):
         log.error(f'Torch attention: type="Sage attention" {err}')
 
 
-def set_diffusers_attention(pipe, quiet:bool=False):
+def set_diffusers_attention(pipe, quiet = False):
     from modules import shared
     import diffusers.models.attention_processor as p
 
-    def set_attn(pipe, attention, name:str=None):
+    def set_attn(pipe, attention, name: str):
         if attention is None:
             return
         # other models uses their own attention processor

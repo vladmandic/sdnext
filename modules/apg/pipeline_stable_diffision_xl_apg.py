@@ -793,13 +793,13 @@ class StableDiffusionXLPipelineAPG(
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: str | list[str] = None,
+        prompt: str | list[str] | None = None,
         prompt_2: str | list[str] | None = None,
         height: int | None = None,
         width: int | None = None,
         num_inference_steps: int = 50,
-        timesteps: list[int] = None,
-        sigmas: list[float] = None,
+        timesteps: list[int] | None = None,
+        sigmas: list[float] | None = None,
         denoising_end: float | None = None,
         guidance_scale: float = 5.0,
         negative_prompt: str | list[str] | None = None,
@@ -826,7 +826,7 @@ class StableDiffusionXLPipelineAPG(
         negative_target_size: tuple[int, int] | None = None,
         clip_skip: int | None = None,
         callback_on_step_end: Callable[[int, int, dict], None] | PipelineCallback | MultiPipelineCallbacks | None = None,
-        callback_on_step_end_tensor_inputs: list[str] = None,
+        callback_on_step_end_tensor_inputs: list[str] | None = None,
         **kwargs,
     ):
         r"""

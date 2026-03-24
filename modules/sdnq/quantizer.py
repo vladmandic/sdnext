@@ -189,7 +189,7 @@ def get_quant_kwargs(quant_kwargs: dict, modules_quant_config: dict[str, dict]) 
     return quant_kwargs
 
 
-def add_module_skip_keys(model, modules_to_not_convert: list[str] = None, modules_dtype_dict: dict[str, list[str]] = None):
+def add_module_skip_keys(model, modules_to_not_convert: list[str] | None = None, modules_dtype_dict: dict[str, list[str]] | None = None):
     if modules_to_not_convert is None:
         modules_to_not_convert = []
     if modules_dtype_dict is None:
@@ -547,7 +547,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None
 
 
 @devices.inference_context()
-def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=1e-2, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, non_blocking=False, modules_to_not_convert: list[str] = None, modules_dtype_dict: dict[str, list[str]] = None, modules_quant_config: dict[str, dict] = None, quantization_device=None, return_device=None, full_param_name=""): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=1e-2, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, non_blocking=False, modules_to_not_convert: list[str] | None = None, modules_dtype_dict: dict[str, list[str]] | None = None, modules_quant_config: dict[str, dict] | None = None, quantization_device=None, return_device=None, full_param_name=""): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model, modules_to_not_convert, modules_dtype_dict
@@ -628,8 +628,8 @@ def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=Non
 def sdnq_post_load_quant(
     model: torch.nn.Module,
     weights_dtype: str = "int8",
-    quantized_matmul_dtype: str = None,
-    torch_dtype: torch.dtype = None,
+    quantized_matmul_dtype: str | None = None,
+    torch_dtype: torch.dtype | None = None,
     group_size: int = 0,
     svd_rank: int = 32,
     svd_steps: int = 8,
@@ -643,11 +643,11 @@ def sdnq_post_load_quant(
     dequantize_fp32: bool = True,
     non_blocking: bool = False,
     add_skip_keys:bool = True,
-    quantization_device: torch.device = None,
-    return_device: torch.device = None,
-    modules_to_not_convert: list[str] = None,
-    modules_dtype_dict: dict[str, list[str]] = None,
-    modules_quant_config: dict[str, dict] = None,
+    quantization_device: torch.device | None = None,
+    return_device: torch.device | None = None,
+    modules_to_not_convert: list[str] | None = None,
+    modules_dtype_dict: dict[str, list[str]] | None = None,
+    modules_quant_config: dict[str, dict] | None = None,
 ):
     if modules_to_not_convert is None:
         modules_to_not_convert = []
@@ -735,9 +735,9 @@ class SDNQQuantize:
     def convert(
         self,
         input_dict: dict[str, list[torch.Tensor]],
-        model: torch.nn.Module = None,
-        full_layer_name: str = None,
-        missing_keys: list[str] = None, # pylint: disable=unused-argument
+        model: torch.nn.Module | None = None,
+        full_layer_name: str | None = None,
+        missing_keys: list[str] | None = None, # pylint: disable=unused-argument
         **kwargs, # pylint: disable=unused-argument
     ) -> dict[str, torch.FloatTensor]:
         _module_name, value = tuple(input_dict.items())[0]
@@ -898,11 +898,11 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     def adjust_target_dtype(self, target_dtype: torch.dtype) -> torch.dtype: # pylint: disable=unused-argument,arguments-renamed
         return dtype_dict[self.quantization_config.weights_dtype]["target_dtype"]
 
-    def update_torch_dtype(self, torch_dtype: torch.dtype = None) -> torch.dtype:
+    def update_torch_dtype(self, torch_dtype: torch.dtype | None = None) -> torch.dtype:
         self.torch_dtype = torch_dtype
         return torch_dtype
 
-    def update_dtype(self, dtype: torch.dtype = None) -> torch.dtype:
+    def update_dtype(self, dtype: torch.dtype | None = None) -> torch.dtype:
         """
         needed for transformers compatibilty, returns self.update_torch_dtype
         """
@@ -912,7 +912,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         self,
         model,
         device_map, # pylint: disable=unused-argument
-        keep_in_fp32_modules: list[str] = None,
+        keep_in_fp32_modules: list[str] | None = None,
         **kwargs, # pylint: disable=unused-argument
     ):
         if self.pre_quantized:
@@ -1055,7 +1055,7 @@ class SDNQConfig(QuantizationConfigMixin):
     def __init__( # pylint: disable=super-init-not-called
         self,
         weights_dtype: str = "int8",
-        quantized_matmul_dtype: str = None,
+        quantized_matmul_dtype: str | None = None,
         group_size: int = 0,
         svd_rank: int = 32,
         svd_steps: int = 8,
@@ -1071,11 +1071,11 @@ class SDNQConfig(QuantizationConfigMixin):
         dequantize_fp32: bool = True,
         non_blocking: bool = False,
         add_skip_keys: bool = True,
-        quantization_device: torch.device = None,
-        return_device: torch.device = None,
-        modules_to_not_convert: list[str] = None,
-        modules_dtype_dict: dict[str, list[str]] = None,
-        modules_quant_config: dict[str, dict] = None,
+        quantization_device: torch.device | None = None,
+        return_device: torch.device | None = None,
+        modules_to_not_convert: list[str] | None = None,
+        modules_dtype_dict: dict[str, list[str]] | None = None,
+        modules_quant_config: dict[str, dict] | None = None,
         is_training: bool = False,
         **kwargs, # pylint: disable=unused-argument
     ):

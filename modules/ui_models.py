@@ -84,7 +84,7 @@ def create_ui():
                     with gr.Row():
                         save_path = gr.Textbox(label="Model base path", placeholder="Path to save model to", value=opts.diffusers_dir)
                     with gr.Row():
-                        save_shard = gr.Textbox(label="Max shard size", placeholder="Maximum shard size", value="10GB")
+                        save_shard = gr.Textbox(label="Max shard size", placeholder="Maximum shard size", value="5GB")
                         save_overwrite = gr.Checkbox(label="Overwrite existing", value=False)
                     with gr.Row():
                         save_result = gr.HTML(value="", elem_id="model_save_outcome")

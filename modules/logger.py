@@ -40,7 +40,7 @@ def get_log():
     return log
 
 
-def install_traceback(suppress: list = None):
+def install_traceback(suppress: list | None = None):
     if suppress is None:
         suppress = []
     width = os.environ.get("SD_TRACEWIDTH", console.width if console else None)
@@ -143,7 +143,7 @@ def setup_logging(debug=None, trace=None, filename=None):
     logging.Logger.trace = partialmethod(logging.Logger.log, logging.TRACE)
     logging.trace = partial(logging.log, logging.TRACE)
 
-    def exception_hook(e: Exception, suppress=None):
+    def exception_hook(e: Exception, suppress: list | None = None):
         from rich.traceback import Traceback
         if suppress is None:
             suppress = []

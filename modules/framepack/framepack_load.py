@@ -35,7 +35,7 @@ def split_url(url):
     return { 'repo': f'{url[0]}/{url[1]}', 'subfolder': url[2] }
 
 
-def set_model(receipe: str=None):
+def set_model(receipe: str | None = None):
     if receipe is None or receipe == '':
         return
     lines = [line.strip() for line in receipe.split('\n') if line.strip() != '' and ':' in line]
@@ -62,7 +62,7 @@ def reset_model():
     return ''
 
 
-def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_encoder_2:str=None, feature_extractor:str=None, image_encoder:str=None, transformer:str=None):
+def load_model(variant: str | None = None, pipeline: str | None = None, text_encoder: str | None = None, text_encoder_2: str | None = None, feature_extractor: str | None = None, image_encoder: str | None = None, transformer: str | None = None):
     shared.state.begin('Load FramePack')
     if variant is not None:
         if variant not in models.keys():
