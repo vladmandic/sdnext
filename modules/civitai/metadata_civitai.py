@@ -169,7 +169,7 @@ def atomic_civit_search_metadata(item, results):
             results.append(dict(result))
 
 
-def civit_search_metadata(title: str = None, raw: bool = False):
+def civit_search_metadata(title: str | None = None, raw: bool = False):
     def create_search_metadata_table(rows):
         html = """
             <table class="simple-table">
