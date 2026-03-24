@@ -111,10 +111,10 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - refactor reorganize `cli` scripts  
   - refactor move tests to dedicated `/test/`  
   - refactor all image handling to `modules/image/`  
-  - refactor: many params that were server-global are now ui params that are handled per-request  
+  - refactor many params that were server-global are now ui params that are handled per-request  
     *schedulers, todo, tome, etc.*  
-  - refactor: error handling during `torch.compile`  
-  - refactor: move `rebmg` to core instead of extensions  
+  - refactor error handling during `torch.compile`  
+  - refactor move `rebmg` to core instead of extensions  
   - remove face restoration  
   - unified command line parsing  
   - use explicit icon image references in `gallery`, thanks @awsr  
@@ -133,6 +133,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - reduce use of generators with ui interactor  
   - better subprocess execute, thanks @awsr  
   - better wslopen handling, thanks @awsr  
+  - refactor for PEP-484 compliance, thanks @awsr  
 - **Obsolete**
   - remove `normalbae` pre-processor  
   - remove `dwpose` pre-processor  

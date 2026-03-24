@@ -3,6 +3,7 @@
 ## Release
 
 - Implement: `unload_auxiliary_models`
+- Switch to: `torch==2.11`
 - Add notes: **Enso**
 - Tips: **Color Grading**
 - Regen: **Localization**
