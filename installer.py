@@ -735,7 +735,7 @@ def install_torch_addons():
     if len(opts.get('torchao_quantization', [])):
         install('torchao==0.10.0', 'torchao')
     if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
-        install('pillow-jxl-plugin==1.3.5', 'pillow-jxl-plugin')
+        install('pillow-jxl-plugin==1.3.7', 'pillow-jxl-plugin')
     if not args.experimental:
         uninstall('wandb', quiet=True)
         uninstall('pynvml', quiet=True)
@@ -1184,7 +1184,7 @@ def install_optional():
     install('hf_transfer', ignore=True, quiet=True)
     install('hf_xet', ignore=True, quiet=True)
     install('nvidia-ml-py', ignore=True, quiet=True)
-    install('pillow-jxl-plugin==1.3.5', ignore=True, quiet=True)
+    install('pillow-jxl-plugin==1.3.7', ignore=True, quiet=True)
     install('ultralytics==8.3.40', ignore=True, quiet=True)
     install('open-clip-torch', no_deps=True, quiet=True)
     install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
