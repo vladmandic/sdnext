@@ -54,7 +54,6 @@ def get_grid_size(imgs, batch_size=1, rows: int | None = None, cols: int | None 
             while len(imgs) % rows != 0:
                 rows -= 1
             cols = math.ceil(len(imgs) / rows)
-        return rows, cols
     elif rows is not None and cols is None:
         cols = math.ceil(len(imgs) / rows)
     elif rows is None and cols is not None:
