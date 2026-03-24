@@ -78,10 +78,11 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
 # --- Solver toggles (inference/FWD only, RDNA2/3/4 compatible) ---
 # Removed entirely — not representable in the UI, cannot be set by users:
 #   WRW (weight-gradient) and BWD (data-gradient) — training passes only, never run during inference
-#   XDLOPS, CK (Composable Kernel), MLIR, MP BD — CDNA (MI100/MI200/MI300) matrix engine; not on RDNA
+#   XDLOPS/CK CDNA-exclusive (MI100/MI200/MI300 matrix engine variants) — not on any RDNA
 #   Fixed-geometry (5x10, 7x7-ImageNet, 11x11) — shapes never appear in SD/video inference
 #   FP32-reference (NAIVE_CONV_FWD, FWDGEN) — IsApplicable() unreliable for FP16/BF16
 #   Wide MPASS (F3x4..F7x3) — kernel sizes that cannot match any SD convolution shape
+# Disabled by default (added but off): RDNA3/4-only — Group Conv XDLOPS, CK default kernels
 _SOLVER_DESCS: Dict[str, str] = {}
 
 _SOLVER_DESCS.update({
@@ -135,11 +136,18 @@ _SOLVER_DESCS.update({
     "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X3": "Enable AMD Winograd MPASS F3x3",
 })
 _SOLVER_DESCS.update({
-    # Implicit GEMM FWD — BWD/WRW (training), all XDLOPS/CDNA variants removed
+    # Implicit GEMM FWD — BWD/WRW (training), CDNA-exclusive XDLOPS variants removed
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1":     "Enable ASM Implicit GEMM FWD V4R1",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1_1X1": "Enable ASM Implicit GEMM FWD V4R1 1x1",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R1":     "Enable HIP Implicit GEMM FWD V4R1",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4":     "Enable HIP Implicit GEMM FWD V4R4",
+})
+_SOLVER_DESCS.update({
+    # Group Conv XDLOPS FWD — RDNA3/4 (gfx1100+) only; disabled by default
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS":         "Enable Group Conv Implicit GEMM XDLOPS FWD",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR": "Enable Group Conv Implicit GEMM XDLOPS FWD AI Heuristic",
+    # CK (Composable Kernel) default kernels — RDNA3/4 (gfx1100+); disabled by default
+    "MIOPEN_DEBUG_CK_DEFAULT_KERNELS": "Enable CK (Composable Kernel) default kernels",
 })
 
 
@@ -147,11 +155,16 @@ _SOLVER_DESCS.update({
 #   FORCE_IMMED_MODE_FALLBACK — overrides FIND_MODE entirely, defeats tuning DB
 #   Fury RxS F2x3/F3x2       — RDNA3/4-only; harmless on RDNA2 but won't select
 #   Rage RxS F2x3            — RDNA4-only
+#   Group Conv XDLOPS        — RDNA3/4-only (gfx1100+)
+#   CK_DEFAULT_KERNELS       — RDNA3/4-only (gfx1100+)
 SOLVER_DISABLED_BY_DEFAULT = {
     "MIOPEN_DEBUG_FORCE_IMMED_MODE_FALLBACK",
     "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F2X3",
     "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F3X2",
     "MIOPEN_DEBUG_AMD_WINOGRAD_RAGE_RXS_F2X3",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR",
+    "MIOPEN_DEBUG_CK_DEFAULT_KERNELS",
 }
 
 SOLVER_DTYPE_TAGS: Dict[str, str] = {
@@ -174,8 +187,11 @@ SOLVER_DTYPE_TAGS: Dict[str, str] = {
     "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X3":               "FP16/FP32",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1":       "FP16/FP32",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1_1X1":   "FP16/FP32",
-    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R1":       "FP16/FP32",
-    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4":       "FP16/FP32",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R1":                    "FP16/FP32",
+    "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4":                    "FP16/FP32",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS":            "FP16/BF16",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR":   "FP16/BF16",
+    "MIOPEN_DEBUG_CK_DEFAULT_KERNELS":                                 "FP16/BF16/FP32",
 }
 
 # Build full merged var registry
@@ -228,6 +244,11 @@ SOLVER_GROUPS: List[Tuple[str, List[str]]] = [
     ("Implicit GEMM Toggles", [
         "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_FWD_V4R1_1X1",
         "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R1", "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_FWD_V4R4",
+    ]),
+    ("Group Conv / CK Toggles (RDNA3/4+)", [
+        "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS",
+        "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR",
+        "MIOPEN_DEBUG_CK_DEFAULT_KERNELS",
     ]),
 ]
 
