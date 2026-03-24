@@ -197,7 +197,7 @@ def get_optimal_device():
     return torch.device(get_optimal_device_name())
 
 
-def torch_gc(force:bool=False, fast:bool=False, reason:str=None):
+def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None):
     def get_stats():
         mem_dict = memstats.memory_stats()
         gpu_dict = mem_dict.get('gpu', {})
