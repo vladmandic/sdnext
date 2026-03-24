@@ -30,7 +30,7 @@ class OnnxStableDiffusionPipeline(diffusers.OnnxStableDiffusionPipeline, Callabl
 
     def __call__(
         self,
-        prompt: str | list[str] = None,
+        prompt: str | list[str] | None = None,
         height: int | None = 512,
         width: int | None = 512,
         num_inference_steps: int | None = 50,

@@ -51,7 +51,7 @@ def diffusers_callback_legacy(step: int, timestep: int, latents: torch.FloatTens
             time.sleep(0.1)
 
 
-def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = None):
+def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | None = None):
     if kwargs is None:
         kwargs = {}
     t0 = time.time()

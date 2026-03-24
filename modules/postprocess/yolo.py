@@ -96,11 +96,11 @@ class YoloRestorer(Detailer):
             imgsz: int = 640,
             half: bool = True,
             device = devices.device,
-            augment: bool = None,
             agnostic: bool = False,
             retina: bool = False,
             mask: bool = True,
-            offload: bool = None,
+            augment: bool | None = None,
+            offload: bool | None = None,
             p = None,
         ) -> list[YoloResult]:
         if augment is None:
@@ -201,7 +201,7 @@ class YoloRestorer(Detailer):
                     break
         return result
 
-    def load(self, model_name: str = None):
+    def load(self, model_name: str | None = None):
         with load_lock:
             from modules import modelloader
             model = None
