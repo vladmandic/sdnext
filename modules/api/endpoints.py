@@ -242,7 +242,7 @@ def get_checkpoint():
             checkpoint['hash'] = shared.sd_model.sd_checkpoint_info.shorthash
     return checkpoint
 
-def set_checkpoint(sd_model_checkpoint: str, dtype:str=None, force:bool=False):
+def set_checkpoint(sd_model_checkpoint: str, dtype: str | None = None, force: bool = False):
     """Load a checkpoint by name. Optionally set dtype and force a clean reload."""
     from modules import sd_models, devices
     if force:
