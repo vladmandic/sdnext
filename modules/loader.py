@@ -135,6 +135,8 @@ import pydantic # pylint: disable=W0611,C0411
 timer.startup.record("pydantic")
 
 try:
+    # transformers==5.x has different dependency stack so switching between v4 and v5 becomes very painful
+    # this temporarily disables dependency version checks so we can use either v4 or v5 until we drop support for v4
     fake_version_check = types.ModuleType("transformers.dependency_versions_check")
     sys.modules["transformers.dependency_versions_check"] = fake_version_check # disable transformers version checks
     fake_version_check.dep_version_check = lambda pkg, hint=None: None
