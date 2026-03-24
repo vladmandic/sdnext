@@ -15,8 +15,10 @@ torch_version[0], torch_version[1] = int(torch_version[0]), int(torch_version[1]
 
 device_supports_fp64 = torch.xpu.has_fp64_dtype() if hasattr(torch.xpu, "has_fp64_dtype") else torch.xpu.get_device_properties(devices.device).has_fp64
 
-# pylint: disable=protected-access, missing-function-docstring, line-too-long, unnecessary-lambda, no-else-return
+# pylint: disable=protected-access, missing-function-docstring, line-too-long, no-else-return
 
+def return_false(*args, **kwargs):
+    return False
 
 @property
 def is_cuda(self):
@@ -437,6 +439,6 @@ def ipex_hijacks():
 
     if not hasattr(torch.cuda.amp, "common"):
         torch.cuda.amp.common = nullcontext()
-    torch.cuda.amp.common.amp_definitely_not_available = lambda: False
+    torch.cuda.amp.common.amp_definitely_not_available = return_false
 
     return device_supports_fp64
