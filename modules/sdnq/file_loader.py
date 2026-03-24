@@ -13,7 +13,7 @@ def map_keys(key: str, key_mapping: dict) -> str:
     return new_key
 
 
-def load_safetensors(files: list[str], state_dict: dict = None, key_mapping: dict = None, device: torch.device = "cpu") -> dict:
+def load_safetensors(files: list[str], state_dict: dict | None = None, key_mapping: dict | None = None, device: torch.device = "cpu") -> dict:
     from safetensors.torch import safe_open
     if state_dict is None:
         state_dict = {}
@@ -23,7 +23,7 @@ def load_safetensors(files: list[str], state_dict: dict = None, key_mapping: dic
                 state_dict[map_keys(key, key_mapping)] = f.get_tensor(key)
 
 
-def load_threaded(files: list[str], state_dict: dict = None, key_mapping: dict = None, device: torch.device = "cpu") -> dict:
+def load_threaded(files: list[str], state_dict: dict | None = None, key_mapping: dict | None = None, device: torch.device = "cpu") -> dict:
     future_items = {}
     if state_dict is None:
         state_dict = {}
@@ -34,7 +34,7 @@ def load_threaded(files: list[str], state_dict: dict = None, key_mapping: dict =
             future.result()
 
 
-def load_streamer(files: list[str], state_dict: dict = None, key_mapping: dict = None, device: torch.device = "cpu") -> dict:
+def load_streamer(files: list[str], state_dict: dict | None = None, key_mapping: dict | None = None, device: torch.device = "cpu") -> dict:
     # requires pip install runai_model_streamer
     from runai_model_streamer import SafetensorsStreamer
     if state_dict is None:
@@ -45,7 +45,7 @@ def load_streamer(files: list[str], state_dict: dict = None, key_mapping: dict =
             state_dict[map_keys(key, key_mapping)] = tensor.to(device)
 
 
-def load_files(files: list[str], state_dict: dict = None, key_mapping: dict = None, device: torch.device = "cpu", method: str = None) -> dict:
+def load_files(files: list[str], state_dict: dict | None = None, key_mapping: dict | None = None, device: torch.device = "cpu", method: str | None = None) -> dict:
     # note: files is list-of-files within a module for chunked loading, not accross model
     if isinstance(files, str):
         files = [files]

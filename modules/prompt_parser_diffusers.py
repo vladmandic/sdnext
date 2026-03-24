@@ -600,7 +600,7 @@ def split_prompts(pipe, prompt, SD3 = False):
     return prompt, prompt2, prompt3, prompt4
 
 
-def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int = None, prompt_mean_norm=None, diffusers_zeros_prompt_pad=None, te_pooled_embeds=None):
+def get_weighted_text_embeddings(pipe, prompt: str = "", neg_prompt: str = "", clip_skip: int | None = None, prompt_mean_norm=None, diffusers_zeros_prompt_pad=None, te_pooled_embeds=None):
     device = devices.device
     if prompt is None:
         prompt = ''
