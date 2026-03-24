@@ -21,26 +21,6 @@ from modules import shared, devices, sd_models_utils
 from modules.logger import log
 
 
-# importing openvino.runtime forces DeprecationWarning to "always"
-# And Intel's own libs (NNCF) imports the deprecated module
-# Don't allow openvino to override warning filters:
-try:
-    import warnings
-    filterwarnings = warnings.filterwarnings
-    warnings.filterwarnings = lambda *args, **kwargs: None
-    import openvino.runtime # pylint: disable=unused-import
-    installer.torch_info.set(openvino=openvino.runtime.get_version())
-    warnings.filterwarnings = filterwarnings
-except Exception:
-    pass
-
-try:
-    # silence the pytorch version warning
-    import nncf
-    nncf.common.logging.logger.warn_bkc_version_mismatch = lambda *args, **kwargs: None
-except Exception:
-    pass
-
 # Set default params
 torch._dynamo.config.cache_size_limit = max(64, torch._dynamo.config.cache_size_limit) # pylint: disable=protected-access
 torch._dynamo.eval_frame.check_if_dynamo_supported = lambda: True # pylint: disable=protected-access
@@ -212,9 +192,7 @@ def execute_cached(compiled_model, *args):
 
 def openvino_compile(gm: GraphModule, *example_inputs, model_hash_str: str = None, file_name=""):
     core = Core()
-
     device = get_device()
-    global dont_use_quant
 
     if file_name is not None and os.path.isfile(file_name + ".xml") and os.path.isfile(file_name + ".bin"):
         om = core.read_model(file_name + ".xml")
@@ -264,7 +242,6 @@ def openvino_compile(gm: GraphModule, *example_inputs, model_hash_str: str = Non
     if model_hash_str is not None:
         hints['CACHE_DIR'] = shared.opts.openvino_cache_path + '/blob'
     core.set_property(hints)
-    dont_use_quant = False
 
     compiled_model = core.compile_model(om, device)
     return compiled_model
@@ -273,8 +250,6 @@ def openvino_compile(gm: GraphModule, *example_inputs, model_hash_str: str = Non
 def openvino_compile_cached_model(cached_model_path, *example_inputs):
     core = Core()
     om = core.read_model(cached_model_path + ".xml")
-
-    global dont_use_quant
 
     for idx, input_data in enumerate(example_inputs):
         om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
@@ -287,7 +262,6 @@ def openvino_compile_cached_model(cached_model_path, *example_inputs):
     elif shared.opts.openvino_accuracy == "accuracy":
         hints[ov_hints.execution_mode] = ov_hints.ExecutionMode.ACCURACY
     core.set_property(hints)
-    dont_use_quant = False
 
     compiled_model = core.compile_model(om, get_device())
     return compiled_model
@@ -413,10 +387,8 @@ def get_subgraph_type(tensor):
 
 @fake_tensor_unsupported
 def openvino_fx(subgraph, example_inputs, options=None):
-    global dont_use_quant
     global subgraph_type
 
-    dont_use_quant = False
     dont_use_faketensors = False
     executor_parameters = None
     inputs_reversed = False
@@ -425,20 +397,24 @@ def openvino_fx(subgraph, example_inputs, options=None):
     subgraph_type = []
     subgraph.apply(get_subgraph_type)
 
+    """
     # SD 1.5 / SDXL VAE
-    if (subgraph_type[0] is torch.nn.modules.conv.Conv2d and
+    if (
+        subgraph_type[0] is torch.nn.modules.conv.Conv2d and
         subgraph_type[1] is torch.nn.modules.conv.Conv2d and
         subgraph_type[2] is torch.nn.modules.normalization.GroupNorm and
-        subgraph_type[3] is torch.nn.modules.activation.SiLU):
-
+        subgraph_type[3] is torch.nn.modules.activation.SiLU
+    ):
         pass
+    """
 
     # SD 1.5 / SDXL Text Encoder
-    elif (subgraph_type[0] is torch.nn.modules.sparse.Embedding and
+    if (
+        subgraph_type[0] is torch.nn.modules.sparse.Embedding and
         subgraph_type[1] is torch.nn.modules.sparse.Embedding and
         subgraph_type[2] is torch.nn.modules.normalization.LayerNorm and
-        subgraph_type[3] is torch.nn.modules.linear.Linear):
-
+        subgraph_type[3] is torch.nn.modules.linear.Linear
+    ):
         dont_use_faketensors = True
 
     # Create a hash to be used for caching
