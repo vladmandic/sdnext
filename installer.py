@@ -706,7 +706,6 @@ def install_openvino():
 
     if not (args.skip_all or args.skip_requirements):
         install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.4.1'), 'openvino')
-        install(os.environ.get('NNCF_COMMAND', 'nncf==2.19.0'), 'nncf')
     ts('openvino', t_start)
     return torch_command
 
@@ -730,10 +729,6 @@ def install_torch_addons():
         install('DeepCache')
     if opts.get('cuda_compile_backend', '') == 'olive-ai':
         install('olive-ai')
-    if len(opts.get('optimum_quanto_weights', [])):
-        install('optimum-quanto==0.2.7', 'optimum-quanto')
-    if len(opts.get('torchao_quantization', [])):
-        install('torchao==0.10.0', 'torchao')
     if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
         install('pillow-jxl-plugin==1.3.7', 'pillow-jxl-plugin')
     if not args.experimental:
@@ -1189,9 +1184,6 @@ def install_optional():
     install('open-clip-torch', no_deps=True, quiet=True)
     install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
     # install('git+https://github.com/openai/CLIP.git', 'clip', quiet=True, no_build_isolation=True)
-    # install('torchao==0.10.0', ignore=True, quiet=True)
-    # install('bitsandbytes==0.47.0', ignore=True, quiet=True)
-    # install('optimum-quanto==0.2.7', ignore=True, quiet=True)
     ts('optional', t_start)
 
 

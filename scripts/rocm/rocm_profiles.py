@@ -98,7 +98,7 @@ RDNA2: Dict[str, str] = {
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_3X3U":                    "1",
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U":                    "1",
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1UV2":                  "1",
-    # 5X10U2V2: fixed geometry (5×10 stride-2), no SD conv matches — disabled
+    # 5X10U2V2: fixed geometry (5*10 stride-2), no SD conv matches — disabled
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_5X10U2V2":                "0",
     # 7X7C3H224W224: hard-coded ImageNet stem (C=3, H=W=224, K=64) — never matches SD — disabled
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_7X7C3H224W224":           "0",
@@ -117,7 +117,7 @@ RDNA2: Dict[str, str] = {
     # FWD / FWD1X1: FP32/FP16 forward — enabled
     "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD":      "1",
     "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD1X1":   "1",
-    # FWD11X11: requires 11×11 kernel — no SD match — disabled
+    # FWD11X11: requires 11*11 kernel — no SD match — disabled
     "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD11X11": "0",
     # FWDGEN: FP32 generic OCL fallback — IsApplicable does NOT reliably reject for FP16;
     # can produce dtype=float32 output for FP16 inputs — disabled

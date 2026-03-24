@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-23
+## Update for 2026-03-24
 
-### Highlights for 2026-03-23
+### Highlights for 2026-03-4
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit* *SkyWorks-UniPic-3* and new *Anima-Preview*  
@@ -18,7 +18,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-23
+### Details for 2026-03-24
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -70,6 +70,8 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
     use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
     > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
 - **UI**
+  - legacy panels **T2I** and **I2I** are disabled by default  
+    you can re-enable them in *settings -> ui -> hide legacy tabs*  
   - new panel: **Server Info** with detailed runtime informaton  
   - **Networks** add **UNet/DiT**  
   - **Localization** improved translation quality and new translations locales:  
@@ -92,6 +94,9 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - new `/sdapi/v1/rembg` endpoint for background removal  
   - new `/sdadpi/v1/unet` endpoint to list available unets/dits  
   - use rate limiting for api logging  
+- **Obsoleted**
+  - removed support for additional quantization engines: *BitsAndBytes, TorchAO, Optimum-Quanto, NNCF*  
+    *note*: SDNQ is quantization engine of choice for SD.Next  
 - **Internal**
   - `python==3.13` full support  
   - `python==3.14` initial support  
