@@ -413,9 +413,12 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
 
 
 @devices.inference_context()
-def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dtype="int2", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=1e-2, use_svd=False, use_quantized_matmul=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dtype="uint4", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=None, use_svd=False, use_quantized_matmul=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, param_name=None): # pylint: disable=unused-argument
     if torch_dtype is None:
         torch_dtype = weight.dtype
+    if dynamic_loss_threshold is None or dynamic_loss_threshold < 0:
+        dynamic_loss_threshold = 10 ** -(dtype_dict[weights_dtype]["num_bits"] / 2)
+
     if weight.dtype != torch.float64:
         weight = weight.to(dtype=torch.float32)
     weight_std = weight.std().square_().clamp_(min=1e-8)
@@ -463,7 +466,7 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
 
 
 @devices.inference_context()
-def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=1e-2, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, non_blocking=False, modules_to_not_convert=None, modules_dtype_dict=None, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=None, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, non_blocking=False, modules_to_not_convert=None, modules_dtype_dict=None, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
     if layer_class_name in conv_transpose_types or layer_class_name in conv_types:
         if not quant_conv:
@@ -547,7 +550,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None
 
 
 @devices.inference_context()
-def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=1e-2, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, non_blocking=False, modules_to_not_convert: list[str] | None = None, modules_dtype_dict: dict[str, list[str]] | None = None, modules_quant_config: dict[str, dict] | None = None, quantization_device=None, return_device=None, full_param_name=""): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=None, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, non_blocking=False, modules_to_not_convert: list[str] | None = None, modules_dtype_dict: dict[str, list[str]] | None = None, modules_quant_config: dict[str, dict] | None = None, quantization_device=None, return_device=None, full_param_name=""): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model, modules_to_not_convert, modules_dtype_dict
@@ -633,7 +636,7 @@ def sdnq_post_load_quant(
     group_size: int = 0,
     svd_rank: int = 32,
     svd_steps: int = 8,
-    dynamic_loss_threshold: float = 1e-2,
+    dynamic_loss_threshold: float | None = None,
     use_svd: bool = False,
     quant_conv: bool = False,
     use_quantized_matmul: bool = False,
@@ -1015,8 +1018,9 @@ class SDNQConfig(QuantizationConfigMixin):
             group_size = 0 will automatically select a group size based on weights_dtype.
         svd_rank (`int`, *optional*, defaults to `32`):
             The rank size used for the SVDQuant algorithm.
-        dynamic_loss_threshold (`float`, *optional*, defaults to `1e-2`):
+        dynamic_loss_threshold (`float`, *optional*, defaults to `None`):
             The target quantization mse loss threshold to use for dynamic quantization.
+            The value `None` or negative values means auto select a threshold based on the weights_dtype.
         svd_steps (`int`, *optional*, defaults to `8`):
             The number of iterations to use in svd lowrank estimation.
         use_svd (`bool`, *optional*, defaults to `False`):
@@ -1059,7 +1063,7 @@ class SDNQConfig(QuantizationConfigMixin):
         group_size: int = 0,
         svd_rank: int = 32,
         svd_steps: int = 8,
-        dynamic_loss_threshold: float = 1e-2,
+        dynamic_loss_threshold: float | None = None,
         use_svd: bool = False,
         use_grad_ckpt: bool = True,
         quant_conv: bool = False,
