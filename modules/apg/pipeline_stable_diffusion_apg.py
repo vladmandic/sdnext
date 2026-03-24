@@ -749,12 +749,12 @@ class StableDiffusionPipelineAPG(
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: str | list[str] = None,
+        prompt: str | list[str] | None = None,
         height: int | None = None,
         width: int | None = None,
         num_inference_steps: int = 50,
-        timesteps: list[int] = None,
-        sigmas: list[float] = None,
+        timesteps: list[int] | None = None,
+        sigmas: list[float] | None = None,
         guidance_scale: float = 7.5,
         negative_prompt: str | list[str] | None = None,
         num_images_per_prompt: int | None = 1,
@@ -771,7 +771,7 @@ class StableDiffusionPipelineAPG(
         guidance_rescale: float = 0.0,
         clip_skip: int | None = None,
         callback_on_step_end: Callable[[int, int, dict], None] | PipelineCallback | MultiPipelineCallbacks | None = None,
-        callback_on_step_end_tensor_inputs: list[str] = None,
+        callback_on_step_end_tensor_inputs: list[str] | None = None,
         **kwargs,
     ):
         r"""
