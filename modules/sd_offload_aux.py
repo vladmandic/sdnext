@@ -33,7 +33,7 @@ def deregister_aux(name: str) -> None:
         debug_move(f'Offload: type=aux op=deregister name={name}')
 
 
-def evict_aux(exclude: str = None, reason: str = 'evict') -> None:
+def evict_aux(exclude: str | None = None, reason: str = 'evict') -> None:
     for name, entry in aux_models.items():
         if name == exclude:
             continue
