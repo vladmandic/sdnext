@@ -38,7 +38,7 @@ def init_generator(device: torch.device, fallback: torch.Generator = None):
             return fallback
 
 
-def do_nothing(x: torch.Tensor, mode: str = None): # pylint: disable=unused-argument
+def do_nothing(x: torch.Tensor, mode: str | None = None): # pylint: disable=unused-argument
     return x
 
 

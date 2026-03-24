@@ -254,7 +254,7 @@ class EmbeddingDatabase:
         self.ids_lookup[first_id] = sorted(self.ids_lookup[first_id] + [(ids, embedding)], key=lambda x: len(x[0]), reverse=True)
         return embedding
 
-    def load_diffusers_embedding(self, filename: str | list[str] = None, data: dict = None):
+    def load_diffusers_embedding(self, filename: str | list[str] | None = None, data: dict | None = None):
         """
         File names take precidence over bundled embeddings passed as a dict.
         Bundled embeddings are automatically set to overwrite previous embeddings.

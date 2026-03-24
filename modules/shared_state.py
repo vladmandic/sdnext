@@ -148,7 +148,7 @@ class State:
                 return job
         return None
 
-    def history(self, op:str, task_id:str=None, results:list=None):
+    def history(self, op: str, task_id: str | None = None, results: list | None = None):
         if results is None:
             results = []
         job = {
@@ -174,7 +174,7 @@ class State:
         if len(self.results) > 0:
             self.history('output', self.id, results=self.results)
 
-    def get_id(self, task_id:str=None):
+    def get_id(self, task_id: str | None = None):
         if task_id is None or task_id == 0:
             task_id = uuid.uuid4().hex[:15]
         if not isinstance(task_id, str):
