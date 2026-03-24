@@ -83,7 +83,7 @@ def warn_once(msg):
         warned = True
 
 class OpenVINOGraphModule(torch.nn.Module):
-    def __init__(self, gm, partition_id, use_python_fusion_cache, model_hash_str: str = None, file_name="", int_inputs=None):
+    def __init__(self, gm, partition_id, use_python_fusion_cache, model_hash_str: str | None = None, file_name="", int_inputs: list | None = None):
         if int_inputs is None:
             int_inputs = []
         super().__init__()
@@ -211,7 +211,7 @@ def execute_cached(compiled_model, *args):
     result = [torch.from_numpy(res[out]) for out in compiled_model.outputs]
     return result
 
-def openvino_compile(gm: GraphModule, *example_inputs, model_hash_str: str = None, file_name=""):
+def openvino_compile(gm: GraphModule, *example_inputs, model_hash_str: str | None = None, file_name=""):
     core = Core()
 
     device = get_device()
@@ -427,7 +427,7 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
     return shared.compiled_model_state.partitioned_modules[signature][0](*ov_inputs)
 
 
-def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_str: str = None, file_name="", int_inputs=None):
+def partition_graph(gm: GraphModule, use_python_fusion_cache: bool, model_hash_str: str | None = None, file_name="", int_inputs=None):
     if int_inputs is None:
         int_inputs = []
     for node in gm.graph.nodes:
