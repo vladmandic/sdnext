@@ -51,14 +51,11 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.default_generators = torch.xpu.default_generators
             torch.cuda.set_stream = torch.xpu.set_stream
             torch.cuda.torch = torch.xpu.torch
-            torch.cuda.Union = torch.xpu.Union
             torch.cuda.StreamContext = torch.xpu.StreamContext
             torch.cuda.random = torch.xpu.random
             torch.cuda._get_device_index = torch.xpu._get_device_index
             torch.cuda._lazy_init = torch.xpu._lazy_init
             torch.cuda._lazy_call = torch.xpu._lazy_call
-            torch.cuda._device = torch.xpu._device
-            torch.cuda._device_t = torch.xpu._device_t
             torch.cuda.is_current_stream_capturing = lambda: False
 
             torch.cuda.__annotations__ = torch.xpu.__annotations__
@@ -141,12 +138,23 @@ def ipex_init(): # pylint: disable=too-many-statements
                     torch.cuda.memory_summary = torch.xpu.memory_summary
                     torch.cuda.memory_snapshot = torch.xpu.memory_snapshot
 
+            if torch_version[0] < 2 or (torch_version[0] == 2 and torch_version[1] < 11):
+                torch.cuda.Union = torch.xpu.Union
+                torch.cuda._device = torch.xpu._device
+                torch.cuda._device_t = torch.xpu._device_t
+
             # Memory:
             if "linux" in sys.platform and "WSL2" in os.popen("uname -a").read():
                 torch.xpu.empty_cache = lambda: None
             torch.cuda.empty_cache = torch.xpu.empty_cache
 
-            torch.cuda.memory = torch.xpu.memory
+            if torch_version[0] >= 2 and torch_version[1] >= 8:
+                old_cpa = torch.cuda.memory.CUDAPluggableAllocator
+                torch.cuda.memory = torch.xpu.memory
+                torch.xpu.memory.CUDAPluggableAllocator = old_cpa
+            else:
+                torch.cuda.memory = torch.xpu.memory
+
             torch.cuda.memory_stats = torch.xpu.memory_stats
             torch.cuda.memory_allocated = torch.xpu.memory_allocated
             torch.cuda.max_memory_allocated = torch.xpu.max_memory_allocated
