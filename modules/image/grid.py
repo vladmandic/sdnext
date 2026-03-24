@@ -1,5 +1,6 @@
 import math
 from collections import namedtuple
+from typing import TYPE_CHECKING
 import numpy as np
 from PIL import Image, ImageFont, ImageDraw
 from modules import shared, script_callbacks
@@ -26,7 +27,7 @@ def check_grid_size(imgs):
     return ok
 
 
-def get_grid_size(imgs, batch_size=1, rows=None, cols=None):
+def get_grid_size(imgs, batch_size=1, rows: int | None = None, cols: int | None = None):
     if rows and rows > len(imgs):
         rows = len(imgs)
     if cols and cols > len(imgs):
@@ -34,12 +35,16 @@ def get_grid_size(imgs, batch_size=1, rows=None, cols=None):
     if rows is None and cols is None:
         if shared.opts.n_rows > 0:
             rows = shared.opts.n_rows
+            if TYPE_CHECKING:
+                assert isinstance(rows, int)
             cols = math.ceil(len(imgs) / rows)
         elif shared.opts.n_rows == 0:
             rows = batch_size
             cols = math.ceil(len(imgs) / rows)
         elif shared.opts.n_cols > 0:
             cols = shared.opts.n_cols
+            if TYPE_CHECKING:
+                assert isinstance(cols, int)
             rows = math.ceil(len(imgs) / cols)
         elif shared.opts.n_cols == 0:
             cols = batch_size
@@ -49,16 +54,20 @@ def get_grid_size(imgs, batch_size=1, rows=None, cols=None):
             while len(imgs) % rows != 0:
                 rows -= 1
             cols = math.ceil(len(imgs) / rows)
-    elif cols is None:
+        return rows, cols
+    elif rows is not None and cols is None:
         cols = math.ceil(len(imgs) / rows)
-    elif rows is None:
+    elif rows is None and cols is not None:
         rows = math.ceil(len(imgs) / cols)
     else:
+        if TYPE_CHECKING:
+            assert isinstance(rows, int)
+            assert isinstance(cols, int)
         pass
     return rows, cols
 
 
-def image_grid(imgs, batch_size:int=1, rows:int=None, cols:int=None):
+def image_grid(imgs, batch_size=1, rows=1, cols=1):
     rows, cols = get_grid_size(imgs, batch_size, rows=rows, cols=cols)
     params = script_callbacks.ImageGridLoopParams(imgs, cols, rows)
     script_callbacks.image_grid_callback(params)
