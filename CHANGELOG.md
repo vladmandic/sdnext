@@ -49,12 +49,11 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - **captioning** and **prompt enhance**: add support for all cloud-based Gemini models  
     *3.1/3.0/2.5 pro/flash/flash-lite*  
   - improve captioning and prompt enhance memory handling/offloading  
-- **Control**
-  - new **pre-processors**:  
-    *anyline, depth_anything v2, dsine, lotus, marigold normals, oneformer, rtmlib pose, sam2, stablenormal, teed, vitpose*  
 - **Features**
   - **Secrets** handling: new `secrets.json` and special handling for tokens/keys/passwords  
     used to be treated like any other `config.json` param which can cause security issues  
+  - **Control**: many new **pre-processors**  
+    *anyline, depth_anything v2, dsine, lotus, marigold normals, oneformer, rtmlib pose, sam2, stablenormal, teed, vitpose*  
   - pipelines: add **ZImageInpaint**  
   - rewritten **CivitAI** module  
     browse/discover mode with sort, period, type/base dropdowns; URL paste; subfolder sorting; auto-browse; dynamic dropdowns  
@@ -66,12 +65,13 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - **ROCm** advanced configuration and tuning, thanks @resonantsky  
     see *main interface -> scripts -> rocm advanced config*  
   - **ROCm** support for additional AMD GPUs: `gfx103X`, thanks @crashingalexsan  
-  - **Cuda** `torch==2.10` removed support for `rtx1000` series and older GPUs  
-    use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
-    > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
+  - **Cuda** update to `torch=2.11` with `cuda=13.0`  
   - **Ipex** update to `torch==2.11`  
   - **ROCm/Linux** update to `torch==2.11` with `rocm==7.2`  
   - **OpenVINO** update to `torch==2.11` and `openvino==2026.0`
+  - *note* **Cuda** `torch==2.10` removed support for `rtx1000` series and older GPUs  
+    use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
+    > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
 - **UI**
   - legacy panels **T2I** and **I2I** are disabled by default  
     you can re-enable them in *settings -> ui -> hide legacy tabs*  

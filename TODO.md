@@ -3,11 +3,9 @@
 ## Release
 
 - Implement: `unload_auxiliary_models`
-- Switch to: `torch==2.11`
 - Add notes: **Enso**
 - Tips: **Color Grading**
 - Regen: **Localization**
-- AGENTS.md
 
 ## Internal
 
@@ -30,7 +28,7 @@
 - Feature: Video tab add full API support
 - Refactor: Unify *huggingface* and *diffusers* model folders
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
-- Reimplement `llama` remover for Kanvas, pending end-to-end review of `Kanvas`
+- Reimplement `llama` remover for Kanvas
 
 ## OnHold
 
@@ -72,9 +70,12 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [Step1X-Edit](https://github.com/stepfun-ai/Step1X-Edit):Multimodal image editing decoding MLLM tokens via DiT
 - [OneReward](https://github.com/bytedance/OneReward):Reinforcement learning grounded generative reward model for image editing
 - [ByteDance DreamO](https://huggingface.co/ByteDance/DreamO): image customization framework for IP adaptation and virtual try-on
+- [nVidia Cosmos-Transfer-2.5](https://github.com/huggingface/diffusers/pull/13066)
 
 ### Video
 
+- [LTX-Condition](https://github.com/huggingface/diffusers/pull/13058)
+- [LTX-Distilled](https://github.com/huggingface/diffusers/pull/12934)
 - [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p): Unified foundation model for synchronized high-fidelity video and audio
 - [Wan family (Wan2.1 / Wan2.2 variants)](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B): MoE-based foundational tools for cinematic T2V/I2V/TI2V
  example: [Wan2.1-T2V-14B-CausVid](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-CausVid)
