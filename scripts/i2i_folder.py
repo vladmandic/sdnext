@@ -33,6 +33,12 @@ class Script(scripts_manager.Script):
                 elem_id=self.elem_id("output_dir"),
             )
         with gr.Row():
+            upscale_only = gr.Checkbox(
+                label="Upscale only (skip inference, apply post-resize directly to inputs)",
+                value=False,
+                elem_id=self.elem_id("upscale_only"),
+            )
+        with gr.Row():
             prompt_override = gr.Textbox(
                 label="Prompt",
                 placeholder="Leave empty to use the panel prompt",
@@ -154,9 +160,9 @@ class Script(scripts_manager.Script):
                 value=0, precision=0,
                 elem_id=self.elem_id("resize_height"),
             )
-        return [folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, pre_resize_width, pre_resize_height, resize_enabled, resize_mode, resize_name, resize_scale, resize_width, resize_height]
+        return [folder, output_dir, upscale_only, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, pre_resize_width, pre_resize_height, resize_enabled, resize_mode, resize_name, resize_scale, resize_width, resize_height]
 
-    def run(self, p, folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, pre_resize_width, pre_resize_height, resize_enabled, resize_mode, resize_name, resize_scale, resize_width, resize_height): # pylint: disable=arguments-differ
+    def run(self, p, folder, output_dir, upscale_only, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, pre_resize_width, pre_resize_height, resize_enabled, resize_mode, resize_name, resize_scale, resize_width, resize_height): # pylint: disable=arguments-differ
         folder = (folder or "").strip()
         if not folder or not os.path.isdir(folder):
             log.error(f"Image folder batch: invalid or missing folder: {folder!r}")
@@ -226,21 +232,30 @@ class Script(scripts_manager.Script):
                 cp.width = img.width
                 cp.height = img.height
                 log.info(f"Image folder batch: pre-resize to {img.size} mode={shared.resize_modes[pre_resize_mode]!r} method={pre_resize_name!r}")
-            cp.batch_size = 1
-            cp.n_iter = 1
-            cp.do_not_save_samples = True
-            cp.do_not_save_grid = True
+            if upscale_only:
+                log.info(f"Image folder batch: [{i + 1}/{len(files)}] upscale-only file={os.path.basename(filepath)} size={img.size}")
+                out_img = img
+            else:
+                cp.batch_size = 1
+                cp.n_iter = 1
+                cp.do_not_save_samples = True
+                cp.do_not_save_grid = True
 
-            log.info(f"Image folder batch: [{i + 1}/{len(files)}] file={os.path.basename(filepath)} size={img.size} seed={cp.seed}")
+                log.info(f"Image folder batch: [{i + 1}/{len(files)}] file={os.path.basename(filepath)} size={img.size} seed={cp.seed}")
 
-            proc = processing.process_images(cp)
-            img.close()
+                proc = processing.process_images(cp)
+                img.close()
 
-            if proc is None or not proc.images:
-                log.warning(f"Image folder batch: no output for {filepath!r}")
-                continue
+                if proc is None or not proc.images:
+                    log.warning(f"Image folder batch: no output for {filepath!r}")
+                    continue
 
-            out_img = proc.images[0]
+                out_img = proc.images[0]
+                all_prompts += proc.all_prompts
+                all_seeds += proc.all_seeds
+                all_negative += proc.all_negative_prompts
+                infotexts += proc.infotexts
+
             if resize_enabled and resize_mode != 0 and resize_name not in ('None', '') and shared.sd_upscalers:
                 target_w = int(resize_width) if int(resize_width) > 0 else int(out_img.width * resize_scale)
                 target_h = int(resize_height) if int(resize_height) > 0 else int(out_img.height * resize_scale)
@@ -254,9 +269,5 @@ class Script(scripts_manager.Script):
             log.info(f"Image folder batch: saved {out_path!r}")
 
             all_images.append(out_img)
-            all_prompts += proc.all_prompts
-            all_seeds += proc.all_seeds
-            all_negative += proc.all_negative_prompts
-            infotexts += proc.infotexts
 
         return get_processed(p, all_images, p.seed, "", all_prompts=all_prompts, all_seeds=all_seeds, all_negative_prompts=all_negative, infotexts=infotexts)
