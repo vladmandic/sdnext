@@ -321,7 +321,7 @@ class Script(scripts_manager.Script):
         from modules.sd_models_compile import compile_torch
         self.llm = compile_torch(self.llm, apply_to_components=False, op="LLM")
 
-    def load(self, name:str=None, model_repo:str=None, model_gguf:str=None, model_type:str=None, model_file:str=None):
+    def load(self, name:str | None=None, model_repo:str | None=None, model_gguf:str | None=None, model_type:str | None=None, model_file:str | None=None):
         # Strip symbols from display name if present
         name = get_model_repo_from_display(name) if name else self.options.default
         if self.busy:
@@ -535,21 +535,21 @@ class Script(scripts_manager.Script):
         return current_image
 
     def enhance(self,
-                model: str=None,
-                prompt:str=None,
-                system:str=None,
-                prefix:str=None,
-                suffix:str=None,
-                sample:bool=None,
-                tokens:int=None,
-                temperature:float=None,
-                penalty:float=None,
-                top_k:int=None,
-                top_p:float=None,
+                model: str | None=None,
+                prompt:str | None=None,
+                system:str | None=None,
+                prefix:str | None=None,
+                suffix:str | None=None,
+                sample:bool | None=None,
+                tokens:int | None=None,
+                temperature:float | None=None,
+                penalty:float | None=None,
+                top_k:int | None=None,
+                top_p:float | None=None,
                 thinking:bool=False,
                 seed:int=-1,
                 image=None,
-                nsfw:bool=None,
+                nsfw:bool | None=None,
                 use_vision:bool=True,
                 prefill:str='',
                 keep_prefill:bool=False,
