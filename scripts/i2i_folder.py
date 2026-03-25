@@ -80,6 +80,12 @@ class Script(scripts_manager.Script):
         with gr.Row():
             gr.HTML('<b>Post-inference resize</b>')
         with gr.Row():
+            resize_enabled = gr.Checkbox(
+                label="Enable post-inference resize",
+                value=False,
+                elem_id=self.elem_id("resize_enabled"),
+            )
+        with gr.Row():
             _upscaler_choices = [x.name for x in shared.sd_upscalers] or ["None"]
             resize_mode = gr.Dropdown(
                 label="Resize mode",
@@ -100,9 +106,9 @@ class Script(scripts_manager.Script):
                 label="Scale factor",
                 elem_id=self.elem_id("resize_scale"),
             )
-        return [folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, resize_mode, resize_name, resize_scale]
+        return [folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, resize_enabled, resize_mode, resize_name, resize_scale]
 
-    def run(self, p, folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, resize_mode, resize_name, resize_scale): # pylint: disable=arguments-differ
+    def run(self, p, folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, resize_enabled, resize_mode, resize_name, resize_scale): # pylint: disable=arguments-differ
         folder = (folder or "").strip()
         if not folder or not os.path.isdir(folder):
             log.error(f"Image folder batch: invalid or missing folder: {folder!r}")
@@ -115,6 +121,9 @@ class Script(scripts_manager.Script):
 
         out_dir = (output_dir or "").strip() or os.path.join(folder, "output")
         os.makedirs(out_dir, exist_ok=True)
+        resize_out_dir = os.path.join(os.path.dirname(out_dir), "output-resized") if resize_enabled else None
+        if resize_out_dir:
+            os.makedirs(resize_out_dir, exist_ok=True)
 
         log.info(f"Image folder batch: folder={folder!r} images={len(files)} output={out_dir!r}")
 
@@ -176,11 +185,13 @@ class Script(scripts_manager.Script):
                 continue
 
             out_img = proc.images[0]
-            if resize_mode != 0 and resize_name != 'None':
+            if resize_enabled and resize_mode != 0 and resize_name != 'None':
                 target_w = int(out_img.width * resize_scale)
                 target_h = int(out_img.height * resize_scale)
-                out_img = images.resize_image(resize_mode, out_img, target_w, target_h, resize_name)
-                log.info(f"Image folder batch: resized to {out_img.size} mode={shared.resize_modes[resize_mode]!r} method={resize_name!r}")
+                resized_img = images.resize_image(resize_mode, out_img, target_w, target_h, resize_name)
+                log.info(f"Image folder batch: resized to {resized_img.size} mode={shared.resize_modes[resize_mode]!r} method={resize_name!r}")
+                res_name = os.path.splitext(os.path.basename(filepath))[0] + ".png"
+                resized_img.save(os.path.join(resize_out_dir, res_name))
             out_name = os.path.splitext(os.path.basename(filepath))[0] + ".png"
             out_path = os.path.join(out_dir, out_name)
             out_img.save(out_path)
