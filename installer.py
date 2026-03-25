@@ -152,7 +152,7 @@ def package_spec(package):
 
 
 # check if package is installed
-def installed(package, friendly: str = None, quiet = False): # pylint: disable=redefined-outer-name
+def installed(package, friendly: str | None = None, quiet = False): # pylint: disable=redefined-outer-name
     t_start = time.time()
     ok = True
     try:
@@ -276,7 +276,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
 
 
 # install package using pip if not already installed
-def install(package, friendly: str = None, ignore: bool = False, reinstall: bool = False, no_deps: bool = False, quiet: bool = False, force: bool = False, no_build_isolation: bool = False):
+def install(package, friendly: str | None = None, ignore: bool = False, reinstall: bool = False, no_deps: bool = False, quiet: bool = False, force: bool = False, no_build_isolation: bool = False):
     t_start = time.time()
     res = ''
     force = force or args.reinstall
@@ -293,7 +293,7 @@ def install(package, friendly: str = None, ignore: bool = False, reinstall: bool
 
 
 # execute git command
-def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = False): # pylint: disable=unused-argument
+def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool = False): # pylint: disable=unused-argument
     t_start = time.time()
     if args.skip_git:
         return ''

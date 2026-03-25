@@ -117,7 +117,7 @@ def is_installed(pkg): # compatibility function
 
 
 @lru_cache
-def repo_dir(name): # compatibility function
+def repo_dir(name: str): # compatibility function
     return os.path.join(script_path, dir_repos, name)
 
 

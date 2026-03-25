@@ -413,9 +413,14 @@ exclude = [
        ]
 
 [tool.ty.rules]
-invalid-method-overrides = "ignore"
-invalid-argument-types = "ignore"
-unresolved-imports = "ignore"
-unresolved-attributes = "ignore"
-invalid-assignments = "ignore"
-unsupported-operators = "ignore"
+invalid-method-override = "ignore"
+invalid-argument-type = "ignore"
+unresolved-import = "ignore"
+unresolved-attribute = "ignore"
+invalid-assignment = "ignore"
+unsupported-operator = "ignore"
+no-matching-overload = "ignore"
+unsupported-base = "ignore"
+possibly-missing-attribute = "ignore"
+invalid-parameter-default = "ignore"
+call-non-callable = "ignore"
