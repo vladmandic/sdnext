@@ -170,7 +170,7 @@
     "tags": "distilled",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
     "size": 8.5,
-    "date": "2025 January"
+    "date": "2026 January"
   },
   "Black Forest Labs FLUX.2 Klein 9B": {
     "path": "black-forest-labs/FLUX.2-klein-9B",
@@ -180,7 +180,17 @@
     "tags": "distilled",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
     "size": 18.5,
-    "date": "2025 January"
+    "date": "2026 January"
+  },
+   "Black Forest Labs FLUX.2 Klein 9B KV": {
+    "path": "black-forest-labs/FLUX.2-klein-9b-kv",
+    "preview": "black-forest-labs--FLUX.2-klein-9b-kv.jpg",
+    "desc": "FLUX.2 klein 9B KV is an optimized variant of FLUX.2 klein 9B with KV-cache support for accelerated multi-reference editing. This variant caches key-value pairs from reference images during the first denoising step, eliminating redundant computation in subsequent steps for significantly faster multi-image editing workflows.",
+    "skip": true,
+    "tags": "distilled",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
+    "size": 18.5,
+    "date": "2026 March"
   },
   "Meituan LongCat Image-Edit Turbo": {
     "path": "meituan-longcat/LongCat-Image-Edit-Turbo",
