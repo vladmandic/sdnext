@@ -81,8 +81,8 @@ class HunyuanImage3Wrapper(torch.nn.Module):
     def __call__(
         self,
         prompt: str,
-        height: int = None,
-        width: int = None,
+        height: int | None = None,
+        width: int | None = None,
         num_inference_steps: int = 50,
         num_images_per_prompt: int = 1,
         guidance_scale: float = 7.5,

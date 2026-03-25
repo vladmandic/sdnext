@@ -60,7 +60,7 @@ class Flex2Pipeline(FluxControlPipeline):
     @torch.no_grad()
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         prompt_2: Optional[Union[str, List[str]]] = None,
         inpaint_image: Optional[PipelineImageInput] = None,
         inpaint_mask: Optional[PipelineImageInput] = None,
