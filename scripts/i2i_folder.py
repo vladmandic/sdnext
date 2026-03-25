@@ -78,6 +78,35 @@ class Script(scripts_manager.Script):
                 elem_id=self.elem_id("strength_override"),
             )
         with gr.Row():
+            gr.HTML('<b>Pre-inference resize</b>')
+        _upscaler_choices = [x.name for x in shared.sd_upscalers] or ["None"]
+        with gr.Row():
+            pre_resize_enabled = gr.Checkbox(
+                label="Enable pre-inference resize",
+                value=False,
+                elem_id=self.elem_id("pre_resize_enabled"),
+            )
+        with gr.Row():
+            pre_resize_mode = gr.Dropdown(
+                label="Resize mode",
+                choices=shared.resize_modes,
+                type="index",
+                value="None",
+                elem_id=self.elem_id("pre_resize_mode"),
+            )
+            pre_resize_name = gr.Dropdown(
+                label="Resize method",
+                choices=_upscaler_choices,
+                value=_upscaler_choices[0],
+                elem_id=self.elem_id("pre_resize_name"),
+            )
+        with gr.Row():
+            pre_resize_scale = gr.Slider(
+                minimum=0.25, maximum=4.0, step=0.05, value=1.0,
+                label="Scale factor",
+                elem_id=self.elem_id("pre_resize_scale"),
+            )
+        with gr.Row():
             gr.HTML('<b>Post-inference resize</b>')
         with gr.Row():
             resize_enabled = gr.Checkbox(
@@ -86,7 +115,6 @@ class Script(scripts_manager.Script):
                 elem_id=self.elem_id("resize_enabled"),
             )
         with gr.Row():
-            _upscaler_choices = [x.name for x in shared.sd_upscalers] or ["None"]
             resize_mode = gr.Dropdown(
                 label="Resize mode",
                 choices=shared.resize_modes,
@@ -106,9 +134,9 @@ class Script(scripts_manager.Script):
                 label="Scale factor",
                 elem_id=self.elem_id("resize_scale"),
             )
-        return [folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, resize_enabled, resize_mode, resize_name, resize_scale]
+        return [folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, resize_enabled, resize_mode, resize_name, resize_scale]
 
-    def run(self, p, folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, resize_enabled, resize_mode, resize_name, resize_scale): # pylint: disable=arguments-differ
+    def run(self, p, folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, resize_enabled, resize_mode, resize_name, resize_scale): # pylint: disable=arguments-differ
         folder = (folder or "").strip()
         if not folder or not os.path.isdir(folder):
             log.error(f"Image folder batch: invalid or missing folder: {folder!r}")
@@ -170,6 +198,14 @@ class Script(scripts_manager.Script):
             cp.init_images = [img]
             cp.width = img.width
             cp.height = img.height
+            if pre_resize_enabled and pre_resize_mode != 0 and pre_resize_name not in ('None', '') and shared.sd_upscalers:
+                pre_w = int(img.width * pre_resize_scale)
+                pre_h = int(img.height * pre_resize_scale)
+                img = images.resize_image(pre_resize_mode, img, pre_w, pre_h, pre_resize_name)
+                cp.init_images = [img]
+                cp.width = img.width
+                cp.height = img.height
+                log.info(f"Image folder batch: pre-resize to {img.size} mode={shared.resize_modes[pre_resize_mode]!r} method={pre_resize_name!r}")
             cp.batch_size = 1
             cp.n_iter = 1
             cp.do_not_save_samples = True
@@ -185,7 +221,7 @@ class Script(scripts_manager.Script):
                 continue
 
             out_img = proc.images[0]
-            if resize_enabled and resize_mode != 0 and resize_name != 'None':
+            if resize_enabled and resize_mode != 0 and resize_name not in ('None', '') and shared.sd_upscalers:
                 target_w = int(out_img.width * resize_scale)
                 target_h = int(out_img.height * resize_scale)
                 resized_img = images.resize_image(resize_mode, out_img, target_w, target_h, resize_name)
