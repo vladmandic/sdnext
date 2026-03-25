@@ -160,7 +160,7 @@ def list_models():
     checkpoints_list = dict(sorted(checkpoints_list.items(), key=lambda cp: cp[1].filename))
 
 
-def update_model_hashes(model_list: dict = None, model_type: str = 'checkpoint'):
+def update_model_hashes(model_list: dict | None = None, model_type: str = 'checkpoint'):
     def update_model_hashes_table(rows):
         html = """
             <table class="simple-table">
