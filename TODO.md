@@ -7,6 +7,7 @@
 - Add notes: **Enso**
 - Tips: **Color Grading**
 - Regen: **Localization**
+- AGENTS.md
 
 ## Internal
 
@@ -20,6 +21,7 @@
 - Engine: `TensorRT` acceleration
 - Feature: Auto handle scheduler `prediction_type`
 - Feature: Cache models in memory
+- Feature: JSON image metadata
 - Validate: Control tab add overrides handling
 - Feature: Integrate natural language image search
   [ImageDB](https://github.com/vladmandic/imagedb)
@@ -28,7 +30,6 @@
 - Feature: Video tab add full API support
 - Refactor: Unify *huggingface* and *diffusers* model folders
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
-- Refactor: move sampler options from settings to config
 - Reimplement `llama` remover for Kanvas, pending end-to-end review of `Kanvas`
 
 ## OnHold
@@ -55,6 +56,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 - [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma): Image and video generator for creative effects and professional filters
 - [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance): Pixel-space model eliminating VAE artifacts for high visual fidelity
+- [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
 - [Liquid](https://github.com/FoundationVision/Liquid): Unified vision-language auto-regressive generation paradigm
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO): Foundational multi-modal generation and understanding via discrete diffusion
 - [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B): Physics-aware world foundation model for consistent scene prediction
@@ -113,8 +115,6 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Not Planned
 
-- [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
-- [Bria FiboEdit](https://github.com/huggingface/diffusers/commit/d7a1c31f4f85bae5a9e01cdce49bd7346bd8ccd6): Fully JSON based
 - [LoRAdapter](https://github.com/CompVis/LoRAdapter): Not recently updated
 - [SD3 UltraEdit](https://github.com/HaozheZhao/UltraEdit): Based on SD3
 - [PowerPaint](https://github.com/open-mmlab/PowerPaint): Based on SD15

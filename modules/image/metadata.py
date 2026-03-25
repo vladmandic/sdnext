@@ -1,4 +1,5 @@
 import io
+import os
 import re
 import json
 import piexif
@@ -8,26 +9,24 @@ from modules.logger import log
 from modules.image.watermark import get_watermark
 
 
+debug = log.trace if os.environ.get("SD_METADATA_DEBUG", None) is not None else lambda *args, **kwargs: None
+
+
 def safe_decode_string(s: bytes):
-    remove_prefix = lambda text, prefix: text[len(prefix):] if text.startswith(prefix) else text # pylint: disable=unnecessary-lambda-assignment
+    remove_prefix = lambda text, prefix: text[len(prefix):] if text.startswith(prefix) else text  # pylint: disable=unnecessary-lambda-assignment
     s = remove_prefix(s, b'UNICODE')
     s = remove_prefix(s, b'ASCII')
     s = remove_prefix(s, b'\x00')
-    # Detect UTF-16LE: even length and every other byte (odd positions) is 0x00 in the first ~20 bytes
-    if len(s) >= 2 and len(s) % 2 == 0 and all(b == 0 for b in s[1:min(len(s), 20):2]):
+    for encoding in ["utf-16-le", "utf-16-be", "utf-8", "utf-16", "ascii", "latin_1", "cp1252", "cp437"]: # try different encodings
         try:
-            val = s.decode('utf-16-le', errors='strict')
-            val = re.sub(r'[\x00-\x09]', '', val).strip()
-            if val:
-                return val
-        except Exception:
-            pass
-    for encoding in ['utf-8', 'utf-16', 'utf-16-be', 'ascii', 'latin_1', 'cp1252', 'cp437']: # try different encodings
-        try:
+            if encoding == "utf-16-le":
+                if not (len(s) >= 2 and len(s) % 2 == 0 and all(b == 0 for b in s[1 : min(len(s), 20) : 2])): # not utf-16-le
+                    continue
             val = s.decode(encoding, errors="strict")
             val = re.sub(r'[\x00-\x09]', '', val).strip() # remove remaining special characters
             if len(val) == 0: # remove empty strings
                 val = None
+            debug(f'Metadata: decode="{val}" encoding="{encoding}"')
             return val
         except Exception:
             pass
@@ -68,6 +67,7 @@ def parse_comfy_metadata(data: dict):
     if len(workflow) > 0 or len(prompt) > 0:
         parsed = f'App: ComfyUI{workflow}{prompt}'
         log.info(f'Image metadata: {parsed}')
+        debug(f'Metadata: comfy="{parsed}"')
         return parsed
     return ''
 
@@ -90,6 +90,7 @@ def parse_invoke_metadata(data: dict):
     if len(metadata) > 0:
         parsed = f'App: InvokeAI{metadata}'
         log.info(f'Image metadata: {parsed}')
+        debug(f'Metadata: invoke="{parsed}"')
         return parsed
     return ''
 
@@ -101,9 +102,25 @@ def parse_novelai_metadata(data: dict):
             dct = json.loads(data["Comment"])
             sampler = sd_samplers.samplers_map.get(dct["sampler"], "Euler a")
             geninfo = f'{data["Description"]} Negative prompt: {dct["uc"]} Steps: {dct["steps"]}, Sampler: {sampler}, CFG scale: {dct["scale"]}, Seed: {dct["seed"]}, Clip skip: 2, ENSD: 31337'
+            debug(f'Metadata: novelai="{geninfo}"')
+            return geninfo
         except Exception:
             pass
-    return geninfo
+    return ''
+
+
+def parse_xmp_metadata(data: dict):
+    # Extract XMP dc:subject tags into a readable field
+    geninfo = ''
+    xmp_raw = data.get("xmp")
+    if xmp_raw and isinstance(xmp_raw, (str, bytes)):
+        xmp_str = xmp_raw if isinstance(xmp_raw, str) else xmp_raw.decode("utf-8", errors="replace")
+        xmp_tags = re.findall(r"<rdf:li>([^<]+)</rdf:li>", xmp_str)
+        if xmp_tags:
+            geninfo = f"XMP Tags: {', '.join(xmp_tags)}"
+            debug(f'Metadata: xmp="{geninfo}"')
+            return geninfo
+    return ''
 
 
 def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[str, dict]:
@@ -131,6 +148,7 @@ def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[s
             log.error(f'Error loading EXIF data: {e}')
             exif = {}
         for _key, subkey in exif.items():
+            debug(f'Metadata EXIF: key="{_key}" subkey="{subkey}" type="{type(subkey)}"')
             if isinstance(subkey, dict):
                 for key, val in subkey.items():
                     if isinstance(val, bytes): # decode bytestring
@@ -145,27 +163,23 @@ def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[s
                             items[ExifTags.TAGS[key]] = val
                     elif val is not None and key in ExifTags.GPSTAGS:
                         items[ExifTags.GPSTAGS[key]] = val
+
     if watermark:
         wm = get_watermark(image)
         if wm != '':
+            debug(f'Metadata: watermark="{wm}"')
             # geninfo += f' Watermark: {wm}'
             items['watermark'] = wm
 
     for key, val in items.items():
         if isinstance(val, bytes): # decode bytestring
             items[key] = safe_decode_string(val)
+            debug(f'Metadata: key="{key}" value="{items[key]}"')
 
     geninfo += parse_comfy_metadata(items)
     geninfo += parse_invoke_metadata(items)
     geninfo += parse_novelai_metadata(items)
-
-    # Extract XMP dc:subject tags into a readable field
-    xmp_raw = items.get('xmp')
-    if xmp_raw and isinstance(xmp_raw, (str, bytes)):
-        xmp_str = xmp_raw if isinstance(xmp_raw, str) else xmp_raw.decode('utf-8', errors='replace')
-        xmp_tags = re.findall(r'<rdf:li>([^<]+)</rdf:li>', xmp_str)
-        if xmp_tags:
-            items['xmp_tags'] = ', '.join(xmp_tags)
+    geninfo += parse_xmp_metadata(items)
 
     for key in ['exif', 'ExifOffset', 'JpegIFOffset', 'JpegIFByteCount', 'ExifVersion', 'icc_profile', 'jfif', 'jfif_version', 'jfif_unit', 'jfif_density', 'adobe', 'photoshop', 'loop', 'duration', 'dpi', 'xmp']: # remove unwanted tags
         items.pop(key, None)
@@ -177,6 +191,8 @@ def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[s
     except Exception:
         pass
 
+    debug(f'Metadata geninfoi: "{geninfo}"')
+    debug(f'Metadata items: "{items}"')
     return geninfo, items
 
 

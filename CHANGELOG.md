@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-24
+## Update for 2026-03-25
 
-### Highlights for 2026-03-4
+### Highlights for 2026-03-25
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit* *SkyWorks-UniPic-3* and new *Anima-Preview*  
@@ -18,7 +18,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-24
+### Details for 2026-03-25
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -69,6 +69,9 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - **Cuda** `torch==2.10` removed support for `rtx1000` series and older GPUs  
     use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
     > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
+  - **Ipex** update to `torch==2.11`  
+  - **ROCm/Linux** update to `torch==2.11` with `rocm==7.2`  
+  - **OpenVINO** update to `torch==2.11` and `openvino==2026.0`
 - **UI**
   - legacy panels **T2I** and **I2I** are disabled by default  
     you can re-enable them in *settings -> ui -> hide legacy tabs*  
@@ -168,7 +171,9 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - improve video generation progress tracking
   - handle startup with bad `scripts` more gracefully  
   - thread-safety for `error-limiter`, thanks @awsr  
-  - add `lora` support for flux2-klein
+  - add `lora` support for flux2-klein  
+  - fix `lora` change when used with `sdnq`  
+  - multiple `sdnq` fixes  
 
 ## Update for 2026-02-04
 
