@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Fetch and convert booru tag databases to SD.Next dict format.
+"""Fetch and convert booru tag databases to SD.Next autocomplete format.
 
 Usage:
-    python cli/fetch_dicts.py danbooru [--output PATH] [--min-count N]
-    python cli/fetch_dicts.py e621 [--output PATH] [--min-count N]
-    python cli/fetch_dicts.py rule34 --key USER_ID:API_KEY [--output PATH] [--min-count N]
-    python cli/fetch_dicts.py sankaku [--output PATH] [--min-count N]
-    python cli/fetch_dicts.py idol [--output PATH] [--min-count N]
-    python cli/fetch_dicts.py all --key USER_ID:API_KEY [--output-dir DIR] [--min-count N]
+    python cli/fetch_tags.py danbooru [--output PATH] [--min-count N]
+    python cli/fetch_tags.py e621 [--output PATH] [--min-count N]
+    python cli/fetch_tags.py rule34 --key USER_ID:API_KEY [--output PATH] [--min-count N]
+    python cli/fetch_tags.py sankaku [--output PATH] [--min-count N]
+    python cli/fetch_tags.py idol [--output PATH] [--min-count N]
+    python cli/fetch_tags.py all --key USER_ID:API_KEY [--output-dir DIR] [--min-count N]
 
 Progress is saved every 50 pages to a .partial file so interrupted
 runs can be resumed. Transient HTTP errors are retried with backoff.
@@ -399,7 +399,7 @@ def fetch_source(name: str, output: str, min_count: int, api_key: str | None = N
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Fetch booru tag databases for SD.Next dict autocomplete")
+    parser = argparse.ArgumentParser(description="Fetch booru tag databases for SD.Next autocomplete")
     parser.add_argument("source", choices=list(SOURCES.keys()) + ["all"], help="Tag source to fetch")
     parser.add_argument("--output", "-o", help="Output file path (for single source)")
     parser.add_argument("--output-dir", "-d", help="Output directory (for 'all')")

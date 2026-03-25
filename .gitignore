@@ -53,14 +53,6 @@ package-lock.json
 cache
 tunableop_results*.csv
 
-# booru dicts (downloaded on demand from HF)
-/data/dicts/danbooru.json
-/data/dicts/e621.json
-/data/dicts/idol.json
-/data/dicts/rule34.json
-/data/dicts/sankaku.json
-/data/dicts/backup/
-
 # force included
 !webui.bat
 !webui.sh

@@ -1,8 +1,8 @@
-"""V1 dictionary / tag autocomplete endpoints.
+"""V1 tag autocomplete endpoints.
 
-Serves pre-built tag dictionaries (Danbooru, e621, natural language, artists)
-from JSON files in the configured dicts directory. Remote dicts are hosted
-on HuggingFace and downloaded on demand.
+Serves pre-built tag files (Danbooru, e621, natural language, artists)
+from JSON files in the configured autocomplete directory. Remote files
+are hosted on HuggingFace and downloaded on demand.
 """
 
 import asyncio
@@ -11,10 +11,10 @@ import os
 
 from fastapi.exceptions import HTTPException
 
-from modules.api.models import ItemDict, ItemDictContent, ItemDictRemote
+from modules.api.models import ItemAutocomplete, ItemAutocompleteContent, ItemAutocompleteRemote
 from modules.logger import log
 
-dicts_dir: str = ""
+autocomplete_dir: str = ""
 cache: dict[str, dict] = {}
 
 HF_REPO = "CalamitousFelicitousness/prompt-vocab"
@@ -24,19 +24,19 @@ manifest_cache: dict = {}  # {"data": [...], "fetched_at": float}
 
 
 def init(path: str) -> None:
-    """Set the dicts directory path. Called once during API registration."""
-    global dicts_dir  # noqa: PLW0603
-    dicts_dir = path
+    """Set the autocomplete directory path. Called once during API registration."""
+    global autocomplete_dir  # noqa: PLW0603
+    autocomplete_dir = path
 
 
 def get_cached(name: str) -> dict:
-    """Load a dict file, returning cached version if file hasn't changed."""
+    """Load a tag file, returning cached version if file hasn't changed."""
     if '/' in name or '\\' in name or '..' in name:
-        raise HTTPException(status_code=400, detail="Invalid dict name")
-    path = os.path.join(dicts_dir, f"{name}.json")
+        raise HTTPException(status_code=400, detail="Invalid name")
+    path = os.path.join(autocomplete_dir, f"{name}.json")
     if not os.path.isfile(path):
         cache.pop(name, None)
-        raise HTTPException(status_code=404, detail=f"Dict not found: {name}")
+        raise HTTPException(status_code=404, detail=f"Not found: {name}")
     stat = os.stat(path)
     entry = cache.get(name)
     if entry and entry['mtime'] == stat.st_mtime:
@@ -61,19 +61,19 @@ def get_cached(name: str) -> dict:
     return entry
 
 
-def list_dicts_sync() -> list[ItemDict]:
-    """Scan dicts directory and return metadata for each dict file."""
-    if not dicts_dir or not os.path.isdir(dicts_dir):
+def list_all_sync() -> list[ItemAutocomplete]:
+    """Scan autocomplete directory and return metadata for each tag file."""
+    if not autocomplete_dir or not os.path.isdir(autocomplete_dir):
         return []
     items = []
-    for filename in sorted(os.listdir(dicts_dir)):
+    for filename in sorted(os.listdir(autocomplete_dir)):
         if not filename.endswith('.json') or filename.startswith('.') or filename == 'manifest.json':
             continue
         name = filename.rsplit('.', 1)[0]
         try:
             entry = get_cached(name)
             meta = entry['meta']
-            items.append(ItemDict(
+            items.append(ItemAutocomplete(
                 name=meta['name'],
                 version=meta['version'],
                 tag_count=meta['tag_count'],
@@ -85,13 +85,13 @@ def list_dicts_sync() -> list[ItemDict]:
     return items
 
 
-async def list_dicts() -> list[ItemDict]:
-    """List available tag dictionaries."""
-    return await asyncio.to_thread(list_dicts_sync)
+async def list_all() -> list[ItemAutocomplete]:
+    """List available tag autocomplete files."""
+    return await asyncio.to_thread(list_all_sync)
 
 
-async def get_dict(name: str) -> ItemDictContent:
-    """Get full dict content by name."""
+async def get_content(name: str) -> ItemAutocompleteContent:
+    """Get full tag file content by name."""
     def _load():
         return get_cached(name)
     try:
@@ -101,7 +101,7 @@ async def get_dict(name: str) -> ItemDictContent:
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
     content = entry['content']
-    return ItemDictContent(
+    return ItemAutocompleteContent(
         name=content.get('name', name),
         version=content.get('version', ''),
         categories=content.get('categories', {}),
@@ -109,7 +109,7 @@ async def get_dict(name: str) -> ItemDictContent:
     )
 
 
-# ── Remote dict management ──
+# ── Remote management ──
 
 def fetch_manifest_sync() -> list[dict]:
     """Fetch manifest.json from HuggingFace, with caching."""
@@ -123,29 +123,29 @@ def fetch_manifest_sync() -> list[dict]:
         resp = requests.get(url, timeout=15)
         resp.raise_for_status()
         data = resp.json()
-        entries = data.get('dicts', data) if isinstance(data, dict) else data
+        entries = data.get('entries', data) if isinstance(data, dict) else data
         manifest_cache['data'] = entries
         manifest_cache['fetched_at'] = now
         return entries
     except Exception as e:
-        log.warning(f"Failed to fetch dict manifest: {e}")
+        log.warning(f"Failed to fetch autocomplete manifest: {e}")
         return manifest_cache.get('data', [])
 
 
-def local_dict_names() -> set[str]:
-    """Return set of locally available dict names."""
-    if not dicts_dir or not os.path.isdir(dicts_dir):
+def local_names() -> set[str]:
+    """Return set of locally available autocomplete file names."""
+    if not autocomplete_dir or not os.path.isdir(autocomplete_dir):
         return set()
     return {
         f.rsplit('.', 1)[0]
-        for f in os.listdir(dicts_dir)
+        for f in os.listdir(autocomplete_dir)
         if f.endswith('.json') and not f.startswith('.') and f != 'manifest.json'
     }
 
 
-def local_dict_version(name: str) -> str:
-    """Return the version string of a locally downloaded dict, or empty string."""
-    path = os.path.join(dicts_dir, f"{name}.json")
+def local_version(name: str) -> str:
+    """Return the version string of a local tag file, or empty string."""
+    path = os.path.join(autocomplete_dir, f"{name}.json")
     if not os.path.isfile(path):
         return ""
     try:
@@ -159,10 +159,10 @@ def local_dict_version(name: str) -> str:
         return ""
 
 
-async def list_remote() -> list[ItemDictRemote]:
-    """List dicts available for download from HuggingFace."""
+async def list_remote() -> list[ItemAutocompleteRemote]:
+    """List tag files available for download from HuggingFace."""
     entries = await asyncio.to_thread(fetch_manifest_sync)
-    local = await asyncio.to_thread(local_dict_names)
+    local = await asyncio.to_thread(local_names)
     results = []
     for e in entries:
         name = e['name']
@@ -170,9 +170,9 @@ async def list_remote() -> list[ItemDictRemote]:
         remote_version = e.get('version', '')
         update = False
         if is_local and remote_version:
-            local_version = await asyncio.to_thread(local_dict_version, name)
-            update = bool(local_version and local_version != remote_version)
-        results.append(ItemDictRemote(
+            lv = await asyncio.to_thread(local_version, name)
+            update = bool(lv and lv != remote_version)
+        results.append(ItemAutocompleteRemote(
             name=name,
             description=e.get('description', ''),
             version=remote_version,
@@ -184,20 +184,20 @@ async def list_remote() -> list[ItemDictRemote]:
     return results
 
 
-def download_dict_sync(name: str) -> str:
-    """Download a dict file from HuggingFace to the local dicts directory."""
+def download_sync(name: str) -> str:
+    """Download a tag file from HuggingFace to the local autocomplete directory."""
     import requests
     if '/' in name or '\\' in name or '..' in name:
-        raise HTTPException(status_code=400, detail="Invalid dict name")
-    os.makedirs(dicts_dir, exist_ok=True)
+        raise HTTPException(status_code=400, detail="Invalid name")
+    os.makedirs(autocomplete_dir, exist_ok=True)
     url = f"{HF_BASE}/{name}.json"
-    log.info(f"Downloading dict: {url}")
+    log.info(f"Downloading autocomplete: {url}")
     try:
         resp = requests.get(url, timeout=120, stream=True)
         resp.raise_for_status()
     except requests.RequestException as e:
         raise HTTPException(status_code=502, detail=f"Failed to download {name}: {e}") from e
-    target = os.path.join(dicts_dir, f"{name}.json")
+    target = os.path.join(autocomplete_dir, f"{name}.json")
     tmp = target + ".tmp"
     size = 0
     with open(tmp, 'wb') as f:
@@ -206,16 +206,16 @@ def download_dict_sync(name: str) -> str:
             size += len(chunk)
     os.replace(tmp, target)
     cache.pop(name, None)
-    log.info(f"Downloaded dict: {name} ({size / 1024 / 1024:.1f} MB)")
+    log.info(f"Downloaded autocomplete: {name} ({size / 1024 / 1024:.1f} MB)")
     return target
 
 
-async def download_dict(name: str):
-    """Download a dict from HuggingFace."""
-    path = await asyncio.to_thread(download_dict_sync, name)
+async def download(name: str):
+    """Download a tag file from HuggingFace."""
+    path = await asyncio.to_thread(download_sync, name)
     entry = await asyncio.to_thread(get_cached, name)
     meta = entry['meta']
-    return ItemDict(
+    return ItemAutocomplete(
         name=meta['name'],
         version=meta['version'],
         tag_count=meta['tag_count'],
@@ -224,21 +224,21 @@ async def download_dict(name: str):
     )
 
 
-async def delete_dict(name: str):
-    """Delete a locally downloaded dict."""
+async def delete(name: str):
+    """Delete a locally downloaded tag file."""
     if '/' in name or '\\' in name or '..' in name:
-        raise HTTPException(status_code=400, detail="Invalid dict name")
-    path = os.path.join(dicts_dir, f"{name}.json")
+        raise HTTPException(status_code=400, detail="Invalid name")
+    path = os.path.join(autocomplete_dir, f"{name}.json")
     if not os.path.isfile(path):
-        raise HTTPException(status_code=404, detail=f"Dict not found: {name}")
+        raise HTTPException(status_code=404, detail=f"Not found: {name}")
     await asyncio.to_thread(os.remove, path)
     cache.pop(name, None)
     return {"status": "deleted", "name": name}
 
 
 def register_api(app):
-    app.add_api_route("/sdapi/v1/dicts", list_dicts, methods=["GET"], response_model=list[ItemDict], tags=["Enumerators"])
-    app.add_api_route("/sdapi/v1/dicts/remote", list_remote, methods=["GET"], response_model=list[ItemDictRemote], tags=["Enumerators"])
-    app.add_api_route("/sdapi/v1/dicts/{name}", get_dict, methods=["GET"], response_model=ItemDictContent, tags=["Enumerators"])
-    app.add_api_route("/sdapi/v1/dicts/{name}/download", download_dict, methods=["POST"], response_model=ItemDict, tags=["Enumerators"])
-    app.add_api_route("/sdapi/v1/dicts/{name}", delete_dict, methods=["DELETE"], tags=["Enumerators"])
+    app.add_api_route("/sdapi/v1/autocomplete", list_all, methods=["GET"], response_model=list[ItemAutocomplete], tags=["Enumerators"])
+    app.add_api_route("/sdapi/v1/autocomplete/remote", list_remote, methods=["GET"], response_model=list[ItemAutocompleteRemote], tags=["Enumerators"])
+    app.add_api_route("/sdapi/v1/autocomplete/{name}", get_content, methods=["GET"], response_model=ItemAutocompleteContent, tags=["Enumerators"])
+    app.add_api_route("/sdapi/v1/autocomplete/{name}/download", download, methods=["POST"], response_model=ItemAutocomplete, tags=["Enumerators"])
+    app.add_api_route("/sdapi/v1/autocomplete/{name}", delete, methods=["DELETE"], tags=["Enumerators"])

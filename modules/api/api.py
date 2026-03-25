@@ -118,10 +118,10 @@ class Api:
         from modules.api import loras
         loras.register_api(self.app)
 
-        # dicts api
-        from modules.api import dicts as dicts_api
-        dicts_api.init(getattr(shared.opts, 'dicts_dir', '') or os.path.join(paths.data_path, 'data', 'dicts'))
-        dicts_api.register_api(self.app)
+        # autocomplete api
+        from modules.api import autocomplete as autocomplete_api
+        autocomplete_api.init(getattr(shared.opts, 'autocomplete_dir', '') or os.path.join(paths.models_path, 'autocomplete'))
+        autocomplete_api.register_api(self.app)
 
         # gallery api
         from modules.api import gallery

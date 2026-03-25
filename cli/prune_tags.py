@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Prune tag dictionaries with per-category minimum post counts.
+"""Prune tag autocomplete files with per-category minimum post counts.
 
 Usage:
-    python cli/prune_dicts.py data/dicts/danbooru.json
-    python cli/prune_dicts.py data/dicts/*.json --general 500 --artist 20
-    python cli/prune_dicts.py data/dicts/sankaku.json -o data/dicts/sankaku-pruned.json
-    python cli/prune_dicts.py data/dicts/*.json --dry-run
+    python cli/prune_tags.py models/autocomplete/danbooru.json
+    python cli/prune_tags.py models/autocomplete/*.json --general 500 --artist 20
+    python cli/prune_tags.py models/autocomplete/sankaku.json -o sankaku-pruned.json
+    python cli/prune_tags.py models/autocomplete/*.json --dry-run
 
 Category-aware pruning: artists and characters are kept at lower thresholds
 (proper nouns that need autocomplete), while general tags are pruned more
@@ -17,7 +17,7 @@ import json
 import os
 import sys
 
-# Category ID → name (must match UNIFIED_CATEGORIES in fetch_dicts.py)
+# Category ID -> name (must match UNIFIED_CATEGORIES in fetch_tags.py)
 CATEGORY_NAMES = {
     0: "general",
     1: "artist",
