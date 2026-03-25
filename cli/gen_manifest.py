@@ -70,7 +70,7 @@ def update_manifest(dicts_dir: str) -> bool:
             continue
     manifest["dicts"] = entries
     with open(manifest_path, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2, ensure_ascii=False)
+        json.dump(manifest, f, ensure_ascii=False, separators=(",", ":"))
         f.write("\n")
     print(f"  Manifest updated: {manifest_path} ({len(entries)} dicts)", file=sys.stderr)
     return True
@@ -104,7 +104,7 @@ def main():
 
     os.makedirs(os.path.dirname(args.output) or ".", exist_ok=True)
     with open(args.output, "w", encoding="utf-8") as f:
-        json.dump(manifest, f, indent=2, ensure_ascii=False)
+        json.dump(manifest, f, ensure_ascii=False, separators=(",", ":"))
         f.write("\n")
 
     print(f"\nManifest written: {args.output} ({len(entries)} dicts)", file=sys.stderr)
