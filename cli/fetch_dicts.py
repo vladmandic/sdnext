@@ -9,7 +9,7 @@ Usage:
     python cli/fetch_dicts.py idol [--output PATH] [--min-count N]
     python cli/fetch_dicts.py all --key USER_ID:API_KEY [--output-dir DIR] [--min-count N]
 
-Fetches are checkpointed every 50 pages to a .partial file so interrupted
+Progress is saved every 50 pages to a .partial file so interrupted
 runs can be resumed. Transient HTTP errors are retried with backoff.
 
 Output format:
@@ -66,14 +66,14 @@ IDOL_TYPE_MAP = {
 }
 
 USER_AGENT = "SDNext-DictFetcher/1.0 (tag autocomplete)"
-CHECKPOINT_INTERVAL = 50  # save progress every N pages
+SAVE_INTERVAL = 50  # save progress every N pages
 MAX_RETRIES = 3
 RETRY_BACKOFF = 5  # seconds, multiplied by attempt number
 
 
-# ── Checkpoint helpers ──
+# ── Partial save/resume ──
 
-def save_checkpoint(path: str, page: int, tags: list):
+def save_partial(path: str, page: int, tags: list):
     """Save fetch progress to a .partial file."""
     if not path:
         return
@@ -83,8 +83,8 @@ def save_checkpoint(path: str, page: int, tags: list):
     os.replace(tmp, path)
 
 
-def load_checkpoint(path: str) -> tuple[int, list] | tuple[None, list]:
-    """Load fetch progress from a .partial file. Returns (page, tags) or (None, [])."""
+def load_partial(path: str) -> tuple[int, list] | tuple[None, list]:
+    """Load saved progress from a .partial file. Returns (page, tags) or (None, [])."""
     if not path or not os.path.isfile(path):
         return None, []
     try:
@@ -92,15 +92,15 @@ def load_checkpoint(path: str) -> tuple[int, list] | tuple[None, list]:
             data = json.load(f)
         page = data["page"]
         tags = data["tags"]
-        print(f"  Resuming from checkpoint: page {page}, {len(tags)} tags", file=sys.stderr)
+        print(f"  Resuming from partial: page {page}, {len(tags)} tags", file=sys.stderr)
         return page, tags
     except (json.JSONDecodeError, KeyError) as e:
-        print(f"  Warning: corrupt checkpoint, starting fresh ({e})", file=sys.stderr)
+        print(f"  Warning: corrupt .partial file, starting fresh ({e})", file=sys.stderr)
         return None, []
 
 
-def clear_checkpoint(path: str):
-    """Remove checkpoint file after successful completion."""
+def clear_partial(path: str):
+    """Remove .partial file after successful completion."""
     if path and os.path.isfile(path):
         os.remove(path)
 
@@ -125,9 +125,9 @@ def fetch_with_retry(session: requests.Session, url: str, params: dict | None = 
 
 # ── Fetchers ──
 
-def fetch_danbooru(min_count: int = 10, checkpoint_path: str = "", **_kwargs) -> list:
+def fetch_danbooru(min_count: int = 10, partial_path: str = "", **_kwargs) -> list:
     """Fetch tags from Danbooru API, paginated."""
-    start_page, tags = load_checkpoint(checkpoint_path)
+    start_page, tags = load_partial(partial_path)
     page = (start_page + 1) if start_page is not None else 1
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
@@ -150,17 +150,17 @@ def fetch_danbooru(min_count: int = 10, checkpoint_path: str = "", **_kwargs) ->
         print(f"  Page {page}: {len(data)} tags (total: {len(tags)})", file=sys.stderr)
         if below_threshold:
             break
-        if page % CHECKPOINT_INTERVAL == 0:
-            save_checkpoint(checkpoint_path, page, tags)
+        if page % SAVE_INTERVAL == 0:
+            save_partial(partial_path, page, tags)
         page += 1
         time.sleep(0.5)
     tags.sort(key=lambda t: t[2], reverse=True)
     return tags
 
 
-def fetch_e621(min_count: int = 10, checkpoint_path: str = "", **_kwargs) -> list:
+def fetch_e621(min_count: int = 10, partial_path: str = "", **_kwargs) -> list:
     """Fetch tags from e621 API, paginated."""
-    start_page, tags = load_checkpoint(checkpoint_path)
+    start_page, tags = load_partial(partial_path)
     page = (start_page + 1) if start_page is not None else 1
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
@@ -183,15 +183,15 @@ def fetch_e621(min_count: int = 10, checkpoint_path: str = "", **_kwargs) -> lis
         print(f"  Page {page}: {len(data)} tags (total: {len(tags)})", file=sys.stderr)
         if below_threshold:
             break
-        if page % CHECKPOINT_INTERVAL == 0:
-            save_checkpoint(checkpoint_path, page, tags)
+        if page % SAVE_INTERVAL == 0:
+            save_partial(partial_path, page, tags)
         page += 1
         time.sleep(1.0)
     tags.sort(key=lambda t: t[2], reverse=True)
     return tags
 
 
-def fetch_gelbooru(base_url: str, min_count: int = 10, api_key: str | None = None, rate_limit: float = 0.5, checkpoint_path: str = "") -> list:
+def fetch_gelbooru(base_url: str, min_count: int = 10, api_key: str | None = None, rate_limit: float = 0.5, partial_path: str = "") -> list:
     """Fetch tags from a Gelbooru-compatible API (rule34, gelbooru, etc.).
 
     Unlike Danbooru/e621, the Gelbooru tag endpoint doesn't support ordering
@@ -200,7 +200,7 @@ def fetch_gelbooru(base_url: str, min_count: int = 10, api_key: str | None = Non
     """
     import xml.etree.ElementTree as ET
 
-    start_page, tags = load_checkpoint(checkpoint_path)
+    start_page, tags = load_partial(partial_path)
     page = (start_page + 1) if start_page is not None else 0
     page_size = 1000
     session = requests.Session()
@@ -244,29 +244,29 @@ def fetch_gelbooru(base_url: str, min_count: int = 10, api_key: str | None = Non
         print(f"  Page {page}: {len(elements)} tags (total: {len(tags)})", file=sys.stderr)
         if len(elements) < page_size:
             break
-        if page % CHECKPOINT_INTERVAL == 0:
-            save_checkpoint(checkpoint_path, page, tags)
+        if page % SAVE_INTERVAL == 0:
+            save_partial(partial_path, page, tags)
         page += 1
         time.sleep(rate_limit)
     tags.sort(key=lambda t: t[2], reverse=True)
     return tags
 
 
-def fetch_rule34(min_count: int = 10, api_key: str | None = None, checkpoint_path: str = "", **_kwargs) -> list:
+def fetch_rule34(min_count: int = 10, api_key: str | None = None, partial_path: str = "", **_kwargs) -> list:
     """Fetch tags from rule34.xxx."""
     if not api_key:
         print("  Warning: no --key provided, rule34 may rate-limit aggressively", file=sys.stderr)
-    return fetch_gelbooru("https://api.rule34.xxx/index.php", min_count=min_count, api_key=api_key, checkpoint_path=checkpoint_path)
+    return fetch_gelbooru("https://api.rule34.xxx/index.php", min_count=min_count, api_key=api_key, partial_path=partial_path)
 
 
-def fetch_sankaku(min_count: int = 10, checkpoint_path: str = "", **_kwargs) -> list:
+def fetch_sankaku(min_count: int = 10, partial_path: str = "", **_kwargs) -> list:
     """Fetch tags from Sankaku Complex (chan.sankakucomplex.com).
 
     Uses the public JSON API at sankakuapi.com which supports order=count,
     so we can stop early when counts drop below min_count.
     Tag names come as English with spaces - converted to lowercase.
     """
-    start_page, tags = load_checkpoint(checkpoint_path)
+    start_page, tags = load_partial(partial_path)
     page = (start_page + 1) if start_page is not None else 1
     page_size = 200
     session = requests.Session()
@@ -294,21 +294,21 @@ def fetch_sankaku(min_count: int = 10, checkpoint_path: str = "", **_kwargs) -> 
         print(f"  Page {page}: {len(data)} tags (total: {len(tags)})", file=sys.stderr)
         if below_threshold:
             break
-        if page % CHECKPOINT_INTERVAL == 0:
-            save_checkpoint(checkpoint_path, page, tags)
+        if page % SAVE_INTERVAL == 0:
+            save_partial(partial_path, page, tags)
         page += 1
         time.sleep(0.5)
     tags.sort(key=lambda t: t[2], reverse=True)
     return tags
 
 
-def fetch_idol(min_count: int = 10, checkpoint_path: str = "", **_kwargs) -> list:
+def fetch_idol(min_count: int = 10, partial_path: str = "", **_kwargs) -> list:
     """Fetch tags from Idol Complex (idol.sankakucomplex.com).
 
     Uses the legacy JSON API at iapi.sankakucomplex.com. Supports order=count.
     Max 50 tags per page. Type IDs are non-standard - remapped in write_dict.
     """
-    start_page, tags = load_checkpoint(checkpoint_path)
+    start_page, tags = load_partial(partial_path)
     page = (start_page + 1) if start_page is not None else 1
     page_size = 50
     session = requests.Session()
@@ -335,8 +335,8 @@ def fetch_idol(min_count: int = 10, checkpoint_path: str = "", **_kwargs) -> lis
         print(f"  Page {page}: {len(data)} tags (total: {len(tags)})", file=sys.stderr)
         if below_threshold:
             break
-        if page % CHECKPOINT_INTERVAL == 0:
-            save_checkpoint(checkpoint_path, page, tags)
+        if page % SAVE_INTERVAL == 0:
+            save_partial(partial_path, page, tags)
         page += 1
         time.sleep(1.0)
     tags.sort(key=lambda t: t[2], reverse=True)
@@ -386,14 +386,14 @@ def fetch_source(name: str, output: str, min_count: int, api_key: str | None = N
         print(f"Unknown source: {name}. Available: {', '.join(SOURCES.keys())}", file=sys.stderr)
         sys.exit(1)
     source = SOURCES[name]
-    checkpoint_path = output + ".partial"
+    partial_path = output + ".partial"
     print(f"Fetching {name} (min_count={min_count})...", file=sys.stderr)
-    tags = source["fetch"](min_count=min_count, api_key=api_key, checkpoint_path=checkpoint_path)
+    tags = source["fetch"](min_count=min_count, api_key=api_key, partial_path=partial_path)
     if not tags:
         print(f"  No tags fetched for {name}", file=sys.stderr)
         return
     write_dict(name, tags, source["type_map"], output, separator=separator)
-    clear_checkpoint(checkpoint_path)
+    clear_partial(partial_path)
     from gen_manifest import update_manifest
     update_manifest(os.path.dirname(output) or ".")
 
