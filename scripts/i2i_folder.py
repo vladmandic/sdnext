@@ -18,9 +18,7 @@ class Script(scripts_manager.Script):
 
     def ui(self, is_img2img): # pylint: disable=unused-argument
         with gr.Row():
-            gr.HTML('<p><h2>Image folder batch inference by CeeTeeDee</h2><p><br>')
-        with gr.Row():
-            gr.HTML('<p><b>The purpose of this script is to assist in Img2Img of folders containing incrementally named images such as one would use when extracting frames from video.</p><br><p>It can use any model though is best done with high consistency models such as Flux.</p><br><p>Note the full path of your folder containing incrementally numbered images such as Frame000.png to Frame900.png and the script will run Inference on each image in order saving the images with identical names in an output subfolder.</p>')
+             gr.HTML('<p><b>The purpose of this script is to assist in Img2Img of folders containing incrementally named images such as one would use when extracting frames from video.</p><br><p>It can use any model though is best done with high consistency models such as Flux.</p><br><p>Note the full path of your folder containing incrementally numbered images such as Frame000.png to Frame900.png and the script will run Inference on each image in order saving the images with identical names in an output subfolder.</p>')
         with gr.Row():
 
             folder = gr.Textbox(
@@ -31,42 +29,42 @@ class Script(scripts_manager.Script):
         with gr.Row():
             output_dir = gr.Textbox(
                 label="Output folder",
-                placeholder="Leave empty to save alongside inputs in <input folder>/output/",
+                placeholder="<input folder>/output/",
                 elem_id=self.elem_id("output_dir"),
             )
         with gr.Row():
             prompt_override = gr.Textbox(
-                label="Prompt override",
-                placeholder="Leave empty to use the prompt from the main panel",
+                label="Prompt",
+                placeholder="Leave empty to use the panel prompt",
                 elem_id=self.elem_id("prompt_override"),
             )
         with gr.Row():
             negative_override = gr.Textbox(
-                label="Negative prompt override",
-                placeholder="Leave empty to use the negative prompt from the main panel",
+                label="Negative prompt",
+                placeholder="Leave empty to use the panel value",
                 elem_id=self.elem_id("negative_override"),
             )
         with gr.Row():
             seed_override = gr.Textbox(
-                label="Seed override (-1 = use panel seed)",
+                label="Seed (-1 = use panel)",
                 value="-1",
                 elem_id=self.elem_id("seed_override"),
             )
         with gr.Row():
             steps_override = gr.Slider(
                 minimum=0, maximum=150, step=1, value=0,
-                label="Steps override (0 = use panel steps)",
+                label="Steps (0 = use panel)",
                 elem_id=self.elem_id("steps_override"),
             )
         with gr.Row():
             cfg_scale_override = gr.Slider(
                 minimum=0.0, maximum=30.0, step=0.5, value=0.0,
-                label="Guidance scale override (0.0 = use panel value)",
+                label="Guidance scale (0.0 = use panel)",
                 elem_id=self.elem_id("cfg_scale_override"),
             )
         with gr.Row():
             sampler_override = gr.Dropdown(
-                label="Sampler override (empty = use panel sampler)",
+                label="Sampler (empty = use panel)",
                 choices=[""] + [s.name for s in sd_samplers.samplers_for_img2img],
                 value="",
                 elem_id=self.elem_id("sampler_override"),
@@ -74,7 +72,7 @@ class Script(scripts_manager.Script):
         with gr.Row():
             strength_override = gr.Slider(
                 minimum=0.0, maximum=1.0, step=0.01, value=0.0,
-                label="Denoising strength override (0.0 = use panel value)",
+                label="Denoising strength (0.0 = use panel)",
                 elem_id=self.elem_id("strength_override"),
             )
         with gr.Row():
@@ -103,8 +101,19 @@ class Script(scripts_manager.Script):
         with gr.Row():
             pre_resize_scale = gr.Slider(
                 minimum=0.25, maximum=4.0, step=0.05, value=1.0,
-                label="Scale factor",
+                label="Scale factor (ignored if width/height set)",
                 elem_id=self.elem_id("pre_resize_scale"),
+            )
+        with gr.Row():
+            pre_resize_width = gr.Number(
+                label="Width (0 = use scale factor)",
+                value=0, precision=0,
+                elem_id=self.elem_id("pre_resize_width"),
+            )
+            pre_resize_height = gr.Number(
+                label="Height (0 = use scale factor)",
+                value=0, precision=0,
+                elem_id=self.elem_id("pre_resize_height"),
             )
         with gr.Row():
             gr.HTML('<b>Post-inference resize</b>')
@@ -131,12 +140,23 @@ class Script(scripts_manager.Script):
         with gr.Row():
             resize_scale = gr.Slider(
                 minimum=1.0, maximum=8.0, step=0.05, value=2.0,
-                label="Scale factor",
+                label="Scale factor (ignored if width/height set)",
                 elem_id=self.elem_id("resize_scale"),
             )
-        return [folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, resize_enabled, resize_mode, resize_name, resize_scale]
+        with gr.Row():
+            resize_width = gr.Number(
+                label="Width (0 = use scale factor)",
+                value=0, precision=0,
+                elem_id=self.elem_id("resize_width"),
+            )
+            resize_height = gr.Number(
+                label="Height (0 = use scale factor)",
+                value=0, precision=0,
+                elem_id=self.elem_id("resize_height"),
+            )
+        return [folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, pre_resize_width, pre_resize_height, resize_enabled, resize_mode, resize_name, resize_scale, resize_width, resize_height]
 
-    def run(self, p, folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, resize_enabled, resize_mode, resize_name, resize_scale): # pylint: disable=arguments-differ
+    def run(self, p, folder, output_dir, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, pre_resize_width, pre_resize_height, resize_enabled, resize_mode, resize_name, resize_scale, resize_width, resize_height): # pylint: disable=arguments-differ
         folder = (folder or "").strip()
         if not folder or not os.path.isdir(folder):
             log.error(f"Image folder batch: invalid or missing folder: {folder!r}")
@@ -199,8 +219,8 @@ class Script(scripts_manager.Script):
             cp.width = img.width
             cp.height = img.height
             if pre_resize_enabled and pre_resize_mode != 0 and pre_resize_name not in ('None', '') and shared.sd_upscalers:
-                pre_w = int(img.width * pre_resize_scale)
-                pre_h = int(img.height * pre_resize_scale)
+                pre_w = int(pre_resize_width) if int(pre_resize_width) > 0 else int(img.width * pre_resize_scale)
+                pre_h = int(pre_resize_height) if int(pre_resize_height) > 0 else int(img.height * pre_resize_scale)
                 img = images.resize_image(pre_resize_mode, img, pre_w, pre_h, pre_resize_name)
                 cp.init_images = [img]
                 cp.width = img.width
@@ -222,8 +242,8 @@ class Script(scripts_manager.Script):
 
             out_img = proc.images[0]
             if resize_enabled and resize_mode != 0 and resize_name not in ('None', '') and shared.sd_upscalers:
-                target_w = int(out_img.width * resize_scale)
-                target_h = int(out_img.height * resize_scale)
+                target_w = int(resize_width) if int(resize_width) > 0 else int(out_img.width * resize_scale)
+                target_h = int(resize_height) if int(resize_height) > 0 else int(out_img.height * resize_scale)
                 resized_img = images.resize_image(resize_mode, out_img, target_w, target_h, resize_name)
                 log.info(f"Image folder batch: resized to {resized_img.size} mode={shared.resize_modes[resize_mode]!r} method={resize_name!r}")
                 res_name = os.path.splitext(os.path.basename(filepath))[0] + ".png"
