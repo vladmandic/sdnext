@@ -2,10 +2,10 @@
 """Prune tag autocomplete files with per-category minimum post counts.
 
 Usage:
-    python cli/prune_tags.py models/autocomplete/danbooru.json
-    python cli/prune_tags.py models/autocomplete/*.json --general 500 --artist 20
-    python cli/prune_tags.py models/autocomplete/sankaku.json -o sankaku-pruned.json
-    python cli/prune_tags.py models/autocomplete/*.json --dry-run
+    python cli/tags-prune.py models/autocomplete/danbooru.json
+    python cli/tags-prune.py models/autocomplete/*.json --general 500 --artist 20
+    python cli/tags-prune.py models/autocomplete/sankaku.json -o sankaku-pruned.json
+    python cli/tags-prune.py models/autocomplete/*.json --dry-run
 
 Category-aware pruning: artists and characters are kept at lower thresholds
 (proper nouns that need autocomplete), while general tags are pruned more
@@ -17,7 +17,7 @@ import json
 import os
 import sys
 
-# Category ID -> name (must match UNIFIED_CATEGORIES in fetch_tags.py)
+# Category ID -> name (must match UNIFIED_CATEGORIES in tags-fetch.py)
 CATEGORY_NAMES = {
     0: "general",
     1: "artist",
@@ -94,6 +94,12 @@ def main():
 
     thresholds = {name: getattr(args, name) for name in DEFAULTS}
 
+    from importlib.util import spec_from_file_location, module_from_spec
+    spec = spec_from_file_location("tags_manifest", os.path.join(os.path.dirname(__file__), "tags-manifest.py"))
+    mod = module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    update_manifest = mod.update_manifest
+
     for filepath in args.files:
         if not os.path.isfile(filepath):
             print(f"  Skipping {filepath}: not found", file=sys.stderr)
@@ -129,7 +135,6 @@ def main():
         os.replace(tmp_path, output_path)
         size_mb = os.path.getsize(output_path) / (1024 * 1024)
         print(f"  Written: {output_path} ({size_mb:.1f} MB)", file=sys.stderr)
-        from gen_manifest import update_manifest
         update_manifest(os.path.dirname(output_path) or ".")
 
 

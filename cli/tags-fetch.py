@@ -2,12 +2,12 @@
 """Fetch and convert booru tag databases to SD.Next autocomplete format.
 
 Usage:
-    python cli/fetch_tags.py danbooru [--output PATH] [--min-count N]
-    python cli/fetch_tags.py e621 [--output PATH] [--min-count N]
-    python cli/fetch_tags.py rule34 --key USER_ID:API_KEY [--output PATH] [--min-count N]
-    python cli/fetch_tags.py sankaku [--output PATH] [--min-count N]
-    python cli/fetch_tags.py idol [--output PATH] [--min-count N]
-    python cli/fetch_tags.py all --key USER_ID:API_KEY [--output-dir DIR] [--min-count N]
+    python cli/tags-fetch.py danbooru [--output PATH] [--min-count N]
+    python cli/tags-fetch.py e621 [--output PATH] [--min-count N]
+    python cli/tags-fetch.py rule34 --key USER_ID:API_KEY [--output PATH] [--min-count N]
+    python cli/tags-fetch.py sankaku [--output PATH] [--min-count N]
+    python cli/tags-fetch.py idol [--output PATH] [--min-count N]
+    python cli/tags-fetch.py all --key USER_ID:API_KEY [--output-dir DIR] [--min-count N]
 
 Progress is saved every 50 pages to a .partial file so interrupted
 runs can be resumed. Transient HTTP errors are retried with backoff.
@@ -394,7 +394,11 @@ def fetch_source(name: str, output: str, min_count: int, api_key: str | None = N
         return
     write_dict(name, tags, source["type_map"], output, separator=separator)
     clear_partial(partial_path)
-    from gen_manifest import update_manifest
+    from importlib.util import spec_from_file_location, module_from_spec
+    spec = spec_from_file_location("tags_manifest", os.path.join(os.path.dirname(__file__), "tags-manifest.py"))
+    mod = module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    update_manifest = mod.update_manifest
     update_manifest(os.path.dirname(output) or ".")
 
 

@@ -5,8 +5,8 @@ Reads tag JSON files and writes a manifest with accurate tag counts,
 file sizes, and versions.
 
 Usage:
-    python cli/gen_manifest.py models/autocomplete/danbooru.json models/autocomplete/e621.json ...
-    python cli/gen_manifest.py models/autocomplete/*.json -o models/autocomplete/manifest.json
+    python cli/tags-manifest.py models/autocomplete/danbooru.json models/autocomplete/e621.json ...
+    python cli/tags-manifest.py models/autocomplete/*.json -o models/autocomplete/manifest.json
 """
 
 import argparse
@@ -15,7 +15,7 @@ import os
 import sys
 
 # Human-readable descriptions keyed by file name.
-# Add entries here when new sources are added to fetch_tags.py.
+# Add entries here when new sources are added to tags-fetch.py.
 DESCRIPTIONS = {
     "art": "Art movements, styles, and techniques",
     "danbooru": "Danbooru image board tags - anime/illustration focused",

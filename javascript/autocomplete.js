@@ -63,29 +63,36 @@ function formatCount(count) {
   return String(count);
 }
 
-/** Estimate viewport Y of the bottom of the caret line using a mirror div. */
+/**
+ * Estimate viewport Y of the bottom of the caret line using a persistent
+ * offscreen mirror div. Styles and width are re-read from the textarea on
+ * every call so resized textareas are handled correctly.
+ */
+let caretMirror = null;
+let caretMarker = null;
+const MIRROR_PROPS = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
+  'lineHeight', 'letterSpacing', 'wordSpacing', 'textTransform',
+  'padding', 'border', 'boxSizing'];
+
 function caretViewportY(textarea) {
-  const mirror = document.createElement('div');
-  const cs = getComputedStyle(textarea);
-  for (const p of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
-    'lineHeight', 'letterSpacing', 'wordSpacing', 'textTransform',
-    'padding', 'border', 'boxSizing']) {
-    mirror.style[p] = cs[p];
+  if (!caretMirror) {
+    caretMirror = document.createElement('div');
+    caretMirror.className = 'autocomplete-mirror';
+    caretMirror.style.whiteSpace = 'pre-wrap';
+    caretMirror.style.wordWrap = 'break-word';
+    caretMirror.style.position = 'absolute';
+    caretMirror.style.left = '-9999px';
+    caretMirror.style.overflow = 'hidden';
+    caretMarker = document.createElement('span');
+    caretMarker.textContent = '\u200b';
+    document.body.appendChild(caretMirror);
   }
-  mirror.style.whiteSpace = 'pre-wrap';
-  mirror.style.wordWrap = 'break-word';
-  mirror.style.position = 'absolute';
-  mirror.style.left = '-9999px';
-  mirror.style.width = `${textarea.offsetWidth}px`;
-  mirror.style.overflow = 'hidden';
-  const text = textarea.value.substring(0, textarea.selectionStart);
-  mirror.textContent = text;
-  const marker = document.createElement('span');
-  marker.textContent = '\u200b';
-  mirror.appendChild(marker);
-  document.body.appendChild(mirror);
-  const offset = marker.offsetTop + marker.offsetHeight;
-  document.body.removeChild(mirror);
+  const cs = getComputedStyle(textarea);
+  for (const p of MIRROR_PROPS) caretMirror.style[p] = cs[p];
+  caretMirror.style.width = `${textarea.offsetWidth}px`;
+  caretMirror.textContent = textarea.value.substring(0, textarea.selectionStart);
+  caretMirror.appendChild(caretMarker);
+  const offset = caretMarker.offsetTop + caretMarker.offsetHeight;
   return textarea.getBoundingClientRect().top + offset - textarea.scrollTop;
 }
 
@@ -260,10 +267,17 @@ const dropdown = {
         this.accept();
       }
     });
+    this.resizeObserver = new ResizeObserver(() => {
+      if (this.visible) this.position();
+    });
   },
 
   show(results, textarea, query) {
     if (results.length === 0) { this.hide(); return; }
+    if (this.textarea !== textarea) {
+      if (this.textarea) this.resizeObserver.unobserve(this.textarea);
+      this.resizeObserver.observe(textarea);
+    }
     this.results = results;
     this.textarea = textarea;
     this.query = query || '';
@@ -275,6 +289,8 @@ const dropdown = {
   },
 
   hide() {
+    if (this.textarea) this.resizeObserver.unobserve(this.textarea);
+    this.textarea = null;
     this.el.style.display = 'none';
     this.visible = false;
     this.results = [];
