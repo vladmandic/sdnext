@@ -379,7 +379,7 @@ def ipex_hijacks():
     # transformers completely breaks when anything is done to torch.tensor
     # even straight passthroughs breaks transformers for some reason
     #torch.tensor = torch_tensor
-    
+
     torch.empty = torch_empty
     torch.randn = torch_randn
     torch.ones = torch_ones

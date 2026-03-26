@@ -5,7 +5,7 @@
 ### Highlights for 2026-03-26
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
-And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit* *SkyWorks-UniPic-3* and new *Anima-Preview*  
+And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV*  
 
 If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download [exe or zip](https://github.com/vladmandic/sdnext-launcher/releases) and done!
 
@@ -27,6 +27,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - [Skyworks UniPic-3](https://huggingface.co/Skywork/Unipic3), *Consistency and DMD* variants to reference/community section  
     *Note*: UniPic-3 is a fine-tune of Qwen-Image-Edit with new distillation regardless of its claim of major changes  
   - [Anima Preview-v2](https://huggingface.co/circlestone-labs/Anima)  
+  - [FLUX.2-Klein-KV](https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-kv), thanks @liutyi  
 - **Image manipulation**
   - new **Color grading** module  
     apply basic corrections to your images: brightness,contrast,saturation,shadows,highlights  
