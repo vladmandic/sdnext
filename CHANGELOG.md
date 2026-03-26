@@ -62,6 +62,8 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - **Nunchaku** models are now listed in networks tab as reference models  
     instead of being used implicitly via quantization  
   - improve image **Metadata** parser for foreign metadata (e.g. XMP)  
+  - new **CeeTeeDees image-to-image batch inference**, thanks @resonantsky  
+    available in *main interface -> scripts*  
 - **Compute**
   - **ROCm** advanced configuration and tuning, thanks @resonantsky  
     see *main interface -> scripts -> rocm advanced config*  

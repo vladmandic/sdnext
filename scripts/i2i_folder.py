@@ -1,12 +1,10 @@
 import os
 import copy
-from modules.files_cache import list_files
 import gradio as gr
 from PIL import Image
-from modules import processing, scripts_manager, sd_samplers, images
-from modules import shared
-from modules.processing import Processed, get_processed
-from modules.shared import state, log
+from modules import shared, processing, scripts_manager, sd_samplers, images
+from modules.logger import log
+from modules.files_cache import list_files
 
 
 class Script(scripts_manager.Script):
@@ -18,9 +16,8 @@ class Script(scripts_manager.Script):
 
     def ui(self, is_img2img): # pylint: disable=unused-argument
         with gr.Row():
-             gr.HTML('<p><b>The purpose of this script is to assist in Img2Img of folders containing incrementally named images such as one would use when extracting frames from video.</p><br><p>It can use any model though is best done with high consistency models such as Flux.</p><br><p>Note the full path of your folder containing incrementally numbered images such as Frame000 to Frame900 and the script will run Inference on each image in order saving the images with identical names in an output subfolder.</p>')
+            gr.HTML('<p><b>The purpose of this script is to assist in Img2Img of folders containing incrementally named images such as one would use when extracting frames from video.</p><br><p>It can use any model though is best done with high consistency models such as Flux.</p><br><p>Note the full path of your folder containing incrementally numbered images such as Frame000 to Frame900 and the script will run Inference on each image in order saving the images with identical names in an output subfolder.</p>')
         with gr.Row():
-
             folder = gr.Textbox(
                 label="Input folder",
                 placeholder="Path to folder containing png, jpg, jpeg, webp or jxl images",
@@ -166,12 +163,12 @@ class Script(scripts_manager.Script):
         folder = (folder or "").strip()
         if not folder or not os.path.isdir(folder):
             log.error(f"Image folder batch: invalid or missing folder: {folder!r}")
-            return Processed(p, [], p.seed, "Invalid or missing folder")
+            return processing.Processed(p, [], p.seed, "Invalid or missing folder")
 
         files = sorted(list_files(folder, ext_filter=['.png', '.jpg', '.jpeg', '.webp', '.jxl'], recursive=False))
         if not files:
             log.error(f"Image folder batch: no image files found in: {folder!r}")
-            return Processed(p, [], p.seed, "No image files found")
+            return processing.Processed(p, [], p.seed, "No image files found")
 
         out_dir = (output_dir or "").strip() or os.path.join(folder, "output")
         os.makedirs(out_dir, exist_ok=True)
@@ -202,7 +199,7 @@ class Script(scripts_manager.Script):
         if negative_override.strip():
             p.negative_prompt = negative_override.strip()
 
-        state.job_count = len(files)
+        shared.state.job_count = len(files)
 
         all_images = []
         all_prompts = []
@@ -211,10 +208,10 @@ class Script(scripts_manager.Script):
         infotexts = []
 
         for i, filepath in enumerate(files):
-            if state.interrupted:
+            if shared.state.interrupted:
                 break
-            state.job = f"{i + 1}/{len(files)}"
-            state.job_no = i
+            shared.state.job = f"{i + 1}/{len(files)}"
+            shared.state.job_no = i
 
             img = Image.open(filepath)
             if img.mode not in ('RGB', 'L'):
@@ -270,4 +267,4 @@ class Script(scripts_manager.Script):
 
             all_images.append(out_img)
 
-        return get_processed(p, all_images, p.seed, "", all_prompts=all_prompts, all_seeds=all_seeds, all_negative_prompts=all_negative, infotexts=infotexts)
+        return processing.get_processed(p, all_images, p.seed, "", all_prompts=all_prompts, all_seeds=all_seeds, all_negative_prompts=all_negative, infotexts=infotexts)
