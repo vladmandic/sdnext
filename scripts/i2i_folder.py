@@ -1,6 +1,6 @@
 import os
-import glob
 import copy
+from modules.files_cache import list_files
 import gradio as gr
 from PIL import Image
 from modules import processing, scripts_manager, sd_samplers, images
@@ -11,19 +11,19 @@ from modules.shared import state, log
 
 class Script(scripts_manager.Script):
     def title(self):
-        return "CeeTeeDee's I2I folder batch inference"
+        return "CeeTeeDees I2I folder batch inference"
 
     def show(self, is_img2img): # pylint: disable=unused-argument
         return True
 
     def ui(self, is_img2img): # pylint: disable=unused-argument
         with gr.Row():
-             gr.HTML('<p><b>The purpose of this script is to assist in Img2Img of folders containing incrementally named images such as one would use when extracting frames from video.</p><br><p>It can use any model though is best done with high consistency models such as Flux.</p><br><p>Note the full path of your folder containing incrementally numbered images such as Frame000.png to Frame900.png and the script will run Inference on each image in order saving the images with identical names in an output subfolder.</p>')
+             gr.HTML('<p><b>The purpose of this script is to assist in Img2Img of folders containing incrementally named images such as one would use when extracting frames from video.</p><br><p>It can use any model though is best done with high consistency models such as Flux.</p><br><p>Note the full path of your folder containing incrementally numbered images such as Frame000 to Frame900 and the script will run Inference on each image in order saving the images with identical names in an output subfolder.</p>')
         with gr.Row():
 
             folder = gr.Textbox(
                 label="Input folder",
-                placeholder="Path to folder containing PNG images",
+                placeholder="Path to folder containing png, jpg, jpeg, webp or jxl images",
                 elem_id=self.elem_id("folder"),
             )
         with gr.Row():
@@ -168,10 +168,10 @@ class Script(scripts_manager.Script):
             log.error(f"Image folder batch: invalid or missing folder: {folder!r}")
             return Processed(p, [], p.seed, "Invalid or missing folder")
 
-        files = sorted(glob.glob(os.path.join(folder, "*.png")))
+        files = sorted(list_files(folder, ext_filter=['.png', '.jpg', '.jpeg', '.webp', '.jxl'], recursive=False))
         if not files:
-            log.error(f"Image folder batch: no PNG files found in: {folder!r}")
-            return Processed(p, [], p.seed, "No PNG files found")
+            log.error(f"Image folder batch: no image files found in: {folder!r}")
+            return Processed(p, [], p.seed, "No image files found")
 
         out_dir = (output_dir or "").strip() or os.path.join(folder, "output")
         os.makedirs(out_dir, exist_ok=True)
@@ -261,9 +261,9 @@ class Script(scripts_manager.Script):
                 target_h = int(resize_height) if int(resize_height) > 0 else int(out_img.height * resize_scale)
                 resized_img = images.resize_image(resize_mode, out_img, target_w, target_h, resize_name)
                 log.info(f"Image folder batch: resized to {resized_img.size} mode={shared.resize_modes[resize_mode]!r} method={resize_name!r}")
-                res_name = os.path.splitext(os.path.basename(filepath))[0] + ".png"
+                res_name = os.path.basename(filepath)
                 resized_img.save(os.path.join(resize_out_dir, res_name))
-            out_name = os.path.splitext(os.path.basename(filepath))[0] + ".png"
+            out_name = os.path.basename(filepath)
             out_path = os.path.join(out_dir, out_name)
             out_img.save(out_path)
             log.info(f"Image folder batch: saved {out_path!r}")
