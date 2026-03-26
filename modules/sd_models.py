@@ -1418,7 +1418,7 @@ def hf_auth_check(checkpoint_info, force:bool=False):
         return False
 
 
-def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite = False):
+def save_model(name: str, path: str | None = None, shard: str | None = None, overwrite = False):
     if (name is None) or len(name.strip()) == 0:
         log.error('Save model: invalid model name')
         return 'Invalid model name'
@@ -1432,8 +1432,6 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
     if os.path.exists(model_name) and not overwrite:
         log.error(f'Save model: path="{model_name}" exists')
         return f'Path exists: {model_name}'
-    if not shard.strip():
-        shard = "5GB"  # Guard against empty input
     try:
         t0 = time.time()
         save_sdnq_model(

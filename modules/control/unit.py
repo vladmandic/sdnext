@@ -1,4 +1,3 @@
-from typing import TYPE_CHECKING
 from PIL import Image
 import gradio as gr
 from modules.logger import log
@@ -178,8 +177,6 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
 
         # bind ui controls to properties if present
         if self.type == 't2i adapter':
-            if TYPE_CHECKING:
-                assert isinstance(self.adapter, t2iadapter.Adapter)
             if model_id is not None:
                 if isinstance(model_id, str):
                     self.adapter.load(model_id)
@@ -189,8 +186,6 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
             if extra_controls is not None and len(extra_controls) > 0:
                 extra_controls[0].change(fn=adapter_extra, inputs=extra_controls)
         elif self.type == 'controlnet':
-            if TYPE_CHECKING:
-                assert isinstance(self.controlnet, controlnet.ControlNet)
             if model_id is not None:
                 if isinstance(model_id, str):
                     self.controlnet.load(model_id)
@@ -201,8 +196,6 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
             if extra_controls is not None and len(extra_controls) > 0:
                 extra_controls[0].change(fn=controlnet_extra, inputs=extra_controls)
         elif self.type == 'xs':
-            if TYPE_CHECKING:
-                assert isinstance(self.controlnet, xs.ControlNetXS)
             if model_id is not None:
                 if isinstance(model_id, str):
                     self.controlnet.load(model_id)
@@ -212,8 +205,6 @@ class Unit: # mashup of gradio controls and mapping to actual implementation cla
             if extra_controls is not None and len(extra_controls) > 0:
                 extra_controls[0].change(fn=controlnetxs_extra, inputs=extra_controls)
         elif self.type == 'lite':
-            if TYPE_CHECKING:
-                assert isinstance(self.controlnet, lite.ControlLLLite)
             if model_id is not None:
                 if isinstance(model_id, str):
                     self.controlnet.load(model_id)
