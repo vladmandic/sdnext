@@ -665,6 +665,7 @@ def create_settings(cmd_opts):
         "autocomplete_enabled": OptionInfo([], "Enabled tag autocomplete files", gr.Dropdown, lambda: {"multiselect": True, "choices": list_autocomplete_names()}),
         "autocomplete_min_chars": OptionInfo(3, "Minimum characters before autocomplete triggers", gr.Slider, {"minimum": 2, "maximum": 6, "step": 1}),
         "autocomplete_replace_underscores": OptionInfo(True, "Replace underscores with spaces in autocomplete results"),
+        "autocomplete_append_comma": OptionInfo(True, "Automatically add comma separator between tags"),
     }))
 
     # --- Extensions ---

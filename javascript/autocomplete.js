@@ -215,9 +215,11 @@ function insertTag(textarea, tagName) {
   const before = value.slice(0, info.start);
   const after = value.slice(info.end);
   // Build insertion: tag + separator
-  const needsCommaBefore = before.length > 0 && !before.trimEnd().endsWith(',') && before.trimEnd().length > 0;
-  const prefix = needsCommaBefore ? ', ' : '';
-  let suffix = ', ';
+  const useComma = window.opts?.autocomplete_append_comma ?? true;
+  const sep = useComma ? ',' : '';
+  const needsSepBefore = before.length > 0 && before.trimEnd().length > 0 && !before.trimEnd().endsWith(',');
+  const prefix = needsSepBefore ? `${sep} ` : '';
+  let suffix = `${sep} `;
   if (after.length > 0 && after.trimStart().startsWith(',')) suffix = ' ';
   const insertion = `${prefix}${tagName}${suffix}`;
   textarea.value = before.trimEnd() + (before.trimEnd().length > 0 ? ' ' : '') + insertion + after.trimStart();
