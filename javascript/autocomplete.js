@@ -25,6 +25,23 @@ const CATEGORY_COLORS = {
   13: '#e84393', // color
 };
 
+const CATEGORY_NAMES = {
+  0: 'general',
+  1: 'artist',
+  2: 'studio',
+  3: 'copyright',
+  4: 'character',
+  5: 'species',
+  6: 'genre',
+  7: 'medium',
+  8: 'meta',
+  9: 'lore',
+  10: 'lens',
+  11: 'lighting',
+  12: 'composition',
+  13: 'color',
+};
+
 // -- Utilities (ported from Enso) --
 
 /** Binary search for the first tag where tag.name >= prefix. */
@@ -44,6 +61,32 @@ function formatCount(count) {
   if (count >= 1_000_000) return `${(count / 1_000_000).toFixed(1)}M`;
   if (count >= 1_000) return `${Math.round(count / 1_000)}k`;
   return String(count);
+}
+
+/** Estimate viewport Y of the bottom of the caret line using a mirror div. */
+function caretViewportY(textarea) {
+  const mirror = document.createElement('div');
+  const cs = getComputedStyle(textarea);
+  for (const p of ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
+    'lineHeight', 'letterSpacing', 'wordSpacing', 'textTransform',
+    'padding', 'border', 'boxSizing']) {
+    mirror.style[p] = cs[p];
+  }
+  mirror.style.whiteSpace = 'pre-wrap';
+  mirror.style.wordWrap = 'break-word';
+  mirror.style.position = 'absolute';
+  mirror.style.left = '-9999px';
+  mirror.style.width = `${textarea.offsetWidth}px`;
+  mirror.style.overflow = 'hidden';
+  const text = textarea.value.substring(0, textarea.selectionStart);
+  mirror.textContent = text;
+  const marker = document.createElement('span');
+  marker.textContent = '\u200b';
+  mirror.appendChild(marker);
+  document.body.appendChild(mirror);
+  const offset = marker.offsetTop + marker.offsetHeight;
+  document.body.removeChild(mirror);
+  return textarea.getBoundingClientRect().top + offset - textarea.scrollTop;
 }
 
 // -- TagIndex --
@@ -87,6 +130,7 @@ class TagIndex {
 const engine = {
   indices: new Map(), // name -> TagIndex
   categoryColors: { ...CATEGORY_COLORS },
+  categoryNames: { ...CATEGORY_NAMES },
 
   async loadEnabled() {
     const enabled = window.opts?.autocomplete_enabled || [];
@@ -107,6 +151,7 @@ const engine = {
         if (data.categories) {
           Object.entries(data.categories).forEach(([id, cat]) => {
             if (cat.color) this.categoryColors[id] = cat.color;
+            if (cat.name) this.categoryNames[id] = cat.name;
           });
         }
         log('autocomplete', `loaded ${name}: ${data.tags?.length || 0} tags`);
@@ -192,6 +237,7 @@ const dropdown = {
   selectedIndex: -1,
   results: [],
   textarea: null,
+  query: '',
   visible: false,
 
   init() {
@@ -214,10 +260,11 @@ const dropdown = {
     });
   },
 
-  show(results, textarea) {
+  show(results, textarea, query) {
     if (results.length === 0) { this.hide(); return; }
     this.results = results;
     this.textarea = textarea;
+    this.query = query || '';
     this.selectedIndex = -1;
     this.render();
     this.position();
@@ -234,7 +281,8 @@ const dropdown = {
 
   render() {
     const replaceUnderscores = window.opts?.autocomplete_replace_underscores ?? true;
-    this.listEl.innerHTML = '';
+    const queryNorm = this.query.toLowerCase().replace(/ /g, '_');
+    this.listEl.replaceChildren();
     this.results.forEach((tag, i) => {
       const li = document.createElement('li');
       if (i === this.selectedIndex) li.classList.add('selected');
@@ -242,9 +290,22 @@ const dropdown = {
       dot.className = 'autocomplete-category';
       dot.style.color = engine.categoryColors[tag.category] || '#888';
       dot.textContent = '\u25CF';
+      dot.title = engine.categoryNames[tag.category] || '';
       const name = document.createElement('span');
       name.className = 'autocomplete-tag';
-      name.textContent = replaceUnderscores ? tag.display.replace(/_/g, ' ') : tag.display;
+      const tagText = replaceUnderscores ? tag.display.replace(/_/g, ' ') : tag.display;
+      const matchPos = tag.name.indexOf(queryNorm);
+      if (matchPos >= 0 && queryNorm.length > 0) {
+        const mark = document.createElement('mark');
+        mark.textContent = tagText.slice(matchPos, matchPos + queryNorm.length);
+        name.append(
+          document.createTextNode(tagText.slice(0, matchPos)),
+          mark,
+          document.createTextNode(tagText.slice(matchPos + queryNorm.length)),
+        );
+      } else {
+        name.textContent = tagText;
+      }
       const count = document.createElement('span');
       count.className = 'autocomplete-count';
       count.textContent = tag.count > 0 ? formatCount(tag.count) : '';
@@ -260,12 +321,15 @@ const dropdown = {
   position() {
     if (!this.textarea) return;
     const rect = this.textarea.getBoundingClientRect();
-    const spaceBelow = window.innerHeight - rect.bottom;
+    // Position near the caret line instead of the textarea bottom
+    const cursorBottom = caretViewportY(this.textarea);
+    const anchorY = Math.max(rect.top, Math.min(cursorBottom, rect.bottom));
+    const spaceBelow = window.innerHeight - anchorY;
     const dropHeight = Math.min(this.el.scrollHeight, 300);
-    if (spaceBelow >= dropHeight || spaceBelow >= rect.top) {
-      this.el.style.top = `${rect.bottom + 2}px`;
+    if (spaceBelow >= dropHeight || spaceBelow >= anchorY - rect.top) {
+      this.el.style.top = `${anchorY + 2}px`;
     } else {
-      this.el.style.top = `${rect.top - dropHeight - 2}px`;
+      this.el.style.top = `${anchorY - dropHeight - 2}px`;
     }
     this.el.style.left = `${rect.left}px`;
     this.el.style.width = `${rect.width}px`;
@@ -318,7 +382,7 @@ function onInput(textarea) {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
     const results = engine.searchAll(info.word);
-    dropdown.show(results, textarea);
+    dropdown.show(results, textarea, info.word);
   }, 150);
 }
 
@@ -390,15 +454,19 @@ async function initAutocomplete() {
     '.autocompleteResults { position: fixed; z-index: 9999; max-height: 300px; overflow-y: auto;',
     '  background: var(--sd-main-background-color, var(--background-fill-primary, #1f2937));',
     '  border: 1px solid var(--sd-input-border-color, var(--border-color-primary, #374151));',
-    '  border-radius: var(--sd-border-radius, 6px); box-shadow: 0 4px 12px rgba(0,0,0,0.3);',
+    '  border-radius: var(--sd-border-radius, 6px); box-shadow: 0 4px 16px rgba(0,0,0,0.4);',
     '  font-size: 13px; scrollbar-width: thin; }',
     '.autocompleteResultsList { list-style: none; margin: 0; padding: 4px 0; }',
-    '.autocompleteResultsList > li { display: flex; align-items: center; padding: 4px 10px; cursor: pointer; gap: 8px; line-height: 1.4; }',
+    '.autocompleteResultsList > li { display: flex; align-items: center; padding: 6px 12px; cursor: pointer;',
+    '  gap: 8px; line-height: 1.4; transition: background 0.1s ease; border-bottom: 1px solid rgba(255,255,255,0.03); }',
+    '.autocompleteResultsList > li:last-child { border-bottom: none; }',
     '.autocompleteResultsList > li:hover { background: var(--sd-panel-background-color, var(--input-background-fill-focus, #374151)); }',
     '.autocompleteResultsList > li.selected { background: var(--sd-main-accent-color, var(--button-primary-background-fill, #4b5563)); }',
-    '.autocomplete-category { font-size: 10px; flex-shrink: 0; width: 10px; text-align: center; }',
+    '.autocomplete-category { font-size: 10px; flex-shrink: 0; width: 10px; text-align: center; cursor: help; }',
     '.autocomplete-tag { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }',
-    '.autocomplete-count { font-size: 0.8em; opacity: 0.5; flex-shrink: 0; font-variant-numeric: tabular-nums; }',
+    '.autocomplete-tag mark { background: transparent; color: inherit; font-weight: 700; }',
+    '.autocomplete-count { font-size: 0.75em; opacity: 0.45; flex-shrink: 0; font-variant-numeric: tabular-nums;',
+    '  background: rgba(255,255,255,0.06); padding: 1px 6px; border-radius: 8px; min-width: 28px; text-align: right; }',
   ].join('\n');
   document.head.appendChild(style);
   dropdown.init();
