@@ -25,7 +25,7 @@ manifest_cache: dict = {}  # {"data": [...], "fetched_at": float}
 
 def init(path: str) -> None:
     """Set the autocomplete directory path. Called once during API registration."""
-    global autocomplete_dir  # noqa: PLW0603
+    global autocomplete_dir # pylint: disable=global-statement
     autocomplete_dir = path
 
 
@@ -36,7 +36,18 @@ def get_cached(name: str) -> dict:
     path = os.path.join(autocomplete_dir, f"{name}.json")
     if not os.path.isfile(path):
         cache.pop(name, None)
-        raise HTTPException(status_code=404, detail=f"Not found: {name}")
+        # Auto-download from HF if available in manifest
+        try:
+            manifest = fetch_manifest_sync()
+            if any(e.get('name') == name for e in manifest):
+                log.info(f"Auto-downloading autocomplete: {name}")
+                download_sync(name)
+            else:
+                raise HTTPException(status_code=404, detail=f"Not found: {name}")
+        except HTTPException:
+            raise
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=f"Not found: {name} ({e})") from e
     stat = os.stat(path)
     entry = cache.get(name)
     if entry and entry['mtime'] == stat.st_mtime:
@@ -109,7 +120,7 @@ async def get_content(name: str) -> ItemAutocompleteContent:
     )
 
 
-# ── Remote management ──
+# -- Remote management --
 
 def fetch_manifest_sync() -> list[dict]:
     """Fetch manifest.json from HuggingFace, with caching."""
@@ -212,7 +223,7 @@ def download_sync(name: str) -> str:
 
 async def download(name: str):
     """Download a tag file from HuggingFace."""
-    path = await asyncio.to_thread(download_sync, name)
+    await asyncio.to_thread(download_sync, name)
     entry = await asyncio.to_thread(get_cached, name)
     meta = entry['meta']
     return ItemAutocomplete(

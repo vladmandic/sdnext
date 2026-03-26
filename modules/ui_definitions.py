@@ -52,16 +52,25 @@ def get_openvino_device_list():
 
 
 def list_autocomplete_names():
-    """Return list of available tag autocomplete file names (JSON filenames without extension)."""
+    """Return list of available tag autocomplete file names from local files and HF manifest."""
     from modules import shared, paths as paths_module
+    names = set()
+    # Local files
     autocomplete_dir = getattr(shared.opts, 'autocomplete_dir', None) or os.path.join(paths_module.models_path, 'autocomplete')
-    if not os.path.isdir(autocomplete_dir):
-        return []
-    return sorted(
-        os.path.splitext(f)[0]
-        for f in os.listdir(autocomplete_dir)
-        if f.endswith('.json') and not f.startswith('.') and f != 'manifest.json'
-    )
+    if os.path.isdir(autocomplete_dir):
+        for f in os.listdir(autocomplete_dir):
+            if f.endswith('.json') and not f.startswith('.') and f != 'manifest.json':
+                names.add(os.path.splitext(f)[0])
+    # Remote manifest
+    try:
+        from modules.api.autocomplete import fetch_manifest_sync
+        for entry in fetch_manifest_sync():
+            names.add(entry.get('name', ''))
+    except Exception as e:
+        from modules.logger import log
+        log.debug(f"Autocomplete manifest fetch skipped: {e}")
+    names.discard('')
+    return sorted(names)
 
 
 def create_settings(cmd_opts):
@@ -653,7 +662,9 @@ def create_settings(cmd_opts):
         "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
 
         "extra_networks_autocomplete_sep": OptionInfo("<h2>Tag Autocomplete</h2>", "", gr.HTML),
-        "autocomplete_enabled": OptionInfo([], "Enabled tag autocomplete files", gr.CheckboxGroup, lambda: {"choices": list_autocomplete_names()}),
+        "autocomplete_enabled": OptionInfo([], "Enabled tag autocomplete files", gr.Dropdown, lambda: {"multiselect": True, "choices": list_autocomplete_names()}),
+        "autocomplete_min_chars": OptionInfo(3, "Minimum characters before autocomplete triggers", gr.Slider, {"minimum": 2, "maximum": 6, "step": 1}),
+        "autocomplete_replace_underscores": OptionInfo(True, "Replace underscores with spaces in autocomplete results"),
     }))
 
     # --- Extensions ---

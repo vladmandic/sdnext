@@ -71,7 +71,7 @@ MAX_RETRIES = 3
 RETRY_BACKOFF = 5  # seconds, multiplied by attempt number
 
 
-# ── Partial save/resume ──
+# -- Partial save/resume --
 
 def save_partial(path: str, page: int, tags: list):
     """Save fetch progress to a .partial file."""
@@ -105,7 +105,7 @@ def clear_partial(path: str):
         os.remove(path)
 
 
-# ── HTTP retry helper ──
+# -- HTTP retry helper --
 
 def fetch_with_retry(session: requests.Session, url: str, params: dict | None = None, timeout: int = 30) -> requests.Response:
     """GET with retry and exponential backoff for transient errors."""
@@ -123,7 +123,7 @@ def fetch_with_retry(session: requests.Session, url: str, params: dict | None = 
                 raise
 
 
-# ── Fetchers ──
+# -- Fetchers --
 
 def fetch_danbooru(min_count: int = 10, partial_path: str = "", **_kwargs) -> list:
     """Fetch tags from Danbooru API, paginated."""

@@ -145,9 +145,9 @@ class Api:
 
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute
-        paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
+        route_paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
         for route in self.app.routes:
-            if isinstance(route, APIRoute) and len(route.path) > 1 and route.path.endswith('/') and route.path[:-1] in paths:
+            if isinstance(route, APIRoute) and len(route.path) > 1 and route.path.endswith('/') and route.path[:-1] in route_paths:
                 route.include_in_schema = False
 
         # upload api
