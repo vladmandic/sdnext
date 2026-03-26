@@ -82,7 +82,7 @@ class BriaTransformer2DModel(ModelMixin, ConfigMixin, PeftAdapterMixin, FromOrig
         attention_head_dim: int = 128,
         num_attention_heads: int = 24,
         joint_attention_dim: int = 4096,
-        pooled_projection_dim: int = None,
+        pooled_projection_dim: int | None = None,
         guidance_embeds: bool = False,
         axes_dims_rope: List[int] = [16, 56, 56],
         rope_theta = 10000,
