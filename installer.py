@@ -1263,6 +1263,7 @@ def set_environment():
     os.environ.setdefault('MIOPEN_FIND_MODE', '2')
     os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
     os.environ.setdefault('USE_TORCH', '1')
+    os.environ.setdefault('UV_CONSTRAINT', os.path.abspath('constraints.txt'))
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
     os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')

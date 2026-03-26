@@ -17,6 +17,12 @@ logging.getLogger("DeepSpeed").disabled = True
 timer.startup.record("loader")
 log.debug('Initializing: libraries')
 
+def report(msg: str, e: Exception):
+    log.error(f'Loader: {msg} {e}')
+    log.error('Please restart the app to fix this issue')
+    sys.exit(1)
+
+
 np = None
 try:
     os.environ.setdefault('NEP50_DISABLE_WARNING', '1')
@@ -33,19 +39,17 @@ try:
                 return x
             return npwarn_decorator
         np._no_nep50_warning = getattr(np, '_no_nep50_warning', dummy_npwarn_decorator_factory) # pylint: disable=protected-access
+    else:
+        log.warning(f'Loader: numpy=={np.__version__} unsupported')
 except Exception as e:
-    log.error(f'Loader: numpy=={np.__version__ if np is not None else None} {e}')
-    log.error('Please restart the app to fix this issue')
-    sys.exit(1)
+    report(f'numpy=={np.__version__ if np is not None else None}', e)
 timer.startup.record("numpy")
 
 scipy = None
 try:
     import scipy # pylint: disable=W0611,C0411
 except Exception as e:
-    log.error(f'Loader: scipy=={scipy.__version__ if scipy is not None else None} {e}')
-    log.error('Please restart the app to fix this issue')
-    sys.exit(1)
+    report(f'scipy=={scipy.__version__ if scipy is not None else None}', e)
 timer.startup.record("scipy")
 
 try:
@@ -59,13 +63,15 @@ import torch # pylint: disable=C0411
 if torch.__version__.startswith('2.5.0'):
     log.warning(f'Disabling cuDNN for SDP on torch={torch.__version__}')
     torch.backends.cuda.enable_cudnn_sdp(False)
+
 try:
     import intel_extension_for_pytorch as ipex # pylint: disable=import-error,unused-import
     log.debug(f'Load IPEX=={ipex.__version__}')
 except Exception:
     pass
+
 try:
-    pass # pylint: disable=unused-import,ungrouped-imports
+    import torch.distributed.distributed_c10d as _c10d # pylint: disable=unused-import,ungrouped-imports
 except Exception:
     log.warning('Loader: torch is not built with distributed support')
 
@@ -86,11 +92,10 @@ warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvisi
 torchvision = None
 try:
     import torchvision # pylint: disable=W0611,C0411
+    import pytorch_lightning # pytorch_lightning should be imported after torch, but it re-enables warnings on import so import once to disable them # pylint: disable=W0611,C0411
 except Exception as e:
-    log.error(f'Loader: torchvision=={torchvision.__version__ if "torchvision" in sys.modules else None} {e}')
-    if '_no_nep' in str(e):
-        log.error('Loaded versions of packaged are not compatible')
-        log.error('Please restart the app to fix this issue')
+    report(f'torchvision=={torchvision.__version__ if torchvision is not None else None}', e)
+
 logging.getLogger("xformers").addFilter(lambda record: 'A matching Triton is not available' not in record.getMessage())
 logging.getLogger("pytorch_lightning").disabled = True
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
@@ -111,6 +116,7 @@ try:
     torch._dynamo.config.suppress_errors = not _compile_debug # pylint: disable=protected-access
 except Exception as e:
     log.warning(f'Torch logging: {e}')
+
 if ".dev" in torch.__version__ or "+git" in torch.__version__:
     torch.__long_version__ = torch.__version__
     torch.__version__ = re.search(r'[\d.]+[\d]', torch.__version__).group(0)
@@ -123,15 +129,28 @@ except Exception:
     _bnb = False
 timer.startup.record("bnb")
 
-import huggingface_hub # pylint: disable=W0611,C0411
-logging.getLogger("huggingface_hub.file_download").setLevel(logging.ERROR)
-logging.getLogger("huggingface_hub.utils._http").setLevel(logging.ERROR)
-timer.startup.record("hfhub")
+huggingface_hub = None
+try:
+    import huggingface_hub # pylint: disable=W0611,C0411
+    logging.getLogger("huggingface_hub.file_download").setLevel(logging.ERROR)
+    logging.getLogger("huggingface_hub.utils._http").setLevel(logging.ERROR)
+    timer.startup.record("hfhub")
+except Exception as e:
+    report(f'huggingface_hub=={huggingface_hub.__version__ if "huggingface_hub" in sys.modules else None}', e)
+timer.startup.record("hub")
 
-import accelerate # pylint: disable=W0611,C0411
+accelerate = None
+try:
+    import accelerate # pylint: disable=W0611,C0411
+except Exception as e:
+    report(f'accelerate=={accelerate.__version__ if "accelerate" in sys.modules else None}', e)
 timer.startup.record("accelerate")
 
-import pydantic # pylint: disable=W0611,C0411
+pydantic = None
+try:
+    import pydantic # pylint: disable=W0611,C0411
+except Exception as e:
+    report(f'pydantic=={pydantic.__version__ if "pydantic" in sys.modules else None}', e)
 timer.startup.record("pydantic")
 
 try:
@@ -142,9 +161,13 @@ try:
     fake_version_check.dep_version_check = lambda pkg, hint=None: None
 except Exception:
     pass
-import transformers # pylint: disable=W0611,C0411
-from transformers import logging as transformers_logging # pylint: disable=W0611,C0411
-transformers_logging.set_verbosity_error()
+transformers = None
+try:
+    import transformers # pylint: disable=W0611,C0411
+    from transformers import logging as transformers_logging # pylint: disable=W0611,C0411
+    transformers_logging.set_verbosity_error()
+except Exception as e:
+    report(f'transformers=={transformers.__version__ if "transformers" in sys.modules else None}', e)
 timer.startup.record("transformers")
 
 try:
