@@ -300,7 +300,7 @@ class Options:
         return get_model_display_name(Options.default)
 
 
-class Script(scripts_manager.Script):
+class PromptEnhanceScript(scripts_manager.Script):
     prompt: gr.Textbox = None
     image: gr.Image = None
     model: str = None

@@ -93,7 +93,7 @@ def load_prompt_file(file):
         return None, "\n".join(lines), gr.update(lines=7)
 
 
-class Script(scripts_manager.Script):
+class PromptsFromFileScript(scripts_manager.Script):
     def title(self):
         return "Prompts from file"
 

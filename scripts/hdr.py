@@ -9,7 +9,7 @@ from modules.processing import get_processed
 from modules.shared import opts, state
 
 
-class Script(scripts_manager.Script):
+class HDRScript(scripts_manager.Script):
     def title(self):
         return "HDR: High Dynamic Range"
 

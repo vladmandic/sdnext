@@ -29,7 +29,7 @@ img2img = True
 
 ### Script definition
 
-class Script(scripts_manager.Script):
+class AutoColorInpaintScript(scripts_manager.Script):
     def title(self):
         return title
 

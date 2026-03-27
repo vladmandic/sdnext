@@ -25,7 +25,7 @@ def check_dependencies():
         return False
 
 
-class Script(scripts_manager.Script):
+class MixtureTilingScript(scripts_manager.Script):
     def title(self):
         return 'Mixture Tiling: Scene Composition'
 

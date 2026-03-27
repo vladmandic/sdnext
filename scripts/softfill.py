@@ -1608,7 +1608,7 @@ from modules import shared, scripts_manager, processing, sd_models
 from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class SoftFillScript(scripts_manager.Script):
     orig_pipeline = None
 
     def title(self):

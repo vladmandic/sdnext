@@ -22,7 +22,7 @@ def hijack_register_modules(self, **kwargs):
         setattr(self, name, module)
 
 
-class Script(scripts_manager.Script):
+class RegionalPromptingScript(scripts_manager.Script):
     def title(self):
         return 'Regional prompting'
 

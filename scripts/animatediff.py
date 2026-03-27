@@ -198,7 +198,7 @@ def set_free_noise(frames):
         shared.sd_model.enable_free_noise(context_length=context_length, context_stride=context_stride)
 
 
-class Script(scripts_manager.Script):
+class AnimateDiffScript(scripts_manager.Script):
     def title(self):
         return 'Video: AnimateDiff'
 

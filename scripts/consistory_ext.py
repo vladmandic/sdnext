@@ -16,7 +16,7 @@ from modules import scripts_manager, devices, errors, processing, shared, sd_mod
 from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class ConsiStoryScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.anchor_cache_first_stage = None

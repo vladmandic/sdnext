@@ -22,7 +22,7 @@ def asymmetricConv2DConvForward(self, input: Tensor, weight: Tensor, bias: Optio
     return F.conv2d(working, weight, bias, self.stride, _pair(0), self.dilation, self.groups)
 
 
-class Script(scripts_manager.Script):
+class TilingScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None

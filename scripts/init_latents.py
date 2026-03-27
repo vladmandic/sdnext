@@ -2,7 +2,7 @@ from modules.logger import log
 from modules import scripts_manager, processing, shared, devices
 
 
-class Script(scripts_manager.Script):
+class InitLatentsScript(scripts_manager.Script):
     standalone = False
 
     def title(self):

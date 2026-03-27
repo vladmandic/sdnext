@@ -1847,7 +1847,7 @@ MODELS = {
 }
 
 
-class Script(scripts_manager.Script):
+class DifferentialDiffusionScript(scripts_manager.Script):
     def title(self):
         return 'Differential diffusion: Individual Pixel Strength'
 

@@ -22,7 +22,7 @@ MODELS = [
 ]
 
 
-class Script(scripts_manager.Script):
+class ModelScopeScript(scripts_manager.Script):
     def title(self):
         return 'Video: ModelScope'
 

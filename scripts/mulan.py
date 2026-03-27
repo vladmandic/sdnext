@@ -45,7 +45,7 @@ tokenizer = None
 text_encoder_path = None
 
 
-class Script(scripts_manager.Script):
+class MuLanScript(scripts_manager.Script):
     def title(self):
         return 'MuLan: Multi Language Prompts'
 

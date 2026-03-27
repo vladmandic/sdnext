@@ -527,7 +527,7 @@ def check_transformers():
     else:
         # Git commit-pinned version
         current = opts.get('transformers_version', '')
-        if (pkg_transformers is None) or (current != target_commit):
+        if (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" commit={target_commit}')
             else:

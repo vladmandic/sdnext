@@ -15,7 +15,7 @@ processor_depth = None
 title = 'Flux Tools'
 
 
-class Script(scripts_manager.Script):
+class FluxToolsScript(scripts_manager.Script):
     def title(self):
         return f'{title}'
 

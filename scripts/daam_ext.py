@@ -9,7 +9,7 @@ from modules.logger import log
 COLORMAP = ['autumn', 'bone', 'jet', 'winter', 'rainbow', 'ocean', 'summer', 'spring', 'cool', 'hsv', 'pink', 'hot', 'parula', 'magma', 'inferno', 'plasma', 'viridis', 'cividis', 'twilight', 'shifted', 'turbo', 'deepgreen']
 
 
-class Script(scripts_manager.Script):
+class DAAMScript(scripts_manager.Script):
     def title(self):
         return 'DAAM: Diffusion Attentive Attribution Maps'
 

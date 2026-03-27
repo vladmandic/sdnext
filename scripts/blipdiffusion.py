@@ -3,7 +3,7 @@ from modules import scripts_manager, processing, shared, sd_models
 from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class BLIPDiffusionScript(scripts_manager.Script):
     def title(self):
         return 'BLIP Diffusion: Controllable Generation and Editing'
 

@@ -79,6 +79,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - legacy panels **T2I** and **I2I** are disabled by default  
     you can re-enable them in *settings -> ui -> hide legacy tabs*  
   - new panel: **Server Info** with detailed runtime informaton  
+  - rename **Scripts** to **Extras** and reorganize to split internal functionality vs external extensions  
   - **Networks** add **UNet/DiT**  
   - **Localization** improved translation quality and new translations locales:  
     *en, en1, en2, en3, en4, hr, es, it, fr, de, pt, ru, zh, ja, ko, hi, ar, bn, ur, id, vi, tr, sr, po, he, xx, yy, qq, tlh*  
@@ -103,6 +104,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 - **Obsoleted**
   - removed support for additional quantization engines: *BitsAndBytes, TorchAO, Optimum-Quanto, NNCF*  
     *note*: SDNQ is quantization engine of choice for SD.Next  
+  - removed `flux_enhance` script  
 - **Internal**
   - `python==3.13` full support  
   - `python==3.14` initial support  

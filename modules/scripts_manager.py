@@ -46,8 +46,12 @@ class Script:
     paste_field_names = None
     section = None
     standalone = False
+    external = False
     on_before_component_elem_id = [] # list of callbacks to be called before a component with an elem_id is created
     on_after_component_elem_id = [] # list of callbacks to be called after a component with an elem_id is created
+
+    def __str__(self):
+        return f'Script: name="{self.name}" filename="{self.filename}" external={self.external} parent="{self.parent}" args_from={self.args_from} args_to={self.args_to} alwayson={self.alwayson} is_txt2img={self.is_txt2img} is_img2img={self.is_img2img}'
 
     def title(self):
         """this function should return the title of the script. This is what will be displayed in the dropdown menu."""
@@ -226,11 +230,11 @@ def list_scripts(scriptdirname, extension):
         if os.path.splitext(script.path)[1].lower() == extension and os.path.isfile(script.path):
             if script.basedir == paths.script_path:
                 priority = '0'
-            elif script.basedir.startswith(os.path.join(paths.script_path, 'scripts')):
+            elif script.basedir.startswith(os.path.join(paths.script_path, 'scripts')) or script.basedir.startswith('scripts'):
                 priority = '1'
-            elif script.basedir.startswith(os.path.join(paths.script_path, 'extensions-builtin')):
+            elif script.basedir.startswith(os.path.join(paths.script_path, 'extensions-builtin')) or script.basedir.startswith('extensions-builtin'):
                 priority = '2'
-            elif script.basedir.startswith(os.path.join(paths.script_path, 'extensions')):
+            elif script.basedir.startswith(os.path.join(paths.script_path, 'extensions')) or script.basedir.startswith('extensions'):
                 priority = '3'
             else:
                 priority = '9'
@@ -351,6 +355,8 @@ class ScriptRunner:
             script.filename = path
             script.is_txt2img = not is_img2img
             script.is_img2img = is_img2img
+            if path.startswith(paths.extensions_dir) and not path.startswith(paths.extensions_builtin_dir):
+                script.external = True
             if is_control: # this is messy but show is a legacy function that is not aware of control tab
                 v1 = script.show(script.is_txt2img)
                 v2 = script.show(script.is_img2img)
@@ -458,6 +464,7 @@ class ScriptRunner:
             dropdown = gr.Dropdown(label="Script", elem_id=f'{parent}_script_list', choices=["None"] + self.titles, value="None", type="index")
             inputs.insert(0, dropdown)
 
+        # internal
         with gr.Row():
             for script in self.alwayson_scripts:
                 if not script.standalone:
@@ -471,10 +478,11 @@ class ScriptRunner:
                 script.group = group
                 time_setup[script.title()] = time_setup.get(script.title(), 0) + (time.time()-t0)
 
+        # extensions-builtin
         with gr.Row():
-            with gr.Accordion(label="Extensions", elem_id=f'{parent}_script_alwayson') if accordion else gr.Group():
+            with gr.Group(label="Extras", elem_id=f'{parent}_extras_alwayson'):
                 for script in self.alwayson_scripts:
-                    if script.standalone:
+                    if script.standalone or script.external:
                         continue
                     if (self.name == 'control') and (paths.extensions_dir in script.filename) and (script.title() not in control_extensions):
                         log.debug(f'Script: fn="{script.filename}" type={self.name} skip')
@@ -484,6 +492,22 @@ class ScriptRunner:
                         create_script_ui(script, inputs, inputs_alwayson)
                     script.group = group
                     time_setup[script.title()] = time_setup.get(script.title(), 0) + (time.time()-t0)
+
+        # extensions
+        with gr.Row():
+            with gr.Accordion(label="Extensions", elem_id=f'{parent}_script_alwayson') if accordion else gr.Group():
+                for script in self.alwayson_scripts:
+                    if script.standalone or not script.external:
+                        continue
+                    if (self.name == 'control') and (paths.extensions_dir in script.filename) and (script.title() not in control_extensions):
+                        log.debug(f'Script: fn="{script.filename}" type={self.name} skip')
+                        continue
+                    t0 = time.time()
+                    with gr.Group(elem_id=f'{parent}_script_{script.title().lower().replace(" ", "_")}', elem_classes=['group-extension']) as group:
+                        create_script_ui(script, inputs, inputs_alwayson)
+                    script.group = group
+                    time_setup[script.title()] = time_setup.get(script.title(), 0) + (time.time()-t0)
+
 
         for script in self.selectable_scripts:
             if (self.name == 'control') and (paths.extensions_dir in script.filename) and (script.title() not in control_extensions):

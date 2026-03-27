@@ -16,10 +16,14 @@ errors.install()
 logging.getLogger("DeepSpeed").disabled = True
 timer.startup.record("loader")
 log.debug('Initializing: libraries')
+debug = os.environ.get('SD_LOAD_DEBUG')
+
 
 def report(msg: str, e: Exception):
     log.error(f'Loader: {msg} {e}')
     log.error('Please restart the app to fix this issue')
+    if debug:
+        errors.display(e, msg)
     sys.exit(1)
 
 

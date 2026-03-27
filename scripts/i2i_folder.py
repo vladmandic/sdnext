@@ -7,7 +7,7 @@ from modules.logger import log
 from modules.files_cache import list_files
 
 
-class Script(scripts_manager.Script):
+class I2IFolderScript(scripts_manager.Script):
     def title(self):
         return "CeeTeeDees I2I folder batch inference"
 

@@ -424,6 +424,7 @@
   "e": [
     {"id":"component-883","label":"Enhance prompt","localized":"","hint":"","ui":"script_flux_prompt_enhance_(legacy)"},
     {"id":"prompt_enhance_apply","label":"Enhance now","localized":"","hint":"Run prompt enhancement using the selected LLM model","ui":"script_prompt_enhance"},
+    {"id":"","label":"Extras","localized":"","hint":"Additional functionality that can be enabled during generate"},
     {"id":"btn_extensions","label":"Extensions","localized":"","hint":"Application extensions"},
     {"id":"","label":"Extract LoRA","localized":"","hint":""},
     {"id":"","label":"Embedded metadata","localized":"","hint":""},
@@ -1242,7 +1243,7 @@
   ],
   "s": [
     {"id":"txt2img_sampler","label":"Sampler","localized":"","hint":"Settings related to sampler and seed selection and configuration. Samplers guide the process of turning noise into an image over multiple steps.","ui":"txt2img"},
-    {"id":"txt2img_scripts","label":"Scripts","localized":"","hint":"Enable additional features by using selected scripts during generate process","ui":"txt2img"},
+    {"id":"","label":"Scripts","localized":"","hint":"Enable additional features by using selected scripts during generate process","ui":"txt2img"},
     {"id":"","label":"Scale","localized":"","hint":"Resize image to target scale. If resize fixed width/height are set this option is ignored","ui":"txt2img"},
     {"id":"xy_grid_swap_axes_button","label":"Swap X/Y","localized":"","hint":"","ui":"script_xyz_grid_script"},
     {"id":"yz_grid_swap_axes_button","label":"Swap Y/Z","localized":"","hint":"","ui":"script_xyz_grid_script"},

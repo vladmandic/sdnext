@@ -8,7 +8,7 @@ from modules.logger import log
 debug = log.trace if os.environ.get('SD_FACE_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts_manager.Script):
+class FaceScript(scripts_manager.Script):
     original_pipeline = None
     original_prompt_attention = None
 

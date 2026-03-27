@@ -6,7 +6,7 @@ from modules import scripts_manager, shared
 # pylint: disable=protected-access
 
 
-class Script(scripts_manager.Script):
+class ROCmScript(scripts_manager.Script):
     def title(self):
         return "ROCm: Advanced Config"
 

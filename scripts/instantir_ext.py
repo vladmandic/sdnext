@@ -6,7 +6,7 @@ from modules import scripts_manager, processing, shared, sd_models, devices, ipa
 from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class InstantIRScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None

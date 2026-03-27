@@ -30,7 +30,7 @@ ASPECT_RATIOS = {
 }
 
 
-class Script(scripts_manager.Script):
+class LBMScript(scripts_manager.Script):
     def title(self):
         return 'LBM: Latent Bridge Matching'
 

@@ -6,7 +6,7 @@ from modules.logger import log
 registered = False
 
 
-class Script(scripts_manager.Script):
+class APGScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
