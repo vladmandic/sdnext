@@ -31,7 +31,7 @@ class I2IFolderScript(scripts_manager.Script):
             )
         with gr.Row():
             upscale_only = gr.Checkbox(
-                label="Upscale only (skip inference, apply post-resize directly to inputs)",
+                label="Upscale only (skip inference, apply post-resize)",
                 value=False,
                 elem_id=self.elem_id("upscale_only"),
             )
@@ -78,46 +78,46 @@ class I2IFolderScript(scripts_manager.Script):
                 label="Denoising strength (0.0 = use panel)",
                 elem_id=self.elem_id("strength_override"),
             )
-        with gr.Row():
-            gr.HTML('<b>Pre-inference resize</b>')
+        # with gr.Row():
+        #     gr.HTML('<b>Pre-inference resize</b>')
         _upscaler_choices = [x.name for x in shared.sd_upscalers] or ["None"]
-        with gr.Row():
-            pre_resize_enabled = gr.Checkbox(
-                label="Enable pre-inference resize",
-                value=False,
-                elem_id=self.elem_id("pre_resize_enabled"),
-            )
-        with gr.Row():
-            pre_resize_mode = gr.Dropdown(
-                label="Resize mode",
-                choices=shared.resize_modes,
-                type="index",
-                value="None",
-                elem_id=self.elem_id("pre_resize_mode"),
-            )
-            pre_resize_name = gr.Dropdown(
-                label="Resize method",
-                choices=_upscaler_choices,
-                value=_upscaler_choices[0],
-                elem_id=self.elem_id("pre_resize_name"),
-            )
-        with gr.Row():
-            pre_resize_scale = gr.Slider(
-                minimum=0.25, maximum=4.0, step=0.05, value=1.0,
-                label="Scale factor (ignored if width/height set)",
-                elem_id=self.elem_id("pre_resize_scale"),
-            )
-        with gr.Row():
-            pre_resize_width = gr.Number(
-                label="Width (0 = use scale factor)",
-                value=0, precision=0,
-                elem_id=self.elem_id("pre_resize_width"),
-            )
-            pre_resize_height = gr.Number(
-                label="Height (0 = use scale factor)",
-                value=0, precision=0,
-                elem_id=self.elem_id("pre_resize_height"),
-            )
+        # with gr.Row():
+        #     pre_resize_enabled = gr.Checkbox(
+        #         label="Enable pre-inference resize",
+        #         value=False,
+        #         elem_id=self.elem_id("pre_resize_enabled"),
+        #     )
+        # with gr.Row():
+        #     pre_resize_mode = gr.Dropdown(
+        #         label="Resize mode",
+        #         choices=shared.resize_modes,
+        #         type="index",
+        #         value="None",
+        #         elem_id=self.elem_id("pre_resize_mode"),
+        #     )
+        #     pre_resize_name = gr.Dropdown(
+        #         label="Resize method",
+        #         choices=_upscaler_choices,
+        #         value=_upscaler_choices[0],
+        #         elem_id=self.elem_id("pre_resize_name"),
+        #     )
+        # with gr.Row():
+        #     pre_resize_scale = gr.Slider(
+        #         minimum=0.25, maximum=4.0, step=0.05, value=1.0,
+        #         label="Scale factor (ignored if width/height set)",
+        #         elem_id=self.elem_id("pre_resize_scale"),
+        #     )
+        # with gr.Row():
+        #     pre_resize_width = gr.Number(
+        #         label="Width (0 = use scale factor)",
+        #         value=0, precision=0,
+        #         elem_id=self.elem_id("pre_resize_width"),
+        #     )
+        #     pre_resize_height = gr.Number(
+        #         label="Height (0 = use scale factor)",
+        #         value=0, precision=0,
+        #         elem_id=self.elem_id("pre_resize_height"),
+        #     )
         with gr.Row():
             gr.HTML('<b>Post-inference resize</b>')
         with gr.Row():
@@ -157,9 +157,9 @@ class I2IFolderScript(scripts_manager.Script):
                 value=0, precision=0,
                 elem_id=self.elem_id("resize_height"),
             )
-        return [folder, output_dir, upscale_only, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, pre_resize_width, pre_resize_height, resize_enabled, resize_mode, resize_name, resize_scale, resize_width, resize_height]
+        return [folder, output_dir, upscale_only, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, resize_enabled, resize_mode, resize_name, resize_scale, resize_width, resize_height]
 
-    def run(self, p, folder, output_dir, upscale_only, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, pre_resize_enabled, pre_resize_mode, pre_resize_name, pre_resize_scale, pre_resize_width, pre_resize_height, resize_enabled, resize_mode, resize_name, resize_scale, resize_width, resize_height): # pylint: disable=arguments-differ
+    def run(self, p, folder, output_dir, upscale_only, prompt_override, negative_override, seed_override, steps_override, cfg_scale_override, sampler_override, strength_override, resize_enabled, resize_mode, resize_name, resize_scale, resize_width, resize_height): # pylint: disable=arguments-differ
         folder = (folder or "").strip()
         if not folder or not os.path.isdir(folder):
             log.error(f"Image folder batch: invalid or missing folder: {folder!r}")
@@ -172,9 +172,9 @@ class I2IFolderScript(scripts_manager.Script):
 
         out_dir = (output_dir or "").strip() or os.path.join(folder, "output")
         os.makedirs(out_dir, exist_ok=True)
-        pre_resize_out_dir = os.path.join(out_dir, "pre-resize") if pre_resize_enabled else None
-        if pre_resize_out_dir:
-            os.makedirs(pre_resize_out_dir, exist_ok=True)
+        # pre_resize_out_dir = os.path.join(out_dir, "pre-resize") if pre_resize_enabled else None
+        # if pre_resize_out_dir:
+        #     os.makedirs(pre_resize_out_dir, exist_ok=True)
         resize_out_dir = os.path.join(os.path.dirname(out_dir), "output-resized") if resize_enabled else None
         if resize_out_dir:
             os.makedirs(resize_out_dir, exist_ok=True)
@@ -224,17 +224,17 @@ class I2IFolderScript(scripts_manager.Script):
             cp.init_images = [img]
             cp.width = img.width
             cp.height = img.height
-            if pre_resize_enabled and pre_resize_mode != 0 and pre_resize_name not in ('None', '') and shared.sd_upscalers:
-                pre_w = int(pre_resize_width) if int(pre_resize_width) > 0 else int(img.width * pre_resize_scale)
-                pre_h = int(pre_resize_height) if int(pre_resize_height) > 0 else int(img.height * pre_resize_scale)
-                img = images.resize_image(pre_resize_mode, img, pre_w, pre_h, pre_resize_name)
-                cp.init_images = [img]
-                cp.width = img.width
-                cp.height = img.height
-                log.info(f"Image folder batch: pre-resize to {img.size} mode={shared.resize_modes[pre_resize_mode]!r} method={pre_resize_name!r}")
-                pre_out_path = os.path.join(pre_resize_out_dir, os.path.basename(filepath))
-                img.save(pre_out_path)
-                log.info(f"Image folder batch: pre-resize saved {pre_out_path!r}")
+            # if pre_resize_enabled and pre_resize_mode != 0 and pre_resize_name not in ('None', '') and shared.sd_upscalers:
+            #     pre_w = int(pre_resize_width) if int(pre_resize_width) > 0 else int(img.width * pre_resize_scale)
+            #     pre_h = int(pre_resize_height) if int(pre_resize_height) > 0 else int(img.height * pre_resize_scale)
+            #     img = images.resize_image(pre_resize_mode, img, pre_w, pre_h, pre_resize_name)
+            #     cp.init_images = [img]
+            #     cp.width = img.width
+            #     cp.height = img.height
+            #     log.info(f"Image folder batch: pre-resize to {img.size} mode={shared.resize_modes[pre_resize_mode]!r} method={pre_resize_name!r}")
+            #     pre_out_path = os.path.join(pre_resize_out_dir, os.path.basename(filepath))
+            #     img.save(pre_out_path)
+            #     log.info(f"Image folder batch: pre-resize saved {pre_out_path!r}")
             if upscale_only:
                 log.info(f"Image folder batch: [{i + 1}/{len(files)}] upscale-only file={os.path.basename(filepath)} size={img.size}")
                 out_img = img
