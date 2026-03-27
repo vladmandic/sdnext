@@ -158,7 +158,7 @@
   },
   "FireRed Image Edit 1.1": {
     "path": "FireRedTeam/FireRed-Image-Edit-1.1",
-    "preview": "FireRedTeam--FireRed-Image-Edit-1.0.jpg",
+    "preview": "FireRedTeam--FireRed-Image-Edit-1.1.jpg",
     "desc": "FireRed-Image-Edit is a general-purpose image editing model that delivers high-fidelity and consistent editing across a wide range of scenarios. FireRed is a fine-tune of Qwen-Image-Edit.",
     "tags": "community",
     "date": "2026 February",
