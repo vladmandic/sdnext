@@ -499,7 +499,7 @@ class ResScripts(BaseModel):
 class ResGPU(BaseModel): # definition of http response
     name: str = Field(title="GPU Name", description="GPU device name")
     data: dict = Field(title="Name/Value data", description="Key-value pairs of GPU metrics (utilization, temperature, clocks, memory, etc.)")
-    chart: list[float, float] = Field(title="Exactly two items to place on chart", description="Two numeric values for chart display (e.g., GPU utilization %, VRAM usage %)")
+    chart: tuple[float, float] = Field(title="Exactly two items to place on chart", description="Two numeric values for chart display (e.g., GPU utilization %, VRAM usage %)")
 
 class ItemLoadedModel(BaseModel):
     name: str = Field(title="Model Name", description="Model or component name")
