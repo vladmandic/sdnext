@@ -440,6 +440,8 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if args.quick:
         return
     log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
+    if sys.prefix == getattr(sys, "base_prefix", sys.prefix) and 'venv' not in sys.prefix.lower():
+        log.warning('Python: virtual environment not detected')
     if int(sys.version_info.minor) == 9:
         log.error(f"Python: version={platform.python_version()} is end-of-life")
     if int(sys.version_info.minor) == 10:
@@ -1000,6 +1002,19 @@ def list_extensions_folder(folder, quiet=False):
 
 # run installer for each installed and enabled extension and optionally update them
 def install_extensions(force=False):
+    disable_diffusers = [
+        'sd-webui-controlnet',
+        'multidiffusion-upscaler-for-automatic1111',
+        'a1111-sd-webui-lycoris',
+        'sd-webui-animatediff',
+    ]
+    disable_obsolete = [
+        'Lora',
+        'stable-diffusion-webui-rembg',
+        'sd-extension-framepack',
+        'sd-extension-nudenet',
+        'sd-extension-promptgen',
+    ]
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
@@ -1009,6 +1024,12 @@ def install_extensions(force=False):
     extensions_duplicates = []
     extensions_enabled = []
     extensions_disabled = [e.lower() for e in opts.get('disabled_extensions', [])]
+    for ext in disable_diffusers:
+        if ext.lower() not in opts.get('disabled_extensions', []):
+            extensions_disabled.append(ext)
+    for ext in disable_obsolete:
+        if ext.lower() not in opts.get('disabled_extensions', []):
+            extensions_disabled.append(ext)
     extension_folders = [extensions_builtin_dir] if args.safe else [extensions_builtin_dir, extensions_dir]
     res = []
     for folder in extension_folders:

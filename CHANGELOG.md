@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-26
+## Update for 2026-03-27
 
-### Highlights for 2026-03-26
+### Highlights for 2026-03-27
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV*  
@@ -18,7 +18,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-26
+### Details for 2026-03-27
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -141,6 +141,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - better subprocess execute, thanks @awsr  
   - better wslopen handling, thanks @awsr  
   - refactor for PEP-484 compliance, thanks @awsr  
+  - detect active `venv`  
 - **Obsolete**
   - remove `normalbae` pre-processor  
   - remove `dwpose` pre-processor  
