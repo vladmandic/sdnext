@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 import os
 import sys
 import threading
-from modules import shared, errors
+from typing import TYPE_CHECKING
+
+from modules import errors, shared
 from modules.logger import log
+
+if TYPE_CHECKING:
+    from diffusers import DiffusionPipeline
 
 
 def get_model_type(pipe):
@@ -120,8 +127,8 @@ def get_model_type(pipe):
 
 class ModelData:
     def __init__(self):
-        self.sd_model = None
-        self.sd_refiner = None
+        self.sd_model: DiffusionPipeline | None = None
+        self.sd_refiner: DiffusionPipeline | None = None
         self.sd_dict = 'None'
         self.initial = True
         self.locked = True

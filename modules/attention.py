@@ -190,7 +190,7 @@ def set_diffusers_attention(pipe, quiet = False):
     from modules import shared
     import diffusers.models.attention_processor as p
 
-    def set_attn(pipe, attention, name: str):
+    def set_attn(pipe, attention, name: str | None = None):
         if attention is None:
             return
         # other models uses their own attention processor

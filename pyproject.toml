@@ -140,6 +140,7 @@ main.ignore-paths=[
              "modules/control/proc",
              "modules/control/units",
              "modules/dml",
+             "modules/face",
              "modules/flash_attn_triton_amd",
              "modules/ggml",
              "modules/hidiffusion",

@@ -93,7 +93,7 @@ model = None
 processor = None
 
 
-def image_guard(image, policy:str=None) -> str:
+def image_guard(image, policy:str | None=None) -> str:
     global model, processor # pylint: disable=global-statement
     import json
     from installer import install

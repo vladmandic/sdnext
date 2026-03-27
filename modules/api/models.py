@@ -57,9 +57,9 @@ def underscore(name: str) -> str: # Convert CamelCase or PascalCase string to un
 class PydanticModelGenerator:
     def __init__(
         self,
-        model_name: str,
-        class_instance,
-        additional_fields: list,
+        model_name: str | None = None,
+        class_instance: type | None = None,
+        additional_fields: list[dict[str, Any]] | None = None,
         exclude_fields: list | None = None,
     ):
         if exclude_fields is None:

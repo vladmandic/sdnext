@@ -1088,12 +1088,12 @@ class PixelSmithXLPipeline(
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         prompt_2: Optional[Union[str, List[str]]] = None,
         height: Optional[int] = None,
         width: Optional[int] = None,
         num_inference_steps: int = 50,
-        timesteps: List[int] = None,
+        timesteps: List[int] | None = None,
         denoising_end: Optional[float] = None,
         guidance_scale: float = 5.0,
         #+#
@@ -1101,7 +1101,7 @@ class PixelSmithXLPipeline(
         pag_adaptive_scaling: float = 0.0,
         pag_drop_rate: float = 0.5,
         pag_applied_layers: List[str] = ['mid'], #['down', 'mid', 'up']
-        pag_applied_layers_index: List[str] = None, #['d4', 'd5', 'm0']
+        pag_applied_layers_index: List[str] | None = None, #['d4', 'd5', 'm0']
         #+#
         negative_prompt: Optional[Union[str, List[str]]] = None,
         negative_prompt_2: Optional[Union[str, List[str]]] = None,

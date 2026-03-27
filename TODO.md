@@ -6,6 +6,7 @@
 - Add notes: **Enso**
 - Tips: **Color Grading**
 - Regen: **Localization**
+- Rebuild: **Launcher** with `master`
 
 ## Internal
 

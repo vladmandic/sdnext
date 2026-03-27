@@ -99,7 +99,7 @@ def get_by_t5_prompt_embeds(
 def get_t5_prompt_embeds(
     tokenizer: T5TokenizerFast ,
     text_encoder: T5EncoderModel,
-    prompt: Union[str, List[str]] = None,
+    prompt: Union[str, List[str]] | None = None,
     num_images_per_prompt: int = 1,
     max_sequence_length: int = 128,
     device: Optional[torch.device] = None,
@@ -184,7 +184,7 @@ def get_env_prefix():
 
 
 def compute_density_for_timestep_sampling(
-    weighting_scheme: str, batch_size: int, logit_mean: float = None, logit_std: float = None, mode_scale: float = None
+    weighting_scheme: str, batch_size: int, logit_mean: float | None = None, logit_std: float | None = None, mode_scale: float | None = None
 ):
     """Compute the density for sampling the timesteps when doing SD3 training.
 
@@ -236,7 +236,7 @@ def get_clip_prompt_embeds(
     text_encoder_2: CLIPTextModelWithProjection,
     tokenizer: CLIPTokenizer,
     tokenizer_2: CLIPTokenizer,
-    prompt: Union[str, List[str]] = None,
+    prompt: Union[str, List[str]] | None = None,
     num_images_per_prompt: int = 1,
     max_sequence_length: int = 77,
     device: Optional[torch.device] = None,

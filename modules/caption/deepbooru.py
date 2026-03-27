@@ -134,7 +134,7 @@ def get_models() -> list:
     return ["DeepBooru"]
 
 
-def load_model(model_name: str = "") -> bool: # pylint: disable=unused-argument
+def load_model(model_name: str | None = None) -> bool: # pylint: disable=unused-argument
     """Load the DeepBooru model."""
     try:
         model.load()

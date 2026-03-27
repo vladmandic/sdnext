@@ -631,7 +631,7 @@ class StableDiffusionXLDiffImg2ImgPipeline(DiffusionPipeline, FromSingleFileMixi
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         prompt_2: Optional[Union[str, List[str]]] = None,
         image: Union[
             torch.FloatTensor,
@@ -662,9 +662,9 @@ class StableDiffusionXLDiffImg2ImgPipeline(DiffusionPipeline, FromSingleFileMixi
         callback_steps: int = 1,
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         guidance_rescale: float = 0.0,
-        original_size: Tuple[int, int] = None,
+        original_size: Tuple[int, int] | None = None,
         crops_coords_top_left: Tuple[int, int] = (0, 0),
-        target_size: Tuple[int, int] = None,
+        target_size: Tuple[int, int] | None = None,
         aesthetic_score: float = 6.0,
         negative_aesthetic_score: float = 2.5,
         map: torch.FloatTensor = None, # pylint: disable=redefined-builtin
@@ -1643,7 +1643,7 @@ class StableDiffusionDiffImg2ImgPipeline(DiffusionPipeline):
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         image: Union[torch.FloatTensor, PIL.Image.Image] = None,
         strength: float = 1,
         num_inference_steps: Optional[int] = 50,

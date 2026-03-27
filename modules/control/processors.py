@@ -202,7 +202,6 @@ class Processor:
         self.resize = resize
         self.reset()
         self.config(processor_id)
-        self.load_config: dict = {}
         if processor_id is not None:
             self.load()
 
