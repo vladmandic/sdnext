@@ -172,6 +172,9 @@ class I2IFolderScript(scripts_manager.Script):
 
         out_dir = (output_dir or "").strip() or os.path.join(folder, "output")
         os.makedirs(out_dir, exist_ok=True)
+        pre_resize_out_dir = os.path.join(out_dir, "pre-resize") if pre_resize_enabled else None
+        if pre_resize_out_dir:
+            os.makedirs(pre_resize_out_dir, exist_ok=True)
         resize_out_dir = os.path.join(os.path.dirname(out_dir), "output-resized") if resize_enabled else None
         if resize_out_dir:
             os.makedirs(resize_out_dir, exist_ok=True)
@@ -229,6 +232,9 @@ class I2IFolderScript(scripts_manager.Script):
                 cp.width = img.width
                 cp.height = img.height
                 log.info(f"Image folder batch: pre-resize to {img.size} mode={shared.resize_modes[pre_resize_mode]!r} method={pre_resize_name!r}")
+                pre_out_path = os.path.join(pre_resize_out_dir, os.path.basename(filepath))
+                img.save(pre_out_path)
+                log.info(f"Image folder batch: pre-resize saved {pre_out_path!r}")
             if upscale_only:
                 log.info(f"Image folder batch: [{i + 1}/{len(files)}] upscale-only file={os.path.basename(filepath)} size={img.size}")
                 out_img = img
