@@ -14,7 +14,9 @@ New color grading module, updated localization with new languages and improved t
 And major work on API hardening: security, rate limits, secrets handling, new endpoints, etc.  
 But also many smaller quality-of-life improvements - for full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
 
+
 *Note*: Purely due to size of changes, clean install is recommended!  
+Just how big? Some stats: *~530 commits over 880 files*  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
