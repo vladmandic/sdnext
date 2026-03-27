@@ -233,7 +233,7 @@ try:
     transformers.utils.logging.tqdm = _tqdm_cls()
     diffusers.pipelines.pipeline_utils.logging.tqdm = _tqdm_cls()
     huggingface_hub._snapshot_download.hf_tqdm = _tqdm_old # pylint: disable=protected-access
-except Exception as e:
+except Exception:
     pass
 
 def get_packages():
