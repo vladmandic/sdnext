@@ -428,8 +428,17 @@ class Script(scripts_manager.Script):
                 info = processed.infotexts[g]
                 prompt = processed.all_prompts[adj_g]
                 seed = processed.all_seeds[adj_g]
-                debug(f'XYZ grid save grid: i={g+1}')
-                images.save_image(processed.images[g], p.outpath_grids, "grid", info=info, extension=shared.opts.grid_format, prompt=prompt, seed=seed, grid=True, p=processed)
+                debug(f"XYZ grid save grid: i={g + 1} images={processed.images[g]}")
+                images.save_image(processed.images[g],
+                                  path=p.outpath_grids,
+                                  basename="grid",
+                                  info=info,
+                                  extension=shared.opts.grid_format,
+                                  prompt=prompt,
+                                  seed=seed,
+                                  grid=True,
+                                  p=processed
+                                )
 
         if not include_subgrids and have_subgrids > 0: # done with sub-grids, drop all related information:
             for _sg in range(have_subgrids):

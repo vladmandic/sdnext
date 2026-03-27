@@ -56,7 +56,7 @@ def hf_login(token=None):
     return True
 
 
-def download_diffusers_model(hub_id: str, cache_dir: str = None, download_config: dict[str, str] = None, token = None, variant = None, revision = None, mirror = None, custom_pipeline = None):
+def download_diffusers_model(hub_id: str, cache_dir: str | None = None, download_config: dict[str, str | bool] | None = None, token = None, variant = None, revision = None, mirror = None, custom_pipeline = None):
     if hub_id is None or len(hub_id) == 0:
         return None
     from diffusers import DiffusionPipeline
@@ -219,7 +219,7 @@ def get_reference_opts(name: str, quiet=False):
     return model_opts
 
 
-def load_reference(name: str, variant: str = None, revision: str = None, mirror: str = None, custom_pipeline: str = None):
+def load_reference(name: str, variant: str | None = None, revision: str | None = None, mirror: str | None = None, custom_pipeline: str | None = None):
     if '+' in name:
         name = name.split('+')[0]
     found = [r for r in diffuser_repos if name == r['name'] or name == r['friendly'] or name == r['path']]
@@ -337,7 +337,7 @@ def load_file_from_url(url: str, *, model_dir: str, progress: bool = True, file_
         return None
 
 
-def load_models(model_path: str, model_url: str = None, command_path: str = None, ext_filter=None, download_name=None, ext_blacklist=None) -> list:
+def load_models(model_path: str, model_url: str | None = None, command_path: str | None = None, ext_filter=None, download_name=None, ext_blacklist=None) -> list:
     """
     A one-and done loader to try finding the desired models in specified directories.
     @param download_name: Specify to download from model_url immediately.
@@ -404,7 +404,7 @@ def cleanup_models():
     move_files(src_path, dest_path)
 
 
-def move_files(src_path: str, dest_path: str, ext_filter: str = None):
+def move_files(src_path: str, dest_path: str, ext_filter: str | None = None):
     try:
         if not os.path.exists(dest_path):
             os.makedirs(dest_path)

@@ -1,11 +1,11 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-23
+## Update for 2026-03-27
 
-### Highlights for 2026-03-23
+### Highlights for 2026-03-27
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
-And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit* *SkyWorks-UniPic-3* and new *Anima-Preview*  
+And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV*  
 
 If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download [exe or zip](https://github.com/vladmandic/sdnext-launcher/releases) and done!
 
@@ -18,7 +18,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-23
+### Details for 2026-03-27
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -27,6 +27,7 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - [Skyworks UniPic-3](https://huggingface.co/Skywork/Unipic3), *Consistency and DMD* variants to reference/community section  
     *Note*: UniPic-3 is a fine-tune of Qwen-Image-Edit with new distillation regardless of its claim of major changes  
   - [Anima Preview-v2](https://huggingface.co/circlestone-labs/Anima)  
+  - [FLUX.2-Klein-KV](https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-kv), thanks @liutyi  
 - **Image manipulation**
   - new **Color grading** module  
     apply basic corrections to your images: brightness,contrast,saturation,shadows,highlights  
@@ -49,12 +50,11 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - **captioning** and **prompt enhance**: add support for all cloud-based Gemini models  
     *3.1/3.0/2.5 pro/flash/flash-lite*  
   - improve captioning and prompt enhance memory handling/offloading  
-- **Control**
-  - new **pre-processors**:  
-    *anyline, depth_anything v2, dsine, lotus, marigold normals, oneformer, rtmlib pose, sam2, stablenormal, teed, vitpose*  
 - **Features**
   - **Secrets** handling: new `secrets.json` and special handling for tokens/keys/passwords  
     used to be treated like any other `config.json` param which can cause security issues  
+  - **Control**: many new **pre-processors**  
+    *anyline, depth_anything v2, dsine, lotus, marigold normals, oneformer, rtmlib pose, sam2, stablenormal, teed, vitpose*  
   - pipelines: add **ZImageInpaint**  
   - rewritten **CivitAI** module  
     browse/discover mode with sort, period, type/base dropdowns; URL paste; subfolder sorting; auto-browse; dynamic dropdowns  
@@ -62,14 +62,22 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - **Nunchaku** models are now listed in networks tab as reference models  
     instead of being used implicitly via quantization  
   - improve image **Metadata** parser for foreign metadata (e.g. XMP)  
+  - new **CeeTeeDees image-to-image batch inference**, thanks @resonantsky  
+    available in *main interface -> scripts*  
 - **Compute**
   - **ROCm** advanced configuration and tuning, thanks @resonantsky  
     see *main interface -> scripts -> rocm advanced config*  
   - **ROCm** support for additional AMD GPUs: `gfx103X`, thanks @crashingalexsan  
-  - **Cuda** `torch==2.10` removed support for `rtx1000` series and older GPUs  
+  - **Cuda** update to `torch=2.11` with `cuda=13.0`  
+  - **Ipex** update to `torch==2.11`  
+  - **ROCm/Linux** update to `torch==2.11` with `rocm==7.2`  
+  - **OpenVINO** update to `torch==2.11` and `openvino==2026.0`
+  - *note* **Cuda** `torch==2.10` removed support for `rtx1000` series and older GPUs  
     use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
     > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
 - **UI**
+  - legacy panels **T2I** and **I2I** are disabled by default  
+    you can re-enable them in *settings -> ui -> hide legacy tabs*  
   - new panel: **Server Info** with detailed runtime informaton  
   - **Networks** add **UNet/DiT**  
   - **Localization** improved translation quality and new translations locales:  
@@ -92,6 +100,9 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - new `/sdapi/v1/rembg` endpoint for background removal  
   - new `/sdadpi/v1/unet` endpoint to list available unets/dits  
   - use rate limiting for api logging  
+- **Obsoleted**
+  - removed support for additional quantization engines: *BitsAndBytes, TorchAO, Optimum-Quanto, NNCF*  
+    *note*: SDNQ is quantization engine of choice for SD.Next  
 - **Internal**
   - `python==3.13` full support  
   - `python==3.14` initial support  
@@ -102,14 +113,15 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
     these are now installed on-demand when needed  
   - bump `huggingface_hub==1.5.0`  
   - bump `transformers==5.3.0`  
+  - installer introduce `constraints.txt`  
   - refactor to/from *image/tensor* logic  
   - refactor reorganize `cli` scripts  
   - refactor move tests to dedicated `/test/`  
   - refactor all image handling to `modules/image/`  
-  - refactor: many params that were server-global are now ui params that are handled per-request  
+  - refactor many params that were server-global are now ui params that are handled per-request  
     *schedulers, todo, tome, etc.*  
-  - refactor: error handling during `torch.compile`  
-  - refactor: move `rebmg` to core instead of extensions  
+  - refactor error handling during `torch.compile`  
+  - refactor move `rebmg` to core instead of extensions  
   - remove face restoration  
   - unified command line parsing  
   - use explicit icon image references in `gallery`, thanks @awsr  
@@ -128,6 +140,8 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - reduce use of generators with ui interactor  
   - better subprocess execute, thanks @awsr  
   - better wslopen handling, thanks @awsr  
+  - refactor for PEP-484 compliance, thanks @awsr  
+  - detect active `venv`  
 - **Obsolete**
   - remove `normalbae` pre-processor  
   - remove `dwpose` pre-processor  
@@ -162,7 +176,9 @@ But also many smaller quality-of-life improvements - for full details, see [Chan
   - improve video generation progress tracking
   - handle startup with bad `scripts` more gracefully  
   - thread-safety for `error-limiter`, thanks @awsr  
-  - add `lora` support for flux2-klein
+  - add `lora` support for flux2-klein  
+  - fix `lora` change when used with `sdnq`  
+  - multiple `sdnq` fixes  
 
 ## Update for 2026-02-04
 

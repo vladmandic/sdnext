@@ -30,7 +30,7 @@ def set_progress_bar_config():
     uni_pc_fm.sample_unipc = sample_unipc
 
 
-def set_prompt_template(prompt, system_prompt:str=None, optimized_prompt:bool=True, unmodified_prompt:bool=False):
+def set_prompt_template(prompt, system_prompt: str | None = None, optimized_prompt: bool = True, unmodified_prompt: bool = False):
     from modules import shared
     from modules.framepack.pipeline import hunyuan
     mode = 'unknown'

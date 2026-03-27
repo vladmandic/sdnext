@@ -152,7 +152,7 @@ def package_spec(package):
 
 
 # check if package is installed
-def installed(package, friendly: str = None, quiet = False): # pylint: disable=redefined-outer-name
+def installed(package, friendly: str | None = None, quiet = False): # pylint: disable=redefined-outer-name
     t_start = time.time()
     ok = True
     try:
@@ -276,7 +276,7 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
 
 
 # install package using pip if not already installed
-def install(package, friendly: str = None, ignore: bool = False, reinstall: bool = False, no_deps: bool = False, quiet: bool = False, force: bool = False, no_build_isolation: bool = False):
+def install(package, friendly: str | None = None, ignore: bool = False, reinstall: bool = False, no_deps: bool = False, quiet: bool = False, force: bool = False, no_build_isolation: bool = False):
     t_start = time.time()
     res = ''
     force = force or args.reinstall
@@ -293,7 +293,7 @@ def install(package, friendly: str = None, ignore: bool = False, reinstall: bool
 
 
 # execute git command
-def git(arg: str, folder: str = None, ignore: bool = False, optional: bool = False): # pylint: disable=unused-argument
+def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool = False): # pylint: disable=unused-argument
     t_start = time.time()
     if args.skip_git:
         return ''
@@ -440,6 +440,8 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if args.quick:
         return
     log.info(f'Python: version={platform.python_version()} platform={platform.system()} bin="{sys.executable}" venv="{sys.prefix}"')
+    if sys.prefix == getattr(sys, "base_prefix", sys.prefix) and 'venv' not in sys.prefix.lower():
+        log.warning('Python: virtual environment not detected')
     if int(sys.version_info.minor) == 9:
         log.error(f"Python: version={platform.python_version()} is end-of-life")
     if int(sys.version_info.minor) == 10:
@@ -475,7 +477,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "c02c17c6ee7ac508c56925dde4d4a3c587650dc3" # diffusers commit hash
+    target_commit = "85ffcf1db23c0e981215416abd8e8a748bfd86b6" # diffusers commit hash == 0.37.1.dev-0326
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -503,7 +505,8 @@ def check_transformers():
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
     # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
-    target_commit = "aad13b87ed59f2afcfaebc985f403301887a35fc" # transformers commit hash == 5.3.0
+    # target_commit = "aad13b87ed59f2afcfaebc985f403301887a35fc" # transformers commit hash == 5.3.0
+    target_commit = "c9faacd7d57459157656bdffe049dabb6293f011" # transformers commit hash == 5.3.0.dev-0326
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
@@ -556,7 +559,8 @@ def install_cuda():
     if args.use_nightly:
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu130')
     else:
-        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cu128 torchvision==0.25.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
+        # cmd = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cu128 torchvision==0.25.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
+        cmd = os.environ.get("TORCH_COMMAND", "pip install -U torch==2.11.0+cu130 torchvision==0.26.0+cu130 --index-url https://download.pytorch.org/whl/cu130")
     return cmd
 
 
@@ -641,14 +645,16 @@ def install_rocm_zluda():
     else:
         #check_python(supported_minors=[10, 11, 12, 13, 14], reason='ROCm backend requires a Python version between 3.10 and 3.13')
         if args.use_nightly:
-            if rocm.version is None or float(rocm.version) >= 7.1: # assume the latest if version check fails
+            if rocm.version is None or float(rocm.version) >= 7.2: # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.2')
+            else: # oldest rocm version on nightly is 7.1
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1')
-            else: # oldest rocm version on nightly is 7.0
-                torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.0')
         else:
-            if rocm.version is None or float(rocm.version) >= 7.1: # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+rocm7.1 torchvision==0.25.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
-            elif rocm.version == "7.0": # assume the latest if version check fails
+            if rocm.version is None or float(rocm.version) >= 7.2: # assume the latest if version check fails
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+rocm7.2 torchvision==0.26.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
+            elif rocm.version == "7.1":
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+rocm7.1 torchvision==0.26.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
+            elif rocm.version == "7.0":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+rocm7.0 torchvision==0.25.0+rocm7.0 --index-url https://download.pytorch.org/whl/rocm7.0')
             elif rocm.version == "6.4":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.9.1+rocm6.4 torchvision==0.24.1+rocm6.4 --index-url https://download.pytorch.org/whl/rocm6.4')
@@ -687,7 +693,7 @@ def install_ipex():
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+xpu torchvision==0.25.0+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+xpu torchvision==0.26.0+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
@@ -700,13 +706,12 @@ def install_openvino():
 
     #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
     if sys.platform == 'darwin':
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0 torchvision==0.25.0')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0 torchvision==0.26.0')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cpu torchvision==0.25.0 --index-url https://download.pytorch.org/whl/cpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+cpu torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu')
 
     if not (args.skip_all or args.skip_requirements):
-        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2025.4.1'), 'openvino')
-        install(os.environ.get('NNCF_COMMAND', 'nncf==2.19.0'), 'nncf')
+        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2026.0.0'), 'openvino')
     ts('openvino', t_start)
     return torch_command
 
@@ -730,12 +735,8 @@ def install_torch_addons():
         install('DeepCache')
     if opts.get('cuda_compile_backend', '') == 'olive-ai':
         install('olive-ai')
-    if len(opts.get('optimum_quanto_weights', [])):
-        install('optimum-quanto==0.2.7', 'optimum-quanto')
-    if len(opts.get('torchao_quantization', [])):
-        install('torchao==0.10.0', 'torchao')
     if opts.get('samples_format', 'jpg') == 'jxl' or opts.get('grid_format', 'jpg') == 'jxl':
-        install('pillow-jxl-plugin==1.3.5', 'pillow-jxl-plugin')
+        install('pillow-jxl-plugin==1.3.7', 'pillow-jxl-plugin')
     if not args.experimental:
         uninstall('wandb', quiet=True)
         uninstall('pynvml', quiet=True)
@@ -1001,6 +1002,19 @@ def list_extensions_folder(folder, quiet=False):
 
 # run installer for each installed and enabled extension and optionally update them
 def install_extensions(force=False):
+    disable_diffusers = [
+        'sd-webui-controlnet',
+        'multidiffusion-upscaler-for-automatic1111',
+        'a1111-sd-webui-lycoris',
+        'sd-webui-animatediff',
+    ]
+    disable_obsolete = [
+        'Lora',
+        'stable-diffusion-webui-rembg',
+        'sd-extension-framepack',
+        'sd-extension-nudenet',
+        'sd-extension-promptgen',
+    ]
     if args.profile:
         pr = cProfile.Profile()
         pr.enable()
@@ -1010,6 +1024,12 @@ def install_extensions(force=False):
     extensions_duplicates = []
     extensions_enabled = []
     extensions_disabled = [e.lower() for e in opts.get('disabled_extensions', [])]
+    for ext in disable_diffusers:
+        if ext.lower() not in opts.get('disabled_extensions', []):
+            extensions_disabled.append(ext)
+    for ext in disable_obsolete:
+        if ext.lower() not in opts.get('disabled_extensions', []):
+            extensions_disabled.append(ext)
     extension_folders = [extensions_builtin_dir] if args.safe else [extensions_builtin_dir, extensions_dir]
     res = []
     for folder in extension_folders:
@@ -1184,14 +1204,11 @@ def install_optional():
     install('hf_transfer', ignore=True, quiet=True)
     install('hf_xet', ignore=True, quiet=True)
     install('nvidia-ml-py', ignore=True, quiet=True)
-    install('pillow-jxl-plugin==1.3.5', ignore=True, quiet=True)
+    install('pillow-jxl-plugin==1.3.7', ignore=True, quiet=True)
     install('ultralytics==8.3.40', ignore=True, quiet=True)
     install('open-clip-torch', no_deps=True, quiet=True)
     install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
     # install('git+https://github.com/openai/CLIP.git', 'clip', quiet=True, no_build_isolation=True)
-    # install('torchao==0.10.0', ignore=True, quiet=True)
-    # install('bitsandbytes==0.47.0', ignore=True, quiet=True)
-    # install('optimum-quanto==0.2.7', ignore=True, quiet=True)
     ts('optional', t_start)
 
 
@@ -1268,6 +1285,7 @@ def set_environment():
     os.environ.setdefault('MIOPEN_FIND_MODE', '2')
     os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
     os.environ.setdefault('USE_TORCH', '1')
+    os.environ.setdefault('UV_CONSTRAINT', os.path.abspath('constraints.txt'))
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
     os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')

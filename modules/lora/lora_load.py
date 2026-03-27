@@ -260,6 +260,8 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                     if shared.sd_model_type == 'f2':
                         from pipelines.flux import flux2_lora
                         net = flux2_lora.try_load_lokr(name, network_on_disk, lora_scale)
+                        if net is None and not shared.opts.lora_force_diffusers:
+                            net = flux2_lora.try_load_lora(name, network_on_disk, lora_scale)
                     if net is None:
                         net = lora_diffusers.load_diffusers(name, network_on_disk, lora_scale, lora_module)
                 elif lora_method == 'nunchaku':

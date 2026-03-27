@@ -38,7 +38,7 @@ def parse_points(result) -> list:
     return points
 
 
-def parse_detections(result, label: str, max_objects: int = None) -> list:
+def parse_detections(result, label: str, max_objects: int | None = None) -> list:
     """Parse and validate detection bboxes from model result.
 
     Args:
@@ -74,7 +74,7 @@ def parse_detections(result, label: str, max_objects: int = None) -> list:
     return detections
 
 
-def parse_florence_detections(response, image_size: tuple = None) -> list:
+def parse_florence_detections(response, image_size: tuple | None = None) -> list:
     """Parse Florence-style detection response into standard detection format.
 
     Florence returns detection data in two possible formats:
@@ -286,7 +286,7 @@ def calculate_eye_position(face_bbox: dict) -> tuple:
     return (eye_x, eye_y)
 
 
-def draw_bounding_boxes(image: Image.Image, detections: list, points: list = None) -> Image.Image:
+def draw_bounding_boxes(image: Image.Image, detections: list, points: list | None = None) -> Image.Image:
     """
     Draw bounding boxes and/or points on an image.
 

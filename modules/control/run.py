@@ -140,7 +140,7 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
     return pipe
 
 
-def check_active(p, unit_type, units):
+def check_active(p, unit_type: str, units: list[unit.Unit]):
     active_process: list[processors.Processor] = [] # all active preprocessors
     active_model: list[controlnet.ControlNet | xs.ControlNetXS | t2iadapter.Adapter] = [] # all active models
     active_strength: list[float] = [] # strength factors for all active models
@@ -216,9 +216,9 @@ def check_active(p, unit_type, units):
     return active_process, active_model, active_strength, active_start, active_end, active_units
 
 
-def check_enabled(p, unit_type, units, active_model, active_strength, active_start, active_end):
+def check_enabled(p, unit_type: str, units: list[unit.Unit], active_model: list[controlnet.ControlNet | xs.ControlNetXS | t2iadapter.Adapter], active_strength: list[float], active_start: list[float], active_end: list[float]):
     has_models = False
-    selected_models: list[controlnet.ControlNetModel | xs.ControlNetXSModel | t2iadapter.AdapterModel] = None
+    selected_models: list[controlnet.ControlNetModel | xs.ControlNetXSModel | t2iadapter.AdapterModel] | None = None
     control_conditioning = None
     control_guidance_start = None
     control_guidance_end = None
@@ -271,17 +271,17 @@ def init_units(units: list[unit.Unit]):
 
 
 def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
-                units: list[unit.Unit] = None, inputs: list[Image.Image] = None, inits: list[Image.Image] = None, mask: Image.Image = None, unit_type: str = None, is_generator: bool = True,
+                units: list[unit.Unit] | None = None, inputs: list[Image.Image] | None = None, inits: list[Image.Image] | None = None, mask: Image.Image = None, unit_type: str | None = None, is_generator: bool = True,
                 input_type: int = 0,
-                prompt: str = '', negative_prompt: str = '', styles: list[str] = None,
-                steps: int = 20, sampler_index: int = None,
+                prompt: str = '', negative_prompt: str = '', styles: list[str] | None = None,
+                steps: int = 20, sampler_index: int | None = None,
                 seed: int = -1, subseed: int = -1, subseed_strength: float = 0, seed_resize_from_h: int = -1, seed_resize_from_w: int = -1,
                 guidance_name: str = 'Default', guidance_scale: float = 6.0, guidance_rescale: float = 0.0, guidance_start: float = 0.0, guidance_stop: float = 1.0,
                 cfg_scale: float = 6.0, clip_skip: float = 1.0, image_cfg_scale: float = 6.0, diffusers_guidance_rescale: float = 0.7, pag_scale: float = 0.0, pag_adaptive: float = 0.5, cfg_end: float = 1.0,
                 vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
                 detailer_enabled: bool = False, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,
                 hdr_mode: int = 0, hdr_brightness: float = 0, hdr_color: float = 0, hdr_sharpen: float = 0, hdr_clamp: bool = False, hdr_boundary: float = 4.0, hdr_threshold: float = 0.95,
-                hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str = None, hdr_tint_ratio: float = 0, hdr_apply_hires: bool = True,
+                hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str | None = None, hdr_tint_ratio: float = 0, hdr_apply_hires: bool = True,
                 grading_brightness: float = 0.0, grading_contrast: float = 0.0, grading_saturation: float = 0.0, grading_hue: float = 0.0,
                 grading_gamma: float = 1.0, grading_sharpness: float = 0.0, grading_color_temp: float = 6500,
                 grading_shadows: float = 0.0, grading_midtones: float = 0.0, grading_highlights: float = 0.0,
@@ -293,54 +293,54 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 resize_mode_after: int = 0, resize_name_after: str = 'None', resize_context_after: str = 'None', width_after: int = 0, height_after: int = 0, scale_by_after: float = 1.0, selected_scale_tab_after: int = 0,
                 resize_mode_mask: int = 0, resize_name_mask: str = 'None', resize_context_mask: str = 'None', width_mask: int = 0, height_mask: int = 0, scale_by_mask: float = 1.0, selected_scale_tab_mask: int = 0,
                 denoising_strength: float = 0.3, batch_count: int = 1, batch_size: int = 1,
-                enable_hr: bool = False, hr_sampler_index: int = None, hr_denoising_strength: float = 0.0, hr_resize_mode: int = 0, hr_resize_context: str = 'None', hr_upscaler: str = None, hr_force: bool = False, hr_second_pass_steps: int = 20,
+                enable_hr: bool = False, hr_sampler_index: int | None = None, hr_denoising_strength: float = 0.0, hr_resize_mode: int = 0, hr_resize_context: str = 'None', hr_upscaler: str | None = None, hr_force: bool = False, hr_second_pass_steps: int = 20,
                 hr_scale: float = 1.0, hr_resize_x: int = 0, hr_resize_y: int = 0, refiner_steps: int = 5, refiner_start: float = 0.0, refiner_prompt: str = '', refiner_negative: str = '',
                 video_skip_frames: int = 0, video_type: str = 'None', video_duration: float = 2.0, video_loop: bool = False, video_pad: int = 0, video_interpolate: int = 0,
-                override_script_name: str = None, override_script_args = None, extra: dict = None,
+                override_script_name: str | None = None, override_script_args = None, extra: dict | None = None,
                 *input_script_args,
                 # API-only params (keyword-only, not wired to Gradio)
-                detailer_segmentation: bool = None, detailer_include_detections: bool = None, detailer_merge: bool = None, detailer_sort: bool = None, detailer_classes: str = None,
-                detailer_conf: float = None, detailer_iou: float = None, detailer_max: int = None,
-                detailer_min_size: float = None, detailer_max_size: float = None,
-                detailer_blur: int = None, detailer_padding: int = None,
-                detailer_sigma_adjust: float = None, detailer_sigma_adjust_max: float = None,
-                detailer_models: list = None, detailer_augment: bool = None,
-                img2img_color_correction: bool = None, color_correction_method: str = None, img2img_background_color: str = None,
-                img2img_fix_steps: bool = None, mask_apply_overlay: bool = None,
-                include_mask: bool = None, inpainting_mask_weight: float = None,
+                detailer_segmentation: bool | None = None, detailer_include_detections: bool | None = None, detailer_merge: bool | None = None, detailer_sort: bool | None = None, detailer_classes: str | None = None,
+                detailer_conf: float | None = None, detailer_iou: float | None = None, detailer_max: int | None = None,
+                detailer_min_size: float | None = None, detailer_max_size: float | None = None,
+                detailer_blur: int | None = None, detailer_padding: int | None = None,
+                detailer_sigma_adjust: float | None = None, detailer_sigma_adjust_max: float | None = None,
+                detailer_models: list | None = None, detailer_augment: bool | None = None,
+                img2img_color_correction: bool | None = None, color_correction_method: str | None = None, img2img_background_color: str | None = None,
+                img2img_fix_steps: bool | None = None, mask_apply_overlay: bool | None = None,
+                include_mask: bool | None = None, inpainting_mask_weight: float | None = None,
                 # output and saving
-                samples_save: bool = None, samples_format: str = None,
-                save_images_before_highres_fix: bool = None, save_images_before_refiner: bool = None,
-                save_images_before_detailer: bool = None, save_images_before_color_correction: bool = None,
-                grid_save: bool = None, grid_format: str = None, return_grid: bool = None,
-                save_mask: bool = None, save_mask_composite: bool = None,
-                return_mask: bool = None, return_mask_composite: bool = None,
-                keep_incomplete: bool = None, image_metadata: bool = None, jpeg_quality: int = None,
+                samples_save: bool | None = None, samples_format: str | None = None,
+                save_images_before_highres_fix: bool | None = None, save_images_before_refiner: bool | None = None,
+                save_images_before_detailer: bool | None = None, save_images_before_color_correction: bool | None = None,
+                grid_save: bool | None = None, grid_format: str | None = None, return_grid: bool | None = None,
+                save_mask: bool | None = None, save_mask_composite: bool | None = None,
+                return_mask: bool | None = None, return_mask_composite: bool | None = None,
+                keep_incomplete: bool | None = None, image_metadata: bool | None = None, jpeg_quality: int | None = None,
                 # scheduler/noise overrides
-                schedulers_prediction_type: str = None, schedulers_beta_schedule: str = None, schedulers_timesteps: str = None,
-                schedulers_sigma: str = None, schedulers_use_thresholding: bool = None, schedulers_use_loworder: bool = None,
-                schedulers_solver_order: int = None, uni_pc_variant: str = None, schedulers_beta_start: float = None,
-                schedulers_beta_end: float = None, schedulers_shift: float = None, schedulers_dynamic_shift: bool = None,
-                schedulers_base_shift: float = None, schedulers_max_shift: float = None, schedulers_rescale_betas: bool = None,
-                schedulers_timestep_spacing: str = None, schedulers_timesteps_range: int = None,
-                schedulers_sigma_adjust: float = None, schedulers_sigma_adjust_min: float = None, schedulers_sigma_adjust_max: float = None,
-                scheduler_eta: float = None, eta_noise_seed_delta: int = None, enable_batch_seeds: bool = None,
-                diffusers_generator_device: str = None, nan_skip: bool = None,
-                sequential_seed: bool = None,
+                schedulers_prediction_type: str | None = None, schedulers_beta_schedule: str | None = None, schedulers_timesteps: str | None = None,
+                schedulers_sigma: str | None = None, schedulers_use_thresholding: bool | None = None, schedulers_use_loworder: bool | None = None,
+                schedulers_solver_order: int | None = None, uni_pc_variant: str | None = None, schedulers_beta_start: float | None = None,
+                schedulers_beta_end: float | None = None, schedulers_shift: float | None = None, schedulers_dynamic_shift: bool | None = None,
+                schedulers_base_shift: float | None = None, schedulers_max_shift: float | None = None, schedulers_rescale_betas: bool | None = None,
+                schedulers_timestep_spacing: str | None = None, schedulers_timesteps_range: int | None = None,
+                schedulers_sigma_adjust: float | None = None, schedulers_sigma_adjust_min: float | None = None, schedulers_sigma_adjust_max: float | None = None,
+                scheduler_eta: float | None = None, eta_noise_seed_delta: int | None = None, enable_batch_seeds: bool | None = None,
+                diffusers_generator_device: str | None = None, nan_skip: bool | None = None,
+                sequential_seed: bool | None = None,
                 # prompt/attention overrides
-                prompt_attention: str = None, prompt_mean_norm: bool = None, diffusers_zeros_prompt_pad: bool = None,
-                te_pooled_embeds: bool = None, lora_apply_te: bool = None, te_complex_human_instruction: str = None, te_use_mask: bool = None,
+                prompt_attention: str | None = None, prompt_mean_norm: bool | None = None, diffusers_zeros_prompt_pad: bool | None = None,
+                te_pooled_embeds: bool | None = None, lora_apply_te: bool | None = None, te_complex_human_instruction: str | None = None, te_use_mask: bool | None = None,
                 # generation modifier overrides (hijack)
-                freeu_enabled: bool = None, freeu_b1: float = None, freeu_b2: float = None, freeu_s1: float = None, freeu_s2: float = None,
-                hypertile_unet_enabled: bool = None, hypertile_hires_only: bool = None, hypertile_unet_tile: int = None, hypertile_unet_min_tile: int = None,
-                hypertile_unet_swap_size: int = None, hypertile_unet_depth: int = None,
-                hypertile_vae_enabled: bool = None, hypertile_vae_tile: int = None, hypertile_vae_swap_size: int = None,
-                teacache_enabled: bool = None, teacache_thresh: float = None,
-                token_merging_method: str = None, tome_ratio: float = None, todo_ratio: float = None,
+                freeu_enabled: bool | None = None, freeu_b1: float | None = None, freeu_b2: float | None = None, freeu_s1: float | None = None, freeu_s2: float | None = None,
+                hypertile_unet_enabled: bool | None = None, hypertile_hires_only: bool | None = None, hypertile_unet_tile: int | None = None, hypertile_unet_min_tile: int | None = None,
+                hypertile_unet_swap_size: int | None = None, hypertile_unet_depth: int | None = None,
+                hypertile_vae_enabled: bool | None = None, hypertile_vae_tile: int | None = None, hypertile_vae_swap_size: int | None = None,
+                teacache_enabled: bool | None = None, teacache_thresh: float | None = None,
+                token_merging_method: str | None = None, tome_ratio: float | None = None, todo_ratio: float | None = None,
                 # lora behavior
-                lora_fuse_native: bool = None, lora_fuse_diffusers: bool = None,
-                lora_force_reload: bool = None, extra_networks_default_multiplier: float = None,
-                lora_apply_tags: int = None,
+                lora_fuse_native: bool | None = None, lora_fuse_diffusers: bool | None = None,
+                lora_force_reload: bool | None = None, extra_networks_default_multiplier: float | None = None,
+                lora_apply_tags: int | None = None,
         ):
     if override_script_args is None:
         override_script_args = []

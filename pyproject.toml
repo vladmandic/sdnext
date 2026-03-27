@@ -97,7 +97,6 @@ ignore = [
   "RUF008", # Do not use mutable default values for dataclass
   "RUF010", # Use explicit conversion flag
   "RUF012", # Mutable class attributes
-  "RUF013", # PEP 484 prohibits implicit `Optional`
   "RUF015", # Prefer `next(...)` over single element slice
   "RUF022", # All is not sorted
   "RUF046", # Value being cast to `int` is already an integer
@@ -107,6 +106,9 @@ ignore = [
 fixable = ["ALL"]
 unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.per-file-ignores]
+"modules/caption/joytag.py" = ["RUF013"] # Per header comment: "Do not modify directly — sync from upstream"
 
 [tool.ruff.format]
 quote-style = "double"
@@ -138,6 +140,7 @@ main.ignore-paths=[
              "modules/control/proc",
              "modules/control/units",
              "modules/dml",
+             "modules/face",
              "modules/flash_attn_triton_amd",
              "modules/ggml",
              "modules/hidiffusion",
@@ -412,9 +415,14 @@ exclude = [
        ]
 
 [tool.ty.rules]
-invalid-method-overrides = "ignore"
-invalid-argument-types = "ignore"
-unresolved-imports = "ignore"
-unresolved-attributes = "ignore"
-invalid-assignments = "ignore"
-unsupported-operators = "ignore"
+invalid-method-override = "ignore"
+invalid-argument-type = "ignore"
+unresolved-import = "ignore"
+unresolved-attribute = "ignore"
+invalid-assignment = "ignore"
+unsupported-operator = "ignore"
+no-matching-overload = "ignore"
+unsupported-base = "ignore"
+possibly-missing-attribute = "ignore"
+invalid-parameter-default = "ignore"
+call-non-callable = "ignore"

@@ -8,7 +8,7 @@ from modules.logger import log
 from modules.image import sharpfin
 
 
-def resize_image(resize_mode: int, im: Image.Image | torch.Tensor, width: int, height: int, upscaler_name: str=None, output_type: str='image', context: str=None):
+def resize_image(resize_mode: int, im: Image.Image | torch.Tensor, width: int, height: int, upscaler_name: str | None = None, output_type: str = 'image', context: str | None = None):
     upscaler_name = upscaler_name or shared.opts.upscaler_for_img2img
 
     def verify_image(image):
@@ -95,7 +95,7 @@ def resize_image(resize_mode: int, im: Image.Image | torch.Tensor, width: int, h
         res.paste(im, box=((width - im.width)//2, (height - im.height)//2))
         return res
 
-    def context_aware(im: Image.Image, width, height, context):
+    def context_aware(im: Image.Image, width: int, height: int, context: str):
         from installer import install
         install('seam-carving')
         width, height = int(width), int(height)

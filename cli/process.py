@@ -21,7 +21,7 @@ all_images_by_type = {}
 
 
 class Result():
-    def __init__(self, typ: str, fn: str, tag: str = None, requested: list = []):
+    def __init__(self, typ: str, fn: str, tag: str | None = None, requested: list = []):
         self.type = typ
         self.input = fn
         self.output = ''
@@ -144,7 +144,7 @@ def upscale_restore_image(res: Result, upscale: bool = False):
     return res
 
 
-def caption_image(res: Result, tag: str = None):
+def caption_image(res: Result, tag: str | None = None):
     caption = ''
     tags = []
     for model in options.process.caption_model:

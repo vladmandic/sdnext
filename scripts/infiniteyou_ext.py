@@ -60,7 +60,7 @@ class Script(scripts_manager.Script):
         return [model, id_image, control_image, scale, start, end, id_guidance, control_guidance, restore]
 
     def run(self, p: processing.StableDiffusionProcessing,
-            model: str = None,
+            model: str | None = None,
             id_image: Image.Image = None,
             control_image: Image.Image = None,
             scale: float = 1.0,

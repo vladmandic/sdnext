@@ -1418,7 +1418,7 @@ def hf_auth_check(checkpoint_info, force:bool=False):
         return False
 
 
-def save_model(name: str, path: str = None, shard: str = None, overwrite: bool = False):
+def save_model(name: str, path: str | None = None, shard: str | None = None, overwrite = False):
     if (name is None) or len(name.strip()) == 0:
         log.error('Save model: invalid model name')
         return 'Invalid model name'

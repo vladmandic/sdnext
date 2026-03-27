@@ -406,7 +406,7 @@ def download_civit_preview(model_path: str, preview_url: str):
     return 200, str(total_size), ''
 
 
-def download_civit_model(model_url: str, model_name: str = '', model_path: str = '', model_type: str = '', token: str = None,
+def download_civit_model(model_url: str, model_name: str = '', model_path: str = '', model_type: str = '', token: str | None = None,
                          base_model: str = '', model_id: int = 0, version_id: int = 0):
     """Legacy function — delegates to DownloadManager for non-blocking downloads."""
     if not model_url:

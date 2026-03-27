@@ -57,10 +57,10 @@ def underscore(name: str) -> str: # Convert CamelCase or PascalCase string to un
 class PydanticModelGenerator:
     def __init__(
         self,
-        model_name: str = None,
-        class_instance = None,
-        additional_fields = None,
-        exclude_fields: list = None,
+        model_name: str | None = None,
+        class_instance: type | None = None,
+        additional_fields: list[dict[str, Any]] | None = None,
+        exclude_fields: list | None = None,
     ):
         if exclude_fields is None:
             exclude_fields = []
@@ -100,7 +100,7 @@ class PydanticModelGenerator:
             self._model_def = [x for x in self._model_def if x.field != fld]
 
     def generate_model(self):
-        model_fields = { d.field: (d.field_type, Field(default=d.field_value, alias=d.field_alias, exclude=d.field_exclude)) for d in self._model_def }
+        model_fields: dict[str, Any] = { d.field: (d.field_type, Field(default=d.field_value, alias=d.field_alias, exclude=d.field_exclude)) for d in self._model_def }
         if PYDANTIC_V2:
             config = ConfigDict(arbitrary_types_allowed=True, from_attributes=True, populate_by_name=True)
         else:
@@ -511,7 +511,7 @@ class ItemLoadedModel(BaseModel):
 
 # helper function
 
-def create_model_from_signature(func: Callable, model_name: str, base_model: type[BaseModel] = BaseModel, additional_fields: list = None, exclude_fields: list[str] = None) -> type[BaseModel]:
+def create_model_from_signature(func: Callable, model_name: str, base_model: type[BaseModel] = BaseModel, additional_fields: list | None = None, exclude_fields: list[str] | None = None) -> type[BaseModel]:
     from PIL import Image
 
     if exclude_fields is None:

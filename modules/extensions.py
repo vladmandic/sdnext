@@ -64,6 +64,13 @@ def temp_disable_extensions():
         'a1111-sd-webui-lycoris',
         'sd-webui-animatediff',
     ]
+    disable_obsolete = [
+        'Lora',
+        'stable-diffusion-webui-rembg',
+        'sd-extension-framepack',
+        'sd-extension-nudenet',
+        'sd-extension-promptgen',
+    ]
     disable_themes = [
         'sd-webui-lobe-theme',
         'cozy-nest',
@@ -113,7 +120,9 @@ def temp_disable_extensions():
     for ext in disable_diffusers:
         if ext.lower() not in shared.opts.disabled_extensions:
             disabled.append(ext)
-    disabled.append('Lora')
+    for ext in disable_obsolete:
+        if ext.lower() not in shared.opts.disabled_extensions:
+            disabled.append(ext)
 
     shared.cmd_opts.controlnet_loglevel = 'WARNING'
     return disabled

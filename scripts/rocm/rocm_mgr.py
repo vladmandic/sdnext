@@ -193,7 +193,7 @@ def save_config(config: Dict[str, str]) -> None:
 def apply_env(config: Optional[Dict[str, str]] = None) -> None:
     if config is None:
         config = load_config()
-    for var in _UNSET_VARS:
+    for var in _UNSET_VARS | _EXTRA_CLEAR_VARS:
         if var in os.environ:
             del os.environ[var]
     for var, value in config.items():

@@ -467,7 +467,7 @@ def report_model_stats(module_name, module):
         log.error(f'Module stats: name={module_name} {e}')
 
 
-def apply_balanced_offload(sd_model=None, exclude:list[str]=None, force:bool=False, silent:bool=False):
+def apply_balanced_offload(sd_model=None, exclude: list[str] | None = None, force: bool = False, silent: bool = False):
     global offload_hook_instance # pylint: disable=global-statement
     if shared.opts.diffusers_offload_mode != "balanced":
         return sd_model

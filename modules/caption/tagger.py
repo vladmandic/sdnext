@@ -65,7 +65,7 @@ def unload_model():
     waifudiffusion.unload_model()
 
 
-def tag(image, model_name: str = None, **kwargs) -> str:
+def tag(image, model_name: str | None = None, **kwargs) -> str:
     """Unified tagging - dispatch to correct backend.
 
     Args:

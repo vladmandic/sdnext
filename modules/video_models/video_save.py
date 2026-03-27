@@ -29,7 +29,7 @@ def get_video_filename(p:processing.StableDiffusionProcessingVideo):
     return filename
 
 
-def save_params(p, filename: str = None):
+def save_params(p, filename: str | None = None):
     from modules.paths import params_path
     if p is None:
         dct = {}
@@ -129,17 +129,18 @@ def write_audio(
         container.mux(packet)
 
 
-def atomic_save_video(filename: str,
-                      tensor:torch.Tensor,
-                      audio:torch.Tensor=None,
-                      fps:float=24,
-                      codec:str='libx264',
-                      pix_fmt:str='yuv420p',
-                      options:str='',
-                      aac:int=24000,
-                      metadata:dict=None,
-                      pbar=None,
-                    ):
+def atomic_save_video(
+    filename: str,
+    tensor: torch.Tensor,
+    audio: torch.Tensor | None = None,
+    fps: float = 24,
+    codec: str = "libx264",
+    pix_fmt: str = "yuv420p",
+    options: str = "",
+    aac: int = 24000,
+    metadata: dict | None = None,
+    pbar=None,
+):
     if metadata is None:
         metadata = {}
     av = check_av()
@@ -212,23 +213,23 @@ def save_thumbnail(video_path, tensor=None):
 
 
 def save_video(
-        p:processing.StableDiffusionProcessingVideo,
-        pixels:torch.Tensor=None,
-        audio:torch.Tensor=None,
-        binary:bytes=None,
-        mp4_fps:int=24,
-        mp4_codec:str='libx264',
-        mp4_opt:str='',
-        mp4_ext:str='mp4',
-        mp4_sf:bool=False, # save safetensors
-        mp4_video:bool=True, # save video
-        mp4_frames:bool=False, # save frames
-        mp4_interpolate:int=0, # rife interpolation
-        aac_sample_rate:int=24000, # audio sample rate
-        stream=None, # async progress reporting stream
-        metadata:dict=None, # metadata for video
-        pbar=None, # progress bar for video
-    ):
+    p: processing.StableDiffusionProcessingVideo,
+    pixels: torch.Tensor | None = None,
+    audio: torch.Tensor | None = None,
+    binary: bytes | None = None,
+    mp4_fps: int = 24,
+    mp4_codec: str = "libx264",
+    mp4_opt: str = "",
+    mp4_ext: str = "mp4",
+    mp4_sf: bool = False,  # save safetensors
+    mp4_video: bool = True,  # save video
+    mp4_frames: bool = False,  # save frames
+    mp4_interpolate: int = 0,  # rife interpolation
+    aac_sample_rate: int = 24000,  # audio sample rate
+    stream=None,  # async progress reporting stream
+    metadata: dict | None = None,  # metadata for video
+    pbar=None,  # progress bar for video
+):
     if metadata is None:
         metadata = {}
     output_video = None

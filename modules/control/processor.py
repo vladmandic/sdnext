@@ -61,19 +61,19 @@ processors = [
 
 
 def preprocess_image(
-        p:StableDiffusionProcessingControl,
-        pipe,
-        input_image:Image.Image = None,
-        init_image:Image.Image = None,
-        input_mask:Image.Image = None,
-        input_type:str = 0,
-        unit_type:str = 'controlnet',
-        active_process:list = None,
-        active_model:list = None,
-        selected_models:list = None,
-        has_models:bool = False,
-        active_units:list = None,
-    ):
+    p: StableDiffusionProcessingControl,
+    pipe,
+    input_image: Image.Image | None= None,
+    init_image: Image.Image | None = None,
+    input_mask: Image.Image | None = None,
+    input_type = 0,
+    unit_type = "controlnet",
+    active_process: list | None = None,
+    active_model: list | None = None,
+    selected_models: list | None = None,
+    has_models = False,
+    active_units: list | None = None,
+):
     if selected_models is None:
         selected_models = []
     if active_model is None:

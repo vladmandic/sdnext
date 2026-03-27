@@ -8,7 +8,7 @@ from modules.logger import log
 
 
 def get_t5_prompt_embeds(
-    prompt: str | list[str] = None,
+    prompt: str | list[str] | None = None,
     num_images_per_prompt: int = 1, # pylint: disable=unused-argument
     max_sequence_length: int = 512, # pylint: disable=unused-argument
     device: torch.device | None = None,

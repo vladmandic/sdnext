@@ -6,6 +6,7 @@
 - Add notes: **Enso**
 - Tips: **Color Grading**
 - Regen: **Localization**
+- Rebuild: **Launcher** with `master`
 
 ## Internal
 
@@ -19,6 +20,7 @@
 - Engine: `TensorRT` acceleration
 - Feature: Auto handle scheduler `prediction_type`
 - Feature: Cache models in memory
+- Feature: JSON image metadata
 - Validate: Control tab add overrides handling
 - Feature: Integrate natural language image search
   [ImageDB](https://github.com/vladmandic/imagedb)
@@ -27,8 +29,7 @@
 - Feature: Video tab add full API support
 - Refactor: Unify *huggingface* and *diffusers* model folders
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
-- Refactor: move sampler options from settings to config
-- Reimplement `llama` remover for Kanvas, pending end-to-end review of `Kanvas`
+- Reimplement `llama` remover for Kanvas
 
 ## OnHold
 
@@ -54,6 +55,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 - [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma): Image and video generator for creative effects and professional filters
 - [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance): Pixel-space model eliminating VAE artifacts for high visual fidelity
+- [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
 - [Liquid](https://github.com/FoundationVision/Liquid): Unified vision-language auto-regressive generation paradigm
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO): Foundational multi-modal generation and understanding via discrete diffusion
 - [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B): Physics-aware world foundation model for consistent scene prediction
@@ -69,9 +71,12 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [Step1X-Edit](https://github.com/stepfun-ai/Step1X-Edit):Multimodal image editing decoding MLLM tokens via DiT
 - [OneReward](https://github.com/bytedance/OneReward):Reinforcement learning grounded generative reward model for image editing
 - [ByteDance DreamO](https://huggingface.co/ByteDance/DreamO): image customization framework for IP adaptation and virtual try-on
+- [nVidia Cosmos-Transfer-2.5](https://github.com/huggingface/diffusers/pull/13066)
 
 ### Video
 
+- [LTX-Condition](https://github.com/huggingface/diffusers/pull/13058)
+- [LTX-Distilled](https://github.com/huggingface/diffusers/pull/12934)
 - [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p): Unified foundation model for synchronized high-fidelity video and audio
 - [Wan family (Wan2.1 / Wan2.2 variants)](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B): MoE-based foundational tools for cinematic T2V/I2V/TI2V
  example: [Wan2.1-T2V-14B-CausVid](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-CausVid)
@@ -112,8 +117,6 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Not Planned
 
-- [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
-- [Bria FiboEdit](https://github.com/huggingface/diffusers/commit/d7a1c31f4f85bae5a9e01cdce49bd7346bd8ccd6): Fully JSON based
 - [LoRAdapter](https://github.com/CompVis/LoRAdapter): Not recently updated
 - [SD3 UltraEdit](https://github.com/HaozheZhao/UltraEdit): Based on SD3
 - [PowerPaint](https://github.com/open-mmlab/PowerPaint): Based on SD15

@@ -32,9 +32,8 @@ def google_requirements():
     # reload('pydantic', '2.11.7')
 
 
-def get_size_buckets(width: int, height: int) -> str:
+def get_size_buckets(width: int, height: int) -> tuple[str, str]:
     aspect_ratio = width / height
-    closest_aspect_ratio = min(aspect_ratios_buckets.items(), key=lambda x: abs(x[1] - aspect_ratio))[0]
     pixel_count = width * height
     closest_size = min(image_size_buckets.items(), key=lambda x: abs(x[1] - pixel_count))[0]
     closest_aspect_ratio = min(aspect_ratios_buckets.items(), key=lambda x: abs(x[1] - aspect_ratio))[0]
@@ -104,7 +103,7 @@ class GoogleNanoBananaPipeline():
 
         # Debug logging
         args_log = args.copy()
-        if args_log.get('api_key'):
+        if args_log.get('api_key', ''):
             args_log['api_key'] = '...' + args_log['api_key'][-4:]
         log.debug(f'Cloud: model="{self.model}" args={args_log}')
         return args

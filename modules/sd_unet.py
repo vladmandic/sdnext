@@ -35,8 +35,8 @@ def load_unet_sdxl_nunchaku(repo_id):
     return unet
 
 
-def load_unet(model, repo_id:str=None):
-    global loaded_unet # pylint: disable=global-statement
+def load_unet(model, repo_id: str | None = None):
+    global loaded_unet  # pylint: disable=global-statement
 
     if ("StableDiffusionXLPipeline" in model.__class__.__name__) and (('stable-diffusion-xl-base' in repo_id) or ('sdxl-turbo' in repo_id)):
         if model_quant.check_nunchaku('Model'):

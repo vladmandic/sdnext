@@ -50,7 +50,7 @@ def get_prompts_for_model(model_name: str) -> list:
     return vlm_prompts_common
 
 
-def get_internal_prompt(friendly_name: str, user_prompt: str = None) -> str:
+def get_internal_prompt(friendly_name: str, user_prompt: str | None = None) -> str:
     """Convert friendly prompt name to internal token/command."""
     internal = vlm_prompt_mapping.get(friendly_name, friendly_name)
 
@@ -350,7 +350,7 @@ class VQA:
             self.processor = None
             devices.torch_gc(force=True, reason='vqa model switch')
 
-    def load(self, model_name: str = None):
+    def load(self, model_name: str | None = None):
         """Load VLM model into memory for the specified model name."""
         model_name = model_name or shared.opts.caption_vlm_model
         if not model_name:
@@ -444,7 +444,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _fastvlm(self, question: str, image: Image.Image, repo: str, model_name: str = None):
+    def _fastvlm(self, question: str, image: Image.Image, repo: str, model_name: str | None = None):
         debug(f'VQA caption: handler=fastvlm model_name="{model_name}" repo="{repo}" question="{question}" image_size={image.size if image else None}')
         self._load_fastvlm(repo)
         move_aux_to_gpu('vqa')
@@ -521,7 +521,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _qwen(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
+    def _qwen(self, question: str, image: Image.Image, repo: str, system_prompt: str | None = None, model_name: str | None = None, prefill: str | None = None, thinking_mode: bool = False):
         self._load_qwen(repo)
         move_aux_to_gpu('vqa')
         # Get model class name for logging
@@ -644,7 +644,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _gemma(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
+    def _gemma(self, question: str, image: Image.Image, repo: str, system_prompt: str | None = None, model_name: str | None = None, prefill: str | None = None, thinking_mode: bool = False):
         self._load_gemma(repo)
         move_aux_to_gpu('vqa')
         # Get model class name for logging
@@ -757,7 +757,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _mistral(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
+    def _mistral(self, question: str, image: Image.Image, repo: str, system_prompt: str | None = None, model_name: str | None = None, prefill: str | None = None, thinking_mode: bool = False):
         self._load_mistral(repo)
         move_aux_to_gpu('vqa')
         cls_name = self.model.__class__.__name__
@@ -828,7 +828,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _paligemma(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
+    def _paligemma(self, question: str, image: Image.Image, repo: str, model_name: str | None = None): # pylint: disable=unused-argument
         self._load_paligemma(repo)
         move_aux_to_gpu('vqa')
         question = question.replace('<', '').replace('>', '').replace('_', ' ')
@@ -870,7 +870,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _ovis(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
+    def _ovis(self, question: str, image: Image.Image, repo: str, model_name: str | None = None): # pylint: disable=unused-argument
         try:
             pass  # pylint: disable=unused-import
         except Exception:
@@ -925,7 +925,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _smol(self, question: str, image: Image.Image, repo: str, system_prompt: str = None, model_name: str = None, prefill: str = None, thinking_mode: bool = False):
+    def _smol(self, question: str, image: Image.Image, repo: str, system_prompt: str | None = None, model_name: str | None = None, prefill: str | None = None, thinking_mode: bool = False):
         self._load_smol(repo)
         move_aux_to_gpu('vqa')
         # Get model class name for logging
@@ -1019,7 +1019,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _git(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
+    def _git(self, question: str, image: Image.Image, repo: str, model_name: str | None = None): # pylint: disable=unused-argument
         self._load_git(repo)
         move_aux_to_gpu('vqa')
         pixel_values = self.processor(images=image, return_tensors="pt").pixel_values
@@ -1053,7 +1053,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _blip(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
+    def _blip(self, question: str, image: Image.Image, repo: str, model_name: str | None = None): # pylint: disable=unused-argument
         self._load_blip(repo)
         move_aux_to_gpu('vqa')
         inputs = self.processor(image, question, return_tensors="pt")
@@ -1081,7 +1081,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _vilt(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
+    def _vilt(self, question: str, image: Image.Image, repo: str, model_name: str | None = None): # pylint: disable=unused-argument
         self._load_vilt(repo)
         move_aux_to_gpu('vqa')
         inputs = self.processor(image, question, return_tensors="pt")
@@ -1111,7 +1111,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _pix(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
+    def _pix(self, question: str, image: Image.Image, repo: str, model_name: str | None = None): # pylint: disable=unused-argument
         self._load_pix(repo)
         move_aux_to_gpu('vqa')
         if len(question) > 0:
@@ -1144,7 +1144,7 @@ class VQA:
             register_aux('vqa', self.model)
             devices.torch_gc()
 
-    def _moondream(self, question: str, image: Image.Image, repo: str, model_name: str = None, thinking_mode: bool = False):
+    def _moondream(self, question: str, image: Image.Image, repo: str, model_name: str | None = None, thinking_mode: bool = False):
         debug(f'VQA caption: handler=moondream model_name="{model_name}" repo="{repo}" question="{question}" thinking_mode={thinking_mode}')
         self._load_moondream(repo)
         move_aux_to_gpu('vqa')
@@ -1207,7 +1207,7 @@ class VQA:
                     # When keep_thinking is False, just use the answer (reasoning is discarded)
         return response
 
-    def _load_florence(self, repo: str, revision: str = None):
+    def _load_florence(self, repo: str, revision: str | None = None):
         """Load Florence-2 model and processor."""
         _get_imports = transformers.dynamic_module_utils.get_imports
 
@@ -1247,7 +1247,7 @@ class VQA:
             self.loaded = cache_key
             devices.torch_gc()
 
-    def _florence(self, question: str, image: Image.Image, repo: str, revision: str = None, model_name: str = None): # pylint: disable=unused-argument
+    def _florence(self, question: str, image: Image.Image, repo: str, revision: str | None = None, model_name: str | None = None): # pylint: disable=unused-argument
         self._load_florence(repo, revision)
         move_aux_to_gpu('vqa')
         if question.startswith('<'):
@@ -1306,7 +1306,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _sa2(self, question: str, image: Image.Image, repo: str, model_name: str = None): # pylint: disable=unused-argument
+    def _sa2(self, question: str, image: Image.Image, repo: str, model_name: str | None = None): # pylint: disable=unused-argument
         self._load_sa2(repo)
         move_aux_to_gpu('vqa')
         if question.startswith('<'):
@@ -1325,7 +1325,18 @@ class VQA:
         response = return_dict["prediction"]  # the text format answer
         return response
 
-    def caption(self, question: str = '', system_prompt: str = None, prompt: str = None, image: Image.Image = None, model_name: str = None, prefill: str = None, thinking_mode: bool = None, quiet: bool = False, generation_kwargs: dict = None) -> str:
+    def caption(
+        self,
+        question: str = "",
+        system_prompt: str | None = None,
+        prompt: str | None = None,
+        image: list[Image.Image] | Image.Image | dict | None = None,
+        model_name: str | None = None,
+        prefill: str | None = None,
+        thinking_mode: bool | None = None,
+        quiet: bool = False,
+        generation_kwargs: dict | None = None,
+    ) -> str:
         """
         Main entry point for VQA captioning. Returns string answer.
         Detection data stored in self.last_detection_data for annotated image creation.
@@ -1596,7 +1607,7 @@ def unload_model():
     return get_instance().unload()
 
 
-def load_model(model_name: str = None):
+def load_model(model_name: str | None = None):
     return get_instance().load(model_name)
 
 

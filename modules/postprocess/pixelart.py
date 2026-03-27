@@ -224,8 +224,8 @@ class JPEGEncoder(ImageProcessingMixin, ConfigMixin):
         block_size: int = 16,
         cbcr_downscale: int = 2,
         norm: str = "ortho",
-        latents_std: list[float] = None,
-        latents_mean: list[float] = None,
+        latents_std: list[float] | None = None,
+        latents_mean: list[float] | None = None,
     ):
         self.block_size = block_size
         self.cbcr_downscale = cbcr_downscale

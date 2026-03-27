@@ -98,7 +98,7 @@ RDNA2: Dict[str, str] = {
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_3X3U":                    "1",
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U":                    "1",
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1UV2":                  "1",
-    # 5X10U2V2: fixed geometry (5×10 stride-2), no SD conv matches — disabled
+    # 5X10U2V2: fixed geometry (5*10 stride-2), no SD conv matches — disabled
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_5X10U2V2":                "0",
     # 7X7C3H224W224: hard-coded ImageNet stem (C=3, H=W=224, K=64) — never matches SD — disabled
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_7X7C3H224W224":           "0",
@@ -117,7 +117,7 @@ RDNA2: Dict[str, str] = {
     # FWD / FWD1X1: FP32/FP16 forward — enabled
     "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD":      "1",
     "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD1X1":   "1",
-    # FWD11X11: requires 11×11 kernel — no SD match — disabled
+    # FWD11X11: requires 11*11 kernel — no SD match — disabled
     "MIOPEN_DEBUG_CONV_DIRECT_OCL_FWD11X11": "0",
     # FWDGEN: FP32 generic OCL fallback — IsApplicable does NOT reliably reject for FP16;
     # can produce dtype=float32 output for FP16 inputs — disabled
@@ -173,11 +173,15 @@ RDNA2: Dict[str, str] = {
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_BWD_V4R1": "0",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R1": "0",
     "MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_HIP_WRW_V4R4": "0",
+    # Group Conv XDLOPS / CK default kernels — RDNA3/4 only, not available on RDNA2
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS":         "0",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR": "0",
+    "MIOPEN_DEBUG_CK_DEFAULT_KERNELS":                               "0",
 }
 
 # ---------------------------------------------------------------------------
 # RDNA3 — gfx1100 (RX 7000 series)
-# Fury Winograd added; MPASS F3x4 enabled
+# Fury Winograd added; MPASS F3x4 enabled; Group Conv XDLOPS + CK default kernels enabled
 # ---------------------------------------------------------------------------
 RDNA3: Dict[str, str] = {
     **RDNA2,
@@ -186,6 +190,10 @@ RDNA3: Dict[str, str] = {
     "MIOPEN_DEBUG_AMD_WINOGRAD_FURY_RXS_F3X2": "1",
     # Wider MPASS on RDNA3
     "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F3X4": "1",
+    # Group Conv XDLOPS / CK — available from gfx1100 (RDNA3) onwards
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS":         "1",
+    "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR": "1",
+    "MIOPEN_DEBUG_CK_DEFAULT_KERNELS":                               "1",
 }
 
 # ---------------------------------------------------------------------------
@@ -222,6 +230,9 @@ UNAVAILABLE: Dict[str, set] = {
         "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F5X4",
         "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X2",
         "MIOPEN_DEBUG_AMD_WINOGRAD_MPASS_F7X3",
+        "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS",
+        "MIOPEN_DEBUG_GROUP_CONV_IMPLICIT_GEMM_HIP_FWD_XDLOPS_AI_HEUR",
+        "MIOPEN_DEBUG_CK_DEFAULT_KERNELS",
     },
     "RDNA3": _UNAVAILABLE_ALL_RDNA | {
         "MIOPEN_DEBUG_AMD_WINOGRAD_RAGE_RXS_F2X3",
