@@ -229,11 +229,12 @@ class _tqdm_old(tqdm_lib.tqdm):
         kwargs['ncols'] = 80
         super().__init__(*args, **kwargs)
 
-
-transformers.utils.logging.tqdm = _tqdm_cls()
-diffusers.pipelines.pipeline_utils.logging.tqdm = _tqdm_cls()
-huggingface_hub._snapshot_download.hf_tqdm = _tqdm_old # pylint: disable=protected-access
-
+try:
+    transformers.utils.logging.tqdm = _tqdm_cls()
+    diffusers.pipelines.pipeline_utils.logging.tqdm = _tqdm_cls()
+    huggingface_hub._snapshot_download.hf_tqdm = _tqdm_old # pylint: disable=protected-access
+except Exception as e:
+    pass
 
 def get_packages():
     return {
