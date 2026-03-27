@@ -236,12 +236,14 @@ def restore_defaults(restart=True):
     restart_server(restart)
 
 
-# startup def of shared.sd_model before its redefined in modeldata
-sd_model: DiffusionPipeline | None = None # dummy and overwritten by class
-sd_refiner: DiffusionPipeline | None = None # dummy and overwritten by class
-sd_model_type: str = '' # dummy and overwritten by class
-sd_refiner_type: str = '' # dummy and overwritten by class
-sd_loaded: bool = False # dummy and overwritten by class
+from modules.modeldata import Shared  # pylint: disable=ungrouped-imports
 
-from modules.modeldata import Shared # pylint: disable=ungrouped-imports
 sys.modules[__name__].__class__ = Shared
+
+if TYPE_CHECKING:
+    # From Shared class
+    sd_model: DiffusionPipeline | None
+    sd_refiner: DiffusionPipeline | None
+    sd_model_type: str
+    sd_refiner_type: str
+    sd_loaded: bool
