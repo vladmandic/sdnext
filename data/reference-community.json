@@ -142,7 +142,7 @@
   },
   "Anima Preview 2": {
     "path": "CalamitousFelicitousness/Anima-Preview-2-sdnext-diffusers",
-    "preview": "CalamitousFelicitousness--Anima-sdnext-diffusers.jpg",
+    "preview": "CalamitousFelicitousness--Anima-Preview-2-sdnext-diffusers.jpg",
     "desc": "Anima Preview V2 with improved hyperparameters, extended medium-resolution training for more character knowledge, and a regularization dataset for better natural language comprehension. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder.",
     "tags": "community",
     "date": "2026 March",
