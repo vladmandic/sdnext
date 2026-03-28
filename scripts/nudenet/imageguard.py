@@ -1,4 +1,11 @@
+from __future__ import annotations
+
 from modules.logger import log
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from transformers import AutoProcessor, LlavaOnevisionForConditionalGeneration
+
 repo_id = 'AIML-TUDA/LlavaGuard-v1.2-0.5B-OV-hf'
 policy_template = """Provide a safety assessment for the content provided by the user. Determine compliance or violation against our safety policy by reviewing the following policy categories:
 Hate:
@@ -89,11 +96,11 @@ To provide your assessment use the following json template for each category:
     "rationale": str,
 }.
 """
-model = None
-processor = None
+model: LlavaOnevisionForConditionalGeneration | None = None
+processor: AutoProcessor | None = None
 
 
-def image_guard(image, policy:str | None=None) -> str:
+def image_guard(image, policy:str | None=None):
     global model, processor # pylint: disable=global-statement
     import json
     from installer import install

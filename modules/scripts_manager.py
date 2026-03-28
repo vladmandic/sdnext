@@ -1,13 +1,18 @@
+from __future__ import annotations
+
 import os
 import re
 import sys
 import time
-from collections import namedtuple
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, NamedTuple
 import gradio as gr
 from modules import paths, script_callbacks, extensions, script_loading, scripts_postprocessing, errors, timer
 from modules.logger import log
 from installer import control_extensions
+
+if TYPE_CHECKING:
+    from types import ModuleType
 
 
 AlwaysVisible = object()
@@ -211,10 +216,22 @@ def basedir():
     return current_basedir
 
 
-ScriptFile = namedtuple("ScriptFile", ["basedir", "filename", "path", "priority"])
+class ScriptFile(NamedTuple):
+    basedir: str
+    filename: str
+    path: str
+    priority: str
+
+
+class ScriptClassData(NamedTuple):
+    script_class: type[Script] | type[scripts_postprocessing.ScriptPostprocessing]
+    path: str
+    basedir: str
+    module: ModuleType
+
+
 scripts_data = []
 postprocessing_scripts_data = []
-ScriptClassData = namedtuple("ScriptClassData", ["script_class", "path", "basedir", "module"])
 
 
 def list_scripts(scriptdirname, extension):
