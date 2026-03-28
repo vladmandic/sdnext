@@ -129,6 +129,7 @@ Just how big? Some stats: *~530 commits over 880 files*
   - refactor move `rebmg` to core instead of extensions  
   - remove face restoration  
   - unified command line parsing  
+  - reinstall `nunchaku` with `--reinstall` flag  
   - use explicit icon image references in `gallery`, thanks @awsr  
   - launch use threads to async execute non-critical tasks  
   - switch from deprecated `pkg_resources` to `importlib`  

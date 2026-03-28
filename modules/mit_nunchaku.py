@@ -7,8 +7,10 @@ from modules.logger import log
 ok = False
 
 
-def check():
+def check(force=False):
     global ok # pylint: disable=global-statement
+    if force:
+        return False
     if ok:
         return True
     try:
@@ -26,10 +28,12 @@ def check():
 
 def install_nunchaku(force=False):
     if not force:
-        from modules import devices
+        from modules import devices, shared
         if devices.backend is None:
             return False # too early
-    if not check():
+        if shared.cmd_opts.reinstall:
+            force = True
+    if not check(force):
         import os
         import sys
         import platform
@@ -68,6 +72,9 @@ def install_nunchaku(force=False):
                 url = f'https://github.com/nunchaku-ai/nunchaku/releases/download/v{v}/'
                 fn = f'nunchaku-{v}+{cuda_ver}torch{torch_ver}-cp{python_ver}-cp{python_ver}-{suffix}.whl'
                 result, _output = pip(f'install --upgrade {url+fn}', uv=False, ignore=True, quiet=True)
+                if (result is None) or (_output == 'offline'):
+                    log.error(f'Nunchaku: install url="{url+fn}" offline mode')
+                    return False
                 if force:
                     log.debug(f'Nunchaku: url="{fn}" code={result.returncode} stdout={result.stdout} stderr={result.stderr} output={_output}')
                 if result.returncode == 0:
@@ -75,6 +82,9 @@ def install_nunchaku(force=False):
                     return True
                 fn = f'nunchaku-{v}+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{suffix}.whl'
                 result, _output = pip(f'install --upgrade {url+fn}', uv=False, ignore=True, quiet=True)
+                if (result is None) or (_output == 'offline'):
+                    log.error(f'Nunchaku: install url="{url+fn}" offline mode')
+                    return False
                 if force:
                     log.debug(f'Nunchaku: url="{fn}" code={result.returncode} stdout={result.stdout} stderr={result.stderr} output={_output}')
                 if result.returncode == 0:

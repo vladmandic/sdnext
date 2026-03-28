@@ -7,11 +7,13 @@ from pipelines import generic
 
 def load_nunchaku():
     import nunchaku
+    if not hasattr(nunchaku, 'NunchakuZImageTransformer2DModel'): # not present in older versions of nunchaku
+        return None
     nunchaku_precision = nunchaku.utils.get_precision()
     nunchaku_rank = 128
     nunchaku_repo = f"nunchaku-ai/nunchaku-z-image-turbo/svdq-{nunchaku_precision}_r{nunchaku_rank}-z-image-turbo.safetensors"
     log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" attention={shared.opts.nunchaku_attention}')
-    transformer = nunchaku.NunchakuZImageTransformer2DModel.from_pretrained(
+    transformer = nunchaku.NunchakuZImageTransformer2DModel.from_pretrained( # pylint: disable=no-member
         nunchaku_repo,
         torch_dtype=devices.dtype,
         cache_dir=shared.opts.hfcache_dir,
@@ -30,7 +32,7 @@ def load_z_image(checkpoint_info, diffusers_load_config=None):
 
     if model_quant.check_nunchaku('Model'): # only available model
         transformer = load_nunchaku()
-    else:
+    if transformer is None:
         transformer = generic.load_transformer(repo_id, cls_name=diffusers.ZImageTransformer2DModel, load_config=diffusers_load_config)
 
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3ForCausalLM, load_config=diffusers_load_config)

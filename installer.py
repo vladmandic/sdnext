@@ -244,13 +244,13 @@ def cleanup_broken_packages():
         pass
 
 
-def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
+def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True) -> tuple[subprocess.CompletedProcess, str]:
     t_start = time.time()
     originalArg = arg
     arg = arg.replace('>=', '==')
     if opts.get('offline_mode', False):
         log.warning('Offline mode enabled')
-        return 'offline'
+        return None, 'offline'
     package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
     uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
