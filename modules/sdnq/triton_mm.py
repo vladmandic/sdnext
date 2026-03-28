@@ -11,58 +11,28 @@ import triton
 import triton.language as tl
 
 
-def get_autotune_config():
-    if triton.runtime.driver.active.get_current_target().backend == "cuda":
-        return [
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=3, num_warps=8),
-            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=5, num_warps=2),
-            triton.Config({"BLOCK_SIZE_M":  32, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=5, num_warps=2),
-            #
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=3, num_warps=8),
-            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 256, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=3, num_warps=8),
-            triton.Config({"BLOCK_SIZE_M": 256, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=4, num_warps=4),
-        ]
-    else:
-        return [
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=8),
-            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=2),
-            triton.Config({"BLOCK_SIZE_M":  32, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  32, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=2),
-            #
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=8),
-            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 256, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M":  64, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 128, "BLOCK_SIZE_N":  32, "BLOCK_SIZE_K":  64, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-            triton.Config({"BLOCK_SIZE_M": 256, "BLOCK_SIZE_N": 128, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=8),
-            triton.Config({"BLOCK_SIZE_M": 256, "BLOCK_SIZE_N":  64, "BLOCK_SIZE_K": 128, "GROUP_SIZE_M": 8}, num_stages=2, num_warps=4),
-        ]
+matmul_configs = [
+    triton.Config({'BLOCK_SIZE_M': BM, 'BLOCK_SIZE_N': BN, "BLOCK_SIZE_K": BK, "GROUP_SIZE_M": GM}, num_warps=w, num_stages=s)
+    for BM in [32, 64, 128, 256]
+    for BN in [32, 64, 128, 256]
+    for BK in [32, 64, 128]
+    for GM in [8, 16]
+    for w in [8, 16]
+    for s in [2]
+]
 
 
-@triton.autotune(configs=get_autotune_config(), key=["M", "N", "K", "stride_bk"])
+@triton.autotune(configs=matmul_configs, key=["M", "N", "K", "stride_bk"])
 @triton.jit
 def int_mm_kernel(
     a_ptr, b_ptr, c_ptr,
-    M, N, K,
-    stride_am, stride_ak,
-    stride_bk, stride_bn,
-    stride_cm, stride_cn,
-    BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr, BLOCK_SIZE_K: tl.constexpr,
+    M: int, N: int, K: int,
+    stride_am: int, stride_ak: int,
+    stride_bk: int, stride_bn: int,
+    stride_cm: int, stride_cn: int,
+    BLOCK_SIZE_M: tl.constexpr,
+    BLOCK_SIZE_N: tl.constexpr,
+    BLOCK_SIZE_K: tl.constexpr,
     GROUP_SIZE_M: tl.constexpr,
 ):
     pid = tl.program_id(axis=0)
@@ -105,7 +75,7 @@ def int_mm_kernel(
     tl.store(c_ptrs, accumulator, mask=c_mask)
 
 
-def int_mm(a, b):
+def int_mm(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     assert a.shape[1] == b.shape[0], "Incompatible dimensions"
     assert a.is_contiguous(), "Matrix A must be contiguous"
     M, K = a.shape
@@ -123,15 +93,17 @@ def int_mm(a, b):
     return c
 
 
-@triton.autotune(configs=get_autotune_config(), key=["M", "N", "K", "stride_bk"])
+@triton.autotune(configs=matmul_configs, key=["M", "N", "K", "stride_bk"])
 @triton.jit
 def fp_mm_kernel(
     a_ptr, b_ptr, c_ptr,
-    M, N, K,
-    stride_am, stride_ak,
-    stride_bk, stride_bn,
-    stride_cm, stride_cn,
-    BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr, BLOCK_SIZE_K: tl.constexpr,
+    M: int, N: int, K: int,
+    stride_am: int, stride_ak: int,
+    stride_bk: int, stride_bn: int,
+    stride_cm: int, stride_cn: int,
+    BLOCK_SIZE_M: tl.constexpr,
+    BLOCK_SIZE_N: tl.constexpr,
+    BLOCK_SIZE_K: tl.constexpr,
     GROUP_SIZE_M: tl.constexpr,
 ):
     pid = tl.program_id(axis=0)
@@ -174,7 +146,7 @@ def fp_mm_kernel(
     tl.store(c_ptrs, accumulator, mask=c_mask)
 
 
-def fp_mm(a, b):
+def fp_mm(a: torch.FloatTensor, b: torch.FloatTensor) -> torch.FloatTensor:
     assert a.shape[1] == b.shape[0], "Incompatible dimensions"
     assert a.is_contiguous(), "Matrix A must be contiguous"
     M, K = a.shape
