@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-27
+## Update for 2026-03-28
 
-### Highlights for 2026-03-27
+### Highlights for 2026-03-28
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV*  
@@ -20,7 +20,7 @@ Just how big? Some stats: *~530 commits over 880 files*
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-27
+### Details for 2026-03-28
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -77,6 +77,7 @@ Just how big? Some stats: *~530 commits over 880 files*
   - *note* **Cuda** `torch==2.10` removed support for `rtx1000` series and older GPUs  
     use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
     > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
+  - update installer and support `nunchaku==1.2.1`
 - **UI**
   - legacy panels **T2I** and **I2I** are disabled by default  
     you can re-enable them in *settings -> ui -> hide legacy tabs*  

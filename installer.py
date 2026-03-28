@@ -197,14 +197,15 @@ def installed(package, friendly: str | None = None, quiet = False): # pylint: di
 def uninstall(package, quiet = False):
     t_start = time.time()
     packages = package if isinstance(package, list) else [package]
-    res = ''
+    txt = ''
     for p in packages:
         if installed(p, p, quiet=True):
             if not quiet:
                 log.warning(f'Package: {p} uninstall')
-            res += pip(f"uninstall {p} --yes --quiet", ignore=True, quiet=True, uv=False)
+            _result, _txt = pip(f"uninstall {p} --yes --quiet", ignore=True, quiet=True, uv=False)
+            txt += _txt
     ts('uninstall', t_start)
-    return res
+    return txt
 
 
 def run(cmd: str, *nargs: str, **kwargs):
@@ -259,20 +260,20 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     all_args = f'{pip_log}{arg} {env_args}'.strip()
     if not quiet:
         log.debug(f'Running: {pipCmd}="{all_args}"')
-    result, txt = run(sys.executable, "-m", pipCmd, all_args)
+    result, output = run(sys.executable, "-m", pipCmd, all_args)
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
             log.warning(f'Install: cmd="{pipCmd}" args="{all_args}" cannot use uv, fallback to pip')
             debug(f'Install: uv pip error: {result.stderr}')
             cleanup_broken_packages()
             return pip(originalArg, ignore, quiet, uv=False)
-    debug(f'Install {pipCmd}: {txt}')
+    debug(f'Install {pipCmd}: {output}')
     if result.returncode != 0 and not ignore:
         errors.append(f'pip: {package}')
         log.error(f'Install: {pipCmd}: {arg}')
-        log.debug(f'Install: pip output {txt}')
+        log.debug(f'Install: pip code={result.returncode} stdout={result.stdout} stderr={result.stderr} output={output}')
     ts('pip', t_start)
-    return txt
+    return result, output
 
 
 # install package using pip if not already installed
