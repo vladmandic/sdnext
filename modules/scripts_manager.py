@@ -271,7 +271,7 @@ def list_scripts(scriptdirname: str, extension: str):
     return priority_sort
 
 
-def list_files_with_name(filename):
+def list_files_with_name(filename: str):
     res = []
     dirs = [paths.script_path] + [ext.path for ext in extensions.active()]
     for dirpath in dirs:
@@ -326,7 +326,7 @@ def load_scripts():
     return t, time.time()-t0
 
 
-def wrap_call(func: Callable, filename: str, funcname, *args, default=None, **kwargs):
+def wrap_call(func: Callable, filename: str, funcname: str, *args, default=None, **kwargs):
     try:
         res = func(*args, **kwargs)
         return res
@@ -336,7 +336,7 @@ def wrap_call(func: Callable, filename: str, funcname, *args, default=None, **kw
 
 
 class ScriptSummary:
-    def __init__(self, op):
+    def __init__(self, op: str):
         self.start = time.time()
         self.update = time.time()
         self.op = op
@@ -361,13 +361,13 @@ class ScriptRunner:
         self.selectable_scripts: list[Script] = []
         self.alwayson_scripts: list[Script] = []
         self.auto_processing_scripts: list[ScriptClassData] = []
-        self.titles = []
-        self.alwayson_titles = []
-        self.infotext_fields = []
+        self.titles: list[str] = []
+        self.alwayson_titles: list[str] = []
+        self.infotext_fields: list[tuple[IOComponent, str]] = []
         self.paste_field_names: list[str] = []
         self.script_load_ctr = 0
         self.is_img2img = False
-        self.inputs = [None]
+        self.inputs: list = [None]
         self.time = 0
 
     def add_script(self, script_class, path, is_img2img, is_control):
@@ -621,7 +621,7 @@ class ScriptRunner:
         s.report()
         return processed
 
-    def before_process(self, p, **kwargs):
+    def before_process(self, p: StableDiffusionProcessing, **kwargs):
         s = ScriptSummary('before-process')
         for script in self.alwayson_scripts:
             try:
@@ -633,7 +633,7 @@ class ScriptRunner:
             s.record(script.title())
         s.report()
 
-    def process(self, p, **kwargs):
+    def process(self, p: StableDiffusionProcessing, **kwargs):
         s = ScriptSummary('process')
         for script in self.alwayson_scripts:
             try:
@@ -645,7 +645,7 @@ class ScriptRunner:
             s.record(script.title())
         s.report()
 
-    def process_images(self, p, **kwargs):
+    def process_images(self, p: StableDiffusionProcessing, **kwargs):
         s = ScriptSummary('process_images')
         processed = None
         for script in self.alwayson_scripts:
@@ -661,7 +661,7 @@ class ScriptRunner:
         s.report()
         return processed
 
-    def before_process_batch(self, p, **kwargs):
+    def before_process_batch(self, p: StableDiffusionProcessing, **kwargs):
         s = ScriptSummary('before-process-batch')
         for script in self.alwayson_scripts:
             try:
@@ -673,7 +673,7 @@ class ScriptRunner:
             s.record(script.title())
         s.report()
 
-    def process_batch(self, p, **kwargs):
+    def process_batch(self, p: StableDiffusionProcessing, **kwargs):
         s = ScriptSummary('process-batch')
         for script in self.alwayson_scripts:
             try:
@@ -685,7 +685,7 @@ class ScriptRunner:
             s.record(script.title())
         s.report()
 
-    def postprocess(self, p, processed):
+    def postprocess(self, p: StableDiffusionProcessing, processed):
         s = ScriptSummary('postprocess')
         for script in self.alwayson_scripts:
             try:
@@ -697,7 +697,7 @@ class ScriptRunner:
             s.record(script.title())
         s.report()
 
-    def postprocess_batch(self, p, images, **kwargs):
+    def postprocess_batch(self, p: StableDiffusionProcessing, images, **kwargs):
         s = ScriptSummary('postprocess-batch')
         for script in self.alwayson_scripts:
             try:
@@ -709,7 +709,7 @@ class ScriptRunner:
             s.record(script.title())
         s.report()
 
-    def postprocess_batch_list(self, p, pp: PostprocessBatchListArgs, **kwargs):
+    def postprocess_batch_list(self, p: StableDiffusionProcessing, pp: PostprocessBatchListArgs, **kwargs):
         s = ScriptSummary('postprocess-batch-list')
         for script in self.alwayson_scripts:
             try:
@@ -721,7 +721,7 @@ class ScriptRunner:
             s.record(script.title())
         s.report()
 
-    def postprocess_image(self, p, pp: PostprocessImageArgs):
+    def postprocess_image(self, p: StableDiffusionProcessing, pp: PostprocessImageArgs):
         s = ScriptSummary('postprocess-image')
         for script in self.alwayson_scripts:
             try:
@@ -733,7 +733,7 @@ class ScriptRunner:
             s.record(script.title())
         s.report()
 
-    def before_component(self, component, **kwargs):
+    def before_component(self, component: IOComponent, **kwargs):
         s = ScriptSummary('before-component')
         for script in self.scripts:
             try:
@@ -743,7 +743,7 @@ class ScriptRunner:
             s.record(script.title())
         s.report()
 
-    def after_component(self, component, **kwargs):
+    def after_component(self, component: IOComponent, **kwargs):
         s = ScriptSummary('after-component')
         for script in self.scripts:
             for elem_id, callback in script.on_after_component_elem_id:
@@ -759,7 +759,7 @@ class ScriptRunner:
             s.record(script.title())
         s.report()
 
-    def reload_sources(self, cache):
+    def reload_sources(self, cache: dict):
         s = ScriptSummary('reload-sources')
         for si, script in list(enumerate(self.scripts)):
             if hasattr(script, 'args_to') and hasattr(script, 'args_from'):
