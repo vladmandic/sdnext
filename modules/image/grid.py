@@ -1,8 +1,10 @@
 import math
 from typing import NamedTuple
+
 import numpy as np
-from PIL import Image, ImageFont, ImageDraw
-from modules import shared, script_callbacks
+from PIL import Image, ImageDraw, ImageFont
+
+from modules import script_callbacks, shared
 from modules.logger import log
 
 
@@ -15,7 +17,7 @@ class Grid(NamedTuple):
     overlap: int
 
 
-def check_grid_size(imgs):
+def check_grid_size(imgs: list[Image.Image] | list[list[Image.Image]] | None):
     if imgs is None or len(imgs) == 0:
         return False
     mp = 0
@@ -60,7 +62,7 @@ def get_grid_size(imgs: list, batch_size=1, rows: int | None = None, cols: int |
     return rows_int, cols_int
 
 
-def image_grid(imgs, batch_size=1, rows: int | None = None, cols: int | None = None):
+def image_grid(imgs: list, batch_size=1, rows: int | None = None, cols: int | None = None):
     rows, cols = get_grid_size(imgs, batch_size, rows=rows, cols=cols)
     params = script_callbacks.ImageGridLoopParams(imgs, cols, rows)
     script_callbacks.image_grid_callback(params)
@@ -75,7 +77,7 @@ def image_grid(imgs, batch_size=1, rows: int | None = None, cols: int | None = N
     return grid
 
 
-def split_grid(image, tile_w=512, tile_h=512, overlap=64):
+def split_grid(image: Image.Image, tile_w=512, tile_h=512, overlap=64):
     w = image.width
     h = image.height
     non_overlap_width = tile_w - overlap
@@ -100,7 +102,7 @@ def split_grid(image, tile_w=512, tile_h=512, overlap=64):
     return grid
 
 
-def combine_grid(grid):
+def combine_grid(grid: Grid):
     def make_mask_image(r):
         r = r * 255 / grid.overlap
         r = r.astype(np.uint8)
@@ -129,18 +131,18 @@ class GridAnnotation:
     def __init__(self, text='', is_active=True):
         self.text = str(text)
         self.is_active = is_active
-        self.size = None
+        self.size: tuple[int, int] = (10, 10)  # Placeholder values
 
 
-def get_font(fontsize):
+def get_font(fontsize: float):
     try:
         return ImageFont.truetype(shared.opts.font or "javascript/notosans-nerdfont-regular.ttf", fontsize)
     except Exception:
         return ImageFont.truetype("javascript/notosans-nerdfont-regular.ttf", fontsize)
 
 
-def draw_grid_annotations(im, width, height, x_texts, y_texts, margin=0, title=None):
-    def wrap(drawing, text, font, line_length):
+def draw_grid_annotations(im: Image.Image, width: int, height: int, x_texts: list[list[GridAnnotation]], y_texts: list[list[GridAnnotation]], margin=0, title: list[GridAnnotation] | None = None):
+    def wrap(drawing: ImageDraw.ImageDraw, text, font, line_length):
         lines = ['']
         for word in text.split():
             line = f'{lines[-1]} {word}'.strip()
@@ -150,7 +152,7 @@ def draw_grid_annotations(im, width, height, x_texts, y_texts, margin=0, title=N
                 lines.append(word)
         return lines
 
-    def draw_texts(drawing: ImageDraw, draw_x, draw_y, lines, initial_fnt, initial_fontsize):
+    def draw_texts(drawing: ImageDraw.ImageDraw, draw_x: float, draw_y: float, lines, initial_fnt: ImageFont.FreeTypeFont, initial_fontsize: int):
         for line in lines:
             font = initial_fnt
             fontsize = initial_fontsize
@@ -187,9 +189,10 @@ def draw_grid_annotations(im, width, height, x_texts, y_texts, margin=0, title=N
     hor_text_heights = [sum([line.size[1] + line_spacing for line in lines]) - line_spacing for lines in x_texts]
     ver_text_heights = [sum([line.size[1] + line_spacing for line in lines]) - line_spacing * len(lines) for lines in y_texts]
     pad_top = 0 if sum(hor_text_heights) == 0 else max(hor_text_heights) + line_spacing * 2
+    title_text_heights = []
     title_pad = 0
     if title:
-        title_text_heights = [sum([line.size[1] + line_spacing for line in lines]) - line_spacing for lines in title_texts] # pylint: disable=unsubscriptable-object
+        title_text_heights = [sum([line.size[1] + line_spacing for line in lines]) - line_spacing for lines in title_texts]
         title_pad = 0 if sum(title_text_heights) == 0 else max(title_text_heights) + line_spacing * 2
     result = Image.new("RGB", (im.width + pad_left + margin * (cols-1), im.height + pad_top + title_pad + margin * (rows-1)), shared.opts.grid_background)
     for row in range(rows):
@@ -212,7 +215,7 @@ def draw_grid_annotations(im, width, height, x_texts, y_texts, margin=0, title=N
     return result
 
 
-def draw_prompt_matrix(im, width, height, all_prompts, margin=0):
+def draw_prompt_matrix(im: Image.Image, width: int, height: int, all_prompts: list[str], margin=0):
     prompts = all_prompts[1:]
     boundary = math.ceil(len(prompts) / 2)
     prompts_horiz = prompts[:boundary]
