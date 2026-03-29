@@ -32,36 +32,32 @@ def check_grid_size(imgs):
     return ok
 
 
-def get_grid_size(imgs, batch_size=1, rows: int | None = None, cols: int | None = None):
-    if rows and rows > len(imgs):
-        rows = len(imgs)
-    if cols and cols > len(imgs):
-        cols = len(imgs)
+def get_grid_size(imgs: list, batch_size=1, rows: int | None = None, cols: int | None = None):
+    rows_int, cols_int = len(imgs), len(imgs)
     if rows is None and cols is None:
-        if shared.opts.n_rows > 0:
-            rows = shared.opts.n_rows
-            cols = math.ceil(len(imgs) / rows)
-        elif shared.opts.n_rows == 0:
-            rows = batch_size
-            cols = math.ceil(len(imgs) / rows)
-        elif shared.opts.n_cols > 0:
-            cols = shared.opts.n_cols
-            rows = math.ceil(len(imgs) / cols)
-        elif shared.opts.n_cols == 0:
-            cols = batch_size
-            rows = math.ceil(len(imgs) / cols)
+        if n_rows := shared.opts.n_rows >= 0:
+            rows_int: int = batch_size if n_rows == 0 else n_rows
+            cols_int = math.ceil(len(imgs) / rows_int)
+        elif n_cols := shared.opts.n_cols >= 0:
+            cols_int: int = batch_size if n_cols == 0 else n_cols
+            rows_int = math.ceil(len(imgs) / cols_int)
         else:
-            rows = math.floor(math.sqrt(len(imgs)))
-            while len(imgs) % rows != 0:
-                rows -= 1
-            cols = math.ceil(len(imgs) / rows)
-    elif rows is not None and cols is None:
-        cols = math.ceil(len(imgs) / rows)
-    elif rows is None and cols is not None:
-        rows = math.ceil(len(imgs) / cols)
-    else:
-        pass
-    return rows, cols
+            rows_int = math.floor(math.sqrt(len(imgs)))
+            while len(imgs) % rows_int != 0:
+                rows_int -= 1
+            cols_int = math.ceil(len(imgs) / rows_int)
+        return rows_int, cols_int
+    # Set limits
+    if rows is not None:
+        rows_int = min(rows, len(imgs))
+    if cols is not None:
+        cols_int = min(cols, len(imgs))
+    # Calculate
+    if rows is None:
+        rows_int = math.ceil(len(imgs) / cols_int)
+    if cols is None:
+        cols_int = math.ceil(len(imgs) / rows_int)
+    return rows_int, cols_int
 
 
 def image_grid(imgs, batch_size=1, rows: int | None = None, cols: int | None = None):
