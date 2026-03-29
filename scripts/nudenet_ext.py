@@ -1,7 +1,6 @@
 import time
 import gradio as gr
-from modules import scripts, processing, images
-from modules.scripts_postprocessing import PostprocessedImage, ScriptPostprocessing
+from modules import scripts, scripts_postprocessing, processing, images
 from  scripts.nudenet import nudenet # pylint: disable=no-name-in-module
 from  scripts.nudenet import langdetect # pylint: disable=no-name-in-module
 from  scripts.nudenet import imageguard # pylint: disable=no-name-in-module
@@ -51,7 +50,7 @@ def create_ui(accordion=True):
 # main processing used in both modes
 def process(
         p: processing.StableDiffusionProcessing | None = None,
-        pp: scripts.PostprocessImageArgs | PostprocessedImage | None = None,
+        pp: scripts.PostprocessImageArgs | scripts_postprocessing.PostprocessedImage | None = None,
         enabled=True,
         lang=False,
         policy=False,
@@ -86,7 +85,7 @@ def process(
         if metadata and p is not None:
             p.extra_generation_params["NudeNet"] = meta
             p.extra_generation_params["NSFW"] = nsfw
-        if metadata and isinstance(pp, PostprocessedImage):
+        if metadata and isinstance(pp, scripts_postprocessing.PostprocessedImage):
             pp.info['NudeNet'] = meta
             pp.info['NSFW'] = nsfw
         log.debug(f'NudeNet detect: {dct} nsfw={nsfw} time={(t1 - t0):.2f}')
@@ -119,7 +118,7 @@ def process(
         if metadata and p is not None:
             p.extra_generation_params["Rating"] = res.get('rating', 'N/A')
             p.extra_generation_params["Category"] = res.get('category', 'N/A')
-        if metadata and isinstance(pp, PostprocessedImage):
+        if metadata and isinstance(pp, scripts_postprocessing.PostprocessedImage):
             pp.info["Rating"] = res.get('rating', 'N/A')
             pp.info["Category"] = res.get('category', 'N/A')
 
@@ -149,7 +148,7 @@ class ScriptNudeNet(scripts.Script):
 
 
 # defines postprocessing script for dual-mode usage
-class ScriptPostprocessingNudeNet(ScriptPostprocessing):
+class ScriptPostprocessingNudeNet(scripts_postprocessing.ScriptPostprocessing):
     name = 'NudeNet'
     order = 10000
 
@@ -159,5 +158,5 @@ class ScriptPostprocessingNudeNet(ScriptPostprocessing):
         return { 'enabled': enabled, 'lang': lang, 'policy': policy, 'banned': banned, 'metadata': metadata, 'copy': copy, 'score': score, 'blocks': blocks, 'censor': censor, 'method': method, 'overlay': overlay, 'allowed': allowed, 'alphabet': alphabet, 'words': words}
 
     # triggered by callback
-    def process(self, pp: PostprocessedImage, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words): # pylint: disable=arguments-differ
+    def process(self, pp: scripts_postprocessing.PostprocessedImage, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words): # pylint: disable=arguments-differ
         process(None, pp, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words)
