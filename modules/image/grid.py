@@ -1,12 +1,18 @@
 import math
-from collections import namedtuple
+from typing import NamedTuple
 import numpy as np
 from PIL import Image, ImageFont, ImageDraw
 from modules import shared, script_callbacks
 from modules.logger import log
 
 
-Grid = namedtuple("Grid", ["tiles", "tile_w", "tile_h", "image_w", "image_h", "overlap"])
+class Grid(NamedTuple):
+    tiles: list
+    tile_w: int
+    tile_h: int
+    image_w: int
+    image_h: int
+    overlap: int
 
 
 def check_grid_size(imgs):
