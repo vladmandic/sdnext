@@ -51,9 +51,9 @@ def get_grid_size(imgs: list, batch_size=1, rows: int | None = None, cols: int |
         return rows_int, cols_int
     # Set limits
     if rows is not None:
-        rows_int = min(rows, len(imgs))
+        rows_int = max(min(rows, len(imgs)), 1)
     if cols is not None:
-        cols_int = min(cols, len(imgs))
+        cols_int = max(min(cols, len(imgs)), 1)
     # Calculate
     if rows is None:
         rows_int = math.ceil(len(imgs) / cols_int)
