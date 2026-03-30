@@ -30,6 +30,7 @@ def load_z_image(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=ZImage repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
 
+    transformer = None
     if model_quant.check_nunchaku('Model'): # only available model
         transformer = load_nunchaku()
     if transformer is None:
