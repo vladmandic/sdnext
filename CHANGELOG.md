@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-28
+## Update for 2026-03-30
 
-### Highlights for 2026-03-28
+### Highlights for 2026-03-30
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV*  
@@ -20,7 +20,7 @@ Just how big? Some stats: *~530 commits over 880 files*
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-28
+### Details for 2026-03-30
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -185,6 +185,7 @@ Just how big? Some stats: *~530 commits over 880 files*
   - add `lora` support for flux2-klein  
   - fix `lora` change when used with `sdnq`  
   - multiple `sdnq` fixes  
+  - handle `taesd` init errors  
 
 ## Update for 2026-02-04
 
