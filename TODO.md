@@ -2,7 +2,6 @@
 
 ## Release
 
-- Implement: `unload_auxiliary_models`
 - Add notes: **Enso**
 - Tips: **Color Grading**
 - Regen: **Localization**
@@ -10,7 +9,7 @@
 
 ## Internal
 
-- Integrate: [Depth3D](https://github.com/vladmandic/sd-extension-depth3d)
+- Feature: implement `unload_auxiliary_models`
 - Feature: RIFE update
 - Feature: RIFE in processing
 - Feature: SeedVR2 in processing
@@ -30,6 +29,7 @@
 - Refactor: Unify *huggingface* and *diffusers* model folders
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
 - Reimplement `llama` remover for Kanvas
+- Integrate: [Depth3D](https://github.com/vladmandic/sd-extension-depth3d)
 
 ## OnHold
 

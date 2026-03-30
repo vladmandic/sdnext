@@ -5,15 +5,14 @@
 ### Highlights for 2026-03-30
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
-And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV*  
+And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV* image models and *LTX 2.3* video model  
 
-If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download [exe or zip](https://github.com/vladmandic/sdnext-launcher/releases) and done!
+If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download [exe or zip](https://github.com/vladmandic/sdnext-launcher/releases) and done!  
 
 *What else*? Really a lot!  
 New color grading module, updated localization with new languages and improved translations, new civitai integration module, new finetunes loader, several new upscalers, improvements to LLM/VLM in captioning and prompt enhance, a lot of new control preprocessors, new realtime server info panel, some new UI themes  
 And major work on API hardening: security, rate limits, secrets handling, new endpoints, etc.  
 But also many smaller quality-of-life improvements - for full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
-
 
 *Note*: Purely due to size of changes, clean install is recommended!  
 Just how big? Some stats: *~530 commits over 880 files*  
@@ -30,6 +29,8 @@ Just how big? Some stats: *~530 commits over 880 files*
     *Note*: UniPic-3 is a fine-tune of Qwen-Image-Edit with new distillation regardless of its claim of major changes  
   - [Anima Preview-v2](https://huggingface.co/circlestone-labs/Anima)  
   - [FLUX.2-Klein-KV](https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-kv), thanks @liutyi  
+  - [LTX-Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) in *Full and Distilled* variants and in both original *FP16 and SDNQ-4bit* quantiztion  
+    *note* ltx-2.3 is a massive 22B parameters and full model is very large (72GB) so use of pre-quantized variant (32GB) is highly recommended  
 - **Image manipulation**
   - new **Color grading** module  
     apply basic corrections to your images: brightness,contrast,saturation,shadows,highlights  
@@ -77,6 +78,9 @@ Just how big? Some stats: *~530 commits over 880 files*
   - *note* **Cuda** `torch==2.10` removed support for `rtx1000` series and older GPUs  
     use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
     > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
+  - *note* **Cuda** `cuda==13.0` requires newer nVidia drivers  
+      use following before first startup to force installation of `torch==2.11.0` with `cuda==12.68`:  
+    > `set TORCH_COMMAND='torch torchvision --index-url https://download.pytorch.org/whl/cu128`  
   - update installer and support `nunchaku==1.2.1`
 - **UI**
   - legacy panels **T2I** and **I2I** are disabled by default  
@@ -95,6 +99,9 @@ Just how big? Some stats: *~530 commits over 880 files*
   - **Themes** add *Vlad-Neomorph*  
   - **Gallery** add option to auto-refresh gallery, thanks @awsr  
   - **Token counters** add per-section display for supported models, thanks @awsr  
+- **Docs / Wiki**  
+  - updates to to compute sections: *AMD-ROCm, AMD-MIOpen, ZLUDA, OpenVINO, nVidia*  
+  - updates to core sections: *Installation, Python, Schedulers, Launcher, SDNQ, Video*  
 - **API**
   - **rate limiting**: global for all endpoints, guards against abuse and denial-of-service type of attacks  
     configurable in *settings -> server settings*  
