@@ -37,10 +37,11 @@ def check_grid_size(imgs: list[Image.Image] | list[list[Image.Image]] | None):
 def get_grid_size(imgs: list, batch_size=1, rows: int | None = None, cols: int | None = None):
     rows_int, cols_int = len(imgs), len(imgs)
     if rows is None and cols is None:
-        if n_rows := shared.opts.n_rows >= 0:
+        n_rows, n_cols = shared.opts.n_rows, shared.opts.n_cols
+        if n_rows >= 0:
             rows_int: int = batch_size if n_rows == 0 else n_rows
             cols_int = math.ceil(len(imgs) / rows_int)
-        elif n_cols := shared.opts.n_cols >= 0:
+        elif n_cols >= 0:
             cols_int: int = batch_size if n_cols == 0 else n_cols
             rows_int = math.ceil(len(imgs) / cols_int)
         else:
