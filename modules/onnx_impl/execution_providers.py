@@ -1,7 +1,6 @@
 import sys
 from enum import Enum
-from typing import Tuple, List
-from installer import log
+from modules.logger import log
 from modules import devices
 
 
@@ -33,7 +32,7 @@ TORCH_DEVICE_TO_EP = {
 
 try:
     import onnxruntime as ort
-    available_execution_providers: List[ExecutionProvider] = ort.get_available_providers()
+    available_execution_providers: list[ExecutionProvider] = ort.get_available_providers()
 except Exception as e:
     log.error(f'ONNX import error: {e}')
     available_execution_providers = []
@@ -90,7 +89,7 @@ def get_execution_provider_options():
     return execution_provider_options
 
 
-def get_provider() -> Tuple:
+def get_provider() -> tuple:
     from modules.shared import opts
     return (opts.onnx_execution_provider, get_execution_provider_options(),)
 
@@ -100,7 +99,6 @@ def install_execution_provider(ep: ExecutionProvider):
     from installer import installed, install, uninstall
     res = "<br><pre>"
     res += uninstall(["onnxruntime", "onnxruntime-directml", "onnxruntime-gpu", "onnxruntime-training", "onnxruntime-openvino"], quiet=True)
-    installed("onnxruntime", reload=True)
     packages = ["onnxruntime"] # Failed to load olive: cannot import name '__version__' from 'onnxruntime'
     if ep == ExecutionProvider.DirectML:
         packages.append("onnxruntime-directml")

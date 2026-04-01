@@ -216,10 +216,10 @@ Speed: 22 FPS
     - New models based on [Dense Prediction Transformers](https://arxiv.org/abs/2103.13413) are on average [21% more accurate](#Accuracy) than MiDaS v2.1
     - Additional models can be found [here](https://github.com/isl-org/DPT)
 * [Nov 2020] Released MiDaS v2.1:
-	- New model that was trained on 10 datasets and is on average about [10% more accurate](#Accuracy) than [MiDaS v2.0](https://github.com/isl-org/MiDaS/releases/tag/v2)
-	- New light-weight model that achieves [real-time performance](https://github.com/isl-org/MiDaS/tree/master/mobile) on mobile platforms.
-	- Sample applications for [iOS](https://github.com/isl-org/MiDaS/tree/master/mobile/ios) and [Android](https://github.com/isl-org/MiDaS/tree/master/mobile/android)
-	- [ROS package](https://github.com/isl-org/MiDaS/tree/master/ros) for easy deployment on robots
+  - New model that was trained on 10 datasets and is on average about [10% more accurate](#Accuracy) than [MiDaS v2.0](https://github.com/isl-org/MiDaS/releases/tag/v2)
+  - New light-weight model that achieves [real-time performance](https://github.com/isl-org/MiDaS/tree/master/mobile) on mobile platforms.
+  - Sample applications for [iOS](https://github.com/isl-org/MiDaS/tree/master/mobile/ios) and [Android](https://github.com/isl-org/MiDaS/tree/master/mobile/android)
+  - [ROS package](https://github.com/isl-org/MiDaS/tree/master/ros) for easy deployment on robots
 * [Jul 2020] Added TensorFlow and ONNX code. Added [online demo](http://35.202.76.57/).
 * [Dec 2019] Released new version of MiDaS - the new model is significantly more accurate and robust
 * [Jul 2019] Initial release of MiDaS ([Link](https://github.com/isl-org/MiDaS/releases/tag/v1))
@@ -242,10 +242,10 @@ If you use a DPT-based model, please also cite:
 
 ```
 @article{Ranftl2021,
-	author    = {Ren\'{e} Ranftl and Alexey Bochkovskiy and Vladlen Koltun},
-	title     = {Vision Transformers for Dense Prediction},
-	journal   = {ICCV},
-	year      = {2021},
+  author    = {Ren\'{e} Ranftl and Alexey Bochkovskiy and Vladlen Koltun},
+  title     = {Vision Transformers for Dense Prediction},
+  journal   = {ICCV},
+  year      = {2021},
 }
 ```
 

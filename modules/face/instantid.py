@@ -4,11 +4,12 @@ import torch
 import numpy as np
 import huggingface_hub as hf
 from modules import shared, processing, sd_models, devices
+from modules.logger import log
 
 
 REPO_ID = "InstantX/InstantID"
 controlnet_model = None
-debug = shared.log.trace if os.environ.get('SD_FACE_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_FACE_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def instant_id(p: processing.StableDiffusionProcessing, app, source_images, strength=1.0, conditioning=0.5, cache=True): # pylint: disable=arguments-differ
@@ -18,12 +19,12 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
 
     # prepare pipeline
     if source_images is None or len(source_images) == 0:
-        shared.log.warning('InstantID: no input images')
+        log.warning('InstantID: no input images')
         return None
 
     c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
     if c not in ['StableDiffusionXLPipeline', 'StableDiffusionXLInstantIDPipeline']:
-        shared.log.warning(f'InstantID invalid base model: current={c} required=StableDiffusionXLPipeline')
+        log.warning(f'InstantID invalid base model: current={c} required=StableDiffusionXLPipeline')
         return None
 
     # prepare face emb
@@ -35,9 +36,9 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
         face_embeds.append(torch.from_numpy(face['embedding']))
         face_images.append(draw_kps(source_image, face['kps']))
         p.extra_generation_params[f"InstantID {i+1}"] = f'{faces[0].det_score:.2f} {"female" if faces[0].gender==0 else "male"} {faces[0].age}y'
-        shared.log.debug(f'InstantID face: score={face.det_score:.2f} gender={"female" if face.gender==0 else "male"} age={face.age} bbox={face.bbox}')
+        log.debug(f'InstantID face: score={face.det_score:.2f} gender={"female" if face.gender==0 else "male"} age={face.age} bbox={face.bbox}')
 
-    shared.log.debug(f'InstantID loading: model={REPO_ID}')
+    log.debug(f'InstantID loading: model={REPO_ID}')
     face_adapter = hf.hf_hub_download(repo_id=REPO_ID, filename="ip-adapter.bin")
     if controlnet_model is None or not cache:
         controlnet_model = ControlNetModel.from_pretrained(REPO_ID, subfolder="ControlNetModel", torch_dtype=devices.dtype, cache_dir=shared.opts.diffusers_dir)
@@ -72,7 +73,7 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
     p.task_args['image'] = face_images[0]
     p.task_args['controlnet_conditioning_scale'] = float(conditioning)
     p.task_args['ip_adapter_scale'] = float(strength)
-    shared.log.debug(f"InstantID args: {p.task_args}")
+    log.debug(f"InstantID args: {p.task_args}")
     p.task_args['prompt'] = p.all_prompts[0] if p.all_prompts else p.prompt
     p.task_args['negative_prompt'] = p.all_negative_prompts[0] if p.all_negative_prompts else p.negative_prompt
     p.task_args['image_embeds'] = face_embeds[0] # overwrite placeholder

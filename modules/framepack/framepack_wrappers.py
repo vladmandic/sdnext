@@ -6,6 +6,7 @@ import torch
 import gradio as gr
 from PIL import Image
 from modules import shared, processing, timer, paths, extra_networks, progress, ui_video_vlm, call_queue
+from modules.logger import log
 from modules.video_models.video_utils import check_av
 from modules.framepack import framepack_install # pylint: disable=wrong-import-order
 from modules.framepack import framepack_load # pylint: disable=wrong-import-order
@@ -41,7 +42,7 @@ def prepare_image(image, resolution):
 
     image = resize_and_center_crop(image, target_height=scaled_h, target_width=scaled_w)
     h0, w0, _c = image.shape
-    shared.log.debug(f'FramePack prepare: input="{w}x{h}" resized="{w0}x{h0}" resolution={resolution} scale={scale_factor}')
+    log.debug(f'FramePack prepare: input="{w}x{h}" resized="{w0}x{h0}" resolution={resolution} scale={scale_factor}')
     return image
 
 
@@ -60,7 +61,7 @@ def interpolate_prompts(prompts, steps):
     for i in range(steps):
         prompt_index = int(i / factor)
         interpolated_prompts[i] = prompts[prompt_index]
-        # shared.log.trace(f'FramePack interpolate: section={i} prompt="{interpolated_prompts[i]}"')
+        # log.trace(f'FramePack interpolate: section={i} prompt="{interpolated_prompts[i]}"')
     return interpolated_prompts
 
 
@@ -108,7 +109,7 @@ def load_model(variant, attention):
 
 
 def unload_model():
-    shared.log.debug('FramePack unload')
+    log.debug('FramePack unload')
     framepack_load.unload_model()
     yield gr.update(), gr.update(), 'Model unloaded'
 
@@ -149,8 +150,8 @@ def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_w
         torch.manual_seed(seed)
         num_sections = len(framepack_worker.get_latent_paddings(mp4_fps, mp4_interpolate, latent_ws, duration, variant))
         num_frames = (latent_ws * 4 - 3) * num_sections + 1
-        shared.log.info(f'FramePack start: mode={mode} variant="{variant}" frames={num_frames} sections={num_sections} resolution={resolution} seed={seed} duration={duration} teacache={use_teacache} thres={shared.opts.teacache_thresh} cfgzero={use_cfgzero}')
-        shared.log.info(f'FramePack params: steps={steps} start={start_weight} end={end_weight} vision={vision_weight} scale={cfg_scale} distilled={cfg_distilled} rescale={cfg_rescale} shift={shift}')
+        log.info(f'FramePack start: mode={mode} variant="{variant}" frames={num_frames} sections={num_sections} resolution={resolution} seed={seed} duration={duration} teacache={use_teacache} thres={shared.opts.teacache_thresh} cfgzero={use_cfgzero}')
+        log.info(f'FramePack params: steps={steps} start={start_weight} end={end_weight} vision={vision_weight} scale={cfg_scale} distilled={cfg_distilled} rescale={cfg_rescale} shift={shift}')
         init_image = prepare_image(init_image, resolution)
         if end_image is not None:
             end_image = prepare_image(end_image, resolution)

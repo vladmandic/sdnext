@@ -1,3 +1,4 @@
+from modules.logger import log
 from .teacache_flux import teacache_flux_forward
 from .teacache_hidream import teacache_hidream_forward
 from .teacache_lumina2 import teacache_lumina2_forward
@@ -30,4 +31,4 @@ def apply_teacache(p):
     if shared.sd_model.__class__.__name__.startswith('Lumina2'):
         shared.sd_model.transformer.__class__.cache = {}
         shared.sd_model.transformer.__class__.uncond_seq_len = None
-    shared.log.info(f'Transformers cache: type=teacache cls={shared.sd_model.__class__.__name__} thresh={shared.opts.teacache_thresh}')
+    log.info(f'Transformers cache: type=teacache cls={shared.sd_model.__class__.__name__} thresh={shared.opts.teacache_thresh}')

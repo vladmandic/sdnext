@@ -14,7 +14,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from typing import Dict, Optional, Tuple, Union
 
 import torch
 import torch.nn as nn
@@ -74,19 +73,19 @@ class AutoencoderSmall(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         self,
         in_channels: int = 3,
         out_channels: int = 3,
-        down_block_types: Tuple[str] = ("DownEncoderBlock2D",),
-        up_block_types: Tuple[str] = ("UpDecoderBlock2D",),
-        block_out_channels: Tuple[int] = (64,),
-        encoder_block_out_channels: Tuple[int] = None,
-        decoder_block_out_channels: Tuple[int] = None,
+        down_block_types: tuple[str] = ("DownEncoderBlock2D",),
+        up_block_types: tuple[str] = ("UpDecoderBlock2D",),
+        block_out_channels: tuple[int] = (64,),
+        encoder_block_out_channels: tuple[int] | None = None,
+        decoder_block_out_channels: tuple[int] | None = None,
         layers_per_block: int = 1,
         act_fn: str = "silu",
         latent_channels: int = 4,
         norm_num_groups: int = 32,
         sample_size: int = 32,
         scaling_factor: float = 0.18215,
-        latents_mean: Optional[Tuple[float]] = None,
-        latents_std: Optional[Tuple[float]] = None,
+        latents_mean: tuple[float] | None = None,
+        latents_std: tuple[float] | None = None,
         force_upcast: float = True,
     ):
         super().__init__()
@@ -177,7 +176,7 @@ class AutoencoderSmall(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
     @property
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.attn_processors
-    def attn_processors(self) -> Dict[str, AttentionProcessor]:
+    def attn_processors(self) -> dict[str, AttentionProcessor]:
         r"""
         Returns:
             `dict` of attention processors: A dictionary containing all attention processors used in the model with
@@ -186,7 +185,7 @@ class AutoencoderSmall(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         # set recursively
         processors = {}
 
-        def fn_recursive_add_processors(name: str, module: torch.nn.Module, processors: Dict[str, AttentionProcessor]):
+        def fn_recursive_add_processors(name: str, module: torch.nn.Module, processors: dict[str, AttentionProcessor]):
             if hasattr(module, "get_processor"):
                 processors[f"{name}.processor"] = module.get_processor(return_deprecated_lora=True)
 
@@ -201,7 +200,7 @@ class AutoencoderSmall(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         return processors
 
     # Copied from diffusers.models.unets.unet_2d_condition.UNet2DConditionModel.set_attn_processor
-    def set_attn_processor(self, processor: Union[AttentionProcessor, Dict[str, AttentionProcessor]]):
+    def set_attn_processor(self, processor: AttentionProcessor | dict[str, AttentionProcessor]):
         r"""
         Sets the attention processor to use to compute attention.
 
@@ -254,7 +253,7 @@ class AutoencoderSmall(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     @apply_forward_hook
     def encode(
         self, x: torch.FloatTensor, return_dict: bool = True
-    ) -> Union[AutoencoderKLOutput, Tuple[DiagonalGaussianDistribution]]:
+    ) -> AutoencoderKLOutput | tuple[DiagonalGaussianDistribution]:
         """
         Encode a batch of images into latents.
 
@@ -284,7 +283,7 @@ class AutoencoderSmall(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         return AutoencoderKLOutput(latent_dist=posterior)
 
-    def _decode(self, z: torch.FloatTensor, return_dict: bool = True) -> Union[DecoderOutput, torch.FloatTensor]:
+    def _decode(self, z: torch.FloatTensor, return_dict: bool = True) -> DecoderOutput | torch.FloatTensor:
         if self.use_tiling and (z.shape[-1] > self.tile_latent_min_size or z.shape[-2] > self.tile_latent_min_size):
             return self.tiled_decode(z, return_dict=return_dict)
 
@@ -299,7 +298,7 @@ class AutoencoderSmall(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     @apply_forward_hook
     def decode(
         self, z: torch.FloatTensor, return_dict: bool = True, generator=None
-    ) -> Union[DecoderOutput, torch.FloatTensor]:
+    ) -> DecoderOutput | torch.FloatTensor:
         """
         Decode a batch of images.
 
@@ -391,7 +390,7 @@ class AutoencoderSmall(ModelMixin, ConfigMixin, FromOriginalModelMixin):
 
         return AutoencoderKLOutput(latent_dist=posterior)
 
-    def tiled_decode(self, z: torch.FloatTensor, return_dict: bool = True) -> Union[DecoderOutput, torch.FloatTensor]:
+    def tiled_decode(self, z: torch.FloatTensor, return_dict: bool = True) -> DecoderOutput | torch.FloatTensor:
         r"""
         Decode a batch of images using a tiled decoder.
 
@@ -444,8 +443,8 @@ class AutoencoderSmall(ModelMixin, ConfigMixin, FromOriginalModelMixin):
         sample: torch.FloatTensor,
         sample_posterior: bool = False,
         return_dict: bool = True,
-        generator: Optional[torch.Generator] = None,
-    ) -> Union[DecoderOutput, torch.FloatTensor]:
+        generator: torch.Generator | None = None,
+    ) -> DecoderOutput | torch.FloatTensor:
         r"""
         Args:
             sample (`torch.FloatTensor`): Input sample.

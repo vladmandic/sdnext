@@ -5,6 +5,7 @@
 import gradio as gr
 from PIL import Image
 from modules import scripts_manager, processing, shared, sd_models, devices
+from modules.logger import log
 
 
 prefix = 'InfiniteYou'
@@ -14,7 +15,7 @@ orig_pipeline, orig_prompt_attention = None, None
 
 def verify_insightface():
     from installer import installed, install_insightface
-    if not installed('insightface', reload=False, quiet=True):
+    if not installed('insightface', quiet=True) and not installed('insightfacex', quiet=True):
         install_insightface()
 
 
@@ -29,7 +30,7 @@ def load_infiniteyou(model: str):
     sd_models.set_diffuser_options(shared.sd_model)
 
 
-class Script(scripts_manager.Script):
+class InfiniteYouScript(scripts_manager.Script):
     def title(self):
         return f'{prefix}: Flexible Photo Recrafting'
 
@@ -59,7 +60,7 @@ class Script(scripts_manager.Script):
         return [model, id_image, control_image, scale, start, end, id_guidance, control_guidance, restore]
 
     def run(self, p: processing.StableDiffusionProcessing,
-            model: str = None,
+            model: str | None = None,
             id_image: Image.Image = None,
             control_image: Image.Image = None,
             scale: float = 1.0,
@@ -73,10 +74,10 @@ class Script(scripts_manager.Script):
         if model is None or model not in model_versions:
             return None
         if id_image is None:
-            shared.log.error(f'{prefix}: no init_images')
+            log.error(f'{prefix}: no init_images')
             return None
         if shared.sd_model_type != 'f1':
-            shared.log.error(f'{prefix}: invalid model type: {shared.sd_model_type}')
+            log.error(f'{prefix}: invalid model type: {shared.sd_model_type}')
             return None
         if scale <= 0:
             return None
@@ -87,7 +88,7 @@ class Script(scripts_manager.Script):
             verify_insightface()
             load_infiniteyou(model)
             devices.torch_gc()
-            shared.log.info(f'{prefix}: cls={shared.sd_model.__class__.__name__} loaded')
+            log.info(f'{prefix}: cls={shared.sd_model.__class__.__name__} loaded')
 
         processing.fix_seed(p)
         p.task_args['id_image'] = id_image
@@ -103,7 +104,7 @@ class Script(scripts_manager.Script):
         p.extra_generation_params['IY guidance'] = f'{scale:.1f}/{start:.1f}/{end:.1f}'
         orig_prompt_attention = shared.opts.prompt_attention
         shared.opts.data['prompt_attention'] = 'fixed'
-        shared.log.debug(f'{prefix}: args={p.task_args}')
+        log.debug(f'{prefix}: args={p.task_args}')
 
         processed = processing.process_images(p)
         return processed
@@ -116,6 +117,6 @@ class Script(scripts_manager.Script):
             shared.opts.data['prompt_attention'] = orig_prompt_attention
             orig_prompt_attention = None
         if restore and orig_pipeline is not None:
-            shared.log.info(f'{prefix}: restoring pipeline')
+            log.info(f'{prefix}: restoring pipeline')
             shared.sd_model = orig_pipeline
             orig_pipeline = None

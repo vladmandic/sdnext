@@ -1,8 +1,9 @@
 import os
 from modules import shared, devices
+from modules.logger import log
 
 
-debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 vae_type = None
 
 
@@ -39,13 +40,13 @@ def vae_decode_tiny(latents):
     elif 'Kandinsky' in shared.sd_model.__class__.__name__:
         variant = 'TAE HunyuanVideo'
     else:
-        shared.log.warning(f'Decode: type=Tiny cls={shared.sd_model.__class__.__name__} not supported')
+        log.warning(f'Decode: type=Tiny cls={shared.sd_model.__class__.__name__} not supported')
         return None
     from modules.vae import sd_vae_taesd
     vae, variant = sd_vae_taesd.get_model(variant=variant)
     if vae is None:
         return None
-    shared.log.debug(f'Decode: type=Tiny cls={vae.__class__.__name__} variant="{variant}" latents={latents.shape}')
+    log.debug(f'Decode: type=Tiny cls={vae.__class__.__name__} variant="{variant}" latents={latents.shape}')
     vae = vae.to(device=devices.device, dtype=devices.dtype)
     latents = latents.transpose(1, 2).to(device=devices.device, dtype=devices.dtype)
     images = vae.decode_video(latents, parallel=False).transpose(1, 2).mul_(2).sub_(1)

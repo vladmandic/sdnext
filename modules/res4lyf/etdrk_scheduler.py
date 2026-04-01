@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from typing import ClassVar, List, Literal, Optional, Tuple, Union
+from typing import ClassVar, Literal
 
 import numpy as np
 import torch
@@ -31,7 +31,7 @@ class ETDRKScheduler(SchedulerMixin, ConfigMixin):
     Exponential Time Differencing Runge-Kutta (ETDRK) scheduler.
     """
 
-    _compatibles: ClassVar[List[str]] = [e.name for e in KarrasDiffusionSchedulers]
+    _compatibles: ClassVar[list[str]] = [e.name for e in KarrasDiffusionSchedulers]
     order = 1
 
     @register_to_config
@@ -41,7 +41,7 @@ class ETDRKScheduler(SchedulerMixin, ConfigMixin):
         beta_start: float = 0.00085,
         beta_end: float = 0.012,
         beta_schedule: str = "linear",
-        trained_betas: Optional[Union[np.ndarray, List[float]]] = None,
+        trained_betas: np.ndarray | list[float] | None = None,
         prediction_type: str = "epsilon",
         variant: Literal["etdrk2_2s", "etdrk3_a_3s", "etdrk3_b_3s", "etdrk4_4s", "etdrk4_4s_alt"] = "etdrk4_4s",
         use_analytic_solution: bool = True,
@@ -87,17 +87,17 @@ class ETDRKScheduler(SchedulerMixin, ConfigMixin):
         self.init_noise_sigma = 1.0
 
     @property
-    def step_index(self) -> Optional[int]:
+    def step_index(self) -> int | None:
         return self._step_index
 
     @property
-    def begin_index(self) -> Optional[int]:
+    def begin_index(self) -> int | None:
         return self._begin_index
 
     def set_begin_index(self, begin_index: int = 0) -> None:
         self._begin_index = begin_index
 
-    def set_timesteps(self, num_inference_steps: int, device: Union[str, torch.device] = None, mu: Optional[float] = None, dtype: torch.dtype = torch.float32):
+    def set_timesteps(self, num_inference_steps: int, device: str | torch.device = None, mu: float | None = None, dtype: torch.dtype = torch.float32):
         from .scheduler_utils import (
             apply_shift,
             get_dynamic_shift,
@@ -171,7 +171,7 @@ class ETDRKScheduler(SchedulerMixin, ConfigMixin):
         from .scheduler_utils import add_noise_to_sample
         return add_noise_to_sample(original_samples, noise, self.sigmas, timesteps, self.timesteps)
 
-    def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
+    def scale_model_input(self, sample: torch.Tensor, timestep: float | torch.Tensor) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
         if self.config.prediction_type == "flow_prediction":
@@ -183,10 +183,10 @@ class ETDRKScheduler(SchedulerMixin, ConfigMixin):
     def step(
         self,
         model_output: torch.Tensor,
-        timestep: Union[float, torch.Tensor],
+        timestep: float | torch.Tensor,
         sample: torch.Tensor,
         return_dict: bool = True,
-    ) -> Union[SchedulerOutput, Tuple]:
+    ) -> SchedulerOutput | tuple:
         if self._step_index is None:
             self._init_step_index(timestep)
 

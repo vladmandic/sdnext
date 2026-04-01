@@ -1,6 +1,7 @@
 import transformers
 import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
+from modules.logger import log
 from pipelines import generic
 
 
@@ -11,7 +12,7 @@ def load_flux2_klein(checkpoint_info, diffusers_load_config=None):
     sd_models.hf_auth_check(checkpoint_info)
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
-    shared.log.debug(f'Load model: type=Flux2Klein repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    log.debug(f'Load model: type=Flux2Klein repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     # Load transformer - Klein uses Flux2Transformer2DModel (same class as Flux2, different size)
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.Flux2Transformer2DModel, load_config=diffusers_load_config)
@@ -32,6 +33,9 @@ def load_flux2_klein(checkpoint_info, diffusers_load_config=None):
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["flux2klein"] = diffusers.Flux2KleinPipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["flux2klein"] = diffusers.Flux2KleinPipeline
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["flux2klein"] = diffusers.Flux2KleinPipeline
+
+    from pipelines.flux import flux2_lora
+    flux2_lora.apply_patch()
 
     del text_encoder
     del transformer

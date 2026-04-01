@@ -1,5 +1,6 @@
 import json
 import modules.errors as errors
+from modules.logger import log
 
 
 localizations = {}
@@ -28,10 +29,10 @@ def localization_js(current_localization_name):
     data = {}
     if fn is not None:
         try:
-            with open(fn, "r", encoding="utf8") as file:
+            with open(fn, encoding="utf8") as file:
                 data = json.load(file)
         except Exception as e:
-            errors.log.error(f"Error loading localization from {fn}:")
+            log.error(f"Error loading localization from {fn}:")
             errors.display(e, 'localization')
 
     return f"var localization = {json.dumps(data)}\n"

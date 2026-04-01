@@ -2,7 +2,7 @@ import gradio as gr
 import gradio.routes
 import gradio.utils
 from modules import errors, timer, gr_hijack, shared, script_callbacks, ui_common, ui_symbols, ui_javascript, ui_sections, generation_parameters_copypaste, call_queue, scripts_manager
-from modules.paths import script_path, data_path # pylint: disable=unused-import
+from modules.logger import log
 from modules.api import mime
 
 
@@ -65,7 +65,7 @@ def setup_progressbar(*args, **kwargs): # pylint: disable=unused-argument
     pass
 
 
-def create_ui(startup_timer = None):
+def create_ui(startup_timer = None) -> gr.Blocks:
     global interfaces # pylint: disable=global-statement
     if startup_timer is None:
         timer.startup = timer.Timer()
@@ -79,7 +79,7 @@ def create_ui(startup_timer = None):
     interfaces.clear()
     shared.opts.ui_disabled = ui_disabled
     if len(ui_disabled) > 0:
-        shared.log.warning(f'UI disabled: {ui_disabled}')
+        log.warning(f'UI disabled: {ui_disabled}')
 
     if 'txt2img' not in ui_disabled:
         with gr.Blocks(analytics_enabled=False) as txt2img_interface:

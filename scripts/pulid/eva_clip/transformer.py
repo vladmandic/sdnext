@@ -17,6 +17,15 @@ from .rope import VisionRotaryEmbedding, VisionRotaryEmbeddingFast
 from .utils import to_2tuple
 
 
+try:
+    import xformers
+    import xformers.ops as xops
+    XFORMERS_IS_AVAILBLE = True
+except Exception:
+    XFORMERS_IS_AVAILBLE = False
+    xops = None
+
+
 class LayerNormFp32(nn.LayerNorm):
     """Subclass torch's LayerNorm to handle fp16 (by casting to float32 and back)."""
     def __init__(self, *args, **kwargs):
@@ -417,10 +426,7 @@ class CustomTransformer(nn.Module):
         if k is None and v is None:
             k = v = q
         for r in self.resblocks:
-            if self.grad_checkpointing and not torch.jit.is_scripting():
-                q = checkpoint(r, q, k, v, attn_mask)
-            else:
-                q = r(q, k, v, attn_mask=attn_mask)
+            q = r(q, k, v, attn_mask=attn_mask)
         return q
 
 
@@ -494,10 +500,7 @@ class Transformer(nn.Module):
 
     def forward(self, x: torch.Tensor, attn_mask: Optional[torch.Tensor] = None):
         for r in self.resblocks:
-            if self.grad_checkpointing and not torch.jit.is_scripting():
-                x = checkpoint(r, x, attn_mask)
-            else:
-                x = r(x, attn_mask=attn_mask)
+            x = r(x, attn_mask=attn_mask)
         return x
 
 

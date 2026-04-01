@@ -5,10 +5,7 @@ let currentImage = null;
 let currentGalleryFolder = null;
 let pruneImagesTimer;
 let outstanding = 0;
-let lastSort = 0;
-let lastSortName = 'None';
 let gallerySelection = { files: [], index: -1 };
-const galleryHashes = new Set();
 let maintenanceController = new AbortController();
 const folderStylesheet = new CSSStyleSheet();
 const fileStylesheet = new CSSStyleSheet();
@@ -25,6 +22,31 @@ const el = {
 };
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
+
+const gallerySorter = {
+  nameA: { name: 'Name Ascending', func: (a, b) => a.name.localeCompare(b.name) },
+  nameD: { name: 'Name Descending', func: (b, a) => a.name.localeCompare(b.name) },
+  sizeA: { name: 'Size Ascending', func: (a, b) => a.size - b.size },
+  sizeD: { name: 'Size Descending', func: (b, a) => a.size - b.size },
+  resA: { name: 'Resolution Ascending', func: (a, b) => a.width * a.height - b.width * b.height },
+  resD: { name: 'Resolution Descending', func: (b, a) => a.width * a.height - b.width * b.height },
+  modA: { name: 'Modified Ascending', func: (a, b) => a.mtime - b.mtime },
+  modD: { name: 'Modified Descending', func: (b, a) => a.mtime - b.mtime },
+  none: { name: 'None', func: undefined },
+};
+
+let sortMode = gallerySorter.none;
+
+async function getHash(str) {
+  let hex = '';
+  const strBuf = new TextEncoder().encode(str);
+  let hashBuf;
+  if (crypto?.subtle?.digest) hashBuf = await crypto.subtle.digest('SHA-256', strBuf);
+  else hashBuf = hash(strBuf).buffer; // from sha256.js
+  const view = new DataView(hashBuf);
+  for (let i = 0; i < hashBuf.byteLength; i += 4) hex += (`00000000${view.getUint32(i).toString(16)}`).slice(-8);
+  return hex;
+}
 
 function getVisibleGalleryFiles() {
   if (!el.files) return [];
@@ -100,7 +122,8 @@ async function awaitForOutstanding(num, signal) {
  * @param {AbortSignal} signal - AbortController signal
  */
 async function awaitForGallery(expectedSize, signal) {
-  while (galleryHashes.size < expectedSize && !signal.aborted) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
+  // eslint-disable-next-line no-use-before-define
+  while (Math.max(galleryHashes.size, galleryHashes.fallback) < expectedSize && !signal.aborted) await new Promise((resolve) => { setTimeout(resolve, 500); }); // longer interval because it's a low priority check
   signal.throwIfAborted();
 }
 
@@ -173,6 +196,25 @@ function updateGalleryStyles() {
 }
 
 // Classes
+
+class HashSet extends Set {
+  constructor(val) {
+    super(val);
+    this.fallback = 0;
+  }
+
+  add(value) {
+    ++this.fallback;
+    super.add(value);
+  }
+
+  clear() {
+    this.fallback = 0;
+    super.clear();
+  }
+}
+
+const galleryHashes = new HashSet();
 
 class SimpleProgressBar {
   #container = document.createElement('div');
@@ -432,7 +474,11 @@ class GalleryFile extends HTMLElement {
       }
     }
 
-    this.hash = await getHash(`${this.src}/${this.size}/${this.mtime}`); // eslint-disable-line no-use-before-define
+    this.hash = await getHash(`${this.src}/${this.size}/${this.mtime}`)
+      .catch((err) => {
+        error('getHash:', err);
+        return null;
+      });
     const cachedData = (this.hash && opts.browser_cache) ? await idbGet(this.hash).catch(() => undefined) : undefined;
     const img = document.createElement('img');
     img.className = 'gallery-file';
@@ -467,7 +513,7 @@ class GalleryFile extends HTMLElement {
           this.height = json.height;
           this.size = json.size;
           this.mtime = new Date(json.mtime);
-          if (opts.browser_cache) {
+          if (opts.browser_cache && this.hash) {
             await idbAdd({
               hash: this.hash,
               folder: this.fullFolder,
@@ -642,19 +688,6 @@ async function addSeparators() {
 
 const gallerySendImage = (_images) => [currentImage]; // invoked by gradio button
 
-async function getHash(str, algo = 'SHA-256') {
-  try {
-    let hex = '';
-    const strBuf = new TextEncoder().encode(str);
-    const hash = await crypto.subtle.digest(algo, strBuf);
-    const view = new DataView(hash);
-    for (let i = 0; i < hash.byteLength; i += 4) hex += (`00000000${view.getUint32(i).toString(16)}`).slice(-8);
-    return hex;
-  } catch {
-    return undefined;
-  }
-}
-
 /**
  * Helper function to update status with sort mode
  * @param  {...string|[string, string]} messages - Each can be either a string to use as-is, or an array of a string label and value
@@ -662,7 +695,7 @@ async function getHash(str, algo = 'SHA-256') {
  */
 function updateStatusWithSort(...messages) {
   if (!el.status) return;
-  messages.unshift(['Sort', lastSortName]);
+  messages.unshift(['Sort', sortMode.name]);
   const fragment = document.createDocumentFragment();
   for (let i = 0; i < messages.length; i++) {
     const div = document.createElement('div');
@@ -837,11 +870,14 @@ const findDuplicates = (arr, key) => {
   });
 };
 
-async function gallerySort(btn) {
+async function gallerySort(key) {
+  if (!Object.hasOwn(gallerySorter, key)) {
+    error(`Gallery: "${key}" is not a valid gallery sorting key`);
+    return;
+  }
   const t0 = performance.now();
   const arr = Array.from(el.files.children).filter((node) => node.name); // filter out separators
   if (arr.length === 0) return; // no files to sort
-  if (btn) lastSort = btn.charCodeAt(0);
   const fragment = document.createDocumentFragment();
 
   // Helper to get directory path from a file node
@@ -864,60 +900,17 @@ async function gallerySort(btn) {
     folderGroups.get(dir).push(file);
   }
 
-  // Sort function based on current sort mode
-  let sortFn;
-  switch (lastSort) {
-    case 61789: // name asc
-      lastSortName = 'Name Ascending';
-      sortFn = (a, b) => a.name.localeCompare(b.name);
-      break;
-    case 61790: // name dsc
-      lastSortName = 'Name Descending';
-      sortFn = (a, b) => b.name.localeCompare(a.name);
-      break;
-    case 61792: // size asc
-      lastSortName = 'Size Ascending';
-      sortFn = (a, b) => a.size - b.size;
-      break;
-    case 61793: // size dsc
-      lastSortName = 'Size Descending';
-      sortFn = (a, b) => b.size - a.size;
-      break;
-    case 61794: // resolution asc
-      lastSortName = 'Resolution Ascending';
-      sortFn = (a, b) => a.width * a.height - b.width * b.height;
-      break;
-    case 61795: // resolution dsc
-      lastSortName = 'Resolution Descending';
-      sortFn = (a, b) => b.width * b.height - a.width * a.height;
-      break;
-    case 61662:
-      lastSortName = 'Modified Ascending';
-      sortFn = (a, b) => a.mtime - b.mtime;
-      break;
-    case 61661:
-      lastSortName = 'Modified Descending';
-      sortFn = (a, b) => b.mtime - a.mtime;
-      break;
-    default:
-      lastSortName = 'None';
-      sortFn = null;
-      break;
-  }
+  sortMode = gallerySorter[key];
 
   // Sort root files
-  if (sortFn) {
-    rootFiles.sort(sortFn);
-  }
+  rootFiles.sort(sortMode.func);
   rootFiles.forEach((node) => fragment.appendChild(node));
 
   // Sort folder names alphabetically, then sort files within each folder
   const sortedFolderNames = Array.from(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
   for (const folderName of sortedFolderNames) {
     const files = folderGroups.get(folderName);
-    if (sortFn) {
-      files.sort(sortFn);
-    }
+    files.sort(sortMode.func);
     files.forEach((node) => fragment.appendChild(node));
   }
 
@@ -942,7 +935,7 @@ async function gallerySort(btn) {
   }
 
   const t1 = performance.now();
-  log(`gallerySort: char=${lastSort} len=${arr.length} time=${Math.floor(t1 - t0)} sort=${lastSortName}`);
+  log(`gallerySort: sort=${sortMode.name} len=${arr.length} time=${Math.floor(t1 - t0)}`);
   updateStatusWithSort(['Images', arr.length.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
   refreshGallerySelection();
 }
@@ -1353,6 +1346,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
 
   monitorGalleries();
   updateFolders();
+  initGalleryAutoRefresh();
   [
     'browser_folders',
     'outdir_samples',

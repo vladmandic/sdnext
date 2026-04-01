@@ -237,11 +237,11 @@ class BriaPipeline(FluxPipeline):
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         height: Optional[int] = None,
         width: Optional[int] = None,
         num_inference_steps: int = 30,
-        timesteps: List[int] = None,
+        timesteps: List[int] | None = None,
         guidance_scale: float = 5,
         negative_prompt: Optional[Union[str, List[str]]] = None,
         num_images_per_prompt: Optional[int] = 1,

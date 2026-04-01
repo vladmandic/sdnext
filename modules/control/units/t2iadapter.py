@@ -3,7 +3,7 @@ import time
 from typing import Union
 import threading
 from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, T2IAdapter, MultiAdapter, StableDiffusionAdapterPipeline, StableDiffusionXLAdapterPipeline # pylint: disable=unused-import
-from installer import log
+from modules.logger import log
 from modules import errors, sd_models
 from modules.control.units import detect
 

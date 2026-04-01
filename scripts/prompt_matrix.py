@@ -6,7 +6,7 @@ from modules.shared import opts, log
 import modules.sd_samplers
 
 
-class Script(scripts_manager.Script):
+class PromptMatrixScript(scripts_manager.Script):
     def title(self):
         return "Prompt matrix"
 

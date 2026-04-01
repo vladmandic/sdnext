@@ -1,8 +1,9 @@
 import os
 import sys
-from typing import List, Union
 import cv2
 from PIL import Image
+from modules.logger import log
+from modules import devices, shared, errors, processing, sd_models, sd_vae, scripts_manager, masking
 from modules.control import util # helper functions
 from modules.control import unit # control units
 from modules.control import processors # image preprocessors
@@ -13,7 +14,6 @@ from modules.control.units import lite # Kohya ControlLLLite
 from modules.control.units import t2iadapter # TencentARC T2I-Adapter
 from modules.control.units import reference # ControlNet-Reference
 from modules.control.processor import preprocess_image
-from modules import devices, shared, errors, processing, images, sd_models, sd_vae, scripts_manager, masking
 from modules.processing_class import StableDiffusionProcessingControl
 from modules.ui_common import infotext_to_html
 from modules.api import script
@@ -22,7 +22,7 @@ from modules.paths import resolve_output_path
 
 
 debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
-debug_log = shared.log.trace if debug else lambda *args, **kwargs: None
+debug_log = log.trace if debug else lambda *args, **kwargs: None
 pipe = None
 instance = None
 original_pipeline = None
@@ -37,7 +37,7 @@ def restore_pipeline():
     if (original_pipeline is not None) and (original_pipeline.__class__.__name__ != shared.sd_model.__class__.__name__):
         if debug:
             fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-            shared.log.trace(f'Control restored pipeline: class={shared.sd_model.__class__.__name__} to={original_pipeline.__class__.__name__} fn={fn}')
+            log.trace(f'Control restored pipeline: class={shared.sd_model.__class__.__name__} to={original_pipeline.__class__.__name__} fn={fn}')
         shared.sd_model = original_pipeline
     pipe = None
     instance = None
@@ -46,7 +46,7 @@ def restore_pipeline():
 
 def terminate(msg):
     restore_pipeline()
-    shared.log.error(f'Control terminated: {msg}')
+    log.error(f'Control terminated: {msg}')
     return msg
 
 
@@ -68,7 +68,7 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
     pipe = None
     if has_models and not has_inputs(inits) and not has_inputs(inputs):
         if not any(has_inputs(u.override) for u in active_units if u.enabled): # check overrides
-            shared.log.error('Control: no input images')
+            log.error('Control: no input images')
             return pipe
     if has_models:
         p.ops.append('control')
@@ -86,7 +86,7 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
         instance = t2iadapter.AdapterPipeline(selected_models, shared.sd_model)
         pipe = instance.pipeline
         if inits is not None:
-            shared.log.warning('Control: T2I-Adapter does not support separate init image')
+            log.warning('Control: T2I-Adapter does not support separate init image')
     elif unit_type == 'controlnet' and has_models:
         p.extra_generation_params["Control type"] = 'ControlNet'
         if shared.sd_model_type == 'f1':
@@ -109,14 +109,14 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
         instance = xs.ControlNetXSPipeline(selected_models, shared.sd_model)
         pipe = instance.pipeline
         if inits is not None:
-            shared.log.warning('Control: ControlNet-XS does not support separate init image')
+            log.warning('Control: ControlNet-XS does not support separate init image')
     elif unit_type == 'lite' and has_models:
         p.extra_generation_params["Control type"] = 'ControlLLLite'
         p.controlnet_conditioning_scale = control_conditioning
         instance = lite.ControlLLitePipeline(shared.sd_model)
         pipe = instance.pipeline
         if inits is not None:
-            shared.log.warning('Control: ControlLLLite does not support separate init image')
+            log.warning('Control: ControlLLLite does not support separate init image')
     elif unit_type == 'reference' and has_models:
         p.extra_generation_params["Control type"] = 'Reference'
         p.extra_generation_params["Control attention"] = p.attention
@@ -128,7 +128,7 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
         instance = reference.ReferencePipeline(shared.sd_model)
         pipe = instance.pipeline
         if inits is not None:
-            shared.log.warning('Control: ControlNet-XS does not support separate init image')
+            log.warning('Control: ControlNet-XS does not support separate init image')
     else: # run in txt2img/img2img mode
         if len(active_strength) > 0:
             p.strength = active_strength[0]
@@ -140,13 +140,13 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
     return pipe
 
 
-def check_active(p, unit_type, units):
-    active_process: List[processors.Processor] = [] # all active preprocessors
-    active_model: List[Union[controlnet.ControlNet, xs.ControlNetXS, t2iadapter.Adapter]] = [] # all active models
-    active_strength: List[float] = [] # strength factors for all active models
-    active_start: List[float] = [] # start step for all active models
-    active_end: List[float] = [] # end step for all active models
-    active_units: List[unit.Unit] = [] # all active units
+def check_active(p, unit_type: str, units: list[unit.Unit]):
+    active_process: list[processors.Processor] = [] # all active preprocessors
+    active_model: list[controlnet.ControlNet | xs.ControlNetXS | t2iadapter.Adapter] = [] # all active models
+    active_strength: list[float] = [] # strength factors for all active models
+    active_start: list[float] = [] # start step for all active models
+    active_end: list[float] = [] # end step for all active models
+    active_units: list[unit.Unit] = [] # all active units
     num_units = 0
     for u in units:
         if u.type != unit_type:
@@ -167,7 +167,7 @@ def check_active(p, unit_type, units):
             active_strength.append(float(u.strength))
             p.adapter_conditioning_factor = u.factor
             active_units.append(u)
-            shared.log.debug(f'Control T2I-Adapter unit: i={num_units} process="{u.process.processor_id}" model="{u.adapter.model_id}" strength={u.strength} factor={u.factor}')
+            log.debug(f'Control T2I-Adapter unit: i={num_units} process="{u.process.processor_id}" model="{u.adapter.model_id}" strength={u.strength} factor={u.factor}')
         elif unit_type == 'controlnet' and (u.controlnet.model is not None or is_unified_model()):
             active_process.append(u.process)
             active_model.append(u.controlnet)
@@ -183,7 +183,7 @@ def check_active(p, unit_type, units):
                 p.is_tile = p.is_tile or 'tile' in u.mode.lower()
                 p.control_tile = u.tile
                 p.extra_generation_params["Control mode"] = u.mode
-            shared.log.debug(f'Control unit: i={num_units} type=ControlNet process="{u.process.processor_id}" model="{u.controlnet.model_id}" strength={u.strength} guess={u.guess} start={u.start} end={u.end} mode={u.mode}')
+            log.debug(f'Control unit: i={num_units} type=ControlNet process="{u.process.processor_id}" model="{u.controlnet.model_id}" strength={u.strength} guess={u.guess} start={u.start} end={u.end} mode={u.mode}')
         elif unit_type == 'xs' and u.controlnet.model is not None:
             active_process.append(u.process)
             active_model.append(u.controlnet)
@@ -191,13 +191,13 @@ def check_active(p, unit_type, units):
             active_start.append(float(u.start))
             active_end.append(float(u.end))
             active_units.append(u)
-            shared.log.debug(f'Control unit: i={num_units} type=ControlNetXS process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
+            log.debug(f'Control unit: i={num_units} type=ControlNetXS process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
         elif unit_type == 'lite' and u.controlnet.model is not None:
             active_process.append(u.process)
             active_model.append(u.controlnet)
             active_strength.append(float(u.strength))
             active_units.append(u)
-            shared.log.debug(f'Control unit: i={num_units} type=ControlLLite process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
+            log.debug(f'Control unit: i={num_units} type=ControlLLite process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
         elif unit_type == 'reference':
             p.override = u.override
             p.attention = u.attention
@@ -205,20 +205,20 @@ def check_active(p, unit_type, units):
             p.adain_weight = float(u.adain_weight)
             p.fidelity = u.fidelity
             active_units.append(u)
-            shared.log.debug('Control Reference unit')
+            log.debug('Control Reference unit')
         else:
             if u.process.processor_id is not None:
                 active_process.append(u.process)
                 active_units.append(u)
-                shared.log.debug(f'Control unit: i={num_units} type=Process process={u.process.processor_id}')
+                log.debug(f'Control unit: i={num_units} type=Process process={u.process.processor_id}')
             active_strength.append(float(u.strength))
     debug_log(f'Control active: process={len(active_process)} model={len(active_model)}')
     return active_process, active_model, active_strength, active_start, active_end, active_units
 
 
-def check_enabled(p, unit_type, units, active_model, active_strength, active_start, active_end):
+def check_enabled(p, unit_type: str, units: list[unit.Unit], active_model: list[controlnet.ControlNet | xs.ControlNetXS | t2iadapter.Adapter], active_strength: list[float], active_start: list[float], active_end: list[float]):
     has_models = False
-    selected_models: List[Union[controlnet.ControlNetModel, xs.ControlNetXSModel, t2iadapter.AdapterModel]] = None
+    selected_models: list[controlnet.ControlNetModel | xs.ControlNetXSModel | t2iadapter.AdapterModel] | None = None
     control_conditioning = None
     control_guidance_start = None
     control_guidance_end = None
@@ -254,7 +254,7 @@ def control_set(kwargs):
         p_extra_args[k] = v
 
 
-def init_units(units: List[unit.Unit]):
+def init_units(units: list[unit.Unit]):
     for u in units:
         if not u.enabled:
             continue
@@ -271,29 +271,89 @@ def init_units(units: List[unit.Unit]):
 
 
 def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
-                units: List[unit.Unit] = [], inputs: List[Image.Image] = [], inits: List[Image.Image] = [], mask: Image.Image = None, unit_type: str = None, is_generator: bool = True,
+                units: list[unit.Unit] | None = None, inputs: list[Image.Image] | None = None, inits: list[Image.Image] | None = None, mask: Image.Image = None, unit_type: str | None = None, is_generator: bool = True,
                 input_type: int = 0,
-                prompt: str = '', negative_prompt: str = '', styles: List[str] = [],
-                steps: int = 20, sampler_index: int = None,
+                prompt: str = '', negative_prompt: str = '', styles: list[str] | None = None,
+                steps: int = 20, sampler_index: int | None = None,
                 seed: int = -1, subseed: int = -1, subseed_strength: float = 0, seed_resize_from_h: int = -1, seed_resize_from_w: int = -1,
                 guidance_name: str = 'Default', guidance_scale: float = 6.0, guidance_rescale: float = 0.0, guidance_start: float = 0.0, guidance_stop: float = 1.0,
                 cfg_scale: float = 6.0, clip_skip: float = 1.0, image_cfg_scale: float = 6.0, diffusers_guidance_rescale: float = 0.7, pag_scale: float = 0.0, pag_adaptive: float = 0.5, cfg_end: float = 1.0,
                 vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
                 detailer_enabled: bool = False, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,
                 hdr_mode: int = 0, hdr_brightness: float = 0, hdr_color: float = 0, hdr_sharpen: float = 0, hdr_clamp: bool = False, hdr_boundary: float = 4.0, hdr_threshold: float = 0.95,
-                hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str = None, hdr_tint_ratio: float = 0,
+                hdr_maximize: bool = False, hdr_max_center: float = 0.6, hdr_max_boundary: float = 1.0, hdr_color_picker: str | None = None, hdr_tint_ratio: float = 0, hdr_apply_hires: bool = True,
+                grading_brightness: float = 0.0, grading_contrast: float = 0.0, grading_saturation: float = 0.0, grading_hue: float = 0.0,
+                grading_gamma: float = 1.0, grading_sharpness: float = 0.0, grading_color_temp: float = 6500,
+                grading_shadows: float = 0.0, grading_midtones: float = 0.0, grading_highlights: float = 0.0,
+                grading_clahe_clip: float = 0.0, grading_clahe_grid: int = 8,
+                grading_shadows_tint: str = "#000000", grading_highlights_tint: str = "#ffffff", grading_split_tone_balance: float = 0.5,
+                grading_vignette: float = 0.0, grading_grain: float = 0.0,
+                grading_lut_file: str = "", grading_lut_strength: float = 1.0,
                 resize_mode_before: int = 0, resize_name_before: str = 'None', resize_context_before: str = 'None', width_before: int = 512, height_before: int = 512, scale_by_before: float = 1.0, selected_scale_tab_before: int = 0,
                 resize_mode_after: int = 0, resize_name_after: str = 'None', resize_context_after: str = 'None', width_after: int = 0, height_after: int = 0, scale_by_after: float = 1.0, selected_scale_tab_after: int = 0,
                 resize_mode_mask: int = 0, resize_name_mask: str = 'None', resize_context_mask: str = 'None', width_mask: int = 0, height_mask: int = 0, scale_by_mask: float = 1.0, selected_scale_tab_mask: int = 0,
                 denoising_strength: float = 0.3, batch_count: int = 1, batch_size: int = 1,
-                enable_hr: bool = False, hr_sampler_index: int = None, hr_denoising_strength: float = 0.0, hr_resize_mode: int = 0, hr_resize_context: str = 'None', hr_upscaler: str = None, hr_force: bool = False, hr_second_pass_steps: int = 20,
+                enable_hr: bool = False, hr_sampler_index: int | None = None, hr_denoising_strength: float = 0.0, hr_resize_mode: int = 0, hr_resize_context: str = 'None', hr_upscaler: str | None = None, hr_force: bool = False, hr_second_pass_steps: int = 20,
                 hr_scale: float = 1.0, hr_resize_x: int = 0, hr_resize_y: int = 0, refiner_steps: int = 5, refiner_start: float = 0.0, refiner_prompt: str = '', refiner_negative: str = '',
                 video_skip_frames: int = 0, video_type: str = 'None', video_duration: float = 2.0, video_loop: bool = False, video_pad: int = 0, video_interpolate: int = 0,
-                extra: dict = {},
-                override_script_name: str = None,
-                override_script_args = [],
+                override_script_name: str | None = None, override_script_args = None, extra: dict | None = None,
                 *input_script_args,
+                # API-only params (keyword-only, not wired to Gradio)
+                detailer_segmentation: bool | None = None, detailer_include_detections: bool | None = None, detailer_merge: bool | None = None, detailer_sort: bool | None = None, detailer_classes: str | None = None,
+                detailer_conf: float | None = None, detailer_iou: float | None = None, detailer_max: int | None = None,
+                detailer_min_size: float | None = None, detailer_max_size: float | None = None,
+                detailer_blur: int | None = None, detailer_padding: int | None = None,
+                detailer_sigma_adjust: float | None = None, detailer_sigma_adjust_max: float | None = None,
+                detailer_models: list | None = None, detailer_augment: bool | None = None,
+                img2img_color_correction: bool | None = None, color_correction_method: str | None = None, img2img_background_color: str | None = None,
+                img2img_fix_steps: bool | None = None, mask_apply_overlay: bool | None = None,
+                include_mask: bool | None = None, inpainting_mask_weight: float | None = None,
+                # output and saving
+                samples_save: bool | None = None, samples_format: str | None = None,
+                save_images_before_highres_fix: bool | None = None, save_images_before_refiner: bool | None = None,
+                save_images_before_detailer: bool | None = None, save_images_before_color_correction: bool | None = None,
+                grid_save: bool | None = None, grid_format: str | None = None, return_grid: bool | None = None,
+                save_mask: bool | None = None, save_mask_composite: bool | None = None,
+                return_mask: bool | None = None, return_mask_composite: bool | None = None,
+                keep_incomplete: bool | None = None, image_metadata: bool | None = None, jpeg_quality: int | None = None,
+                # scheduler/noise overrides
+                schedulers_prediction_type: str | None = None, schedulers_beta_schedule: str | None = None, schedulers_timesteps: str | None = None,
+                schedulers_sigma: str | None = None, schedulers_use_thresholding: bool | None = None, schedulers_use_loworder: bool | None = None,
+                schedulers_solver_order: int | None = None, uni_pc_variant: str | None = None, schedulers_beta_start: float | None = None,
+                schedulers_beta_end: float | None = None, schedulers_shift: float | None = None, schedulers_dynamic_shift: bool | None = None,
+                schedulers_base_shift: float | None = None, schedulers_max_shift: float | None = None, schedulers_rescale_betas: bool | None = None,
+                schedulers_timestep_spacing: str | None = None, schedulers_timesteps_range: int | None = None,
+                schedulers_sigma_adjust: float | None = None, schedulers_sigma_adjust_min: float | None = None, schedulers_sigma_adjust_max: float | None = None,
+                scheduler_eta: float | None = None, eta_noise_seed_delta: int | None = None, enable_batch_seeds: bool | None = None,
+                diffusers_generator_device: str | None = None, nan_skip: bool | None = None,
+                sequential_seed: bool | None = None,
+                # prompt/attention overrides
+                prompt_attention: str | None = None, prompt_mean_norm: bool | None = None, diffusers_zeros_prompt_pad: bool | None = None,
+                te_pooled_embeds: bool | None = None, lora_apply_te: bool | None = None, te_complex_human_instruction: str | None = None, te_use_mask: bool | None = None,
+                # generation modifier overrides (hijack)
+                freeu_enabled: bool | None = None, freeu_b1: float | None = None, freeu_b2: float | None = None, freeu_s1: float | None = None, freeu_s2: float | None = None,
+                hypertile_unet_enabled: bool | None = None, hypertile_hires_only: bool | None = None, hypertile_unet_tile: int | None = None, hypertile_unet_min_tile: int | None = None,
+                hypertile_unet_swap_size: int | None = None, hypertile_unet_depth: int | None = None,
+                hypertile_vae_enabled: bool | None = None, hypertile_vae_tile: int | None = None, hypertile_vae_swap_size: int | None = None,
+                teacache_enabled: bool | None = None, teacache_thresh: float | None = None,
+                token_merging_method: str | None = None, tome_ratio: float | None = None, todo_ratio: float | None = None,
+                # lora behavior
+                lora_fuse_native: bool | None = None, lora_fuse_diffusers: bool | None = None,
+                lora_force_reload: bool | None = None, extra_networks_default_multiplier: float | None = None,
+                lora_apply_tags: int | None = None,
         ):
+    if override_script_args is None:
+        override_script_args = []
+    if extra is None:
+        extra = {}
+    if styles is None:
+        styles = []
+    if inits is None:
+        inits = []
+    if inputs is None:
+        inputs = []
+    if units is None:
+        units = []
     global pipe, original_pipeline # pylint: disable=global-statement
     if 'refine' in state:
         enable_hr = True
@@ -303,13 +363,13 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     init_units(units)
     if inputs is None or (type(inputs) is list and len(inputs) == 0):
         inputs = [None]
-    output_images: List[Image.Image] = [] # output images
+    output_images: list[Image.Image] = [] # output images
     processed_image: Image.Image = None # last processed image
     if mask is not None and input_type == 0:
         input_type = 1 # inpaint always requires control_image
 
     if sampler_index is None:
-        shared.log.warning('Sampler: invalid')
+        log.warning('Sampler: invalid')
         sampler_index = 0
     if hr_sampler_index is None:
         hr_sampler_index = sampler_index
@@ -396,15 +456,76 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         detailer_steps = detailer_steps,
         detailer_strength = detailer_strength,
         detailer_resolution = detailer_resolution,
+        detailer_segmentation = detailer_segmentation,
+        detailer_include_detections = detailer_include_detections,
+        detailer_merge = detailer_merge,
+        detailer_sort = detailer_sort,
+        detailer_classes = detailer_classes,
+        detailer_conf=detailer_conf, detailer_iou=detailer_iou, detailer_max=detailer_max,
+        detailer_min_size=detailer_min_size, detailer_max_size=detailer_max_size,
+        detailer_blur=detailer_blur, detailer_padding=detailer_padding,
+        detailer_sigma_adjust=detailer_sigma_adjust, detailer_sigma_adjust_max=detailer_sigma_adjust_max,
+        detailer_models=detailer_models, detailer_augment=detailer_augment,
+        # img2img and mask
+        img2img_color_correction=img2img_color_correction, color_correction_method=color_correction_method, img2img_background_color=img2img_background_color,
+        img2img_fix_steps=img2img_fix_steps, mask_apply_overlay=mask_apply_overlay,
+        include_mask=include_mask, inpainting_mask_weight=inpainting_mask_weight,
+        # output and saving
+        samples_save=samples_save, samples_format=samples_format,
+        save_images_before_highres_fix=save_images_before_highres_fix, save_images_before_refiner=save_images_before_refiner,
+        save_images_before_detailer=save_images_before_detailer, save_images_before_color_correction=save_images_before_color_correction,
+        grid_save=grid_save, grid_format=grid_format, return_grid=return_grid,
+        save_mask=save_mask, save_mask_composite=save_mask_composite,
+        return_mask=return_mask, return_mask_composite=return_mask_composite,
+        keep_incomplete=keep_incomplete, image_metadata=image_metadata, jpeg_quality=jpeg_quality,
         # inpaint
         inpaint_full_res = masking.opts.mask_only,
         inpainting_mask_invert = 1 if masking.opts.invert else 0,
         # hdr
         hdr_mode=hdr_mode, hdr_brightness=hdr_brightness, hdr_color=hdr_color, hdr_sharpen=hdr_sharpen, hdr_clamp=hdr_clamp,
-        hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundary=hdr_max_boundary, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio,
+        hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundary=hdr_max_boundary, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio, hdr_apply_hires=hdr_apply_hires,
+        # grading
+        grading_brightness=grading_brightness, grading_contrast=grading_contrast, grading_saturation=grading_saturation, grading_hue=grading_hue,
+        grading_gamma=grading_gamma, grading_sharpness=grading_sharpness, grading_color_temp=grading_color_temp,
+        grading_shadows=grading_shadows, grading_midtones=grading_midtones, grading_highlights=grading_highlights,
+        grading_clahe_clip=grading_clahe_clip, grading_clahe_grid=grading_clahe_grid,
+        grading_shadows_tint=grading_shadows_tint, grading_highlights_tint=grading_highlights_tint, grading_split_tone_balance=grading_split_tone_balance,
+        grading_vignette=grading_vignette, grading_grain=grading_grain,
+        grading_lut_file=grading_lut_file.name if hasattr(grading_lut_file, 'name') else (grading_lut_file or ''), grading_lut_strength=grading_lut_strength,
         # path
         outpath_samples=resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_control_samples),
         outpath_grids=resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_control_grids),
+        # scheduler/noise overrides
+        schedulers_prediction_type=schedulers_prediction_type, schedulers_beta_schedule=schedulers_beta_schedule,
+        schedulers_timesteps=schedulers_timesteps, schedulers_sigma=schedulers_sigma,
+        schedulers_use_thresholding=schedulers_use_thresholding, schedulers_use_loworder=schedulers_use_loworder,
+        schedulers_solver_order=schedulers_solver_order, uni_pc_variant=uni_pc_variant,
+        schedulers_beta_start=schedulers_beta_start, schedulers_beta_end=schedulers_beta_end,
+        schedulers_shift=schedulers_shift, schedulers_dynamic_shift=schedulers_dynamic_shift,
+        schedulers_base_shift=schedulers_base_shift, schedulers_max_shift=schedulers_max_shift,
+        schedulers_rescale_betas=schedulers_rescale_betas, schedulers_timestep_spacing=schedulers_timestep_spacing,
+        schedulers_timesteps_range=schedulers_timesteps_range,
+        schedulers_sigma_adjust=schedulers_sigma_adjust, schedulers_sigma_adjust_min=schedulers_sigma_adjust_min,
+        schedulers_sigma_adjust_max=schedulers_sigma_adjust_max,
+        scheduler_eta=scheduler_eta, eta_noise_seed_delta=eta_noise_seed_delta,
+        enable_batch_seeds=enable_batch_seeds, diffusers_generator_device=diffusers_generator_device, nan_skip=nan_skip,
+        sequential_seed=sequential_seed,
+        # prompt/attention overrides
+        prompt_attention=prompt_attention, prompt_mean_norm=prompt_mean_norm,
+        diffusers_zeros_prompt_pad=diffusers_zeros_prompt_pad, te_pooled_embeds=te_pooled_embeds,
+        lora_apply_te=lora_apply_te, te_complex_human_instruction=te_complex_human_instruction, te_use_mask=te_use_mask,
+        # generation modifier overrides (hijack)
+        freeu_enabled=freeu_enabled, freeu_b1=freeu_b1, freeu_b2=freeu_b2, freeu_s1=freeu_s1, freeu_s2=freeu_s2,
+        hypertile_unet_enabled=hypertile_unet_enabled, hypertile_hires_only=hypertile_hires_only,
+        hypertile_unet_tile=hypertile_unet_tile, hypertile_unet_min_tile=hypertile_unet_min_tile,
+        hypertile_unet_swap_size=hypertile_unet_swap_size, hypertile_unet_depth=hypertile_unet_depth,
+        hypertile_vae_enabled=hypertile_vae_enabled, hypertile_vae_tile=hypertile_vae_tile, hypertile_vae_swap_size=hypertile_vae_swap_size,
+        teacache_enabled=teacache_enabled, teacache_thresh=teacache_thresh,
+        token_merging_method=token_merging_method, tome_ratio=tome_ratio, todo_ratio=todo_ratio,
+        # lora behavior
+        lora_fuse_native=lora_fuse_native, lora_fuse_diffusers=lora_fuse_diffusers,
+        lora_force_reload=lora_force_reload, extra_networks_default_multiplier=extra_networks_default_multiplier,
+        lora_apply_tags=lora_apply_tags,
         # overrides
         override_settings=extra
     )
@@ -416,13 +537,13 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
     # TODO modernui: monkey-patch for missing tabs.select event
     if p.selected_scale_tab_before == 0 and p.resize_name_before != 'None' and p.scale_by_before != 1 and inputs is not None and len(inputs) > 0:
-        shared.log.debug('Control: override resize mode=before')
+        log.debug('Control: override resize mode=before')
         p.selected_scale_tab_before = 1
     if p.selected_scale_tab_after == 0 and p.resize_name_after != 'None' and p.scale_by_after != 1:
-        shared.log.debug('Control: override resize mode=after')
+        log.debug('Control: override resize mode=after')
         p.selected_scale_tab_after = 1
     if p.selected_scale_tab_mask == 0 and p.resize_name_mask != 'None' and p.scale_by_mask != 1:
-        shared.log.debug('Control: override resize mode=mask')
+        log.debug('Control: override resize mode=mask')
         p.selected_scale_tab_mask = 1
 
     # hires/refine defined outside of main init
@@ -437,8 +558,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         setattr(p, k, v)
     p_extra_args = {}
 
-    if shared.sd_model is None:
-        shared.log.warning('Aborted: op=control model not loaded')
+    if shared.sd_model is None: # triggers load if not loaded
+        log.warning('Aborted: op=generate model not loaded')
         return [], '', '', 'Error: model not loaded'
 
     unit_type = unit_type.strip().lower() if unit_type is not None else ''
@@ -461,6 +582,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     index = 0
     frames = 0
     blended_image = None
+    cap = None
 
     # set pipeline
     if pipe is None:
@@ -480,27 +602,27 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
             if isinstance(inputs, str) and os.path.exists(inputs): # only video, the rest is a list
                 if input_type == 2: # separate init image
                     if isinstance(inits, str) and inits != inputs:
-                        shared.log.warning('Control: separate init video not support for video input')
+                        log.warning('Control: separate init video not support for video input')
                         input_type = 1
                 try:
-                    video = cv2.VideoCapture(inputs)
-                    if not video.isOpened():
+                    cap = cv2.VideoCapture(inputs)
+                    if not cap.isOpened():
                         if is_generator:
                             yield terminate(f'Video open failed: path={inputs}')
-                        return [], '', '', 'Error: video open failed'
-                    frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
-                    fps = int(video.get(cv2.CAP_PROP_FPS))
-                    w, h = int(video.get(cv2.CAP_PROP_FRAME_WIDTH)), int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                    codec = util.decode_fourcc(video.get(cv2.CAP_PROP_FOURCC))
-                    status, frame = video.read()
+                        return terminate(f'Video open failed: path={inputs}')
+                    frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    fps = int(cap.get(cv2.CAP_PROP_FPS))
+                    w, h = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH)), int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    codec = util.decode_fourcc(cap.get(cv2.CAP_PROP_FOURCC))
+                    status, frame = cap.read()
                     if status:
                         shared.state.frame_count = 1 + frames // (video_skip_frames + 1)
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    shared.log.debug(f'Control: input video: path={inputs} frames={frames} fps={fps} size={w}x{h} codec={codec}')
+                    log.debug(f'Control: input video: path={inputs} frames={frames} fps={fps} size={w}x{h} codec={codec}')
                 except Exception as e:
                     if is_generator:
                         yield terminate(f'Video open failed: path={inputs} {e}')
-                    return [], '', '', 'Error: video open failed'
+                    return terminate(f'Video open failed: path={inputs} {e}')
 
             while status:
                 processed_image = None
@@ -510,7 +632,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     if input_image is not None:
                         p.ops.append('img2img')
                     if pipe is None: # pipe may have been reset externally
-                        pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, control_conditioning, control_guidance_start, control_guidance_end, inits)
+                        if video is None:
+                            break # non-video: pipeline was consumed, no need to re-process remaining inputs
+                        pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, active_units, control_conditioning, control_guidance_start, control_guidance_end, inits)
                         debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
                     pipe.restore_pipeline = restore_pipeline
                     shared.sd_model.restore_pipeline = restore_pipeline
@@ -522,37 +646,39 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         shared.state.interrupted = False
                         if is_generator:
                             yield terminate('Interrupted')
-                        return [], '', '', 'Interrupted'
+                        return terminate('Interrupted')
                     # get input
                     if isinstance(input_image, str) and os.path.exists(input_image):
                         try:
                             input_image = Image.open(input_image)
                         except Exception as e:
-                            shared.log.error(f'Control: image open failed: path={input_image} type=control error={e}')
+                            log.error(f'Control: image open failed: path={input_image} type=control error={e}')
                             continue
                     # match init input
                     if input_type == 1:
                         debug_log('Control Init image: same as control')
                         init_image = input_image
-                    elif inits is None:
+                    elif inits is None or len(inits) == 0:
                         debug_log('Control Init image: none')
                         init_image = None
-                    elif isinstance(inits[i], str):
+                    elif len(inits) > i and isinstance(inits[i], str):
                         debug_log(f'Control: init image: {inits[i]}')
                         try:
                             init_image = Image.open(inits[i])
                         except Exception as e:
-                            shared.log.error(f'Control: image open failed: path={inits[i]} type=init error={e}')
+                            log.error(f'Control: image open failed: path={inits[i]} type=init error={e}')
                             continue
-                    else:
+                    elif len(inits) > i:
                         debug_log(f'Control Init image: {i % len(inits) + 1} of {len(inits)}')
                         init_image = inits[i % len(inits)]
+                    else:
+                        init_image = None
                     if video is not None and index % (video_skip_frames + 1) != 0:
                         index += 1
                         continue
                     index += 1
 
-                    processed_image, blended_image = preprocess_image(p, pipe, input_image, init_image, mask, input_type, unit_type, active_process, active_model, selected_models, has_models)
+                    processed_image, blended_image = preprocess_image(p, pipe, input_image, init_image, mask, input_type, unit_type, active_process, active_model, selected_models, has_models, active_units)
                     if is_generator:
                         yield (None, blended_image, '') # result is control_output, proces_output
 
@@ -565,9 +691,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                 and getattr(p, 'init_images', None) is None \
                                 and getattr(p, 'image', None) is None:
                                 if is_generator:
-                                    shared.log.debug(f'Control args: {p.task_args}')
                                     yield terminate(f'Mode={p.extra_generation_params.get("Control type", None)} input image is none')
-                                return [], '', '', 'Error: Input image is none'
+                                return terminate(f'Mode={p.extra_generation_params.get("Control type", None)} input image is none')
                         if unit_type == 'lite':
                             instance.apply(selected_models, processed_image, control_conditioning)
 
@@ -633,7 +758,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     for _i, output_image in enumerate(output):
                         if output_image is not None:
                             output_images.append(output_image)
-                            if shared.opts.include_mask and not script_run:
+                            _inc_mask = getattr(p, 'include_mask', None)
+                            if (_inc_mask if _inc_mask is not None else shared.opts.include_mask) and not script_run:
                                 if processed_image is not None and isinstance(processed_image, Image.Image):
                                     output_images.append(processed_image)
 
@@ -650,12 +776,12 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 else:
                     status = False
 
-            if video is not None:
-                video.release()
+            if cap is not None:
+                cap.release()
 
             debug_log(f'Control: pipeline units={len(active_model)} process={len(active_process)} outputs={len(output_images)}')
     except Exception as e:
-        shared.log.error(f'Control: type={unit_type} units={len(active_model)} {e}')
+        log.error(f'Control: type={unit_type} units={len(active_model)} {e}')
         errors.display(e, 'Control')
 
     if len(output_images) == 0:
@@ -667,7 +793,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
 
     if video_type != 'None' and isinstance(output_images, list) and 'video' in p.ops:
         p.do_not_save_grid = True # pylint: disable=attribute-defined-outside-init
-        output_filename = images.save_video(p, filename=None, images=output_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate, sync=True)
+        output_filename = video.save_video(p, filename=None, images=output_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate, sync=True)
         if shared.opts.gradio_skip_video:
             output_filename = ''
         image_txt = f'| Frames {len(output_images)} | Size {output_images[0].width}x{output_images[0].height}'
@@ -680,7 +806,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     if len(info_txt) > 0:
         html_txt = html_txt + infotext_to_html(info_txt[0])
     if is_generator:
-        jobid = shared.state.begin('UI')
         yield (output_images, blended_image, html_txt, output_filename)
-        shared.state.end(jobid)
-    return (output_images, blended_image, html_txt, output_filename)
+    else:
+        return (output_images, blended_image, html_txt, output_filename)

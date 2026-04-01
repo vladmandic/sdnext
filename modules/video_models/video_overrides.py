@@ -2,10 +2,11 @@ import os
 import torch
 import diffusers
 from modules import shared, processing
+from modules.logger import log
 from modules.video_models.models_def import Model
 
 
-debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def load_override(selected: Model, **load_args):

@@ -24,10 +24,7 @@
   {
       "upscaler_1": "SwinIR_4x",
       "upscaler_2": "None",
-      "upscaling_resize": 0,
-      "gfpgan_visibility": 0,
-      "codeformer_visibility": 0,
-      "codeformer_weight": 0.5
+      "upscaling_resize": 0
   },
   "options":
   {

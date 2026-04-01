@@ -1,6 +1,6 @@
 # pylint: disable=protected-access
 
-from typing import Callable
+from collections.abc import Callable
 
 from .common import dtype_dict, conv_types, conv_transpose_types, use_tensorwise_fp8_matmul
 

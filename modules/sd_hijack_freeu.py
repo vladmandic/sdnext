@@ -1,5 +1,6 @@
 import math
 import torch
+from modules.logger import log
 from modules import shared, devices
 
 # based on <https://github.com/ljleb/sd-webui-freeu/blob/main/lib_free_u/unet.py>
@@ -16,6 +17,10 @@ transition_smoothness = 0.0
 
 # internal state
 state_enabled = False
+state_freeu_b1 = 1.2
+state_freeu_b2 = 1.4
+state_freeu_s1 = 0.9
+state_freeu_s2 = 0.2
 
 
 def to_denoising_step(number, steps=None) -> int:
@@ -44,7 +49,7 @@ def lerp(a, b, r):
 
 
 def free_u_cat_hijack(hs, *args, original_function, **kwargs):
-    if not shared.opts.freeu_enabled:
+    if not state_enabled:
         return original_function(hs, *args, **kwargs)
     schedule_ratio = get_schedule_ratio()
     if schedule_ratio == 0:
@@ -66,8 +71,8 @@ def free_u_cat_hijack(hs, *args, original_function, **kwargs):
     mask = (region_begin <= mask) & (mask <= region_end)
     if region_inverted:
         mask = ~mask
-    backbone_factor = shared.opts.freeu_b1 if index == 0 else shared.opts.freeu_b2
-    skip_factor = shared.opts.freeu_s1 if index == 0 else shared.opts.freeu_s2
+    backbone_factor = state_freeu_b1 if index == 0 else state_freeu_b2
+    skip_factor = state_freeu_s1 if index == 0 else state_freeu_s2
     h[:, mask] *= lerp(1, backbone_factor, schedule_ratio)
     h_skip = filter_skip(h_skip, threshold=skip_cutoff, scale=lerp(1, skip_factor, schedule_ratio), scale_high=lerp(1, skip_high_end_factor, schedule_ratio))
     return original_function([h, h_skip], *args, **kwargs)
@@ -87,7 +92,7 @@ def get_fft_device():
             torch_fft_device = devices.device
         except Exception:
             torch_fft_device = devices.cpu
-            shared.log.warning(f'FreeU: device={devices.device} dtype={devices.dtype} does not support FFT')
+            log.warning(f'FreeU: device={devices.device} dtype={devices.dtype} does not support FFT')
     return torch_fft_device
 
 
@@ -144,16 +149,22 @@ def ratio_to_region(width: float, offset: float, n: int):
 
 
 def apply_freeu(p):
-    global state_enabled # pylint: disable=global-statement
-    if hasattr(p.sd_model, 'enable_freeu'):
-        if shared.opts.freeu_enabled:
+    global state_enabled, state_freeu_b1, state_freeu_b2, state_freeu_s1, state_freeu_s2 # pylint: disable=global-statement
+    enabled = p.freeu_enabled if p.freeu_enabled is not None else shared.opts.freeu_enabled
+    b1 = p.freeu_b1 if p.freeu_b1 is not None else shared.opts.freeu_b1
+    b2 = p.freeu_b2 if p.freeu_b2 is not None else shared.opts.freeu_b2
+    s1 = p.freeu_s1 if p.freeu_s1 is not None else shared.opts.freeu_s1
+    s2 = p.freeu_s2 if p.freeu_s2 is not None else shared.opts.freeu_s2
+    state_freeu_b1, state_freeu_b2, state_freeu_s1, state_freeu_s2 = b1, b2, s1, s2
+    if hasattr(shared.sd_model, 'enable_freeu'):
+        if enabled:
             freeu_device = get_fft_device()
             if freeu_device != devices.cpu:
-                p.extra_generation_params['FreeU'] = f'b1={shared.opts.freeu_b1} b2={shared.opts.freeu_b2} s1={shared.opts.freeu_s1} s2={shared.opts.freeu_s2}'
-                p.sd_model.enable_freeu(s1=shared.opts.freeu_s1, s2=shared.opts.freeu_s2, b1=shared.opts.freeu_b1, b2=shared.opts.freeu_b2)
+                p.extra_generation_params['FreeU'] = f'b1={b1} b2={b2} s1={s1} s2={s2}'
+                shared.sd_model.enable_freeu(s1=s1, s2=s2, b1=b1, b2=b2)
                 state_enabled = True
         elif state_enabled:
-            p.sd_model.disable_freeu()
+            shared.sd_model.disable_freeu()
             state_enabled = False
-    if shared.opts.freeu_enabled and state_enabled:
-        shared.log.info(f'Applying Free-U: b1={shared.opts.freeu_b1} b2={shared.opts.freeu_b2} s1={shared.opts.freeu_s1} s2={shared.opts.freeu_s2}')
+    if enabled and state_enabled:
+        log.info(f'Applying Free-U: b1={b1} b2={b2} s1={s1} s2={s2}')

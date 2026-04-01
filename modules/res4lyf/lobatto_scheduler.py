@@ -1,4 +1,3 @@
-from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
@@ -23,17 +22,17 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
         beta_start: float = 0.00085,
         beta_end: float = 0.012,
         beta_schedule: str = "linear",
-        trained_betas: Optional[Union[np.ndarray, List[float]]] = None,
+        trained_betas: np.ndarray | list[float] | None = None,
         prediction_type: str = "epsilon",
         variant: str = "lobatto_iiia_3s",  # Available: iiia, iiib, iiic
         use_karras_sigmas: bool = False,
         use_exponential_sigmas: bool = False,
         use_beta_sigmas: bool = False,
         use_flow_sigmas: bool = False,
-        sigma_min: Optional[float] = None,
-        sigma_max: Optional[float] = None,
+        sigma_min: float | None = None,
+        sigma_max: float | None = None,
         rho: float = 7.0,
-        shift: Optional[float] = None,
+        shift: float | None = None,
         base_shift: float = 0.5,
         max_shift: float = 1.15,
         use_dynamic_shifting: bool = False,
@@ -103,8 +102,8 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
     def set_timesteps(
         self,
         num_inference_steps: int,
-        device: Union[str, torch.device] = None,
-        mu: Optional[float] = None, dtype: torch.dtype = torch.float32):
+        device: str | torch.device = None,
+        mu: float | None = None, dtype: torch.dtype = torch.float32):
         self.num_inference_steps = num_inference_steps
 
         # 1. Spacing
@@ -204,7 +203,7 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
                 timestep = timestep.to(self.timesteps.device)
             self._step_index = self.index_for_timestep(timestep)
 
-    def scale_model_input(self, sample: torch.Tensor, timestep: Union[float, torch.Tensor]) -> torch.Tensor:
+    def scale_model_input(self, sample: torch.Tensor, timestep: float | torch.Tensor) -> torch.Tensor:
         if self._step_index is None:
             self._init_step_index(timestep)
         if self.config.prediction_type == "flow_prediction":
@@ -215,10 +214,10 @@ class LobattoScheduler(SchedulerMixin, ConfigMixin):
     def step(
         self,
         model_output: torch.Tensor,
-        timestep: Union[float, torch.Tensor],
+        timestep: float | torch.Tensor,
         sample: torch.Tensor,
         return_dict: bool = True,
-    ) -> Union[SchedulerOutput, Tuple]:
+    ) -> SchedulerOutput | tuple:
         if self._step_index is None:
             self._init_step_index(timestep)
         a_mat, b_vec, c_vec = self._get_tableau()

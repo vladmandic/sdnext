@@ -1,7 +1,6 @@
 import os
 import re
 import bisect
-from typing import Dict
 import torch
 from modules import shared
 
@@ -23,7 +22,7 @@ re_x_proj = re.compile(r"(.*)_([qkv]_proj)$")
 re_compiled = {}
 
 
-def make_unet_conversion_map() -> Dict[str, str]:
+def make_unet_conversion_map() -> dict[str, str]:
     unet_conversion_map_layer = []
 
     for i in range(4):  # num_blocks is 3 in sdxl
@@ -213,10 +212,10 @@ def _convert_to_ai_toolkit_cat(sds_sd, ait_sd, sds_key, ait_keys, dims=None):
         ait_sd.update({k: down_weight for k in ait_down_keys})
 
         # up_weight is split to each split
-        ait_sd.update({k: v for k, v in zip(ait_up_keys, torch.split(up_weight, dims, dim=0))})  # noqa: C416 # pylint: disable=unnecessary-comprehension
+        ait_sd.update({k: v for k, v in zip(ait_up_keys, torch.split(up_weight, dims, dim=0), strict=False)})  # noqa: C416 # pylint: disable=unnecessary-comprehension
     else:
         # down_weight is chunked to each split
-        ait_sd.update({k: v for k, v in zip(ait_down_keys, torch.chunk(down_weight, num_splits, dim=0))})  # noqa: C416 # pylint: disable=unnecessary-comprehension
+        ait_sd.update({k: v for k, v in zip(ait_down_keys, torch.chunk(down_weight, num_splits, dim=0), strict=False)})  # noqa: C416 # pylint: disable=unnecessary-comprehension
 
         # up_weight is sparse: only non-zero values are copied to each split
         i = 0

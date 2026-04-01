@@ -1,6 +1,7 @@
 import os
 import time
 from modules import shared, errors, timer, sd_models
+from modules.logger import log
 
 
 def hijack_encode_prompt(*args, **kwargs):
@@ -11,10 +12,10 @@ def hijack_encode_prompt(*args, **kwargs):
     try:
         prompt = kwargs.get('prompt', None) or (args[0] if len(args) > 0 else None)
         if prompt is not None:
-            shared.log.debug(f'Encode: prompt="{prompt}" hijack=True')
+            log.debug(f'Encode: prompt="{prompt}" hijack=True')
         res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
     except Exception as e:
-        shared.log.error(f'Encode prompt: {e}')
+        log.error(f'Encode prompt: {e}')
         errors.display(e, 'Encode prompt')
         res = None
     t1 = time.time()

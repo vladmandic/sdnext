@@ -1,7 +1,8 @@
 import os
 import time
 import gradio as gr
-from installer import log, install
+from installer import install
+from modules.logger import log
 from modules.shared import opts
 
 
@@ -23,8 +24,6 @@ def hf_init():
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'true')
     elif opts.hf_transfer_mode == 'rust':
         install('hf_transfer')
-        import huggingface_hub
-        huggingface_hub.utils._runtime.is_hf_transfer_available = lambda: True  # pylint: disable=protected-access
         os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'false')
         os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'true')
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'true')
@@ -47,7 +46,7 @@ def hf_check_cache():
     from modules.modelstats import stat
     if opts.hfcache_dir != prev_default:
         size, _mtime = stat(prev_default)
-        if size//1024//1024 > 0:
+        if size//1024//1024 > 16:
             log.warning(f'Cache location changed: previous="{prev_default}" size={size//1024//1024} MB')
     size, _mtime = stat(opts.hfcache_dir)
     log.debug(f'Huggingface: cache="{opts.hfcache_dir}" size={size//1024//1024} MB')
@@ -57,7 +56,7 @@ def hf_search(keyword):
     import huggingface_hub as hf
     t0 = time.time()
     hf_api = hf.HfApi()
-    models = hf_api.list_models(model_name=keyword, full=True, library="diffusers", limit=50, sort="downloads", direction=-1)
+    models = hf_api.list_models(model_name=keyword, full=True, filter="diffusers", limit=50, sort="downloads")
     data = []
     for model in models:
         tags = [t for t in model.tags if not t.startswith('diffusers') and not t.startswith('license') and not t.startswith('arxiv') and len(t) > 2]

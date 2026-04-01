@@ -9,6 +9,7 @@ from safetensors.torch import load_file
 import diffusers
 import transformers
 from modules import shared, devices, errors
+from modules.logger import log
 
 
 class Recipe:
@@ -57,14 +58,14 @@ status = ''
 def msg(text, err:bool=False):
     global status # pylint: disable=global-statement
     if err:
-        shared.log.error(f'Modules merge: {text}')
+        log.error(f'Modules merge: {text}')
     else:
-        shared.log.info(f'Modules merge: {text}')
+        log.info(f'Modules merge: {text}')
     status += text + '<br>'
     return status
 
 
-def load_base(override:str=None):
+def load_base(override: str | None = None):
     global pipeline # pylint: disable=global-statement
     fn = override or recipe.base
     yield msg(f'base={fn}')
@@ -78,7 +79,7 @@ def load_base(override:str=None):
     pipeline.vae.register_to_config(force_upcast = False)
 
 
-def load_unet(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
+def load_unet(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = None):
     if (recipe.unet is None or len(recipe.unet) == 0) and override is None:
         return
     fn = override or recipe.unet
@@ -98,7 +99,7 @@ def load_unet(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
         yield msg(f'unet: {e}')
 
 
-def load_scheduler(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
+def load_scheduler(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = None):
     if recipe.scheduler is None and override is None:
         return
     config = pipe.scheduler.config.__dict__
@@ -113,7 +114,7 @@ def load_scheduler(pipe: diffusers.StableDiffusionXLPipeline, override:str=None)
 
 
 
-def load_vae(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
+def load_vae(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = None):
     if (recipe.vae is None or len(recipe.vae) == 0)and override is None:
         return
     fn = override or recipe.vae
@@ -134,7 +135,7 @@ def load_vae(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
         yield msg(f'vae: {e}')
 
 
-def load_te1(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
+def load_te1(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = None):
     if (recipe.te1 is None or len(recipe.te1) == 0) and override is None:
         return
     config = pipe.text_encoder.config.__dict__
@@ -155,7 +156,7 @@ def load_te1(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
         yield msg(f'te1: {e}')
 
 
-def load_te2(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
+def load_te2(pipe: diffusers.StableDiffusionXLPipeline, override: str | None = None):
     if (recipe.te2 is None or len(recipe.te2) == 0) and override is None:
         return
     config = pipe.text_encoder_2.config.__dict__
@@ -176,7 +177,7 @@ def load_te2(pipe: diffusers.StableDiffusionXLPipeline, override:str=None):
         yield msg(f'te2: {e}')
 
 
-def load_lora(pipe: diffusers.StableDiffusionXLPipeline, override: dict=None, fuse: float=None):
+def load_lora(pipe: diffusers.StableDiffusionXLPipeline, override: dict | None = None, fuse: float | None = None):
     if recipe.lora is None and override is None:
         return
     names = []
@@ -206,7 +207,7 @@ def test_model(pipe: diffusers.StableDiffusionXLPipeline, fn: str, **kwargs):
     if not test.generate:
         return
     try:
-        generator = torch.Generator(devices.device).manual_seed(int(4242))
+        generator = torch.Generator(devices.device).manual_seed(4242)
         args = {
             'prompt': test.prompt,
             'negative_prompt': test.negative,
@@ -271,14 +272,14 @@ def save_model(pipe: diffusers.StableDiffusionXLPipeline):
     if len(recipe.version) > 0:
         folder += f'-{recipe.version}'
     if not (recipe.diffusers or recipe.safetensors):
-        shared.log.debug(f'Modules merge: type=sdxl {recipe} skipping save')
+        log.debug(f'Modules merge: type=sdxl {recipe} skipping save')
         return
     try:
         yield msg('save')
         yield msg(f'pretrained={folder}')
-        shared.log.info(f'Modules merge save: type=sdxl diffusers="{folder}"')
+        log.info(f'Modules merge save: type=sdxl diffusers="{folder}"')
         pipe.save_pretrained(folder, safe_serialization=True, push_to_hub=False)
-        with open(os.path.join(folder, 'vae', 'config.json'), 'r', encoding='utf8') as f:
+        with open(os.path.join(folder, 'vae', 'config.json'), encoding='utf8') as f:
             vae_config = json.load(f)
             vae_config['force_upcast'] = False
             vae_config['scaling_factor'] = 0.13025
@@ -293,7 +294,7 @@ def save_model(pipe: diffusers.StableDiffusionXLPipeline):
                 fn = os.path.join(shared.opts.ckpt_dir, fn)
             if not fn.endswith('.safetensors'):
                 fn += '.safetensors'
-            shared.log.info(f'Modules merge save: type=sdxl safetensors="{fn}"')
+            log.info(f'Modules merge save: type=sdxl safetensors="{fn}"')
             yield msg(f'safetensors={fn}')
             from modules.merging import convert_sdxl
             metadata = convert_sdxl.convert(model_path=folder, checkpoint_path=fn, metadata=get_metadata())
@@ -301,7 +302,7 @@ def save_model(pipe: diffusers.StableDiffusionXLPipeline):
                 metadata['modelspec.thumbnail'] = f"{metadata['modelspec.thumbnail'].split(',')[0]}:{len(metadata['modelspec.thumbnail'])}" # pylint: disable=use-maxsplit-arg
             yield msg(f'metadata={metadata}')
     except Exception as e:
-        shared.log.error(f'Modules merge save: {e}')
+        log.error(f'Modules merge save: {e}')
         errors.display(e, 'merge')
         yield msg(f'save: {e}')
 
@@ -311,7 +312,7 @@ def merge():
     yield from load_base()
     if pipeline is None:
         return
-    shared.log.info(f'Modules merge: type=sdxl {recipe}')
+    log.info(f'Modules merge: type=sdxl {recipe}')
     pipeline = pipeline.to(device=devices.device, dtype=recipe.dtype)
     yield from load_scheduler(pipeline)
     yield from load_unet(pipeline)

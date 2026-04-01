@@ -1,8 +1,7 @@
 import os
 import enum
-from typing import Union
 from collections import namedtuple
-from modules import sd_models, hashes, shared
+from modules import hashes, shared, sd_checkpoint
 
 
 NetworkWeights = namedtuple('NetworkWeights', ['network_key', 'sd_key', 'w', 'sd_module'])
@@ -34,7 +33,7 @@ class NetworkOnDisk:
         self.metadata = {}
         self.is_safetensors = os.path.splitext(filename)[1].lower() == ".safetensors"
         if self.is_safetensors:
-            self.metadata = sd_models.read_metadata_from_safetensors(filename)
+            self.metadata = sd_checkpoint.read_metadata_from_safetensors(filename)
         if self.metadata:
             m = {}
             for k, v in sorted(self.metadata.items(), key=lambda x: metadata_tags_order.get(x[0], 999)):
@@ -59,6 +58,8 @@ class NetworkOnDisk:
             return 'sc'
         if base.startswith("sd3"):
             return 'sd3'
+        if base.startswith("flux2") or "klein" in base:
+            return 'f2'
         if base.startswith("flux"):
             return 'f1'
         if base.startswith("hunyuan_video"):
@@ -76,6 +77,8 @@ class NetworkOnDisk:
             return 'xl'
         if arch.startswith("stable-cascade"):
             return 'sc'
+        if arch.startswith("flux2") or "klein" in arch:
+            return 'f2'
         if arch.startswith("flux"):
             return 'f1'
         if arch.startswith("hunyuan-video"):
@@ -87,6 +90,8 @@ class NetworkOnDisk:
             return 'sd1'
         if str(self.metadata.get('ss_v2', "")) == "True":
             return 'sd2'
+        if 'klein' in self.name.lower() or 'klein' in self.fullname.lower():
+            return 'f2'
         if 'flux' in self.name.lower():
             return 'f1'
         if 'xl' in self.name.lower():
@@ -120,7 +125,7 @@ class NetworkOnDisk:
         if self.filename is not None:
             fn = os.path.splitext(self.filename)[0] + '.txt'
             if os.path.exists(fn):
-                with open(fn, "r", encoding="utf-8") as file:
+                with open(fn, encoding="utf-8") as file:
                     return file.read()
         return None
 
@@ -144,7 +149,7 @@ class Network:  # LoraModule
 
 
 class ModuleType:
-    def create_module(self, net: Network, weights: NetworkWeights) -> Union[Network, None]: # pylint: disable=W0613
+    def create_module(self, net: Network, weights: NetworkWeights) -> Network | None: # pylint: disable=W0613
         return None
 
 

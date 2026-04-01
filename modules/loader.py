@@ -3,17 +3,29 @@ from functools import partial
 import os
 import re
 import sys
+import types
 import logging
 import warnings
 import urllib3
 from modules import timer, errors
+from modules.logger import log
 
 
 initialized = False
 errors.install()
 logging.getLogger("DeepSpeed").disabled = True
 timer.startup.record("loader")
-errors.log.debug('Initializing: libraries')
+log.debug('Initializing: libraries')
+debug = os.environ.get('SD_LOAD_DEBUG')
+
+
+def report(msg: str, e: Exception):
+    log.error(f'Loader: {msg} {e}')
+    log.error('Please restart the app to fix this issue')
+    if debug:
+        errors.display(e, msg)
+    sys.exit(1)
+
 
 np = None
 try:
@@ -31,19 +43,17 @@ try:
                 return x
             return npwarn_decorator
         np._no_nep50_warning = getattr(np, '_no_nep50_warning', dummy_npwarn_decorator_factory) # pylint: disable=protected-access
+    else:
+        log.warning(f'Loader: numpy=={np.__version__} unsupported')
 except Exception as e:
-    errors.log.error(f'Loader: numpy=={np.__version__ if np is not None else None} {e}')
-    errors.log.error('Please restart the app to fix this issue')
-    sys.exit(1)
+    report(f'numpy=={np.__version__ if np is not None else None}', e)
 timer.startup.record("numpy")
 
 scipy = None
 try:
     import scipy # pylint: disable=W0611,C0411
 except Exception as e:
-    errors.log.error(f'Loader: scipy=={scipy.__version__ if scipy is not None else None} {e}')
-    errors.log.error('Please restart the app to fix this issue')
-    sys.exit(1)
+    report(f'scipy=={scipy.__version__ if scipy is not None else None}', e)
 timer.startup.record("scipy")
 
 try:
@@ -55,18 +65,31 @@ except Exception:
 
 import torch # pylint: disable=C0411
 if torch.__version__.startswith('2.5.0'):
-    errors.log.warning(f'Disabling cuDNN for SDP on torch={torch.__version__}')
+    log.warning(f'Disabling cuDNN for SDP on torch={torch.__version__}')
     torch.backends.cuda.enable_cudnn_sdp(False)
+
 try:
     import intel_extension_for_pytorch as ipex # pylint: disable=import-error,unused-import
-    errors.log.debug(f'Load IPEX=={ipex.__version__}')
+    log.debug(f'Load IPEX=={ipex.__version__}')
 except Exception:
     pass
+
 try:
     import torch.distributed.distributed_c10d as _c10d # pylint: disable=unused-import,ungrouped-imports
 except Exception:
-    errors.log.warning('Loader: torch is not built with distributed support')
+    log.warning('Loader: torch is not built with distributed support')
 
+try:
+    import math
+    cores = os.cpu_count()
+    affinity = len(os.sched_getaffinity(0)) # pylint: disable=no-member
+    threads = torch.get_num_threads()
+    if threads < (affinity / 2):
+        torch.set_num_threads(math.floor(affinity / 2))
+        threads = torch.get_num_threads()
+    log.debug(f'System: cores={cores} affinity={affinity} threads={threads}')
+except Exception:
+    pass
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvision")
@@ -75,10 +98,8 @@ try:
     import torchvision # pylint: disable=W0611,C0411
     import pytorch_lightning # pytorch_lightning should be imported after torch, but it re-enables warnings on import so import once to disable them # pylint: disable=W0611,C0411
 except Exception as e:
-    errors.log.error(f'Loader: torchvision=={torchvision.__version__ if "torchvision" in sys.modules else None} {e}')
-    if '_no_nep' in str(e):
-        errors.log.error('Loaded versions of packaged are not compatible')
-        errors.log.error('Please restart the app to fix this issue')
+    report(f'torchvision=={torchvision.__version__ if torchvision is not None else None}', e)
+
 logging.getLogger("xformers").addFilter(lambda record: 'A matching Triton is not available' not in record.getMessage())
 logging.getLogger("pytorch_lightning").disabled = True
 warnings.filterwarnings(action="ignore", category=DeprecationWarning)
@@ -87,40 +108,70 @@ warnings.filterwarnings(action="ignore", category=UserWarning, module="torchvisi
 warnings.filterwarnings(action="ignore", message="numpy.dtype size changed")
 try:
     import torch._logging # pylint: disable=ungrouped-imports
-    torch._logging._internal.DEFAULT_LOG_LEVEL = logging.ERROR # pylint: disable=protected-access
-    torch._logging.set_logs(all=logging.ERROR, bytecode=False, aot_graphs=False, aot_joint_graph=False, ddp_graphs=False, graph=False, graph_code=False, graph_breaks=False, graph_sizes=False, guards=False, recompiles=False, recompiles_verbose=False, trace_source=False, trace_call=False, trace_bytecode=False, output_code=False, kernel_code=False, schedule=False, perf_hints=False, post_grad_graphs=False, onnx_diagnostics=False, fusion=False, overlap=False, export=None, modules=None, cudagraphs=False, sym_node=False, compiled_autograd_verbose=False) # pylint: disable=protected-access
+    _compile_debug = os.environ.get('SD_COMPILE_DEBUG', None) is not None
+    if _compile_debug:
+        torch._logging._internal.DEFAULT_LOG_LEVEL = logging.ERROR # pylint: disable=protected-access
+        torch._logging.set_logs(dynamo=logging.WARNING, aot=logging.WARNING, inductor=logging.WARNING) # pylint: disable=protected-access
+    else:
+        torch._logging._internal.DEFAULT_LOG_LEVEL = logging.ERROR # pylint: disable=protected-access
+        torch._logging.set_logs(all=logging.ERROR, bytecode=False, aot_graphs=False, aot_joint_graph=False, ddp_graphs=False, graph=False, graph_code=False, graph_breaks=False, graph_sizes=False, guards=False, recompiles=False, recompiles_verbose=False, trace_source=False, trace_call=False, trace_bytecode=False, output_code=False, kernel_code=False, schedule=False, perf_hints=False, post_grad_graphs=False, onnx_diagnostics=False, fusion=False, overlap=False, export=None, modules=None, cudagraphs=False, sym_node=False, compiled_autograd_verbose=False) # pylint: disable=protected-access
     import torch._dynamo
-    torch._dynamo.config.verbose = False # pylint: disable=protected-access
-    torch._dynamo.config.suppress_errors = True # pylint: disable=protected-access
+    torch._dynamo.config.verbose = _compile_debug # pylint: disable=protected-access
+    torch._dynamo.config.suppress_errors = not _compile_debug # pylint: disable=protected-access
 except Exception as e:
-    errors.log.warning(f'Torch logging: {e}')
+    log.warning(f'Torch logging: {e}')
+
 if ".dev" in torch.__version__ or "+git" in torch.__version__:
     torch.__long_version__ = torch.__version__
     torch.__version__ = re.search(r'[\d.]+[\d]', torch.__version__).group(0)
 timer.startup.record("torch")
 
 try:
-    import bitsandbytes # pylint: disable=W0611,C0411
+    import bitsandbytes # pylint: disable=unused-import
     _bnb = True
 except Exception:
     _bnb = False
 timer.startup.record("bnb")
 
-import huggingface_hub # pylint: disable=W0611,C0411
-logging.getLogger("huggingface_hub.file_download").setLevel(logging.ERROR)
-if huggingface_hub.__version__.startswith('0.'):
-    huggingface_hub.is_offline_mode = lambda: False
-timer.startup.record("hfhub")
+huggingface_hub = None
+try:
+    import huggingface_hub # pylint: disable=W0611,C0411
+    logging.getLogger("huggingface_hub.file_download").setLevel(logging.ERROR)
+    logging.getLogger("huggingface_hub.utils._http").setLevel(logging.ERROR)
+    timer.startup.record("hfhub")
+except Exception as e:
+    report(f'huggingface_hub=={huggingface_hub.__version__ if "huggingface_hub" in sys.modules else None}', e)
+timer.startup.record("hub")
 
-import accelerate # pylint: disable=W0611,C0411
+accelerate = None
+try:
+    import accelerate # pylint: disable=W0611,C0411
+except Exception as e:
+    report(f'accelerate=={accelerate.__version__ if "accelerate" in sys.modules else None}', e)
 timer.startup.record("accelerate")
 
-import pydantic # pylint: disable=W0611,C0411
+pydantic = None
+try:
+    import pydantic # pylint: disable=W0611,C0411
+except Exception as e:
+    report(f'pydantic=={pydantic.__version__ if "pydantic" in sys.modules else None}', e)
 timer.startup.record("pydantic")
 
-import transformers # pylint: disable=W0611,C0411
-from transformers import logging as transformers_logging # pylint: disable=W0611,C0411
-transformers_logging.set_verbosity_error()
+try:
+    # transformers==5.x has different dependency stack so switching between v4 and v5 becomes very painful
+    # this temporarily disables dependency version checks so we can use either v4 or v5 until we drop support for v4
+    fake_version_check = types.ModuleType("transformers.dependency_versions_check")
+    sys.modules["transformers.dependency_versions_check"] = fake_version_check # disable transformers version checks
+    fake_version_check.dep_version_check = lambda pkg, hint=None: None
+except Exception:
+    pass
+transformers = None
+try:
+    import transformers # pylint: disable=W0611,C0411
+    from transformers import logging as transformers_logging # pylint: disable=W0611,C0411
+    transformers_logging.set_verbosity_error()
+except Exception as e:
+    report(f'transformers=={transformers.__version__ if "transformers" in sys.modules else None}', e)
 timer.startup.record("transformers")
 
 try:
@@ -129,10 +180,11 @@ try:
     onnxruntime.set_default_logger_verbosity(1)
     onnxruntime.disable_telemetry_events()
 except Exception as e:
-    errors.log.warning(f'Torch onnxruntime: {e}')
+    log.warning(f'Torch onnxruntime: {e}')
 timer.startup.record("onnx")
 
-from fastapi import FastAPI # pylint: disable=W0611,C0411
+timer.startup.record("fastapi")
+
 import gradio # pylint: disable=W0611,C0411
 timer.startup.record("gradio")
 errors.install([gradio])
@@ -154,8 +206,8 @@ try:
     diffusers.loaders.single_file.logging.tqdm = partial(tqdm, unit='C')
     timer.startup.record("diffusers")
 except Exception as e:
-    errors.log.error(f'Loader: diffusers=={diffusers.__version__ if "diffusers" in sys.modules else None} {e}')
-    errors.log.error('Please restart re-run the installer')
+    log.error(f'Loader: diffusers=={diffusers.__version__ if "diffusers" in sys.modules else None} {e}')
+    log.error('Please restart re-run the installer')
     sys.exit(1)
 
 try:
@@ -169,7 +221,7 @@ timer.startup.record("pillow")
 import cv2 # pylint: disable=W0611,C0411
 timer.startup.record("cv2")
 
-class _tqdm_cls():
+class _tqdm_cls:
     def __call__(self, *args, **kwargs):
         bar_format = 'Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining} ' + '\x1b[38;5;71m' + '{desc}' + '\x1b[0m'
         return tqdm_lib.tqdm(*args, bar_format=bar_format, ncols=80, colour='#327fba', **kwargs)
@@ -181,11 +233,12 @@ class _tqdm_old(tqdm_lib.tqdm):
         kwargs['ncols'] = 80
         super().__init__(*args, **kwargs)
 
-
-transformers.utils.logging.tqdm = _tqdm_cls()
-diffusers.pipelines.pipeline_utils.logging.tqdm = _tqdm_cls()
-huggingface_hub._snapshot_download.hf_tqdm = _tqdm_old # pylint: disable=protected-access
-
+try:
+    transformers.utils.logging.tqdm = _tqdm_cls()
+    diffusers.pipelines.pipeline_utils.logging.tqdm = _tqdm_cls()
+    huggingface_hub._snapshot_download.hf_tqdm = _tqdm_old # pylint: disable=protected-access
+except Exception:
+    pass
 
 def get_packages():
     return {
@@ -196,18 +249,6 @@ def get_packages():
         "accelerate": accelerate.__version__,
         "hub": huggingface_hub.__version__,
     }
-
-try:
-    import math
-    cores = os.cpu_count()
-    affinity = len(os.sched_getaffinity(0)) # pylint: disable=no-member
-    threads = torch.get_num_threads()
-    if threads < (affinity / 2):
-        torch.set_num_threads(math.floor(affinity / 2))
-        threads = torch.get_num_threads()
-    errors.log.debug(f'System: cores={cores} affinity={affinity} threads={threads}')
-except Exception:
-    pass
 
 try:
     import torchvision.transforms.functional_tensor # pylint: disable=unused-import, ungrouped-imports
@@ -224,7 +265,7 @@ def deprecate_warn(*args, **kwargs):
     try:
         deprecate_diffusers(*args, **kwargs)
     except Exception as e:
-        errors.log.warning(f'Deprecation: {e}')
+        log.warning(f'Deprecation: {e}')
 diffusers.utils.deprecation_utils.deprecate = deprecate_warn
 diffusers.utils.deprecate = deprecate_warn
 
@@ -239,5 +280,5 @@ class VersionString(str): # support both string and tuple for version check
 
 
 torch.__version__ = VersionString(torch.__version__)
-errors.log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
-errors.log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__} cv2=={cv2.__version__}')
+log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
+log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__} cv2=={cv2.__version__}')

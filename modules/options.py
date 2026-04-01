@@ -1,7 +1,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
-from installer import log
+from modules.logger import log
 
 
 if TYPE_CHECKING:

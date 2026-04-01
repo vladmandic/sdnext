@@ -1,16 +1,21 @@
 import json
 import html
 import os
+import re
 import shutil
 import platform
 import subprocess
+from weakref import WeakSet
 import gradio as gr
 from modules import paths, call_queue, shared, errors, ui_sections, ui_symbols, ui_components, generation_parameters_copypaste, images, scripts_manager, script_callbacks, infotext, processing
+from modules.logger import log
 
 
 folder_symbol = ui_symbols.folder
-debug = shared.log.trace if os.environ.get('SD_PASTE_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_PASTE_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: PASTE')
+
+warn_once_set = WeakSet()
 
 
 def gr_show(visible=True):
@@ -34,11 +39,13 @@ def update_generation_info(generation_info, html_info, img_index):
         html_info_formatted = infotext_to_html(info)
         return html_info, html_info_formatted
     except Exception as e:
-        shared.log.trace(f'Update info: info="{generation_info}" {e}')
+        log.trace(f'Update info: info="{generation_info}" {e}')
     return html_info, html_info
 
 
-def plaintext_to_html(text, elem_classes=[]):
+def plaintext_to_html(text, elem_classes=None):
+    if elem_classes is None:
+        elem_classes = []
     res = f'<p class="plaintext {" ".join(elem_classes)}">' + '<br>\n'.join([f"{html.escape(x)}" for x in text.split('\n')]) + '</p>'
     return res
 
@@ -73,7 +80,7 @@ def delete_files(js_data, files, all_files, index):
             files = [files[index]]
             start_index = index
         else:
-            shared.log.error(f'Delete: index={index} first={first_index} files={len(files)} out of range')
+            log.error(f'Delete: index={index} first={first_index} files={len(files)} out of range')
             files = []
     deleted = []
     all_files = [f.split('/file=')[1] if 'file=' in f else f for f in all_files] if isinstance(all_files, list) else []
@@ -83,23 +90,23 @@ def delete_files(js_data, files, all_files, index):
         try:
             fn = os.path.normpath(filedata['name'])
             if reference_dir in fn:
-                shared.log.warning(f'Delete: file="{fn}" not allowed')
+                log.warning(f'Delete: file="{fn}" not allowed')
                 continue
             if os.path.exists(fn) and os.path.isfile(fn):
                 deleted.append(fn)
                 os.remove(fn)
                 if fn in all_files:
                     all_files.remove(fn)
-                    shared.log.info(f'Delete: image="{fn}"')
+                    log.info(f'Delete: image="{fn}"')
                 else:
-                    shared.log.warning(f'Delete: image="{fn}" ui mismatch')
+                    log.warning(f'Delete: image="{fn}" ui mismatch')
             base, _ext = os.path.splitext(fn)
             desc = f'{base}.txt'
             if os.path.exists(desc) and os.path.isfile(desc):
                 os.remove(desc)
-                shared.log.info(f'Delete: text="{fn}"')
+                log.info(f'Delete: text="{fn}"')
         except Exception as e:
-            shared.log.error(f'Delete: file="{fn}" {e}')
+            log.error(f'Delete: file="{fn}" {e}')
     deleted = ', '.join(deleted) if len(deleted) > 0 else 'none'
     return all_files, plaintext_to_html(f"Deleted: {deleted}", ['performance'])
 
@@ -149,7 +156,7 @@ def save_files(js_data, files, html_info, index):
             files = [files[index]]
             start_index = index
         else:
-            shared.log.error(f'Save: index={index} first={p.index_of_first_image} files={len(files)} out of range')
+            log.error(f'Save: index={index} first={p.index_of_first_image} files={len(files)} out of range')
             files = []
     filenames = []
     fullfns = []
@@ -177,9 +184,9 @@ def save_files(js_data, files, html_info, index):
             if not os.path.exists(tgt_filename):
                 try:
                     shutil.copy(fullfn, destination)
-                    shared.log.info(f'Copying image: file="{fullfn}" folder="{destination}"')
+                    log.info(f'Copying image: file="{fullfn}" folder="{destination}"')
                 except Exception as e:
-                    shared.log.error(f'Copying image: {fullfn} {e}')
+                    log.error(f'Copying image: {fullfn} {e}')
             if shared.opts.save_txt:
                 try:
                     from PIL import Image
@@ -188,9 +195,9 @@ def save_files(js_data, files, html_info, index):
                     filename_txt = f"{os.path.splitext(tgt_filename)[0]}.txt"
                     with open(filename_txt, "w", encoding="utf8") as file:
                         file.write(f"{info}\n")
-                    shared.log.debug(f'Save: text="{filename_txt}"')
+                    log.debug(f'Save: text="{filename_txt}"')
                 except Exception as e:
-                    shared.log.warning(f'Image description save failed: {filename_txt} {e}')
+                    log.warning(f'Image description save failed: {filename_txt} {e}')
             script_callbacks.image_save_btn_callback(tgt_filename)
         else:
             image = generation_parameters_copypaste.image_from_url_text(filedata)
@@ -207,7 +214,7 @@ def save_files(js_data, files, html_info, index):
                 fullfn, txt_fullfn, _exif = images.save_image(image, paths.resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_save), "", seed=seed, prompt=prompt, info=info, extension=shared.opts.samples_format, grid=is_grid, p=p)
             except Exception as e:
                 fullfn, txt_fullfn = None, None
-                shared.log.error(f'Save: image={image} i={i} seeds={p.all_seeds} prompts={p.all_prompts}')
+                log.error(f'Save: image={image} i={i} seeds={p.all_seeds} prompts={p.all_prompts}')
                 errors.display(e, 'save')
             if fullfn is None:
                 continue
@@ -236,22 +243,24 @@ def open_folder(result_gallery, gallery_index = 0):
     except Exception:
         folder = shared.opts.outdir_samples
     if not os.path.exists(folder):
-        shared.log.warning(f'Folder open: folder="{folder}" does not exist')
+        log.warning(f'Folder open: folder="{folder}" does not exist')
         return
     elif not os.path.isdir(folder):
-        shared.log.warning(f'Folder open: folder="{folder}" not a folder')
+        log.warning(f'Folder open: folder="{folder}" not a folder')
         return
 
     if not shared.cmd_opts.hide_ui_dir_config:
         path = os.path.normpath(folder)
         if platform.system() == "Windows":
             os.startfile(path) # pylint: disable=no-member
-        elif platform.system() == "Darwin":
-            subprocess.Popen(["open", path]) # pylint: disable=consider-using-with
+            return
+        if platform.system() == "Darwin":
+            opener = "open"
         elif "microsoft-standard-WSL2" in platform.uname().release:
-            subprocess.Popen(["wsl-open", path]) # pylint: disable=consider-using-with
+            opener = "wslview" if shutil.which("wslview") is not None else "wsl-open"
         else:
-            subprocess.Popen(["xdg-open", path]) # pylint: disable=consider-using-with
+            opener = "xdg-open"
+        subprocess.Popen([opener, path])  # pylint: disable=consider-using-with
 
 
 def create_output_panel(tabname, preview=True, prompt=None, height=None, transfer=True, scale=1, result_info=None):
@@ -273,7 +282,7 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                                         elem_classes=["gallery_main"],
                                        )
             if prompt is not None:
-                ui_sections.create_interrogate_button(tab=tabname, inputs=result_gallery, outputs=prompt, what='output')
+                ui_sections.create_caption_button(tab=tabname, inputs=result_gallery, outputs=prompt, what='output')
             button_image_fit = gr.Button(ui_symbols.resize, elem_id=f"{tabname}_image_fit", elem_classes=['image-fit'])
             button_image_fit.click(fn=None, _js="cycleImageFit", inputs=[], outputs=[])
 
@@ -383,7 +392,7 @@ def reuse_seed(seed_component: gr.Number, reuse_button: gr.Button, subseed:bool=
             seed = processing.processed.all_seeds[0] if not subseed else processing.processed.all_subseeds[0]
         else:
             seed = -1
-        shared.log.debug(f'Reuse seed: index={selected_gallery_index} seed={seed} subseed={subseed}')
+        log.debug(f'Reuse seed: index={selected_gallery_index} seed={seed} subseed={subseed}')
         return seed
 
     reuse_button.click(fn=reuse_click, _js="selected_gallery_index", inputs=[seed_component], outputs=[seed_component], show_progress='hidden')
@@ -398,7 +407,7 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed_btn: gr.Button, generation_in
         restore_strength = -1
         try:
             gen_info = json.loads(gen_info_string)
-            shared.log.debug(f'Reuse: info={gen_info}')
+            log.debug(f'Reuse: info={gen_info}')
             index -= gen_info.get('index_of_first_image', 0)
             index = int(index)
             if is_subseed:
@@ -410,7 +419,7 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed_btn: gr.Button, generation_in
                 restore_seed = all_seeds[index if 0 <= index < len(all_seeds) else 0]
         except json.decoder.JSONDecodeError:
             if gen_info_string != '':
-                shared.log.error(f"Error parsing JSON generation info: {gen_info_string}")
+                log.error(f"Error parsing JSON generation info: {gen_info_string}")
         if is_subseed is not None:
             return [restore_seed, gr_show(False), restore_strength]
         else:
@@ -422,32 +431,53 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed_btn: gr.Button, generation_in
         reuse_seed_btn.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress='hidden', inputs=[generation_info, dummy_component], outputs=[seed, dummy_component, subseed_strength])
 
 
-def update_token_counter(text):
-    token_count = 0
-    max_length = 75
+def update_token_counter(text: str):
     if shared.state.job_count > 0:
-        shared.log.debug('Tokenizer busy')
-        return f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>"
-    from modules import extra_networks
-    if isinstance(text, list):
-        prompt, _ = extra_networks.parse_prompts(text)
-    else:
-        prompt, _ = extra_networks.parse_prompt(text)
+        log.debug('Tokenizer busy')
+        return gr.update(value="<span class='gr-box gr-text-input'>--/--</span>", visible=True)
+
+    from modules.extra_networks import parse_prompt
+
+    count_formatted = '0'
+    max_length = 0
+    visible = False
+
+    prompt, _ = parse_prompt(text)
+    prompt_list = [prompt]
+    ids = []
     if shared.sd_loaded and hasattr(shared.sd_model, 'tokenizer') and shared.sd_model.tokenizer is not None:
+        if shared.opts.prompt_attention == 'native':
+            p_split = re.compile(r'\bBREAK\b|\n' if shared.opts.sd_textencder_linebreak else r'\bBREAK\b')
+            prompt_list = re.split(p_split, prompt)
+
         tokenizer = shared.sd_model.tokenizer
         # For multi-modal processors (e.g., PixtralProcessor), use the underlying text tokenizer
         if hasattr(tokenizer, 'tokenizer') and tokenizer.tokenizer is not None:
             tokenizer = tokenizer.tokenizer
-        has_bos_token = hasattr(tokenizer, 'bos_token_id') and tokenizer.bos_token_id is not None
-        has_eos_token = hasattr(tokenizer, 'eos_token_id') and tokenizer.eos_token_id is not None
-        try:
-            ids = tokenizer(prompt)
-            ids = getattr(ids, 'input_ids', [])
-        except Exception:
-            ids = []
-        token_count = len(ids) - int(has_bos_token) - int(has_eos_token)
-        model_max_length = getattr(tokenizer, 'model_max_length', 0)
+        has_bos_token = getattr(tokenizer, 'bos_token_id', None) is not None
+        has_eos_token = getattr(tokenizer, 'eos_token_id', None) is not None
+        model_max_length = getattr(tokenizer, 'model_max_length', 77)
         max_length = model_max_length - int(has_bos_token) - int(has_eos_token)
         if max_length is None or max_length < 0 or max_length > 10000:
             max_length = 0
-    return gr.update(value=f"<span class='gr-box gr-text-input'>{token_count}/{max_length}</span>", visible=token_count > 0)
+
+        try:
+            try:
+                ids: list = getattr(tokenizer(prompt_list), 'input_ids', [])
+            except TypeError:
+                for p in prompt_list:
+                    ids.append(getattr(tokenizer(p), 'input_ids', []))
+        except Exception as e:
+            if tokenizer not in warn_once_set:
+                log.warning(f"Token counter: {e}")
+                warn_once_set.add(tokenizer)
+            return gr.update(value=f"<span class='gr-box gr-text-input'>??/{max_length}</span>", visible=True)
+
+        token_counts = [len(group) - int(has_bos_token) - int(has_eos_token) for group in ids]
+        if len(token_counts) > 1:
+            visible = True
+            count_formatted = f"{token_counts}/{sum(token_counts)}"
+        elif len(token_counts) == 1 and token_counts[0] > 0:
+            visible = True
+            count_formatted = str(token_counts[0])
+    return gr.update(value=f"<span class='gr-box gr-text-input'>{count_formatted}/{max_length}</span>", visible=visible)

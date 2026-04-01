@@ -1,7 +1,6 @@
 import os
 import numpy as np
 from PIL import Image
-from basicsr.archs.rrdbnet_arch import RRDBNet
 from modules.postprocess.realesrgan_model_arch import SRVGGNetCompact
 from modules.upscaler import Upscaler
 from modules.shared import opts, device, log
@@ -9,6 +8,11 @@ from modules import devices
 
 class UpscalerRealESRGAN(Upscaler):
     def __init__(self, dirname):
+        from installer import install
+        install('addict')
+        install('yapf')
+        install('--no-build-isolation git+https://github.com/Disty0/BasicSR@23c1fb6f5c559ef5ce7ad657f2fa56e41b121754', 'basicsr', ignore=True, quiet=True)
+        from basicsr.archs.rrdbnet_arch import RRDBNet
         self.name = "RealESRGAN"
         self.user_path = dirname
         super().__init__()

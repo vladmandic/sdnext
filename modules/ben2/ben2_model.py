@@ -373,7 +373,7 @@ class BasicLayer(nn.Module):
         mask_windows = window_partition(img_mask, self.window_size)  # nW, window_size, window_size, 1
         mask_windows = mask_windows.view(-1, self.window_size * self.window_size)
         attn_mask = mask_windows.unsqueeze(1) - mask_windows.unsqueeze(2)
-        attn_mask = attn_mask.masked_fill(attn_mask != 0, float(-100.0)).masked_fill(attn_mask == 0, float(0.0))
+        attn_mask = attn_mask.masked_fill(attn_mask != 0, (-100.0)).masked_fill(attn_mask == 0, 0.0)
 
         for blk in self.blocks:
             blk.H, blk.W = H, W
@@ -464,8 +464,8 @@ class SwinTransformer(nn.Module):
                  patch_size=4,
                  in_chans=3,
                  embed_dim=96,
-                 depths=[2, 2, 6, 2],
-                 num_heads=[3, 6, 12, 24],
+                 depths=None,
+                 num_heads=None,
                  window_size=7,
                  mlp_ratio=4.,
                  qkv_bias=True,
@@ -479,6 +479,10 @@ class SwinTransformer(nn.Module):
                  out_indices=(0, 1, 2, 3),
                  frozen_stages=-1,
                  use_checkpoint=False):
+        if num_heads is None:
+            num_heads = [3, 6, 12, 24]
+        if depths is None:
+            depths = [2, 2, 6, 2]
         super().__init__()
 
         self.pretrain_img_size = pretrain_img_size
@@ -668,8 +672,10 @@ class PositionEmbeddingSine:
 
 
 class MCLM(nn.Module):
-    def __init__(self, d_model, num_heads, pool_ratios=[1, 4, 8]):
-        super(MCLM, self).__init__()
+    def __init__(self, d_model, num_heads, pool_ratios=None):
+        if pool_ratios is None:
+            pool_ratios = [1, 4, 8]
+        super().__init__()
         self.attention = nn.ModuleList([
             nn.MultiheadAttention(d_model, num_heads, dropout=0.1),
             nn.MultiheadAttention(d_model, num_heads, dropout=0.1),
@@ -739,7 +745,7 @@ class MCLM(nn.Module):
         _g_hw_b_c = rearrange(g_hw_b_c, '(h w) b c -> h w b c', h=h, w=w)
         _g_hw_b_c = rearrange(_g_hw_b_c, "(ng h) (nw w) b c -> (h w) (ng nw b) c", ng=2, nw=2)
         outputs_re = []
-        for i, (_l, _g) in enumerate(zip(l_hw_b_c.chunk(4, dim=1), _g_hw_b_c.chunk(4, dim=1))):
+        for i, (_l, _g) in enumerate(zip(l_hw_b_c.chunk(4, dim=1), _g_hw_b_c.chunk(4, dim=1), strict=False)):
             outputs_re.append(self.attention[i + 1](_l, _g, _g)[0])  # (h w) 1 c
         outputs_re = torch.cat(outputs_re, 1)  # (h w) 4 c
 
@@ -760,8 +766,10 @@ class MCLM(nn.Module):
 
 
 class MCRM(nn.Module):
-    def __init__(self, d_model, num_heads, pool_ratios=[4, 8, 16], h=None): # pylint: disable=unused-argument
-        super(MCRM, self).__init__()
+    def __init__(self, d_model, num_heads, pool_ratios=None, h=None): # pylint: disable=unused-argument
+        if pool_ratios is None:
+            pool_ratios = [4, 8, 16]
+        super().__init__()
         self.attention = nn.ModuleList([
             nn.MultiheadAttention(d_model, num_heads, dropout=0.1),
             nn.MultiheadAttention(d_model, num_heads, dropout=0.1),
@@ -1049,7 +1057,7 @@ class BEN_Base(nn.Module):
         """
         cap = cv2.VideoCapture(video_path)
         if not cap.isOpened():
-            raise IOError(f"Cannot open video: {video_path}")
+            raise OSError(f"Cannot open video: {video_path}")
 
         original_fps = cap.get(cv2.CAP_PROPFPS)
         original_fps = 30 if original_fps == 0 else original_fps
@@ -1225,7 +1233,7 @@ def add_audio_to_video(video_without_audio_path, original_video_path, output_pat
         '-of', 'csv=p=0',
         original_video_path
     ]
-    result = subprocess.run(probe_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=False)
+    result = subprocess.run(probe_command, capture_output=True, text=True, check=False)
 
     # result.stdout is empty if no audio stream found
     if not result.stdout.strip():

@@ -65,8 +65,6 @@ def exif(info, i = None, op = 'generate'):
     seed = ', '.join([str(x) for x in seed]) # int list to str list to single str
     template = '{prompt} | negative {negative_prompt} | seed {s} | steps {steps} | cfgscale {cfg_scale} | sampler {sampler_name} | batch {batch_size} | timestamp {job_timestamp} | model {model} | vae {vae}'.format(s = seed, model = sd.options['sd_model_checkpoint'], vae = sd.options['sd_vae'], **info) # pylint: disable=consider-using-f-string
     if op == 'upscale':
-        template += ' | faces gfpgan' if sd.upscale.gfpgan_visibility > 0 else ''
-        template += ' | faces codeformer' if sd.upscale.codeformer_visibility > 0 else ''
         template += ' | upscale {resize}x {upscaler}'.format(resize = sd.upscale.upscaling_resize, upscaler = sd.upscale.upscaler_1) if sd.upscale.upscaler_1 != 'None' else '' # pylint: disable=consider-using-f-string
         template += ' | upscale {resize}x {upscaler}'.format(resize = sd.upscale.upscaling_resize, upscaler = sd.upscale.upscaler_2) if sd.upscale.upscaler_2 != 'None' else '' # pylint: disable=consider-using-f-string
     if op == 'grid':
@@ -309,7 +307,6 @@ def args(): # parse cmd arguments
     sd.generate.height = params.height if params.height > 0 else sd.generate.height
     sd.generate.steps = params.steps if params.steps > 0 else sd.generate.steps
     sd.upscale.upscaling_resize = params.upscale if params.upscale > 0 else sd.upscale.upscaling_resize
-    sd.upscale.codeformer_visibility = 1 if params.detailer else sd.upscale.codeformer_visibility
     sd.options.sd_vae = params.vae if params.vae != '' else sd.options.sd_vae
     sd.options.sd_model_checkpoint = params.model if params.model != '' else sd.options.sd_model_checkpoint
     sd.upscale.upscaler_1 = 'SwinIR_4x' if params.upscale > 1 else sd.upscale.upscaler_1

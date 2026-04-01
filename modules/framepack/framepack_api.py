@@ -1,46 +1,46 @@
-from typing import Optional, List
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from fastapi.exceptions import HTTPException
 from modules import shared
+from modules.logger import log
 
 
 class ReqFramepack(BaseModel):
     variant: str = Field(default=None, title="Model variant", description="Model variant to use")
     prompt: str = Field(default=None, title="Prompt", description="Prompt for the model")
     init_image: str = Field(default=None, title="Initial image", description="Base64 encoded initial image")
-    end_image: Optional[str] = Field(default=None, title="End image", description="Base64 encoded end image")
-    start_weight: Optional[float] = Field(default=1.0, title="Start weight", description="Weight of the initial image")
-    end_weight: Optional[float] = Field(default=1.0, title="End weight", description="Weight of the end image")
-    vision_weight: Optional[float] = Field(default=1.0, title="Vision weight", description="Weight of the vision model")
-    system_prompt: Optional[str] = Field(default=None, title="System prompt", description="System prompt for the model")
-    optimized_prompt: Optional[bool] = Field(default=True, title="Optimized system prompt", description="Use optimized system prompt for the model")
-    section_prompt: Optional[str] = Field(default=None, title="Section prompt", description="Prompt for each section")
-    negative_prompt: Optional[str] = Field(default=None, title="Negative prompt", description="Negative prompt for the model")
-    styles: Optional[List[str]] = Field(default=None, title="Styles", description="Styles for the model")
-    seed: Optional[int] = Field(default=None, title="Seed", description="Seed for the model")
-    resolution: Optional[int] = Field(default=640, title="Resolution", description="Resolution of the image")
-    duration: Optional[float] = Field(default=4, title="Duration", description="Duration of the video in seconds")
-    latent_ws: Optional[int] = Field(default=9, title="Latent window size", description="Size of the latent window")
-    steps: Optional[int] = Field(default=25, title="Video steps", description="Number of steps for the video generation")
-    cfg_scale: Optional[float] = Field(default=1.0, title="CFG scale", description="CFG scale for the model")
-    cfg_distilled: Optional[float] = Field(default=10.0, title="Distilled CFG scale", description="Distilled CFG scale for the model")
-    cfg_rescale: Optional[float] = Field(default=0.0, title="CFG re-scale", description="CFG re-scale for the model")
-    shift: Optional[float] = Field(default=0, title="Sampler shift", description="Shift for the sampler")
-    use_teacache: Optional[bool] = Field(default=True, title="Enable TeaCache", description="Use TeaCache for the model")
-    use_cfgzero: Optional[bool] = Field(default=False, title="Enable CFGZero", description="Use CFGZero for the model")
-    mp4_fps: Optional[int] = Field(default=30, title="FPS", description="Frames per second for the video")
-    mp4_codec: Optional[str] = Field(default="libx264", title="Codec", description="Codec for the video")
-    mp4_sf: Optional[bool] = Field(default=False, title="Save SafeTensors", description="Save SafeTensors for the video")
-    mp4_video: Optional[bool] = Field(default=True, title="Save Video", description="Save video")
-    mp4_frames: Optional[bool] = Field(default=False, title="Save Frames", description="Save frames for the video")
-    mp4_opt: Optional[str] = Field(default="crf:16", title="Options", description="Options for the video codec")
-    mp4_ext: Optional[str] = Field(default="mp4", title="Format", description="Format for the video")
-    mp4_interpolate: Optional[int] = Field(default=0, title="Interpolation", description="Interpolation for the video")
-    attention: Optional[str] = Field(default="Default", title="Attention", description="Attention type for the model")
-    vae_type: Optional[str] = Field(default="Local", title="VAE", description="VAE type for the model")
-    vlm_enhance: Optional[bool] = Field(default=False, title="VLM enhance", description="Enable VLM enhance")
-    vlm_model: Optional[str] = Field(default=None, title="VLM model", description="VLM model to use")
-    vlm_system_prompt: Optional[str] = Field(default=None, title="VLM system prompt", description="System prompt for the VLM model")
+    end_image: str | None = Field(default=None, title="End image", description="Base64 encoded end image")
+    start_weight: float | None = Field(default=1.0, title="Start weight", description="Weight of the initial image")
+    end_weight: float | None = Field(default=1.0, title="End weight", description="Weight of the end image")
+    vision_weight: float | None = Field(default=1.0, title="Vision weight", description="Weight of the vision model")
+    system_prompt: str | None = Field(default=None, title="System prompt", description="System prompt for the model")
+    optimized_prompt: bool | None = Field(default=True, title="Optimized system prompt", description="Use optimized system prompt for the model")
+    section_prompt: str | None = Field(default=None, title="Section prompt", description="Prompt for each section")
+    negative_prompt: str | None = Field(default=None, title="Negative prompt", description="Negative prompt for the model")
+    styles: list[str] | None = Field(default=None, title="Styles", description="Styles for the model")
+    seed: int | None = Field(default=None, title="Seed", description="Seed for the model")
+    resolution: int | None = Field(default=640, title="Resolution", description="Resolution of the image")
+    duration: float | None = Field(default=4, title="Duration", description="Duration of the video in seconds")
+    latent_ws: int | None = Field(default=9, title="Latent window size", description="Size of the latent window")
+    steps: int | None = Field(default=25, title="Video steps", description="Number of steps for the video generation")
+    cfg_scale: float | None = Field(default=1.0, title="CFG scale", description="CFG scale for the model")
+    cfg_distilled: float | None = Field(default=10.0, title="Distilled CFG scale", description="Distilled CFG scale for the model")
+    cfg_rescale: float | None = Field(default=0.0, title="CFG re-scale", description="CFG re-scale for the model")
+    shift: float | None = Field(default=0, title="Sampler shift", description="Shift for the sampler")
+    use_teacache: bool | None = Field(default=True, title="Enable TeaCache", description="Use TeaCache for the model")
+    use_cfgzero: bool | None = Field(default=False, title="Enable CFGZero", description="Use CFGZero for the model")
+    mp4_fps: int | None = Field(default=30, title="FPS", description="Frames per second for the video")
+    mp4_codec: str | None = Field(default="libx264", title="Codec", description="Codec for the video")
+    mp4_sf: bool | None = Field(default=False, title="Save SafeTensors", description="Save SafeTensors for the video")
+    mp4_video: bool | None = Field(default=True, title="Save Video", description="Save video")
+    mp4_frames: bool | None = Field(default=False, title="Save Frames", description="Save frames for the video")
+    mp4_opt: str | None = Field(default="crf:16", title="Options", description="Options for the video codec")
+    mp4_ext: str | None = Field(default="mp4", title="Format", description="Format for the video")
+    mp4_interpolate: int | None = Field(default=0, title="Interpolation", description="Interpolation for the video")
+    attention: str | None = Field(default="Default", title="Attention", description="Attention type for the model")
+    vae_type: str | None = Field(default="Local", title="VAE", description="VAE type for the model")
+    vlm_enhance: bool | None = Field(default=False, title="VLM enhance", description="Enable VLM enhance")
+    vlm_model: str | None = Field(default=None, title="VLM model", description="VLM model to use")
+    vlm_system_prompt: str | None = Field(default=None, title="VLM system prompt", description="System prompt for the VLM model")
 
 
 class ResFramepack(BaseModel):
@@ -61,7 +61,7 @@ def framepack_post(request: ReqFramepack):
         else:
             init_image = None
     except Exception as e:
-        shared.log.error(f"API FramePack: id={task_id} cannot decode init image: {e}")
+        log.error(f"API FramePack: id={task_id} cannot decode init image: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
     try:
@@ -70,12 +70,12 @@ def framepack_post(request: ReqFramepack):
         else:
             end_image = None
     except Exception as e:
-        shared.log.error(f"API FramePack: id={task_id} cannot decode end image: {e}")
+        log.error(f"API FramePack: id={task_id} cannot decode end image: {e}")
         raise HTTPException(status_code=500, detail=str(e)) from e
 
     del request.init_image
     del request.end_image
-    shared.log.trace(f"API FramePack: id={task_id} init={init_image.shape} end={end_image.shape if end_image else None} {request}")
+    log.trace(f"API FramePack: id={task_id} init={init_image.shape} end={end_image.shape if end_image else None} {request}")
 
     generator = run_framepack(
         _ui_state=None,

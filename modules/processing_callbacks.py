@@ -1,14 +1,14 @@
-import typing
 import os
 import time
 import torch
 import numpy as np
 from modules import shared, devices, processing_correction, timer, prompt_parser_diffusers
+from modules.logger import log
 
 
 p = None
 debug = os.environ.get('SD_CALLBACK_DEBUG', None) is not None
-debug_callback = shared.log.trace if debug else lambda *args, **kwargs: None
+debug_callback = log.trace if debug else lambda *args, **kwargs: None
 warned = False
 
 
@@ -33,25 +33,27 @@ def prompt_callback(step, kwargs):
     return kwargs
 
 
-def diffusers_callback_legacy(step: int, timestep: int, latents: typing.Union[torch.FloatTensor, np.ndarray]):
+def diffusers_callback_legacy(step: int, timestep: int, latents: torch.FloatTensor | np.ndarray):
     if p is None:
         return
     if isinstance(latents, np.ndarray): # latents from Onnx pipelines is ndarray.
         latents = torch.from_numpy(latents)
     shared.state.sampling_step = step
     shared.state.current_latent = latents
-    latents = processing_correction.correction_callback(p, timestep, {'latents': latents})
+    latents = processing_correction.correction_callback(p, timestep, {'latents': latents}, step=step)
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
     if shared.state.paused:
-        shared.log.debug('Sampling paused')
+        log.debug('Sampling paused')
         while shared.state.paused:
             if shared.state.interrupted or shared.state.skipped:
                 raise AssertionError('Interrupted...')
             time.sleep(0.1)
 
 
-def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}):
+def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | None = None):
+    if kwargs is None:
+        kwargs = {}
     t0 = time.time()
     if devices.backend == "ipex":
         torch.xpu.synchronize(devices.device)
@@ -66,7 +68,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
     if shared.state.paused:
-        shared.log.debug('Sampling paused')
+        log.debug('Sampling paused')
         while shared.state.paused:
             if shared.state.interrupted or shared.state.skipped:
                 raise AssertionError('Interrupted...')
@@ -91,7 +93,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
             debug_callback(f"Callback: IP Adapter scales={ip_adapter_scales}")
             pipe.set_ip_adapter_scale(ip_adapter_scales)
     if step != getattr(pipe, 'num_timesteps', 0):
-        kwargs = processing_correction.correction_callback(p, timestep, kwargs, initial=step == 0)
+        kwargs = processing_correction.correction_callback(p, timestep, kwargs, pipe=pipe, initial=step == 0, step=step)
     kwargs = prompt_callback(step, kwargs)  # monkey patch for diffusers callback issues
 
     if step == 0:
@@ -162,19 +164,33 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict = {}
             shared.state.current_latent = kwargs['latents']
             shared.state.current_noise_pred = current_noise_pred
 
+        # Video latent preview: extract middle frame from 5D [B,C,T,H,W] to 4D [B,C,H,W]
+        if shared.state.current_latent is not None and shared.state.current_latent.ndim == 5:
+            _b, _c, t, _h, _w = shared.state.current_latent.shape
+            shared.state.current_latent = shared.state.current_latent[:, :, t // 2, :, :]
+
         if hasattr(pipe, "scheduler") and hasattr(pipe.scheduler, "sigmas") and hasattr(pipe.scheduler, "step_index") and pipe.scheduler.step_index is not None:
             try:
                 shared.state.current_sigma = pipe.scheduler.sigmas[pipe.scheduler.step_index-1]
                 shared.state.current_sigma_next = pipe.scheduler.sigmas[pipe.scheduler.step_index]
-                if (shared.opts.schedulers_sigma_adjust != 1.0) and (timestep > 1000 * shared.opts.schedulers_sigma_adjust_min) and (timestep < 1000 * shared.opts.schedulers_sigma_adjust_max):
-                    pipe.scheduler.sigmas[pipe.scheduler.step_index+1] = pipe.scheduler.sigmas[pipe.scheduler.step_index+1] * shared.opts.schedulers_sigma_adjust
-                    p.extra_generation_params["Sigma adjust"] = shared.opts.schedulers_sigma_adjust
+                _sigma_adjust = getattr(p, 'schedulers_sigma_adjust', None) if p is not None else None
+                if _sigma_adjust is None:
+                    _sigma_adjust = shared.opts.schedulers_sigma_adjust
+                _sigma_adjust_min = getattr(p, 'schedulers_sigma_adjust_min', None) if p is not None else None
+                if _sigma_adjust_min is None:
+                    _sigma_adjust_min = shared.opts.schedulers_sigma_adjust_min
+                _sigma_adjust_max = getattr(p, 'schedulers_sigma_adjust_max', None) if p is not None else None
+                if _sigma_adjust_max is None:
+                    _sigma_adjust_max = shared.opts.schedulers_sigma_adjust_max
+                if (_sigma_adjust != 1.0) and (timestep > 1000 * _sigma_adjust_min) and (timestep < 1000 * _sigma_adjust_max):
+                    pipe.scheduler.sigmas[pipe.scheduler.step_index+1] = pipe.scheduler.sigmas[pipe.scheduler.step_index+1] * _sigma_adjust
+                    p.extra_generation_params["Sigma adjust"] = _sigma_adjust
             except Exception:
                 pass
     except Exception as e:
         global warned # pylint: disable=global-statement
         if not warned:
-            shared.log.error(f'Callback: {e}')
+            log.error(f'Callback: {e}')
             warned = True
         # from modules import errors
         # errors.display(e, 'Callback')

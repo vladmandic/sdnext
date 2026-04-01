@@ -1,7 +1,7 @@
 import torch
 
 from .common import dtype_dict
-from .packed_int import pack_int_asymetric, unpack_int_asymetric
+from .packed_int import pack_int, unpack_int
 
 
 float_bits_to_uint_dict = {
@@ -12,6 +12,13 @@ float_bits_to_uint_dict = {
     5: "uint5",
     6: "uint6",
     7: "uint7",
+    9: "uint9",
+    10: "uint10",
+    11: "uint11",
+    12: "uint12",
+    13: "uint13",
+    14: "uint14",
+    15: "uint15",
 }
 
 
@@ -51,15 +58,15 @@ def pack_float(x: torch.FloatTensor, weights_dtype: str) -> torch.Tensor:
         ~(-(1 << total_bits)),
     ).view(torch.uint32)
 
-    if total_bits < 8:
-        x = pack_int_asymetric(x, float_bits_to_uint_dict[total_bits])
+    if total_bits not in {8, 16}:
+        x = pack_int(x, float_bits_to_uint_dict[total_bits])
     else:
         x = x.to(dtype=dtype_dict[weights_dtype]["storage_dtype"])
 
     return x
 
 
-def unpack_float(x: torch.Tensor, shape: torch.Size, weights_dtype: str) -> torch.FloatTensor:
+def unpack_float(x: torch.Tensor, weights_dtype: str, shape: torch.Size) -> torch.FloatTensor:
     exponent_bits = dtype_dict[weights_dtype]["exponent"]
     mantissa_bits = dtype_dict[weights_dtype]["mantissa"]
     total_bits = dtype_dict[weights_dtype]["num_bits"]
@@ -72,8 +79,8 @@ def unpack_float(x: torch.Tensor, shape: torch.Size, weights_dtype: str) -> torc
     mantissa_difference = 23 - mantissa_bits
     exponent_difference = 8 - exponent_bits
 
-    if total_bits < 8:
-        x = unpack_int_asymetric(x, shape, float_bits_to_uint_dict[total_bits])
+    if total_bits not in {8, 16}:
+        x = unpack_int(x, float_bits_to_uint_dict[total_bits], shape)
 
     x = x.to(dtype=torch.uint32).view(torch.int32)
     x = torch.bitwise_left_shift(
@@ -95,7 +102,7 @@ def unpack_float(x: torch.Tensor, shape: torch.Size, weights_dtype: str) -> torc
         ),
     )
 
-    overflow_mask = (~(-(1 << (22 + exponent_bits))) | -1073741824)
+    overflow_mask = (~(-(1 << (22 + exponent_bits))) | 1090519039)
     x = torch.where(torch.bitwise_and(x, overflow_mask).to(dtype=torch.bool), x, 0)
     x = x.view(torch.float32)
 

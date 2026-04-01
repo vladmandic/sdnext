@@ -5,15 +5,20 @@ from modules.errorlimiter import limit_errors
 from modules.lora import lora_common as l
 from modules.lora.lora_apply import network_apply_weights, network_apply_direct, network_backup_weights, network_calc_weights
 from modules import shared, devices, sd_models
+from modules.logger import log, console
 
 
 applied_layers: list[str] = []
 default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2']
 
 
-def network_activate(include=[], exclude=[]):
+def network_activate(include=None, exclude=None):
+    if exclude is None:
+        exclude = []
+    if include is None:
+        include = []
     t0 = time.time()
-    with limit_errors("network_activate"):
+    with limit_errors("network_activate") as elimit:
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         if shared.opts.diffusers_offload_mode == "sequential":
             sd_models.disable_offload(sd_model)
@@ -30,7 +35,7 @@ def network_activate(include=[], exclude=[]):
                 modules[name] = list(component.named_modules())
         total = sum(len(x) for x in modules.values())
         if len(l.loaded_networks) > 0:
-            pbar = rp.Progress(rp.TextColumn('[cyan]Network: type=LoRA action=activate'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
+            pbar = rp.Progress(rp.TextColumn('[cyan]Network: type=LoRA action=activate'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
             task = pbar.add_task(description='' , total=total)
         else:
             task = None
@@ -51,7 +56,7 @@ def network_activate(include=[], exclude=[]):
                             pbar.update(task, advance=1)
                         continue
                     backup_size += network_backup_weights(module, network_layer_name, wanted_names)
-                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name)
+                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
                     if shared.opts.lora_fuse_native:
                         network_apply_direct(module, batch_updown, batch_ex_bias, device=device)
                     else:
@@ -71,19 +76,23 @@ def network_activate(include=[], exclude=[]):
                 pbar.remove_task(task) # hide progress bar for no action
     l.timer.activate += time.time() - t0
     if l.debug and len(l.loaded_networks) > 0:
-        shared.log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={round(backup_size/1024/1024/1024, 2)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} device={device} time={l.timer.summary}')
+        log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={round(backup_size/1024/1024/1024, 2)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} device={device} time={l.timer.summary}')
     modules.clear()
     if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential":
         sd_models.set_diffuser_offload(sd_model, op="model")
 
 
-def network_deactivate(include=[], exclude=[]):
+def network_deactivate(include=None, exclude=None):
+    if exclude is None:
+        exclude = []
+    if include is None:
+        include = []
     if not shared.opts.lora_fuse_native or shared.opts.lora_force_diffusers:
         return
     if len(l.previously_loaded_networks) == 0:
         return
     t0 = time.time()
-    with limit_errors("network_deactivate"):
+    with limit_errors("network_deactivate") as elimit:
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         if shared.opts.diffusers_offload_mode == "sequential":
             sd_models.disable_offload(sd_model)
@@ -100,7 +109,7 @@ def network_deactivate(include=[], exclude=[]):
                 active_components.append(name)
         total = sum(len(x) for x in modules.values())
         if len(l.previously_loaded_networks) > 0 and l.debug:
-            pbar = rp.Progress(rp.TextColumn('[cyan]Network: type=LoRA action=deactivate'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
+            pbar = rp.Progress(rp.TextColumn('[cyan]Network: type=LoRA action=deactivate'), rp.BarColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
             task = pbar.add_task(description='', total=total)
         else:
             task = None
@@ -115,7 +124,7 @@ def network_deactivate(include=[], exclude=[]):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
-                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True)
+                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True, elimit=elimit)
                     if shared.opts.lora_fuse_native:
                         network_apply_direct(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
                     else:
@@ -128,7 +137,7 @@ def network_deactivate(include=[], exclude=[]):
                         pbar.update(task, advance=1, description=f'networks={len(l.previously_loaded_networks)} modules={active_components} layers={total} unapply={len(applied_layers)}')
     l.timer.deactivate = time.time() - t0
     if l.debug and len(l.previously_loaded_networks) > 0:
-        shared.log.debug(f'Network deactivate: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} time={l.timer.summary}')
+        log.debug(f'Network deactivate: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} time={l.timer.summary}')
     modules.clear()
     if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential":
         sd_models.set_diffuser_offload(sd_model, op="model")

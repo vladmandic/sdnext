@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 import numpy as np
 import torch
 import torch.nn as nn
@@ -12,7 +11,7 @@ class WMSA(nn.Module):
     """
 
     def __init__(self, input_dim, output_dim, head_dim, window_size, type):
-        super(WMSA, self).__init__()
+        super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         self.head_dim = head_dim
@@ -103,7 +102,7 @@ class Block(nn.Module):
     def __init__(self, input_dim, output_dim, head_dim, window_size, drop_path, type='W', input_resolution=None):
         """ SwinTransformer Block
         """
-        super(Block, self).__init__()
+        super().__init__()
         self.input_dim = input_dim
         self.output_dim = output_dim
         assert type in ['W', 'SW']
@@ -131,7 +130,7 @@ class ConvTransBlock(nn.Module):
     def __init__(self, conv_dim, trans_dim, head_dim, window_size, drop_path, type='W', input_resolution=None):
         """ SwinTransformer and Conv Block
         """
-        super(ConvTransBlock, self).__init__()
+        super().__init__()
         self.conv_dim = conv_dim
         self.trans_dim = trans_dim
         self.head_dim = head_dim
@@ -170,7 +169,7 @@ class ConvTransBlock(nn.Module):
 class SCUNet(nn.Module):
     # def __init__(self, in_nc=3, config=[2, 2, 2, 2, 2, 2, 2], dim=64, drop_path_rate=0.0, input_resolution=256):
     def __init__(self, in_nc=3, config=None, dim=64, drop_path_rate=0.0, input_resolution=256):
-        super(SCUNet, self).__init__()
+        super().__init__()
         if config is None:
             config = [2, 2, 2, 2, 2, 2, 2]
         self.config = config

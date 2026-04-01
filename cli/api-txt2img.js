@@ -41,7 +41,7 @@ async function main() {
   } else {
     const json = await res.json();
     console.log('result:', json.info);
-    for (const i in json.images) { // eslint-disable-line guard-for-in
+    for (const i in json.images) {
       const f = `/tmp/test-${i}.jpg`;
       fs.writeFileSync(f, atob(json.images[i]), 'binary');
       console.log('image saved:', f);

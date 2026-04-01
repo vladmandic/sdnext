@@ -9,7 +9,7 @@ from modules.paths import resolve_output_path
 errors.install()
 
 
-class APIGenerate():
+class APIGenerate:
     def __init__(self, queue_lock: Lock):
         self.queue_lock = queue_lock
         self.default_script_arg_txt2img = []
@@ -85,6 +85,7 @@ class APIGenerate():
             del request.ip_adapter
 
     def post_text2img(self, txt2imgreq: models.ReqTxt2Img):
+        """Generate images from a text prompt. Supports IP-Adapter, FaceID, and script overrides."""
         self.prepare_face_module(txt2imgreq)
         script_runner = scripts_manager.scripts_txt2img
         if not script_runner.scripts:
@@ -119,7 +120,7 @@ class APIGenerate():
                 processed = process_images(p)
             processed = scripts_manager.scripts_txt2img.after(p, processed, *script_args)
             p.close()
-            shared.state.end(jobid)
+            shared.state.end(jobid, api=False)
         if processed is None or processed.images is None or len(processed.images) == 0:
             b64images = []
         else:
@@ -129,6 +130,7 @@ class APIGenerate():
         return models.ResTxt2Img(images=b64images, parameters=vars(txt2imgreq), info=info)
 
     def post_img2img(self, img2imgreq: models.ReqImg2Img):
+        """Generate images from input images with optional inpainting mask. Supports IP-Adapter, FaceID, and script overrides."""
         self.prepare_face_module(img2imgreq)
         init_images = img2imgreq.init_images
         if init_images is None:
@@ -171,7 +173,7 @@ class APIGenerate():
                 processed = process_images(p)
             processed = scripts_manager.scripts_img2img.after(p, processed, *script_args)
             p.close()
-            shared.state.end(jobid)
+            shared.state.end(jobid, api=False)
         if processed is None or processed.images is None or len(processed.images) == 0:
             b64images = []
         else:

@@ -9,12 +9,13 @@ from torch import nn
 from torch.nn import functional as F
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn
 from modules import devices, shared
+from modules.logger import log, console
 from modules.upscaler import compile_upscaler
 
 ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-class RealESRGANer():
+class RealESRGANer:
     """A helper class for upsampling images with RealESRGAN.
 
     Args:
@@ -66,7 +67,7 @@ class RealESRGANer():
                 from modules.modelloader import load_file_from_url
                 model_path = load_file_from_url(url=model_path, model_dir=os.path.join(ROOT_DIR, 'weights'), progress=True, file_name=None)
             loadnet = torch.load(model_path, map_location=torch.device('cpu'))
-            shared.log.info(f"Upscaler loaded: type={self.name} model={model_path}")
+            log.info(f"Upscaler loaded: type={self.name} model={model_path}")
 
         # prefer to use params_ema
         if 'params_ema' in loadnet:
@@ -138,7 +139,7 @@ class RealESRGANer():
         tiles_y = math.ceil(height / self.tile_size)
 
         # loop over all tiles
-        with Progress(TextColumn('[cyan]{task.description}'), BarColumn(), TaskProgressColumn(), TimeRemainingColumn(), TimeElapsedColumn(), console=shared.console) as progress:
+        with Progress(TextColumn('[cyan]{task.description}'), BarColumn(), TaskProgressColumn(), TimeRemainingColumn(), TimeElapsedColumn(), console=console) as progress:
             task = progress.add_task(description="Upscaling", total=tiles_y * tiles_x)
             with torch.no_grad():
                 for y in range(tiles_y):
@@ -172,7 +173,7 @@ class RealESRGANer():
                         try:
                             output_tile = self.model(input_tile)
                         except Exception as e:
-                            shared.log.error(f'Upscale error: type=R-ESRGAN {e}')
+                            log.error(f'Upscale error: type=R-ESRGAN {e}')
 
                         # output tile area on total image
                         output_start_x = input_start_x * self.scale
@@ -340,7 +341,7 @@ class SRVGGNetCompact(nn.Module):
     """
 
     def __init__(self, num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=16, upscale=4, act_type='prelu'):
-        super(SRVGGNetCompact, self).__init__()
+        super().__init__()
         self.num_in_ch = num_in_ch
         self.num_out_ch = num_out_ch
         self.num_feat = num_feat

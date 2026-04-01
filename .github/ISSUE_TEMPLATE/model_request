@@ -9,22 +9,22 @@ body:
     attributes:
       label: Model name
       description: Enter model name
-      value: 
+      value:
   - type: textarea
     id: type
     attributes:
       label: Model type
       description: Describe model type
-      value: 
+      value:
   - type: textarea
     id: url
     attributes:
       label: Model URL
       description: Enter URL to the model page
-      value: 
+      value:
   - type: textarea
     id: description
     attributes:
       label: Reason
       description: Enter a reason why you would like to see this model supported
-      value: 
+      value:

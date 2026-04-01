@@ -2,29 +2,32 @@
 
 ## Internal
 
-- Update: `transformers==5.0.0`, owner @CalamitousFelicitousness
-- Deploy: Create executable for SD.Next
+- Feature: implement `unload_auxiliary_models`
+- Feature: RIFE update
+- Feature: RIFE in processing
+- Feature: SeedVR2 in processing
+- Feature: Add video models to `Reference`
 - Deploy: Lite vs Expert mode
 - Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
-- Engine: [sharpfin](https://github.com/drhead/sharpfin) instead of `torchvision`
 - Engine: `TensorRT` acceleration
 - Feature: Auto handle scheduler `prediction_type`
 - Feature: Cache models in memory
-- Feature: Control tab add overrides handling
+- Feature: JSON image metadata
+- Validate: Control tab add overrides handling
 - Feature: Integrate natural language image search
   [ImageDB](https://github.com/vladmandic/imagedb)
-- Feature: LoRA add OMI format support for SD35/FLUX.1, on-hold
 - Feature: Multi-user support
-- Feature: Remote Text-Encoder support, sidelined for the moment
 - Feature: Settings profile manager
 - Feature: Video tab add full API support
 - Refactor: Unify *huggingface* and *diffusers* model folders
-- Refactor: Move `nunchaku` models to refernce instead of internal decision, owner @CalamitousFelicitousness
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
-- Refactor: move sampler options to settings to config
-- Refactor: remove `CodeFormer`, owner @CalamitousFelicitousness
-- Refactor: remove `GFPGAN`, owner @CalamitousFelicitousness
-- Reimplement `llama` remover for Kanvas, pending end-to-end review of `Kanvas`
+- Reimplement `llama` remover for Kanvas
+- Integrate: [Depth3D](https://github.com/vladmandic/sd-extension-depth3d)
+
+## OnHold
+
+- Feature: LoRA add OMI format support for SD35/FLUX.1, on-hold
+- Feature: Remote Text-Encoder support, sidelined for the moment
 
 ## Modular
 
@@ -42,8 +45,10 @@
 TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image-Base
+
 - [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma): Image and video generator for creative effects and professional filters
 - [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance): Pixel-space model eliminating VAE artifacts for high visual fidelity
+- [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
 - [Liquid](https://github.com/FoundationVision/Liquid): Unified vision-language auto-regressive generation paradigm
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO): Foundational multi-modal generation and understanding via discrete diffusion
 - [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B): Physics-aware world foundation model for consistent scene prediction
@@ -51,14 +56,20 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO): foundational multi-modal multi-task generation and understanding
 
 ### Image-Edit
+
+- [Bria FIBO-Edit](https://huggingface.co/briaai/Fibo-Edit-RMBG): Fully JSON-based instruction-following image editing framework
 - [Meituan LongCat-Image-Edit-Turbo](https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo):6B instruction-following image editing with high visual consistency
 - [VIBE Image-Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit): (Sana+Qwen-VL)Fast visual instruction-based image editing framework
 - [LucyEdit](https://github.com/huggingface/diffusers/pull/12340):Instruction-guided video editing while preserving motion and identity
 - [Step1X-Edit](https://github.com/stepfun-ai/Step1X-Edit):Multimodal image editing decoding MLLM tokens via DiT
 - [OneReward](https://github.com/bytedance/OneReward):Reinforcement learning grounded generative reward model for image editing
 - [ByteDance DreamO](https://huggingface.co/ByteDance/DreamO): image customization framework for IP adaptation and virtual try-on
+- [nVidia Cosmos-Transfer-2.5](https://github.com/huggingface/diffusers/pull/13066)
 
 ### Video
+
+- [LTX-Condition](https://github.com/huggingface/diffusers/pull/13058)
+- [LTX-Distilled](https://github.com/huggingface/diffusers/pull/12934)
 - [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p): Unified foundation model for synchronized high-fidelity video and audio
 - [Wan family (Wan2.1 / Wan2.2 variants)](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B): MoE-based foundational tools for cinematic T2V/I2V/TI2V
  example: [Wan2.1-T2V-14B-CausVid](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-CausVid)
@@ -81,6 +92,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [Ming (inclusionAI)](https://github.com/inclusionAI/Ming): Unified multimodal model for processing text, audio, image, and video
 
 ### Other/Unsorted
+
 - [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer): Full-sequence diffusion with autoregressive next-token prediction
 - [Self-Forcing](https://github.com/guandeh17/Self-Forcing): Framework for improving temporal consistency in long-horizon video generation
 - [SEVA](https://github.com/huggingface/diffusers/pull/11440): Stable Virtual Camera for novel view synthesis and 3D-consistent video
@@ -97,8 +109,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [ReNO](https://github.com/ExplainableML/ReNO): Reward-based Noise Optimization to improve text-to-image quality during inference
 
 ### Not Planned
-- [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
-- [Bria FiboEdit](https://github.com/huggingface/diffusers/commit/d7a1c31f4f85bae5a9e01cdce49bd7346bd8ccd6): Fully JSON based
+
 - [LoRAdapter](https://github.com/CompVis/LoRAdapter): Not recently updated
 - [SD3 UltraEdit](https://github.com/HaozheZhao/UltraEdit): Based on SD3
 - [PowerPaint](https://github.com/open-mmlab/PowerPaint): Based on SD15
@@ -109,53 +120,29 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [DenseDiffusion](https://github.com/naver-ai/DenseDiffusion): Based on SD15
 - [IC-Light](https://github.com/lllyasviel/IC-Light): Based on SD15
 
-## Migration
-
-### Asyncio
-
-- Policy system is deprecated and will be removed in Python 3.16
- [Python 3.14 removalsasyncio](https://docs.python.org/3.14/whatsnew/3.14.html#id10)
- https://docs.python.org/3.14/library/asyncio-policy.html
- Affected files:
-   [`webui.py`](webui.py)
-   [`cli/sdapi.py`](cli/sdapi.py)
- Migration:
-   [asyncio.run](https://docs.python.org/3.14/library/asyncio-runner.html#asyncio.run)
-   [asyncio.Runner](https://docs.python.org/3.14/library/asyncio-runner.html#asyncio.Runner)
-
-### rmtree
-
-- `onerror` deprecated and replaced with `onexc` in Python 3.12
-``` python
-    def excRemoveReadonly(func, path, exc: BaseException):
-        import stat
-        shared.log.debug(f'Exception during cleanup: {func} {path} {type(exc).__name__}')
-        if func in (os.rmdir, os.remove, os.unlink) and isinstance(exc, PermissionError):
-            shared.log.debug(f'Retrying cleanup: {path}')
-            os.chmod(path, stat.S_IRWXU | stat.S_IRWXG | stat.S_IRWXO)
-            func(path)
-    # ...
-      try:
-          shutil.rmtree(found.path, ignore_errors=False, onexc=excRemoveReadonly)
-```
-
 ## Code TODO
 
 > npm run todo
- 
-- fc: autodetect distilled based on model
-- fc: autodetect tensor format based on model
-- hypertile: vae breaks when using non-standard sizes
-- install: switch to pytorch source when it becomes available
-- loader: load receipe
-- loader: save receipe
-- lora: add other quantization types
-- lora: add t5 key support for sd35/f1
-- lora: maybe force imediate quantization
-- model load: force-reloading entire model as loading transformers only leads to massive memory usage
-- model load: implement model in-memory caching
-- modernui: monkey-patch for missing tabs.select event
-- modules/lora/lora_extract.py:188:9: W0511: TODO: lora: support pre-quantized flux
-- modules/modular_guiders.py:65:58: W0511: TODO: guiders
-- processing: remove duplicate mask params
-- resize image: enable full VAE mode for resize-latent
+
+```code
+installer.py:TODO rocm: switch to pytorch source when it becomes available
+modules/control/run.py:TODO modernui: monkey-patch for missing tabs.select event
+modules/history.py:TODO: apply metadata, preview, load/save
+modules/image/resize.py:TODO resize image: enable full VAE mode for resize-latent
+modules/lora/lora_apply.py:TODO lora: add other quantization types
+modules/lora/lora_apply.py:TODO lora: maybe force imediate quantization
+modules/lora/lora_extract.py:TODO: lora: support pre-quantized flux
+modules/lora/lora_load.py:TODO lora: add t5 key support for sd35/f1
+modules/masking.py:TODO: additional masking algorithms
+modules/modular_guiders.py:TODO: guiders
+modules/processing_class.py:TODO processing: remove duplicate mask params
+modules/sd_hijack_hypertile.py:TODO hypertile: vae breaks when using non-standard sizes
+modules/sd_models.py:TODO model load: implement model in-memory caching
+modules/sd_samplers_diffusers.py:TODO enso-required
+modules/sd_unet.py:TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage
+modules/transformer_cache.py:TODO fc: autodetect distilled based on model
+modules/transformer_cache.py:TODO fc: autodetect tensor format based on model
+modules/ui_models_load.py:TODO loader: load receipe
+modules/ui_models_load.py:TODO loader: save receipe
+modules/video_models/video_save.py:TODO audio set time-base
+```

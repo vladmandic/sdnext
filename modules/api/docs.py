@@ -10,11 +10,11 @@ def get_swagger_ui_html(*,
                         title: str,
                         swagger_js_url: str = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui-bundle.js",
                         swagger_css_url: str = "https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css",
-                        swagger_extra_css_url: str = None,
+                        swagger_extra_css_url: str | None = None,
                         swagger_favicon_url: str = "https://fastapi.tiangolo.com/img/favicon.png",
-                        oauth2_redirect_url: str = None,
-                        init_oauth: dict = None,
-                        swagger_ui_parameters: dict = None,
+                        oauth2_redirect_url: str | None = None,
+                        init_oauth: dict | None = None,
+                        swagger_ui_parameters: dict | None = None,
                        ) -> HTMLResponse:
     current_swagger_ui_parameters = swagger_ui_default_parameters.copy()
     if swagger_ui_parameters:

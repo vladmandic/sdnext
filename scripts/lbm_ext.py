@@ -1,7 +1,8 @@
 from copy import deepcopy
 from PIL import Image
 import gradio as gr
-from modules import scripts_manager, processing, shared, devices, sd_models
+from modules import scripts_manager, processing, shared, devices
+from modules.logger import log
 
 
 birefnet = None
@@ -29,7 +30,7 @@ ASPECT_RATIOS = {
 }
 
 
-class Script(scripts_manager.Script):
+class LBMScript(scripts_manager.Script):
     def title(self):
         return 'LBM: Latent Bridge Matching'
 
@@ -76,7 +77,7 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessing, lbm_method, lbm_composite, lbm_steps, bg_image): # pylint: disable=arguments-differ, unused-argument
         fg_image = getattr(p, 'init_images', None)
         if fg_image is None or len(fg_image) == 0 or bg_image is None:
-            shared.log.error('LBM: no init images')
+            log.error('LBM: no init images')
             return None
         else:
             fg_image = fg_image[0]
@@ -84,15 +85,15 @@ class Script(scripts_manager.Script):
         from installer import install
         install('lpips')
 
-        from torchvision.transforms import ToPILImage, ToTensor
-        from scripts.lbm import get_model, extract_object, resize_and_center_crop # pylint: disable=no-name-in-module
+        from modules.image import convert
+        from scripts.lbm import extract_object, resize_and_center_crop # pylint: disable=no-name-in-module
 
         ori_h_bg, ori_w_bg = fg_image.size
         ar_bg = ori_h_bg / ori_w_bg
         closest_ar_bg = min(ASPECT_RATIOS, key=lambda x: abs(float(x) - ar_bg))
         dimensions_bg = ASPECT_RATIOS[closest_ar_bg]
 
-        shared.log.info(f'LBM: method={lbm_method} steps={lbm_steps} size={dimensions_bg[0]}x{dimensions_bg[1]}')
+        log.info(f'LBM: method={lbm_method} steps={lbm_steps} size={dimensions_bg[0]}x{dimensions_bg[1]}')
         self.load(lbm_method)
 
         if birefnet:
@@ -110,7 +111,7 @@ class Script(scripts_manager.Script):
         if lbm_method == 'Simple':
             output_image = img_pasted
         else:
-            img_pasted_tensor = ToTensor()(img_pasted).to(device=devices.device, dtype=devices.dtype).unsqueeze(0) * 2 - 1
+            img_pasted_tensor = convert.to_tensor(img_pasted).to(device=devices.device, dtype=devices.dtype).unsqueeze(0) * 2 - 1
             batch = { "source_image": img_pasted_tensor }
             z_source = model.vae.encode(batch[model.source_key])
             output_image = model.sample(
@@ -120,7 +121,7 @@ class Script(scripts_manager.Script):
                 max_samples=1,
             )
             output_image = (output_image[0].clamp(-1, 1).float().cpu() + 1) / 2
-            output_image = ToPILImage()(output_image)
+            output_image = convert.to_pil(output_image)
             if lbm_composite:
                 output_image = Image.composite(output_image, bg_image, fg_mask)
 

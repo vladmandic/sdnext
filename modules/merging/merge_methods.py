@@ -1,10 +1,9 @@
 import math
-from typing import Tuple
 
 import torch
 from torch import Tensor
 
-__all__ = [ # noqa: RUF022
+__all__ = [
     "weighted_sum",
     "weighted_subtraction",
     "tensor_sum",
@@ -151,7 +150,7 @@ def kth_abs_value(a: Tensor, k: int) -> Tensor:
         return torch.kthvalue(torch.abs(a.float()), k)[0]
 
 
-def ratio_to_region(width: float, offset: float, n: int) -> Tuple[int, int, bool]:
+def ratio_to_region(width: float, offset: float, n: int) -> tuple[int, int, bool]:
     if width < 0:
         offset += width
         width = -width
@@ -233,7 +232,7 @@ def ties_add_difference(a: Tensor, b: Tensor, c: Tensor, alpha: float, beta: flo
     delta_filters = (signs == final_sign).float()
 
     res = torch.zeros_like(c, device=c.device)
-    for delta_filter, delta in zip(delta_filters, deltas):
+    for delta_filter, delta in zip(delta_filters, deltas, strict=False):
         res += delta_filter * delta
 
     param_count = torch.sum(delta_filters, dim=0)

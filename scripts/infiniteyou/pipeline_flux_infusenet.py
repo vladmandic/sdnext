@@ -113,12 +113,12 @@ class FluxInfuseNetPipeline(FluxControlNetPipeline):
     @torch.no_grad()
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         prompt_2: Optional[Union[str, List[str]]] = None,
         height: Optional[int] = None,
         width: Optional[int] = None,
         num_inference_steps: int = 28,
-        timesteps: List[int] = None,
+        timesteps: List[int] | None = None,
         guidance_scale: float = 3.5,
         id_image: PipelineImageInput = None,
         controlnet_guidance_scale: float = 1.0,

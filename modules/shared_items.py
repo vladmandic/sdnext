@@ -68,21 +68,6 @@ pipelines = {
 }
 
 
-try:
-    from modules.onnx_impl import initialize_onnx
-    initialize_onnx()
-    onnx_pipelines = {
-        'ONNX Stable Diffusion': getattr(diffusers, 'OnnxStableDiffusionPipeline', None),
-        'ONNX Stable Diffusion Img2Img': getattr(diffusers, 'OnnxStableDiffusionImg2ImgPipeline', None),
-        'ONNX Stable Diffusion Inpaint': getattr(diffusers, 'OnnxStableDiffusionInpaintPipeline', None),
-        'ONNX Stable Diffusion Upscale': getattr(diffusers, 'OnnxStableDiffusionUpscalePipeline', None),
-    }
-except Exception as e:
-    from installer import log
-    log.error(f'ONNX initialization error: {e}')
-    onnx_pipelines = {}
-
-
 def postprocessing_scripts():
     import modules.scripts_manager
     return modules.scripts_manager.scripts_postproc.scripts
@@ -132,12 +117,25 @@ def list_crossattention():
         "Dynamic Attention BMM"
     ]
 
+
 def get_pipelines():
     if hasattr(diffusers, 'OnnxStableDiffusionPipeline') and 'ONNX Stable Diffusion' not in list(pipelines):
+        try:
+            from modules.onnx_impl import initialize_onnx
+            initialize_onnx()
+            onnx_pipelines = {
+                'ONNX Stable Diffusion': getattr(diffusers, 'OnnxStableDiffusionPipeline', None),
+                'ONNX Stable Diffusion Img2Img': getattr(diffusers, 'OnnxStableDiffusionImg2ImgPipeline', None),
+                'ONNX Stable Diffusion Inpaint': getattr(diffusers, 'OnnxStableDiffusionInpaintPipeline', None),
+                'ONNX Stable Diffusion Upscale': getattr(diffusers, 'OnnxStableDiffusionUpscalePipeline', None),
+            }
+        except Exception as e:
+            from modules.logger import log
+            log.error(f'ONNX initialization error: {e}')
+            onnx_pipelines = {}
         pipelines.update(onnx_pipelines)
     for k, v in pipelines.items():
         if k != 'Autodetect' and v is None:
-            from installer import log # pylint: disable=redefined-outer-name
             log.error(f'Model="{k}" diffusers={diffusers.__version__} path={diffusers.__file__} pipeline not available')
     return pipelines
 
@@ -153,3 +151,7 @@ def get_repo(model):
         return 'black-forest-labs/FLUX.1-dev'
     else:
         return None
+
+
+sdnq_quant_modes = ["int8", "int7", "int6", "uint5", "uint4", "uint3", "uint2", "float8_e4m3fn", "float7_e3m3fn", "float6_e3m2fn", "float5_e2m2fn", "float4_e2m1fn", "float3_e1m1fn", "float2_e1m0fn"]
+sdnq_matmul_modes = ["auto", "int8", "float8_e4m3fn", "float16"]

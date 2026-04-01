@@ -130,9 +130,9 @@ process = Map({
     'body_pad': 0.2,  # pad body image percentage
     'body_model': 2, # body model to use 0/low 1/medium 2/high
     # similarity detection settings
-    # interrogate settings
-    'interrogate': False, # interrogate images
-    'interrogate_model': ['clip', 'deepdanbooru'], # interrogate models
+    # caption settings
+    'caption': False, # caption images
+    'caption_model': ['clip', 'deepdanbooru'], # caption models
     'tag_limit': 5, # number of tags to extract
     # validations
     # tbd

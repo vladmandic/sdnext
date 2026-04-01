@@ -14,7 +14,8 @@
 
 
 import math
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any
+from collections.abc import Callable
 
 import cv2
 import numpy as np
@@ -544,40 +545,40 @@ class StableDiffusionXLInstantIDPipeline(StableDiffusionXLControlNetPipeline):
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
-        prompt_2: Optional[Union[str, List[str]]] = None,
-        image: PipelineImageInput = None,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
+        prompt: str | list[str] | None = None,
+        prompt_2: str | list[str] | None = None,
+        image: PipelineImageInput | None = None,
+        height: int | None = None,
+        width: int | None = None,
         num_inference_steps: int = 50,
         guidance_scale: float = 5.0,
-        negative_prompt: Optional[Union[str, List[str]]] = None,
-        negative_prompt_2: Optional[Union[str, List[str]]] = None,
-        num_images_per_prompt: Optional[int] = 1,
+        negative_prompt: str | list[str] | None = None,
+        negative_prompt_2: str | list[str] | None = None,
+        num_images_per_prompt: int | None = 1,
         eta: float = 0.0,
-        generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
-        latents: Optional[torch.FloatTensor] = None,
-        prompt_embeds: Optional[torch.FloatTensor] = None,
-        negative_prompt_embeds: Optional[torch.FloatTensor] = None,
-        pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
-        negative_pooled_prompt_embeds: Optional[torch.FloatTensor] = None,
-        image_embeds: Optional[torch.FloatTensor] = None,
-        output_type: Optional[str] = "pil",
+        generator: torch.Generator | list[torch.Generator] | None = None,
+        latents: torch.FloatTensor | None = None,
+        prompt_embeds: torch.FloatTensor | None = None,
+        negative_prompt_embeds: torch.FloatTensor | None = None,
+        pooled_prompt_embeds: torch.FloatTensor | None = None,
+        negative_pooled_prompt_embeds: torch.FloatTensor | None = None,
+        image_embeds: torch.FloatTensor | None = None,
+        output_type: str | None = "pil",
         return_dict: bool = True,
-        cross_attention_kwargs: Optional[Dict[str, Any]] = None,
-        controlnet_conditioning_scale: Union[float, List[float]] = 1.0,
+        cross_attention_kwargs: dict[str, Any] | None = None,
+        controlnet_conditioning_scale: float | list[float] = 1.0,
         guess_mode: bool = False,
-        control_guidance_start: Union[float, List[float]] = 0.0,
-        control_guidance_end: Union[float, List[float]] = 1.0,
-        original_size: Tuple[int, int] = None,
-        crops_coords_top_left: Tuple[int, int] = (0, 0),
-        target_size: Tuple[int, int] = None,
-        negative_original_size: Optional[Tuple[int, int]] = None,
-        negative_crops_coords_top_left: Tuple[int, int] = (0, 0),
-        negative_target_size: Optional[Tuple[int, int]] = None,
-        clip_skip: Optional[int] = None,
-        callback_on_step_end: Optional[Callable[[int, int, Dict], None]] = None,
-        callback_on_step_end_tensor_inputs: List[str] = None,
+        control_guidance_start: float | list[float] = 0.0,
+        control_guidance_end: float | list[float] = 1.0,
+        original_size: tuple[int, int] | None = None,
+        crops_coords_top_left: tuple[int, int] = (0, 0),
+        target_size: tuple[int, int] | None = None,
+        negative_original_size: tuple[int, int] | None = None,
+        negative_crops_coords_top_left: tuple[int, int] = (0, 0),
+        negative_target_size: tuple[int, int] | None = None,
+        clip_skip: int | None = None,
+        callback_on_step_end: Callable[[int, int, dict], None] | None = None,
+        callback_on_step_end_tensor_inputs: list[str] | None = None,
         **kwargs,
     ):
         r"""
@@ -890,7 +891,7 @@ class StableDiffusionXLInstantIDPipeline(StableDiffusionXLControlNetPipeline):
         for i in range(len(timesteps)):
             keeps = [
                 1.0 - float(i / len(timesteps) < s or (i + 1) / len(timesteps) > e)
-                for s, e in zip(control_guidance_start, control_guidance_end)
+                for s, e in zip(control_guidance_start, control_guidance_end, strict=False)
             ]
             controlnet_keep.append(keeps[0] if isinstance(controlnet, ControlNetModel) else keeps)
 
@@ -970,7 +971,7 @@ class StableDiffusionXLInstantIDPipeline(StableDiffusionXLControlNetPipeline):
                     controlnet_added_cond_kwargs = added_cond_kwargs
 
                 if isinstance(controlnet_keep[i], list):
-                    cond_scale = [c * s for c, s in zip(controlnet_conditioning_scale, controlnet_keep[i])]
+                    cond_scale = [c * s for c, s in zip(controlnet_conditioning_scale, controlnet_keep[i], strict=False)]
                 else:
                     controlnet_cond_scale = controlnet_conditioning_scale
                     if isinstance(controlnet_cond_scale, list):

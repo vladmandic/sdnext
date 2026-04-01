@@ -1,4 +1,3 @@
-from typing import Optional
 from fastapi.exceptions import HTTPException
 import gradio as gr
 from modules.api import models
@@ -30,13 +29,15 @@ def get_selectable_script(script_name, script_runner):
 
 
 def get_scripts_list():
+    """List available scripts grouped by pipeline (txt2img, img2img, control)."""
     t2ilist = [script.name for script in scripts_manager.scripts_txt2img.scripts if script.name is not None]
     i2ilist = [script.name for script in scripts_manager.scripts_img2img.scripts if script.name is not None]
     control = [script.name for script in scripts_manager.scripts_control.scripts if script.name is not None]
     return models.ResScripts(txt2img = t2ilist, img2img = i2ilist, control = control)
 
 
-def get_script_info(script_name: Optional[str] = None):
+def get_script_info(script_name: str | None = None):
+    """Return detailed info for scripts including their UI arguments. Optionally filter by script name."""
     res = []
     for script_list in [scripts_manager.scripts_txt2img.scripts, scripts_manager.scripts_img2img.scripts, scripts_manager.scripts_control.scripts]:
         for script in script_list:

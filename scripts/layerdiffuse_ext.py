@@ -1,8 +1,9 @@
 import gradio as gr
 from modules import shared, scripts_manager, sd_models
+from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class LayerDiffuseScript(scripts_manager.Script):
 
     def title(self):
         return 'LayerDiffuse: Transparent Image'
@@ -13,13 +14,13 @@ class Script(scripts_manager.Script):
     def apply(self):
         from scripts import layerdiffuse # pylint: disable=no-name-in-module
         if not shared.sd_loaded:
-            shared.log.error('LayerDiffuse: model not loaded')
+            log.error('LayerDiffuse: model not loaded')
             return self.is_active()
         if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
-            shared.log.error(f'LayerDiffuse: incorrect base model: class={shared.sd_model.__class__.__name__} type={shared.sd_model_type}')
+            log.error(f'LayerDiffuse: incorrect base model: class={shared.sd_model.__class__.__name__} type={shared.sd_model_type}')
             return self.is_active()
         if hasattr(shared.sd_model, 'layerdiffusion'):
-            shared.log.warning('LayerDiffuse: already applied')
+            log.warning('LayerDiffuse: already applied')
             return self.is_active()
         layerdiffuse.apply_layerdiffuse()
         return self.is_active()

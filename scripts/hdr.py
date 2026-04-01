@@ -4,11 +4,12 @@ import numpy as np
 import gradio as gr
 from PIL import Image
 from modules import images, processing, shared, scripts_manager
+from modules.logger import log
 from modules.processing import get_processed
 from modules.shared import opts, state
 
 
-class Script(scripts_manager.Script):
+class HDRScript(scripts_manager.Script):
     def title(self):
         return "HDR: High Dynamic Range"
 
@@ -34,7 +35,7 @@ class Script(scripts_manager.Script):
         return [gr.update(visible=is_tonemap), gr.update(visible=is_tonemap), gr.update(visible=is_tonemap)]
 
     def merge(self, imgs: list, is_tonemap: bool, gamma, scale, saturation):
-        shared.log.info(f'HDR: merge images={len(imgs)} tonemap={is_tonemap} sgamma={gamma} scale={scale} saturation={saturation}')
+        log.info(f'HDR: merge images={len(imgs)} tonemap={is_tonemap} sgamma={gamma} scale={scale} saturation={saturation}')
         imgs_np = [np.asarray(img).astype(np.uint8) for img in imgs]
 
         align = cv2.createAlignMTB()
@@ -58,12 +59,12 @@ class Script(scripts_manager.Script):
 
     def run(self, p, hdr_range, save_hdr, is_tonemap, gamma, scale, saturation): # pylint: disable=arguments-differ
         if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
-            shared.log.error(f'HDR: incorrect base model: {shared.sd_model.__class__.__name__}')
+            log.error(f'HDR: incorrect base model: {shared.sd_model.__class__.__name__}')
             return None
         p.extra_generation_params = {
             "HDR range": hdr_range,
         }
-        shared.log.info(f'HDR: range={hdr_range}')
+        log.info(f'HDR: range={hdr_range}')
         processing.fix_seed(p)
         imgs = []
         info = ''
@@ -89,7 +90,7 @@ class Script(scripts_manager.Script):
                 fn = os.path.splitext(saved_fn)[0] + '-hdr.png'
                 # cv2.imwrite(fn, hdr, [cv2.IMWRITE_PNG_COMPRESSION, 6, cv2.IMWRITE_PNG_STRATEGY, cv2.IMWRITE_PNG_STRATEGY_HUFFMAN_ONLY, cv2.IMWRITE_HDR_COMPRESSION, cv2.IMWRITE_HDR_COMPRESSION_RLE])
                 cv2.imwrite(fn, hdr)
-                shared.log.debug(f'Save: image="{fn}" type=PNG mode=HDR channels=16 size={os.path.getsize(fn)}')
+                log.debug(f'Save: image="{fn}" type=PNG mode=HDR channels=16 size={os.path.getsize(fn)}')
             # if opts.grid_save:
             #    images.save_image(grid, p.outpath_grids, "grid", p.seed, p.prompt, opts.grid_format, info=processed.info, grid=True, p=p)
             grid = [images.image_grid(imgs, rows=1)] if opts.return_grid else []

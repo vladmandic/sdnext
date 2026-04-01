@@ -1,5 +1,6 @@
 import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
+from modules.logger import log
 
 
 def load_omnigen(checkpoint_info, diffusers_load_config=None): # pylint: disable=unused-argument
@@ -9,7 +10,7 @@ def load_omnigen(checkpoint_info, diffusers_load_config=None): # pylint: disable
     sd_models.hf_auth_check(checkpoint_info)
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    shared.log.debug(f'Load model: type=OmniGen repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
+    log.debug(f'Load model: type=OmniGen repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
     transformer = diffusers.OmniGenTransformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",
@@ -45,7 +46,7 @@ def load_omnigen2(checkpoint_info, diffusers_load_config=None): # pylint: disabl
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    shared.log.debug(f'Load model: type=OmniGen2 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
+    log.debug(f'Load model: type=OmniGen2 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
     transformer = OmniGen2Transformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",

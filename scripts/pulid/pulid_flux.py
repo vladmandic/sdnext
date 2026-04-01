@@ -2,11 +2,12 @@ from types import MethodType
 import accelerate
 from diffusers import FluxPipeline
 from modules import shared, sd_models
+from modules.logger import log
 
 
 def apply_flux(pipe: FluxPipeline):
     if not hasattr(pipe, 'transformer') or not 'Nunchaku' in pipe.transformer.__class__.__name__:
-        shared.log.error('PuLID: flux support requires nunchaku')
+        log.error('PuLID: flux support requires nunchaku')
         return pipe
 
     from nunchaku.pipeline.pipeline_flux_pulid import PuLIDFluxPipeline
@@ -19,7 +20,7 @@ def apply_flux(pipe: FluxPipeline):
         pipe.transformer.forward = MethodType(pulid_forward, pipe.transformer)
         pipe = sd_models.apply_balanced_offload(pipe)
         pipe.pulid_model = sd_models.apply_balanced_offload(pipe.pulid_model)
-        shared.log.info(f'PuLID: flux applied cls={pipe.__class__.__name__} pipe={pipe.pulid_model.__class__.__name__}')
+        log.info(f'PuLID: flux applied cls={pipe.__class__.__name__} pipe={pipe.pulid_model.__class__.__name__}')
     return pipe
 
 

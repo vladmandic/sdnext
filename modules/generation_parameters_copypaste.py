@@ -5,14 +5,15 @@ import os
 from PIL import Image
 import gradio as gr
 from modules import shared, gr_tempdir, script_callbacks, images
-from modules.infotext import parse, mapping, quote, unquote # pylint: disable=unused-import
+from modules.logger import log
+from modules.infotext import parse, mapping # pylint: disable=unused-import
 
 
 type_of_gr_update = type(gr.update())
 paste_fields: dict[str, dict] = {}
 field_names = {}
 registered_param_bindings: list[ParamBinding] = []
-debug = shared.log.trace if os.environ.get('SD_PASTE_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_PASTE_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: PASTE')
 parse_generation_parameters = parse # compatibility
 infotext_to_setting_name_mapping = mapping # compatibility
@@ -50,7 +51,7 @@ def image_from_url_text(filedata):
         if is_in_right_dir:
             filename = filename.rsplit('?', 1)[0]
             if not os.path.exists(filename):
-                shared.log.error(f'Image file not found: {filename}')
+                log.error(f'Image file not found: {filename}')
                 image = Image.new('RGB', (512, 512))
                 image.info['parameters'] = f'Image file not found: {filename}'
                 return image
@@ -59,14 +60,14 @@ def image_from_url_text(filedata):
             image.info['parameters'] = geninfo
             return image
         else:
-            shared.log.warning(f'File access denied: {filename}')
+            log.warning(f'File access denied: {filename}')
             return None
     if type(filedata) == list:
         if len(filedata) == 0:
             return None
         filedata = filedata[0]
     if not isinstance(filedata, str):
-        shared.log.warning('Incorrect filedata received')
+        log.warning('Incorrect filedata received')
         return None
     if filedata.startswith("data:image/png;base64,"):
         filedata = filedata[len("data:image/png;base64,"):]
@@ -88,7 +89,7 @@ def add_paste_fields(tabname: str, init_img: gr.Image | gr.HTML | None, fields: 
     try:
         field_names[tabname] = [f[1] for f in fields if f[1] is not None and not callable(f[1])] if fields is not None else [] # tuple (component, label)
     except Exception as e:
-        shared.log.error(f"Paste fields: tab={tabname} fields={fields} {e}")
+        log.error(f"Paste fields: tab={tabname} fields={fields} {e}")
         field_names[tabname] = []
 
     # Build param_aliases automatically from component labels and elem_ids
@@ -259,13 +260,13 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
         from modules.paths import params_path
         if prompt is None or len(prompt.strip()) == 0:
             if os.path.exists(params_path):
-                with open(params_path, "r", encoding="utf8") as file:
+                with open(params_path, encoding="utf8") as file:
                     prompt = file.read()
-                shared.log.debug(f'Prompt parse: type="params" prompt="{prompt}"')
+                log.debug(f'Prompt parse: type="params" prompt="{prompt}"')
             else:
                 prompt = ''
         else:
-            shared.log.debug(f'Prompt parse: type="current" prompt="{prompt}"')
+            log.debug(f'Prompt parse: type="current" prompt="{prompt}"')
         params = parse(prompt)
         script_callbacks.infotext_pasted_callback(prompt, params)
         res = []
@@ -306,10 +307,10 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                     res.append(gr.update(value=val))
                     applied[key] = val
                 except Exception as e:
-                    shared.log.error(f'Paste param: key="{key}" value="{v}" error="{e}"')
+                    log.error(f'Paste param: key="{key}" value="{v}" error="{e}"')
                     res.append(gr.update())
         list_applied = [{k: v} for k, v in applied.items() if not callable(v) and not callable(k)]
-        shared.log.debug(f"Prompt restore: apply={list_applied} skip={skipped}")
+        log.debug(f"Prompt restore: apply={list_applied} skip={skipped}")
         return res
 
     if override_settings_component is not None:
@@ -338,7 +339,7 @@ def connect_paste(button, local_paste_fields, input_comp, override_settings_comp
                 vals[param_name] = v
             vals_pairs = [f"{k}: {v}" for k, v in vals.items()]
             if len(vals_pairs) > 0:
-                shared.log.debug(f'Settings overrides: {vals_pairs}')
+                log.debug(f'Settings overrides: {vals_pairs}')
             return gr.Dropdown.update(value=vals_pairs, choices=vals_pairs, visible=len(vals_pairs) > 0)
 
         local_paste_fields = local_paste_fields + [(override_settings_component, paste_settings)]

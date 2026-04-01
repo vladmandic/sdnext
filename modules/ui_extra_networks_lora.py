@@ -2,6 +2,7 @@ import os
 import json
 import concurrent
 from modules import shared, ui_extra_networks, modelstats
+from modules.logger import log
 from modules.lora import lora_load
 
 
@@ -64,15 +65,23 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         clean_tags.pop('dataset', None)
         return clean_tags
 
+    _VERSION_DISPLAY = {
+        'f1': 'Flux', 'sd1': 'SD 1.5', 'sd2': 'SD 2', 'xl': 'SDXL',
+        'sd3': 'SD3', 'sc': 'Cascade', 'hv': 'HunyuanVideo',
+        'chroma': 'Chroma', 'zimage': 'zImage', 'qwen': 'Qwen',
+    }
+
     def cleanup_version(self, dct, lora):
         ver = dct.get("baseModel", lora.sd_version)
-        ver = ver.replace(' 0.9', '').replace(' 1.0', '').replace(' ', '')
+        ver = self._VERSION_DISPLAY.get(ver, ver)
+        for suffix in (' 0.9', ' 1.0'):  # strip uninformative minor versions
+            ver = ver.replace(suffix, '')
         return ver
 
     def create_item(self, name):
         l = lora_load.available_networks.get(name)
         if l is None:
-            shared.log.warning(f'Networks: type=lora registered={len(list(lora_load.available_networks))} file="{name}" not registered')
+            log.warning(f'Networks: type=lora registered={len(list(lora_load.available_networks))} file="{name}" not registered')
             return None
         try:
             # path, _ext = os.path.splitext(l.filename)
@@ -97,7 +106,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
             }
             return item
         except Exception as e:
-            shared.log.error(f'Networks: type=lora file="{name}" {e}')
+            log.error(f'Networks: type=lora file="{name}" {e}')
             if debug:
                 from modules import errors
                 errors.display(e, 'Lora')

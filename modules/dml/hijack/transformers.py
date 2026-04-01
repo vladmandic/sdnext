@@ -1,4 +1,3 @@
-from typing import Optional
 import torch
 import transformers.models.clip.modeling_clip
 
@@ -22,9 +21,9 @@ def _make_causal_mask(
 
 def CLIPTextEmbeddings_forward(
     self: transformers.models.clip.modeling_clip.CLIPTextEmbeddings,
-    input_ids: Optional[torch.LongTensor] = None,
-    position_ids: Optional[torch.LongTensor] = None,
-    inputs_embeds: Optional[torch.FloatTensor] = None,
+    input_ids: torch.LongTensor | None = None,
+    position_ids: torch.LongTensor | None = None,
+    inputs_embeds: torch.FloatTensor | None = None,
 ) -> torch.Tensor:
     from modules.devices import dtype
     seq_length = input_ids.shape[-1] if input_ids is not None else inputs_embeds.shape[-2]

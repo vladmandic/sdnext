@@ -1,4 +1,3 @@
-from typing import List
 import os
 from modules.lora import lora_timers
 from modules.lora import network_lora, network_hada, network_ia3, network_oft, network_lokr, network_full, network_norm, network_glora
@@ -16,6 +15,6 @@ module_types = [
     network_norm.ModuleTypeNorm(),
     network_glora.ModuleTypeGLora(),
 ]
-loaded_networks: List = [] # no type due to circular import
-previously_loaded_networks: List = [] # no type due to circular import
+loaded_networks: list = [] # no type due to circular import
+previously_loaded_networks: list = [] # no type due to circular import
 extra_network_lora = None # initialized in extra_networks.py

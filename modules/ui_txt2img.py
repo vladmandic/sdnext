@@ -1,10 +1,11 @@
 import gradio as gr
 from modules import timer, shared, call_queue, generation_parameters_copypaste, processing_vae, images
 from modules import ui_common, ui_sections, ui_guidance
+from modules.logger import log
 
 
 def create_ui():
-    shared.log.debug('UI initialize: tab=txt2img')
+    log.debug('UI initialize: tab=txt2img')
     import modules.txt2img # pylint: disable=redefined-outer-name
     modules.scripts_manager.scripts_current = modules.scripts_manager.scripts_txt2img
     modules.scripts_manager.scripts_txt2img.initialize_scripts(is_img2img=False, is_control=False)
@@ -34,7 +35,8 @@ def create_ui():
                     seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('txt2img')
                     guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_guidance.create_guidance_inputs('txt2img')
                     vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('txt2img')
-                    hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('txt2img')
+                    grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_file, grading_lut_strength = ui_sections.create_color_inputs('txt2img')
+                    hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires = ui_sections.create_latent_inputs('txt2img')
                     enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('txt2img')
                     detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution  = shared.yolo.ui('txt2img')
                     override_settings = ui_common.create_override_inputs('txt2img')
@@ -64,7 +66,11 @@ def create_ui():
                 enable_hr, hr_denoising_strength,
                 hr_scale, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_resize_x, hr_resize_y,
                 refiner_steps, refiner_start, refiner_prompt, refiner_negative,
-                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio,
+                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires,
+                grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp,
+                grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid,
+                grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance,
+                grading_vignette, grading_grain, grading_lut_file, grading_lut_strength,
                 override_settings,
             ]
             txt2img_dict = dict(

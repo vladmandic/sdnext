@@ -4,6 +4,7 @@ import diffusers
 from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 from modules import shared, devices
+from modules.logger import log
 
 
 decoder_id = "ostris/vae-kl-f8-d16"
@@ -16,7 +17,7 @@ def load_vae(pipe):
     elif shared.sd_model_type == 'sdxl':
         adapter_file = "16ch-VAE-Adapter-SDXL-alpha_v02.safetensors"
     else:
-        shared.log.error('VAE: type=osiris unsupported model type')
+        log.error('VAE: type=osiris unsupported model type')
         return
     t0 = time.time()
     ckpt_file = hf_hub_download(adapter_id, adapter_file, cache_dir=shared.opts.hfcache_dir)
@@ -38,4 +39,4 @@ def load_vae(pipe):
 
     pipe.vae = diffusers.AutoencoderKL.from_pretrained(decoder_id, torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir)
     t1 = time.time()
-    shared.log.info(f'VAE load: type=osiris decoder="{decoder_id}" adapter="{adapter_id}" time={t1-t0:.2f}s')
+    log.info(f'VAE load: type=osiris decoder="{decoder_id}" adapter="{adapter_id}" time={t1-t0:.2f}s')

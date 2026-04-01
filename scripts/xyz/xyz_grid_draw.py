@@ -1,13 +1,16 @@
 import time
 from copy import copy
 from PIL import Image
+from modules.image.grid import GridAnnotation
 from modules import shared, images, processing
+from modules.logger import log
+from modules.image.util import draw_text
 
 
 def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend, include_lone_images, include_sub_grids, first_axes_processed, second_axes_processed, margin_size, no_grid: False, include_time: False, include_text: False): # pylint: disable=unused-argument
-    x_texts = [[images.GridAnnotation(x)] for x in x_labels]
-    y_texts = [[images.GridAnnotation(y)] for y in y_labels]
-    z_texts = [[images.GridAnnotation(z)] for z in z_labels]
+    x_texts = [[GridAnnotation(x)] for x in x_labels]
+    y_texts = [[GridAnnotation(y)] for y in y_labels]
+    z_texts = [[GridAnnotation(z)] for z in z_labels]
     list_size = (len(xs) * len(ys) * len(zs))
     processed_result = None
 
@@ -17,7 +20,7 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
     def process_cell(x, y, z, ix, iy, iz):
         nonlocal processed_result, i
         i += 1
-        shared.log.debug(f'XYZ grid process: x={ix+1}/{len(xs)} y={iy+1}/{len(ys)} z={iz+1}/{len(zs)} total={i/list_size:.2f}')
+        log.debug(f'XYZ grid process: x={ix+1}/{len(xs)} y={iy+1}/{len(ys)} z={iz+1}/{len(zs)} total={i/list_size:.2f}')
 
         def index(ix, iy, iz):
             return ix + iy * len(xs) + iz * len(xs) * len(ys)
@@ -28,7 +31,7 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
         if processed_result is None:
             processed_result = copy(processed)
             if processed_result is None:
-                shared.log.error('XYZ grid: no processing results')
+                log.error('XYZ grid: no processing results')
                 return processing.Processed(p, [])
             processed_result.images = [None] * list_size
             processed_result.all_prompts = [None] * list_size
@@ -50,7 +53,7 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
             if include_time:
                 overlay_text += f'Time: {elapsed:.2f}'
             if len(overlay_text) > 0:
-                processed_result.images[idx] = images.draw_overlay(processed_result.images[idx], overlay_text)
+                processed_result.images[idx] = draw_text(processed_result.images[idx], overlay_text)
             processed_result.all_prompts[idx] = processed.prompt
             processed_result.all_seeds[idx] = processed.seed
             processed_result.infotexts[idx] = processed.infotexts[0]
@@ -96,10 +99,10 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
                         process_cell(x, y, z, ix, iy, iz)
 
     if not processed_result:
-        shared.log.error("XYZ grid: failed to initialize processing")
+        log.error("XYZ grid: failed to initialize processing")
         return processing.Processed(p, [])
     elif not any(processed_result.images):
-        shared.log.error("XYZ grid: failed to return processed image")
+        log.error("XYZ grid: failed to return processed image")
         return processing.Processed(p, [])
 
     t1 = time.time()
@@ -110,7 +113,7 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
         to_process = processed_result.images[idx0:idx1]
         w, h = max(i.width for i in to_process if i is not None), max(i.height for i in to_process if i is not None)
         if w is None or h is None or w == 0 or h == 0:
-            shared.log.error("XYZ grid: failed get valid image")
+            log.error("XYZ grid: failed get valid image")
             continue
         if (not no_grid or include_sub_grids) and images.check_grid_size(to_process):
             grid = images.image_grid(to_process, rows=len(ys))
@@ -128,6 +131,6 @@ def draw_xyz_grid(p, xs, ys, zs, x_labels, y_labels, z_labels, cell, draw_legend
         processed_result.infotexts.insert(0, processed_result.infotexts[0])
 
     t2 = time.time()
-    shared.log.info(f'XYZ grid complete: images={list_size} results={len(processed_result.images)} size={grid.size if grid is not None else None} time={t1-t0:.2f} save={t2-t1:.2f}')
+    log.info(f'XYZ grid complete: images={list_size} results={len(processed_result.images)} size={grid.size if grid is not None else None} time={t1-t0:.2f} save={t2-t1:.2f}')
     p.skip_processing = True
     return processed_result

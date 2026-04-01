@@ -1,28 +1,211 @@
 # Change Log for SD.Next
 
-## Update for 2026-02-07
+## Update for 2026-04-01
 
-- **Upscalers**
-  - add support for [spandrel](https://github.com/chaiNNer-org/spandrel)  
-    upscaling engine with suport for new upscaling model families  
-  - add two new ai upscalers: *RealPLKSR NomosWebPhoto* and *RealPLKSR AnimeSharpV2*  
-  - add two new interpolation methods: *HQX* and *ICB*  
+### Highlights for 2026-04-01
+
+This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
+And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV* image models and *LTX 2.3* video model  
+
+If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download [exe or zip](https://github.com/vladmandic/sdnext-launcher/releases) and done!  
+
+And we have a new (optional) React-based **UI** [Enso](https://github.com/CalamitousFelicitousness/enso)!  
+
+*What else*? Really a lot!  
+New color grading module, updated localization with new languages and improved translations, new CivitAI integration module, new finetunes loader, several new upscalers, improvements to LLM/VLM in captioning and prompt enhance, a lot of new control preprocessors, new realtime server info panel, some new UI themes  
+And major work on API hardening: *security, rate limits, secrets handling, new endpoints*, etc.  
+But also many smaller quality-of-life improvements - for full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
+
+*Note*: Purely due to size of changes, clean install is recommended!  
+Just how big? Some stats: *~530 commits over 880 files*  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-04-01
+
+- **Models**
+  - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
+  - [FireRed Image Edit](https://huggingface.co/FireRedTeam/FireRed-Image-Edit-1.0) *1.0 and 1.1*  
+    *Note*: FireRed is a fine-tune of Qwen-Image-Edit regardless of its claim as a new base-model  
+  - [Skyworks UniPic-3](https://huggingface.co/Skywork/Unipic3), *Consistency and DMD* variants to reference/community section  
+    *Note*: UniPic-3 is a fine-tune of Qwen-Image-Edit with new distillation regardless of its claim of major changes  
+  - [Anima Preview-v2](https://huggingface.co/circlestone-labs/Anima)  
+  - [FLUX.2-Klein-KV](https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-kv), thanks @liutyi  
+  - [LTX-Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) in *Full and Distilled* variants and in both original *FP16 and SDNQ-4bit* quantiztion  
+    *note* ltx-2.3 is a massive 22B parameters and full model is very large (72GB) so use of pre-quantized variant (32GB) is highly recommended  
+- **Image manipulation**
+  - new **Color grading** module  
+    apply basic corrections to your images: brightness,contrast,saturation,shadows,highlights  
+    move to professional photo corrections: hue,gamma,sharpness,temperature  
+    correct tone: shadows,midtones,highlights  
+    add effects: vignette,grain  
+    apply professional lut-table using .cube file  
+    *hint* color grading is available as step during generate or as processing item for already existing images  
+  - **Upscaling**  
+    add support for [spandrel](https://github.com/chaiNNer-org/spandrel) engine with suport for new upscaling model families  
+    add two new ai upscalers: *RealPLKSR NomosWebPhoto* and *RealPLKSR AnimeSharpV2*  
+    add two new **interpolation** methods: *HQX* and *ICB*  
+    use high-quality [sharpfin](https://github.com/drhead/Sharpfin) accelerated library  
+    extend `chainner` support for additional models  
+  - update **Latent corrections** *(former HDR Corrections)*  
+    expand allowed models  
+- **Captioning / Prompt Enhance**
+  - new models: **Qwen-3.5**, **Mistral-3** in multiple variations  
+  - new models: multiple *heretic* and *abliterated* finetunes for **Qwen, Gemma, Mistral**  
+  - **captioning** and **prompt enhance**: add support for all cloud-based Gemini models  
+    *3.1/3.0/2.5 pro/flash/flash-lite*  
+  - improve captioning and prompt enhance memory handling/offloading  
 - **Features**
-  - pipelines: add **ZImageInpaint**, thanks @CalamitousFelicitousness  
-  - add `--remote` command line flag that reduces client/server chatter and improves link stability  
-    for long-running generates, useful when running on remote servers  
+  - **Secrets** handling: new `secrets.json` and special handling for tokens/keys/passwords  
+    used to be treated like any other `config.json` param which can cause security issues  
+  - **Control**: many new **pre-processors**  
+    *anyline, depth_anything v2, dsine, lotus, marigold normals, oneformer, rtmlib pose, sam2, stablenormal, teed, vitpose*  
+  - pipelines: add **ZImageInpaint**  
+  - rewritten **CivitAI** module  
+    browse/discover mode with sort, period, type/base dropdowns; URL paste; subfolder sorting; auto-browse; dynamic dropdowns  
+  - **HiRes**: allow using different lora in refiner prompt  
+  - **Nunchaku** models are now listed in networks tab as reference models  
+    instead of being used implicitly via quantization  
+  - improve image **Metadata** parser for foreign metadata (e.g. XMP)  
+  - new **CeeTeeDees image-to-image batch inference**, thanks @resonantsky  
+    available in *main interface -> scripts*  
+- **Compute**
+  - **ROCm** advanced configuration and tuning, thanks @resonantsky  
+    see *main interface -> scripts -> rocm advanced config*  
+  - **ROCm** support for additional AMD GPUs: `gfx103X`, thanks @crashingalexsan  
+  - **Cuda** update to `torch=2.11` with `cuda=13.0`  
+  - **Ipex** update to `torch==2.11`  
+  - **ROCm/Linux** update to `torch==2.11` with `rocm==7.2`  
+  - **OpenVINO** update to `torch==2.11` and `openvino==2026.0`
+  - *note* **Cuda** `torch==2.10` removed support for `rtx1000` series and older GPUs  
+    use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
+    > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
+  - *note* **Cuda** `cuda==13.0` requires newer nVidia drivers  
+      use following before first startup to force installation of `torch==2.11.0` with `cuda==12.68`:  
+    > `set TORCH_COMMAND='torch torchvision --index-url https://download.pytorch.org/whl/cu128`  
+  - update installer and support `nunchaku==1.2.1`
 - **UI**
-  - ui: **themes** add *CTD-NT64Light* and *CTD-NT64Dark*, thanks @resonantsky  
-  - ui: **gallery** add option to auto-refresh gallery, thanks @awsr  
+  - **Enso** new React-based UI, developed by @CalamitousFelicitousness!  
+    with WYSIWYG infinite canvas workspace, command palette, and numerous quality of life improvements across the board  
+    enable using `--enso` flag and access using `/enso` endpoint (e.g. <http://localhost:7860/enso>)  
+    see [Enso Docs](https://vladmandic.github.io/sdnext-docs/Enso/) and [Enso Home](https://github.com/CalamitousFelicitousness/enso) for details  
+    *note* Enso is work-in-progress and alpha-ready  
+  - legacy panels **T2I** and **I2I** are disabled by default
+    you can re-enable them in *settings -> ui -> hide legacy tabs*  
+  - new panel: **Server Info** with detailed runtime informaton  
+  - rename **Scripts** to **Extras** and reorganize to split internal functionality vs external extensions  
+  - **Networks** add **UNet/DiT**  
+  - **Localization** improved translation quality and new translations locales:  
+    *en, en1, en2, en3, en4, hr, es, it, fr, de, pt, ru, zh, ja, ko, hi, ar, bn, ur, id, vi, tr, sr, po, he, xx, yy, qq, tlh*  
+    yes, this now includes stuff like *latin, esperanto, arabic, hebrew, klingon* and a lot more!  
+    and also introduce some pseudo-locales such as: *techno-babbel*, *for-n00bs*  
+    *hint*: click on locale icon in bottom-left corner to cycle through available locales, or set default in *settings -> ui*  
+  - **Server settings** new section in *settings*  
+  - **Kanvas** add paste image from clipboard  
+  - **Themes** add *CTD-NT64Light*, *CTD-NT64Medium* and *CTD-NT64Dark*, thanks @resonantsky  
+  - **Themes** add *Vlad-Neomorph*  
+  - **Gallery** add option to auto-refresh gallery, thanks @awsr  
+  - **Token counters** add per-section display for supported models, thanks @awsr  
+  - **Colour grading** add hints for all the functions
+- **Docs / Wiki**  
+  - updates to to compute sections: *AMD-ROCm, AMD-MIOpen, ZLUDA, OpenVINO, nVidia*  
+  - updates to core sections: *Installation, Python, Schedulers, Launcher, SDNQ, Video*
+  - added Enso page
+- **API**
+  - prototype **v2 API** (`/sdapi/v2/`)
+    job-based generation with queue, per-job WebSocket progress, file uploads with TTL, model/network enumeration  
+    and a plethora of other improvements *(work-in-progress)*  
+    for the time being ships with Enso, which must be enabled wih `--enso` flag on startup for v2 API to be available  
+  - **rate limiting**: global for all endpoints, guards against abuse and denial-of-service type of attacks
+    configurable in *settings -> server settings*  
+  - new `/sdapi/v1/upload` endpoint with support for both POST with form-data or PUT using raw-bytes  
+  - new `/sdapi/v1/torch` endpoint for torch info (backend, version, etc.)  
+  - new `/sdapi/v1/gpu` endpoint for GPU info  
+  - new `/sdapi/v1/rembg` endpoint for background removal  
+  - new `/sdapi/v1/unet` endpoint to list available unets/dits  
+  - use rate limiting for api logging  
+- **Obsoleted**
+  - removed support for additional quantization engines: *BitsAndBytes, TorchAO, Optimum-Quanto, NNCF*  
+    *note*: SDNQ is quantization engine of choice for SD.Next  
+  - removed `flux_enhance` script  
 - **Internal**
-  - refactor: reorganize `cli` scripts  
+  - `python==3.13` full support  
+  - `python==3.14` initial support  
+    see [docs](https://vladmandic.github.io/sdnext-docs/Python/) for details  
+  - remove hard-dependnecies:  
+    `clip, numba, skimage, torchsde, omegaconf, antlr, patch-ng, patch-ng, astunparse, addict, inflection, jsonmerge, kornia`,  
+    `resize-right, voluptuous, yapf, sqlalchemy, invisible-watermark, pi-heif, ftfy, blendmodes, PyWavelets, imp`  
+    these are now installed on-demand when needed  
+  - bump `huggingface_hub==1.5.0`  
+  - bump `transformers==5.3.0`  
+  - installer introduce `constraints.txt`  
+  - refactor to/from *image/tensor* logic  
+  - refactor reorganize `cli` scripts  
+  - refactor move tests to dedicated `/test/`  
+  - refactor all image handling to `modules/image/`  
+  - refactor many params that were server-global are now ui params that are handled per-request  
+    *schedulers, todo, tome, etc.*  
+  - refactor error handling during `torch.compile`  
+  - refactor move `rebmg` to core instead of extensions  
+  - remove face restoration  
+  - unified command line parsing  
+  - reinstall `nunchaku` with `--reinstall` flag  
+  - use explicit icon image references in `gallery`, thanks @awsr  
+  - launch use threads to async execute non-critical tasks  
+  - switch from deprecated `pkg_resources` to `importlib`  
+  - modernize typing and type annotations  
+  - improve `pydantic==2.x` compatibility  
+  - refactor entire logging into separate `modules/logger`  
+  - replace `timestamp` based startup checks with state caching  
+  - split monolithic `shared` module and introduce `ui_definitions`  
+  - modularize all imports and avoid re-imports  
+  - use `threading` for deferable operatios  
+  - use `threading` for io-independent parallel operations  
+  - remove requirements: `clip`, `open-clip`  
+  - add new build of `insightface`, thanks @hameerabbasi  
+  - reduce use of generators with ui interactor  
+  - better subprocess execute, thanks @awsr  
+  - better wslopen handling, thanks @awsr  
+  - refactor for PEP-484 compliance, thanks @awsr  
+  - detect active `venv`  
+- **Obsolete**
+  - remove `normalbae` pre-processor  
+  - remove `dwpose` pre-processor  
+  - remove `hdm` model support  
+  - remove `xadapter` script  
+  - remove `codeformer` and `gfpgan` face restorers  
+- **Checks**
+  - switch to `pyproject.toml` for tool configs  
+  - update `lint` rules, thanks @awsr  
+  - add `ty` to optional lint tooling  
+  - add `pyright` to optional lint tooling  
 - **Fixes**
-  - fix: add metadata restore to always-on scripts  
-  - fix: improve wildcard weights parsing, thanks @Tillerz  
-  - fix: ui gallery cace recursive cleanup, thanks @awsr  
-  - fix: `anima` model detection  
-  - fix: lora unwanted unload  
-  - fix: improve preview error handler  
+  - ui `gallery` cache recursive cleanup, thanks @awsr  
+  - ui main results pane sizing  
+  - ui connection monitor  
+  - handle `clip` installer doing unwanted `setuptools` update  
+  - cleanup for `uv` installer fallback  
+  - add `metadata` restore to always-on scripts  
+  - improve `wildcard` weights parsing, thanks @Tillerz  
+  - model detection for `anima`  
+  - handle `lora` unwanted unload  
+  - improve `preview` error handler  
+  - handle `gallery` over remote/unsecure connections  
+  - fix `ltx2-i2v`  
+  - handle missing `preview` image  
+  - kandinsky 5 t2i/i2i model type detection  
+  - kanvas notify core on image size change  
+  - command arg `--reinstall` stricter enforcement  
+  - handle `api` state reset  
+  - processing upscaler refresh button  
+  - simplify and validate `rembg` dependencies  
+  - improve video generation progress tracking
+  - handle startup with bad `scripts` more gracefully  
+  - thread-safety for `error-limiter`, thanks @awsr  
+  - add `lora` support for flux2-klein  
+  - fix `lora` change when used with `sdnq`  
+  - multiple `sdnq` fixes  
+  - handle `taesd` init errors  
 
 ## Update for 2026-02-04
 
@@ -54,7 +237,7 @@ Also here are updates to `torch` and additional GPU archs support for `ROCm` bac
   - add 13(!) new scheduler families
     not a port, but more of inspired-by [res4lyf](https://github.com/ClownsharkBatwing/RES4LYF) library  
     all schedulers should be compatible with both `epsilon` and `flow` prediction style!  
-    *note*: each family may have multiple actual schedulers, so the list total is 56(!) new schedulers     
+    *note*: each family may have multiple actual schedulers, so the list total is 56(!) new schedulers
     - core family: *RES*
     - exponential: *DEIS, ETD, Lawson, ABNorsett*
     - integrators: *Runge-Kutta, Linear-RK, Specialized-RK, Lobatto, Radau-IIA, Gauss-Legendre*
@@ -143,7 +326,7 @@ For full list of changes, see full changelog.
     available in both *original* and *sdnq-dynamic prequantized* variants  
     thanks @CalamitousFelicitousness  
     *note*: model requires pre-release versions of `transformers` package:  
-    > pip install --upgrade git+https://github.com/huggingface/transformers.git  
+    > pip install --upgrade git+<https://github.com/huggingface/transformers.git>  
     > ./webui.sh --experimental  
   - [Nunchaku Z-Image Turbo](https://huggingface.co/nunchaku-tech/nunchaku-z-image-turbo)  
     nunchaku optimized z-image turbo  
@@ -304,9 +487,9 @@ Plus a lot of internal improvements and fixes
     **Z-Image** is a powerful and highly efficient image generation model with 6B parameters and using Qwen-3 as text encoder  
     unlike most of new models that are far larger, Z-Image architecture allows it to run with good performance even on mid-range hardware  
     *note*: initial release is *Turbo* variant only with *Base* and *Edit* variants to follow  
-  - [Kandinsky 5.0 Lite]() is a new 6B model using Qwen-2.5 as text encoder  
+  - [Kandinsky 5.0 Lite](https://huggingface.co/kandinskylab/Kandinsky-5.0-I2V-Lite-5s-Diffusers) is a new 6B model using Qwen-2.5 as text encoder  
     it comes in text-to-image and image-edit variants  
-  - **Google Gemini Nano Banana** [2.5 Flash](https://blog.google/products/gemini/gemini-nano-banana-examples/) and [3.0 Pro](https://deepmind.google/models/gemini-image/pro/) 
+  - **Google Gemini Nano Banana** [2.5 Flash](https://blog.google/products/gemini/gemini-nano-banana-examples/) and [3.0 Pro](https://deepmind.google/models/gemini-image/pro/)
     first cloud-based model directly supported in SD.Next UI  
     *note*: need to set `GOOGLE_API_KEY` environment variable with your key to use this model  
   - [Photoroom PRX 1024 Beta](https://huggingface.co/Photoroom/prx-1024-t2i-beta)  
@@ -338,7 +521,7 @@ Plus a lot of internal improvements and fixes
   - ui indicator of model capabilities  
   - support for *prefill* style of prompting/answering  
   - support for *reasoning* mode for supported models  
-    with option to output answer-only or reasoning-process   
+    with option to output answer-only or reasoning-process
   - additional debug logging  
 - **Other Features**
   - **wildcards**: allow recursive inline wildcards using curly braces syntax  
@@ -397,9 +580,11 @@ Plus a lot of internal improvements and fixes
   - control: safe load non-sparse controlnet  
   - control: fix marigold preprocessor with bfloat16  
   - auth: fix password being shown in clear text during login  
+  - github: better handling of forks  
   - firefox: remove obsolete checks, thanks @awsr  
   - runai streamer: cleanup logging, thanks @CalamitousFelicitousness  
   - gradio: event handlers, thanks @awsr  
+  - seedvr: handle non-cuda environments, thanks @resonantsky  
 
 ## Update for 2025-11-06
 
@@ -662,7 +847,7 @@ Highlight are:
     requires qwen-image-edit-2509 or its variant as multi-image edits are not available in original qwen-image  
     in ui control tab: inputs -> separate init image  
     add image for *input media* and *control media*  
-    can be 
+    can be
   - [Cache-DiT](https://github.com/vipshop/cache-dit)  
     cache-dit is a unified, flexible and training-free cache acceleration framework  
     compatible with many dit-based models such as FLUX.1, Qwen, HunyuanImage, Wan2.2, Chroma, etc.  
@@ -877,7 +1062,7 @@ And check out new **history** tab in the right panel, it now shows visualization
   - update openvino to `openvino==2025.3.0`  
   - add deprecation warning for `python==3.9`  
   - allow setting denoise strength to 0 in control/img2img  
-    this allows to run workflows which only refine or detail existing image without changing it   
+    this allows to run workflows which only refine or detail existing image without changing it
 - **Fixes**
   - normalize path hanlding when deleting images  
   - unified compile upscalers  
@@ -963,7 +1148,7 @@ New release two weeks after the last one and its a big one with over 150 commits
 - Several new models: [Qwen-Image](https://qwenlm.github.io/blog/qwen-image/) (plus *Lightning* variant) and [FLUX.1-Krea-Dev](https://www.krea.ai/blog/flux-krea-open-source-release)  
 - Several updated models: [Chroma](https://huggingface.co/lodestones/Chroma), [SkyReels-V2](https://huggingface.co/Skywork/SkyReels-V2-DF-14B-720P-Diffusers), [Wan-VACE](https://huggingface.co/Wan-AI/Wan2.1-VACE-14B-diffusers), [HunyuanDiT](https://huggingface.co/Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled)  
 - Plus continuing with major **UI** work with new embedded **Docs/Wiki** search, redesigned real-time **hints**, **wildcards** UI selector, built-in **GPU monitor**, **CivitAI** integration and more!  
-- On the compute side, new profiles for high-vram GPUs, offloading improvements, parallel-load for large models, support for new `torch` release and improved quality when using low-bit quantization!      
+- On the compute side, new profiles for high-vram GPUs, offloading improvements, parallel-load for large models, support for new `torch` release and improved quality when using low-bit quantization!
 - [SD.Next Model Samples Gallery](https://vladmandic.github.io/sd-samples/compare.html): pre-generated image gallery with 60 models (45 base and 15 finetunes) and 40 different styles resulting in 2,400 high resolution images!  
   gallery additionally includes model details such as typical load and inference times as well as sizes and types of each model component (*e.g. unet, transformer, text-encoder, vae*)  
 - And (*as always*) many bugfixes and improvements to existing features!  

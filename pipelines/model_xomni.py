@@ -2,6 +2,7 @@ import torch
 import transformers
 import diffusers
 from modules import shared, devices, sd_models, model_quant
+from modules.logger import log
 
 
 class XOmniPipeline(diffusers.DiffusionPipeline):
@@ -25,12 +26,12 @@ class XOmniPipeline(diffusers.DiffusionPipeline):
         ):
         from pipelines.xomni import modeling_xomni
         load_args, quant_args = model_quant.get_dit_args(load_config, module='Model', device_map=True)
-        shared.log.debug(f'Load model: cls=XOmniPipeline module=tokenizer repo_id="{repo_id}"')
+        log.debug(f'Load model: cls=XOmniPipeline module=tokenizer repo_id="{repo_id}"')
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
             repo_id,
             use_fast=True,
         )
-        shared.log.debug(f'Load model: cls=XOmniPipeline module=transformer repo_id="{repo_id}" args={load_args}')
+        log.debug(f'Load model: cls=XOmniPipeline module=transformer repo_id="{repo_id}" args={load_args}')
         # self.model = transformers.AutoModelForCausalLM.from_pretrained(
         self.model = modeling_xomni.XOmniForCausalLM.from_pretrained(
             repo_id,
@@ -40,7 +41,7 @@ class XOmniPipeline(diffusers.DiffusionPipeline):
             **quant_args,
         )
         flux_repo_id = "black-forest-labs/FLUX.1-dev"
-        shared.log.debug(f'Load model: cls=XOmniPipeline module=vision repo_id="{flux_repo_id}"')
+        log.debug(f'Load model: cls=XOmniPipeline module=vision repo_id="{flux_repo_id}"')
         self.model.init_vision(
             flux_repo_id,
             **quant_args,

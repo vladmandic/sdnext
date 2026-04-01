@@ -81,7 +81,7 @@ async function main() {
   } else {
     const json = await res.json();
     console.log('result:', json.info);
-    for (const i in json.images) { // eslint-disable-line guard-for-in
+    for (const i in json.images) {
       const file = args.output || `/tmp/test-${i}.jpg`;
       const data = atob(json.images[i]);
       fs.writeFileSync(file, data, 'binary');

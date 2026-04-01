@@ -7,10 +7,13 @@ import datetime
 from collections import deque
 import torch
 from modules import shared, devices
+from modules.logger import log
 
 
-class Item():
-    def __init__(self, latent, preview=None, info=None, ops=[]):
+class Item:
+    def __init__(self, latent, preview=None, info=None, ops=None):
+        if ops is None:
+            ops = []
         self.ts = datetime.datetime.now().replace(microsecond=0)
         self.name = self.ts.strftime('%Y-%m-%d %H:%M:%S')
         self.latent = latent.detach().clone().to(devices.cpu)
@@ -20,7 +23,7 @@ class Item():
         self.size = sys.getsizeof(self.latent.storage())
 
 
-class History():
+class History:
     def __init__(self):
         self.index = -1
         self.latents = deque(maxlen=1024)
@@ -38,7 +41,7 @@ class History():
 
     @property
     def list(self):
-        shared.log.info(f'History: items={self.count}/{shared.opts.latent_history} size={self.size}')
+        log.info(f'History: items={self.count}/{shared.opts.latent_history} size={self.size}')
         return [item.name for item in self.latents]
 
     @property
@@ -49,7 +52,7 @@ class History():
         else:
             current_index = 0
         item = self.latents[current_index]
-        shared.log.debug(f'History get: index={current_index} time={item.ts} shape={list(item.latent.shape)} dtype={item.latent.dtype} count={self.count}')
+        log.debug(f'History get: index={current_index} time={item.ts} shape={list(item.latent.shape)} dtype={item.latent.dtype} count={self.count}')
         return item.latent.to(devices.device), current_index
 
     def find(self, name):
@@ -58,7 +61,9 @@ class History():
                 return i
         return -1
 
-    def add(self, latent, preview=None, info=None, ops=[]):
+    def add(self, latent, preview=None, info=None, ops=None):
+        if ops is None:
+            ops = []
         shared.state.latent_history += 1
         if shared.opts.latent_history == 0:
             return
@@ -70,7 +75,7 @@ class History():
 
     def clear(self):
         self.latents.clear()
-        # shared.log.debug(f'History clear: count={self.count}')
+        # log.debug(f'History clear: count={self.count}')
 
     def load(self):
         pass

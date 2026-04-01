@@ -1,6 +1,7 @@
 import os
 from installer import install
 from modules import shared
+from modules.logger import log
 
 
 def apply_cache_dit(pipe):
@@ -11,12 +12,12 @@ def apply_cache_dit(pipe):
     try:
         import cache_dit
     except Exception as e:
-        shared.log.error(f'Cache-DIT: {e}')
+        log.error(f'Cache-DIT: {e}')
         return
     _, supported = cache_dit.supported_pipelines()
     supported = [s.replace('*', '') for s in supported]
     if not any(pipe.__class__.__name__.startswith(s) for s in supported):
-        shared.log.error(f'Cache-DiT: pipeline={pipe.__class__.__name__} unsupported')
+        log.error(f'Cache-DiT: pipeline={pipe.__class__.__name__} unsupported')
         return
 
     if getattr(pipe, 'has_cache_dit', False):
@@ -38,7 +39,7 @@ def apply_cache_dit(pipe):
         calibrator_config = cache_dit.FoCaCalibratorConfig()
     else:
         calibrator_config = None
-    shared.log.info(f'Apply Cache-DiT: config="{cache_config.strify()}" calibrator="{calibrator_config.strify() if calibrator_config else "None"}"')
+    log.info(f'Apply Cache-DiT: config="{cache_config.strify()}" calibrator="{calibrator_config.strify() if calibrator_config else "None"}"')
     try:
         cache_dit.enable_cache(
             pipe,
@@ -47,7 +48,7 @@ def apply_cache_dit(pipe):
         )
         shared.sd_model.has_cache_dit = True
     except Exception as e:
-        shared.log.error(f'Cache-DiT: {e}')
+        log.error(f'Cache-DiT: {e}')
         return
 
 
@@ -57,7 +58,7 @@ def unapply_cache_dir(pipe):
     try:
         import cache_dit
         # stats = cache_dit.summary(pipe)
-        # shared.log.critical(f'Unapply Cache-DiT: {stats}')
+        # log.critical(f'Unapply Cache-DiT: {stats}')
         cache_dit.disable_cache(pipe)
         pipe.has_cache_dit = False
     except Exception:

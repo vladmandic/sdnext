@@ -1,5 +1,6 @@
 import diffusers
 from modules import shared, errors, processing
+from modules.logger import log
 
 
 # ['Default', 'CFG', 'Zero', 'PAG', 'APG', 'SLG', 'SEG', 'TCFG', 'FDG']
@@ -49,11 +50,11 @@ def set_guider(p: processing.StableDiffusionProcessing):
             guider_args = {k: v for k, v in guider_info.config.items() if not k.startswith('_') and v is not None}
         else:
             guider_args = {}
-        shared.log.info(f'Guider: name={guidance_name} cls={guider_cls.__name__ if guider_cls is not None else None} args={guider_args}')
+        log.info(f'Guider: name={guidance_name} cls={guider_cls.__name__ if guider_cls is not None else None} args={guider_args}')
         return
     if guidance_name == 'None':
         shared.sd_model.update_components(guider=None) # breaks the pipeline
-        shared.log.info(f'Guider: name={guidance_name}')
+        log.info(f'Guider: name={guidance_name}')
         return
 
     guider_info = guiders[guidance_name]
@@ -62,7 +63,7 @@ def set_guider(p: processing.StableDiffusionProcessing):
     for k, v in base_args.items():
         if v is not None and v >= 0.0:
             guider_args[k] = v
-    shared.log.warning('Guiders: partially implemented') # TODO: guiders
+    log.warning('Guiders: partially implemented') # TODO: guiders
     for k, v in guider_info['args'].items():
         try:
             if k is None:
@@ -82,14 +83,14 @@ def set_guider(p: processing.StableDiffusionProcessing):
             elif isinstance(v, str) and (len(v) > 0):
                 guider_args[k] = v
         except Exception as e:
-            shared.log.error(f'Guiders: arg={k} value={v} error={e}')
+            log.error(f'Guiders: arg={k} value={v} error={e}')
             errors.display(e, 'Guiders')
     # guider_args.update(guider_info['args'])
     if guider_cls is not None:
         try:
             guider_instance = guider_cls(**guider_args)
-            shared.log.info(f'Guider: name={guidance_name} cls={guider_cls.__name__} args={guider_args}')
+            log.info(f'Guider: name={guidance_name} cls={guider_cls.__name__} args={guider_args}')
             shared.sd_model.update_components(guider=guider_instance)
         except Exception as e:
-            shared.log.error(f'Guider: name={guidance_name} cls={guider_cls.__name__} args={guider_args} {e}')
+            log.error(f'Guider: name={guidance_name} cls={guider_cls.__name__} args={guider_args} {e}')
             return

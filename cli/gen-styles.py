@@ -33,7 +33,7 @@ def pil_to_b64(img: Image, size: int, quality: int):
     return f'data:image/jpeg;base64,{b64encoded}'
 
 
-def post(endpoint: str, dct: dict = None):
+def post(endpoint: str, dct: dict | None = None):
     req = requests.post(endpoint, json = dct, timeout=300, verify=False)
     if req.status_code != 200:
         return { 'error': req.status_code, 'reason': req.reason, 'url': req.url }

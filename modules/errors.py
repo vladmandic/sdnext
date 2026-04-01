@@ -1,6 +1,6 @@
 import logging
 import warnings
-from installer import get_log, get_console, setup_logging, install_traceback
+from modules.logger import get_log, get_console, setup_logging, install_traceback
 from modules.errorlimiter import ErrorLimiterAbort
 
 
@@ -10,13 +10,17 @@ install_traceback()
 already_displayed = {}
 
 
-def install(suppress=[]):
+def install(suppress=None):
+    if suppress is None:
+        suppress = []
     warnings.filterwarnings("ignore", category=UserWarning)
     install_traceback(suppress=suppress)
     logging.basicConfig(level=logging.ERROR, format='%(asctime)s | %(levelname)s | %(pathname)s | %(message)s')
 
 
-def display(e: Exception, task: str, suppress=[]):
+def display(e: Exception, task: str, suppress=None):
+    if suppress is None:
+        suppress = []
     if isinstance(e, ErrorLimiterAbort):
         return
     log.critical(f"{task or 'error'}: {type(e).__name__}")
@@ -45,7 +49,9 @@ def run(code, task: str):
         display(e, task)
 
 
-def exception(suppress=[]):
+def exception(suppress=None):
+    if suppress is None:
+        suppress = []
     console = get_console()
     console.print_exception(show_locals=False, max_frames=16, extra_lines=2, suppress=suppress, theme="ansi_dark", word_wrap=False, width=min([console.width, 200]))
 

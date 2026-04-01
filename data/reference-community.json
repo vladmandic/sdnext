@@ -106,20 +106,22 @@
     "desc": "Pony V7 is a versatile character generation model based on AuraFlow architecture. It supports a wide range of styles and species types (humanoid, anthro, feral, and more) and handles character interactions through natural language prompts.",
     "extras": "",
     "tags": "community",
-    "date": "October September"
+    "date": "2025 October"
   },
   "ShuttleAI Shuttle 3.0 Diffusion": {
     "path": "shuttleai/shuttle-3-diffusion",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
     "preview": "shuttleai--shuttle-3-diffusion.jpg",
     "tags": "community",
+    "date": "2024 November",
     "skip": true
   },
   "ShuttleAI Shuttle 3.1 Aesthetic": {
     "path": "shuttleai/shuttle-3.1-aesthetic",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
-    "preview": "shuttleai--shuttle-3_1-aestetic.jpg",
+    "preview": "shuttleai--shuttle-3.1-aesthetic.jpg",
     "tags": "community",
+    "date": "2024 November",
     "skip": true
   },
   "ShuttleAI Shuttle Jaguar": {
@@ -127,13 +129,55 @@
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
     "preview": "shuttleai--shuttle-jaguar.jpg",
     "tags": "community",
+    "date": "2025 January",
     "skip": true
   },
-  "Anima": {
+  "Anima Preview 1": {
     "path": "CalamitousFelicitousness/Anima-sdnext-diffusers",
-    "preview": "CalamitousFelicitousness--Anima-sdnext-diffusers.png",
+    "preview": "CalamitousFelicitousness--Anima-sdnext-diffusers.jpg",
     "desc": "Modified Cosmos-Predict-2B that replaces the T5-11B text encoder with Qwen3-0.6B. Anima is a 2 billion parameter text-to-image model created via a collaboration between CircleStone Labs and Comfy Org. It is focused mainly on anime concepts, characters, and styles, but is also capable of generating a wide variety of other non-photorealistic content. The model is designed for making illustrations and artistic images, and will not work well at realism.",
     "tags": "community",
+    "date": "2026 January",
+    "skip": true
+  },
+  "Anima Preview 2": {
+    "path": "CalamitousFelicitousness/Anima-Preview-2-sdnext-diffusers",
+    "preview": "CalamitousFelicitousness--Anima-Preview-2-sdnext-diffusers.jpg",
+    "desc": "Anima Preview V2 with improved hyperparameters, extended medium-resolution training for more character knowledge, and a regularization dataset for better natural language comprehension. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder.",
+    "tags": "community",
+    "date": "2026 March",
+    "skip": true
+  },
+  "FireRed Image Edit 1.0": {
+    "path": "FireRedTeam/FireRed-Image-Edit-1.0",
+    "preview": "FireRedTeam--FireRed-Image-Edit-1.0.jpg",
+    "desc": "FireRed-Image-Edit is a general-purpose image editing model that delivers high-fidelity and consistent editing across a wide range of scenarios. FireRed is a fine-tune of Qwen-Image-Edit.",
+    "tags": "community",
+    "date": "2026 February",
+    "skip": true
+  },
+  "FireRed Image Edit 1.1": {
+    "path": "FireRedTeam/FireRed-Image-Edit-1.1",
+    "preview": "FireRedTeam--FireRed-Image-Edit-1.1.jpg",
+    "desc": "FireRed-Image-Edit is a general-purpose image editing model that delivers high-fidelity and consistent editing across a wide range of scenarios. FireRed is a fine-tune of Qwen-Image-Edit.",
+    "tags": "community",
+    "date": "2026 February",
+    "skip": true
+  },
+  "Skywork UniPic3": {
+    "path": "Skywork/Unipic3",
+    "preview": "Skywork--Unipic3.jpg",
+    "desc": "UniPic3 is an image editing and multi-image composition model based. It is a fine-tune of Qwen-Image-Edit.",
+    "tags": "community",
+    "date": "2026 February",
+    "skip": true
+  },
+  "Skywork/Unipic3-DMD": {
+    "path": "Skywork/Unipic3-DMD",
+    "preview": "Skywork--Unipic3-DMD.jpg",
+    "desc": "UniPic3-DMD-Model is a few-step image editing and multi-image composition model trained using Distribution Matching Distillation (DMD) and is a fine-tune of Qwen-Image-Edit.",
+    "tags": "community",
+    "date": "2026 February",
     "skip": true
   }
 }

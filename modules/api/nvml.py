@@ -1,5 +1,6 @@
 try:
-    from installer import install, log
+    from installer import install
+    from modules.logger import log
 except Exception:
     def install(*args, **kwargs): # pylint: disable=unused-argument
         pass

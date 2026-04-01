@@ -8,6 +8,7 @@ import os
 import importlib
 import gradio as gr
 from modules import scripts_manager, processing, shared, sd_models, devices
+from modules.logger import log
 
 
 repo = 'https://github.com/vladmandic/IP-Instruct'
@@ -16,7 +17,7 @@ encoder = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
 folder = os.path.join('repositories', 'ip_instruct')
 
 
-class Script(scripts_manager.Script):
+class IPInstructScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -57,11 +58,11 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessing, query, image, strength, tokens, instruct_guidance, image_guidance): # pylint: disable=arguments-differ
         supported_model_list = ['sd', 'sdxl', 'sd3']
         if shared.sd_model_type not in supported_model_list:
-            shared.log.warning(f'IP-Instruct: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            log.warning(f'IP-Instruct: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
         self.install()
         if self.lib is None:
-            shared.log.error('IP-Instruct: failed to import library')
+            log.error('IP-Instruct: failed to import library')
             return None
         self.orig_pipe = shared.sd_model
         if shared.sd_model_type == 'sdxl':
@@ -83,8 +84,8 @@ class Script(scripts_manager.Script):
         ip_ckpt = hf.hf_hub_download(repo_id=repo_id, filename=ckpt, cache_dir=shared.opts.hfcache_dir)
         ip_model = cls(shared.sd_model, encoder, ip_ckpt, device=devices.device, dtypein=devices.dtype, num_tokens=tokens)
         processing.fix_seed(p)
-        shared.log.debug(f'IP-Instruct: class={shared.sd_model.__class__.__name__} wrapper={ip_model.__class__.__name__} encoder={encoder} adapter={ckpt}')
-        shared.log.info(f'IP-Instruct: image={image} query="{query}" strength={strength} tokens={tokens} instruct_guidance={instruct_guidance} image_guidance={image_guidance}')
+        log.debug(f'IP-Instruct: class={shared.sd_model.__class__.__name__} wrapper={ip_model.__class__.__name__} encoder={encoder} adapter={ckpt}')
+        log.info(f'IP-Instruct: image={image} query="{query}" strength={strength} tokens={tokens} instruct_guidance={instruct_guidance} image_guidance={image_guidance}')
 
         image_list = ip_model.generate(
             query = query,

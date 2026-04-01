@@ -1,4 +1,4 @@
-from typing import Optional, Tuple, Callable
+from collections.abc import Callable
 import math
 import torch
 import torch.nn.functional as F
@@ -38,7 +38,7 @@ def init_generator(device: torch.device, fallback: torch.Generator = None):
             return fallback
 
 
-def do_nothing(x: torch.Tensor, mode: str = None): # pylint: disable=unused-argument
+def do_nothing(x: torch.Tensor, mode: str | None = None): # pylint: disable=unused-argument
     return x
 
 
@@ -136,7 +136,7 @@ def bipartite_soft_matching_random2d(metric: torch.Tensor,
                                      sy: int,
                                      r: int,
                                      no_rand: bool = False,
-                                     generator: torch.Generator = None) -> Tuple[Callable, Callable]:
+                                     generator: torch.Generator = None) -> tuple[Callable, Callable]:
     """
     Partitions the tokens into src and dst and merges r tokens from src to dst.
     Dst tokens are partitioned by choosing one randomy in each (sx, sy) region.
@@ -305,9 +305,9 @@ class TokenMergeAttentionProcessor:
         self,
         attn: Attention,
         hidden_states: torch.FloatTensor,
-        encoder_hidden_states: Optional[torch.FloatTensor] = None,
-        attention_mask: Optional[torch.FloatTensor] = None,
-        temb: Optional[torch.FloatTensor] = None,
+        encoder_hidden_states: torch.FloatTensor | None = None,
+        attention_mask: torch.FloatTensor | None = None,
+        temb: torch.FloatTensor | None = None,
         scale: float = 1.0,
     ) -> torch.FloatTensor:
         residual = hidden_states

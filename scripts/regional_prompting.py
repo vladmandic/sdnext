@@ -4,6 +4,7 @@
 import gradio as gr
 from diffusers.pipelines import pipeline_utils
 from modules import shared, devices, scripts_manager, processing, sd_models, prompt_parser_diffusers
+from modules.logger import log
 
 
 def hijack_register_modules(self, **kwargs):
@@ -21,7 +22,7 @@ def hijack_register_modules(self, **kwargs):
         setattr(self, name, module)
 
 
-class Script(scripts_manager.Script):
+class RegionalPromptingScript(scripts_manager.Script):
     def title(self):
         return 'Regional prompting'
 
@@ -52,7 +53,7 @@ class Script(scripts_manager.Script):
         orig_prompt_attention = shared.opts.prompt_attention
         # create pipeline
         if shared.sd_model_type != 'sd':
-            shared.log.error(f'Regional prompting: incorrect base model: {shared.sd_model.__class__.__name__}')
+            log.error(f'Regional prompting: incorrect base model: {shared.sd_model.__class__.__name__}')
             return None
 
         pipeline_utils.DiffusionPipeline.register_modules = hijack_register_modules
@@ -60,7 +61,7 @@ class Script(scripts_manager.Script):
 
         shared.sd_model = sd_models.switch_pipe('regional_prompting_stable_diffusion', shared.sd_model)
         if shared.sd_model.__class__.__name__ != 'RegionalPromptingStableDiffusionPipeline': # switch failed
-            shared.log.error(f'Regional prompting: not a tiling pipeline: {shared.sd_model.__class__.__name__}')
+            log.error(f'Regional prompting: not a tiling pipeline: {shared.sd_model.__class__.__name__}')
             shared.sd_model = orig_pipeline
             return None
         sd_models.set_diffuser_options(shared.sd_model)
@@ -81,7 +82,7 @@ class Script(scripts_manager.Script):
             'rp_args': rp_args,
         }
         # run pipeline
-        shared.log.debug(f'Regional: args={p.task_args}')
+        log.debug(f'Regional: args={p.task_args}')
         p.task_args['prompt'] = p.prompt
         processed: processing.Processed = processing.process_images(p) # runs processing using main loop
 

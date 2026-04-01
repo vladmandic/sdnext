@@ -524,6 +524,14 @@ function selectVAE(name) {
   markSelectedCards([desiredVAEName], 'vae');
 }
 
+let desiredUNetName = null;
+function selectUNet(name) {
+  desiredUNetName = name;
+  gradioApp().getElementById('change_unet').click();
+  log(`selectUNet: ${desiredUNetName}`);
+  markSelectedCards([desiredUNetName], 'unet');
+}
+
 function selectReference(name) {
   log(`selectReference: ${name}`);
   desiredCheckpointName = name;
@@ -630,5 +638,4 @@ async function reconnectUI() {
   const sd_model_observer = new MutationObserver(sd_model_callback);
   sd_model_observer.observe(sd_model, { attributes: true, childList: true, subtree: true });
   log('reconnectUI');
-  monitorConnection();
 }

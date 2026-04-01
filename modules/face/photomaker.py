@@ -3,6 +3,7 @@ import numpy as np
 import torch
 import huggingface_hub as hf
 from modules import shared, processing, sd_models, devices
+from modules.logger import log
 
 
 original_pipeline = None
@@ -21,16 +22,16 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
 
     # prepare pipeline
     if len(input_images) == 0:
-        shared.log.warning('PhotoMaker: no input images')
+        log.warning('PhotoMaker: no input images')
         return None
 
     if len(trigger) == 0:
-        shared.log.warning('PhotoMaker: no trigger word')
+        log.warning('PhotoMaker: no trigger word')
         return None
 
     c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
     if c != 'StableDiffusionXLPipeline':
-        shared.log.warning(f'PhotoMaker invalid base model: current={c} required=StableDiffusionXLPipeline')
+        log.warning(f'PhotoMaker invalid base model: current={c} required=StableDiffusionXLPipeline')
         return None
 
     # validate prompt
@@ -42,10 +43,10 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
     prompt_ids2 = shared.sd_model.tokenizer_2.encode(p.all_prompts[0])
     for t in trigger_ids:
         if prompt_ids1.count(t) != 1:
-            shared.log.error(f'PhotoMaker: trigger word not matched in prompt: {trigger} ids={trigger_ids} prompt={p.all_prompts[0]} ids={prompt_ids1}')
+            log.error(f'PhotoMaker: trigger word not matched in prompt: {trigger} ids={trigger_ids} prompt={p.all_prompts[0]} ids={prompt_ids1}')
             return None
         if prompt_ids2.count(t) != 1:
-            shared.log.error(f'PhotoMaker: trigger word not matched in prompt: {trigger} ids={trigger_ids} prompt={p.all_prompts[0]} ids={prompt_ids1}')
+            log.error(f'PhotoMaker: trigger word not matched in prompt: {trigger} ids={trigger_ids} prompt={p.all_prompts[0]} ids={prompt_ids1}')
             return None
 
     # create new pipeline
@@ -70,7 +71,7 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
         repo_id, fn = 'TencentARC/PhotoMaker', 'photomaker-v1.bin'
 
     photomaker_path = hf.hf_hub_download(repo_id=repo_id, filename=fn, repo_type="model", cache_dir=shared.opts.hfcache_dir)
-    shared.log.debug(f'PhotoMaker: model="{model}" uri="{repo_id}/{fn}" images={len(input_images)} trigger={trigger} args={p.task_args}')
+    log.debug(f'PhotoMaker: model="{model}" uri="{repo_id}/{fn}" images={len(input_images)} trigger={trigger} args={p.task_args}')
 
     # load photomaker adapter
     shared.sd_model.load_photomaker_adapter(
@@ -90,7 +91,7 @@ def photo_maker(p: processing.StableDiffusionProcessing, app, model: str, input_
             faces = app.get(cv2.cvtColor(np.array(source_image), cv2.COLOR_RGB2BGR))
             face = sorted(faces, key=lambda x:(x['bbox'][2]-x['bbox'][0])*x['bbox'][3]-x['bbox'][1])[-1]  # only use the maximum face
             id_embed_list.append(torch.from_numpy(face['embedding']))
-            shared.log.debug(f'PhotoMaker: face={i+1} score={face.det_score:.2f} gender={"female" if face.gender==0 else "male"} age={face.age} bbox={face.bbox}')
+            log.debug(f'PhotoMaker: face={i+1} score={face.det_score:.2f} gender={"female" if face.gender==0 else "male"} age={face.age} bbox={face.bbox}')
         p.task_args['id_embeds'] = torch.stack(id_embed_list).to(device=devices.device, dtype=devices.dtype)
 
     # run processing

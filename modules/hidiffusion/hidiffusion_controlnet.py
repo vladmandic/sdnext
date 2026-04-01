@@ -10,6 +10,9 @@ from diffusers.models import ControlNetModel
 from diffusers.models.unets.unet_2d_condition import UNet2DConditionOutput
 
 
+controlnet_apply_steps_rate = 0.6
+
+
 def make_diffusers_unet_2d_condition(block_class):
 
     class unet_2d_condition(block_class):

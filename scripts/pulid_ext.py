@@ -5,6 +5,7 @@ import contextlib
 import gradio as gr
 from PIL import Image
 from modules import shared, devices, errors, scripts_manager, processing, processing_helpers, sd_models
+from modules.logger import log
 
 
 debug = os.environ.get('SD_PULID_DEBUG', None) is not None
@@ -13,7 +14,7 @@ registered = False
 uploaded_images = []
 
 
-class Script(scripts_manager.Script):
+class PulIDScript(scripts_manager.Script):
     def __init__(self):
         self.pulid = None
         self.cache = None
@@ -29,7 +30,7 @@ class Script(scripts_manager.Script):
 
     def dependencies(self):
         from installer import installed, install, install_insightface
-        if not installed('insightface', reload=False, quiet=True):
+        if not installed('insightface', quiet=True) and not installed('insightfacex', quiet=True):
             install_insightface()
         if not installed('torchdiffeq'):
             install('torchdiffeq')
@@ -79,7 +80,7 @@ class Script(scripts_manager.Script):
                     raise ValueError(f'IP adapter unknown input: {file}')
                 uploaded_images.append(image)
             except Exception as e:
-                shared.log.warning(f'IP adapter failed to load image: {e}')
+                log.warning(f'IP adapter failed to load image: {e}')
         return gr.update(value=uploaded_images, visible=len(uploaded_images) > 0)
 
     # return signature is array of gradio components
@@ -132,15 +133,15 @@ class Script(scripts_manager.Script):
                 images = gallery
             images = [np.array(image) for image in images]
         except Exception as e:
-            shared.log.error(f'PuLID: failed to load images: {e}')
+            log.error(f'PuLID: failed to load images: {e}')
             return None
         if len(images) == 0:
-            shared.log.error('PuLID: no images')
+            log.error('PuLID: no images')
             return None
 
         supported_model_list = ['sdxl', 'f1']
         if shared.sd_model_type not in supported_model_list:
-            shared.log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
         if self.pulid is None:
             self.dependencies()
@@ -152,20 +153,20 @@ class Script(scripts_manager.Script):
                 pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["pulid"] = pulid.StableDiffusionXLPuLIDPipelineImage
                 pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["pulid"] = pulid.StableDiffusionXLPuLIDPipelineInpaint
             except Exception as e:
-                shared.log.error(f'PuLID: failed to import library: {e}')
+                log.error(f'PuLID: failed to import library: {e}')
                 return None
             if self.pulid is None:
-                shared.log.error('PuLID: failed to load PuLID library')
+                log.error('PuLID: failed to load PuLID library')
                 return None
 
         try:
             images = [self.pulid.resize(image, 1024) for image in images]
         except Exception as e:
-            shared.log.error(f'PuLID: failed to resize images: {e}')
+            log.error(f'PuLID: failed to resize images: {e}')
             return None
 
         if p.batch_size > 1:
-            shared.log.warning('PuLID: batch size not supported')
+            log.warning('PuLID: batch size not supported')
             p.batch_size = 1
 
         sdp = shared.opts.cross_attention_optimization == "Scaled-Dot-Product"
@@ -198,7 +199,7 @@ class Script(scripts_manager.Script):
                 # shared.sd_model.hack_unet_attn_layers(shared.sd_model.pipe.unet) # reapply attention layers
                 devices.torch_gc()
             except Exception as e:
-                shared.log.error(f'PuLID: failed to create pipeline: {e}')
+                log.error(f'PuLID: failed to create pipeline: {e}')
                 errors.display(e, 'PuLID')
                 return None
         elif shared.sd_model_type == 'f1':
@@ -209,7 +210,7 @@ class Script(scripts_manager.Script):
         elif shared.sd_model_type == 'f1':
             processed = self.run_flux(p, images, strength)
         else:
-            shared.log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            log.error(f'PuLID: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             processed = None
         return processed
 
@@ -226,13 +227,13 @@ class Script(scripts_manager.Script):
                     shared.sd_model.handler_ante = None
                 shared.sd_model = shared.sd_model.pipe
                 devices.torch_gc(force=True, reason='pulid')
-            shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} preprocess={self.preprocess:.2f} pipe={"restore" if restore else "cache"}')
+            log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} preprocess={self.preprocess:.2f} pipe={"restore" if restore else "cache"}')
         if shared.sd_model_type == "f1":
             restore = getattr(p, 'pulid_restore', restore)
             if restore:
                 shared.sd_model = self.pulid.unapply_flux(shared.sd_model)
                 devices.torch_gc(force=True, reason='pulid')
-            shared.log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} pipe={"restore" if restore else "cache"}')
+            log.debug(f'PuLID complete: class={shared.sd_model.__class__.__name__} pipe={"restore" if restore else "cache"}')
         return processed
 
     def run_sdxl(self, p: processing.StableDiffusionProcessing, images: list, strength: float, zero: int, sampler: str, ortho: str, restore: bool, offload: bool, version: str):
@@ -240,7 +241,7 @@ class Script(scripts_manager.Script):
         if sampler_fn is None:
             sampler_fn = self.pulid.sampling.sample_dpmpp_2m_sde
         shared.sd_model.sampler = sampler_fn
-        shared.log.info(f'PuLID: class={shared.sd_model.__class__.__name__} version="{version}" strength={strength} zero={zero} ortho={ortho} sampler={sampler_fn} images={[i.shape for i in images]} offload={offload} restore={restore}')
+        log.info(f'PuLID: class={shared.sd_model.__class__.__name__} version="{version}" strength={strength} zero={zero} ortho={ortho} sampler={sampler_fn} images={[i.shape for i in images]} offload={offload} restore={restore}')
         self.pulid.attention.NUM_ZERO = zero
         self.pulid.attention.ORTHO = ortho == 'v1'
         self.pulid.attention.ORTHO_v2 = ortho == 'v2'
@@ -289,14 +290,14 @@ class Script(scripts_manager.Script):
             processed: processing.Processed = processing.process_images(p) # runs processing using main loop
 
         # interim = [Image.fromarray(img) for img in shared.sd_model.debug_img_list]
-        # shared.log.debug(f'PuLID: time={t1-t0:.2f}')
+        # log.debug(f'PuLID: time={t1-t0:.2f}')
         return processed
 
     def run_flux(self, p: processing.StableDiffusionProcessing, images: list, strength: float):
         image = Image.fromarray(images[0]) # takes single pil image
         p.task_args['id_image'] = image
         p.task_args['id_weight'] = strength
-        shared.log.info(f'PuLID: class={shared.sd_model.__class__.__name__} strength={strength} image={image}')
+        log.info(f'PuLID: class={shared.sd_model.__class__.__name__} strength={strength} image={image}')
         p.extra_generation_params["PuLID"] = f'Strength={strength}'
 
         processed: processing.Processed = processing.process_images(p) # runs processing using main loop

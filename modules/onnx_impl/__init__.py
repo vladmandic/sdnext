@@ -1,8 +1,9 @@
+from modules.logger import log
 from typing import Any, Dict, Optional
 import numpy as np
 import torch
 import diffusers
-from installer import log, installed, install
+from installer import installed, install
 
 
 initialized = False
@@ -16,7 +17,7 @@ except Exception as e:
 
 
 class DynamicSessionOptions(ort.SessionOptions):
-    config: Optional[Dict] = None
+    config: dict | None = None
 
     def __init__(self):
         super().__init__()
@@ -28,7 +29,7 @@ class DynamicSessionOptions(ort.SessionOptions):
             return sess_options.copy()
         return DynamicSessionOptions()
 
-    def enable_static_dims(self, config: Dict):
+    def enable_static_dims(self, config: dict):
         self.config = config
         self.add_free_dimension_override_by_name("unet_sample_batch", config["hidden_batch_size"])
         self.add_free_dimension_override_by_name("unet_sample_channels", 4)
@@ -103,9 +104,9 @@ class OnnxRuntimeModel(TorchCompatibleModule, diffusers.OnnxRuntimeModel):
 
 class VAEConfig:
     DEFAULTS = { "scaling_factor": 0.18215 }
-    config: Dict
+    config: dict
 
-    def __init__(self, config: Dict):
+    def __init__(self, config: dict):
         self.config = config
 
     def __getattr__(self, key):
@@ -161,12 +162,12 @@ def check_parameters_changed(p, refiner_enabled: bool):
     shared.compiled_model_state.height != compile_height
     or shared.compiled_model_state.width != compile_width
     or shared.compiled_model_state.batch_size != p.batch_size):
-        shared.log.info("Olive: Parameter change detected")
-        shared.log.info("Olive: Recompiling base model")
+        log.info("Olive: Parameter change detected")
+        log.info("Olive: Recompiling base model")
         sd_models.unload_model_weights(op='model')
         sd_models.reload_model_weights(op='model')
         if refiner_enabled:
-            shared.log.info("Olive: Recompiling refiner")
+            log.info("Olive: Recompiling refiner")
             sd_models.unload_model_weights(op='refiner')
             sd_models.reload_model_weights(op='refiner')
     shared.compiled_model_state.height = compile_height
@@ -178,7 +179,7 @@ def check_parameters_changed(p, refiner_enabled: bool):
 def preprocess_pipeline(p):
     from modules import shared, sd_models
     if "ONNX" not in shared.opts.diffusers_pipeline:
-        shared.log.warning(f"Unsupported pipeline for 'olive-ai' compile backend: {shared.opts.diffusers_pipeline}. You should select one of the ONNX pipelines.")
+        log.warning(f"Unsupported pipeline for 'olive-ai' compile backend: {shared.opts.diffusers_pipeline}. You should select one of the ONNX pipelines.")
         return shared.sd_model
     if hasattr(shared.sd_model, "preprocess"):
         shared.sd_model = shared.sd_model.preprocess(p)

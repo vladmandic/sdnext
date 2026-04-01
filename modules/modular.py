@@ -1,6 +1,7 @@
 import time
 import diffusers
 from modules import shared
+from modules.logger import log
 
 
 modular_map= {
@@ -22,7 +23,7 @@ def is_compatible(diffusion_pipeline: diffusers.DiffusionPipeline) -> bool:
         return False
     compatible = diffusion_pipeline.__class__.__name__ in modular_map
     if not compatible:
-        shared.log.debug(f'Modular: source={diffusion_pipeline.__class__.__name__} incompatible pipeline')
+        log.debug(f'Modular: source={diffusion_pipeline.__class__.__name__} incompatible pipeline')
     return compatible
 
 
@@ -47,23 +48,23 @@ def convert_to_modular(diffusion_pipeline: diffusers.DiffusionPipeline) -> diffu
         modular_pipe.update_components(**components_dct, **diffusion_pipeline.parameters)
         modular_pipe.original_pipe = diffusion_pipeline
         t1 = time.time()
-        shared.log.debug(f'Modular: source={diffusion_pipeline.__class__.__name__} target={modular_pipe.__class__.__name__} time={t1 - t0:.2f}')
+        log.debug(f'Modular: source={diffusion_pipeline.__class__.__name__} target={modular_pipe.__class__.__name__} time={t1 - t0:.2f}')
         """
         for expected_input_param in modular_pipe.blocks.inputs:
             name = expected_input_param.name
             default = expected_input_param.default
             kwargs_type = expected_input_param.kwargs_type
-            shared.log.trace(f'Modular input: name={name} type={kwargs_type} default={default}')
+            log.trace(f'Modular input: name={name} type={kwargs_type} default={default}')
         """
 
     except Exception as e:
-        shared.log.error(f'Modular: {e}')
+        log.error(f'Modular: {e}')
         raise e
     return modular_pipe
 
 
 def restore_standard(modular_pipe):
     if hasattr(modular_pipe, 'original_pipe'):
-        shared.log.debug(f'Modular: source={modular_pipe.__class__.__name__} target={modular_pipe.original_pipe.__class__.__name__}')
+        log.debug(f'Modular: source={modular_pipe.__class__.__name__} target={modular_pipe.original_pipe.__class__.__name__}')
         return modular_pipe.original_pipe
     return modular_pipe

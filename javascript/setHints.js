@@ -1,4 +1,4 @@
-const allLocales = ['en', 'de', 'es', 'fr', 'it', 'ja', 'ko', 'pt', 'hr', 'ru', 'zh'];
+const allLocales = ['en', 'tb', 'nb', 'hr', 'es', 'it', 'fr', 'de', 'pt', 'ru', 'zh', 'ja', 'ko', 'hi', 'ar', 'bn', 'ur', 'id', 'vi', 'tr', 'sr', 'po', 'he', 'xx', 'qq', 'tlh'];
 const localeData = {
   prev: null,
   locale: null,
@@ -168,48 +168,6 @@ async function tooltipHide(e) {
   localeData.currentElement = null;
 }
 
-async function validateHints(json, elements, tab) {
-  json.missing = [];
-  const data = Object.values(json).flat().filter((e) => e.hint.length > 0);
-  for (const e of data) e.label = e.label.trim();
-  if (tab) {
-    elements = elements.filter((el) => el.closest(`#${tab}_tabitem`)); // include only elements within specified tab
-    elements = elements.filter((el) => !el.closest(`#${tab}_scripts_tabitem`));
-  }
-  let original = elements.map((e) => e.textContent.toLowerCase().trim()).sort(); // should be case sensitive
-  let duplicateUI = original.filter((e, i, a) => a.indexOf(e.toLowerCase()) !== i).sort();
-  original = [...new Set(original)]; // remove duplicates
-  duplicateUI = [...new Set(duplicateUI)]; // remove duplicates
-  const current = data.map((e) => e.label.toLowerCase().trim()).sort(); // should be case sensitive
-  // log('all elements:', original);
-  // log('all hints:', current);
-  log('hints-differences', { elements: original.length, hints: current.length });
-  const missingHints = original.filter((e) => !current.includes(e.toLowerCase())).sort();
-  const orphanedHints = current.filter((e) => !original.includes(e.toLowerCase())).sort();
-  const duplicateHints = current.filter((e, i, a) => a.indexOf(e.toLowerCase()) !== i).sort();
-  log('duplicate hints:', duplicateHints);
-  log('duplicate labels:', duplicateUI);
-  return [missingHints, orphanedHints];
-}
-
-async function addMissingHints(json, missingHints) {
-  if (missingHints.length === 0) return;
-  json.missing = [];
-  for (const h of missingHints.sort()) {
-    if (h.length <= 1) continue;
-    json.missing.push({ id: '', label: h, localized: '', hint: h, longHint: '' }); // Add longHint property
-  }
-  log('missing hints', missingHints);
-  log('added missing hints:', { missing: json.missing });
-}
-
-async function removeOrphanedHints(json, orphanedHints) {
-  const data = Object.values(json).flat().filter((e) => e.hint.length > 0);
-  for (const e of data) e.label = e.label.trim();
-  const orphaned = data.filter((e) => orphanedHints.includes(e.label.toLowerCase()));
-  log('orphaned hints:', { orphaned });
-}
-
 async function replaceButtonText(el) {
   // https://www.nerdfonts.com/cheat-sheet
   // use unicode of icon with format nf-md-<icon>_circle
@@ -289,7 +247,58 @@ async function setHint(el, entry) {
   }
 }
 
-async function setHints(analyze = false) {
+function createLocaleJSON() {
+  const excludeText = ['▼']; // add any common non-label elements to exclude
+  const ecxcludeIds = ['logo_nav']; // add any specific element IDs to exclude
+  const elements = [
+    ...Array.from(gradioApp().querySelectorAll('button')),
+    ...Array.from(gradioApp().querySelectorAll('h1')),
+    ...Array.from(gradioApp().querySelectorAll('h2')),
+    ...Array.from(gradioApp().querySelectorAll('h3')),
+    ...Array.from(gradioApp().querySelectorAll('label > span')),
+    ...Array.from(gradioApp().querySelectorAll('.label-wrap > span')),
+  ];
+  const json = {};
+  const allSeen = {};
+  for (const el of elements) {
+    const label = el.textContent.trim();
+    if (!label || label.length < 1 || label.length > 1024) continue; // likely not UI element
+    if (excludeText.includes(label)) continue; // skip common non-label elements
+    if (ecxcludeIds.includes(el.id)) continue; // skip specific element IDs
+
+    let hint = el.dataset.hint || '';
+    if (hint.toLowerCase() === label.toLowerCase()) hint = ''; // skip if hint is same as label
+    if (Object.keys(allSeen).includes(label.toLowerCase())) {
+      if (hint.length === 0 || allSeen[label.toLowerCase()] === hint) continue; // seen this label and hint is empty or same as before
+      hint = allSeen[label.toLowerCase()]; // use existing hint for this label
+    }
+    allSeen[label.toLowerCase()] = hint; // track seen labels
+
+    let section = label[0].toLowerCase();
+    if (section >= '0' && section <= '9') section = '0';
+    if ((section < 'a' || section > 'z') && section !== '0') section = '_';
+
+    let ui = el.closest('.group-extension')
+      || el.closest('.group-scripts')
+      || el.closest('.main-tab')
+      || el.closest('.settings_section')
+      || el.closest('.tabitem')
+      || 'other';
+    ui = ui?.id?.replace('_tabitem_parent', '').replace('_section_row', '');
+    if (ui?.includes('_script')) ui = ui?.split('_').slice(1).join('_').split(':')[0];
+
+    if (!json[section]) json[section] = [];
+    const entry = { id: el.id || '', label, localized: '', hint, ui };
+    json[section].push(entry); // add new entry
+  }
+  const sorted = Object.keys(json).sort().reduce((obj, key) => {
+    obj[key] = json[key];
+    return obj;
+  }, {});
+  console.log('localeJSON', sorted);
+}
+
+async function setHints() {
   let json = {};
   let overrideData = [];
   if (localeData.finished) return;
@@ -311,6 +320,7 @@ async function setHints(analyze = false) {
   let localized = 0;
   let hints = 0;
   const t0 = performance.now();
+
   for (const el of elements) {
     // localize elements text
     let found;
@@ -318,8 +328,8 @@ async function setHints(analyze = false) {
     else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
     if (found?.localized?.length > 0) {
       if (!el.dataset.original) el.dataset.original = el.textContent;
-      localized++;
       replaceTextContent(el, found.localized);
+      localized++;
     } else if (found?.label && !localeData.initial && (localeData.locale === 'en')) { // reset to english
       replaceTextContent(el, found.label);
     }
@@ -336,19 +346,7 @@ async function setHints(analyze = false) {
   log('touchDevice', isTouchDevice);
   log('setHints', { type: localeData.type, locale: localeData.locale, elements: elements.length, localized, hints, data: localeData.data.length, override: overrideData.length, time: Math.round(t1 - t0) });
   // sortUIElements();
-  if (analyze) {
-    log('analyzing hints', 'control_tabitem');
-    const [missingHints, orphanedHints] = await validateHints(json, elements);
-    await addMissingHints(json, missingHints);
-    await removeOrphanedHints(json, orphanedHints);
-  }
 }
-
-const analyzeHints = async () => {
-  localeData.finished = false;
-  localeData.data = [];
-  await setHints(true);
-};
 
 // Apply hints to a single element immediately
 async function applyHintToElement(el) {

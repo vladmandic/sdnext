@@ -102,14 +102,14 @@ def just_crop(image, w, h):
 
 def write_to_json(data, file_path):
     temp_file_path = file_path + ".tmp"
-    with open(temp_file_path, 'wt', encoding='utf-8') as temp_file:
+    with open(temp_file_path, 'w', encoding='utf-8') as temp_file:
         json.dump(data, temp_file, indent=4)
     os.replace(temp_file_path, file_path)
     return
 
 
 def read_from_json(file_path):
-    with open(file_path, 'rt', encoding='utf-8') as file:
+    with open(file_path, encoding='utf-8') as file:
         data = json.load(file)
     return data
 
@@ -283,7 +283,7 @@ def add_tensors_with_padding(tensor1, tensor2):
     shape1 = tensor1.shape
     shape2 = tensor2.shape
 
-    new_shape = tuple(max(s1, s2) for s1, s2 in zip(shape1, shape2))
+    new_shape = tuple(max(s1, s2) for s1, s2 in zip(shape1, shape2, strict=False))
 
     padded_tensor1 = torch.zeros(new_shape)
     padded_tensor2 = torch.zeros(new_shape)

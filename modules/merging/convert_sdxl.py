@@ -260,7 +260,9 @@ def calculate_model_hash(state_dict):
     return func.hexdigest()
 
 
-def convert(model_path:str, checkpoint_path:str, metadata:dict={}):
+def convert(model_path: str, checkpoint_path: str, metadata: dict | None = None):
+    if metadata is None:
+        metadata = {}
     unet_path = os.path.join(model_path, "unet", "diffusion_pytorch_model.safetensors")
     vae_path = os.path.join(model_path, "vae", "diffusion_pytorch_model.safetensors")
     text_enc_path = os.path.join(model_path, "text_encoder", "model.safetensors")

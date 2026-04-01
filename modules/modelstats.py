@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 import torch
 from modules import shared, sd_models
+from modules.logger import log
 
 
 def walk(folder: str):
@@ -28,7 +29,7 @@ def stat(fn: str):
     return size, mtime
 
 
-class Module():
+class Module:
     name: str = ''
     cls: str = None
     device: str = None
@@ -61,7 +62,7 @@ class Module():
         return s
 
 
-class Model():
+class Model:
     name: str = ''
     fn: str = ''
     type: str = ''
@@ -107,5 +108,5 @@ def analyze():
         component = getattr(shared.sd_model, k, None)
         module = Module(k, component)
         model.modules.append(module)
-    shared.log.debug(f'Analyzed: {model}')
+    log.debug(f'Analyzed: {model}')
     return model

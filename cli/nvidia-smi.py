@@ -13,9 +13,8 @@ def get_nvidia_smi(output='dict'):
     if smi is None:
         log.error("nvidia-smi not found")
         return None
-    result = subprocess.run(f'"{smi}" -q -x', shell=True, check=False, env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    xml = result.stdout.decode(encoding="utf8", errors="ignore")
-    d = xmltodict.parse(xml)
+    result = subprocess.run(f'"{smi}" -q -x', shell=True, check=False, env=os.environ, capture_output=True, text=True)
+    d = xmltodict.parse(result.stdout)
     if 'nvidia_smi_log' in d:
         d = d['nvidia_smi_log']
     if 'gpu' in d and 'supported_clocks' in d['gpu']:

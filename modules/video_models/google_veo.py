@@ -6,7 +6,8 @@ import sys
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 from PIL import Image
-from installer import install, reload, log
+from installer import install, reload
+from modules.logger import log
 
 
 image_size_buckets = {
@@ -30,8 +31,8 @@ aspect_ratios_buckets = {
 
 def google_requirements():
     install('google-genai==1.52.0')
-    install('pydantic==2.11.7', ignore=True, quiet=True)
-    reload('pydantic', '2.11.7')
+    # install('pydantic==2.11.7', ignore=True, quiet=True)
+    # reload('pydantic', '2.11.7')
 
 
 def get_size_buckets(width: int, height: int) -> str:
@@ -43,7 +44,7 @@ def get_size_buckets(width: int, height: int) -> str:
     return closest_size, closest_aspect_ratio
 
 
-class GoogleVeoVideoPipeline():
+class GoogleVeoVideoPipeline:
     def __init__(self, model_name: str):
         self.model = model_name
         self.client = None
@@ -174,7 +175,7 @@ def load_veo(model_name): # pylint: disable=unused-argument
 
 
 if __name__ == "__main__":
-    from installer import setup_logging
+    from installer import setup_logging # pylint: disable=ungrouped-imports
     setup_logging()
     log.info('test')
     model = GoogleVeoVideoPipeline('veo-3.1-generate-preview')

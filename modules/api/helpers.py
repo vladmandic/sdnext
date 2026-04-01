@@ -5,6 +5,14 @@ import piexif
 import piexif.helper
 from fastapi.exceptions import HTTPException
 from modules import shared, sd_samplers
+from modules.logger import log
+
+_upload_store_getter = None
+
+
+def register_upload_store(getter_fn):
+    global _upload_store_getter
+    _upload_store_getter = getter_fn
 
 
 def validate_sampler_name(name):
@@ -17,6 +25,8 @@ def validate_sampler_name(name):
 def decode_base64_to_image(encoding, quiet=False):
     if encoding is None:
         return None
+    if isinstance(encoding, str) and encoding.startswith("upload:"):
+        return _resolve_upload_ref(encoding, quiet)
     if encoding.startswith("data:image/"):
         encoding = encoding.split(";")[1].split(",")[1]
     try:
@@ -25,12 +35,31 @@ def decode_base64_to_image(encoding, quiet=False):
         image = Image.open(data)
         return image
     except Exception as e:
-        shared.log.warning(f'API cannot decode image: {e}')
+        log.warning(f'API cannot decode image: {e}')
         # from modules import errors
         # errors.display(e, 'API cannot decode image')
         if not quiet:
             raise HTTPException(status_code=500, detail="Invalid encoded image") from e
         return None
+
+
+def _resolve_upload_ref(encoding: str, quiet: bool = False):
+    ref_id = encoding[len("upload:"):]
+    try:
+        if _upload_store_getter is None:
+            raise RuntimeError("Upload store not registered")
+        store = _upload_store_getter()
+        image = store.resolve_to_image(ref_id)
+        if image is not None:
+            return image
+    except Exception as e:
+        log.warning(f'API cannot resolve upload ref={ref_id}: {e}')
+        if not quiet:
+            raise HTTPException(status_code=400, detail=f"Upload reference not found: {encoding}") from e
+        return None
+    if not quiet:
+        raise HTTPException(status_code=400, detail=f"Upload reference not found: {encoding}")
+    return None
 
 
 def encode_pil_to_base64(image):
@@ -41,7 +70,7 @@ def encode_pil_to_base64(image):
     return base64.b64encode(bytes_data)
     """
     if not isinstance(image, Image.Image):
-        shared.log.error('API cannot encode image: not a PIL image')
+        log.error('API cannot encode image: not a PIL image')
         return ''
     buffered = io.BytesIO()
     save_image(image, fn=buffered, ext=shared.opts.samples_format)
@@ -66,7 +95,7 @@ def save_image(image, fn, ext):
         image.save(fn, format=image_format, quality=shared.opts.jpeg_quality, pnginfo=pnginfo_data)
     elif image_format == 'JPEG':
         if image.mode == 'RGBA':
-            shared.log.warning('Save: RGBA image as JPEG - removed alpha channel')
+            log.warning('Save: RGBA image as JPEG - removed alpha channel')
             image = image.convert("RGB")
         elif image.mode == 'I;16':
             image = image.point(lambda p: p * 0.0038910505836576).convert("L")
@@ -87,5 +116,5 @@ def save_image(image, fn, ext):
         exif_bytes = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(parameters or "", encoding="unicode") } })
         image.save(fn, format=image_format, quality=shared.opts.jpeg_quality, lossless=shared.opts.webp_lossless, exif=exif_bytes)
     else:
-        # shared.log.warning(f'Unrecognized image format: {extension} attempting save as {image_format}')
+        # log.warning(f'Unrecognized image format: {extension} attempting save as {image_format}')
         image.save(fn, format=image_format, quality=shared.opts.jpeg_quality)

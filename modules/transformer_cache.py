@@ -1,9 +1,10 @@
 import os
 import diffusers
 from modules import shared, errors
+from modules.logger import log
 
 
-debug = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def set_cache(faster_cache=None, pyramid_attention_broadcast=None):
@@ -14,7 +15,7 @@ def set_cache(faster_cache=None, pyramid_attention_broadcast=None):
     if (not faster_cache) and (not pyramid_attention_broadcast):
         return
     if (not hasattr(shared.sd_model.transformer, 'enable_cache')) or (not hasattr(shared.sd_model.transformer, 'disable_cache')):
-        shared.log.debug(f'Transformer cache: cls={shared.sd_model.transformer.__class__.__name__} fc={faster_cache} pab={pyramid_attention_broadcast} not supported')
+        log.debug(f'Transformer cache: cls={shared.sd_model.transformer.__class__.__name__} fc={faster_cache} pab={pyramid_attention_broadcast} not supported')
         return
     try:
         if faster_cache: # https://github.com/huggingface/diffusers/pull/10163
@@ -31,7 +32,7 @@ def set_cache(faster_cache=None, pyramid_attention_broadcast=None):
             )
             shared.sd_model.transformer.disable_cache()
             shared.sd_model.transformer.enable_cache(config)
-            shared.log.debug(f'Transformer cache: type={config.__class__.__name__}')
+            log.debug(f'Transformer cache: type={config.__class__.__name__}')
             debug(f'Transformer cache: {vars(config)}')
         elif pyramid_attention_broadcast: # https://github.com/huggingface/diffusers/pull/9562
             config = diffusers.PyramidAttentionBroadcastConfig(
@@ -41,11 +42,11 @@ def set_cache(faster_cache=None, pyramid_attention_broadcast=None):
             )
             shared.sd_model.transformer.disable_cache()
             shared.sd_model.transformer.enable_cache(config)
-            shared.log.debug(f'Transformer cache: type={config.__class__.__name__}')
+            log.debug(f'Transformer cache: type={config.__class__.__name__}')
             debug(f'Transformer cache: {vars(config)}')
         else:
             debug('Transformer cache: not enabled')
             shared.sd_model.transformer.disable_cache()
     except Exception as e:
-        shared.log.error(f'Transformer cache: {e}')
+        log.error(f'Transformer cache: {e}')
         errors.display(e, 'Transformer cache')

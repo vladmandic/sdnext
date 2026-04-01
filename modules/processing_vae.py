@@ -2,12 +2,13 @@ import os
 import time
 import numpy as np
 import torch
-from modules import shared, devices, sd_models, sd_vae, errors
+from modules import shared, devices, errors, sd_models, sd_models_utils, sd_vae
+from modules.logger import log
 from modules.vae import sd_vae_taesd
 
 
 debug = os.environ.get('SD_VAE_DEBUG', None) is not None
-log_debug = shared.log.trace if debug else lambda *args, **kwargs: None
+log_debug = log.trace if debug else lambda *args, **kwargs: None
 log_debug('Trace: VAE')
 
 
@@ -22,7 +23,7 @@ def create_latents(image, p, dtype=None, device=None):
         latents = [vae_encode(i, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for i in image]
         latents = torch.stack(latents, dim=0).to(shared.device)
     else:
-        shared.log.warning(f'Latents: input type: {type(image)} {image}')
+        log.warning(f'Latents: input type: {type(image)} {image}')
         return image
     noise = p.denoising_strength * create_random_tensors(latents.shape[1:], seeds=p.all_seeds, subseeds=p.all_subseeds, subseed_strength=p.subseed_strength, p=p)
     latents = (1 - p.denoising_strength) * latents + noise
@@ -36,7 +37,7 @@ def create_latents(image, p, dtype=None, device=None):
 def full_vqgan_decode(latents, model):
     t0 = time.time()
     if model is None or not hasattr(model, 'vqgan'):
-        shared.log.error('VQGAN not found in model')
+        log.error('VQGAN not found in model')
         return []
     if debug:
         devices.torch_gc(force=True)
@@ -62,7 +63,7 @@ def full_vqgan_decode(latents, model):
     try:
         decoded = model.vqgan.decode(latents).sample.clamp(0, 1)
     except Exception as e:
-        shared.log.error(f'VAE decode: {e}')
+        log.error(f'VAE decode: {e}')
         errors.display(e, 'VAE decode')
         decoded = []
 
@@ -70,7 +71,7 @@ def full_vqgan_decode(latents, model):
     if 'VAE' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx" and shared.compiled_model_state.first_pass_vae:
         shared.compiled_model_state.first_pass_vae = False
         if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_model, "vqgan"):
-            model.vqgan.apply(sd_models.convert_to_faketensors)
+            model.vqgan.apply(sd_models_utils.convert_to_faketensors)
             devices.torch_gc(force=True)
 
     if shared.opts.diffusers_offload_mode == "balanced":
@@ -81,7 +82,7 @@ def full_vqgan_decode(latents, model):
     if debug:
         log_debug(f'VAE memory: {shared.mem_mon.read()}')
     vae_name = os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0] if sd_vae.loaded_vae_file is not None else "default"
-    shared.log.debug(f'VAE decode: vae="{vae_name}" type="vqgan" dtype={model.vqgan.dtype} device={model.vqgan.device} time={round(t1-t0, 3)}')
+    log.debug(f'VAE decode: vae="{vae_name}" type="vqgan" dtype={model.vqgan.dtype} device={model.vqgan.device} time={round(t1-t0, 3)}')
     return decoded
 
 
@@ -90,7 +91,7 @@ def full_vae_decode(latents, model):
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
         model = model.pipe
     if model is None or not hasattr(model, 'vae'):
-        shared.log.error('VAE not found in model')
+        log.error('VAE not found in model')
         return []
     if debug:
         devices.torch_gc(force=True)
@@ -152,7 +153,7 @@ def full_vae_decode(latents, model):
         with devices.inference_context():
             decoded = model.vae.decode(latents, return_dict=False)[0]
     except Exception as e:
-        shared.log.error(f'VAE decode: {e}')
+        log.error(f'VAE decode: {e}')
         if 'out of memory' not in str(e) and 'no data' not in str(e):
             errors.display(e, 'VAE decode')
         decoded = []
@@ -165,7 +166,7 @@ def full_vae_decode(latents, model):
     if 'VAE' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx" and shared.compiled_model_state.first_pass_vae:
         shared.compiled_model_state.first_pass_vae = False
         if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_model, "vae"):
-            model.vae.apply(sd_models.convert_to_faketensors)
+            model.vae.apply(sd_models_utils.convert_to_faketensors)
             devices.torch_gc(force=True)
 
     elif shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False) and base_device is not None:
@@ -176,7 +177,7 @@ def full_vae_decode(latents, model):
         log_debug(f'VAE memory: {shared.mem_mon.read()}')
     vae_name = os.path.splitext(os.path.basename(sd_vae.loaded_vae_file))[0] if sd_vae.loaded_vae_file is not None else "default"
     vae_scale_factor = sd_vae.get_vae_scale_factor(model)
-    shared.log.debug(f'Decode: vae="{vae_name}" scale={vae_scale_factor} upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={list(latents.shape)}:{latents.device} dtype={latents.dtype} time={t1-t0:.3f}')
+    log.debug(f'Decode: vae="{vae_name}" scale={vae_scale_factor} upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={list(latents.shape)}:{latents.device} dtype={latents.dtype} time={t1-t0:.3f}')
     return decoded
 
 
@@ -209,7 +210,7 @@ def full_vae_encode(image, model):
     if shared.opts.diffusers_move_unet and not getattr(model, 'has_accelerate', False) and hasattr(model, 'unet'):
         sd_models.move_model(model.unet, unet_device)
     t1 = time.time()
-    shared.log.debug(f'Encode: vae="{vae_name}" upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={encoded.shape}:{encoded.device}:{encoded.dtype} time={t1-t0:.3f}')
+    log.debug(f'Encode: vae="{vae_name}" upcast={upcast} slicing={getattr(model.vae, "use_slicing", None)} tiling={getattr(model.vae, "use_tiling", None)} latents={encoded.shape}:{encoded.device}:{encoded.dtype} time={t1-t0:.3f}')
     return encoded
 
 
@@ -224,12 +225,12 @@ def taesd_vae_decode(latents):
     else:
         decoded = sd_vae_taesd.decode(latents)
     t1 = time.time()
-    shared.log.debug(f'Decode: vae="taesd" latents={latents.shape}:{latents.device} dtype={latents.dtype} time={t1-t0:.3f}')
+    log.debug(f'Decode: vae="taesd" latents={latents.shape}:{latents.device} dtype={latents.dtype} time={t1-t0:.3f}')
     return decoded
 
 
 def taesd_vae_encode(image):
-    shared.log.debug(f'Encode: vae="taesd" image={image.shape}')
+    log.debug(f'Encode: vae="taesd" image={image.shape}')
     encoded = sd_vae_taesd.encode(image)
     return encoded
 
@@ -263,7 +264,7 @@ def vae_postprocess(tensor, model, output_type='np'):
         else:
             images = tensor if isinstance(tensor, list) or isinstance(tensor, np.ndarray) else [tensor]
     except Exception as e:
-        shared.log.error(f'VAE postprocess: {e}')
+        log.error(f'VAE postprocess: {e}')
         errors.display(e, 'VAE')
     return images
 
@@ -277,12 +278,12 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
         return latents
 
     if latents.shape[0] == 0:
-        shared.log.error(f'VAE nothing to decode: {latents.shape}')
+        log.error(f'VAE nothing to decode: {latents.shape}')
         return []
     if shared.state.interrupted or shared.state.skipped:
         return []
     if not hasattr(model, 'vae') and not hasattr(model, 'vqgan'):
-        shared.log.error('VAE not found in model')
+        log.error('VAE not found in model')
         return []
 
     if vae_type == 'Remote':
@@ -320,13 +321,13 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
     elif hasattr(model, "vae"):
         decoded = full_vae_decode(latents=latents, model=model)
     else:
-        shared.log.error('VAE not found in model')
+        log.error('VAE not found in model')
         decoded = []
 
     images = vae_postprocess(decoded, model, output_type)
     if shared.cmd_opts.profile or debug:
         t1 = time.time()
-        shared.log.debug(f'Profile: VAE decode: {t1-t0:.2f}')
+        log.debug(f'Profile: VAE decode: {t1-t0:.2f}')
     devices.torch_gc()
     shared.state.end(jobid)
     return images
@@ -334,22 +335,22 @@ def vae_decode(latents, model, output_type='np', vae_type='Full', width=None, he
 
 def vae_encode(image, model, vae_type='Full'): # pylint: disable=unused-variable
     jobid = shared.state.begin('VAE Encode')
-    import torchvision.transforms.functional as f
+    from modules.image import convert
     if shared.state.interrupted or shared.state.skipped:
         return []
     if not hasattr(model, 'vae') and hasattr(model, 'pipe'):
         model = model.pipe
     if not hasattr(model, 'vae'):
-        shared.log.error('VAE not found in model')
+        log.error('VAE not found in model')
         return []
-    tensor = f.to_tensor(image.convert("RGB")).unsqueeze(0).to(devices.device, devices.dtype_vae)
+    tensor = convert.to_tensor(image.convert("RGB")).unsqueeze(0).to(devices.device, devices.dtype_vae)
     if vae_type == 'Tiny':
         latents = taesd_vae_encode(image=tensor)
     elif vae_type == 'Full' and hasattr(model, 'vae'):
         tensor = tensor * 2 - 1
         latents = full_vae_encode(image=tensor, model=shared.sd_model)
     else:
-        shared.log.error('VAE not found in model')
+        log.error('VAE not found in model')
         latents = []
     devices.torch_gc()
     shared.state.end(jobid)
@@ -362,10 +363,10 @@ def reprocess(gallery):
     latent, index = shared.history.selected
     if latent is None or gallery is None:
         return None
-    shared.log.info(f'Reprocessing: latent={latent.shape}')
+    log.info(f'Reprocessing: latent={latent.shape}')
     reprocessed = vae_decode(latent, shared.sd_model, output_type='pil')
     outputs = []
-    for i0, i1 in zip(gallery, reprocessed):
+    for i0, i1 in zip(gallery, reprocessed, strict=False):
         if isinstance(i1, np.ndarray):
             i1 = Image.fromarray(i1)
         fn = i0['name']

@@ -10,8 +10,8 @@ from modules import devices
 class WanImagePipeline(diffusers.WanPipeline):
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
-        negative_prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
+        negative_prompt: Union[str, List[str]] | None = None,
         height: int = 480,
         width: int = 832,
         num_frames: int = 81,

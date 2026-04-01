@@ -88,7 +88,7 @@ class Scheduler(SchedulerMixin, ConfigMixin):
     def step(
         self,
         model_output: torch.Tensor,
-        timestep: torch.long,
+        timestep: torch.Tensor,
         sample: torch.LongTensor,
         starting_mask_ratio: int = 1,
         generator: Optional[torch.Generator] = None,

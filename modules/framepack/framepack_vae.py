@@ -1,6 +1,7 @@
 import torch
 import einops
 from modules import shared, devices
+from modules.logger import log
 
 
 latent_rgb_factors = [ # from comfyui
@@ -45,7 +46,7 @@ def vae_decode_tiny(latents):
     if taesd is None:
         from modules.vae import sd_vae_taesd
         taesd, _variant = sd_vae_taesd.get_model(variant='TAE HunyuanVideo')
-        shared.log.debug(f'Video VAE: type=Tiny cls={taesd.__class__.__name__} latents={latents.shape}')
+        log.debug(f'Video VAE: type=Tiny cls={taesd.__class__.__name__} latents={latents.shape}')
     with devices.inference_context():
         taesd = taesd.to(device=devices.device, dtype=devices.dtype)
         latents = latents.transpose(1, 2) # pipe produces NCTHW and tae wants NTCHW

@@ -1,4 +1,3 @@
-from typing import Optional, Union
 import time
 import torch
 import torch.nn as nn
@@ -17,10 +16,10 @@ orig_torch_conv = torch.nn.modules.conv.Conv2d._conv_forward # pylint: disable=p
 def hijack_set_module_tensor(
     module: nn.Module,
     tensor_name: str,
-    device: Union[int, str, torch.device],
-    value: Optional[torch.Tensor] = None,
-    dtype: Optional[Union[str, torch.dtype]] = None, # pylint: disable=unused-argument
-    fp16_statistics: Optional[torch.HalfTensor] = None, # pylint: disable=unused-argument
+    device: int | str | torch.device,
+    value: torch.Tensor | None = None,
+    dtype: str | torch.dtype | None = None, # pylint: disable=unused-argument
+    fp16_statistics: torch.HalfTensor | None = None, # pylint: disable=unused-argument
 ):
     global tensor_to_timer # pylint: disable=global-statement
     if device == 'cpu': # override to load directly to gpu
@@ -46,10 +45,10 @@ def hijack_set_module_tensor(
 def hijack_set_module_tensor_simple(
     module: nn.Module,
     tensor_name: str,
-    device: Union[int, str, torch.device],
-    value: Optional[torch.Tensor] = None,
-    dtype: Optional[Union[str, torch.dtype]] = None, # pylint: disable=unused-argument
-    fp16_statistics: Optional[torch.HalfTensor] = None, # pylint: disable=unused-argument
+    device: int | str | torch.device,
+    value: torch.Tensor | None = None,
+    dtype: str | torch.dtype | None = None, # pylint: disable=unused-argument
+    fp16_statistics: torch.HalfTensor | None = None, # pylint: disable=unused-argument
 ):
     global tensor_to_timer # pylint: disable=global-statement
     if device == 'cpu': # override to load directly to gpu
@@ -79,12 +78,6 @@ def hijack_accelerate():
 
 def restore_accelerate():
     accelerate.utils.set_module_tensor_to_device = orig_set_module
-
-
-def hijack_hfhub():
-    import contextlib
-    import huggingface_hub.file_download
-    huggingface_hub.file_download.FileLock = contextlib.nullcontext
 
 
 def torch_conv_forward(self, input, weight, bias): # pylint: disable=redefined-builtin

@@ -2,7 +2,6 @@ import io
 from collections import defaultdict
 from dataclasses import dataclass
 from functools import lru_cache
-from pathlib import Path
 from typing import Any, Dict, Tuple, Set, Iterable
 
 from matplotlib import pyplot as plt
@@ -19,7 +18,6 @@ __all__ = ['GlobalHeatMap', 'RawHeatMapCollection', 'WordHeatMap', 'ParsedHeatMa
 
 
 def plot_overlay_heat_map(im, heat_map, word=None, out_file=None, crop=None, color_normalize=True, ax=None, cmap='jet'):
-    # type: (PIL.Image.Image | np.ndarray, torch.Tensor, str, Path, int, bool, plt.Axes) -> None
     if ax is None:
         plt.rcParams['font.size'] = 16
         plt.rcParams['figure.facecolor'] = 'black'
@@ -76,7 +74,6 @@ class WordHeatMap:
         return self.heatmap
 
     def plot_overlay(self, image, out_file=None, color_normalize=True, ax=None, cmap='jet', **expand_kwargs):
-        # type: (PIL.Image.Image | np.ndarray, Path, bool, plt.Axes, Dict[str, Any]) -> None
         return plot_overlay_heat_map(
             image,
             self.expand_as(image, **expand_kwargs),

@@ -17,7 +17,6 @@ Utility functions for creating schedules and samplers from config.
 """
 
 import torch
-from omegaconf import DictConfig
 
 from .samplers.base import Sampler
 from .samplers.euler import EulerSampler
@@ -28,7 +27,7 @@ from .timesteps.sampling.trailing import UniformTrailingSamplingTimesteps
 
 
 def create_schedule_from_config(
-    config: DictConfig,
+    config,
 ) -> Schedule:
     """
     Create a schedule from configuration.
@@ -40,7 +39,7 @@ def create_schedule_from_config(
 
 
 def create_sampler_from_config(
-    config: DictConfig,
+    config,
     schedule: Schedule,
     timesteps: SamplingTimesteps,
 ) -> Sampler:
@@ -57,7 +56,7 @@ def create_sampler_from_config(
 
 
 def create_sampling_timesteps_from_config(
-    config: DictConfig,
+    config,
     schedule: Schedule,
     device: torch.device,
 ) -> SamplingTimesteps:

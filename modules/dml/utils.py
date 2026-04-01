@@ -1,9 +1,9 @@
-from typing import Optional, Union
+from typing import Union
 import torch
 
 
 rDevice = Union[torch.device, int]
-def get_device(device: Optional[rDevice]=None) -> torch.device:
+def get_device(device: rDevice | None=None) -> torch.device:
     if device is None:
         device = torch.dml.current_device()
     return torch.device(device)

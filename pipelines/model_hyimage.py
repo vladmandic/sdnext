@@ -3,6 +3,7 @@ import torch
 import transformers
 import diffusers
 from modules import shared, sd_models, devices, model_quant, sd_hijack_te, sd_hijack_vae
+from modules.logger import log
 from pipelines import generic
 
 
@@ -13,7 +14,7 @@ def load_hyimage(checkpoint_info, diffusers_load_config=None): # pylint: disable
     sd_models.hf_auth_check(checkpoint_info)
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
-    shared.log.debug(f'Load model: type=HunyuanImage21 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    log.debug(f'Load model: type=HunyuanImage21 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.HunyuanImageTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer")
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config, subfolder="text_encoder")
@@ -46,7 +47,7 @@ def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disabl
         diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
-    shared.log.debug(f'Load model: type=HunyuanImage3 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
+    log.debug(f'Load model: type=HunyuanImage3 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype}')
 
     allow_quant = True
     if 'sdnq-' in repo_id.lower():
@@ -80,8 +81,8 @@ class HunyuanImage3Wrapper(torch.nn.Module):
     def __call__(
         self,
         prompt: str,
-        height: int = None,
-        width: int = None,
+        height: int | None = None,
+        width: int | None = None,
         num_inference_steps: int = 50,
         num_images_per_prompt: int = 1,
         guidance_scale: float = 7.5,

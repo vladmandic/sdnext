@@ -1,8 +1,9 @@
 import gradio as gr
 from modules import scripts_manager, processing, shared, sd_models
+from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class BLIPDiffusionScript(scripts_manager.Script):
     def title(self):
         return 'BLIP Diffusion: Controllable Generation and Editing'
 
@@ -23,7 +24,7 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessing, source_subject, target_subject, prompt_strength): # pylint: disable=arguments-differ, unused-argument
         c = shared.sd_model.__class__.__name__ if shared.sd_loaded else ''
         if c != 'BlipDiffusionPipeline':
-            shared.log.error(f'BLIP: model selected={c} required=BLIPDiffusion')
+            log.error(f'BLIP: model selected={c} required=BLIPDiffusion')
             return None
         if hasattr(p, 'init_images') and len(p.init_images) > 0:
             p.task_args['reference_image'] = p.init_images[0]
@@ -33,10 +34,10 @@ class Script(scripts_manager.Script):
             p.task_args['source_subject_category'] = [source_subject]
             p.task_args['target_subject_category'] = [target_subject]
             p.task_args['output_type'] = 'pil'
-            shared.log.debug(f'BLIP Diffusion: args={p.task_args}')
+            log.debug(f'BLIP Diffusion: args={p.task_args}')
             shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)
             processed = processing.process_images(p)
             return processed
         else:
-            shared.log.error('BLIP: no init_images')
+            log.error('BLIP: no init_images')
             return None

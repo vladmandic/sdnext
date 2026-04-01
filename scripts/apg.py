@@ -1,11 +1,12 @@
 import gradio as gr
 from modules import scripts_manager, processing, shared, sd_models
+from modules.logger import log
 
 
 registered = False
 
 
-class Script(scripts_manager.Script):
+class APGScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -53,7 +54,7 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessing, eta = 0.0, momentum = 0.0, threshold = 0.0): # pylint: disable=arguments-differ
         supported_model_list = ['sd', 'sdxl', 'sc']
         if shared.sd_model_type not in supported_model_list:
-            shared.log.warning(f'APG: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            log.warning(f'APG: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
         from modules import apg
         apg.eta = getattr(p, 'apg_eta', eta) # use values set by xyz grid or via ui
@@ -70,7 +71,7 @@ class Script(scripts_manager.Script):
         elif shared.sd_model_type == "sc":
             self.orig_pipe = shared.sd_model.prior_pipe
             shared.sd_model.prior_pipe = sd_models.switch_pipe(apg.StableCascadePriorPipelineAPG, shared.sd_model.prior_pipe)
-        shared.log.info(f'APG apply: guidance={p.cfg_scale} momentum={apg.momentum} eta={apg.eta} threshold={apg.threshold} class={shared.sd_model.__class__.__name__}')
+        log.info(f'APG apply: guidance={p.cfg_scale} momentum={apg.momentum} eta={apg.eta} threshold={apg.threshold} class={shared.sd_model.__class__.__name__}')
         p.extra_generation_params["APG"] = f'ETA={apg.eta} Momentum={apg.momentum} Threshold={apg.threshold}'
         # processed = processing.process_images(p)
         return None

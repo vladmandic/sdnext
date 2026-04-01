@@ -1,13 +1,11 @@
 # pylint: disable=relative-beyond-top-level,redefined-builtin,protected-access
 
-from typing import Tuple
-
 import torch
 
 from ...common import use_contiguous_mm # noqa: TID252
 
 
-def check_mats(input: torch.Tensor, weight: torch.Tensor, allow_contiguous_mm: bool = True) -> Tuple[torch.Tensor, torch.Tensor]:
+def check_mats(input: torch.Tensor, weight: torch.Tensor, allow_contiguous_mm: bool = True) -> tuple[torch.Tensor, torch.Tensor]:
     input = input.contiguous()
     if allow_contiguous_mm and use_contiguous_mm:
         weight = weight.contiguous()

@@ -28,7 +28,7 @@ def auth():
     return None
 
 
-def post(endpoint: str, payload: dict = None):
+def post(endpoint: str, payload: dict | None = None):
     if 'sdapi' not in endpoint:
         endpoint = f'sdapi/v1/{endpoint}'
     if 'http' not in endpoint:

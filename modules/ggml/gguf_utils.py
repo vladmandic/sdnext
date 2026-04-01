@@ -1,7 +1,8 @@
 # Original: invokeai.backend.quantization.gguf.utils
 # Largely based on https://github.com/city96/ComfyUI-GGUF
 
-from typing import Callable, Optional, Union
+from typing import Union
+from collections.abc import Callable
 
 import gguf
 import torch
@@ -28,7 +29,7 @@ def get_scale_min(scales: torch.Tensor):
 
 # Legacy Quants #
 def dequantize_blocks_Q8_0(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     d, x = split_block_dims(blocks, 2)
     d = d.view(torch.float16).to(dtype)
@@ -37,7 +38,7 @@ def dequantize_blocks_Q8_0(
 
 
 def dequantize_blocks_Q5_1(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     n_blocks = blocks.shape[0]
 
@@ -58,7 +59,7 @@ def dequantize_blocks_Q5_1(
 
 
 def dequantize_blocks_Q5_0(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     n_blocks = blocks.shape[0]
 
@@ -79,7 +80,7 @@ def dequantize_blocks_Q5_0(
 
 
 def dequantize_blocks_Q4_1(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     n_blocks = blocks.shape[0]
 
@@ -96,7 +97,7 @@ def dequantize_blocks_Q4_1(
 
 
 def dequantize_blocks_Q4_0(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     n_blocks = blocks.shape[0]
 
@@ -111,13 +112,13 @@ def dequantize_blocks_Q4_0(
 
 
 def dequantize_blocks_BF16(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     return (blocks.view(torch.int16).to(torch.int32) << 16).view(torch.float32)
 
 
 def dequantize_blocks_Q6_K(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     n_blocks = blocks.shape[0]
 
@@ -147,7 +148,7 @@ def dequantize_blocks_Q6_K(
 
 
 def dequantize_blocks_Q5_K(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     n_blocks = blocks.shape[0]
 
@@ -175,7 +176,7 @@ def dequantize_blocks_Q5_K(
 
 
 def dequantize_blocks_Q4_K(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     n_blocks = blocks.shape[0]
 
@@ -197,7 +198,7 @@ def dequantize_blocks_Q4_K(
 
 
 def dequantize_blocks_Q3_K(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     n_blocks = blocks.shape[0]
 
@@ -232,7 +233,7 @@ def dequantize_blocks_Q3_K(
 
 
 def dequantize_blocks_Q2_K(
-    blocks: torch.Tensor, block_size: int, type_size: int, dtype: Optional[torch.dtype] = None
+    blocks: torch.Tensor, block_size: int, type_size: int, dtype: torch.dtype | None = None
 ) -> torch.Tensor:
     n_blocks = blocks.shape[0]
 
@@ -254,7 +255,7 @@ def dequantize_blocks_Q2_K(
 
 
 DEQUANTIZE_FUNCTIONS: dict[
-    gguf.GGMLQuantizationType, Callable[[torch.Tensor, int, int, Optional[torch.dtype]], torch.Tensor]
+    gguf.GGMLQuantizationType, Callable[[torch.Tensor, int, int, torch.dtype | None], torch.Tensor]
 ] = {
     gguf.GGMLQuantizationType.BF16: dequantize_blocks_BF16,
     gguf.GGMLQuantizationType.Q8_0: dequantize_blocks_Q8_0,
@@ -270,7 +271,7 @@ DEQUANTIZE_FUNCTIONS: dict[
 }
 
 
-def is_torch_compatible(tensor: Optional[torch.Tensor]):
+def is_torch_compatible(tensor: torch.Tensor | None):
     return getattr(tensor, "tensor_type", None) in TORCH_COMPATIBLE_QTYPES
 
 
@@ -279,7 +280,7 @@ def is_quantized(tensor: torch.Tensor):
 
 
 def dequantize(
-    data: torch.Tensor, qtype: gguf.GGMLQuantizationType, oshape: torch.Size, dtype: Optional[torch.dtype] = None
+    data: torch.Tensor, qtype: gguf.GGMLQuantizationType, oshape: torch.Size, dtype: torch.dtype | None = None
 ):
     """
     Dequantize tensor back to usable shape/dtype

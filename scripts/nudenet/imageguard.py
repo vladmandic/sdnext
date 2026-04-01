@@ -1,3 +1,4 @@
+from modules.logger import log
 repo_id = 'AIML-TUDA/LlavaGuard-v1.2-0.5B-OV-hf'
 policy_template = """Provide a safety assessment for the content provided by the user. Determine compliance or violation against our safety policy by reviewing the following policy categories:
 Hate:
@@ -92,7 +93,7 @@ model = None
 processor = None
 
 
-def image_guard(image, policy:str=None) -> str:
+def image_guard(image, policy:str | None=None) -> str:
     global model, processor # pylint: disable=global-statement
     import json
     from installer import install
@@ -109,7 +110,7 @@ def image_guard(image, policy:str=None) -> str:
                 cache_dir=shared.opts.hfcache_dir,
             )
             processor = transformers.AutoProcessor.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir)
-            shared.log.info(f'NudeNet load: model="{repo_id}"')
+            log.info(f'NudeNet load: model="{repo_id}"')
         if policy is None or len(policy) < 10:
             policy = policy_template
         chat_template = [
@@ -139,9 +140,9 @@ def image_guard(image, policy:str=None) -> str:
         result = processor.decode(results[0], skip_special_tokens=True)
         result = result.split('assistant', 1)[-1].strip()
         data = json.loads(result)
-        shared.log.debug(f'NudeNet LlavaGuard: {data}')
+        log.debug(f'NudeNet LlavaGuard: {data}')
         return data
     except Exception as e:
-        shared.log.error(f'NudeNet LlavaGuard: {e}')
+        log.error(f'NudeNet LlavaGuard: {e}')
         errors.display(e, 'LlavaGuard')
         return {'error': str(e)}

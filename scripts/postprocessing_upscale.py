@@ -1,8 +1,10 @@
 from PIL import Image
 import gradio as gr
-from modules import scripts_postprocessing, shared
+from modules import scripts_postprocessing, shared, modelloader
 from modules.ui_components import ToolButton
+from modules.ui_common import create_refresh_button
 import modules.ui_symbols as symbols
+from modules.logger import log
 
 
 class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
@@ -28,6 +30,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
 
                 with gr.Row():
                     extras_upscaler_1 = gr.Dropdown(label='Upscaler', elem_id="extras_upscaler_1", choices=[x.name for x in shared.sd_upscalers], value=shared.sd_upscalers[0].name)
+                    create_refresh_button(extras_upscaler_1, modelloader.load_upscalers, lambda: {"choices": modelloader.load_upscalers()}, "process_upscalers_refresh")
 
                 with gr.Row():
                     extras_upscaler_2 = gr.Dropdown(label='Refine upscaler', elem_id="extras_upscaler_2", choices=[x.name for x in shared.sd_upscalers], value=shared.sd_upscalers[0].name)
@@ -50,7 +53,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
 
     def upscale(self, image, info, upscaler, upscale_mode, upscale_by,  upscale_to_width, upscale_to_height, upscale_crop):
         if upscale_mode == 1:
-            upscale_by = max(upscale_to_width/image.width, upscale_to_height/image.height)
+            upscale_by = max(upscale_to_width / image.width, upscale_to_height / image.height)
             info["Postprocess upscale to"] = f"{upscale_to_width}x{upscale_to_height}"
         else:
             info["Postprocess upscale by"] = upscale_by
@@ -69,7 +72,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
         upscaler1 = next(iter([x for x in shared.sd_upscalers if x.name == upscaler_1_name]), None)
         if not upscaler1:
             if upscaler_1_name is not None:
-                shared.log.warning(f"Could not find upscaler: {upscaler_1_name or '<empty string>'}")
+                log.warning(f"Could not find upscaler: {upscaler_1_name or '<empty string>'}")
             return
         upscaled_image = self.upscale(pp.image, pp.info, upscaler1, upscale_mode, upscale_by, upscale_to_width, upscale_to_height, upscale_crop)
         pp.info["Postprocess upscaler"] = upscaler1.name
@@ -78,7 +81,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
             upscaler_2_name = None
         upscaler2 = next(iter([x for x in shared.sd_upscalers if x.name == upscaler_2_name and x.name != "None"]), None)
         if not upscaler2 and (upscaler_2_name is not None):
-            shared.log.warning(f"Could not find upscaler: {upscaler_2_name or '<empty string>'}")
+            log.warning(f"Could not find upscaler: {upscaler_2_name or '<empty string>'}")
         if upscaler2 and upscaler_2_visibility > 0:
             second_upscale = self.upscale(pp.image, pp.info, upscaler2, upscale_mode, upscale_by, upscale_to_width, upscale_to_height, upscale_crop)
             upscaled_image = Image.blend(upscaled_image, second_upscale, upscaler_2_visibility)
@@ -108,6 +111,6 @@ class ScriptPostprocessingUpscaleSimple(ScriptPostprocessingUpscale):
             return
         upscaler1 = next(iter([x for x in shared.sd_upscalers if x.name == upscaler_name]), None)
         if upscaler1 is None:
-            shared.log.debug(f"Upscaler not found: {upscaler_name}")
+            log.debug(f"Upscaler not found: {upscaler_name}")
         pp.image = self.upscale(pp.image, pp.info, upscaler1, 0, upscale_by, 0, 0, False)
         pp.info["Postprocess upscaler"] = upscaler1.name

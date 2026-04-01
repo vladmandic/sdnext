@@ -28,6 +28,7 @@ from insightface.utils import face_align
 from PIL import Image
 
 from modules import shared, devices, model_quant
+from modules.logger import log
 from .pipeline_flux_infusenet import FluxInfuseNetPipeline
 from .resampler import Resampler
 
@@ -147,12 +148,12 @@ class InfUFluxPipeline:
         self.infu_flux_version = infu_flux_version
         self.model_version = model_version
         # Load controlnet
-        shared.log.debug(f'InfiniteYou: cls={shared.sd_model.__class__.__name__} loading')
+        log.debug(f'InfiniteYou: cls={shared.sd_model.__class__.__name__} loading')
         local_path = snapshot_download(repo_id='ByteDance/InfiniteYou', cache_dir=shared.opts.hfcache_dir)
         infiniteyou_path = os.path.join(local_path, f'infu_flux_{infu_flux_version}', model_version)
         infusenet_path = os.path.join(infiniteyou_path, 'InfuseNetModel')
         quant_args = model_quant.create_config(module='Control')
-        shared.log.debug(f'InfiniteYou: fn="{infusenet_path}" load infusenet')
+        log.debug(f'InfiniteYou: fn="{infusenet_path}" load infusenet')
         infusenet = FluxControlNetModel.from_pretrained(
             infusenet_path,
             torch_dtype=devices.dtype,
@@ -185,7 +186,7 @@ class InfUFluxPipeline:
             ff_mult=4,
         )
         image_proj_model_path = os.path.join(infiniteyou_path, 'image_proj_model.bin')
-        shared.log.debug(f'InfiniteYou: fn="{image_proj_model_path}" load image projection')
+        log.debug(f'InfiniteYou: fn="{image_proj_model_path}" load image projection')
         ipm_state_dict = torch.load(image_proj_model_path, map_location="cpu")
         self.image_proj_model.load_state_dict(ipm_state_dict['image_proj'])
         del ipm_state_dict
@@ -193,7 +194,7 @@ class InfUFluxPipeline:
         self.image_proj_model.eval()
         # Load face encoder
         insightface_root_path = os.path.join(local_path, 'supports', 'insightface')
-        shared.log.debug(f'InfiniteYou: fn="{insightface_root_path}" load face encoder')
+        log.debug(f'InfiniteYou: fn="{insightface_root_path}" load face encoder')
         self.app_640 = FaceAnalysis(name='antelopev2', root=insightface_root_path, providers=devices.onnx)
         self.app_640.prepare(ctx_id=0, det_size=(640, 640))
         self.app_320 = FaceAnalysis(name='antelopev2', root=insightface_root_path, providers=devices.onnx)

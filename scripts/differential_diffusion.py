@@ -14,7 +14,6 @@ from packaging import version
 import PIL.Image
 import numpy as np
 import torch
-import torchvision
 from transformers import CLIPImageProcessor, CLIPTextModel, CLIPTextModelWithProjection, CLIPTokenizer
 from diffusers.image_processor import VaeImageProcessor
 from diffusers.loaders import FromSingleFileMixin, LoraLoaderMixin, TextualInversionLoaderMixin
@@ -632,7 +631,7 @@ class StableDiffusionXLDiffImg2ImgPipeline(DiffusionPipeline, FromSingleFileMixi
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         prompt_2: Optional[Union[str, List[str]]] = None,
         image: Union[
             torch.FloatTensor,
@@ -663,9 +662,9 @@ class StableDiffusionXLDiffImg2ImgPipeline(DiffusionPipeline, FromSingleFileMixi
         callback_steps: int = 1,
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         guidance_rescale: float = 0.0,
-        original_size: Tuple[int, int] = None,
+        original_size: Tuple[int, int] | None = None,
         crops_coords_top_left: Tuple[int, int] = (0, 0),
-        target_size: Tuple[int, int] = None,
+        target_size: Tuple[int, int] | None = None,
         aesthetic_score: float = 6.0,
         negative_aesthetic_score: float = 2.5,
         map: torch.FloatTensor = None, # pylint: disable=redefined-builtin
@@ -859,7 +858,8 @@ class StableDiffusionXLDiffImg2ImgPipeline(DiffusionPipeline, FromSingleFileMixi
 
         # 4. Preprocess image
         #image = self.image_processor.preprocess(image) #ideally we would have preprocess the image with diffusers, but for this POC we won't --- it throws a deprecated warning
-        map = torchvision.transforms.Resize(tuple(s // self.vae_scale_factor for s in original_image.shape[2:]),antialias=None)(map)
+        from modules.image import sharpfin
+        map = sharpfin.resize_tensor(map, tuple(s // self.vae_scale_factor for s in original_image.shape[2:]), linearize=False)
         # 5. Prepare timesteps
         def denoising_value_valid(dnv):
             return type(denoising_end) == float and 0 < dnv < 1
@@ -1643,7 +1643,7 @@ class StableDiffusionDiffImg2ImgPipeline(DiffusionPipeline):
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         image: Union[torch.FloatTensor, PIL.Image.Image] = None,
         strength: float = 1,
         num_inference_steps: Optional[int] = 50,
@@ -1758,7 +1758,8 @@ class StableDiffusionDiffImg2ImgPipeline(DiffusionPipeline):
 
         # 7. Prepare extra step kwargs.
         extra_step_kwargs = self.prepare_extra_step_kwargs(generator, eta)
-        map = torchvision.transforms.Resize(tuple(s // self.vae_scale_factor for s in image.shape[2:]),antialias=None)(map)
+        from modules.image import sharpfin
+        map = sharpfin.resize_tensor(map, tuple(s // self.vae_scale_factor for s in image.shape[2:]), linearize=False)
 
         # 8. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
@@ -1833,8 +1834,9 @@ class StableDiffusionDiffImg2ImgPipeline(DiffusionPipeline):
 import gradio as gr
 import diffusers
 from PIL import Image, ImageEnhance, ImageOps # pylint: disable=reimported
-from torchvision import transforms
 from modules import errors, shared, devices, scripts_manager, processing, sd_models, images
+from modules.logger import log
+from modules.image import convert
 
 
 detector = None
@@ -1845,7 +1847,7 @@ MODELS = {
 }
 
 
-class Script(scripts_manager.Script):
+class DifferentialDiffusionScript(scripts_manager.Script):
     def title(self):
         return 'Differential diffusion: Individual Pixel Strength'
 
@@ -1888,9 +1890,9 @@ class Script(scripts_manager.Script):
         else:
             return None, None, None
         image_mask = image_map.copy()
-        image_map = transforms.ToTensor()(image_map)
+        image_map = convert.to_tensor(image_map)
         image_map = image_map.to(devices.device)
-        image_init = 2 * transforms.ToTensor()(image_init) - 1
+        image_init = 2 * convert.to_tensor(image_init) - 1
         image_init = image_init.unsqueeze(0)
         image_init = image_init.to(devices.device)
         return image_init, image_map, image_mask
@@ -1899,15 +1901,15 @@ class Script(scripts_manager.Script):
         if not enabled:
             return
         if shared.sd_model_type not in ['sdxl', 'sd', 'f1']:
-            shared.log.error(f'Differential-diffusion: incorrect base model: {shared.sd_model.__class__.__name__}')
+            log.error(f'Differential-diffusion: incorrect base model: {shared.sd_model.__class__.__name__}')
             return
         if not hasattr(p, 'init_images') or len(p.init_images) == 0:
-            shared.log.error('Differential-diffusion: no input images')
+            log.error('Differential-diffusion: no input images')
             return
 
         image_init, image_map, image_mask = self.depthmap(p.init_images[0], image, model, strength, invert)
         if image_map is None:
-            shared.log.error('Differential-diffusion: no image map')
+            log.error('Differential-diffusion: no image map')
             return
 
         orig_pipeline = shared.sd_model
@@ -1948,13 +1950,13 @@ class Script(scripts_manager.Script):
             if shared.sd_model_type == 'sdxl':
                 p.task_args['original_image'] = image_init
             if p.batch_size > 1:
-                shared.log.warning(f'Differential-diffusion: batch-size={p.batch_size} parallel processing not supported')
+                log.warning(f'Differential-diffusion: batch-size={p.batch_size} parallel processing not supported')
                 p.batch_size = 1
-            shared.log.debug(f'Differential-diffusion: pipeline={pipe.__class__.__name__} strength={strength} model={model} auto={image is None}')
+            log.debug(f'Differential-diffusion: pipeline={pipe.__class__.__name__} strength={strength} model={model} auto={image is None}')
             shared.sd_model = pipe
             sd_models.move_model(pipe.vae, devices.device, force=True)
         except Exception as e:
-            shared.log.error(f'Differential-diffusion: pipeline creation failed: {e}')
+            log.error(f'Differential-diffusion: pipeline creation failed: {e}')
             errors.display(e, 'Differential-diffusion: pipeline creation failed')
             shared.sd_model = orig_pipeline
 

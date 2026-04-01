@@ -6,7 +6,6 @@ import base64
 import numpy as np
 import mediapipe as mp
 from PIL import Image, ImageOps
-from pi_heif import register_heif_opener
 from skimage.metrics import structural_similarity as ssim
 from scipy.stats import beta
 
@@ -22,7 +21,7 @@ all_images_by_type = {}
 
 
 class Result():
-    def __init__(self, typ: str, fn: str, tag: str = None, requested: list = []):
+    def __init__(self, typ: str, fn: str, tag: str | None = None, requested: list = []):
         self.type = typ
         self.input = fn
         self.output = ''
@@ -126,11 +125,9 @@ def reset():
     all_images = []
 
 
-def upscale_restore_image(res: Result, upscale: bool = False, restore: bool = False):
+def upscale_restore_image(res: Result, upscale: bool = False):
     kwargs = util.Map({
         'image': encode(res.image),
-        'codeformer_visibility': 0.0,
-        'codeformer_weight': 0.0,
     })
     if res.image.width >= options.process.target_size and res.image.height >= options.process.target_size:
         upscale = False
@@ -138,25 +135,21 @@ def upscale_restore_image(res: Result, upscale: bool = False, restore: bool = Fa
         kwargs.upscaler_1 = 'SwinIR_4x'
         kwargs.upscaling_resize = 2
         res.ops.append('upscale')
-    if restore:
-        kwargs.codeformer_visibility = 1.0
-        kwargs.codeformer_weight = 0.2
-        res.ops.append('restore')
-    if upscale or restore:
+    if upscale:
         result = sdapi.postsync('/sdapi/v1/extra-single-image', kwargs)
         if 'image' not in result:
-            res.message = 'failed to upscale/restore image'
+            res.message = 'failed to upscale image'
         else:
             res.image = Image.open(io.BytesIO(base64.b64decode(result['image'])))
     return res
 
 
-def interrogate_image(res: Result, tag: str = None):
+def caption_image(res: Result, tag: str | None = None):
     caption = ''
     tags = []
-    for model in options.process.interrogate_model:
+    for model in options.process.caption_model:
         json = util.Map({ 'image': encode(res.image), 'model': model })
-        result = sdapi.postsync('/sdapi/v1/interrogate', json)
+        result = sdapi.postsync('/sdapi/v1/caption', json)
         if model == 'clip':
             caption = result.caption if 'caption' in result else ''
             caption = caption.split(',')[0].replace(' a ', ' ').strip()
@@ -176,7 +169,7 @@ def interrogate_image(res: Result, tag: str = None):
         tags = tags[:options.process.tag_limit]
     res.caption = caption
     res.tags = tags
-    res.ops.append('interrogate')
+    res.ops.append('caption')
     return res
 
 
@@ -267,7 +260,6 @@ def file(filename: str, folder: str, tag = None, requested = []):
     res = Result(fn = filename, typ='unknown', tag=tag, requested = requested)
     # open image
     try:
-        register_heif_opener()
         res.image = Image.open(filename)
         if res.image.mode == 'RGBA':
             res.image = res.image.convert('RGB')
@@ -309,13 +301,13 @@ def file(filename: str, folder: str, tag = None, requested = []):
     if res.image is None:
         return res
     # post processing steps
-    res = upscale_restore_image(res, 'upscale' in requested, 'restore' in requested)
+    res = upscale_restore_image(res, 'upscale' in requested)
     if res.image.width < options.process.target_size or res.image.height < options.process.target_size:
         res.message = f'low resolution: [{res.image.width}, {res.image.height}]'
         res.image = None
         return res
-    if 'interrogate' in requested:
-        res = interrogate_image(res, tag)
+    if 'caption' in requested:
+        res = caption_image(res, tag)
     if 'resize' in requested:
         res = resize_image(res)
     if 'square' in requested:

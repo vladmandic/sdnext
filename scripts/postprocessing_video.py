@@ -1,10 +1,9 @@
 import gradio as gr
-import modules.images
-from modules import scripts_postprocessing
+from modules import video, scripts_postprocessing
 
 
-class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
-    name = "Video"
+class ScriptPostprocessingVideo(scripts_postprocessing.ScriptPostprocessing):
+    name = "Create Video"
 
     def ui(self):
         with gr.Accordion('Create video', open = False, elem_id="postprocess_video_accordion"):
@@ -19,7 +18,7 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
                 ]
 
             with gr.Row():
-                gr.HTML("<span>&nbsp Video</span><br>")
+                gr.HTML("<span>&nbsp Create video from generated images</span><br>")
             with gr.Row():
                 video_type = gr.Dropdown(label='Video file', choices=['None', 'GIF', 'PNG', 'MP4'], value='None', elem_id="extras_video_type")
                 duration = gr.Slider(label='Duration', minimum=0.25, maximum=10, step=0.25, value=2, visible=False, elem_id="extras_video_duration")
@@ -47,4 +46,4 @@ class ScriptPostprocessingUpscale(scripts_postprocessing.ScriptPostprocessing):
         filename = filename.strip() if filename is not None else ''
         if video_type == 'None' or len(filename) == 0 or images is None or len(images) < 2:
             return
-        modules.images.save_video(p=None, filename=filename, images=images, video_type=video_type, duration=duration, loop=loop, pad=pad, interpolate=interpolate, scale=scale, change=change)
+        video.save_video(p=None, filename=filename, images=images, video_type=video_type, duration=duration, loop=loop, pad=pad, interpolate=interpolate, scale=scale, change=change)

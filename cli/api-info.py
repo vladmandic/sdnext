@@ -24,7 +24,7 @@ def auth():
     return None
 
 
-def get(endpoint: str, dct: dict = None):
+def get(endpoint: str, dct: dict | None = None):
     req = requests.get(f'{sd_url}{endpoint}', json=dct, timeout=300, verify=False, auth=auth())
     if req.status_code != 200:
         return { 'error': req.status_code, 'reason': req.reason, 'url': req.url }
@@ -32,7 +32,7 @@ def get(endpoint: str, dct: dict = None):
         return req.json()
 
 
-def post(endpoint: str, dct: dict = None):
+def post(endpoint: str, dct: dict | None = None):
     req = requests.post(f'{sd_url}{endpoint}', json = dct, timeout=300, verify=False, auth=auth())
     if req.status_code != 200:
         return { 'error': req.status_code, 'reason': req.reason, 'url': req.url }

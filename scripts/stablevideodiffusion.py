@@ -5,7 +5,8 @@ Additional params for StableVideoDiffusion
 import os
 import torch
 import gradio as gr
-from modules import scripts_manager, processing, shared, sd_models, images, modelloader
+from modules import scripts_manager, processing, shared, sd_models, images, modelloader, video
+from modules.logger import log
 
 
 models = {
@@ -14,7 +15,7 @@ models = {
     "SVD XT 1.1": "stabilityai/stable-video-diffusion-img2vid-xt-1-1",
 }
 
-class Script(scripts_manager.Script):
+class SVDScript(scripts_manager.Script):
     def title(self):
         return 'Video: Stable Video Diffusion'
 
@@ -44,7 +45,7 @@ class Script(scripts_manager.Script):
 
     def _encode_image(self, image: torch.Tensor, device, num_videos_per_prompt, do_classifier_free_guidance):
         image = image.to(device=device, dtype=shared.sd_model.vae.dtype)
-        shared.log.debug(f'Video encode: type=svd input={image.shape} dtype={image.dtype} device={image.device}')
+        log.debug(f'Video encode: type=svd input={image.shape} dtype={image.dtype} device={image.device}')
         image_latents = shared.sd_model.vae.encode(image).latent_dist.mode()
         image_latents = image_latents.repeat(num_videos_per_prompt, 1, 1, 1)
         if do_classifier_free_guidance:
@@ -53,7 +54,7 @@ class Script(scripts_manager.Script):
         return image_latents
 
     def _decode_latents(self, latents: torch.Tensor, num_frames: int, decode_chunk_size: int = 14):
-        shared.log.debug(f'Video decode: type=svd input={latents.shape} dtype={latents.dtype} device={latents.device} chunk={decode_chunk_size} frames={num_frames}')
+        log.debug(f'Video decode: type=svd input={latents.shape} dtype={latents.dtype} device={latents.device} chunk={decode_chunk_size} frames={num_frames}')
         latents = latents.flatten(0, 1)
         latents = 1 / shared.sd_model.vae.config.scaling_factor * latents
         frames = []
@@ -70,7 +71,7 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessing, model, num_frames, override_resolution, min_guidance_scale, max_guidance_scale, decode_chunk_size, motion_bucket_id, noise_aug_strength, video_type, duration, gif_loop, mp4_pad, mp4_interpolate): # pylint: disable=arguments-differ, unused-argument
         image = getattr(p, 'init_images', None)
         if image is None or len(image) == 0:
-            shared.log.error('SVD: no init_images')
+            log.error('SVD: no init_images')
             return None
         else:
             image = image[0]
@@ -80,7 +81,7 @@ class Script(scripts_manager.Script):
         model_name = os.path.basename(model_path)
         has_checkpoint = sd_models.get_closest_checkpoint_match(model_path)
         if has_checkpoint is None:
-            shared.log.error(f'SVD: no checkpoint for {model_name}')
+            log.error(f'SVD: no checkpoint for {model_name}')
             modelloader.load_reference(model_path, variant='fp16')
         c = shared.sd_model.__class__.__name__
         model_loaded = shared.sd_model.sd_checkpoint_info.model_name if shared.sd_loaded else None
@@ -115,10 +116,10 @@ class Script(scripts_manager.Script):
         p.task_args['num_inference_steps'] = p.steps
         p.task_args['min_guidance_scale'] = min_guidance_scale
         p.task_args['max_guidance_scale'] = max_guidance_scale
-        shared.log.debug(f'SVD: args={p.task_args}')
+        log.debug(f'SVD: args={p.task_args}')
 
         # run processing
         processed = processing.process_images(p)
         if video_type != 'None':
-            images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=duration, loop=gif_loop, pad=mp4_pad, interpolate=mp4_interpolate)
+            video.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=duration, loop=gif_loop, pad=mp4_pad, interpolate=mp4_interpolate)
         return processed

@@ -1,5 +1,6 @@
 import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
+from modules.logger import log
 from pipelines import generic
 
 
@@ -10,7 +11,7 @@ def load_prx(checkpoint_info, diffusers_load_config=None):
     sd_models.hf_auth_check(checkpoint_info)
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
-    shared.log.debug(f'Load model: type=PRX repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    log.debug(f'Load model: type=PRX repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     from transformers.models.t5gemma.modeling_t5gemma import T5GemmaEncoder
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.PRXTransformer2DModel, load_config=diffusers_load_config)

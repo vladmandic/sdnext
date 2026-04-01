@@ -76,6 +76,7 @@ class UpscalerVIPS(Upscaler):
         log.debug(f"Upscale: name=VIPS input={img.size} output={upscaled.size} time={t1 - t0:.2f}")
         return upscaled
 
+
 class UpscalerHQX(Upscaler):
     def __init__(self, dirname=None): # pylint: disable=unused-argument
         super().__init__(False)
@@ -95,6 +96,7 @@ class UpscalerHQX(Upscaler):
         t1 = time.time()
         log.debug(f"Upscale: name=HQX input={img.size} output={upscaled.size} time={t1 - t0:.2f}")
         return upscaled
+
 
 class UpscalerICBI(Upscaler):
     def __init__(self, dirname=None): # pylint: disable=unused-argument

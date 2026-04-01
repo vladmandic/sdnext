@@ -1,28 +1,29 @@
+from typing import Union
 import itertools
 import os
 from collections import UserDict
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
-from typing import Callable, Dict, Iterator, List, Optional, Union
-from installer import log
+from modules.logger import log
 
 
 do_cache_folders = os.environ.get('SD_NO_CACHE', None) is None
 class Directory: # forward declaration
     ...
 
-FilePathList = List[str]
+FilePathList = list[str]
 FilePathIterator = Iterator[str]
-DirectoryPathList = List[str]
+DirectoryPathList = list[str]
 DirectoryPathIterator = Iterator[str]
-DirectoryList = List[Directory]
+DirectoryList = list[Directory]
 DirectoryIterator = Iterator[Directory]
-DirectoryCollection = Dict[str, Directory]
+DirectoryCollection = dict[str, Directory]
 ExtensionFilter = Callable
 ExtensionList = list[str]
 RecursiveType = Union[bool,Callable]
 
 
-def real_path(directory_path:str) -> Union[str, None]:
+def real_path(directory_path:str) -> str | None:
     try:
         return os.path.abspath(os.path.expanduser(directory_path))
     except Exception:
@@ -52,7 +53,7 @@ class Directory(Directory): # pylint: disable=E0102
     def clear(self) -> None:
         self._update(Directory.from_dict({
             'path': None,
-            'mtime': float(),
+            'mtime': 0.0,
             'files': [],
             'directories': []
         }))
@@ -125,7 +126,7 @@ def clean_directory(directory: Directory, /, recursive: RecursiveType=False) -> 
     return is_clean
 
 
-def get_directory(directory_or_path: str, /, fetch: bool=True) -> Union[Directory, None]:
+def get_directory(directory_or_path: str, /, fetch: bool=True) -> Directory | None:
     if isinstance(directory_or_path, Directory):
         if directory_or_path.is_directory:
             return directory_or_path
@@ -143,7 +144,7 @@ def get_directory(directory_or_path: str, /, fetch: bool=True) -> Union[Director
     return cache_folders[directory_or_path] if directory_or_path in cache_folders else None
 
 
-def fetch_directory(directory_path: str) -> Union[Directory, None]:
+def fetch_directory(directory_path: str) -> Directory | None:
     directory: Directory
     for directory in _walk(directory_path, recurse=False):
         return directory # The return is intentional, we get a generator, we only need the one
@@ -255,7 +256,7 @@ def get_directories(*directory_paths: DirectoryPathList, fetch:bool=True, recurs
     return filter(bool, directories)
 
 
-def directory_files(*directories_or_paths: Union[DirectoryPathList, DirectoryList], recursive: RecursiveType=True) -> FilePathIterator:
+def directory_files(*directories_or_paths: DirectoryPathList | DirectoryList, recursive: RecursiveType=True) -> FilePathIterator:
     return itertools.chain.from_iterable(
         itertools.chain(
             directory_object.files,
@@ -275,7 +276,7 @@ def directory_files(*directories_or_paths: Union[DirectoryPathList, DirectoryLis
     )
 
 
-def extension_filter(ext_filter: Optional[ExtensionList]=None, ext_blacklist: Optional[ExtensionList]=None) -> ExtensionFilter:
+def extension_filter(ext_filter: ExtensionList | None=None, ext_blacklist: ExtensionList | None=None) -> ExtensionFilter:
     if ext_filter:
         ext_filter = [*map(str.upper, ext_filter)]
     if ext_blacklist:
@@ -289,11 +290,11 @@ def not_hidden(filepath: str) -> bool:
     return not os.path.basename(filepath).startswith('.')
 
 
-def filter_files(file_paths: FilePathList, ext_filter: Optional[ExtensionList]=None, ext_blacklist: Optional[ExtensionList]=None) -> FilePathIterator:
+def filter_files(file_paths: FilePathList, ext_filter: ExtensionList | None=None, ext_blacklist: ExtensionList | None=None) -> FilePathIterator:
     return filter(extension_filter(ext_filter, ext_blacklist), file_paths)
 
 
-def list_files(*directory_paths:DirectoryPathList, ext_filter: Optional[ExtensionList]=None, ext_blacklist: Optional[ExtensionList]=None, recursive:RecursiveType=True) -> FilePathIterator:
+def list_files(*directory_paths:DirectoryPathList, ext_filter: ExtensionList | None=None, ext_blacklist: ExtensionList | None=None, recursive:RecursiveType=True) -> FilePathIterator:
     return filter_files(itertools.chain.from_iterable(
         directory_files(directory, recursive=recursive)
         for directory in get_directories(*directory_paths, recursive=recursive)

@@ -1,9 +1,10 @@
 import gradio as gr
 from PIL import Image
 from modules import scripts_manager, processing, shared, sd_models, devices, images
+from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class PixelSmithScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -26,29 +27,25 @@ class Script(scripts_manager.Script):
     def encode(self, p: processing.StableDiffusionProcessing, image: Image.Image):
         if image is None:
             return None
-        import numpy as np
-        import torch
+        from modules.image import convert
         if p.width is None or p.width == 0:
             p.width = int(8 * (image.width * p.scale_by // 8))
         if p.height is None or p.height == 0:
             p.height = int(8 * (image.height * p.scale_by // 8))
         image = images.resize_image(p.resize_mode, image, p.width, p.height, upscaler_name=p.resize_name, context=p.resize_context)
-        tensor = np.array(image).astype(np.float16) / 255.0
-        tensor = tensor[None].transpose(0, 3, 1, 2)
-        # image = image.transpose(0, 3, 1, 2)
-        tensor = torch.from_numpy(tensor).to(device=devices.device, dtype=devices.dtype)
+        tensor = convert.to_tensor(image).unsqueeze(0).to(device=devices.device, dtype=devices.dtype)
         tensor = 2.0 * tensor - 1.0
         with devices.inference_context():
             latent = shared.sd_model.vae.tiled_encode(tensor)
             latent = shared.sd_model.vae.config.scaling_factor * latent.latent_dist.sample()
-        shared.log.info(f'PixelSmith encode: image={image} latent={latent.shape} width={p.width} height={p.height} vae={shared.sd_model.vae.__class__.__name__}')
+        log.info(f'PixelSmith encode: image={image} latent={latent.shape} width={p.width} height={p.height} vae={shared.sd_model.vae.__class__.__name__}')
         return latent
 
 
     def run(self, p: processing.StableDiffusionProcessing, slider: int = 20): # pylint: disable=arguments-differ
         supported_model_list = ['sdxl']
         if shared.sd_model_type not in supported_model_list:
-            shared.log.warning(f'PixelSmith: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            log.warning(f'PixelSmith: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
         from scripts.pixelsmith import PixelSmithXLPipeline, PixelSmithVAE # pylint: disable=no-name-in-module
         self.orig_pipe = shared.sd_model
         self.orig_vae = shared.sd_model.vae
@@ -64,7 +61,7 @@ class Script(scripts_manager.Script):
         if hasattr(p, 'init_images') and p.init_images is not None and len(p.init_images) > 0:
             p.task_args['image'] = self.encode(p, p.init_images[0])
             p.init_images = None
-        shared.log.info(f'PixelSmith apply: slider={slider} class={shared.sd_model.__class__.__name__} vae={shared.sd_model.vae.__class__.__name__}')
+        log.info(f'PixelSmith apply: slider={slider} class={shared.sd_model.__class__.__name__} vae={shared.sd_model.vae.__class__.__name__}')
         # processed = processing.process_images(p)
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, slider): # pylint: disable=unused-argument

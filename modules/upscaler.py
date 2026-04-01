@@ -1,8 +1,15 @@
+from __future__ import annotations
+
 import os
 from abc import abstractmethod
+from typing import TYPE_CHECKING
 from PIL import Image
-from modules import modelloader, shared
+from modules import modelloader, shared, paths
+from modules.logger import log
 
+
+if TYPE_CHECKING:
+    from torch import Tensor
 
 models = None
 
@@ -37,19 +44,21 @@ class Upscaler:
         self.mod_scale = None
         self.model_download_path = None
         if self.user_path is not None and len(self.user_path) > 0 and not os.path.exists(self.user_path):
-            shared.log.info(f'Upscaler create: folder="{self.user_path}"')
+            log.info(f'Upscaler create: folder="{self.user_path}"')
         if self.model_path is None and self.name:
-            self.model_path = os.path.join(shared.models_path, self.name)
+            self.model_path = os.path.join(paths.models_path, self.name)
         try:
             if self.model_path and create_dirs:
                 os.makedirs(self.model_path, exist_ok=True)
         except Exception:
             pass
         try:
-            import cv2  # pylint: disable=unused-import
             self.can_tile = True
         except Exception:
             pass
+
+    def __str__(self):
+        return f"Upscaler(name={self.name}, model_path={self.model_path}, user_path={self.user_path})"
 
     def find_folder(self, folder, scalers, loaded):
         for fn in os.listdir(folder): # from folder
@@ -65,7 +74,7 @@ class Upscaler:
                 scaler.custom = True
                 scalers.append(scaler)
                 loaded.append(file_name)
-                # shared.log.debug(f'Upscaler type={self.name} folder="{folder}" model="{model_name}" path="{file_name}"')
+                # log.debug(f'Upscaler type={self.name} folder="{folder}" model="{model_name}" path="{file_name}"')
 
     def find_scalers(self):
         scalers = []
@@ -74,22 +83,25 @@ class Upscaler:
             if k != self.name:
                 continue
             for model in v:
-                local_name = os.path.join(self.user_path, modelloader.friendly_fullname(model[1]))
-                model_path = local_name if os.path.exists(local_name) else model[1]
+                if self.user_path is not None:
+                    local_name = os.path.join(self.user_path, modelloader.friendly_fullname(model[1]))
+                    model_path = local_name if os.path.exists(local_name) else model[1]
+                else:
+                    model_path = model[1]
                 scaler = UpscalerData(name=f'{k} {model[0]}', path=model_path, upscaler=self)
                 scalers.append(scaler)
                 loaded.append(model_path)
-                # shared.log.debug(f'Upscaler type={self.name} folder="{self.user_path}" model="{model[0]}" path="{model_path}"')
+                # log.debug(f'Upscaler type={self.name} folder="{self.user_path}" model="{model[0]}" path="{model_path}"')
         if self.user_path is None or not os.path.exists(self.user_path):
             return scalers
         self.find_folder(self.user_path, scalers, loaded)
         return scalers
 
     @abstractmethod
-    def do_upscale(self, img: Image, selected_model: str):
+    def do_upscale(self, img: Image.Image | Tensor, selected_model: str):
         return img
 
-    def upscale(self, img: Image, scale, selected_model: str = None):
+    def upscale(self, img: Image.Image | Tensor, scale, selected_model: str | None = None):
         jobid = shared.state.begin('Upscale')
         self.scale = scale
         if isinstance(img, Image.Image):
@@ -109,7 +121,8 @@ class Upscaler:
                 if img.width >= dest_w and img.height >= dest_h:
                     break
             if img.width != dest_w or img.height != dest_h:
-                img = img.resize((int(dest_w), int(dest_h)), resample=Image.Resampling.LANCZOS)
+                from modules.image import sharpfin
+                img = sharpfin.resize(img, (int(dest_w), int(dest_h)))
         shared.state.end(jobid)
         return img
 
@@ -121,7 +134,7 @@ class Upscaler:
         return modelloader.load_models(model_path=self.model_path, model_url=self.model_url, command_path=self.user_path)
 
     def update_status(self, prompt):
-        shared.log.info(f'Upscaler: type={self.name} model="{prompt}"')
+        log.info(f'Upscaler: type={self.name} model="{prompt}"')
 
     def find_model(self, path):
         info = None
@@ -130,13 +143,13 @@ class Upscaler:
                 info = scaler
                 break
         if info is None:
-            shared.log.error(f'Upscaler cannot match model: type={self.name} model="{path}"')
+            log.error(f'Upscaler cannot match model: type={self.name} model="{path}"')
             return None
         if info.local_data_path.startswith("http"):
             from modules.modelloader import load_file_from_url
             info.local_data_path = load_file_from_url(url=info.data_path, model_dir=self.model_download_path, progress=True)
         if not os.path.isfile(info.local_data_path):
-            shared.log.error(f'Upscaler cannot find model: type={self.name} model="{info.local_data_path}"')
+            log.error(f'Upscaler cannot find model: type={self.name} model="{info.local_data_path}"')
             return None
         return info
 
@@ -146,16 +159,19 @@ class UpscalerData:
     name = None
     data_path = None
     scale: int = 4
-    scaler: Upscaler = None
+    scaler: Upscaler | None = None
     model: None
 
-    def __init__(self, name: str, path: str = None, upscaler: Upscaler = None, scale: int = 4, model=None):
+    def __init__(self, name: str, path: str | None = None, upscaler: Upscaler | None = None, scale: int = 4, model=None):
         self.name = name
         self.data_path = path
         self.local_data_path = path
         self.scaler = upscaler
         self.scale = scale
         self.model = model
+
+    def __str__(self):
+        return f"UpscalerData(name={self.name}, path={self.data_path}, scale={self.scale})"
 
 
 def compile_upscaler(model):
@@ -164,12 +180,12 @@ def compile_upscaler(model):
             from modules.sd_models_compile import ipex_optimize
             model = ipex_optimize(model, apply_to_components=False, op="Upscaler")
         except Exception as e:
-            shared.log.warning(f"Upscaler IPEX Optimize: error: {e}")
+            log.warning(f"Upscaler IPEX Optimize: error: {e}")
 
     if "Upscaler" in shared.opts.cuda_compile:
         try:
             from modules.sd_models_compile import compile_torch
             model = compile_torch(model, apply_to_components=False, op="Upscaler")
         except Exception as e:
-            shared.log.warning(f"Upscaler compile error: {e}")
+            log.warning(f"Upscaler compile error: {e}")
     return model

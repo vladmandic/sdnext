@@ -6,6 +6,7 @@ from diffusers.models.autoencoders.vae import EncoderOutput, DecoderOutput
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 
 from modules import shared, devices
+from modules.logger import log
 
 
 repo_id = "fal/FLUX.2-Tiny-AutoEncoder"
@@ -29,7 +30,7 @@ def load_fal_vae():
     if prev_vae is None:
         prev_vae = shared.sd_model.vae
     shared.sd_model.vae = tiny_vae
-    shared.log.info(f'VAE load: cls={tiny_vae.__class__.__name__} repo_id={repo_id}')
+    log.info(f'VAE load: cls={tiny_vae.__class__.__name__} repo_id={repo_id}')
 
 
 def unload_fal_vae():
@@ -39,7 +40,7 @@ def unload_fal_vae():
     if prev_vae is not None:
         shared.sd_model.vae = prev_vae
         prev_vae = None
-        shared.log.info(f'VAE restore: cls={prev_vae.__class__.__name__}')
+        log.info(f'VAE restore: cls={prev_vae.__class__.__name__}')
 
 
 class Flux2TinyAutoEncoder(ModelMixin, ConfigMixin):
@@ -49,17 +50,25 @@ class Flux2TinyAutoEncoder(ModelMixin, ConfigMixin):
         in_channels: int = 3,
         out_channels: int = 3,
         latent_channels: int = 128,
-        encoder_block_out_channels: list[int] = [64, 64, 64, 64],
-        decoder_block_out_channels: list[int] = [64, 64, 64, 64],
+        encoder_block_out_channels: list[int] | None = None,
+        decoder_block_out_channels: list[int] | None = None,
         act_fn: str = "silu",
         upsampling_scaling_factor: int = 2,
-        num_encoder_blocks: list[int] = [1, 3, 3, 3],
-        num_decoder_blocks: list[int] = [3, 3, 3, 1],
+        num_encoder_blocks: list[int] | None = None,
+        num_decoder_blocks: list[int] | None = None,
         latent_magnitude: float = 3.0,
         latent_shift: float = 0.5,
         force_upcast: bool = False,
         scaling_factor: float = 0.13025,
     ) -> None:
+        if num_decoder_blocks is None:
+            num_decoder_blocks = [3, 3, 3, 1]
+        if num_encoder_blocks is None:
+            num_encoder_blocks = [1, 3, 3, 3]
+        if decoder_block_out_channels is None:
+            decoder_block_out_channels = [64, 64, 64, 64]
+        if encoder_block_out_channels is None:
+            encoder_block_out_channels = [64, 64, 64, 64]
         super().__init__()
         self.tiny_vae = AutoencoderTiny(
             in_channels=in_channels,

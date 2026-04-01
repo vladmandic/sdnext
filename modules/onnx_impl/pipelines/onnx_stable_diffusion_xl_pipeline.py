@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Any
 import onnxruntime as ort
 import optimum.onnxruntime
 from modules.onnx_impl.pipelines import CallablePipelineBase
@@ -14,16 +14,16 @@ class OnnxStableDiffusionXLPipeline(CallablePipelineBase, optimum.onnxruntime.OR
         vae_decoder: ort.InferenceSession,
         text_encoder: ort.InferenceSession,
         unet: ort.InferenceSession,
-        config: Dict[str, Any],
+        config: dict[str, Any],
         tokenizer: Any,
         scheduler: Any,
         feature_extractor: Any = None,
-        vae_encoder: Optional[ort.InferenceSession] = None,
-        text_encoder_2: Optional[ort.InferenceSession] = None,
+        vae_encoder: ort.InferenceSession | None = None,
+        text_encoder_2: ort.InferenceSession | None = None,
         tokenizer_2: Any = None,
-        use_io_binding: Optional[bool] = None,
+        use_io_binding: bool | None = None,
         model_save_dir = None,
-        add_watermarker: Optional[bool] = None
+        add_watermarker: bool | None = None
     ):
         optimum.onnxruntime.ORTStableDiffusionXLPipeline.__init__(self, vae_decoder, text_encoder, unet, config, tokenizer, scheduler, feature_extractor, vae_encoder, text_encoder_2, tokenizer_2, use_io_binding, model_save_dir, add_watermarker)
         super().__init__()

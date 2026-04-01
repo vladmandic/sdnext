@@ -1,7 +1,8 @@
 import hashlib
 import os.path
 from rich import progress, errors
-from installer import log, console
+from modules.logger import console
+from modules.logger import log
 from modules.json_helpers import readfile, writefile
 from modules.paths import data_path
 
@@ -81,7 +82,7 @@ def sha256(filename, title, use_addnet_hash=False):
     if use_addnet_hash:
         if progress_ok:
             try:
-                with progress.open(filename, 'rb', description=f'[cyan]Calculating hash: [yellow]{filename}', auto_refresh=True, console=shared.console) as f:
+                with progress.open(filename, 'rb', description=f'[cyan]Calculating hash: [yellow]{filename}', auto_refresh=True, console=console) as f:
                     sha256_value = addnet_hash_safetensors(f)
             except errors.LiveError:
                 log.warning('Hash: attempting to use function in a thread')

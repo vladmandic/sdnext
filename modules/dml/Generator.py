@@ -1,7 +1,6 @@
-from typing import Optional
 import torch
 
 
 class Generator(torch.Generator):
-    def __init__(self, device: Optional[torch.device] = None):
+    def __init__(self, device: torch.device | None = None):
         super().__init__("cpu")

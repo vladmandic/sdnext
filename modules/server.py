@@ -41,9 +41,8 @@ class UvicornServer(uvicorn.Server):
         self.start()
 
 
-class HypercornServer():
+class HypercornServer:
     def __init__(self, app: fastapi.FastAPI, listen = None, port = None, keyfile = None, certfile = None, loop = "auto", http = None):
-        import asyncio
         import hypercorn
         self.app: fastapi.FastAPI = app
         self.server: HypercornServer = None
@@ -60,7 +59,6 @@ class HypercornServer():
         self.config.loglevel = "WARNING"
         self.config.max_app_queue_size = 64 # default=10
         self.http = http # unused
-        self.main_loop = asyncio.get_event_loop()
 
     def run(self):
         import trio

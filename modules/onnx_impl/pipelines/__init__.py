@@ -7,7 +7,8 @@ from abc import ABCMeta
 from typing import Type, Tuple, List, Any, Dict, TYPE_CHECKING
 import torch
 import diffusers
-from installer import log, install
+from installer import install
+from modules.logger import log
 from modules import shared
 from modules.paths import sd_configs_path, models_path
 from modules.sd_models import CheckpointInfo
@@ -103,12 +104,12 @@ class OnnxRawPipeline(PipelineBase):
     path: os.PathLike
     original_filename: str
 
-    constructor: Type[PipelineBase]
-    init_dict: Dict[str, Tuple[str]] = {}
+    constructor: type[PipelineBase]
+    init_dict: dict[str, tuple[str]] = {}
 
     default_scheduler: Any = None # for Img2Img
 
-    def __init__(self, constructor: Type[PipelineBase], path: os.PathLike): # pylint: disable=super-init-not-called
+    def __init__(self, constructor: type[PipelineBase], path: os.PathLike): # pylint: disable=super-init-not-called
         self._is_sdxl = check_pipeline_sdxl(constructor)
         self.from_diffusers_cache = check_diffusers_cache(path)
         self.path = path
@@ -150,7 +151,7 @@ class OnnxRawPipeline(PipelineBase):
         pipeline.scheduler = self.default_scheduler
         return pipeline
 
-    def convert(self, submodels: List[str], in_dir: os.PathLike, out_dir: os.PathLike):
+    def convert(self, submodels: list[str], in_dir: os.PathLike, out_dir: os.PathLike):
         install('onnx') # may not be installed yet, this performs check and installs as needed
         import onnx
         shutil.rmtree("cache", ignore_errors=True)
@@ -218,7 +219,7 @@ class OnnxRawPipeline(PipelineBase):
         with open(os.path.join(out_dir, "model_index.json"), 'w', encoding="utf-8") as file:
             json.dump(model_index, file)
 
-    def run_olive(self, submodels: List[str], in_dir: os.PathLike, out_dir: os.PathLike):
+    def run_olive(self, submodels: list[str], in_dir: os.PathLike, out_dir: os.PathLike):
         from olive.model import ONNXModelHandler
         from olive.workflows import run as run_workflows
 
@@ -235,8 +236,8 @@ class OnnxRawPipeline(PipelineBase):
         for submodel in submodels:
             log.info(f"\nProcessing {submodel}")
 
-            with open(os.path.join(sd_configs_path, "olive", 'sdxl' if self._is_sdxl else 'sd', f"{submodel}.json"), "r", encoding="utf-8") as config_file:
-                olive_config: Dict[str, Dict[str, Dict]] = json.load(config_file)
+            with open(os.path.join(sd_configs_path, "olive", 'sdxl' if self._is_sdxl else 'sd', f"{submodel}.json"), encoding="utf-8") as config_file:
+                olive_config: dict[str, dict[str, dict]] = json.load(config_file)
 
             for flow in olive_config["pass_flows"]:
                 for i in range(len(flow)):
@@ -257,7 +258,7 @@ class OnnxRawPipeline(PipelineBase):
 
             run_workflows(olive_config)
 
-            with open(os.path.join("footprints", f"{submodel}_{EP_TO_NAME[shared.opts.onnx_execution_provider]}_footprints.json"), "r", encoding="utf-8") as footprint_file:
+            with open(os.path.join("footprints", f"{submodel}_{EP_TO_NAME[shared.opts.onnx_execution_provider]}_footprints.json"), encoding="utf-8") as footprint_file:
                 footprints = json.load(footprint_file)
             processor_final_pass_footprint = None
             for _, footprint in footprints.items():

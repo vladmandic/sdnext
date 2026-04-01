@@ -9,7 +9,8 @@ import logging
 import importlib
 import contextlib
 from threading import Thread
-from installer import log, git_commit, custom_excepthook, version
+from installer import git_commit, custom_excepthook, version
+from modules.logger import log
 from modules import timer
 import modules.loader
 import modules.hashes
@@ -73,6 +74,7 @@ fastapi_args = {
 
 def initialize():
     log.debug('Initializing: modules')
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
     modules.sd_checkpoint.init_metadata()
     modules.hashes.init_cache()
@@ -80,31 +82,38 @@ def initialize():
     modules.sd_samplers.list_samplers()
     timer.startup.record("samplers")
 
-    modules.sd_vae.refresh_vae_list()
-    timer.startup.record("vae")
+    # run independent filesystem scans in parallel
+    def _scan_vae():
+        modules.sd_vae.refresh_vae_list()
+    def _scan_unet():
+        modules.sd_unet.refresh_unet_list()
+    def _scan_te():
+        modules.model_te.refresh_te_list()
+    def _scan_models():
+        modules.modelloader.cleanup_models()
+        modules.sd_checkpoint.setup_model()
+        from modules.sd_checkpoint import write_metadata
+        write_metadata()
+    def _scan_lora():
+        from modules.lora import lora_load
+        lora_load.list_available_networks()
+    def _scan_upscalers():
+        modules.modelloader.load_upscalers()
 
-    modules.sd_unet.refresh_unet_list()
-    timer.startup.record("unet")
-
-    modules.model_te.refresh_te_list()
-    timer.startup.record("te")
-
-    modules.modelloader.cleanup_models()
-    modules.sd_models.setup_model()
-    timer.startup.record("models")
-
-    from modules.lora import lora_load
-    lora_load.list_available_networks()
-    timer.startup.record("lora")
+    scans = [_scan_vae, _scan_unet, _scan_te, _scan_models, _scan_lora, _scan_upscalers]
+    with ThreadPoolExecutor(max_workers=len(scans), thread_name_prefix='sdnext-scan') as pool:
+        futures = {pool.submit(fn): fn.__name__ for fn in scans}
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                future.result()
+            except Exception as e:
+                log.error(f'Scan error: {name} {e}')
+    timer.startup.record("scans")
 
     shared.prompt_styles.reload()
     timer.startup.record("styles")
 
-    import modules.postprocess.codeformer_model as codeformer
-    codeformer.setup_model(shared.opts.codeformer_models_path)
-    sys.modules["modules.codeformer_model"] = codeformer
-    import modules.postprocess.gfpgan_model as gfpgan
-    gfpgan.setup_model(shared.opts.gfpgan_models_path)
     import modules.postprocess.yolo as yolo
     yolo.initialize()
     timer.startup.record("detailer")
@@ -119,9 +128,6 @@ def initialize():
     timer.startup.records["extensions"] = t_total # scripts can reset the time
     log.debug(f'Extensions init time: {t_timer.summary()}')
 
-    modules.modelloader.load_upscalers()
-    timer.startup.record("upscalers")
-
     modules.ui_extra_networks.initialize()
     modules.ui_extra_networks.register_pages()
     modules.extra_networks.initialize()
@@ -131,6 +137,7 @@ def initialize():
     from modules.models_hf import hf_init, hf_check_cache
     hf_init()
     hf_check_cache()
+
 
     if shared.cmd_opts.tls_keyfile is not None and shared.cmd_opts.tls_certfile is not None:
         try:
@@ -245,12 +252,14 @@ def start_common():
     async_policy()
     initialize()
     if shared.cmd_opts.backend == 'original':
-        shared.log.error('Legacy option: backend=original is no longer supported')
+        log.error('Legacy option: backend=original is no longer supported')
         shared.cmd_opts.backend = 'diffusers'
     try:
-        from installer import diffusers_commit
+        from installer import diffusers_commit, transformers_commit
         if diffusers_commit != 'unknown':
             shared.opts.diffusers_version = diffusers_commit # update installed diffusers version
+        if transformers_commit != 'unknown':
+            shared.opts.transformers_version = transformers_commit # update installed transformers version
     except Exception:
         pass
     if shared.opts.clean_temp_dir_at_start:
@@ -267,7 +276,7 @@ def mount_subpath(app):
     if not shared.opts.subpath.startswith('/'):
         shared.opts.subpath = f'/{shared.opts.subpath}'
     gradio.mount_gradio_app(app, shared.demo, path=shared.opts.subpath)
-    shared.log.info(f'Mounted: subpath="{shared.opts.subpath}"')
+    log.info(f'Mounted: subpath="{shared.opts.subpath}"')
 
 
 def start_ui():
@@ -295,6 +304,16 @@ def start_ui():
                     gradio_auth_creds += [x.strip() for x in line.split(',') if x.strip()]
     if len(gradio_auth_creds) > 0:
         log.info(f'Authentication enabled: users={len(list(gradio_auth_creds))}')
+    auth_pairs = []
+    for cred in gradio_auth_creds:
+        if ':' not in cred:
+            log.warning(f'Ignoring malformed auth entry: "{cred}"')
+            continue
+        user, password = cred.split(':', 1)
+        if len(user) == 0 or len(password) == 0:
+            log.warning(f'Ignoring malformed auth entry: "{cred}"')
+            continue
+        auth_pairs.append((user, password))
 
     global local_url # pylint: disable=global-statement
     stdout = io.StringIO()
@@ -305,7 +324,7 @@ def start_ui():
         allowed_paths.append(shared.cmd_opts.models_dir)
     if shared.cmd_opts.allowed_paths is not None:
         allowed_paths += [p for p in shared.cmd_opts.allowed_paths if os.path.isdir(p)]
-    shared.log.debug(f'Root paths: {allowed_paths}')
+    log.debug(f'Root paths: {allowed_paths}')
     with contextlib.redirect_stdout(stdout):
         app, local_url, share_url = shared.demo.launch( # app is FastAPI(Starlette) instance
             share=shared.cmd_opts.share,
@@ -315,7 +334,7 @@ def start_ui():
             ssl_certfile=shared.cmd_opts.tls_certfile,
             ssl_verify=not shared.cmd_opts.tls_selfsign,
             debug=False,
-            auth=[tuple(cred.split(':')) for cred in gradio_auth_creds] if gradio_auth_creds else None,
+            auth=auth_pairs if auth_pairs else None,
             prevent_thread_lock=True,
             max_threads=64,
             show_api=False,
@@ -327,25 +346,27 @@ def start_ui():
         )
     if shared.cmd_opts.data_dir is not None:
         modules.gr_tempdir.register_tmp_file(shared.demo, os.path.join(shared.cmd_opts.data_dir, 'x'))
-    shared.log.info(f'Local URL: {local_url}')
+    log.info(f'Local URL: {local_url}')
     if shared.cmd_opts.listen:
         if not gradio_auth_creds:
-            shared.log.warning('Public URL: enabled without authentication')
+            log.warning('Public URL: enabled without authentication')
         if shared.cmd_opts.insecure:
-            shared.log.warning('Public URL: enabled with insecure flag')
+            log.warning('Public URL: enabled with insecure flag')
         proto = 'https' if shared.cmd_opts.tls_keyfile is not None else 'http'
         external_ip = get_external_ip()
         if external_ip is not None:
-            shared.log.info(f'External URL: {proto}://{external_ip}:{shared.cmd_opts.port}')
+            log.info(f'External URL: {proto}://{external_ip}:{shared.cmd_opts.port}')
         public_ip = get_remote_ip()
         if public_ip is not None:
-            shared.log.info(f'Public URL: {proto}://{public_ip}:{shared.cmd_opts.port}')
+            log.info(f'Public URL: {proto}://{public_ip}:{shared.cmd_opts.port}')
     if shared.cmd_opts.docs:
-        shared.log.info(f'API docs: {local_url[:-1]}/docs') # pylint: disable=unsubscriptable-object
-        shared.log.info(f'API redocs: {local_url[:-1]}/redocs') # pylint: disable=unsubscriptable-object
+        log.info(f'API docs: {local_url[:-1]}/docs') # pylint: disable=unsubscriptable-object
+        log.info(f'API redocs: {local_url[:-1]}/redocs') # pylint: disable=unsubscriptable-object
     if share_url is not None:
-        shared.log.info(f'Share URL: {share_url}')
-    # shared.log.debug(f'Gradio functions: registered={len(shared.demo.fns)}')
+        log.info(f'Share URL: {share_url}')
+    if getattr(shared.cmd_opts, 'enso', False):
+        log.info(f'Enso URL: {local_url[:-1]}/enso') # pylint: disable=unsubscriptable-object
+    # log.debug(f'Gradio functions: registered={len(shared.demo.fns)}')
     shared.demo.server.wants_restart = False
     modules.api.middleware.setup_middleware(app, shared.cmd_opts)
 
@@ -361,12 +382,12 @@ def start_ui():
     timer.startup.record("app-started")
 
     time_sorted = sorted(modules.scripts_manager.time_setup.items(), key=lambda x: x[1], reverse=True)
-    time_script = [f'{k}:{round(v,3)}' for (k,v) in time_sorted if v > 0.03]
+    time_script = [f'{k}:{round(v,3)}' for (k,v) in time_sorted if v > 0.05]
     time_total = sum(modules.scripts_manager.time_setup.values())
-    shared.log.debug(f'Scripts setup: time={time_total:.3f} {time_script}')
+    log.debug(f'Scripts setup: time={time_total:.3f} {time_script}')
     time_component = [f'{k}:{round(v,3)}' for (k,v) in modules.scripts_manager.time_component.items() if v > 0.005]
     if len(time_component) > 0:
-        shared.log.debug(f'Scripts components: {time_component}')
+        log.debug(f'Scripts components: {time_component}')
     return app
 
 
@@ -378,7 +399,6 @@ def webui(restart=False):
     start_common()
     app = start_ui()
     modules.script_callbacks.after_ui_callback()
-    modules.sd_models.write_metadata()
 
     load_model()
     mount_subpath(app)
@@ -386,7 +406,7 @@ def webui(restart=False):
 
     if shared.cmd_opts.profile:
         for k, v in modules.script_callbacks.callback_map.items():
-            shared.log.debug(f'Registered callbacks: {k}={len(v)} {[c.script for c in v]}')
+            log.debug(f'Registered callbacks: {k}={len(v)} {[c.script for c in v]}')
     debug = log.trace if os.environ.get('SD_SCRIPT_DEBUG', None) is not None else lambda *args, **kwargs: None
     debug('Trace: SCRIPTS')
     for m in modules.scripts_manager.scripts_data:
@@ -408,14 +428,14 @@ def webui(restart=False):
 
     if not restart:
         # override all loggers to use the same handlers as the main logger
-        for logger in [logging.getLogger(name) for name in logging.root.manager.loggerDict]: # pylint: disable=no-member
-            if logger.name.startswith('uvicorn') or logger.name.startswith('sd'):
+        for log_item in [logging.getLogger(name) for name in logging.root.manager.loggerDict]: # pylint: disable=no-member
+            if log_item.name.startswith('uvicorn') or log_item.name.startswith('sd'):
                 continue
-            logger.handlers = log.handlers
+            log_item.handlers = log.handlers
         # autolaunch only on initial start
         if (shared.opts.autolaunch or shared.cmd_opts.autolaunch) and local_url is not None:
             shared.cmd_opts.autolaunch = False
-            shared.log.info('Launching browser')
+            log.info('Launching browser')
             import webbrowser
             webbrowser.open(local_url, new=2, autoraise=True)
     else:

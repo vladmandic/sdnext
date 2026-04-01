@@ -1,14 +1,14 @@
-from typing import List, Union
 import os
 import time
 import torch
 import safetensors.torch
 from modules.errorlimiter import limit_errors
 from modules import shared, devices, errors
+from modules.logger import log
 from modules.files_cache import directory_files, directory_mtime, extension_filter
 
 
-debug = shared.log.trace if os.environ.get('SD_TI_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_TI_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: TEXTUAL INVERSION')
 supported_models = ['ldm', 'sd', 'sdxl']
 
@@ -83,7 +83,7 @@ def get_text_encoders():
     text_encoders = []
     tokenizers = []
     hidden_sizes = []
-    for te, tok in zip(te_names, tokenizers_names):
+    for te, tok in zip(te_names, tokenizers_names, strict=False):
         text_encoder = getattr(pipe, te, None)
         if text_encoder is None:
             continue
@@ -135,14 +135,14 @@ def insert_vectors(embedding, tokenizers, text_encoders, hiddensizes):
     this may cause collisions.
     """
     with devices.inference_context():
-        for vector, size in zip(embedding.vec, embedding.vector_sizes):
+        for vector, size in zip(embedding.vec, embedding.vector_sizes, strict=False):
             if size not in hiddensizes:
                 continue
             idx = hiddensizes.index(size)
             unk_token_id = tokenizers[idx].convert_tokens_to_ids(tokenizers[idx].unk_token)
             if text_encoders[idx].get_input_embeddings().weight.data.shape[0] != len(tokenizers[idx]):
                 text_encoders[idx].resize_token_embeddings(len(tokenizers[idx]))
-            for token, v in zip(embedding.tokens, vector.unbind()):
+            for token, v in zip(embedding.tokens, vector.unbind(), strict=False):
                 token_id = tokenizers[idx].convert_tokens_to_ids(token)
                 if token_id > unk_token_id:
                     text_encoders[idx].get_input_embeddings().weight.data[token_id] = v
@@ -254,7 +254,7 @@ class EmbeddingDatabase:
         self.ids_lookup[first_id] = sorted(self.ids_lookup[first_id] + [(ids, embedding)], key=lambda x: len(x[0]), reverse=True)
         return embedding
 
-    def load_diffusers_embedding(self, filename: Union[str, List[str]] = None, data: dict = None):
+    def load_diffusers_embedding(self, filename: str | list[str] | None = None, data: dict | None = None):
         """
         File names take precidence over bundled embeddings passed as a dict.
         Bundled embeddings are automatically set to overwrite previous embeddings.
@@ -285,11 +285,11 @@ class EmbeddingDatabase:
                         embedding.tokens = []
                         self.skipped_embeddings[embedding.name] = embedding
                 except Exception as e:
-                    shared.log.error(f'Load embedding invalid: name="{embedding.name}" fn="{filename}" {e}')
+                    log.error(f'Load embedding invalid: name="{embedding.name}" fn="{filename}" {e}')
                     self.skipped_embeddings[embedding.name] = embedding
                     elimit()
             if overwrite:
-                shared.log.info(f"Load bundled embeddings: {list(data.keys())}")
+                log.info(f"Load bundled embeddings: {list(data.keys())}")
                 for embedding in embeddings:
                     if embedding.name not in self.skipped_embeddings:
                         deref_tokenizers(embedding.tokens, tokenizers)
@@ -300,14 +300,14 @@ class EmbeddingDatabase:
                         insert_vectors(embedding, tokenizers, text_encoders, hiddensizes)
                         self.register_embedding(embedding, shared.sd_model)
                     except Exception as e:
-                        shared.log.error(f'Load embedding: name="{embedding.name}" file="{embedding.filename}" {e}')
+                        log.error(f'Load embedding: name="{embedding.name}" file="{embedding.filename}" {e}')
                         errors.display(e, f'Load embedding: name="{embedding.name}" file="{embedding.filename}"')
                         elimit()
         return
 
     def load_from_dir(self, embdir):
         if not shared.sd_loaded:
-            shared.log.info('Skipping embeddings load: model not loaded')
+            log.info('Skipping embeddings load: model not loaded')
             return
         if not os.path.isdir(embdir.path):
             return
@@ -346,4 +346,4 @@ class EmbeddingDatabase:
         if self.previously_displayed_embeddings != displayed_embeddings and shared.opts.diffusers_enable_embed:
             self.previously_displayed_embeddings = displayed_embeddings
             t1 = time.time()
-            shared.log.info(f"Network load: type=embeddings loaded={len(self.word_embeddings)} skipped={len(self.skipped_embeddings)} time={t1-t0:.2f}")
+            log.info(f"Network load: type=embeddings loaded={len(self.word_embeddings)} skipped={len(self.skipped_embeddings)} time={t1-t0:.2f}")

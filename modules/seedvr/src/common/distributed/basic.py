@@ -20,6 +20,14 @@ import os
 import torch
 
 
+def _is_dist() -> bool:
+    """Check if torch.distributed is available and initialized.
+    Follows the same guard convention as flash_attn (utils/generation.py).
+    """
+    import torch.distributed as dist
+    return dist.is_available() and dist.is_initialized()
+
+
 def get_global_rank() -> int:
     """
     Get the global rank, the global index of the GPU.
@@ -45,15 +53,17 @@ def get_device() -> torch.device:
     """
     Get current rank device.
     """
-    return torch.device("cuda", get_local_rank())
+    if torch.cuda.is_available():
+        return torch.device("cuda", get_local_rank())
+    return torch.device("cpu")
 
 
 def barrier_if_distributed(*args, **kwargs):
     """
     Synchronizes all processes if under distributed context.
     """
-    import torch.distributed as dist
-    if dist.is_initialized():
+    if _is_dist():
+        import torch.distributed as dist
         return dist.barrier(*args, **kwargs)
 
 

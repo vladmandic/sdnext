@@ -11,10 +11,12 @@ import gradio as gr
 from PIL import Image
 from modules import scripts_manager, shared, devices, errors, processing, sd_models, sd_modules, timer, ui_symbols
 from modules import ui_control_helpers
+from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
+from modules.logger import log
 
 
 debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
-debug_log = shared.log.trace if debug_enabled else lambda *args, **kwargs: None
+debug_log = log.trace if debug_enabled else lambda *args, **kwargs: None
 
 
 def b64(image):
@@ -29,11 +31,17 @@ def b64(image):
         return encoded
 
 
+def is_cloud_model(model_name: str) -> bool:
+    if not model_name:
+        return False
+    return model_name in Options.cloud
+
+
 def is_vision_model(model_name: str) -> bool:
     """Check if model supports vision/image input."""
     if not model_name:
         return False
-    return model_name in Options.img2img
+    return model_name in Options.img2img or model_name in Options.cloud
 
 
 def is_thinking_model(model_name: str) -> bool:
@@ -44,11 +52,14 @@ def is_thinking_model(model_name: str) -> bool:
     # Match VQA's detection patterns for consistency
     thinking_indicators = [
         'thinking',      # Qwen3-VL-*-Thinking models
+        'reasoning',     # Ministral-3-*-Reasoning models
         'moondream3',    # Moondream 3 supports thinking
         'moondream 3',
         'moondream2',    # Moondream 2 supports reasoning mode
         'moondream 2',
         'mimo',          # XiaomiMiMo models
+        'qwen3.5',      # Qwen3.5 native thinking (repo names)
+        'qwen 3.5',     # Qwen3.5 native thinking (display names)
     ]
     return any(indicator in model_lower for indicator in thinking_indicators)
 
@@ -58,6 +69,8 @@ def get_model_display_name(model_repo: str) -> str:
     symbols = []
     if model_repo in Options.img2img:
         symbols.append(ui_symbols.vision)
+    if model_repo in Options.cloud:
+        symbols.append(ui_symbols.cloud)
     if is_thinking_model(model_repo):
         symbols.append(ui_symbols.reasoning)
     return f"{model_repo} {' '.join(symbols)}" if symbols else model_repo
@@ -68,7 +81,7 @@ def get_model_repo_from_display(display_name: str) -> str:
     if not display_name:
         return display_name
     result = display_name
-    for symbol in [ui_symbols.vision, ui_symbols.reasoning]:
+    for symbol in [ui_symbols.vision, ui_symbols.reasoning, ui_symbols.cloud]:
         result = result.replace(symbol, '')
     return result.strip()
 
@@ -92,61 +105,170 @@ def keep_think_block_open(text_prompt: str) -> str:
 @dataclass
 class Options:
     img2img = [
+        # Gemma
         'google/gemma-3-4b-it',
+        'google/gemma-3n-E2B-it',
+        'google/gemma-3n-E4B-it',
+        # Gemma Finetunes
+        'nidum/Nidum-Gemma-3-4B-it-Uncensored',
         'allura-org/Gemma-3-Glitter-4B',
-        'Qwen/Qwen2.5-VL-3B-Instruct',
+        'coder3101/gemma-3-27b-it-heretic-v2',
+        'p-e-w/gemma-3-12b-it-heretic',
+        'DavidAU/gemma-3-4b-it-heretic-uncensored-abliterated-Extreme',
+        'DavidAU/Gemma-3-4B-VL-it-Gemini-Pro-Heretic-Uncensored-Thinking',
+        'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning',
+        'coder3101/Big-Tiger-Gemma-27B-v3-heretic-v2',
+        # Qwen3.5
+        'Qwen/Qwen3.5-0.8B',
+        'Qwen/Qwen3.5-2B',
+        'Qwen/Qwen3.5-4B',
+        'Qwen/Qwen3.5-9B',
+        'Qwen/Qwen3.5-27B',
+        'Qwen/Qwen3.5-35B-A3B',
+        'coder3101/Qwen3.5-27B-heretic',
+        # Qwen3-VL
         'Qwen/Qwen3-VL-2B-Instruct',
         'Qwen/Qwen3-VL-2B-Thinking',
         'Qwen/Qwen3-VL-4B-Instruct',
         'Qwen/Qwen3-VL-4B-Thinking',
         'Qwen/Qwen3-VL-8B-Instruct',
         'Qwen/Qwen3-VL-8B-Thinking',
+        # Qwen3-VL Finetunes
+        'coder3101/Qwen3-VL-2B-Instruct-heretic',
+        'coder3101/Qwen3-VL-2B-Thinking-heretic',
+        'coder3101/Qwen3-VL-4B-Instruct-heretic',
+        'coder3101/Qwen3-VL-4B-Thinking-heretic',
+        'coder3101/Qwen3-VL-8B-Instruct-heretic',
+        'coder3101/Qwen3-VL-32B-Instruct-heretic-v2',
+        'coder3101/Qwen3-VL-32B-Thinking-heretic-v2',
+        'prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it',
+        # Qwen2.5-VL
+        'Qwen/Qwen2.5-VL-3B-Instruct',
+        # Qwen2.5-VL Finetunes
+        'coder3101/Qwen2.5-VL-3B-Instruct-heretic',
+        'coder3101/Qwen2.5-VL-7B-Instruct-heretic',
+        'coder3101/Qwen2.5-VL-32B-Instruct-heretic',
+        'coder3101/Qwen2.5-VL-72B-Instruct-heretic',
+        # Mistral
+        'mistralai/Ministral-3-3B-Instruct-2512-BF16',
+        'mistralai/Ministral-3-8B-Instruct-2512-BF16',
+        'mistralai/Ministral-3-14B-Instruct-2512-BF16',
+        'mistralai/Devstral-Small-2-24B-Instruct-2512',
+        'mistralai/Ministral-3-3B-Reasoning-2512',
+        'mistralai/Ministral-3-8B-Reasoning-2512',
+        'mistralai/Ministral-3-14B-Reasoning-2512',
+        # Mistral Finetunes
+        'coder3101/Mistral-Small-3.2-24B-Instruct-2506-heretic',
+        'coder3101/Ministral-3-3B-Reasoning-2512-heretic',
+        'coder3101/Ministral-3-8B-Reasoning-2512-heretic',
+        'coder3101/Ministral-3-14B-Reasoning-2512-heretic',
+    ]
+    cloud = [
+        'google/gemini-3.1-pro-preview',
+        'google/gemini-3-flash-preview',
     ]
     models = {
+        # Gemma
         'google/gemma-3-1b-it': {},
         'google/gemma-3-4b-it': {},
         'google/gemma-3n-E2B-it': {},
         'google/gemma-3n-E4B-it': {},
-        'Qwen/Qwen3-0.6B-FP8': {},
-        'Qwen/Qwen3-1.7B-FP8': {},
-        'Qwen/Qwen3-4B-FP8': {},
+        # Gemma Finetunes
+        'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
+        'allura-org/Gemma-3-Glitter-4B': {},
+        'coder3101/gemma-3-27b-it-heretic-v2': {},
+        'p-e-w/gemma-3-12b-it-heretic': {},
+        'DavidAU/gemma-3-4b-it-heretic-uncensored-abliterated-Extreme': {},
+        'DavidAU/Gemma-3-4B-VL-it-Gemini-Pro-Heretic-Uncensored-Thinking': {},
+        'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning': {},
+        'coder3101/Big-Tiger-Gemma-27B-v3-heretic-v2': {},
+        # Qwen3.5
+        'Qwen/Qwen3.5-0.8B': {},
+        'Qwen/Qwen3.5-2B': {},
+        'Qwen/Qwen3.5-4B': {},
+        'Qwen/Qwen3.5-9B': {},
+        'Qwen/Qwen3.5-27B': {},
+        'Qwen/Qwen3.5-35B-A3B': {},
+        'coder3101/Qwen3.5-27B-heretic': {},
+        # Qwen3
         'Qwen/Qwen3-0.6B': {},
         'Qwen/Qwen3-1.7B': {},
         'Qwen/Qwen3-4B': {},
         'Qwen/Qwen3-4B-Instruct-2507': {},
-        'Qwen/Qwen2.5-0.5B-Instruct': {},
-        'Qwen/Qwen2.5-1.5B-Instruct': {},
-        'Qwen/Qwen2.5-3B-Instruct': {},
-        'Qwen/Qwen2.5-VL-3B-Instruct': {},
+        # Qwen3-VL
         'Qwen/Qwen3-VL-2B-Instruct': {},
         'Qwen/Qwen3-VL-2B-Thinking': {},
         'Qwen/Qwen3-VL-4B-Instruct': {},
         'Qwen/Qwen3-VL-4B-Thinking': {},
         'Qwen/Qwen3-VL-8B-Instruct': {},
         'Qwen/Qwen3-VL-8B-Thinking': {},
-        'microsoft/Phi-4-mini-instruct': {},
-        'HuggingFaceTB/SmolLM2-135M-Instruct': {},
-        'HuggingFaceTB/SmolLM2-360M-Instruct': {},
-        'HuggingFaceTB/SmolLM2-1.7B-Instruct': {},
-        'HuggingFaceTB/SmolLM3-3B': {},
+        # Qwen3-VL Finetunes
+        'coder3101/Qwen3-VL-2B-Instruct-heretic': {},
+        'coder3101/Qwen3-VL-2B-Thinking-heretic': {},
+        'coder3101/Qwen3-VL-4B-Instruct-heretic': {},
+        'coder3101/Qwen3-VL-4B-Thinking-heretic': {},
+        'coder3101/Qwen3-VL-8B-Instruct-heretic': {},
+        'coder3101/Qwen3-VL-32B-Instruct-heretic-v2': {},
+        'coder3101/Qwen3-VL-32B-Thinking-heretic-v2': {},
+        'prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it': {},
+        # Qwen2.5
+        'Qwen/Qwen2.5-0.5B-Instruct': {},
+        'Qwen/Qwen2.5-1.5B-Instruct': {},
+        'Qwen/Qwen2.5-3B-Instruct': {},
+        # Qwen2.5-VL
+        'Qwen/Qwen2.5-VL-3B-Instruct': {},
+        # Qwen2.5-VL Finetunes
+        'coder3101/Qwen2.5-VL-3B-Instruct-heretic': {},
+        'coder3101/Qwen2.5-VL-7B-Instruct-heretic': {},
+        'coder3101/Qwen2.5-VL-32B-Instruct-heretic': {},
+        'coder3101/Qwen2.5-VL-72B-Instruct-heretic': {},
+        # Llama
         'meta-llama/Llama-3.2-1B-Instruct': {},
         'meta-llama/Llama-3.2-3B-Instruct': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-3B': {},
-        'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
-        'allura-org/Gemma-3-Glitter-4B': {},
-        # 'llava/Llama-3-8B-v1.1-Extracted': {
-        #     'repo': 'hunyuanvideo-community/HunyuanVideo',
-        #     'subfolder': 'text_encoder',
-        #     'tokenizer': 'tokenizer',
-        # },
         'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF': {
             'repo': 'meta-llama/Llama-3.2-1B-Instruct', # original repo so we can load missing components
             'type': 'llama', # required so gguf loader knows what to do
             'gguf': 'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF', # gguf repo
             'file': 'Llama-3.2-1B-Instruct-Uncensored.i1-Q4_0.gguf', # gguf file inside repo
         },
+        'google/gemini-3.1-pro-preview': {},
+        'google/gemini-3.1-flash-lite-preview': {},
+        'google/gemini-3-flash-preview': {},
+        'google/gemini-2.5-pro': {},
+        'google/gemini-2.5-flash': {},
+        # SmolLM
+        'HuggingFaceTB/SmolLM2-135M-Instruct': {},
+        'HuggingFaceTB/SmolLM2-360M-Instruct': {},
+        'HuggingFaceTB/SmolLM2-1.7B-Instruct': {},
+        'HuggingFaceTB/SmolLM3-3B': {},
+        # Phi
+        'microsoft/Phi-4-mini-instruct': {},
+        # Mistral
+        'mistralai/Ministral-3-3B-Instruct-2512-BF16': {},
+        'mistralai/Ministral-3-8B-Instruct-2512-BF16': {},
+        'mistralai/Ministral-3-14B-Instruct-2512-BF16': {},
+        'mistralai/Devstral-Small-2-24B-Instruct-2512': {},
+        'mistralai/Ministral-3-3B-Reasoning-2512': {},
+        'mistralai/Ministral-3-8B-Reasoning-2512': {},
+        'mistralai/Ministral-3-14B-Reasoning-2512': {},
+        # Mistral Finetunes
+        'coder3101/Mistral-Small-3.2-24B-Instruct-2506-heretic': {},
+        'p-e-w/Mistral-Nemo-Instruct-2407-heretic-noslop': {},
+        'coder3101/Ministral-3-3B-Reasoning-2512-heretic': {},
+        'coder3101/Ministral-3-8B-Reasoning-2512-heretic': {},
+        'coder3101/Ministral-3-14B-Reasoning-2512-heretic': {},
     }
+    models_cls = {
+        'qwen3_5': 'Qwen3_5ForConditionalGeneration',
+        'qwen3_5_moe': 'Qwen3_5MoeForConditionalGeneration',
+        'qwen3_vl': 'Qwen3VLForConditionalGeneration',
+        'qwen2_5_vl': 'Qwen2_5_VLForConditionalGeneration',
+        'qwen2_vl': 'Qwen2VLForConditionalGeneration',
+        'mistral3': 'Mistral3ForConditionalGeneration',
+    }
+
     # default = list(models)[1] # gemma-3-4b-it
     default = 'google/gemma-3-4b-it'
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
@@ -159,9 +281,9 @@ class Options:
     censored = ["i cannot", "i can't", "i am sorry", "against my programming", "i am not able", "i am unable", 'i am not allowed']
 
     max_delim_index: int = 60
-    max_tokens: int = 512
+    max_tokens: int = 1024
     do_sample: bool = True
-    temperature: float = 0.8
+    temperature: float = 0.7
     repetition_penalty: float = 1.2
     top_k: int = 0
     top_p: float = 0.0
@@ -178,7 +300,7 @@ class Options:
         return get_model_display_name(Options.default)
 
 
-class Script(scripts_manager.Script):
+class PromptEnhanceScript(scripts_manager.Script):
     prompt: gr.Textbox = None
     image: gr.Image = None
     model: str = None
@@ -197,19 +319,20 @@ class Script(scripts_manager.Script):
         if self.llm is None or 'LLM' not in shared.opts.cuda_compile:
             return
         from modules.sd_models_compile import compile_torch
-        self.llm = compile_torch(self.llm)
+        self.llm = compile_torch(self.llm, apply_to_components=False, op="LLM")
 
-    def load(self, name:str=None, model_repo:str=None, model_gguf:str=None, model_type:str=None, model_file:str=None):
+    def load(self, name:str | None=None, model_repo:str | None=None, model_gguf:str | None=None, model_type:str | None=None, model_file:str | None=None):
         # Strip symbols from display name if present
         name = get_model_repo_from_display(name) if name else self.options.default
         if self.busy:
-            shared.log.debug('Prompt enhance: busy')
+            log.debug('Prompt enhance: busy')
             return
-        self.busy = True
-        if self.model is not None and self.model == name:
-            self.busy = False # ensure busy is reset even if model is already loaded
+        if is_cloud_model(name):
+            return
+        if (self.model is not None) and (self.model == name):
             return
 
+        self.busy = True
         from modules import modelloader, model_quant, ggml
         modelloader.hf_login()
         model_repo = model_repo or self.options.models.get(name, {}).get('repo', None) or name
@@ -223,8 +346,8 @@ class Script(scripts_manager.Script):
         if model_type is not None and model_file is not None and len(model_type) > 2 and len(model_file) > 2:
             debug_log(f'Prompt enhance: gguf supported={self.options.supported}')
             if model_type not in self.options.supported:
-                shared.log.error(f'Prompt enhance: name="{name}" repo="{model_repo}" fn="{model_file}" type={model_type} gguf not supported')
-                shared.log.trace(f'Prompt enhance: gguf supported={self.options.supported}')
+                log.error(f'Prompt enhance: name="{name}" repo="{model_repo}" fn="{model_file}" type={model_type} gguf not supported')
+                log.trace(f'Prompt enhance: gguf supported={self.options.supported}')
                 self.busy = False
                 return
             ggml.install_gguf()
@@ -236,32 +359,42 @@ class Script(scripts_manager.Script):
         try:
             t0 = time.time()
             if self.llm is not None:
+                deregister_aux('prompt_enhance')
+                sd_models.move_model(self.llm, devices.cpu, force=True)
                 self.llm = None
-                shared.log.debug(f'Prompt enhance: name="{self.model}" unload')
+                self.tokenizer = None
+                devices.torch_gc(force=True, reason='prompt enhance model switch')
+                log.debug(f'Prompt enhance: name="{self.model}" unload')
             self.model = None
             load_args = { 'pretrained_model_name_or_path': model_repo if not gguf_args else model_gguf }
             if model_subfolder:
                 load_args['subfolder'] = model_subfolder # Comma was incorrect here
 
-            if 'Qwen3-VL' in model_repo or 'Qwen3VL' in model_repo:
-                cls_name = transformers.Qwen3VLForConditionalGeneration
-            elif 'Qwen2.5-VL' in model_repo or 'Qwen2_5_VL' in model_repo:
-                cls_name = transformers.Qwen2_5_VLForConditionalGeneration
-            elif 'Qwen2-VL' in model_repo or 'Qwen2VL' in model_repo:
-                cls_name = transformers.Qwen2VLForConditionalGeneration
-            else:
-                cls_name = transformers.AutoModelForCausalLM
+            model_config = transformers.AutoConfig.from_pretrained(load_args['pretrained_model_name_or_path'], trust_remote_code=True, cache_dir=shared.opts.hfcache_dir)
+            model_type = getattr(model_config, 'model_type', '')
+            cls_name = transformers.AutoModelForCausalLM
+            custom_cls_name = self.options.models_cls.get(model_type, None)
+            if custom_cls_name:
+                custom_cls = getattr(transformers, custom_cls_name, None)
+                if custom_cls:
+                    cls_name = custom_cls
 
-            self.llm = cls_name.from_pretrained(
-                **load_args,
-                trust_remote_code=True,
-                torch_dtype=devices.dtype,
-                cache_dir=shared.opts.hfcache_dir,
-                # _attn_implementation="eager",
-                **gguf_args,
-                **quant_args,
-            )
+            sd_models.set_caption_load_options()
+            try:
+                self.llm = cls_name.from_pretrained(
+                    **load_args,
+                    trust_remote_code=True,
+                    torch_dtype=devices.dtype,
+                    low_cpu_mem_usage=True,
+                    cache_dir=shared.opts.hfcache_dir,
+                    # _attn_implementation="eager",
+                    **gguf_args,
+                    **quant_args,
+                )
+            finally:
+                sd_models.set_huggingface_options(quiet=True)
             self.llm.eval()
+            register_aux('prompt_enhance', self.llm)
             if model_repo in self.options.img2img:
                 cls = transformers.AutoProcessor # required to encode image
             else:
@@ -269,10 +402,7 @@ class Script(scripts_manager.Script):
             tokenizer_args = { 'pretrained_model_name_or_path': model_repo }
             if model_tokenizer:
                 tokenizer_args['subfolder'] = model_tokenizer
-            self.tokenizer = cls.from_pretrained(
-                **tokenizer_args,
-                cache_dir=shared.opts.hfcache_dir,
-            )
+            self.tokenizer = cls.from_pretrained(**tokenizer_args, cache_dir=shared.opts.hfcache_dir)
             self.tokenizer.is_processor = model_repo in self.options.img2img
 
             if debug_enabled:
@@ -281,10 +411,10 @@ class Script(scripts_manager.Script):
                     debug_log(f'Prompt enhance: {m}')
             self.model = name
             t1 = time.time()
-            shared.log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
+            log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
             self.compile()
         except Exception as e:
-            shared.log.error(f'Prompt enhance: load {e}')
+            log.error(f'Prompt enhance: load {e}')
             errors.display(e, 'Prompt enhance')
         devices.torch_gc()
         self.busy = False
@@ -296,15 +426,16 @@ class Script(scripts_manager.Script):
     def unload(self):
         if self.llm is not None:
             model_name = self.model
-            shared.log.debug(f'Prompt enhance: unloading model="{model_name}"')
+            log.debug(f'Prompt enhance: unloading model="{model_name}"')
+            deregister_aux('prompt_enhance')
             sd_models.move_model(self.llm, devices.cpu, force=True)
             self.model = None
             self.llm = None
             self.tokenizer = None
             devices.torch_gc(force=True, reason='prompt enhance unload')
-            shared.log.debug(f'Prompt enhance: model="{model_name}" unloaded')
+            log.debug(f'Prompt enhance: model="{model_name}" unloaded')
         else:
-            shared.log.debug('Prompt enhance: no model loaded')
+            log.debug('Prompt enhance: no model loaded')
 
     def clean(self, response, keep_thinking=False, prefill_text='', keep_prefill=False):
         # Handle thinking tags FIRST (before generic tag removal)
@@ -384,15 +515,54 @@ class Script(scripts_manager.Script):
         filtered = re.sub(pattern, '', prompt)
         return filtered, matches
 
-    def enhance(self, model: str=None, prompt:str=None, system:str=None, prefix:str=None, suffix:str=None, sample:bool=None, tokens:int=None, temperature:float=None, penalty:float=None, top_k:int=None, top_p:float=None, thinking:bool=False, seed:int=-1, image=None, nsfw:bool=None, use_vision:bool=True, prefill:str='', keep_prefill:bool=False, keep_thinking:bool=False):
+    def get_image(self, image):
+        current_image = None
+        try:
+            if image is not None and isinstance(image, gr.Image):
+                current_image = image.value
+            elif image is not None and isinstance(image, Image.Image): # if image is already a PIL image
+                current_image = image
+            if current_image is not None and (current_image.width <= 64 or current_image.height <= 64):
+                current_image = None
+            # Fallback to Kanvas/Control input if no image from Gradio component (e.g., when Kanvas is active)
+            if current_image is None and ui_control_helpers.input_source is not None:
+                if isinstance(ui_control_helpers.input_source, list) and len(ui_control_helpers.input_source) > 0:
+                    current_image = ui_control_helpers.input_source[0]
+                elif isinstance(ui_control_helpers.input_source, Image.Image):
+                    current_image = ui_control_helpers.input_source
+        except Exception:
+            current_image = None
+        return current_image
+
+    def enhance(self,
+                model: str | None=None,
+                prompt:str | None=None,
+                system:str | None=None,
+                prefix:str | None=None,
+                suffix:str | None=None,
+                sample:bool | None=None,
+                tokens:int | None=None,
+                temperature:float | None=None,
+                penalty:float | None=None,
+                top_k:int | None=None,
+                top_p:float | None=None,
+                thinking:bool=False,
+                seed:int=-1,
+                image=None,
+                nsfw:bool | None=None,
+                use_vision:bool=True,
+                prefill:str='',
+                keep_prefill:bool=False,
+                keep_thinking:bool=False,
+               ):
         # Strip symbols from model name if present
         model = get_model_repo_from_display(model) if model else self.options.default
         prompt = prompt or (self.prompt.value if self.prompt else "") # Check if self.prompt is None
-        # Handle vision toggle - if disabled or non-VL model, don't use image
-        if use_vision and is_vision_model(model):
+        image = None
+        if use_vision and is_vision_model(model): # handle vision toggle
             image = image or self.image
-        else:
-            image = None
+        if image is None:
+            use_vision = False
         prefix = prefix or ''
         suffix = suffix or ''
         tokens = tokens or self.options.max_tokens
@@ -403,17 +573,20 @@ class Script(scripts_manager.Script):
         thinking = thinking or self.options.thinking_mode
         sample = sample if sample is not None else self.options.do_sample
         nsfw = nsfw if nsfw is not None else True # Default nsfw to True if not provided
-        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" use_vision={use_vision} image={image is not None}')
+        debug_log(f'Prompt enhance: model="{model}" model_class="{self.llm.__class__.__name__ if self.llm is not None else "not loaded"}" nsfw={nsfw} thinking={thinking} prefill="{prefill[:30] if prefill else ""}" use_vision={use_vision} image={image is not None}')
 
         while self.busy:
             time.sleep(0.1)
-        self.load(model)
+
+        if not is_cloud_model(model):
+            self.load(model)
+
         if seed is None or seed == -1:
             random.seed()
             seed = int(random.randrange(4294967294))
         torch.manual_seed(seed)
-        if self.llm is None:
-            shared.log.error('Prompt enhance: model not loaded')
+        if (self.llm is None) and (not is_cloud_model(model)):
+            log.error('Prompt enhance: model not loaded')
             return prompt
         prompt_text, networks = self.extract(prompt) # Use prompt_text after extraction
         debug_log(f'Prompt enhance: networks={networks}')
@@ -421,26 +594,12 @@ class Script(scripts_manager.Script):
         current_image = None
         # Only process images if vision is enabled and model supports it
         if use_vision and is_vision_model(model):
-            try:
-                if image is not None and isinstance(image, gr.Image):
-                    current_image = image.value
-                elif image is not None and isinstance(image, Image.Image): # if image is already a PIL image
-                    current_image = image
-                if current_image is not None and (current_image.width <= 64 or current_image.height <= 64):
-                    current_image = None
-                # Fallback to Kanvas/Control input if no image from Gradio component (e.g., when Kanvas is active)
-                if current_image is None and ui_control_helpers.input_source is not None:
-                    if isinstance(ui_control_helpers.input_source, list) and len(ui_control_helpers.input_source) > 0:
-                        current_image = ui_control_helpers.input_source[0]
-                    elif isinstance(ui_control_helpers.input_source, Image.Image):
-                        current_image = ui_control_helpers.input_source
-            except Exception:
-                current_image = None
-        debug_log(f'Prompt enhance: current_image={current_image is not None} size={f"{current_image.width}x{current_image.height}" if current_image else "N/A"}')
+            current_image = self.get_image(image)
+        debug_log(f'Prompt enhance: image={current_image}')
 
         # Check if vision was requested but no image is available
         if use_vision and is_vision_model(model) and current_image is None:
-            shared.log.error(f'Prompt enhance: model="{model}" error="No input image provided"')
+            log.error(f'Prompt enhance: model="{model}" error="No input image provided"')
             return 'Error: No input image provided. Please upload or select an image.'
 
         # Resize large images to match VQA performance (Qwen3-VL performance is sensitive to resolution)
@@ -465,8 +624,10 @@ class Script(scripts_manager.Script):
         has_system = system is not None and len(system) > 4
 
         if current_image is not None and isinstance(current_image, Image.Image):
-            if (self.tokenizer is None) or (not self.tokenizer.is_processor):
-                shared.log.error('Prompt enhance: image not supported by model')
+            if is_cloud_model(model):
+                pass
+            elif (self.tokenizer is None) or (not self.tokenizer.is_processor):
+                log.error('Prompt enhance: image not supported by model')
                 return prompt_text # Return original text part if image cannot be processed
             if prompt_text is not None and len(prompt_text) > 0:
                 if not has_system:
@@ -500,7 +661,7 @@ class Script(scripts_manager.Script):
                 system = self.options.t2i_prompt
                 system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
                 system += self.options.details_prompt
-            if not self.tokenizer.is_processor:
+            if (self.tokenizer is None) or (not self.tokenizer.is_processor):
                 chat_template = [
                     { "role": "system", "content": system },
                     { "role": "user",   "content": prompt_text },
@@ -520,17 +681,40 @@ class Script(scripts_manager.Script):
         use_prefill = len(prefill_text) > 0
         is_thinking = is_thinking_model(model)
 
-        debug_log(f'Prompt enhance: chat_template roles={[msg["role"] for msg in chat_template]} is_thinking={is_thinking} thinking={thinking} use_prefill={use_prefill}')
+        debug_log(f'Prompt template: roles={[msg["role"] for msg in chat_template]} thinking={is_thinking}:{thinking} prefill={use_prefill}')
         t0 = time.time()
         self.busy = True
+
+        if is_cloud_model(model):
+            if 'gemini' in model:
+                from modules.caption import gemini
+                kwargs = {
+                    'temperature': temperature,
+                    'max_output_tokens': tokens,
+                }
+                model_name = model.replace('google/', '')
+                response = gemini.predict(prompt_text, current_image, model_name, system, model, prefill_text, thinking, kwargs)
+                t1 = time.time()
+                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} temperature={temperature} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
+                debug_log(f'Prompt enhance: response="{response}"')
+                self.busy = False
+                return response
+
+            else:
+                return 'Model not recognized'
+
         try:
-            # Generate text prompt using template (WITHOUT enable_thinking parameter)
-            # Let template naturally generate <think> for thinking models
+            # Qwen3.5 uses native enable_thinking parameter in the chat template
+            is_qwen35 = 'qwen3.5' in model.lower()
+            template_kwargs = {'enable_thinking': thinking} if is_qwen35 else {}
+
+            # Generate text prompt using template
             try:
                 text_prompt = self.tokenizer.apply_chat_template(
                     chat_template,
                     add_generation_prompt=True,
                     tokenize=False,
+                    **template_kwargs,
                 )
             except TypeError:
                 text_prompt = self.tokenizer.apply_chat_template(
@@ -538,8 +722,8 @@ class Script(scripts_manager.Script):
                     tokenize=False,
                 )
 
-            # Manually handle thinking tags and prefill (VQA Qwen approach)
-            if is_thinking:
+            # Manual think handling - skip for Qwen3.5 (template handles it natively)
+            if is_thinking and not is_qwen35:
                 if not thinking:
                     # User wants to SKIP thinking
                     # Template opened the block with <think>, close it immediately
@@ -553,7 +737,7 @@ class Script(scripts_manager.Script):
                         text_prompt += prefill_text
                     debug_log('Prompt enhance: thinking enabled, prefill inside think block')
             else:
-                # Standard model (no <think> block)
+                # Standard model or Qwen3.5 (no manual <think> manipulation needed)
                 if use_prefill:
                     text_prompt += prefill_text
 
@@ -571,15 +755,15 @@ class Script(scripts_manager.Script):
             inputs = inputs.to(devices.device).to(devices.dtype)
 
             input_len = inputs['input_ids'].shape[1]
-            debug_log(f'Prompt enhance: input_len={input_len} input_ids_shape={inputs["input_ids"].shape} sample={sample} temp={temperature} penalty={penalty} max_tokens={tokens}')
+            debug_log(f'Prompt enhance: len={input_len} shape={inputs["input_ids"].shape} sample={sample} temp={temperature} penalty={penalty} max={tokens}')
         except Exception as e:
-            shared.log.error(f'Prompt enhance tokenize: {e}')
+            log.error(f'Prompt enhance tokenize: {e}')
             errors.display(e, 'Prompt enhance')
             self.busy = False
             return prompt_text # Return original text part on error
         try:
             with devices.inference_context():
-                sd_models.move_model(self.llm, devices.device)
+                move_aux_to_gpu('prompt_enhance')
                 gen_kwargs = {
                     'do_sample': sample,
                     'temperature': float(temperature),
@@ -591,9 +775,6 @@ class Script(scripts_manager.Script):
                 if top_p > 0:
                     gen_kwargs['top_p'] = float(top_p)
                 outputs = self.llm.generate(**inputs, **gen_kwargs)
-                if shared.opts.diffusers_offload_mode != 'none':
-                    sd_models.move_model(self.llm, devices.cpu, force=True)
-                    devices.torch_gc(force=True, reason='prompt enhance offload')
             outputs_cropped = outputs[:, input_len:]
             response = self.tokenizer.batch_decode(
                 outputs_cropped,
@@ -605,10 +786,13 @@ class Script(scripts_manager.Script):
                 debug_log(f'Prompt enhance: response_before_clean="{response_before_clean}"')
         except Exception as e:
             outputs = None
-            shared.log.error(f'Prompt enhance generate: {e}')
+            log.error(f'Prompt enhance generate: {e}')
             errors.display(e, 'Prompt enhance')
             self.busy = False
             response = f'Error: {str(e)}'
+        finally:
+            offload_aux('prompt_enhance')
+            devices.torch_gc(force=True, reason='prompt enhance offload')
         t1 = time.time()
 
         if isinstance(response, list):
@@ -617,12 +801,12 @@ class Script(scripts_manager.Script):
         if not is_censored:
             response = self.clean(response, keep_thinking=keep_thinking, prefill_text=prefill_text, keep_prefill=keep_prefill)
             response = self.post(response, prefix, suffix, networks)
-        shared.log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} keep_thinking={keep_thinking} prefill="{prefill_text[:20] if prefill_text else ""}" keep_prefill={keep_prefill} tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
+        log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} keep={keep_thinking}:{keep_prefill} prefill="{prefill_text[:20] if prefill_text else None}" tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
         debug_log(f'Prompt enhance: prompt="{prompt_text}"')
         debug_log(f'Prompt enhance: response_after_clean="{response}"')
         self.busy = False
         if is_censored:
-            shared.log.warning(f'Prompt enhance: censored response="{response}"')
+            log.warning(f'Prompt enhance: censored response="{response}"')
             return prompt # Return original full prompt on censorship
         return response
 
@@ -704,7 +888,7 @@ class Script(scripts_manager.Script):
                         gr.HTML('<br>')
                 with gr.Accordion('Options', open=False, elem_id='prompt_enhance_options'):
                     with gr.Row():
-                        max_tokens = gr.Slider(label='Max tokens', value=self.options.max_tokens, minimum=10, maximum=1024, step=1, interactive=True)
+                        max_tokens = gr.Slider(label='Max tokens', value=self.options.max_tokens, minimum=10, maximum=4096, step=1, interactive=True)
                         do_sample = gr.Checkbox(label='Use samplers', value=self.options.do_sample, interactive=True)
                     with gr.Row():
                         temperature = gr.Slider(label='Temperature', value=self.options.temperature, minimum=0.0, maximum=1.0, step=0.01, interactive=True)

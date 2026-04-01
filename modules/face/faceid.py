@@ -1,4 +1,3 @@
-from typing import List
 import os
 import cv2
 import torch
@@ -7,6 +6,7 @@ import diffusers
 import huggingface_hub as hf
 from PIL import Image
 from modules import processing, shared, devices, extra_networks, sd_hijack_freeu, script_callbacks, ipadapter, token_merge
+from modules.logger import log
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 
 
@@ -22,7 +22,7 @@ FACEID_MODELS = {
 
 faceid_model_weights = None
 faceid_model_name = None
-debug = shared.log.trace if os.environ.get("SD_FACE_DEBUG", None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get("SD_FACE_DEBUG", None) is not None else lambda *args, **kwargs: None
 
 
 def hijack_load_ip_adapter(self):
@@ -34,7 +34,7 @@ def hijack_load_ip_adapter(self):
 def face_id(
     p: processing.StableDiffusionProcessing,
     app,
-    source_images: List[Image.Image],
+    source_images: list[Image.Image],
     model: str,
     override: bool,
     cache: bool,
@@ -43,7 +43,7 @@ def face_id(
 ):
     global faceid_model_weights, faceid_model_name  # pylint: disable=global-statement
     if source_images is None or len(source_images) == 0:
-        shared.log.warning('FaceID: no input images')
+        log.warning('FaceID: no input images')
         return None
 
     from insightface.utils import face_align
@@ -58,7 +58,7 @@ def face_id(
             IPAdapterFaceID as IPAdapterFaceIDPortrait,
         )
     except Exception as e:
-        shared.log.error(f"FaceID incorrect version of ip_adapter: {e}")
+        log.error(f"FaceID incorrect version of ip_adapter: {e}")
         return None
 
     processed_images = []
@@ -70,7 +70,7 @@ def face_id(
         shared.prompt_styles.apply_styles_to_extra(p)
 
         if shared.opts.cuda_compile_backend == 'none':
-            token_merge.apply_token_merging(p.sd_model)
+            token_merge.apply_token_merging(shared.sd_model)
             sd_hijack_freeu.apply_freeu(p)
 
         script_callbacks.before_process_callback(p)
@@ -81,13 +81,13 @@ def face_id(
             basename, _ext = os.path.splitext(filename)
             model_path = hf.hf_hub_download(repo_id=folder, filename=filename, cache_dir=shared.opts.hfcache_dir)
             if model_path is None:
-                shared.log.error(f'FaceID download failed: model={model} file="{ip_ckpt}"')
+                log.error(f'FaceID download failed: model={model} file="{ip_ckpt}"')
                 return None
             if faceid_model_weights is None or faceid_model_name != model or not cache:
-                shared.log.debug(f'FaceID load: model={model} file="{ip_ckpt}"')
+                log.debug(f'FaceID load: model={model} file="{ip_ckpt}"')
                 faceid_model_weights = torch.load(model_path, map_location="cpu")
             else:
-                shared.log.debug(f'FaceID cached: model={model} file="{ip_ckpt}"')
+                log.debug(f'FaceID cached: model={model} file="{ip_ckpt}"')
 
             if "XL Plus" in model and shared.sd_model_type == 'sd':
                 image_encoder_path = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
@@ -149,7 +149,7 @@ def face_id(
                     torch_dtype=devices.dtype,
                 )
             else:
-                shared.log.error(f'FaceID model not supported: model="{model}" class={shared.sd_model.__class__.__name__}')
+                log.error(f'FaceID model not supported: model="{model}" class={shared.sd_model.__class__.__name__}')
                 return None
 
             if override:
@@ -172,15 +172,15 @@ def face_id(
                 np_image = cv2.cvtColor(np.array(source_image), cv2.COLOR_RGB2BGR)
                 faces = app.get(np_image)
                 if len(faces) == 0:
-                    shared.log.error("FaceID: no faces found")
+                    log.error("FaceID: no faces found")
                     break
                 face_embeds.append(torch.from_numpy(faces[0].normed_embedding).unsqueeze(0))
                 face_images.append(face_align.norm_crop(np_image, landmark=faces[0].kps, image_size=224))
-                shared.log.debug(f'FaceID face: i={i+1} score={faces[0].det_score:.2f} gender={"female" if faces[0].gender==0 else "male"} age={faces[0].age} bbox={faces[0].bbox}')
+                log.debug(f'FaceID face: i={i+1} score={faces[0].det_score:.2f} gender={"female" if faces[0].gender==0 else "male"} age={faces[0].age} bbox={faces[0].bbox}')
                 p.extra_generation_params[f"FaceID {i+1}"] = f'{faces[0].det_score:.2f} {"female" if faces[0].gender==0 else "male"} {faces[0].age}y'
 
             if len(face_embeds) == 0:
-                shared.log.error("FaceID: no faces found")
+                log.error("FaceID: no faces found")
                 return None
 
             face_embeds = torch.cat(face_embeds, dim=0)
@@ -199,7 +199,7 @@ def face_id(
                 ip_model_dict["shortcut"] = shortcut
             if "Plus" in model:
                 ip_model_dict["s_scale"] = structure
-            shared.log.debug(f"FaceID args: {ip_model_dict}")
+            log.debug(f"FaceID args: {ip_model_dict}")
             if "Plus" in model:
                 ip_model_dict["face_image"] = face_images
             ip_model_dict["faceid_embeds"] = face_embeds # overwrite placeholder
@@ -235,7 +235,7 @@ def face_id(
                 faceid_model_name = None
             devices.torch_gc()
 
-        ipadapter.unapply(p.sd_model)
+        ipadapter.unapply(shared.sd_model)
         extra_networks.deactivate(p, p.network_data)
 
         p.extra_generation_params["IP Adapter"] = f"{basename}:{scale}"
@@ -243,7 +243,7 @@ def face_id(
         if faceid_model is not None and original_load_ip_adapter is not None:
             faceid_model.__class__.load_ip_adapter = original_load_ip_adapter
         if shared.opts.cuda_compile_backend == 'none':
-            token_merge.remove_token_merging(p.sd_model)
+            token_merge.remove_token_merging(shared.sd_model)
         script_callbacks.after_process_callback(p)
 
     return processed_images

@@ -2,12 +2,13 @@ import os
 import gradio as gr
 from PIL import Image
 from modules import scripts_manager, processing, shared, images
+from modules.logger import log
 
 
-debug = shared.log.trace if os.environ.get('SD_FACE_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_FACE_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts_manager.Script):
+class FaceScript(scripts_manager.Script):
     original_pipeline = None
     original_prompt_attention = None
 
@@ -34,7 +35,7 @@ class Script(scripts_manager.Script):
                     raise ValueError(f'Face: unknown input: {file}')
                 init_images.append(image)
             except Exception as e:
-                shared.log.warning(f'Face: failed to load image: {e}')
+                log.warning(f'Face: failed to load image: {e}')
         return init_images
 
     def mode_change(self, mode):
@@ -109,10 +110,10 @@ class Script(scripts_manager.Script):
         if mode == 'None':
             return None
         if input_images is None or len(input_images) == 0:
-            shared.log.error('Face: no init images')
+            log.error('Face: no init images')
             return None
         if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
-            shared.log.error('Face: base model not supported')
+            log.error('Face: base model not supported')
             return None
 
         input_images = input_images.copy()
@@ -142,7 +143,7 @@ class Script(scripts_manager.Script):
             photo_maker(p, app=app, input_images=input_images, model=pm_model, trigger=pm_trigger, strength=pm_strength, start=pm_start)
         elif mode == 'InstantID':
             if hasattr(p, 'init_images') and p.init_images is not None and len(p.init_images) > 0:
-                shared.log.warning('Face: InstantID with init image not supported')
+                log.warning('Face: InstantID with init image not supported')
                 input_images += p.init_images
             from modules.face.insightface import get_app
             app=get_app('antelopev2')

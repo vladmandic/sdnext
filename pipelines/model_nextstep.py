@@ -1,5 +1,6 @@
 # import transformers
 from modules import shared, devices, sd_models, model_quant # pylint: disable=unused-import
+from modules.logger import log
 from pipelines import generic # pylint: disable=unused-import
 
 
@@ -9,11 +10,11 @@ def load_nextstep(checkpoint_info, diffusers_load_config=None): # pylint: disabl
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
-    shared.log.error(f'Load model: type=NextStep model="{checkpoint_info.name}" repo="{repo_id}" not supported')
+    log.error(f'Load model: type=NextStep model="{checkpoint_info.name}" repo="{repo_id}" not supported')
 
     """
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
-    shared.log.debug(f'Load model: type=NextStep model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    log.debug(f'Load model: type=NextStep model="{checkpoint_info.name}" repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     from pipelines.nextstep import NextStepPipeline, NextStep
 

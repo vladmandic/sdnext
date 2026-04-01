@@ -99,11 +99,11 @@ then
     export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/opt/rocm/lib
 fi
 
-if [[ ! -z "${ACCELERATE}" ]] && [ ${ACCELERATE}="True" ] && [ -x "$(command -v accelerate)" ]
+if [[ -n "${ACCELERATE}" ]] && [[ "${ACCELERATE}" == "True" ]] && [ -x "$(command -v accelerate)" ]
 then
     echo "Launch: accelerate"
     exec accelerate launch --num_cpu_threads_per_process=6 launch.py "$@"
-elif [[ ! -z "${IPEXRUN}" ]] && [ ${IPEXRUN}="True" ] && [ -x "$(command -v ipexrun)" ]
+elif [[ -n "${IPEXRUN}" ]] && [[ "${IPEXRUN}" == "True" ]] && [ -x "$(command -v ipexrun)" ]
 then
     echo "Launch: ipexrun"
     exec ipexrun --multi-task-manager 'taskset' --memory-allocator 'jemalloc' launch.py "$@"

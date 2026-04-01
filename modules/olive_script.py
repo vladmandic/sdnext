@@ -1,17 +1,18 @@
 import os
-from typing import Type, Callable, TypeVar, Dict, Any
+from typing import TypeVar, Any
+from collections.abc import Callable
 import torch
 import diffusers
 from transformers.models.clip.modeling_clip import CLIPTextModel, CLIPTextModelWithProjection
 
 
 class ENVStore:
-    __DESERIALIZER: Dict[Type, Callable[[str,], Any]] = {
+    __DESERIALIZER: dict[type, Callable[[str,], Any]] = {
         bool: lambda x: bool(int(x)),
         int: int,
         str: lambda x: x,
     }
-    __SERIALIZER: Dict[Type, Callable[[Any,], str]] = {
+    __SERIALIZER: dict[type, Callable[[Any,], str]] = {
         bool: lambda x: str(int(x)),
         int: str,
         str: lambda x: x,
@@ -89,7 +90,7 @@ def get_loader_arguments(no_variant: bool = False):
 
 
 T = TypeVar("T")
-def from_pretrained(cls: Type[T], pretrained_model_name_or_path: os.PathLike, *args, no_variant: bool = False, **kwargs) -> T:
+def from_pretrained(cls: type[T], pretrained_model_name_or_path: os.PathLike, *args, no_variant: bool = False, **kwargs) -> T:
     pretrained_model_name_or_path = str(pretrained_model_name_or_path)
     if pretrained_model_name_or_path.endswith(".onnx"):
         cls = diffusers.OnnxRuntimeModel

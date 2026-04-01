@@ -15,7 +15,6 @@
 import html
 from typing import Any, Callable, Dict, List, Optional, Union
 
-import ftfy
 import regex as re
 import torch
 from transformers import AutoTokenizer, UMT5EncoderModel
@@ -86,6 +85,9 @@ def optimized_scale(positive_flat, negative_flat):
     return st_star
 
 def basic_clean(text):
+    from installer import install
+    install('ftfy')
+    import ftfy
     text = ftfy.fix_text(text)
     text = html.unescape(html.unescape(text))
     return text.strip()

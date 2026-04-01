@@ -1,0 +1,430 @@
+[project]
+name = "SD.Next"
+version = "0.0.0"
+description = "SD.Next: All-in-one WebUI for AI generative image and video creation and captioning"
+readme = "README.md"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 250
+indent-width = 4
+target-version = "py310"
+exclude = [
+    "venv",
+    ".git",
+    ".ruff_cache",
+    ".vscode",
+    "modules/cfgzero",
+    "modules/flash_attn_triton_amd",
+    "modules/hidiffusion",
+    "modules/intel/ipex",
+    "modules/pag",
+    "modules/schedulers",
+    "modules/teacache",
+    "modules/seedvr",
+    "modules/sharpfin",
+    "modules/control/proc",
+    "modules/control/units",
+    "modules/control/units/xs_pipe.py",
+    "modules/postprocess/aurasr_arch.py",
+    "pipelines/meissonic",
+    "pipelines/omnigen2",
+    "pipelines/hdm",
+    "pipelines/segmoe",
+    "pipelines/xomni",
+    "pipelines/chrono",
+    "scripts/lbm",
+    "scripts/daam",
+    "scripts/xadapter",
+    "scripts/pulid",
+    "scripts/instantir",
+    "scripts/freescale",
+    "scripts/consistory",
+    "extensions-builtin/Lora",
+    "extensions-builtin/sd-extension-chainner/nodes",
+    "extensions-builtin/sd-webui-agent-scheduler",
+    "extensions-builtin/sdnext-modernui/node_modules",
+]
+
+[tool.ruff.lint]
+select = [
+    "F",
+    "E",
+    "W",
+    "C",
+    "B",
+    "I",
+    "YTT",
+    "ASYNC",
+    "RUF",
+    "AIR",
+    "NPY",
+    "C4",
+    "T10",
+    "EXE",
+    "ISC",
+    "ICN",
+    "RSE",
+    "TC",
+    "TID",
+    "INT",
+    "PLE",
+]
+ignore = [
+    "ASYNC240", # Async functions should not use os.path methods
+    "B006",   # Do not use mutable data structures for argument defaults
+    "B008",   # Do not perform function call in argument defaults
+    "B905",   # Strict zip() usage
+    "C408",   # Unnecessary `dict` call
+    "C420",   # Unnecessary dict comprehension for iterable; use `dict.fromkeys` instead
+    "E402",   # Module level import not at top of file
+    "E501",   # Line too long
+    "E721",   # Do not compare types, use `isinstance()`
+    "E731",   # Do not assign a `lambda` expression, use a `def`
+    "E741",   # Ambiguous variable name
+    "EXE001", # file with shebang is not marked executable
+    "F401",   # Imported by unused
+    "I001",   # Import block is un-sorted or un-formatted
+    "NPY002", # replace legacy random
+    "RUF005", # Consider iterable unpacking
+    "RUF008", # Do not use mutable default values for dataclass
+    "RUF010", # Use explicit conversion flag
+    "RUF012", # Mutable class attributes
+    "RUF015", # Prefer `next(...)` over single element slice
+    "RUF022", # All is not sorted
+    "RUF046", # Value being cast to `int` is already an integer
+    "RUF051", # Prefer pop over del
+    "RUF059", # Unpacked variables are not used
+]
+fixable = ["ALL"]
+unfixable = []
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.per-file-ignores]
+"modules/caption/joytag.py" = ["RUF013"] # Per header comment: "Do not modify directly — sync from upstream"
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+skip-magic-trailing-comma = false
+line-ending = "auto"
+docstring-code-format = false
+
+[tool.ruff.lint.mccabe]
+max-complexity = 150
+
+[tool.pylint]
+main.py-version="3.10"
+main.analyse-fallback-blocks=false
+main.clear-cache-post-run=false
+main.extension-pkg-allow-list=""
+main.prefer-stubs=true
+main.extension-pkg-whitelist=""
+main.fail-on=""
+main.fail-under=10
+main.ignore="CVS"
+main.ignore-paths=[
+    "venv",
+    "node_modules",
+    "__pycache__",
+    ".git",
+    ".ruff_cache",
+    ".vscode",
+    "modules/apg",
+    "modules/cfgzero",
+    "modules/control/proc",
+    "modules/control/units",
+    "modules/dml",
+    "modules/face",
+    "modules/flash_attn_triton_amd",
+    "modules/ggml",
+    "modules/hidiffusion",
+    "modules/hijack/ddpm_edit.py",
+    "modules/intel",
+    "modules/intel/ipex",
+    "modules/framepack/pipeline",
+    "modules/onnx_impl",
+    "modules/pag",
+    "modules/postprocess/aurasr_arch.py",
+    "modules/prompt_parser_xhinker.py",
+    "modules/ras",
+    "modules/seedvr",
+    "modules/sharpfin",
+    "modules/rife",
+    "modules/schedulers",
+    "modules/taesd",
+    "modules/teacache",
+    "modules/todo",
+    "modules/res4lyf",
+    "pipelines/bria",
+    "pipelines/flex2",
+    "pipelines/f_lite",
+    "pipelines/hidream",
+    "pipelines/hdm",
+    "pipelines/meissonic",
+    "pipelines/omnigen2",
+    "pipelines/segmoe",
+    "pipelines/xomni",
+    "pipelines/chrono",
+    "scripts/consistory",
+    "scripts/ctrlx",
+    "scripts/daam",
+    "scripts/demofusion",
+    "scripts/freescale",
+    "scripts/infiniteyou",
+    "scripts/instantir",
+    "scripts/lbm",
+    "scripts/layerdiffuse",
+    "scripts/mod",
+    "scripts/pixelsmith",
+    "scripts/differential_diffusion.py",
+    "scripts/pulid",
+    "scripts/xadapter",
+    "repositories",
+    "extensions-builtin/sd-extension-chainner/nodes",
+    "extensions-builtin/sd-webui-agent-scheduler",
+    "extensions-builtin/sdnext-modernui/node_modules",
+    "extensions-builtin/sdnext-kanvas/node_modules",
+]
+main.ignore-patterns=[
+    ".*test*.py$",
+    ".*_model.py$",
+    ".*_arch.py$",
+    ".*_model_arch.py*",
+    ".*_model_arch_v2.py$",
+]
+main.ignored-modules=""
+main.jobs=4
+main.limit-inference-results=100
+main.load-plugins=""
+main.persistent=false
+main.recursive=false
+main.source-roots=""
+main.unsafe-load-any-extension=false
+basic.argument-naming-style="snake_case"
+basic.attr-naming-style="snake_case"
+basic.bad-names=["foo", "bar", "baz", "toto", "tutu", "tata"]
+basic.bad-names-rgxs=""
+basic.class-attribute-naming-style="any"
+basic.class-const-naming-style="UPPER_CASE"
+basic.class-naming-style="PascalCase"
+basic.const-naming-style="snake_case"
+basic.docstring-min-length=-1
+basic.function-naming-style="snake_case"
+basic.good-names=["i","j","k","e","ex","ok","p","x","y","id"]
+basic.good-names-rgxs=""
+basic.include-naming-hint=false
+basic.inlinevar-naming-style="any"
+basic.method-naming-style="snake_case"
+basic.module-naming-style="snake_case"
+basic.name-group=""
+basic.no-docstring-rgx="^_"
+basic.property-classes="abc.abstractproperty"
+basic.variable-naming-style="snake_case"
+classes.check-protected-access-in-special-methods=false
+classes.defining-attr-methods=["__init__", "__new__"]
+classes.exclude-protected=["_asdict","_fields","_replace","_source","_make","os._exit"]
+classes.valid-classmethod-first-arg="cls"
+classes.valid-metaclass-classmethod-first-arg="mcs"
+design.exclude-too-few-public-methods=""
+design.ignored-parents=""
+design.max-args=250
+design.max-attributes=100
+design.max-bool-expr=100
+design.max-branches=200
+design.max-locals=100
+design.max-parents=100
+design.max-public-methods=100
+design.max-returns=100
+design.max-statements=200
+design.min-public-methods=1
+exceptions.overgeneral-exceptions=["builtins.BaseException","builtins.Exception"]
+format.expected-line-ending-format=""
+format.indent-after-paren=4
+format.indent-string='    '
+format.max-line-length=200
+format.max-module-lines=9999
+format.single-line-class-stmt=false
+format.single-line-if-stmt=false
+imports.allow-any-import-level=""
+imports.allow-reexport-from-package=false
+imports.allow-wildcard-with-all=false
+imports.deprecated-modules=""
+imports.ext-import-graph=""
+imports.import-graph=""
+imports.int-import-graph=""
+imports.known-standard-library=""
+imports.known-third-party="enchant"
+imports.preferred-modules=""
+logging.logging-format-style="new"
+logging.logging-modules="logging"
+messages_control.confidence=["HIGH","CONTROL_FLOW","INFERENCE","INFERENCE_FAILURE","UNDEFINED"]
+messages_control.disable=[
+    "abstract-method",
+    "arguments-renamed",
+    "bad-inline-option",
+    "bare-except",
+    "broad-exception-caught",
+    "chained-comparison",
+    "consider-iterating-dictionary",
+    "consider-merging-isinstance",
+    "consider-using-dict-items",
+    "consider-using-enumerate",
+    "consider-using-from-import",
+    "consider-using-generator",
+    "consider-using-get",
+    "consider-using-in",
+    "consider-using-max-builtin",
+    "consider-using-min-builtin",
+    "consider-using-sys-exit",
+    "cyclic-import",
+    "dangerous-default-value",
+    "deprecated-pragma",
+    "duplicate-code",
+    "file-ignored",
+    "import-error",
+    "import-outside-toplevel",
+    "invalid-name",
+    "line-too-long",
+    "locally-disabled",
+    "logging-fstring-interpolation",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "missing-module-docstring",
+    "no-else-raise",
+    "no-else-return",
+    "not-callable",
+    "pointless-string-statement",
+    "raw-checker-failed",
+    "simplifiable-if-expression",
+    "subprocess-run-check",
+    "suppressed-message",
+    "too-few-public-methods",
+    "too-many-instance-attributes",
+    "too-many-locals",
+    "too-many-nested-blocks",
+    "too-many-positional-arguments",
+    "too-many-statements",
+    "unidiomatic-typecheck",
+    "unknown-option-value",
+    "unnecessary-dict-index-lookup",
+    "unnecessary-dunder-call",
+    "unnecessary-lambda-assigment",
+    "unnecessary-lambda",
+    "unpacking-non-sequence",
+    "unsubscriptable-object",
+    "unused-wildcard-import",
+    "use-dict-literal",
+    "use-maxsplit-arg",
+    "use-symbolic-message-instead",
+    "useless-return",
+    "useless-suppression",
+    "wrong-import-position",
+]
+messages_control.enable="c-extension-no-member"
+method_args.timeout-methods=[
+    "requests.api.delete",
+    "requests.api.get",
+    "requests.api.head",
+    "requests.api.options",
+    "requests.api.patch",
+    "requests.api.post",
+    "requests.api.put",
+    "requests.api.request"
+]
+miscellaneous.notes=["FIXME","XXX","TODO","HERE"]
+miscellaneous.notes-rgx=""
+refactoring.max-nested-blocks=5
+refactoring.never-returning-functions=["sys.exit","argparse.parse_error"]
+reports.msg-template=""
+reports.reports=false
+reports.score=false
+similarities.ignore-comments=true
+similarities.ignore-docstrings=true
+similarities.ignore-imports=true
+similarities.ignore-signatures=true
+similarities.min-similarity-lines=4
+spelling.max-spelling-suggestions=4
+string.check-quote-consistency=false
+string.check-str-concat-over-line-jumps=false
+typecheck.contextmanager-decorators="contextlib.contextmanager"
+typecheck.generated-members=[
+    "numpy.*",
+    "logging.*",
+    "torch.*",
+    "cv2.*",
+]
+typecheck.ignore-none=true
+typecheck.ignore-on-opaque-inference=true
+typecheck.ignored-checks-for-mixins=["no-member","not-async-context-manager","not-context-manager","attribute-defined-outside-init"]
+typecheck.ignored-classes=["optparse.Values","thread._local","_thread._local","argparse.Namespace","unittest.case._AssertRaisesContext","unittest.case._AssertWarnsContext"]
+typecheck.missing-member-hint=true
+typecheck.missing-member-hint-distance=1
+typecheck.missing-member-max-choices=1
+typecheck.mixin-class-rgx=".*[Mm]ixin"
+typecheck.signature-mutators=""
+variables.additional-builtins=""
+variables.allow-global-unused-variables=true
+variables.allowed-redefined-builtins=""
+variables.callbacks=["cb_",]
+variables.dummy-variables-rgx="_+$|(_[a-zA-Z0-9_]*[a-zA-Z0-9]+?$)|dummy|^ignored_|^unused_"
+variables.ignored-argument-names="_.*|^ignored_|^unused_"
+variables.init-import=false
+variables.redefining-builtins-modules=["six.moves","past.builtins","future.builtins","builtins","io"]
+
+[tool.pyright]
+pythonVersion = "3.10"
+pythonPlatform = "All"
+typeCheckingMode = "off"
+venvPath = "./venv"
+include = [
+    "*.py",
+    "modules/**/*.py",
+    "pipelines/**/*.py",
+    "scripts/**/*.py",
+    "extensions-builtin/**/*.py"
+]
+exclude = [
+    "**/.*",
+    ".git/",
+    "**/node_modules",
+    "**/__pycache__",
+    "venv",
+]
+extraPaths = [
+    "scripts",
+    "pipelines",
+]
+reportMissingImports = "none"
+reportInvalidTypeForm = "none"
+
+[tool.ty.environment]
+python = "./venv/bin/python"
+python-platform = "all"
+python-version = "3.10"
+
+[tool.ty.src]
+include = [
+    "*.py",
+    "modules/**/*.py",
+    "pipelines/**/*.py",
+    "scripts/**/*.py",
+    "extensions-builtin/**/*.py"
+]
+exclude = [
+    "venv/",
+    "*.git/",
+]
+
+[tool.ty.rules]
+invalid-method-override = "ignore"
+invalid-argument-type = "ignore"
+unresolved-import = "ignore"
+unresolved-attribute = "ignore"
+invalid-assignment = "ignore"
+unsupported-operator = "ignore"
+no-matching-overload = "ignore"
+unsupported-base = "ignore"
+possibly-missing-attribute = "ignore"
+invalid-parameter-default = "ignore"
+call-non-callable = "ignore"

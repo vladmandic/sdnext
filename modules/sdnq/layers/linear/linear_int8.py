@@ -1,17 +1,15 @@
 # pylint: disable=relative-beyond-top-level,redefined-builtin,protected-access
 
-from typing import Tuple
-
 import torch
 
 from ...common import compile_func, int_mm_func # noqa: TID252
-from ...packed_int import unpack_int_symetric # noqa: TID252
 from ...dequantizer import quantize_int_mm, dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
+from ...packed_int import unpack_int # noqa: TID252
 
 from .forward import check_mats
 
 
-def quantize_int_mm_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> Tuple[torch.CharTensor, torch.FloatTensor]:
+def quantize_int_mm_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> tuple[torch.CharTensor, torch.FloatTensor]:
     input = input.flatten(0,-2).to(dtype=scale.dtype)
     input, input_scale = quantize_int_mm(input, dim=-1)
     scale = torch.mul(input_scale, scale)
@@ -24,14 +22,14 @@ def int8_matmul(
     input: torch.FloatTensor,
     weight: torch.Tensor,
     scale: torch.FloatTensor,
-    bias: torch.FloatTensor = None,
-    svd_up: torch.FloatTensor = None,
-    svd_down: torch.FloatTensor = None,
-    quantized_weight_shape: torch.Size = None,
-    weights_dtype: str = None,
+    bias: torch.FloatTensor | None = None,
+    svd_up: torch.FloatTensor | None = None,
+    svd_down: torch.FloatTensor | None = None,
+    quantized_weight_shape: torch.Size | None = None,
+    weights_dtype: str | None = None,
 ) -> torch.FloatTensor:
     if quantized_weight_shape is not None:
-        weight = unpack_int_symetric(weight, quantized_weight_shape, weights_dtype, dtype=torch.int8).t_()
+        weight = unpack_int(weight, weights_dtype, quantized_weight_shape, dtype=torch.int8).t_()
         scale = scale.t()
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])

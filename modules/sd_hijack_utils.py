@@ -2,7 +2,7 @@ import importlib
 
 class CondFunc:
     def __new__(cls, orig_func, sub_func, cond_func):
-        self = super(CondFunc, cls).__new__(cls)
+        self = super().__new__(cls)
         if isinstance(orig_func, str):
             func_path = orig_func.split('.')
             for i in range(len(func_path)-1, -1, -1):

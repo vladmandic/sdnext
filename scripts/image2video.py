@@ -1,7 +1,8 @@
 import torch
 import gradio as gr
 import diffusers
-from modules import scripts_manager, processing, shared, images, sd_models, devices
+from modules import scripts_manager, processing, shared, video, sd_models, devices
+from modules.logger import log
 
 
 MODELS = [
@@ -11,7 +12,7 @@ MODELS = [
 ]
 
 
-class Script(scripts_manager.Script):
+class VGenI2VScript(scripts_manager.Script):
     def title(self):
         return 'Video: VGen Image-to-Video'
 
@@ -58,16 +59,16 @@ class Script(scripts_manager.Script):
             return None
         model = [m for m in MODELS if m['name'] == model_name][0]
         repo_id = model['url']
-        shared.log.debug(f'Image2Video: model={model_name} frames={num_frames}, video={video_type} duration={duration} loop={gif_loop} pad={mp4_pad} interpolate={mp4_interpolate}')
+        log.debug(f'Image2Video: model={model_name} frames={num_frames}, video={video_type} duration={duration} loop={gif_loop} pad={mp4_pad} interpolate={mp4_interpolate}')
         p.ops.append('video')
         p.do_not_save_grid = True
         orig_pipeline = shared.sd_model
 
         if model_name == 'PIA':
             if shared.sd_model_type != 'sd':
-                shared.log.error('Image2Video PIA: base model must be SD15')
+                log.error('Image2Video PIA: base model must be SD15')
                 return None
-            shared.log.info(f'Image2Video PIA load: model={repo_id}')
+            log.info(f'Image2Video PIA load: model={repo_id}')
             motion_adapter = diffusers.MotionAdapter.from_pretrained(repo_id)
             sd_models.move_model(motion_adapter, devices.device)
             shared.sd_model = sd_models.switch_pipe(diffusers.PIAPipeline, shared.sd_model, { 'motion_adapter': motion_adapter })
@@ -84,14 +85,14 @@ class Script(scripts_manager.Script):
                     spatial_stop_frequency=fi_spatial,
                     temporal_stop_frequency=fi_temporal,
                 )
-            shared.log.debug(f'Image2Video PIA: args={p.task_args}')
+            log.debug(f'Image2Video PIA: args={p.task_args}')
             processed = processing.process_images(p)
             shared.sd_model.motion_adapter = None
 
         processed = None
         if model_name == 'VGen':
             if not isinstance(shared.sd_model, diffusers.I2VGenXLPipeline):
-                shared.log.info(f'Image2Video VGen load: model={repo_id}')
+                log.info(f'Image2Video VGen load: model={repo_id}')
                 pipe = diffusers.I2VGenXLPipeline.from_pretrained(repo_id, torch_dtype=devices.dtype, cache_dir=shared.opts.diffusers_dir)
                 sd_models.copy_diffuser_options(pipe, shared.sd_model)
                 sd_models.set_diffuser_options(pipe)
@@ -104,10 +105,10 @@ class Script(scripts_manager.Script):
                 p.task_args['target_fps'] = max(1, int(num_frames * vg_fps))
                 p.task_args['decode_chunk_size'] = max(1, int(num_frames * vg_chunks))
                 p.task_args['output_type'] = 'pil'
-            shared.log.debug(f'Image2Video VGen: args={p.task_args}')
+            log.debug(f'Image2Video VGen: args={p.task_args}')
             processed = processing.process_images(p)
 
         shared.sd_model = orig_pipeline
         if video_type != 'None' and processed is not None:
-            images.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=duration, loop=gif_loop, pad=mp4_pad, interpolate=mp4_interpolate)
+            video.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=duration, loop=gif_loop, pad=mp4_pad, interpolate=mp4_interpolate)
         return processed

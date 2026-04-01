@@ -4,13 +4,14 @@ import time
 from PIL import Image
 from installer import install
 from modules import shared, sd_models, timer, errors, devices
+from modules.logger import log
 
 
-debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def queue_err(msg):
-    shared.log.error(f'Video: {msg}')
+    log.error(f'Video: {msg}')
     return [], None, '', '', f'Error: {msg}'
 
 
@@ -24,7 +25,7 @@ def check_av():
         import av
         av.logging.set_level(av.logging.ERROR) # pylint: disable=c-extension-no-member
     except Exception as e:
-        shared.log.error(f'av package: {e}')
+        log.error(f'av package: {e}')
         return False
     return av
 
@@ -44,7 +45,7 @@ def hijack_encode_image(*args, **kwargs):
         sd_models.move_model(shared.sd_model.image_encoder, devices.device)
         res = shared.sd_model.orig_encode_image(*args, **kwargs)
     except Exception as e:
-        shared.log.error(f'Video encode image: {e}')
+        log.error(f'Video encode image: {e}')
         errors.display(e, 'Video encode image')
         res = None
     t1 = time.time()
@@ -69,11 +70,11 @@ def get_codecs():
             pass
     hw_codecs = [c for c in codecs if (c.capabilities & 0x40000 > 0) or (c.capabilities & 0x80000 > 0)]
     sw_codecs = [c for c in codecs if c not in hw_codecs]
-    shared.log.debug(f'Video codecs: hardware={len(hw_codecs)} software={len(sw_codecs)}')
+    log.debug(f'Video codecs: hardware={len(hw_codecs)} software={len(sw_codecs)}')
     # for c in hw_codecs:
-    #     shared.log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=True')
+    #     log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=True')
     # for c in sw_codecs:
-    #     shared.log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=False')
+    #     log.trace(f'codec={c.name} cname="{c.canonical_name}" decs="{c.long_name}" intra={c.intra_only} lossy={c.lossy} lossless={c.lossless} capabilities={c.capabilities} hw=False')
     return ['none'] + [c.name for c in hw_codecs + sw_codecs]
 
 
@@ -112,8 +113,8 @@ def get_video_frames(fn: str, num_frames: int = -1, skip_frames: int = 0):
             if len(frames) >= num_frames > 0:
                 break
         video.release()
-        shared.log.debug(f'Video open: file="{fn}" frames={len(frames)} total={frame_count} skip={skip} fps={fps} size={w}x{h} codec={codec}')
+        log.debug(f'Video open: file="{fn}" frames={len(frames)} total={frame_count} skip={skip} fps={fps} size={w}x{h} codec={codec}')
     except Exception as e:
-        shared.log.error(f'Video open: file="{fn}" {e}')
+        log.error(f'Video open: file="{fn}" {e}')
         return frames
     return frames

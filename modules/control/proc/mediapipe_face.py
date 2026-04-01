@@ -9,10 +9,11 @@ checked_ok = False
 
 def check_dependencies():
     global checked_ok # pylint: disable=global-statement
-    from installer import installed, install, log
+    from installer import installed, install
+    from modules.logger import log
     packages = [('mediapipe', 'mediapipe')]
     for pkg in packages:
-        if not installed(pkg[1], reload=True, quiet=True):
+        if not installed(pkg[1], quiet=True):
             install(pkg[0], pkg[1], ignore=False)
     try:
         import mediapipe as mp # pylint: disable=unused-import

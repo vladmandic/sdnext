@@ -1,11 +1,10 @@
 import os
 import json
 import shutil
-from typing import Dict, List, Union
 import gradio as gr
 
 
-def get_recursively(d: Union[Dict, List], *args):
+def get_recursively(d: dict | list, *args):
     if len(args) == 0:
         return d
     return get_recursively(d.get(args[0]), *args[1:])
@@ -112,19 +111,19 @@ def create_ui():
                         with gr.TabItem("Stable Diffusion", id="sd"):
                             sd_config_path = os.path.join(sd_configs_path, "olive", "sd")
                             sd_submodels = os.listdir(sd_config_path)
-                            sd_configs: Dict[str, Dict[str, Dict[str, Dict]]] = {}
-                            sd_pass_config_components: Dict[str, Dict[str, Dict]] = {}
+                            sd_configs: dict[str, dict[str, dict[str, dict]]] = {}
+                            sd_pass_config_components: dict[str, dict[str, dict]] = {}
 
                             with gr.Tabs(elem_id="tabs_sd_submodel"):
                                 def sd_create_change_listener(*args):
-                                    def listener(v: Dict):
+                                    def listener(v: dict):
                                         get_recursively(sd_configs, *args[:-1])[args[-1]] = v
                                     return listener
 
                                 for submodel in sd_submodels:
-                                    config: Dict = None
+                                    config: dict = None
                                     sd_pass_config_components[submodel] = {}
-                                    with open(os.path.join(sd_config_path, submodel), "r", encoding="utf-8") as file:
+                                    with open(os.path.join(sd_config_path, submodel), encoding="utf-8") as file:
                                         config = json.load(file)
                                     sd_configs[submodel] = config
 
@@ -175,19 +174,19 @@ def create_ui():
                         with gr.TabItem("Stable Diffusion XL", id="sdxl"):
                             sdxl_config_path = os.path.join(sd_configs_path, "olive", "sdxl")
                             sdxl_submodels = os.listdir(sdxl_config_path)
-                            sdxl_configs: Dict[str, Dict[str, Dict[str, Dict]]] = {}
-                            sdxl_pass_config_components: Dict[str, Dict[str, Dict]] = {}
+                            sdxl_configs: dict[str, dict[str, dict[str, dict]]] = {}
+                            sdxl_pass_config_components: dict[str, dict[str, dict]] = {}
 
                             with gr.Tabs(elem_id="tabs_sdxl_submodel"):
                                 def sdxl_create_change_listener(*args):
-                                    def listener(v: Dict):
+                                    def listener(v: dict):
                                         get_recursively(sdxl_configs, *args[:-1])[args[-1]] = v
                                     return listener
 
                                 for submodel in sdxl_submodels:
-                                    config: Dict = None
+                                    config: dict = None
                                     sdxl_pass_config_components[submodel] = {}
-                                    with open(os.path.join(sdxl_config_path, submodel), "r", encoding="utf-8") as file:
+                                    with open(os.path.join(sdxl_config_path, submodel), encoding="utf-8") as file:
                                         config = json.load(file)
                                     sdxl_configs[submodel] = config
 

@@ -20,7 +20,6 @@ predefined_sd15 = {
     'LineArt': "lllyasviel/control_v11p_sd15_lineart",
     'LineArt Anime': "lllyasviel/control_v11p_sd15s2_lineart_anime",
     'MLDS': "lllyasviel/control_v11p_sd15_mlsd",
-    'NormalBae': "lllyasviel/control_v11p_sd15_normalbae",
     'OpenPose': "lllyasviel/control_v11p_sd15_openpose",
     'Scribble': "lllyasviel/control_v11p_sd15_scribble",
     'Segment': "lllyasviel/control_v11p_sd15_seg",
@@ -33,7 +32,6 @@ predefined_sd15 = {
     'LineArt Anime FP16': 'Aptronym/SDNext/ControlNet11/controlnet11Models_animeline.safetensors',
     'LineArt FP16': 'Aptronym/SDNext/ControlNet11/controlnet11Models_lineart.safetensors',
     'MLSD FP16': 'Aptronym/SDNext/ControlNet11/controlnet11Models_mlsd.safetensors',
-    'NormalBae FP16': 'Aptronym/SDNext/ControlNet11/controlnet11Models_normal.safetensors',
     'OpenPose FP16': 'Aptronym/SDNext/ControlNet11/controlnet11Models_openpose.safetensors',
     'Pix2Pix FP16': 'Aptronym/SDNext/ControlNet11/controlnet11Models_pix2pix.safetensors',
     'Scribble FP16': 'Aptronym/SDNext/ControlNet11/controlnet11Models_scribble.safetensors',
@@ -384,22 +382,6 @@ class ControlNet():
                         self.model = sdnq_quantize_model(self.model)
                     except Exception as e:
                         log.error(f'Control {what} model SDNQ Compression failed: id="{model_id}" {e}')
-                elif "Control" in opts.optimum_quanto_weights:
-                    try:
-                        log.debug(f'Control {what} model Optimum Quanto: id="{model_id}"')
-                        model_quant.load_quanto('Load model: type=Control')
-                        from modules.model_quant import optimum_quanto_model
-                        self.model = optimum_quanto_model(self.model)
-                    except Exception as e:
-                        log.error(f'Control {what} model Optimum Quanto: id="{model_id}" {e}')
-                elif "Control" in opts.torchao_quantization:
-                    try:
-                        log.debug(f'Control {what} model Torch AO: id="{model_id}"')
-                        model_quant.load_torchao('Load model: type=Control')
-                        from modules.model_quant import torchao_quantization
-                        self.model = torchao_quantization(self.model)
-                    except Exception as e:
-                        log.error(f'Control {what} model Torch AO: id="{model_id}" {e}')
                 if self.device is not None:
                     sd_models.move_model(self.model, self.device)
                 if "Control" in opts.cuda_compile:

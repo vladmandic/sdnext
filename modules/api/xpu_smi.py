@@ -1,5 +1,5 @@
 try:
-    from installer import log
+    from modules.logger import log
 except Exception:
     import logging
     log = logging.getLogger(__name__)

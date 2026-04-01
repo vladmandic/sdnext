@@ -1,15 +1,15 @@
 import os
 import tempfile
-from typing import List
 
 from PIL import Image
 
 from modules import shared, images, devices, scripts_manager, scripts_postprocessing, infotext
+from modules.logger import log
 from modules.shared import opts
 from modules.paths import resolve_output_path
 
 
-def run_postprocessing(extras_mode, image, image_folder: List[tempfile.NamedTemporaryFile], input_dir, output_dir, show_extras_results, *args, save_output: bool = True):
+def run_postprocessing(extras_mode, image, image_folder: list[tempfile.NamedTemporaryFile], input_dir, output_dir, show_extras_results, *args, save_output: bool = True):
     devices.torch_gc()
     shared.state.begin('Extras')
     image_data = []
@@ -29,14 +29,14 @@ def run_postprocessing(extras_mode, image, image_folder: List[tempfile.NamedTemp
                 try:
                     image = Image.open(os.path.abspath(img.name))
                 except Exception as e:
-                    shared.log.error(f'Failed to open image: file="{img.name}" {e}')
+                    log.error(f'Failed to open image: file="{img.name}" {e}')
                     continue
                 fn, ext = os.path.splitext(img.orig_name)
                 image_fullnames.append(img.name)
             image_data.append(image)
             image_names.append(fn)
             image_ext.append(ext)
-        shared.log.debug(f'Process: mode=batch inputs={len(image_folder)} images={len(image_data)}')
+        log.debug(f'Process: mode=batch inputs={len(image_folder)} images={len(image_data)}')
     elif extras_mode == 2:
         assert input_dir, 'input directory not selected'
         image_list = os.listdir(input_dir)
@@ -45,13 +45,13 @@ def run_postprocessing(extras_mode, image, image_folder: List[tempfile.NamedTemp
             try:
                 image = Image.open(fn)
             except Exception as e:
-                shared.log.error(f'Failed to open image: file="{fn}" {e}')
+                log.error(f'Failed to open image: file="{fn}" {e}')
                 continue
             image_fullnames.append(fn)
             image_data.append(image)
             image_names.append(fn)
             image_ext.append(None)
-        shared.log.debug(f'Process: mode=folder inputs={input_dir} files={len(image_list)} images={len(image_data)}')
+        log.debug(f'Process: mode=folder inputs={input_dir} files={len(image_list)} images={len(image_data)}')
     else:
         image_data.append(image)
         image_names.append(None)
@@ -61,11 +61,11 @@ def run_postprocessing(extras_mode, image, image_folder: List[tempfile.NamedTemp
     else:
         outpath = resolve_output_path(opts.outdir_samples, opts.outdir_extras_samples)
     processed_images = []
-    for image, name, ext in zip(image_data, image_names, image_ext): # pylint: disable=redefined-argument-from-local
-        shared.log.debug(f'Process: image={image} {args}')
+    for image, name, ext in zip(image_data, image_names, image_ext, strict=False): # pylint: disable=redefined-argument-from-local
+        log.debug(f'Process: image={image} {args}')
         info = ''
         if shared.state.interrupted:
-            shared.log.debug('Postprocess interrupted')
+            log.debug('Postprocess interrupted')
             break
         if image is None:
             continue
@@ -100,7 +100,7 @@ def run_postprocessing(extras_mode, image, image_folder: List[tempfile.NamedTemp
     return outputs, info, params
 
 
-def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_dir, show_extras_results, gfpgan_visibility, codeformer_visibility, codeformer_weight, upscaling_resize, upscaling_resize_w, upscaling_resize_h, upscaling_crop, extras_upscaler_1, extras_upscaler_2, extras_upscaler_2_visibility, save_output: bool = True):
+def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_dir, show_extras_results, upscaling_resize, upscaling_resize_w, upscaling_resize_h, upscaling_crop, extras_upscaler_1, extras_upscaler_2, extras_upscaler_2_visibility, save_output: bool = True):
     """old handler for API"""
 
     args = scripts_manager.scripts_postproc.create_args_for_run({
@@ -113,13 +113,6 @@ def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_
             "upscaler_1_name": extras_upscaler_1,
             "upscaler_2_name": extras_upscaler_2,
             "upscaler_2_visibility": extras_upscaler_2_visibility,
-        },
-        "GFPGAN": {
-            "gfpgan_visibility": gfpgan_visibility,
-        },
-        "CodeFormer": {
-            "codeformer_visibility": codeformer_visibility,
-            "codeformer_weight": codeformer_weight,
         },
     })
 

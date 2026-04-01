@@ -1369,7 +1369,7 @@ def init_attn_proc(unet, ip_adapter_tokens=16, use_lcm=False, use_adaln=True, us
                     hidden_size=hidden_size,
                     cross_attention_dim=cross_attention_dim,
                     time_embedding_dim=1280,
-                ) if hasattr(F, "scaled_dot_product_attention") else AdditiveKV_AttnProcessor()
+                )
             else:
                 attn_procs[name] = AttnProcessor2_0() if hasattr(F, "scaled_dot_product_attention") else AttnProcessor()
         else:

@@ -4,6 +4,7 @@ import torch
 import transformers
 from safetensors.torch import load_file
 from modules import shared, devices, files_cache, errors, model_quant
+from modules.logger import log
 
 
 te_dict = {}
@@ -48,7 +49,7 @@ def load_t5(name=None, cache_dir=None):
             try:
                 t5 = t5.to(dtype=devices.dtype)
             except Exception:
-                shared.log.error(f"T5: Failed to cast text encoder to {devices.dtype}, set dtype to {t5.dtype}")
+                log.error(f"T5: Failed to cast text encoder to {devices.dtype}, set dtype to {t5.dtype}")
                 raise
         del state_dict
 
@@ -60,16 +61,6 @@ def load_t5(name=None, cache_dir=None):
 
     elif 'fp16' in name.lower():
         t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', cache_dir=cache_dir, torch_dtype=devices.dtype)
-
-    elif 'fp4' in name.lower():
-        model_quant.load_bnb('Load model: type=T5')
-        quantization_config = transformers.BitsAndBytesConfig(load_in_4bit=True)
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
-
-    elif 'fp8' in name.lower():
-        model_quant.load_bnb('Load model: type=T5')
-        quantization_config = transformers.BitsAndBytesConfig(load_in_8bit=True)
-        t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
     elif 'int8' in name.lower():
         from modules.model_quant import create_sdnq_config
@@ -83,20 +74,8 @@ def load_t5(name=None, cache_dir=None):
         if quantization_config is not None:
             t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
 
-    elif 'qint4' in name.lower():
-        model_quant.load_quanto('Load model: type=T5')
-        quantization_config = transformers.QuantoConfig(weights='int4')
-        if quantization_config is not None:
-            t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
-
-    elif 'qint8' in name.lower():
-        model_quant.load_quanto('Load model: type=T5')
-        quantization_config = transformers.QuantoConfig(weights='int8')
-        if quantization_config is not None:
-            t5 = transformers.T5EncoderModel.from_pretrained(repo_id, subfolder='text_encoder_3', quantization_config=quantization_config, cache_dir=cache_dir, torch_dtype=devices.dtype)
-
     elif '/' in name:
-        shared.log.debug(f'Load model: type=T5 repo={name}')
+        log.debug(f'Load model: type=T5 repo={name}')
         quant_config = model_quant.create_config(module='TE')
         if quantization_config is not None:
             t5 = transformers.T5EncoderModel.from_pretrained(name, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_config)
@@ -118,7 +97,7 @@ def set_t5(pipe, module, t5=None, cache_dir=None):
     try:
         t5 = load_t5(name=t5, cache_dir=cache_dir)
     except Exception as e:
-        shared.log.error(f'Load module: type={module} class="T5" file="{shared.opts.sd_text_encoder}" {e}')
+        log.error(f'Load module: type={module} class="T5" file="{shared.opts.sd_text_encoder}" {e}')
         if debug:
             errors.display(e, 'TE:')
         t5 = None
@@ -169,13 +148,13 @@ def set_clip(pipe):
         try:
             te = load_vit_l()
         except Exception as e:
-            shared.log.error(f'Load module: type="text_encoder" class="ViT-L" file="{shared.opts.sd_text_encoder}" {e}')
+            log.error(f'Load module: type="text_encoder" class="ViT-L" file="{shared.opts.sd_text_encoder}" {e}')
             if debug:
                 errors.display(e, 'TE:')
             te = None
         if te is not None:
             pipe.text_encoder = te
-            shared.log.info(f'Load module: type="text_encoder" class="ViT-L" file="{shared.opts.sd_text_encoder}"')
+            log.info(f'Load module: type="text_encoder" class="ViT-L" file="{shared.opts.sd_text_encoder}"')
             import modules.prompt_parser_diffusers
             modules.prompt_parser_diffusers.cache.clear()
             move_model(pipe.text_encoder, devices.device)
@@ -184,13 +163,13 @@ def set_clip(pipe):
         try:
             te = load_vit_g()
         except Exception as e:
-            shared.log.error(f'Load module: type module="text_encoder_2" class="ViT-G" file="{shared.opts.sd_text_encoder}" {e}')
+            log.error(f'Load module: type module="text_encoder_2" class="ViT-G" file="{shared.opts.sd_text_encoder}" {e}')
             if debug:
                 errors.display(e, 'TE:')
             te = None
         if te is not None:
             pipe.text_encoder_2 = te
-            shared.log.info(f'Load module: type="text_encoder_2" class="ViT-G" file="{shared.opts.sd_text_encoder}"')
+            log.info(f'Load module: type="text_encoder_2" class="ViT-G" file="{shared.opts.sd_text_encoder}"')
             import modules.prompt_parser_diffusers
             modules.prompt_parser_diffusers.cache.clear()
             move_model(pipe.text_encoder_2, devices.device)
@@ -203,4 +182,4 @@ def refresh_te_list():
         basename = os.path.basename(file)
         name = os.path.splitext(basename)[0] if '.safetensors' in basename else basename
         te_dict[name] = file
-    shared.log.info(f'Available TEs: path="{shared.opts.te_dir}" items={len(te_dict)}')
+    log.info(f'Available TEs: path="{shared.opts.te_dir}" items={len(te_dict)}')

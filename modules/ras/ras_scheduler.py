@@ -15,7 +15,6 @@
 # limitations under the License.
 
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union
 import torch
 from diffusers.configuration_utils import register_to_config
 from diffusers.utils import BaseOutput, logging
@@ -66,10 +65,10 @@ class RASFlowMatchEulerDiscreteScheduler(FlowMatchEulerDiscreteScheduler):
         num_train_timesteps: int = 1000,
         shift: float = 1.0,
         use_dynamic_shifting=False,
-        base_shift: Optional[float] = 0.5,
-        max_shift: Optional[float] = 1.15,
-        base_image_seq_len: Optional[int] = 256,
-        max_image_seq_len: Optional[int] = 4096,
+        base_shift: float | None = 0.5,
+        max_shift: float | None = 1.15,
+        base_image_seq_len: int | None = 256,
+        max_image_seq_len: int | None = 4096,
         invert_sigmas: bool = False,
     ):
         super().__init__(num_train_timesteps=num_train_timesteps,
@@ -120,15 +119,15 @@ class RASFlowMatchEulerDiscreteScheduler(FlowMatchEulerDiscreteScheduler):
     def step(
         self,
         model_output: torch.FloatTensor,
-        timestep: Union[float, torch.FloatTensor],
+        timestep: float | torch.FloatTensor,
         sample: torch.FloatTensor,
         s_churn: float = 0.0,
         s_tmin: float = 0.0,
         s_tmax: float = float("inf"),
         s_noise: float = 1.0,
-        generator: Optional[torch.Generator] = None,
+        generator: torch.Generator | None = None,
         return_dict: bool = True,
-    ) -> Union[RASFlowMatchEulerDiscreteSchedulerOutput, Tuple]:
+    ) -> RASFlowMatchEulerDiscreteSchedulerOutput | tuple:
         """
         Predict the sample from the previous timestep by reversing the SDE. This function propagates the diffusion
         process from the learned model outputs (most often the predicted noise).

@@ -144,8 +144,8 @@ class Slice(torch.autograd.Function):
         dim_size = list(grad_output.size())
         split_size = dim_size[0]
         dim_size[0] = dim_size[0] * ctx.seq_world_size
-        output = torch.empty(dim_size, dtype=grad_output.dtype, device=torch.cuda.current_device())
-        dist._all_gather_base(output, grad_output, group=ctx.group)
+        output = torch.empty(dim_size, dtype=grad_output.dtype, device=grad_output.device)
+        dist.all_gather_into_tensor(output, grad_output, group=ctx.group)
         return (None, torch.cat(output.split(split_size), dim=ctx.dim), None)
 
 
@@ -168,8 +168,8 @@ class Gather(torch.autograd.Function):
         split_size = dim_size[0]
         ctx.part_size = dim_size[dim]
         dim_size[0] = dim_size[0] * seq_world_size
-        output = torch.empty(dim_size, dtype=local_input.dtype, device=torch.cuda.current_device())
-        dist._all_gather_base(output, local_input.contiguous(), group=ctx.group)
+        output = torch.empty(dim_size, dtype=local_input.dtype, device=local_input.device)
+        dist.all_gather_into_tensor(output, local_input.contiguous(), group=ctx.group)
         return torch.cat(output.split(split_size), dim=dim)
 
     @staticmethod

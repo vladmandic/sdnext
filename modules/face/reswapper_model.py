@@ -6,7 +6,7 @@ import torch.nn.functional as F
 
 class ReSwapperModel(nn.Module):
     def __init__(self):
-        super(ReSwapperModel, self).__init__()
+        super().__init__()
 
         # self.pad = nn.ReflectionPad2d(3)
         # Encoder for target face
@@ -87,7 +87,7 @@ class ReSwapperModel(nn.Module):
 
 class StyleBlock(nn.Module):
     def __init__(self, in_channels, out_channels, blockIndex):
-        super(StyleBlock, self).__init__()
+        super().__init__()
         self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=0)
         self.conv2 = nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=0)
         self.style1 = nn.Linear(512, 2048)

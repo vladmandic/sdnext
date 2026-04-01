@@ -2,6 +2,7 @@ import os
 import torch
 from torch import nn
 from modules import devices, paths, shared
+from modules.logger import log
 
 
 sd_vae_approx_model = None
@@ -46,7 +47,7 @@ def nn_approximation(sample): # Approximate NN
         sd_vae_approx_model.load_state_dict(approx_weights)
         sd_vae_approx_model.eval()
         sd_vae_approx_model.to(device, dtype)
-        shared.log.debug(f'VAE load: type=approximate model="{model_path}"')
+        log.debug(f'VAE load: type=approximate model="{model_path}"')
     try:
         in_sample = sample.to(device, dtype).unsqueeze(0)
         sd_vae_approx_model.to(device, dtype)
@@ -54,7 +55,7 @@ def nn_approximation(sample): # Approximate NN
         x_sample = x_sample[0].to(torch.float32).detach().cpu()
         return x_sample
     except Exception as e:
-        shared.log.error(f'VAE decode approximate: {e}')
+        log.error(f'VAE decode approximate: {e}')
         return sample
 
 
@@ -80,5 +81,5 @@ def cheap_approximation(sample): # Approximate simple
         x_sample = nn.functional.conv2d(sample, weights, bias) # pylint: disable=not-callable
         return x_sample
     except Exception as e:
-        shared.log.error(f'VAE decode simple: {e}')
+        log.error(f'VAE decode simple: {e}')
         return sample

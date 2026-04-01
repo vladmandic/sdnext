@@ -63,10 +63,10 @@ if devices.backend != "ipex":
 if torch.__version__.startswith("2.6"):
     from dataclasses import dataclass
     from torch.compiler import disable as disable_compile # pylint: disable=ungrouped-imports
-    import diffusers.models.autoencoders.autoencoder_kl # pylint: disable=ungrouped-imports
+    from diffusers.models.autoencoders.vae import DiagonalGaussianDistribution # pylint: disable=ungrouped-imports
 
     @dataclass
     @disable_compile
     class AutoencoderKLOutput(diffusers.utils.BaseOutput):
-        latent_dist: "DiagonalGaussianDistribution" # noqa: F821
+        latent_dist: DiagonalGaussianDistribution
     diffusers.models.autoencoders.autoencoder_kl.AutoencoderKLOutput = AutoencoderKLOutput

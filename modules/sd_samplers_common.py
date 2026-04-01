@@ -2,10 +2,11 @@ import time
 import threading
 from collections import namedtuple
 import torch
-import torchvision.transforms.functional as TF
 from PIL import Image
 from modules import shared, devices, processing, images, sd_samplers, timer
+from modules.logger import log
 from modules.vae import sd_vae_approx, sd_vae_taesd, sd_vae_stablecascade
+from modules.image import convert
 
 
 SamplerData = namedtuple('SamplerData', ['name', 'constructor', 'aliases', 'options'])
@@ -18,7 +19,7 @@ queue_lock = threading.Lock()
 def warn_once(message):
     global warned # pylint: disable=global-statement
     if not warned:
-        shared.log.warning(f'VAE: {message}')
+        log.warning(f'VAE: {message}')
         warned = True
 
 
@@ -84,7 +85,7 @@ def single_sample_to_image(sample, approximation=None):
                 x_sample = (255.0 * x_sample).to(torch.uint8)
                 if len(x_sample.shape) == 4:
                     x_sample = x_sample[0]
-                image = TF.to_pil_image(x_sample)
+                image = convert.to_pil(x_sample)
         except Exception as e:
             warn_once(f'Preview: {e}')
             image = Image.new(mode="RGB", size=(512, 512))

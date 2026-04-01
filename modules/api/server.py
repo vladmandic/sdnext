@@ -1,17 +1,13 @@
 import os
 import time
-from typing import Any
 from fastapi import Request, Depends
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse
+import installer
 from modules import shared
+from modules.logger import log
 from modules.api import models, helpers
 
-
-def post_shutdown():
-    shared.log.info('Shutdown request received')
-    import sys
-    sys.exit(0)
 
 def get_js(request: Request):
     file = request.query_params.get("file", None)
@@ -21,7 +17,7 @@ def get_js(request: Request):
     if ext not in ['js', 'css', 'map', 'html', 'wasm', 'ttf', 'mjs', 'json']:
         raise HTTPException(status_code=400, detail=f"invalid file extension: {ext}")
     if not os.path.exists(file):
-        shared.log.error(f"API: file not found: {file}")
+        log.error(f"API: file not found: {file}")
         raise HTTPException(status_code=404, detail=f"file not found: {file}")
     if ext in ['js', 'mjs']:
         media_type = 'application/javascript'
@@ -39,68 +35,54 @@ def get_js(request: Request):
         media_type = 'application/octet-stream'
     return FileResponse(file, media_type=media_type)
 
+def get_version():
+    return installer.get_version()
+
 def get_motd():
     import requests
-    motd = ''
-    ver = shared.get_version()
-    if ver.get('updated', None) is not None:
-        motd = f"version <b>{ver['commit']} {ver['updated']}</b> <span style='color: var(--primary-500)'>{ver['url'].split('/')[-1]}</span><br>" # pylint: disable=use-maxsplit-arg
+    motd = ""
+    ver = get_version()
+    if ver.get("updated", None) is not None:
+        motd = f"version <b>{ver['commit']} {ver['updated']}</b> <span style='color: var(--primary-500)'>{ver['url'].split('/')[-1]}</span><br>"  # pylint: disable=use-maxsplit-arg
     if shared.opts.motd:
         try:
-            res = requests.get('https://vladmandic.github.io/sdnext/motd', timeout=3)
+            res = requests.get("https://vladmandic.github.io/sdnext/motd", timeout=3)
             if res.status_code == 200:
-                msg = (res.text or '').strip()
-                shared.log.info(f'MOTD: {msg if len(msg) > 0 else "N/A"}')
+                msg = (res.text or "").strip()
+                log.info(f"MOTD: {msg if len(msg) > 0 else 'N/A'}")
                 motd += res.text
             else:
-                shared.log.error(f'MOTD: {res.status_code}')
+                log.error(f"MOTD: {res.status_code}")
         except Exception as err:
-            shared.log.error(f'MOTD: {err}')
+            log.error(f"MOTD: {err}")
     return motd
 
-def get_version():
-    return shared.get_version()
-
 def get_platform():
-    from installer import get_platform as installer_get_platform
     from modules.loader import get_packages as loader_get_packages
-    return { **installer_get_platform(), **loader_get_packages() }
+    return { **installer.get_platform(), **loader_get_packages() }
+
+def get_torch():
+    return dict(installer.torch_info)
 
 def get_log(req: models.ReqGetLog = Depends()):
-    lines = shared.log.buffer[:req.lines] if req.lines > 0 else shared.log.buffer.copy()
+    lines = log.buffer[:req.lines] if req.lines > 0 else log.buffer.copy()
     if req.clear:
-        shared.log.buffer.clear()
+        log.buffer.clear()
     return lines
 
 def post_log(req: models.ReqPostLog):
     if req.message is not None:
-        shared.log.info(f'UI: {req.message}')
+        log.info(f'UI: {req.message}')
     if req.debug is not None:
-        shared.log.debug(f'UI: {req.debug}')
+        log.debug(f'UI: {req.debug}')
     if req.error is not None:
-        shared.log.error(f'UI: {req.error}')
+        log.error(f'UI: {req.error}')
     return {}
 
-
-def get_config():
-    options = {}
-    for k in shared.opts.data.keys():
-        if shared.opts.data_labels.get(k) is not None:
-            options.update({k: shared.opts.data.get(k, shared.opts.data_labels.get(k).default)})
-        else:
-            options.update({k: shared.opts.data.get(k, None)})
-    if 'sd_lyco' in options:
-        del options['sd_lyco']
-    if 'sd_lora' in options:
-        del options['sd_lora']
-    return options
-
-def set_config(req: dict[str, Any]):
-    updated = []
-    for k, v in req.items():
-        updated.append({ k: shared.opts.set(k, v) })
-    shared.opts.save()
-    return { "updated": updated }
+def post_shutdown():
+    log.info("Shutdown request received")
+    import sys
+    sys.exit(0)
 
 def get_cmd_flags():
     return vars(shared.cmd_opts)
@@ -114,7 +96,7 @@ def get_history(req: models.ReqHistory = Depends()):
     return res
 
 def get_progress(req: models.ReqProgress = Depends()):
-    if shared.state.job_count == 0: # idle state
+    if shared.state.job_count == 0 and shared.state.sampling_step == 0: # truly idle
         return models.ResProgress(id=shared.state.id, progress=0, eta_relative=0, state=shared.state.dict(), textinfo=shared.state.textinfo)
     shared.state.do_set_current_image()
     current_image = None
@@ -132,8 +114,8 @@ def get_progress(req: models.ReqProgress = Depends()):
     progress = min((current / total) if current > 0 and total > 0 else 0, 1)
     time_since_start = time.time() - shared.state.time_start
     eta_relative = (time_since_start / progress) - time_since_start if progress > 0 else 0
-    # shared.log.critical(f'get_progress: batch {batch_x}/{batch_y} step {step_x}/{step_y} current {current}/{total} time={time_since_start} eta={eta_relative}')
-    # shared.log.critical(shared.state)
+    # log.critical(f'get_progress: batch {batch_x}/{batch_y} step {step_x}/{step_y} current {current}/{total} time={time_since_start} eta={eta_relative}')
+    # log.critical(shared.state)
     res = models.ResProgress(id=shared.state.id, progress=round(progress, 2), eta_relative=round(eta_relative, 2), current_image=current_image, textinfo=shared.state.textinfo, state=shared.state.dict(), )
     return res
 

@@ -1,6 +1,7 @@
 import transformers
 import diffusers
 from modules import shared, devices, sd_models, shared_items, sd_hijack_te
+from modules.logger import log
 
 
 def load_meissonic(checkpoint_info, diffusers_load_config=None):
@@ -19,7 +20,7 @@ def load_meissonic(checkpoint_info, diffusers_load_config=None):
     diffusers_load_config['variant'] = 'fp16'
     diffusers_load_config['trust_remote_code'] = True
 
-    shared.log.debug(f'Load model: type=Meissonic repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
+    log.debug(f'Load model: type=Meissonic repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
     model = TransformerMeissonic.from_pretrained(
         repo_id,
         subfolder="transformer",

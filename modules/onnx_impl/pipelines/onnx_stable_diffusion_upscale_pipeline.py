@@ -1,5 +1,6 @@
 import inspect
-from typing import Union, Optional, Callable, Any, List
+from typing import Any
+from collections.abc import Callable
 import torch
 import numpy as np
 import diffusers
@@ -31,22 +32,22 @@ class OnnxStableDiffusionUpscalePipeline(diffusers.OnnxStableDiffusionUpscalePip
 
     def __call__(
         self,
-        prompt: Union[str, List[str]],
+        prompt: str | list[str],
         image: PipelineImageInput = None,
         num_inference_steps: int = 75,
         guidance_scale: float = 9.0,
         noise_level: int = 20,
-        negative_prompt: Optional[Union[str, List[str]]] = None,
-        num_images_per_prompt: Optional[int] = 1,
+        negative_prompt: str | list[str] | None = None,
+        num_images_per_prompt: int | None = 1,
         eta: float = 0.0,
-        generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
-        latents: Optional[np.ndarray] = None,
-        prompt_embeds: Optional[np.ndarray] = None,
-        negative_prompt_embeds: Optional[np.ndarray] = None,
-        output_type: Optional[str] = "pil",
+        generator: torch.Generator | list[torch.Generator] | None = None,
+        latents: np.ndarray | None = None,
+        prompt_embeds: np.ndarray | None = None,
+        negative_prompt_embeds: np.ndarray | None = None,
+        output_type: str | None = "pil",
         return_dict: bool = True,
-        callback: Optional[Callable[[int, int, np.ndarray], None]] = None,
-        callback_steps: Optional[int] = 1,
+        callback: Callable[[int, int, np.ndarray], None] | None = None,
+        callback_steps: int | None = 1,
     ):
         # 1. Check inputs
         self.check_inputs(

@@ -1,12 +1,12 @@
 # copied from https://github.com/Birch-san/sdxl-play/blob/main/src/attn/natten_attn_processor.py
 
 import os
-from typing import Optional
 from diffusers.models.attention import Attention
 import torch
 from torch.nn import Linear
 from einops import rearrange
-from installer import install, log
+from installer import install
+from modules.logger import log
 
 
 def init():
@@ -45,9 +45,9 @@ class NattenAttnProcessor:
         self,
         attn: Attention,
         hidden_states: torch.FloatTensor,
-        encoder_hidden_states: Optional[torch.FloatTensor] = None,
-        attention_mask: Optional[torch.BoolTensor] = None,
-        temb: Optional[torch.FloatTensor] = None,
+        encoder_hidden_states: torch.FloatTensor | None = None,
+        attention_mask: torch.BoolTensor | None = None,
+        temb: torch.FloatTensor | None = None,
     ):
         import natten
         assert hasattr(attn, 'qkv'), "Did not find property qkv on attn. Expected you to fuse its q_proj, k_proj, v_proj weights and biases beforehand, and multiply attn.scale into the q weights and bias."

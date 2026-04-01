@@ -1,9 +1,10 @@
 import gradio as gr
 import diffusers
 from modules import scripts_manager, processing, shared, sd_models, devices
+from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class KohyaHiResFixScript(scripts_manager.Script):
     def title(self):
         return 'Kohya HiRes Fix'
 
@@ -26,7 +27,7 @@ class Script(scripts_manager.Script):
         if not enabled:
             return None
         if shared.sd_model_type != 'sd':
-            shared.log.warning(f'Kohya Hires Fix: pipeline={shared.sd_model_type} required=sd')
+            log.warning(f'Kohya Hires Fix: pipeline={shared.sd_model_type} required=sd')
             return None
         old_pipe = shared.sd_model
         high_res_fix = [{'timestep': timestep, 'scale_factor': scale_factor, 'block_num': block_num}]
@@ -34,7 +35,7 @@ class Script(scripts_manager.Script):
         sd_models.copy_diffuser_options(shared.sd_model, old_pipe)
         sd_models.move_model(shared.sd_model, devices.device) # move pipeline to device
         sd_models.set_diffuser_options(shared.sd_model, vae=None, op='model')
-        shared.log.debug(f'Kohya Hires Fix: pipeline={shared.sd_model.__class__.__name__} args={high_res_fix}')
+        log.debug(f'Kohya Hires Fix: pipeline={shared.sd_model.__class__.__name__} args={high_res_fix}')
         processed = processing.process_images(p)
         shared.sd_model = old_pipe
         return processed

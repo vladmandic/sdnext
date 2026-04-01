@@ -6,19 +6,18 @@ from typing import List, Optional, Tuple, Union
 
 import numpy as np
 import torch
-import torchsde
 
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.utils import BaseOutput
 from diffusers.utils.torch_utils import randn_tensor
 from diffusers.schedulers.scheduling_utils import SchedulerMixin
-import scipy.stats
 
 
 class BatchedBrownianTree:
     """A wrapper around torchsde.BrownianTree that enables batches of entropy."""
 
     def __init__(self, x, t0, t1, seed=None, **kwargs):
+        import torchsde
         t0, t1, self.sign = self.sort(t0, t1)
         w0 = kwargs.get("w0", torch.zeros_like(x))
         if seed is None:
@@ -168,6 +167,13 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         base_image_seq_len: Optional[int] = 256,
         max_image_seq_len: Optional[int] = 4096,
     ):
+        from installer import install
+        install('torchsde==0.2.6', 'torchsde', quiet=True)
+        try:
+            import torchsde
+        except Exception as e:
+            raise ImportError("Failed to import torchsde. Please make sure it is installed correctly.") from e
+
         # settings for DPM-Solver
         if algorithm_type not in ["dpmsolver2", "dpmsolver2A", "dpmsolver++2M", "dpmsolver++2S", "dpmsolver++sde", "dpmsolver++2Msde", "dpmsolver++3Msde"]:
             raise NotImplementedError(f"{algorithm_type} is not implemented for {self.__class__}")
@@ -378,6 +384,7 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
     # Copied from diffusers.schedulers.scheduling_euler_discrete.EulerDiscreteScheduler._convert_to_beta
     def _convert_to_beta(self, sigma_min, sigma_max, num_inference_steps, device: Union[str, torch.device] = None, alpha: float = 0.6, beta: float = 0.6) -> torch.Tensor:
         """From "Beta Sampling is All You Need" [arXiv:2407.12173] (Lee et. al, 2024)"""
+        import scipy.stats
         sigmas = torch.Tensor(
             [
                 sigma_min + (ppf * (sigma_max - sigma_min))

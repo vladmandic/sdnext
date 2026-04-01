@@ -25,7 +25,7 @@ def unset_config_on_save(quantization_config: SDNQConfig) -> SDNQConfig:
     return quantization_config
 
 
-def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "5GB", is_pipeline: bool = False, sdnq_config: SDNQConfig = None) -> None:
+def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "5GB", is_pipeline: bool = False, sdnq_config: SDNQConfig | None = None) -> None:
     if is_pipeline:
         for module_name in get_module_names(model):
             module = getattr(model, module_name, None)
@@ -63,7 +63,7 @@ def save_sdnq_model(model: ModelMixin, model_path: str, max_shard_size: str = "5
             model.config.quantization_config.to_json_file(quantization_config_path)
 
 
-def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: str = None, dtype: torch.dtype = None, device: torch.device = "cpu", dequantize_fp32: bool = None, use_quantized_matmul: bool = None, model_config: dict = None, quantization_config: dict = None, load_method: str = "safetensors") -> ModelMixin:
+def load_sdnq_model(model_path: str, model_cls: ModelMixin | None = None, file_name: str | None = None, dtype: torch.dtype | None = None, device: torch.device = "cpu", dequantize_fp32: bool | None = None, use_quantized_matmul: bool | None = None, model_config: dict | None = None, quantization_config: dict | None = None, load_method: str = "safetensors") -> ModelMixin:
     from accelerate import init_empty_weights
 
     with init_empty_weights():
@@ -72,14 +72,14 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin = None, file_name: st
 
         if model_config is None:
             if os.path.exists(model_config_path):
-                with open(model_config_path, "r", encoding="utf-8") as f:
+                with open(model_config_path, encoding="utf-8") as f:
                     model_config = json.load(f)
             else:
                 model_config = {}
 
         if quantization_config is None:
             if os.path.exists(quantization_config_path):
-                with open(quantization_config_path, "r", encoding="utf-8") as f:
+                with open(quantization_config_path, encoding="utf-8") as f:
                     quantization_config = json.load(f)
             else:
                 quantization_config = model_config.get("quantization_config", None)
@@ -162,10 +162,10 @@ def post_process_model(model):
     return model
 
 
-def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None):
+def apply_sdnq_options_to_module(model, dtype: torch.dtype | None = None, dequantize_fp32: bool | None = None, use_quantized_matmul: bool | None = None):
     has_children = list(model.children())
     if not has_children:
-        if dtype is not None and getattr(model, "dtype", torch.float32) != torch.float32:
+        if dtype is not None and getattr(model, "dtype", torch.float32) not in {torch.float32, torch.float64}:
             model = model.to(dtype=dtype)
         return model
     for module_name, module in model.named_children():
@@ -182,8 +182,11 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
                 current_use_quantized_matmul = current_use_quantized_matmul and channel_size >= 32 and output_channel_size >= 32 # pylint: disable=possibly-used-before-assignment
                 current_use_quantized_matmul = current_use_quantized_matmul and output_channel_size % 16 == 0 and channel_size % 16 == 0 # pylint: disable=possibly-used-before-assignment
 
-            if dtype is not None and module.sdnq_dequantizer.result_dtype != torch.float32:
+            if dtype is not None and module.sdnq_dequantizer.result_dtype not in {torch.float32, torch.float64}:
                 module.sdnq_dequantizer.result_dtype = dtype
+                if module.svd_up is not None:
+                    module.svd_up.data = module.svd_up.to(dtype=dtype)
+                    module.svd_down.data = module.svd_down.to(dtype=dtype)
 
             upcast_scale = bool(
                 dequantize_fp32
@@ -194,14 +197,20 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
                     and (not use_tensorwise_fp8_matmul or dtype_dict[module.sdnq_dequantizer.quantized_matmul_dtype]["num_bits"] == 16)
                 )
             )
-            scale_dtype = torch.float32 if upcast_scale or dequantize_fp32 or (dequantize_fp32 is None and module.scale.dtype == torch.float32) else module.sdnq_dequantizer.result_dtype
+
+            if upcast_scale or dequantize_fp32:
+                if module.scale.dtype in {torch.float32, torch.float64}:
+                    scale_dtype = module.scale.dtype
+                else:
+                    scale_dtype = torch.float32 if module.sdnq_dequantizer.result_dtype != torch.float64 else torch.float64
+            elif dequantize_fp32 is None and module.scale.dtype in {torch.float32, torch.float64}:
+                scale_dtype = module.scale.dtype
+            else:
+                scale_dtype = module.sdnq_dequantizer.result_dtype
 
             module.scale.data = module.scale.to(dtype=scale_dtype)
             if module.zero_point is not None:
                 module.zero_point.data = module.zero_point.to(dtype=scale_dtype)
-            if module.svd_up is not None:
-                module.svd_up.data = module.svd_up.to(dtype=scale_dtype)
-                module.svd_down.data = module.svd_down.to(dtype=scale_dtype)
 
             if current_use_quantized_matmul is not None and current_use_quantized_matmul != module.sdnq_dequantizer.use_quantized_matmul:
                 if not module.sdnq_dequantizer.re_quantize_for_matmul and not dtype_dict[module.sdnq_dequantizer.weights_dtype]["is_packed"]:
@@ -222,7 +231,7 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype = None, dequantize_fp
     return model
 
 
-def apply_sdnq_options_to_model(model, dtype: torch.dtype = None, dequantize_fp32: bool = None, use_quantized_matmul: bool = None):
+def apply_sdnq_options_to_model(model, dtype: torch.dtype | None = None, dequantize_fp32: bool | None = None, use_quantized_matmul: bool | None = None):
     if use_quantized_matmul and not check_torch_compile():
         raise RuntimeError("SDNQ Quantized MatMul requires a working Triton install.")
     model = apply_sdnq_options_to_module(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)

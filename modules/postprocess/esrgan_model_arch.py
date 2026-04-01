@@ -14,7 +14,7 @@ class RRDBNet(nn.Module):
     def __init__(self, in_nc, out_nc, nf, nb, nr=3, gc=32, upscale=4, norm_type=None,
             act_type='leakyrelu', mode='CNA', upsample_mode='upconv', convtype='Conv2D',
             finalact=None, gaussian_noise=False, plus=False):
-        super(RRDBNet, self).__init__()
+        super().__init__()
         n_upscale = int(math.log(upscale, 2))
         if upscale == 3:
             n_upscale = 1
@@ -69,7 +69,7 @@ class RRDB(nn.Module):
     def __init__(self, nf, nr=3, kernel_size=3, gc=32, stride=1, bias=1, pad_type='zero',
             norm_type=None, act_type='leakyrelu', mode='CNA', convtype='Conv2D',
             spectral_norm=False, gaussian_noise=False, plus=False):
-        super(RRDB, self).__init__()
+        super().__init__()
         # This is for backwards compatibility with existing models
         if nr == 3:
             self.RDB1 = ResidualDenseBlock_5C(nf, kernel_size, gc, stride, bias, pad_type,
@@ -111,7 +111,7 @@ class ResidualDenseBlock_5C(nn.Module):
     def __init__(self, nf=64, kernel_size=3, gc=32, stride=1, bias=1, pad_type='zero',
             norm_type=None, act_type='leakyrelu', mode='CNA', convtype='Conv2D',
             spectral_norm=False, gaussian_noise=False, plus=False):
-        super(ResidualDenseBlock_5C, self).__init__()
+        super().__init__()
 
         self.noise = GaussianNoise() if gaussian_noise else None
         self.conv1x1 = conv1x1(nf, gc) if plus else None
@@ -185,7 +185,7 @@ class SRVGGNetCompact(nn.Module):
     """
 
     def __init__(self, num_in_ch=3, num_out_ch=3, num_feat=64, num_conv=16, upscale=4, act_type='prelu'):
-        super(SRVGGNetCompact, self).__init__()
+        super().__init__()
         self.num_in_ch = num_in_ch
         self.num_out_ch = num_out_ch
         self.num_feat = num_feat
@@ -245,7 +245,7 @@ class Upsample(nn.Module):
     """
 
     def __init__(self, size=None, scale_factor=None, mode="nearest", align_corners=None):
-        super(Upsample, self).__init__()
+        super().__init__()
         if isinstance(scale_factor, tuple):
             self.scale_factor = tuple(float(factor) for factor in scale_factor)
         else:
@@ -354,7 +354,7 @@ def act(act_type, inplace=True, neg_slope=0.2, n_prelu=1, beta=1.0):
 
 class Identity(nn.Module):
     def __init__(self, *kwargs):
-        super(Identity, self).__init__()
+        super().__init__()
 
     def forward(self, x, *kwargs):
         return x
@@ -399,7 +399,7 @@ def get_valid_padding(kernel_size, dilation):
 class ShortcutBlock(nn.Module):
     """ Elementwise sum the output of a submodule to its input """
     def __init__(self, submodule):
-        super(ShortcutBlock, self).__init__()
+        super().__init__()
         self.sub = submodule
 
     def forward(self, x):

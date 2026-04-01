@@ -1,9 +1,8 @@
-from typing import Type
 import torch
 from modules.dml.hijack.utils import catch_nan
 
 
-def make_tome_block(block_class: Type[torch.nn.Module]) -> Type[torch.nn.Module]:
+def make_tome_block(block_class: type[torch.nn.Module]) -> type[torch.nn.Module]:
     class ToMeBlock(block_class):
         # Save for unpatching later
         _parent = block_class

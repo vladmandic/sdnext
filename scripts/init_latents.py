@@ -1,7 +1,8 @@
+from modules.logger import log
 from modules import scripts_manager, processing, shared, devices
 
 
-class Script(scripts_manager.Script):
+class InitLatentsScript(scripts_manager.Script):
     standalone = False
 
     def title(self):
@@ -44,5 +45,5 @@ class Script(scripts_manager.Script):
                 subseed_strength=p.subseed_strength,
                 p=p
             )
-            shared.log.debug(f'Latent: seed={p.seeds} subseed={p.subseeds} strength={p.subseed_strength} tensor={list(p.init_latent.shape)}')
+            log.debug(f'Latent: seed={p.seeds} subseed={p.subseeds} strength={p.subseed_strength} tensor={list(p.init_latent.shape)}')
             p.init_latent = p.init_latent.to(device=shared.sd_model._execution_device, dtype=shared.sd_model.unet.dtype) # pylint: disable=protected-access

@@ -28,7 +28,7 @@ def conv_bn(in_planes, out_planes, kernel_size=3, stride=1, padding=1, dilation=
 
 class ResConv(nn.Module):
     def __init__(self, c, dilation=1):
-        super(ResConv, self).__init__()
+        super().__init__()
         self.conv = nn.Conv2d(c, c, 3, 1, dilation, dilation=dilation, groups=1\
 )
         self.beta = nn.Parameter(torch.ones((1, c, 1, 1)), requires_grad=True)
@@ -39,7 +39,7 @@ class ResConv(nn.Module):
 
 class IFBlock(nn.Module):
     def __init__(self, in_planes, c=64):
-        super(IFBlock, self).__init__()
+        super().__init__()
         self.conv0 = nn.Sequential(
             conv(in_planes, c//2, 3, 2, 1),
             conv(c//2, c, 3, 2, 1),
@@ -74,7 +74,7 @@ class IFBlock(nn.Module):
 
 class IFNet(nn.Module):
     def __init__(self):
-        super(IFNet, self).__init__()
+        super().__init__()
         self.block0 = IFBlock(7, c=192)
         self.block1 = IFBlock(8+4, c=128)
         self.block2 = IFBlock(8+4, c=96)
@@ -82,7 +82,9 @@ class IFNet(nn.Module):
         # self.contextnet = Contextnet()
         # self.unet = Unet()
 
-    def forward( self, x, timestep=0.5, scale_list=[8, 4, 2, 1], training=False, fastmode=True, ensemble=False): # pylint: disable=dangerous-default-value, unused-argument
+    def forward( self, x, timestep=0.5, scale_list=None, training=False, fastmode=True, ensemble=False): # pylint: disable=dangerous-default-value, unused-argument
+        if scale_list is None:
+            scale_list = [8, 4, 2, 1]
         if training is False:
             channel = x.shape[1] // 2
             img0 = x[:, :channel]

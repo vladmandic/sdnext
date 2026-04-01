@@ -4,6 +4,7 @@ import gradio.utils
 from modules import shared, theme
 from modules.paths import script_path, data_path
 import modules.scripts_manager
+from modules.logger import log
 
 
 def webpath(fn):
@@ -55,7 +56,7 @@ def html_body():
 
 def html_login():
     fn = os.path.join(script_path, "javascript", "login.js")
-    with open(fn, 'r', encoding='utf8') as f:
+    with open(fn, encoding='utf8') as f:
         inline = f.read()
     js = f'<script type="text/javascript">{inline}</script>\n'
     return js
@@ -81,17 +82,17 @@ def html_css(css: list[str]):
         themecss = os.path.join(script_path, "javascript", f"{modules.shared.opts.gradio_theme}.css")
         if os.path.exists(themecss):
             head += stylesheet(themecss)
-            modules.shared.log.debug(f'UI theme: css="{themecss}" base="{css}" user="{usercss}"')
+            log.debug(f'UI theme: css="{themecss}" base="{css}" user="{usercss}"')
         else:
-            modules.shared.log.error(f'UI theme: css="{themecss}" not found')
+            log.error(f'UI theme: css="{themecss}" path="{os.getcwd()}" not found')
     elif modules.shared.opts.theme_type == 'Modern':
         theme_folder = next((e.path for e in modules.extensions.extensions if e.name == 'sdnext-modernui'), None)
         themecss = os.path.join(theme_folder or '', 'themes', f'{modules.shared.opts.gradio_theme}.css')
         if os.path.exists(themecss):
             head += stylesheet(themecss)
-            modules.shared.log.debug(f'UI theme: css="{themecss}" base="{css}" user="{usercss}"')
+            log.debug(f'UI theme: css="{themecss}" base="{css}" user="{usercss}"')
         else:
-            modules.shared.log.error(f'UI theme: css="{themecss}" not found')
+            log.error(f'UI theme: css="{themecss}" not found')
     if usercss is not None:
         head += stylesheet(usercss)
     return head
@@ -110,11 +111,11 @@ def reload_javascript():
 
     def template_response(*args, **kwargs):
         res = shared.GradioTemplateResponseOriginal(*args, **kwargs)
-        res.body = res.body.replace(b'<head>', f'<head>{title}'.encode("utf8"))
-        res.body = res.body.replace(b'</head>', f'{manifest}</head>'.encode("utf8"))
-        res.body = res.body.replace(b'</head>', f'{login}</head>'.encode("utf8"))
-        res.body = res.body.replace(b'</head>', f'{js}</head>'.encode("utf8"))
-        res.body = res.body.replace(b'</body>', f'{css}{body}</body>'.encode("utf8"))
+        res.body = res.body.replace(b'<head>', f'<head>{title}'.encode())
+        res.body = res.body.replace(b'</head>', f'{manifest}</head>'.encode())
+        res.body = res.body.replace(b'</head>', f'{login}</head>'.encode())
+        res.body = res.body.replace(b'</head>', f'{js}</head>'.encode())
+        res.body = res.body.replace(b'</body>', f'{css}{body}</body>'.encode())
         lines = res.body.decode("utf8").split('\n')
         for line in lines:
             if 'meta name="twitter:' in line:

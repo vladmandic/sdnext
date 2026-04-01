@@ -1,7 +1,6 @@
 from collections import defaultdict
 from typing import List, Union
 
-from scipy.optimize import linear_sum_assignment
 import PIL.Image as Image
 import numpy as np
 import torch
@@ -58,6 +57,7 @@ class UnsupervisedEvaluator:
 
     @property
     def mean_iou(self) -> float:
+        from scipy.optimize import linear_sum_assignment
         n = max(max(self.ious), max([y[0] for x in self.ious.values() for y in x])) + 1
         iou_matrix = np.zeros((n, n))
         count_matrix = np.zeros((n, n))

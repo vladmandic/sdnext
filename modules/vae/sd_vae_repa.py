@@ -1,5 +1,6 @@
 import diffusers
 from modules import shared
+from modules.logger import log
 
 
 models = {
@@ -17,12 +18,12 @@ def repa_load(latents):
     global loaded_cls, loaded_vae # pylint: disable=global-statement
     config = models.get(shared.sd_model_type, None)
     if config is None:
-        shared.log.error(f'Decode: type="repa" model={shared.sd_model_type} not supported')
+        log.error(f'Decode: type="repa" model={shared.sd_model_type} not supported')
         return latents
 
     cls = getattr(diffusers, config['cls'])
     if (cls != loaded_cls) or (loaded_vae is None):
-        shared.log.info(f'RePA VAE load: {config["repo_id"]} cls={config["cls"]}')
+        log.info(f'RePA VAE load: {config["repo_id"]} cls={config["cls"]}')
         loaded_vae = cls.from_pretrained(
             config['repo_id'],
             torch_dtype=latents.dtype,

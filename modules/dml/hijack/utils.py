@@ -1,5 +1,5 @@
 import torch
-from typing import Callable
+from collections.abc import Callable
 from modules.shared import log, opts
 
 

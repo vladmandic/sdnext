@@ -3,6 +3,7 @@ import diffusers
 import transformers
 import safetensors.torch
 from modules import shared, devices, model_quant
+from modules.logger import log
 
 
 def remove_entries_after_depth(d, depth, current_depth=0):
@@ -51,7 +52,7 @@ def get_modules(model: callable):
     signature = inspect.signature(model.__init__, follow_wrapped=True)
     params = {param.name: param.annotation for param in signature.parameters.values() if param.annotation != inspect._empty and hasattr(param.annotation, 'from_pretrained')} # pylint: disable=protected-access
     for name, cls in params.items():
-        shared.log.debug(f'Analyze: model={model} module={name} class={cls.__name__} loadable={getattr(cls, "from_pretrained", None)}')
+        log.debug(f'Analyze: model={model} module={name} class={cls.__name__} loadable={getattr(cls, "from_pretrained", None)}')
     return params
 
 
@@ -76,6 +77,6 @@ def load_modules(repo_id: str, params: dict):
             kwargs = model_quant.create_config(kwargs)
         if subfolder is None:
             continue
-        shared.log.debug(f'Load: module={name} class={cls.__name__} repo={repo_id} location={subfolder}')
+        log.debug(f'Load: module={name} class={cls.__name__} repo={repo_id} location={subfolder}')
         modules[name] = cls.from_pretrained(repo_id, subfolder=subfolder, cache_dir=cache_dir, torch_dtype=devices.dtype, **kwargs)
     return modules

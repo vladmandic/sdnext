@@ -2,11 +2,12 @@ import os
 import copy
 import time
 from modules import shared, errors, sd_models, processing, devices, images, ui_common
+from modules.logger import log
 from modules.video_models import models_def, video_utils, video_load, video_vae, video_overrides, video_save, video_prompt
 from modules.paths import resolve_output_path
 
 
-debug = shared.log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def generate(*args, **kwargs):
@@ -51,7 +52,7 @@ def generate(*args, **kwargs):
         override_settings=override_settings,
     )
     if p.vae_type == 'Remote' and not selected.vae_remote:
-        shared.log.warning(f'Video: model={selected.name} remote vae not supported')
+        log.warning(f'Video: model={selected.name} remote vae not supported')
         p.vae_type = 'Default'
     p.scripts = None
     p.script_args = None
@@ -61,12 +62,12 @@ def generate(*args, **kwargs):
     p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video)
     if 'T2V' in model:
         if init_image is not None:
-            shared.log.warning('Video: op=T2V init image not supported')
+            log.warning('Video: op=T2V init image not supported')
     elif 'I2V' in model:
         if init_image is None:
             return video_utils.queue_err('init image not set')
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
-        shared.log.debug(f'Video: op=I2V init={init_image} resized={p.task_args["image"]}')
+        log.debug(f'Video: op=I2V init={init_image} resized={p.task_args["image"]}')
     elif 'FLF2V' in model:
         if init_image is None:
             return video_utils.queue_err('init image not set')
@@ -74,11 +75,11 @@ def generate(*args, **kwargs):
             return video_utils.queue_err('last image not set')
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         p.task_args['last_image'] = images.resize_image(resize_mode=2, im=last_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
-        shared.log.debug(f'Video: op=FLF2V init={init_image} last={last_image} resized={p.task_args["image"]}')
+        log.debug(f'Video: op=FLF2V init={init_image} last={last_image} resized={p.task_args["image"]}')
     elif 'VACE' in model:
         if init_image is not None:
             p.task_args['reference_images'] = [images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')]
-            shared.log.debug(f'Video: op=VACE reference={init_image} resized={p.task_args["reference_images"]}')
+            log.debug(f'Video: op=VACE reference={init_image} resized={p.task_args["reference_images"]}')
     elif 'Animate' in model:
         if init_image is None:
             return video_utils.queue_err('init image not set')
@@ -86,9 +87,9 @@ def generate(*args, **kwargs):
         p.task_args['mode'] = 'animate'
         p.task_args['pose_video'] = [] # input pose video to condition the generation on. must be a list of PIL images.
         p.task_args['face_video'] = [] # input face video to condition the generation on. must be a list of PIL images.
-        shared.log.debug(f'Video: op=Animate init={p.task_args["image"]} pose={p.task_args["pose_video"]} face={p.task_args["face_video"]}')
+        log.debug(f'Video: op=Animate init={p.task_args["image"]} pose={p.task_args["pose_video"]} face={p.task_args["face_video"]}')
     else:
-        shared.log.warning(f'Video: unknown model type "{model}"')
+        log.warning(f'Video: unknown model type "{model}"')
 
     # cleanup memory
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
@@ -129,8 +130,7 @@ def generate(*args, **kwargs):
         shared.sd_model.vae = shared.sd_model.orig_vae
 
     # run processing
-    shared.state.disable_preview = True
-    shared.log.debug(f'Video: cls={shared.sd_model.__class__.__name__} width={p.width} height={p.height} frames={p.frames} steps={p.steps}')
+    log.debug(f'Video: cls={shared.sd_model.__class__.__name__} width={p.width} height={p.height} frames={p.frames} steps={p.steps}')
     err = None
     t0 = time.time()
     processed = None
@@ -140,7 +140,6 @@ def generate(*args, **kwargs):
         err = str(e)
         errors.display(e, 'video')
     t1 = time.time()
-    shared.state.disable_preview = False
     shared.opts.data['schedulers_dynamic_shift'] = orig_dynamic_shift
     shared.opts.data['schedulers_shift'] = orig_sampler_shift
     p.close()
@@ -150,7 +149,7 @@ def generate(*args, **kwargs):
         return video_utils.queue_err(err)
     if processed is None or (len(processed.images) == 0 and processed.bytes is None):
         return video_utils.queue_err('processing failed')
-    shared.log.info(f'Video: name="{selected.name}" cls={shared.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
+    log.info(f'Video: name="{selected.name}" cls={shared.sd_model.__class__.__name__} frames={len(processed.images)} time={t1-t0:.2f}')
 
     if hasattr(processed, 'images') and processed.images is not None:
         pixels = video_save.images_to_tensor(processed.images)
@@ -161,7 +160,7 @@ def generate(*args, **kwargs):
     else:
         audio = None
 
-    _num_frames, video_file = video_save.save_video(
+    _num_frames, video_file, _thumb = video_save.save_video(
         p=p,
         pixels=pixels,
         audio=audio,

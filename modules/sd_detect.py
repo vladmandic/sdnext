@@ -3,6 +3,7 @@ import time
 import torch
 import diffusers
 from modules import shared, shared_items, devices, errors, model_tools
+from modules.logger import log
 
 
 debug_load = os.environ.get('SD_LOAD_DEBUG', None)
@@ -13,9 +14,9 @@ def guess_by_size(fn, current_guess):
     if os.path.isfile(fn) and fn.endswith('.safetensors'):
         size = round(os.path.getsize(fn) / 1024 / 1024)
         if (size > 0 and size < 128):
-            shared.log.warning(f'Model size smaller than expected: file="{fn}" size={size} MB')
+            log.warning(f'Model size smaller than expected: file="{fn}" size={size} MB')
         elif (size >= 316 and size <= 324) or (size >= 156 and size <= 164): # 320 or 160
-            shared.log.warning(f'Model detected as VAE model, but attempting to load as model: file="{fn}" size={size} MB')
+            log.warning(f'Model detected as VAE model, but attempting to load as model: file="{fn}" size={size} MB')
             new_guess = 'VAE'
         elif (size >= 2002 and size <= 2038): # 2032
             new_guess = 'Stable Diffusion 1.5'
@@ -40,7 +41,7 @@ def guess_by_size(fn, current_guess):
         elif (size >= 20000 and size <= 40000):
             new_guess = 'FLUX'
         if debug_load:
-            shared.log.trace(f'Autodetect: method=size file="{fn}" size={size} previous="{current_guess}" current="{new_guess}"')
+            log.trace(f'Autodetect: method=size file="{fn}" size={size} previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess
 
 
@@ -60,7 +61,7 @@ def guess_by_name(fn, current_guess):
         new_guess = 'Stable Diffusion 3'
     elif 'stable-cascade' in fn.lower() or 'stablecascade' in fn.lower() or 'wuerstchen3' in fn.lower() or ('sotediffusion' in fn.lower() and "v2" in fn.lower()):
         if devices.dtype == torch.float16:
-            shared.log.warning('Stable Cascade does not support Float16')
+            log.warning('Stable Cascade does not support Float16')
         new_guess = 'Stable Cascade'
     elif 'pixart-sigma' in fn.lower():
         new_guess = 'PixArt Sigma'
@@ -99,7 +100,7 @@ def guess_by_name(fn, current_guess):
     elif 'flux' in fn.lower() or 'flex.1' in fn.lower():
         size = round(os.path.getsize(fn) / 1024 / 1024) if os.path.isfile(fn) else 0
         if size > 11000 and size < 16000:
-            shared.log.warning(f'Model detected as FLUX UNET model, but attempting to load a base model: file="{fn}" size={size} MB')
+            log.warning(f'Model detected as FLUX UNET model, but attempting to load a base model: file="{fn}" size={size} MB')
         new_guess = 'FLUX'
     elif 'flex.2' in fn.lower():
         new_guess = 'FLEX'
@@ -115,7 +116,7 @@ def guess_by_name(fn, current_guess):
         new_guess = 'ChronoEdit'
     elif 'bria' in fn.lower():
         new_guess = 'Bria'
-    elif 'qwen' in fn.lower():
+    elif 'qwen' in fn.lower() or 'firered' in fn.lower() or 'unipic3' in fn.lower():
         new_guess = 'Qwen'
     elif 'nextstep' in fn.lower():
         new_guess = 'NextStep'
@@ -125,7 +126,7 @@ def guess_by_name(fn, current_guess):
         new_guess = 'Kandinsky 2.2'
     elif 'kandinsky-3' in fn.lower():
         new_guess = 'Kandinsky 3.0'
-    elif 'kandinsky-5.0' in fn.lower():
+    elif 'kandinsky-5.0' in fn.lower() and '2i' not in fn.lower():
         new_guess = 'Kandinsky 5.0'
     elif 'hunyuanimage3' in fn.lower() or 'hunyuanimage-3' in fn.lower():
         new_guess = 'HunyuanImage3'
@@ -150,7 +151,7 @@ def guess_by_name(fn, current_guess):
     elif 'glm-image' in fn.lower():
         new_guess = 'GLM-Image'
     if debug_load:
-        shared.log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
+        log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess
 
 
@@ -200,7 +201,7 @@ def guess_by_diffusers(fn, current_guess):
                     if is_quant:
                         k = f'{k} SDNQ'
                     if debug_load:
-                        shared.log.trace(f'Autodetect: method=diffusers file="{fn}" previous="{current_guess}" current="{k}"')
+                        log.trace(f'Autodetect: method=diffusers file="{fn}" previous="{current_guess}" current="{k}"')
                     return k, v
     return current_guess, None
 
@@ -218,7 +219,7 @@ def guess_variant(fn, current_guess):
         elif current_guess == 'Stable Diffusion XL':
             new_guess = 'Stable Diffusion XL Instruct'
     if debug_load:
-        shared.log.trace(f'Autodetect: method=variant file="{fn}" previous="{current_guess}" current="{new_guess}"')
+        log.trace(f'Autodetect: method=variant file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess
 
 
@@ -233,7 +234,7 @@ def detect_pipeline(f: str, op: str = 'model'):
             guess, pipeline = guess_by_diffusers(f, guess)
             guess = guess_variant(f, guess)
             pipeline = shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
-            shared.log.info(f'Autodetect {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}"')
+            log.info(f'Autodetect {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}"')
             if debug_load is not None:
                 t0 = time.time()
                 keys = model_tools.get_safetensor_keys(f)
@@ -242,18 +243,18 @@ def detect_pipeline(f: str, op: str = 'model'):
                     modules = model_tools.remove_entries_after_depth(modules, 3)
                     lst = model_tools.list_compact(keys)
                     t1 = time.time()
-                    shared.log.debug(f'Autodetect: modules={modules} list={lst} time={t1-t0:.2f}')
+                    log.debug(f'Autodetect: modules={modules} list={lst} time={t1-t0:.2f}')
         except Exception as e:
-            shared.log.error(f'Autodetect {op}: file="{f}" {e}')
+            log.error(f'Autodetect {op}: file="{f}" {e}')
             if debug_load:
                 errors.display(e, f'Load {op}: {f}')
             return None, None
     else:
         try:
             pipeline = shared_items.get_pipelines().get(guess, None) if pipeline is None else pipeline
-            shared.log.info(f'Load {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}"')
+            log.info(f'Load {op}: detect="{guess}" class={getattr(pipeline, "__name__", None)} file="{f}"')
         except Exception as e:
-            shared.log.error(f'Load {op}: detect="{guess}" file="{f}" {e}')
+            log.error(f'Load {op}: detect="{guess}" file="{f}" {e}')
 
     if pipeline is None:
         pipeline = diffusers.DiffusionPipeline

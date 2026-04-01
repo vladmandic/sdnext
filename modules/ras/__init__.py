@@ -2,6 +2,7 @@
 # original: <https://github.com/microsoft/RAS>
 
 from modules import shared, processing
+from modules.logger import log
 
 
 def apply(pipe, p: processing.StableDiffusionProcessing):
@@ -18,7 +19,7 @@ def apply(pipe, p: processing.StableDiffusionProcessing):
     MANAGER.width = p.width
     MANAGER.height = p.height
     MANAGER.error_reset_steps = [int(1*p.steps/3), int(2*p.steps/3)]
-    shared.log.info(f'RAS: scheduler={pipe.scheduler.__class__.__name__} {str(MANAGER)}')
+    log.info(f'RAS: scheduler={pipe.scheduler.__class__.__name__} {str(MANAGER)}')
     MANAGER.reset_cache()
     MANAGER.generate_skip_token_list()
     pipe.transformer.old_forward = pipe.transformer.forward

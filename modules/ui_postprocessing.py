@@ -1,5 +1,6 @@
 import gradio as gr
 from modules import scripts_manager, shared, ui_common, postprocessing, call_queue, generation_parameters_copypaste
+from modules.logger import log
 
 
 def submit_info(image):
@@ -18,7 +19,7 @@ def submit_process(tab_index, extras_image, image_batch, extras_batch_input_dir,
 
 
 def create_ui():
-    shared.log.debug('UI initialize: tab=process')
+    log.debug('UI initialize: tab=process')
     tab_index = gr.State(value=0) # pylint: disable=abstract-class-instantiated
     with gr.Row(equal_height=False, variant='compact', elem_classes="extras", elem_id="extras_tab"):
         with gr.Column(variant='compact'):

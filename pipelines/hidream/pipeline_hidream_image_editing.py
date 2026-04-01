@@ -210,7 +210,7 @@ class HiDreamImageEditingPipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin
 
     def _get_t5_prompt_embeds(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         max_sequence_length: int = 128,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
@@ -284,7 +284,7 @@ class HiDreamImageEditingPipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin
 
     def _get_llama3_prompt_embeds(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         max_sequence_length: int = 128,
         device: Optional[torch.device] = None,
         dtype: Optional[torch.dtype] = None,
@@ -760,7 +760,7 @@ class HiDreamImageEditingPipeline(DiffusionPipeline, HiDreamImageLoraLoaderMixin
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         prompt_2: Optional[Union[str, List[str]]] = None,
         prompt_3: Optional[Union[str, List[str]]] = None,
         prompt_4: Optional[Union[str, List[str]]] = None,

@@ -1,13 +1,12 @@
 import os
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
-from typing import Dict, Optional, Tuple, Set
 import safetensors.torch
 import torch
-from tensordict import TensorDict
 import modules.memstats
 import modules.devices as devices
-from installer import log, console
+from modules.logger import console
+from modules.logger import log
 from modules.sd_models import read_state_dict
 from modules.merging import merge_methods
 from modules.merging.merge_utils import WeightClass
@@ -38,7 +37,7 @@ KEY_POSITION_IDS = ".".join(
 )
 
 
-def fix_clip(model: Dict) -> Dict:
+def fix_clip(model: dict) -> dict:
     if KEY_POSITION_IDS in model.keys():
         model[KEY_POSITION_IDS] = torch.tensor(
             [list(range(MAX_TOKENS))],
@@ -49,7 +48,7 @@ def fix_clip(model: Dict) -> Dict:
     return model
 
 
-def prune_sd_model(model: Dict, keyset: Set) -> Dict:
+def prune_sd_model(model: dict, keyset: set) -> dict:
     keys = list(model.keys())
     for k in keys:
         if (
@@ -61,7 +60,7 @@ def prune_sd_model(model: Dict, keyset: Set) -> Dict:
     return model
 
 
-def restore_sd_model(original_model: Dict, merged_model: Dict) -> Dict:
+def restore_sd_model(original_model: dict, merged_model: dict) -> dict:
     for k in original_model:
         if k not in merged_model:
             merged_model[k] = original_model[k]
@@ -73,11 +72,12 @@ def log_vram(txt=""):
 
 
 def load_thetas(
-    models: Dict[str, os.PathLike],
+    models: dict[str, os.PathLike],
     prune: bool,
     device: torch.device,
     precision: str,
-) -> Dict:
+) -> dict:
+    from tensordict import TensorDict
     thetas = {k: TensorDict.from_dict(read_state_dict(m, "cpu")) for k, m in models.items()}
     if prune:
         keyset = set.intersection(*[set(m.keys()) for m in thetas.values() if len(m.keys())])
@@ -95,7 +95,7 @@ def load_thetas(
 
 
 def merge_models(
-    models: Dict[str, os.PathLike],
+    models: dict[str, os.PathLike],
     merge_mode: str,
     precision: str = "fp16",
     weights_clip: bool = False,
@@ -104,7 +104,7 @@ def merge_models(
     prune: bool = False,
     threads: int = 4,
     **kwargs,
-) -> Dict:
+) -> dict:
     thetas = load_thetas(models, prune, device, precision)
     # log.info(f'Merge start: models={models.values()} precision={precision} clip={weights_clip} rebasin={re_basin} prune={prune} threads={threads}')
     weight_matcher = WeightClass(thetas["model_a"], **kwargs)
@@ -136,17 +136,18 @@ def merge_models(
 
 
 def un_prune_model(
-    merged: Dict,
-    thetas: Dict,
-    models: Dict,
+    merged: dict,
+    thetas: dict,
+    models: dict,
     device: torch.device,
     prune: bool,
     precision: str,
-) -> Dict:
+) -> dict:
     if prune:
         log.info("Merge restoring pruned keys")
         del thetas
         devices.torch_gc(force=False)
+        from tensordict import TensorDict
         original_a = TensorDict.from_dict(read_state_dict(models["model_a"], device))
         unpruned = 0
         for key in original_a.keys():
@@ -179,7 +180,7 @@ def un_prune_model(
 
 
 def simple_merge(
-    thetas: Dict[str, Dict],
+    thetas: dict[str, dict],
     weight_matcher: WeightClass,
     merge_mode: str,
     precision: str = "fp16",
@@ -187,7 +188,7 @@ def simple_merge(
     device: torch.device = None,
     work_device: torch.device = None,
     threads: int = 4,
-) -> Dict:
+) -> dict:
     futures = []
     import rich.progress as p
     with p.Progress(p.TextColumn('[cyan]{task.description}'), p.BarColumn(), p.TaskProgressColumn(), p.TimeRemainingColumn(), p.TimeElapsedColumn(), p.TextColumn('[cyan]keys={task.fields[keys]}'), console=console) as progress:
@@ -226,7 +227,7 @@ def simple_merge(
 
 
 def rebasin_merge(
-    thetas: Dict[str, os.PathLike],
+    thetas: dict[str, os.PathLike],
     weight_matcher: WeightClass,
     merge_mode: str,
     precision: str = "fp16",
@@ -305,14 +306,14 @@ def simple_merge_key(progress, task, key, thetas, *args, **kwargs):
 
 def merge_key(  # pylint: disable=inconsistent-return-statements
     key: str,
-    thetas: Dict,
+    thetas: dict,
     weight_matcher: WeightClass,
     merge_mode: str,
     precision: str = "fp16",
     weights_clip: bool = False,
     device: torch.device = None,
     work_device: torch.device = None,
-) -> Optional[Tuple[str, Dict]]:
+) -> tuple[str, dict] | None:
     if work_device is None:
         work_device = device
 
@@ -375,11 +376,11 @@ def merge_key_context(*args, **kwargs):
 
 
 def get_merge_method_args(
-    current_bases: Dict,
-    thetas: Dict,
+    current_bases: dict,
+    thetas: dict,
     key: str,
     work_device: torch.device,
-) -> Dict:
+) -> dict:
     merge_method_args = {
         "a": thetas["model_a"][key].to(work_device),
         "b": thetas["model_b"][key].to(work_device),

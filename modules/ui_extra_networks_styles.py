@@ -3,6 +3,7 @@ import html
 import json
 from datetime import datetime
 from modules import shared, extra_networks, ui_extra_networks, styles
+from modules.logger import log
 
 
 class ExtraNetworksPageStyles(ui_extra_networks.ExtraNetworksPage):
@@ -95,7 +96,7 @@ class ExtraNetworksPageStyles(ui_extra_networks.ExtraNetworksPage):
                 "size": os.path.getsize(style.filename),
             }
         except Exception as e:
-            shared.log.debug(f'Networks error: type=style file="{k}" {e}')
+            log.debug(f'Networks error: type=style file="{k}" {e}')
         return item
 
     def list_items(self):

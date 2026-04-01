@@ -4,7 +4,7 @@ from random import shuffle
 from typing import NamedTuple
 import torch
 from scipy.optimize import linear_sum_assignment
-from installer import log
+from modules.logger import log
 
 
 SPECIAL_KEYS = [

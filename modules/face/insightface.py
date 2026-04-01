@@ -11,9 +11,9 @@ def get_app(mp_name, threshold=0.5, resolution=640):
     global insightface_app, instightface_mp # pylint: disable=global-statement
 
     from installer import install, installed, install_insightface
-    if not installed('insightface', reload=False, quiet=True):
+    if not installed('insightface', quiet=True) and not installed('insightfacex', quiet=True):
         install_insightface()
-    if not installed('ip_adapter', reload=False, quiet=True):
+    if not installed('ip_adapter', quiet=True):
         install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=False)
 
     if insightface_app is None or mp_name != instightface_mp:
@@ -33,7 +33,6 @@ def get_app(mp_name, threshold=0.5, resolution=640):
             model_path = hf.hf_hub_download(
                 repo_id='vladmandic/insightface-faceanalysis',
                 filename=f'{mp_name}.zip',
-                local_dir_use_symlinks=False,
                 cache_dir=opts.hfcache_dir,
                 local_dir=local_dir
             )

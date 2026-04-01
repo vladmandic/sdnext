@@ -18,7 +18,6 @@ import cv2
 import numpy as np
 from PIL import Image, ImageFilter
 import torch
-import torchvision
 from torchvision import transforms
 from transformers import (
     CLIPImageProcessor,
@@ -929,14 +928,14 @@ class StableDiffusionXLSoftFillPipeline(
     @replace_example_docstring(EXAMPLE_DOC_STRING)
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
+        prompt: Union[str, List[str]] | None = None,
         prompt_2: Optional[Union[str, List[str]]] = None,
         image: Image.Image = None,
         mask: Image.Image = None,
         noise_fill_image: bool = True,  # Adds noise to the image at the masks >0.8 area.
         strength: float = 0.3,
         num_inference_steps: int = 50,
-        timesteps: List[int] = None,
+        timesteps: List[int] | None = None,
         denoising_start: Optional[float] = None,
         denoising_end: Optional[float] = None,
         guidance_scale: float = 5.0,
@@ -956,9 +955,9 @@ class StableDiffusionXLSoftFillPipeline(
         return_dict: bool = True,
         cross_attention_kwargs: Optional[Dict[str, Any]] = None,
         guidance_rescale: float = 0.0,
-        original_size: Tuple[int, int] = None,
+        original_size: Tuple[int, int] | None = None,
         crops_coords_top_left: Tuple[int, int] = (0, 0),
-        target_size: Tuple[int, int] = None,
+        target_size: Tuple[int, int] | None = None,
         negative_original_size: Optional[Tuple[int, int]] = None,
         negative_crops_coords_top_left: Tuple[int, int] = (0, 0),
         negative_target_size: Optional[Tuple[int, int]] = None,
@@ -1323,7 +1322,8 @@ class StableDiffusionXLSoftFillPipeline(
                 image.save("noised_image.png")
 
             image = transforms.CenterCrop((image.size[1] // 64 * 64, image.size[0] // 64 * 64))(image)
-            image = transforms.ToTensor()(image)
+            from modules.image import convert
+            image = convert.to_tensor(image)
             image = image * 2 - 1  # Normalize to [-1, 1]
             return image.unsqueeze(0)
 
@@ -1334,7 +1334,8 @@ class StableDiffusionXLSoftFillPipeline(
             """
             map = map.convert("L")
             map = transforms.CenterCrop((map.size[1] // 64 * 64, map.size[0] // 64 * 64))(map)
-            map = transforms.ToTensor()(map)
+            from modules.image import convert
+            map = convert.to_tensor(map)
             map = (map - 0.05) / (0.95 - 0.05)
             map = torch.clamp(map, 0.0, 1.0)
             return 1.0 - map
@@ -1349,9 +1350,8 @@ class StableDiffusionXLSoftFillPipeline(
 
         # Prepare mask as rescaled tensor map
         map = preprocess_map(mask).to(device)
-        map = torchvision.transforms.Resize(
-            tuple(s // self.vae_scale_factor for s in original_image_tensor.shape[2:]), antialias=None
-        )(map)
+        from modules.image import sharpfin
+        map = sharpfin.resize_tensor(map, tuple(s // self.vae_scale_factor for s in original_image_tensor.shape[2:]), linearize=False)
 
         # Generate latent tensor with noise
         original_with_noise = self.prepare_latents(
@@ -1605,9 +1605,10 @@ class StableDiffusionXLSoftFillPipeline(
 import gradio as gr
 from installer import install
 from modules import shared, scripts_manager, processing, sd_models
+from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class SoftFillScript(scripts_manager.Script):
     orig_pipeline = None
 
     def title(self):
@@ -1630,13 +1631,13 @@ class Script(scripts_manager.Script):
         if not enabled:
             return
         if shared.sd_model_type not in ['sdxl']:
-            shared.log.error(f'SoftFill: incorrect base model: {shared.sd_model.__class__.__name__}')
+            log.error(f'SoftFill: incorrect base model: {shared.sd_model.__class__.__name__}')
             return
         if not hasattr(p, 'init_images') or len(p.init_images) == 0:
-            shared.log.error('SoftFill: no input image')
+            log.error('SoftFill: no input image')
             return
         if not hasattr(p, 'mask') or p.mask is None:
-            shared.log.error('SoftFill: no input mask')
+            log.error('SoftFill: no input mask')
             return
 
         try:
@@ -1645,7 +1646,7 @@ class Script(scripts_manager.Script):
             import noise as noise_module
             pnoise2 = noise_module.pnoise2
         except Exception as e:
-            shared.log.error(f'SoftFill: {e}')
+            log.error(f'SoftFill: {e}')
             return
 
         self.orig_pipeline = shared.sd_model
@@ -1654,7 +1655,7 @@ class Script(scripts_manager.Script):
             if shared.sd_model.__class__.__name__ not in sd_models.pipe_switch_task_exclude:
                 sd_models.pipe_switch_task_exclude.append(shared.sd_model.__class__.__name__)
         except Exception as e:
-            shared.log.error(f'SoftFill: {e}')
+            log.error(f'SoftFill: {e}')
             shared.sd_model = self.orig_pipeline
             self.orig_pipeline = None
             return
@@ -1663,7 +1664,7 @@ class Script(scripts_manager.Script):
         p.task_args['strength'] = strength
         p.task_args['image'] = p.init_images[0]
         p.task_args['mask'] = p.mask
-        shared.log.info(f'SoftFill: cls={shared.sd_model.__class__.__name__} {p.task_args}')
+        log.info(f'SoftFill: cls={shared.sd_model.__class__.__name__} {p.task_args}')
 
     def after(self, p: processing.StableDiffusionProcessingImg2Img, *args, **kwargs): # pylint: disable=unused-argument
         if self.orig_pipeline is not None:

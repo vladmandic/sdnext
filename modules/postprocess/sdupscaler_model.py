@@ -2,6 +2,7 @@ import torch
 import diffusers
 from PIL import Image
 from modules import shared, devices
+from modules.logger import log
 from modules.upscaler import Upscaler, UpscalerData
 
 
@@ -23,11 +24,11 @@ class UpscalerDiffusion(Upscaler):
         from modules.sd_models import set_diffuser_options
         scaler: UpscalerData = [x for x in self.scalers if x.data_path == path or x.name == path]
         if len(scaler) == 0:
-            shared.log.error(f"Upscaler cannot match model: type={self.name} model={path}")
+            log.error(f"Upscaler cannot match model: type={self.name} model={path}")
             return None
         scaler = scaler[0]
         if self.models.get(path, None) is not None:
-            shared.log.debug(f"Upscaler cached: type={scaler.name} model={path}")
+            log.debug(f"Upscaler cached: type={scaler.name} model={path}")
             return self.models[path]
         else:
             model = diffusers.DiffusionPipeline.from_pretrained(scaler.data_path, cache_dir=shared.opts.diffusers_dir, torch_dtype=devices.dtype)
@@ -69,6 +70,6 @@ class UpscalerDiffusion(Upscaler):
         image = output.images[0]
         if shared.opts.upscaler_unload and selected_model in self.models:
             del self.models[selected_model]
-            shared.log.debug(f"Upscaler unloaded: type={self.name} model={selected_model}")
+            log.debug(f"Upscaler unloaded: type={self.name} model={selected_model}")
             devices.torch_gc(force=True)
         return image

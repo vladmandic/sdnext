@@ -1,6 +1,5 @@
 import os
 import torch
-from omegaconf import OmegaConf
 from safetensors.torch import load_file as load_safetensors_file
 from huggingface_hub import hf_hub_download
 from ..optimization.memory_manager import preinitialize_rope_cache
@@ -9,6 +8,10 @@ from ..core.infer import VideoDiffusionInfer
 
 
 def configure_runner(model_name, cache_dir, device:str='cpu', dtype:torch.dtype=None):
+    from installer import install
+    install('omegaconf')
+    from omegaconf import OmegaConf
+
     repo_id = "vladmandic/SeedVR2"
     script_directory = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     config_path = os.path.join(script_directory, './config_7b.yaml') if "7b" in model_name else os.path.join(script_directory, './config_3b.yaml')

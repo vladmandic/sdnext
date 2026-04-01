@@ -8,7 +8,6 @@ import os
 from functools import lru_cache
 from typing import Union, List
 
-import ftfy
 import regex as re
 import torch
 
@@ -58,6 +57,9 @@ def get_pairs(word):
 
 
 def basic_clean(text):
+    from installer import install
+    install('ftfy')
+    import ftfy
     text = ftfy.fix_text(text)
     text = html.unescape(html.unescape(text))
     return text.strip()

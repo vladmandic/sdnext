@@ -3,6 +3,7 @@ import gradio as gr
 import diffusers
 from safetensors.torch import load_file
 from modules import scripts_manager, processing, shared, devices, sd_models
+from modules.logger import log
 
 
 # config
@@ -49,18 +50,18 @@ def set_adapter(adapter_name: str = 'None'):
         motion_adapter = None
         loaded_adapter = None
         if orig_pipe is not None:
-            shared.log.debug(f'AnimateDiff restore pipeline: adapter="{loaded_adapter}"')
+            log.debug(f'AnimateDiff restore pipeline: adapter="{loaded_adapter}"')
             shared.sd_model = orig_pipe
             orig_pipe = None
         return
     if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl' and not (shared.sd_model.__class__.__name__ == 'AnimateDiffPipeline' or shared.sd_model.__class__.__name__ == 'AnimateDiffSDXLPipeline'):
-        shared.log.warning(f'AnimateDiff: unsupported model type: {shared.sd_model.__class__.__name__}')
+        log.warning(f'AnimateDiff: unsupported model type: {shared.sd_model.__class__.__name__}')
         return
     if motion_adapter is not None and loaded_adapter == adapter_name and (shared.sd_model.__class__.__name__ == 'AnimateDiffPipeline' or shared.sd_model.__class__.__name__ == 'AnimateDiffSDXLPipeline'):
-        shared.log.debug(f'AnimateDiff: adapter="{adapter_name}" cached')
+        log.debug(f'AnimateDiff: adapter="{adapter_name}" cached')
         return
     if getattr(shared.sd_model, 'image_encoder', None) is not None:
-        shared.log.debug('AnimateDiff: unloading IP adapter')
+        log.debug('AnimateDiff: unloading IP adapter')
         # shared.sd_model.image_encoder = None
         # shared.sd_model.unet.set_default_attn_processor()
         shared.sd_model.unet.config.encoder_hid_dim_type = None
@@ -69,7 +70,7 @@ def set_adapter(adapter_name: str = 'None'):
         folder, filename = os.path.split(adapter_name)
         adapter_name = hf.hf_hub_download(repo_id=folder, filename=filename, cache_dir=shared.opts.diffusers_dir)
     try:
-        shared.log.info(f'AnimateDiff load: adapter="{adapter_name}"')
+        log.info(f'AnimateDiff load: adapter="{adapter_name}"')
         motion_adapter = None
         if adapter_name.endswith('.safetensors'):
             motion_adapter = diffusers.MotionAdapter().to(shared.device, devices.dtype)
@@ -84,7 +85,7 @@ def set_adapter(adapter_name: str = 'None'):
         new_pipe = None
 
         if 'Model' in shared.opts.sdnq_quantize_weights:
-            shared.log.debug(f'AnimateDiff: sdnq={shared.opts.sdnq_quantize_weights} reloading model weights')
+            log.debug(f'AnimateDiff: sdnq={shared.opts.sdnq_quantize_weights} reloading model weights')
             prev_opts = shared.opts.sdnq_quantize_weights
             shared.opts.sdnq_quantize_weights = []
             sd_models.reload_model_weights(force=True)
@@ -118,7 +119,7 @@ def set_adapter(adapter_name: str = 'None'):
         if new_pipe is None:
             motion_adapter = None
             loaded_adapter = None
-            shared.log.error(f'AnimateDiff load error: adapter="{adapter_name}"')
+            log.error(f'AnimateDiff load error: adapter="{adapter_name}"')
             return
         orig_pipe = shared.sd_model
         shared.sd_model = new_pipe
@@ -126,11 +127,11 @@ def set_adapter(adapter_name: str = 'None'):
         sd_models.copy_diffuser_options(new_pipe, orig_pipe)
         sd_models.set_diffuser_options(shared.sd_model, vae=None, op='model')
         sd_models.move_model(shared.sd_model.unet, devices.device) # move pipeline to device
-        shared.log.debug(f'AnimateDiff: adapter="{loaded_adapter}"')
+        log.debug(f'AnimateDiff: adapter="{loaded_adapter}"')
     except Exception as e:
         motion_adapter = None
         loaded_adapter = None
-        shared.log.error(f'AnimateDiff load error: adapter="{adapter_name}" {e}')
+        log.error(f'AnimateDiff load error: adapter="{adapter_name}" {e}')
         from modules import errors
         errors.display('e', 'AnimateDiff')
 
@@ -142,7 +143,7 @@ def set_scheduler(p, model, override: bool = False):
             shared.sd_model.scheduler = diffusers.LCMScheduler.from_config(shared.sd_model.scheduler.config)
         else:
             shared.sd_model.scheduler = diffusers.DDIMScheduler.from_config(shared.sd_model.scheduler.config)
-    shared.log.debug(f'AnimateDiff: scheduler={shared.sd_model.scheduler.__class__.__name__}')
+    log.debug(f'AnimateDiff: scheduler={shared.sd_model.scheduler.__class__.__name__}')
 
 
 def set_prompt(p):
@@ -158,14 +159,14 @@ def set_prompt(p):
             prompt[int(k.strip())] = v.strip()
     except Exception:
         prompt = p.prompt
-    shared.log.debug(f'AnimateDiff prompt: {prompt}')
+    log.debug(f'AnimateDiff prompt: {prompt}')
     p.task_args['prompt'] = prompt
     p.task_args['negative_prompt'] = p.negative_prompt
 
 
 def set_lora(p, lora, strength):
     if lora is not None and lora != 'None':
-        shared.log.debug(f'AnimateDiff: lora="{lora}" strength={strength}')
+        log.debug(f'AnimateDiff: lora="{lora}" strength={strength}')
         if lora.endswith('.safetensors'):
             fn = os.path.basename(lora)
             lora = lora.replace(f'/{fn}', '')
@@ -178,7 +179,7 @@ def set_lora(p, lora, strength):
 
 def set_free_init(method, iters, order, spatial, temporal):
     if hasattr(shared.sd_model, 'enable_free_init') and method != 'none':
-        shared.log.debug(f'AnimateDiff free init: method={method} iters={iters} order={order} spatial={spatial} temporal={temporal}')
+        log.debug(f'AnimateDiff free init: method={method} iters={iters} order={order} spatial={spatial} temporal={temporal}')
         shared.sd_model.enable_free_init(
             num_iters=iters,
             use_fast_sampling=False,
@@ -193,11 +194,11 @@ def set_free_noise(frames):
     context_length = 16
     context_stride = 4
     if frames >= context_length and hasattr(shared.sd_model, 'enable_free_noise'):
-        shared.log.debug(f'AnimateDiff free noise: frames={frames} context={context_length} stride={context_stride}')
+        log.debug(f'AnimateDiff free noise: frames={frames} context={context_length} stride={context_stride}')
         shared.sd_model.enable_free_noise(context_length=context_length, context_stride=context_stride)
 
 
-class Script(scripts_manager.Script):
+class AnimateDiffScript(scripts_manager.Script):
     def title(self):
         return 'Video: AnimateDiff'
 
@@ -251,7 +252,7 @@ class Script(scripts_manager.Script):
         p.task_args['num_frames'] = frames
         p.task_args['num_inference_steps'] = p.steps
         p.task_args['output_type'] = 'np'
-        shared.log.debug(f'AnimateDiff args: {p.task_args}')
+        log.debug(f'AnimateDiff args: {p.task_args}')
         set_prompt(p)
         orig_prompt_attention = shared.opts.prompt_attention
         shared.opts.data['prompt_attention'] = 'fixed'
@@ -262,7 +263,7 @@ class Script(scripts_manager.Script):
 
 
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, adapter_index, frames, lora_index, strength, latent_mode, video_type, duration, gif_loop, mp4_pad, mp4_interpolate, override_scheduler, fi_method, fi_iters, fi_order, fi_spatial, fi_temporal): # pylint: disable=arguments-differ, unused-argument
-        from modules.images import save_video
+        from modules.video import save_video
         if video_type != 'None':
-            shared.log.debug(f'AnimateDiff video: type={video_type} duration={duration} loop={gif_loop} pad={mp4_pad} interpolate={mp4_interpolate}')
+            log.debug(f'AnimateDiff video: type={video_type} duration={duration} loop={gif_loop} pad={mp4_pad} interpolate={mp4_interpolate}')
             save_video(p, filename=None, images=processed.images, video_type=video_type, duration=duration, loop=gif_loop, pad=mp4_pad, interpolate=mp4_interpolate)

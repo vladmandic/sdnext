@@ -12,7 +12,7 @@
 
 from functools import partial
 import math
-from typing import Optional, NamedTuple, List
+from typing import NamedTuple
 import torch
 from torch import Tensor
 from torch.utils.checkpoint import checkpoint
@@ -97,10 +97,10 @@ def _query_chunk_attention(
         )
         return summarize_chunk(query, key_chunk, value_chunk)
 
-    chunks: List[AttnChunk] = [
+    chunks: list[AttnChunk] = [
         chunk_scanner(chunk) for chunk in torch.arange(0, k_tokens, kv_chunk_size)
     ]
-    acc_chunk = AttnChunk(*map(torch.stack, zip(*chunks)))
+    acc_chunk = AttnChunk(*map(torch.stack, zip(*chunks, strict=False)))
     chunk_values, chunk_weights, chunk_max = acc_chunk
 
     global_max, _ = torch.max(chunk_max, 0, keepdim=True)
@@ -142,8 +142,8 @@ def efficient_dot_product_attention(
     key: Tensor,
     value: Tensor,
     query_chunk_size=1024,
-    kv_chunk_size: Optional[int] = None,
-    kv_chunk_size_min: Optional[int] = None,
+    kv_chunk_size: int | None = None,
+    kv_chunk_size_min: int | None = None,
     use_checkpoint=True,
 ):
     """Computes efficient dot-product attention given query, key, and value.

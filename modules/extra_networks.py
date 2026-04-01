@@ -2,6 +2,7 @@ import re
 import inspect
 from collections import defaultdict
 from modules import errors, shared
+from modules.logger import log
 
 
 extra_network_registry = {}
@@ -73,8 +74,12 @@ def is_stepwise(en_obj):
     return any([len(str(x).split("@")) > 1 for x in all_args]) # noqa C419 # pylint: disable=use-a-generator
 
 
-def activate(p, extra_network_data=None, step=0, include=[], exclude=[]):
+def activate(p, extra_network_data=None, step=0, include=None, exclude=None):
     """call activate for extra networks in extra_network_data in specified order, then call activate for all remaining registered networks with an empty argument list"""
+    if exclude is None:
+        exclude = []
+    if include is None:
+        include = []
     if p.disable_extra_networks:
         return
     extra_network_data = extra_network_data or p.network_data
@@ -85,14 +90,14 @@ def activate(p, extra_network_data=None, step=0, include=[], exclude=[]):
         stepwise = stepwise or is_stepwise(extra_network_args)
     functional = shared.opts.lora_functional
     if shared.opts.lora_force_diffusers and stepwise:
-        shared.log.warning("Network load: type=LoRA method=composable loader=diffusers not compatible")
+        log.warning("Network load: type=LoRA method=composable loader=diffusers not compatible")
         stepwise = False
     shared.opts.data['lora_functional'] = stepwise or functional
 
     for extra_network_name, extra_network_args in extra_network_data.items():
         extra_network = extra_network_registry.get(extra_network_name, None)
         if extra_network is None:
-            errors.log.warning(f"Skipping unknown extra network: {extra_network_name}")
+            log.warning(f"Skipping unknown extra network: {extra_network_name}")
             continue
         try:
             signature = list(inspect.signature(extra_network.activate).parameters)
@@ -122,10 +127,12 @@ def activate(p, extra_network_data=None, step=0, include=[], exclude=[]):
         shared.opts.data['lora_functional'] = functional
 
 
-def deactivate(p, extra_network_data=None, force=shared.opts.lora_force_reload):
+def deactivate(p, extra_network_data=None, force=None):
     """call deactivate for extra networks in extra_network_data in specified order, then call deactivate for all remaining registered networks"""
     if p.disable_extra_networks:
         return
+    if force is None:
+        force = shared.opts.lora_force_reload
     extra_network_data = extra_network_data or p.network_data
     # if extra_network_data is None or len(extra_network_data) == 0:
     #    return
@@ -156,7 +163,6 @@ def parse_prompt(prompt: str | None) -> tuple[str, defaultdict[str, list[ExtraNe
     if prompt is None:
         return "", res
     if isinstance(prompt, list):
-        shared.log.warning(f"parse_prompt was called with a list instead of a string: {prompt}")
         return parse_prompts(prompt)
 
     def found(m: re.Match[str]):
@@ -168,13 +174,17 @@ def parse_prompt(prompt: str | None) -> tuple[str, defaultdict[str, list[ExtraNe
     return updated_prompt, res
 
 
-def parse_prompts(prompts: list[str]):
+def parse_prompts(prompts: list[str], extra_data=None):
     updated_prompt_list: list[str] = []
-    extra_data: defaultdict[str, list[ExtraNetworkParams]] = defaultdict(list)
+    extra_data: defaultdict[str, list[ExtraNetworkParams]] = extra_data or defaultdict(list)
     for prompt in prompts:
         updated_prompt, parsed_extra_data = parse_prompt(prompt)
         if not extra_data:
             extra_data = parsed_extra_data
+        elif parsed_extra_data:
+            extra_data = parsed_extra_data
+        else:
+            pass
         updated_prompt_list.append(updated_prompt)
 
     return updated_prompt_list, extra_data

@@ -1,6 +1,6 @@
 import os
 from modules.paths import data_path
-from installer import log
+from modules.logger import log
 
 
 files = [

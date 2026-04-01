@@ -4,7 +4,8 @@ from PIL import Image
 from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn, TimeElapsedColumn
 from modules.postprocess.swinir_model_arch import SwinIR as net
 from modules.postprocess.swinir_model_arch_v2 import Swin2SR as net2
-from modules import devices, script_callbacks, shared
+from modules import devices, shared
+from modules.logger import log, console
 from modules.upscaler import Upscaler, compile_upscaler
 
 
@@ -21,7 +22,7 @@ class UpscalerSwinIR(Upscaler):
         if info is None:
             return
         if self.models.get(info.local_data_path, None) is not None:
-            shared.log.debug(f"Upscaler cached: type={self.name} model={info.local_data_path}")
+            log.debug(f"Upscaler cached: type={self.name} model={info.local_data_path}")
             return self.models[info.local_data_path]
         pretrained_model = torch.load(info.local_data_path)
         model_v2 = net2(
@@ -57,12 +58,12 @@ class UpscalerSwinIR(Upscaler):
                         model.load_state_dict(pretrained_model[param], strict=True)
                     else:
                         model.load_state_dict(pretrained_model, strict=True)
-                    shared.log.info(f"Upscaler loaded: type={self.name} model={info.local_data_path} param={param}")
+                    log.info(f"Upscaler loaded: type={self.name} model={info.local_data_path} param={param}")
                     model = compile_upscaler(model)
                     self.models[info.local_data_path] = model
                     return model
                 except Exception as e:
-                    shared.log.error(f'Upscaler invalid parameters: type={self.name} model={info.local_data_path} {e}')
+                    log.error(f'Upscaler invalid parameters: type={self.name} model={info.local_data_path} {e}')
         return model
 
     def do_upscale(self, img, selected_model):
@@ -73,7 +74,7 @@ class UpscalerSwinIR(Upscaler):
         img = upscale(img, model)
         if shared.opts.upscaler_unload and selected_model in self.models:
             del self.models[selected_model]
-            shared.log.debug(f"Upscaler unloaded: type={self.name} model={selected_model}")
+            log.debug(f"Upscaler unloaded: type={self.name} model={selected_model}")
             devices.torch_gc(force=True)
         return img
 
@@ -122,7 +123,7 @@ def inference(img, model, tile, tile_overlap, window_size, scale):
     E = torch.zeros(b, c, h * sf, w * sf, dtype=devices.dtype, device=devices.device).type_as(img)
     W = torch.zeros_like(E, dtype=devices.dtype, device=devices.device)
 
-    with Progress(TextColumn('[cyan]{task.description}'), BarColumn(), TaskProgressColumn(), TimeRemainingColumn(), TimeElapsedColumn(), console=shared.console) as progress:
+    with Progress(TextColumn('[cyan]{task.description}'), BarColumn(), TaskProgressColumn(), TimeRemainingColumn(), TimeElapsedColumn(), console=console) as progress:
         task = progress.add_task(description="Upscaling Initializing", total=len(h_idx_list) * len(w_idx_list))
         for h_idx in h_idx_list:
             if shared.state.interrupted:

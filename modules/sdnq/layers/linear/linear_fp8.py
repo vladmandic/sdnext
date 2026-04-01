@@ -1,7 +1,5 @@
 # pylint: disable=relative-beyond-top-level,redefined-builtin,protected-access
 
-from typing import Tuple
-
 import torch
 
 from ...common import compile_func # noqa: TID252
@@ -11,7 +9,7 @@ from ...dequantizer import quantize_fp_mm # noqa: TID252
 from .forward import check_mats
 
 
-def quantize_fp_mm_input(input: torch.FloatTensor, matmul_dtype: str = "float8_e4m3fn") -> Tuple[torch.Tensor, torch.FloatTensor]:
+def quantize_fp_mm_input(input: torch.FloatTensor, matmul_dtype: str = "float8_e4m3fn") -> tuple[torch.Tensor, torch.FloatTensor]:
     input = input.flatten(0,-2).to(dtype=torch.float32)
     input, input_scale = quantize_fp_mm(input, dim=-1, matmul_dtype=matmul_dtype)
     return input, input_scale
@@ -21,14 +19,14 @@ def fp8_matmul(
     input: torch.FloatTensor,
     weight: torch.Tensor,
     scale: torch.FloatTensor,
-    bias: torch.FloatTensor = None,
-    svd_up: torch.FloatTensor = None,
-    svd_down: torch.FloatTensor = None,
-    quantized_weight_shape: torch.Size = None,
-    weights_dtype: str = None,
+    bias: torch.FloatTensor | None = None,
+    svd_up: torch.FloatTensor | None = None,
+    svd_down: torch.FloatTensor | None = None,
+    quantized_weight_shape: torch.Size | None = None,
+    weights_dtype: str | None = None,
 ) -> torch.FloatTensor:
     if quantized_weight_shape is not None:
-        weight = unpack_float(weight, quantized_weight_shape, weights_dtype).to(dtype=torch.float8_e4m3fn).t_()
+        weight = unpack_float(weight, weights_dtype, quantized_weight_shape).to(dtype=torch.float8_e4m3fn).t_()
         scale = scale.t()
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])

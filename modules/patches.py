@@ -1,5 +1,4 @@
 from collections import defaultdict
-from typing import Optional
 from modules.errors import log
 
 
@@ -55,13 +54,13 @@ def original(key, obj, field):
     return originals[key].get(patch_key, None)
 
 
-def patch_method(cls, key:Optional[str]=None):
+def patch_method(cls, key:str | None=None):
     def decorator(func):
         patch(func.__module__ if key is None else key, cls, func.__name__, func)
     return decorator
 
 
-def add_method(cls, key:Optional[str]=None):
+def add_method(cls, key:str | None=None):
     def decorator(func):
         patch(func.__module__ if key is None else key, cls, func.__name__, func, True)
     return decorator

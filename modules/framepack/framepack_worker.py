@@ -2,6 +2,7 @@ import time
 import torch
 import rich.progress as rp
 from modules import shared, errors ,devices, sd_models, timer, memstats
+from modules.logger import log, console
 from modules.framepack import framepack_vae # pylint: disable=wrong-import-order
 from modules.framepack import framepack_hijack # pylint: disable=wrong-import-order
 from modules.video_models.video_save import save_video # pylint: disable=wrong-import-order
@@ -43,12 +44,14 @@ def worker(
         mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_opt, mp4_ext, mp4_interpolate,
         vae_type,
         variant,
-        metadata:dict={},
+        metadata: dict | None = None,
     ):
+    if metadata is None:
+        metadata = {}
     timer.process.reset()
     memstats.reset_stats()
     if stream is None or shared.state.interrupted or shared.state.skipped:
-        shared.log.error('FramePack: stream is None')
+        log.error('FramePack: stream is None')
         stream.output_queue.push(('end', None))
         return
 
@@ -76,18 +79,18 @@ def worker(
     image_encoder = shared.sd_model.image_processor
     transformer = shared.sd_model.transformer
     sd_models.apply_balanced_offload(shared.sd_model)
-    pbar = rp.Progress(rp.TextColumn('[cyan]Video'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=shared.console)
+    pbar = rp.Progress(rp.TextColumn('[cyan]Video'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
     task = pbar.add_task('starting', total=steps * len(latent_paddings))
     t_last = time.time()
     if not is_f1:
         prompts = list(reversed(prompts))
 
-    def text_encode(prompt, i:int=None):
+    def text_encode(prompt, i: int | None = None):
         jobid = shared.state.begin('TE Encode')
         pbar.update(task, description=f'text encode section={i}')
         t0 = time.time()
         torch.manual_seed(seed)
-        # shared.log.debug(f'FramePack: section={i} prompt="{prompt}"')
+        # log.debug(f'FramePack: section={i} prompt="{prompt}"')
         shared.state.textinfo = 'Text encode'
         stream.output_queue.push(('progress', (None, 'Text encoding...')))
         sd_models.apply_balanced_offload(shared.sd_model)
@@ -108,7 +111,7 @@ def worker(
     def latents_encode(input_image, end_image):
         jobid = shared.state.begin('VAE Encode')
         pbar.update(task, description='image encode')
-        # shared.log.debug(f'FramePack: image encode init={input_image.shape} end={end_image.shape if end_image is not None else None}')
+        # log.debug(f'FramePack: image encode init={input_image.shape} end={end_image.shape if end_image is not None else None}')
         t0 = time.time()
         torch.manual_seed(seed)
         stream.output_queue.push(('progress', (None, 'VAE encoding...')))
@@ -133,7 +136,7 @@ def worker(
 
     def vision_encode(input_image, end_image):
         pbar.update(task, description='vision encode')
-        # shared.log.debug(f'FramePack: vision encode init={input_image.shape} end={end_image.shape if end_image is not None else None}')
+        # log.debug(f'FramePack: vision encode init={input_image.shape} end={end_image.shape if end_image is not None else None}')
         t0 = time.time()
         shared.state.textinfo = 'Vision encode'
         stream.output_queue.push(('progress', (None, 'Vision encoding...')))
@@ -163,7 +166,7 @@ def worker(
             stream.output_queue.push(('end', None))
             raise AssertionError('Interrupted...')
         if shared.state.paused:
-            shared.log.debug('Sampling paused')
+            log.debug('Sampling paused')
             while shared.state.paused:
                 if shared.state.interrupted or shared.state.skipped:
                     raise AssertionError('Interrupted...')
@@ -181,6 +184,17 @@ def worker(
         if use_preview:
             preview = framepack_vae.vae_decode(d['denoised'], 'Preview')
             stream.output_queue.push(('progress', (preview, desc)))
+            # Bridge to v2 job WS: set preview as current_image for progress poller
+            try:
+                from PIL import Image as PILImage
+                import numpy as np
+                if isinstance(preview, np.ndarray):
+                    shared.state.current_image = PILImage.fromarray(preview)
+                elif isinstance(preview, PILImage.Image):
+                    shared.state.current_image = preview
+                shared.state.id_live_preview += 1
+            except Exception:
+                pass
         else:
             stream.output_queue.push(('progress', (None, desc)))
         timer.process.add('preview', time.time() - t_preview)
@@ -213,7 +227,7 @@ def worker(
 
                 sammplejob = shared.state.begin('Sample')
                 lattent_padding_loop += 1
-                # shared.log.trace(f'FramePack: op=sample section={lattent_padding_loop}/{len(latent_paddings)} frames={total_generated_frames}/{num_frames*len(latent_paddings)} window={latent_window_size} size={num_frames}')
+                # log.trace(f'FramePack: op=sample section={lattent_padding_loop}/{len(latent_paddings)} frames={total_generated_frames}/{num_frames*len(latent_paddings)} window={latent_window_size} size={num_frames}')
                 if is_f1:
                     is_first_section, is_last_section = False, False
                 else:
@@ -308,7 +322,7 @@ def worker(
                 if is_last_section:
                     break
 
-            total_generated_frames, _video_filename = save_video(
+            total_generated_frames, _video_filename, _thumb = save_video(
                 p=None,
                 pixels=history_pixels,
                 audio=None,
@@ -327,7 +341,7 @@ def worker(
             )
 
     except AssertionError:
-        shared.log.info('FramePack: interrupted')
+        log.info('FramePack: interrupted')
         if shared.opts.keep_incomplete:
             save_video(
                 p=None,
@@ -347,11 +361,11 @@ def worker(
                 metadata=metadata,
             )
     except Exception as e:
-        shared.log.error(f'FramePack: {e}')
+        log.error(f'FramePack: {e}')
         errors.display(e, 'FramePack')
 
     sd_models.apply_balanced_offload(shared.sd_model)
     stream.output_queue.push(('end', None))
     t1 = time.time()
-    shared.log.info(f'Processed: frames={total_generated_frames} fps={total_generated_frames/(t1-t0):.2f} its={(shared.state.sampling_step)/(t1-t0):.2f} time={t1-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')
+    log.info(f'Processed: frames={total_generated_frames} fps={total_generated_frames/(t1-t0):.2f} its={(shared.state.sampling_step)/(t1-t0):.2f} time={t1-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')
     shared.state.end(videojob)

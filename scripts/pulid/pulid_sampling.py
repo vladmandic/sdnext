@@ -1,9 +1,6 @@
 import math
-from scipy import integrate
 import torch
 from torch import nn
-from torchdiffeq import odeint
-import torchsde
 from tqdm.auto import trange
 
 
@@ -80,6 +77,7 @@ class BatchedBrownianTree:
     """A wrapper around torchsde.BrownianTree that enables batches of entropy."""
 
     def __init__(self, x, t0, t1, seed=None, **kwargs):
+        import torchsde
         t0, t1, self.sign = self.sort(t0, t1)
         w0 = kwargs.get('w0', torch.zeros_like(x))
         if seed is None:
@@ -174,6 +172,7 @@ def sample_euler_ancestral(model, x, sigmas, extra_args=None, callback=None, dis
 
 
 def linear_multistep_coeff(order, t, i, j):
+    from scipy import integrate
     if order - 1 > i:
         raise ValueError(f'Order {order} too high for step {i}')
     def fn(tau):
@@ -188,6 +187,7 @@ def linear_multistep_coeff(order, t, i, j):
 
 @torch.no_grad()
 def log_likelihood(model, x, sigma_min, sigma_max, extra_args=None, atol=1e-4, rtol=1e-4):
+    from torchdiffeq import odeint
     extra_args = {} if extra_args is None else extra_args
     s_in = x.new_ones([x.shape[0]])
     v = torch.randint_like(x, 2) * 2 - 1

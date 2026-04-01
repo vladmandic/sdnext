@@ -1,7 +1,7 @@
 import math
 import torch
 from modules.postprocess.realesrgan_model_arch import RealESRGANer
-from installer import log
+from modules.logger import log
 
 
 # DML Solution: Some of contents of output tensor turn to 0 after Extended Slices. Move it to cpu.

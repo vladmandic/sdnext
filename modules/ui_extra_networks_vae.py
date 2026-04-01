@@ -2,6 +2,7 @@ import html
 import json
 import os
 from modules import shared, ui_extra_networks, sd_vae, hashes, modelstats
+from modules.logger import log
 
 
 class ExtraNetworksPageVAEs(ui_extra_networks.ExtraNetworksPage):
@@ -36,7 +37,7 @@ class ExtraNetworksPageVAEs(ui_extra_networks.ExtraNetworksPage):
                 }
                 yield record
             except Exception as e:
-                shared.log.debug(f'Networks error: type=vae file="{filename}" {e}')
+                log.debug(f'Networks error: type=vae file="{filename}" {e}')
 
     def allowed_directories_for_previews(self):
         return [v for v in [shared.opts.vae_dir] if v is not None]

@@ -108,7 +108,9 @@ function requestProgress(id_task, progressEl, galleryEl, atEnd = null, onProgres
     livePreview.appendChild(img);
     img.onload = () => {
       img.style.width = `min(100%, max(${img.naturalWidth}px, 512px))`;
-      parentGallery.style.minHeight = `${img.height}px`;
+      parentGallery.style.minHeight = `min(82vh, ${img.naturalWidth}px)`;
+      parentGallery.style.maxHeight = `min(82vh, ${img.naturalHeight}px)`;
+      parentGallery.style.overflow = 'hidden';
     };
   };
 
@@ -124,6 +126,8 @@ function requestProgress(id_task, progressEl, galleryEl, atEnd = null, onProgres
       if (parentGallery && livePreview) {
         parentGallery.removeChild(livePreview);
         parentGallery.style.minHeight = 'unset';
+        parentGallery.style.maxHeight = 'unset';
+        parentGallery.style.overflow = 'unset';
       }
     } catch { /* ignore */ }
     checkPaused(true);

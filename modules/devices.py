@@ -2,9 +2,12 @@ import os
 import sys
 import time
 import contextlib
+import importlib.metadata
 import torch
+from installer import torch_info
+from modules.logger import log
 from modules import rocm, attention
-from modules.errors import log, display, install as install_traceback
+from modules.errors import display, install as install_traceback
 
 
 debug = os.environ.get('SD_DEVICE_DEBUG', None) is not None
@@ -103,8 +106,8 @@ def get_gpu_info():
         elif torch.cuda.is_available() and torch.version.cuda:
             try:
                 import subprocess
-                result = subprocess.run('nvidia-smi --query-gpu=driver_version --format=csv,noheader', shell=True, check=False, env=os.environ, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                version = result.stdout.decode(encoding="utf8", errors="ignore").strip()
+                result = subprocess.run('nvidia-smi --query-gpu=driver_version --format=csv,noheader', shell=True, check=False, env=os.environ, capture_output=True, text=True)
+                version = result.stdout.strip()
                 return version
             except Exception:
                 return ''
@@ -112,10 +115,10 @@ def get_gpu_info():
             return ''
 
     def get_package_version(pkg: str):
-        import pkg_resources
-        spec = pkg_resources.working_set.by_key.get(pkg, None) # more reliable than importlib
-        version = pkg_resources.get_distribution(pkg).version if spec is not None else None
-        return version
+        try:
+            return importlib.metadata.version(pkg)
+        except Exception:
+            return None
 
     if not torch.cuda.is_available():
         try:
@@ -194,7 +197,7 @@ def get_optimal_device():
     return torch.device(get_optimal_device_name())
 
 
-def torch_gc(force:bool=False, fast:bool=False, reason:str=None):
+def torch_gc(force: bool = False, fast: bool = False, reason: str | None = None):
     def get_stats():
         mem_dict = memstats.memory_stats()
         gpu_dict = mem_dict.get('gpu', {})
@@ -306,7 +309,7 @@ def set_cuda_tunable():
             lines={0}
             try:
                 if os.path.exists(fn):
-                    with open(fn, 'r', encoding='utf8') as f:
+                    with open(fn, encoding='utf8') as f:
                         lines = sum(1 for _line in f)
             except Exception:
                 pass
@@ -397,17 +400,35 @@ def test_triton(early: bool = False):
             test_triton_func(torch.randn(16, device=device), torch.randn(16, device=device), torch.randn(16, device=device))
             triton_ok = True
         else:
+            torch_info.set(triton=False)
             triton_ok = False
     except Exception as e:
+        torch_info.set(triton=False)
         triton_ok = False
         line = str(e).splitlines()[0]
         log.warning(f"Triton test fail: {line}")
         if debug:
             from modules import errors
             errors.display(e, 'Triton')
+    triton_version = None
+    if triton_ok:
+        if triton_version is None:
+            try:
+                import torch._inductor.triton as torch_triton
+
+                triton_version = torch_triton.__version__
+            except Exception:
+                pass
+        if triton_version is None:
+            try:
+                import triton
+                triton_version = triton.__version__
+            except Exception:
+                pass
+        torch_info.set(triton=triton_version)
     t1 = time.time()
     fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-    log.debug(f'Triton: pass={triton_ok} fn={fn} time={t1-t0:.2f}')
+    log.debug(f'Triton: pass={triton_ok} version={triton_version} fn={fn} time={t1-t0:.2f}')
     if not triton_ok and opts is not None:
         opts.sdnq_dequantize_compile = False
     return triton_ok
@@ -468,6 +489,7 @@ def set_sdpa_params():
             torch.backends.cuda.enable_math_sdp('Math' in opts.sdp_options or 'Math attention' in opts.sdp_options)
             if hasattr(torch.backends.cuda, "allow_fp16_bf16_reduction_math_sdp"): # only valid for torch >= 2.5
                 torch.backends.cuda.allow_fp16_bf16_reduction_math_sdp(True)
+            torch_info.set(attention="sdpa")
             log.debug(f'Torch attention: type="sdpa" kernels={opts.sdp_options} overrides={opts.sdp_overrides}')
         except Exception as err:
             log.warning(f'Torch attention: type="sdpa" {err}')
@@ -558,6 +580,10 @@ def set_dtype():
         inference_context = contextlib.nullcontext
     else:
         inference_context = torch.no_grad
+    if dtype == dtype_vae:
+        torch_info.set(dtype=str(dtype))
+    else:
+        torch_info.set(dtype=str(dtype), vae=str(dtype_vae))
 
 
 def set_cuda_params():
@@ -658,3 +684,30 @@ def same_device(d1, d2):
     if torch.device(d1).type != torch.device(d2).type:
         return False
     return normalize_device(d1) == normalize_device(d2)
+
+
+@contextlib.contextmanager
+def bypass_sdpa_hijacks():
+    """
+    Context manager to temporarily restore the original SDPA during code execution.
+    Use when a model is incompatible with SageAttention or other SDPA hijacks.
+    """
+    if sdpa_original is None:
+        # No hijacks applied, nothing to bypass
+        yield
+        return
+
+    # Save current (hijacked) SDPA
+    current_sdpa = torch.nn.functional.scaled_dot_product_attention
+
+    try:
+        # Restore original SDPA
+        torch.nn.functional.scaled_dot_product_attention = sdpa_original
+        if debug:
+            log.debug('SDPA bypass: restored original attention')
+        yield
+    finally:
+        # Restore hijacked SDPA
+        torch.nn.functional.scaled_dot_product_attention = current_sdpa
+        if debug:
+            log.debug('SDPA bypass: restored hijacked attention')

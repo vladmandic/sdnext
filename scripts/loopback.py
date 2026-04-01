@@ -7,7 +7,7 @@ from modules.processing import Processed
 from modules.shared import opts, state, log
 
 
-class Script(scripts_manager.Script):
+class LoopbackScript(scripts_manager.Script):
     def title(self):
         return "Loopback"
 

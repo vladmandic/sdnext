@@ -2,6 +2,8 @@ import os
 import torch
 from typing import List
 from collections import namedtuple, OrderedDict
+from utils import revise_state_dict
+
 
 def is_torch2_available():
     return hasattr(torch.nn.functional, "scaled_dot_product_attention")

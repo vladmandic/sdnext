@@ -148,7 +148,9 @@ class State:
                 return job
         return None
 
-    def history(self, op:str, task_id:str=None, results:list=[]):
+    def history(self, op: str, task_id: str | None = None, results: list | None = None):
+        if results is None:
+            results = []
         job = {
             'id': task_id or self.id,
             'job': self.job.lower(),
@@ -172,7 +174,7 @@ class State:
         if len(self.results) > 0:
             self.history('output', self.id, results=self.results)
 
-    def get_id(self, task_id:str=None):
+    def get_id(self, task_id: str | None = None):
         if task_id is None or task_id == 0:
             task_id = uuid.uuid4().hex[:15]
         if not isinstance(task_id, str):
@@ -215,7 +217,7 @@ class State:
         self.sampling_steps = 0
         self.textinfo = None
         self.prediction_type = "epsilon"
-        self.api = api or self.api
+        self.api = api if api is not None else False
         self.time_start = time.time()
         self.history('begin', self.id)
         if debug_output:
@@ -223,7 +225,7 @@ class State:
         modules.devices.torch_gc()
         return self.id
 
-    def end(self, task_id=None):
+    def end(self, task_id=None, api=None):
         import modules.devices
         if debug_output:
             log.trace(f'State end: {self}')
@@ -234,6 +236,8 @@ class State:
                 self.job = prev_job['job']
                 self.duration = round(time.time() - prev_job['timestamp'], 3) if prev_job['timestamp'] is not None else None
         self.time_start = time.time()
+        if api is not None:
+            self.api = api
         self.history('end', task_id or self.id)
         self.clear()
         modules.devices.torch_gc()
@@ -269,7 +273,8 @@ class State:
     def do_set_current_image(self):
         if (self.current_latent is None) or self.disable_preview or (self.preview_job == self.job_no):
             return False
-        from modules import shared, sd_samplers
+        from modules import shared
+        from modules.sd_samplers_common import samples_to_image_grid, sample_to_image
         self.preview_job = self.job_no
         try:
             sample = self.current_latent
@@ -283,7 +288,7 @@ class State:
                         sample = self.current_noise_pred * (-self.current_sigma / (self.current_sigma**2 + 1) ** 0.5) + (original_sample / (self.current_sigma**2 + 1)) # pylint: disable=invalid-unary-operand-type
             except Exception:
                 pass # ignore sigma errors
-            image = sd_samplers.samples_to_image_grid(sample) if shared.opts.show_progress_grid else sd_samplers.sample_to_image(sample)
+            image = samples_to_image_grid(sample) if shared.opts.show_progress_grid else sample_to_image(sample)
             self.assign_current_image(image)
             self.preview_job = -1
             return True

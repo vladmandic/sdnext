@@ -1,6 +1,7 @@
 import safetensors.torch
 import transformers
-from installer import install, log
+from installer import install
+from modules.logger import log
 from modules import errors
 
 

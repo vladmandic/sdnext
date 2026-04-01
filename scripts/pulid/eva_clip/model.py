@@ -19,7 +19,7 @@ except Exception:
 from .modified_resnet import ModifiedResNet
 from .timm_model import TimmModel
 from .eva_vit_model import EVAVisionTransformer
-from .transformer import LayerNorm, QuickGELU, Attention, VisionTransformer, TextTransformer
+from .transformer import LayerNorm, LayerNormFp32, QuickGELU, Attention, VisionTransformer, TextTransformer
 
 try:
     from apex.normalization import FusedLayerNorm

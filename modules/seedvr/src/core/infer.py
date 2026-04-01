@@ -1,7 +1,6 @@
 from typing import List, Optional, Tuple, Union
 import torch
 from einops import rearrange
-from omegaconf import DictConfig, ListConfig
 from ..common.diffusion import classifier_free_guidance_dispatcher, create_sampler_from_config, create_sampling_timesteps_from_config, create_schedule_from_config
 from ..models.dit_v2 import na
 
@@ -40,7 +39,9 @@ def optimized_channels_to_second(tensor):
 
 
 class VideoDiffusionInfer():
-    def __init__(self, config: DictConfig, device: str, dtype: torch.dtype):
+    def __init__(self, config, device: str, dtype: torch.dtype):
+        from installer import install
+        install('omegaconf')
         self.config = config
         self.device = device
         self.dtype = dtype
@@ -48,6 +49,7 @@ class VideoDiffusionInfer():
         self.dit = None
         self.sampler = None
         self.schedule = None
+
     def get_condition(self, latent: torch.Tensor, latent_blur: torch.Tensor, task: str) -> torch.Tensor:
         t, h, w, c = latent.shape
         cond = torch.zeros([t, h, w, c + 1], device=latent.device, dtype=latent.dtype)
@@ -93,6 +95,7 @@ class VideoDiffusionInfer():
 
     @torch.no_grad()
     def vae_encode(self, samples: List[torch.Tensor]) -> List[torch.Tensor]:
+        from omegaconf import ListConfig
         use_sample = self.config.vae.get("use_sample", True)
         latents = []
         if len(samples) > 0:
@@ -138,6 +141,7 @@ class VideoDiffusionInfer():
     @torch.no_grad()
     def vae_decode(self, latents: List[torch.Tensor], target_dtype: torch.dtype = None) -> List[torch.Tensor]:
         """🚀 VAE decode optimisé - décodage direct sans chunking, compatible avec autocast externe"""
+        from omegaconf import ListConfig
         samples = []
         if len(latents) > 0:
             device = self.device

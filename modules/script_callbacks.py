@@ -2,10 +2,11 @@ import os
 import sys
 import time
 from collections import namedtuple
-from typing import Optional, Dict, Any
+from typing import Any
 from fastapi import FastAPI
 from gradio import Blocks
 import modules.errors as errors
+from modules.logger import log
 
 
 def report_exception(e, c, job):
@@ -141,7 +142,7 @@ def print_timers():
         if v > 0.05:
             long_callbacks.append(f'{k}={v:.2f}')
     if len(long_callbacks) > 0:
-        errors.log.debug(f'Script init: {long_callbacks}')
+        log.debug(f'Script init: {long_callbacks}')
 
 
 def clear_callbacks():
@@ -149,7 +150,7 @@ def clear_callbacks():
         callback_list.clear()
 
 
-def app_started_callback(demo: Optional[Blocks], app: FastAPI):
+def app_started_callback(demo: Blocks | None, app: FastAPI):
     for c in callback_map['callbacks_app_started']:
         try:
             t0 = time.time()
@@ -319,7 +320,7 @@ def image_grid_callback(params: ImageGridLoopParams):
             report_exception(e, c, 'image_grid')
 
 
-def infotext_pasted_callback(infotext: str, params: Dict[str, Any]):
+def infotext_pasted_callback(infotext: str, params: dict[str, Any]):
     for c in callback_map['callbacks_infotext_pasted']:
         try:
             t0 = time.time()

@@ -6,7 +6,8 @@ import numpy as np
 from torch.hub import download_url_to_file, get_dir
 from PIL import Image
 from modules import devices
-from installer import log
+from modules.image import convert
+from modules.logger import log
 
 
 LAMA_MODEL_URL = "https://github.com/enesmsahin/simple-lama-inpainting/releases/download/v0.1.0/big-lama.pt"
@@ -96,7 +97,5 @@ class SimpleLama:
         image, mask = prepare_img_and_mask(image, mask, self.device)
         with devices.inference_context():
             inpainted = self.model(image, mask)
-            cur_res = inpainted[0].permute(1, 2, 0).detach().float().cpu().numpy()
-            cur_res = np.clip(cur_res * 255, 0, 255).astype(np.uint8)
-            cur_res = Image.fromarray(cur_res)
+            cur_res = convert.to_pil(inpainted[0])
             return cur_res

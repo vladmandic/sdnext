@@ -3,7 +3,8 @@ import threading
 import numpy as np
 from PIL import Image
 from modules import shared, errors
-from modules.images_namegen import FilenameGenerator # pylint: disable=unused-import
+from modules.logger import log
+from modules.image.namegen import FilenameGenerator # pylint: disable=unused-import
 
 
 def interpolate_frames(images, count: int = 0, scale: float = 1.0, pad: int = 1, change: float = 0.3):
@@ -18,7 +19,7 @@ def interpolate_frames(images, count: int = 0, scale: float = 1.0, pad: int = 1,
             if len(frames) > 0:
                 images = frames
         except Exception as e:
-            shared.log.error(f'RIFE interpolation: {e}')
+            log.error(f'RIFE interpolation: {e}')
             errors.display(e, 'RIFE interpolation')
     return [np.array(image) for image in images]
 
@@ -27,7 +28,7 @@ def save_video_atomic(images, filename, video_type: str = 'none', duration: floa
     try:
         import cv2
     except Exception as e:
-        shared.log.error(f'Save video: cv2: {e}')
+        log.error(f'Save video: cv2: {e}')
         return
     savejob = shared.state.begin('Save video')
     os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -46,7 +47,7 @@ def save_video_atomic(images, filename, video_type: str = 'none', duration: floa
             loop = 0 if loop else 1,
         )
         size = os.path.getsize(filename)
-        shared.log.info(f'Save video: file="{filename}" frames={len(append) + 1} duration={duration} loop={loop} size={size}')
+        log.info(f'Save video: file="{filename}" frames={len(append) + 1} duration={duration} loop={loop} size={size}')
     elif video_type.lower() != 'none':
         frames = interpolate_frames(images, count=interpolate, scale=scale, pad=pad, change=change)
         fourcc = "mp4v"
@@ -56,7 +57,7 @@ def save_video_atomic(images, filename, video_type: str = 'none', duration: floa
             img = cv2.cvtColor(frames[i], cv2.COLOR_RGB2BGR)
             video_writer.write(img)
         size = os.path.getsize(filename)
-        shared.log.info(f'Save video: file="{filename}" frames={len(frames)} duration={duration} fourcc={fourcc} size={size}')
+        log.info(f'Save video: file="{filename}" frames={len(frames)} duration={duration} fourcc={fourcc} size={size}')
     shared.state.end(savejob)
 
 
@@ -95,7 +96,7 @@ def get_video_params(filepath: str, capture: bool = False):
     video = cv2.VideoCapture(filepath)
     if not video.isOpened():
         msg = f'Video open failed: path="{filepath}"'
-        shared.log.error(msg)
+        log.error(msg)
         raise RuntimeError(msg)
     frames = int(video.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = round(video.get(cv2.CAP_PROP_FPS), 2)

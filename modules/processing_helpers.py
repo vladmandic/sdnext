@@ -7,13 +7,13 @@ import torch
 import numpy as np
 import cv2
 from PIL import Image
-from blendmodes.blend import blendLayers, BlendType
 from modules import shared, devices, images, sd_models, sd_samplers, sd_vae, sd_hijack_hypertile, processing_vae, timer
+from modules.logger import log
 from modules.api import helpers
 
 
-debug = shared.log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug_steps = shared.log.trace if os.environ.get('SD_STEPS_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug_steps = log.trace if os.environ.get('SD_STEPS_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug_steps('Trace: STEPS')
 
 
@@ -29,22 +29,81 @@ def is_refiner_enabled(p):
     return p.enable_hr and (p.refiner_steps > 0) and (p.refiner_start > 0) and (p.refiner_start < 1) and (shared.sd_refiner is not None)
 
 
+class ColorCorrectionRef:
+    __slots__ = ('image', 'lab')
+    def __init__(self, lab, image):
+        self.lab = lab
+        self.image = image
+
+
 def setup_color_correction(image):
     debug("Calibrating color correction")
-    correction_target = cv2.cvtColor(np.asarray(image.copy()), cv2.COLOR_RGB2LAB)
-    return correction_target
+    lab = cv2.cvtColor(np.asarray(image.copy()), cv2.COLOR_RGB2LAB)
+    return ColorCorrectionRef(lab, image.copy())
 
 
-def apply_color_correction(correction, original_image):
+def _apply_histogram(correction, original_image):
+    from installer import install
+    install('scikit-image', quiet=True)
+    install('blendmodes', quiet=True)
     from skimage import exposure
-    shared.log.debug(f"Applying color correction: correction={correction.shape} image={original_image}")
+    from blendmodes.blend import blendLayers, BlendType
+    lab = correction.lab if isinstance(correction, ColorCorrectionRef) else correction
+    log.debug(f"Applying color correction: method=histogram correction={lab.shape} image={original_image}")
     np_image = np.asarray(original_image)
     np_recolor = cv2.cvtColor(np_image, cv2.COLOR_RGB2LAB)
-    np_match = exposure.match_histograms(np_recolor, correction, channel_axis=2)
+    np_match = exposure.match_histograms(np_recolor, lab, channel_axis=2)
     np_output = cv2.cvtColor(np_match, cv2.COLOR_LAB2RGB)
     image = Image.fromarray(np_output.astype("uint8"))
     image = blendLayers(image, original_image, BlendType.LUMINOSITY)
     return image
+
+
+def _apply_wavelet(correction, original_image):
+    ref_pil = correction.image if isinstance(correction, ColorCorrectionRef) else original_image
+    ref = torch.from_numpy(np.asarray(ref_pil).astype(np.float32) / 255.0).permute(2, 0, 1).unsqueeze(0)
+    gen = torch.from_numpy(np.asarray(original_image).astype(np.float32) / 255.0).permute(2, 0, 1).unsqueeze(0)
+    if ref.shape[2:] != gen.shape[2:]:
+        ref = torch.nn.functional.interpolate(ref, size=gen.shape[2:], mode='bilinear', align_corners=False)
+    kernel = torch.tensor([[1, 2, 1], [2, 4, 2], [1, 2, 1]], dtype=torch.float32).unsqueeze(0).unsqueeze(0) / 16.0
+    kernel = kernel.expand(3, -1, -1, -1)
+    log.debug(f"Applying color correction: method=wavelet levels=5 image={original_image}")
+    gen_highs = []
+    current = gen
+    for _ in range(5):
+        low = torch.nn.functional.conv2d(current, kernel, padding=1, groups=3)
+        gen_highs.append(current - low)
+        current = low
+    ref_low = ref
+    for _ in range(5):
+        ref_low = torch.nn.functional.conv2d(ref_low, kernel, padding=1, groups=3)
+    result = ref_low
+    for high in reversed(gen_highs):
+        result = result + high
+    result = result.clamp(0, 1).squeeze(0).permute(1, 2, 0).numpy()
+    return Image.fromarray((result * 255).astype(np.uint8))
+
+
+def _apply_adain(correction, original_image):
+    ref_pil = correction.image if isinstance(correction, ColorCorrectionRef) else original_image
+    ref = torch.from_numpy(np.asarray(ref_pil).astype(np.float32) / 255.0).permute(2, 0, 1).unsqueeze(0)
+    gen = torch.from_numpy(np.asarray(original_image).astype(np.float32) / 255.0).permute(2, 0, 1).unsqueeze(0)
+    if ref.shape[2:] != gen.shape[2:]:
+        ref = torch.nn.functional.interpolate(ref, size=gen.shape[2:], mode='bilinear', align_corners=False)
+    log.debug(f"Applying color correction: method=adain image={original_image}")
+    ref_mean = ref.mean(dim=(2, 3), keepdim=True)
+    ref_std = ref.std(dim=(2, 3), keepdim=True) + 1e-6
+    gen_mean = gen.mean(dim=(2, 3), keepdim=True)
+    gen_std = gen.std(dim=(2, 3), keepdim=True) + 1e-6
+    result = (gen - gen_mean) / gen_std * ref_std + ref_mean
+    result = result.clamp(0, 1).squeeze(0).permute(1, 2, 0).numpy()
+    return Image.fromarray((result * 255).astype(np.uint8))
+
+
+def apply_color_correction(correction, original_image, method='histogram'):
+    methods = {'histogram': _apply_histogram, 'wavelet': _apply_wavelet, 'adain': _apply_adain}
+    fn = methods.get(method, _apply_histogram)
+    return fn(correction, original_image)
 
 
 def apply_overlay(image: Image, paste_loc, index, overlays):
@@ -68,7 +127,7 @@ def apply_overlay(image: Image, paste_loc, index, overlays):
         image.alpha_composite(overlay)
         image = image.convert('RGB')
     except Exception as e:
-        shared.log.error(f'Apply overlay: {e}')
+        log.error(f'Apply overlay: {e}')
     return image
 
 
@@ -96,16 +155,16 @@ def images_tensor_to_samples(image, approximation=None, model=None): # pylint: d
     return x_latent
 
 
-def get_sampler_name(sampler_index: int, img: bool = False) -> str:
+def get_sampler_name(sampler_index: int | None = None, img: bool = False) -> str:
     sampler_index = sampler_index or 0
     if len(sd_samplers.samplers) > sampler_index:
         sampler_name = sd_samplers.samplers[sampler_index].name
     else:
         sampler_name = "Default"
-        shared.log.warning(f'Sampler not found: index={sampler_index} available={[s.name for s in sd_samplers.samplers]} fallback={sampler_name}')
+        log.warning(f'Sampler not found: index={sampler_index} available={[s.name for s in sd_samplers.samplers]} fallback={sampler_name}')
     if img and sampler_name == "PLMS":
         sampler_name = "Default"
-        shared.log.warning(f'Sampler not compatible: name=PLMS fallback={sampler_name}')
+        log.warning(f'Sampler not compatible: name=PLMS fallback={sampler_name}')
     return sampler_name
 
 
@@ -157,13 +216,18 @@ def slerp_alt(val, lo, hi): # from https://discuss.pytorch.org/t/help-regarding-
 
 
 def create_random_tensors(shape, seeds, subseeds=None, subseed_strength=0.0, seed_resize_from_h=0, seed_resize_from_w=0, p=None):
-    eta_noise_seed_delta = shared.opts.eta_noise_seed_delta or 0
+    eta_noise_seed_delta = (getattr(p, 'eta_noise_seed_delta', None) if p is not None else None)
+    if eta_noise_seed_delta is None:
+        eta_noise_seed_delta = shared.opts.eta_noise_seed_delta or 0
+    enable_batch_seeds = (getattr(p, 'enable_batch_seeds', None) if p is not None else None)
+    if enable_batch_seeds is None:
+        enable_batch_seeds = shared.opts.enable_batch_seeds
     xs = []
     # if we have multiple seeds, this means we are working with batch size>1; this then
     # enables the generation of additional tensors with noise that the sampler will use during its processing.
     # Using those pre-generated tensors instead of simple torch.randn allows a batch with seeds [100, 101] to
     # produce the same images as with two batches [100], [101].
-    if p is not None and p.sampler is not None and ((len(seeds) > 1 and shared.opts.enable_batch_seeds) or (eta_noise_seed_delta > 0)):
+    if p is not None and p.sampler is not None and ((len(seeds) > 1 and enable_batch_seeds) or (eta_noise_seed_delta > 0)):
         sampler_noises = [[] for _ in range(p.sampler.number_of_needed_noises(p))]
     else:
         sampler_noises = None
@@ -207,7 +271,7 @@ def create_random_tensors(shape, seeds, subseeds=None, subseed_strength=0.0, see
 
 def decode_first_stage(model, x):
     if not shared.opts.keep_incomplete and (shared.state.skipped or shared.state.interrupted):
-        shared.log.debug(f'Decode VAE: skipped={shared.state.skipped} interrupted={shared.state.interrupted}')
+        log.debug(f'Decode VAE: skipped={shared.state.skipped} interrupted={shared.state.interrupted}')
         x_sample = torch.zeros((len(x), 3, x.shape[2] * 8, x.shape[3] * 8), dtype=devices.dtype_vae, device=devices.device)
         return x_sample
     with devices.autocast(disable = x.dtype==devices.dtype_vae):
@@ -219,10 +283,10 @@ def decode_first_stage(model, x):
                 x_sample = processing_vae.vae_decode(latents=x, model=model, output_type='np')
             else:
                 x_sample = x
-                shared.log.error('Decode VAE unknown model')
+                log.error('Decode VAE unknown model')
         except Exception as e:
             x_sample = x
-            shared.log.error(f'Decode VAE: {e}')
+            log.error(f'Decode VAE: {e}')
     return x_sample
 
 
@@ -270,7 +334,7 @@ def validate_sample(tensor):
     elif isinstance(tensor, np.ndarray):
         sample = tensor
     else:
-        shared.log.warning(f'Decode: type={type(tensor)} unknown sample')
+        log.warning(f'Decode: type={type(tensor)} unknown sample')
         return tensor
     sample = 255.0 * sample
     with warnings.catch_warnings(record=True) as w:
@@ -281,10 +345,10 @@ def validate_sample(tensor):
         cast = cast.astype(np.uint8)
         vae = shared.sd_model.vae.dtype if hasattr(shared.sd_model, 'vae') else None
         upcast = getattr(shared.sd_model.vae.config, 'force_upcast', None) if hasattr(shared.sd_model, 'vae') and hasattr(shared.sd_model.vae, 'config') else None
-        shared.log.error(f'Decode: sample={sample.shape} invalid={nans} dtype={dtype} vae={vae} upcast={upcast} failed to validate')
+        log.error(f'Decode: sample={sample.shape} invalid={nans} dtype={dtype} vae={vae} upcast={upcast} failed to validate')
         if upcast is not None and not upcast:
             setattr(shared.sd_model.vae.config, 'force_upcast', True) # noqa: B010
-            shared.log.info('Decode: set upcast=True and attempt to retry operation')
+            log.info('Decode: set upcast=True and attempt to retry operation')
     t1 = time.time()
     timer.process.add('validate', t1 - t0)
     return cast
@@ -298,24 +362,24 @@ def decode_images(image):
                 try:
                     decoded.append(helpers.decode_base64_to_image(img, quiet=True))
                 except Exception as e:
-                    shared.log.error(f'Decode image[{i}]: {e}')
+                    log.error(f'Decode image[{i}]: {e}')
             elif isinstance(img, Image.Image):
                 decoded.append(img)
             else:
-                shared.log.error(f'Decode image[{i}]: {type(img)} unknown type')
+                log.error(f'Decode image[{i}]: {type(img)} unknown type')
         return decoded
     elif isinstance(image, str):
         try:
             return helpers.decode_base64_to_image(image, quiet=True)
         except Exception as e:
-            shared.log.error(f'Decode image: {e}')
+            log.error(f'Decode image: {e}')
     # elif isinstance(image, Image.Image):
     #     return image
     # elif torch.is_tensor(image):
     #     return image
     else:
         return image
-        # shared.log.error(f'Decode image: {type(image)} unknown type')
+        # log.error(f'Decode image: {type(image)} unknown type')
     return None
 
 
@@ -329,7 +393,7 @@ def resize_init_images(p):
             tgt_width = vae_scale_factor * math.ceil(p.init_images[0].width / vae_scale_factor)
             tgt_height = vae_scale_factor * math.ceil(p.init_images[0].height / vae_scale_factor)
             if p.init_images[0].size != (tgt_width, tgt_height):
-                shared.log.debug(f'Resizing init images: original={p.init_images[0].width}x{p.init_images[0].height} target={tgt_width}x{tgt_height}')
+                log.debug(f'Resizing init images: original={p.init_images[0].width}x{p.init_images[0].height} target={tgt_width}x{tgt_height}')
                 p.init_images = [images.resize_image(1, image, tgt_width, tgt_height, upscaler_name=None) for image in p.init_images]
                 p.height = tgt_height
                 p.width = tgt_width
@@ -351,7 +415,7 @@ def resize_init_images(p):
 
 def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler else latent
     if (p.hr_upscale_to_x == 0 or p.hr_upscale_to_y == 0) and hasattr(p, 'init_hr'):
-        shared.log.error('Hires: missing upscaling dimensions')
+        log.error('Hires: missing upscaling dimensions')
         return latents
 
     jobid = shared.state.begin('Resize')
@@ -361,14 +425,14 @@ def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler 
             try:
                 for i in range(len(latents)):
                     if not torch.is_tensor(latents[i]):
-                        shared.log.warning(f'Hires: input[{i}]={type(latents[i])} not tensor')
+                        log.warning(f'Hires: input[{i}]={type(latents[i])} not tensor')
                         latents[i] = processing_vae.vae_encode(image=latents[i], model=shared.sd_model, vae_type=p.vae_type)
                     latents = torch.cat(latents, dim=0)
             except Exception as e:
-                shared.log.error(f'Hires: prepare latents: {e}')
+                log.error(f'Hires: prepare latents: {e}')
                 resized = latents
         elif not torch.is_tensor(latents):
-            shared.log.warning(f'Hires: input={type(latents)} not tensor')
+            log.warning(f'Hires: input={type(latents)} not tensor')
         resized = images.resize_image(p.hr_resize_mode, latents, p.hr_upscale_to_x, p.hr_upscale_to_y, upscaler_name=p.hr_upscaler, context=p.hr_resize_context)
     else:
         decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
@@ -441,20 +505,23 @@ def calculate_refiner_steps(p):
 
 
 def get_generator(p):
-    if shared.opts.diffusers_generator_device == "Unset":
+    gen_device_opt = getattr(p, 'diffusers_generator_device', None) if p is not None else None
+    if gen_device_opt is None:
+        gen_device_opt = shared.opts.diffusers_generator_device
+    if gen_device_opt == "Unset":
         generator_device = None
         generator = None
     elif getattr(p, "generator", None) is not None:
-        generator_device = devices.cpu if shared.opts.diffusers_generator_device == "CPU" else shared.device
+        generator_device = devices.cpu if gen_device_opt == "CPU" else shared.device
         generator = p.generator
     else:
-        generator_device = devices.cpu if shared.opts.diffusers_generator_device == "CPU" else shared.device
+        generator_device = devices.cpu if gen_device_opt == "CPU" else shared.device
         try:
             p.seeds = [seed if seed != -1 else get_fixed_seed(seed) for seed in p.seeds if seed]
             devices.randn(p.seeds[0])
             generator = [torch.Generator(generator_device).manual_seed(s) for s in p.seeds]
         except Exception as e:
-            shared.log.error(f'Torch generator: seeds={p.seeds} device={generator_device} {e}')
+            log.error(f'Torch generator: seeds={p.seeds} device={generator_device} {e}')
             generator = None
     return generator
 
@@ -489,7 +556,7 @@ def apply_circular(enable: bool, model):
             layer.padding_mode = 'circular' if enable else 'zeros'
         model.texture_tiling = enable
         if current is not None or enable:
-            shared.log.debug(f'Apply texture tiling: enabled={enable} layers={i} cls={model.__class__.__name__} ')
+            log.debug(f'Apply texture tiling: enabled={enable} layers={i} cls={model.__class__.__name__} ')
     except Exception as e:
         debug(f"Diffusers tiling failed: {e}")
 
@@ -510,9 +577,18 @@ def update_sampler(p, sd_model, second_pass=False):
             return
         sampler = sd_samplers.find_sampler(sampler_selection)
         if sampler is None:
-            shared.log.warning(f'Sampler: "{sampler_selection}" not found')
+            log.warning(f'Sampler: "{sampler_selection}" not found')
             sampler = sd_samplers.all_samplers_map.get("UniPC")
-        sampler = sd_samplers.create_sampler(sampler.name, sd_model)
+        sched_override_keys = [
+            'schedulers_prediction_type', 'schedulers_beta_schedule', 'schedulers_timesteps',
+            'schedulers_sigma', 'schedulers_use_thresholding', 'schedulers_use_loworder',
+            'schedulers_solver_order', 'uni_pc_variant', 'schedulers_beta_start',
+            'schedulers_beta_end', 'schedulers_shift', 'schedulers_dynamic_shift',
+            'schedulers_base_shift', 'schedulers_max_shift', 'schedulers_rescale_betas',
+            'schedulers_timestep_spacing', 'schedulers_timesteps_range',
+        ]
+        scheduler_overrides = {k: getattr(p, k) for k in sched_override_keys if getattr(p, k, None) is not None}
+        sampler = sd_samplers.create_sampler(sampler.name, sd_model, scheduler_overrides=scheduler_overrides)
         if sampler is None or sampler_selection == 'Default':
             if second_pass:
                 p.hr_sampler = 'Default'

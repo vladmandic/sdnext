@@ -3,11 +3,12 @@ import tempfile
 from collections import namedtuple
 from pathlib import Path
 from PIL import Image, PngImagePlugin
-from modules import shared, errors, paths
+from modules import shared, paths
+from modules.logger import log
 
 
 Savedfile = namedtuple("Savedfile", ["name"])
-debug = errors.log.trace if os.environ.get('SD_PATH_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_PATH_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 def register_tmp_file(gradio, filename):
@@ -77,13 +78,13 @@ def pil_to_temp_file(self, img: Image, dir: str, format="png") -> str: # pylint:
             use_metadata = True
     if not os.path.exists(folder):
         os.makedirs(folder, exist_ok=True)
-        shared.log.debug(f'Created temp folder: path="{folder}"')
+        log.debug(f'Created temp folder: path="{folder}"')
     with tempfile.NamedTemporaryFile(delete=False, suffix=".png", dir=folder) as tmp:
         name = tmp.name
         img.save(name, pnginfo=(metadata if use_metadata else None))
         img.already_saved_as = name
         size = os.path.getsize(name)
-        shared.log.debug(f'Save temp: image="{name}" width={img.width} height={img.height} size={size}')
+        log.debug(f'Save temp: image="{name}" width={img.width} height={img.height} size={size}')
         shared.state.image_history += 1
     params = ', '.join([f'{k}: {v}' for k, v in img.info.items()])
     params = params[12:] if params.startswith('parameters: ') else params
@@ -105,7 +106,7 @@ def cleanup_tmpdr():
     temp_dir = shared.opts.temp_dir
     if temp_dir == "" or not os.path.isdir(temp_dir):
         temp_dir = os.path.join(paths.temp_dir, "gradio")
-    shared.log.debug(f'Temp folder: path="{temp_dir}"')
+    log.debug(f'Temp folder: path="{temp_dir}"')
     if not os.path.isdir(temp_dir):
         return
     for root, _dirs, files in os.walk(temp_dir, topdown=False):

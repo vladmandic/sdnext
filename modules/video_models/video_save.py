@@ -7,11 +7,12 @@ import torch
 import einops
 from PIL import Image
 from modules import shared, errors ,timer, rife, processing
+from modules.logger import log
 from modules.video_models.video_utils import check_av
 
 
 def get_video_filename(p:processing.StableDiffusionProcessingVideo):
-    from modules.images_namegen import FilenameGenerator
+    from modules.image.namegen import FilenameGenerator
     namegen = FilenameGenerator(p, seed=p.seed if p is not None else 0, prompt=p.prompt if p is not None else '')
     filename = namegen.apply(shared.opts.samples_filename_pattern if shared.opts.samples_filename_pattern and len(shared.opts.samples_filename_pattern) > 0 else "[seq]-[prompt_words]")
     if shared.opts.save_to_dirs:
@@ -28,7 +29,7 @@ def get_video_filename(p:processing.StableDiffusionProcessingVideo):
     return filename
 
 
-def save_params(p, filename: str = None):
+def save_params(p, filename: str | None = None):
     from modules.paths import params_path
     if p is None:
         dct = {}
@@ -60,7 +61,7 @@ def images_to_tensor(images):
     tensor = tensor.unsqueeze(0) # 1, n, h, w, c
     tensor = tensor.permute(0, 4, 1, 2, 3).contiguous() # 1, c, n, h, w
     tensor = (tensor.float() / 127.5) - 1.0 # from [0,255] to [-1,1]
-    # shared.log.debug(f'Video output: images={len(images)} tensor={tensor.shape}')
+    # log.debug(f'Video output: images={len(images)} tensor={tensor.shape}')
     return tensor
 
 
@@ -73,7 +74,7 @@ def numpy_to_tensor(images):
     tensor = tensor.unsqueeze(0) # 1, n, h, w, c
     tensor = tensor.permute(0, 4, 1, 2, 3).contiguous() # 1, c, n, h, w
     # tensor = (tensor.float() / 127.5) - 1.0 # from [0,255] to [-1,1]
-    # shared.log.debug(f'Video output: images={len(images)} tensor={tensor.shape}')
+    # log.debug(f'Video output: images={len(images)} tensor={tensor.shape}')
     return tensor
 
 
@@ -91,7 +92,7 @@ def write_audio(
     audio_stream.codec_context.format = "fltp"
     audio_stream.codec_context.time_base = Fraction(1, audio_sample_rate)
     # audio_stream.time_base = audio_stream.codec_context.time_base # TODO audio set time-base
-    shared.log.debug(f'Audio: codec={audio_stream.codec_context.name} rate={audio_stream.codec_context.sample_rate} layout={audio_stream.codec_context.layout} format={audio_stream.codec_context.format} base={audio_stream.codec_context.time_base}')
+    log.debug(f'Audio: codec={audio_stream.codec_context.name} rate={audio_stream.codec_context.sample_rate} layout={audio_stream.codec_context.layout} format={audio_stream.codec_context.format} base={audio_stream.codec_context.time_base}')
     # init input samples
     if samples.ndim == 1:
         samples = samples[:, None]
@@ -128,20 +129,23 @@ def write_audio(
         container.mux(packet)
 
 
-def atomic_save_video(filename: str,
-                      tensor:torch.Tensor,
-                      audio:torch.Tensor=None,
-                      fps:float=24,
-                      codec:str='libx264',
-                      pix_fmt:str='yuv420p',
-                      options:str='',
-                      aac:int=24000,
-                      metadata:dict={},
-                      pbar=None,
-                    ):
+def atomic_save_video(
+    filename: str,
+    tensor: torch.Tensor,
+    audio: torch.Tensor | None = None,
+    fps: float = 24,
+    codec: str = "libx264",
+    pix_fmt: str = "yuv420p",
+    options: str = "",
+    aac: int = 24000,
+    metadata: dict | None = None,
+    pbar=None,
+):
+    if metadata is None:
+        metadata = {}
     av = check_av()
     if av is None or av is False:
-        shared.log.error('Video: ffmpeg/av not available')
+        log.error('Video: ffmpeg/av not available')
         return
 
     savejob = shared.state.begin('Save video')
@@ -157,7 +161,7 @@ def atomic_save_video(filename: str,
         else:
             continue
         options[key.strip()] = value.strip()
-    shared.log.info(f'Video: file="{filename}" codec={codec} frames={frames} width={width} height={height} fps={rate} audio={audio is not None} aac={aac} options={options}')
+    log.info(f'Video: file="{filename}" codec={codec} frames={frames} width={width} height={height} fps={rate} audio={audio is not None} aac={aac} options={options}')
     video_array = torch.as_tensor(tensor, dtype=torch.uint8).numpy(force=True)
 
     task = pbar.add_task('encoding', total=frames) if pbar is not None else None
@@ -183,31 +187,51 @@ def atomic_save_video(filename: str,
             try:
                 write_audio(container, audio, aac)
             except Exception as e:
-                shared.log.error(f'Video audio encoding: {e}')
+                log.error(f'Video audio encoding: {e}')
                 errors.display(e, 'Audio')
 
     shared.state.outputs(filename)
     shared.state.end(savejob)
 
 
+def save_thumbnail(video_path, tensor=None):
+    try:
+        base = os.path.splitext(video_path)[0]
+        thumb_path = f'{base}.thumb.jpg'
+        if tensor is not None and len(tensor) > 0:
+            frame = Image.fromarray(tensor[0].numpy())
+        else:
+            from modules.video import get_video_params
+            _frames, _fps, _dur, _w, _h, _codec, frame = get_video_params(video_path, capture=True)
+        if frame is not None:
+            frame.thumbnail((512, 512), Image.Resampling.LANCZOS)
+            frame.save(thumb_path, quality=80)
+            return thumb_path
+    except Exception as e:
+        log.debug(f'Video thumbnail: {e}')
+    return None
+
+
 def save_video(
-        p:processing.StableDiffusionProcessingVideo,
-        pixels:torch.Tensor=None,
-        audio:torch.Tensor=None,
-        binary:bytes=None,
-        mp4_fps:int=24,
-        mp4_codec:str='libx264',
-        mp4_opt:str='',
-        mp4_ext:str='mp4',
-        mp4_sf:bool=False, # save safetensors
-        mp4_video:bool=True, # save video
-        mp4_frames:bool=False, # save frames
-        mp4_interpolate:int=0, # rife interpolation
-        aac_sample_rate:int=24000, # audio sample rate
-        stream=None, # async progress reporting stream
-        metadata:dict={}, # metadata for video
-        pbar=None, # progress bar for video
-    ):
+    p: processing.StableDiffusionProcessingVideo,
+    pixels: torch.Tensor | None = None,
+    audio: torch.Tensor | None = None,
+    binary: bytes | None = None,
+    mp4_fps: int = 24,
+    mp4_codec: str = "libx264",
+    mp4_opt: str = "",
+    mp4_ext: str = "mp4",
+    mp4_sf: bool = False,  # save safetensors
+    mp4_video: bool = True,  # save video
+    mp4_frames: bool = False,  # save frames
+    mp4_interpolate: int = 0,  # rife interpolation
+    aac_sample_rate: int = 24000,  # audio sample rate
+    stream=None,  # async progress reporting stream
+    metadata: dict | None = None,  # metadata for video
+    pbar=None,  # progress bar for video
+):
+    if metadata is None:
+        metadata = {}
     output_video = None
 
     if binary is not None:
@@ -217,29 +241,30 @@ def save_video(
             try:
                 with open(output_video, 'wb') as f:
                     f.write(binary)
-                shared.log.info(f'Video output: file="{output_video}" size={len(binary)}')
+                log.info(f'Video output: file="{output_video}" size={len(binary)}')
                 shared.state.outputs(output_video)
             except Exception as e:
-                shared.log.error(f'Video output: file="{output_video}" {e}')
+                log.error(f'Video output: file="{output_video}" {e}')
         except Exception as e:
-            shared.log.error(f'Video output: file="{output_video}" write error {e}')
+            log.error(f'Video output: file="{output_video}" write error {e}')
             errors.display(e, 'video')
-        return 0, output_video
+        thumb = save_thumbnail(output_video)
+        return 0, output_video, thumb
 
     if pixels is None:
-        return 0, output_video
+        return 0, output_video, None
     if isinstance(pixels, np.ndarray):
         pixels = numpy_to_tensor(pixels)
     if isinstance(pixels, list) and isinstance(pixels[0], Image.Image):
         pixels = images_to_tensor(pixels)
     if not torch.is_tensor(pixels):
-        shared.log.error(f'Video: type={type(pixels)} not a tensor')
-        return 0, output_video
+        log.error(f'Video: type={type(pixels)} not a tensor')
+        return 0, output_video, None
     t_save = time.time()
     n, _c, t, h, w = pixels.shape
     size = pixels.element_size() * pixels.numel()
-    shared.log.debug(f'Video: video={mp4_video} export={mp4_frames} safetensors={mp4_sf} interpolate={mp4_interpolate}')
-    shared.log.debug(f'Video: encode={t} raw={size} latent={pixels.shape} audio={audio.shape if audio is not None else None} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
+    log.debug(f'Video: video={mp4_video} export={mp4_frames} safetensors={mp4_sf} interpolate={mp4_interpolate}')
+    log.debug(f'Video: encode={t} raw={size} latent={pixels.shape} audio={audio.shape if audio is not None else None} fps={mp4_fps} codec={mp4_codec} ext={mp4_ext} options="{mp4_opt}"')
     try:
         preparejob = shared.state.begin('Prepare video')
         if stream is not None:
@@ -263,13 +288,13 @@ def save_video(
 
         if mp4_sf:
             fn = f'{output_filename}.safetensors'
-            shared.log.info(f'Video export: file="{fn}" type=savetensors shape={x.shape}')
+            log.info(f'Video export: file="{fn}" type=savetensors shape={x.shape}')
             from safetensors.torch import save_file
             shared.state.outputs(fn)
             save_file({ 'frames': x }, fn, metadata={'format': 'video', 'frames': str(t), 'width': str(w), 'height': str(h), 'fps': str(mp4_fps), 'codec': mp4_codec, 'options': mp4_opt, 'ext': mp4_ext, 'interpolate': str(mp4_interpolate)})
 
         if mp4_frames:
-            shared.log.info(f'Video frames: files="{output_filename}-00000.jpg" frames={t} width={w} height={h}')
+            log.info(f'Video frames: files="{output_filename}-00000.jpg" frames={t} width={w} height={h}')
             for i in range(t):
                 image = cv2.cvtColor(x[i].numpy(), cv2.COLOR_RGB2BGR)
                 fn = f'{output_filename}-{i:05d}.jpg'
@@ -289,7 +314,8 @@ def save_video(
                 stream.output_queue.push(('progress', (None, '')))
 
     except Exception as e:
-        shared.log.error(f'Video save: raw={size} {e}')
+        log.error(f'Video save: raw={size} {e}')
         errors.display(e, 'video')
     timer.process.add('save', time.time()-t_save)
-    return t, output_video
+    thumb = save_thumbnail(output_video) if output_video is not None else None
+    return t, output_video, thumb

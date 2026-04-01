@@ -1,4 +1,3 @@
-from typing import List
 import os
 import cv2
 import torch
@@ -6,6 +5,7 @@ import numpy as np
 import huggingface_hub as hf
 from PIL import Image
 from modules import processing, shared, devices
+from modules.logger import log
 
 RESWAPPER_REPO = 'somanchiu/reswapper'
 RESWAPPER_MODELS = {
@@ -16,7 +16,7 @@ RESWAPPER_MODELS = {
 }
 reswapper_model = None
 reswapper_name = None
-debug = shared.log.trace if os.environ.get("SD_FACE_DEBUG", None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get("SD_FACE_DEBUG", None) is not None else lambda *args, **kwargs: None
 dtype = devices.dtype
 
 def get_model(model_name: str):
@@ -31,26 +31,26 @@ def get_model(model_name: str):
             reswapper_model = reswapper_model.to(device=devices.device, dtype=dtype)
             reswapper_model.eval()
             reswapper_name = model_name
-            shared.log.info(f'ReSwapper: model="{model_name}" url="{url}" cls={reswapper_model.__class__.__name__}')
+            log.info(f'ReSwapper: model="{model_name}" url="{url}" cls={reswapper_model.__class__.__name__}')
             if reswapper_model is None:
-                shared.log.error(f'ReSwapper: model="{model_name}" fn="{fn}" url="{url}" failed to load model')
+                log.error(f'ReSwapper: model="{model_name}" fn="{fn}" url="{url}" failed to load model')
             return reswapper_model
         except Exception as e:
-            shared.log.error(f'ReSwapper: model="{model_name}" fn="{fn}" url="{url}" {e}')
+            log.error(f'ReSwapper: model="{model_name}" fn="{fn}" url="{url}" {e}')
     return reswapper_model
 
 
 def reswapper(
     p: processing.StableDiffusionProcessing,
     app,
-    source_images: List[Image.Image],
-    target_images: List[Image.Image],
+    source_images: list[Image.Image],
+    target_images: list[Image.Image],
     model_name: str,
     original: bool,
 ):
     from modules.face import reswapper_utils as utils
     if source_images is None or len(source_images) == 0:
-        shared.log.warning('ReSwapper: no input images')
+        log.warning('ReSwapper: no input images')
         return None
 
     processed_images = []
@@ -68,22 +68,22 @@ def reswapper(
         source_np = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
         source_faces = app.get(source_np)
         if len(source_faces) == 0:
-            shared.log.error(f"ReSwapper: image={x+1} no source faces found")
+            log.error(f"ReSwapper: image={x+1} no source faces found")
             return source_images
         if len(source_faces) != len(target_images):
-            shared.log.warning(f"ReSwapper: image={x+1} source-faces={len(source_faces)} target-images={len(target_images)}")
+            log.warning(f"ReSwapper: image={x+1} source-faces={len(source_faces)} target-images={len(target_images)}")
         for y, source_face in enumerate(source_faces):
             target_image = target_images[y] if y < len(target_images) else target_images[-1]
             target_image = target_image.convert('RGB')
             target_np = cv2.cvtColor(np.array(target_image), cv2.COLOR_RGB2BGR)
             target_faces = app.get(target_np)
             if len(target_faces) != 1:
-                shared.log.error(f"ReSwapper: image={x+1} source-faces={y+1} target-faces={len(target_faces)} must be exactly one")
+                log.error(f"ReSwapper: image={x+1} source-faces={y+1} target-faces={len(target_faces)} must be exactly one")
                 return source_images
             target_face = target_faces[0]
             source_str = f'score:{source_face.det_score:.2f} gender:{"female" if source_face.gender==0 else "male"} age:{source_face.age}'
             target_str = f'score:{target_face.det_score:.2f} gender:{"female" if target_face.gender==0 else "male"} age:{target_face.age}'
-            shared.log.debug(f'ReSwapper image={x+1} face={y+1} source="{source_str}" target="{target_str}"')
+            log.debug(f'ReSwapper image={x+1} face={y+1} source="{source_str}" target="{target_str}"')
 
             source_latent = utils.getLatent(source_face)
             source_tensor = torch.from_numpy(source_latent).to(device=devices.device, dtype=dtype)

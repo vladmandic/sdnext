@@ -1,18 +1,23 @@
-from typing import Union
+from __future__ import annotations
+
 import re
 import time
+from typing import TYPE_CHECKING
 import torch
-import diffusers.models.lora
-from modules.errorlimiter import ErrorLimiter
 from modules.lora import lora_common as l
 from modules import shared, devices, errors, model_quant
+from modules.logger import log
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+    import diffusers.models.lora
 
 
 bnb = None
 re_network_name = re.compile(r"(.*)\s*\([0-9a-fA-F]+\)")
 
 
-def network_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.GroupNorm, torch.nn.LayerNorm, diffusers.models.lora.LoRACompatibleLinear, diffusers.models.lora.LoRACompatibleConv], network_layer_name: str, wanted_names: tuple):
+def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, wanted_names: tuple):
     global bnb # pylint: disable=W0603
     backup_size = 0
     if len(l.loaded_networks) > 0 and network_layer_name is not None and any([net.modules.get(network_layer_name, None) for net in l.loaded_networks]): # noqa: C419 # pylint: disable=R1729
@@ -76,7 +81,7 @@ def network_backup_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.n
     return backup_size
 
 
-def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.GroupNorm, torch.nn.LayerNorm, diffusers.models.lora.LoRACompatibleLinear, diffusers.models.lora.LoRACompatibleConv], network_layer_name: str, use_previous: bool = False):
+def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, use_previous: bool = False, *, elimit: Callable[[], None] | None = None):
     if shared.opts.diffusers_offload_mode == "none":
         try:
             self.to(devices.device)
@@ -138,16 +143,17 @@ def network_calc_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
         except RuntimeError as e:
             l.extra_network_lora.errors[net.name] = l.extra_network_lora.errors.get(net.name, 0) + 1
             module_name = net.modules.get(network_layer_name, None)
-            shared.log.error(f'Network: type=LoRA name="{net.name}" module="{module_name}" layer="{network_layer_name}" apply weight: {e}')
+            log.error(f'Network: type=LoRA name="{net.name}" module="{module_name}" layer="{network_layer_name}" apply weight: {e}')
             if l.debug:
                 errors.display(e, 'LoRA')
                 raise RuntimeError('LoRA apply weight') from e
-            ErrorLimiter.notify(("network_activate", "network_deactivate"))
+            if elimit is not None:
+                elimit()
         continue
     return batch_updown, batch_ex_bias
 
 
-def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.GroupNorm, torch.nn.LayerNorm, diffusers.models.lora.LoRACompatibleLinear, diffusers.models.lora.LoRACompatibleConv], model_weights: Union[None, torch.Tensor] = None, lora_weights: torch.Tensor = None, deactivate: bool = False, device: torch.device = None, bias: bool = False):
+def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, model_weights: None | torch.Tensor = None, lora_weights: torch.Tensor = None, deactivate: bool = False, device: torch.device = None, bias: bool = False):
     if lora_weights is None:
         return
     if deactivate:
@@ -164,7 +170,7 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             # TODO lora: maybe force imediate quantization
             # weight._quantize(devices.device) / weight.to(device=device)
         except Exception as e:
-            shared.log.error(f'Network load: type=LoRA quant=bnb cls={self.__class__.__name__} type={self.quant_type} blocksize={self.blocksize} state={vars(self.quant_state)} weight={self.weight} bias={lora_weights} {e}')
+            log.error(f'Network load: type=LoRA quant=bnb cls={self.__class__.__name__} type={self.quant_type} blocksize={self.blocksize} state={vars(self.quant_state)} weight={self.weight} bias={lora_weights} {e}')
     elif not bias and hasattr(self, "sdnq_dequantizer"):
         try:
             from modules.sdnq import sdnq_quantize_layer
@@ -219,14 +225,14 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
             weight = None
             del dequant_weight
         except Exception as e:
-            shared.log.error(f'Network load: type=LoRA quant=sdnq cls={self.__class__.__name__} weight={self.weight} lora_weights={lora_weights} {e}')
+            log.error(f'Network load: type=LoRA quant=sdnq cls={self.__class__.__name__} weight={self.weight} lora_weights={lora_weights} {e}')
     else:
         try:
             new_weight = model_weights.to(devices.device) + lora_weights.to(devices.device)
         except Exception as e:
-            shared.log.warning(f'Network load: {e}')
+            log.warning(f'Network load: {e}')
             if 'The size of tensor' in str(e):
-                shared.log.error(f'Network load: type=LoRA model={shared.sd_model.__class__.__name__} incompatible lora shape')
+                log.error(f'Network load: type=LoRA model={shared.sd_model.__class__.__name__} incompatible lora shape')
                 new_weight = model_weights
             else:
                 new_weight = model_weights + lora_weights # try without device cast
@@ -239,7 +245,7 @@ def network_add_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.G
     del model_weights, lora_weights, new_weight, weight # required to avoid memory leak
 
 
-def network_apply_direct(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.GroupNorm, torch.nn.LayerNorm, diffusers.models.lora.LoRACompatibleLinear, diffusers.models.lora.LoRACompatibleConv], updown: torch.Tensor, ex_bias: torch.Tensor, deactivate: bool = False, device: torch.device = devices.device):
+def network_apply_direct(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, updown: torch.Tensor, ex_bias: torch.Tensor, deactivate: bool = False, device: torch.device = devices.device):
     weights_backup = getattr(self, "network_weights_backup", False)
     bias_backup = getattr(self, "network_bias_backup", False)
     if not isinstance(weights_backup, bool): # remove previous backup if we switched settings
@@ -266,7 +272,7 @@ def network_apply_direct(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.
     l.timer.apply += time.time() - t0
 
 
-def network_apply_weights(self: Union[torch.nn.Conv2d, torch.nn.Linear, torch.nn.GroupNorm, torch.nn.LayerNorm, diffusers.models.lora.LoRACompatibleLinear, diffusers.models.lora.LoRACompatibleConv], updown: torch.Tensor, ex_bias: torch.Tensor, device: torch.device, deactivate: bool = False):
+def network_apply_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, updown: torch.Tensor, ex_bias: torch.Tensor, device: torch.device, deactivate: bool = False):
     weights_backup = getattr(self, "network_weights_backup", None)
     bias_backup = getattr(self, "network_bias_backup", None)
     if weights_backup is None and bias_backup is None:

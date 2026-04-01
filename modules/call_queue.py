@@ -5,6 +5,7 @@ import threading
 import time
 import cProfile
 from modules import shared, progress, errors, timer
+from modules.logger import log
 
 
 queue_lock = threading.Lock()
@@ -14,7 +15,7 @@ debug = os.environ.get('SD_QUEUE_DEBUG', None) is not None
 def get_lock():
     if debug:
         fn = f'{sys._getframe(3).f_code.co_name}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-        errors.log.debug(f'Queue: fn={fn} lock={queue_lock.locked()}')
+        log.debug(f'Queue: fn={fn} lock={queue_lock.locked()}')
     return queue_lock
 
 
@@ -41,8 +42,8 @@ def wrap_gradio_gpu_call(func, extra_outputs=None, name=None):
                 res = func(*args, **kwargs)
                 progress.record_results(id_task, res)
             except Exception as e:
-                shared.log.error(f"Exception: {e}")
-                shared.log.error(f"Arguments: args={str(args)[:10240]} kwargs={str(kwargs)[:10240]}")
+                log.error(f"Exception: {e}")
+                log.error(f"Arguments: args={str(args)[:10240]} kwargs={str(kwargs)[:10240]}")
                 errors.display(e, 'gradio call')
                 res = extra_outputs or []
                 res.append(f"<div class='error'>{html.escape(str(e))}</div>")
@@ -69,7 +70,7 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
             res = func(*args, **kwargs)
             if res is None:
                 msg = "No result returned from function"
-                shared.log.warning(msg)
+                log.warning(msg)
                 res = extra_outputs_array or []
                 res.append(f"<div class='error'>{html.escape(msg)}</div>")
             else:

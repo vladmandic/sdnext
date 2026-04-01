@@ -1,6 +1,7 @@
 import os
 import time
 from modules import shared, devices, errors, sd_models, sd_checkpoint, model_quant
+from modules.logger import log
 
 
 models = {
@@ -34,7 +35,7 @@ def split_url(url):
     return { 'repo': f'{url[0]}/{url[1]}', 'subfolder': url[2] }
 
 
-def set_model(receipe: str=None):
+def set_model(receipe: str | None = None):
     if receipe is None or receipe == '':
         return
     lines = [line.strip() for line in receipe.split('\n') if line.strip() != '' and ':' in line]
@@ -42,9 +43,9 @@ def set_model(receipe: str=None):
         k, v = line.split(':', 1)
         k = k.strip()
         if k not in default_model.keys():
-            shared.log.warning(f'FramePack receipe: key={k} invalid')
+            log.warning(f'FramePack receipe: key={k} invalid')
         model[k] = split_url(v)
-        shared.log.debug(f'FramePack receipe: set {k}={model[k]}')
+        log.debug(f'FramePack receipe: set {k}={model[k]}')
 
 
 def get_model():
@@ -57,11 +58,11 @@ def get_model():
 def reset_model():
     global model # pylint: disable=global-statement
     model = default_model.copy()
-    shared.log.debug('FramePack receipe: reset')
+    log.debug('FramePack receipe: reset')
     return ''
 
 
-def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_encoder_2:str=None, feature_extractor:str=None, image_encoder:str=None, transformer:str=None):
+def load_model(variant: str | None = None, pipeline: str | None = None, text_encoder: str | None = None, text_encoder_2: str | None = None, feature_extractor: str | None = None, image_encoder: str | None = None, transformer: str | None = None):
     shared.state.begin('Load FramePack')
     if variant is not None:
         if variant not in models.keys():
@@ -79,7 +80,7 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
         model['image_encoder'] = split_url(image_encoder)
     if transformer is not None:
         model['transformer'] = split_url(transformer)
-    # shared.log.trace(f'FramePack load: {model}')
+    # log.trace(f'FramePack load: {model}')
 
     try:
         import diffusers
@@ -137,7 +138,7 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
             os.environ.pop('HF_HUB_OFFLINE', None)
             os.unsetenv('HF_HUB_OFFLINE')
 
-        shared.log.debug(f'FramePack load: module=llm {model["text_encoder"]}')
+        log.debug(f'FramePack load: module=llm {model["text_encoder"]}')
         load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
         text_encoder = LlamaModel.from_pretrained(model["text_encoder"]["repo"], subfolder=model["text_encoder"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **load_args, **quant_args, **offline_config)
         tokenizer = LlamaTokenizerFast.from_pretrained(model["tokenizer"]["repo"], subfolder=model["tokenizer"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **offline_config)
@@ -145,14 +146,14 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
         text_encoder.eval()
         sd_models.move_model(text_encoder, devices.cpu)
 
-        shared.log.debug(f'FramePack load: module=te {model["text_encoder_2"]}')
+        log.debug(f'FramePack load: module=te {model["text_encoder_2"]}')
         text_encoder_2 = CLIPTextModel.from_pretrained(model["text_encoder_2"]["repo"], subfolder=model["text_encoder_2"]["subfolder"], torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, **offline_config)
         tokenizer_2 = CLIPTokenizer.from_pretrained(model["pipeline"]["repo"], subfolder='tokenizer_2', cache_dir=shared.opts.hfcache_dir, **offline_config)
         text_encoder_2.requires_grad_(False)
         text_encoder_2.eval()
         sd_models.move_model(text_encoder_2, devices.cpu)
 
-        shared.log.debug(f'FramePack load: module=vae {model["vae"]}')
+        log.debug(f'FramePack load: module=vae {model["vae"]}')
         vae = AutoencoderKLHunyuanVideo.from_pretrained(model["vae"]["repo"], subfolder=model["vae"]["subfolder"], torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, **offline_config)
         vae.requires_grad_(False)
         vae.eval()
@@ -160,14 +161,14 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
         vae.enable_tiling()
         sd_models.move_model(vae, devices.cpu)
 
-        shared.log.debug(f'FramePack load: module=encoder {model["feature_extractor"]} model={model["image_encoder"]}')
+        log.debug(f'FramePack load: module=encoder {model["feature_extractor"]} model={model["image_encoder"]}')
         feature_extractor = SiglipImageProcessor.from_pretrained(model["feature_extractor"]["repo"], subfolder=model["feature_extractor"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **offline_config)
         image_encoder = SiglipVisionModel.from_pretrained(model["image_encoder"]["repo"], subfolder=model["image_encoder"]["subfolder"], torch_dtype=devices.dtype, cache_dir=shared.opts.hfcache_dir, **offline_config)
         image_encoder.requires_grad_(False)
         image_encoder.eval()
         sd_models.move_model(image_encoder, devices.cpu)
 
-        shared.log.debug(f'FramePack load: module=transformer {model["transformer"]}')
+        log.debug(f'FramePack load: module=transformer {model["transformer"]}')
         dit_repo = model["transformer"]["repo"]
         load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
         transformer = HunyuanVideoTransformer3DModelPacked.from_pretrained(dit_repo, subfolder=model["transformer"]["subfolder"], cache_dir=shared.opts.hfcache_dir, **load_args, **quant_args, **offline_config)
@@ -194,12 +195,12 @@ def load_model(variant:str=None, pipeline:str=None, text_encoder:str=None, text_
         t1 = time.time()
 
         diffusers.loaders.peft._SET_ADAPTER_SCALE_FN_MAPPING['HunyuanVideoTransformer3DModelPacked'] = lambda model_cls, weights: weights # pylint: disable=protected-access
-        shared.log.info(f'FramePack load: model={shared.sd_model.__class__.__name__} variant="{variant}" type={shared.sd_model_type} time={t1-t0:.2f}')
+        log.info(f'FramePack load: model={shared.sd_model.__class__.__name__} variant="{variant}" type={shared.sd_model_type} time={t1-t0:.2f}')
         sd_models.apply_balanced_offload(shared.sd_model)
         devices.torch_gc(force=True, reason='load')
 
     except Exception as e:
-        shared.log.error(f'FramePack load: {e}')
+        log.error(f'FramePack load: {e}')
         errors.display(e, 'FramePack')
         shared.state.end()
         return None

@@ -10,7 +10,6 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 import os
 import re
 from collections import namedtuple
-from typing import List
 import lark
 import torch
 from compel import Compel
@@ -181,7 +180,7 @@ def get_learned_conditioning(model, prompts, steps):
     res = []
     prompt_schedules = get_learned_conditioning_prompt_schedules(prompts, steps)
     cache = {}
-    for prompt, prompt_schedule in zip(prompts, prompt_schedules):
+    for prompt, prompt_schedule in zip(prompts, prompt_schedules, strict=False):
         debug(f'Prompt schedule: {prompt_schedule}')
         cached = cache.get(prompt, None)
         if cached is not None:
@@ -220,14 +219,14 @@ def get_multicond_prompt_list(prompts):
 
 class ComposableScheduledPromptConditioning:
     def __init__(self, schedules, weight=1.0):
-        self.schedules: List[ScheduledPromptConditioning] = schedules
+        self.schedules: list[ScheduledPromptConditioning] = schedules
         self.weight: float = weight
 
 
 class MulticondLearnedConditioning:
     def __init__(self, shape, batch):
         self.shape: tuple = shape  # the shape field is needed to send this object to DDIM/PLMS
-        self.batch: List[List[ComposableScheduledPromptConditioning]] = batch
+        self.batch: list[list[ComposableScheduledPromptConditioning]] = batch
 
 
 def get_multicond_learned_conditioning(model, prompts, steps) -> MulticondLearnedConditioning:
@@ -243,7 +242,7 @@ def get_multicond_learned_conditioning(model, prompts, steps) -> MulticondLearne
     return MulticondLearnedConditioning(shape=(len(prompts),), batch=res)
 
 
-def reconstruct_cond_batch(c: List[List[ScheduledPromptConditioning]], current_step):
+def reconstruct_cond_batch(c: list[list[ScheduledPromptConditioning]], current_step):
     param = c[0][0].cond
     res = torch.zeros((len(c),) + param.shape, device=param.device, dtype=param.dtype)
     for i, cond_schedule in enumerate(c):

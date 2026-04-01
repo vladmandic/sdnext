@@ -12,7 +12,8 @@ from torch.nn import functional as F
 from tqdm.rich import tqdm
 from modules.rife.ssim import ssim_matlab
 from modules.rife.model_rife import RifeModel
-from modules import devices, shared
+from modules import devices, shared, paths
+from modules.logger import log
 
 
 model_url = 'https://github.com/vladmandic/rife/raw/main/model/flownet-v46.pkl'
@@ -23,9 +24,9 @@ def load(model_path: str = 'rife/flownet-v46.pkl'):
     global model # pylint: disable=global-statement
     if model is None:
         from modules import modelloader
-        model_dir = os.path.join(shared.models_path, 'RIFE')
+        model_dir = os.path.join(paths.models_path, 'RIFE')
         model_path = modelloader.load_file_from_url(url=model_url, model_dir=model_dir, file_name='flownet-v46.pkl')
-        shared.log.debug(f'Video interpolate: model="{model_path}"')
+        log.debug(f'Video interpolate: model="{model_path}"')
         model = RifeModel()
         model.load_model(model_path, -1)
         model.eval()
@@ -104,7 +105,7 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
                 else:
                     output = execute(I0, I1, count-1)
                 for mid in output:
-                    mid = (((mid[0] * 255.0).byte().cpu().numpy().transpose(1, 2, 0)))
+                    mid = ((mid[0] * 255.0).byte().cpu().numpy().transpose(1, 2, 0))
                     buffer.put(mid[:h, :w])
                 buffer.put(frame)
                 pbar.update(1)
@@ -114,7 +115,7 @@ def interpolate(images: list, count: int = 2, scale: float = 1.0, pad: int = 1, 
     while not buffer.qsize() > 0:
         time.sleep(0.1)
     t1 = time.time()
-    shared.log.info(f'Video interpolate: input={len(images)} frames={len(interpolated)} buffer={buffer.qsize()} duplicate={duplicate} width={w} height={h} interpolate={count} scale={scale} pad={pad} change={change} time={round(t1 - t0, 2)}')
+    log.info(f'Video interpolate: input={len(images)} frames={len(interpolated)} buffer={buffer.qsize()} duplicate={duplicate} width={w} height={h} interpolate={count} scale={scale} pad={pad} change={change} time={round(t1 - t0, 2)}')
     return interpolated
 
 
@@ -148,5 +149,5 @@ def interpolate_nchw(images: list, count: int = 2, scale: float = 1.0):
                 pbar.update(1)
 
     t1 = time.time()
-    shared.log.info(f'Video interpolate: input={len(images)} frames={len(interpolated)} width={w} height={h} interpolate={count} scale={scale} time={round(t1 - t0, 2)}')
+    log.info(f'Video interpolate: input={len(images)} frames={len(interpolated)} width={w} height={h} interpolate={count} scale={scale} time={round(t1 - t0, 2)}')
     return interpolated

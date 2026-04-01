@@ -2,9 +2,9 @@ import base64
 import os
 import io
 import time
-from typing import Union
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 import modules.shared as shared
+from modules.logger import log
 
 
 current_task = None
@@ -13,7 +13,7 @@ finished_tasks = []
 recorded_results = []
 recorded_results_limit = 2
 debug = os.environ.get('SD_PREVIEW_DEBUG', None) is not None
-debug_log = shared.log.trace if debug else lambda *args, **kwargs: None
+debug_log = log.trace if debug else lambda *args, **kwargs: None
 
 
 def start_task(id_task):
@@ -48,7 +48,7 @@ class ProgressRequest(BaseModel):
 
 class InternalProgressResponse(BaseModel):
     job: str = Field(default=None, title="Job name", description="Internal job name")
-    textinfo: Union[str|None] = Field(default=None, title="Info text", description="Info text used by WebUI.")
+    textinfo: str|None = Field(default=None, title="Info text", description="Info text used by WebUI.")
     # status fields
     active: bool = Field(title="Whether the task is being worked on right now")
     queued: bool = Field(title="Whether the task is in queue")
@@ -62,10 +62,10 @@ class InternalProgressResponse(BaseModel):
     batch_count: int = Field(default=None, title="Total batches", description="Total number of batches")
     # calculated fields
     progress: float = Field(default=None, title="Progress", description="The progress with a range of 0 to 1")
-    eta: Union[float|None] = Field(default=None, title="ETA in secs")
+    eta: float|None = Field(default=None, title="ETA in secs")
     # image fields
-    live_preview: Union[str|None] = Field(default=None, title="Live preview image", description="Current live preview; a data: uri")
-    id_live_preview: Union[int|None] = Field(default=None, title="Live preview image ID", description="Send this together with next request to prevent receiving same image")
+    live_preview: str|None = Field(default=None, title="Live preview image", description="Current live preview; a data: uri")
+    id_live_preview: int|None = Field(default=None, title="Live preview image ID", description="Send this together with next request to prevent receiving same image")
 
 
 def api_progress(req: ProgressRequest):

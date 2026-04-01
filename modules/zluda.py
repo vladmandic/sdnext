@@ -1,13 +1,11 @@
 import sys
-from typing import Union
-from modules.zluda_installer import core, default_agent # pylint: disable=unused-import
 
 
 PLATFORM = sys.platform
 do_nothing = lambda _: None # pylint: disable=unnecessary-lambda-assignment
 
 
-def test(device) -> Union[Exception, None]:
+def test(device) -> Exception | None:
     import torch
     device = torch.device(device)
     try:
@@ -23,7 +21,7 @@ def test(device) -> Union[Exception, None]:
 def zluda_init():
     try:
         import torch
-        from installer import log
+        from modules.logger import log
         from modules import devices, zluda_installer
         from modules.shared import cmd_opts
         from modules.rocm_triton_windows import apply_triton_patches

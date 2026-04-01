@@ -13,7 +13,6 @@
 # limitations under the License.
 
 import math
-from typing import Dict, List, Tuple, Union
 
 import torch
 from mpmath import exp as mp_exp
@@ -89,10 +88,10 @@ class Phi:
     Supports both standard torch-based and high-precision mpmath-based solutions.
     """
 
-    def __init__(self, h: torch.Tensor, c: List[Union[float, mpf]], analytic_solution: bool = True):
+    def __init__(self, h: torch.Tensor, c: list[float | mpf], analytic_solution: bool = True):
         self.h = h
         self.c = c
-        self.cache: Dict[Tuple[int, int], Union[float, torch.Tensor]] = {}
+        self.cache: dict[tuple[int, int], float | torch.Tensor] = {}
         self.analytic_solution = analytic_solution
 
         if analytic_solution:
@@ -102,7 +101,7 @@ class Phi:
         else:
             self.phi_f = phi_standard_torch
 
-    def __call__(self, j: int, i: int = -1) -> Union[float, torch.Tensor]:
+    def __call__(self, j: int, i: int = -1) -> float | torch.Tensor:
         if (j, i) in self.cache:
             return self.cache[(j, i)]
 

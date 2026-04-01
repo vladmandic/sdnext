@@ -1,5 +1,6 @@
 import inspect
-from typing import Union, Optional, Callable, List, Any
+from typing import Any
+from collections.abc import Callable
 import numpy as np
 import torch
 import diffusers
@@ -31,25 +32,25 @@ class OnnxStableDiffusionInpaintPipeline(diffusers.OnnxStableDiffusionInpaintPip
     @torch.no_grad()
     def __call__(
         self,
-        prompt: Union[str, List[str]],
+        prompt: str | list[str],
         image: PipelineImageInput,
         mask_image: PipelineImageInput,
         masked_image_latents: torch.FloatTensor = None,
-        height: Optional[int] = 512,
-        width: Optional[int] = 512,
+        height: int | None = 512,
+        width: int | None = 512,
         strength: float = 1.0,
         num_inference_steps: int = 50,
         guidance_scale: float = 7.5,
-        negative_prompt: Optional[Union[str, List[str]]] = None,
-        num_images_per_prompt: Optional[int] = 1,
+        negative_prompt: str | list[str] | None = None,
+        num_images_per_prompt: int | None = 1,
         eta: float = 0.0,
-        generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
-        latents: Optional[np.ndarray] = None,
-        prompt_embeds: Optional[np.ndarray] = None,
-        negative_prompt_embeds: Optional[np.ndarray] = None,
-        output_type: Optional[str] = "pil",
+        generator: torch.Generator | list[torch.Generator] | None = None,
+        latents: np.ndarray | None = None,
+        prompt_embeds: np.ndarray | None = None,
+        negative_prompt_embeds: np.ndarray | None = None,
+        output_type: str | None = "pil",
         return_dict: bool = True,
-        callback: Optional[Callable[[int, int, np.ndarray], None]] = None,
+        callback: Callable[[int, int, np.ndarray], None] | None = None,
         callback_steps: int = 1,
     ):
         # check inputs. Raise error if not correct

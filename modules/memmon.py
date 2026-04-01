@@ -2,7 +2,7 @@ from collections import defaultdict
 import torch
 
 
-class MemUsageMonitor():
+class MemUsageMonitor:
     device = None
     disabled = False
     opts = None
@@ -55,7 +55,7 @@ class MemUsageMonitor():
         return self.data
 
     def summary(self):
-        from modules.shared import ram_stats
+        from modules.memstats import ram_stats
         gpu = ''
         cpu = ''
         gpu = ''

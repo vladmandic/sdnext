@@ -1,12 +1,12 @@
 import os
 import json
 import importlib
-from typing import Type, Tuple, Union, List, Dict, Any
+from typing import Any
 import torch
 import diffusers
 
 
-def extract_device(args: List, kwargs: Dict):
+def extract_device(args: list, kwargs: dict):
     device = kwargs.get("device", None)
 
     if device is None:
@@ -42,7 +42,7 @@ def check_diffusers_cache(path: os.PathLike):
     return opts.diffusers_dir in os.path.abspath(path)
 
 
-def check_pipeline_sdxl(cls: Type[diffusers.DiffusionPipeline]) -> bool:
+def check_pipeline_sdxl(cls: type[diffusers.DiffusionPipeline]) -> bool:
     return 'XL' in cls.__name__
 
 
@@ -57,7 +57,7 @@ def check_cache_onnx(path: os.PathLike) -> bool:
 
     init_dict = None
 
-    with open(init_dict_path, "r", encoding="utf-8") as file:
+    with open(init_dict_path, encoding="utf-8") as file:
         init_dict = file.read()
 
     if "OnnxRuntimeModel" not in init_dict:
@@ -66,15 +66,15 @@ def check_cache_onnx(path: os.PathLike) -> bool:
     return True
 
 
-def load_init_dict(cls: Type[diffusers.DiffusionPipeline], path: os.PathLike):
-    merged: Dict[str, Any] = {}
+def load_init_dict(cls: type[diffusers.DiffusionPipeline], path: os.PathLike):
+    merged: dict[str, Any] = {}
     extracted = cls.extract_init_dict(diffusers.DiffusionPipeline.load_config(path))
 
     for item in extracted:
         merged.update(item)
 
     merged = merged.items()
-    R: Dict[str, Tuple[str]] = {}
+    R: dict[str, tuple[str]] = {}
 
     for k, v in merged:
         if isinstance(v, list):
@@ -85,7 +85,7 @@ def load_init_dict(cls: Type[diffusers.DiffusionPipeline], path: os.PathLike):
     return R
 
 
-def load_submodel(path: os.PathLike, is_sdxl: bool, submodel_name: str, item: List[Union[str, None]], **kwargs_ort):
+def load_submodel(path: os.PathLike, is_sdxl: bool, submodel_name: str, item: list[str | None], **kwargs_ort):
     lib, atr = item
 
     if lib is None or atr is None:
@@ -107,7 +107,7 @@ def load_submodel(path: os.PathLike, is_sdxl: bool, submodel_name: str, item: Li
     return attribute.from_pretrained(path)
 
 
-def load_submodels(path: os.PathLike, is_sdxl: bool, init_dict: Dict[str, Type], **kwargs_ort):
+def load_submodels(path: os.PathLike, is_sdxl: bool, init_dict: dict[str, type], **kwargs_ort):
     loaded = {}
 
     for k, v in init_dict.items():
@@ -122,14 +122,14 @@ def load_submodels(path: os.PathLike, is_sdxl: bool, init_dict: Dict[str, Type],
     return loaded
 
 
-def load_pipeline(cls: Type[diffusers.DiffusionPipeline], path: os.PathLike, **kwargs_ort) -> diffusers.DiffusionPipeline:
+def load_pipeline(cls: type[diffusers.DiffusionPipeline], path: os.PathLike, **kwargs_ort) -> diffusers.DiffusionPipeline:
     if os.path.isdir(path):
         return cls(**patch_kwargs(cls, load_submodels(path, check_pipeline_sdxl(cls), load_init_dict(cls, path), **kwargs_ort)))
     else:
         return cls.from_single_file(path)
 
 
-def patch_kwargs(cls: Type[diffusers.DiffusionPipeline], kwargs: Dict) -> Dict:
+def patch_kwargs(cls: type[diffusers.DiffusionPipeline], kwargs: dict) -> dict:
     if cls == diffusers.OnnxStableDiffusionPipeline or cls == diffusers.OnnxStableDiffusionImg2ImgPipeline or cls == diffusers.OnnxStableDiffusionInpaintPipeline:
         kwargs["safety_checker"] = None
         kwargs["requires_safety_checker"] = False
@@ -140,7 +140,7 @@ def patch_kwargs(cls: Type[diffusers.DiffusionPipeline], kwargs: Dict) -> Dict:
     return kwargs
 
 
-def get_base_constructor(cls: Type[diffusers.DiffusionPipeline], is_refiner: bool):
+def get_base_constructor(cls: type[diffusers.DiffusionPipeline], is_refiner: bool):
     if cls == diffusers.OnnxStableDiffusionImg2ImgPipeline or cls == diffusers.OnnxStableDiffusionInpaintPipeline:
         return diffusers.OnnxStableDiffusionPipeline
 
@@ -153,8 +153,8 @@ def get_base_constructor(cls: Type[diffusers.DiffusionPipeline], is_refiner: boo
 def get_io_config(submodel: str, is_sdxl: bool):
     from modules.paths import sd_configs_path
 
-    with open(os.path.join(sd_configs_path, "olive", 'sdxl' if is_sdxl else 'sd', f"{submodel}.json"), "r", encoding="utf-8") as config_file:
-        io_config: Dict[str, Any] = json.load(config_file)["input_model"]["config"]["io_config"]
+    with open(os.path.join(sd_configs_path, "olive", 'sdxl' if is_sdxl else 'sd', f"{submodel}.json"), encoding="utf-8") as config_file:
+        io_config: dict[str, Any] = json.load(config_file)["input_model"]["config"]["io_config"]
 
     for axe in io_config["dynamic_axes"]:
         io_config["dynamic_axes"][axe] = { int(k): v for k, v in io_config["dynamic_axes"][axe].items() }

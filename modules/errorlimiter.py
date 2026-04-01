@@ -1,42 +1,51 @@
 from __future__ import annotations
+
 from contextlib import contextmanager
-from typing import TYPE_CHECKING
+from threading import Lock
+from typing import TYPE_CHECKING, ClassVar
 
 if TYPE_CHECKING:
     from collections.abc import Iterable
 
+_instance_id = 0
+_lock = Lock()
 
-class ErrorLimiterTrigger(BaseException):  # Use BaseException to avoid being caught by "except Exception:".
+
+def _make_unique(name: str):
+    global _instance_id # pylint: disable=global-statement
+    with _lock:  # Guard against race conditions
+        new_name = f"{name}__{_instance_id}"
+        _instance_id += 1
+        return new_name
+
+
+class _ErrorLimiterTrigger(BaseException):  # Use BaseException to avoid being caught by "except Exception:".
     def __init__(self, name: str, *args):
         super().__init__(*args)
-        self.name = name
+        self.name = name.rsplit("__", 1)[0]
 
 
-class ErrorLimiterAbort(RuntimeError):
-    def __init__(self, msg: str):
-        super().__init__(msg)
-
-
-class ErrorLimiter:
-    _store: dict[str, int] = {}
+class _ErrorLimiter:
+    _store: ClassVar[dict[str, int]] = {}
 
     @classmethod
     def start(cls, name: str, limit: int = 5):
         cls._store[name] = limit
 
     @classmethod
-    def notify(cls, name: str | Iterable[str]):  # Can be manually triggered if execution is spread across multiple files
-        if isinstance(name, str):
-            name = (name,)
-        for key in name:
-            if key in cls._store.keys():
-                cls._store[key] = cls._store[key] - 1
-                if cls._store[key] <= 0:
-                    raise ErrorLimiterTrigger(key)
+    def notify(cls, key: str):
+        cls._store[key] = cls._store[key] - 1
+        if cls._store[key] <= 0:
+            raise _ErrorLimiterTrigger(key)
 
     @classmethod
     def end(cls, name: str):
         cls._store.pop(name)
+
+
+class ErrorLimiterAbort(RuntimeError):
+    def __init__(self, msg: str):
+        super().__init__(msg)
 
 
 @contextmanager
@@ -64,10 +73,11 @@ def limit_errors(name: str, limit: int = 5):
     Yields:
         Callable: Notification function to indicate that an error occurred.
     """
+    name_id = _make_unique(name)
     try:
-        ErrorLimiter.start(name, limit)
-        yield lambda: ErrorLimiter.notify(name)
-    except ErrorLimiterTrigger as e:
+        _ErrorLimiter.start(name_id, limit)
+        yield lambda: _ErrorLimiter.notify(name_id)
+    except _ErrorLimiterTrigger as e:
         raise ErrorLimiterAbort(f"HALTING. Too many errors during '{e.name}'") from None
     finally:
-        ErrorLimiter.end(name)
+        _ErrorLimiter.end(name_id)

@@ -17,12 +17,14 @@ import gradio as gr
 from PIL import Image
 from starlette.responses import FileResponse, JSONResponse
 from modules import paths, shared, files_cache, errors, infotext, ui_symbols, ui_components, modelstats
+from modules.logger import log
+from modules.json_helpers import writefile
 
 
 allowed_dirs = []
 refresh_time = 0
 extra_pages = shared.extra_networks
-debug = shared.log.trace if os.environ.get('SD_EN_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_EN_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: EN')
 card_full = '''
     <div class='card' onclick={card_click} title='{name}' data-page='{page}' data-name='{name}' data-filename='{filename}' data-short='{short}' data-tags='{tags}' data-mtime='{mtime}' data-size='{size}' data-search='{search}' data-version='{version}' style='--data-color: {color}'>
@@ -60,7 +62,8 @@ def init_api():
         if filename is None or len(filename) == 0:
             return JSONResponse({ "error": "no filename" }, status_code=400)
         if not os.path.exists(filename) or not os.path.isfile(filename):
-            return JSONResponse({ "error": f"file {filename}: not found" }, status_code=404)
+            return FileResponse('html/missing.png', headers={"Accept-Ranges": "bytes"})
+            # return JSONResponse({ "error": f"file {filename}: not found" }, status_code=404)
         if filename.startswith('html/') or filename.startswith('models/'):
             return FileResponse(filename, headers={"Accept-Ranges": "bytes"})
         if not any(Path(folder).absolute() in Path(filename).absolute().parents for folder in allowed_dirs):
@@ -76,7 +79,7 @@ def init_api():
         metadata = page_dict.metadata.get(item, 'none')
         if metadata is None:
             metadata = ''
-        # shared.log.debug(f"Networks metadata: page='{page}' item={item} len={len(metadata)}")
+        # log.debug(f"Networks metadata: page='{page}' item={item} len={len(metadata)}")
         return JSONResponse({"metadata": metadata})
 
     def get_info(page: str = "", item: str = ""):
@@ -89,7 +92,7 @@ def init_api():
         info = page_dict.find_info(item_dict.get('filename', None) or item_dict.get('name', None))
         if info is None:
             info = {}
-        # shared.log.debug(f"Networks info: page='{page.name}' item={item['name']} len={len(info)}")
+        # log.debug(f"Networks info: page='{page.name}' item={item['name']} len={len(info)}")
         return JSONResponse({"info": info})
 
     def get_desc(page: str = "", item: str = ""):
@@ -102,7 +105,7 @@ def init_api():
         desc = page_dict.find_description(item_dict.get('filename', None) or item_dict.get('name', None))
         if desc is None:
             desc = ''
-        # shared.log.debug(f"Networks desc: page='{page.name}' item={item['name']} len={len(desc)}")
+        # log.debug(f"Networks desc: page='{page.name}' item={item['name']} len={len(desc)}")
         return JSONResponse({"description": desc})
 
     def get_network(page: str = "", item: str = ""):
@@ -117,9 +120,9 @@ def init_api():
 
     shared.api.add_api_route("/sdapi/v1/network", get_network, methods=["GET"])
     shared.api.add_api_route("/sdapi/v1/network/thumb", fetch_file, methods=["GET"], auth=False)
-    shared.api.add_api_route("/sdapi/v1/network/metadata", get_metadata, methods=["GET"], auth=False)
-    shared.api.add_api_route("/sdapi/v1/network/info", get_info, methods=["GET"], auth=False)
-    shared.api.add_api_route("/sdapi/v1/network/desc", get_desc, methods=["GET"], auth=False)
+    shared.api.add_api_route("/sdapi/v1/network/metadata", get_metadata, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/info", get_info, methods=["GET"])
+    shared.api.add_api_route("/sdapi/v1/network/desc", get_desc, methods=["GET"])
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -234,7 +237,7 @@ class ExtraNetworksPage:
                 img.load()
             except Exception as e:
                 img = None
-                shared.log.warning(f'Network removing invalid: image={f} {e}')
+                log.warning(f'Network removing invalid: image={f} {e}')
             try:
                 if img is None:
                     img = None
@@ -247,10 +250,10 @@ class ExtraNetworksPage:
                     img.close()
                     created += 1
             except Exception as e:
-                shared.log.warning(f'Network create thumbnail={f} {e}')
+                log.warning(f'Network create thumbnail={f} {e}')
                 errors.display(e, 'thumbnail')
         if created > 0:
-            shared.log.info(f'Network thumbnails: type={self.name} created={created}')
+            log.info(f'Network thumbnails: type={self.name} created={created}')
             self.missing_thumbs.clear()
 
     def create_items(self, tabname):
@@ -262,7 +265,7 @@ class ExtraNetworksPage:
             self.refresh_time = time.time()
         except Exception as e:
             self.items = []
-            shared.log.error(f'Networks: listing items class={self.__class__.__name__} tab={tabname} {e}')
+            log.error(f'Networks: listing items class={self.__class__.__name__} tab={tabname} {e}')
             if os.environ.get('SD_EN_DEBUG', None):
                 errors.display(e, f'Networks: listing items: class={self.__class__.__name__} tab={tabname}')
         for item in self.items:
@@ -305,6 +308,7 @@ class ExtraNetworksPage:
             subdirs['Reference'] = 1
             subdirs['Distilled'] = 1
             subdirs['Quantized'] = 1
+            subdirs['Nunchaku'] = 1
             subdirs['Community'] = 1
             subdirs['Cloud'] = 1
             subdirs[diffusers_base] = 1
@@ -324,6 +328,8 @@ class ExtraNetworksPage:
             subdirs.move_to_end('Distilled', last=True)
         if 'Quantized' in subdirs:
             subdirs.move_to_end('Quantized', last=True)
+        if 'Nunchaku' in subdirs:
+            subdirs.move_to_end('Nunchaku', last=True)
         if 'Community' in subdirs:
             subdirs.move_to_end('Community', last=True)
         if 'Cloud' in subdirs:
@@ -332,7 +338,7 @@ class ExtraNetworksPage:
         for subdir in subdirs:
             if len(subdir) == 0:
                 continue
-            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Quantized', 'Community', 'Cloud']:
+            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Quantized', 'Nunchaku', 'Community', 'Cloud']:
                 style = 'network-reference'
             else:
                 style = 'network-folder'
@@ -371,7 +377,7 @@ class ExtraNetworksPage:
         self.html += ''.join(htmls)
         self.page_time = time.time()
         self.html = f"""<div id='{tabname}_{self_name_id}_subdirs' class='extra-network-subdirs'>{subdirs_html}{versions_html}</div><div id='{tabname}_{self_name_id}_cards' class='extra-network-cards'>{self.html}</div>"""
-        shared.log.debug(f'Networks: type="{self.name}" items={len(self.items)} subfolders={len(subdirs)} tab={tabname} folders={self.allowed_directories_for_previews()} list={self.list_time:.2f} thumb={self.preview_time:.2f} desc={self.desc_time:.2f} info={self.info_time:.2f} workers={shared.max_workers}')
+        log.debug(f'Networks: type="{self.name}" items={len(self.items)} subfolders={len(subdirs)} tab={tabname} folders={self.allowed_directories_for_previews()} list={self.list_time:.2f} thumb={self.preview_time:.2f} desc={self.desc_time:.2f} info={self.info_time:.2f} workers={shared.max_workers}')
         if len(self.missing_thumbs) > 0:
             threading.Thread(target=self.create_thumb).start()
         return self.patch(self.html, tabname)
@@ -387,7 +393,7 @@ class ExtraNetworksPage:
             r = random.randint(100, 255)
             g = random.randint(100, 255)
             b = random.randint(100, 255)
-            return '#{:02x}{:02x}{:02x}'.format(r, g, b) # pylint: disable=consider-using-f-string
+            return f'#{r:02x}{g:02x}{b:02x}' # pylint: disable=consider-using-f-string
 
         try:
             onclick = f'cardClicked({item.get("prompt", None)})'
@@ -418,7 +424,7 @@ class ExtraNetworksPage:
             #     args['title'] += f'\nAlias: {alias}'
             return self.card.format(**args)
         except Exception as e:
-            shared.log.error(f'Networks: item error: page={tabname} item={item["name"]} {e}')
+            log.error(f'Networks: item error: page={tabname} item={item["name"]} {e}')
             if os.environ.get('SD_EN_DEBUG', None) is not None:
                 errors.display(e, 'Networks')
             return ""
@@ -433,7 +439,7 @@ class ExtraNetworksPage:
         files = list(files_cache.list_files(reference_path, ext_filter=exts, recursive=False))
         if shared.opts.diffusers_dir in path:
             path = os.path.relpath(path, shared.opts.diffusers_dir)
-            fn = os.path.join(reference_path, path.replace('models--', '').replace('\\', '/').split('/')[0])
+            fn = os.path.join(reference_path, path.replace('models--', '').replace('\\', '/').split('/')[0]) # pylint: disable=use-maxsplit-arg
         else:
             fn = os.path.splitext(path)[0]
             files += list(files_cache.list_files(os.path.dirname(path), ext_filter=exts, recursive=False))
@@ -511,7 +517,7 @@ class ExtraNetworksPage:
             fn = os.path.splitext(path)[0] + '.txt'
             if os.path.exists(fn):
                 try:
-                    with open(fn, "r", encoding="utf-8", errors="replace") as f:
+                    with open(fn, encoding="utf-8", errors="replace") as f:
                         txt = f.read()
                         txt = re.sub('[<>]', '', txt)
                         return txt
@@ -578,20 +584,21 @@ def register_pages():
     register_page(ExtraNetworksPageLora())
     from modules.ui_extra_networks_wildcards import ExtraNetworksPageWildcards
     register_page(ExtraNetworksPageWildcards())
+    from modules.ui_extra_networks_unet import ExtraNetworksPageUNets
+    register_page(ExtraNetworksPageUNets())
     if shared.opts.latent_history > 0:
         from modules.ui_extra_networks_history import ExtraNetworksPageHistory
         register_page(ExtraNetworksPageHistory())
     if shared.opts.diffusers_enable_embed:
         from modules.ui_extra_networks_textual_inversion import ExtraNetworksPageTextualInversion
         register_page(ExtraNetworksPageTextualInversion())
-    from modules.video_models.models_def import models # pylint: disable=unused-import
 
 
 def get_pages(title=None):
     visible = shared.opts.extra_networks
     pages: list[ExtraNetworksPage] = []
     if 'All' in visible or visible == []: # default en sort order
-        visible = ['Model', 'Lora', 'Style', 'Wildcards', 'Embedding', 'VAE', 'History', 'Hypernetwork']
+        visible = ['Model', 'Lora', 'UNet/DiT', 'Style', 'Wildcards', 'Embedding', 'VAE', 'History', 'Hypernetwork']
 
     titles = [page.title for page in shared.extra_networks]
     if title is None:
@@ -677,10 +684,10 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             nonlocal state
             state = SimpleNamespace(**json.loads(state_text))
         except Exception as e:
-            shared.log.error(f'Networks: state error: {e}')
+            log.error(f'Networks: state error: {e}')
             return
         _page, _item = get_item(state)
-        # shared.log.debug(f'Extra network: op={state.op} page={page.title if page is not None else None} item={item.filename if item is not None else None}')
+        # log.debug(f'Extra network: op={state.op} page={page.title if page is not None else None} item={item.filename if item is not None else None}')
 
     def toggle_visibility(is_visible):
         is_visible = not is_visible
@@ -738,7 +745,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
     with ui.tabs:
         def ui_tab_change(page):
-            scan_visible = page in ['Model', 'Lora', 'VAE', 'Hypernetwork', 'Embedding']
+            scan_visible = page in ['Model', 'Lora', 'VAE', 'UNet/DiT', 'Hypernetwork', 'Embedding']
             save_visible = page in ['Style']
             model_visible = page in ['Model']
             return [gr.update(visible=scan_visible), gr.update(visible=save_visible), gr.update(visible=model_visible)]
@@ -776,13 +783,13 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         if ui.gallery is not None:
             images = list(ui.gallery.temp_files) # gallery cannot be used as input component so looking at most recently registered temp files
         if len(images) < 1:
-            shared.log.warning(f'Network no image: item="{ui.last_item.name}"')
+            log.warning(f'Network no image: item="{ui.last_item.name}"')
             return 'html/missing.png'
         try:
             images.sort(key=lambda f: os.path.getmtime(f), reverse=True)
             image = Image.open(images[0])
         except Exception as e:
-            shared.log.error(f'Network error opening image: item="{ui.last_item.name}" {e}')
+            log.error(f'Network error opening image: item="{ui.last_item.name}" {e}')
             return 'html/missing.png'
         fn_delete_img(image)
         if image.width > 512 or image.height > 512:
@@ -790,9 +797,9 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             image.thumbnail((512, 512), Image.Resampling.HAMMING)
         try:
             image.save(ui.last_item.local_preview, quality=50)
-            shared.log.debug(f'Networks save image: item="{ui.last_item.name}" filename="{ui.last_item.local_preview}"')
+            log.debug(f'Networks save image: item="{ui.last_item.name}" filename="{ui.last_item.local_preview}"')
         except Exception as e:
-            shared.log.error(f'Network save image: item="{ui.last_item.name}" filename="{ui.last_item.local_preview}" {e}')
+            log.error(f'Network save image: item="{ui.last_item.name}" filename="{ui.last_item.local_preview}" {e}')
         return image
 
     def fn_delete_img(_image):
@@ -801,7 +808,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         for file in [f'{fn}{mid}{ext}' for ext in preview_extensions for mid in ['.thumb.', '.preview.', '.']]:
             if os.path.exists(file):
                 os.remove(file)
-                shared.log.debug(f'Network delete image: item="{ui.last_item.name}" filename="{file}"')
+                log.debug(f'Network delete image: item="{ui.last_item.name}" filename="{file}"')
         return 'html/missing.png'
 
     def fn_save_desc(desc):
@@ -813,7 +820,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             fn = os.path.splitext(ui.last_item.filename)[0] + '.txt'
             with open(fn, 'w', encoding='utf-8') as f:
                 f.write(desc)
-            shared.log.debug(f'Network save desc: item="{ui.last_item.name}" filename="{fn}"')
+            log.debug(f'Network save desc: item="{ui.last_item.name}" filename="{fn}"')
         return desc
 
     def fn_delete_network(desc):
@@ -827,28 +834,28 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             if os.path.exists(fn) and os.path.isfile(fn):
                 candidates.append(fn)
         msg = f'Network delete: item="{ui.last_item.name}" files={candidates}'
-        shared.log.debug(msg)
+        log.debug(msg)
         for fn in candidates:
             os.remove(fn)
         return msg
 
     def fn_save_info(info):
         fn = os.path.splitext(ui.last_item.filename)[0] + '.json'
-        shared.writefile(info, fn, silent=True)
-        shared.log.debug(f'Network save info: item="{ui.last_item.name}" filename="{fn}"')
+        writefile(info, fn, silent=True)
+        log.debug(f'Network save info: item="{ui.last_item.name}" filename="{fn}"')
         return info
 
     def fn_save_style(info, description, prompt, negative, extra, wildcards):
         if not isinstance(info, dict) or isinstance(info, list):
-            shared.log.warning(f'Network save style skip: item="{ui.last_item.name}" not a dict: {type(info)}')
+            log.warning(f'Network save style skip: item="{ui.last_item.name}" not a dict: {type(info)}')
             return info
         if ui.last_item is None:
             return info
         fn = os.path.splitext(ui.last_item.filename)[0] + '.json'
         if hasattr(ui.last_item, 'type') and ui.last_item.type == 'Style':
             info.update(**{ 'description': description, 'prompt': prompt, 'negative': negative, 'extra': extra, 'wildcards': wildcards })
-            shared.writefile(info, fn, silent=True)
-            shared.log.debug(f'Network save style: item="{ui.last_item.name}" filename="{fn}"')
+            writefile(info, fn, silent=True)
+            log.debug(f'Network save style: item="{ui.last_item.name}" filename="{fn}"')
         return info
 
     def fn_delete_style(info):
@@ -856,7 +863,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             return info
         fn = os.path.splitext(ui.last_item.filename)[0] + '.json'
         if os.path.exists(fn):
-            shared.log.debug(f'Network delete style: item="{ui.last_item.name}" filename="{fn}"')
+            log.debug(f'Network delete style: item="{ui.last_item.name}" filename="{fn}"')
             os.remove(fn)
             return {}
         return info
@@ -891,7 +898,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             info = fullinfo
             if isinstance(info, list):
                 item.filename = None
-                shared.log.warning('Network: show details not supported for compound item')
+                log.warning('Network: show details not supported for compound item')
                 info = None
             if prompt is not None and len(prompt) > 0:
                 item.prompt = prompt
@@ -1015,7 +1022,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             page.refresh_time = 0
             page.refresh()
             page.create_page(ui.tabname)
-            shared.log.debug(f'Networks: refresh page="{page.title}" items={len(page.items)} tab={ui.tabname}')
+            log.debug(f'Networks: refresh page="{page.title}" items={len(page.items)} tab={ui.tabname}')
             pages.append(page.html)
         ui.search.update(title)
         return pages
@@ -1024,7 +1031,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         pages = []
         for page in get_pages():
             page.switch_view(ui.tabname)
-            shared.log.debug(f'Networks: refresh page="{page.title}" items={len(page.items)} tab={ui.tabname} view={page.view}')
+            log.debug(f'Networks: refresh page="{page.title}" items={len(page.items)} tab={ui.tabname} view={page.view}')
             pages.append(page.html)
         ui.search.update(title)
         return pages
@@ -1040,7 +1047,7 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         params, text = get_last_args()
         if (not params) or (not text) or (len(text) == 0):
             if os.path.exists(paths.params_path):
-                with open(paths.params_path, "r", encoding="utf8") as file:
+                with open(paths.params_path, encoding="utf8") as file:
                     text = file.read()
             else:
                 text = ''
@@ -1052,13 +1059,13 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
 
     def ui_quicksave_click(name):
         if name is None or len(name) < 1:
-            shared.log.warning("Network quick save style: no name provided")
+            log.warning("Network quick save style: no name provided")
             return
         from modules.processing_info import get_last_args
         params, text = get_last_args()
         if (not params) or (not text) or (len(text) == 0):
             if os.path.exists(paths.params_path):
-                with open(paths.params_path, "r", encoding="utf8") as file:
+                with open(paths.params_path, encoding="utf8") as file:
                     text = file.read()
             else:
                 text = ''
@@ -1073,11 +1080,11 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             "negative": negative,
             "extra": '',
         }
-        shared.writefile(item, fn, silent=True)
+        writefile(item, fn, silent=True)
         if len(prompt) > 0:
-            shared.log.debug(f'Networks type=style quicksave style: item="{name}" filename="{fn}" prompt="{prompt}"')
+            log.debug(f'Networks type=style quicksave style: item="{name}" filename="{fn}" prompt="{prompt}"')
         else:
-            shared.log.warning(f'Networks type=style quicksave model: item="{name}" filename="{fn}" prompt is empty')
+            log.warning(f'Networks type=style quicksave model: item="{name}" filename="{fn}" prompt is empty')
 
     def ui_sort_cards(sort_order):
         if shared.opts.extra_networks_sort != sort_order:

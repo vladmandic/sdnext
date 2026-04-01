@@ -96,6 +96,7 @@ mapping = [
     # Other
     ('Parser', 'prompt_attention'),
     ('Color correction', 'img2img_color_correction'),
+    ('Color correction method', 'color_correction_method'),
     # Samplers
     ('Sampler eta delta', 'eta_noise_seed_delta'),
     ('Sampler eta multiplier', 'initial_noise_multiplier'),
@@ -129,7 +130,7 @@ if __name__ == '__main__':
     import sys
     if len(sys.argv) > 1:
         if os.path.exists(sys.argv[1]):
-            with open(sys.argv[1], 'r', encoding='utf8') as f:
+            with open(sys.argv[1], encoding='utf8') as f:
                 parse(f.read())
         else:
             parse(sys.argv[1])

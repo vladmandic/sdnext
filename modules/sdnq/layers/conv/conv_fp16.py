@@ -1,7 +1,5 @@
 # pylint: disable=relative-beyond-top-level,redefined-builtin,protected-access
 
-from typing import List
-
 import torch
 
 from ...common import compile_func, fp_mm_func # noqa: TID252
@@ -18,15 +16,15 @@ def conv_fp16_matmul(
     weight: torch.Tensor,
     scale: torch.FloatTensor,
     result_shape: torch.Size,
-    reversed_padding_repeated_twice: List[int],
+    reversed_padding_repeated_twice: list[int],
     padding_mode: str, conv_type: int,
-    groups: int, stride: List[int],
-    padding: List[int], dilation: List[int],
-    bias: torch.FloatTensor = None,
-    svd_up: torch.FloatTensor = None,
-    svd_down: torch.FloatTensor = None,
-    quantized_weight_shape: torch.Size = None,
-    weights_dtype: str = None,
+    groups: int, stride: list[int],
+    padding: list[int], dilation: list[int],
+    bias: torch.FloatTensor | None = None,
+    svd_up: torch.FloatTensor | None = None,
+    svd_down: torch.FloatTensor | None = None,
+    quantized_weight_shape: torch.Size | None = None,
+    weights_dtype: str | None = None,
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
@@ -38,7 +36,7 @@ def conv_fp16_matmul(
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
     if quantized_weight_shape is not None:
-        weight = unpack_float(weight, quantized_weight_shape, weights_dtype).to(dtype=torch.float16).t_()
+        weight = unpack_float(weight, weights_dtype, quantized_weight_shape).to(dtype=torch.float16).t_()
         scale = scale.t()
     elif weight.dtype != torch.float16:
         weight = weight.to(dtype=torch.float16) # fp8 weights

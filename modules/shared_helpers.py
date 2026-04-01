@@ -1,7 +1,7 @@
 import os
 from types import SimpleNamespace
 from modules import paths
-from installer import log
+from modules.logger import log
 
 
 dir_timestamps = {}

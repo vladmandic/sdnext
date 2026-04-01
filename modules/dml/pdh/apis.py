@@ -1,6 +1,6 @@
 from ctypes import CDLL, POINTER
 from ctypes.wintypes import LPCWSTR, LPDWORD, DWORD
-from typing import Callable
+from collections.abc import Callable
 from .structures import PDH_HQUERY, PDH_HCOUNTER, PPDH_FMT_COUNTERVALUE, PPDH_FMT_COUNTERVALUE_ITEM_W
 from .defines import PDH_FUNCTION, PZZWSTR, DWORD_PTR
 

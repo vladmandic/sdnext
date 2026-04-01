@@ -3,18 +3,20 @@ import time
 import gradio as gr
 from PIL import Image
 from modules import shared, scripts_manager, masking, video # pylint: disable=ungrouped-imports
+from modules.logger import log
 
 
 gr_height = None
 max_units = shared.opts.control_max_units
 debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
-debug_log = shared.log.trace if debug else lambda *args, **kwargs: None
+debug_log = log.trace if debug else lambda *args, **kwargs: None
 
 # state variables
 busy = False # used to synchronize select_input and generate_click
 input_source = None
 input_init = None
 input_mask = None
+input_prev = None
 
 
 def initialize():
@@ -25,7 +27,7 @@ def initialize():
     from modules.control.units import xs # vislearn ControlNet-XS
     from modules.control.units import lite # vislearn ControlNet-XS
     from modules.control.units import t2iadapter # TencentARC T2I-Adapter
-    shared.log.debug(f'UI initialize: tab=control models="{shared.opts.control_dir}"')
+    log.debug(f'UI initialize: tab=control models="{shared.opts.control_dir}"')
     controlnet.cache_dir = os.path.join(shared.opts.control_dir, 'controlnet')
     xs.cache_dir = os.path.join(shared.opts.control_dir, 'xs')
     lite.cache_dir = os.path.join(shared.opts.control_dir, 'lite')
@@ -48,16 +50,16 @@ def initialize():
     scripts_manager.scripts_control.initialize_scripts(is_img2img=False, is_control=True)
 
 
-def interrogate():
+def caption():
     prompt = None
     if input_source is None or len(input_source) == 0:
-        shared.log.warning('Interrogate: no input source')
+        log.warning('Caption: no input source')
         return prompt
     try:
-        from modules.interrogate.interrogate import interrogate as interrogate_fn
-        prompt = interrogate_fn(input_source[0])
+        from modules.caption.caption import caption as caption_fn
+        prompt = caption_fn(input_source[0])
     except Exception as e:
-        shared.log.error(f'Interrogate: {e}')
+        log.error(f'Caption: {e}')
     return prompt
 
 
@@ -71,12 +73,12 @@ def get_video(filepath: str):
         return ''
     try:
         frames, fps, duration, w, h, codec, _cap = video.get_video_params(filepath)
-        shared.log.debug(f'Control: input video: path={filepath} frames={frames} fps={fps} size={w}x{h} codec={codec}')
+        log.debug(f'Control: input video: path={filepath} frames={frames} fps={fps} size={w}x{h} codec={codec}')
         msg = f'Control input | Video | Size {w}x{h} | Frames {frames} | FPS {fps:.2f} | Duration {duration:.2f} | Codec {codec}'
         return msg
     except Exception as e:
         msg = f'Control: video open failed: path={filepath} {e}'
-        shared.log.error(msg)
+        log.error(msg)
         return msg
 
 
@@ -98,7 +100,7 @@ def process_kanvas(x): # only used when kanvas overrides gr.Image object
             mask = helpers.decode_base64_to_image(mask_data)
             mask = mask.convert('L')
         t1 = time.time()
-        shared.log.debug(f'Kanvas: image={image}:{image_bytes} mask={mask}:{mask_bytes} time={t1-t0:.2f}')
+        log.debug(f'Kanvas: image={image}:{image_bytes} mask={mask}:{mask_bytes} time={t1-t0:.2f}')
         return image, mask
     except Exception:
         pass
@@ -122,14 +124,14 @@ def process_kanvas(x): # only used when kanvas overrides gr.Image object
             # mask = Image.merge("RGB", [alpha, alpha, alpha])
             mask = mask.convert('L')
         t1 = time.time()
-        shared.log.debug(f'Kanvas: image={image} mask={mask} time={t1-t0:.2f}')
+        log.debug(f'Kanvas: image={image} mask={mask} time={t1-t0:.2f}')
     except Exception:
         pass
     return image, mask
 
 
 def select_input(input_mode, input_image, init_image, init_type, input_video, input_batch, input_folder):
-    global busy, input_source, input_init, input_mask # pylint: disable=global-statement
+    global busy, input_source, input_init, input_mask, input_prev # pylint: disable=global-statement
     t0 = time.time()
     busy = False
     selected_input = input_image # default: Image or Kanvas
@@ -139,10 +141,16 @@ def select_input(input_mode, input_image, init_image, init_type, input_video, in
         selected_input = input_batch
     elif input_mode == 'Folder':
         selected_input = input_folder
+
     size = [gr.update(), gr.update()]
     if selected_input is None:
+        # log.debug(f'Select input: image={selected_input}')
         input_source = None
         return [gr.Tabs.update(), None, ''] + size
+    elif selected_input == input_prev:
+        # log.debug(f'Select input: image={selected_input} no change')
+        return [gr.Tabs.update(), None, ''] + size
+    input_prev = selected_input
 
     busy = True
     input_type = type(selected_input)
@@ -201,7 +209,7 @@ def select_input(input_mode, input_image, init_image, init_type, input_video, in
     elif init_type == 2: # Separate init image
         input_init = [init_image]
     t1 = time.time()
-    shared.log.debug(f'Select input: type={input_type} source={input_source} init={input_init} mask={input_mask} mode={input_mode} time={t1-t0:.2f}')
+    log.debug(f'Select input: type={input_type} source={input_source} init={input_init} mask={input_mask} mode={input_mode} time={t1-t0:.2f}')
     busy = False
     return res + size
 
@@ -222,7 +230,7 @@ def copy_input(mode_from, mode_to, input_image, input_resize, input_inpaint):
     elif mode_to == 'Outpaint':
         return [None, getimg(input_image) if mode_from == 'Image' else getimg(input_inpaint), None]
     else:
-        shared.log.error(f'Control transfer unknown input: from={mode_from} to={mode_to}')
+        log.error(f'Control transfer unknown input: from={mode_from} to={mode_to}')
         return [gr.update(), gr.update(), gr.update()]
 
 

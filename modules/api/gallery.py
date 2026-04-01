@@ -2,7 +2,6 @@ import io
 import os
 import time
 import base64
-from typing import List, Union
 from urllib.parse import quote, unquote
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -10,10 +9,11 @@ from starlette.websockets import WebSocket, WebSocketState
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
 from PIL import Image
 from modules import shared, images, files_cache, modelstats
+from modules.logger import log
 from modules.paths import resolve_output_path
 
 
-debug = shared.log.debug if os.environ.get('SD_BROWSER_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.debug if os.environ.get('SD_BROWSER_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 OPTS_FOLDERS = [
@@ -52,7 +52,7 @@ class ConnectionManager:
         debug(f'Browser WS disconnect: client={ws.client.host}')
         self.active.remove(ws)
 
-    async def send(self, ws: WebSocket, data: Union[str, dict, bytes]):
+    async def send(self, ws: WebSocket, data: str | dict | bytes):
         # debug(f'Browser WS send: client={ws.client.host} data={type(data)}')
         if ws.client_state != WebSocketState.CONNECTED:
             return
@@ -65,7 +65,7 @@ class ConnectionManager:
         else:
             debug(f'Browser WS send: client={ws.client.host} data={type(data)} unknown')
 
-    async def broadcast(self, data: Union[str, dict, bytes]):
+    async def broadcast(self, data: str | dict | bytes):
         for ws in self.active:
             await self.send(ws, data)
 
@@ -97,7 +97,7 @@ def register_api(app: FastAPI): # register api
             }
             return content
         except Exception as e:
-            shared.log.error(f'Gallery video: file="{filepath}" {e}')
+            log.error(f'Gallery video: file="{filepath}" {e}')
             return {}
 
     def get_image_thumbnail(filepath):
@@ -124,7 +124,7 @@ def register_api(app: FastAPI): # register api
             }
             return content
         except Exception as e:
-            shared.log.error(f'Gallery image: file="{filepath}" {e}')
+            log.error(f'Gallery image: file="{filepath}" {e}')
             return {}
 
     # @app.get('/sdapi/v1/browser/folders', response_model=List[str])
@@ -184,7 +184,7 @@ def register_api(app: FastAPI): # register api
             else:
                 return JSONResponse(content=get_image_thumbnail(decoded))
         except Exception as e:
-            shared.log.error(f'Gallery: {file} {e}')
+            log.error(f'Gallery: {file} {e}')
             content = { 'error': str(e) }
             return JSONResponse(content=content)
 
@@ -200,13 +200,13 @@ def register_api(app: FastAPI): # register api
                 msg = msg[:1] + ":" + msg[4:] if msg[1:4] == "%3A" else msg
                 lines.append(msg)
             t1 = time.time()
-            shared.log.debug(f'Gallery: type=ht folder="{folder}" files={len(lines)} time={t1-t0:.3f}')
+            log.debug(f'Gallery: type=ht folder="{folder}" files={len(lines)} time={t1-t0:.3f}')
             return lines
         except Exception as e:
-            shared.log.error(f'Gallery: {folder} {e}')
+            log.error(f'Gallery: {folder} {e}')
             return []
 
-    shared.api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=List[str])
+    shared.api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[str])
     shared.api.add_api_route("/sdapi/v1/browser/thumb", get_thumb, methods=["GET"], response_model=dict)
     shared.api.add_api_route("/sdapi/v1/browser/files", ht_files, methods=["GET"], response_model=list)
 
@@ -229,7 +229,7 @@ def register_api(app: FastAPI): # register api
                 await manager.send(ws, msg)
             await manager.send(ws, '#END#')
             t1 = time.time()
-            shared.log.debug(f'Gallery: type=ws folder="{folder}" files={numFiles} time={t1-t0:.3f}')
+            log.debug(f'Gallery: type=ws folder="{folder}" files={numFiles} time={t1-t0:.3f}')
         except Exception as e:
             debug(f'Browser WS error: {e}')
         manager.disconnect(ws)

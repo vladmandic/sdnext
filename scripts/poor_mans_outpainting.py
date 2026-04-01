@@ -4,9 +4,10 @@ from PIL import Image, ImageDraw
 from modules import images, devices, scripts_manager
 from modules.processing import get_processed, process_images
 from modules.shared import opts, state, log
+from modules.image.grid import split_grid
 
 
-class Script(scripts_manager.Script):
+class OutpaintingAltScript(scripts_manager.Script):
     def title(self):
         return "Outpainting alternative"
 
@@ -64,9 +65,9 @@ class Script(scripts_manager.Script):
              mask.height - down - (mask_blur//2 if down > 0 else 0)
         ), fill="black")
         devices.torch_gc()
-        grid = images.split_grid(img, tile_w=p.width, tile_h=p.height, overlap=pixels)
-        grid_mask = images.split_grid(mask, tile_w=p.width, tile_h=p.height, overlap=pixels)
-        grid_latent_mask = images.split_grid(latent_mask, tile_w=p.width, tile_h=p.height, overlap=pixels)
+        grid = split_grid(img, tile_w=p.width, tile_h=p.height, overlap=pixels)
+        grid_mask = split_grid(mask, tile_w=p.width, tile_h=p.height, overlap=pixels)
+        grid_latent_mask = split_grid(latent_mask, tile_w=p.width, tile_h=p.height, overlap=pixels)
         p.n_iter = 1
         p.batch_size = 1
         p.do_not_save_grid = True

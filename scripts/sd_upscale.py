@@ -4,9 +4,11 @@ from PIL import Image
 from modules import processing, shared, images, devices, scripts_manager
 from modules.processing import get_processed
 from modules.shared import opts, state, log
+from modules.image.util import flatten
+from modules.image.grid import split_grid
 
 
-class Script(scripts_manager.Script):
+class SDUpscaleScript(scripts_manager.Script):
     def title(self):
         return "SD Upscale"
 
@@ -32,7 +34,7 @@ class Script(scripts_manager.Script):
 
         if init_img is None:
             return None
-        init_img = images.flatten(init_img, opts.img2img_background_color)
+        init_img = flatten(init_img, opts.img2img_background_color)
 
         if isinstance(upscaler_index, str):
             upscaler_index = [x.name.lower() for x in shared.sd_upscalers].index(upscaler_index.lower())
@@ -47,7 +49,7 @@ class Script(scripts_manager.Script):
         else:
             img = init_img
         devices.torch_gc()
-        grid = images.split_grid(img, tile_w=init_img.width, tile_h=init_img.height, overlap=overlap)
+        grid = split_grid(img, tile_w=init_img.width, tile_h=init_img.height, overlap=overlap)
         batch_size = p.batch_size
         upscale_count = p.n_iter
         p.n_iter = 1

@@ -1,5 +1,5 @@
 import importlib
-from typing import Any, Optional
+from typing import Any
 import torch
 
 
@@ -52,7 +52,7 @@ class autocast:
 
     fast_dtype: torch.dtype = torch.float16
     prev_fast_dtype: torch.dtype
-    def __init__(self, dtype: Optional[torch.dtype] = torch.float16):
+    def __init__(self, dtype: torch.dtype | None = torch.float16):
         self.fast_dtype = dtype
 
     def __enter__(self):

@@ -1,4 +1,4 @@
-class Timer():
+class Timer:
     list: float = 0
     load: float = 0
     backup: float = 0

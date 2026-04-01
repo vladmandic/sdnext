@@ -14,10 +14,11 @@ from torchvision.transforms import InterpolationMode
 from torchvision.transforms.functional import normalize, resize
 
 import insightface
-from basicsr.utils import img2tensor, tensor2img
 from facexlib.parsing import init_parsing_model
 from facexlib.utils.face_restoration_helper import FaceRestoreHelper
 from insightface.app import FaceAnalysis
+
+from .pulid_utils import img2tensor, tensor2img
 
 from eva_clip import create_model_and_transforms
 from eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD

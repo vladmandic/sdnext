@@ -2,6 +2,7 @@ import os
 import glob
 import torch
 from modules import shared, errors, paths, devices, sd_models, sd_detect
+from modules.logger import log
 
 
 vae_ignore_keys = {"model_ema.decay", "model_ema.num_updates"}
@@ -38,12 +39,12 @@ def get_vae_scale_factor(model=None):
     elif hasattr(model, 'config') and hasattr(model.config, 'vae_scale_factor'):
         vae_scale_factor = model.config.vae_scale_factor
     else:
-        # shared.log.warning(f'VAE: cls={model.__class__.__name__ if model else "None"} scale=unknown')
+        # log.warning(f'VAE: cls={model.__class__.__name__ if model else "None"} scale=unknown')
         vae_scale_factor = 8
     if hasattr(model, 'patch_size'):
         patch_size = model.patch_size
     if debug:
-        shared.log.trace(f'VAE: cls={model.__class__.__name__ if model else "None"} scale={vae_scale_factor} patch={patch_size}')
+        log.trace(f'VAE: cls={model.__class__.__name__ if model else "None"} scale={vae_scale_factor} patch={patch_size}')
     return vae_scale_factor * patch_size
 
 
@@ -87,7 +88,7 @@ def refresh_vae_list():
             vae_dict[name] = os.path.dirname(filepath)
         else:
             vae_dict[name] = filepath
-    shared.log.info(f'Available VAEs: path="{vae_path}" items={len(vae_dict)}')
+    log.info(f'Available VAEs: path="{vae_path}" items={len(vae_dict)}')
     return vae_dict
 
 
@@ -120,7 +121,7 @@ def resolve_vae(checkpoint_file):
         vae_from_options = vae_dict.get(shared.opts.sd_vae + '.safetensors', None) # 6th
         if vae_from_options is not None:
             return vae_from_options, 'settings'
-        shared.log.warning(f"VAE not found: {shared.opts.sd_vae}")
+        log.warning(f"VAE not found: {shared.opts.sd_vae}")
     return None, None
 
 
@@ -148,7 +149,7 @@ def load_vae_diffusers(model_file, vae_file=None, vae_source="unknown-source"):
     if vae_file is None:
         return None
     if not os.path.exists(vae_file):
-        shared.log.error(f'VAE not found: model{vae_file}')
+        log.error(f'VAE not found: model{vae_file}')
         return None
     diffusers_load_config = {
         "low_cpu_mem_usage": False,
@@ -168,7 +169,7 @@ def load_vae_diffusers(model_file, vae_file=None, vae_source="unknown-source"):
     vae_config = sd_detect.get_load_config(model_file, model_type, config_type='json')
     if vae_config is not None:
         diffusers_load_config['config'] = os.path.join(vae_config, 'vae')
-    shared.log.info(f'Load module: type=VAE model="{vae_file}" source={vae_source} config={diffusers_load_config}')
+    log.info(f'Load module: type=VAE model="{vae_file}" source={vae_source} config={diffusers_load_config}')
     try:
         import diffusers
         if os.path.isfile(vae_file):
@@ -180,7 +181,7 @@ def load_vae_diffusers(model_file, vae_file=None, vae_source="unknown-source"):
                 vae = diffusers.AutoencoderKL.from_single_file(vae_file, **diffusers_load_config)
                 if getattr(vae.config, 'scaling_factor', 0) == 0.18125 and shared.sd_model_type == 'sdxl':
                     vae.config.scaling_factor = 0.13025
-                    shared.log.debug('Setting model: component=VAE fix scaling factor')
+                    log.debug('Setting model: component=VAE fix scaling factor')
             vae = vae.to(devices.dtype_vae)
         else:
             if 'consistency-decoder' in vae_file:
@@ -189,12 +190,12 @@ def load_vae_diffusers(model_file, vae_file=None, vae_source="unknown-source"):
                 vae = diffusers.AutoencoderKL.from_pretrained(vae_file, **diffusers_load_config)
         global loaded_vae_file # pylint: disable=global-statement
         loaded_vae_file = os.path.basename(vae_file)
-        # shared.log.debug(f'Diffusers VAE config: {vae.config}')
+        # log.debug(f'Diffusers VAE config: {vae.config}')
         if shared.opts.diffusers_offload_mode == 'none':
             sd_models.move_model(vae, devices.device)
         return vae
     except Exception as e:
-        shared.log.error(f"Load VAE failed: model={vae_file} {e}")
+        log.error(f"Load VAE failed: model={vae_file} {e}")
         if debug:
             errors.display(e, 'VAE')
     return None
@@ -215,7 +216,7 @@ def reload_vae_weights(sd_model=None, vae_file=unspecified):
     if vae_file is None or vae_file == 'None':
         if hasattr(sd_model, 'original_vae'):
             sd_models.set_diffuser_options(sd_model, vae=sd_model.original_vae, op='vae')
-            shared.log.info("VAE restored")
+            log.info("VAE restored")
             return None
     if loaded_vae_file == vae_file:
         return None

@@ -1,4 +1,4 @@
-from installer import log
+from modules.logger import log
 from modules import devices
 
 

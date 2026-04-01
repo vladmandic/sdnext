@@ -1,6 +1,7 @@
 import os
 import json
 from modules import shared, ui_extra_networks, modelstats, files_cache
+from modules.logger import log
 
 
 wildcards_list = []
@@ -44,7 +45,7 @@ class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
                 }
                 yield record
             except Exception as e:
-                shared.log.debug(f'Networks error: type=wildcard file="{filename}" {e}')
+                log.debug(f'Networks error: type=wildcard file="{filename}" {e}')
 
     def allowed_directories_for_previews(self):
         return [v for v in [shared.opts.wildcards_dir] if v is not None]

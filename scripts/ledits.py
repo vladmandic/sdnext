@@ -1,9 +1,10 @@
 import diffusers
 import gradio as gr
 from modules import scripts_manager, processing, shared, devices, sd_models
+from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class LEditsScript(scripts_manager.Script):
     def title(self):
         return 'LEdits: Limitless Image Editing'
 
@@ -31,13 +32,13 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessing, edit_start, edit_stop, intersect_mask, prompt1, scale1, threshold1, prompt2, scale2, threshold2): # pylint: disable=arguments-differ, unused-argument
         image = getattr(p, 'init_images', None)
         if len(prompt1) == 0 and len(prompt2) == 0:
-            shared.log.error('LEdits: no prompts')
+            log.error('LEdits: no prompts')
             return None
         if image is None or len(image) == 0:
-            shared.log.error('LEdits: no init_images')
+            log.error('LEdits: no init_images')
             return None
         if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl':
-            shared.log.error(f'LEdits: invalid model type: {shared.sd_model_type}')
+            log.error(f'LEdits: invalid model type: {shared.sd_model_type}')
             return None
 
         orig_pipeline = shared.sd_model
@@ -67,7 +68,7 @@ class Script(scripts_manager.Script):
             'skip': 1.0 - p.denoising_strength, # invert start
             'generator': None, # not supported
         }
-        shared.log.info(f'LEdits invert: {invert_args}')
+        log.info(f'LEdits invert: {invert_args}')
         _output = shared.sd_model.invert(**invert_args)
         p.task_args = {
             'editing_prompt': [],
@@ -91,7 +92,7 @@ class Script(scripts_manager.Script):
             p.task_args['edit_guidance_scale'].append(10.0 * scale2)
             p.task_args['edit_threshold'].append(threshold2)
 
-        shared.log.info(f'LEdits: {p.task_args}')
+        log.info(f'LEdits: {p.task_args}')
         processed = processing.process_images(p)
 
         # restore pipeline

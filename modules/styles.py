@@ -5,14 +5,14 @@ import csv
 import json
 import time
 import random
-from typing import Dict
 from modules import files_cache, shared, infotext, sd_models, sd_vae
+from modules.logger import log
 
 
 debug_enabled = os.environ.get('SD_STYLES_DEBUG', None) is not None
 
 
-class Style():
+class Style:
     def __init__(self, name: str, desc: str = "", prompt: str = "", negative_prompt: str = "", extra: str = "", wildcards: str = "", filename: str = "", preview: str = "", mtime: float = 0):
         self.name = name
         self.description = desc
@@ -50,7 +50,7 @@ def select_from_weighted_list(inner: str) -> str:
         return ''
 
     parts = [p.strip() for p in inner.split('|') if p.strip()]
-    weighted: Dict[str, float] = {}
+    weighted: dict[str, float] = {}
     unweighted = []
 
     for p in parts:
@@ -102,7 +102,7 @@ def select_from_weighted_list(inner: str) -> str:
     if total <= 0.0:
         return items[0][0]
 
-    names, weights = zip(*items)
+    names, weights = zip(*items, strict=False)
     return random.choices(names, weights=weights, k=1)[0]
 
 
@@ -130,7 +130,11 @@ def apply_curly_braces_to_prompt(prompt, seed=-1):
     return prompt
 
 
-def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, seed=-1):
+def apply_file_wildcards(prompt, replaced = None, not_found = None, recursion=0, seed=-1):
+    if not_found is None:
+        not_found = []
+    if replaced is None:
+        replaced = []
     def check_wildcard_files(prompt, wildcard, files, file_only=True):
         trimmed = wildcard.replace('\\', os.path.sep).replace('/', os.path.sep).strip().lower()
         for file in files:
@@ -141,7 +145,7 @@ def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, see
             paths.insert(0, os.path.splitext(file)[0].lower())
             if (trimmed in paths) or (os.path.sep in trimmed and trimmed in paths[0]):
                 try:
-                    with open(file, 'r', encoding='utf-8') as f:
+                    with open(file, encoding='utf-8') as f:
                         lines = f.readlines()
                         lines = [line.split('#')[0].strip('\n').strip() for line in lines]
                         lines = [line for line in lines if len(line) > 0]
@@ -150,11 +154,11 @@ def apply_file_wildcards(prompt, replaced = [], not_found = [], recursion=0, see
                             if '|' in choice:
                                 choice = random.choice(choice.split('|')).strip(' []{}\n')
                             prompt = prompt.replace(f"__{wildcard}__", choice, 1)
-                            shared.log.debug(f'Apply wildcard: select="{wildcard}" choice="{choice}" file="{file}" choices={len(lines)}')
+                            log.debug(f'Apply wildcard: select="{wildcard}" choice="{choice}" file="{file}" choices={len(lines)}')
                             replaced.append(wildcard)
                             return prompt, True
                 except Exception as e:
-                    shared.log.error(f'Wildcards: wildcard={wildcard} file={file} {e}')
+                    log.error(f'Wildcards: wildcard={wildcard} file={file} {e}')
         if not file_only:
             return prompt, False
         return check_wildcard_files(prompt, wildcard, files, file_only=False)
@@ -204,14 +208,14 @@ def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False):
                     prompt = prompt.replace(what, word)
                     replaced[what] = word
             except Exception as e:
-                shared.log.error(f'Wildcards: wildcard="{wildcard}" error={e}')
+                log.error(f'Wildcards: wildcard="{wildcard}" error={e}')
     t1 = time.time()
     prompt, replaced_file, not_found = apply_file_wildcards(prompt, [], [], recursion=0, seed=seed)
     t2 = time.time()
     if replaced and not silent:
-        shared.log.debug(f'Apply wildcards: {replaced} path="{shared.opts.wildcards_dir}" type=style time={t1-t0:.2f}')
+        log.debug(f'Apply wildcards: {replaced} path="{shared.opts.wildcards_dir}" type=style time={t1-t0:.2f}')
     if (len(replaced_file) > 0 or len(not_found) > 0) and not silent:
-        shared.log.debug(f'Apply wildcards: found={replaced_file} missing={not_found} path="{shared.opts.wildcards_dir}" type=file seed={seed} time={t2-t2:.2f}')
+        log.debug(f'Apply wildcards: found={replaced_file} missing={not_found} path="{shared.opts.wildcards_dir}" type=file seed={seed} time={t2-t2:.2f}')
     if old_state is not None:
         random.setstate(old_state)
     return prompt
@@ -270,11 +274,11 @@ def apply_styles_to_extra(p, style: Style):
                     v = type(orig)(v)
             setattr(p, k, v)
             if debug_enabled:
-                shared.log.trace(f'Apply style param: {k}={v}')
+                log.trace(f'Apply style param: {k}={v}')
             params.append(f'{k}={v}')
         elif shared.opts.data_labels.get(k, None) is not None:
             if debug_enabled:
-                shared.log.trace(f'Apply style setting: {k}={v}')
+                log.trace(f'Apply style setting: {k}={v}')
             shared.opts.data[k] = v
             if k == 'sd_model_checkpoint':
                 sd_models.reload_model_weights()
@@ -283,9 +287,9 @@ def apply_styles_to_extra(p, style: Style):
             settings.append(f'{k}={v}')
         else:
             if debug_enabled:
-                shared.log.trace(f'Apply style skip: {k}={v}')
+                log.trace(f'Apply style skip: {k}={v}')
             skipped.append(f'{k}={v}')
-    shared.log.debug(f'Apply style: name="{style.name}" params={params} settings={settings} unknown={skipped} reference={True if reference_style else False}')
+    log.debug(f'Apply style: name="{style.name}" params={params} settings={settings} unknown={skipped} reference={True if reference_style else False}')
 
 
 class StyleDatabase:
@@ -304,10 +308,10 @@ class StyleDatabase:
             try:
                 os.makedirs(opts.styles_dir, exist_ok=True)
                 self.save_styles(opts.styles_dir, verbose=True)
-                shared.log.debug(f'Migrated styles: file="{legacy_file}" folder="{opts.styles_dir}"')
+                log.debug(f'Migrated styles: file="{legacy_file}" folder="{opts.styles_dir}"')
                 self.reload()
             except Exception as e:
-                shared.log.error(f'styles failed to migrate: file="{legacy_file}" error={e}')
+                log.error(f'styles failed to migrate: file="{legacy_file}" error={e}')
         if not os.path.isdir(opts.styles_dir):
             opts.styles_dir = os.path.join(paths.models_path, "styles")
             self.path = opts.styles_dir
@@ -317,7 +321,7 @@ class StyleDatabase:
                 pass
 
     def load_style(self, fn, prefix=None):
-        with open(fn, 'r', encoding='utf-8') as f:
+        with open(fn, encoding='utf-8') as f:
             new_style = None
             try:
                 all_styles = json.load(f)
@@ -345,7 +349,7 @@ class StyleDatabase:
                     )
                     self.styles[style["name"]] = new_style
             except Exception as e:
-                shared.log.error(f'Failed to load style: file="{fn}" error={e}')
+                log.error(f'Failed to load style: file="{fn}" error={e}')
             return new_style
 
     def reload(self):
@@ -355,15 +359,10 @@ class StyleDatabase:
         def list_folder(folder):
             import concurrent
             future_items = {}
-            candidates = list(files_cache.list_files(folder, ext_filter=['.json'], recursive=files_cache.not_hidden))
+            style_files = list(files_cache.list_files(folder, ext_filter=['.json'], recursive=files_cache.not_hidden))
             with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
-                for fn in candidates:
-                    if os.path.isfile(fn) and fn.lower().endswith(".json"):
-                        future_items[executor.submit(self.load_style, fn, None)] = fn
-                        # self.load_style(fn)
-                    elif os.path.isdir(fn) and not fn.startswith('.'):
-                        list_folder(fn)
-                self.styles = dict(sorted(self.styles.items(), key=lambda style: style[1].filename))
+                for fn in style_files:
+                    future_items[executor.submit(self.load_style, fn, None)] = fn
                 if self.built_in:
                     fn = os.path.join('html', 'art-styles.json')
                     future_items[executor.submit(self.load_style, fn, 'Reference')] = fn
@@ -372,8 +371,9 @@ class StyleDatabase:
 
         self.built_in = shared.opts.extra_networks_styles
         list_folder(self.path)
+        self.styles = dict(sorted(self.styles.items(), key=lambda style: style[1].filename))
         t1 = time.time()
-        shared.log.info(f'Available Styles: path="{self.path}" items={len(self.styles.keys())} time={t1-t0:.2f}')
+        log.info(f'Available Styles: path="{self.path}" items={len(self.styles.keys())} time={t1-t0:.2f}')
 
     def find_style(self, name):
         found = [style for style in self.styles.values() if style.name == name]
@@ -383,7 +383,7 @@ class StyleDatabase:
         if styles is None:
             return []
         if not isinstance(styles, list):
-            shared.log.error(f'Styles invalid: {styles}')
+            log.error(f'Styles invalid: {styles}')
             return []
         return [self.find_style(x).prompt for x in styles]
 
@@ -391,7 +391,7 @@ class StyleDatabase:
         if styles is None:
             return []
         if not isinstance(styles, list):
-            shared.log.error(f'Styles invalid: {styles}')
+            log.error(f'Styles invalid: {styles}')
             return []
         return [self.find_style(x).negative_prompt for x in styles]
 
@@ -399,13 +399,13 @@ class StyleDatabase:
         if styles is None:
             return prompts, negatives
         if not isinstance(styles, list):
-            shared.log.error(f'Styles invalid styles: {styles}')
+            log.error(f'Styles invalid styles: {styles}')
             return prompts, negatives
         if prompts is None or not isinstance(prompts, list):
-            shared.log.error(f'Styles invalid prompts: {prompts}')
+            log.error(f'Styles invalid prompts: {prompts}')
             return prompts, negatives
         if seeds is None or not isinstance(prompts, list):
-            shared.log.error(f'Styles invalid seeds: {seeds}')
+            log.error(f'Styles invalid seeds: {seeds}')
             return prompts, negatives
         jobid = shared.state.begin('Styles')
         parsed_positive = []
@@ -437,7 +437,7 @@ class StyleDatabase:
         if styles is None:
             return prompt
         if not isinstance(styles, list):
-            shared.log.error(f'Styles invalid: {styles}')
+            log.error(f'Styles invalid: {styles}')
             return prompt
         prompt = apply_styles_to_prompt(prompt, [self.find_style(x).prompt for x in styles])
         if wildcards:
@@ -448,7 +448,7 @@ class StyleDatabase:
         if styles is None:
             return prompt
         if not isinstance(styles, list):
-            shared.log.error(f'Styles invalid: {styles}')
+            log.error(f'Styles invalid: {styles}')
             return prompt
         prompt = apply_styles_to_prompt(prompt, [self.find_style(x).negative_prompt for x in styles])
         if wildcards:
@@ -464,12 +464,12 @@ class StyleDatabase:
         if p.styles is None:
             return
         if p.styles is None or not isinstance(p.styles, list):
-            shared.log.error(f'Styles invalid: {p.styles}')
+            log.error(f'Styles invalid: {p.styles}')
             return
         for style in p.styles:
             s = self.find_style(style)
             if s == self.no_style:
-                shared.log.warning(f'Apply style: name="{style}" not found')
+                log.warning(f'Apply style: name="{style}" not found')
                 continue
             apply_styles_to_extra(p, s)
 
@@ -498,17 +498,17 @@ class StyleDatabase:
                 with open(fn, 'w', encoding='utf-8') as f:
                     json.dump(style, f, indent=2)
                     if verbose:
-                        shared.log.debug(f'Saved style: name={name} file="{fn}"')
+                        log.debug(f'Saved style: name={name} file="{fn}"')
             except Exception as e:
-                shared.log.error(f'Failed to save style: name={name} file="{path}" error={e}')
+                log.error(f'Failed to save style: name={name} file="{path}" error={e}')
         count = len(list(self.styles))
         if count > 0:
-            shared.log.debug(f'Saved styles: folder="{path}" items={count}')
+            log.debug(f'Saved styles: folder="{path}" items={count}')
 
     def load_csv(self, legacy_file):
         if not os.path.isfile(legacy_file):
             return
-        with open(legacy_file, "r", encoding="utf-8-sig", newline='') as file:
+        with open(legacy_file, encoding="utf-8-sig", newline='') as file:
             reader = csv.DictReader(file, skipinitialspace=True)
             num = 0
             for row in reader:
@@ -517,8 +517,8 @@ class StyleDatabase:
                     prompt = row["prompt"] if "prompt" in row else row["text"]
                     negative = row.get("negative_prompt", "") if "negative_prompt" in row else row.get("negative", "")
                     self.styles[name] = Style(name, desc=name, prompt=prompt, negative_prompt=negative)
-                    shared.log.debug(f'Migrated style: {self.styles[name].__dict__}')
+                    log.debug(f'Migrated style: {self.styles[name].__dict__}')
                     num += 1
                 except Exception:
-                    shared.log.error(f'Styles error: file="{legacy_file}" row={row}')
-            shared.log.info(f'Load legacy styles: file="{legacy_file}" loaded={num} created={len(list(self.styles))}')
+                    log.error(f'Styles error: file="{legacy_file}" row={row}')
+            log.info(f'Load legacy styles: file="{legacy_file}" loaded={num} created={len(list(self.styles))}')

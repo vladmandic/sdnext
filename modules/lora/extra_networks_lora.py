@@ -1,14 +1,14 @@
-from typing import List
 import os
 import re
 import numpy as np
 from modules.lora import networks, lora_overrides, lora_load, lora_diffusers
 from modules.lora import lora_common as l
 from modules import extra_networks, shared, sd_models
+from modules.logger import log
 
 
 debug = os.environ.get('SD_LORA_DEBUG', None) is not None
-debug_log = shared.log.trace if debug else lambda *args, **kwargs: None
+debug_log = log.trace if debug else lambda *args, **kwargs: None
 
 
 def get_stepwise(param, step, steps): # from https://github.com/cheald/sd-webui-loractl/blob/master/loractl/lib/utils.py
@@ -19,7 +19,7 @@ def get_stepwise(param, step, steps): # from https://github.com/cheald/sd-webui-
             return steps[0][0]
         steps = [[s[0], s[1] if len(s) == 2 else 1] for s in steps] # Add implicit 1s to any steps which don't have a weight
         steps.sort(key=lambda k: k[1]) # Sort by index
-        steps = [list(v) for v in zip(*steps)]
+        steps = [list(v) for v in zip(*steps, strict=False)]
         return steps
 
     def calculate_weight(m, step, max_steps, step_offset=2):
@@ -54,7 +54,7 @@ def prompt(p):
         all_tags = list(set(all_tags))
         all_tags = [t for t in all_tags if t not in p.prompt]
         if len(all_tags) > 0:
-            shared.log.debug(f"Network load: type=LoRA tags={all_tags} max={shared.opts.lora_apply_tags} apply")
+            log.debug(f"Network load: type=LoRA tags={all_tags} max={shared.opts.lora_apply_tags} apply")
         all_tags = ', '.join(all_tags)
         p.extra_generation_params["LoRA tags"] = all_tags
         if '_tags_' in p.prompt:
@@ -170,14 +170,16 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         self.model = None
         self.errors = {}
 
-    def signature(self, names: List[str], te_multipliers: List, unet_multipliers: List):
-        return [f'{name}:{te}:{unet}' for name, te, unet in zip(names, te_multipliers, unet_multipliers)]
+    def signature(self, names: list[str], te_multipliers: list, unet_multipliers: list):
+        return [f'{name}:{te}:{unet}' for name, te, unet in zip(names, te_multipliers, unet_multipliers, strict=False)]
 
-    def changed(self, requested: List[str], include: List[str] = None, exclude: List[str] = None) -> bool:
+    def changed(self, requested: list[str], include: list[str] | None = None, exclude: list[str] | None = None) -> bool:
         if shared.opts.lora_force_reload:
             debug_log(f'Network check: type=LoRA requested={requested} status=forced')
             return True
         sd_model = shared.sd_model.pipe if hasattr(shared.sd_model, 'pipe') else shared.sd_model
+        if sd_model is None:
+            return False
         if not hasattr(sd_model, 'loaded_loras'):
             sd_model.loaded_loras = {}
         if include is None or len(include) == 0:
@@ -190,7 +192,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             sd_model.loaded_loras[key] = requested
             debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status=changed')
             return True
-        for req, load in zip(requested, loaded):
+        for req, load in zip(requested, loaded, strict=False):
             if req != load:
                 sd_model.loaded_loras[key] = requested
                 debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status=changed')
@@ -198,7 +200,11 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status=same')
         return False
 
-    def activate(self, p, params_list, step=0, include=[], exclude=[]):
+    def activate(self, p, params_list, step=0, include=None, exclude=None):
+        if exclude is None:
+            exclude = []
+        if include is None:
+            include = []
         self.errors.clear()
         if self.active:
             if self.model != shared.opts.sd_model_checkpoint: # reset if model changed
@@ -233,7 +239,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             if has_changed:
                 jobid = shared.state.begin('LoRA')
                 if len(l.previously_loaded_networks) > 0:
-                    shared.log.info(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_native else "backup"}')
+                    log.info(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} mode={"fuse" if shared.opts.lora_fuse_native else "backup"}')
                     networks.network_deactivate(include, exclude)
                 networks.network_activate(include, exclude)
                 debug_log(f'Network change: type=LoRA previous={[n.name for n in l.previously_loaded_networks]} current={[n.name for n in l.loaded_networks]}')
@@ -245,7 +251,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             infotext(p)
             prompt(p)
             if has_changed and len(include) == 0: # print only once
-                shared.log.info(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} method={load_method} mode={"fuse" if shared.opts.lora_fuse_native else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
+                actual_method = 'native' if any(len(n.modules) > 0 for n in l.loaded_networks) else load_method
+                log.info(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} method={actual_method} mode={"fuse" if shared.opts.lora_fuse_native else "backup"} te={te_multipliers} unet={unet_multipliers} time={l.timer.summary}')
 
     def deactivate(self, p, force=False):
         if len(lora_diffusers.diffuser_loaded) > 0 and (shared.opts.lora_force_reload or force):
@@ -253,8 +260,8 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         if force:
             networks.network_deactivate()
         if self.active and l.debug:
-            shared.log.debug(f"Network end: type=LoRA time={l.timer.summary}")
+            log.debug(f"Network end: type=LoRA time={l.timer.summary}")
         if self.errors:
             for k, v in self.errors.items():
-                shared.log.error(f'Network: type=LoRA name="{k}" errors={v}')
+                log.error(f'Network: type=LoRA name="{k}" errors={v}')
             self.errors.clear()

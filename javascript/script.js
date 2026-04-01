@@ -78,7 +78,7 @@ const anyPromptExists = () => gradioApp().querySelectorAll('.main-prompts').leng
 
 function scheduleAfterUiUpdateCallbacks() {
   clearTimeout(uiAfterUpdateTimeout);
-  uiAfterUpdateTimeout = setTimeout(() => executeCallbacks(uiAfterUpdateCallbacks, 500));
+  uiAfterUpdateTimeout = setTimeout(() => executeCallbacks(uiAfterUpdateCallbacks), 250);
 }
 
 let executedOnLoaded = false;

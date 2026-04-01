@@ -1,10 +1,11 @@
 import gradio as gr
 from modules import shared, modelloader, ui_symbols, ui_common, sd_samplers
+from modules.logger import log
 from modules.ui_components import ToolButton
-from modules.interrogate import interrogate
+from modules.caption import caption
 
 
-def create_toprow(is_img2img: bool = False, id_part: str = None, generate_visible: bool = True, negative_visible: bool = True, reprocess_visible: bool = True):
+def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate_visible: bool = True, negative_visible: bool = True, reprocess_visible: bool = True):
     def apply_styles(prompt, prompt_neg, styles):
         prompt = shared.prompt_styles.apply_styles_to_prompt(prompt, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
         prompt_neg = shared.prompt_styles.apply_negative_styles_to_prompt(prompt_neg, styles, wildcards=not shared.opts.extra_networks_apply_unparsed)
@@ -69,7 +70,7 @@ def ar_change(ar, width, height):
     try:
         (w, h) = [float(x) for x in ar.split(':')]
     except Exception as e:
-        shared.log.warning(f"Invalid aspect ratio: {ar} {e}")
+        log.warning(f"Invalid aspect ratio: {ar} {e}")
         return gr.update(), gr.update()
     if w > h:
         return gr.update(), gr.update(value=int(width * h / w))
@@ -91,11 +92,11 @@ def create_resolution_inputs(tab, default_width=1024, default_height=1024):
     return width, height
 
 
-def create_interrogate_button(tab: str, inputs: list = None, outputs: str = None, what: str = ''):
-    button_interrogate = gr.Button(ui_symbols.interrogate, elem_id=f"{tab}_interrogate_{what}", elem_classes=['interrogate'])
+def create_caption_button(tab: str, inputs: list | None = None, outputs: str | None = None, what: str = ''):
+    button_caption = gr.Button(ui_symbols.caption, elem_id=f"{tab}_caption_{what}", elem_classes=['caption'])
     if inputs is not None and outputs is not None:
-        button_interrogate.click(fn=interrogate.interrogate, inputs=inputs, outputs=[outputs])
-    return button_interrogate
+        button_caption.click(fn=caption.caption, inputs=inputs, outputs=[outputs])
+    return button_caption
 
 
 def create_batch_inputs(tab, accordion=True):
@@ -159,28 +160,69 @@ def create_advanced_inputs(tab):
     return vae_type, tiling, hidiffusion, clip_skip
 
 
-def create_correction_inputs(tab):
-    with gr.Accordion(open=False, label="Corrections", elem_id=f"{tab}_corrections", elem_classes=["small-accordion"]):
+def create_latent_inputs(tab):
+    # Latent Corrections (during diffusion)
+    with gr.Accordion(open=False, label="Latent Corrections", elem_id=f"{tab}_latent_corrections", elem_classes=["small-accordion"]):
         with gr.Group():
             with gr.Row(elem_id=f"{tab}_hdr_mode_row"):
                 hdr_mode = gr.Dropdown(label="Correction mode", choices=["Relative values", "Absolute values"], type="index", value="Relative values", elem_id=f"{tab}_hdr_mode", show_label=False)
-                gr.HTML('<br>')
+                hdr_apply_hires = gr.Checkbox(label="Apply to hires", value=True, elem_id=f"{tab}_hdr_apply_hires")
             with gr.Row(elem_id=f"{tab}_correction_row"):
-                hdr_brightness = gr.Slider(minimum=-1.0, maximum=1.0, step=0.1, value=0,  label='Brightness', elem_id=f"{tab}_hdr_brightness")
-                hdr_sharpen = gr.Slider(minimum=-1.0, maximum=1.0, step=0.1, value=0,  label='Sharpen', elem_id=f"{tab}_hdr_sharpen")
-                hdr_color = gr.Slider(minimum=0.0, maximum=4.0, step=0.1, value=0.0,  label='Color', elem_id=f"{tab}_hdr_color")
+                hdr_brightness = gr.Slider(minimum=-4.0, maximum=4.0, step=0.05, value=0, label="Latent brightness", elem_id=f"{tab}_hdr_brightness")
+                hdr_sharpen = gr.Slider(minimum=-4.0, maximum=4.0, step=0.05, value=0, label="Latent sharpen", elem_id=f"{tab}_hdr_sharpen")
+                hdr_color = gr.Slider(minimum=0.0, maximum=16.0, step=0.1, value=0.0, label="Latent color", elem_id=f"{tab}_hdr_color")
             with gr.Row(elem_id=f"{tab}_hdr_clamp_row"):
-                hdr_clamp = gr.Checkbox(label='HDR clamp', value=False, elem_id=f"{tab}_hdr_clamp")
-                hdr_boundary = gr.Slider(minimum=0.0, maximum=10.0, step=0.1, value=4.0,  label='Range', elem_id=f"{tab}_hdr_boundary")
-                hdr_threshold = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, value=0.95,  label='Threshold', elem_id=f"{tab}_hdr_threshold")
+                hdr_clamp = gr.Checkbox(label="Latent clamp", value=False, elem_id=f"{tab}_hdr_clamp")
+                hdr_boundary = gr.Slider(minimum=0.0, maximum=10.0, step=0.1, value=4.0, label="Latent range", elem_id=f"{tab}_hdr_boundary")
+                hdr_threshold = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, value=0.95, label="Latent threshold", elem_id=f"{tab}_hdr_threshold")
             with gr.Row(elem_id=f"{tab}_hdr_max_row"):
-                hdr_maximize = gr.Checkbox(label='HDR maximize', value=False, elem_id=f"{tab}_hdr_maximize")
-                hdr_max_center = gr.Slider(minimum=0.0, maximum=2.0, step=0.1, value=0.6,  label='Center', elem_id=f"{tab}_hdr_max_center")
-                hdr_max_boundary = gr.Slider(minimum=0.5, maximum=2.0, step=0.1, value=1.0,  label='Max Range', elem_id=f"{tab}_hdr_max_boundary")
+                hdr_maximize = gr.Checkbox(label="Latent maximize", value=False, elem_id=f"{tab}_hdr_maximize")
+                hdr_max_center = gr.Slider(minimum=0.0, maximum=2.0, step=0.1, value=0.6, label="Latent center", elem_id=f"{tab}_hdr_max_center")
+                hdr_max_boundary = gr.Slider(minimum=0.5, maximum=2.0, step=0.1, value=1.0, label="Latent max range", elem_id=f"{tab}_hdr_max_boundary")
             with gr.Row(elem_id=f"{tab}_hdr_color_row"):
-                hdr_color_picker = gr.ColorPicker(label="Color", show_label=True, container=False, value=None, elem_id=f"{tab}_hdr_color_picker")
-                hdr_tint_ratio = gr.Slider(label='Color grading', minimum=-1.0, maximum=1.0, step=0.05, value=0.0, elem_id=f"{tab}_hdr_tint_ratio")
-        return hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio
+                hdr_color_picker = gr.ColorPicker(label="Latent tint", show_label=True, container=False, value=None, elem_id=f"{tab}_hdr_color_picker")
+                hdr_tint_ratio = gr.Slider(label="Tint strength", minimum=-4.0, maximum=4.0, step=0.05, value=0.0, elem_id=f"{tab}_hdr_tint_ratio")
+        return hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires
+
+
+def create_color_inputs(tab):
+    # Color Grading (post-generation pixel-space)
+    with gr.Accordion(open=False, label="Color Grading", elem_id=f"{tab}_color_grading", elem_classes=["small-accordion"]):
+        with gr.Group():
+            with gr.Row(elem_id=f"{tab}_grading_basic_row"):
+                grading_brightness = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label='Brightness', elem_id=f"{tab}_grading_brightness")
+                grading_contrast = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label='Contrast', elem_id=f"{tab}_grading_contrast")
+                grading_saturation = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label='Saturation', elem_id=f"{tab}_grading_saturation")
+            with gr.Row(elem_id=f"{tab}_grading_basic2_row"):
+                grading_hue = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0, label='Hue', elem_id=f"{tab}_grading_hue")
+                grading_gamma = gr.Slider(minimum=0.1, maximum=10.0, step=0.1, value=1.0, label='Gamma', elem_id=f"{tab}_grading_gamma")
+                grading_sharpness = gr.Slider(minimum=0.0, maximum=2.0, step=0.05, value=0, label='Sharpness', elem_id=f"{tab}_grading_sharpness")
+                grading_color_temp = gr.Slider(minimum=2000, maximum=12000, step=100, value=6500, label='Color temp', elem_id=f"{tab}_grading_color_temp")
+        with gr.Group():
+            gr.HTML('<h3>Tone</h3>')
+            with gr.Row(elem_id=f"{tab}_grading_tone_row"):
+                grading_shadows = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label='Shadows', elem_id=f"{tab}_grading_shadows")
+                grading_midtones = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label='Midtones', elem_id=f"{tab}_grading_midtones")
+                grading_highlights = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, value=0, label='Highlights', elem_id=f"{tab}_grading_highlights")
+            with gr.Row(elem_id=f"{tab}_grading_clahe_row"):
+                grading_clahe_clip = gr.Slider(minimum=0.0, maximum=5.0, step=0.25, value=0, label='CLAHE clip', elem_id=f"{tab}_grading_clahe_clip")
+                grading_clahe_grid = gr.Slider(minimum=2, maximum=16, step=1, value=8, label='CLAHE grid', elem_id=f"{tab}_grading_clahe_grid")
+        with gr.Group():
+            with gr.Row(elem_id=f"{tab}_grading_split_row"):
+                grading_shadows_tint = gr.ColorPicker(label="Shadows tint", value="#000000", elem_id=f"{tab}_grading_shadows_tint")
+                grading_highlights_tint = gr.ColorPicker(label="Highlights tint", value="#ffffff", elem_id=f"{tab}_grading_highlights_tint")
+                grading_split_tone_balance = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0.5, label='Split tone balance', elem_id=f"{tab}_grading_split_tone_balance")
+        with gr.Group():
+            gr.HTML('<h3>Effects</h3>')
+            with gr.Row(elem_id=f"{tab}_grading_effects_row"):
+                grading_vignette = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0, label='Vignette', elem_id=f"{tab}_grading_vignette")
+                grading_grain = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, value=0, label='Grain', elem_id=f"{tab}_grading_grain")
+        with gr.Group():
+            gr.HTML('<h3>LUT</h3>')
+            with gr.Row(elem_id=f"{tab}_grading_lut_row"):
+                grading_lut_cube_file = gr.File(label='LUT .cube file', file_types=['.cube'], elem_id=f"{tab}_grading_lut_file")
+                grading_lut_strength = gr.Slider(minimum=0.0, maximum=2.0, step=0.05, value=1.0, label='LUT strength', elem_id=f"{tab}_grading_lut_strength")
+        return grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_cube_file, grading_lut_strength
 
 
 def create_sampler_and_steps_selection(choices, tabname, default_steps:int=20):
@@ -199,48 +241,48 @@ def create_sampler_options(tabname):
         shared.opts.data['schedulers_use_thresholding'] = 'thresholding' in sampler_options
         shared.opts.data['schedulers_use_loworder'] = 'low order' in sampler_options
         shared.opts.data['schedulers_rescale_betas'] = 'rescale' in sampler_options
-        shared.log.debug(f'Sampler set options: {sampler_options}')
+        log.debug(f'Sampler set options: {sampler_options}')
         shared.opts.save(silent=True)
 
     def set_sampler_timesteps(timesteps):
-        shared.log.debug(f'Sampler set options: timesteps={timesteps}')
+        log.debug(f'Sampler set options: timesteps={timesteps}')
         shared.opts.schedulers_timesteps = timesteps
         shared.opts.save(silent=True)
 
     def set_sampler_spacing(spacing):
-        shared.log.debug(f'Sampler set options: spacing={spacing}')
+        log.debug(f'Sampler set options: spacing={spacing}')
         shared.opts.schedulers_timestep_spacing = spacing
         shared.opts.save(silent=True)
 
     def set_sampler_sigma(sampler_sigma):
-        shared.log.debug(f'Sampler set options: sigma={sampler_sigma}')
+        log.debug(f'Sampler set options: sigma={sampler_sigma}')
         shared.opts.schedulers_sigma = sampler_sigma
         shared.opts.save(silent=True)
 
     def set_sampler_order(sampler_order):
-        shared.log.debug(f'Sampler set options: order={sampler_order}')
+        log.debug(f'Sampler set options: order={sampler_order}')
         shared.opts.schedulers_solver_order = sampler_order
         shared.opts.save(silent=True)
 
     def set_sampler_prediction(sampler_prediction):
-        shared.log.debug(f'Sampler set options: prediction={sampler_prediction}')
+        log.debug(f'Sampler set options: prediction={sampler_prediction}')
         shared.opts.schedulers_prediction_type = sampler_prediction
         shared.opts.save(silent=True)
 
     def set_sampler_beta(sampler_beta):
-        shared.log.debug(f'Sampler set options: beta={sampler_beta}')
+        log.debug(f'Sampler set options: beta={sampler_beta}')
         shared.opts.schedulers_beta_schedule = sampler_beta
         shared.opts.save(silent=True)
 
     def set_sampler_shift(sampler_shift, sampler_base_shift, sampler_max_shift):
-        shared.log.debug(f'Sampler set options: shift={sampler_shift} base={sampler_base_shift} max={sampler_max_shift}')
+        log.debug(f'Sampler set options: shift={sampler_shift} base={sampler_base_shift} max={sampler_max_shift}')
         shared.opts.schedulers_shift = sampler_shift
         shared.opts.schedulers_base_shift = sampler_base_shift
         shared.opts.schedulers_max_shift = sampler_max_shift
         shared.opts.save(silent=True)
 
     def set_sigma_adjust(val, start, end):
-        shared.log.debug(f'Sampler set options: sigma={val} min={start} max={end}')
+        log.debug(f'Sampler set options: sigma={val} min={start} max={end}')
         shared.opts.schedulers_sigma_adjust = val
         shared.opts.schedulers_sigma_adjust_min = start
         shared.opts.schedulers_sigma_adjust_max = end

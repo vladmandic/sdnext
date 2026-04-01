@@ -1,9 +1,8 @@
-from typing import Union, List
 import numpy as np
 import torch
 
 
-def extract_generator_seed(generator: Union[torch.Generator, List[torch.Generator]]) -> List[int]:
+def extract_generator_seed(generator: torch.Generator | list[torch.Generator]) -> list[int]:
     if isinstance(generator, list):
         generator = [g.seed() for g in generator]
     else:
@@ -11,7 +10,7 @@ def extract_generator_seed(generator: Union[torch.Generator, List[torch.Generato
     return generator
 
 
-def randn_tensor(shape, dtype: np.dtype, generator: Union[torch.Generator, List[torch.Generator], int, List[int]]):
+def randn_tensor(shape, dtype: np.dtype, generator: torch.Generator | list[torch.Generator] | int | list[int]):
     if hasattr(generator, "seed") or (isinstance(generator, list) and hasattr(generator[0], "seed")):
         generator = extract_generator_seed(generator)
         if len(generator) == 1:
@@ -25,8 +24,8 @@ def prepare_latents(
     height: int,
     width: int,
     dtype: np.dtype,
-    generator: Union[torch.Generator, List[torch.Generator]],
-    latents: Union[np.ndarray, None] = None,
+    generator: torch.Generator | list[torch.Generator],
+    latents: np.ndarray | None = None,
     num_channels_latents = 4,
     vae_scale_factor = 8,
 ):

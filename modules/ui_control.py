@@ -5,6 +5,8 @@ from modules.control import unit
 from modules import errors, shared, progress, generation_parameters_copypaste, call_queue, scripts_manager, masking, images, processing_vae, timer # pylint: disable=ungrouped-imports
 from modules import ui_common, ui_sections, ui_guidance
 from modules import ui_control_helpers as helpers
+from modules.logger import log
+from modules.memstats import ram_stats
 import installer
 
 
@@ -12,11 +14,12 @@ gr_height = 512
 max_units = shared.opts.control_max_units
 units: list[unit.Unit] = [] # main state variable
 controls: list[gr.components.Component] = [] # list of gr controls
-debug = shared.log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_CONTROL_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug('Trace: CONTROL')
+use_generator = os.environ.get('SD_USE_GENERATOR', None) is not None
 
 
-def return_stats(t: float = None):
+def return_stats(t: float | None = None):
     if t is None:
         elapsed_text = ''
     else:
@@ -38,14 +41,14 @@ def return_stats(t: float = None):
             gpu += f"| GPU {peak} MB"
             gpu += f" {used}%" if used > 0 else ''
             gpu += f" | retries {retries} oom {ooms}" if retries > 0 or ooms > 0 else ''
-    ram = shared.ram_stats()
+    ram = ram_stats()
     if ram['used'] > 0:
         cpu += f"| RAM {ram['used']} GB"
         cpu += f" {round(100.0 * ram['used'] / ram['total'])}%" if ram['total'] > 0 else ''
     return f"<div class='performance'><p>{elapsed_text} {summary} {gpu} {cpu}</p></div>"
 
 
-def return_controls(res, t: float = None):
+def return_controls(res, t: float | None = None):
     # return preview, image, video, gallery, text
     debug(f'Control received: type={type(res)} {res}')
     if t is None:
@@ -73,7 +76,7 @@ def return_controls(res, t: float = None):
 def get_units(*values):
     update = []
     what = None
-    for c, v in zip(controls, values):
+    for c, v in zip(controls, values, strict=False):
         if isinstance(c, gr.Label): # unit type indicator
             what = c.value['label']
         c.value = v
@@ -87,7 +90,7 @@ def get_units(*values):
                 break
 
 
-def generate_click(job_id: str, state: str, active_tab: str, *args):
+def generate_click_generator(job_id: str, state: str, active_tab: str, *args): # pylint: disable=inconsistent-return-statements
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
@@ -99,15 +102,17 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
         shared.mem_mon.reset()
         jobid = shared.state.begin('Control')
         progress.start_task(job_id)
+        t = time.perf_counter()
+        results = {}
         try:
-            t = time.perf_counter()
             for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
                 progress.record_results(job_id, results)
                 yield return_controls(results, t)
         except GeneratorExit:
-            shared.log.error("Control: generator exit")
+            log.error("Control: generator exit")
+            return return_controls(results, t)
         except Exception as e:
-            shared.log.error(f"Control exception: {e}")
+            log.error(f"Control exception: {e}")
             errors.display(e, 'Control')
             yield [None, None, None, None, f'Control: Exception: {e}', '']
         finally:
@@ -115,7 +120,7 @@ def generate_click(job_id: str, state: str, active_tab: str, *args):
             shared.state.end(jobid)
 
 
-def generate_click_alt(job_id: str, state: str, active_tab: str, *args):
+def generate_click(job_id: str, state: str, active_tab: str, *args):
     while helpers.busy:
         debug(f'Control: tab="{active_tab}" job={job_id} busy')
         time.sleep(0.1)
@@ -132,9 +137,9 @@ def generate_click_alt(job_id: str, state: str, active_tab: str, *args):
             for results in control_run(state, units, helpers.input_source, helpers.input_init, helpers.input_mask, active_tab, True, *args):
                 progress.record_results(job_id, results)
         except GeneratorExit:
-            shared.log.error("Control: generator exit")
+            log.error("Control: generator exit")
         except Exception as e:
-            shared.log.error(f"Control exception: {e}")
+            log.error(f"Control exception: {e}")
             errors.display(e, 'Control')
             return [None, None, None, None, f'Control: Exception: {e}', '']
         finally:
@@ -192,7 +197,8 @@ def create_ui(_blocks: gr.Blocks=None):
 
                 guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_guidance.create_guidance_inputs('control')
                 vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('control')
-                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio = ui_sections.create_correction_inputs('control')
+                grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_file, grading_lut_strength = ui_sections.create_color_inputs('control')
+                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires = ui_sections.create_latent_inputs('control')
 
                 with gr.Accordion(open=False, label="Video", elem_id="control_video", elem_classes=["small-accordion"]):
                     with gr.Row():
@@ -221,12 +227,12 @@ def create_ui(_blocks: gr.Blocks=None):
                         input_mode = gr.Label(value='select', visible=False)
                         with gr.Tab('Image', id='in-image') as tab_image:
                             if (installer.version['kanvas'] == 'disabled') or (installer.version['kanvas'] == 'unavailable'):
-                                shared.log.warning(f'Kanvas: status={installer.version["kanvas"]}')
+                                log.warning(f'Kanvas: status={installer.version["kanvas"]}')
                                 input_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, image_mode='RGB', elem_id='control_input_select', elem_classes=['control-image'])
                             else:
                                 input_image = gr.HTML(value='<h1 style="text-align:center;color:var(--color-error);margin:1em;">Kanvas not initialized</h1>', elem_id='kanvas-container')
                             input_changed = gr.Button('Kanvas change', elem_id='kanvas-change-button', visible=False)
-                            btn_interrogate = ui_sections.create_interrogate_button('control', what='input')
+                            btn_caption = ui_sections.create_caption_button('control', what='input')
                         with gr.Tab('Video', id='in-video') as tab_video:
                             input_video = gr.Video(label="Input", show_label=False, interactive=True, height=gr_height, elem_classes=['control-image'])
                         with gr.Tab('Batch', id='in-batch') as tab_batch:
@@ -303,8 +309,8 @@ def create_ui(_blocks: gr.Blocks=None):
             )
 
             input_changed.click(**select_dict)
-            btn_interrogate.click(**select_dict) # need to fetch input first
-            btn_interrogate.click(fn=helpers.interrogate, inputs=[], outputs=[prompt])
+            btn_caption.click(**select_dict) # need to fetch input first
+            btn_caption.click(fn=helpers.caption, inputs=[], outputs=[prompt])
 
             prompt.submit(**select_dict)
             negative.submit(**select_dict)
@@ -324,7 +330,11 @@ def create_ui(_blocks: gr.Blocks=None):
                 guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop,
                 cfg_scale, clip_skip, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end, vae_type, tiling, hidiffusion,
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
-                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio,
+                hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires,
+                grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp,
+                grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid,
+                grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance,
+                grading_vignette, grading_grain, grading_lut_file, grading_lut_strength,
                 resize_mode_before, resize_name_before, resize_context_before, width_before, height_before, scale_by_before, selected_scale_tab_before,
                 resize_mode_after, resize_name_after, resize_context_after, width_after, height_after, scale_by_after, selected_scale_tab_after,
                 resize_mode_mask, resize_name_mask, resize_context_mask, width_mask, height_mask, scale_by_mask, selected_scale_tab_mask,
@@ -342,7 +352,8 @@ def create_ui(_blocks: gr.Blocks=None):
                 result_txt,
                 output_html_log,
             ]
-            generate_fn = generate_click_alt if shared.cmd_opts.remote else generate_click
+
+            generate_fn = generate_click_generator if use_generator else generate_click
             control_dict = dict(
                 fn=generate_fn,
                 _js="submit_control",

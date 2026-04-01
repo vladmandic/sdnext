@@ -1,8 +1,13 @@
+import os
 import time
 import logging
 import torch
-from modules import shared, devices, sd_models, errors
+from modules import shared, errors, devices, sd_models, sd_models_utils
+from modules.logger import log
 from installer import setup_logging
+
+debug = os.environ.get('SD_COMPILE_DEBUG', None) is not None
+debug_log = log.trace if debug else lambda *args, **kwargs: None
 
 
 #Used by OpenVINO, can be used with TensorRT or Olive
@@ -57,15 +62,14 @@ def ipex_optimize(sd_model, apply_to_components=True, op="Model"):
             sd_model = ipex_optimize_model(sd_model, op=op)
 
         t1 = time.time()
-        shared.log.info(f"{op} IPEX Optimize: time={t1-t0:.2f}")
+        log.info(f"{op} IPEX Optimize: time={t1-t0:.2f}")
     except Exception as e:
-        shared.log.warning(f"{op} IPEX Optimize: error: {e}")
+        log.warning(f"{op} IPEX Optimize: error: {e}")
     return sd_model
 
 
 def optimize_openvino(sd_model, clear_cache=True):
     try:
-        from modules.intel.openvino import openvino_fx # pylint: disable=unused-import
         if clear_cache and shared.compiled_model_state is not None:
             shared.compiled_model_state.compiled_cache.clear()
             shared.compiled_model_state.req_cache.clear()
@@ -78,7 +82,7 @@ def optimize_openvino(sd_model, clear_cache=True):
             shared.compiled_model_state.first_pass_refiner = 'precompile' not in shared.opts.cuda_compile_options
         sd_models.set_accelerate(sd_model)
     except Exception as e:
-        shared.log.warning(f"Model compile: task=OpenVINO: {e}")
+        log.warning(f"Model compile: task=OpenVINO: {e}")
     return sd_model
 
 
@@ -87,9 +91,10 @@ def compile_onediff(sd_model):
         from onediff.infer_compiler import oneflow_compile
 
     except Exception as e:
-        shared.log.warning(f"Model compile: task=onediff {e}")
+        log.warning(f"Model compile: task=onediff {e}")
         return sd_model
 
+    debug_log(f"Model compile: task=onediff pipeline={sd_model.__class__.__name__}")
     try:
         t0 = time.time()
         # For some reason compiling the text_encoder, when it is used by
@@ -107,12 +112,12 @@ def compile_onediff(sd_model):
         # as it was for sfast.
         setup_logging() # compile messes with logging so reset is needed
         if 'precompile' in shared.opts.cuda_compile_options:
-            shared.log.debug("Model compile: task=onediff precompile")
+            log.debug("Model compile: task=onediff precompile")
             sd_model("dummy prompt")
         t1 = time.time()
-        shared.log.info(f"Model compile: task=onediff time={t1-t0:.2f}")
+        log.info(f"Model compile: task=onediff time={t1-t0:.2f}")
     except Exception as e:
-        shared.log.info(f"Model compile: task=onediff {e}")
+        log.info(f"Model compile: task=onediff {e}")
     return sd_model
 
 
@@ -120,16 +125,14 @@ def compile_stablefast(sd_model):
     try:
         import sfast.compilers.stable_diffusion_pipeline_compiler as sf
     except Exception as e:
-        shared.log.warning(f'Model compile: task=stablefast: {e}')
+        log.warning(f'Model compile: task=stablefast: {e}')
         return sd_model
     config = sf.CompilationConfig.Default()
     try:
-        import xformers # pylint: disable=unused-import
         config.enable_xformers = True
     except Exception:
         pass
     try:
-        import triton # pylint: disable=unused-import
         config.enable_triton = True
     except Exception:
         pass
@@ -141,18 +144,19 @@ def compile_stablefast(sd_model):
     # config.trace_scheduler = False
     # config.enable_cnn_optimization
     # config.prefer_lowp_gemm
+    debug_log(f"Model compile: task=stablefast config={config.__dict__}")
     try:
         t0 = time.time()
         sd_model = sf.compile(sd_model, config)
         sd_model.sfast = True
         setup_logging() # compile messes with logging so reset is needed
         if 'precompile' in shared.opts.cuda_compile_options:
-            shared.log.debug("Model compile: task=stablefast precompile")
+            log.debug("Model compile: task=stablefast precompile")
             sd_model("dummy prompt")
         t1 = time.time()
-        shared.log.info(f"Model compile: task=stablefast config={config.__dict__} time={t1-t0:.2f}")
+        log.info(f"Model compile: task=stablefast config={config.__dict__} time={t1-t0:.2f}")
     except Exception as e:
-        shared.log.info(f"Model compile: task=stablefast {e}")
+        log.info(f"Model compile: task=stablefast {e}")
     return sd_model
 
 
@@ -161,9 +165,13 @@ def compile_torch(sd_model, apply_to_components=True, op="Model"):
         t0 = time.time()
         import torch._dynamo # pylint: disable=unused-import,redefined-outer-name
         torch._dynamo.reset() # pylint: disable=protected-access
-        shared.log.debug(f"{op} compile: task=torch backends={torch._dynamo.list_backends()}") # pylint: disable=protected-access
+        log.debug(f"{op} compile: task=torch backends={torch._dynamo.list_backends()}") # pylint: disable=protected-access
+        debug_log(f"{op} compile: options={shared.opts.cuda_compile_options} mode={shared.opts.cuda_compile_mode} backend={shared.opts.cuda_compile_backend} targets={shared.opts.cuda_compile}")
+
+        compiled_components = []
 
         def torch_compile_model(model, op=None, sd_model=None): # pylint: disable=unused-argument
+            compiled_components.append(model.__class__.__name__)
             if hasattr(model, 'compile_repeated_blocks') and 'repeated' in shared.opts.cuda_compile_options:
                 model.compile_repeated_blocks(
                     mode=shared.opts.cuda_compile_mode,
@@ -196,12 +204,13 @@ def compile_torch(sd_model, apply_to_components=True, op="Model"):
                 shared.compiled_model_state = CompiledModelState()
             return sd_model
         elif shared.opts.cuda_compile_backend ==  "migraphx":
-            import torch_migraphx # pylint: disable=unused-import
-        log_level = logging.WARNING if 'verbose' in shared.opts.cuda_compile_options else logging.CRITICAL # pylint: disable=protected-access
+            pass # pylint: disable=unused-import
+        verbose = debug or 'verbose' in shared.opts.cuda_compile_options
+        log_level = logging.WARNING if verbose else logging.CRITICAL # pylint: disable=protected-access
         if hasattr(torch, '_logging'):
             torch._logging.set_logs(dynamo=log_level, aot=log_level, inductor=log_level) # pylint: disable=protected-access
-        torch._dynamo.config.verbose = 'verbose' in shared.opts.cuda_compile_options # pylint: disable=protected-access
-        torch._dynamo.config.suppress_errors = 'verbose' not in shared.opts.cuda_compile_options # pylint: disable=protected-access
+        torch._dynamo.config.verbose = verbose # pylint: disable=protected-access
+        torch._dynamo.config.suppress_errors = not verbose # pylint: disable=protected-access
 
         try:
             torch._inductor.config.conv_1x1_as_mm = True # pylint: disable=protected-access
@@ -211,24 +220,25 @@ def compile_torch(sd_model, apply_to_components=True, op="Model"):
             torch._inductor.config.use_mixed_mm = True # pylint: disable=protected-access
             # torch._inductor.config.force_fuse_int_mm_with_mul = True # pylint: disable=protected-access
         except Exception as e:
-            shared.log.error(f"{op} compile: torch inductor config error: {e}")
+            log.error(f"{op} compile: torch inductor config error: {e}")
 
         if apply_to_components:
             sd_model = sd_models.apply_function_to_model(sd_model, function=torch_compile_model, options=shared.opts.cuda_compile, op="compile")
         else:
-            sd_model = torch_compile_model(sd_model)
+            sd_model = torch_compile_model(sd_model, op=op)
 
         setup_logging() # compile messes with logging so reset is needed
         if apply_to_components and 'precompile' in shared.opts.cuda_compile_options:
             try:
-                shared.log.debug(f"{op} compile: task=torch precompile")
+                log.debug(f"{op} compile: task=torch precompile")
                 sd_model("dummy prompt")
             except Exception:
                 pass
         t1 = time.time()
-        shared.log.info(f"{op} compile: task=torch time={t1-t0:.2f}")
+        log.info(f"{op} compile: task=torch time={t1-t0:.2f}")
+        debug_log(f"{op} compile: task=torch completed components={compiled_components} targets={shared.opts.cuda_compile} verbose={verbose} time={t1-t0:.2f}")
     except Exception as e:
-        shared.log.warning(f"{op} compile: task=torch {e}")
+        log.warning(f"{op} compile: task=torch {e}")
         errors.display(e, 'Compile')
     return sd_model
 
@@ -244,28 +254,29 @@ def check_deepcache(enable: bool):
 def compile_deepcache(sd_model):
     global deepcache_worker # pylint: disable=global-statement
     if not hasattr(sd_model, 'unet'):
-        shared.log.warning(f'Model compile: task=deepcache pipeline={sd_model.__class__} not supported')
+        log.warning(f'Model compile: task=deepcache pipeline={sd_model.__class__} not supported')
         return sd_model
     try:
         from DeepCache import DeepCacheSDHelper
     except Exception as e:
-        shared.log.warning(f'Model compile: task=deepcache {e}')
+        log.warning(f'Model compile: task=deepcache {e}')
         return sd_model
+    debug_log(f"Model compile: task=deepcache pipeline={sd_model.__class__.__name__} interval={shared.opts.deep_cache_interval}")
     t0 = time.time()
     check_deepcache(False)
     deepcache_worker = DeepCacheSDHelper(pipe=sd_model)
     deepcache_worker.set_params(cache_interval=shared.opts.deep_cache_interval, cache_branch_id=0)
     t1 = time.time()
-    shared.log.info(f"Model compile: task=deepcache config={deepcache_worker.params} time={t1-t0:.2f}")
+    log.info(f"Model compile: task=deepcache config={deepcache_worker.params} time={t1-t0:.2f}")
     # config={'cache_interval': 3, 'cache_layer_id': 0, 'cache_block_id': 0, 'skip_mode': 'uniform'} time=0.00
     return sd_model
 
 
 def compile_diffusers(sd_model, apply_to_components=True, op="Model"):
     if shared.opts.cuda_compile_backend == 'none':
-        shared.log.warning(f'{op} compile enabled but no backend specified')
+        log.warning(f'{op} compile enabled but no backend specified')
         return sd_model
-    shared.log.info(f"{op} compile: pipeline={sd_model.__class__.__name__} mode={shared.opts.cuda_compile_mode} backend={shared.opts.cuda_compile_backend} options={shared.opts.cuda_compile_options} compile={shared.opts.cuda_compile}")
+    log.info(f"{op} compile: pipeline={sd_model.__class__.__name__} mode={shared.opts.cuda_compile_mode} backend={shared.opts.cuda_compile_backend} options={shared.opts.cuda_compile_options} compile={shared.opts.cuda_compile}")
     if shared.opts.cuda_compile_backend == 'onediff':
         sd_model = compile_onediff(sd_model)
     elif shared.opts.cuda_compile_backend == 'stable-fast':
@@ -300,16 +311,16 @@ def openvino_recompile_model(p, hires=False, refiner=False): # recompile if a pa
                 )
             )):
             if refiner:
-                shared.log.info("OpenVINO: Recompiling refiner")
+                log.info("OpenVINO: Recompiling refiner")
                 sd_models.unload_model_weights(op='refiner')
                 sd_models.reload_model_weights(op='refiner')
             else:
-                shared.log.info("OpenVINO: Recompiling base model")
+                log.info("OpenVINO: Recompiling base model")
                 sd_models.unload_model_weights(op='model')
                 sd_models.reload_model_weights(op='model')
         """
         if shared.compiled_model_state is None:
-            shared.log.warning("OpenVINO: Compile Model State is not found, model is not compiled!")
+            log.warning("OpenVINO: Compile Model State is not found, model is not compiled!")
         else:
             shared.compiled_model_state.height = compile_height
             shared.compiled_model_state.width = compile_width
@@ -321,10 +332,10 @@ def openvino_post_compile(op="base"): # delete unet after OpenVINO compile
         if shared.compiled_model_state.first_pass and op == "base":
             shared.compiled_model_state.first_pass = False
             if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_model, "unet"):
-                shared.sd_model.unet.apply(sd_models.convert_to_faketensors)
+                shared.sd_model.unet.apply(sd_models_utils.convert_to_faketensors)
                 devices.torch_gc(force=True)
         if shared.compiled_model_state.first_pass_refiner and op == "refiner":
             shared.compiled_model_state.first_pass_refiner = False
             if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_refiner, "unet"):
-                shared.sd_refiner.unet.apply(sd_models.convert_to_faketensors)
+                shared.sd_refiner.unet.apply(sd_models_utils.convert_to_faketensors)
                 devices.torch_gc(force=True)

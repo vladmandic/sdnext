@@ -13,9 +13,10 @@ import time
 import gradio as gr
 import diffusers
 from modules import scripts_manager, devices, errors, processing, shared, sd_models, sd_samplers
+from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class ConsiStoryScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.anchor_cache_first_stage = None
@@ -30,7 +31,7 @@ class Script(scripts_manager.Script):
     def reset(self):
         self.anchor_cache_first_stage = None
         self.anchor_cache_second_stage = None
-        shared.log.debug('ConsiStory reset anchors')
+        log.debug('ConsiStory reset anchors')
 
     def ui(self, _is_img2img): # ui elements
         with gr.Row():
@@ -68,7 +69,7 @@ class Script(scripts_manager.Script):
         diffusers.models.embeddings.PositionNet = diffusers.models.embeddings.GLIGENTextBoundingboxProjection # patch as renamed in https://github.com/huggingface/diffusers/pull/6244/files
         import scripts.consistory as cs
         if shared.sd_model.__class__.__name__ != 'ConsistoryExtendAttnSDXLPipeline':
-            shared.log.debug('ConsiStory init')
+            log.debug('ConsiStory init')
             t0 = time.time()
             state_dict = shared.sd_model.unet.state_dict() # save existing unet
             shared.sd_model = sd_models.switch_pipe(cs.ConsistoryExtendAttnSDXLPipeline, shared.sd_model)
@@ -80,7 +81,7 @@ class Script(scripts_manager.Script):
             sd_models.move_model(shared.sd_model, devices.device)
             sd_models.move_model(shared.sd_model.unet, devices.device)
             t1 = time.time()
-            shared.log.debug(f'ConsiStory load: model={shared.sd_model.__class__.__name__} time={t1-t0:.2f}')
+            log.debug(f'ConsiStory load: model={shared.sd_model.__class__.__name__} time={t1-t0:.2f}')
         devices.torch_gc(force=True)
 
     def set_args(self, p: processing.StableDiffusionProcessing, *args):
@@ -95,7 +96,7 @@ class Script(scripts_manager.Script):
                 freeu_preset = [float(f.strip()) for f in freeu_preset.split(',')]
             except Exception:
                 freeu_preset = []
-                shared.log.warning(f'ConsiStory: freeu="{freeu_preset}" invalid')
+                log.warning(f'ConsiStory: freeu="{freeu_preset}" invalid')
             if len(freeu) == 4:
                 shared.sd_model.enable_freeu(s1=freeu[0], s2=freeu[0], b1=freeu[0], b2=freeu[0])
         steps = 50 if steps else p.steps
@@ -106,14 +107,14 @@ class Script(scripts_manager.Script):
                     alpha = (int(alpha[0]), int(alpha[1]), float(alpha[2]))
             except Exception:
                 alpha=(10, 20, 0.8)
-                shared.log.warning(f'ConsiStory: alpha="{alpha}" invalid')
+                log.warning(f'ConsiStory: alpha="{alpha}" invalid')
         else:
             alpha=(10, 20, 0.8)
         seed = p.seed
         concepts = [c.strip() for c in concepts.split(',') if c.strip() != '']
         for c in concepts:
             if c not in subject:
-                shared.log.warning(f'ConsiStory: concept="{c}" not in subject')
+                log.warning(f'ConsiStory: concept="{c}" not in subject')
                 subject = f'{subject} {c}'
         settings = [p.strip() for p in prompts.split('\n') if p.strip() != '']
         anchors = [f'{subject} {p}' for p in settings]
@@ -124,16 +125,16 @@ class Script(scripts_manager.Script):
         for i, prompt in enumerate(prompts):
             if subject not in prompt:
                 prompts[i] = f'{subject} {prompt}'
-        shared.log.debug(f'ConsiStory args: sampler={shared.sd_model.scheduler.__class__.__name__} steps={steps} sdsa={sdsa} queries={queries} same={same} dropout={dropout} freeu={freeu_preset if freeu else None} alpha={alpha if injection else None}')
+        log.debug(f'ConsiStory args: sampler={shared.sd_model.scheduler.__class__.__name__} steps={steps} sdsa={sdsa} queries={queries} same={same} dropout={dropout} freeu={freeu_preset if freeu else None} alpha={alpha if injection else None}')
         return concepts, anchors, prompts, alpha, steps, seed
 
     def create_anchors(self, anchors, concepts, seed, steps, dropout, same, queries, sdsa, injection, alpha):
         import scripts.consistory as cs
         t0 = time.time()
         if len(anchors) == 0:
-            shared.log.warning('ConsiStory: no anchors')
+            log.warning('ConsiStory: no anchors')
             return []
-        shared.log.debug(f'ConsiStory anchors: concepts={concepts} anchors={anchors}')
+        log.debug(f'ConsiStory anchors: concepts={concepts} anchors={anchors}')
         with devices.inference_context():
             try:
                 images, self.anchor_cache_first_stage, self.anchor_cache_second_stage = cs.run_anchor_generation(
@@ -150,19 +151,19 @@ class Script(scripts_manager.Script):
                     perform_injection=injection,
                 )
             except Exception as e:
-                shared.log.error(f'ConsiStory: {e}')
+                log.error(f'ConsiStory: {e}')
                 errors.display(e, 'ConsiStory')
                 images = []
             devices.torch_gc()
         t1 = time.time()
-        shared.log.debug(f'ConsiStory anchors: images={len(images)} time={t1-t0:.2f}')
+        log.debug(f'ConsiStory anchors: images={len(images)} time={t1-t0:.2f}')
         return images
 
     def create_extra(self, prompt, concepts, seed, steps, dropout, same, queries, sdsa, injection, alpha):
         import scripts.consistory as cs
         t0 = time.time()
         images = []
-        shared.log.debug(f'ConsiStory extra: concepts={concepts} prompt="{prompt}"')
+        log.debug(f'ConsiStory extra: concepts={concepts} prompt="{prompt}"')
         with devices.inference_context():
             try:
                 images = cs.run_extra_generation(
@@ -181,18 +182,18 @@ class Script(scripts_manager.Script):
                     perform_injection=injection,
                 )
             except Exception as e:
-                shared.log.error(f'ConsiStory: {e}')
+                log.error(f'ConsiStory: {e}')
                 errors.display(e, 'ConsiStory')
                 images = []
             devices.torch_gc()
         t1 = time.time()
-        shared.log.debug(f'ConsiStory extra: images={len(images)} time={t1-t0:.2f}')
+        log.debug(f'ConsiStory extra: images={len(images)} time={t1-t0:.2f}')
         return images
 
     def run(self, p: processing.StableDiffusionProcessing, *args): # pylint: disable=arguments-differ
         supported_model_list = ['sdxl']
         if shared.sd_model_type not in supported_model_list and shared.sd_model.__class__.__name__ != 'ConsistoryExtendAttnSDXLPipeline':
-            shared.log.warning(f'ConsiStory: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            log.warning(f'ConsiStory: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
 
         subject, concepts, prompts, dropout, sampler, steps, same, queries, sdsa, freeu, _freeu_preset, alpha, injection = args # pylint: disable=unused-variable

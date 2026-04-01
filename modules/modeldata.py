@@ -1,7 +1,15 @@
+from __future__ import annotations
+
 import os
 import sys
 import threading
-from modules import shared, errors
+from typing import TYPE_CHECKING
+
+from modules import errors, shared
+from modules.logger import log
+
+if TYPE_CHECKING:
+    from diffusers import DiffusionPipeline
 
 
 def get_model_type(pipe):
@@ -119,8 +127,8 @@ def get_model_type(pipe):
 
 class ModelData:
     def __init__(self):
-        self.sd_model = None
-        self.sd_refiner = None
+        self.sd_model: DiffusionPipeline | None = None
+        self.sd_refiner: DiffusionPipeline | None = None
         self.sd_dict = 'None'
         self.initial = True
         self.locked = True
@@ -130,7 +138,7 @@ class ModelData:
         if self.locked:
             if self.sd_model is None:
                 fn = f'{os.path.basename(sys._getframe(2).f_code.co_filename)}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-                shared.log.warning(f'Model locked: fn={fn}')
+                log.warning(f'Model locked: fn={fn}')
             return self.sd_model
         elif (self.sd_model is None) and (shared.opts.sd_model_checkpoint != 'None') and (not self.lock.locked()):
             with self.lock:
@@ -139,7 +147,7 @@ class ModelData:
                     self.sd_model = reload_model_weights(op='model') # note: reload_model_weights directly updates model_data.sd_model and returns it at the end
                     self.initial = False
                 except Exception as e:
-                    shared.log.error("Failed to load stable diffusion model")
+                    log.error("Failed to load stable diffusion model")
                     errors.display(e, "loading stable diffusion model")
                     self.sd_model = None
         return self.sd_model
@@ -156,7 +164,7 @@ class ModelData:
                     self.sd_refiner = reload_model_weights(op='refiner')
                     self.initial = False
                 except Exception as e:
-                    shared.log.error("Failed to load stable diffusion model")
+                    log.error("Failed to load stable diffusion model")
                     errors.display(e, "loading stable diffusion model")
                     self.sd_refiner = None
         return self.sd_refiner
@@ -166,44 +174,46 @@ class ModelData:
             self.sd_refiner = v
 
 
+model_data = ModelData()
+
+
 # provides shared.sd_model field as a property
 class Shared(sys.modules[__name__].__class__):
     @property
     def sd_loaded(self):
-        import modules.sd_models # pylint: disable=W0621
-        return modules.sd_models.model_data.sd_model is not None
+        return model_data.sd_model is not None
 
     @property
     def sd_model(self):
-        import modules.sd_models # pylint: disable=W0621
-        if modules.sd_models.model_data.sd_model is None:
+        if model_data.sd_model is None:
             fn = f'{os.path.basename(sys._getframe(2).f_code.co_filename)}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-            shared.log.debug(f'Model requested: fn={fn}') # pylint: disable=protected-access
-        return modules.sd_models.model_data.get_sd_model()
+            log.debug(f'Model requested: fn={fn}')
+        model = model_data.get_sd_model()
+        return model
 
     @sd_model.setter
     def sd_model(self, value):
-        import modules.sd_models # pylint: disable=W0621
-        modules.sd_models.model_data.set_sd_model(value)
+        if value is None:
+            fn = f'{os.path.basename(sys._getframe(2).f_code.co_filename)}:{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
+            if model_data.sd_model is not None:
+                log.debug(f'Model unloaded: fn={fn}')
+        model_data.set_sd_model(value)
 
     @property
     def sd_refiner(self):
-        import modules.sd_models # pylint: disable=W0621
-        return modules.sd_models.model_data.get_sd_refiner()
+        return model_data.get_sd_refiner()
 
     @sd_refiner.setter
     def sd_refiner(self, value):
-        import modules.sd_models # pylint: disable=W0621
-        modules.sd_models.model_data.set_sd_refiner(value)
+        model_data.set_sd_refiner(value)
 
     @property
     def sd_model_type(self):
         try:
-            import modules.sd_models # pylint: disable=W0621
-            if modules.sd_models.model_data.sd_model is None:
+            if model_data.sd_model is None:
                 model_type = 'none'
                 return model_type
-            model_type = get_model_type(self.sd_model)
+            model_type = get_model_type(model_data.sd_model)
         except Exception:
             model_type = 'unknown'
         return model_type
@@ -211,14 +221,18 @@ class Shared(sys.modules[__name__].__class__):
     @property
     def sd_refiner_type(self):
         try:
-            import modules.sd_models # pylint: disable=W0621
-            if modules.sd_models.model_data.sd_refiner is None:
+            if model_data.sd_refiner is None:
                 model_type = 'none'
                 return model_type
-            model_type = get_model_type(self.sd_refiner)
+            model_type = get_model_type(model_data.sd_refiner)
         except Exception:
             model_type = 'unknown'
         return model_type
 
-
-model_data = ModelData()
+    @property
+    def console(self):
+        try:
+            from modules.logger import get_console
+            return get_console()
+        except ImportError:
+            return None

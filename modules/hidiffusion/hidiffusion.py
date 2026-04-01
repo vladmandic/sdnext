@@ -79,6 +79,21 @@ inpainting_is_aggressive_raunet = False
 playground_is_aggressive_raunet = False
 
 
+def _chunked_feed_forward(ff: torch.nn.Module, hidden_states: torch.Tensor, chunk_dim: int, chunk_size: int):
+    # "feed_forward_chunk_size" can be used to save memory
+    if hidden_states.shape[chunk_dim] % chunk_size != 0:
+        raise ValueError(
+            f"`hidden_states` dimension to be chunked: {hidden_states.shape[chunk_dim]} has to be divisible by chunk size: {chunk_size}. Make sure to set an appropriate `chunk_size` when calling `unet.enable_forward_chunking`."
+        )
+
+    num_chunks = hidden_states.shape[chunk_dim] // chunk_size
+    ff_output = torch.cat(
+        [ff(hid_slice) for hid_slice in hidden_states.chunk(num_chunks, dim=chunk_dim)],
+        dim=chunk_dim,
+    )
+    return ff_output
+
+
 def make_diffusers_transformer_block(block_class: Type[torch.nn.Module]) -> Type[torch.nn.Module]:
     # replace global self-attention with MSW-MSA
     class transformer_block(block_class):
@@ -238,7 +253,7 @@ def make_diffusers_transformer_block(block_class: Type[torch.nn.Module]) -> Type
                 norm_hidden_states = self.norm2(hidden_states)
                 norm_hidden_states = norm_hidden_states * (1 + scale_mlp) + shift_mlp
             if self._chunk_size is not None:
-                ff_output = _chunked_feed_forward(self.ff, norm_hidden_states, self._chunk_dim, self._chunk_size) # pylint: disable=undefined-variable
+                ff_output = _chunked_feed_forward(self.ff, norm_hidden_states, self._chunk_dim, self._chunk_size)
             else:
                 ff_output = self.ff(norm_hidden_states)
             if self.use_ada_layer_norm_zero:

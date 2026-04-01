@@ -29,7 +29,9 @@ def remove_tome_patch(pipe: torch.nn.Module):
         if hasattr(m, "processor"):
             m.processor = AttnProcessor2_0()
 
-def patch_attention_proc(unet, token_merge_args={}):
+def patch_attention_proc(unet, token_merge_args=None):
+    if token_merge_args is None:
+        token_merge_args = {}
     unet._tome_info = { # pylint: disable=protected-access
         "size": None,
         "timestep": None,

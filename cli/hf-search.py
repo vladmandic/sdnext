@@ -14,7 +14,6 @@ if __name__ == "__main__":
         full=True,
         limit=100,
         sort="downloads",
-        direction=-1,
     )
     res = sorted(res, key=lambda x: x.id)
     exact = [m for m in res if keyword.lower() in m.id.lower()]

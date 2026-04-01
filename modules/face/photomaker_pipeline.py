@@ -1,7 +1,8 @@
 ### original <https://github.com/TencentARC/PhotoMaker/blob/main/photomaker/pipeline.py>
 
 import inspect
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Union
+from collections.abc import Callable
 import PIL
 import torch
 from transformers import CLIPImageProcessor
@@ -26,8 +27,8 @@ from modules.face.photomaker_model_v2 import PhotoMakerIDEncoder_CLIPInsightface
 PipelineImageInput = Union[
     PIL.Image.Image,
     torch.FloatTensor,
-    List[PIL.Image.Image],
-    List[torch.FloatTensor],
+    list[PIL.Image.Image],
+    list[torch.FloatTensor],
 ]
 
 
@@ -49,10 +50,10 @@ def rescale_noise_cfg(noise_cfg, noise_pred_text, guidance_rescale=0.0):
 # Copied from diffusers.pipelines.stable_diffusion.pipeline_stable_diffusion.retrieve_timesteps
 def retrieve_timesteps(
     scheduler,
-    num_inference_steps: Optional[int] = None,
-    device: Optional[Union[str, torch.device]] = None,
-    timesteps: Optional[List[int]] = None,
-    sigmas: Optional[List[float]] = None,
+    num_inference_steps: int | None = None,
+    device: str | torch.device | None = None,
+    timesteps: list[int] | None = None,
+    sigmas: list[float] | None = None,
     **kwargs,
 ):
     """
@@ -110,7 +111,7 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
     @validate_hf_hub_args
     def load_photomaker_adapter(
         self,
-        pretrained_model_name_or_path_or_dict: Union[str, Dict[str, torch.Tensor]],
+        pretrained_model_name_or_path_or_dict: str | dict[str, torch.Tensor],
         weight_name: str,
         subfolder: str = '',
         trigger_word: str = 'img',
@@ -214,21 +215,21 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
     def encode_prompt_with_trigger_word(
         self,
         prompt: str,
-        prompt_2: Optional[str] = None,
-        device: Optional[torch.device] = None,
+        prompt_2: str | None = None,
+        device: torch.device | None = None,
         num_images_per_prompt: int = 1,
         do_classifier_free_guidance: bool = True,
-        negative_prompt: Optional[str] = None,
-        negative_prompt_2: Optional[str] = None,
-        prompt_embeds: Optional[torch.Tensor] = None,
-        negative_prompt_embeds: Optional[torch.Tensor] = None,
-        pooled_prompt_embeds: Optional[torch.Tensor] = None,
-        negative_pooled_prompt_embeds: Optional[torch.Tensor] = None,
-        lora_scale: Optional[float] = None,
-        clip_skip: Optional[int] = None,
+        negative_prompt: str | None = None,
+        negative_prompt_2: str | None = None,
+        prompt_embeds: torch.Tensor | None = None,
+        negative_prompt_embeds: torch.Tensor | None = None,
+        pooled_prompt_embeds: torch.Tensor | None = None,
+        negative_pooled_prompt_embeds: torch.Tensor | None = None,
+        lora_scale: float | None = None,
+        clip_skip: int | None = None,
         ### Added args
         num_id_images: int = 1,
-        class_tokens_mask: Optional[torch.LongTensor] = None,
+        class_tokens_mask: torch.LongTensor | None = None,
     ):
         device = device or self._execution_device
 
@@ -273,7 +274,7 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
             # textual inversion: process multi-vector tokens if necessary
             prompt_embeds_list = []
             prompts = [prompt, prompt_2]
-            for prompt, tokenizer, text_encoder in zip(prompts, tokenizers, text_encoders): # pylint: disable=redefined-argument-from-local
+            for prompt, tokenizer, text_encoder in zip(prompts, tokenizers, text_encoders, strict=False): # pylint: disable=redefined-argument-from-local
                 if isinstance(self, TextualInversionLoaderMixin):
                     prompt = self.maybe_convert_prompt(prompt, tokenizer)
 
@@ -362,7 +363,7 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
                 batch_size * [negative_prompt_2] if isinstance(negative_prompt_2, str) else negative_prompt_2
             )
 
-            uncond_tokens: List[str]
+            uncond_tokens: list[str]
             if prompt is not None and type(prompt) is not type(negative_prompt):
                 raise TypeError(
                     f"`negative_prompt` should be the same type to `prompt`, but got {type(negative_prompt)} !="
@@ -377,7 +378,7 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
             uncond_tokens = [negative_prompt, negative_prompt_2]
 
             negative_prompt_embeds_list = []
-            for negative_prompt, tokenizer, text_encoder in zip(uncond_tokens, tokenizers, text_encoders): # pylint: disable=redefined-argument-from-local
+            for negative_prompt, tokenizer, text_encoder in zip(uncond_tokens, tokenizers, text_encoders, strict=False): # pylint: disable=redefined-argument-from-local
                 if isinstance(self, TextualInversionLoaderMixin):
                     negative_prompt = self.maybe_convert_prompt(negative_prompt, tokenizer)
 
@@ -444,49 +445,47 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
     @torch.no_grad()
     def __call__(
         self,
-        prompt: Union[str, List[str]] = None,
-        prompt_2: Optional[Union[str, List[str]]] = None,
-        height: Optional[int] = None,
-        width: Optional[int] = None,
+        prompt: str | list[str] | None = None,
+        prompt_2: str | list[str] | None = None,
+        height: int | None = None,
+        width: int | None = None,
         num_inference_steps: int = 50,
-        timesteps: List[int] = None,
-        sigmas: List[float] = None,
-        denoising_end: Optional[float] = None,
+        timesteps: list[int] | None = None,
+        sigmas: list[float] | None = None,
+        denoising_end: float | None = None,
         guidance_scale: float = 5.0,
-        negative_prompt: Optional[Union[str, List[str]]] = None,
-        negative_prompt_2: Optional[Union[str, List[str]]] = None,
-        num_images_per_prompt: Optional[int] = 1,
+        negative_prompt: str | list[str] | None = None,
+        negative_prompt_2: str | list[str] | None = None,
+        num_images_per_prompt: int | None = 1,
         eta: float = 0.0,
-        generator: Optional[Union[torch.Generator, List[torch.Generator]]] = None,
-        latents: Optional[torch.Tensor] = None,
-        prompt_embeds: Optional[torch.Tensor] = None,
-        negative_prompt_embeds: Optional[torch.Tensor] = None,
-        pooled_prompt_embeds: Optional[torch.Tensor] = None,
-        negative_pooled_prompt_embeds: Optional[torch.Tensor] = None,
-        ip_adapter_image: Optional[PipelineImageInput] = None,
-        ip_adapter_image_embeds: Optional[List[torch.Tensor]] = None,
-        output_type: Optional[str] = "pil",
+        generator: torch.Generator | list[torch.Generator] | None = None,
+        latents: torch.Tensor | None = None,
+        prompt_embeds: torch.Tensor | None = None,
+        negative_prompt_embeds: torch.Tensor | None = None,
+        pooled_prompt_embeds: torch.Tensor | None = None,
+        negative_pooled_prompt_embeds: torch.Tensor | None = None,
+        ip_adapter_image: PipelineImageInput | None = None,
+        ip_adapter_image_embeds: list[torch.Tensor] | None = None,
+        output_type: str | None = "pil",
         return_dict: bool = True,
-        cross_attention_kwargs: Optional[Dict[str, Any]] = None,
+        cross_attention_kwargs: dict[str, Any] | None = None,
         guidance_rescale: float = 0.0,
-        original_size: Optional[Tuple[int, int]] = None,
-        crops_coords_top_left: Tuple[int, int] = (0, 0),
-        target_size: Optional[Tuple[int, int]] = None,
-        negative_original_size: Optional[Tuple[int, int]] = None,
-        negative_crops_coords_top_left: Tuple[int, int] = (0, 0),
-        negative_target_size: Optional[Tuple[int, int]] = None,
-        clip_skip: Optional[int] = None,
-        callback_on_step_end: Optional[
-            Union[Callable[[int, int, Dict], None], PipelineCallback, MultiPipelineCallbacks]
-        ] = None,
-        callback_on_step_end_tensor_inputs: List[str] = ["latents"],
+        original_size: tuple[int, int] | None = None,
+        crops_coords_top_left: tuple[int, int] = (0, 0),
+        target_size: tuple[int, int] | None = None,
+        negative_original_size: tuple[int, int] | None = None,
+        negative_crops_coords_top_left: tuple[int, int] = (0, 0),
+        negative_target_size: tuple[int, int] | None = None,
+        clip_skip: int | None = None,
+        callback_on_step_end: Callable[[int, int, dict], None] | PipelineCallback | MultiPipelineCallbacks | None = None,
+        callback_on_step_end_tensor_inputs: list[str] | None = None,
         # Added parameters (for PhotoMaker)
         input_id_images: PipelineImageInput = None,
         start_merge_step: int = 10,
-        class_tokens_mask: Optional[torch.LongTensor] = None,
-        id_embeds: Optional[torch.FloatTensor] = None,
-        prompt_embeds_text_only: Optional[torch.FloatTensor] = None,
-        pooled_prompt_embeds_text_only: Optional[torch.FloatTensor] = None,
+        class_tokens_mask: torch.LongTensor | None = None,
+        id_embeds: torch.FloatTensor | None = None,
+        prompt_embeds_text_only: torch.FloatTensor | None = None,
+        pooled_prompt_embeds_text_only: torch.FloatTensor | None = None,
         **kwargs,
     ):
         r"""
@@ -512,6 +511,8 @@ class PhotoMakerStableDiffusionXLPipeline(StableDiffusionXLPipeline):
             `tuple`. When returning a tuple, the first element is a list with the generated images.
         """
 
+        if callback_on_step_end_tensor_inputs is None:
+            callback_on_step_end_tensor_inputs = ["latents"]
         callback = kwargs.pop("callback", None)
         callback_steps = kwargs.pop("callback_steps", None)
 

@@ -3,9 +3,10 @@ import torch
 import diffusers
 from huggingface_hub import hf_hub_download
 from modules import scripts_manager, processing, shared, sd_models, devices, ipadapter
+from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class InstantIRScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None
@@ -36,10 +37,10 @@ class Script(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessing, *args): # pylint: disable=arguments-differ
         supported_model_list = ['sdxl']
         if not hasattr(p, 'init_images') or len(p.init_images) == 0:
-            shared.log.warning('InstantIR: no image')
+            log.warning('InstantIR: no image')
             return None
         if shared.sd_model_type not in supported_model_list and shared.sd_model.__class__.__name__ != "InstantIRPipeline":
-            shared.log.warning(f'InstantIR: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
+            log.warning(f'InstantIR: class={shared.sd_model.__class__.__name__} model={shared.sd_model_type} required={supported_model_list}')
             return None
         start, end, hq, multistep, adastep, image, _unload = args
         from scripts import instantir
@@ -50,7 +51,7 @@ class Script(scripts_manager.Script):
                 adapter_file = hf_hub_download('InstantX/InstantIR', subfolder='models', filename='adapter.pt', cache_dir=shared.opts.hfcache_dir)
                 aggregator_file = hf_hub_download('InstantX/InstantIR', subfolder='models', filename='aggregator.pt', cache_dir=shared.opts.hfcache_dir)
                 previewer_file = hf_hub_download('InstantX/InstantIR', subfolder='models', filename='previewer_lora_weights.bin', cache_dir=shared.opts.hfcache_dir)
-                shared.log.debug(f'InstantIR: adapter="{adapter_file}" aggregator="{aggregator_file}" previewer="{previewer_file}"')
+                log.debug(f'InstantIR: adapter="{adapter_file}" aggregator="{aggregator_file}" previewer="{previewer_file}"')
                 shared.sd_model = sd_models.switch_pipe(instantir.InstantIRPipeline, shared.sd_model)
                 instantir.load_adapter_to_pipe(
                     pipe=shared.sd_model,
@@ -68,7 +69,7 @@ class Script(scripts_manager.Script):
                 sd_models.clear_caches()
                 sd_models.apply_balanced_offload(shared.sd_model)
 
-        shared.log.info(f'InstantIR: class={shared.sd_model.__class__.__name__} start={start} end={end} multistep={multistep} adastep={adastep} hq={hq} cache={shared.opts.hfcache_dir}')
+        log.info(f'InstantIR: class={shared.sd_model.__class__.__name__} start={start} end={end} multistep={multistep} adastep={adastep} hq={hq} cache={shared.opts.hfcache_dir}')
         p.sampler_name = 'Default' # ir has its own sampler
         p.init() # run init early to take care of resizing
         p.task_args['previewer_scheduler'] = instantir.LCMSingleStepScheduler.from_config(shared.sd_model.scheduler.config)
@@ -89,7 +90,7 @@ class Script(scripts_manager.Script):
     def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=arguments-differ, unused-argument
         _start, _end, _hq, _multistep, _adastep, _image, unload = args
         if unload:
-            shared.log.info('InstantIR: unloading adapter')
+            log.info('InstantIR: unloading adapter')
             if self.orig_ip_unapply is not None:
                 ipadapter.unapply = self.orig_ip_unapply
                 self.orig_ip_unapply = None
@@ -101,6 +102,6 @@ class Script(scripts_manager.Script):
                 self.orig_pipe = None
             shared.sd_model.unet.register_to_config(encoder_hid_dim_type=None)
             sd_models.apply_balanced_offload(shared.sd_model)
-            shared.log.debug(f'InstantIR restore: class={shared.sd_model.__class__.__name__}')
+            log.debug(f'InstantIR restore: class={shared.sd_model.__class__.__name__}')
             devices.torch_gc()
         return processed

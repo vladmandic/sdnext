@@ -12,16 +12,17 @@ from scripts.xyz.xyz_grid_shared import str_permutations, list_to_csv_string, re
 from scripts.xyz.xyz_grid_classes import axis_options, AxisOption, SharedSettingsStackHelper # pylint: disable=no-name-in-module
 from scripts.xyz.xyz_grid_draw import draw_xyz_grid # pylint: disable=no-name-in-module
 from scripts.xyz.xyz_grid_shared import apply_field, apply_task_args, apply_setting, apply_prompt, apply_order, apply_sampler, apply_hr_sampler_name, confirm_samplers, apply_checkpoint, apply_refiner, apply_unet, apply_clip_skip, apply_vae, list_lora, apply_lora, apply_lora_strength, apply_te, apply_styles, apply_upscaler, apply_context, apply_detailer, apply_override, apply_processing, apply_options, apply_seed, format_value_add_label, format_value, format_value_join_list, do_nothing, format_nothing # pylint: disable=no-name-in-module, unused-import
-from modules import shared, errors, scripts_manager, images, processing
+from modules import shared, errors, scripts_manager, images, video, processing
 from modules.ui_components import ToolButton
 from modules.ui_sections import create_video_inputs
 import modules.ui_symbols as symbols
+from modules.logger import log
 
 
-debug = shared.log.trace if os.environ.get('SD_XYZ_DEBUG', None) is not None else lambda *args, **kwargs: None
+debug = log.trace if os.environ.get('SD_XYZ_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts_manager.Script):
+class XYZGridScript(scripts_manager.Script):
     current_axis_options = []
 
     def title(self):
@@ -186,11 +187,11 @@ class Script(scripts_manager.Script):
                             end_val = int(m.group(2)) if m.group(2) is not None else val
                             num = int(m.group(3)) if m.group(3) is not None else int(end_val-start_val)
                             valslist_ext += [int(x) for x in np.linspace(start=start_val, stop=end_val, num=max(2, num)).tolist()]
-                            shared.log.debug(f'XYZ grid range: start={start_val} end={end_val} num={max(2, num)} list={valslist}')
+                            log.debug(f'XYZ grid range: start={start_val} end={end_val} num={max(2, num)} list={valslist}')
                         else:
                             valslist_ext.append(int(val))
                     except Exception as e:
-                        shared.log.error(f"XYZ grid: value={val} {e}")
+                        log.error(f"XYZ grid: value={val} {e}")
                 valslist.clear()
                 valslist = [x for x in valslist_ext if x not in valslist]
             elif opt.type == float:
@@ -203,11 +204,11 @@ class Script(scripts_manager.Script):
                             end_val = float(m.group(2)) if m.group(2) is not None else val
                             num = int(m.group(3)) if m.group(3) is not None else int(end_val-start_val)
                             valslist_ext += [round(float(x), 2) for x in np.linspace(start=start_val, stop=end_val, num=max(2, num)).tolist()]
-                            shared.log.debug(f'XYZ grid range: start={start_val} end={end_val} num={max(2, num)} list={valslist}')
+                            log.debug(f'XYZ grid range: start={start_val} end={end_val} num={max(2, num)} list={valslist}')
                         else:
                             valslist_ext.append(float(val))
                     except Exception as e:
-                        shared.log.error(f"XYZ grid: value={val} {e}")
+                        log.error(f"XYZ grid: value={val} {e}")
                 valslist.clear()
                 valslist = [x for x in valslist_ext if x not in valslist]
             elif opt.type == str_permutations: # pylint: disable=comparison-with-callable
@@ -241,7 +242,7 @@ class Script(scripts_manager.Script):
             y_opt, ys = parse_axis(y_type, y_values, y_values_dropdown)
             z_opt, zs = parse_axis(z_type, z_values, z_values_dropdown)
         except Exception as e:
-            shared.log.error(f"XYZ grid: invalid axis values {e}")
+            log.error(f"XYZ grid: invalid axis values {e}")
             errors.display(e, 'xyz')
             return None
 
@@ -284,7 +285,7 @@ class Script(scripts_manager.Script):
         shared.state.update('Grid', total_steps, total_jobs * p.n_iter)
 
         image_cell_count = p.n_iter * p.batch_size
-        shared.log.info(f"XYZ grid start: images={len(xs)*len(ys)*len(zs)*image_cell_count} grid={len(zs)} shape={len(xs)}x{len(ys)} cells={len(zs)} steps={total_steps} csv={csv_mode} legend={draw_legend} grid={include_grid} subgrid={include_subgrids} images={include_images} time={include_time} text={include_text}")
+        log.info(f"XYZ grid start: images={len(xs)*len(ys)*len(zs)*image_cell_count} grid={len(zs)} shape={len(xs)}x{len(ys)} cells={len(zs)} steps={total_steps} csv={csv_mode} legend={draw_legend} grid={include_grid} subgrid={include_subgrids} images={include_images} time={include_time} text={include_text}")
         AxisInfo = namedtuple('AxisInfo', ['axis', 'values'])
         shared.state.xyz_plot_x = AxisInfo(x_opt, xs)
         shared.state.xyz_plot_y = AxisInfo(y_opt, ys)
@@ -326,7 +327,7 @@ class Script(scripts_manager.Script):
             try:
                 processed = processing.process_images(pc)
             except Exception as e:
-                shared.log.error(f"XYZ grid: Failed to process image: {e}")
+                log.error(f"XYZ grid: Failed to process image: {e}")
                 errors.display(e, 'XYZ grid')
                 processed = None
             subgrid_index = 1 + iz # Sets subgrid infotexts
@@ -387,7 +388,7 @@ class Script(scripts_manager.Script):
         have_subgrids = len(zs) if len(zs) > 1 and include_subgrids else 0
         have_images = processed.images[have_grid+have_subgrids:]
         processed.infotexts[:have_grid+have_subgrids] = grid_infotext[:have_grid+have_subgrids] # update infotexts with grid and subgrid info
-        shared.log.debug(f'XYZ grid: grid={have_grid} subgrids={have_subgrids} images={len(have_images)} total={len(processed.images)}')
+        log.debug(f'XYZ grid: grid={have_grid} subgrids={have_subgrids} images={len(have_images)} total={len(processed.images)}')
 
         if not include_images: # dont need images anymore, drop from list:
             processed.images = processed.images[:have_grid+have_subgrids]
@@ -411,7 +412,7 @@ class Script(scripts_manager.Script):
             debug(f'XYZ grid remove subgrids: total={processed.images}')
 
         if create_video and video_type != 'None' and not shared.state.interrupted:
-            images.save_video(p, filename=None, images=have_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)
+            video.save_video(p, filename=None, images=have_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate)
 
         shared.state.end(jobid)
         return processed

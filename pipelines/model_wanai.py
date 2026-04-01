@@ -2,6 +2,7 @@ import os
 import transformers
 import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
+from modules.logger import log
 
 
 def load_transformer(repo_id, diffusers_load_config=None, subfolder='transformer'):
@@ -18,15 +19,15 @@ def load_transformer(repo_id, diffusers_load_config=None, subfolder='transformer
     if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
         from modules import sd_unet
         if shared.opts.sd_unet not in list(sd_unet.unet_dict):
-            shared.log.error(f'Load module: type=Transformer not found: {shared.opts.sd_unet}')
+            log.error(f'Load module: type=Transformer not found: {shared.opts.sd_unet}')
             return None
         fn = sd_unet.unet_dict[shared.opts.sd_unet] if os.path.exists(sd_unet.unet_dict[shared.opts.sd_unet]) else None
 
     if fn is not None and 'gguf' in fn.lower():
-        shared.log.error('Load model: type=WanAI format="gguf" unsupported')
+        log.error('Load model: type=WanAI format="gguf" unsupported')
         transformer = None
     elif fn is not None and 'safetensors' in fn.lower():
-        shared.log.debug(f'Load model: type=WanAI {subfolder}="{fn}" quant="{model_quant.get_quant(repo_id)}" args={load_args}')
+        log.debug(f'Load model: type=WanAI {subfolder}="{fn}" quant="{model_quant.get_quant(repo_id)}" args={load_args}')
         transformer = transformer_cls.from_single_file(
             fn,
             cache_dir=shared.opts.hfcache_dir,
@@ -34,7 +35,7 @@ def load_transformer(repo_id, diffusers_load_config=None, subfolder='transformer
             **quant_args,
         )
     else:
-        shared.log.debug(f'Load model: type=WanAI {subfolder}="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
+        log.debug(f'Load model: type=WanAI {subfolder}="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
         transformer = transformer_cls.from_pretrained(
             repo_id,
             subfolder=subfolder,
@@ -52,7 +53,7 @@ def load_text_encoder(repo_id, diffusers_load_config=None):
         diffusers_load_config = {}
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
     repo_id = 'Wan-AI/Wan2.1-T2V-1.3B-Diffusers' if 'Wan2.' in repo_id else repo_id # always use shared umt5
-    shared.log.debug(f'Load model: type=WanAI te="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
+    log.debug(f'Load model: type=WanAI te="{repo_id}" quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
     text_encoder = transformers.UMT5EncoderModel.from_pretrained(
         repo_id,
         subfolder="text_encoder",
@@ -86,7 +87,7 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
             transformer_2 = load_transformer(repo_id, diffusers_load_config, 'transformer_2')
             boundary_ratio = shared.opts.model_wan_boundary
         else:
-            shared.log.error(f'Load model: type=WanAI stage="{shared.opts.model_wan_stage}" unsupported')
+            log.error(f'Load model: type=WanAI stage="{shared.opts.model_wan_stage}" unsupported')
             return None
     else:
         transformer = load_transformer(repo_id, diffusers_load_config, 'transformer')
@@ -109,7 +110,7 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
         pipe_cls = diffusers.WanPipeline
         diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanPipeline
         diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["wanai"] = WanImagePipeline
-    shared.log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" cls={pipe_cls.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')
+    log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" cls={pipe_cls.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')
     pipe = pipe_cls.from_pretrained(
         repo_id,
         transformer=transformer,
