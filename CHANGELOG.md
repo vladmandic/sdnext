@@ -83,7 +83,11 @@ Just how big? Some stats: *~530 commits over 880 files*
     > `set TORCH_COMMAND='torch torchvision --index-url https://download.pytorch.org/whl/cu128`  
   - update installer and support `nunchaku==1.2.1`
 - **UI**
-  - legacy panels **T2I** and **I2I** are disabled by default  
+  - **Enso** new React-based UI with WYSIWYG infinite canvas workspace, command palette, and numerous quality of life improvements across the board *(work-in-progress alpha)*.  
+    enable using `--enso` flag, and use on `/enso` endpoint.  
+    **Separate installation of SD.Next recommended**  
+    see wiki page and Enso repo README for details.
+  - legacy panels **T2I** and **I2I** are disabled by default
     you can re-enable them in *settings -> ui -> hide legacy tabs*  
   - new panel: **Server Info** with detailed runtime informaton  
   - rename **Scripts** to **Extras** and reorganize to split internal functionality vs external extensions  
@@ -99,11 +103,15 @@ Just how big? Some stats: *~530 commits over 880 files*
   - **Themes** add *Vlad-Neomorph*  
   - **Gallery** add option to auto-refresh gallery, thanks @awsr  
   - **Token counters** add per-section display for supported models, thanks @awsr  
+  - **Colour grading** add hints for all the functions
 - **Docs / Wiki**  
   - updates to to compute sections: *AMD-ROCm, AMD-MIOpen, ZLUDA, OpenVINO, nVidia*  
-  - updates to core sections: *Installation, Python, Schedulers, Launcher, SDNQ, Video*  
+  - updates to core sections: *Installation, Python, Schedulers, Launcher, SDNQ, Video*
+  - added Enso page
 - **API**
-  - **rate limiting**: global for all endpoints, guards against abuse and denial-of-service type of attacks  
+  - new **v2 API** (`/sdapi/v2/`): job-based generation with queue, per-job WebSocket progress, file uploads with TTL, model/network enumeration, and a plethora of other improvements *(work-in-progress)*  
+  for the time being ships with Enso, which must be enabled wih `--enso` flag on startup for v2 API to be available.
+  - **rate limiting**: global for all endpoints, guards against abuse and denial-of-service type of attacks
     configurable in *settings -> server settings*  
   - new `/sdapi/v1/upload` endpoint with support for both POST with form-data or PUT using raw-bytes  
   - new `/sdapi/v1/torch` endpoint for torch info (backend, version, etc.)  
