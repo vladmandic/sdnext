@@ -1,17 +1,19 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-30
+## Update for 2026-04-01
 
-### Highlights for 2026-03-30
+### Highlights for 2026-04-01
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
 And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV* image models and *LTX 2.3* video model  
 
 If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download [exe or zip](https://github.com/vladmandic/sdnext-launcher/releases) and done!  
 
+And we have a new (optional) React-based **UI** [Enso](https://github.com/CalamitousFelicitousness/enso)!  
+
 *What else*? Really a lot!  
-New color grading module, updated localization with new languages and improved translations, new civitai integration module, new finetunes loader, several new upscalers, improvements to LLM/VLM in captioning and prompt enhance, a lot of new control preprocessors, new realtime server info panel, some new UI themes  
-And major work on API hardening: security, rate limits, secrets handling, new endpoints, etc.  
+New color grading module, updated localization with new languages and improved translations, new CivitAI integration module, new finetunes loader, several new upscalers, improvements to LLM/VLM in captioning and prompt enhance, a lot of new control preprocessors, new realtime server info panel, some new UI themes  
+And major work on API hardening: *security, rate limits, secrets handling, new endpoints*, etc.  
 But also many smaller quality-of-life improvements - for full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
 
 *Note*: Purely due to size of changes, clean install is recommended!  
@@ -19,7 +21,7 @@ Just how big? Some stats: *~530 commits over 880 files*
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-30
+### Details for 2026-04-01
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -83,10 +85,11 @@ Just how big? Some stats: *~530 commits over 880 files*
     > `set TORCH_COMMAND='torch torchvision --index-url https://download.pytorch.org/whl/cu128`  
   - update installer and support `nunchaku==1.2.1`
 - **UI**
-  - **Enso** new React-based UI with WYSIWYG infinite canvas workspace, command palette, and numerous quality of life improvements across the board *(work-in-progress alpha)*.  
-    enable using `--enso` flag, and use on `/enso` endpoint.  
-    **Separate installation of SD.Next recommended**  
-    see wiki page and Enso repo README for details.
+  - **Enso** new React-based UI, developed by @CalamitousFelicitousness!  
+    with WYSIWYG infinite canvas workspace, command palette, and numerous quality of life improvements across the board  
+    enable using `--enso` flag and access using `/enso` endpoint (e.g. <http://localhost:7860/enso>)  
+    see [Enso Docs](https://vladmandic.github.io/sdnext-docs/Enso/) and [Enso Home](https://github.com/CalamitousFelicitousness/enso) for details  
+    *note* Enso is work-in-progress and alpha-ready  
   - legacy panels **T2I** and **I2I** are disabled by default
     you can re-enable them in *settings -> ui -> hide legacy tabs*  
   - new panel: **Server Info** with detailed runtime informaton  
@@ -109,15 +112,17 @@ Just how big? Some stats: *~530 commits over 880 files*
   - updates to core sections: *Installation, Python, Schedulers, Launcher, SDNQ, Video*
   - added Enso page
 - **API**
-  - new **v2 API** (`/sdapi/v2/`): job-based generation with queue, per-job WebSocket progress, file uploads with TTL, model/network enumeration, and a plethora of other improvements *(work-in-progress)*  
-  for the time being ships with Enso, which must be enabled wih `--enso` flag on startup for v2 API to be available.
+  - prototype **v2 API** (`/sdapi/v2/`)
+    job-based generation with queue, per-job WebSocket progress, file uploads with TTL, model/network enumeration  
+    and a plethora of other improvements *(work-in-progress)*  
+    for the time being ships with Enso, which must be enabled wih `--enso` flag on startup for v2 API to be available  
   - **rate limiting**: global for all endpoints, guards against abuse and denial-of-service type of attacks
     configurable in *settings -> server settings*  
   - new `/sdapi/v1/upload` endpoint with support for both POST with form-data or PUT using raw-bytes  
   - new `/sdapi/v1/torch` endpoint for torch info (backend, version, etc.)  
   - new `/sdapi/v1/gpu` endpoint for GPU info  
   - new `/sdapi/v1/rembg` endpoint for background removal  
-  - new `/sdadpi/v1/unet` endpoint to list available unets/dits  
+  - new `/sdapi/v1/unet` endpoint to list available unets/dits  
   - use rate limiting for api logging  
 - **Obsoleted**
   - removed support for additional quantization engines: *BitsAndBytes, TorchAO, Optimum-Quanto, NNCF*  

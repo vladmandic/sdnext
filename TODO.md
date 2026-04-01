@@ -1,12 +1,5 @@
 # TODO
 
-## Release
-
-- Add notes: **Enso**
-- Tips: **Color Grading**
-- Regen: **Localization**
-- Rebuild: **Launcher** with `master`
-
 ## Internal
 
 - Feature: implement `unload_auxiliary_models`
@@ -131,21 +124,25 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 > npm run todo
 
-- fc: autodetect distilled based on model
-- fc: autodetect tensor format based on model
-- hypertile: vae breaks when using non-standard sizes
-- install: switch to pytorch source when it becomes available
-- loader: load receipe
-- loader: save receipe
-- lora: add other quantization types
-- lora: add t5 key support for sd35/f1
-- lora: maybe force imediate quantization
-- model load: force-reloading entire model as loading transformers only leads to massive memory usage
-- model load: implement model in-memory caching
-- modernui: monkey-patch for missing tabs.select event
-- modules/lora/lora_extract.py:188:9: W0511: TODO: lora: support pre-quantized flux
-- modules/modular_guiders.py:65:58: W0511: TODO: guiders
-- processing: remove duplicate mask params
-- resize image: enable full VAE mode for resize-latent
-
-modules/sd_samplers_diffusers.py:353:31: W0511: TODO enso-required (fixme)
+```code
+installer.py:TODO rocm: switch to pytorch source when it becomes available
+modules/control/run.py:TODO modernui: monkey-patch for missing tabs.select event
+modules/history.py:TODO: apply metadata, preview, load/save
+modules/image/resize.py:TODO resize image: enable full VAE mode for resize-latent
+modules/lora/lora_apply.py:TODO lora: add other quantization types
+modules/lora/lora_apply.py:TODO lora: maybe force imediate quantization
+modules/lora/lora_extract.py:TODO: lora: support pre-quantized flux
+modules/lora/lora_load.py:TODO lora: add t5 key support for sd35/f1
+modules/masking.py:TODO: additional masking algorithms
+modules/modular_guiders.py:TODO: guiders
+modules/processing_class.py:TODO processing: remove duplicate mask params
+modules/sd_hijack_hypertile.py:TODO hypertile: vae breaks when using non-standard sizes
+modules/sd_models.py:TODO model load: implement model in-memory caching
+modules/sd_samplers_diffusers.py:TODO enso-required
+modules/sd_unet.py:TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage
+modules/transformer_cache.py:TODO fc: autodetect distilled based on model
+modules/transformer_cache.py:TODO fc: autodetect tensor format based on model
+modules/ui_models_load.py:TODO loader: load receipe
+modules/ui_models_load.py:TODO loader: save receipe
+modules/video_models/video_save.py:TODO audio set time-base
+```

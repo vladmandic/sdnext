@@ -205,7 +205,6 @@ def batch(
     Returns:
         Combined tag results
     """
-    import os
     import time
     from pathlib import Path
     import rich.progress as rp

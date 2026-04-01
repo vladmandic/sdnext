@@ -419,7 +419,6 @@ def batch(
     Returns:
         Combined tag results
     """
-    import os
     from pathlib import Path
 
     # Load model
