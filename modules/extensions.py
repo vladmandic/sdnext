@@ -40,7 +40,7 @@ def ts2utc(timestamp: int) -> datetime:
     except Exception:
         return "unknown"
 
-def active():
+def active() -> list[Extension]:
     if shared.opts.disable_all_extensions == "all":
         return []
     elif shared.opts.disable_all_extensions == "user":
@@ -185,12 +185,12 @@ class Extension:
                 log.error(f"Extension: failed reading data from git repo={self.name}: {ex}")
                 self.remote = None
 
-    def list_files(self, subdir, extension):
-        from modules import scripts_manager
+    def list_files(self, subdir: str, extension: str):
+        from modules.scripts_manager import ScriptFile
         dirpath = os.path.join(self.path, subdir)
+        res: list[ScriptFile] = []
         if not os.path.isdir(dirpath):
-            return []
-        res = []
+            return res
         for filename in sorted(os.listdir(dirpath)):
             if not filename.endswith(".py") and not filename.endswith(".js") and not filename.endswith(".mjs"):
                 continue
@@ -198,7 +198,7 @@ class Extension:
             if os.path.isfile(os.path.join(dirpath, "..", ".priority")):
                 with open(os.path.join(dirpath, "..", ".priority"), encoding="utf-8") as f:
                     priority = str(f.read().strip())
-            res.append(scripts_manager.ScriptFile(self.path, filename, os.path.join(dirpath, filename), priority))
+            res.append(ScriptFile(self.path, filename, os.path.join(dirpath, filename), priority))
             if priority != '50':
                 log.debug(f'Extension priority override: {os.path.dirname(dirpath)}:{priority}')
         res = [x for x in res if os.path.splitext(x.path)[1].lower() == extension and os.path.isfile(x.path)]

@@ -49,14 +49,14 @@ def create_ui(accordion=True):
 
 # main processing used in both modes
 def process(
-        p: processing.StableDiffusionProcessing=None,
-        pp: scripts.PostprocessImageArgs=None,
+        p: processing.StableDiffusionProcessing | None = None,
+        pp: scripts.PostprocessImageArgs | scripts_postprocessing.PostprocessedImage | None = None,
         enabled=True,
         lang=False,
         policy=False,
         banned=False,
         metadata=True,
-        copy=False,
+        copy=False,  # Compatability
         score=0.2,
         blocks=3,
         censor=[],
@@ -74,7 +74,7 @@ def process(
         nudes = nudenet.detector.censor(image=pp.image, method=method, min_score=score, censor=censor, blocks=blocks, overlay=overlay)
         t1 = time.time()
         if len(nudes.censored) > 0:  # Check if there are any censored areas
-            if not copy:
+            if p is None:
                 pp.image = nudes.output
             else:
                 info = processing.create_infotext(p)
@@ -85,7 +85,7 @@ def process(
         if metadata and p is not None:
             p.extra_generation_params["NudeNet"] = meta
             p.extra_generation_params["NSFW"] = nsfw
-        if metadata and hasattr(pp, 'info'):
+        if metadata and isinstance(pp, scripts_postprocessing.PostprocessedImage):
             pp.info['NudeNet'] = meta
             pp.info['NSFW'] = nsfw
         log.debug(f'NudeNet detect: {dct} nsfw={nsfw} time={(t1 - t0):.2f}')
@@ -118,7 +118,7 @@ def process(
         if metadata and p is not None:
             p.extra_generation_params["Rating"] = res.get('rating', 'N/A')
             p.extra_generation_params["Category"] = res.get('category', 'N/A')
-        if metadata and hasattr(pp, 'info'):
+        if metadata and isinstance(pp, scripts_postprocessing.PostprocessedImage):
             pp.info["Rating"] = res.get('rating', 'N/A')
             pp.info["Category"] = res.get('category', 'N/A')
 
@@ -131,11 +131,11 @@ class ScriptNudeNet(scripts.Script):
     def title(self):
         return 'NudeNet'
 
-    def show(self, _is_img2img):
+    def show(self, *args, **kwargs):
         return scripts.AlwaysVisible
 
     # return signature is array of gradio components
-    def ui(self, _is_img2img):
+    def ui(self, *args, **kwargs):
         return create_ui(accordion=True)
 
     # triggered by callback
