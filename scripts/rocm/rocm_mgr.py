@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Dict, Optional
@@ -121,14 +122,22 @@ def _get_venv() -> str:
     return os.environ.get("VIRTUAL_ENV", "") or sys.prefix
 
 
+def _get_root() -> str:
+    """App root — one level above the venv folder (e.g. E:\\Sd.Next)."""
+    return str(Path(_get_venv()).parent)
+
+
 def _expand_venv(value: str) -> str:
-    return value.replace("{VIRTUAL_ENV}", _get_venv())
+    return value.replace("{VIRTUAL_ENV}", _get_venv()).replace("{ROOT}", _get_root())
 
 
 def _collapse_venv(value: str) -> str:
     venv = _get_venv()
+    root = _get_root()
     if venv and value.startswith(venv):
         return "{VIRTUAL_ENV}" + value[len(venv):]
+    if root and value.startswith(root):
+        return "{ROOT}" + value[len(root):]
     return value
 
 
@@ -365,6 +374,28 @@ def _user_db_summary(path: Path) -> dict:
     return out
 
 
+def _extract_db_hash(db_path: Path) -> str:
+    """Derive the cache subfolder name from udb.txt filenames.
+    e.g. gfx1030_30.HIP.3_5_1_5454e9e2da.udb.txt  →  '3.5.1.5454e9e2da'"""
+    for f in db_path.glob("*.HIP.*.udb.txt"):
+        m = re.search(r'\.HIP\.([^.]+)\.udb\.txt$', f.name)
+        if m:
+            return m.group(1).replace("_", ".")
+    return ""
+
+
+def _user_cache_summary(path: Path) -> dict:
+    """Return {filename: 'N KB'} for binary cache blobs in the resolved cache path."""
+    out = {}
+    if not path.exists():
+        return out
+    for f in sorted(path.iterdir()):
+        if f.is_file():
+            kb = f.stat().st_size // 1024
+            out[f.name] = f"{kb} KB"
+    return out
+
+
 def info() -> dict:
     config = load_config()
     db_path = Path(_expand_venv(config.get("MIOPEN_SYSTEM_DB_PATH", "")))
@@ -427,12 +458,23 @@ def info() -> dict:
         if ufiles:
             udb["files"] = ufiles
 
+    # --- User cache (~/.miopen/cache/<version-hash>) ---
+    cache_base = Path.home() / ".miopen" / "cache"
+    db_hash = _extract_db_hash(user_db_path) if user_db_path.exists() else ""
+    cache_path = cache_base / db_hash if db_hash else cache_base
+    ucache = {"path": str(cache_path), "exists": cache_path.exists()}
+    if cache_path.exists():
+        cfiles = _user_cache_summary(cache_path)
+        if cfiles:
+            ucache["files"] = cfiles
+
     return {
         "rocm":       rocm_section,
         "torch":      torch_section,
         "gpu":        gpu_section,
         "system_db":  sdb,
         "user_db":    udb,
+        "user_cache": ucache,
     }
 
 

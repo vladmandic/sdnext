@@ -19,7 +19,7 @@ class ROCmScript(scripts_manager.Script):
         if not shared.cmd_opts.use_rocm and not installer.torch_info.get('type') == 'rocm':  # skip ui creation if not rocm
             return []
 
-        from scripts.rocm import rocm_mgr, rocm_vars  # pylint: disable=no-name-in-module
+        from scripts.rocm import rocm_mgr, rocm_vars, rocm_profiles  # pylint: disable=no-name-in-module
 
         config = rocm_mgr.load_config()
         var_names = []
@@ -59,11 +59,25 @@ class ROCmScript(scripts_manager.Script):
             row("path", udb.get("path", ""))
             for fname, finfo in udb.get("files", {}).items():
                 row(fname, finfo)
+            section("User cache (~/.miopen/cache)")
+            ucache = d.get("user_cache", {})
+            row("path", ucache.get("path", ""))
+            for fname, sz in ucache.get("files", {}).items():
+                row(fname, sz)
             return f"<table style='width:100%;border-collapse:collapse'>{''.join(rows)}</table>"
+
+        def _build_style(unavailable, hipblaslt_disabled=False):
+            rules = []
+            for v in (unavailable or []):
+                rules.append(f"#rocm_var_{v.lower()} label {{ text-decoration: line-through; opacity: 0.5; }}")
+            if hipblaslt_disabled:
+                for v in rocm_vars.HIPBLASLT_VARS:
+                    rules.append(f"#rocm_var_{v.lower()} {{ opacity: 0.45; pointer-events: none; }}")
+            return f"<style>{' '.join(rules)}</style>" if rules else ""
 
         with gr.Accordion('ROCm: Advanced Config', open=False, elem_id='rocm_config'):
             with gr.Row():
-                gr.HTML("<p>Advanced configuration for ROCm users.</p><br><p>Set your database and solver selections based on GPU profile or individually.</p><br><p>Enable cuDNN in Backend Settings to activate MIOpen.</p>")
+                gr.HTML("<p>Advanced configuration for ROCm users.</p><br><p>For best performance ensure that cudnn and torch tunable ops are set to default in Backend Settings.</p>")
             with gr.Row():
                 btn_info   = gr.Button("Refresh Info",   variant="primary", elem_id="rocm_btn_info",   size="sm")
                 btn_apply  = gr.Button("Apply",          variant="primary", elem_id="rocm_btn_apply",  size="sm")
@@ -74,7 +88,10 @@ class ROCmScript(scripts_manager.Script):
                 btn_rdna2 = gr.Button("RDNA2 (RX 6000)", elem_id="rocm_btn_rdna2")
                 btn_rdna3 = gr.Button("RDNA3 (RX 7000)", elem_id="rocm_btn_rdna3")
                 btn_rdna4 = gr.Button("RDNA4 (RX 9000)", elem_id="rocm_btn_rdna4")
-            style_out = gr.HTML("")
+            _init_gemm = config.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
+            _init_arch = config.get(rocm_mgr._ARCH_KEY, "")
+            _init_unavailable = rocm_profiles.UNAVAILABLE.get(_init_arch, set()) if _init_arch else set()
+            style_out = gr.HTML(_build_style(_init_unavailable, _init_gemm == "1"))
             info_out = gr.HTML(value=_info_html, elem_id="rocm_info_table")
 
             # General vars (dropdowns, textboxes, checkboxes)
@@ -106,13 +123,46 @@ class ROCmScript(scripts_manager.Script):
 
         for name, comp in zip(var_names, components):
             meta = rocm_vars.ROCM_ENV_VARS[name]
-            if meta["widget"] == "dropdown":
+            if meta["widget"] == "dropdown" and name != "MIOPEN_GEMM_ENFORCE_BACKEND":
                 comp.change(fn=lambda v, n=name: _autosave_field(n, v), inputs=[comp], outputs=[], show_progress='hidden')
+
+        _GEMM_COMPANIONS = {
+            "PYTORCH_ROCM_USE_ROCBLAS":           {"1": "1", "5": "0"},
+            "PYTORCH_HIPBLASLT_DISABLE":           {"1": "1", "5": "0"},
+            "ROCBLAS_USE_HIPBLASLT":               {"1": "0", "5": "1"},
+            "PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED": {"1": "0", "5": "1"},
+        }
+
+        def gemm_changed(gemm_display_val):
+            stored = rocm_mgr._dropdown_stored(str(gemm_display_val), rocm_vars.ROCM_ENV_VARS["MIOPEN_GEMM_ENFORCE_BACKEND"]["options"])
+            cfg = rocm_mgr.load_config().copy()
+            cfg["MIOPEN_GEMM_ENFORCE_BACKEND"] = stored
+            for var, vals in _GEMM_COMPANIONS.items():
+                cfg[var] = vals.get(stored, cfg.get(var, ""))
+            rocm_mgr.save_config(cfg)
+            rocm_mgr.apply_env(cfg)
+            arch = cfg.get(rocm_mgr._ARCH_KEY, "")
+            unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
+            result = [gr.update(value=_build_style(unavailable, stored == "1"))]
+            for pname in var_names:
+                if pname in _GEMM_COMPANIONS:
+                    meta = rocm_vars.ROCM_ENV_VARS[pname]
+                    val = _GEMM_COMPANIONS[pname].get(stored, cfg.get(pname, ""))
+                    result.append(gr.update(value=rocm_mgr._dropdown_display(val, meta["options"])))
+                else:
+                    result.append(gr.update())
+            return result
+
+        gemm_comp = components[var_names.index("MIOPEN_GEMM_ENFORCE_BACKEND")]
+        gemm_comp.change(fn=gemm_changed, inputs=[gemm_comp], outputs=[style_out] + components, show_progress='hidden')
 
         def apply_fn(*values):
             rocm_mgr.apply_all(var_names, list(values))
             saved = rocm_mgr.load_config()
-            result = [gr.update(value="")]
+            arch = saved.get(rocm_mgr._ARCH_KEY, "")
+            unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
+            gemm_val = saved.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
+            result = [gr.update(value=_build_style(unavailable, gemm_val == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 val = saved.get(name, meta["default"])
@@ -124,19 +174,13 @@ class ROCmScript(scripts_manager.Script):
                     result.append(gr.update(value=rocm_mgr._expand_venv(val)))
             return result
 
-        def _build_style(unavailable):
-            if not unavailable:
-                return ""
-            rules = " ".join(
-                f"#rocm_var_{v.lower()} label {{ text-decoration: line-through; opacity: 0.5; }}"
-                for v in unavailable
-            )
-            return f"<style>{rules}</style>"
-
         def reset_fn():
             rocm_mgr.reset_defaults()
             updated = rocm_mgr.load_config()
-            result = [gr.update(value="")]
+            arch = updated.get(rocm_mgr._ARCH_KEY, "")
+            unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
+            gemm_val = updated.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
+            result = [gr.update(value=_build_style(unavailable, gemm_val == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 val = updated.get(name, meta["default"])
@@ -150,7 +194,9 @@ class ROCmScript(scripts_manager.Script):
 
         def clear_fn():
             rocm_mgr.clear_env()
-            result = [gr.update(value="")]
+            cfg = rocm_mgr.load_config()
+            gemm_val = cfg.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
+            result = [gr.update(value=_build_style(None, gemm_val == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 if meta["widget"] == "checkbox":
@@ -163,7 +209,8 @@ class ROCmScript(scripts_manager.Script):
 
         def delete_fn():
             rocm_mgr.delete_config()
-            result = [gr.update(value="")]
+            gemm_default = rocm_vars.ROCM_ENV_VARS.get("MIOPEN_GEMM_ENFORCE_BACKEND", {}).get("default", "1")
+            result = [gr.update(value=_build_style(None, gemm_default == "1"))]
             for name in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[name]
                 if meta["widget"] == "checkbox":
@@ -175,11 +222,11 @@ class ROCmScript(scripts_manager.Script):
             return result
 
         def profile_fn(arch):
-            from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
             rocm_mgr.apply_profile(arch)
             updated = rocm_mgr.load_config()
             unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
-            result = [gr.update(value=_build_style(unavailable))]
+            gemm_val = updated.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
+            result = [gr.update(value=_build_style(unavailable, gemm_val == "1"))]
             for pname in var_names:
                 meta = rocm_vars.ROCM_ENV_VARS[pname]
                 val = updated.get(pname, meta["default"])

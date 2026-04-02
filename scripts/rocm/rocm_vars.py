@@ -3,6 +3,7 @@ from typing import Dict, Any, List, Tuple
 # --- General MIOpen/rocBLAS variables (dropdown/textbox/checkbox) ---
 GENERAL_VARS: Dict[str, Dict[str, Any]] = {
 
+    # ── GEMM backend selector + companion toggles ──────────────────────────
     "MIOPEN_GEMM_ENFORCE_BACKEND": {
         "default": "1",
         "desc": "Enforce GEMM backend",
@@ -10,6 +11,29 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
         "options": [("1 - rocBLAS", "1"), ("5 - hipBLASLt", "5")],
         "restart_required": False,
     },
+    "PYTORCH_ROCM_USE_ROCBLAS": {
+        "default": "1",
+        "desc": "PyTorch ROCm: prioritise rocBLAS for linear algebra",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": True,
+    },
+    "PYTORCH_HIPBLASLT_DISABLE": {
+        "default": "1",
+        "desc": "Disable PyTorch hipBLASLt dispatcher",
+        "widget": "dropdown",
+        "options": [("0 - Allow hipBLASLt", "0"), ("1 - Disable hipBLASLt", "1")],
+        "restart_required": True,
+    },
+    "ROCBLAS_USE_HIPBLASLT": {
+        "default": "0",
+        "desc": "rocBLAS: use hipBLASLt backend (0 = Tensile)",
+        "widget": "dropdown",
+        "options": [("0 - Tensile (rocBLAS)", "0"), ("1 - hipBLASLt", "1")],
+        "restart_required": True,
+    },
+
+    # ── MIOpen behavioural settings ────────────────────────────────────────
     "MIOPEN_FIND_MODE": {
         "default": "2",
         "desc": "MIOpen Find Mode",
@@ -31,6 +55,15 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
         "options": [("0 - Off", "0"), ("1 - On", "1")],
         "restart_required": True,
     },
+    "MIOPEN_DEBUG_CONVOLUTION_DETERMINISTIC": {
+        "default": "0",
+        "desc": "Deterministic convolution (reproducible results, may be slower)",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": False,
+    },
+
+    # ── Paths / sizes ──────────────────────────────────────────────────────
     "MIOPEN_SYSTEM_DB_PATH": {
         "default": "{VIRTUAL_ENV}\\Lib\\site-packages\\_rocm_sdk_devel\\bin\\",
         "desc": "MIOpen system DB path",
@@ -38,6 +71,75 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
         "options": None,
         "restart_required": True,
     },
+    "MIOPEN_CONVOLUTION_MAX_WORKSPACE": {
+        "default": "1073741824",
+        "desc": "MIOpen convolution max workspace (bytes; 1 GB default)",
+        "widget": "textbox",
+        "options": None,
+        "restart_required": False,
+    },
+    "ROCBLAS_TENSILE_LIBPATH": {
+        "default": "{VIRTUAL_ENV}\\Lib\\site-packages\\_rocm_sdk_devel\\bin\\rocblas\\library",
+        "desc": "rocBLAS Tensile library path",
+        "widget": "textbox",
+        "options": None,
+        "restart_required": True,
+    },
+    "ROCBLAS_DEVICE_MEMORY_SIZE": {
+        "default": "",
+        "desc": "rocBLAS workspace size in bytes (empty = dynamic)",
+        "widget": "textbox",
+        "options": None,
+        "restart_required": False,
+    },
+    "PYTORCH_TUNABLEOP_CACHE_DIR": {
+        "default": "{ROOT}\\models\\tunable",
+        "desc": "TunableOp: kernel profile cache directory",
+        "widget": "textbox",
+        "options": None,
+        "restart_required": False,
+    },
+
+    # ── rocBLAS settings ───────────────────────────────────────────────────
+    "ROCBLAS_STREAM_ORDER_ALLOC": {
+        "default": "1",
+        "desc": "rocBLAS stream-ordered memory allocation",
+        "widget": "dropdown",
+        "options": [("0 - Standard", "0"), ("1 - Stream-ordered", "1")],
+        "restart_required": False,
+    },
+    "ROCBLAS_DEFAULT_ATOMICS_MODE": {
+        "default": "1",
+        "desc": "rocBLAS default atomics mode (1 = allow non-deterministic for performance)",
+        "widget": "dropdown",
+        "options": [("0 - Off (deterministic)", "0"), ("1 - On (performance)", "1")],
+        "restart_required": False,
+    },
+    "PYTORCH_TUNABLEOP_ROCBLAS_ENABLED": {
+        "default": "1",
+        "desc": "TunableOp: wrap and optimise rocBLAS GEMM calls",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": False,
+    },
+    "PYTORCH_TUNABLEOP_TUNING": {
+        "default": "0",
+        "desc": "TunableOp: tuning mode (1 = benchmark; 0 = use saved CSV)",
+        "widget": "dropdown",
+        "options": [("0 - Use saved CSV", "0"), ("1 - Benchmark new shapes", "1")],
+        "restart_required": False,
+    },
+
+    # ── hipBLASLt settings ─────────────────────────────────────────────────
+    "PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED": {
+        "default": "0",
+        "desc": "TunableOp: benchmark hipBLASLt kernels",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": False,
+    },
+
+    # ── Logging: MIOpen → rocBLAS → hipBLASLt ─────────────────────────────
     "MIOPEN_LOG_LEVEL": {
         "default": "0",
         "desc": "MIOpen log verbosity level",
@@ -64,13 +166,6 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
         "desc": "hipBLASLt logging",
         "widget": "dropdown",
         "options": [("0 - Off", "0"), ("1 - Error", "1"), ("2 - Trace", "2"), ("3 - Hints", "3"), ("4 - Info", "4"), ("5 - API Trace", "5")],
-        "restart_required": False,
-    },
-    "MIOPEN_DEBUG_CONVOLUTION_DETERMINISTIC": {
-        "default": "0",
-        "desc": "Deterministic convolution (reproducible results, may be slower)",
-        "widget": "dropdown",
-        "options": [("0 - Off", "0"), ("1 - On", "1")],
         "restart_required": False,
     },
 }
@@ -251,3 +346,13 @@ SOLVER_GROUPS: List[Tuple[str, List[str]]] = [
         "MIOPEN_DEBUG_CK_DEFAULT_KERNELS",
     ]),
 ]
+
+# Variables that are relevant only when hipBLASLt is the active GEMM backend.
+# These are visually greyed-out in the UI when rocBLAS (MIOPEN_GEMM_ENFORCE_BACKEND="1") is selected.
+HIPBLASLT_VARS: set = {
+    "PYTORCH_HIPBLASLT_DISABLE",
+    "ROCBLAS_USE_HIPBLASLT",
+    "PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED",
+    "HIPBLASLT_LOG_LEVEL",
+}
+
