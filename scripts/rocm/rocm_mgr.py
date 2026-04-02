@@ -123,8 +123,12 @@ def _get_venv() -> str:
 
 
 def _get_root() -> str:
-    """App root — one level above the venv folder (e.g. E:\\Sd.Next)."""
-    return str(Path(_get_venv()).parent)
+    """App root — from modules.paths.script_path."""
+    try:
+        from modules.paths import script_path  # pylint: disable=import-outside-toplevel
+        return str(script_path)
+    except Exception:
+        return str(Path(_get_venv()).parent)
 
 
 def _expand_venv(value: str) -> str:
