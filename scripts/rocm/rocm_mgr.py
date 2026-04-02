@@ -119,16 +119,12 @@ def _resolve_dtype() -> str:
 # --- venv helpers ---
 
 def _get_venv() -> str:
-    return os.environ.get("VIRTUAL_ENV", "") or sys.prefix
+    return sys.prefix
 
 
 def _get_root() -> str:
-    """App root — from modules.paths.script_path."""
-    try:
-        from modules.paths import script_path  # pylint: disable=import-outside-toplevel
-        return str(script_path)
-    except Exception:
-        return str(Path(_get_venv()).parent)
+    from modules.paths import script_path  # pylint: disable=import-outside-toplevel
+    return str(script_path)
 
 
 def _expand_venv(value: str) -> str:
