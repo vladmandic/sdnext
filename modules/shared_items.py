@@ -65,6 +65,7 @@ pipelines = {
     'HunyuanImage3': getattr(diffusers, 'DiffusionPipeline', None),
     'ChronoEdit': getattr(diffusers, 'DiffusionPipeline', None),
     'Anima': getattr(diffusers, 'DiffusionPipeline', None),
+    'SDXS': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 

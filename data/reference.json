@@ -864,6 +864,16 @@
     "extras": "sampler: Default, cfg_scale: 1.5, steps: 50",
     "size": 15.3,
     "date": "2025 January"
+  },
+
+  "AiArtLab SDXS-1B": {
+    "path": "AiArtLab/sdxs-1b",
+    "preview": "AiArtLab--sdxs-1b.jpg",
+    "desc": "Simple Diffusion XS (train in progress) combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE",
+    "skip": true,
+    "extras": "sampler: Default",
+    "size": 15.3,
+    "date": "2026 January"
   }
 
 }

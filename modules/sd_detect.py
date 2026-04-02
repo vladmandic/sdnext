@@ -150,6 +150,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'Ovis-Image'
     elif 'glm-image' in fn.lower():
         new_guess = 'GLM-Image'
+    elif 'sdxs-1b' in fn.lower():
+        new_guess = 'SDXS'
     if debug_load:
         log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess
@@ -166,6 +168,8 @@ def guess_by_diffusers(fn, current_guess):
         if name is not None and name in exclude_by_name:
             return current_guess, None
         cls = index.get('_class_name', None)
+        if isinstance(cls, list):
+            cls = cls[-1]
         if cls is not None:
             pipeline = getattr(diffusers, cls, None)
             if pipeline is None:

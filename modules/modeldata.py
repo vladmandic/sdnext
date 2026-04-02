@@ -100,6 +100,8 @@ def get_model_type(pipe):
         model_type = 'hunyuanimage3'
     elif 'HunyuanImage' in name:
         model_type = 'hunyuanimage'
+    elif 'sdxs-1b' in name:
+        model_type = 'sdxs'
     # video models
     elif "Kandinsky5" in name and '2V' in name:
         model_type = 'kandinsky5video'
