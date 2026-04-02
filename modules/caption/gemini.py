@@ -12,7 +12,7 @@ class GoogleGeminiPipeline():
         self.model = model_name.split(' (')[0]
         from installer import install
         install('google-genai==1.52.0')
-        from google import genai
+        from google import genai # pylint: disable=no-name-in-module
         args = self.get_args()
         self.client = genai.Client(**args)
         log.debug(f'Load model: type=GoogleGemini model="{self.model}"')
@@ -54,7 +54,7 @@ class GoogleGeminiPipeline():
         return args
 
     def __call__(self, question, image, model, instructions, prefill, thinking, kwargs):
-        from google.genai import types
+        from google.genai import types # pylint: disable=no-name-in-module
         config = {
             'system_instruction': instructions or shared.opts.caption_vlm_system,
             'thinking_config': types.ThinkingConfig(thinking_level="high" if thinking else "low")

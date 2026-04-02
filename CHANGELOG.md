@@ -1,26 +1,27 @@
 # Change Log for SD.Next
 
-## Update for 2026-03-27
+## Update for 2026-04-01
 
-### Highlights for 2026-03-27
+### Highlights for 2026-04-01
 
 This release brings massive code refactoring to modernize codebase and removal of some obsolete features. Leaner & Faster!  
-And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV*  
+And since its a bit quieter period when it comes to new models, notable additions would be : *FireRed-Image-Edit*, *SkyWorks-UniPic-3* and new versions of *Anima-Preview*, *Flux-Klein-KV* image models and *LTX 2.3* video model  
 
-If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download [exe or zip](https://github.com/vladmandic/sdnext-launcher/releases) and done!
+If you're on Windows platform, we have a brand new [All-in-one Installer & Launcher](https://github.com/vladmandic/sdnext-launcher): simply download [exe or zip](https://github.com/vladmandic/sdnext-launcher/releases) and done!  
+
+And we have a new (optional) React-based **UI** [Enso](https://github.com/CalamitousFelicitousness/enso)!  
 
 *What else*? Really a lot!  
-New color grading module, updated localization with new languages and improved translations, new civitai integration module, new finetunes loader, several new upscalers, improvements to LLM/VLM in captioning and prompt enhance, a lot of new control preprocessors, new realtime server info panel, some new UI themes  
-And major work on API hardening: security, rate limits, secrets handling, new endpoints, etc.  
+New color grading module, updated localization with new languages and improved translations, new CivitAI integration module, new finetunes loader, several new upscalers, improvements to LLM/VLM in captioning and prompt enhance, a lot of new control preprocessors, new realtime server info panel, some new UI themes  
+And major work on API hardening: *security, rate limits, secrets handling, new endpoints*, etc.  
 But also many smaller quality-of-life improvements - for full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
-
 
 *Note*: Purely due to size of changes, clean install is recommended!  
 Just how big? Some stats: *~530 commits over 880 files*  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-03-27
+### Details for 2026-04-01
 
 - **Models**
   - [Google Flash 3.1 Image](https://ai.google.dev/gemini-api/docs/models/gemini-3-flash-preview) a.k.a. *Nano Banana 2*  
@@ -30,6 +31,8 @@ Just how big? Some stats: *~530 commits over 880 files*
     *Note*: UniPic-3 is a fine-tune of Qwen-Image-Edit with new distillation regardless of its claim of major changes  
   - [Anima Preview-v2](https://huggingface.co/circlestone-labs/Anima)  
   - [FLUX.2-Klein-KV](https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-kv), thanks @liutyi  
+  - [LTX-Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) in *Full and Distilled* variants and in both original *FP16 and SDNQ-4bit* quantiztion  
+    *note* ltx-2.3 is a massive 22B parameters and full model is very large (72GB) so use of pre-quantized variant (32GB) is highly recommended  
 - **Image manipulation**
   - new **Color grading** module  
     apply basic corrections to your images: brightness,contrast,saturation,shadows,highlights  
@@ -77,8 +80,17 @@ Just how big? Some stats: *~530 commits over 880 files*
   - *note* **Cuda** `torch==2.10` removed support for `rtx1000` series and older GPUs  
     use following before first startup to force installation of `torch==2.9.1` with `cuda==12.6`:  
     > `set TORCH_COMMAND='torch==2.9.1 torchvision==0.24.1 torchaudio==2.9.1 --index-url https://download.pytorch.org/whl/cu126'`  
+  - *note* **Cuda** `cuda==13.0` requires newer nVidia drivers  
+      use following before first startup to force installation of `torch==2.11.0` with `cuda==12.68`:  
+    > `set TORCH_COMMAND='torch torchvision --index-url https://download.pytorch.org/whl/cu128`  
+  - update installer and support `nunchaku==1.2.1`
 - **UI**
-  - legacy panels **T2I** and **I2I** are disabled by default  
+  - **Enso** new React-based UI, developed by @CalamitousFelicitousness!  
+    with WYSIWYG infinite canvas workspace, command palette, and numerous quality of life improvements across the board  
+    enable using `--enso` flag and access using `/enso` endpoint (e.g. <http://localhost:7860/enso>)  
+    see [Enso Docs](https://vladmandic.github.io/sdnext-docs/Enso/) and [Enso Home](https://github.com/CalamitousFelicitousness/enso) for details  
+    *note* Enso is work-in-progress and alpha-ready  
+  - legacy panels **T2I** and **I2I** are disabled by default
     you can re-enable them in *settings -> ui -> hide legacy tabs*  
   - new panel: **Server Info** with detailed runtime informaton  
   - rename **Scripts** to **Extras** and reorganize to split internal functionality vs external extensions  
@@ -94,14 +106,23 @@ Just how big? Some stats: *~530 commits over 880 files*
   - **Themes** add *Vlad-Neomorph*  
   - **Gallery** add option to auto-refresh gallery, thanks @awsr  
   - **Token counters** add per-section display for supported models, thanks @awsr  
+  - **Colour grading** add hints for all the functions
+- **Docs / Wiki**  
+  - updates to to compute sections: *AMD-ROCm, AMD-MIOpen, ZLUDA, OpenVINO, nVidia*  
+  - updates to core sections: *Installation, Python, Schedulers, Launcher, SDNQ, Video*
+  - added Enso page
 - **API**
-  - **rate limiting**: global for all endpoints, guards against abuse and denial-of-service type of attacks  
+  - prototype **v2 API** (`/sdapi/v2/`)
+    job-based generation with queue, per-job WebSocket progress, file uploads with TTL, model/network enumeration  
+    and a plethora of other improvements *(work-in-progress)*  
+    for the time being ships with Enso, which must be enabled wih `--enso` flag on startup for v2 API to be available  
+  - **rate limiting**: global for all endpoints, guards against abuse and denial-of-service type of attacks
     configurable in *settings -> server settings*  
   - new `/sdapi/v1/upload` endpoint with support for both POST with form-data or PUT using raw-bytes  
   - new `/sdapi/v1/torch` endpoint for torch info (backend, version, etc.)  
   - new `/sdapi/v1/gpu` endpoint for GPU info  
   - new `/sdapi/v1/rembg` endpoint for background removal  
-  - new `/sdadpi/v1/unet` endpoint to list available unets/dits  
+  - new `/sdapi/v1/unet` endpoint to list available unets/dits  
   - use rate limiting for api logging  
 - **Obsoleted**
   - removed support for additional quantization engines: *BitsAndBytes, TorchAO, Optimum-Quanto, NNCF*  
@@ -128,6 +149,7 @@ Just how big? Some stats: *~530 commits over 880 files*
   - refactor move `rebmg` to core instead of extensions  
   - remove face restoration  
   - unified command line parsing  
+  - reinstall `nunchaku` with `--reinstall` flag  
   - use explicit icon image references in `gallery`, thanks @awsr  
   - launch use threads to async execute non-critical tasks  
   - switch from deprecated `pkg_resources` to `importlib`  
@@ -183,6 +205,7 @@ Just how big? Some stats: *~530 commits over 880 files*
   - add `lora` support for flux2-klein  
   - fix `lora` change when used with `sdnq`  
   - multiple `sdnq` fixes  
+  - handle `taesd` init errors  
 
 ## Update for 2026-02-04
 

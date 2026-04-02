@@ -14,7 +14,6 @@ exclude = [
     ".git",
     ".ruff_cache",
     ".vscode",
-
     "modules/cfgzero",
     "modules/flash_attn_triton_amd",
     "modules/hidiffusion",
@@ -24,19 +23,16 @@ exclude = [
     "modules/teacache",
     "modules/seedvr",
     "modules/sharpfin",
-
     "modules/control/proc",
     "modules/control/units",
     "modules/control/units/xs_pipe.py",
     "modules/postprocess/aurasr_arch.py",
-
     "pipelines/meissonic",
     "pipelines/omnigen2",
     "pipelines/hdm",
     "pipelines/segmoe",
     "pipelines/xomni",
     "pipelines/chrono",
-
     "scripts/lbm",
     "scripts/daam",
     "scripts/xadapter",
@@ -44,9 +40,6 @@ exclude = [
     "scripts/instantir",
     "scripts/freescale",
     "scripts/consistory",
-
-    "repositories",
-
     "extensions-builtin/Lora",
     "extensions-builtin/sd-extension-chainner/nodes",
     "extensions-builtin/sd-webui-agent-scheduler",
@@ -55,53 +48,53 @@ exclude = [
 
 [tool.ruff.lint]
 select = [
-  "F",
-  "E",
-  "W",
-  "C",
-  "B",
-  "I",
-  "YTT",
-  "ASYNC",
-  "RUF",
-  "AIR",
-  "NPY",
-  "C4",
-  "T10",
-  "EXE",
-  "ISC",
-  "ICN",
-  "RSE",
-  "TC",
-  "TID",
-  "INT",
-  "PLE",
+    "F",
+    "E",
+    "W",
+    "C",
+    "B",
+    "I",
+    "YTT",
+    "ASYNC",
+    "RUF",
+    "AIR",
+    "NPY",
+    "C4",
+    "T10",
+    "EXE",
+    "ISC",
+    "ICN",
+    "RSE",
+    "TC",
+    "TID",
+    "INT",
+    "PLE",
 ]
 ignore = [
-  "B006",   # Do not use mutable data structures for argument defaults
-  "B008",   # Do not perform function call in argument defaults
-  "B905",   # Strict zip() usage
-  "ASYNC240", # Async functions should not use os.path methods
-  "C420",   # Unnecessary dict comprehension for iterable; use `dict.fromkeys` instead
-  "C408",   # Unnecessary `dict` call
-  "I001",   # Import block is un-sorted or un-formatted
-  "E402",   # Module level import not at top of file
-  "E501",   # Line too long
-  "E721",   # Do not compare types, use `isinstance()`
-  "E731",   # Do not assign a `lambda` expression, use a `def`
-  "E741",   # Ambiguous variable name
-  "F401",   # Imported by unused
-  "EXE001", # file with shebang is not marked executable
-  "NPY002", # replace legacy random
-  "RUF005", # Consider iterable unpacking
-  "RUF008", # Do not use mutable default values for dataclass
-  "RUF010", # Use explicit conversion flag
-  "RUF012", # Mutable class attributes
-  "RUF015", # Prefer `next(...)` over single element slice
-  "RUF022", # All is not sorted
-  "RUF046", # Value being cast to `int` is already an integer
-  "RUF059", # Unpacked variables are not used
-  "RUF051", # Prefer pop over del
+    "ASYNC240", # Async functions should not use os.path methods
+    "B006",   # Do not use mutable data structures for argument defaults
+    "B008",   # Do not perform function call in argument defaults
+    "B905",   # Strict zip() usage
+    "C408",   # Unnecessary `dict` call
+    "C420",   # Unnecessary dict comprehension for iterable; use `dict.fromkeys` instead
+    "E402",   # Module level import not at top of file
+    "E501",   # Line too long
+    "E721",   # Do not compare types, use `isinstance()`
+    "E731",   # Do not assign a `lambda` expression, use a `def`
+    "E741",   # Ambiguous variable name
+    "EXE001", # file with shebang is not marked executable
+    "F401",   # Imported by unused
+    "I001",   # Import block is un-sorted or un-formatted
+    "NPY002", # replace legacy random
+    "RUF005", # Consider iterable unpacking
+    "RUF008", # Do not use mutable default values for dataclass
+    "RUF010", # Use explicit conversion flag
+    "RUF012", # Mutable class attributes
+    "RUF015", # Prefer `next(...)` over single element slice
+    "RUF022", # All is not sorted
+    "RUF046", # Value being cast to `int` is already an integer
+    "RUF051", # Prefer pop over del
+    "RUF059", # Unpacked variables are not used
 ]
 fixable = ["ALL"]
 unfixable = []
@@ -131,73 +124,75 @@ main.fail-on=""
 main.fail-under=10
 main.ignore="CVS"
 main.ignore-paths=[
-             "venv",
-             ".git",
-             ".ruff_cache",
-             ".vscode",
-             "modules/apg",
-             "modules/cfgzero",
-             "modules/control/proc",
-             "modules/control/units",
-             "modules/dml",
-             "modules/face",
-             "modules/flash_attn_triton_amd",
-             "modules/ggml",
-             "modules/hidiffusion",
-             "modules/hijack/ddpm_edit.py",
-             "modules/intel",
-             "modules/intel/ipex",
-             "modules/framepack/pipeline",
-             "modules/onnx_impl",
-             "modules/pag",
-             "modules/postprocess/aurasr_arch.py",
-             "modules/prompt_parser_xhinker.py",
-             "modules/ras",
-             "modules/seedvr",
-             "modules/sharpfin",
-             "modules/rife",
-             "modules/schedulers",
-             "modules/taesd",
-             "modules/teacache",
-             "modules/todo",
-             "modules/res4lyf",
-             "pipelines/bria",
-             "pipelines/flex2",
-             "pipelines/f_lite",
-             "pipelines/hidream",
-             "pipelines/hdm",
-             "pipelines/meissonic",
-             "pipelines/omnigen2",
-             "pipelines/segmoe",
-             "pipelines/xomni",
-             "pipelines/chrono",
-             "scripts/consistory",
-             "scripts/ctrlx",
-             "scripts/daam",
-             "scripts/demofusion",
-             "scripts/freescale",
-             "scripts/infiniteyou",
-             "scripts/instantir",
-             "scripts/lbm",
-             "scripts/layerdiffuse",
-             "scripts/mod",
-             "scripts/pixelsmith",
-             "scripts/differential_diffusion.py",
-             "scripts/pulid",
-             "scripts/xadapter",
-             "repositories",
-             "extensions-builtin/sd-extension-chainner/nodes",
-             "extensions-builtin/sd-webui-agent-scheduler",
-             "extensions-builtin/sdnext-modernui/node_modules",
-             "extensions-builtin/sdnext-kanvas/node_modules",
-            ]
+    "venv",
+    "node_modules",
+    "__pycache__",
+    ".git",
+    ".ruff_cache",
+    ".vscode",
+    "modules/apg",
+    "modules/cfgzero",
+    "modules/control/proc",
+    "modules/control/units",
+    "modules/dml",
+    "modules/face",
+    "modules/flash_attn_triton_amd",
+    "modules/ggml",
+    "modules/hidiffusion",
+    "modules/hijack/ddpm_edit.py",
+    "modules/intel",
+    "modules/intel/ipex",
+    "modules/framepack/pipeline",
+    "modules/onnx_impl",
+    "modules/pag",
+    "modules/postprocess/aurasr_arch.py",
+    "modules/prompt_parser_xhinker.py",
+    "modules/ras",
+    "modules/seedvr",
+    "modules/sharpfin",
+    "modules/rife",
+    "modules/schedulers",
+    "modules/taesd",
+    "modules/teacache",
+    "modules/todo",
+    "modules/res4lyf",
+    "pipelines/bria",
+    "pipelines/flex2",
+    "pipelines/f_lite",
+    "pipelines/hidream",
+    "pipelines/hdm",
+    "pipelines/meissonic",
+    "pipelines/omnigen2",
+    "pipelines/segmoe",
+    "pipelines/xomni",
+    "pipelines/chrono",
+    "scripts/consistory",
+    "scripts/ctrlx",
+    "scripts/daam",
+    "scripts/demofusion",
+    "scripts/freescale",
+    "scripts/infiniteyou",
+    "scripts/instantir",
+    "scripts/lbm",
+    "scripts/layerdiffuse",
+    "scripts/mod",
+    "scripts/pixelsmith",
+    "scripts/differential_diffusion.py",
+    "scripts/pulid",
+    "scripts/xadapter",
+    "repositories",
+    "extensions-builtin/sd-extension-chainner/nodes",
+    "extensions-builtin/sd-webui-agent-scheduler",
+    "extensions-builtin/sdnext-modernui/node_modules",
+    "extensions-builtin/sdnext-kanvas/node_modules",
+]
 main.ignore-patterns=[
-                ".*test*.py$",
-                ".*_model.py$",
-                ".*_arch.py$",
-                ".*_model_arch.py*",
-                ".*_model_arch_v2.py$",
-                ]
+    ".*test*.py$",
+    ".*_model.py$",
+    ".*_arch.py$",
+    ".*_model_arch.py*",
+    ".*_model_arch_v2.py$",
+]
 main.ignored-modules=""
 main.jobs=4
 main.limit-inference-results=100
@@ -245,7 +240,6 @@ design.max-statements=200
 design.min-public-methods=1
 exceptions.overgeneral-exceptions=["builtins.BaseException","builtins.Exception"]
 format.expected-line-ending-format=""
-# format.ignore-long-lines="^\s*(# )?<?https?://\S+>?$"
 format.indent-after-paren=4
 format.indent-string='    '
 format.max-line-length=200
@@ -266,70 +260,79 @@ logging.logging-format-style="new"
 logging.logging-modules="logging"
 messages_control.confidence=["HIGH","CONTROL_FLOW","INFERENCE","INFERENCE_FAILURE","UNDEFINED"]
 messages_control.disable=[
-        "abstract-method",
-        "arguments-renamed",
-        "bad-inline-option",
-        "bare-except",
-        "broad-exception-caught",
-        "chained-comparison",
-        "consider-iterating-dictionary",
-        "consider-merging-isinstance",
-        "consider-using-dict-items",
-        "consider-using-enumerate",
-        "consider-using-from-import",
-        "consider-using-generator",
-        "consider-using-get",
-        "consider-using-in",
-        "consider-using-max-builtin",
-        "consider-using-min-builtin",
-        "consider-using-sys-exit",
-        "cyclic-import",
-        "dangerous-default-value",
-        "deprecated-pragma",
-        "duplicate-code",
-        "file-ignored",
-        "import-error",
-        "import-outside-toplevel",
-        "invalid-name",
-        "line-too-long",
-        "locally-disabled",
-        "logging-fstring-interpolation",
-        "missing-class-docstring",
-        "missing-function-docstring",
-        "missing-module-docstring",
-        "no-else-raise",
-        "no-else-return",
-        "not-callable",
-        "pointless-string-statement",
-        "raw-checker-failed",
-        "simplifiable-if-expression",
-        "suppressed-message",
-        "subprocess-run-check",
-        "too-few-public-methods",
-        "too-many-instance-attributes",
-        "too-many-locals",
-        "too-many-nested-blocks",
-        "too-many-positional-arguments",
-        "too-many-statements",
-        "unidiomatic-typecheck",
-        "unknown-option-value",
-        "unnecessary-dict-index-lookup",
-        "unnecessary-dunder-call",
-        "unnecessary-lambda-assigment",
-        "unnecessary-lambda",
-        "unused-wildcard-import",
-        "unpacking-non-sequence",
-        "unsubscriptable-object",
-        "useless-return",
-        "use-maxsplit-arg",
-        "use-dict-literal",
-        "use-symbolic-message-instead",
-        "useless-suppression",
-        "wrong-import-position",
-        ]
+    "abstract-method",
+    "arguments-renamed",
+    "bad-inline-option",
+    "bare-except",
+    "broad-exception-caught",
+    "chained-comparison",
+    "consider-iterating-dictionary",
+    "consider-merging-isinstance",
+    "consider-using-dict-items",
+    "consider-using-enumerate",
+    "consider-using-from-import",
+    "consider-using-generator",
+    "consider-using-get",
+    "consider-using-in",
+    "consider-using-max-builtin",
+    "consider-using-min-builtin",
+    "consider-using-sys-exit",
+    "cyclic-import",
+    "dangerous-default-value",
+    "deprecated-pragma",
+    "duplicate-code",
+    "file-ignored",
+    "import-error",
+    "import-outside-toplevel",
+    "invalid-name",
+    "line-too-long",
+    "locally-disabled",
+    "logging-fstring-interpolation",
+    "missing-class-docstring",
+    "missing-function-docstring",
+    "missing-module-docstring",
+    "no-else-raise",
+    "no-else-return",
+    "not-callable",
+    "pointless-string-statement",
+    "raw-checker-failed",
+    "simplifiable-if-expression",
+    "subprocess-run-check",
+    "suppressed-message",
+    "too-few-public-methods",
+    "too-many-instance-attributes",
+    "too-many-locals",
+    "too-many-nested-blocks",
+    "too-many-positional-arguments",
+    "too-many-statements",
+    "unidiomatic-typecheck",
+    "unknown-option-value",
+    "unnecessary-dict-index-lookup",
+    "unnecessary-dunder-call",
+    "unnecessary-lambda-assigment",
+    "unnecessary-lambda",
+    "unpacking-non-sequence",
+    "unsubscriptable-object",
+    "unused-wildcard-import",
+    "use-dict-literal",
+    "use-maxsplit-arg",
+    "use-symbolic-message-instead",
+    "useless-return",
+    "useless-suppression",
+    "wrong-import-position",
+]
 messages_control.enable="c-extension-no-member"
-method_args.timeout-methods=["requests.api.delete","requests.api.get","requests.api.head","requests.api.options","requests.api.patch","requests.api.post","requests.api.put","requests.api.request"]
-miscellaneous.notes=["FIXME","XXX","TODO"]
+method_args.timeout-methods=[
+    "requests.api.delete",
+    "requests.api.get",
+    "requests.api.head",
+    "requests.api.options",
+    "requests.api.patch",
+    "requests.api.post",
+    "requests.api.put",
+    "requests.api.request"
+]
+miscellaneous.notes=["FIXME","XXX","TODO","HERE"]
 miscellaneous.notes-rgx=""
 refactoring.max-nested-blocks=5
 refactoring.never-returning-functions=["sys.exit","argparse.parse_error"]
@@ -346,11 +349,11 @@ string.check-quote-consistency=false
 string.check-str-concat-over-line-jumps=false
 typecheck.contextmanager-decorators="contextlib.contextmanager"
 typecheck.generated-members=[
-        "numpy.*",
-        "logging.*",
-        "torch.*",
-        "cv2.*",
-        ]
+    "numpy.*",
+    "logging.*",
+    "torch.*",
+    "cv2.*",
+]
 typecheck.ignore-none=true
 typecheck.ignore-on-opaque-inference=true
 typecheck.ignored-checks-for-mixins=["no-member","not-async-context-manager","not-context-manager","attribute-defined-outside-init"]
@@ -375,23 +378,23 @@ pythonPlatform = "All"
 typeCheckingMode = "off"
 venvPath = "./venv"
 include = [
-        "*.py",
-        "modules/**/*.py",
-        "pipelines/**/*.py",
-        "scripts/**/*.py",
-        "extensions-builtin/**/*.py"
-        ]
+    "*.py",
+    "modules/**/*.py",
+    "pipelines/**/*.py",
+    "scripts/**/*.py",
+    "extensions-builtin/**/*.py"
+]
 exclude = [
-        "**/.*",
-        ".git/",
-        "**/node_modules",
-        "**/__pycache__",
-        "venv",
-        ]
+    "**/.*",
+    ".git/",
+    "**/node_modules",
+    "**/__pycache__",
+    "venv",
+]
 extraPaths = [
-        "scripts",
-        "pipelines",
-        ]
+    "scripts",
+    "pipelines",
+]
 reportMissingImports = "none"
 reportInvalidTypeForm = "none"
 
@@ -402,16 +405,16 @@ python-version = "3.10"
 
 [tool.ty.src]
 include = [
-       "*.py",
-       "modules/**/*.py",
-       "pipelines/**/*.py",
-       "scripts/**/*.py",
-       "extensions-builtin/**/*.py"
-       ]
+    "*.py",
+    "modules/**/*.py",
+    "pipelines/**/*.py",
+    "scripts/**/*.py",
+    "extensions-builtin/**/*.py"
+]
 exclude = [
-       "venv/",
-       "*.git/",
-       ]
+    "venv/",
+    "*.git/",
+]
 
 [tool.ty.rules]
 invalid-method-override = "ignore"

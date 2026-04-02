@@ -197,14 +197,15 @@ def installed(package, friendly: str | None = None, quiet = False): # pylint: di
 def uninstall(package, quiet = False):
     t_start = time.time()
     packages = package if isinstance(package, list) else [package]
-    res = ''
+    txt = ''
     for p in packages:
         if installed(p, p, quiet=True):
             if not quiet:
                 log.warning(f'Package: {p} uninstall')
-            res += pip(f"uninstall {p} --yes --quiet", ignore=True, quiet=True, uv=False)
+            _result, _txt = pip(f"uninstall {p} --yes --quiet", ignore=True, quiet=True, uv=False)
+            txt += _txt
     ts('uninstall', t_start)
-    return res
+    return txt
 
 
 def run(cmd: str, *nargs: str, **kwargs):
@@ -243,13 +244,13 @@ def cleanup_broken_packages():
         pass
 
 
-def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
+def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True) -> tuple[subprocess.CompletedProcess, str]:
     t_start = time.time()
     originalArg = arg
     arg = arg.replace('>=', '==')
     if opts.get('offline_mode', False):
         log.warning('Offline mode enabled')
-        return 'offline'
+        return None, 'offline'
     package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
     uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
@@ -259,20 +260,20 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     all_args = f'{pip_log}{arg} {env_args}'.strip()
     if not quiet:
         log.debug(f'Running: {pipCmd}="{all_args}"')
-    result, txt = run(sys.executable, "-m", pipCmd, all_args)
+    result, output = run(sys.executable, "-m", pipCmd, all_args)
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
             log.warning(f'Install: cmd="{pipCmd}" args="{all_args}" cannot use uv, fallback to pip')
             debug(f'Install: uv pip error: {result.stderr}')
             cleanup_broken_packages()
             return pip(originalArg, ignore, quiet, uv=False)
-    debug(f'Install {pipCmd}: {txt}')
+    debug(f'Install {pipCmd}: {output}')
     if result.returncode != 0 and not ignore:
         errors.append(f'pip: {package}')
         log.error(f'Install: {pipCmd}: {arg}')
-        log.debug(f'Install: pip output {txt}')
+        log.debug(f'Install: pip code={result.returncode} stdout={result.stdout} stderr={result.stderr} output={output}')
     ts('pip', t_start)
-    return txt
+    return result, output
 
 
 # install package using pip if not already installed
@@ -454,6 +455,10 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
         if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
             log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+            if reason is not None:
+                log.error(reason)
+            if not args.ignore and not args.experimental:
+                sys.exit(1)
         else:
             log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
             if reason is not None:
@@ -477,7 +482,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "85ffcf1db23c0e981215416abd8e8a748bfd86b6" # diffusers commit hash == 0.37.1.dev-0326
+    target_commit = "0325ca4c5938a7e300f3e3b9ee7ec85f52d01bb5" # diffusers commit hash == 0.37.1.dev-0331
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -506,7 +511,7 @@ def check_transformers():
     pkg_tokenizers = package_spec('tokenizers')
     # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
     # target_commit = "aad13b87ed59f2afcfaebc985f403301887a35fc" # transformers commit hash == 5.3.0
-    target_commit = "c9faacd7d57459157656bdffe049dabb6293f011" # transformers commit hash == 5.3.0.dev-0326
+    target_commit = "2dba8e0495974930af02274d75bd182d22cc1686" # transformers commit hash == 5.3.0.dev-0331
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
@@ -559,8 +564,7 @@ def install_cuda():
     if args.use_nightly:
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu130')
     else:
-        # cmd = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cu128 torchvision==0.25.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
-        cmd = os.environ.get("TORCH_COMMAND", "pip install -U torch==2.11.0+cu130 torchvision==0.26.0+cu130 --index-url https://download.pytorch.org/whl/cu130")
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+cu130 torchvision==0.26.0+cu130 --index-url https://download.pytorch.org/whl/cu130')
     return cmd
 
 
@@ -686,10 +690,8 @@ def install_rocm_zluda():
 
 def install_ipex():
     t_start = time.time()
-    #check_python(supported_minors=[10, 11, 12, 13, 14], reason='IPEX backend requires a Python version between 3.10 and 3.13')
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
-
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
@@ -703,8 +705,6 @@ def install_openvino():
     t_start = time.time()
     log.info('OpenVINO: selected')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
-
-    #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0 torchvision==0.26.0')
     else:
@@ -1145,14 +1145,6 @@ def install_compel():
 
 
 def install_pydantic():
-    """
-    if args.new or (sys.version_info >= (3, 14)):
-        install('pydantic==2.12.5', ignore=True, quiet=True)
-        reload('pydantic', '2.12.5')
-    else:
-        install('pydantic==1.10.21', ignore=True, quiet=True)
-        reload('pydantic', '1.10.21')
-    """
     install('pydantic==2.12.5', ignore=True, quiet=True)
     reload('pydantic', '2.12.5')
 

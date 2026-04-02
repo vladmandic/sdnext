@@ -6,7 +6,7 @@ import * as fs from 'node:fs';
 import * as process from 'node:process';
 
 const apiKey = process.env.GOOGLE_API_KEY;
-const model = 'gemini-3-flash-preview';
+const model = 'gemini-3.1-flash-lite-preview';
 const prompt = `## You are expert translator AI.
 Translate attached JSON from English to {language}.
 ## Translation Rules:
@@ -111,6 +111,7 @@ async function localize() {
     const t0 = performance.now();
     let allOk = true;
     for (const section of Object.keys(json)) {
+      if (!allOk) continue;
       const keys = Object.keys(json[section]).length;
       console.log('  start:', { locale, section, keys });
       try {
@@ -141,6 +142,8 @@ async function localize() {
     if (allOk) {
       const txt = JSON.stringify(output, null, 2);
       fs.writeFileSync(fn, txt);
+    } else {
+      console.error('  error: something went wrong, output file not saved');
     }
     const t3 = performance.now();
     console.log('  time:', { locale, time: Math.round(t3 - t0) / 1000 });
