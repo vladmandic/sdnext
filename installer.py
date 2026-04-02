@@ -455,6 +455,10 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
         if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
             log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+            if reason is not None:
+                log.error(reason)
+            if not args.ignore and not args.experimental:
+                sys.exit(1)
         else:
             log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
             if reason is not None:
@@ -686,10 +690,8 @@ def install_rocm_zluda():
 
 def install_ipex():
     t_start = time.time()
-    #check_python(supported_minors=[10, 11, 12, 13, 14], reason='IPEX backend requires a Python version between 3.10 and 3.13')
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
-
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
@@ -703,8 +705,6 @@ def install_openvino():
     t_start = time.time()
     log.info('OpenVINO: selected')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
-
-    #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0 torchvision==0.26.0')
     else:
@@ -1145,14 +1145,6 @@ def install_compel():
 
 
 def install_pydantic():
-    """
-    if args.new or (sys.version_info >= (3, 14)):
-        install('pydantic==2.12.5', ignore=True, quiet=True)
-        reload('pydantic', '2.12.5')
-    else:
-        install('pydantic==1.10.21', ignore=True, quiet=True)
-        reload('pydantic', '1.10.21')
-    """
     install('pydantic==2.12.5', ignore=True, quiet=True)
     reload('pydantic', '2.12.5')
 
