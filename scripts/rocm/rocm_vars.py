@@ -12,7 +12,7 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
         "restart_required": False,
     },
     "PYTORCH_ROCM_USE_ROCBLAS": {
-        "default": "1",
+        "default": "0",
         "desc": "PyTorch ROCm: prioritise rocBLAS for linear algebra",
         "widget": "dropdown",
         "options": [("0 - Off", "0"), ("1 - On", "1")],
@@ -116,7 +116,7 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
         "restart_required": False,
     },
     "PYTORCH_TUNABLEOP_ROCBLAS_ENABLED": {
-        "default": "1",
+        "default": "0",
         "desc": "TunableOp: wrap and optimise rocBLAS GEMM calls",
         "widget": "dropdown",
         "options": [("0 - Off", "0"), ("1 - On", "1")],
