@@ -7,6 +7,8 @@ from typing import Dict, Optional
 import installer
 from modules.logger import log
 from modules.json_helpers import readfile, writefile
+from modules.shared import cmd_opts, opts
+from modules.devices import has_rocm
 from scripts.rocm.rocm_vars import ROCM_ENV_VARS  # pylint: disable=no-name-in-module
 from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
 
