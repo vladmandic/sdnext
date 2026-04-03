@@ -468,10 +468,7 @@ def info() -> dict:
 
 # Apply saved config to os.environ at import time (only when ROCm is present)
 if installer.torch_info.get('type', None) == 'rocm':
-    if sys.platform == 'win32':
-        try:
-            apply_env()
-        except Exception as _e:
-            log.debug(f"[rocm_mgr] Warning: failed to apply env at import: {_e}")
-    else:
-        log.debug('Skipping ROCm Environment Manager: Currently only Windows is supported.')
+    try:
+        apply_env()
+    except Exception as _e:
+        log.debug(f"[rocm_mgr] Warning: failed to apply env at import: {_e}")
