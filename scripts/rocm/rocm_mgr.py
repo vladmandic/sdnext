@@ -29,17 +29,17 @@ CONFIG = Path(os.path.abspath(os.path.join('data', 'rocm.json')))
 _cache: Optional[Dict[str, str]] = None  # loaded once, invalidated on save
 
 # Metadata key written into rocm.json to record which architecture profile is active.
-# Not an environment variable — always skipped during env application but preserved in the
+# Not an environment variable - always skipped during env application but preserved in the
 # saved config so that arch-safety enforcement is consistent across restarts.
 _ARCH_KEY = "_rocm_arch"
 
 # Vars that must never appear in the process environment.
 #
-# _DTYPE_UNSAFE: alter FP16 inference dtype — must be cleared regardless of config
-#   MIOPEN_DEBUG_CONVOLUTION_ATTRIB_FP16_ALT_IMPL  — DEBUG alias: routes all FP16 convs through BF16 exponent math
-#   MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL        — API-level alias: same BF16-exponent effect
-#   MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_EXPEREMENTAL_FP16_TRANSFORM — unstable experimental FP16 path
-#   MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_PK_ATOMIC_ADD_FP16     — changes FP16 WrW atomic accumulation
+# _DTYPE_UNSAFE: alter FP16 inference dtype - must be cleared regardless of config
+#   MIOPEN_DEBUG_CONVOLUTION_ATTRIB_FP16_ALT_IMPL  - DEBUG alias: routes all FP16 convs through BF16 exponent math
+#   MIOPEN_CONVOLUTION_ATTRIB_FP16_ALT_IMPL        - API-level alias: same BF16-exponent effect
+#   MIOPEN_DEBUG_AMD_MP_BD_WINOGRAD_EXPEREMENTAL_FP16_TRANSFORM - unstable experimental FP16 path
+#   MIOPEN_DEBUG_CONV_IMPLICIT_GEMM_ASM_PK_ATOMIC_ADD_FP16     - changes FP16 WrW atomic accumulation
 #
 # SOLVER_DISABLED_BY_DEFAULT: every solver known to be incompatible with this runtime
 #   (FP32-only, training-only WrW/BWD, fixed-geometry mismatches, XDLOPS/CDNA-only, arch-specific).
@@ -54,18 +54,18 @@ _DTYPE_UNSAFE = {
 # regardless of saved config. Limited to dtype-corrupting vars only.
 # IMPORTANT: SOLVER_DISABLED_BY_DEFAULT is intentionally NOT included here.
 #   When a solver var is absent (unset) MIOpen still calls IsApplicable() on every
-#   conv-find — wasted probing overhead. When a var is explicitly "0" MIOpen skips
+#   conv-find - wasted probing overhead. When a var is explicitly "0" MIOpen skips
 #   IsApplicable() immediately. Solver defaults flow through the config loop as "0"
 #   (their ROCM_ENV_VARS default is "0") so they are explicitly set to "0" in the env.
 _UNSET_VARS = _DTYPE_UNSAFE
 
 # Additional environment vars that must be removed from the process before MIOpen loads.
 # These are not MIOpen solver toggles but can corrupt MIOpen's runtime behaviour:
-#   HIP_PATH / HIP_PATH_71  — point to the system AMD ROCm install; override the venv-bundled
+#   HIP_PATH / HIP_PATH_71  - point to the system AMD ROCm install; override the venv-bundled
 #                              _rocm_sdk_devel DLLs with a potentially mismatched system version
-#   QML_*/QT_*              — QtQuick shader/disk-cache flags leaked from Qt tools; harmless for
+#   QML_*/QT_*              - QtQuick shader/disk-cache flags leaked from Qt tools; harmless for
 #                              PyTorch but can conflict with Gradio's embedded Qt helpers
-#   PYENV_VIRTUALENV_DISABLE_PROMPT — pyenv noise that confuses venv detection
+#   PYENV_VIRTUALENV_DISABLE_PROMPT - pyenv noise that confuses venv detection
 _EXTRA_CLEAR_VARS = {
     "HIP_PATH",
     "HIP_PATH_71",
@@ -73,7 +73,7 @@ _EXTRA_CLEAR_VARS = {
     "QML_DISABLE_DISK_CACHE",
     "QML_FORCE_DISK_CACHE",
     "QT_DISABLE_SHADER_DISK_CACHE",
-    # PERF_VALS vars are NOT boolean toggles — MIOpen reads them as perf-config strings.
+    # PERF_VALS vars are NOT boolean toggles - MIOpen reads them as perf-config strings.
     # If inherited from a parent shell with value "1", MIOpen's GetPerfConfFromEnv parses
     # "1" as a degenerate config and can return dtype=float32 output from FP16 tensors.
     "MIOPEN_DEBUG_CONV_DIRECT_ASM_1X1U_PERF_VALS",
@@ -82,12 +82,12 @@ _EXTRA_CLEAR_VARS = {
 
 # Solvers whose MIOpen IsApplicable() explicitly rejects non-FP32 tensors.
 # They are safe to leave enabled in FP32 mode. When the active dtype is FP16 or BF16
-# we force them OFF so MIOpen skips the IsApplicable probe entirely — avoids overhead on
+# we force them OFF so MIOpen skips the IsApplicable probe entirely - avoids overhead on
 # every conv shape find. These are NOT in _UNSET_VARS because they are valid in FP32.
 _FP32_ONLY_SOLVERS = {
-    "MIOPEN_DEBUG_CONV_FFT",           # FFT convolution — FP32 only (MIOpen source: IsFp32 check)
-    "MIOPEN_DEBUG_AMD_WINOGRAD_3X3",   # Winograd 3x3 — FP32 only
-    "MIOPEN_DEBUG_AMD_FUSED_WINOGRAD", # Fused Winograd — FP32 only
+    "MIOPEN_DEBUG_CONV_FFT",           # FFT convolution - FP32 only (MIOpen source: IsFp32 check)
+    "MIOPEN_DEBUG_AMD_WINOGRAD_3X3",   # Winograd 3x3 - FP32 only
+    "MIOPEN_DEBUG_AMD_FUSED_WINOGRAD", # Fused Winograd - FP32 only
 }
 
 
@@ -172,7 +172,7 @@ def load_config() -> Dict[str, str]:
             _cache = data if data else {k: v["default"] for k, v in ROCM_ENV_VARS.items()}
             # Purge unsafe vars from a stale saved config and re-persist only if the file existed.
             # When running without a saved config (first run / after Delete), load_config() must
-            # never create the file — that only happens via save_config() on Apply or Apply Profile.
+            # never create the file - that only happens via save_config() on Apply or Apply Profile.
             dirty = {k for k in _cache if k in _UNSET_VARS or (k != _ARCH_KEY and k not in ROCM_ENV_VARS)}
             if dirty:
                 _cache = {k: v for k, v in _cache.items() if k not in dirty}
@@ -221,7 +221,7 @@ def apply_env(config: Optional[Dict[str, str]] = None) -> None:
         os.environ[var] = expanded
     # Arch safety net: hard-force all hardware-incompatible vars to "0" in the env.
     # This runs *after* the config loop so it overrides any stale "1" that survived in the JSON.
-    # Source of truth: rocm_profiles.UNAVAILABLE[arch] — vars with no supporting hardware.
+    # Source of truth: rocm_profiles.UNAVAILABLE[arch] - vars with no supporting hardware.
     arch = config.get(_ARCH_KEY, "")
     unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
     if unavailable:
@@ -249,7 +249,7 @@ def apply_all(names: list, values: list) -> None:
         meta = ROCM_ENV_VARS[name]
         if meta["widget"] == "checkbox":
             if value is None:
-                pass  # Gradio passed None (component not interacted with) — leave config unchanged
+                pass  # Gradio passed None (component not interacted with) - leave config unchanged
             else:
                 config[name] = "1" if value else "0"
         elif meta["widget"] == "radio":
@@ -257,7 +257,7 @@ def apply_all(names: list, values: list) -> None:
             valid = {v for _, v in meta["options"]} if meta["options"] and isinstance(meta["options"][0], tuple) else set(meta["options"] or [])
             if stored in valid:
                 config[name] = stored
-            # else: value was None/invalid — leave the existing saved value untouched
+            # else: value was None/invalid - leave the existing saved value untouched
         else:
             if meta.get("options"):
                 value = _dropdown_stored(str(value), meta["options"])
@@ -300,7 +300,7 @@ def delete_config() -> None:
         CONFIG.unlink()
         log.info(f'ROCm delete_config: deleted {CONFIG}')
     _cache = None
-    # Delete the MIOpen user DB (~/.miopen/db) — stale entries can cause solver mismatches
+    # Delete the MIOpen user DB (~/.miopen/db) - stale entries can cause solver mismatches
     miopen_db = Path(os.path.expanduser('~')) / '.miopen' / 'db'
     if miopen_db.exists():
         shutil.rmtree(miopen_db, ignore_errors=True)
@@ -458,7 +458,7 @@ def info() -> dict:
         if ufiles:
             udb["files"] = ufiles
 
-    # --- User cache (~/.miopen/cache/<version-hash>) ---
+    # User cache (~/.miopen/cache/<version-hash>) 
     cache_base = Path.home() / ".miopen" / "cache"
     db_hash = _extract_db_hash(user_db_path) if user_db_path.exists() else ""
     cache_path = cache_base / db_hash if db_hash else cache_base
