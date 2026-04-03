@@ -74,9 +74,9 @@ class ROCmScript(scripts_manager.Script):
                     rules.append(f"#rocm_var_{v.lower()} {{ opacity: 0.45; pointer-events: none; }}")
             return f"<style>{' '.join(rules)}</style>" if rules else ""
 
-        with gr.Accordion('Windows ROCm: Advanced Config', open=False, elem_id='rocm_config'):
+        with gr.Accordion('ROCm: Advanced Config', open=False, elem_id='rocm_config'):
             with gr.Row():
-                gr.HTML("<p><u>Advanced configuration for Windows ROCm users.</u></p><br><p>This script aims to take the guesswork out of configuring MIOpen and rocBLAS on Windows ROCm, but also to expose the functioning switches of MIOpen for advanced configurations.</p><br><p>For best performance ensure that cuDNN and PyTorch tunable ops are set to <b><i>default</i></b> in Backend Settings.</p>")
+                gr.HTML("<p><u>Advanced configuration for ROCm users.</u></p><br><p>This script aims to take the guesswork out of configuring MIOpen and rocBLAS on Windows ROCm, but also to expose the functioning switches of MIOpen for advanced configurations.</p><br><p>For best performance ensure that cuDNN and PyTorch tunable ops are set to <b><i>default</i></b> in Backend Settings.</p><br><p>This script was written with the intent to support ROCm Windows users, it should however, function identically for Linux users.</p><br>")
             with gr.Row():
                 btn_info   = gr.Button("Refresh Info",   variant="primary", elem_id="rocm_btn_info",   size="sm")
                 btn_apply  = gr.Button("Apply",          variant="primary", elem_id="rocm_btn_apply",  size="sm")
