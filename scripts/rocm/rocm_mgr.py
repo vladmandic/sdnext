@@ -7,8 +7,10 @@ from typing import Dict, Optional
 import installer
 from modules.logger import log
 from modules.json_helpers import readfile, writefile
-from modules.shared import cmd_opts, opts
+
+from modules.shared import cmd_opts
 from modules.devices import has_rocm
+
 from scripts.rocm.rocm_vars import ROCM_ENV_VARS  # pylint: disable=no-name-in-module
 from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
 
@@ -110,7 +112,7 @@ def _resolve_dtype() -> str:
         pass
     try:
         from modules import shared as _sh  # pylint: disable=import-outside-toplevel
-        v = getattr(getattr(_sh, 'opts', None), 'cuda_dtype', None)
+        v = getattr(_sh.opts, 'cuda_dtype', None)
         if v in ('FP16', 'BF16', 'FP32'):
             return v
     except Exception:
@@ -460,7 +462,7 @@ def info() -> dict:
         if ufiles:
             udb["files"] = ufiles
 
-    # User cache (~/.miopen/cache/<version-hash>) 
+    # User cache (~/.miopen/cache/<version-hash>)
     cache_base = Path.home() / ".miopen" / "cache"
     db_hash = _extract_db_hash(user_db_path) if user_db_path.exists() else ""
     cache_path = cache_base / db_hash if db_hash else cache_base
@@ -481,10 +483,10 @@ def info() -> dict:
 
 
 # Apply saved config to os.environ at import time (only when ROCm is present)
-if is_rocm:
+if has_rocm() and getattr(cmd_opts, 'use_rocm', False) and sys.platform == 'win32':
     try:
         apply_env()
     except Exception as _e:
         print(f"[rocm_mgr] Warning: failed to apply env at import: {_e}", file=sys.stderr)
 else:
-    log.debug('ROCm is not installed — skipping rocm_mgr env apply')
+    log.debug('ROCm is not installed - skipping rocm_mgr env apply')

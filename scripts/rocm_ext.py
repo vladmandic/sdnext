@@ -5,10 +5,9 @@ from modules import scripts_manager, shared
 # rocm_mgr exposes package-internal helpers (prefixed _) that are intentionally called here
 # pylint: disable=protected-access
 
-
 class ROCmScript(scripts_manager.Script):
     def title(self):
-        return "ROCm: Advanced Config"
+        return "Windows ROCm: Advanced Config"
 
     def show(self, _is_img2img):
         if shared.cmd_opts.use_rocm or installer.torch_info.get('type') == 'rocm':
@@ -75,9 +74,9 @@ class ROCmScript(scripts_manager.Script):
                     rules.append(f"#rocm_var_{v.lower()} {{ opacity: 0.45; pointer-events: none; }}")
             return f"<style>{' '.join(rules)}</style>" if rules else ""
 
-        with gr.Accordion('ROCm: Advanced Config', open=False, elem_id='rocm_config'):
+        with gr.Accordion('Windows ROCm: Advanced Config', open=False, elem_id='rocm_config'):
             with gr.Row():
-                gr.HTML("<p>Advanced configuration for ROCm users.</p><br><p>For best performance ensure that cudnn and torch tunable ops are set to default in Backend Settings.</p>")
+                gr.HTML("<p><u>Advanced configuration for Windows ROCm users.</u></p><br><p>This script aims to take the guesswork out of configuring MIOpen and rocBLAS on Windows ROCm, but also to expose the functioning switches of MIOpen for advanced configurations.</p><br><p>For best performance ensure that cuDNN and PyTorch tunable ops are set to <b><i>default</i></b> in Backend Settings.</p>")
             with gr.Row():
                 btn_info   = gr.Button("Refresh Info",   variant="primary", elem_id="rocm_btn_info",   size="sm")
                 btn_apply  = gr.Button("Apply",          variant="primary", elem_id="rocm_btn_apply",  size="sm")
@@ -96,7 +95,7 @@ class ROCmScript(scripts_manager.Script):
 
             # General vars (dropdowns, textboxes, checkboxes)
             with gr.Group():
-                gr.HTML("<h3>MIOpen Settings</h3><hr>")
+                gr.HTML("<br><h3>MIOpen Settings</h3><hr>")
                 for name, meta in rocm_vars.GENERAL_VARS.items():
                     comp = _make_component(name, meta, config)
                     var_names.append(name)
