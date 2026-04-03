@@ -7,22 +7,10 @@ from typing import Dict, Optional
 import installer
 from modules.logger import log
 from modules.json_helpers import readfile, writefile
-from modules.shared import cmd_opts, opts
-from modules.devices import has_rocm
+from modules.shared import opts
 
 from scripts.rocm.rocm_vars import ROCM_ENV_VARS  # pylint: disable=no-name-in-module
 from scripts.rocm import rocm_profiles  # pylint: disable=no-name-in-module
-
-
-def _check_rocm() -> bool:
-    if getattr(cmd_opts, 'use_rocm', False):
-        return True
-    if installer.torch_info.get('type') == 'rocm':
-        return True
-    return has_rocm()
-
-
-is_rocm = _check_rocm()
 
 
 CONFIG = Path(os.path.abspath(os.path.join('data', 'rocm.json')))
@@ -479,10 +467,11 @@ def info() -> dict:
 
 
 # Apply saved config to os.environ at import time (only when ROCm is present)
-if is_rocm and sys.platform == 'win32':
-    try:
-        apply_env()
-    except Exception as _e:
-        print(f"[rocm_mgr] Warning: failed to apply env at import: {_e}", file=sys.stderr)
-else:
-    log.debug('ROCm is not installed - skipping rocm_mgr env apply')
+if installer.torch_info.get('type', None) == 'rocm':
+    if sys.platform == 'win32':
+        try:
+            apply_env()
+        except Exception as _e:
+            log.debug(f"[rocm_mgr] Warning: failed to apply env at import: {_e}")
+    else:
+        log.debug('Skipping ROCm Environment Manager: Currently only Windows is supported.')
