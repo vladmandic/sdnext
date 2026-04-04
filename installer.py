@@ -474,6 +474,8 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     else:
         git_version = git('--version', folder=None, ignore=False)
         log.debug(f'Git: version={git_version.replace("git version", "").strip()}')
+    if ' ' in sys.executable:
+        log.warning(f'Python: path="{sys.executable}" contains spaces which may cause issues')
     ts('python', t_start)
 
 
@@ -1244,7 +1246,7 @@ def install_requirements():
 # set environment variables controling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
-    os.environ.setdefault('PIP_CONSTRAINT', os.path.abspath('constraints.txt'))
+    os.environ.setdefault('PIP_CONSTRAINT', 'constraints.txt')
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
     os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
@@ -1277,7 +1279,7 @@ def set_environment():
     os.environ.setdefault('MIOPEN_FIND_MODE', '2')
     os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
     os.environ.setdefault('USE_TORCH', '1')
-    os.environ.setdefault('UV_CONSTRAINT', os.path.abspath('constraints.txt'))
+    os.environ.setdefault('UV_CONSTRAINT', 'constraints.txt')
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
     os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')
