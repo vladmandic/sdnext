@@ -96,7 +96,7 @@ def get_rocm_smi():
                 'Throttle reason': str(ThrottleStatus(int(rocm_smi_data[key].get("throttle_status", 0)))),
             }
             name = rocm_smi_data[key].get('Device Name', 'unknown')
-            chart = [load["memory"], load["gpu"]]
+            chart = (load["memory"], load["gpu"])
             devices.append({
                 'name': name,
                 'data': data,

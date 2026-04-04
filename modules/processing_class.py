@@ -325,8 +325,8 @@ class StableDiffusionProcessing:
 
         # initializers
         self.prompt = prompt
-        self.seed = seed
-        self.subseed = subseed
+        self.seed = int(seed)
+        self.subseed = int(subseed)
         self.subseed_strength = subseed_strength
         self.seed_resize_from_h = seed_resize_from_h
         self.seed_resize_from_w = seed_resize_from_w

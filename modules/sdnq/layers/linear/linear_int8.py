@@ -9,13 +9,14 @@ from ...packed_int import unpack_int # noqa: TID252
 from .forward import check_mats
 
 
-def quantize_int_mm_input(input: torch.FloatTensor, scale: torch.FloatTensor) -> tuple[torch.CharTensor, torch.FloatTensor]:
-    input = input.flatten(0,-2).to(dtype=scale.dtype)
+def quantize_int_mm_input(input: torch.FloatTensor, dtype: torch.dtype | None = None) -> tuple[torch.CharTensor, torch.FloatTensor]:
+    input = input.flatten(0,-2)
+    if dtype is not None:
+        input = input.to(dtype=dtype)
     input, input_scale = quantize_int_mm(input, dim=-1)
-    scale = torch.mul(input_scale, scale)
-    if scale.dtype == torch.float16: # fp16 will overflow
-        scale = scale.to(dtype=torch.float32)
-    return input, scale
+    if input_scale.dtype == torch.float16: # fp16 will overflow
+        input_scale = input_scale.to(dtype=torch.float32)
+    return input, input_scale
 
 
 def int8_matmul(
@@ -39,12 +40,12 @@ def int8_matmul(
             bias = torch.addmm(bias.to(dtype=svd_down.dtype), torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
         else:
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
-    input, scale = quantize_int_mm_input(input, scale)
+    input, input_scale = quantize_int_mm_input(input, dtype=scale.dtype)
     input, weight = check_mats(input, weight)
     if bias is not None:
-        return dequantize_symmetric_with_bias(int_mm_func(input, weight), scale, bias, dtype=return_dtype, result_shape=output_shape)
+        return dequantize_symmetric_with_bias(int_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale), scale, bias, dtype=return_dtype, result_shape=output_shape)
     else:
-        return dequantize_symmetric(int_mm_func(input, weight), scale, dtype=return_dtype, result_shape=output_shape)
+        return dequantize_symmetric(int_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale), scale, dtype=return_dtype, result_shape=output_shape)
 
 
 def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
