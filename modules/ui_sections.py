@@ -365,6 +365,8 @@ def create_resize_inputs(tab, images, accordion=True, latent=False, non_zero=Tru
     with gr.Accordion(open=False, label="Resize", elem_classes=["small-accordion"], elem_id=f"{tab}_resize_group") if accordion else gr.Group():
         with gr.Row():
             available_upscalers = [x.name for x in shared.sd_upscalers]
+            if len(available_upscalers) == 0:
+                available_upscalers = ['None']
             if not latent:
                 available_upscalers = [x for x in available_upscalers if not x.lower().startswith('latent')]
             resize_mode = gr.Dropdown(label=f"Mode{prefix}" if non_zero else "Resize mode", elem_id=f"{tab}_resize_mode", choices=shared.resize_modes, type="index", value='Fixed')
