@@ -430,6 +430,7 @@ def move_files(src_path: str, dest_path: str, ext_filter: str | None = None):
 def load_upscalers():
     # We can only do this 'magic' method to dynamically load upscalers if they are referenced, so we'll try to import any _model.py files before looking in __subclasses__
     t0 = time.time()
+    shared.sd_upscalers = ['None']
     modules_dir = os.path.join(paths.script_path, "modules", "postprocess")
     for file in os.listdir(modules_dir):
         if "_model.py" in file:
@@ -449,14 +450,20 @@ def load_upscalers():
             used_classes[classname] = cls
     upscaler_types = []
     for cls in reversed(used_classes.values()):
-        name = cls.__name__
-        cmd_name = f"{name.lower().replace('upscaler', '')}_models_path"
-        commandline_model_path = commandline_options.get(cmd_name, None)
-        scaler = cls(commandline_model_path)
-        scaler.user_path = commandline_model_path
-        scaler.model_download_path = commandline_model_path or scaler.model_path
-        upscalers += scaler.scalers
-        upscaler_types.append(name[8:])
+        try:
+            name = cls.__name__
+            cmd_name = f"{name.lower().replace('upscaler', '')}_models_path"
+            commandline_model_path = commandline_options.get(cmd_name, None)
+            scaler = cls(commandline_model_path)
+            scaler.user_path = commandline_model_path
+            scaler.model_download_path = commandline_model_path or scaler.model_path
+            upscalers += scaler.scalers
+            upscaler_types.append(name[8:])
+        except Exception as e:
+            log.error(f'Upscaler: {cls} {e}')
+    if len(upscalers) == 0:
+        log.warning('Upscalers: no data')
+        upscalers = ['None']
     shared.sd_upscalers = upscalers
     t1 = time.time()
     log.info(f"Available Upscalers: items={len(shared.sd_upscalers)} downloaded={len([x for x in shared.sd_upscalers if x.data_path is not None and os.path.isfile(x.data_path)])} user={len([x for x in shared.sd_upscalers if x.custom])} time={t1-t0:.2f} types={upscaler_types}")
