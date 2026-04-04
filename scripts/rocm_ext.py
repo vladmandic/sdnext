@@ -7,7 +7,7 @@ from modules import scripts_manager, shared
 
 class ROCmScript(scripts_manager.Script):
     def title(self):
-        return "Windows ROCm: Advanced Config"
+        return "ROCm: Advanced Config"
 
     def show(self, _is_img2img):
         if shared.cmd_opts.use_rocm or installer.torch_info.get('type') == 'rocm':
@@ -35,7 +35,7 @@ class ROCmScript(scripts_manager.Script):
                 choices = rocm_mgr._dropdown_choices(meta["options"])
                 display = rocm_mgr._dropdown_display(val, meta["options"])
                 return gr.Dropdown(label=meta["desc"], choices=choices, value=display, elem_id=f"rocm_var_{name.lower()}")
-            return gr.Textbox(label=meta["desc"], value=rocm_mgr._expand_venv(val), lines=1)
+            return gr.Textbox(label=meta["desc"], value=rocm_mgr._expand_venv(val), lines=2)
 
         def _info_html():
             d = rocm_mgr.info()

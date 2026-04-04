@@ -1,15 +1,29 @@
+import os
+import sys
+import sysconfig
 from typing import Dict, Any, List, Tuple
+
+
+def _sitepackages_subpath(*parts: str) -> str:
+    """Return a {VIRTUAL_ENV}-prefixed path into site-packages using OS-native separators.
+
+    Works on both Windows (Lib/site-packages) and Linux (lib/pythonX.Y/site-packages).
+    """
+    site_pkgs = sysconfig.get_path('purelib')  # absolute path to site-packages inside the active venv
+    rel = os.path.relpath(site_pkgs, sys.prefix)  # platform-correct relative sub-path under venv root
+    return os.path.join("{VIRTUAL_ENV}", rel, *parts)
+
 
 GENERAL_VARS: Dict[str, Dict[str, Any]] = {
      "MIOPEN_SYSTEM_DB_PATH": {
-        "default": "{VIRTUAL_ENV}\\Lib\\site-packages\\_rocm_sdk_devel\\bin\\",
+        "default": _sitepackages_subpath("_rocm_sdk_devel", "bin") + os.sep,
         "desc": "MIOpen system DB path",
         "widget": "textbox",
         "options": None,
         "restart_required": True,
     },
     "ROCBLAS_TENSILE_LIBPATH": {
-        "default": "{VIRTUAL_ENV}\\Lib\\site-packages\\_rocm_sdk_devel\\bin\\rocblas\\library",
+        "default": _sitepackages_subpath("_rocm_sdk_devel", "bin", "rocblas", "library"),
         "desc": "rocBLAS Tensile library path",
         "widget": "textbox",
         "options": None,
@@ -86,7 +100,7 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
         "restart_required": False,
     },
     "PYTORCH_TUNABLEOP_CACHE_DIR": {
-        "default": "{ROOT}\\models\\tunable",
+        "default": os.path.join("{ROOT}", "models", "tunable"),
         "desc": "TunableOp cache directory",
         "widget": "textbox",
         "options": None,
