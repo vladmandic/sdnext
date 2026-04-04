@@ -1,5 +1,7 @@
 # TODO
 
+<https://github.com/huggingface/diffusers/pull/13317>
+
 ## Internal
 
 - Feature: implement `unload_auxiliary_models`

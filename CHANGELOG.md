@@ -1,12 +1,20 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-02
+## Update for 2026-04-04
 
 - **Models**
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
+- **Compute**
+  - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
+    see *main interface -> scripts -> rocm advanced config*  
 - **Internal**
-  - additional typing and typechecks, thanks @awsr  
+  - additional typing and typechecks, thanks @awsr
+  - Prohibit python==3.14 unless `--experimental`
+- **Fixes**
+  - UI CSS fixes, thanks @awsr
+  - detect/warn if space in system path
+  - add `ftfy` to requirements
 
 ## Update for 2026-04-01
 
