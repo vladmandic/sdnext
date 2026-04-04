@@ -10,11 +10,12 @@
     see *main interface -> scripts -> rocm advanced config*  
 - **Internal**
   - additional typing and typechecks, thanks @awsr
-  - Prohibit python==3.14 unless `--experimental`
 - **Fixes**
+  - Prohibit `python==3.14` unless `--experimental`
   - UI CSS fixes, thanks @awsr
-  - detect/warn if space in system path
+  - detect/warn if space present in system path
   - add `ftfy` to requirements
+  - fix upscaler init error should not block server
 
 ## Update for 2026-04-01
 
