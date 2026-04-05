@@ -1,12 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-04
+## Update for 2026-04-05
 
 - **Models**
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
 - **Compute**
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
+    now covers both ROCm on Windows and Linux  
     see *main interface -> scripts -> rocm advanced config*  
 - **Internal**
   - additional typing and typechecks, thanks @awsr
@@ -16,6 +17,8 @@
   - detect/warn if space present in system path
   - add `ftfy` to requirements
   - fix upscaler init error should not block server
+  - improve torch nvidia arch detection
+  - add torch amd arch detection
 
 ## Update for 2026-04-01
 

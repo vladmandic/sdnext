@@ -1,7 +1,5 @@
 # TODO
 
-<https://github.com/huggingface/diffusers/pull/13317>
-
 ## Internal
 
 - Feature: implement `unload_auxiliary_models`
@@ -48,6 +46,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image-Base
 
+- [NucleusMoe](<https://github.com/huggingface/diffusers/pull/13317)
 - [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma): Image and video generator for creative effects and professional filters
 - [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance): Pixel-space model eliminating VAE artifacts for high visual fidelity
 - [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
