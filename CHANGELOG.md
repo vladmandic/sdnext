@@ -19,6 +19,7 @@
   - fix upscaler init error should not block server
   - improve torch nvidia arch detection
   - add torch amd arch detection
+  - fix prompt weighted lists and internal wildcards
 
 ## Update for 2026-04-01
 
