@@ -106,7 +106,7 @@ def apply_color_correction(correction, original_image, method='histogram'):
     return fn(correction, original_image)
 
 
-def apply_overlay(image: Image, paste_loc, index, overlays):
+def apply_overlay(image: Image.Image, paste_loc, index, overlays):
     if overlays is None or index >= len(overlays):
         return image
     debug(f'Apply overlay: image={image} loc={paste_loc} index={index} overlays={overlays}')

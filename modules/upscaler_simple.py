@@ -31,7 +31,7 @@ class UpscalerResize(Upscaler):
             UpscalerData("Resize Sharpfin Lanczos3", None, self),
         ]
 
-    def do_upscale(self, img: Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None):
         if selected_model is None:
             return img
         elif selected_model == "Resize Nearest":
@@ -74,7 +74,7 @@ class UpscalerLatent(Upscaler):
             UpscalerData("Latent Bicubic antialias", None, self),
         ]
 
-    def do_upscale(self, img: Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None):
         import torch
         import torch.nn.functional as F
         if isinstance(img, torch.Tensor) and (len(img.shape) == 4):

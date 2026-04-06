@@ -257,7 +257,7 @@ def run_segment(input_image: gr.Image, input_mask: np.ndarray):
     return combined_mask
 
 
-def run_rembg(input_image: Image, input_mask: np.ndarray):
+def run_rembg(input_image: Image.Image, input_mask: np.ndarray):
     try:
         import rembg
     except Exception as e:

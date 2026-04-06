@@ -37,7 +37,7 @@ class UpscalerSpandrel(Upscaler):
         log.debug(f'Upscale: name="{self.selected}" input={img.size} output={upscaled.size} time={t1 - t0:.2f}')
         return upscaled
 
-    def do_upscale(self, img: Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None):
         from installer import install
         if selected_model is None:
             return img
