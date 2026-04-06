@@ -25,6 +25,10 @@ tests = [
     ["", { '': 100 } ],
     # - no weights
     [ "red|blonde|black", { 'black': 33, 'red': 33, 'blonde': 33 } ],
+    # - list with empty entry
+    [ "red||black", { 'black': 33, 'red': 33, '': 33 } ],
+    # - list with repeated entry
+    [ "red|blonde|blonde", { 'red': 33, 'blonde': 66 } ],
     # - full weights <= 1
     [ "red:0.1|blonde:0.9", { 'red': 10, 'blonde': 90 } ],
     # - weights > 1 to test normalization
@@ -52,7 +56,6 @@ tests = [
     # - simple list, 1 entry with lora and comma
     [ "red|blonde, <lora:test:1.0>|black:2", { 'black': 50, 'red': 25, 'blonde, <lora:test:1.0>': 25 } ],
 ]
-
 
 with open(fn, 'r', encoding='utf-8') as f:
     src = f.read()

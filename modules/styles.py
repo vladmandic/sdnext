@@ -59,27 +59,22 @@ def select_from_weighted_list(inner: str) -> str:
             elif c == ':' and depth == 0:
                 last_colon = i
         if last_colon < 0:
-            return None
+            return p, 1.0
         return p[:last_colon].strip(), p[last_colon + 1:].strip()
 
     if not inner or len(inner.strip()) == 0:
         return ''
 
-    parts = [p.strip() for p in inner.split('|') if p.strip()]
+    parts = [p.strip() for p in inner.split('|')]
     weighted: dict[str, float] = {}
 
     for p in parts:
-        split = _split_weight(p)
-        if split is not None:
-            name, wstr = split
-            try:
-                w = float(wstr)
-            except Exception:
-                w = 0.0
-            w = max(0.0, w)
-            weighted[name] = weighted.get(name, 0.0) + w
-        else:
-            weighted[p] = 1.0
+        name, weight = _split_weight(p)
+        try:
+            w = float(weight)
+        except Exception:
+            w = 1.0
+        weighted[name] = weighted.get(name, 0.0) + max(0.0, w)
 
     W = sum(weighted.values())
     if len(weighted) == 0 or W <= 0.0:
