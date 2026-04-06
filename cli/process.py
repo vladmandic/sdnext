@@ -35,7 +35,7 @@ class Result():
         self.steps = requested
 
 
-def detect_blur(image: Image):
+def detect_blur(image: Image.Image):
     # based on <https://github.com/karthik9319/Blur-Detection/>
     bw = ImageOps.grayscale(image)
     cx, cy = image.size[0] // 2, image.size[1] // 2
@@ -49,7 +49,7 @@ def detect_blur(image: Image):
     return mean
 
 
-def detect_dynamicrange(image: Image):
+def detect_dynamicrange(image: Image.Image):
     # based on <https://towardsdatascience.com/measuring-enhancing-image-quality-attributes-234b0f250e10>
     data = np.asarray(image)
     image = np.float32(data)
@@ -68,7 +68,7 @@ def detect_dynamicrange(image: Image):
     return round(res, 2)
 
 
-def detect_simmilar(image: Image):
+def detect_simmilar(image: Image.Image):
     img = image.resize((options.process.similarity_size, options.process.similarity_size))
     img = ImageOps.grayscale(img)
     data = np.array(img)

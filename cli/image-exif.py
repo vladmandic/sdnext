@@ -33,7 +33,7 @@ class Exif: # pylint: disable=single-string-used-for-slots
             return self.__dict__[attr]
         return self.exif.get(attr, None)
 
-    def load(self, img: Image):
+    def load(self, img: Image.Image):
         img.load() # exif may not be ready
         exif_dict = {}
         try:
