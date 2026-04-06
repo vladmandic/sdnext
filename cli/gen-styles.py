@@ -24,7 +24,7 @@ options = {
 styles = []
 
 
-def pil_to_b64(img: Image, size: int, quality: int):
+def pil_to_b64(img: Image.Image, size: int, quality: int):
     img = img.convert('RGB')
     img = img.resize((size, size))
     buffer = io.BytesIO()

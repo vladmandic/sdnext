@@ -34,7 +34,7 @@ class DiffusionHeatMapHooker(AggregateHooker):
         locate_middle = load_heads or save_heads
         self.locator = UNetCrossAttentionLocator(restrict={0} if low_memory else None, locate_middle_block=locate_middle)
         self.last_prompt: str = ''
-        self.last_image: Image = None
+        self.last_image: Image.Image = None
         self.time_idx = 0
         self._gen_idx = 0
 
