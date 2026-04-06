@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-05
+## Update for 2026-04-06
 
 - **Models**
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
@@ -11,6 +11,7 @@
     see *main interface -> scripts -> rocm advanced config*  
 - **Internal**
   - additional typing and typechecks, thanks @awsr
+  - wrap hf download methods
 - **Fixes**
   - Prohibit `python==3.14` unless `--experimental`
   - UI CSS fixes, thanks @awsr
