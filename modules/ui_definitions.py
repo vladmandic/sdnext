@@ -51,6 +51,19 @@ def get_openvino_device_list():
         return []
 
 
+def list_autocomplete_names():
+    """Return list of available tag autocomplete file names from local files."""
+    from modules import shared
+    from modules.files_cache import list_files
+    autocomplete_dir = getattr(shared.opts, 'autocomplete_dir', None) or os.path.join(paths.models_path, 'autocomplete')
+    names = set()
+    for fp in list_files(autocomplete_dir, ext_filter=['.json'], recursive=False):
+        name = os.path.splitext(os.path.basename(fp))[0]
+        if name and name != 'manifest' and not name.startswith('.'):
+            names.add(name)
+    return sorted(names)
+
+
 def create_settings(cmd_opts):
 
     # Calculate default modes
@@ -387,6 +400,7 @@ def create_settings(cmd_opts):
         "lora_dir": OptionInfo(os.path.join(paths.models_path, 'Lora'), "Folder with LoRA network(s)", folder=True),
         "styles_dir": OptionInfo(os.path.join(paths.models_path, 'styles'), "File or Folder with user-defined styles", folder=True),
         "wildcards_dir": OptionInfo(os.path.join(paths.models_path, 'wildcards'), "Folder with user-defined wildcards", folder=True),
+        "autocomplete_dir": OptionInfo(os.path.join(paths.models_path, 'autocomplete'), "Folder with tag autocomplete files", folder=True),
         "embeddings_dir": OptionInfo(os.path.join(paths.models_path, 'embeddings'), "Folder with textual inversion embeddings", folder=True),
         "control_dir": OptionInfo(os.path.join(paths.models_path, 'control'), "Folder with Control models", folder=True),
         "yolo_dir": OptionInfo(os.path.join(paths.models_path, 'yolo'), "Folder with Yolo models", folder=True),
@@ -637,6 +651,12 @@ def create_settings(cmd_opts):
 
         "extra_networks_wildcard_sep": OptionInfo("<h2>Wildcards</h2>", "", gr.HTML),
         "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
+
+        "extra_networks_autocomplete_sep": OptionInfo("<h2>Tag Autocomplete</h2>", "", gr.HTML),
+        "autocomplete_enabled": OptionInfo([], "Enabled tag autocomplete files", gr.Dropdown, lambda: {"multiselect": True, "choices": list_autocomplete_names()}),
+        "autocomplete_min_chars": OptionInfo(3, "Minimum characters before autocomplete triggers", gr.Slider, {"minimum": 2, "maximum": 6, "step": 1}),
+        "autocomplete_replace_underscores": OptionInfo(True, "Replace underscores with spaces in autocomplete results"),
+        "autocomplete_append_comma": OptionInfo(True, "Automatically add comma separator between tags"),
     }))
 
     # --- Extensions ---

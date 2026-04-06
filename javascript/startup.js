@@ -59,6 +59,7 @@ async function initStartup() {
 
   // optinally wait for modern ui
   if (window.waitForUiReady) await waitForUiReady();
+  initAutocomplete();
   monitorConnection();
   removeSplash();
 

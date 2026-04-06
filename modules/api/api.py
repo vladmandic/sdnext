@@ -1,9 +1,10 @@
+import os
 from threading import Lock
 from secrets import compare_digest
 from fastapi import FastAPI, APIRouter, Depends, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.exceptions import HTTPException
-from modules import errors, shared
+from modules import errors, shared, paths
 from modules.logger import log
 from modules.api import models, endpoints, script, helpers, server, generate, process, control, docs, gpu
 
@@ -117,6 +118,11 @@ class Api:
         from modules.api import loras
         loras.register_api(self.app)
 
+        # autocomplete api
+        from modules.api import autocomplete as autocomplete_api
+        autocomplete_api.init(getattr(shared.opts, 'autocomplete_dir', '') or os.path.join(paths.models_path, 'autocomplete'))
+        autocomplete_api.register_api(self.app)
+
         # gallery api
         from modules.api import gallery
         gallery.register_api(self.app)
@@ -139,9 +145,9 @@ class Api:
 
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute
-        paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
+        route_paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
         for route in self.app.routes:
-            if isinstance(route, APIRoute) and len(route.path) > 1 and route.path.endswith('/') and route.path[:-1] in paths:
+            if isinstance(route, APIRoute) and len(route.path) > 1 and route.path.endswith('/') and route.path[:-1] in route_paths:
                 route.include_in_schema = False
 
         # upload api
