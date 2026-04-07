@@ -23,6 +23,8 @@ log_file = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'sdnext.log'
 hostname = socket.gethostname()
 log_rolled = False
 
+console_time_format = '%H:%M:%S-%f' if any((key.startswith('SD_') and key.endswith('_DEBUG')) for key in os.environ.keys()) else '%H:%M:%S'
+
 
 def str_to_bool(val: str | bool | None) -> bool | None:
     if isinstance(val, str):
@@ -179,7 +181,7 @@ def setup_logging(debug=None, trace=None, filename=None):
     box.ROUNDED = box.SIMPLE
     console = Console(
         log_time=True,
-        log_time_format='%H:%M:%S',
+        log_time_format=console_time_format,
         tab_size=4,
         soft_wrap=True,
         safe_box=True,
@@ -196,7 +198,7 @@ def setup_logging(debug=None, trace=None, filename=None):
 
     log_filter = LogFilter()
     # handlers
-    rh = RichHandler(show_time=True, omit_repeated_times=False, show_level=True, show_path=False, markup=False, rich_tracebacks=True, log_time_format='%H:%M:%S', level=level, console=console)
+    rh = RichHandler(show_time=True, omit_repeated_times=False, show_level=True, show_path=False, markup=False, rich_tracebacks=True, log_time_format=console_time_format, level=level, console=console)
     if trace:
         rh.formatter = logging.Formatter('[%(module)s][%(pathname)s:%(lineno)d]  %(message)s')
     rh.addFilter(log_filter)
