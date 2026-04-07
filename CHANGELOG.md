@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-06
+## Update for 2026-04-07
 
 - **Models**
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
@@ -9,6 +9,8 @@
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  
     see *main interface -> scripts -> rocm advanced config*  
+- **Obsoleted**
+  - remove *system-info* from *extensions-builtin*
 - **Internal**
   - additional typing and typechecks, thanks @awsr
   - wrap hf download methods

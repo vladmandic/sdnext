@@ -41,6 +41,8 @@ def path_to_repo(checkpoint_info):
     repo_id = repo_id.replace('\\', '/')
     if repo_id.startswith('Diffusers/'):
         repo_id = repo_id.split('Diffusers/')[-1]
+    if repo_id.startswith('huggingface/'):
+        repo_id = repo_id.split('huggingface/')[-1]
     if repo_id.startswith('models--'):
         repo_id = repo_id.split('models--')[-1]
     repo_id = repo_id.replace('--', '/')
