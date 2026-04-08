@@ -27,6 +27,7 @@
   - improve torch nvidia arch detection
   - add torch amd arch detection
   - fix prompt weighted lists and internal wildcards
+  - improve `path_to_repo` handling for custom paths
 
 ## Update for 2026-04-01
 
