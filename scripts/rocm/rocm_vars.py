@@ -16,14 +16,14 @@ def _sitepackages_subpath(*parts: str) -> str:
 
 GENERAL_VARS: Dict[str, Dict[str, Any]] = {
      "MIOPEN_SYSTEM_DB_PATH": {
-        "default": _sitepackages_subpath("_rocm_sdk_devel", "bin") + os.sep,
+        "default": _sitepackages_subpath("{LIBS_PKG}", "bin") + os.sep,
         "desc": "MIOpen system DB path",
         "widget": "textbox",
         "options": None,
         "restart_required": True,
     },
     "ROCBLAS_TENSILE_LIBPATH": {
-        "default": _sitepackages_subpath("_rocm_sdk_devel", "bin", "rocblas", "library"),
+        "default": _sitepackages_subpath("{LIBS_PKG}", "bin", "rocblas", "library"),
         "desc": "rocBLAS Tensile library path",
         "widget": "textbox",
         "options": None,

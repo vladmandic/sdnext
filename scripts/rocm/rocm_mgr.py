@@ -115,8 +115,59 @@ def _get_root() -> str:
     return str(script_path)
 
 
+_libs_pkg_cache: Optional[str] = None
+
+def _get_libs_pkg() -> str:
+    """Return the _rocm_sdk_libraries_<gfx> folder name present in site-packages, or ''.
+
+    Scans site-packages for a directory matching '_rocm_sdk_libraries_*'.
+    When multiple are found (unusual), prefers the one matching the detected GPU
+    via modules.rocm; falls back to the first candidate.
+    Result is cached for the process lifetime.
+    """
+    global _libs_pkg_cache  # pylint: disable=global-statement
+    if _libs_pkg_cache is not None:
+        return _libs_pkg_cache
+    import sysconfig  # pylint: disable=import-outside-toplevel
+    site_pkgs = sysconfig.get_path('purelib')
+    if not site_pkgs or not os.path.isdir(site_pkgs):
+        _libs_pkg_cache = ""
+        return ""
+    try:
+        candidates = [e for e in os.listdir(site_pkgs) if e.startswith("_rocm_sdk_libraries_")]
+    except OSError:
+        _libs_pkg_cache = ""
+        return ""
+    if not candidates:
+        _libs_pkg_cache = ""
+        return ""
+    if len(candidates) == 1:
+        _libs_pkg_cache = candidates[0]
+        return _libs_pkg_cache
+    # Multiple libraries packages — pick the one matching the active GPU
+    try:
+        from modules import rocm as _rocm  # pylint: disable=import-outside-toplevel
+        import torch  # pylint: disable=import-outside-toplevel
+        for i in range(torch.cuda.device_count()):
+            agent = _rocm.Agent(i)
+            therock = agent.therock
+            if therock:
+                suffix = therock.split("/")[-1].replace("-", "_")
+                folder = "_rocm_sdk_libraries_" + suffix
+                if folder in candidates:
+                    _libs_pkg_cache = folder
+                    return _libs_pkg_cache
+    except Exception:
+        pass
+    _libs_pkg_cache = candidates[0]
+    return _libs_pkg_cache
+
+
 def _expand_venv(value: str) -> str:
-    return value.replace("{VIRTUAL_ENV}", _get_venv()).replace("{ROOT}", _get_root())
+    return (value
+            .replace("{VIRTUAL_ENV}", _get_venv())
+            .replace("{ROOT}", _get_root())
+            .replace("{LIBS_PKG}", _get_libs_pkg()))
 
 
 def _collapse_venv(value: str) -> str:
