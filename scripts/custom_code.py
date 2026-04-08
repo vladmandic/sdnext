@@ -35,7 +35,7 @@ def exec_with_return(code, module):
     return None
 
 
-class Script(scripts_manager.Script):
+class CustomCodeScript(scripts_manager.Script):
 
     def title(self):
         return "Custom code"

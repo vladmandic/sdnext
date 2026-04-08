@@ -22,7 +22,7 @@ from modules.logger import log
 debug = log.trace if os.environ.get('SD_XYZ_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
-class Script(scripts_manager.Script):
+class XYZGridScript(scripts_manager.Script):
     current_axis_options = []
 
     def title(self):

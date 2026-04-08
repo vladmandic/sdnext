@@ -7,7 +7,7 @@ from modules.shared import opts, state, log
 from modules.image.grid import split_grid
 
 
-class Script(scripts_manager.Script):
+class OutpaintingAltScript(scripts_manager.Script):
     def title(self):
         return "Outpainting alternative"
 

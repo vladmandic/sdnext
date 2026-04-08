@@ -13,7 +13,7 @@ class UpscalerDCC(Upscaler):
             UpscalerData("DCC Interpolation", None, self),
         ]
 
-    def do_upscale(self, img: Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None):
         import math
         import numpy as np
         from modules.postprocess.dcc import DCC
@@ -41,7 +41,7 @@ class UpscalerVIPS(Upscaler):
             UpscalerData("VIPS MagicKernelSharp 2021", None, self),
         ]
 
-    def do_upscale(self, img: Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None):
         if selected_model is None:
             return img
         from installer import install
@@ -85,7 +85,7 @@ class UpscalerHQX(Upscaler):
             UpscalerData("HQX Interpolation", None, self),
         ]
 
-    def do_upscale(self, img: Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None):
         import numpy as np
         from modules.postprocess.hqx import hqx
         t0 = time.time()
@@ -106,7 +106,7 @@ class UpscalerICBI(Upscaler):
             UpscalerData("ICB Interpolation", None, self),
         ]
 
-    def do_upscale(self, img: Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None):
         import numpy as np
         from modules.postprocess.icbi import icbi
         t0 = time.time()

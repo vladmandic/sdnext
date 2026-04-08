@@ -4,7 +4,7 @@ from modules import scripts_manager, processing, shared, sd_models, devices, ima
 from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class PixelSmithScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None

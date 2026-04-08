@@ -72,7 +72,7 @@ def get_nvml():
                 "System load": f'GPU {load.gpu}% | VRAM {load.memory}% | Temp {pynvml.nvmlDeviceGetTemperature(dev, 0)}C | Fan {pynvml.nvmlDeviceGetFanSpeed(dev)}%',
                 'State': get_reason(pynvml.nvmlDeviceGetCurrentClocksThrottleReasons(dev)),
             }
-            chart = [load.memory, load.gpu]
+            chart = (load.memory, load.gpu)
             devices.append({
                 'name': name,
                 'data': data,

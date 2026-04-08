@@ -2,10 +2,6 @@
   path = wiki
   url = https://github.com/vladmandic/sdnext.wiki
   ignore = dirty
-[submodule "extensions-builtin/sd-extension-system-info"]
-  path = extensions-builtin/sd-extension-system-info
-  url = https://github.com/vladmandic/sd-extension-system-info
-  ignore = dirty
 [submodule "extensions-builtin/sd-extension-chainner"]
   path = extensions-builtin/sd-extension-chainner
   url = https://github.com/vladmandic/sd-extension-chainner

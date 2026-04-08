@@ -4,10 +4,11 @@ import sys
 import os
 from collections import Counter
 
+
 script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 os.chdir(script_dir)
 
-# --- test defition -------------------------------
+
 # library
 fn = r'./modules/styles.py'
 # tested function
@@ -15,34 +16,46 @@ funcname = 'select_from_weighted_list'
 # random needed
 ns = {'Dict': dict, 'random': __import__('random')}
 # number of samples to test
-tries = 2000
+tries = 10000
 # allowed deviation in percentage points
-tolerance_pct = 5
+tolerance_pct = 2.0
 # tests
 tests = [
     # - empty
     ["", { '': 100 } ],
     # - no weights
     [ "red|blonde|black", { 'black': 33, 'red': 33, 'blonde': 33 } ],
+    # - list with empty entry
+    [ "red||black", { 'black': 33, 'red': 33, '': 33 } ],
+    # - list with repeated entry
+    [ "red|blonde|blonde", { 'red': 33, 'blonde': 66 } ],
     # - full weights <= 1
-    [ "red:0.1|blonde:0.9", { 'blonde': 90, 'red': 10 } ],
+    [ "red:0.1|blonde:0.9", { 'red': 10, 'blonde': 90 } ],
     # - weights > 1 to test normalization
-    [ "red:1|blonde:2|black:5", { 'blonde': 25, 'red': 12.5, 'black': 62.5 } ],
+    [ "red:1|blonde:2|black:5", { 'red': 12.5, 'blonde': 25, 'black': 62.5 } ],
     # - disabling 0 weights to force one result
     [ "red:0|blonde|black:0", { 'blonde': 100 } ],
     # - weights <= 1 with distribution of the leftover
-    [ "red:0.5|blonde|black:0.3|brown", { 'red': 50, 'black': 30, 'brown': 10, 'blonde': 10 } ],
+    [ "red:0.5|blonde|black:0.3|brown", { 'red': 0.5, 'blonde': 1.0, 'black': 0.3, 'brown': 1.0 } ],
     # - weights > 1, unweightes should get default of 1
     [ "red:2|blonde|black", { 'red': 50, 'blonde': 25, 'black': 25 } ],
     # - ignore content of ()
-    [ "red:0.5|(blonde:1.3)", { 'red': 50, '(blonde:1.3)': 50 } ],
+    [ "red:0.5|(blonde:1.3)", { 'red': 50, '(blonde:1.3)': 100 } ],
+    # - ignore content of ()
+    [ "red:0.5|(blonde:1.3):0.5", { 'red': 50, '(blonde:1.3)': 50 } ],
     # - ignore content of []
-    [ "red:0.5|[stuff:1.3]", { '[stuff:1.3]': 50, 'red': 50 } ],
+    [ "red:0.5|[stuff:1.3]", { 'red': 50, '[stuff:1.3]': 100 } ],
     # - ignore content of <>
-    [ "red:0.5|<lora:1.0>", { '<lora:1.0>': 50, 'red': 50 } ]
+    [ "red:0.5|<lora:1.0>", { 'red': 50, '<lora:1.0>': 100 } ],
+    # - simple list, 1 entry with lora with weights
+    [ "red|<lora:test:1.0>|black", { 'black': 33, 'red': 33, '<lora:test:1.0>': 33 } ],
+    # - simple list, 1 entry with loraand comma
+    [ "red|blonde <lora:test:1.0>|black", { 'black': 33, 'red': 33, 'blonde <lora:test:1.0>': 33 } ],
+    # - simple list, 1 entry with lora and comma
+    [ "red|blonde, <lora:test:1.0>|black", { 'black': 33, 'red': 33, 'blonde, <lora:test:1.0>': 33 } ],
+    # - simple list, 1 entry with lora and comma
+    [ "red|blonde, <lora:test:1.0>|black:2", { 'black': 50, 'red': 25, 'blonde, <lora:test:1.0>': 25 } ],
 ]
-
-# -------------------------------------------------
 
 with open(fn, 'r', encoding='utf-8') as f:
     src = f.read()
@@ -57,7 +70,7 @@ with open(fn, 'r', encoding='utf-8') as f:
     end = min(end_candidates) if end_candidates else len(src)
     func_src = src[start:end]
 
-    exec(func_src, ns)
+    exec(func_src, ns) # pylint: disable=exec-used
     func = ns.get(funcname)
     if func is None:
         print('Failed to extract function')
@@ -65,16 +78,12 @@ with open(fn, 'r', encoding='utf-8') as f:
 
     print('Running' , tries, 'isolated quick tests for ' + funcname + ':\n')
 
-    """Print test summary."""
-    print("\n" + "=" * 70)
-    print("TEST SUMMARY")
-    print("=" * 70)
-
     for t in tests:
-        print('INPUT:', t)
+        print('Input:', t[0])
         samples = [func(t[0]) for _ in range(tries)]
         c = Counter(samples)
-        print("SAMPLES: ", dict(c))
+        print("  Expected:", dict(t[1]))
+        print("  Samples:", dict(c))
 
         # validation
         expected_pct = t[1]
@@ -85,29 +94,32 @@ with open(fn, 'r', encoding='utf-8') as f:
 
         if missing or unexpected:
             if missing:
-                print("MISSING: ", sorted(missing))
+                print("  Missing: ", sorted(missing))
             if unexpected:
-                print("UNEXPECTED: ", sorted(unexpected))
-            print("RESULT: FAILED (keys)")
-            print('')
+                print("  Unexpected: ", sorted(unexpected))
+            print(" Result: FAIL keys")
             continue
 
         failures = []
+        W = sum(expected_pct.values())
+        deviations = {}
         for k, pct in expected_pct.items():
-            expected_count = tries * (pct / 100.0)
+            pct = pct / W # normalize
+            expected_count = tries * pct
             actual_count = c.get(k, 0)
-            actual_pct = (actual_count / tries) * 100.0
-            if abs(actual_pct - pct) > tolerance_pct:
+            actual_pct = actual_count / tries
+            deviation_pct = abs(actual_pct - pct)
+            deviations[k] = deviation_pct
+            if deviation_pct > tolerance_pct / 100.0:
                 failures.append(
                     f"{k}: expected {pct:.1f}%, got {actual_pct:.1f}% "
                     f"({actual_count}/{tries})"
                 )
 
+        print("  Deviations:", {k: f"{v*100:.2f}%" for k, v in deviations.items()})
         if failures:
-            print("OUT OF RANGE: ")
             for line in failures:
-                print(" - " + line)
-            print("RESULT: FAILED (distribution)")
+                print("    " + line)
+            print("  Result: FAIL distribution")
         else:
-            print("RESULT: PASSED")
-        print('')
+            print("  Result: PASS")

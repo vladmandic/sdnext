@@ -142,7 +142,7 @@
   },
   "Anima Preview 2": {
     "path": "CalamitousFelicitousness/Anima-Preview-2-sdnext-diffusers",
-    "preview": "CalamitousFelicitousness--Anima-sdnext-diffusers.jpg",
+    "preview": "CalamitousFelicitousness--Anima-Preview-2-sdnext-diffusers.jpg",
     "desc": "Anima Preview V2 with improved hyperparameters, extended medium-resolution training for more character knowledge, and a regularization dataset for better natural language comprehension. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder.",
     "tags": "community",
     "date": "2026 March",
@@ -158,7 +158,7 @@
   },
   "FireRed Image Edit 1.1": {
     "path": "FireRedTeam/FireRed-Image-Edit-1.1",
-    "preview": "FireRedTeam--FireRed-Image-Edit-1.0.jpg",
+    "preview": "FireRedTeam--FireRed-Image-Edit-1.1.jpg",
     "desc": "FireRed-Image-Edit is a general-purpose image editing model that delivers high-fidelity and consistent editing across a wide range of scenarios. FireRed is a fine-tune of Qwen-Image-Edit.",
     "tags": "community",
     "date": "2026 February",

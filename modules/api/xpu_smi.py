@@ -29,7 +29,7 @@ def get_xpu_smi():
             "VRAM usage": f'{round(100 * load["memory"] / total)}% | {load["memory"]} MB used | {total - load["memory"]} MB free | {total} MB total',
             "RAM usage": f'{round(100 * ram["used"] / ram["total"])}% | {round(1024 * ram["used"])} MB used | {round(1024 * ram["free"])} MB free | {round(1024 * ram["total"])} MB total',
         }
-        chart = [load["memory"], load["gpu"]]
+        chart = (load["memory"], load["gpu"])
         devices.append({
             'name': torch.xpu.get_device_name(),
             'data': data,

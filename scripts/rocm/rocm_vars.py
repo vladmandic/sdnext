@@ -1,14 +1,61 @@
+import os
+import sys
+import sysconfig
 from typing import Dict, Any, List, Tuple
 
-# --- General MIOpen/rocBLAS variables (dropdown/textbox/checkbox) ---
-GENERAL_VARS: Dict[str, Dict[str, Any]] = {
 
+def _sitepackages_subpath(*parts: str) -> str:
+    """Return a {VIRTUAL_ENV}-prefixed path into site-packages using OS-native separators.
+
+    Works on both Windows (Lib/site-packages) and Linux (lib/pythonX.Y/site-packages).
+    """
+    site_pkgs = sysconfig.get_path('purelib')  # absolute path to site-packages inside the active venv
+    rel = os.path.relpath(site_pkgs, sys.prefix)  # platform-correct relative sub-path under venv root
+    return os.path.join("{VIRTUAL_ENV}", rel, *parts)
+
+
+GENERAL_VARS: Dict[str, Dict[str, Any]] = {
+     "MIOPEN_SYSTEM_DB_PATH": {
+        "default": _sitepackages_subpath("_rocm_sdk_devel", "bin") + os.sep,
+        "desc": "MIOpen system DB path",
+        "widget": "textbox",
+        "options": None,
+        "restart_required": True,
+    },
+    "ROCBLAS_TENSILE_LIBPATH": {
+        "default": _sitepackages_subpath("_rocm_sdk_devel", "bin", "rocblas", "library"),
+        "desc": "rocBLAS Tensile library path",
+        "widget": "textbox",
+        "options": None,
+        "restart_required": True,
+    },
     "MIOPEN_GEMM_ENFORCE_BACKEND": {
         "default": "1",
-        "desc": "Enforce GEMM backend",
+        "desc": "GEMM backend",
         "widget": "dropdown",
         "options": [("1 - rocBLAS", "1"), ("5 - hipBLASLt", "5")],
         "restart_required": False,
+    },
+    "PYTORCH_ROCM_USE_ROCBLAS": {
+        "default": "0",
+        "desc": "PyTorch: Use rocBLAS",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": True,
+    },
+    "PYTORCH_HIPBLASLT_DISABLE": {
+        "default": "1",
+        "desc": "PyTorch: Use hipBLASLt",
+        "widget": "dropdown",
+        "options": [("0 - Allow hipBLASLt", "0"), ("1 - Disable hipBLASLt", "1")],
+        "restart_required": True,
+    },
+    "ROCBLAS_USE_HIPBLASLT": {
+        "default": "0",
+        "desc": "rocBLAS: use hipBLASLt backend",
+        "widget": "dropdown",
+        "options": [("0 - Tensile (rocBLAS)", "0"), ("1 - hipBLASLt", "1")],
+        "restart_required": True,
     },
     "MIOPEN_FIND_MODE": {
         "default": "2",
@@ -31,12 +78,69 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
         "options": [("0 - Off", "0"), ("1 - On", "1")],
         "restart_required": True,
     },
-    "MIOPEN_SYSTEM_DB_PATH": {
-        "default": "{VIRTUAL_ENV}\\Lib\\site-packages\\_rocm_sdk_devel\\bin\\",
-        "desc": "MIOpen system DB path",
+    "MIOPEN_DEBUG_CONVOLUTION_DETERMINISTIC": {
+        "default": "0",
+        "desc": "Deterministic convolutions",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": False,
+    },
+    "MIOPEN_CONVOLUTION_MAX_WORKSPACE": {
+        "default": "1073741824",
+        "desc": "MIOpen convolutions: max workspace (bytes; 1 GB)",
         "widget": "textbox",
         "options": None,
-        "restart_required": True,
+        "restart_required": False,
+    },
+    "ROCBLAS_DEVICE_MEMORY_SIZE": {
+        "default": "",
+        "desc": "rocBLAS workspace size in bytes (empty = dynamic)",
+        "widget": "textbox",
+        "options": None,
+        "restart_required": False,
+    },
+    "PYTORCH_TUNABLEOP_CACHE_DIR": {
+        "default": os.path.join("{ROOT}", "models", "tunable"),
+        "desc": "TunableOp cache directory",
+        "widget": "textbox",
+        "options": None,
+        "restart_required": False,
+    },
+
+    "ROCBLAS_STREAM_ORDER_ALLOC": {
+        "default": "1",
+        "desc": "rocBLAS stream-ordered memory allocation",
+        "widget": "dropdown",
+        "options": [("0 - Standard", "0"), ("1 - Stream-ordered", "1")],
+        "restart_required": False,
+    },
+    "ROCBLAS_DEFAULT_ATOMICS_MODE": {
+        "default": "1",
+        "desc": "rocBLAS allow atomics",
+        "widget": "dropdown",
+        "options": [("0 - Off (deterministic)", "0"), ("1 - On (performance)", "1")],
+        "restart_required": False,
+    },
+    "PYTORCH_TUNABLEOP_ROCBLAS_ENABLED": {
+        "default": "0",
+        "desc": "TunableOp: Enable tuning",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": False,
+    },
+    "PYTORCH_TUNABLEOP_TUNING": {
+        "default": "0",
+        "desc": "TunableOp: Tuning mode",
+        "widget": "dropdown",
+        "options": [("0 - Use Cache", "0"), ("1 - Benchmark new shapes", "1")],
+        "restart_required": False,
+    },
+    "PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED": {
+        "default": "0",
+        "desc": "TunableOp: benchmark hipBLASLt kernels",
+        "widget": "dropdown",
+        "options": [("0 - Off", "0"), ("1 - On", "1")],
+        "restart_required": False,
     },
     "MIOPEN_LOG_LEVEL": {
         "default": "0",
@@ -66,23 +170,8 @@ GENERAL_VARS: Dict[str, Dict[str, Any]] = {
         "options": [("0 - Off", "0"), ("1 - Error", "1"), ("2 - Trace", "2"), ("3 - Hints", "3"), ("4 - Info", "4"), ("5 - API Trace", "5")],
         "restart_required": False,
     },
-    "MIOPEN_DEBUG_CONVOLUTION_DETERMINISTIC": {
-        "default": "0",
-        "desc": "Deterministic convolution (reproducible results, may be slower)",
-        "widget": "dropdown",
-        "options": [("0 - Off", "0"), ("1 - On", "1")],
-        "restart_required": False,
-    },
 }
 
-# --- Solver toggles (inference/FWD only, RDNA2/3/4 compatible) ---
-# Removed entirely — not representable in the UI, cannot be set by users:
-#   WRW (weight-gradient) and BWD (data-gradient) — training passes only, never run during inference
-#   XDLOPS/CK CDNA-exclusive (MI100/MI200/MI300 matrix engine variants) — not on any RDNA
-#   Fixed-geometry (5x10, 7x7-ImageNet, 11x11) — shapes never appear in SD/video inference
-#   FP32-reference (NAIVE_CONV_FWD, FWDGEN) — IsApplicable() unreliable for FP16/BF16
-#   Wide MPASS (F3x4..F7x3) — kernel sizes that cannot match any SD convolution shape
-# Disabled by default (added but off): RDNA3/4-only — Group Conv XDLOPS, CK default kernels
 _SOLVER_DESCS: Dict[str, str] = {}
 
 _SOLVER_DESCS.update({
@@ -251,3 +340,12 @@ SOLVER_GROUPS: List[Tuple[str, List[str]]] = [
         "MIOPEN_DEBUG_CK_DEFAULT_KERNELS",
     ]),
 ]
+
+# Variables that are relevant only when hipBLASLt is the active GEMM backend.
+# These are visually greyed-out in the UI when rocBLAS (MIOPEN_GEMM_ENFORCE_BACKEND="1") is selected.
+HIPBLASLT_VARS: set = {
+    "PYTORCH_HIPBLASLT_DISABLE",
+    "ROCBLAS_USE_HIPBLASLT",
+    "PYTORCH_TUNABLEOP_HIPBLASLT_ENABLED",
+    "HIPBLASLT_LOG_LEVEL",
+}

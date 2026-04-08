@@ -12,7 +12,7 @@ MODELS = [
 ]
 
 
-class Script(scripts_manager.Script):
+class VGenI2VScript(scripts_manager.Script):
     def title(self):
         return 'Video: VGen Image-to-Video'
 

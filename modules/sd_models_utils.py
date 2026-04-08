@@ -1,8 +1,8 @@
 import io
+import os
 import copy
 import json
 import inspect
-import os.path
 from rich import progress # pylint: disable=redefined-builtin
 import torch
 import safetensors.torch
@@ -10,6 +10,9 @@ import safetensors.torch
 from modules import paths, shared, errors
 from modules.logger import log, console
 from modules.sd_checkpoint import CheckpointInfo # pylint: disable=unused-import
+
+
+debug = log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 class NoWatermark:
@@ -38,16 +41,32 @@ def path_to_repo(checkpoint_info):
         repo_id = checkpoint_info.name
     else:
         repo_id = checkpoint_info # fallback if fn is used with str param
+    repo_orig = repo_id
     repo_id = repo_id.replace('\\', '/')
-    if repo_id.startswith('Diffusers/'):
-        repo_id = repo_id.split('Diffusers/')[-1]
-    if repo_id.startswith('models--'):
-        repo_id = repo_id.split('models--')[-1]
+
+    remove_prefix = ['Diffusers', 'huggingface', 'models--']
+    for opt in [shared.opts.ckpt_dir, shared.opts.diffusers_dir, shared.opts.hfcache_dir]:
+        remove_prefix.append(opt.replace('\\', '/'))
+        relative = os.path.relpath(opt, start=shared.opts.models_dir).replace('\\', '/')
+        if not relative.startswith('.'):
+            remove_prefix.append(relative)
+        basename = os.path.basename(opt).replace('\\', '/')
+        if basename:
+            remove_prefix.append(basename)
+
+    debug(f'Path sanitize: prefixes={remove_prefix}')
+    for prefix in remove_prefix:
+        if repo_id.startswith(prefix):
+            repo_id = repo_id.lstrip(prefix)
+            break
+
+    repo_id = repo_id.lstrip('/')
     repo_id = repo_id.replace('--', '/')
-    if repo_id.count('/') != 1:
-        log.warning(f'Model: repo="{repo_id}" repository not recognized')
     if '+' in repo_id:
         repo_id = repo_id.split('+')[0]
+    if repo_id.count('/') > 1:
+        log.warning(f'Model: repo="{repo_id}" repository not recognized')
+    debug(f'Path: from="{repo_orig}" to="{repo_id}"')
     return repo_id
 
 

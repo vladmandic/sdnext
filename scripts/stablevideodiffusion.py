@@ -15,7 +15,7 @@ models = {
     "SVD XT 1.1": "stabilityai/stable-video-diffusion-img2vid-xt-1-1",
 }
 
-class Script(scripts_manager.Script):
+class SVDScript(scripts_manager.Script):
     def title(self):
         return 'Video: Stable Video Diffusion'
 

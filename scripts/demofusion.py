@@ -1220,7 +1220,7 @@ class DemoFusionSDXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderM
 
 ### Script definition
 
-class Script(scripts_manager.Script):
+class DemoFusionScript(scripts_manager.Script):
     def title(self):
         return 'DemoFusion: High-Resolution Image Generation'
 

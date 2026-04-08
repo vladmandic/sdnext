@@ -4,7 +4,7 @@ from modules.logger import log
 from installer import install
 
 
-class Script(scripts_manager.Script):
+class TGateScript(scripts_manager.Script):
     def title(self):
         return 'T-Gate: Accelerate via Gating Attention'
 

@@ -105,7 +105,7 @@ class MarigoldPipeline(DiffusionPipeline):
     @torch.no_grad()
     def __call__(
         self,
-        input_image: Image,
+        input_image: Image.Image,
         denoising_steps: int = 10,
         ensemble_size: int = 10,
         processing_res: int = 768,

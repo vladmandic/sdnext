@@ -40,18 +40,18 @@ def conv_fp16_matmul(
         scale = scale.t()
     elif weight.dtype != torch.float16:
         weight = weight.to(dtype=torch.float16) # fp8 weights
-    input, scale = quantize_fp_mm_input_tensorwise(input, scale, matmul_dtype="float16")
+    input, input_scale = quantize_fp_mm_input_tensorwise(input, dtype=scale.dtype, matmul_dtype="float16")
     input, weight = check_mats(input, weight)
 
     if groups == 1:
-        result = fp_mm_func(input, weight)
+        result = fp_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale)
     else:
         weight = weight.view(weight.shape[0], groups, weight.shape[1] // groups)
         input = input.view(input.shape[0], groups, input.shape[1] // groups)
         result = []
         for i in range(groups):
             result.append(fp_mm_func(input[:, i], weight[:, i]))
-        result = torch.cat(result, dim=-1)
+        result = torch.cat(result, dim=-1).to(dtype=input_scale.dtype).mul_(input_scale)
     if bias is not None:
         dequantize_symmetric_with_bias(result, scale, bias, dtype=return_dtype, result_shape=mm_output_shape)
     else:

@@ -30,7 +30,7 @@ def load_infiniteyou(model: str):
     sd_models.set_diffuser_options(shared.sd_model)
 
 
-class Script(scripts_manager.Script):
+class InfiniteYouScript(scripts_manager.Script):
     def title(self):
         return f'{prefix}: Flexible Photo Recrafting'
 

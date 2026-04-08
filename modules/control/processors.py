@@ -304,7 +304,7 @@ class Processor:
             display(e, 'Control Processor load')
             return f'Processor load filed: {processor_id}'
 
-    def __call__(self, image_input: Image, mode: str = 'RGB', width: int = 0, height: int = 0, resize_mode: int = 0, resize_name: str = 'None', scale_tab: int = 1, scale_by: float = 1.0, local_config: dict | None = None):
+    def __call__(self, image_input: Image.Image, mode: str = 'RGB', width: int = 0, height: int = 0, resize_mode: int = 0, resize_name: str = 'None', scale_tab: int = 1, scale_by: float = 1.0, local_config: dict | None = None):
         """Run the preprocessor on an input image and return the processed control map.
 
         Args:

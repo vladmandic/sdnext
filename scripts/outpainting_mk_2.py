@@ -99,7 +99,7 @@ def get_matched_noise(_np_src_image, np_mask_rgb, noise_q=1, color_variation=0.0
     return np.clip(matched_noise, 0., 1.)
 
 
-class Script(scripts_manager.Script):
+class OutpaintingScript(scripts_manager.Script):
     def title(self):
         return "Outpainting"
 

@@ -42,7 +42,7 @@ Resut should always be: list[ResGPU]
 class ResGPU(BaseModel):
     name: str = Field(title="GPU Name")
     data: dict = Field(title="Name/Value data")
-    chart: list[float, float] = Field(title="Exactly two items to place on chart")
+    chart: tuple[float, float] = Field(title="Exactly two items to place on chart")
 """
 
 if __name__ == '__main__':

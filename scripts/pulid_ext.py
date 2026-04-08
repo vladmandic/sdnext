@@ -14,7 +14,7 @@ registered = False
 uploaded_images = []
 
 
-class Script(scripts_manager.Script):
+class PulIDScript(scripts_manager.Script):
     def __init__(self):
         self.pulid = None
         self.cache = None

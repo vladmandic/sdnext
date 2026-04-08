@@ -11,7 +11,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from modules.logger import log
-from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, attention
+from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, sd_hijack_hfhub, attention
 from modules.memstats import memory_stats
 from modules.shared_helpers import walk_files
 from modules.modeldata import model_data
@@ -71,6 +71,7 @@ def set_huggingface_options(quiet=False):
         sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
     else:
         sd_hijack_safetensors.restore_safetensors()
+    sd_hijack_hfhub.init_hijack()
 
 
 def set_caption_load_options():
@@ -85,6 +86,7 @@ def set_caption_load_options():
         if shared.opts.caption_to_gpu:
             log.debug(f'Caption loader: to_gpu={shared.opts.caption_to_gpu}')
         sd_hijack_safetensors.restore_safetensors()
+    sd_hijack_hfhub.init_hijack()
 
 
 def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
@@ -507,10 +509,14 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_glm import load_glm_image
             sd_model = load_glm_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['SDXS']:
+            from pipelines.model_sdxs import load_sdxs
+            sd_model = load_sdxs(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
     except Exception as e:
         log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
-        if debug_load:
-            errors.display(e, 'Load')
+        # if debug_load:
+        errors.display(e, 'Load')
         return None, True
     if sd_model is not None:
         return sd_model, True
@@ -1418,7 +1424,7 @@ def hf_auth_check(checkpoint_info, force:bool=False):
         return False
 
 
-def save_model(name: str, path: str | None = None, shard: str | None = None, overwrite = False):
+def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite = False):
     if (name is None) or len(name.strip()) == 0:
         log.error('Save model: invalid model name')
         return 'Invalid model name'
@@ -1432,6 +1438,8 @@ def save_model(name: str, path: str | None = None, shard: str | None = None, ove
     if os.path.exists(model_name) and not overwrite:
         log.error(f'Save model: path="{model_name}" exists')
         return f'Path exists: {model_name}'
+    if not shard.strip():
+        shard = "5GB"  # Guard against empty input
     try:
         t0 = time.time()
         save_sdnq_model(

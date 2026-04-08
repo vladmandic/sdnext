@@ -6,7 +6,7 @@ from modules import shared, scripts_manager, processing, processing_helpers, sd_
 from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class CtrlXScript(scripts_manager.Script):
     def title(self):
         return 'Ctrl-X: Controlling Structure and Appearance'
 

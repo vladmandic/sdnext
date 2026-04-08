@@ -49,7 +49,7 @@ def check_tmp_file(gradio, filename):
     return ok
 
 
-def pil_to_temp_file(self, img: Image, dir: str, format="png") -> str: # pylint: disable=redefined-builtin,unused-argument
+def pil_to_temp_file(self, img: Image.Image, dir: str, format="png") -> str: # pylint: disable=redefined-builtin,unused-argument
     """
     # original gradio implementation
     bytes_data = gr.processing_utils.encode_pil_to_bytes(img, format)

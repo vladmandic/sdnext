@@ -484,22 +484,22 @@ else:
 FlagsModel = create_model("Flags", __config__=pydantic_config, **flags)
 
 class ResEmbeddings(BaseModel):
-    loaded: list = Field(default=None, title="loaded", description="List of loaded embeddings")
-    skipped: list = Field(default=None, title="skipped", description="List of skipped embeddings")
+    loaded: list = Field(title="loaded", description="List of loaded embeddings")
+    skipped: list = Field(title="skipped", description="List of skipped embeddings")
 
 class ResMemory(BaseModel):
     ram: dict = Field(title="RAM", description="System memory stats")
     cuda: dict = Field(title="CUDA", description="nVidia CUDA memory stats")
 
 class ResScripts(BaseModel):
-    txt2img: list = Field(default=None, title="Txt2img", description="Titles of scripts (txt2img)")
-    img2img: list = Field(default=None, title="Img2img", description="Titles of scripts (img2img)")
-    control: list = Field(default=None, title="Control", description="Titles of scripts (control)")
+    txt2img: list[str] = Field(title="Txt2img", description="Titles of scripts (txt2img)")
+    img2img: list[str] = Field(title="Img2img", description="Titles of scripts (img2img)")
+    control: list[str] = Field(title="Control", description="Titles of scripts (control)")
 
 class ResGPU(BaseModel): # definition of http response
     name: str = Field(title="GPU Name", description="GPU device name")
     data: dict = Field(title="Name/Value data", description="Key-value pairs of GPU metrics (utilization, temperature, clocks, memory, etc.)")
-    chart: list[float, float] = Field(title="Exactly two items to place on chart", description="Two numeric values for chart display (e.g., GPU utilization %, VRAM usage %)")
+    chart: tuple[float, float] = Field(title="Exactly two items to place on chart", description="Two numeric values for chart display (e.g., GPU utilization %, VRAM usage %)")
 
 class ItemLoadedModel(BaseModel):
     name: str = Field(title="Model Name", description="Model or component name")

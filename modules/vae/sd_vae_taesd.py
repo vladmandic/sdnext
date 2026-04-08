@@ -153,9 +153,14 @@ def get_model(model_type = 'decoder', variant = None):
 def decode(latents):
     global first_run # pylint: disable=global-statement
     with lock:
-        vae, variant = get_model(model_type='decoder')
-        if vae is None or max(latents.shape) > 256: # safetey check of large tensors
-            return latents
+        try:
+            vae, variant = get_model(model_type='decoder')
+            if vae is None or max(latents.shape) > 256: # safetey check of large tensors
+                return latents
+        except Exception as e:
+            # from modules import errors
+            # errors.display(e, 'taesd"')
+            return warn_once(f'load: {e}')
         try:
             with devices.inference_context():
                 t0 = time.time()

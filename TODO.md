@@ -1,16 +1,8 @@
 # TODO
 
-## Release
-
-- Implement: `unload_auxiliary_models`
-- Add notes: **Enso**
-- Tips: **Color Grading**
-- Regen: **Localization**
-- Rebuild: **Launcher** with `master`
-
 ## Internal
 
-- Integrate: [Depth3D](https://github.com/vladmandic/sd-extension-depth3d)
+- Feature: implement `unload_auxiliary_models`
 - Feature: RIFE update
 - Feature: RIFE in processing
 - Feature: SeedVR2 in processing
@@ -30,6 +22,7 @@
 - Refactor: Unify *huggingface* and *diffusers* model folders
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
 - Reimplement `llama` remover for Kanvas
+- Integrate: [Depth3D](https://github.com/vladmandic/sd-extension-depth3d)
 
 ## OnHold
 
@@ -53,6 +46,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image-Base
 
+- [NucleusMoe](<https://github.com/huggingface/diffusers/pull/13317)
 - [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma): Image and video generator for creative effects and professional filters
 - [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance): Pixel-space model eliminating VAE artifacts for high visual fidelity
 - [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
@@ -64,11 +58,13 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image-Edit
 
+- [JoyAI Image Edit](https://huggingface.co/jdopensource/JoyAI-Image-Edit)
 - [Bria FIBO-Edit](https://huggingface.co/briaai/Fibo-Edit-RMBG): Fully JSON-based instruction-following image editing framework
 - [Meituan LongCat-Image-Edit-Turbo](https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo):6B instruction-following image editing with high visual consistency
 - [VIBE Image-Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit): (Sana+Qwen-VL)Fast visual instruction-based image editing framework
 - [LucyEdit](https://github.com/huggingface/diffusers/pull/12340):Instruction-guided video editing while preserving motion and identity
 - [Step1X-Edit](https://github.com/stepfun-ai/Step1X-Edit):Multimodal image editing decoding MLLM tokens via DiT
+- [Step1X-Edit-v1p2](https://huggingface.co/stepfun-ai/Step1X-Edit-v1p2)
 - [OneReward](https://github.com/bytedance/OneReward):Reinforcement learning grounded generative reward model for image editing
 - [ByteDance DreamO](https://huggingface.co/ByteDance/DreamO): image customization framework for IP adaptation and virtual try-on
 - [nVidia Cosmos-Transfer-2.5](https://github.com/huggingface/diffusers/pull/13066)
@@ -88,7 +84,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [HunyuanVideo-Avatar / HunyuanCustom](https://huggingface.co/tencent/HunyuanVideo-Avatar): (HunyuanVideo)MM-DiT based dynamic emotion-controllable dialogue generation
 - [Sana Image→Video (Sana-I2V)](https://github.com/huggingface/diffusers/pull/12634#issuecomment-3540534268): (Sana)Compact Linear DiT framework for efficient high-resolution video
 - [Wan-2.2 S2V (diffusers PR)](https://github.com/huggingface/diffusers/pull/12258): (Wan2.2)Audio-driven cinematic speech-to-video generation
-- [LongCat-Video](https://huggingface.co/meituan-longcat/LongCat-Video): Unified framework for minutes-long coherent video generation via Block Sparse Attention
+- [Meituan LongCat-Video](https://huggingface.co/meituan-longcat/LongCat-Video): Unified framework for minutes-long coherent video generation via Block Sparse Attention
 - [LTXVideo / LTXVideo LongMulti (diffusers PR)](https://github.com/huggingface/diffusers/pull/12614): Real-time DiT-based generation with production-ready camera controls
 - [DiffSynth-Studio (ModelScope)](https://github.com/modelscope/DiffSynth-Studio): (Wan2.2)Comprehensive training and quantization tools for Wan video models
 - [Phantom (Phantom HuMo)](https://github.com/Phantom-video/Phantom): Human-centric video generation framework focus on subject ID consistency
@@ -131,21 +127,25 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 > npm run todo
 
-- fc: autodetect distilled based on model
-- fc: autodetect tensor format based on model
-- hypertile: vae breaks when using non-standard sizes
-- install: switch to pytorch source when it becomes available
-- loader: load receipe
-- loader: save receipe
-- lora: add other quantization types
-- lora: add t5 key support for sd35/f1
-- lora: maybe force imediate quantization
-- model load: force-reloading entire model as loading transformers only leads to massive memory usage
-- model load: implement model in-memory caching
-- modernui: monkey-patch for missing tabs.select event
-- modules/lora/lora_extract.py:188:9: W0511: TODO: lora: support pre-quantized flux
-- modules/modular_guiders.py:65:58: W0511: TODO: guiders
-- processing: remove duplicate mask params
-- resize image: enable full VAE mode for resize-latent
-
-modules/sd_samplers_diffusers.py:353:31: W0511: TODO enso-required (fixme)
+```code
+installer.py:TODO rocm: switch to pytorch source when it becomes available
+modules/control/run.py:TODO modernui: monkey-patch for missing tabs.select event
+modules/history.py:TODO: apply metadata, preview, load/save
+modules/image/resize.py:TODO resize image: enable full VAE mode for resize-latent
+modules/lora/lora_apply.py:TODO lora: add other quantization types
+modules/lora/lora_apply.py:TODO lora: maybe force imediate quantization
+modules/lora/lora_extract.py:TODO: lora: support pre-quantized flux
+modules/lora/lora_load.py:TODO lora: add t5 key support for sd35/f1
+modules/masking.py:TODO: additional masking algorithms
+modules/modular_guiders.py:TODO: guiders
+modules/processing_class.py:TODO processing: remove duplicate mask params
+modules/sd_hijack_hypertile.py:TODO hypertile: vae breaks when using non-standard sizes
+modules/sd_models.py:TODO model load: implement model in-memory caching
+modules/sd_samplers_diffusers.py:TODO enso-required
+modules/sd_unet.py:TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage
+modules/transformer_cache.py:TODO fc: autodetect distilled based on model
+modules/transformer_cache.py:TODO fc: autodetect tensor format based on model
+modules/ui_models_load.py:TODO loader: load receipe
+modules/ui_models_load.py:TODO loader: save receipe
+modules/video_models/video_save.py:TODO audio set time-base
+```

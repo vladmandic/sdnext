@@ -38,18 +38,18 @@ def conv_int8_matmul(
     if quantized_weight_shape is not None:
         weight = unpack_int(weight, weights_dtype, quantized_weight_shape, dtype=torch.int8).t_()
         scale = scale.t()
-    input, scale = quantize_int_mm_input(input, scale)
+    input, input_scale = quantize_int_mm_input(input, dtype=scale.dtype)
     input, weight = check_mats(input, weight)
 
     if groups == 1:
-        result = int_mm_func(input, weight)
+        result = int_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale)
     else:
         weight = weight.view(weight.shape[0], groups, weight.shape[1] // groups)
         input = input.view(input.shape[0], groups, input.shape[1] // groups)
         result = []
         for i in range(groups):
             result.append(int_mm_func(input[:, i], weight[:, i]))
-        result = torch.cat(result, dim=-1)
+        result = torch.cat(result, dim=-1).to(dtype=input_scale.dtype).mul_(input_scale)
     if bias is not None:
         result = dequantize_symmetric_with_bias(result, scale, bias, dtype=return_dtype, result_shape=mm_output_shape)
     else:

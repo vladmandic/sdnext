@@ -197,14 +197,15 @@ def installed(package, friendly: str | None = None, quiet = False): # pylint: di
 def uninstall(package, quiet = False):
     t_start = time.time()
     packages = package if isinstance(package, list) else [package]
-    res = ''
+    txt = ''
     for p in packages:
         if installed(p, p, quiet=True):
             if not quiet:
                 log.warning(f'Package: {p} uninstall')
-            res += pip(f"uninstall {p} --yes --quiet", ignore=True, quiet=True, uv=False)
+            _result, _txt = pip(f"uninstall {p} --yes --quiet", ignore=True, quiet=True, uv=False)
+            txt += _txt
     ts('uninstall', t_start)
-    return res
+    return txt
 
 
 def run(cmd: str, *nargs: str, **kwargs):
@@ -243,13 +244,13 @@ def cleanup_broken_packages():
         pass
 
 
-def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
+def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True) -> tuple[subprocess.CompletedProcess, str]:
     t_start = time.time()
     originalArg = arg
     arg = arg.replace('>=', '==')
     if opts.get('offline_mode', False):
         log.warning('Offline mode enabled')
-        return 'offline'
+        return None, 'offline'
     package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
     uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
@@ -259,20 +260,20 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True):
     all_args = f'{pip_log}{arg} {env_args}'.strip()
     if not quiet:
         log.debug(f'Running: {pipCmd}="{all_args}"')
-    result, txt = run(sys.executable, "-m", pipCmd, all_args)
+    result, output = run(sys.executable, "-m", pipCmd, all_args)
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
             log.warning(f'Install: cmd="{pipCmd}" args="{all_args}" cannot use uv, fallback to pip')
             debug(f'Install: uv pip error: {result.stderr}')
             cleanup_broken_packages()
             return pip(originalArg, ignore, quiet, uv=False)
-    debug(f'Install {pipCmd}: {txt}')
+    debug(f'Install {pipCmd}: {output}')
     if result.returncode != 0 and not ignore:
         errors.append(f'pip: {package}')
         log.error(f'Install: {pipCmd}: {arg}')
-        log.debug(f'Install: pip output {txt}')
+        log.debug(f'Install: pip code={result.returncode} stdout={result.stdout} stderr={result.stderr} output={output}')
     ts('pip', t_start)
-    return txt
+    return result, output
 
 
 # install package using pip if not already installed
@@ -454,6 +455,10 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
         if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
             log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
+            if reason is not None:
+                log.error(reason)
+            if not args.ignore and not args.experimental:
+                sys.exit(1)
         else:
             log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
             if reason is not None:
@@ -469,6 +474,8 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     else:
         git_version = git('--version', folder=None, ignore=False)
         log.debug(f'Git: version={git_version.replace("git version", "").strip()}')
+    if ' ' in sys.executable:
+        log.warning(f'Python: path="{sys.executable}" contains spaces which may cause issues')
     ts('python', t_start)
 
 
@@ -477,7 +484,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "85ffcf1db23c0e981215416abd8e8a748bfd86b6" # diffusers commit hash == 0.37.1.dev-0326
+    target_commit = "0325ca4c5938a7e300f3e3b9ee7ec85f52d01bb5" # diffusers commit hash == 0.37.1.dev-0331
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -506,7 +513,7 @@ def check_transformers():
     pkg_tokenizers = package_spec('tokenizers')
     # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
     # target_commit = "aad13b87ed59f2afcfaebc985f403301887a35fc" # transformers commit hash == 5.3.0
-    target_commit = "c9faacd7d57459157656bdffe049dabb6293f011" # transformers commit hash == 5.3.0.dev-0326
+    target_commit = "2dba8e0495974930af02274d75bd182d22cc1686" # transformers commit hash == 5.3.0.dev-0331
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
@@ -527,7 +534,7 @@ def check_transformers():
     else:
         # Git commit-pinned version
         current = opts.get('transformers_version', '')
-        if (pkg_transformers is None) or (current != target_commit):
+        if (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" commit={target_commit}')
             else:
@@ -559,8 +566,7 @@ def install_cuda():
     if args.use_nightly:
         cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu130')
     else:
-        # cmd = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+cu128 torchvision==0.25.0+cu128 --index-url https://download.pytorch.org/whl/cu128')
-        cmd = os.environ.get("TORCH_COMMAND", "pip install -U torch==2.11.0+cu130 torchvision==0.26.0+cu130 --index-url https://download.pytorch.org/whl/cu130")
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+cu130 torchvision==0.26.0+cu130 --index-url https://download.pytorch.org/whl/cu130')
     return cmd
 
 
@@ -686,10 +692,8 @@ def install_rocm_zluda():
 
 def install_ipex():
     t_start = time.time()
-    #check_python(supported_minors=[10, 11, 12, 13, 14], reason='IPEX backend requires a Python version between 3.10 and 3.13')
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
-
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
@@ -703,8 +707,6 @@ def install_openvino():
     t_start = time.time()
     log.info('OpenVINO: selected')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
-
-    #check_python(supported_minors=[10, 11, 12, 13], reason='OpenVINO backend requires a Python version between 3.10 and 3.13')
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0 torchvision==0.26.0')
     else:
@@ -760,13 +762,34 @@ def check_cudnn():
 
 def get_cuda_arch(capability):
     major, minor = capability
-    mapping = {9: "Hopper",
-               8: "Ada Lovelace" if minor == 9 else "Ampere",
-               7: "Turing" if minor == 5 else "Volta",
-               6: "Pascal",
-               5: "Maxwell",
-               3: "Kepler"}
-    name = mapping.get(major, "Unknown")
+    if torch_info.get('cuda', None) is not None:
+        mapping = {
+            12: "Blackwell",
+            10: "Blackwell",
+            9: "Hopper",
+            8: "Ada Lovelace" if minor == 9 else "Ampere",
+            7: "Turing" if minor == 5 else "Volta",
+            6: "Pascal",
+            5: "Maxwell",
+            4: "Kepler",
+            3: "Kepler",
+            2: "Fermi",
+        }
+        name = mapping.get(major, "")
+    elif torch_info.get('rocm', None) is not None:
+        mapping = {
+            (8, 0): "GCN",
+            (9, 0): "Vega",
+            (9, 4): "Vega",
+            (9, 6): "Vega",
+            (10, 1): "RDNA1",
+            (10, 3): "RDNA2",
+            (11, 0): "RDNA3",
+            (11, 5): "CDNA3",
+        }
+        name = mapping.get((major, minor), "")
+    else:
+        name = ''
     return f"{major}.{minor} {name}"
 
 
@@ -854,74 +877,84 @@ def check_torch():
             pass
         torch_info.set(version=torch.__version__)
         if 'cpu' in torch.__version__:
-            if is_cuda_available:
-                if args.use_cuda:
-                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is selected - reinstalling')
-                    install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
+            try:
+                if is_cuda_available:
+                    if args.use_cuda:
+                        log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is selected - reinstalling')
+                        install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
+                    else:
+                        log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is available - consider reinstalling')
+                elif is_rocm_available:
+                    if args.use_rocm:
+                        log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is selected - reinstalling')
+                        install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
+                    else:
+                        log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is available - consider reinstalling')
+                if args.use_openvino:
+                    torch_info.set(type='openvino')
                 else:
-                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is available - consider reinstalling')
-            elif is_rocm_available:
-                if args.use_rocm:
-                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is selected - reinstalling')
-                    install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
-                else:
-                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is available - consider reinstalling')
-            if args.use_openvino:
-                torch_info.set(type='openvino')
-            else:
-                torch_info.set(type='cpu')
+                    torch_info.set(type='cpu')
+            except Exception as e:
+                log.error(f'Torch: type=cpu {e}')
 
         if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
-            if shutil.which('icpx') is not None:
-                log.info(f'{os.popen("icpx --version").read().rstrip()}')
-            torch_info.set(type='xpu')
-            for device in range(torch.xpu.device_count()):
-                props = torch.xpu.get_device_properties(device)
-                gpu = {
-                    'gpu': torch.xpu.get_device_name(device),
-                    'platform': props.platform_name,
-                    'driver': props.driver_version,
-                    'vram': round(props.total_memory / 1024 / 1024),
-                    'units': props.max_compute_units,
-                }
-                log.info(f'Torch detected: {gpu}')
-                gpu_info.append(gpu)
-
-        elif torch.cuda.is_available() and (allow_cuda or allow_rocm):
-            if args.use_zluda:
-                torch_info.set(type="zluda", cuda=torch.version.cuda)
-            elif torch.version.cuda and allow_cuda:
-                torch_info.set(type='cuda', cuda=torch.version.cuda, cudnn=torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else 'N/A')
-            elif torch.version.hip and allow_rocm:
-                torch_info.set(type='rocm', hip=torch.version.hip)
-            else:
-                log.warning('Torch backend: cannot detect type')
-            log.info(f"Torch backend: {torch_info}")
-            for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
-                gpu = {
-                    'gpu': torch.cuda.get_device_name(device),
-                    'vram': round(torch.cuda.get_device_properties(device).total_memory / 1024 / 1024),
-                    'arch': get_cuda_arch(torch.cuda.get_device_capability(device)),
-                    'cores': torch.cuda.get_device_properties(device).multi_processor_count,
-                }
-                gpu_info.append(gpu)
-                log.info(f'Torch detected: {gpu}')
-
-        else:
             try:
-                if args.use_directml and allow_directml:
-                    import torch_directml # pylint: disable=import-error
-                    dml_ver = package_version("torch-directml")
-                    log.warning(f'Torch backend: DirectML ({dml_ver})')
-                    log.warning('DirectML: end-of-life')
-                    for i in range(0, torch_directml.device_count()):
-                        gpu = {
-                            'gpu': torch_directml.device_name(i),
-                        }
-                        gpu_info.append(gpu)
-                        log.info(f'Torch detected GPU: {gpu}')
-            except Exception:
-                log.warning("Torch reports CUDA not available")
+                if shutil.which('icpx') is not None:
+                    log.info(f'{os.popen("icpx --version").read().rstrip()}')
+                torch_info.set(type='xpu')
+                for device in range(torch.xpu.device_count()):
+                    props = torch.xpu.get_device_properties(device)
+                    gpu = {
+                        'gpu': torch.xpu.get_device_name(device),
+                        'platform': props.platform_name,
+                        'driver': props.driver_version,
+                        'vram': round(props.total_memory / 1024 / 1024),
+                        'units': props.max_compute_units,
+                    }
+                    log.info(f'Torch detected: {gpu}')
+                    gpu_info.append(gpu)
+            except Exception as e:
+                log.error(f'Torch: type=xpu {e}')
+
+        if torch.cuda.is_available() and (allow_cuda or allow_rocm):
+            try:
+                if args.use_zluda:
+                    torch_info.set(type="zluda", cuda=torch.version.cuda)
+                elif torch.version.cuda and allow_cuda:
+                    torch_info.set(type='cuda', cuda=torch.version.cuda, cudnn=torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else 'N/A')
+                elif torch.version.hip and allow_rocm:
+                    torch_info.set(type='rocm', hip=torch.version.hip)
+                else:
+                    log.warning('Torch backend: cannot detect type')
+                log.info(f"Torch backend: {torch_info}")
+                for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
+                    props = torch.cuda.get_device_properties(device)
+                    gpu = {
+                        'gpu': torch.cuda.get_device_name(device),
+                        'vram': round(props.total_memory / 1024 / 1024),
+                        'arch': get_cuda_arch(torch.cuda.get_device_capability(device)),
+                        'cores': props.multi_processor_count,
+                    }
+                    gpu_info.append(gpu)
+                    log.info(f'Torch detected: {gpu}')
+            except Exception as e:
+                log.error(f'Torch: type=cuda/rocm {e}')
+
+        if args.use_directml and allow_directml:
+            try:
+                import torch_directml # pylint: disable=import-error
+                dml_ver = package_version("torch-directml")
+                log.warning(f'Torch backend: DirectML ({dml_ver})')
+                log.warning('DirectML: end-of-life')
+                for i in range(0, torch_directml.device_count()):
+                    gpu = {
+                        'gpu': torch_directml.device_name(i),
+                    }
+                    gpu_info.append(gpu)
+                    log.info(f'Torch detected: {gpu}')
+            except Exception as e:
+                log.warning(f"Torch: type=directml {e}")
+
     except Exception as e:
         log.error(f'Torch cannot load: {e}')
         if not args.ignore:
@@ -1145,14 +1178,6 @@ def install_compel():
 
 
 def install_pydantic():
-    """
-    if args.new or (sys.version_info >= (3, 14)):
-        install('pydantic==2.12.5', ignore=True, quiet=True)
-        reload('pydantic', '2.12.5')
-    else:
-        install('pydantic==1.10.21', ignore=True, quiet=True)
-        reload('pydantic', '1.10.21')
-    """
     install('pydantic==2.12.5', ignore=True, quiet=True)
     reload('pydantic', '2.12.5')
 
@@ -1252,7 +1277,7 @@ def install_requirements():
 # set environment variables controling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
-    os.environ.setdefault('PIP_CONSTRAINT', os.path.abspath('constraints.txt'))
+    os.environ.setdefault('PIP_CONSTRAINT', 'constraints.txt')
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
     os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
@@ -1285,7 +1310,7 @@ def set_environment():
     os.environ.setdefault('MIOPEN_FIND_MODE', '2')
     os.environ.setdefault('UR_L0_ENABLE_RELAXED_ALLOCATION_LIMITS', '1')
     os.environ.setdefault('USE_TORCH', '1')
-    os.environ.setdefault('UV_CONSTRAINT', os.path.abspath('constraints.txt'))
+    os.environ.setdefault('UV_CONSTRAINT', 'constraints.txt')
     os.environ.setdefault('UV_INDEX_STRATEGY', 'unsafe-any-match')
     os.environ.setdefault('UV_NO_BUILD_ISOLATION', '1')
     os.environ.setdefault('UVICORN_TIMEOUT_KEEP_ALIVE', '60')

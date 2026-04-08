@@ -8,7 +8,7 @@ max_xtiles = 4
 max_ytiles = 4
 
 
-class Script(scripts_manager.Script):
+class MoDScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None

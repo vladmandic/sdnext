@@ -20,7 +20,7 @@ class ConnectionMonitorState {
 
   static setData({ online, data }) {
     this.online = online;
-    if (data?.version) this.version = data.version;
+    if (data?.updated) this.version = data.updated;
     if (data?.commit) this.commit = data.commit;
     if (data?.branch) this.branch = data.branch;
     if (data?.model) this.model = this.trimModelName(data.model);

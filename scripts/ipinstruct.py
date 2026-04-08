@@ -17,7 +17,7 @@ encoder = "laion/CLIP-ViT-H-14-laion2B-s32B-b79K"
 folder = os.path.join('repositories', 'ip_instruct')
 
 
-class Script(scripts_manager.Script):
+class IPInstructScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.orig_pipe = None

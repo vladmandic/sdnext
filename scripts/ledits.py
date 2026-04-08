@@ -4,7 +4,7 @@ from modules import scripts_manager, processing, shared, devices, sd_models
 from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class LEditsScript(scripts_manager.Script):
     def title(self):
         return 'LEdits: Limitless Image Editing'
 

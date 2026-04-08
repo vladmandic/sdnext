@@ -8,7 +8,7 @@ from modules.logger import log
 MAX_ADAPTERS = 4
 
 
-class Script(scripts_manager.Script):
+class IPAdapterScript(scripts_manager.Script):
     standalone = True
 
     def title(self):

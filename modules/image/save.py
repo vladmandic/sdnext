@@ -61,38 +61,53 @@ def atomically_save_image():
                 log.warning(f'Save failed: description={filename_txt} {e}')
 
         # actual save
+        exifinfo_dump = piexif.helper.UserComment.dump(exifinfo, encoding="unicode")
         if image_format == 'PNG':
             pnginfo_data = PngImagePlugin.PngInfo()
             for k, v in params.pnginfo.items():
                 pnginfo_data.add_text(k, str(v))
             debug_save(f'Save pnginfo: {params.pnginfo.items()}')
-            save_args = { 'compress_level': 6, 'pnginfo': pnginfo_data if shared.opts.image_metadata else None }
+            save_args = {
+                'compress_level': 6,
+                'pnginfo': pnginfo_data if shared.opts.image_metadata else None,
+            }
         elif image_format == 'JPEG':
             if image.mode == 'RGBA':
                 log.warning('Save: removing alpha channel')
                 image = image.convert("RGB")
             elif image.mode == 'I;16':
                 image = image.point(lambda p: p * 0.0038910505836576).convert("L")
-            save_args = { 'optimize': True, 'quality': shared.opts.jpeg_quality }
+            save_args = {
+                'optimize': True,
+                'quality': shared.opts.jpeg_quality,
+            }
             if shared.opts.image_metadata:
                 debug_save(f'Save exif: {exifinfo}')
-                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(exifinfo, encoding="unicode") } })
+                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
         elif image_format == 'WEBP':
             if image.mode == 'I;16':
                 image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
-            save_args = { 'optimize': True, 'quality': shared.opts.jpeg_quality, 'lossless': shared.opts.webp_lossless }
+            save_args = {
+                'optimize': True,
+                'quality': shared.opts.jpeg_quality,
+                'lossless': shared.opts.webp_lossless,
+            }
             if shared.opts.image_metadata:
                 debug_save(f'Save exif: {exifinfo}')
-                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(exifinfo, encoding="unicode") } })
+                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
         elif image_format == 'JXL':
             if image.mode == 'I;16':
                 image = image.point(lambda p: p * 0.0038910505836576).convert("RGB")
             elif image.mode not in {"RGB", "RGBA"}:
                 image = image.convert("RGBA")
-            save_args = { 'optimize': True, 'quality': shared.opts.jpeg_quality, 'lossless': shared.opts.webp_lossless }
+            save_args = {
+                'optimize': True,
+                'quality': shared.opts.jpeg_quality,
+                'lossless': shared.opts.webp_lossless,
+            }
             if shared.opts.image_metadata:
                 debug_save(f'Save exif: {exifinfo}')
-                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: piexif.helper.UserComment.dump(exifinfo, encoding="unicode") } })
+                save_args['exif'] = piexif.dump({ "Exif": { piexif.ExifIFD.UserComment: exifinfo_dump } })
         else:
             save_args = { 'quality': shared.opts.jpeg_quality }
         try:

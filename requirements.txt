@@ -18,6 +18,7 @@ fasteners
 limits
 orjson
 websockets
+ftfy
 
 # versioned
 fastapi==0.124.4

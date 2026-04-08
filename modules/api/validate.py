@@ -22,12 +22,13 @@ log_cost = {
     "/internal/progress": -1,
     "/sdapi/v1/version": -1,
     "/sdapi/v1/log": -1,
-    "/sdapi/v1/torch": 60,
-    "/sdapi/v1/gpu": 60,
+    "/sdapi/v1/torch": -1,
+    "/sdapi/v1/gpu": -1,
+    "/sdapi/v1/memory": -1,
+    "/sdapi/v1/platform": -1,
+    "/sdapi/v1/checkpoint": -1,
     "/sdapi/v1/status": 60,
-    "/sdapi/v1/memory": 60,
-    "/sdapi/v1/platform": 60,
-    "/sdapi/v1/checkpoint": 60,
+    "/sdapi/v1/progress": 60,
 }
 log_exclude_suffix = ['.css', '.js', '.ico', '.svg']
 log_exclude_prefix = ['/assets']

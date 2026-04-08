@@ -18,7 +18,7 @@ models = {
     'SDXL v1 interpolation': 'resadapter_v1_sdxl_interpolation',
 }
 
-class Script(scripts_manager.Script):
+class ResAdapterScript(scripts_manager.Script):
     def title(self):
         return 'ResAdapter: Domain Consistent Resolution'
 

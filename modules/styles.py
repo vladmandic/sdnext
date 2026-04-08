@@ -46,64 +46,43 @@ def apply_styles_to_prompt(prompt, styles):
 
 
 def select_from_weighted_list(inner: str) -> str:
-    if not inner:
+    def _split_weight(p: str):
+        """Split 'name:weight' where the colon separator must not be inside brackets. Returns (name, wstr) or None."""
+        depth = 0
+        last_colon = -1
+        for i, c in enumerate(p):
+            if c in '<([{':
+                depth += 1
+            elif c in '>)]}':
+                if depth > 0:
+                    depth -= 1
+            elif c == ':' and depth == 0:
+                last_colon = i
+        if last_colon < 0:
+            return p, 1.0
+        return p[:last_colon].strip(), p[last_colon + 1:].strip()
+
+    if not inner or len(inner.strip()) == 0:
         return ''
 
-    parts = [p.strip() for p in inner.split('|') if p.strip()]
+    parts = [p.strip() for p in inner.split('|')]
     weighted: dict[str, float] = {}
-    unweighted = []
 
     for p in parts:
-        is_list = (p.startswith('(') and p.endswith(')')) or \
-                  (p.startswith('[') and p.endswith(']')) or \
-                  (p.startswith('{') and p.endswith('}')) or \
-                  (p.startswith('<') and p.endswith('>'))
-        if (':' in p) and not is_list:
-            name, wstr = p.split(':', 1)
-            name = name.strip()
-            try:
-                w = float(wstr.strip())
-            except Exception:
-                w = 0.0
-            w = max(0.0, w)
-            weighted[name] = weighted.get(name, 0.0) + w
-        else:
-            unweighted.append(p)
+        name, weight = _split_weight(p)
+        try:
+            w = float(weight)
+        except Exception:
+            w = 1.0
+        weighted[name] = weighted.get(name, 0.0) + max(0.0, w)
 
     W = sum(weighted.values())
-    U = len(unweighted)
-
-    if U == 0: # only weighted options
-        keys = list(weighted.keys())
-        if not keys:
-            return ''
-        if W == 0.0:
-            return ''
-        if abs(W - 1.0) > 1e-12:
-            weighted = {k: v / W for k, v in weighted.items()}
-    else: # mix of weighted and unweighted
-        if W > 1.0: # weighted probabilities consume whole mass -> normalize them, unweighted get 0
-            for name in unweighted:
-                weighted[name] = weighted.get(name, 0.0) + 1.0
-            total_before = sum(weighted.values())
-            if total_before > 0.0:
-                weighted = {k: v / total_before for k, v in weighted.items()}
-        else:
-            remaining = 1.0 - W
-            per = remaining / U if U > 0 else 0.0
-            for name in unweighted:
-                weighted[name] = weighted.get(name, 0.0) + per
-
-    items = list(weighted.items())
-    if not items:
-        return ''
-
-    total = sum(v for _, v in items)
-    if total <= 0.0:
-        return items[0][0]
-
-    names, weights = zip(*items, strict=False)
-    return random.choices(names, weights=weights, k=1)[0]
+    if len(weighted) == 0 or W <= 0.0:
+        return inner
+    weighted = {k: v / W for k, v in weighted.items()} # normalize to sum=1
+    names, weights = zip(*weighted.items(), strict=False)
+    choice = random.choices(names, weights=weights, k=1)[0]
+    return choice
 
 
 def apply_curly_braces_to_prompt(prompt, seed=-1):

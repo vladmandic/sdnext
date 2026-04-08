@@ -4,7 +4,7 @@ from modules import scripts_manager, processing, shared, sd_models, devices
 from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class KohyaHiResFixScript(scripts_manager.Script):
     def title(self):
         return 'Kohya HiRes Fix'
 

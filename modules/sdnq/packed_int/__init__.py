@@ -68,6 +68,7 @@ packed_int_function_dict["int5"] = packed_int_function_dict["uint5"]
 packed_int_function_dict["int4"] = packed_int_function_dict["uint4"]
 packed_int_function_dict["int3"] = packed_int_function_dict["uint3"]
 packed_int_function_dict["int2"] = packed_int_function_dict["uint2"]
+packed_int_function_dict["int1"] = packed_int_function_dict["uint1"]
 packed_int_function_dict["bool"] = packed_int_function_dict["uint1"]
 
 

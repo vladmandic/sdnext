@@ -12,7 +12,7 @@ supported_model_list = ['sdxl']
 orig_prompt_attention = None
 
 
-class Script(scripts_manager.Script):
+class StyleAlignedScript(scripts_manager.Script):
     def title(self):
         return 'Style Aligned Image Generation'
 

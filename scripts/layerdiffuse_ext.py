@@ -3,7 +3,7 @@ from modules import shared, scripts_manager, sd_models
 from modules.logger import log
 
 
-class Script(scripts_manager.Script):
+class LayerDiffuseScript(scripts_manager.Script):
 
     def title(self):
         return 'LayerDiffuse: Transparent Image'

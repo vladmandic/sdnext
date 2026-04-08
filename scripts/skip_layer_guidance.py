@@ -7,7 +7,7 @@ from modules.logger import log
 registered = False
 
 
-class Script(scripts_manager.Script):
+class SLGScript(scripts_manager.Script):
     def __init__(self):
         super().__init__()
         self.register()
