@@ -17,7 +17,7 @@ def _sitepackages_subpath(*parts: str) -> str:
 GENERAL_VARS: Dict[str, Dict[str, Any]] = {
      "MIOPEN_SYSTEM_DB_PATH": {
         "default": _sitepackages_subpath("{LIBS_PKG}", "bin") + os.sep,
-        "desc": "MIOpen system DB path",
+        "desc": "MIOpen system path",
         "widget": "textbox",
         "options": None,
         "restart_required": True,
