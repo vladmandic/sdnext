@@ -47,22 +47,11 @@ class ROCmScript(scripts_manager.Script):
             section("ROCm / HIP")
             for k, v in d.get("rocm", {}).items():
                 row(k, v)
-            section("System DB")
-            sdb = d.get("system_db", {})
-            row("path", sdb.get("path", ""))
-            for sub in ("solver_db", "find_db", "kernel_db"):
-                for fname, sz in sdb.get(sub, {}).items():
-                    row(sub.replace("_", " "), f"{fname} &nbsp; {sz}")
             section("User DB (~/.miopen/db)")
             udb = d.get("user_db", {})
             row("path", udb.get("path", ""))
             for fname, finfo in udb.get("files", {}).items():
                 row(fname, finfo)
-            section("User cache (~/.miopen/cache)")
-            ucache = d.get("user_cache", {})
-            row("path", ucache.get("path", ""))
-            for fname, sz in ucache.get("files", {}).items():
-                row(fname, sz)
             return f"<table style='width:100%;border-collapse:collapse'>{''.join(rows)}</table>"
 
         def _build_style(unavailable, hipblaslt_disabled=False):
