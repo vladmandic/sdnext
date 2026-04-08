@@ -56,7 +56,7 @@ def process(
         policy=False,
         banned=False,
         metadata=True,
-        copy=False,  # Compatability
+        copy=False, # pylint: disable=unused-argument # compatability
         score=0.2,
         blocks=3,
         censor=[],
@@ -131,11 +131,11 @@ class ScriptNudeNet(scripts.Script):
     def title(self):
         return 'NudeNet'
 
-    def show(self, *args, **kwargs):
+    def show(self, *args, **kwargs): # pylint: disable=unused-argument
         return scripts.AlwaysVisible
 
     # return signature is array of gradio components
-    def ui(self, *args, **kwargs):
+    def ui(self, *args, **kwargs): # pylint: disable=unused-argument
         return create_ui(accordion=True)
 
     # triggered by callback
