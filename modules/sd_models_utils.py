@@ -47,9 +47,12 @@ def path_to_repo(checkpoint_info):
     remove_prefix = ['Diffusers', 'huggingface', 'models--']
     for opt in [shared.opts.ckpt_dir, shared.opts.diffusers_dir, shared.opts.hfcache_dir]:
         remove_prefix.append(opt.replace('\\', '/'))
-        relative = os.path.relpath(opt, start=shared.opts.models_dir).replace('\\', '/')
-        if not relative.startswith('.'):
-            remove_prefix.append(relative)
+        try:
+            relative = os.path.relpath(opt, start=shared.opts.models_dir).replace('\\', '/')
+            if not relative.startswith('.'):
+                remove_prefix.append(relative)
+        except Exception:
+            pass
         basename = os.path.basename(opt).replace('\\', '/')
         if basename:
             remove_prefix.append(basename)
