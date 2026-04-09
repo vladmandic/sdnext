@@ -1,10 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-08
+## Update for 2026-04-09
 
 - **Models**
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
+  - [Anima Preview-v3](https://huggingface.co/circlestone-labs/Anima) new version of Anima
+- **Caption & Prompt Enhance**
+  - [Google Gemma 4] in *E2B* and *E4B* variants  
 - **Compute**
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  
