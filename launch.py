@@ -303,9 +303,18 @@ def main():
     get_custom_args()
     installer.update_wiki()
 
+    if args.upgrade:
+        if installer.restart_required:
+            log.warning('Installer: restarting now to apply upgrade...')
+            if '--upgrade' in sys.argv:
+                sys.argv.remove('--upgrade')
+            if '--update' in sys.argv:
+                sys.argv.remove('--update')
+            installer.restart(sys.argv)
+        else:
+            log.debug('Installer: no modifications')
+
     uv, instance = start_server(immediate=True, server=None)
-    if installer.restart_required:
-        log.warning('Restart is recommended due to packages updates...')
     t_server = time.time()
     t_monitor = time.time()
 

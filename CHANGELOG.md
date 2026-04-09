@@ -13,6 +13,7 @@
     now covers both ROCm on Windows and Linux  
     see *main interface -> scripts -> rocm advanced config*  
 - **Features**
+  - installer auto-restart on upgrade
   - enhanced filename pattern processing  
     allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  
     allows for any *settings* property name (as defined in `modules/ui_definitions.py` and saved to `config.json`)  

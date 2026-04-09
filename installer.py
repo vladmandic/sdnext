@@ -352,9 +352,10 @@ def branch(folder=None):
 
 
 # restart process
-def restart():
+def restart(argv: list | None = None):
+    argv = argv if isinstance(argv, list) else sys.argv
     log.critical('Restarting process...')
-    os.execv(sys.executable, ['python'] + sys.argv)
+    os.execv(sys.executable, ['python'] + argv)
 
 
 # update git repository
