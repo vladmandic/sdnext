@@ -87,8 +87,8 @@ def set_prompt(p,
         ('StableDiffusion' in cls) or
         ('StableCascade' in cls) or
         ('Flux' in cls and 'Flux2' not in cls) or
-        ('Chroma' in cls) or
-        ('HiDreamImagePipeline' in cls)
+        ('Chroma' in cls)
+        # or ('HiDreamImagePipeline' in cls)
     ):
         jobid = shared.state.begin('TE Encode')
         try:
