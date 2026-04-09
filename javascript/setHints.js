@@ -324,8 +324,11 @@ async function setHints() {
   for (const el of elements) {
     // localize elements text
     let found;
-    if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
-    else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
+    if (el.id) found = localeData.data.find((l) => l.id && (l.id === el.id || el.id.endsWith(l.id))); // prefer id match for disambiguation
+    if (!found) {
+      if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
+      else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
+    }
     if (found?.localized?.length > 0) {
       if (!el.dataset.original) el.dataset.original = el.textContent;
       replaceTextContent(el, found.localized);
@@ -359,9 +362,12 @@ async function applyHintToElement(el) {
     || (el.tagName === 'SPAN' && (el.parentElement?.tagName === 'LABEL' || el.parentElement?.classList.contains('label-wrap')));
   if (!isValidElement) return;
 
-  let found; // find matching hint data
-  if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
-  else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
+  let found; // find matching hint data - prefer id match for disambiguation
+  if (el.id) found = localeData.data.find((l) => l.id && (l.id === el.id || el.id.endsWith(l.id)));
+  if (!found) {
+    if (el.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.dataset.original.toLowerCase().trim());
+    else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
+  }
 
   if (found?.localized?.length > 0) { // apply localization if found
     if (!el.dataset.original) el.dataset.original = el.textContent;

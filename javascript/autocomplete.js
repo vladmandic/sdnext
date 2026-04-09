@@ -457,15 +457,39 @@ const PROMPT_IDS = [
   'video_prompt', 'video_neg_prompt',
 ];
 
+// -- Config bridge --
+
+/** Monkey-patch script config bridge textboxes to push autocomplete config changes to window.opts immediately. */
+function patchConfigBridge() {
+  const elements = gradioApp().querySelectorAll('[id$="_tag_autocomplete_config_json"]');
+  for (const el of elements) {
+    const textarea = el.querySelector('textarea');
+    if (!textarea || textarea.acBridgePatched) continue;
+    textarea.acBridgePatched = true;
+    const proto = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+    Object.defineProperty(textarea, 'value', {
+      set(newValue) {
+        const oldValue = proto.get.call(textarea);
+        proto.set.call(textarea, newValue);
+        if (oldValue !== newValue && newValue) {
+          try {
+            const cfg = JSON.parse(newValue);
+            for (const [key, val] of Object.entries(cfg)) window.opts[key] = val;
+            log('autocomplete', 'config updated via bridge');
+            executeCallbacks(optionsChangedCallbacks);
+          } catch { /* ignore parse errors */ }
+        }
+      },
+      get() { return proto.get.call(textarea); },
+    });
+  }
+}
+
 // -- Initialization --
 
 async function initAutocomplete() {
   const enabled = window.opts?.autocomplete_enabled || [];
-  if (!enabled.length) {
-    log('autocomplete', 'no dictionaries enabled');
-    return;
-  }
-  log('autocomplete', `init: ${enabled.join(', ')}`);
+  log('autocomplete', enabled.length ? `init: ${enabled.join(', ')}` : 'init: no dictionaries enabled yet');
   // Inject styles (CSS files in javascript/ are not auto-loaded)
   const style = document.createElement('style');
   style.textContent = [
@@ -489,11 +513,7 @@ async function initAutocomplete() {
   document.head.appendChild(style);
   dropdown.init();
   await engine.loadEnabled();
-  if (engine.indices.size === 0) {
-    log('autocomplete', 'no dictionaries loaded');
-    return;
-  }
-  // Attach to all prompt textareas
+  // Attach to all prompt textareas; even if no dictionaries loaded yet, they may be enabled later via script UI
   let attached = 0;
   PROMPT_IDS.forEach((id) => {
     const textarea = gradioApp().querySelector(`#${id} > label > textarea`);
@@ -513,4 +533,7 @@ async function initAutocomplete() {
       await engine.loadEnabled();
     }
   });
+  // Watch for config updates from the script UI bridge
+  patchConfigBridge();
+  onAfterUiUpdate(() => patchConfigBridge());
 }

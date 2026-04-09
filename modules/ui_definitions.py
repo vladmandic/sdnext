@@ -51,19 +51,6 @@ def get_openvino_device_list():
         return []
 
 
-def list_autocomplete_names():
-    """Return list of available tag autocomplete file names from local files."""
-    from modules import shared
-    from modules.files_cache import list_files
-    autocomplete_dir = getattr(shared.opts, 'autocomplete_dir', None) or os.path.join(paths.models_path, 'autocomplete')
-    names = set()
-    for fp in list_files(autocomplete_dir, ext_filter=['.json'], recursive=False):
-        name = os.path.splitext(os.path.basename(fp))[0]
-        if name and name != 'manifest' and not name.startswith('.'):
-            names.add(name)
-    return sorted(names)
-
-
 def create_settings(cmd_opts):
 
     # Calculate default modes
@@ -651,12 +638,6 @@ def create_settings(cmd_opts):
 
         "extra_networks_wildcard_sep": OptionInfo("<h2>Wildcards</h2>", "", gr.HTML),
         "wildcards_enabled": OptionInfo(True, "Enable file wildcards support"),
-
-        "extra_networks_autocomplete_sep": OptionInfo("<h2>Tag Autocomplete</h2>", "", gr.HTML),
-        "autocomplete_enabled": OptionInfo([], "Enabled tag autocomplete files", gr.Dropdown, lambda: {"multiselect": True, "choices": list_autocomplete_names()}),
-        "autocomplete_min_chars": OptionInfo(3, "Minimum characters before autocomplete triggers", gr.Slider, {"minimum": 2, "maximum": 6, "step": 1}),
-        "autocomplete_replace_underscores": OptionInfo(True, "Replace underscores with spaces in autocomplete results"),
-        "autocomplete_append_comma": OptionInfo(True, "Automatically add comma separator between tags"),
     }))
 
     # --- Extensions ---
@@ -675,6 +656,11 @@ def create_settings(cmd_opts):
                 "disabled_extensions": OptionInfo([], "Disable these extensions", gr.Textbox, {"visible": False}),
                 "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint", gr.Textbox, {"visible": False}),
                 "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
+                # Autocomplete settings (controlled via Tag Autocomplete script UI)
+                "autocomplete_enabled": OptionInfo([], "Enabled tag autocomplete files", gr.Dropdown, {"multiselect": True, "choices": [], "visible": False}),
+                "autocomplete_min_chars": OptionInfo(3, "Min autocomplete chars", gr.Slider, {"minimum": 2, "maximum": 6, "step": 1, "visible": False}),
+                "autocomplete_replace_underscores": OptionInfo(True, "Replace underscores in autocomplete", gr.Checkbox, {"visible": False}),
+                "autocomplete_append_comma": OptionInfo(True, "Append comma after autocomplete", gr.Checkbox, {"visible": False}),
                 # Caption settings (controlled via Caption Tab UI)
                 "caption_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["VLM", "OpenCLiP", "Tagger"], "visible": False}),
                 "tagger_show_scores": OptionInfo(False, "Tagger: show confidence scores in results", gr.Checkbox, {"visible": False}),
