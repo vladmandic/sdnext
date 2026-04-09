@@ -234,7 +234,13 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
             self.num_inference_steps = len(timesteps)
             timesteps = np.array(timesteps, dtype=np.int64)
             self.timesteps = torch.from_numpy(timesteps).to(device)
-            self.sigmas = None
+            # Compute sigmas from alphas_cumprod so pipelines can access self.sigmas
+            sigmas_arr = []
+            for t in timesteps:
+                acp = self.alphas_cumprod[t].item()
+                sigmas_arr.append(((1 - acp) / max(acp, 1e-8)) ** 0.5)
+            sigmas_arr.append(0.0)
+            self.sigmas = torch.tensor(sigmas_arr, dtype=torch.float64, device=device)
             self._flow_alphas = None
             self._flow_sigmas = None
             self._flow_lambdas = None
@@ -257,7 +263,13 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
                 raise ValueError(f"{self.config.timestep_spacing} is not supported")
 
             self.timesteps = torch.from_numpy(timesteps).to(device)
-            self.sigmas = None
+            # Compute sigmas from alphas_cumprod so pipelines can access self.sigmas
+            sigmas_arr = []
+            for t in timesteps:
+                acp = self.alphas_cumprod[t].item()
+                sigmas_arr.append(((1 - acp) / max(acp, 1e-8)) ** 0.5)
+            sigmas_arr.append(0.0)
+            self.sigmas = torch.tensor(sigmas_arr, dtype=torch.float64, device=device)
             self._flow_alphas = None
             self._flow_sigmas = None
             self._flow_lambdas = None
