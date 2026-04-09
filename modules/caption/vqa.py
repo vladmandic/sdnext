@@ -619,11 +619,13 @@ class VQA:
         return response
 
     def _load_gemma(self, repo: str):
-        """Load Gemma 3 model and processor."""
+        """Load Gemma model and processor."""
         if self.model is None or self.loaded != repo:
             log.debug(f'Caption load: vlm="{repo}"')
             self._unload_current()
-            if '3n' in repo:
+            if 'gemma-4' in repo.lower():
+                cls = transformers.Gemma4ForConditionalGeneration
+            elif '3n' in repo:
                 cls = transformers.Gemma3nForConditionalGeneration  # pylint: disable=no-member
             else:
                 cls = transformers.Gemma3ForConditionalGeneration

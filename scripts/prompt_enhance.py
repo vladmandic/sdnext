@@ -109,6 +109,8 @@ class Options:
         'google/gemma-3-4b-it',
         'google/gemma-3n-E2B-it',
         'google/gemma-3n-E4B-it',
+        'google/gemma-4-E2B-it',
+        'google/gemma-4-E4B-it',
         # Gemma Finetunes
         'nidum/Nidum-Gemma-3-4B-it-Uncensored',
         'allura-org/Gemma-3-Glitter-4B',
@@ -173,6 +175,8 @@ class Options:
         'google/gemma-3-4b-it': {},
         'google/gemma-3n-E2B-it': {},
         'google/gemma-3n-E4B-it': {},
+        'google/gemma-4-E2B-it': {},
+        'google/gemma-4-E4B-it': {},
         # Gemma Finetunes
         'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
         'allura-org/Gemma-3-Glitter-4B': {},
@@ -267,6 +271,7 @@ class Options:
         'qwen2_5_vl': 'Qwen2_5_VLForConditionalGeneration',
         'qwen2_vl': 'Qwen2VLForConditionalGeneration',
         'mistral3': 'Mistral3ForConditionalGeneration',
+        'gemma4': 'Gemma4ForConditionalGeneration',
     }
 
     # default = list(models)[1] # gemma-3-4b-it
