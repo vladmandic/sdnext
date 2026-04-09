@@ -11,6 +11,9 @@ class PostprocessedImage:
         self.image = image
         self.info = info
 
+    def __str__(self):
+        return f'PostprocessedImage(image={self.image} info={self.info})'
+
 
 class ScriptPostprocessing:
     filename = None

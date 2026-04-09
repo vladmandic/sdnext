@@ -13,6 +13,7 @@
     now covers both ROCm on Windows and Linux  
     see *main interface -> scripts -> rocm advanced config*  
 - **Features**
+  - **nudenet** add `LlavaGuard` and `QwenGuard` as image safety evaulation models
   - installer auto-restart on upgrade
   - enhanced filename pattern processing  
     allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  

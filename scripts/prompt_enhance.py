@@ -420,7 +420,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.compile()
         except Exception as e:
             log.error(f'Prompt enhance: load {e}')
-            errors.display(e, 'Prompt enhance')
+            if debug_enabled:
+                errors.display(e, 'Prompt enhance')
         devices.torch_gc()
         self.busy = False
 
@@ -763,7 +764,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             debug_log(f'Prompt enhance: len={input_len} shape={inputs["input_ids"].shape} sample={sample} temp={temperature} penalty={penalty} max={tokens}')
         except Exception as e:
             log.error(f'Prompt enhance tokenize: {e}')
-            errors.display(e, 'Prompt enhance')
+            if debug_enabled:
+                errors.display(e, 'Prompt enhance')
             self.busy = False
             return prompt_text # Return original text part on error
         try:
@@ -792,7 +794,8 @@ class PromptEnhanceScript(scripts_manager.Script):
         except Exception as e:
             outputs = None
             log.error(f'Prompt enhance generate: {e}')
-            errors.display(e, 'Prompt enhance')
+            if debug_enabled:
+                errors.display(e, 'Prompt enhance')
             self.busy = False
             response = f'Error: {str(e)}'
         finally:
@@ -853,8 +856,9 @@ class PromptEnhanceScript(scripts_manager.Script):
         """Update vision toggle interactivity and value based on model selection."""
         repo_name = get_model_repo_from_display(model_name)
         is_vl = is_vision_model(repo_name)
-        # When non-VL model: disable and uncheck. When VL model: enable and check.
-        return gr.update(interactive=is_vl, value=is_vl)
+        if not is_vl:
+            return gr.update(interactive=False, value=False)
+        return gr.update(interactive=is_vl)
 
     def ui(self, _is_img2img):
         with gr.Accordion('Prompt enhance', open=False, elem_id='prompt_enhance'):
@@ -867,7 +871,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             with gr.Row():
                 # Set initial state based on whether default model supports vision
                 default_is_vl = is_vision_model(Options.default)
-                use_vision = gr.Checkbox(label='Use vision', value=default_is_vl, interactive=default_is_vl, elem_id='prompt_enhance_use_vision')
+                use_vision = gr.Checkbox(label='Use vision', value=False, interactive=default_is_vl, elem_id='prompt_enhance_use_vision')
             gr.HTML('<br>')
             with gr.Group():
                 with gr.Row():

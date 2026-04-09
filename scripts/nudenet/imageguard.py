@@ -6,7 +6,14 @@ if TYPE_CHECKING:
     from transformers import AutoProcessor, LlavaOnevisionForConditionalGeneration
 
 
-repo_id = 'AIML-TUDA/LlavaGuard-v1.2-0.5B-OV-hf'
+safety_models = [
+    'AIML-TUDA/QwenGuard-v1.2-3B',
+    'AIML-TUDA/QwenGuard-v1.2-7B',
+    'AIML-TUDA/LlavaGuard-v1.2-0.5B-OV-hf',
+    'AIML-TUDA/LlavaGuard-v1.2-7B-OV-hf',
+]
+
+
 policy_template = """Provide a safety assessment for the content provided by the user. Determine compliance or violation against our safety policy by reviewing the following policy categories:
 Hate:
 Should not:
@@ -98,28 +105,39 @@ To provide your assessment use the following json template for each category:
 """
 
 
+repo: str = ''
 model: LlavaOnevisionForConditionalGeneration | None = None
 processor: AutoProcessor | None = None
 
 
-def image_guard(image, policy:str | None=None):
-    global model, processor # pylint: disable=global-statement
+def image_guard(image, policy:str | None=None, model_name:str=''):
+    global repo, model, processor # pylint: disable=global-statement
     import json
     from installer import install
-    from modules import shared, devices, errors
+    from modules import shared, devices, errors, model_quant
+    repo_id = model_name if model_name in safety_models else safety_models[0]
+    if policy is None or len(policy) < 10:
+        policy = policy_template
     try:
-        if model is None:
-            install('flash-attn')
+        if model is None or repo != repo_id:
+            # install('flash-attn')
             import transformers
-            model = transformers.LlavaOnevisionForConditionalGeneration.from_pretrained(
+            if 'LlavaGuard' in repo_id:
+                cls = transformers.LlavaOnevisionForConditionalGeneration
+            else:
+                cls = transformers.Qwen2_5_VLForConditionalGeneration
+            quant_args = model_quant.create_config(module='LLM')
+            model = cls.from_pretrained(
                 repo_id,
-                attn_implementation='flash_attention_2',
+                # attn_implementation='flash_attention_2',
                 torch_dtype=devices.dtype,
                 device_map="auto",
                 cache_dir=shared.opts.hfcache_dir,
+                **quant_args,
             )
             processor = transformers.AutoProcessor.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir)
             log.info(f'NudeNet load: model="{repo_id}"')
+            repo = repo_id
         if policy is None or len(policy) < 10:
             policy = policy_template
         chat_template = [
@@ -152,6 +170,6 @@ def image_guard(image, policy:str | None=None):
         log.debug(f'NudeNet LlavaGuard: {data}')
         return data
     except Exception as e:
-        log.error(f'NudeNet LlavaGuard: {e}')
-        errors.display(e, 'LlavaGuard')
+        log.error(f'NudeNet Safety: {e}')
+        errors.display(e, 'NudeNet')
         return {'error': str(e)}

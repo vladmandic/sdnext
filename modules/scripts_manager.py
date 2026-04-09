@@ -29,6 +29,9 @@ class PostprocessImageArgs:
     def __init__(self, image):
         self.image = image
 
+    def __str__(self):
+        return f'PostprocessImageArgs(image={self.image})'
+
 
 class PostprocessBatchListArgs:
     def __init__(self, images):

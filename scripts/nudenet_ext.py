@@ -14,10 +14,11 @@ def create_ui(accordion=True):
 
     with gr.Accordion('NudeNet', open = False, elem_id='postprocess_nudenet_accordion') if accordion else gr.Group():
         with gr.Row():
-            enabled = gr.Checkbox(label = 'Enabled', value = False)
+            copy = gr.Checkbox(label = 'Save copy', value = False)
+            metadata = gr.Checkbox(label = 'Update metadata', value = True)
+        with gr.Row():
+            enabled = gr.Checkbox(label = 'NudeNet enabled', value = False)
         with gr.Group(visible=False) as gr_censor:
-            with gr.Row():
-                copy = gr.Checkbox(label = 'Save as copy', value = False)
             with gr.Row():
                 score = gr.Slider(label = 'Sensitivity', value = 0.2, mininimum = 0, maximum = 1, step = 0.01, interactive=True)
                 blocks = gr.Slider(label = 'Block size', value = 3, minimum = 1, maximum = 10, step = 1, interactive=True)
@@ -27,8 +28,6 @@ def create_ui(accordion=True):
             with gr.Row():
                 overlay = gr.Textbox(label = 'Overlay', value = '', placeholder = 'Path to image or leave default', interactive=True)
         with gr.Row():
-            metadata = gr.Checkbox(label = 'Add metadata', value = True)
-        with gr.Row():
             lang = gr.Checkbox(label = 'Check language', value = False)
         with gr.Group(visible=False) as gr_lang:
             with gr.Row():
@@ -36,15 +35,21 @@ def create_ui(accordion=True):
                 alphabet = gr.Textbox(label = 'Allowed alphabets', value = 'latn', placeholder = 'Comma separated list of allowed alphabets', interactive=True)
         with gr.Row():
             policy = gr.Checkbox(label = 'Check policy violations', value = False)
+        with gr.Group(visible=False) as gr_policy:
+            with gr.Row():
+                policy_model = gr.Dropdown(label = 'Policy model', value = imageguard.safety_models[0], choices = imageguard.safety_models, interactive=True)
+            with gr.Row():
+                policy_text = gr.Textbox(label = 'Policy template', value = '', placeholder = 'Custom policy template', interactive=True, lines=2)
         with gr.Row():
             banned = gr.Checkbox(label = 'Check banned words', value = False)
         with gr.Group(visible=False) as gr_banned:
             with gr.Row():
-                words = gr.Textbox(label = 'Banned words', value = '', placeholder = 'Comma separated list of banned words', interactive=True)
+                words = gr.Textbox(label = 'Banned words', value = '', placeholder = 'Comma separated list of banned words', interactive=True, lines=2)
         enabled.change(fn=update_ui, inputs=[enabled], outputs=[gr_censor])
         lang.change(fn=update_ui, inputs=[lang], outputs=[gr_lang])
+        policy.change(fn=update_ui, inputs=[policy], outputs=[gr_policy])
         banned.change(fn=update_ui, inputs=[banned], outputs=[gr_banned])
-    return [enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words]
+    return [enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words, policy_model, policy_text]
 
 
 # main processing used in both modes
@@ -65,18 +70,20 @@ def process(
         allowed='eng',
         alphabet='latn',
         words='',
+        policy_model='',
+        policy_text='',
     ):
     from modules.shared import state, log
-    if enabled and pp is not None and pp.image is not None:
+
+    if enabled and (pp is not None) and (pp.image is not None):
         if nudenet.detector is None:
             nudenet.detector = nudenet.NudeDetector(providers=['CUDAExecutionProvider', 'CPUExecutionProvider']) # loads and initializes model once
         t0 = time.time()
         nudes = nudenet.detector.censor(image=pp.image, method=method, min_score=score, censor=censor, blocks=blocks, overlay=overlay)
         t1 = time.time()
         if len(nudes.censored) > 0:  # Check if there are any censored areas
-            if p is None:
-                pp.image = nudes.output
-            else:
+            pp.image = nudes.output
+            if copy and p is not None:
                 info = processing.create_infotext(p)
                 images.save_image(nudes.output, path=p.outpath_samples, seed=p.seed, prompt=p.prompt, info=info, p=p, suffix="-censored")
         dct = {d["label"]: d["score"] for d in nudes.detections}
@@ -89,7 +96,8 @@ def process(
             pp.info['NudeNet'] = meta
             pp.info['NSFW'] = nsfw
         log.debug(f'NudeNet detect: {dct} nsfw={nsfw} time={(t1 - t0):.2f}')
-    if lang and p is not None:
+
+    if lang and (p is not None):
         prompts = '.\n'.join(p.all_prompts) if p.all_prompts else p.prompt
         allowed = [a.strip() for a in allowed.split(',')] if allowed else []
         alphabet = [a.strip() for a in alphabet.split(',')] if alphabet else []
@@ -103,9 +111,10 @@ def process(
             if not any(a in res for a in alphabet):
                 log.error(f'NudeNet: alphabet={res} allowed={alphabet} not allowed')
                 state.interrupted = True
-        if metadata and p is not None:
+        if metadata and (p is not None):
             p.extra_generation_params["Lang"] = res
-    if banned and p is not None:
+
+    if banned and (p is not None):
         prompts = '.\n'.join(p.all_prompts) if p.all_prompts else p.prompt
         found = bannedwords.check_banned(words=words, prompt=prompts)
         if len(found) > 0:
@@ -113,9 +122,12 @@ def process(
             state.interrupted = True
             if metadata and p is not None:
                 p.extra_generation_params["Banned"] = ', '.join(found)
-    if policy and p is not None and pp is not None and pp.image is not None:
-        res = imageguard.image_guard(image=pp.image)
-        if metadata and p is not None:
+                if (not copy) and (pp is not None) and (pp.image is not None):
+                    pp.image = None
+
+    if policy and (pp is not None) and (pp.image is not None):
+        res = imageguard.image_guard(image=pp.image, policy=policy_text, model_name=policy_model)
+        if metadata and (p is not None):
             p.extra_generation_params["Rating"] = res.get('rating', 'N/A')
             p.extra_generation_params["Category"] = res.get('category', 'N/A')
         if metadata and isinstance(pp, scripts_postprocessing.PostprocessedImage):
@@ -139,12 +151,12 @@ class ScriptNudeNet(scripts.Script):
         return create_ui(accordion=True)
 
     # triggered by callback
-    def before_process(self, p: processing.StableDiffusionProcessing, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words): # pylint: disable=arguments-differ
-        process(p, None, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words)
+    def before_process(self, p: processing.StableDiffusionProcessing, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words, policy_model, policy_text): # pylint: disable=arguments-differ
+        process(p, None, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words, policy_model, policy_text)
 
     # triggered by callback
-    def postprocess_image(self, p: processing.StableDiffusionProcessing, pp: scripts.PostprocessImageArgs, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words): # pylint: disable=arguments-differ
-        process(p, pp, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words)
+    def postprocess_image(self, p: processing.StableDiffusionProcessing, pp: scripts.PostprocessImageArgs, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words, policy_model, policy_text): # pylint: disable=arguments-differ
+        process(p, pp, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words, policy_model, policy_text)
 
 
 # defines postprocessing script for dual-mode usage
@@ -154,9 +166,9 @@ class ScriptPostprocessingNudeNet(scripts_postprocessing.ScriptPostprocessing):
 
     # return signature is object with gradio components
     def ui(self):
-        enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words = create_ui(accordion=True)
-        return { 'enabled': enabled, 'lang': lang, 'policy': policy, 'banned': banned, 'metadata': metadata, 'copy': copy, 'score': score, 'blocks': blocks, 'censor': censor, 'method': method, 'overlay': overlay, 'allowed': allowed, 'alphabet': alphabet, 'words': words}
+        enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words, policy_model, policy_text = create_ui(accordion=True)
+        return { 'enabled': enabled, 'lang': lang, 'policy': policy, 'banned': banned, 'metadata': metadata, 'copy': copy, 'score': score, 'blocks': blocks, 'censor': censor, 'method': method, 'overlay': overlay, 'allowed': allowed, 'alphabet': alphabet, 'words': words, 'policy_model': policy_model, 'policy_text': policy_text}
 
     # triggered by callback
-    def process(self, pp: scripts_postprocessing.PostprocessedImage, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words): # pylint: disable=arguments-differ
-        process(None, pp, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words)
+    def process(self, pp: scripts_postprocessing.PostprocessedImage, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words, policy_model, policy_text): # pylint: disable=arguments-differ
+        process(None, pp, enabled, lang, policy, banned, metadata, copy, score, blocks, censor, method, overlay, allowed, alphabet, words, policy_model, policy_text)

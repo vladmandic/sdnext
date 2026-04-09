@@ -42,11 +42,12 @@ def prompt_check(
 def image_guard(
     image: str = Body("", title='input image'),
     policy: str = Body("", title='optional policy definition'),
+    model: str = Body("", title='optional policy model name'),
 ):
     """Evaluate an image against a content policy using the ImageGuard classifier."""
     from scripts.nudenet import imageguard # pylint: disable=no-name-in-module
     image = api.decode_base64_to_image(image)
-    res = imageguard.image_guard(image=image, policy=policy)
+    res = imageguard.image_guard(image=image, policy=policy, model_name=model)
     return res
 
 
