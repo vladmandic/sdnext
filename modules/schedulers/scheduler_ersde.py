@@ -201,7 +201,12 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
         self.lower_order_nums = 0
 
     def _setup_flow(self, sigmas, device, mu=None):
-        """Common flow-matching schedule setup from a sigmas tensor."""
+        """Common flow-matching schedule setup from a sigmas tensor.
+
+        Uses alpha=1 so the VP update formula r_alpha*r_fn*x + alpha*(1-r_fn)*x0
+        reduces to the correct flow-matching form r_f*x + (1-r_f)*x0, and lambda=sigma
+        keeps the customized noise function in a well-behaved range on [0,1].
+        """
         self._is_flow = True
         if self.config.use_dynamic_shifting:
             if mu is None:
@@ -210,8 +215,8 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
         else:
             sigmas = self.config.shift * sigmas / (1 + (self.config.shift - 1) * sigmas)
         flow_sigmas = sigmas.clamp(min=1e-8, max=1.0 - 1e-8)
-        flow_alphas = 1.0 - flow_sigmas
-        flow_lambdas = flow_sigmas / flow_alphas
+        flow_alphas = torch.ones_like(flow_sigmas)
+        flow_lambdas = flow_sigmas.clone()
         self.timesteps = (sigmas * self.config.num_train_timesteps).to(device=device)
         self.sigmas = torch.cat([sigmas, torch.zeros(1, device=sigmas.device, dtype=sigmas.dtype)])
         self._flow_alphas = torch.cat([flow_alphas, torch.ones(1, device=device, dtype=torch.float64)])
