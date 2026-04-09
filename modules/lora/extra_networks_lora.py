@@ -131,9 +131,11 @@ def parse(p, params_list, step=0):
         dyn_dims.append(dyn_dim)
 
         lora_module = []
-        if 'high' in params.positional or 'HIGH 14B' in params.positional[0]:
+        name_lower = params.positional[0].lower()
+        positional_lower = [str(p).lower() for p in params.positional]
+        if 'high' in positional_lower or '_high' in name_lower or 'high ' in name_lower:
             lora_module.append('transformer')
-        if 'low' in params.positional or 'LOW 14B' in params.positional[0]:
+        if 'low' in positional_lower or '_low' in name_lower or 'low ' in name_lower:
             lora_module.append('transformer_2')
         if params.named.get('module', None) is not None:
             lora_module.append(params.named['module'].lower())
