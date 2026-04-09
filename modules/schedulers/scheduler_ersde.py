@@ -306,6 +306,13 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
             return torch.where(torch.abs(x) < eps, torch.zeros_like(x), x)
         return 0.0 if abs(x) < eps else x
 
+    @staticmethod
+    def _safe_div(numerator, denominator, eps=1e-10):
+        """Division with sign-preserving zero protection for lambda differences."""
+        if denominator.abs() < eps:
+            return torch.zeros_like(numerator)
+        return numerator / denominator
+
     def _compute_fn(self, x):
         """Evaluate the noise scaling function on a scalar or tensor."""
         if isinstance(x, (int, float)):
@@ -485,7 +492,7 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
 
         elif effective_order == 2:
             # 2nd order: add first derivative correction
-            d_x0 = (x0 - self.old_x0) / (lambda_curr - self.prev_lambda).clamp(min=1e-10)
+            d_x0 = self._safe_div(x0 - self.old_x0, lambda_curr - self.prev_lambda)
             s_int = self._compute_integral(lambda_next, lambda_curr)
             s_int = s_int.to(device)
             delta_lambda = lambda_next - lambda_curr
@@ -494,8 +501,8 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
 
         elif effective_order == 3:
             # 3rd order: add second derivative correction
-            d_x0 = (x0 - self.old_x0) / (lambda_curr - self.prev_lambda).clamp(min=1e-10)
-            dd_x0 = 2.0 * (d_x0 - self.old_d_x0) / (lambda_curr - self.prev_prev_lambda).clamp(min=1e-10)
+            d_x0 = self._safe_div(x0 - self.old_x0, lambda_curr - self.prev_lambda)
+            dd_x0 = self._safe_div(2.0 * (d_x0 - self.old_d_x0), lambda_curr - self.prev_prev_lambda)
             s_int = self._compute_integral(lambda_next, lambda_curr).to(device)
             s_d_int = self._compute_derivative_integral(lambda_next, lambda_curr).to(device)
             delta_lambda = lambda_next - lambda_curr
