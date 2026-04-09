@@ -30,7 +30,7 @@ FACE_TEST_IMAGES = [
     'models/Reference/ponyRealism_V23.jpg',                               # realistic woman, clear face
     'models/Reference/HiDream-ai--HiDream-I1-Fast.jpg',                   # realistic man, clear face + text
     'models/Reference/stabilityai--stable-diffusion-xl-base-1.0.jpg',     # realistic woman portrait
-    'models/Reference/CalamitousFelicitousness--Anima-sdnext-diffusers.jpg',  # anime face (non-realistic test)
+    'models/Reference/CalamitousFelicitousness--Anima-Preview-3-sdnext-diffusers.jpg',  # anime face (non-realistic test)
 ]
 
 # Fallback images (no guaranteed faces)
