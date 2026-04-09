@@ -200,41 +200,43 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
         self.prev_prev_lambda = None
         self.lower_order_nums = 0
 
+    def _setup_flow(self, sigmas, device, mu=None):
+        """Common flow-matching schedule setup from a sigmas tensor."""
+        self._is_flow = True
+        if self.config.use_dynamic_shifting:
+            if mu is None:
+                raise ValueError("mu must be provided when use_dynamic_shifting=True")
+            sigmas = self._time_shift(mu, 1.0, sigmas)
+        else:
+            sigmas = self.config.shift * sigmas / (1 + (self.config.shift - 1) * sigmas)
+        flow_sigmas = sigmas.clamp(min=1e-8, max=1.0 - 1e-8)
+        flow_alphas = 1.0 - flow_sigmas
+        flow_lambdas = flow_sigmas / flow_alphas
+        self.timesteps = (sigmas * self.config.num_train_timesteps).to(device=device)
+        self.sigmas = torch.cat([sigmas, torch.zeros(1, device=sigmas.device, dtype=sigmas.dtype)])
+        self._flow_alphas = torch.cat([flow_alphas, torch.ones(1, device=device, dtype=torch.float64)])
+        self._flow_sigmas = torch.cat([flow_sigmas, torch.zeros(1, device=device, dtype=torch.float64)])
+        self._flow_lambdas = torch.cat([flow_lambdas, torch.zeros(1, device=device, dtype=torch.float64)])
+
     def set_timesteps(self, num_inference_steps: Optional[int] = None, device: Union[str, torch.device] = None, timesteps: Optional[List[int]] = None, sigmas: Optional[List[float]] = None, mu: Optional[float] = None):
         if sigmas is not None:
             # Flow-matching path: sigmas provided externally
-            self._is_flow = True
             sigmas = np.array(sigmas, dtype=np.float64) if not isinstance(sigmas, np.ndarray) else sigmas.astype(np.float64)
             self.num_inference_steps = len(sigmas)
-
             sigmas = torch.from_numpy(sigmas).to(dtype=torch.float64, device=device)
-
-            if self.config.use_dynamic_shifting:
-                if mu is None:
-                    raise ValueError("mu must be provided when use_dynamic_shifting=True")
-                sigmas = self._time_shift(mu, 1.0, sigmas)
-            else:
-                sigmas = self.config.shift * sigmas / (1 + (self.config.shift - 1) * sigmas)
-
-            # Derive alpha/sigma/lambda for flow matching: alpha = 1 - sigma, lambda = sigma / alpha
-            flow_sigmas = sigmas.clamp(min=1e-8, max=1.0 - 1e-8)
-            flow_alphas = 1.0 - flow_sigmas
-            flow_lambdas = flow_sigmas / flow_alphas
-
-            ts = sigmas * self.config.num_train_timesteps
-            self.timesteps = ts.to(device=device)
-            self.sigmas = torch.cat([sigmas, torch.zeros(1, device=sigmas.device, dtype=sigmas.dtype)])
-            # Store flow arrays with trailing zero sigma entry
-            self._flow_alphas = torch.cat([flow_alphas, torch.ones(1, device=device, dtype=torch.float64)])
-            self._flow_sigmas = torch.cat([flow_sigmas, torch.zeros(1, device=device, dtype=torch.float64)])
-            self._flow_lambdas = torch.cat([flow_lambdas, torch.zeros(1, device=device, dtype=torch.float64)])
+            self._setup_flow(sigmas, device, mu)
+        elif self.config.prediction_type == "flow_prediction":
+            # Flow-matching path: compute flow schedule internally
+            self.num_inference_steps = num_inference_steps
+            sigmas = np.linspace(1.0, 1.0 / self.config.num_train_timesteps, num_inference_steps)
+            sigmas = torch.from_numpy(sigmas).to(dtype=torch.float64, device=device)
+            self._setup_flow(sigmas, device, mu)
         elif timesteps is not None:
             # Custom timesteps path
             self._is_flow = False
             self.num_inference_steps = len(timesteps)
             timesteps = np.array(timesteps, dtype=np.int64)
             self.timesteps = torch.from_numpy(timesteps).to(device)
-            # Compute sigmas from alphas_cumprod so pipelines can access self.sigmas
             sigmas_arr = []
             for t in timesteps:
                 acp = self.alphas_cumprod[t].item()
@@ -263,7 +265,6 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
                 raise ValueError(f"{self.config.timestep_spacing} is not supported")
 
             self.timesteps = torch.from_numpy(timesteps).to(device)
-            # Compute sigmas from alphas_cumprod so pipelines can access self.sigmas
             sigmas_arr = []
             for t in timesteps:
                 acp = self.alphas_cumprod[t].item()
