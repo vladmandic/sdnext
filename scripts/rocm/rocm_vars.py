@@ -4,6 +4,9 @@ import sysconfig
 from typing import Dict, Any, List, Tuple
 
 
+_BIN_DIR = "bin" if sys.platform == "win32" else "lib"
+
+
 def _sitepackages_subpath(*parts: str) -> str:
     """Return a {VIRTUAL_ENV}-prefixed path into site-packages using OS-native separators.
 
@@ -16,14 +19,14 @@ def _sitepackages_subpath(*parts: str) -> str:
 
 GENERAL_VARS: Dict[str, Dict[str, Any]] = {
      "MIOPEN_SYSTEM_DB_PATH": {
-        "default": _sitepackages_subpath("{LIBS_PKG}", "bin") + os.sep,
+        "default": _sitepackages_subpath("{LIBS_PKG}", _BIN_DIR) + os.sep,
         "desc": "MIOpen system path",
         "widget": "textbox",
         "options": None,
         "restart_required": True,
     },
     "ROCBLAS_TENSILE_LIBPATH": {
-        "default": _sitepackages_subpath("{LIBS_PKG}", "bin", "rocblas", "library"),
+        "default": _sitepackages_subpath("{LIBS_PKG}", _BIN_DIR, "rocblas", "library"),
         "desc": "rocBLAS Tensile library path",
         "widget": "textbox",
         "options": None,
