@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-10
+## Update for 2026-04-12
 
 - **Models**
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
@@ -54,6 +54,7 @@
   - fix prompt weighted lists and internal wildcards
   - improve `path_to_repo` handling for custom paths
   - eliminate `api` auth security bypass
+  - multiple `schedulers` signature corrections
 
 ## Update for 2026-04-01
 

@@ -141,7 +141,8 @@ class LangevinDynamicsScheduler(SchedulerMixin, ConfigMixin):
 
         sigmas = np.array(trajectory)
         # Force monotonicity to prevent negative h in step()
-        sigmas = np.sort(sigmas)[::-1]
+        # Reverse creates a negative-stride view; copy to keep torch.from_numpy compatible.
+        sigmas = np.sort(sigmas)[::-1].copy()
         sigmas[-1] = end_sigma
 
         if self.config.use_karras_sigmas:
