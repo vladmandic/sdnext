@@ -13,12 +13,10 @@ if TYPE_CHECKING:
     import diffusers.models.lora
 
 
-bnb = None
 re_network_name = re.compile(r"(.*)\s*\([0-9a-fA-F]+\)")
 
 
 def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, wanted_names: tuple):
-    global bnb # pylint: disable=W0603
     backup_size = 0
     if len(l.loaded_networks) > 0 and network_layer_name is not None and any([net.modules.get(network_layer_name, None) for net in l.loaded_networks]): # noqa: C419 # pylint: disable=R1729
         t0 = time.time()
@@ -35,35 +33,23 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
         if weights_backup is None and wanted_names != (): # pylint: disable=C1803
             weight = getattr(self, 'weight', None)
             self.network_weights_backup = None
-            if getattr(weight, "quant_type", None) in ['nf4', 'fp4']:
-                if bnb is None:
-                    bnb = model_quant.load_bnb('Network load: type=LoRA', silent=True)
-                if bnb is not None:
-                    if shared.opts.lora_fuse_native:
-                        self.network_weights_backup = True
-                    else:
-                        self.network_weights_backup = bnb.functional.dequantize_4bit(weight, quant_state=weight.quant_state, quant_type=weight.quant_type, blocksize=weight.blocksize,)
-                    self.quant_state, self.quant_type, self.blocksize = weight.quant_state, weight.quant_type, weight.blocksize
-                else:
-                    self.network_weights_backup = weight.clone().to(devices.cpu) if not shared.opts.lora_fuse_native else True
+            if shared.opts.lora_fuse_native:
+                self.network_weights_backup = True
             else:
-                if shared.opts.lora_fuse_native:
-                    self.network_weights_backup = True
-                else:
-                    self.network_weights_backup = weight.clone().to(devices.cpu)
-                    if hasattr(self, "sdnq_dequantizer"):
-                        self.sdnq_dequantizer_backup = self.sdnq_dequantizer
-                        self.sdnq_scale_backup = self.scale.clone().to(devices.cpu)
-                        if self.zero_point is not None:
-                            self.sdnq_zero_point_backup = self.zero_point.clone().to(devices.cpu)
-                        else:
-                            self.sdnq_zero_point_backup = None
-                        if self.svd_up is not None:
-                            self.sdnq_svd_up_backup = self.svd_up.clone().to(devices.cpu)
-                            self.sdnq_svd_down_backup = self.svd_down.clone().to(devices.cpu)
-                        else:
-                            self.sdnq_svd_up_backup = None
-                            self.sdnq_svd_down_backup = None
+                self.network_weights_backup = weight.clone().to(devices.cpu)
+                if hasattr(self, "sdnq_dequantizer"):
+                    self.sdnq_dequantizer_backup = self.sdnq_dequantizer
+                    self.sdnq_scale_backup = self.scale.clone().to(devices.cpu)
+                    if self.zero_point is not None:
+                        self.sdnq_zero_point_backup = self.zero_point.clone().to(devices.cpu)
+                    else:
+                        self.sdnq_zero_point_backup = None
+                    if self.svd_up is not None:
+                        self.sdnq_svd_up_backup = self.svd_up.clone().to(devices.cpu)
+                        self.sdnq_svd_down_backup = self.svd_down.clone().to(devices.cpu)
+                    else:
+                        self.sdnq_svd_up_backup = None
+                        self.sdnq_svd_down_backup = None
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
@@ -161,16 +147,7 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
     if model_weights is None: # weights are used if provided-from-backup else use self.weight
         model_weights = self.weight
     weight, new_weight = None, None
-    if self.__class__.__name__ == 'Linear4bit' and bnb is not None:
-        try:
-            dequant_weight = bnb.functional.dequantize_4bit(model_weights.to(devices.device), quant_state=self.quant_state, quant_type=self.quant_type, blocksize=self.blocksize)
-            new_weight = dequant_weight.to(devices.device) + lora_weights.to(devices.device)
-            weight = bnb.nn.Params4bit(new_weight.to(device), quant_state=self.quant_state, quant_type=self.quant_type, blocksize=self.blocksize, requires_grad=False)
-            # TODO lora: maybe force imediate quantization
-            # weight._quantize(devices.device) / weight.to(device=device)
-        except Exception as e:
-            log.error(f'Network load: type=LoRA quant=bnb cls={self.__class__.__name__} type={self.quant_type} blocksize={self.blocksize} state={vars(self.quant_state)} weight={self.weight} bias={lora_weights} {e}')
-    elif not bias and hasattr(self, "sdnq_dequantizer"):
+    if not bias and hasattr(self, "sdnq_dequantizer"):
         try:
             from modules.sdnq import sdnq_quantize_layer
             if hasattr(self, "sdnq_dequantizer_backup"):

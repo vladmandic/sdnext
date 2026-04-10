@@ -1,6 +1,6 @@
 ---
 name: github-issues
-description: "Read SD.Next GitHub issues with [Issues] in the title and generate a markdown report with short summary, status, and suggested next steps per issue."
+description: "Read SD.Next GitHub issues with [Issue] in the title and generate a markdown report with short summary, status, and suggested next steps per issue."
 argument-hint: "Optionally specify state (open/closed/all), max issues, and whether to include labels/assignees"
 ---
 
@@ -34,11 +34,11 @@ Create markdown containing, for each matching issue:
 
 ### 1. Search Matching Issues
 
-Use GitHub search to find issues with `[Issues]` in title.
+Use GitHub search to find issues with `[Issue]` in title.
 
 Preferred search query template:
 
-- `is:issue in:title "[Issues]" repo:vladmandic/sdnext`
+- `is:issue in:title "[Issue]" repo:vladmandic/sdnext`
 
 State filters (when requested):
 
@@ -96,7 +96,7 @@ If there are many issues, keep summaries short and prioritize clarity.
 
 A successful run must:
 
-- search SD.Next issues with `[Issues]` in title
+- search SD.Next issues with `[Issue]` in title
 - include all matched issues in scope (or explicitly mention applied limit)
 - provide summary, status, and suggested next steps for each issue
 - return the final result as markdown

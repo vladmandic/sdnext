@@ -8,9 +8,6 @@ from installer import install
 from modules.logger import log
 
 
-ao = None
-bnb = None
-optimum_quanto = None
 trt = None
 quant_last_model_name = None
 quant_last_model_device = None
