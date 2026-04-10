@@ -10,7 +10,7 @@ class PromptMatrixScript(scripts_manager.Script):
     def title(self):
         return "Prompt matrix"
 
-    def ui(self, is_img2img):
+    def ui(self, _is_img2img):
         with gr.Row():
             gr.HTML('<span">&nbsp Prompt matrix</span><br>')
         with gr.Row():

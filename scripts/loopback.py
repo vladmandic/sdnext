@@ -11,10 +11,10 @@ class LoopbackScript(scripts_manager.Script):
     def title(self):
         return "Loopback"
 
-    def show(self, is_img2img):
+    def show(self, _is_img2img):
         return True
 
-    def ui(self, is_img2img):
+    def ui(self, _is_img2img):
         with gr.Row():
             gr.HTML("<span>&nbsp Loopback</span><br>")
         with gr.Row():

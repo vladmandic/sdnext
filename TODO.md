@@ -135,7 +135,6 @@ installer.py:TODO rocm: switch to pytorch source when it becomes available
 modules/control/run.py:TODO modernui: monkey-patch for missing tabs.select event
 modules/history.py:TODO: apply metadata, preview, load/save
 modules/image/resize.py:TODO resize image: enable full VAE mode for resize-latent
-modules/lora/lora_apply.py:TODO lora: add other quantization types
 modules/lora/lora_apply.py:TODO lora: maybe force imediate quantization
 modules/lora/lora_extract.py:TODO: lora: support pre-quantized flux
 modules/lora/lora_load.py:TODO lora: add t5 key support for sd35/f1

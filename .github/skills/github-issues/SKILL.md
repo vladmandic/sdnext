@@ -6,12 +6,12 @@ argument-hint: "Optionally specify state (open/closed/all), max issues, and whet
 
 # Summarize SD.Next [Issues] GitHub Issues
 
-Fetch issues from the SD.Next GitHub repository that contain `[Issues]` in the title, then produce a concise markdown report with one entry per issue.
+Fetch issues from the SD.Next GitHub repository that contain `[Issue]` in the title, then produce a concise markdown report with one entry per issue.
 
 ## When To Use
 
 - The user asks for periodic issue triage summaries
-- You need an actionable status report for `[Issues]` tracker items
+- You need an actionable status report for `[Issue]` tracker items
 - You want suggested next actions for each matching issue
 
 ## Repository

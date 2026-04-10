@@ -16,7 +16,7 @@ class StyleAlignedScript(scripts_manager.Script):
     def title(self):
         return 'Style Aligned Image Generation'
 
-    def show(self, is_img2img):
+    def show(self, _is_img2img):
         return True
 
     def reset(self):

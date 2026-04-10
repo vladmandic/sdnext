@@ -49,7 +49,7 @@ class MuLanScript(scripts_manager.Script):
     def title(self):
         return 'MuLan: Multi Language Prompts'
 
-    def show(self, is_img2img):
+    def show(self, _is_img2img):
         return True
 
     def ui(self, _is_img2img):

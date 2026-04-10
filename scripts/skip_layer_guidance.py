@@ -15,7 +15,7 @@ class SLGScript(scripts_manager.Script):
     def title(self):
         return 'SLG: Skip Layer Guidance'
 
-    def show(self, is_img2img):
+    def show(self, _is_img2img):
         return True
 
     # return signature is array of gradio components

@@ -25,6 +25,10 @@ debug = log.trace if os.environ.get('SD_XYZ_DEBUG', None) is not None else lambd
 class XYZGridScript(scripts_manager.Script):
     current_axis_options = []
 
+    def __init__(self):
+        super().__init__()
+        self.infotext_fields = ()
+
     def title(self):
         return "XYZ Grid Script"
 

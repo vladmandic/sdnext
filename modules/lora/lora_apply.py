@@ -161,7 +161,6 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
     if model_weights is None: # weights are used if provided-from-backup else use self.weight
         model_weights = self.weight
     weight, new_weight = None, None
-    # TODO lora: add other quantization types
     if self.__class__.__name__ == 'Linear4bit' and bnb is not None:
         try:
             dequant_weight = bnb.functional.dequantize_4bit(model_weights.to(devices.device), quant_state=self.quant_state, quant_type=self.quant_type, blocksize=self.blocksize)

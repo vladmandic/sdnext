@@ -8,7 +8,7 @@ class InitLatentsScript(scripts_manager.Script):
     def title(self):
         return 'Init Latents'
 
-    def show(self, is_img2img):
+    def show(self, _is_img2img):
         return scripts_manager.AlwaysVisible
 
     @staticmethod
@@ -29,7 +29,7 @@ class InitLatentsScript(scripts_manager.Script):
         p.init_latent = slerp(p.subseed_strength, latents, var_latents) if p.subseed_strength < 1 else var_latents
         p.generator = generator if p.subseed_strength <= 0.5 else var_generator
 
-    def process_batch(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=arguments-differ
+    def process_batch(self, p: processing.StableDiffusionProcessing, *args, **_kwargs): # pylint: disable=arguments-differ
         if not shared.sd_loaded or not hasattr(shared.sd_model, 'unet'):
             return
         from modules.processing_helpers import create_random_tensors

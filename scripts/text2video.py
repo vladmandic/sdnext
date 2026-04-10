@@ -1,9 +1,6 @@
 """
 Additional params for Text-to-Video
 <https://huggingface.co/docs/diffusers/api/pipelines/text_to_video>
-
-TODO text2video items:
-- Video-to-Video upscaling: <https://huggingface.co/cerspense/zeroscope_v2_XL>, <https://huggingface.co/damo-vilab/MS-Vid2Vid-XL>
 """
 
 import gradio as gr

@@ -29,14 +29,16 @@ If activation fails, report the blocker and stop before running Python-based too
 Run tools in this exact sequence:
 
 1. `pre-commit run --all-files`
-2. `eslint . javascript/`
-3. `cd extensions-builtin/sdnext-modernui && eslint . javascript/`
+2. `{PROJECT_ROOT}/node_modules/.bin/eslint . javascript/`
+3. `cd extensions-builtin/sdnext-modernui && {PROJECT_ROOT}/node_modules/.bin/eslint . javascript/`
 4. `ruff check`
 5. `pylint *.py`
 6. `pylint modules/`
 7. `pylint pipelines/`
 8. `pylint scripts/`
 9. `pylint extensions-builtin/`
+
+Note that `pylint` can run for considerable time, so run with no timeouts.
 
 ## Fix Policy
 

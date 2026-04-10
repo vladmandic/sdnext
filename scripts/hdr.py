@@ -13,10 +13,10 @@ class HDRScript(scripts_manager.Script):
     def title(self):
         return "HDR: High Dynamic Range"
 
-    def show(self, is_img2img):
+    def show(self, _is_img2img):
         return True
 
-    def ui(self, is_img2img):
+    def ui(self, _is_img2img):
         with gr.Row():
             gr.HTML("<span>&nbsp HDR: High Dynamic Range</span><br>")
         with gr.Row():
