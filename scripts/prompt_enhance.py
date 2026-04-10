@@ -116,6 +116,7 @@ class Options:
         'allura-org/Gemma-3-Glitter-4B',
         'coder3101/gemma-3-27b-it-heretic-v2',
         'p-e-w/gemma-3-12b-it-heretic',
+        'p-e-w/gemma-4-E2B-it-heretic-ara',
         'DavidAU/gemma-3-4b-it-heretic-uncensored-abliterated-Extreme',
         'DavidAU/Gemma-3-4B-VL-it-Gemini-Pro-Heretic-Uncensored-Thinking',
         'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning',
