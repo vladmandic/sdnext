@@ -55,6 +55,7 @@
   - improve `path_to_repo` handling for custom paths
   - eliminate `api` auth security bypass
   - multiple `schedulers` signature corrections
+  - multiple models reverse model classification
 
 ## Update for 2026-04-01
 

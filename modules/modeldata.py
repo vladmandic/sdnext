@@ -78,11 +78,15 @@ def get_model_type(pipe):
         model_type = 'pixartalpha'
     elif "Bria" in name:
         model_type = 'bria'
+    elif 'Kolors' in name:
+        model_type = 'kolors'
+    elif 'Meissonic' in name:
+        model_type = 'meissonic'
     elif 'Qwen' in name:
         model_type = 'qwen'
     elif 'NextStep' in name:
         model_type = 'nextstep'
-    elif 'X-Omni' in name:
+    elif 'XOmni' in name or 'X-Omni' in name:
         model_type = 'x-omni'
     elif 'Photoroom' in name:
         model_type = 'prx'
@@ -90,14 +94,12 @@ def get_model_type(pipe):
         model_type = 'longcat'
     elif 'GlmImage' in name:
         model_type = 'glmimage'
-    elif 'Ovis-Image' in name:
+    elif 'OvisImage' in name or 'Ovis-Image' in name:
         model_type = 'ovis'
     elif 'Wan' in name:
         model_type = 'wanai'
     elif 'ChronoEdit' in name:
         model_type = 'chrono'
-    elif 'HDM-xut' in name:
-        model_type = 'hdm'
     elif 'HunyuanImage3' in name:
         model_type = 'hunyuanimage3'
     elif 'HunyuanImage' in name:

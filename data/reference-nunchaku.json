@@ -47,7 +47,7 @@
   "FLUX.1-Fill Nunchaku SVDQuant": {
     "path": "black-forest-labs/FLUX.1-Fill-dev",
     "subfolder": "nunchaku",
-    "preview": "black-forest-labs--FLUX.1-Fill-dev.jpg",
+    "preview": "black-forest-labs--FLUX.1-dev.jpg",
     "desc": "Nunchaku SVDQuant quantization of FLUX.1-Fill-dev transformer for inpainting",
     "skip": true,
     "hidden": true,
@@ -59,7 +59,7 @@
   "FLUX.1-Depth Nunchaku SVDQuant": {
     "path": "black-forest-labs/FLUX.1-Depth-dev",
     "subfolder": "nunchaku",
-    "preview": "black-forest-labs--FLUX.1-Depth-dev.jpg",
+    "preview": "black-forest-labs--FLUX.1-dev.jpg",
     "desc": "Nunchaku SVDQuant quantization of FLUX.1-Depth-dev transformer for depth-conditioned generation",
     "skip": true,
     "hidden": true,
@@ -163,7 +163,7 @@
   "Sana 1.6B 1k Nunchaku SVDQuant": {
     "path": "Efficient-Large-Model/Sana_1600M_1024px_BF16_diffusers",
     "subfolder": "nunchaku",
-    "preview": "Efficient-Large-Model--Sana_1600M_1024px_BF16_diffusers.jpg",
+    "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
     "desc": "Nunchaku SVDQuant quantization of Sana 1.6B 1024px transformer with INT4 and SVD rank 32",
     "skip": true,
     "nunchaku": ["Model"],

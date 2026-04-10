@@ -53,8 +53,6 @@ def guess_by_name(fn, current_guess):
         new_guess = 'SegMoE'
     elif 'hunyuandit' in fn.lower():
         new_guess = 'HunyuanDiT'
-    elif 'hdm-xut' in fn.lower():
-        new_guess = 'hdm'
     elif 'pixart-xl' in fn.lower():
         new_guess = 'PixArt Alpha'
     elif 'stable-diffusion-3' in fn.lower():
@@ -81,8 +79,6 @@ def guess_by_name(fn, current_guess):
         new_guess = 'CogView 4'
     elif 'meissonic' in fn.lower():
         new_guess = 'Meissonic'
-    elif 'monetico' in fn.lower():
-        new_guess = 'Monetico'
     elif 'omnigen2' in fn.lower():
         new_guess = 'OmniGen2'
     elif 'omnigen' in fn.lower():

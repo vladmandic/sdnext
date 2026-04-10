@@ -505,7 +505,7 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_longcat import load_longcat
             sd_model = load_longcat(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Overfit']:
+        elif model_type in ['Ovis-Image', 'Overfit']:
             from pipelines.model_ovis import load_ovis
             sd_model = load_ovis(checkpoint_info, diffusers_load_config)
             allow_post_quant = False

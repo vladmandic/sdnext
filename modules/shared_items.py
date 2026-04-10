@@ -54,13 +54,11 @@ pipelines = {
     'GLM-Image': getattr(diffusers, 'GlmImagePipeline', None),
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
-    'Monetico': getattr(diffusers, 'DiffusionPipeline', None),
     'OmniGen2': getattr(diffusers, 'DiffusionPipeline', None),
     'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None),
     'SegMoE': getattr(diffusers, 'DiffusionPipeline', None),
     'FLite': getattr(diffusers, 'DiffusionPipeline', None),
     'Bria': getattr(diffusers, 'DiffusionPipeline', None),
-    'hdm': getattr(diffusers, 'DiffusionPipeline', None),
     'X-Omni': getattr(diffusers, 'DiffusionPipeline', None),
     'HunyuanImage3': getattr(diffusers, 'DiffusionPipeline', None),
     'ChronoEdit': getattr(diffusers, 'DiffusionPipeline', None),
