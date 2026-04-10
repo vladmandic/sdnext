@@ -59,6 +59,11 @@ General app structure is:
 - Device/backend-specific code paths (**CUDA/ROCm/IPEX/DirectML/OpenVINO**) should not assume one platform.
 - Scripts and extension loading is dynamic; failures may appear only when specific extensions or models are present.
 
+## File Creation
+
+- Any temporary scripts or markdown reports must be stored in `tmp/` folder
+- Any reusable test scripts must be stored in `test/` folder
+
 ## Repo-Local Skills
 
 All skills are defined in `.github/skills/` and indexed in `.github/skills/README.md`.

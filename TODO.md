@@ -48,8 +48,6 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 - [Mugen](https://huggingface.co/CabalResearch/Mugen)
 - [NucleusMoe](https://github.com/huggingface/diffusers/pull/13317)
-- [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma): Image and video generator for creative effects and professional filters
-- [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance): Pixel-space model eliminating VAE artifacts for high visual fidelity
 - [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
 - [Liquid](https://github.com/FoundationVision/Liquid): Unified vision-language auto-regressive generation paradigm
 - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO): Foundational multi-modal generation and understanding via discrete diffusion
@@ -131,23 +129,15 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 > npm run todo
 
 ```code
-installer.py:TODO rocm: switch to pytorch source when it becomes available
-modules/control/run.py:TODO modernui: monkey-patch for missing tabs.select event
-modules/history.py:TODO: apply metadata, preview, load/save
-modules/image/resize.py:TODO resize image: enable full VAE mode for resize-latent
-modules/lora/lora_apply.py:TODO lora: maybe force imediate quantization
-modules/lora/lora_extract.py:TODO: lora: support pre-quantized flux
-modules/lora/lora_load.py:TODO lora: add t5 key support for sd35/f1
-modules/masking.py:TODO: additional masking algorithms
-modules/modular_guiders.py:TODO: guiders
-modules/processing_class.py:TODO processing: remove duplicate mask params
-modules/sd_hijack_hypertile.py:TODO hypertile: vae breaks when using non-standard sizes
-modules/sd_models.py:TODO model load: implement model in-memory caching
-modules/sd_samplers_diffusers.py:TODO enso-required
-modules/sd_unet.py:TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage
-modules/transformer_cache.py:TODO fc: autodetect distilled based on model
-modules/transformer_cache.py:TODO fc: autodetect tensor format based on model
-modules/ui_models_load.py:TODO loader: load receipe
-modules/ui_models_load.py:TODO loader: save receipe
-modules/video_models/video_save.py:TODO audio set time-base
+installer.py:642:15: W0511: TODO rocm: switch to pytorch source when it becomes available (fixme)
+modules/transformer_cache.py:29:61: W0511: TODO fc: autodetect tensor format based on model (fixme)
+modules/transformer_cache.py:30:50: W0511: TODO fc: autodetect distilled based on model (fixme)
+modules/processing_class.py:404:32: W0511: TODO processing: remove duplicate mask params (fixme)
+modules/sd_samplers_diffusers.py:355:31: W0511: TODO enso-required (fixme)
+modules/sd_models.py:1356:5: W0511: TODO model load: implement model in-memory caching (fixme)
+modules/ui_models_load.py:257:5: W0511: TODO loader: load receipe (fixme)
+modules/ui_models_load.py:264:5: W0511: TODO loader: save receipe (fixme)
+modules/sd_hijack_hypertile.py:123:17: W0511: TODO hypertile: vae breaks when using non-standard sizes (fixme)
+modules/sd_unet.py:77:39: W0511: TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage (fixme)
+modules/modular_guiders.py:66:51: W0511: TODO: guiders (fixme)
 ```
