@@ -5,14 +5,18 @@
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
     generates images directly in RGB space using NextDiT-style architecture  
-  - [Bria FIBO](https://huggingface.co/briaai/FIBO) 8B parameter text-to-image model using Flow Matching  
-    includes *Normal*, *Edit*, and *Lite* (distilled) variants  
-    features lightweight SmolLM3-3B text encoder with efficient inference  
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
   - [Anima Preview-v3](https://huggingface.co/circlestone-labs/Anima) new version of Anima
+  - [Bria FIBO](https://huggingface.co/briaai/FIBO) 8B parameter text-to-image model using Flow Matching  
+    includes *Normal*, *Edit*, and *Lite* (distilled) variants  
+    features lightweight SmolLM3-3B text encoder with efficient inference  
+    *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
+  - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO) omni diffusion large language model for multimodal generation and understanding  
+    supports *text-to-image*, *image editing*, and *image understanding* in a unified discrete diffusion framework  
+    uses a VQ-VAE backed token space with any-to-any task coverage  
 - **Caption & Prompt Enhance**
-  - [Google Gemma 4] in *E2B* and *E4B* variants  
+  - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune   
 - **Compute**
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  

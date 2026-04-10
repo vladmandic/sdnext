@@ -361,6 +361,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_lumina import load_lumina
             sd_model = load_lumina(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
+        elif model_type in ['Lumina-DiMOO']:
+            from pipelines.model_lumina import load_lumina_dimoo
+            sd_model = load_lumina_dimoo(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Kolors']:
             from pipelines.model_kolors import load_kolors
             sd_model = load_kolors(checkpoint_info, diffusers_load_config)

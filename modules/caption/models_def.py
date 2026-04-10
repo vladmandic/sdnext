@@ -7,6 +7,7 @@ vlm_models = {
     "Google Gemma 3n E4B": "google/gemma-3n-E4B-it", # 1.5GB
     "Google Gemma 4 E2B": "google/gemma-4-E2B-it",
     "Google Gemma 4 E4B": "google/gemma-4-E4B-it",
+    "Heretic Gemma 4 E4B": "p-e-w/gemma-4-E2B-it-heretic-ara",
     "Nidum Gemma 3 4B Uncensored": "nidum/Nidum-Gemma-3-4B-it-Uncensored",
     "Allura Gemma 3 Glitter 4B": "allura-org/Gemma-3-Glitter-4B",
     # Qwen3.5
