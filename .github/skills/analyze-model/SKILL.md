@@ -47,6 +47,18 @@ Classify into one of these (or closest fit):
 
 ## Procedure
 
+### 0. Handle Gated Models
+
+If the model repository returns HTTP 403 (Forbidden) or requires acceptance of a gating agreement:
+
+1. Check `secrets.json` in the workspace root for a `huggingface_token` field
+2. If token exists, retry accessing the model using that token for authentication
+3. If token does not exist, is invalid, or access still denied, **abort the analysis** and report:
+   - Model name and URL
+   - Access requirement (waiting list, gated, license agreement)
+   - Instructions for user to authenticate or request access
+   - Skip further analysis
+
 ### 1. Inspect Model Repository Artifacts
 
 From the provided URL/repo, collect:

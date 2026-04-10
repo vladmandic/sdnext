@@ -3,6 +3,11 @@
 ## Update for 2026-04-12
 
 - **Models**
+  - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
+    generates images directly in RGB space using NextDiT-style architecture  
+  - [Bria FIBO](https://huggingface.co/briaai/FIBO) 8B parameter text-to-image model using Flow Matching  
+    includes *Normal*, *Edit*, and *Lite* (distilled) variants  
+    features lightweight SmolLM3-3B text encoder with efficient inference  
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
   - [Anima Preview-v3](https://huggingface.co/circlestone-labs/Anima) new version of Anima

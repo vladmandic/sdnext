@@ -24,6 +24,18 @@ Prefer the smallest correct integration path.
 - If the model requires custom architecture or sampler behavior, add a repo-local pipeline package under `pipelines/<model>`.
 - If the model ships as a raw checkpoint instead of a Diffusers repo, load or remap weights explicitly instead of pretending it is a standard Diffusers layout.
 
+## Handle Gated Models
+
+**Before collecting inputs:** If the model repository is gated (HTTP 403, access agreement required, or waiting list):
+
+1. Check `secrets.json` in the workspace root for a `huggingface_token` field
+2. If token exists, use it to authenticate and attempt access
+3. If token missing, invalid, or access still denied, **abort the port work** immediately and report:
+   - Model name and repo link
+   - Specific access barrier (gated, closed, waiting list, license agreement)
+   - Required steps for user to gain access or provide token
+   - Do **not** proceed with implementation
+
 ## Inputs To Collect First
 
 Before editing anything, determine these facts:
@@ -217,6 +229,26 @@ Notes:
 - In this repo, the folder is `models/Reference` (capital `R`).
 - Use a deterministic filename that matches the model entry naming convention used in the target reference JSON.
 - If a real thumbnail already exists, do not overwrite it with a zero-byte file.
+
+## CHANGELOG Update Requirement
+
+When porting a new model or model family to SD.Next, also update `CHANGELOG.md`:
+
+1. Locate the **Models** section under the most recent date heading (e.g., `## Update for 2026-04-10`)
+2. Add a new bullet entry at the top of the Models list with:
+   - Model name as a markdown link to the HF repo or official source
+   - Short one-line description (1-2 sentences max)
+   - Key details in italics on separate lines:
+     - Unique architecture features, parameter counts, or efficiency claims
+     - Variant information (e.g., *Normal*, *Edit*, *Lite* for distilled versions)
+     - Notable text encoder or technology notes
+
+Example format:
+```
+  - [BRIA FIBO](https://huggingface.co/briaai/FIBO) 8B parameter text-to-image model using Flow Matching  
+    includes *Normal*, *Edit*, and *Lite* (distilled) variants  
+    features lightweight SmolLM3-3B text encoder with efficient inference  
+```
 
 ## Common Failure Modes
 
