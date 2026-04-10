@@ -385,6 +385,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_flex import load_flex
             sd_model = load_flex(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['ZetaChroma']:
+            from pipelines.model_zetachroma import load_zetachroma
+            sd_model = load_zetachroma(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Chroma']:
             from pipelines.model_chroma import load_chroma
             sd_model = load_chroma(checkpoint_info, diffusers_load_config)

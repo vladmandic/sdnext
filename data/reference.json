@@ -244,6 +244,15 @@
     "size": 26.84,
     "date": "2025 July"
   },
+  "lodestones Zeta-Chroma": {
+    "path": "lodestones/Zeta-Chroma",
+    "preview": "lodestones--Zeta-Chroma.jpg",
+    "desc": "Zeta-Chroma is a pixel-space diffusion transformer image model from lodestones that generates images directly in RGB space using a NextDiT-style architecture.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.0, steps: 30",
+    "size": 12.11,
+    "date": "2026 April"
+  },
 
   "Meituan LongCat Image": {
     "path": "meituan-longcat/LongCat-Image",

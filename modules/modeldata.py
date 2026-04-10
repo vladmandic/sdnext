@@ -42,6 +42,8 @@ def get_model_type(pipe):
         model_type = 'sc'
     elif "AuraFlow" in name:
         model_type = 'auraflow'
+    elif 'ZetaChroma' in name:
+        model_type = 'zetachroma'
     elif 'Chroma' in name:
         model_type = 'chroma'
     elif "Flux2" in name:

@@ -46,7 +46,8 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image-Base
 
-- [NucleusMoe](<https://github.com/huggingface/diffusers/pull/13317)
+- [Mugen](https://huggingface.co/CabalResearch/Mugen)
+- [NucleusMoe](https://github.com/huggingface/diffusers/pull/13317)
 - [Chroma Zeta](https://huggingface.co/lodestones/Zeta-Chroma): Image and video generator for creative effects and professional filters
 - [Chroma Radiance](https://huggingface.co/lodestones/Chroma1-Radiance): Pixel-space model eliminating VAE artifacts for high visual fidelity
 - [Bria FIBO](https://huggingface.co/briaai/FIBO): Fully JSON based
@@ -58,6 +59,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image-Edit
 
+- [Tencent HY-WU](https://huggingface.co/tencent/HY-WU)
 - [JoyAI Image Edit](https://huggingface.co/jdopensource/JoyAI-Image-Edit)
 - [Bria FIBO-Edit](https://huggingface.co/briaai/Fibo-Edit-RMBG): Fully JSON-based instruction-following image editing framework
 - [Meituan LongCat-Image-Edit-Turbo](https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo):6B instruction-following image editing with high visual consistency
@@ -71,6 +73,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Video
 
+- [HY-OmniWeaving](https://huggingface.co/tencent/HY-OmniWeaving)
 - [LTX-Condition](https://github.com/huggingface/diffusers/pull/13058)
 - [LTX-Distilled](https://github.com/huggingface/diffusers/pull/12934)
 - [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p): Unified foundation model for synchronized high-fidelity video and audio

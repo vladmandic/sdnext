@@ -58,3 +58,49 @@ General app structure is:
 - Shared mutable global state can create subtle regressions; prefer narrow, explicit changes.
 - Device/backend-specific code paths (**CUDA/ROCm/IPEX/DirectML/OpenVINO**) should not assume one platform.
 - Scripts and extension loading is dynamic; failures may appear only when specific extensions or models are present.
+
+## Repo-Local Skills
+
+Use these repo-local skills for recurring SD.Next model integration work:
+
+- `port-model`  
+  File: `.github/skills/port-model/SKILL.md`  
+  Use when adding a new model family, porting a standalone script into a Diffusers pipeline, or wiring an upstream Diffusers model into SD.Next.
+
+- `debug-model`  
+  File: `.github/skills/debug-model/SKILL.md`  
+  Use when a new or existing SD.Next/Diffusers model integration fails during detection, loading, prompt encoding, sampling, or output handling.
+
+- `check-api`  
+  File: `.github/skills/check-api/SKILL.md`  
+  Use when auditing API routes in `modules/api/api.py` and validating endpoint parameters plus request/response signatures.
+
+- `check-schedulers`  
+  File: `.github/skills/check-schedulers/SKILL.md`  
+  Use when auditing scheduler registrations in `modules/sd_samplers_diffusers.py` for class loadability, config validity, and `SamplerData` mapping correctness.
+
+- `check-models`  
+  File: `.github/skills/check-models/SKILL.md`  
+  Use when running end-to-end model integration audits across loaders, detect/routing parity, reference catalogs, and pipeline API contracts.
+
+- `check-processing`  
+  File: `.github/skills/check-processing/SKILL.md`  
+  Use when validating txt2img/img2img/control processing workflows from UI submit definitions through backend processing and Diffusers execution, including parameter, type, and initialization checks.
+
+- `check-scripts`  
+  File: `.github/skills/check-scripts/SKILL.md`  
+  Use when auditing scripts in `scripts/*.py` for standard `Script` overrides (`__init__`, `title`, `show`) and validating `ui()` output against `run()` or `process()` parameters.
+
+- `github-issues`  
+  File: `.github/skills/github-issues/SKILL.md`  
+  Use when reading SD.Next GitHub issues with `[Issues]` in title and producing a markdown report with short summary, status, and suggested next steps for each issue.
+
+- `github-features`  
+  File: `.github/skills/github-features/SKILL.md`  
+  Use when reading SD.Next GitHub issues with `[Feature]` in title and producing a markdown report with short summary, status, and suggested next steps for each issue.
+
+- `analyze-model`  
+  File: `.github/skills/analyze-model/SKILL.md`  
+  Use when analyzing an external model URL to identify implementation style and estimate how difficult it is to port into SD.Next.
+
+When creating and updating skills, update this file and the index in `.github/skills/README.md` accordingly.
