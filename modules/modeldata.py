@@ -68,6 +68,8 @@ def get_model_type(pipe):
         model_type = 'cogview4'
     elif "Sana" in name:
         model_type = 'sana'
+    elif 'VIBE' in name:
+        model_type = 'sana'
     elif "HiDream" in name:
         model_type = 'h1'
     elif "Cosmos2TextToImage" in name or "AnimaTextToImage" in name:
@@ -96,6 +98,8 @@ def get_model_type(pipe):
         model_type = 'longcat'
     elif 'GlmImage' in name:
         model_type = 'glmimage'
+    elif 'Step1XEdit' in name:
+        model_type = 'step1x_edit'
     elif 'OvisImage' in name or 'Ovis-Image' in name:
         model_type = 'ovis'
     elif 'Wan' in name:

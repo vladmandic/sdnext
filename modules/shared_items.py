@@ -53,6 +53,7 @@ pipelines = {
     'FLUX2 Klein': getattr(diffusers, 'Flux2KleinPipeline', None),
     'LongCat': getattr(diffusers, 'LongCatImagePipeline', None),
     'GLM-Image': getattr(diffusers, 'GlmImagePipeline', None),
+    'VIBE': getattr(diffusers, 'VIBESanaEditingPipeline', getattr(diffusers, 'DiffusionPipeline', None)),
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
     'OmniGen2': getattr(diffusers, 'DiffusionPipeline', None),
@@ -65,6 +66,7 @@ pipelines = {
     'ChronoEdit': getattr(diffusers, 'DiffusionPipeline', None),
     'Anima': getattr(diffusers, 'DiffusionPipeline', None),
     'SDXS': getattr(diffusers, 'DiffusionPipeline', None),
+    'Step1X-Edit': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 

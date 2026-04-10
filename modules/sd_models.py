@@ -453,6 +453,14 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_bria import load_bria
             sd_model = load_bria(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['Step1X-Edit']:
+            from pipelines.model_step1x_edit import load_step1x_edit
+            sd_model = load_step1x_edit(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['VIBE']:
+            from pipelines.model_vibe import load_vibe
+            sd_model = load_vibe(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Qwen']:
             from pipelines.model_qwen import load_qwen
             sd_model = load_qwen(checkpoint_info, diffusers_load_config)

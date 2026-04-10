@@ -273,6 +273,26 @@
     "date": "2025 December"
   },
 
+  "StepFun Step1X-Edit v1.2": {
+    "path": "stepfun-ai/Step1X-Edit-v1p2",
+    "preview": "stepfun-ai--Step1X-Edit-v1p2.jpg",
+    "desc": "Multimodal image editing model using Step1X transformer architecture with Qwen2.5-VL text encoding, trained with Flow Matching scheduler for high-quality in-context image edits and refinements.",
+    "skip": true,
+    "extras": "sampler: Default",
+    "size": 8.58,
+    "date": "2025 October"
+  },
+
+  "VIBE Image Edit": {
+    "path": "iitolstykh/VIBE-Image-Edit",
+    "preview": "iitolstykh--VIBE-Image-Edit.jpg",
+    "desc": "VIBE is an open-source text-guided image editing model combining Sana1.5-1.6B diffusion backbone with Qwen3-VL multimodal conditioning for fast, instruction-based edits.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.5, image_guidance_scale: 1.2, steps: 20",
+    "size": 9.72,
+    "date": "2025 December"
+  },
+
   "Ostris Flex.2 Preview": {
     "path": "ostris/Flex.2-preview",
     "preview": "ostris--Flex.2-preview.jpg",

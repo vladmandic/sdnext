@@ -44,24 +44,15 @@
 
 TODO: Investigate which models are diffusers-compatible and prioritize!
 
-### Image-Base
+### Image
 
 - [Mugen](https://huggingface.co/CabalResearch/Mugen)
 - [NucleusMoe](https://github.com/huggingface/diffusers/pull/13317)
-- [Liquid](https://github.com/FoundationVision/Liquid): Unified vision-language auto-regressive generation paradigm
-- [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B): Physics-aware world foundation model for consistent scene prediction
-- [Liquid (unified multimodal generator)](https://github.com/FoundationVision/Liquid): Auto-regressive generation paradigm across vision and language
-
-### Image-Edit
-
+- [Liquid](https://github.com/FoundationVision/Liquid)
+- [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
+- [Liquid (unified multimodal generator)](https://github.com/FoundationVision/Liquid)
 - [Tencent HY-WU](https://huggingface.co/tencent/HY-WU)
 - [JoyAI Image Edit](https://huggingface.co/jdopensource/JoyAI-Image-Edit)
-- [Meituan LongCat-Image-Edit-Turbo](https://huggingface.co/meituan-longcat/LongCat-Image-Edit-Turbo):6B instruction-following image editing with high visual consistency
-- [VIBE Image-Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit): (Sana+Qwen-VL)Fast visual instruction-based image editing framework
-- [Step1X-Edit](https://github.com/stepfun-ai/Step1X-Edit):Multimodal image editing decoding MLLM tokens via DiT
-- [Step1X-Edit-v1p2](https://huggingface.co/stepfun-ai/Step1X-Edit-v1p2)
-- [OneReward](https://github.com/bytedance/OneReward):Reinforcement learning grounded generative reward model for image editing
-- [ByteDance DreamO](https://huggingface.co/ByteDance/DreamO): image customization framework for IP adaptation and virtual try-on
 - [nVidia Cosmos-Transfer-2.5](https://github.com/huggingface/diffusers/pull/13066)
 
 ### Video
@@ -93,6 +84,8 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Other/Unsorted
 
+- [OneReward](https://github.com/bytedance/OneReward)
+- [ByteDance DreamO](https://huggingface.co/ByteDance/DreamO)
 - [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer): Full-sequence diffusion with autoregressive next-token prediction
 - [Self-Forcing](https://github.com/guandeh17/Self-Forcing): Framework for improving temporal consistency in long-horizon video generation
 - [SEVA](https://github.com/huggingface/diffusers/pull/11440): Stable Virtual Camera for novel view synthesis and 3D-consistent video
@@ -107,18 +100,6 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [UniRef](https://github.com/FoundationVision/UniRef): Unified model for segmentation tasks designed as foundation model plug-in
 - [FlashFace](https://github.com/ali-vilab/FlashFace): High-fidelity human image customization and face swapping framework
 - [ReNO](https://github.com/ExplainableML/ReNO): Reward-based Noise Optimization to improve text-to-image quality during inference
-
-### Not Planned
-
-- [LoRAdapter](https://github.com/CompVis/LoRAdapter): Not recently updated
-- [SD3 UltraEdit](https://github.com/HaozheZhao/UltraEdit): Based on SD3
-- [PowerPaint](https://github.com/open-mmlab/PowerPaint): Based on SD15
-- [FreeCustom](https://github.com/aim-uofa/FreeCustom): Based on SD15
-- [AnyDoor](https://github.com/ali-vilab/AnyDoor): Based on SD21
-- [AnyText2](https://github.com/tyxsspa/AnyText2): Based on SD15
-- [DragonDiffusion](https://github.com/MC-E/DragonDiffusion): Based on SD15
-- [DenseDiffusion](https://github.com/naver-ai/DenseDiffusion): Based on SD15
-- [IC-Light](https://github.com/lllyasviel/IC-Light): Based on SD15
 
 ## Code TODO
 
