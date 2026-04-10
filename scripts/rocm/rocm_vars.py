@@ -1,6 +1,7 @@
 import os
 import sys
 import sysconfig
+import platform
 from typing import Dict, Any, List, Tuple
 
 
@@ -18,15 +19,15 @@ def _sitepackages_subpath(*parts: str) -> str:
 
 
 GENERAL_VARS: Dict[str, Dict[str, Any]] = {
-     "MIOPEN_SYSTEM_DB_PATH": {
-        "default": _sitepackages_subpath("{LIBS_PKG}", _BIN_DIR) + os.sep,
+    "MIOPEN_SYSTEM_DB_PATH": {
+        "default": _sitepackages_subpath("{LIBS_PKG}", _BIN_DIR) + os.sep if platform.system() == "Windows" else "",
         "desc": "MIOpen system path",
         "widget": "textbox",
         "options": None,
         "restart_required": True,
     },
     "ROCBLAS_TENSILE_LIBPATH": {
-        "default": _sitepackages_subpath("{LIBS_PKG}", _BIN_DIR, "rocblas", "library"),
+        "default": _sitepackages_subpath("{LIBS_PKG}", _BIN_DIR, "rocblas", "library") if platform.system() == "Windows" else "",
         "desc": "rocBLAS Tensile library path",
         "widget": "textbox",
         "options": None,
