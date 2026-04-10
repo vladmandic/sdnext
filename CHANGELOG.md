@@ -6,14 +6,6 @@
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
   - [Anima Preview-v3](https://huggingface.co/circlestone-labs/Anima) new version of Anima
-- **Agents**
-  framework for AI agent based work in `.github/`
-  - general instructions: `copilot-instructions.md` (not copilot specific)
-  - additional instructions in `instructions/`: `core.instructions.md`, `ui.instructions.md`
-  - skills in in `skills/README.md`:  
-    *validation skills*: `check-models`, `check-api`, `check-schedulers`, `check-processing`, `check-scripts`  
-    *model skills*: `port-model`, `debug-model`, `analyze-model`  
-    *github skills*: `github-issues`, `github-features`  
 - **Caption & Prompt Enhance**
   - [Google Gemma 4] in *E2B* and *E4B* variants  
 - **Compute**
@@ -27,17 +19,18 @@
     allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  
     allows for any *settings* property name (as defined in `modules/ui_definitions.py` and saved to `config.json`)  
 - **Agents**
-  created framework for AI agent based work in `.github/`  
+  framework for AI agent based work in `.github/`  
   *note*: all skills are agent-model agnostic  
   - general instructions:  
     `AGENTS.md`, `copilot-instructions.md`  
   - additional instructions in `instructions/`:  
     `core.instructions.md`, `ui.instructions.md`  
   - skills in in `skills/README.md`:  
-    *coding skills*: `fix-lint` (must before commit)  
-    *validation skills*: `check-models`, `check-api`, `check-schedulers`, `check-processing`, `check-scripts`  
-    *model skills*: `port-model`, `debug-model`, `analyze-model`  
-    *github skills*: `github-issues`, `github-features`
+    *coding*: `fix-lint` (must before commit)  
+    *validation*: `check-models`, `check-api`, `check-schedulers`, `check-processing`, `check-scripts`  
+    *model*: `port-model`, `debug-model`, `analyze-model`  
+    *github*: `github-issues`, `github-features`  
+    *other*: `todo`  
 - **Obsoleted**
   - removed *system-info* from *extensions-builtin*
 - **Internal**

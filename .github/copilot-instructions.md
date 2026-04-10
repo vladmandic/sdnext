@@ -108,4 +108,8 @@ Use these repo-local skills for recurring SD.Next model integration work:
   File: `.github/skills/fix-lint/SKILL.md`  
   Use when running the full lint workflow in required order (`pre-commit`, `eslint`, `ruff`, `pylint`) and fixing findings as needed, while ignoring lint issues explicitly marked with `TODO`.
 
+- `todo`  
+  File: `.github/skills/todo/SKILL.md`  
+  Use when searching the full codebase for `TODO` markers and producing a markdown document with proposed next steps for each item.
+
 When creating and updating skills, update this file and the index in `.github/skills/README.md` accordingly.

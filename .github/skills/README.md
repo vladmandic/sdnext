@@ -48,6 +48,10 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
   File: `fix-lint/SKILL.md`
   Use when running the full lint workflow in strict order and fixing issues as needed (`pre-commit`, `eslint`, `ruff`, `pylint`), while ignoring findings explicitly marked with `TODO`.
 
+- `todo`
+  File: `todo/SKILL.md`
+  Use when scanning the full codebase for `TODO` markers and producing a markdown document with proposed next steps for each item.
+
 ## Notes
 
 - Keep skills narrowly task-oriented and reusable.
