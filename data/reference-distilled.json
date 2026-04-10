@@ -148,6 +148,17 @@
     "size": 0,
     "date": "2025 August"
   },
+
+  "Bria Fibo-Lite": {
+    "path": "briaai/Fibo-lite",
+    "preview": "briaai--Fibo-lite.jpg",
+    "desc": "BRIA Fibo-lite is a lightweight, distilled variant of FIBO optimized for fast inference while maintaining strong image quality. Ideal for resource-constrained environments.",
+    "tags": "distilled",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 8.1,
+    "date": "2025 December"
+  },
   "Tencent HunyuanDiT 1.2 Distilled": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers-Distilled",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
