@@ -155,6 +155,7 @@ def create_settings(cmd_opts):
         "sdnq_use_svd": OptionInfo(False, "Use SVD quantization", gr.Checkbox),
         "sdnq_use_dynamic_quantization": OptionInfo(False, "Use Dynamic quantization", gr.Checkbox),
         "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
+        "sdnq_quantize_embedding_layers": OptionInfo(False, "Quantize embedding layers", gr.Checkbox),
         "sdnq_dequantize_compile": OptionInfo(devices.has_triton(early=True), "Dequantize using torch.compile", gr.Checkbox),
         "sdnq_use_quantized_matmul": OptionInfo(False, "Use quantized MatMul", gr.Checkbox),
         "sdnq_use_quantized_matmul_conv": OptionInfo(False, "Use quantized MatMul with conv", gr.Checkbox),

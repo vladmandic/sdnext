@@ -15,7 +15,7 @@ from diffusers.utils import get_module_from_name
 from accelerate import init_empty_weights
 
 from modules import devices, shared
-from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, weights_dtype_order, allowed_types, linear_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm, check_torch_compile
+from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, weights_dtype_order, allowed_types, linear_types, embedding_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm, check_torch_compile
 from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int
 from .packed_float import pack_float
@@ -466,9 +466,13 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
 
 
 @devices.inference_context()
-def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=None, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, non_blocking=False, modules_to_not_convert=None, modules_dtype_dict=None, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=None, use_svd=False, quant_conv=False, quant_embedding=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, non_blocking=False, modules_to_not_convert=None, modules_dtype_dict=None, quantization_device=None, return_device=None, param_name=None): # pylint: disable=unused-argument
     layer_class_name = layer.__class__.__name__
-    if layer_class_name in conv_transpose_types or layer_class_name in conv_types:
+    if layer_class_name in embedding_types:
+        if not quant_embedding:
+            return layer, modules_to_not_convert, modules_dtype_dict
+        use_quantized_matmul = False
+    elif layer_class_name in conv_transpose_types or layer_class_name in conv_types:
         if not quant_conv:
             return layer, modules_to_not_convert, modules_dtype_dict
         use_quantized_matmul = use_quantized_matmul_conv
@@ -530,7 +534,6 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None
         if layer.svd_up is not None:
             layer.svd_up = torch.nn.Parameter(layer.svd_up.to(return_device, non_blocking=non_blocking), requires_grad=False)
             layer.svd_down = torch.nn.Parameter(layer.svd_down.to(return_device, non_blocking=non_blocking), requires_grad=False)
-        layer = layer.to(return_device, non_blocking=non_blocking)
 
         if use_dynamic_quantization:
             if modules_dtype_dict is None:
@@ -540,7 +543,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None
             else:
                 modules_dtype_dict[layer.sdnq_dequantizer.weights_dtype].append(param_name)
     else:
-        layer = layer.to(return_device, dtype=torch_dtype, non_blocking=non_blocking)
+        layer.weight = layer.weight.to(return_device, dtype=torch_dtype, non_blocking=non_blocking)
         if use_dynamic_quantization:
             if modules_to_not_convert is None:
                 modules_to_not_convert = []
@@ -550,7 +553,7 @@ def sdnq_quantize_layer(layer, weights_dtype="int8", quantized_matmul_dtype=None
 
 
 @devices.inference_context()
-def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=None, use_svd=False, quant_conv=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, non_blocking=False, modules_to_not_convert: list[str] | None = None, modules_dtype_dict: dict[str, list[str]] | None = None, modules_quant_config: dict[str, dict] | None = None, quantization_device=None, return_device=None, full_param_name=""): # pylint: disable=unused-argument
+def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, svd_rank=32, svd_steps=8, dynamic_loss_threshold=None, use_svd=False, quant_conv=False, quant_embedding=False, use_quantized_matmul=False, use_quantized_matmul_conv=False, use_dynamic_quantization=False, use_stochastic_rounding=False, dequantize_fp32=True, non_blocking=False, modules_to_not_convert: list[str] | None = None, modules_dtype_dict: dict[str, list[str]] | None = None, modules_quant_config: dict[str, dict] | None = None, quantization_device=None, return_device=None, full_param_name=""): # pylint: disable=unused-argument
     has_children = list(model.children())
     if not has_children:
         return model, modules_to_not_convert, modules_dtype_dict
@@ -571,7 +574,9 @@ def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=Non
                 continue
             layer_class_name = module.__class__.__name__
             if layer_class_name in allowed_types and module.weight.dtype in {torch.float64, torch.float32, torch.float16, torch.bfloat16}:
-                if (layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quant_conv:
+                if layer_class_name in embedding_types and not quant_embedding:
+                    continue
+                elif (layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quant_conv:
                     continue
                 quant_kwargs = {
                     "weights_dtype": weights_dtype,
@@ -583,6 +588,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=Non
                     "dynamic_loss_threshold": dynamic_loss_threshold,
                     "use_svd": use_svd,
                     "quant_conv": quant_conv,
+                    "quant_embedding": quant_embedding,
                     "use_quantized_matmul": use_quantized_matmul,
                     "use_quantized_matmul_conv": use_quantized_matmul_conv,
                     "use_dynamic_quantization": use_dynamic_quantization,
@@ -610,6 +616,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=Non
             svd_steps=svd_steps,
             use_svd=use_svd,
             quant_conv=quant_conv,
+            quant_embedding=quant_embedding,
             use_quantized_matmul=use_quantized_matmul,
             use_quantized_matmul_conv=use_quantized_matmul_conv,
             use_dynamic_quantization=use_dynamic_quantization,
@@ -639,6 +646,7 @@ def sdnq_post_load_quant(
     dynamic_loss_threshold: float | None = None,
     use_svd: bool = False,
     quant_conv: bool = False,
+    quant_embedding: bool = False,
     use_quantized_matmul: bool = False,
     use_quantized_matmul_conv: bool = False,
     use_dynamic_quantization: bool = False,
@@ -673,6 +681,7 @@ def sdnq_post_load_quant(
         dynamic_loss_threshold=dynamic_loss_threshold,
         use_svd=use_svd,
         quant_conv=quant_conv,
+        quant_embedding=quant_embedding,
         use_quantized_matmul=use_quantized_matmul,
         use_quantized_matmul_conv=use_quantized_matmul_conv,
         use_dynamic_quantization=use_dynamic_quantization,
@@ -699,6 +708,7 @@ def sdnq_post_load_quant(
         dynamic_loss_threshold=dynamic_loss_threshold,
         use_svd=use_svd,
         quant_conv=quant_conv,
+        quant_embedding=quant_embedding,
         use_quantized_matmul=use_quantized_matmul,
         use_quantized_matmul_conv=use_quantized_matmul_conv,
         use_dynamic_quantization=use_dynamic_quantization,
@@ -781,7 +791,10 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             if not check_param_name_in(param_name, self.quantization_config.modules_to_not_convert) is not None:
                 layer_class_name = get_module_from_name(model, param_name)[0].__class__.__name__
                 if layer_class_name in allowed_types:
-                    if layer_class_name in conv_types or layer_class_name in conv_transpose_types:
+                    if layer_class_name in embedding_types:
+                        if self.quantization_config.quant_embedding:
+                            return True
+                    elif layer_class_name in conv_types or layer_class_name in conv_transpose_types:
                         if self.quantization_config.quant_conv:
                             return True
                     else:
@@ -840,12 +853,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             return
 
         torch_dtype = kwargs.get("dtype", param_value.dtype if self.torch_dtype is None else self.torch_dtype)
-        if self.quantization_config.return_device is not None:
-            return_device = self.quantization_config.return_device
-        else:
-            return_device = target_device
-        if self.quantization_config.quantization_device is not None:
-            target_device = self.quantization_config.quantization_device
 
         quant_kwargs = {
             "weights_dtype": self.quantization_config.weights_dtype,
@@ -857,6 +864,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             "dynamic_loss_threshold": self.quantization_config.dynamic_loss_threshold,
             "use_svd": self.quantization_config.use_svd,
             "quant_conv": self.quantization_config.quant_conv,
+            "quant_embedding": self.quantization_config.quant_embedding,
             "use_quantized_matmul": self.quantization_config.use_quantized_matmul,
             "use_quantized_matmul_conv": self.quantization_config.use_quantized_matmul_conv,
             "use_dynamic_quantization": self.quantization_config.use_dynamic_quantization,
@@ -865,11 +873,17 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             "non_blocking": self.quantization_config.non_blocking,
             "modules_to_not_convert": self.quantization_config.modules_to_not_convert,
             "modules_dtype_dict": self.quantization_config.modules_dtype_dict,
-            "quantization_device": None,
-            "return_device": return_device,
+            "quantization_device": self.quantization_config.quantization_device,
+            "return_device": self.quantization_config.return_device,
             "param_name": param_name,
         }
         quant_kwargs = get_quant_kwargs(quant_kwargs, self.quantization_config.modules_quant_config)
+
+        if quant_kwargs["return_device"] is None:
+            quant_kwargs["return_device"] = target_device
+        if quant_kwargs["quantization_device"] is not None:
+            target_device = quant_kwargs["quantization_device"]
+            quant_kwargs["quantization_device"] = None
 
         if param_value.dtype in {torch.float32, torch.float64} and devices.same_device(param_value.device, target_device):
             param_value = param_value.clone()
@@ -1027,6 +1041,8 @@ class SDNQConfig(QuantizationConfigMixin):
             Enabling this option will use SVDQuant algorithm on top of SDNQ quantization.
         quant_conv (`bool`, *optional*, defaults to `False`):
             Enabling this option will quantize the convolutional layers in UNet models too.
+        quant_embedding (`bool`, *optional*, defaults to `False`):
+            Enabling this option will quantize the embedding layers in text models too.
         use_quantized_matmul (`bool`, *optional*, defaults to `False`):
             Enabling this option will use quantized INT8 or FP8 MatMul instead of BF16 / FP16.
         use_quantized_matmul_conv (`bool`, *optional*, defaults to `False`):
@@ -1067,6 +1083,7 @@ class SDNQConfig(QuantizationConfigMixin):
         use_svd: bool = False,
         use_grad_ckpt: bool = True,
         quant_conv: bool = False,
+        quant_embedding: bool = False,
         use_quantized_matmul: bool = False,
         use_quantized_matmul_conv: bool = False,
         use_static_quantization: bool = True,
@@ -1097,6 +1114,7 @@ class SDNQConfig(QuantizationConfigMixin):
         self.use_svd = use_svd
         self.use_grad_ckpt = use_grad_ckpt
         self.quant_conv = quant_conv
+        self.quant_embedding = quant_embedding
         self.use_quantized_matmul = use_quantized_matmul
         self.use_quantized_matmul_conv = use_quantized_matmul_conv
         self.use_static_quantization = use_static_quantization

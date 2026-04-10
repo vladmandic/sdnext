@@ -2,11 +2,14 @@
 
 from collections.abc import Callable
 
-from .common import dtype_dict, conv_types, conv_transpose_types, use_tensorwise_fp8_matmul
+from .common import dtype_dict, embedding_types, conv_types, conv_transpose_types, use_tensorwise_fp8_matmul
 
 
 def get_forward_func(layer_class_name: str, quantized_matmul_dtype: str, use_quantized_matmul: bool) -> Callable: # pylint: disable=inconsistent-return-statements
-    if layer_class_name in conv_types:
+    if layer_class_name in embedding_types:
+        from .layers.embedding.forward import quantized_embedding_forward
+        return quantized_embedding_forward
+    elif layer_class_name in conv_types:
         if use_quantized_matmul:
             if dtype_dict[quantized_matmul_dtype]["is_integer"]:
                 from .layers.conv.conv_int8 import quantized_conv_forward_int8_matmul
