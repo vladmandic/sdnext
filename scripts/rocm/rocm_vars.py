@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Tuple
 _BIN_DIR = "bin" if sys.platform == "win32" else "lib"
 
 
-def _sitepackages_subpath(*parts: str) -> str:
+def _sitepackages_subpath(*parts: str) -> str: # auto-path helper (currently not called, kept for troubleshooting.)
     """Return a {VIRTUAL_ENV}-prefixed path into site-packages using OS-native separators.
 
     Works on both Windows (Lib/site-packages) and Linux (lib/pythonX.Y/site-packages).
@@ -19,14 +19,16 @@ def _sitepackages_subpath(*parts: str) -> str:
 
 GENERAL_VARS: Dict[str, Dict[str, Any]] = {
      "MIOPEN_SYSTEM_DB_PATH": {
-        "default": _sitepackages_subpath("{LIBS_PKG}", _BIN_DIR) + os.sep,
+        # "default": _sitepackages_subpath("{LIBS_PKG}", _BIN_DIR) + os.sep,  # auto-path disabled; kept for troubleshooting.
+        "default": "",
         "desc": "MIOpen system path",
         "widget": "textbox",
         "options": None,
         "restart_required": True,
     },
     "ROCBLAS_TENSILE_LIBPATH": {
-        "default": _sitepackages_subpath("{LIBS_PKG}", _BIN_DIR, "rocblas", "library"),
+        # "default": _sitepackages_subpath("{LIBS_PKG}", _BIN_DIR, "rocblas", "library"),  # auto-path disabled; kept for troubleshooting.
+        "default": "",
         "desc": "rocBLAS Tensile library path",
         "widget": "textbox",
         "options": None,
