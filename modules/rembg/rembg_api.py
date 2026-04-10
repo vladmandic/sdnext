@@ -27,9 +27,9 @@ async def post_rembg(
         for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg"]:
             install(pkg, no_deps=True, ignore=False)
         import rembg
-        image = rembg.remove(
+        image = rembg.remove( # pylint: disable=c-extension-no-member
             input_image,
-            session=rembg.new_session(model),
+            session=rembg.new_session(model), # pylint: disable=c-extension-no-member
             only_mask=return_mask,
             alpha_matting=alpha_matting,
             alpha_matting_foreground_threshold=alpha_matting_foreground_threshold,
@@ -39,5 +39,5 @@ async def post_rembg(
     return {"image": api.encode_pil_to_base64(image).decode("utf-8")}
 
 
-def register_api(app):
-    app.add_api_route("/sdapi/v1/rembg", post_rembg, methods=["POST"], tags=["REMBG"])
+def register_api(api):
+    api.add_api_route("/sdapi/v1/rembg", post_rembg, methods=["POST"], tags=["REMBG"])

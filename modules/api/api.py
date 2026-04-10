@@ -107,15 +107,15 @@ class Api:
 
         # options api
         from modules.api import options
-        options.register_api(self.app)
+        options.register_api(self)
 
         # caption api
         from modules.api import caption
-        caption.register_api(self.app)
+        caption.register_api(self)
 
         # lora api
         from modules.api import loras
-        loras.register_api(self.app)
+        loras.register_api(self)
 
         # gallery api
         from modules.api import gallery
@@ -123,19 +123,19 @@ class Api:
 
         # nudenet api
         from modules.api import nudenet
-        nudenet.register_api(self.app)
+        nudenet.register_api(self)
 
         # xyz-grid api
         from modules.api import xyz_grid
-        xyz_grid.register_api(self.app)
+        xyz_grid.register_api(self)
 
         # civitai api
         from modules.civitai import api_civitai
-        api_civitai.register_api(self.app)
+        api_civitai.register_api(self)
 
         # rembg api
         from modules.rembg import rembg_api
-        rembg_api.register_api(self.app)
+        rembg_api.register_api(self)
 
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute

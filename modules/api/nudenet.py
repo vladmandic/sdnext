@@ -61,8 +61,8 @@ def banned_words(
     return found
 
 
-def register_api(app):
-    app.add_api_route("/sdapi/v1/nudenet", nudenet_censor, methods=["POST"], response_model=dict, tags=["Processing"])
-    app.add_api_route("/sdapi/v1/prompt-lang", prompt_check, methods=["POST"], response_model=dict, tags=["Processing"])
-    app.add_api_route("/sdapi/v1/image-guard", image_guard, methods=["POST"], response_model=dict, tags=["Processing"])
-    app.add_api_route("/sdapi/v1/prompt-banned", banned_words, methods=["POST"], response_model=list, tags=["Processing"])
+def register_api(api_instance):
+    api_instance.add_api_route("/sdapi/v1/nudenet", nudenet_censor, methods=["POST"], response_model=dict, tags=["Processing"])
+    api_instance.add_api_route("/sdapi/v1/prompt-lang", prompt_check, methods=["POST"], response_model=dict, tags=["Processing"])
+    api_instance.add_api_route("/sdapi/v1/image-guard", image_guard, methods=["POST"], response_model=dict, tags=["Processing"])
+    api_instance.add_api_route("/sdapi/v1/prompt-banned", banned_words, methods=["POST"], response_model=list, tags=["Processing"])

@@ -88,7 +88,7 @@ def get_options_info():
     return {"options": options_info, "sections": list(sections_seen.values())}
 
 
-def register_api(app):
-    app.add_api_route("/sdapi/v1/options", get_options, methods=["GET"], response_model=dict, tags=["Server"])
-    app.add_api_route("/sdapi/v1/options", set_options, methods=["POST"], tags=["Server"])
-    app.add_api_route("/sdapi/v1/options-info", get_options_info, methods=["GET"], tags=["Server"])
+def register_api(api):
+    api.add_api_route("/sdapi/v1/options", get_options, methods=["GET"], response_model=dict, tags=["Server"])
+    api.add_api_route("/sdapi/v1/options", set_options, methods=["POST"], tags=["Server"])
+    api.add_api_route("/sdapi/v1/options-info", get_options_info, methods=["GET"], tags=["Server"])

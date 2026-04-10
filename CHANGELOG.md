@@ -52,6 +52,7 @@
   - add torch amd arch detection
   - fix prompt weighted lists and internal wildcards
   - improve `path_to_repo` handling for custom paths
+  - eliminate `api` auth security bypass
 
 ## Update for 2026-04-01
 
