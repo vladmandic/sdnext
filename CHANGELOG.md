@@ -34,6 +34,7 @@
   - additional instructions in `instructions/`:  
     `core.instructions.md`, `ui.instructions.md`  
   - skills in in `skills/README.md`:  
+    *coding skills*: `fix-lint` (must before commit)  
     *validation skills*: `check-models`, `check-api`, `check-schedulers`, `check-processing`, `check-scripts`  
     *model skills*: `port-model`, `debug-model`, `analyze-model`  
     *github skills*: `github-issues`, `github-features`

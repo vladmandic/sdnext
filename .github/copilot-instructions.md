@@ -61,6 +61,7 @@ General app structure is:
 
 ## Repo-Local Skills
 
+All skills are defined in `.github/skills/` and indexed in `.github/skills/README.md`.
 Use these repo-local skills for recurring SD.Next model integration work:
 
 - `port-model`  
@@ -102,5 +103,9 @@ Use these repo-local skills for recurring SD.Next model integration work:
 - `analyze-model`  
   File: `.github/skills/analyze-model/SKILL.md`  
   Use when analyzing an external model URL to identify implementation style and estimate how difficult it is to port into SD.Next.
+
+- `fix-lint`  
+  File: `.github/skills/fix-lint/SKILL.md`  
+  Use when running the full lint workflow in required order (`pre-commit`, `eslint`, `ruff`, `pylint`) and fixing findings as needed, while ignoring lint issues explicitly marked with `TODO`.
 
 When creating and updating skills, update this file and the index in `.github/skills/README.md` accordingly.

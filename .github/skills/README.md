@@ -44,6 +44,10 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
   File: `analyze-model/SKILL.md`
   Use when analyzing an external model URL to classify implementation style and estimate SD.Next porting difficulty before coding.
 
+- `fix-lint`
+  File: `fix-lint/SKILL.md`
+  Use when running the full lint workflow in strict order and fixing issues as needed (`pre-commit`, `eslint`, `ruff`, `pylint`), while ignoring findings explicitly marked with `TODO`.
+
 ## Notes
 
 - Keep skills narrowly task-oriented and reusable.
