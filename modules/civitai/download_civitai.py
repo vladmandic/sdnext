@@ -286,7 +286,7 @@ class DownloadManager:
                 name = os.path.splitext(item.filename)[0]
                 title = f"{prefix}/{name}"
                 hashes.cache().add_hash(title, os.path.getmtime(final_file), item.expected_hash.lower())
-                hashes.dump_cache()
+                hashes.save_cache()
             except Exception:
                 pass
 

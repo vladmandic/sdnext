@@ -28,13 +28,13 @@ _data: defaultdict[str, HashStore] = defaultdict(HashStore)
 progress_ok = True
 
 
-def init_cache():
+def load_cache():
     if os.path.isfile(cache_filename):
         for store, data in readfile(cache_filename, lock=True, as_type="dict").items():
             _data[store] = HashStore(data)
 
 
-def dump_cache():
+def save_cache():
     writefile(_data, cache_filename)
 
 
@@ -104,7 +104,7 @@ def sha256(filename: str, title: str, use_addnet_hash=False):
         sha256_value = calculate_sha256(filename)
     hashes.add_hash(title, os.path.getmtime(filename), sha256_value)
     shared.state.end(jobid)
-    dump_cache()
+    save_cache()
     return sha256_value
 
 
