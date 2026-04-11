@@ -62,6 +62,7 @@ try:
     from modules.schedulers.scheduler_unipc_flowmatch import FlowUniPCMultistepScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_flashflow import FlashFlowMatchEulerDiscreteScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.perflow import PeRFlowScheduler # pylint: disable=ungrouped-imports
+    from modules.schedulers.scheduler_ersde import ERSDEScheduler # pylint: disable=ungrouped-imports
 except Exception as e:
     log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
@@ -153,6 +154,13 @@ config.update({
     'PeRFlow': { 'prediction_type': 'ddim_eps' },
     'UFOGen': { },
     'BDIA DDIM': { 'clip_sample': False, 'set_alpha_to_one': True, 'steps_offset': 0, 'clip_sample_range': 1.0, 'sample_max_value': 1.0, 'timestep_spacing': 'leading', 'rescale_betas_zero_snr': False, 'thresholding': False, 'gamma': 1.0 },
+
+    'ER-SDE': { 'solver_order': 1, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True },
+    'ER-SDE 2M': { 'solver_order': 2, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True },
+    'ER-SDE 3M': { 'solver_order': 3, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True },
+    'ER-SDE FlowMatch': { 'solver_order': 1, 'func_type': 7, 'clip_sample': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
+    'ER-SDE 2M FlowMatch': { 'solver_order': 2, 'func_type': 7, 'clip_sample': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
+    'ER-SDE 3M FlowMatch': { 'solver_order': 3, 'func_type': 7, 'clip_sample': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
 
     'PNDM': { 'skip_prk_steps': False, 'set_alpha_to_one': False, 'steps_offset': 0, 'timestep_spacing': 'linspace' },
     'IPNDM': { },
@@ -277,6 +285,12 @@ samplers_data_diffusers = [
 
     SamplerData('VDM Solver', lambda model: DiffusionSampler('VDM Solver', VDMScheduler, model), [], {}),
     SamplerData('BDIA DDIM', lambda model: DiffusionSampler('BDIA DDIM g=0', BDIA_DDIMScheduler, model), [], {}),
+    SamplerData('ER-SDE', lambda model: DiffusionSampler('ER-SDE', ERSDEScheduler, model), [], {}),
+    SamplerData('ER-SDE 2M', lambda model: DiffusionSampler('ER-SDE 2M', ERSDEScheduler, model), [], {}),
+    SamplerData('ER-SDE 3M', lambda model: DiffusionSampler('ER-SDE 3M', ERSDEScheduler, model), [], {}),
+    SamplerData('ER-SDE FlowMatch', lambda model: DiffusionSampler('ER-SDE FlowMatch', ERSDEScheduler, model), [], {}),
+    SamplerData('ER-SDE 2M FlowMatch', lambda model: DiffusionSampler('ER-SDE 2M FlowMatch', ERSDEScheduler, model), [], {}),
+    SamplerData('ER-SDE 3M FlowMatch', lambda model: DiffusionSampler('ER-SDE 3M FlowMatch', ERSDEScheduler, model), [], {}),
     SamplerData('LCM', lambda model: DiffusionSampler('LCM', LCMScheduler, model), [], {}),
     SamplerData('LCM FlowMatch', lambda model: DiffusionSampler('LCM FlowMatch', FlowMatchLCMScheduler, model), [], {}),
     SamplerData('TCD', lambda model: DiffusionSampler('TCD', TCDScheduler, model), [], {}),
