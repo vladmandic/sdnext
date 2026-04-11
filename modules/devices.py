@@ -123,9 +123,12 @@ def get_gpu_info():
     if not torch.cuda.is_available():
         try:
             if backend == 'openvino':
-                from modules.intel.openvino import get_openvino_device
+                from modules.intel.openvino import get_openvino_device, get_device_list, get_device, get_openvino_capabilities
+                devices = [{ device: f'{get_openvino_device(device)}' } for device in get_device_list()]
                 return {
-                    'device': get_openvino_device(), # pylint: disable=used-before-assignment
+                    'active': f'"{get_device()}"',
+                    'capabilities': get_openvino_capabilities(),
+                    'devices': devices,
                     'openvino': get_package_version("openvino"),
                 }
             elif backend == 'directml':
@@ -325,9 +328,12 @@ def test_fp16():
     if fp16_ok is not None:
         return fp16_ok
     if opts.cuda_dtype != 'FP16': # don't override if the user sets it
-        if sys.platform == "darwin" or backend in {'openvino', 'cpu'}: # override
+        if sys.platform == "darwin" or backend == 'cpu': # override
             fp16_ok = False
             return fp16_ok
+        elif backend == 'openvino':
+            from modules.intel.openvino import test_openvino_fp16
+            fp16_ok = test_openvino_fp16()
         elif backend == 'rocm':
             # gfx1102 (RX 7600, 7500, 7650 and 7700S) causes segfaults with fp16
             # agent can be overriden to gfx1100 to get gfx1102 working with ROCm so check the gpu name as well
@@ -356,9 +362,12 @@ def test_bf16():
     if bf16_ok is not None:
         return bf16_ok
     if opts.cuda_dtype != 'BF16': # don't override if the user sets it
-        if sys.platform == "darwin" or backend in {'openvino', 'directml', 'cpu'}: # override
+        if sys.platform == "darwin" or backend in {'directml', 'cpu'}: # override
             bf16_ok = False
             return bf16_ok
+        elif backend == 'openvino':
+            from modules.intel.openvino import test_openvino_bf16
+            bf16_ok = test_openvino_bf16()
         elif backend == 'rocm' or backend == 'zluda':
             agent = None
             if backend == 'rocm':

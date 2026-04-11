@@ -706,7 +706,7 @@ def install_ipex():
 
 def install_openvino():
     t_start = time.time()
-    log.info('OpenVINO: selected')
+    log.info('Backend: OpenVINO')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0 torchvision==0.26.0')

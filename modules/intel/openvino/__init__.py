@@ -1,30 +1,30 @@
 import os
-import torch
 
-from openvino.frontend.pytorch.torchdynamo.partition import Partitioner
-from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+from types import MappingProxyType
+from hashlib import sha256
+
+from openvino.frontend.pytorch.torchdynamo.partition import Partitioner # pylint: disable=no-name-in-module
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder # pylint: disable=no-name-in-module
 from openvino.frontend import FrontEndManager # pylint: disable=no-name-in-module
-from openvino import Core, Type, PartialShape, serialize  # pylint: disable=no-name-in-module
+from openvino import Core, Type, PartialShape, serialize  # pylint: disable=no-name-in-module, import-self
 from openvino.properties import hint as ov_hints  # pylint: disable=no-name-in-module
 
+import torch
 from torch._dynamo.backends.common import fake_tensor_unsupported
 from torch._dynamo.backends.registry import register_backend
 from torch.fx.experimental.proxy_tensor import make_fx
 from torch.fx import GraphModule
 from torch.utils._pytree import tree_flatten
 
-from types import MappingProxyType
-from hashlib import sha256
-
-import installer
-from modules import shared, devices, sd_models_utils
+from modules import shared, devices
 from modules.logger import log
 
 
 # Set default params
+subgraph_type = []
 torch._dynamo.config.cache_size_limit = max(64, torch._dynamo.config.cache_size_limit) # pylint: disable=protected-access
 torch._dynamo.eval_frame.check_if_dynamo_supported = lambda: True # pylint: disable=protected-access
-if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
+if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"): # pylint: disable=protected-access
     torch._dynamo.config.inline_inbuilt_nn_modules = False # pylint: disable=protected-access
 
 
@@ -56,7 +56,7 @@ if hasattr(torch, "float8_e8m0fnu"):
 
 warned = False
 def warn_once(msg):
-    global warned
+    global warned # pylint: disable=global-statement
     if not warned:
         log.warning(msg)
         warned = True
@@ -86,48 +86,57 @@ class OpenVINOGraphModule(torch.nn.Module):
 
 def get_device_list():
     core = Core()
-    return core.available_devices
+    available_devices = core.available_devices
+    available_devices.sort(key=lambda d: (0 if "NPU" in d else 1 if "GPU" in d else 2, d)) # priority order: NPU > GPU > CPU
+    return available_devices
 
 
 def get_device():
-    if hasattr(shared, "opts") and len(shared.opts.openvino_devices) == 1:
+    if len(shared.opts.openvino_devices) == 1:
         return shared.opts.openvino_devices[0]
-
-    core = Core()
-    if hasattr(shared, "opts") and len(shared.opts.openvino_devices) > 1:
-        device = ""
-        available_devices = shared.opts.openvino_devices.copy()
-        if "CPU" in shared.opts.openvino_devices:
-            available_devices.remove("CPU")
-        for hetero_device in available_devices:
-            device = f"{device},{hetero_device}"
-        if "CPU" in shared.opts.openvino_devices:
-            device = f"{device},CPU"
-        device = f"HETERO:{device[1:]}"
-    elif any(openvino_cpu in cpu_module.lower() for cpu_module in shared.cmd_opts.use_cpu for openvino_cpu in ["openvino", "all"]):
-        device = "CPU"
-    elif shared.cmd_opts.device_id is not None:
-        device = f"GPU.{shared.cmd_opts.device_id}"
-        if device not in core.available_devices:
-            device = "GPU.0" if "GPU.0" in core.available_devices else "GPU" if "GPU" in core.available_devices else "CPU"
-    elif "GPU" in core.available_devices:
-        device = "GPU"
-    elif "GPU.1" in core.available_devices:
-        device = "GPU.1"
-    elif "GPU.0" in core.available_devices:
-        device = "GPU.0"
-    else:
-        device = core.available_devices[-1]
-        warn_once(f"OpenVINO: device={device} no compatible GPU detected")
+    elif len(shared.opts.openvino_devices) > 1:
+        active_device = []
+        for hetero_device in get_device_list():
+            if hetero_device in shared.opts.openvino_devices:
+                if (shared.cmd_opts.device_id is None) or (shared.cmd_opts.device_id in hetero_device):
+                    active_device.append(hetero_device)
+        device = f"HETERO:{','.join(active_device)}" if len(active_device) > 0 else 'auto'
+    else: # len(shared.opts.openvino_devices) == 0
+        device = 'AUTO'
     return device
 
 
-def get_openvino_device():
+def get_openvino_device(device=None):
     core = Core()
     try:
-        return core.get_property(get_device(), "FULL_DEVICE_NAME")
+        return core.get_property(device or get_device(), "FULL_DEVICE_NAME")
     except Exception:
         return f"OpenVINO {get_device()}"
+
+
+def get_openvino_capabilities(device=None):
+    core = Core()
+    try:
+        capabilities = core.get_property(device or get_device(), "OPTIMIZATION_CAPABILITIES")
+        return capabilities if isinstance(capabilities, list) else []
+    except Exception:
+        return []
+
+
+def test_openvino_fp16():
+    try:
+        capabilities = get_openvino_capabilities()
+        return 'FP16' in capabilities
+    except Exception:
+        return False
+
+
+def test_openvino_bf16():
+    try:
+        capabilities = get_openvino_capabilities()
+        return 'BF16' in capabilities
+    except Exception:
+        return False
 
 
 def cached_model_name(model_hash_str, device, args, cache_root, reversed = False):
@@ -183,7 +192,7 @@ def execute_cached(compiled_model, *args):
     flat_args, _ = tree_flatten(args)
     ov_inputs = [a.detach().cpu().numpy() for a in flat_args]
 
-    if (shared.compiled_model_state.cn_model == []):
+    if shared.compiled_model_state.cn_model == []:
         ov_inputs.reverse()
 
     res = compiled_model(ov_inputs)
@@ -218,8 +227,8 @@ def openvino_compile(gm: GraphModule, *example_inputs, model_hash_str: str | Non
 
         if file_name is not None:
             serialize(om, file_name + ".xml", file_name + ".bin")
-            if (shared.compiled_model_state.cn_model != []):
-                f = open(file_name + ".txt", "w")
+            if shared.compiled_model_state.cn_model != []:
+                f = open(file_name + ".txt", "w", encoding="utf-8")
                 for input_data in example_inputs:
                     f.write(str(input_data.size()))
                     f.write("\n")
@@ -380,21 +389,18 @@ def generate_subgraph_str(tensor):
 
 
 def get_subgraph_type(tensor):
-    global subgraph_type
     subgraph_type.append(type(tensor))
     return tensor
 
 
 @fake_tensor_unsupported
-def openvino_fx(subgraph, example_inputs, options=None):
-    global subgraph_type
-
+def openvino_fx(subgraph, example_inputs, options=None): # pylint: disable=unused-argument
     dont_use_faketensors = False
     executor_parameters = None
     inputs_reversed = False
     maybe_fs_cached_name = None
 
-    subgraph_type = []
+    subgraph_type.clear()
     subgraph.apply(get_subgraph_type)
 
     """
@@ -433,13 +439,13 @@ def openvino_fx(subgraph, example_inputs, options=None):
 
         if os.path.isfile(maybe_fs_cached_name + ".xml") and os.path.isfile(maybe_fs_cached_name + ".bin"):
             example_inputs_reordered = []
-            if (os.path.isfile(maybe_fs_cached_name + ".txt")):
-                f = open(maybe_fs_cached_name + ".txt")
+            if os.path.isfile(maybe_fs_cached_name + ".txt"):
+                f = open(maybe_fs_cached_name + ".txt", "r", encoding="utf-8")
                 for input_data in example_inputs:
                     shape = f.readline()
-                    if (str(input_data.size()) != shape):
+                    if str(input_data.size()) != shape:
                         for idx1, input_data1 in enumerate(example_inputs):
-                            if (str(input_data1.size()).strip() == str(shape).strip()):
+                            if str(input_data1.size()).strip() == str(shape).strip():
                                 example_inputs_reordered.append(example_inputs[idx1])
                 example_inputs = example_inputs_reordered
 
@@ -447,7 +453,8 @@ def openvino_fx(subgraph, example_inputs, options=None):
                 pass
             else:
                 # Delete unused subgraphs
-                subgraph = subgraph.apply(sd_models_utils.convert_to_faketensors)
+                from modules.sd_models_utils import convert_to_faketensors
+                subgraph = subgraph.apply(convert_to_faketensors)
                 devices.torch_gc(force=True, reason='openvino')
 
             # Model is fully supported and already cached. Run the cached OV model directly.
@@ -456,13 +463,13 @@ def openvino_fx(subgraph, example_inputs, options=None):
             def _call(*args):
                 if (shared.compiled_model_state.cn_model != [] and str(shared.compiled_model_state.cn_model) in maybe_fs_cached_name):
                     args_reordered = []
-                    if (os.path.isfile(maybe_fs_cached_name + ".txt")):
-                        f = open(maybe_fs_cached_name + ".txt")
+                    if os.path.isfile(maybe_fs_cached_name + ".txt"):
+                        f = open(maybe_fs_cached_name + ".txt", "r", encoding="utf-8")
                         for input_data in args:
                             shape = f.readline()
-                            if (str(input_data.size()) != shape):
+                            if str(input_data.size()) != shape:
                                 for idx1, input_data1 in enumerate(args):
-                                    if (str(input_data1.size()).strip() == str(shape).strip()):
+                                    if str(input_data1.size()).strip() == str(shape).strip():
                                         args_reordered.append(args[idx1])
                     args = args_reordered
 
@@ -479,7 +486,7 @@ def openvino_fx(subgraph, example_inputs, options=None):
     for node in model.graph.nodes:
         if node.target == torch.ops.aten.mul_.Tensor:
             node.target = torch.ops.aten.mul.Tensor
-        elif node.target == torch.ops.aten._unsafe_index.Tensor:
+        elif node.target == torch.ops.aten._unsafe_index.Tensor: # pylint: disable=protected-access
             node.target = torch.ops.aten.index.Tensor
     with devices.inference_context():
         model.eval()
