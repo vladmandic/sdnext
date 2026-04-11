@@ -477,9 +477,8 @@ def post_check_local(request: dict):
         return {"found": {}}
     # Build reverse lookup: lowercase sha256 -> {filename, type}
     found = {}
-    hash_cache = hash_module.cache("hashes")
-    for title, entry in hash_cache.items():
-        sha = entry.get("sha256")
+    for title, entry in hash_module.cache().items():
+        sha = entry["sha256"]
         if not sha:
             continue
         parts = title.split("/", 1)

@@ -285,11 +285,7 @@ class DownloadManager:
                 prefix = model_type_map.get(item.model_type, item.model_type.lower())
                 name = os.path.splitext(item.filename)[0]
                 title = f"{prefix}/{name}"
-                hash_cache = hashes.cache("hashes")
-                hash_cache[title] = {
-                    "mtime": os.path.getmtime(final_file),
-                    "sha256": item.expected_hash.lower(),
-                }
+                hashes.cache().add_hash(title, os.path.getmtime(final_file), item.expected_hash.lower())
                 hashes.dump_cache()
             except Exception:
                 pass
