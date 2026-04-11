@@ -48,6 +48,8 @@
     *model*: `port-model`, `debug-model`, `analyze-model`  
     *github*: `github-issues`, `github-features`  
     *other*: `todo`  
+- **CLI**
+  - add `cli/hf-info` and update `cli/hf-search.py`
 - **Obsoleted**
   - removed *system-info* from *extensions-builtin*
 - **Internal**
