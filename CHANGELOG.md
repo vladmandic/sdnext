@@ -27,6 +27,7 @@
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  
     see *main interface -> scripts -> rocm advanced config*  
+  - **OpenVINO** update to `openvino==2026.1.0`
   - **SDNQ** add quant support to `nn.Embedding` type  
 - **Features**
   - **nudenet** add `LlavaGuard` and `QwenGuard` as image safety evaulation models
@@ -65,6 +66,7 @@
   - eliminate `api` auth security bypass
   - multiple `schedulers` signature corrections
   - multiple models reverse model classification
+  - normalize device none error
 
 ## Update for 2026-04-01
 

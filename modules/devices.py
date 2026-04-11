@@ -673,6 +673,8 @@ def test_for_nans(x, where):
 
 
 def normalize_device(dev):
+    if dev is None:
+        return None
     if torch.device(dev).type in {"cpu", "mps", "meta"}:
         return torch.device(dev)
     if torch.device(dev).index is None:
@@ -681,6 +683,8 @@ def normalize_device(dev):
 
 
 def same_device(d1, d2):
+    if d1 is None or d2 is None:
+        return False
     if torch.device(d1).type != torch.device(d2).type:
         return False
     return normalize_device(d1) == normalize_device(d2)

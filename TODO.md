@@ -1,5 +1,21 @@
 # TODO
 
+## Release
+
+- Review: feat/tag-dictionaries
+- Review: er-sde-solver-scheduler
+- Test: Zeta-Chroma
+- Test: Anima-Preview-3
+- Test: SDXS-1B
+- Test: VIBE-Image-Edit
+- Test: Bria-FIBO
+- Test: Lumina-DiMOO
+- Test: Step1X-Edit
+- Code: prompt encode for Bria-FIBO: <https://github.com/Bria-AI/Fibo-Edit/blob/master/src/fibo_edit/fibo_edit_vlm.py>
+- Port: ERNIE-Image (merged, unpublished)
+- Port: NucleusMoE-Image (merged, unpublished)
+- Port: JoyAI-Image-Edit (in-progress, published)
+
 ## Internal
 
 - Feature: implement `unload_auxiliary_models`
@@ -7,6 +23,7 @@
 - Feature: RIFE in processing
 - Feature: SeedVR2 in processing
 - Feature: Add video models to `Reference`
+- Feature: Add <https://huggingface.co/briaai/RMBG-2.0> to REMBG
 - Deploy: Lite vs Expert mode
 - Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
 - Engine: `TensorRT` acceleration
@@ -52,7 +69,6 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
 - [Liquid (unified multimodal generator)](https://github.com/FoundationVision/Liquid)
 - [Tencent HY-WU](https://huggingface.co/tencent/HY-WU)
-- [JoyAI Image Edit](https://huggingface.co/jdopensource/JoyAI-Image-Edit)
 - [nVidia Cosmos-Transfer-2.5](https://github.com/huggingface/diffusers/pull/13066)
 
 ### Video
