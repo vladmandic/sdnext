@@ -91,18 +91,19 @@ def get_device_list():
     return available_devices
 
 
-def get_device():
-    if len(shared.opts.openvino_devices) == 1:
-        return shared.opts.openvino_devices[0]
-    elif len(shared.opts.openvino_devices) > 1:
+def get_device(opts=None):
+    if opts is None:
+        opts = shared.opts
+    if len(opts.openvino_devices) == 1:
+        return opts.openvino_devices[0]
+    elif len(opts.openvino_devices) > 1:
         active_device = []
         for hetero_device in get_device_list():
-            if hetero_device in shared.opts.openvino_devices:
-                if (shared.cmd_opts.device_id is None) or (shared.cmd_opts.device_id in hetero_device):
-                    active_device.append(hetero_device)
-        device = f"HETERO:{','.join(active_device)}" if len(active_device) > 0 else 'auto'
-    else: # len(shared.opts.openvino_devices) == 0
-        device = 'AUTO'
+            if hetero_device in opts.openvino_devices:
+                active_device.append(hetero_device)
+        device = f"HETERO:{','.join(active_device)}" if len(active_device) > 0 else "AUTO"
+    else: # len(opts.openvino_devices) == 0
+        device = "AUTO"
     return device
 
 
@@ -124,29 +125,23 @@ def get_openvino_capabilities(device=None):
 
 
 def test_openvino_fp16(opts): # pylint: disable=unused-argument
-    """
-    # TODO OpenVino: proper fp16 support
-    if 'CPU' in opts.openvino_devices: # disallow=CPU / allow=GPU/NPU
-        return False
     try:
-        capabilities = get_openvino_capabilities()
-        return 'FP16' in capabilities
+        if "FP16" not in get_openvino_capabilities(device="CPU"):
+            # Compile process and the rest of the non-compiled pipeline runs on the CPU regardless of the OpenVINO device
+            return False
+        device = get_device(opts=opts)
+        if device.startswith("HETERO:"):
+            for hetero_device in device.removeprefix("HETERO:").split(","):
+                if "FP16" not in get_openvino_capabilities(device=hetero_device):
+                    return False
+            return True
+        return "FP16" in get_openvino_capabilities(device=device)
     except Exception:
         return False
-    """
-    return False
 
 
 def test_openvino_bf16(opts): # pylint: disable=unused-argument
-    """
-    if len(opts.openvino_devices) == 0 or ('CPU' in opts.openvino_devices) or ('GPU' in opts.openvino_devices) or ('NPU' in opts.openvino_devices): # disallow=AUTO/CPU/GPU/NPU
-        return False
-    try:
-        capabilities = get_openvino_capabilities()
-        return 'BF16' in capabilities
-    except Exception:
-        return False
-    """
+    # Every OpenVINO device fails with BF16
     return False
 
 
