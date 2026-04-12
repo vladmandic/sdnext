@@ -123,7 +123,9 @@ def get_openvino_capabilities(device=None):
         return []
 
 
-def test_openvino_fp16(opts):
+def test_openvino_fp16(opts): # pylint: disable=unused-argument
+    """
+    # TODO OpenVino: proper fp16 support
     if 'CPU' in opts.openvino_devices: # disallow=CPU / allow=GPU/NPU
         return False
     try:
@@ -131,9 +133,12 @@ def test_openvino_fp16(opts):
         return 'FP16' in capabilities
     except Exception:
         return False
+    """
+    return False
 
 
-def test_openvino_bf16(opts):
+def test_openvino_bf16(opts): # pylint: disable=unused-argument
+    """
     if len(opts.openvino_devices) == 0 or ('CPU' in opts.openvino_devices) or ('GPU' in opts.openvino_devices) or ('NPU' in opts.openvino_devices): # disallow=AUTO/CPU/GPU/NPU
         return False
     try:
@@ -141,6 +146,8 @@ def test_openvino_bf16(opts):
         return 'BF16' in capabilities
     except Exception:
         return False
+    """
+    return False
 
 
 def cached_model_name(model_hash_str, device, args, cache_root, reversed = False): # pylint: disable=redefined-builtin

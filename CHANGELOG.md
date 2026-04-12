@@ -27,7 +27,10 @@
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  
     see *main interface -> scripts -> rocm advanced config*  
-  - **OpenVINO** update to `openvino==2026.1.0`
+  - **OpenVINO**  
+    update to `openvino==2026.1.0`  
+    default device is now `AUTO`, override which devices are allowed to be used in *settings -> backend settings*  
+    add *experimental* support for `NPU` devices, typically available on AI-PC/Copilot-PC devices  
   - **SDNQ** add quant support to `nn.Embedding` type  
 - **Features**
   - **nudenet** add `LlavaGuard` and `QwenGuard` as image safety evaulation models
