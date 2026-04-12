@@ -138,6 +138,7 @@ def get_pipelines():
         pipelines.update(onnx_pipelines)
     for k, v in pipelines.items():
         if k != 'Autodetect' and v is None:
+            from modules.logger import log
             log.error(f'Model="{k}" diffusers={diffusers.__version__} path={diffusers.__file__} pipeline not available')
     return pipelines
 

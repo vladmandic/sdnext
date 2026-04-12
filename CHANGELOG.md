@@ -77,6 +77,7 @@
   - model refresh not refreshing internal list
   - controlnet processor error handling
   - error handling for same-device check
+  - error handling for undefined pipeline
 
 ## Update for 2026-04-01
 
