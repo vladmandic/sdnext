@@ -333,7 +333,8 @@ def test_fp16():
             return fp16_ok
         elif backend == 'openvino':
             from modules.intel.openvino import test_openvino_fp16
-            fp16_ok = test_openvino_fp16()
+            fp16_ok = test_openvino_fp16(opts)
+            return fp16_ok
         elif backend == 'rocm':
             # gfx1102 (RX 7600, 7500, 7650 and 7700S) causes segfaults with fp16
             # agent can be overriden to gfx1100 to get gfx1102 working with ROCm so check the gpu name as well
@@ -367,7 +368,8 @@ def test_bf16():
             return bf16_ok
         elif backend == 'openvino':
             from modules.intel.openvino import test_openvino_bf16
-            bf16_ok = test_openvino_bf16()
+            bf16_ok = test_openvino_bf16(opts)
+            return bf16_ok
         elif backend == 'rocm' or backend == 'zluda':
             agent = None
             if backend == 'rocm':

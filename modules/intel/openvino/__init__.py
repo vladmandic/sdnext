@@ -123,7 +123,9 @@ def get_openvino_capabilities(device=None):
         return []
 
 
-def test_openvino_fp16():
+def test_openvino_fp16(opts):
+    if 'CPU' in opts.openvino_devices: # disallow=CPU / allow=GPU/NPU
+        return False
     try:
         capabilities = get_openvino_capabilities()
         return 'FP16' in capabilities
@@ -131,7 +133,9 @@ def test_openvino_fp16():
         return False
 
 
-def test_openvino_bf16():
+def test_openvino_bf16(opts):
+    if len(opts.openvino_devices) == 0 or ('CPU' in opts.openvino_devices) or ('GPU' in opts.openvino_devices) or ('NPU' in opts.openvino_devices): # disallow=AUTO/CPU/GPU/NPU
+        return False
     try:
         capabilities = get_openvino_capabilities()
         return 'BF16' in capabilities
@@ -139,7 +143,7 @@ def test_openvino_bf16():
         return False
 
 
-def cached_model_name(model_hash_str, device, args, cache_root, reversed = False):
+def cached_model_name(model_hash_str, device, args, cache_root, reversed = False): # pylint: disable=redefined-builtin
     if model_hash_str is None:
         return None
 
@@ -252,6 +256,7 @@ def openvino_compile(gm: GraphModule, *example_inputs, model_hash_str: str | Non
         hints['CACHE_DIR'] = shared.opts.openvino_cache_path + '/blob'
     core.set_property(hints)
 
+    log.debug(f'OpenVINO compile: device={device} backend={shared.opts.cuda_compile_backend} hints={hints} file="{file_name}"')
     compiled_model = core.compile_model(om, device)
     return compiled_model
 
@@ -272,7 +277,9 @@ def openvino_compile_cached_model(cached_model_path, *example_inputs):
         hints[ov_hints.execution_mode] = ov_hints.ExecutionMode.ACCURACY
     core.set_property(hints)
 
-    compiled_model = core.compile_model(om, get_device())
+    device = get_device()
+    log.debug(f'OpenVINO compile: device={device} hints={hints} cached="{cached_model_path}"')
+    compiled_model = core.compile_model(om, device)
     return compiled_model
 
 

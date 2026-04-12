@@ -267,6 +267,7 @@ def create_settings(cmd_opts):
         "openvino_sep": OptionInfo("<h2>OpenVINO</h2>", "", gr.HTML, {"visible": cmd_opts.use_openvino}),
         "openvino_devices": OptionInfo([], "OpenVINO device", gr.CheckboxGroup, {"choices": get_openvino_device_list() if cmd_opts.use_openvino else [], "visible": cmd_opts.use_openvino}),
         "openvino_accuracy": OptionInfo("default", "OpenVINO accuracy mode", gr.Radio, {"choices": ["default", "performance", "accuracy"], "visible": cmd_opts.use_openvino}),
+        "openvino_compile_backend": OptionInfo("openvino_fx", "OpenVINO compile backend", gr.Radio, {"choices": ["openvino", "openvino_fx"], "visible": cmd_opts.use_openvino}),
         "openvino_disable_model_caching": OptionInfo(True, "OpenVINO disable model caching", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
         "openvino_disable_memory_cleanup": OptionInfo(True, "OpenVINO disable memory cleanup", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
 
@@ -367,7 +368,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('compile', "Model Compile"), {
         "cuda_compile_sep": OptionInfo("<h2>Model Compile</h2>", "", gr.HTML),
         "cuda_compile": OptionInfo([] if not cmd_opts.use_openvino else ["Model", "VAE", "Upscaler", "Control"], "Compile Model", gr.CheckboxGroup, {"choices": ["Model", "TE", "VAE", "LLM", "Control", "Upscaler"]}),
-        "cuda_compile_backend": OptionInfo("inductor" if not cmd_opts.use_openvino else "openvino_fx", "Model compile backend", gr.Radio, {"choices": ['none', 'inductor', 'cudagraphs', 'aot_ts_nvfuser', 'hidet', 'migraphx', 'ipex', 'onediff', 'stable-fast', 'deep-cache', 'olive-ai', 'openvino_fx']}),
+        "cuda_compile_backend": OptionInfo("inductor" if not cmd_opts.use_openvino else "openvino_fx", "Model compile backend", gr.Radio, {"choices": ['none', 'inductor', 'cudagraphs', 'aot_ts_nvfuser', 'hidet', 'migraphx', 'ipex', 'onediff', 'stable-fast', 'deep-cache', 'olive-ai', 'openvino', 'openvino_fx']}),
         "cuda_compile_mode": OptionInfo("default", "Model compile mode", gr.Radio, {"choices": ['default', 'reduce-overhead', 'max-autotune', 'max-autotune-no-cudagraphs']}),
         "cuda_compile_options": OptionInfo(["repeated", "fullgraph", "dynamic"] if not cmd_opts.use_openvino else [], "Model compile options", gr.CheckboxGroup, {"choices": ["precompile", "repeated", "fullgraph", "dynamic", "verbose"]}),
         "deep_cache_interval": OptionInfo(3, "DeepCache cache interval", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1}),

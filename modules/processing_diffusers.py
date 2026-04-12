@@ -389,6 +389,7 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
                 sd_models.move_model(shared.sd_model.transformer, devices.device)
         p.ops.append('refine')
         p.is_refiner_pass = True
+
         sd_models_compile.openvino_recompile_model(p, hires=False, refiner=True)
         shared.sd_model = sd_models.set_diffuser_pipe(shared.sd_model, sd_models.DiffusersTaskType.TEXT_2_IMAGE)
         shared.sd_refiner = sd_models.set_diffuser_pipe(shared.sd_refiner, sd_models.DiffusersTaskType.IMAGE_2_IMAGE)

@@ -142,9 +142,9 @@ def run_settings(*args):
         if "Model" not in shared.opts.cuda_compile:
             log.warning("OpenVINO: Enabling Torch Compile Model")
             shared.opts.cuda_compile.append("Model")
-        if shared.opts.cuda_compile_backend != "openvino_fx":
-            log.warning("OpenVINO: Setting Torch Compiler backend to OpenVINO FX")
-            shared.opts.cuda_compile_backend = "openvino_fx"
+        if shared.opts.cuda_compile_backend != shared.opts.openvino_compile_backend:
+            log.warning(f"OpenVINO: Enabling Torch Compile backend={shared.opts.openvino_compile_backend}")
+            shared.opts.cuda_compile_backend = shared.opts.openvino_compile_backend
     if shared.opts.sd_backend != "diffusers":
         log.error('Legacy option: backend=original is no longer supported')
         shared.opts.sd_backend = "diffusers"
