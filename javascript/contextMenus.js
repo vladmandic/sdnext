@@ -164,12 +164,16 @@ async function initContextMenu() {
     appendContextMenuOption(id, 'Detailer pass', () => reprocessClick(`${tab}`, 'reprocess_detail'), true);
   }
   // Right-click send-to-control button for prompt/params-only transfer.
-  // Scoped per tab because #control_tab and its paired #control_tab_prompt /
-  // #control_tab_params elements are duplicated across output panels.
   for (const tab of ['gallery', 'txt2img', 'img2img', 'extras']) {
     id = `#${tab}_tabitem #control_tab`;
-    appendContextMenuOption(id, 'Transfer only prompt to Images tab', () => document.querySelector(`#image_buttons_${tab} #control_tab_prompt`)?.click());
-    appendContextMenuOption(id, 'Transfer all parameters to Images tab', () => document.querySelector(`#image_buttons_${tab} #control_tab_params`)?.click());
+    appendContextMenuOption(id, 'Transfer only prompt to Images tab', () => {
+      document.querySelector(`#image_buttons_${tab} #control_tab_prompt`)?.click();
+      document.getElementById('control_nav')?.click();
+    });
+    appendContextMenuOption(id, 'Transfer all parameters to Images tab', () => {
+      document.querySelector(`#image_buttons_${tab} #control_tab_params`)?.click();
+      document.getElementById('control_nav')?.click();
+    });
   }
   addContextMenuEventListener();
 }
