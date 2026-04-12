@@ -67,8 +67,9 @@ const contextMenuInit = () => {
       if (oldMenu) oldMenu.remove();
       menuSpecs.forEach((v, k) => {
         const items = v.filter((item) => item.primary);
-        if (items.length > 0 && e.composedPath()[0].matches(k)) {
-          showContextMenu(e, e.composedPath()[0], items);
+        const matched = e.target.closest(k);
+        if (items.length > 0 && matched) {
+          showContextMenu(e, matched, items);
           e.preventDefault();
         }
       });
@@ -78,8 +79,9 @@ const contextMenuInit = () => {
       if (oldMenu) oldMenu.remove();
       menuSpecs.forEach((v, k) => {
         const items = v.filter((item) => !item.primary);
-        if (items.length > 0 && e.composedPath()[0].matches(k)) {
-          showContextMenu(e, e.composedPath()[0], items);
+        const matched = e.target.closest(k);
+        if (items.length > 0 && matched) {
+          showContextMenu(e, matched, items);
           e.preventDefault();
         }
       });
@@ -160,6 +162,14 @@ async function initContextMenu() {
     appendContextMenuOption(id, 'Decode full quality', () => reprocessClick(`${tab}`, 'reprocess_decode'), true);
     appendContextMenuOption(id, 'Refine & HiRes pass', () => reprocessClick(`${tab}`, 'reprocess_refine'), true);
     appendContextMenuOption(id, 'Detailer pass', () => reprocessClick(`${tab}`, 'reprocess_detail'), true);
+  }
+  // Right-click send-to-control button for prompt/params-only transfer.
+  // Scoped per tab because #control_tab and its paired #control_tab_prompt /
+  // #control_tab_params elements are duplicated across output panels.
+  for (const tab of ['gallery', 'txt2img', 'img2img', 'extras']) {
+    id = `#${tab}_tabitem #control_tab`;
+    appendContextMenuOption(id, 'Transfer only prompt to Images tab', () => document.querySelector(`#image_buttons_${tab} #control_tab_prompt`)?.click());
+    appendContextMenuOption(id, 'Transfer all parameters to Images tab', () => document.querySelector(`#image_buttons_${tab} #control_tab_params`)?.click());
   }
   addContextMenuEventListener();
 }

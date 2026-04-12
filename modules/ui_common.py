@@ -299,8 +299,16 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                 delete = gr.Button('Delete', elem_id=f'delete_{tabname}')
                 if transfer:
                     buttons = generation_parameters_copypaste.create_buttons(["control", "txt2img", "img2img", "extras", "caption"])
+                    if tabname in ("gallery", "txt2img", "img2img", "extras"):
+                        prompt_buttons = generation_parameters_copypaste.create_buttons(["control"], label_prefix="✎", label_override="prompt", id_suffix="_prompt")
+                        params_buttons = generation_parameters_copypaste.create_buttons(["control"], label_prefix="⚙", label_override="params", id_suffix="_params")
+                    else:
+                        prompt_buttons = None
+                        params_buttons = None
                 else:
                     buttons = None
+                    prompt_buttons = None
+                    params_buttons = None
 
             download_files = gr.File(None, file_count="multiple", interactive=False, show_label=False, visible=False, elem_id=f'download_files_{tabname}')
             with gr.Group():
@@ -349,6 +357,31 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                         source_text_component=prompt or generation_info
                     )
                     generation_parameters_copypaste.register_paste_params_button(bindings)
+            if prompt_buttons is not None:
+                for paste_tabname, paste_button in prompt_buttons.items():
+                    debug(f'Create output panel prompt-only: source={tabname} target={paste_tabname} button={paste_button}')
+                    generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(
+                        paste_button=paste_button,
+                        tabname=paste_tabname,
+                        source_tabname=tabname,
+                        source_image_component=result_gallery,
+                        paste_field_names=paste_field_names,
+                        source_text_component=prompt or generation_info,
+                        skip_image=True,
+                        only_prompt=True,
+                    ))
+            if params_buttons is not None:
+                for paste_tabname, paste_button in params_buttons.items():
+                    debug(f'Create output panel params-only: source={tabname} target={paste_tabname} button={paste_button}')
+                    generation_parameters_copypaste.register_paste_params_button(generation_parameters_copypaste.ParamBinding(
+                        paste_button=paste_button,
+                        tabname=paste_tabname,
+                        source_tabname=tabname,
+                        source_image_component=result_gallery,
+                        paste_field_names=paste_field_names,
+                        source_text_component=prompt or generation_info,
+                        skip_image=True,
+                    ))
             return result_gallery, generation_info, html_info, html_info_formatted, html_log
 
 
