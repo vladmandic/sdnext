@@ -22,7 +22,7 @@
     enables multimodal understanding and conditional image refinement  
     category: *base*  
 - **Caption & Prompt Enhance**
-  - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune   
+  - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune
 - **Compute**
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  
@@ -31,6 +31,8 @@
   - **SDNQ** add quant support to `nn.Embedding` type  
 - **Features**
   - **nudenet** add `LlavaGuard` and `QwenGuard` as image safety evaulation models
+  - **schedulers** add `ER-SDE` solver  
+    with with *1S, 2M, 3M* variants in both *EPS* and *FlowMatch* flavors  
   - installer auto-restart on upgrade
   - enhanced filename pattern processing  
     allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  
@@ -69,6 +71,9 @@
   - multiple `schedulers` signature corrections
   - multiple models reverse model classification
   - normalize device none error
+  - model refresh not refreshing internal list
+  - controlnet processor error handling
+  - error handling for same-device check
 
 ## Update for 2026-04-01
 

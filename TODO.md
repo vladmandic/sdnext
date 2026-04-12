@@ -3,7 +3,6 @@
 ## Release
 
 - Review: feat/tag-dictionaries
-- Review: er-sde-solver-scheduler
 - Test: Zeta-Chroma
 - Test: Anima-Preview-3
 - Test: SDXS-1B
@@ -12,9 +11,24 @@
 - Test: Lumina-DiMOO
 - Test: Step1X-Edit
 - Code: prompt encode for Bria-FIBO: <https://github.com/Bria-AI/Fibo-Edit/blob/master/src/fibo_edit/fibo_edit_vlm.py>
+- Code: OpenVINO device selection: auto/cpu/gpu/npu
 - Port: ERNIE-Image (merged, unpublished)
 - Port: NucleusMoE-Image (merged, unpublished)
 - Port: JoyAI-Image-Edit (in-progress, published)
+- Wiki: OpenVINO
+
+## Issues
+
+- test_triton with torch.inductor?
+- rocm_script with lora?
+- <https://github.com/vladmandic/sdnext/issues/4183>
+- <https://github.com/vladmandic/sdnext/issues/4518>
+- <https://github.com/vladmandic/sdnext/issues/4682>
+- <https://github.com/vladmandic/sdnext/issues/4688>
+- <https://github.com/vladmandic/sdnext/issues/4689>
+- <https://github.com/vladmandic/sdnext/issues/4692>
+- <https://github.com/vladmandic/sdnext/issues/4751>
+- <https://github.com/vladmandic/sdnext/issues/3883>
 
 ## Internal
 
