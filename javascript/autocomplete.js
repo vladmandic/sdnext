@@ -42,6 +42,8 @@ const CATEGORY_NAMES = {
   13: 'color',
 };
 
+let active = false;
+
 // -- Utilities (ported from Enso) --
 
 /** Binary search for the first tag where tag.name >= prefix. */
@@ -141,7 +143,8 @@ const engine = {
 
   async loadEnabled() {
     const enabled = window.opts?.autocomplete_enabled || [];
-    if (!enabled.length) {
+    active = window.opts?.autocomplete_active || false;
+    if (!active) {
       this.indices.clear();
       return;
     }
@@ -161,9 +164,9 @@ const engine = {
             if (cat.name) this.categoryNames[id] = cat.name;
           });
         }
-        log('autocomplete', `loaded ${name}: ${data.tags?.length || 0} tags`);
+        log('autoComplete', { loaded: name, tags: data.tags?.length || 0 });
       } catch (e) {
-        log('autocomplete', `failed to load ${name}: ${e}`);
+        log('autoComplete', { failed: name, error: e });
       }
     }));
   },
@@ -391,6 +394,7 @@ const dropdown = {
 let debounceTimer = null;
 
 function onInput(textarea) {
+  if (!active) return;
   const minChars = window.opts?.autocomplete_min_chars ?? 3;
   const info = getCurrentWord(textarea);
   if (!info || info.word.length < minChars) {
@@ -457,6 +461,23 @@ const PROMPT_IDS = [
   'video_prompt', 'video_neg_prompt',
 ];
 
+// -- Active button --
+
+function patchActiveButton() {
+  const buttons = [...gradioApp().querySelectorAll('.autocomplete-active')];
+  active = window.opts?.autocomplete_active || false;
+  buttons.forEach((btn) => {
+    btn.classList.toggle('autocomplete-active', active);
+    btn.classList.toggle('autocomplete-inactive', !active);
+    btn.parentElement.onclick = () => {
+      active = !active;
+      window.opts.autocomplete_active = !active;
+      btn.classList.toggle('autocomplete-active', active);
+      btn.classList.toggle('autocomplete-inactive', !active);
+    };
+  });
+}
+
 // -- Config bridge --
 
 /** Monkey-patch script config bridge textboxes to push autocomplete config changes to window.opts immediately. */
@@ -475,7 +496,6 @@ function patchConfigBridge() {
           try {
             const cfg = JSON.parse(newValue);
             for (const [key, val] of Object.entries(cfg)) window.opts[key] = val;
-            log('autocomplete', 'config updated via bridge');
             executeCallbacks(optionsChangedCallbacks);
           } catch { /* ignore parse errors */ }
         }
@@ -489,7 +509,8 @@ function patchConfigBridge() {
 
 async function initAutocomplete() {
   const enabled = window.opts?.autocomplete_enabled || [];
-  log('autocomplete', enabled.length ? `init: ${enabled.join(', ')}` : 'init: no dictionaries enabled yet');
+  active = window.opts?.autocomplete_active || false;
+  log('autoComplete', { active, enabled });
   // Inject styles (CSS files in javascript/ are not auto-loaded)
   const style = document.createElement('style');
   style.textContent = [
@@ -522,18 +543,22 @@ async function initAutocomplete() {
       attached++;
     }
   });
-  log('autocomplete', `attached to ${attached} textareas, ${engine.indices.size} dictionaries`);
+  log('autoComplete', { attached, dicts: engine.indices.size });
   // Reload when settings change
   onOptionsChanged(async () => {
+    const newActive = window.opts?.autocomplete_active || false;
     const newEnabled = window.opts?.autocomplete_enabled || [];
     const currentKeys = [...engine.indices.keys()].sort().join(',');
     const newKeys = [...newEnabled].sort().join(',');
-    if (currentKeys !== newKeys) {
-      log('autocomplete', `reloading: ${newEnabled.join(', ')}`);
+    if ((currentKeys !== newKeys) || (active !== newActive)) {
+      log('autoComplete', { reload: newEnabled });
       await engine.loadEnabled();
+      active = newActive;
+      patchActiveButton();
     }
   });
   // Watch for config updates from the script UI bridge
   patchConfigBridge();
+  patchActiveButton();
   onAfterUiUpdate(() => patchConfigBridge());
 }

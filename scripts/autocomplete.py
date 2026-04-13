@@ -22,11 +22,18 @@ def get_all_names():
 def get_config_json():
     """Serialize autocomplete opts for the JS config bridge."""
     return json.dumps({
+        "autocomplete_active": bool(shared.opts.data.get('autocomplete_active', False)),
         "autocomplete_enabled": list(shared.opts.data.get('autocomplete_enabled', [])),
         "autocomplete_min_chars": shared.opts.data.get('autocomplete_min_chars', 3),
         "autocomplete_replace_underscores": shared.opts.data.get('autocomplete_replace_underscores', True),
         "autocomplete_append_comma": shared.opts.data.get('autocomplete_append_comma', True),
     })
+
+
+def on_active_change(value):
+    shared.opts.data['autocomplete_active'] = bool(value)
+    shared.opts.save(silent=True)
+    return get_config_json(), ""
 
 
 def on_enabled_change(selected):
@@ -60,13 +67,13 @@ def format_status(local, remote_entries, fetch_ok):
     for e in remote_entries:
         name = e.get('name', '')
         remote_names.add(name)
-        dl_status = 'local' if name in local else 'available'
+        dl_status = '' if name in local else symbols.save
         desc = e.get('description', '')
-        size = e.get('size_mb', 0)
+        # size = e.get('size_mb', 0)
         tags = e.get('tag_count', 0)
-        lines.append(f"<b>{name}</b> - {desc} ({tags:,} tags, {size:.1f} MB) [{dl_status}]")
+        lines.append(f"<b>{name}</b> | {desc} | {tags:,} tags {dl_status}")
     for name in sorted(local - remote_names):
-        lines.append(f"<b>{name}</b> [local]")
+        lines.append(f"<b>{name}</b>")
     if not fetch_ok:
         lines.insert(0, "<i>Remote fetch failed; showing local files only</i>")
     elif not lines:
@@ -131,6 +138,12 @@ class AutocompleteScript(scripts_manager.Script):
 
         with gr.Accordion('Tag Autocomplete', open=False, elem_id='autocomplete_settings'):
             with gr.Row():
+                active_cb = gr.Checkbox(
+                    label="Enable Autocomplete",
+                    value=bool(shared.opts.data.get('autocomplete_active', False)),
+                    elem_id=self.elem_id("active"),
+                )
+            with gr.Row():
                 enabled_dd = gr.Dropdown(
                     label="Active dictionaries",
                     multiselect=True,
@@ -142,12 +155,6 @@ class AutocompleteScript(scripts_manager.Script):
                 refresh_btn = ToolButton(value=symbols.refresh, elem_id=self.elem_id("refresh"))
                 update_btn = ToolButton(value=symbols.save, elem_id=self.elem_id("update"))
             with gr.Row():
-                min_chars = gr.Slider(
-                    label="Min characters",
-                    minimum=2, maximum=6, step=1,
-                    value=shared.opts.data.get('autocomplete_min_chars', 3),
-                    elem_id=self.elem_id("min_chars"),
-                )
                 replace_underscores = gr.Checkbox(
                     label="Replace underscores",
                     value=shared.opts.data.get('autocomplete_replace_underscores', True),
@@ -158,6 +165,12 @@ class AutocompleteScript(scripts_manager.Script):
                     value=shared.opts.data.get('autocomplete_append_comma', True),
                     elem_id=self.elem_id("append_comma"),
                 )
+                min_chars = gr.Slider(
+                    label="Min characters",
+                    minimum=2, maximum=6, step=1,
+                    value=shared.opts.data.get('autocomplete_min_chars', 3),
+                    elem_id=self.elem_id("min_chars"),
+                )
             with gr.Row():
                 status = gr.HTML(value="", elem_id=self.elem_id("status"))
             config_json = gr.Textbox(
@@ -166,6 +179,7 @@ class AutocompleteScript(scripts_manager.Script):
                 elem_id=self.elem_id("config_json"),
             )
 
+        active_cb.change(fn=on_active_change, inputs=[active_cb], outputs=[config_json, status])
         enabled_dd.change(fn=on_enabled_change, inputs=[enabled_dd], outputs=[config_json, status])
         min_chars.change(fn=on_min_chars_change, inputs=[min_chars], outputs=[config_json])
         replace_underscores.change(fn=on_replace_underscores_change, inputs=[replace_underscores], outputs=[config_json])
@@ -176,4 +190,4 @@ class AutocompleteScript(scripts_manager.Script):
         for comp in [enabled_dd, min_chars, replace_underscores, append_comma, config_json, status]:
             comp.do_not_save_to_config = True
 
-        return [enabled_dd, min_chars, replace_underscores, append_comma, config_json]
+        return [active_cb, enabled_dd, min_chars, replace_underscores, append_comma, config_json]

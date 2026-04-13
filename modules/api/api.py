@@ -121,7 +121,7 @@ class Api:
         # autocomplete api
         from modules.api import autocomplete as autocomplete_api
         autocomplete_api.init(getattr(shared.opts, 'autocomplete_dir', '') or os.path.join(paths.models_path, 'autocomplete'))
-        autocomplete_api.register_api(self.app)
+        autocomplete_api.register_api(self)
 
         # gallery api
         from modules.api import gallery

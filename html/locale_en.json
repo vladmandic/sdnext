@@ -74,6 +74,7 @@
     {"id":"","label":"Answer","localized":"","hint":"","ui":"caption"},
     {"id":"","label":"Adjust start","localized":"","hint":"Starting step when sigma adjust occurs","ui":"txt2img"},
     {"id":"","label":"Adjust end","localized":"","hint":"Ending step when sigma adjust occurs","ui":"txt2img"},
+    {"id":"","label":"Autocomplete","localized":"","hint":"Enable or disable Tag Autocomplete. Choose which dictionaries are used for prompt autocompletion in Extras","ui":"control"},
     {"id":"","label":"AutoGuidance dropout","localized":"","hint":"","ui":"txt2img"},
     {"id":"","label":"AutoGuidance layers","localized":"","hint":"","ui":"txt2img"},
     {"id":"","label":"AutoGuidance config","localized":"","hint":"","ui":"txt2img"},

@@ -14,9 +14,9 @@ from fastapi.exceptions import HTTPException
 from modules.api.models import ItemAutocomplete, ItemAutocompleteContent, ItemAutocompleteRemote
 from modules.logger import log
 
+
 autocomplete_dir: str = ""
 cache: dict[str, dict] = {}
-
 HF_REPO = "CalamitousFelicitousness/prompt-vocab"
 HF_BASE = f"https://huggingface.co/datasets/{HF_REPO}/resolve/main"
 MANIFEST_CACHE_SEC = 300  # re-fetch manifest every 5 minutes
@@ -40,7 +40,7 @@ def get_cached(name: str) -> dict:
         try:
             manifest = fetch_manifest_sync()
             if any(e.get('name') == name for e in manifest):
-                log.info(f"Auto-downloading autocomplete: {name}")
+                log.info(f'Autocomplete: name="{name}" auto-download')
                 download_sync(name)
             else:
                 raise HTTPException(status_code=404, detail=f"Not found: {name}")
@@ -139,7 +139,7 @@ def fetch_manifest_sync() -> list[dict]:
         manifest_cache['fetched_at'] = now
         return entries
     except Exception as e:
-        log.warning(f"Failed to fetch autocomplete manifest: {e}")
+        log.warning(f"Autocomplete: Failed to fetch manifest: {e}")
         return manifest_cache.get('data', [])
 
 
@@ -202,7 +202,6 @@ def download_sync(name: str) -> str:
         raise HTTPException(status_code=400, detail="Invalid name")
     os.makedirs(autocomplete_dir, exist_ok=True)
     url = f"{HF_BASE}/{name}.json"
-    log.info(f"Downloading autocomplete: {url}")
     try:
         resp = requests.get(url, timeout=120, stream=True)
         resp.raise_for_status()
@@ -217,7 +216,7 @@ def download_sync(name: str) -> str:
             size += len(chunk)
     os.replace(tmp, target)
     cache.pop(name, None)
-    log.info(f"Downloaded autocomplete: {name} ({size / 1024 / 1024:.1f} MB)")
+    log.info(f'Autocomplete: name="{name}" url={url} ({size / 1024 / 1024:.2f}MB) downloaded')
     return target
 
 
@@ -247,9 +246,9 @@ async def delete(name: str):
     return {"status": "deleted", "name": name}
 
 
-def register_api(app):
-    app.add_api_route("/sdapi/v1/autocomplete", list_all, methods=["GET"], response_model=list[ItemAutocomplete], tags=["Enumerators"])
-    app.add_api_route("/sdapi/v1/autocomplete/remote", list_remote, methods=["GET"], response_model=list[ItemAutocompleteRemote], tags=["Enumerators"])
-    app.add_api_route("/sdapi/v1/autocomplete/{name}", get_content, methods=["GET"], response_model=ItemAutocompleteContent, tags=["Enumerators"])
-    app.add_api_route("/sdapi/v1/autocomplete/{name}/download", download, methods=["POST"], response_model=ItemAutocomplete, tags=["Enumerators"])
-    app.add_api_route("/sdapi/v1/autocomplete/{name}", delete, methods=["DELETE"], tags=["Enumerators"])
+def register_api(api):
+    api.add_api_route("/sdapi/v1/autocomplete", list_all, methods=["GET"], response_model=list[ItemAutocomplete], tags=["Enumerators"])
+    api.add_api_route("/sdapi/v1/autocomplete/remote", list_remote, methods=["GET"], response_model=list[ItemAutocompleteRemote], tags=["Enumerators"])
+    api.add_api_route("/sdapi/v1/autocomplete/{name}", get_content, methods=["GET"], response_model=ItemAutocompleteContent, tags=["Enumerators"])
+    api.add_api_route("/sdapi/v1/autocomplete/{name}/download", download, methods=["POST"], response_model=ItemAutocomplete, tags=["Enumerators"])
+    api.add_api_route("/sdapi/v1/autocomplete/{name}", delete, methods=["DELETE"], tags=["Enumerators"])
