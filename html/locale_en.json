@@ -24,7 +24,7 @@
     {"id":"xyz_grid_x_list","label":"⊜","localized":"","hint":"Fill","ui":"script_xyz_grid_script"},
     {"id":"txt2img_caption_output","label":"","localized":"","hint":"Caption image","ui":"txt2img"},
     {"id":"txt2img_image_fit","label":"⁜","localized":"","hint":"Cycle image fit method","ui":"txt2img"},
-    {"id":"","label":"➠ Control","localized":"","hint":"Transfer image to control interface","ui":"txt2img"},
+    {"id":"","label":"➠ Control","localized":"","hint":"Transfer image to control interface. <br><br> Right-click this button to transfer only the prompt or all generation parameters to the Images tab without sending the image itself.","ui":"txt2img"},
     {"id":"","label":"➠ Text","localized":"","hint":"Transfer image to text interface","ui":"txt2img"},
     {"id":"","label":"➠ Image","localized":"","hint":"Transfer image to image interface","ui":"txt2img"},
     {"id":"","label":"➠ Process","localized":"","hint":"Transfer image to process interface","ui":"txt2img"},
