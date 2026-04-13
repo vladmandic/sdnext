@@ -208,7 +208,7 @@ class CivitaiClient:
             ('types', '/models', {'types': '__invalid__'}),
             ('sort', '/models', {'sort': '__invalid__'}),
             ('period', '/models', {'period': '__invalid__'}),
-            ('base_models', '/models', {'baseModels': '__invalid__'}),
+            ('base_models', '/images', {'baseModels': '__invalid__'}),  # /models no longer validates baseModels; /images still does
         ]
         for key, path, params in probes:
             try:
