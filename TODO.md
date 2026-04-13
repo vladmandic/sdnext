@@ -2,15 +2,14 @@
 
 ## Release
 
-- Review: feat/tag-dictionaries
 - Test: Zeta-Chroma
 - Test: Anima-Preview-3
 - Test: SDXS-1B
 - Test: VIBE-Image-Edit
-- Test: Bria-FIBO
 - Test: Lumina-DiMOO
 - Test: Step1X-Edit
-- Code: prompt encode for Bria-FIBO: <https://github.com/Bria-AI/Fibo-Edit/blob/master/src/fibo_edit/fibo_edit_vlm.py>
+- Test: Bria-FIBO prompt to json
+- Test: Bria-FIBO
 - Port: ERNIE-Image (merged, unpublished)
 - Port: NucleusMoE-Image (merged, unpublished)
 - Port: JoyAI-Image-Edit (in-progress, published)

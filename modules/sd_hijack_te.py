@@ -13,7 +13,14 @@ def hijack_encode_prompt(*args, **kwargs):
         prompt = kwargs.get('prompt', None) or (args[0] if len(args) > 0 else None)
         if prompt is not None:
             log.debug(f'Encode: prompt="{prompt}" hijack=True')
-        res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
+        if hasattr(shared.sd_model, 'before_prompt_encode'):
+            prompt = shared.sd_model.before_prompt_encode(prompt)
+        if hasattr(shared.sd_model, 'orig_encode_prompt'):
+            res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
+        if hasattr(shared.sd_model, 'after_prompt_encode'):
+            res = shared.sd_model.after_prompt_encode(res)
+        else:
+            res = prompt
     except Exception as e:
         log.error(f'Encode prompt: {e}')
         errors.display(e, 'Encode prompt')

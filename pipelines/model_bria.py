@@ -50,6 +50,8 @@ def load_bria(checkpoint_info, diffusers_load_config=None):
             cache_dir=shared.opts.diffusers_dir,
             **load_args,
         )
+        from pipelines.bria import prompt_to_json
+        pipe.before_prompt_encode = prompt_to_json.before_prompt_encode
         pipe.task_args = {
             'output_type': 'np',
         }
