@@ -10,6 +10,7 @@ class ScriptPostprocessingColorGrading(scripts_postprocessing.ScriptPostprocessi
         return ui_controls_dict
 
     def process(self, pp: scripts_postprocessing.PostprocessedImage, *args, **kwargs): # pylint: disable=arguments-differ
+        kwargs = {k: v for k, v in kwargs.items() if v is not None}
         grading_params = processing_grading.GradingParams(*args, **kwargs)
         if processing_grading.is_active(grading_params):
             pp.image = processing_grading.grade_image(pp.image, grading_params)
