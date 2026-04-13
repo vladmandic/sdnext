@@ -576,7 +576,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=Non
             if layer_class_name in allowed_types and module.weight.dtype in {torch.float64, torch.float32, torch.float16, torch.bfloat16}:
                 if layer_class_name in embedding_types and not quant_embedding:
                     continue
-                elif (layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quant_conv:
+                if (layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quant_conv:
                     continue
                 quant_kwargs = {
                     "weights_dtype": weights_dtype,

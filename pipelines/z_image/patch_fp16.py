@@ -27,7 +27,7 @@ def apply_patches():
 
     Uses modules.patches.patch() — idempotent, reversible via modules.patches.undo().
     """
-    global _applied
+    global _applied # pylint: disable=global-statement
     if _applied:
         return
     _applied = True
@@ -39,7 +39,7 @@ def apply_patches():
     # ------------------------------------------------------------------
     # FeedForward._forward_silu_gating
     # ------------------------------------------------------------------
-    def _patched_forward_silu_gating(self, x1, x3):
+    def _patched_forward_silu_gating(self, x1, x3): # pylint: disable=unused-argument
         return _clamp_fp16(F.silu(x1) * x3)
 
     # ------------------------------------------------------------------
@@ -106,4 +106,3 @@ def apply_patches():
     sdnext_patches.patch(__name__, m.FeedForward,            '_forward_silu_gating', _patched_forward_silu_gating)
     sdnext_patches.patch(__name__, m.ZImageTransformerBlock, 'forward',              _patched_zimage_block_forward)
     sdnext_patches.patch(__name__, m.FinalLayer,             'forward',              _patched_final_layer_forward)
-

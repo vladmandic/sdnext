@@ -132,7 +132,6 @@ def checkpoint_titles(use_short=False):
 
 def list_models():
     t0 = time.time()
-    global checkpoints_list # pylint: disable=global-statement
     checkpoints_list.clear()
     checkpoint_aliases.clear()
     ext_filter = [".safetensors"]

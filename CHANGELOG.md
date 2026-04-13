@@ -21,6 +21,17 @@
     integrates Qwen2.5-VL text encoder and Flow Matching scheduler for high-quality in-context edits  
     enables multimodal understanding and conditional image refinement  
     category: *base*  
+- **Features**
+  - **Tag Autocomplete** native implementation!  
+    select and activate any number of different auto-complete databases  
+    see *Extras -> Autocomplete* for all settings  
+  - **NudeNet** add `LlavaGuard` and `QwenGuard` as image safety evaulation models  
+  - **schedulers** add `ER-SDE` solver  
+    with with *1S, 2M, 3M* variants in both *EPS* and *FlowMatch* flavors  
+  - **installer** auto-restart on upgrade
+  - enhanced **filename** pattern processing  
+    allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  
+    allows for any *settings* property name (as defined in `modules/ui_definitions.py` and saved to `config.json`)  
 - **Compute**
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  
@@ -31,16 +42,9 @@
     perform detection of fp16 capabilities instead of forcing fp32 by default  
     add *experimental* support for `NPU` devices, typically available on AI-PC/Copilot-PC devices  
   - **SDNQ** add quant support to `nn.Embedding` type  
-- **Features**
-  - **nudenet** add `LlavaGuard` and `QwenGuard` as image safety evaulation models
-  - **schedulers** add `ER-SDE` solver  
-    with with *1S, 2M, 3M* variants in both *EPS* and *FlowMatch* flavors  
-  - installer auto-restart on upgrade
-  - enhanced filename pattern processing  
-    allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  
-    allows for any *settings* property name (as defined in `modules/ui_definitions.py` and saved to `config.json`)  
 - **UI**
   - `gallery` send-to button advanced options with right-click
+  - `tag autocomplete` quick toggle in main prompt area
 - **Caption & Prompt Enhance**
   - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune
 - **Agents**
@@ -81,6 +85,7 @@
   - controlnet processor error handling
   - error handling for same-device check
   - error handling for undefined pipeline
+  - patch `z-image` for fp16 compatibility, thanks @resonantsky
 
 ## Update for 2026-04-01
 
