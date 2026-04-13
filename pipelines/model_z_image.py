@@ -3,7 +3,7 @@ import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from modules.logger import log
 from pipelines import generic
-from pipelines.model_z_image_clampFP16 import apply_patches
+from pipelines.z_image.patch_fp16 import apply_patches
 
 
 def load_nunchaku():
