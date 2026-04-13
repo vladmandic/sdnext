@@ -11,7 +11,6 @@
 - Test: Lumina-DiMOO
 - Test: Step1X-Edit
 - Code: prompt encode for Bria-FIBO: <https://github.com/Bria-AI/Fibo-Edit/blob/master/src/fibo_edit/fibo_edit_vlm.py>
-- Code: OpenVINO device selection: auto/cpu/gpu/npu
 - Port: ERNIE-Image (merged, unpublished)
 - Port: NucleusMoE-Image (merged, unpublished)
 - Port: JoyAI-Image-Edit (in-progress, published)
@@ -41,6 +40,7 @@
 - Deploy: Lite vs Expert mode
 - Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
 - Engine: `TensorRT` acceleration
+- Engine: [DiffSynth-Engine](https://github.com/modelscope/DiffSynth-Engine)
 - Feature: Auto handle scheduler `prediction_type`
 - Feature: Cache models in memory
 - Feature: JSON image metadata
@@ -77,8 +77,8 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image
 
+- [UltraFlux](https://huggingface.co/Owen777/UltraFlux-v1)
 - [Mugen](https://huggingface.co/CabalResearch/Mugen)
-- [NucleusMoe](https://github.com/huggingface/diffusers/pull/13317)
 - [Liquid](https://github.com/FoundationVision/Liquid)
 - [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
 - [Liquid (unified multimodal generator)](https://github.com/FoundationVision/Liquid)
@@ -111,9 +111,17 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [LivePortrait](https://github.com/KwaiVGI/LivePortrait): Efficient portrait animation system with high stitching and retargeting control
 - [Magi (SandAI)](https://github.com/SandAI-org/MAGI-1): High-quality autoregressive video generation framework
 - [Ming (inclusionAI)](https://github.com/inclusionAI/Ming): Unified multimodal model for processing text, audio, image, and video
+- [HummingbirdXT](https://huggingface.co/amd/HummingbirdXT)
 
 ### Other/Unsorted
 
+- [RamTorch](https://github.com/lodestone-rock/ramtorch)
+- [FaceFusion](https://github.com/facefusion/facefusion)
+- [FaceClip](https://huggingface.co/ByteDance/FaceCLIP)
+- [TwinFlow](https://github.com/inclusionAI/TwinFlow)
+- [RegionE](https://github.com/Peyton-Chen/RegionE)
+- [T5Gemma Adapter](https://huggingface.co/Minthy/Rouwei-T5Gemma-adapter_v0.2)
+- [FreeFuse](https://github.com/yaoliliu/FreeFuse)
 - [OneReward](https://github.com/bytedance/OneReward)
 - [ByteDance DreamO](https://huggingface.co/ByteDance/DreamO)
 - [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer): Full-sequence diffusion with autoregressive next-token prediction

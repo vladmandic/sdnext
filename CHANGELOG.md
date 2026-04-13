@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-12
+## Update for 2026-04-13
 
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
@@ -21,8 +21,6 @@
     integrates Qwen2.5-VL text encoder and Flow Matching scheduler for high-quality in-context edits  
     enables multimodal understanding and conditional image refinement  
     category: *base*  
-- **Caption & Prompt Enhance**
-  - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune
 - **Compute**
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  
@@ -30,6 +28,7 @@
   - **OpenVINO**  
     update to `openvino==2026.1.0`  
     default device is now `AUTO`, override which devices are allowed to be used in *settings -> backend settings*  
+    perform detection of fp16 capabilities instead of forcing fp32 by default  
     add *experimental* support for `NPU` devices, typically available on AI-PC/Copilot-PC devices  
   - **SDNQ** add quant support to `nn.Embedding` type  
 - **Features**
@@ -40,6 +39,10 @@
   - enhanced filename pattern processing  
     allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  
     allows for any *settings* property name (as defined in `modules/ui_definitions.py` and saved to `config.json`)  
+- **UI**
+  - `gallery` send-to button advanced options with right-click
+- **Caption & Prompt Enhance**
+  - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune
 - **Agents**
   framework for AI agent based work in `.github/`  
   *note*: all skills are agent-model agnostic  
