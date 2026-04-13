@@ -35,7 +35,7 @@ def load_cache():
 
 
 def save_cache():
-    writefile(_data, cache_filename)
+    writefile(dict(_data), cache_filename)
 
 
 def cache(store: str = "hashes") -> HashStore:
