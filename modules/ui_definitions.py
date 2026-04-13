@@ -389,6 +389,7 @@ def create_settings(cmd_opts):
         "lora_dir": OptionInfo(os.path.join(paths.models_path, 'Lora'), "Folder with LoRA network(s)", folder=True),
         "styles_dir": OptionInfo(os.path.join(paths.models_path, 'styles'), "File or Folder with user-defined styles", folder=True),
         "wildcards_dir": OptionInfo(os.path.join(paths.models_path, 'wildcards'), "Folder with user-defined wildcards", folder=True),
+        "autocomplete_dir": OptionInfo(os.path.join(paths.models_path, 'autocomplete'), "Folder with tag autocomplete files", folder=True),
         "embeddings_dir": OptionInfo(os.path.join(paths.models_path, 'embeddings'), "Folder with textual inversion embeddings", folder=True),
         "control_dir": OptionInfo(os.path.join(paths.models_path, 'control'), "Folder with Control models", folder=True),
         "yolo_dir": OptionInfo(os.path.join(paths.models_path, 'yolo'), "Folder with Yolo models", folder=True),
@@ -657,6 +658,14 @@ def create_settings(cmd_opts):
                 "disabled_extensions": OptionInfo([], "Disable these extensions", gr.Textbox, {"visible": False}),
                 "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint", gr.Textbox, {"visible": False}),
                 "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
+
+                # Autocomplete settings (controlled via Tag Autocomplete script UI)
+                "autocomplete_active": OptionInfo(False, "Enable Autocomplete", gr.Checkbox, {"visible": False}),
+                "autocomplete_enabled": OptionInfo([], "Enabled tag autocomplete files", gr.Dropdown, {"multiselect": True, "choices": [], "visible": False}),
+                "autocomplete_min_chars": OptionInfo(3, "Min autocomplete chars", gr.Slider, {"minimum": 2, "maximum": 6, "step": 1, "visible": False}),
+                "autocomplete_replace_underscores": OptionInfo(True, "Replace underscores in autocomplete", gr.Checkbox, {"visible": False}),
+                "autocomplete_append_comma": OptionInfo(True, "Append comma after autocomplete", gr.Checkbox, {"visible": False}),
+
                 # Caption settings (controlled via Caption Tab UI)
                 "caption_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["VLM", "OpenCLiP", "Tagger"], "visible": False}),
                 "tagger_show_scores": OptionInfo(False, "Tagger: show confidence scores in results", gr.Checkbox, {"visible": False}),
