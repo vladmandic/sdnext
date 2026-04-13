@@ -12,7 +12,8 @@
 - Test: Bria-FIBO
 - Port: ERNIE-Image (merged, unpublished) <https://github.com/huggingface/diffusers/blob/main/docs/source/en/api/pipelines/ernie_image.md>
 - Port: NucleusMoE-Image (merged, unpublished)
-- Port: JoyAI-Image-Edit (in-progress, need conversion)
+- Port: JoyAI-Image-Edit (in-progress)
+- Port: Lumina-DiMOO(in-progress)
 - Code: Bria-FIBO edit requires image handling
 - Issues: ROCm script with LoRA?
 
@@ -62,6 +63,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image
 
+- [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO)
 - [UltraFlux](https://huggingface.co/Owen777/UltraFlux-v1)
 - [Mugen](https://huggingface.co/CabalResearch/Mugen)
 - [Liquid](https://github.com/FoundationVision/Liquid)

@@ -30,7 +30,7 @@ pipelines = {
     'Chroma': getattr(diffusers, 'ChromaPipeline', None),
     'Sana': getattr(diffusers, 'SanaPipeline', None),
     'Lumina-Next': getattr(diffusers, 'LuminaText2ImgPipeline', None),
-    'Lumina-DiMOO': getattr(diffusers, 'LuminaDiMOOPipeline', None),
+    # 'Lumina-DiMOO': getattr(diffusers, 'LuminaDiMOOPipeline', None),
     'Lumina 2': getattr(diffusers, 'Lumina2Pipeline', None),
     'AuraFlow': getattr(diffusers, 'AuraFlowPipeline', None),
     'Kandinsky 2.1': getattr(diffusers, 'KandinskyCombinedPipeline', None),

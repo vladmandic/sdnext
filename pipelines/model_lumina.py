@@ -84,3 +84,15 @@ def load_lumina_dimoo(checkpoint_info, diffusers_load_config=None):
 
     devices.torch_gc(force=True, reason='load')
     return pipe
+
+""" Reference
+  "AlphaVLLM Lumina DiMOO": {
+    "path": "Alpha-VLLM/Lumina-DiMOO",
+    "desc": "Lumina-DiMOO is an omni diffusion large language model for multimodal generation and understanding with text-to-image, image editing and understanding capabilities.",
+    "preview": "Alpha-VLLM--Lumina-DiMOO.jpg",
+    "skip": true,
+    "extras": "sampler: Default",
+    "size": 0,
+    "date": "2025 September"
+  },
+"""

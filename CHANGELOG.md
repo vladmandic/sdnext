@@ -14,9 +14,6 @@
     *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
   - [VIBE Image Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit) visual instruction based image editing model  
     combines *Sana1.5-1.6B* diffusion backbone with *Qwen3-VL-2B* multimodal conditioning  
-  - [Lumina-DiMOO](https://huggingface.co/Alpha-VLLM/Lumina-DiMOO) omni diffusion large language model for multimodal generation and understanding  
-    supports *text-to-image*, *image editing*, and *image understanding* in a unified discrete diffusion framework  
-    uses a VQ-VAE backed token space with any-to-any task coverage  
   - [Step1X-Edit v1.2](https://huggingface.co/stepfun-ai/Step1X-Edit-v1p2) image editing model using Step1X transformer  
     integrates Qwen2.5-VL text encoder and Flow Matching scheduler for high-quality in-context edits  
     enables multimodal understanding and conditional image refinement  
