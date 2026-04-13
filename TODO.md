@@ -10,23 +10,11 @@
 - Test: Step1X-Edit
 - Test: Bria-FIBO prompt to json
 - Test: Bria-FIBO
-- Port: ERNIE-Image (merged, unpublished)
+- Port: ERNIE-Image (merged, unpublished) <https://github.com/huggingface/diffusers/blob/main/docs/source/en/api/pipelines/ernie_image.md>
 - Port: NucleusMoE-Image (merged, unpublished)
-- Port: JoyAI-Image-Edit (in-progress, published)
-- Wiki: OpenVINO
-
-## Issues
-
-- test_triton with torch.inductor?
-- rocm_script with lora?
-- <https://github.com/vladmandic/sdnext/issues/4183>
-- <https://github.com/vladmandic/sdnext/issues/4518>
-- <https://github.com/vladmandic/sdnext/issues/4682>
-- <https://github.com/vladmandic/sdnext/issues/4688>
-- <https://github.com/vladmandic/sdnext/issues/4689>
-- <https://github.com/vladmandic/sdnext/issues/4692>
-- <https://github.com/vladmandic/sdnext/issues/4751>
-- <https://github.com/vladmandic/sdnext/issues/3883>
+- Port: JoyAI-Image-Edit (in-progress, need conversion)
+- Code: Bria-FIBO edit requires image handling
+- Issues: ROCm script with LoRA?
 
 ## Internal
 
@@ -37,9 +25,7 @@
 - Feature: Add video models to `Reference`
 - Feature: Add <https://huggingface.co/briaai/RMBG-2.0> to REMBG
 - Deploy: Lite vs Expert mode
-- Engine: [mmgp](https://github.com/deepbeepmeep/mmgp)
 - Engine: `TensorRT` acceleration
-- Engine: [DiffSynth-Engine](https://github.com/modelscope/DiffSynth-Engine)
 - Feature: Auto handle scheduler `prediction_type`
 - Feature: Cache models in memory
 - Feature: JSON image metadata
@@ -80,63 +66,95 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [Mugen](https://huggingface.co/CabalResearch/Mugen)
 - [Liquid](https://github.com/FoundationVision/Liquid)
 - [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
-- [Liquid (unified multimodal generator)](https://github.com/FoundationVision/Liquid)
+- [Liquid](https://github.com/FoundationVision/Liquid)
 - [Tencent HY-WU](https://huggingface.co/tencent/HY-WU)
 - [nVidia Cosmos-Transfer-2.5](https://github.com/huggingface/diffusers/pull/13066)
 
 ### Video
 
 - [HY-OmniWeaving](https://huggingface.co/tencent/HY-OmniWeaving)
-- [LTX-Condition](https://github.com/huggingface/diffusers/pull/13058)
-- [LTX-Distilled](https://github.com/huggingface/diffusers/pull/12934)
-- [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p): Unified foundation model for synchronized high-fidelity video and audio
-- [Wan family (Wan2.1 / Wan2.2 variants)](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B): MoE-based foundational tools for cinematic T2V/I2V/TI2V
- example: [Wan2.1-T2V-14B-CausVid](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-CausVid)
- distill / step-distill examples: [Wan2.1-StepDistill-CfgDistill](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-StepDistill-CfgDistill)
-- [Krea Realtime Video](https://huggingface.co/krea/krea-realtime-video): (Wan2.1)Distilled real-time video diffusion using self-forcing techniques
-- [MAGI-1 (autoregressive video)](https://github.com/SandAI-org/MAGI-1): Autoregressive video generation allowing infinite and timeline control
-- [MUG-V 10B (video generation)](https://huggingface.co/MUG-V/MUG-V-inference): large-scale DiT-based video generation system trained via flow-matching
-- [Ovi (audio/video generation)](https://github.com/character-ai/Ovi): (Wan2.2)Speech-to-video with synchronized sound effects and music
-- [LucyEdit](https://github.com/huggingface/diffusers/pull/12340):Instruction-guided video editing while preserving motion and identity
-- [HunyuanVideo-Avatar / HunyuanCustom](https://huggingface.co/tencent/HunyuanVideo-Avatar): (HunyuanVideo)MM-DiT based dynamic emotion-controllable dialogue generation
-- [Sana Image→Video (Sana-I2V)](https://github.com/huggingface/diffusers/pull/12634#issuecomment-3540534268): (Sana)Compact Linear DiT framework for efficient high-resolution video
-- [Wan-2.2 S2V (diffusers PR)](https://github.com/huggingface/diffusers/pull/12258): (Wan2.2)Audio-driven cinematic speech-to-video generation
-- [Meituan LongCat-Video](https://huggingface.co/meituan-longcat/LongCat-Video): Unified framework for minutes-long coherent video generation via Block Sparse Attention
-- [LTXVideo / LTXVideo LongMulti (diffusers PR)](https://github.com/huggingface/diffusers/pull/12614): Real-time DiT-based generation with production-ready camera controls
-- [DiffSynth-Studio (ModelScope)](https://github.com/modelscope/DiffSynth-Studio): (Wan2.2)Comprehensive training and quantization tools for Wan video models
-- [Phantom (Phantom HuMo)](https://github.com/Phantom-video/Phantom): Human-centric video generation framework focus on subject ID consistency
-- [CausVid-Plus / WAN-CausVid-Plus](https://github.com/goatWu/CausVid-Plus/): (Wan2.1)Causal diffusion for high-quality temporally consistent long videos
-- [Wan2GP (workflow/GUI for Wan)](https://github.com/deepbeepmeep/Wan2GP): (Wan)Web-based UI focused on running complex video models for GPU-poor setups
-- [LivePortrait](https://github.com/KwaiVGI/LivePortrait): Efficient portrait animation system with high stitching and retargeting control
-- [Magi (SandAI)](https://github.com/SandAI-org/MAGI-1): High-quality autoregressive video generation framework
-- [Ming (inclusionAI)](https://github.com/inclusionAI/Ming): Unified multimodal model for processing text, audio, image, and video
+- [LTX-Condition](https://huggingface.co/Lightricks/LTX-2)
+- [LTX-Distilled](https://huggingface.co/Lightricks/LTX-2)
+- [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p)
+- [Wan2.2-Animate](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
+- [Wan2.1-T2V-14B-CausVid](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-CausVid)
+- [Wan2.1-StepDistill-CfgDistill](https://huggingface.co/lightx2v/Wan2.1-T2V-14B-StepDistill-CfgDistill)
+- [Krea Realtime Video](https://huggingface.co/krea/krea-realtime-video)
+- [MAGI-1](https://github.com/SandAI-org/MAGI-1)
+- [MUG-V 10B](https://huggingface.co/MUG-V/MUG-V-inference)
+- [Ovi](https://github.com/character-ai/Ovi)
+- [LucyEdit](https://huggingface.co/decart-ai/Lucy-Edit-1.1-Dev)
+- [HunyuanVideo-Avatar](https://huggingface.co/tencent/HunyuanVideo-Avatar)
+- [Sana I2V](https://huggingface.co/Efficient-Large-Model/SANA-Video_2B_480p_diffusers)
+- [Wan-2.2 S2V](https://huggingface.co/Wan-AI/Wan2.2-S2V-14B)
+- [Meituan LongCat-Video](https://huggingface.co/meituan-longcat/LongCat-Video)
+- [LTXVideo LongMulti](https://huggingface.co/Lightricks/LTX-Video-0.9.8-13B-distilled)
+- [Phantom HuMo](https://github.com/Phantom-video/Phantom)
+- [CausVid-Plus](https://github.com/goatWu/CausVid-Plus/)
+- [LivePortrait](https://github.com/KwaiVGI/LivePortrait)
+- [Magi (SandAI)](https://github.com/SandAI-org/MAGI-1)
+- [Ming (inclusionAI)](https://github.com/inclusionAI/Ming)
 - [HummingbirdXT](https://huggingface.co/amd/HummingbirdXT)
+- [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer)
+- [ByteDance Lynx](https://github.com/bytedance/lynx)
+- [LanDiff](https://github.com/landiff/landiff)
 
 ### Other/Unsorted
 
-- [RamTorch](https://github.com/lodestone-rock/ramtorch)
-- [FaceFusion](https://github.com/facefusion/facefusion)
-- [FaceClip](https://huggingface.co/ByteDance/FaceCLIP)
+- [ByteDance DreamO](https://github.com/bytedance/DreamO)
+  - Unified image customization framework combining face identity preservation, virtual try-on, style transfer, etc.
+  - Created: 2025-05 | Updated: 2025-08 | Stars: 1,700
+- [ControlNeXt](https://github.com/dvlab-research/ControlNeXt/)
+  - Lightweight controllable generation framework for images and videos (SD1.5, SDXL, SVD) that uses up to 90% fewer trainable parameters than ControlNet
+  - Created: 2024-08 | Updated: 2024-08 | Stars: 1,600
+- [ByteDance USO](https://github.com/bytedance/USO)
+  - Unified model for both style-transfer and subject-driven image generation from one or two reference images
+  - Created: 2025-08 | Updated: 2025-09 | Stars: 1,200
 - [TwinFlow](https://github.com/inclusionAI/TwinFlow)
-- [RegionE](https://github.com/Peyton-Chen/RegionE)
-- [T5Gemma Adapter](https://huggingface.co/Minthy/Rouwei-T5Gemma-adapter_v0.2)
+  - Distillation technique that converts large image generation models into 1–2 step generators without requiring a separate teacher model
+  - Created: 2025-12 | Updated: 2026-02 | Stars: 506
+- [FlashFace](https://github.com/ali-vilab/FlashFace)
+  - Zero-shot face personalization method that generates images of a specific person from one or a few reference photos
+  - Created: 2024-03 | Updated: 2024-05 | Stars: 436
+- [DiffSynth-Engine](https://github.com/modelscope/DiffSynth-Engine)
+  - Alternative to diffusers library that unlocks some diffsynth specific capabilities
+  - Created: 2024-05 | Updated: 2026-03 | Stars: 393
+- [MS-Diffusion](https://github.com/MS-Diffusion/MS-Diffusion)
+  - Multi-subject image personalization framework that uses layout guidance to place multiple reference subjects in a single generated image without identity confusion
+  - Created: 2024-04 | Updated: 2025-07 | Stars: 309
+- [RamTorch](https://github.com/lodestone-rock/ramtorch)
+  - Alternative memory management and offloading library
+  - Created: 2025-09 | Updated: 2026-04 | Stars: 266
+- [UniRef](https://github.com/FoundationVision/UniRef)
+  - Unified segmentation model that handles referring image segmentation and few-shot segmentation
+  - Created: 2023-04 | Updated: 2025-04 | Stars: 238
 - [FreeFuse](https://github.com/yaoliliu/FreeFuse)
-- [OneReward](https://github.com/bytedance/OneReward)
-- [ByteDance DreamO](https://huggingface.co/ByteDance/DreamO)
-- [DiffusionForcing](https://github.com/kwsong0113/diffusion-forcing-transformer): Full-sequence diffusion with autoregressive next-token prediction
-- [Self-Forcing](https://github.com/guandeh17/Self-Forcing): Framework for improving temporal consistency in long-horizon video generation
-- [SEVA](https://github.com/huggingface/diffusers/pull/11440): Stable Virtual Camera for novel view synthesis and 3D-consistent video
-- [ByteDance USO](https://github.com/bytedance/USO): Unified Style-Subject Optimized framework for personalized image generation
-- [ByteDance Lynx](https://github.com/bytedance/lynx): State-of-the-art high-fidelity personalized video generation based on DiT
-- [LanDiff](https://github.com/landiff/landiff): Coarse-to-fine text-to-video integrating Language and Diffusion Models
-- [Video Inpaint Pipeline](https://github.com/huggingface/diffusers/pull/12506): Unified inpainting pipeline implementation within Diffusers library
-- [Sonic Inpaint](https://github.com/ubc-vision/sonic): Audio-driven portrait animation system focus on global audio perception
-- [Make-It-Count](https://github.com/Litalby1/make-it-count): CountGen method for precise numerical control of objects via object identity features
-- [ControlNeXt](https://github.com/dvlab-research/ControlNeXt/): Lightweight architecture for efficient controllable image and video generation
-- [MS-Diffusion](https://github.com/MS-Diffusion/MS-Diffusion): Layout-guided multi-subject image personalization framework
-- [UniRef](https://github.com/FoundationVision/UniRef): Unified model for segmentation tasks designed as foundation model plug-in
-- [FlashFace](https://github.com/ali-vilab/FlashFace): High-fidelity human image customization and face swapping framework
-- [ReNO](https://github.com/ExplainableML/ReNO): Reward-based Noise Optimization to improve text-to-image quality during inference
+  - Training-free method to combine multiple subject LoRAs in one image generation without conflicts, by automatically routing each LoRA's influence to its target spatial region.
+  - Created: 2026-01 | Updated: 2026-03 | Stars: 178
+- [mmgp](https://github.com/deepbeepmeep/mmgp)
+  - Alternative memory management and offloading library
+  - Created: 2024-03 | Updated: 2026-02 | Stars: 175
+- [ReNO](https://github.com/ExplainableML/ReNO)
+  - Inference-time technique that improves one-step text-to-image models by iteratively optimizing the initial noise using reward model signals, boosting prompt accuracy in 20–50 seconds
+  - Created: 2024-06 | Updated: 2025-09 | Stars: 166
+- [RegionE](https://github.com/Peyton-Chen/RegionE)
+  - Speeds up instruction-based image editing by skipping redundant computation in image regions that are not being changed.
+  - Created: 2025-10 | Updated: 2026-02 | Stars: 98
+- [Make-It-Count](https://github.com/Litalby1/make-it-count)
+  - Method that reliably generates the exact number of objects requested by tracking instance identities during denoising
+  - Created: 2024-04 | Updated: 2025-04 | Stars: 96
+- [FaceClip](https://huggingface.co/ByteDance/FaceCLIP)
+  - Identity-preserving image generation model that jointly encodes a face and a text prompt into a shared embedding to produce portraits matching both the subject's appearance and the scene description
+  - Created: 2025-04 | Updated: 2025-04 | Likes: 88
+- [T5Gemma Adapter](https://github.com/NeuroSenko/ComfyUI_LLM_SDXL_Adapter)
+  - Experiment that replaces the SDXL text encoder with a T5Gemma LLM via a trained adapter for richer prompt understanding
+  - Created: 2025-07 | Updated: 2025-10 | Stars: 67
+- [Sonic Inpaint](https://github.com/ubc-vision/sonic)
+  - Image inpainting method that optimizes for better masked-region filling
+  - Created: 2025-11 | Updated: 2026-01 | Stars: 23
+- [SEVA](https://github.com/Stability-AI/stable-virtual-camera)
+  - Model that generates novel-view images of a scene from a single input photo.
+  - Created: 2025-04 | Updated: 2025-06 | Stars: N/A (draft PR)
 
 ## Code TODO
 
