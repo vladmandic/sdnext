@@ -1,10 +1,5 @@
 # TODO
 
-## Release
-
-- Test: VIBE-Image-Edit
-- Issues: ROCm script with LoRA?
-
 ## Internal
 
 - Feature: implement `unload_auxiliary_models`

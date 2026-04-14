@@ -40,13 +40,15 @@ def before_prompt_encode(prompt):
         prompt = prompt[0] if len(prompt) > 0 else ''
 
     try:
-        data = json.loads(prompt)
-        return data
+        json_data = json.loads(prompt)
+        json_str = json.dumps(json_data)
+        return json_str
     except Exception: # not a json
         from modules.logger import log
-        log.error(f'FIBO-Edit: promtp={prompt} is not a valid JSON')
-        pass
+        log.error(f'FIBO-Edit: prompt="{prompt}" is not a valid JSON')
 
     # dct = generate_prompt_local(prompt)
     # return dct
-    return {}
+
+    json_str = f'{{ "instructions": "{prompt}" }}'
+    return json_str
