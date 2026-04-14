@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+import diffusers as _diffusers  
 
 
 def _clamp_fp16(x: torch.Tensor) -> torch.Tensor:
@@ -106,3 +107,17 @@ def apply_patches():
     sdnext_patches.patch(__name__, m.FeedForward,            '_forward_silu_gating', _patched_forward_silu_gating)
     sdnext_patches.patch(__name__, m.ZImageTransformerBlock, 'forward',              _patched_zimage_block_forward)
     sdnext_patches.patch(__name__, m.FinalLayer,             'forward',              _patched_final_layer_forward)
+
+    # ------------------------------------------------------------------
+    # ZImagePipeline.after_prompt_encode — hijack passthrough fix
+    # sd_hijack_te.hijack_encode_prompt overwrites `res` with the raw
+    # prompt string whenever `after_prompt_encode` is absent (its else
+    # branch is bound to the inner hasattr check, not the outer one).
+    # Adding a passthrough here satisfies the hasattr() check so the
+    # correct (prompt_embeds, negative_prompt_embeds) tuple is returned.
+    # ------------------------------------------------------------------
+  
+    def _passthrough_after_encode(self, res):  # pylint: disable=unused-argument
+        return res
+
+    sdnext_patches.patch(__name__, _diffusers.ZImagePipeline, 'after_prompt_encode', _passthrough_after_encode, add_if_not_exists=True)
