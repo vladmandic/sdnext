@@ -10,17 +10,23 @@ def hijack_encode_prompt(*args, **kwargs):
     if 'max_sequence_length' in kwargs and kwargs['max_sequence_length'] is not None:
         kwargs['max_sequence_length'] = max(kwargs['max_sequence_length'], os.environ.get('MAX_SEQUENCE_LENGTH', 256))
     try:
-        prompt = kwargs.get('prompt', None) or (args[0] if len(args) > 0 else None)
+        args_copy = list(args)
+        patch_prompt = False
+        prompt = kwargs.get('prompt', None)
+        if prompt is None and len(args_copy) > 0:
+            prompt = args[0]
+            patch_prompt = True
+        res = prompt
         if prompt is not None:
             log.debug(f'Encode: prompt="{prompt}" hijack=True')
         if hasattr(shared.sd_model, 'before_prompt_encode'):
-            prompt = shared.sd_model.before_prompt_encode(prompt)
+            res = shared.sd_model.before_prompt_encode(prompt)
+            if patch_prompt:
+                args_copy[0] = res
         if hasattr(shared.sd_model, 'orig_encode_prompt'):
             res = shared.sd_model.orig_encode_prompt(*args, **kwargs)
         if hasattr(shared.sd_model, 'after_prompt_encode'):
             res = shared.sd_model.after_prompt_encode(res)
-        else:
-            res = prompt
     except Exception as e:
         log.error(f'Encode prompt: {e}')
         errors.display(e, 'Encode prompt')

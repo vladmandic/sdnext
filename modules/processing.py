@@ -315,7 +315,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 p.ops.append('detailer')
                 if not p.do_not_save_samples and get_opt(p, 'save_images_before_detailer'):
                     info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                    images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=get_opt(p, 'samples_format'), info=info, p=p, suffix="-before-detailer")
+                    images.save_image(image, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=get_opt(p, 'samples_format'), info=info, p=p, suffix="-before-detailer")
                 sample = detailer.detail(sample, p)
                 if isinstance(sample, list):
                     if len(sample) > 0:
@@ -426,6 +426,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
         image.info["parameters"] = info
         out_infotexts.append(info)
         out_images.append(image)
+    shared.history.add(None, info=out_infotexts, ops=p.ops, images=out_images)
     return out_images, out_infotexts
 
 

@@ -875,7 +875,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         vae_file = None
         if model_type.startswith('Stable Diffusion') and (op == 'model' or op == 'refiner'): # preload vae for sd models
             vae_file, vae_source = sd_vae.resolve_vae(checkpoint_info.filename)
-            vae = sd_vae.load_vae_diffusers(checkpoint_info.path, vae_file, vae_source)
+            vae = sd_vae.load_vae(checkpoint_info.path, vae_file, vae_source)
             if vae is not None:
                 diffusers_load_config["vae"] = vae
                 timer.load.record("vae")

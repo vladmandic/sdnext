@@ -150,13 +150,19 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             if 'baseModel' in version:
                 record['version'] = version.get("baseModel", "")
             elif '_class_name' in record['info']:
-                record['version'] = record['info'].get('_class_name', '').replace('Pipeline', '').replace('Image', '')
+                cls = record['info']['_class_name']
+                if isinstance(cls, list):
+                    cls = cls[-1]
+                record['version'] = cls.replace('Pipeline', '').replace('Image', '')
             else:
                 record['version'] = ''
             record['version'] = version_map.get(record['version'], record['version'])
 
         except Exception as e:
-            log.debug(f'Networks error: type=model file="{name}" {e}')
+            log.error(f'Networks error: type=model file="{name}" {e}')
+            if os.environ.get('SD_EN_DEBUG', None) is not None:
+                from modules import errors
+                errors.display(e, 'Networks')
         return record
 
     def list_items(self):

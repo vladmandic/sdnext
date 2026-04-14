@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-13
+## Update for 2026-04-14
 
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
@@ -29,6 +29,8 @@
   - enhanced **filename** pattern processing  
     allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  
     allows for any *settings* property name (as defined in `modules/ui_definitions.py` and saved to `config.json`)  
+  - **preview** add explicit `method=None`  
+    if you want to skip preview, but show finished images, works with batch progression  
 - **Compute**
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  
@@ -62,6 +64,7 @@
 - **Obsoleted**
   - removed *system-info* from *extensions-builtin*
 - **Internal**
+  - `history` accepts both latent and pixel entries
   - additional typing and typechecks, thanks @awsr
   - wrap hf download methods
 - **Fixes**
