@@ -52,3 +52,15 @@ def load_step1x_edit(checkpoint_info, diffusers_load_config=None):
 
     devices.torch_gc(force=True, reason='load')
     return pipe
+
+""" Reference
+  "StepFun Step1X-Edit v1.2": {
+    "path": "stepfun-ai/Step1X-Edit-v1p2",
+    "preview": "stepfun-ai--Step1X-Edit-v1p2.jpg",
+    "desc": "Multimodal image editing model using Step1X transformer architecture with Qwen2.5-VL text encoding, trained with Flow Matching scheduler for high-quality in-context image edits and refinements.",
+    "skip": true,
+    "extras": "sampler: Default",
+    "size": 8.58,
+    "date": "2025 October"
+  },
+"""

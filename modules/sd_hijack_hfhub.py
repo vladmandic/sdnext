@@ -14,7 +14,7 @@ def http_get_hijack(*args, **kwargs):
     jobid = state.begin('Download')
     fn = kwargs.get("displayed_filename", None)
     size = kwargs.get("expected_size", None)
-    if fn:
+    if fn and not fn.endswith(".json"):
         log.debug(f'Download start: type=http fn="{fn}" size={size}')
     debug(f'Download start: type=http args={args} kwargs={kwargs}')
     res = orig_http_get(*args, **kwargs)
@@ -30,7 +30,7 @@ def xet_get_hijack(*args, **kwargs):
     jobid = state.begin('Download')
     fn = kwargs.get("displayed_filename", None)
     size = kwargs.get("expected_size", None)
-    if fn:
+    if fn and not fn.endswith(".json"):
         log.debug(f'Download start: type=xet fn="{fn}" size={size}')
     debug(f'Download start: type=xet args={args} kwargs={kwargs}')
     res = orig_xet_get(*args, **kwargs)

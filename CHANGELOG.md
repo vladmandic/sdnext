@@ -5,8 +5,6 @@
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
     generates images directly in RGB space using NextDiT-style architecture  
-  - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
-    this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
   - [Anima Preview-v3](https://huggingface.co/circlestone-labs/Anima) new version of Anima
   - [Bria FIBO](https://huggingface.co/briaai/FIBO) 8B parameter text-to-image model using Flow Matching  
     includes *Normal*, *Edit*, and *Lite* (distilled) variants  
@@ -14,10 +12,9 @@
     *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
   - [VIBE Image Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit) visual instruction based image editing model  
     combines *Sana1.5-1.6B* diffusion backbone with *Qwen3-VL-2B* multimodal conditioning  
-  - [Step1X-Edit v1.2](https://huggingface.co/stepfun-ai/Step1X-Edit-v1p2) image editing model using Step1X transformer  
-    integrates Qwen2.5-VL text encoder and Flow Matching scheduler for high-quality in-context edits  
-    enables multimodal understanding and conditional image refinement  
-    category: *base*  
+  - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
+    this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
+    more of an experimental model and doesn't support offloading  
 - **Features**
   - **Tag Autocomplete** native implementation!  
     select and activate any number of different auto-complete databases  
