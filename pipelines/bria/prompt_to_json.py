@@ -50,5 +50,5 @@ def before_prompt_encode(prompt):
     # dct = generate_prompt_local(prompt)
     # return dct
 
-    json_str = f'{{ "instructions": "{prompt}" }}'
+    json_str = '{ instructions: "' + prompt + '" }'
     return json_str

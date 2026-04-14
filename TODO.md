@@ -19,7 +19,6 @@
 - Feature: Multi-user support
 - Feature: Settings profile manager
 - Feature: Video tab add full API support
-- Feature: FIBO-Edit implement prompt-to-json
 - Refactor: Unify *huggingface* and *diffusers* model folders
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
 - Reimplement `llama` remover for Kanvas
