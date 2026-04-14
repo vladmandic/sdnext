@@ -1048,6 +1048,7 @@ def install_extensions(force=False):
         'sd-extension-framepack',
         'sd-extension-nudenet',
         'sd-extension-promptgen',
+        'sd-extension-system-info',
     ]
     if args.profile:
         pr = cProfile.Profile()
