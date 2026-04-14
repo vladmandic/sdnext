@@ -98,6 +98,21 @@ except Exception as e:
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
         errors.display(e, 'Samplers')
 
+# Patch UniPCMultistepScheduler.set_timesteps: upstream forces self.sigmas to CPU after building them,
+# but multistep_uni_p/c_bh_update mixes those CPU sigmas with torch.ones(..., device=sample.device),
+# crashing torch.stack at step >= 2. Keep sigmas on the compute device instead.
+try:
+    _orig_unipc_set_timesteps = UniPCMultistepScheduler.set_timesteps
+
+    def _unipc_set_timesteps_device_fix(self, num_inference_steps=None, device=None, **kwargs):
+        _orig_unipc_set_timesteps(self, num_inference_steps=num_inference_steps, device=device, **kwargs)
+        if device is not None:
+            self.sigmas = self.sigmas.to(device)
+
+    UniPCMultistepScheduler.set_timesteps = _unipc_set_timesteps_device_fix
+except Exception as e:
+    log.error(f'Sampler patch: UniPCMultistepScheduler.set_timesteps error: {e}')
+
 config = {
     # beta_start, beta_end are typically per-scheduler, but we don't want them as they should be taken from the model itself as those are values model was trained on
     # prediction_type is ideally set in model as well, but it maybe needed that we do auto-detect of model type in the future
