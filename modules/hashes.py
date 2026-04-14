@@ -35,7 +35,9 @@ def load_cache():
 
 
 def save_cache():
-    writefile(dict(_data), cache_filename)
+    # Don't include empty hash stores
+    filtered = filter(lambda item: len(item[1]) > 0, _data.items())
+    writefile(dict(filtered), cache_filename)
 
 
 def cache(store: str = "hashes") -> HashStore:
