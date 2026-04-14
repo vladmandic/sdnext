@@ -1,7 +1,7 @@
 import hashlib
 import os.path
 from collections import defaultdict
-from typing import TypedDict
+from typing import Literal, TypeAlias, TypedDict
 from rich import progress, errors
 from modules.logger import console
 from modules.logger import log
@@ -22,10 +22,13 @@ class HashStore(dict[str, HashEntry]):
         self.__setitem__(key, {"mtime": mtime, "sha256": sha256 or ""})
 
 
+default_hash_store = "hashes"
+KnownHashStores: TypeAlias = Literal["hashes", "hashes-addnet"]  # For autocomplete in IDE
+
 cache_filename = os.path.join(data_path, "data", "cache.json")
+progress_ok = True
 # defaultdict allows for easily using new stores without needing to define them ahead of time
 _data: defaultdict[str, HashStore] = defaultdict(HashStore)
-progress_ok = True
 
 
 def load_cache():
@@ -40,7 +43,9 @@ def save_cache():
     writefile(dict(filtered), cache_filename)
 
 
-def cache(store: str = "hashes") -> HashStore:
+def cache(store: KnownHashStores | str | None = None) -> HashStore:
+    if store is None:
+        return _data[default_hash_store]
     return _data[store]
 
 
@@ -68,8 +73,8 @@ def calculate_sha256(filename, quiet=False):
     return hash_sha256.hexdigest()
 
 
-def sha256_from_cache(filename: str, title: str, use_addnet_hash=False):
-    hashes = cache("hashes-addnet") if use_addnet_hash else cache("hashes")
+def sha256_from_cache(filename: str, title: str, *, store: KnownHashStores | str | None = None):
+    hashes = cache(store)
     if title not in hashes:
         return None
     cached = hashes[title]
@@ -79,11 +84,11 @@ def sha256_from_cache(filename: str, title: str, use_addnet_hash=False):
     return cached["sha256"]
 
 
-def sha256(filename: str, title: str, use_addnet_hash=False):
+def sha256(filename: str, title: str, *, store: KnownHashStores | str | None = None):
     from modules import shared
     global progress_ok # pylint: disable=global-statement
-    hashes = cache("hashes-addnet") if use_addnet_hash else cache("hashes")
-    sha256_value = sha256_from_cache(filename, title, use_addnet_hash)
+    hashes = cache(store)
+    sha256_value = sha256_from_cache(filename, title, store=store)
     if sha256_value is not None:
         return sha256_value
     if shared.cmd_opts.no_hashing:
@@ -91,7 +96,7 @@ def sha256(filename: str, title: str, use_addnet_hash=False):
     if not os.path.isfile(filename):
         return None
     jobid = shared.state.begin("Hash")
-    if use_addnet_hash:
+    if store == "hashes-addnet":
         if progress_ok:
             try:
                 with progress.open(filename, 'rb', description=f'[cyan]Calculating hash: [yellow]{filename}', auto_refresh=True, console=console) as f:
