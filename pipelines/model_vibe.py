@@ -49,8 +49,9 @@ def load_vibe(checkpoint_info, diffusers_load_config=None):
         del processor
     else:
         try:
-            from installer import install
-            install('vibe')
+            from installer import install, installed
+            if not installed('vibe'):
+                install('git+https://github.com/ai-forever/VIBE', 'vibe')
             import vibe # pylint: disable=unused-import
         except Exception as e:
             raise RuntimeError('VIBE requires either native diffusers VIBESana classes or `vibe` package') from e

@@ -14,7 +14,7 @@
     combines *Sana1.5-1.6B* diffusion backbone with *Qwen3-VL-2B* multimodal conditioning  
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
-    more of an experimental model and doesn't support offloading  
+    *note*: more of an experimental model and doesn't support offloading  
 - **Features**
   - **Tag Autocomplete** native implementation!  
     select and activate any number of different auto-complete databases  
