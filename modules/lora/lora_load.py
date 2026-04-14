@@ -49,6 +49,13 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
         log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" type=lora {"cached" if cached else ""}')
     if cached is not None:
         return cached
+    if shared.sd_model_type == 'zimage':
+        from pipelines.z_image import zimage_lora
+        lora_scale = shared.opts.extra_networks_default_multiplier
+        zimage_net = zimage_lora.try_load_lora(name, network_on_disk, lora_scale)
+        if zimage_net is not None:
+            lora_cache[name] = zimage_net
+        return zimage_net
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')
