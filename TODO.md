@@ -3,8 +3,6 @@
 ## Release
 
 - Test: VIBE-Image-Edit
-- Test: Bria-FIBO
-- Code: Bria-FIBO edit requires image handling
 - Issues: ROCm script with LoRA?
 
 ## Internal
@@ -26,6 +24,7 @@
 - Feature: Multi-user support
 - Feature: Settings profile manager
 - Feature: Video tab add full API support
+- Feature: FIBO-Edit implement prompt-to-json
 - Refactor: Unify *huggingface* and *diffusers* model folders
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
 - Reimplement `llama` remover for Kanvas
@@ -58,6 +57,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - Port: JoyAI-Image-Edit (pr in-progress)
 - Port: Lumina-DiMOO (pr in-progress)
 - Port: Step1X-Edit (pr in-progress)
+- [VIBE Image Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit)
 - [UltraFlux](https://huggingface.co/Owen777/UltraFlux-v1)
 - [Mugen](https://huggingface.co/CabalResearch/Mugen)
 - [Liquid](https://github.com/FoundationVision/Liquid)

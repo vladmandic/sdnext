@@ -10,8 +10,7 @@
     includes *Normal*, *Edit*, and *Lite* (distilled) variants  
     features lightweight SmolLM3-3B text encoder with efficient inference  
     *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
-  - [VIBE Image Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit) visual instruction based image editing model  
-    combines *Sana1.5-1.6B* diffusion backbone with *Qwen3-VL-2B* multimodal conditioning  
+    *note*: requires strict JSON prompts, not simple text (automatic prompt-to-json is future item)
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
     *note*: more of an experimental model and doesn't support offloading  

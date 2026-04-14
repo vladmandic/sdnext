@@ -17,6 +17,7 @@ def generate_prompt_local(prompt, image=None, repo_id="briaai/FIBO-edit-prompt-t
                                                          trust_remote_code=True,
                                                          torch_dtype=devices.dtype,
                                                          cache_dir=shared.opts.hfcache_dir,
+                                                         requirements=None,
                                                          **quant_args,
                                                         )
         model = pipeline.init_pipeline()
@@ -42,7 +43,10 @@ def before_prompt_encode(prompt):
         data = json.loads(prompt)
         return data
     except Exception: # not a json
+        from modules.logger import log
+        log.error(f'FIBO-Edit: promtp={prompt} is not a valid JSON')
         pass
 
-    dct = generate_prompt_local(prompt)
-    return dct
+    # dct = generate_prompt_local(prompt)
+    # return dct
+    return {}

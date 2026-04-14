@@ -273,16 +273,6 @@
     "date": "2025 December"
   },
 
-  "VIBE Image Edit": {
-    "path": "iitolstykh/VIBE-Image-Edit",
-    "preview": "iitolstykh--VIBE-Image-Edit.jpg",
-    "desc": "VIBE is an open-source text-guided image editing model combining Sana1.5-1.6B diffusion backbone with Qwen3-VL multimodal conditioning for fast, instruction-based edits.",
-    "skip": true,
-    "extras": "sampler: Default, cfg_scale: 4.5, image_guidance_scale: 1.2, steps: 20",
-    "size": 9.72,
-    "date": "2025 December"
-  },
-
   "Ostris Flex.2 Preview": {
     "path": "ostris/Flex.2-preview",
     "preview": "ostris--Flex.2-preview.jpg",

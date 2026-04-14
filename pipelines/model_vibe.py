@@ -50,7 +50,7 @@ def load_vibe(checkpoint_info, diffusers_load_config=None):
     else:
         try:
             from installer import install, installed
-            if not installed('vibe'):
+            if not installed('vibe', quiet=True):
                 install('git+https://github.com/ai-forever/VIBE', 'vibe')
             import vibe # pylint: disable=unused-import
         except Exception as e:
@@ -76,3 +76,15 @@ def load_vibe(checkpoint_info, diffusers_load_config=None):
 
     devices.torch_gc(force=True, reason='load')
     return pipe
+
+""" Reference
+  "VIBE Image Edit": {
+    "path": "iitolstykh/VIBE-Image-Edit",
+    "preview": "iitolstykh--VIBE-Image-Edit.jpg",
+    "desc": "VIBE is an open-source text-guided image editing model combining Sana1.5-1.6B diffusion backbone with Qwen3-VL multimodal conditioning for fast, instruction-based edits.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.5, image_guidance_scale: 1.2, steps: 20",
+    "size": 9.72,
+    "date": "2025 December"
+  },
+"""
