@@ -87,7 +87,6 @@ def sha256_from_cache(filename: str, title: str, *, store: KnownHashStores | str
 def sha256(filename: str, title: str, *, store: KnownHashStores | str | None = None):
     from modules import shared
     global progress_ok # pylint: disable=global-statement
-    hashes = cache(store)
     sha256_value = sha256_from_cache(filename, title, store=store)
     if sha256_value is not None:
         return sha256_value
@@ -109,7 +108,7 @@ def sha256(filename: str, title: str, *, store: KnownHashStores | str | None = N
                 sha256_value = addnet_hash_safetensors(f)
     else:
         sha256_value = calculate_sha256(filename)
-    hashes.add_hash(title, os.path.getmtime(filename), sha256_value)
+    cache(store).add_hash(title, os.path.getmtime(filename), sha256_value)
     shared.state.end(jobid)
     save_cache()
     return sha256_value
