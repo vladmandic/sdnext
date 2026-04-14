@@ -2,11 +2,9 @@
 
 ## Release
 
-- Test: Zeta-Chroma
 - Test: Anima-Preview-3
 - Test: SDXS-1B
 - Test: VIBE-Image-Edit
-- Test: Lumina-DiMOO
 - Test: Step1X-Edit
 - Test: Bria-FIBO prompt to json
 - Test: Bria-FIBO

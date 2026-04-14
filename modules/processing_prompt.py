@@ -86,8 +86,8 @@ def set_prompt(p,
     if (prompt_attention != 'fixed') and ('Onnx' not in cls) and ('prompt' not in p.task_args) and (
         ('StableDiffusion' in cls) or
         ('StableCascade' in cls) or
-        ('Flux' in cls and 'Flux2' not in cls) or
-        ('Chroma' in cls)
+        ('Flux' in cls and 'Flux2' not in cls)
+        # or ('Chroma' in cls)
         # or ('HiDreamImagePipeline' in cls)
     ):
         jobid = shared.state.begin('TE Encode')

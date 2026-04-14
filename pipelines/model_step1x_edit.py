@@ -15,10 +15,15 @@ def load_step1x_edit(checkpoint_info, diffusers_load_config=None):
     log.debug(f'Load model: type=Step1XEdit repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     # Load text encoder (Qwen2.5-VL - available in transformers)
-    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
+    text_encoder = generic.load_text_encoder(repo_id,
+                                             cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config
+                                            )
 
     # Load processor for Qwen2.5-VL
-    processor = transformers.Qwen2_5_VLProcessor.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir)
+    processor = transformers.Qwen2_5_VLProcessor.from_pretrained(repo_id,
+                                                                 cache_dir=shared.opts.hfcache_dir,
+                                                                 subfolder='processor'
+                                                                )
 
     # Step1XEditPipeline and Step1XEditTransformer2DModel are custom classes not in current diffusers
     # Try direct pipeline class first, fall back to trust_remote_code
