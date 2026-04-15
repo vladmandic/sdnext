@@ -3,6 +3,9 @@
 ## Update for 2026-04-15
 
 - **Models**
+  - [Baidu ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) text-to-image FlowMatch diffusion transformer model with Mistral3 text encoding
+    includes *ERNIE-Image* (base) and *ERNIE-Image-Turbo* (distilled) variants
+    uses *ErnieImageTransformer2DModel* with *AutoencoderKLFlux2* latent decoding at 1024px
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
     generates images directly in RGB space using NextDiT-style architecture  
     *note*: requires large number of steps to achieve sane results  
@@ -72,10 +75,10 @@
   - UI CSS fixes, thanks @awsr
   - detect/warn if space present in system path
   - add `ftfy` to requirements
-  - fix upscaler init error should not block server
+  - upscaler init error should not block server
   - improve torch nvidia arch detection
   - add torch amd arch detection
-  - fix prompt weighted lists and internal wildcards
+  - prompt weighted lists and internal wildcards
   - improve `path_to_repo` handling for custom paths
   - eliminate `api` auth security bypass
   - multiple `schedulers` signature corrections
@@ -89,6 +92,7 @@
   - patch `unipc` for timesteps device placement, thanks @resonantsky
   - `civitai` search and base-model discovery improvements
   - validate all `reference` jsons
+  - ui log formatting  
 
 ## Update for 2026-04-01
 

@@ -88,6 +88,8 @@ def get_model_type(pipe):
         model_type = 'meissonic'
     elif 'Qwen' in name:
         model_type = 'qwen'
+    elif 'ErnieImage' in name or 'ERNIE-Image' in name:
+        model_type = 'ernieimage'
     elif 'NextStep' in name:
         model_type = 'nextstep'
     elif 'XOmni' in name or 'X-Omni' in name:

@@ -56,6 +56,16 @@
     "tags": "distilled",
     "date": "2025 August"
   },
+  "Baidu ERNIE-Image-Turbo": {
+    "path": "baidu/ERNIE-Image-Turbo",
+    "preview": "baidu--ERNIE-Image-Turbo.jpg",
+    "desc": "ERNIE-Image-Turbo is a distilled ERNIE-Image variant optimized for fast generation with fewer denoising steps.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 8",
+    "size": 0,
+    "tags": "distilled",
+    "date": "2026 April"
+  },
   "Qwen-Image-Lightning-Edit": {
     "path": "vladmandic/Qwen-Lightning-Edit",
     "preview": "vladmandic--Qwen-Lightning-Edit.jpg",

@@ -30,8 +30,9 @@ async function logMonitor() {
       const level = `<td style="color: var(--color-${l.level.toLowerCase()})">${l.level}</td>`;
       if (l.level === 'WARNING') logWarnings++;
       if (l.level === 'ERROR') logErrors++;
-      const module = `<td style="color: var(--var(--neutral-400))">${l.module}</td>`;
-      row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}<td>${l.facility}</td>${module}<td>${htmlEscape(l.msg)}</td>`;
+      const module = `<td style="color: var(--neutral-400)">${l.module}</td>`;
+      const facility = l.facility !== 'sd' ? `<td>${l.facility}</td>` : '<td></td>';
+      row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}${facility}${module}<td>${htmlEscape(l.msg)}</td>`;
       logMonitorEl.appendChild(row);
     } catch (e) {
       error(`logMonitor: ${e}\n${line}`);

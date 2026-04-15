@@ -48,6 +48,7 @@ pipelines = {
     'WanAI': getattr(diffusers, 'WanPipeline', None),
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
     'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
+    'ERNIE-Image': getattr(diffusers, 'ErnieImagePipeline', None),
     'Z-Image': getattr(diffusers, 'ZImagePipeline', None),
     'FLUX2': getattr(diffusers, 'Flux2Pipeline', None),
     'FLUX2 Klein': getattr(diffusers, 'Flux2KleinPipeline', None),
