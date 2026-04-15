@@ -202,7 +202,7 @@ def update_modules_quant_config(quant_kwargs: dict, modules_quant_config: dict[s
         and quant_kwargs["quantized_matmul_dtype"] is None and not is_fp8_mm_supported
         and not dtype_dict[layer.sdnq_dequantizer.weights_dtype]["is_integer"] and dtype_dict[layer.sdnq_dequantizer.weights_dtype]["num_bits"] < 16
     ):
-        if quant_kwargs[use_quantized_matmul_key] and not layer.sdnq_dequantizer.use_quantized_matmul:
+        if not layer.sdnq_dequantizer.use_quantized_matmul:
             if quant_kwargs["param_name"] not in modules_quant_config.keys():
                 modules_quant_config[quant_kwargs["param_name"]] = {}
             modules_quant_config[quant_kwargs["param_name"]][use_quantized_matmul_key] = layer.sdnq_dequantizer.use_quantized_matmul
