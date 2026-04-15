@@ -15,7 +15,7 @@ from diffusers.utils import get_module_from_name
 from accelerate import init_empty_weights
 
 from modules import devices, shared
-from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, weights_dtype_order, allowed_types, linear_types, embedding_types, conv_types, conv_transpose_types, compile_func, use_tensorwise_fp8_matmul, use_contiguous_mm, check_torch_compile
+from .common import sdnq_version, dtype_dict, common_skip_keys, module_skip_keys_dict, accepted_weight_dtypes, accepted_matmul_dtypes, weights_dtype_order, allowed_types, linear_types, embedding_types, conv_types, conv_transpose_types, compile_func, is_fp8_mm_supported, use_tensorwise_fp8_matmul, use_contiguous_mm, check_torch_compile
 from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int
 from .packed_float import pack_float
@@ -437,10 +437,16 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
     quantization_loss = None
     svd_is_transposed = False
     for i in range(weights_dtype_order.index(weights_dtype), len(weights_dtype_order)):
+        current_weights_dtype = weights_dtype_order[i]
+        if quantized_matmul_dtype is None and not is_fp8_mm_supported and not dtype_dict[current_weights_dtype]["is_integer"] and dtype_dict[current_weights_dtype]["num_bits"] < 16:
+            current_use_quantized_matmul = False
+        else:
+            current_use_quantized_matmul = use_quantized_matmul
+
         quantized_weight, scale, zero_point, _, _, sdnq_dequantizer = sdnq_quantize_layer_weight(
             svd_weight,
             layer_class_name=layer_class_name,
-            weights_dtype=weights_dtype_order[i],
+            weights_dtype=current_weights_dtype,
             quantized_matmul_dtype=quantized_matmul_dtype,
             torch_dtype=torch_dtype,
             group_size=group_size,
@@ -448,7 +454,7 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             svd_steps=svd_steps,
             use_svd=False,
             using_pre_calculated_svd=use_svd,
-            use_quantized_matmul=use_quantized_matmul,
+            use_quantized_matmul=current_use_quantized_matmul,
             use_stochastic_rounding=use_stochastic_rounding,
             dequantize_fp32=dequantize_fp32,
             param_name=param_name,

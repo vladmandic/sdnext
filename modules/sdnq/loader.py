@@ -3,7 +3,7 @@ import json
 import torch
 from diffusers.models.modeling_utils import ModelMixin
 
-from .common import dtype_dict, use_tensorwise_fp8_matmul, is_fp8_mm_supported, check_torch_compile, conv_types, linear_types
+from modules import dtype_dict, is_fp8_mm_supported, use_tensorwise_fp8_matmul, check_torch_compile, conv_types, linear_types
 from .quantizer import SDNQConfig, sdnq_post_load_quant, prepare_weight_for_matmul, prepare_svd_for_matmul, get_quant_args_from_config
 from .forward import get_forward_func
 from .file_loader import load_files
