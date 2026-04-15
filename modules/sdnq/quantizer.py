@@ -191,16 +191,17 @@ def get_quant_kwargs(quant_kwargs: dict, modules_quant_config: dict[str, dict]) 
 
 def update_modules_quant_config(quant_kwargs: dict, modules_quant_config: dict[str, dict], layer: torch.nn.Module) -> dict[str, dict]:
     layer_class_name = layer.__class__.__name__
+    if layer_class_name in conv_types:
+        use_quantized_matmul_key = "use_quantized_matmul_conv"
+    else:
+        use_quantized_matmul_key = "use_quantized_matmul"
     if (
-        quant_kwargs["use_dynamic_quantization"] and hasattr(layer, "sdnq_dequantizer")
+        hasattr(layer, "sdnq_dequantizer")
+        and (layer_class_name in linear_types or layer_class_name in conv_types)
+        and quant_kwargs["use_dynamic_quantization"] and quant_kwargs[use_quantized_matmul_key]
         and quant_kwargs["quantized_matmul_dtype"] is None and not is_fp8_mm_supported
         and not dtype_dict[layer.sdnq_dequantizer.weights_dtype]["is_integer"] and dtype_dict[layer.sdnq_dequantizer.weights_dtype]["num_bits"] < 16
-        and (layer_class_name in linear_types or layer_class_name in conv_types)
     ):
-        if layer_class_name in conv_types:
-            use_quantized_matmul_key = "use_quantized_matmul_conv"
-        else:
-            use_quantized_matmul_key = "use_quantized_matmul"
         if quant_kwargs[use_quantized_matmul_key] and not layer.sdnq_dequantizer.use_quantized_matmul:
             if quant_kwargs["param_name"] not in modules_quant_config.keys():
                 modules_quant_config[quant_kwargs["param_name"]] = {}
