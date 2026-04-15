@@ -54,8 +54,9 @@
   - skills in in `skills/README.md`:  
     *coding*: `fix-lint` (must before commit)  
     *validation*: `check-models`, `check-api`, `check-schedulers`, `check-processing`, `check-scripts`  
-    *model*: `port-model`, `debug-model`, `analyze-model`  
+    *model*: `port-model`, `debug-model`, `analyze-model`, `reference-catalog`  
     *github*: `github-issues`, `github-features`  
+    *diffusers*: `diffusers-code`  
     *other*: `todo`  
 - **CLI**
   - add `cli/hf-info` and update `cli/hf-search.py`
@@ -87,6 +88,7 @@
   - patch `z-image` for fp16 compatibility, thanks @resonantsky
   - patch `unipc` for timesteps device placement, thanks @resonantsky
   - `civitai` search and base-model discovery improvements
+  - validate all `reference` jsons
 
 ## Update for 2026-04-01
 

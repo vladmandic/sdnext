@@ -44,6 +44,14 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
   File: `analyze-model/SKILL.md`
   Use when analyzing an external model URL to classify implementation style and estimate SD.Next porting difficulty before coding.
 
+- `diffusers-code`
+  File: `diffusers-code/SKILL.md`
+  Use when creating or editing code to be compliant with Hugging Face diffusers conventions, including PR-ready change preparation for diffusers.
+
+- `reference-catalog`
+  File: `reference-catalog/SKILL.md`
+  Use when maintaining and validating model reference catalogs in `data/reference*.json`, including duplicate checks and thumbnail alignment.
+
 - `fix-lint`
   File: `fix-lint/SKILL.md`
   Use when running the full lint workflow in strict order and fixing issues as needed (`pre-commit`, `eslint`, `ruff`, `pylint`), while ignoring findings explicitly marked with `TODO`.

@@ -18,7 +18,7 @@ class HashStore(dict[str, HashEntry]):
     def __init__(self, *args):
         super().__init__(*args)
 
-    def add_hash(self, key: str, mtime: float = 0, sha256: str | None = None):
+    def add_hash(self, key: str, mtime: float = 0, sha256: str | None = None): # pylint: disable=redefined-outer-name
         self.__setitem__(key, {"mtime": mtime, "sha256": sha256 or ""})
 
 

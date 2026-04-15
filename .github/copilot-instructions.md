@@ -109,6 +109,14 @@ Use these repo-local skills for recurring SD.Next model integration work:
   File: `.github/skills/analyze-model/SKILL.md`  
   Use when analyzing an external model URL to identify implementation style and estimate how difficult it is to port into SD.Next.
 
+- `diffusers-code`  
+  File: `.github/skills/diffusers-code/SKILL.md`  
+  Use when creating or editing code that must comply with Hugging Face diffusers conventions, including preparing PR-ready changes targeting diffusers.
+
+- `reference-catalog`  
+  File: `.github/skills/reference-catalog/SKILL.md`  
+  Use when maintaining and validating model reference catalogs in `data/reference*.json`, including duplicate checks and thumbnail alignment.
+
 - `fix-lint`  
   File: `.github/skills/fix-lint/SKILL.md`  
   Use when running the full lint workflow in required order (`pre-commit`, `eslint`, `ruff`, `pylint`) and fixing findings as needed, while ignoring lint issues explicitly marked with `TODO`.

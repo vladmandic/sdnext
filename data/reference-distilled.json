@@ -73,7 +73,7 @@
     "desc": "This open-source project is based on Qwen-Image and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 12B parameters.",
     "skip": true,
     "tags": "distilled",
-    "date": "2025 Ocotober"
+    "date": "2025 October"
   },
   "Qwen-Image-Edit Pruning-13B": {
     "path": "OPPOer/Qwen-Image-Edit-Pruning",
@@ -82,7 +82,7 @@
     "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
     "tags": "distilled",
-    "date": "2025 Ocotober"
+    "date": "2025 October"
   },
   "Qwen-Image-Edit-2509 Pruning-13B": {
     "path": "OPPOer/Qwen-Image-Edit-2509-Pruning",
@@ -91,7 +91,7 @@
     "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
     "tags": "distilled",
-    "date": "2025 Ocotober"
+    "date": "2025 October"
   },
   "lodestones Chroma1 Flash": {
     "path": "lodestones/Chroma1-Flash",
@@ -208,6 +208,7 @@
     "preview": "meituan-longcat--LongCat-Image-Edit.jpg",
     "desc": "LongCat-Image-Edit-Turbo, the distilled version of LongCat-Image-Edit. It achieves high-quality image editing with only 8 NFEs (Number of Function Evaluations) , offering extremely low inference latency.",
     "skip": true,
+    "tags": "distilled",
     "extras": "",
     "size": 27.30,
     "date": "2026 February"
