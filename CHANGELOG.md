@@ -10,7 +10,7 @@
 - Additional Schedulers, updates to NudeNet, OpenVINO and ROCm and other features
 
 And tons of *quality-of-life* improvements and *bug-fixes*!
-In addtion, to jump on a bandwagon, we're now fully **AI agent** ready with detailed instructions and skills!
+In addition, to jump on a bandwagon, we're now fully **AI agent** ready with detailed instructions and skills!
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
@@ -37,12 +37,14 @@ In addtion, to jump on a bandwagon, we're now fully **AI agent** ready with deta
   - **Tag Autocomplete** native implementation!  
     select and activate any number of different auto-complete databases  
     see *Extras -> Autocomplete* for all settings  
-  - **NudeNet** add `LlavaGuard` and `QwenGuard` as image safety evaulation models  
+  - **NudeNet** add image safety evaluation models  
+    supports `LlavaGuard` and `QwenGuard`  
   - **schedulers** add `ER-SDE` solver  
-    with with *1S, 2M, 3M* variants in both *EPS* and *FlowMatch* flavors  
+    with *1S, 2M, 3M* variants in both *EPS* and *FlowMatch* flavors  
   - **LoRA** rewrite `z-image` support and add all known variants
   - **installer** auto-restart on upgrade
   - enhanced **filename** pattern processing  
+    *settings -> image paths -> directory/filename pattern*  
     allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  
     allows for any *settings* property name (as defined in `modules/ui_definitions.py` and saved to `config.json`)  
   - **preview** add explicit `method=None`  
@@ -3032,7 +3034,7 @@ All-in-all, we're around ~180 commits worth of updates, check the changelog for 
   - control: add stats
   - settings: reorganized and simplified  
   - browser -> server logging framework  
-  - add addtional themes: `black-reimagined`, thanks @Artheriax  
+  - add additional themes: `black-reimagined`, thanks @Artheriax  
 - **Batch**
   - image batch processing will use caption files if they exist instead of default prompt  
 
@@ -3471,7 +3473,7 @@ And there are also other goodies like multiple *XYZ grid* improvements, addition
 
 - [APG: Adaptive Projected Guidance](https://arxiv.org/pdf/2410.02416)
   - latest algo to provide better guidance for image generation, can be used instead of existing guidance rescale and/or PAG  
-  - in addtion to stronger guidance and reduction of burn at high guidance values, it can also increase image details  
+  - in addition to stronger guidance and reduction of burn at high guidance values, it can also increase image details  
   - compatible with *sd15/sdxl/sc*  
   - select in scripts -> apg  
   - for low    cfg scale, use positive momentum: e.g. cfg=2 => momentum=0.6
