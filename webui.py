@@ -77,7 +77,7 @@ def initialize():
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
     modules.sd_checkpoint.init_metadata()
-    modules.hashes.init_cache()
+    modules.hashes.load_cache()
 
     modules.sd_samplers.list_samplers()
     timer.startup.record("samplers")
