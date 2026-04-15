@@ -20,6 +20,8 @@ def get_frames(frames: int):
 
 def load_model(engine: str, model: str):
     global loaded_model # pylint: disable=global-statement
+    if not shared.sd_loaded:
+        loaded_model = None
     if loaded_model == model:
         return
     if model is None or model == '' or model=='None':
