@@ -5,6 +5,7 @@ import inspect
 import diffusers
 from modules import shared, errors
 from modules.logger import log
+from modules.sd_samplers_hijack import init_samplers_hijack
 from modules.sd_samplers_common import SamplerData, flow_models
 
 
@@ -12,6 +13,7 @@ debug = os.environ.get('SD_SAMPLER_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
 scheduler_overrides = {}  # set by sd_samplers.create_sampler() before constructor call
 flow_exclude = ['PeRFlow']
+init_samplers_hijack()
 
 # Diffusers schedulers
 try:
@@ -98,20 +100,6 @@ except Exception as e:
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
         errors.display(e, 'Samplers')
 
-# Patch UniPCMultistepScheduler.set_timesteps: upstream forces self.sigmas to CPU after building them,
-# but multistep_uni_p/c_bh_update mixes those CPU sigmas with torch.ones(..., device=sample.device),
-# crashing torch.stack at step >= 2. Keep sigmas on the compute device instead.
-try:
-    _orig_unipc_set_timesteps = UniPCMultistepScheduler.set_timesteps
-
-    def _unipc_set_timesteps_device_fix(self, num_inference_steps=None, device=None, **kwargs):
-        _orig_unipc_set_timesteps(self, num_inference_steps=num_inference_steps, device=device, **kwargs)
-        if device is not None:
-            self.sigmas = self.sigmas.to(device)
-
-    UniPCMultistepScheduler.set_timesteps = _unipc_set_timesteps_device_fix
-except Exception as e:
-    log.error(f'Sampler patch: UniPCMultistepScheduler.set_timesteps error: {e}')
 
 config = {
     # beta_start, beta_end are typically per-scheduler, but we don't want them as they should be taken from the model itself as those are values model was trained on

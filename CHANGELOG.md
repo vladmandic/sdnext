@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-14
+## Update for 2026-04-15
 
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
@@ -21,6 +21,7 @@
   - **NudeNet** add `LlavaGuard` and `QwenGuard` as image safety evaulation models  
   - **schedulers** add `ER-SDE` solver  
     with with *1S, 2M, 3M* variants in both *EPS* and *FlowMatch* flavors  
+  - **LoRA** rewrite `z-image` support and add all known variants
   - **installer** auto-restart on upgrade
   - enhanced **filename** pattern processing  
     allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  
@@ -61,8 +62,9 @@
   - removed *system-info* from *extensions-builtin*
 - **Internal**
   - `history` accepts both latent and pixel entries
-  - additional typing and typechecks, thanks @awsr
-  - wrap hf download methods
+  - wrap `hf-download` methods
+  - additional *typing* and *typechecks*, thanks @awsr
+  - refactor `hash-cache` management, thanks @awsr
 - **Fixes**
   - Prohibit `python==3.14` unless `--experimental`
   - UI CSS fixes, thanks @awsr
@@ -82,6 +84,8 @@
   - error handling for same-device check
   - error handling for undefined pipeline
   - patch `z-image` for fp16 compatibility, thanks @resonantsky
+  - patch `unipc` for timesteps device placement, thanks @resonantsky
+  - `civitai` search and base-model discovery improvements
 
 ## Update for 2026-04-01
 
