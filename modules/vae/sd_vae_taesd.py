@@ -74,7 +74,7 @@ def get_model(model_type = 'decoder', variant = None):
         variant = 'TAE FLUX.2'
     elif model_cls in {'sd3'}:
         variant = 'TAE SD3'
-    elif model_cls in {'wanai', 'qwen', 'chrono', 'cosmos', 'nucleusimage', 'fibo'}:
+    elif model_cls in {'wanai', 'qwen', 'chrono', 'cosmos', 'fibo'}:
         variant = variant or 'TAE WanVideo'
     elif model_cls not in supported:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={shared.sd_model_type} unsuppported', variant=variant)

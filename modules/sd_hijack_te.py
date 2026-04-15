@@ -4,10 +4,6 @@ from modules import shared, errors, timer, sd_models
 from modules.logger import log
 
 
-debug_output = os.environ.get('SD_PROMPT_DEBUG', None)
-debug = log.trace if debug_output is not None else lambda *args, **kwargs: None
-
-
 def hijack_encode_prompt(*args, **kwargs):
     jobid = shared.state.begin('TE Encode')
     t0 = time.time()
@@ -22,7 +18,7 @@ def hijack_encode_prompt(*args, **kwargs):
             prompt = args_copy[0]
             patch_prompt = True
         res = prompt
-        debug(f'Encode: prompt="{prompt}" hijack=True')
+        log.debug(f'Encode: prompt="{prompt}" hijack=True')
 
         if hasattr(shared.sd_model, 'before_prompt_encode'):
             log.debug(f'Encode: prompt="{prompt}" op=before')
