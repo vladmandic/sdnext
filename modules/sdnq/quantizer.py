@@ -189,6 +189,25 @@ def get_quant_kwargs(quant_kwargs: dict, modules_quant_config: dict[str, dict]) 
     return quant_kwargs
 
 
+def update_modules_quant_config(quant_kwargs: dict, modules_quant_config: dict[str, dict], layer: torch.nn.Module) -> dict[str, dict]:
+    layer_class_name = layer.__class__.__name__
+    if (
+        quant_kwargs["use_dynamic_quantization"] and hasattr(layer, "sdnq_dequantizer")
+        and quant_kwargs["quantized_matmul_dtype"] is None and not is_fp8_mm_supported
+        and not dtype_dict[layer.sdnq_dequantizer.weights_dtype]["is_integer"] and dtype_dict[layer.sdnq_dequantizer.weights_dtype]["num_bits"] < 16
+        and (layer_class_name in linear_types or layer_class_name in conv_types)
+    ):
+        if layer_class_name in conv_types:
+            use_quantized_matmul_key = "use_quantized_matmul_conv"
+        else:
+            use_quantized_matmul_key = "use_quantized_matmul"
+        if quant_kwargs[use_quantized_matmul_key] and not layer.sdnq_dequantizer.use_quantized_matmul:
+            if quant_kwargs["param_name"] not in modules_quant_config.keys():
+                modules_quant_config[quant_kwargs["param_name"]] = {}
+            modules_quant_config[quant_kwargs["param_name"]][use_quantized_matmul_key] = layer.sdnq_dequantizer.use_quantized_matmul
+    return modules_quant_config
+
+
 def add_module_skip_keys(model, modules_to_not_convert: list[str] | None = None, modules_dtype_dict: dict[str, list[str]] | None = None):
     if modules_to_not_convert is None:
         modules_to_not_convert = []
@@ -609,9 +628,10 @@ def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=Non
                 }
                 quant_kwargs = get_quant_kwargs(quant_kwargs, modules_quant_config)
                 module, modules_to_not_convert, modules_dtype_dict = sdnq_quantize_layer(module, **quant_kwargs)
+                modules_quant_config = update_modules_quant_config(quant_kwargs, modules_quant_config, module)
                 setattr(model, module_name, module)
 
-        module, modules_to_not_convert, modules_dtype_dict = apply_sdnq_to_module(
+        module, (modules_to_not_convert, modules_dtype_dict, modules_quant_config) = apply_sdnq_to_module(
             module,
             dynamic_loss_threshold=dynamic_loss_threshold,
             weights_dtype=weights_dtype,
@@ -637,7 +657,7 @@ def apply_sdnq_to_module(model, weights_dtype="int8", quantized_matmul_dtype=Non
             full_param_name=param_name,
         )
         setattr(model, module_name, module)
-    return model, modules_to_not_convert, modules_dtype_dict
+    return model, (modules_to_not_convert, modules_dtype_dict, modules_quant_config)
 
 
 @devices.inference_context()
@@ -703,7 +723,7 @@ def sdnq_post_load_quant(
     )
 
     model.eval()
-    model, modules_to_not_convert, modules_dtype_dict = apply_sdnq_to_module(
+    model, (modules_to_not_convert, modules_dtype_dict, modules_quant_config) = apply_sdnq_to_module(
         model,
         weights_dtype=weights_dtype,
         quantized_matmul_dtype=quantized_matmul_dtype,
@@ -899,6 +919,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         layer, tensor_name = get_module_from_name(model, param_name)
         layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
         layer, self.quantization_config.modules_to_not_convert, self.quantization_config.modules_dtype_dict = sdnq_quantize_layer(layer, **quant_kwargs)
+        self.quantization_config.modules_quant_config = update_modules_quant_config(quant_kwargs, self.quantization_config.modules_quant_config, layer)
 
         layer.weight._is_hf_initialized = True # pylint: disable=protected-access
         if hasattr(layer, "scale"):
