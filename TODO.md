@@ -6,11 +6,11 @@
 - Feature: Chat-based interface
 - Feature: Add cloud providers
 - Feature: Multi-image inputs
-- Feature: RIFE update
-- Feature: RIFE in processing
-- Feature: SeedVR2 in processing
+- Feature: `RIFE` update
+- Feature: `RIFE` in processing
+- Feature: `SeedVR2` in processing
 - Feature: Add video models to `Reference`
-- Feature: Add <https://huggingface.co/briaai/RMBG-2.0> to REMBG
+- Feature: Add <https://huggingface.co/briaai/RMBG-2.0> to `REMBG`
 - Deploy: Lite vs Expert mode
 - Engine: `TensorRT` acceleration
 - Feature: Auto handle scheduler `prediction_type`

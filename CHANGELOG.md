@@ -2,6 +2,20 @@
 
 ## Update for 2026-04-15
 
+### Highlights for 2026-04-15
+
+*What's New?*
+- Built-in **Tag-Autocomplete** with support for 10+ tag databases
+- New models! **Zeta-Chroma**, **ERNIE**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**
+- Additional Schedulers, updates to NudeNet, OpenVINO and ROCm and other features
+
+And tons of *quality-of-life* improvements and *bug-fixes*!
+In addtion, to jump on a bandwagon, we're now fully **AI agent** ready with detailed instructions and skills!
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-04-15
+
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
     Chroma generates images directly in RGB space using NextDiT-style architecture  
