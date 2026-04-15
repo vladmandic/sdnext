@@ -472,7 +472,7 @@
     "desc": "X-Omni: Reinforcement learning makes discrete autoregressive image generative models great again",
     "preview": "X-Omni--X-Omni-SFT.jpg",
     "skip": true,
-    "size": 0,
+    "size": 23.8,
     "date": "2024 September",
     "experimental": true
   },
@@ -577,7 +577,7 @@
     "preview": "hunyuanvideo-community--HunyuanImage-2.1-Diffusers.jpg",
     "extras": "",
     "skip": true,
-    "size": 0,
+    "size": 51.88,
     "date": "2025 August"
   },
   "Tencent HunyuanImage 2.1 Refiner": {
@@ -586,7 +586,7 @@
     "preview": "hunyuanvideo-community--HunyuanImage-2.1-Diffusers.jpg",
     "extras": "",
     "skip": true,
-    "size": 0,
+    "size": 48.01,
     "date": "2025 August"
   },
   "Tencent HunyuanDiT 1.2": {

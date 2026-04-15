@@ -71,6 +71,7 @@
   - wrap `hf-download` methods
   - additional *typing* and *typechecks*, thanks @awsr
   - refactor `hash-cache` management, thanks @awsr
+  - validate all `reference` jsons and backfill all fields  
 - **Fixes**
   - Prohibit `python==3.14` unless `--experimental`
   - UI CSS fixes, thanks @awsr
@@ -92,7 +93,6 @@
   - patch `z-image` for fp16 compatibility, thanks @resonantsky
   - patch `unipc` for timesteps device placement, thanks @resonantsky
   - `civitai` search and base-model discovery improvements
-  - validate all `reference` jsons
   - ui log formatting  
 
 ## Update for 2026-04-01

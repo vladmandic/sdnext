@@ -1,4 +1,5 @@
 import os
+import time
 from modules.logger import log
 
 
@@ -14,11 +15,13 @@ def http_get_hijack(*args, **kwargs):
     jobid = state.begin('Download')
     fn = kwargs.get("displayed_filename", None)
     size = kwargs.get("expected_size", None)
-    if fn and not fn.endswith(".json"):
+    if fn and not fn.endswith(".json") and size is not None and size > 10240:
         log.debug(f'Download start: type=http fn="{fn}" size={size}')
     debug(f'Download start: type=http args={args} kwargs={kwargs}')
+    t0 = time.time()
     res = orig_http_get(*args, **kwargs)
-    debug(f'Download end: type=http res={res}')
+    t1 = time.time()
+    debug(f'Download end: type=http res={res} time={t1-t0:.2f} perf={size/(t1-t0)/1024/1024:.2f} MB/s')
     state.end(jobid)
     return res
 

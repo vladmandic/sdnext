@@ -31,6 +31,7 @@ Use this skill to audit and update SD.Next model reference catalogs with minimal
 - Preserve existing field names and conventions used by neighboring entries.
 - Prefer deterministic normalization (stable key order, consistent value style).
 - Do not overwrite real thumbnails with placeholders.
+- For `size` backfill, use `cli/hf-info.py` as the primary source of truth.
 
 ## Validation Checklist
 
@@ -62,13 +63,23 @@ Use this skill to audit and update SD.Next model reference catalogs with minimal
 - Validate field value formats (e.g. size in GB, date format).
 - Ensure that all fields are consistent and not null, empty or contain zero values.  
 
+7. Size backfill checks (`size: 0`)
+- Enumerate all entries with `"size": 0` across `data/reference*.json`.
+- For each Hugging Face repo-style path (`owner/name`), run `cli/hf-info.py`.
+- Parse `data.size` from tool output when present (format is MB string, e.g. `"23933.4MB"`).
+- Convert MB to GB using deterministic rounding: `gb = round(mb / 1024, 2)`.
+- Update only the `size` field for resolvable records; do not modify unrelated fields.
+- If `cli/hf-info.py` returns `ok: false`, missing `data.size`, or non-repo paths, leave `size` unchanged and report as unresolved.
+- Do not invent fallback sizes unless explicitly requested.
+
 ## Safe Edit Workflow
 
 1. Identify target entries and category intent.
 2. Audit only relevant catalog files first.
-3. Propose minimal edits (or apply when asked).
-4. Re-validate JSON and duplicate checks.
-5. Summarize exact changed records and rationale.
+3. Run size backfill using `cli/hf-info.py`.
+4. Propose minimal edits (or apply when asked).
+5. Re-validate JSON and duplicate checks.
+6. Summarize exact changed records and rationale.
 
 ## Common Failure Modes To Prevent
 
@@ -77,6 +88,9 @@ Use this skill to audit and update SD.Next model reference catalogs with minimal
 - Breaking JSON structure while editing by hand
 - Inconsistent key naming across similar entries
 - Creating placeholder thumbnail over an existing asset
+- Running `cli/hf-info.py` with the wrong Python environment/interpreter
+- Treating `subfolder` variants as unsupported when the repo path itself is valid
+- Writing guessed `size` values when `cli/hf-info.py` returns no size
 
 ## Output Contract
 
@@ -87,4 +101,5 @@ When using this skill, provide:
 - Exact records changed (before/after summary)
 - Duplicate/conflict report across catalogs
 - Thumbnail sync result for `models/Reference`
+- `size: 0` backfill report: total candidates, updated count, unresolved count, unresolved reasons
 - Residual risks or follow-up items

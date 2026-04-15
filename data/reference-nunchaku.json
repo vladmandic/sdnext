@@ -7,7 +7,7 @@
     "skip": true,
     "nunchaku": ["Model", "TE"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 32.95,
     "date": "2025 June"
   },
   "FLUX.1-Schnell Nunchaku SVDQuant": {
@@ -19,7 +19,7 @@
     "nunchaku": ["Model", "TE"],
     "tags": "nunchaku",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
-    "size": 0,
+    "size": 32.93,
     "date": "2025 June"
   },
   "FLUX.1-Kontext Nunchaku SVDQuant": {
@@ -30,7 +30,7 @@
     "skip": true,
     "nunchaku": ["Model", "TE"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 32.95,
     "date": "2025 June"
   },
   "FLUX.1-Krea Nunchaku SVDQuant": {
@@ -41,7 +41,7 @@
     "skip": true,
     "nunchaku": ["Model", "TE"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 32.95,
     "date": "2025 June"
   },
   "FLUX.1-Fill Nunchaku SVDQuant": {
@@ -53,7 +53,7 @@
     "hidden": true,
     "nunchaku": ["Model", "TE"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 33.12,
     "date": "2025 June"
   },
   "FLUX.1-Depth Nunchaku SVDQuant": {
@@ -65,7 +65,7 @@
     "hidden": true,
     "nunchaku": ["Model", "TE"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 42.66,
     "date": "2025 June"
   },
   "Shuttle Jaguar Nunchaku SVDQuant": {
@@ -76,7 +76,7 @@
     "skip": true,
     "nunchaku": ["Model", "TE"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 32.93,
     "date": "2025 June"
   },
   "Qwen-Image Nunchaku SVDQuant": {
@@ -87,7 +87,7 @@
     "skip": true,
     "nunchaku": ["Model"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 56.35,
     "date": "2025 June"
   },
   "Qwen-Lightning (8-step) Nunchaku SVDQuant": {
@@ -99,7 +99,7 @@
     "nunchaku": ["Model"],
     "tags": "nunchaku",
     "extras": "steps: 8",
-    "size": 0,
+    "size": 56.35,
     "date": "2025 June"
   },
   "Qwen-Lightning (4-step) Nunchaku SVDQuant": {
@@ -111,7 +111,7 @@
     "nunchaku": ["Model"],
     "tags": "nunchaku",
     "extras": "steps: 4",
-    "size": 0,
+    "size": 56.35,
     "date": "2025 June"
   },
   "Qwen-Image-Edit Nunchaku SVDQuant": {
@@ -122,7 +122,7 @@
     "skip": true,
     "nunchaku": ["Model"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 56.35,
     "date": "2025 June"
   },
   "Qwen-Lightning-Edit (8-step) Nunchaku SVDQuant": {
@@ -134,7 +134,7 @@
     "nunchaku": ["Model"],
     "tags": "nunchaku",
     "extras": "steps: 8",
-    "size": 0,
+    "size": 56.35,
     "date": "2025 June"
   },
   "Qwen-Lightning-Edit (4-step) Nunchaku SVDQuant": {
@@ -146,7 +146,7 @@
     "nunchaku": ["Model"],
     "tags": "nunchaku",
     "extras": "steps: 4",
-    "size": 0,
+    "size": 56.35,
     "date": "2025 June"
   },
   "Qwen-Image-Edit-2509 Nunchaku SVDQuant": {
@@ -157,7 +157,7 @@
     "skip": true,
     "nunchaku": ["Model"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 56.35,
     "date": "2025 September"
   },
   "Sana 1.6B 1k Nunchaku SVDQuant": {
@@ -168,7 +168,7 @@
     "skip": true,
     "nunchaku": ["Model"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 23.3,
     "date": "2025 June"
   },
   "Z-Image-Turbo Nunchaku SVDQuant": {
@@ -180,7 +180,7 @@
     "nunchaku": ["Model"],
     "tags": "nunchaku",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
-    "size": 0,
+    "size": 32.06,
     "date": "2025 June"
   },
   "SDXL Base Nunchaku SVDQuant": {
@@ -191,7 +191,7 @@
     "skip": true,
     "nunchaku": ["Model"],
     "tags": "nunchaku",
-    "size": 0,
+    "size": 33.55,
     "date": "2025 June"
   },
   "SDXL Turbo Nunchaku SVDQuant": {
@@ -203,7 +203,7 @@
     "nunchaku": ["Model"],
     "tags": "nunchaku",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
-    "size": 0,
+    "size": 20.33,
     "date": "2025 June"
   }
 }

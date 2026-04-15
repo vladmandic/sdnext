@@ -80,6 +80,8 @@ def get_model_type(pipe):
         model_type = 'pixartsigma'
     elif "PixArtAlpha" in name:
         model_type = 'pixartalpha'
+    elif 'FIBO' in name:
+        model_type = 'fibo'
     elif "Bria" in name:
         model_type = 'bria'
     elif 'Kolors' in name:

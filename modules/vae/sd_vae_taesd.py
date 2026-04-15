@@ -69,12 +69,12 @@ def get_model(model_type = 'decoder', variant = None):
     elif model_cls in {'f1', 'h1', 'zimage', 'lumina2', 'chroma', 'longcat', 'omnigen2', 'flite', 'ovis', 'kandinsky5', 'glmimage', 'cogview3', 'cogview4'}:
         model_cls = 'f1'
         variant = 'TAE FLUX.1'
-    elif model_cls == 'f2':
+    elif model_cls in {'f2', 'ernieimage'}:
         model_cls = 'f2'
         variant = 'TAE FLUX.2'
-    elif model_cls == 'sd3':
+    elif model_cls in {'sd3'}:
         variant = 'TAE SD3'
-    elif model_cls in {'wanai', 'qwen', 'chrono', 'cosmos'}:
+    elif model_cls in {'wanai', 'qwen', 'chrono', 'cosmos', 'nucleusimage', 'fibo'}:
         variant = variant or 'TAE WanVideo'
     elif model_cls not in supported:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={shared.sd_model_type} unsuppported', variant=variant)
