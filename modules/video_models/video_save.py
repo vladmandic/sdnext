@@ -13,14 +13,16 @@ from modules.video_models.video_utils import check_av
 
 def get_video_filename(p:processing.StableDiffusionProcessingVideo):
     from modules.image.namegen import FilenameGenerator
+    from modules.paths import resolve_output_path
     namegen = FilenameGenerator(p, seed=p.seed if p is not None else 0, prompt=p.prompt if p is not None else '')
     filename = namegen.apply(shared.opts.samples_filename_pattern if shared.opts.samples_filename_pattern and len(shared.opts.samples_filename_pattern) > 0 else "[seq]-[prompt_words]")
+    base_path = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video)
     if shared.opts.save_to_dirs:
         dirname = namegen.apply(shared.opts.directories_filename_pattern or "[prompt_words]")
         dirfile = os.path.dirname(filename)
-        dirname = os.path.join(shared.opts.outdir_video, dirname, dirfile)
+        dirname = os.path.join(base_path, dirname, dirfile)
     else:
-        dirname = shared.opts.outdir_video
+        dirname = base_path
     if not os.path.exists(dirname):
         os.makedirs(dirname, exist_ok=True)
     filename = os.path.join(dirname, filename)
