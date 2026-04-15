@@ -3,18 +3,19 @@
 ## Update for 2026-04-15
 
 - **Models**
-  - [Baidu ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) text-to-image FlowMatch diffusion transformer model with Mistral3 text encoding
-    includes *ERNIE-Image* (base) and *ERNIE-Image-Turbo* (distilled) variants
-    uses *ErnieImageTransformer2DModel* with *AutoencoderKLFlux2* latent decoding at 1024px
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
-    generates images directly in RGB space using NextDiT-style architecture  
+    Chroma generates images directly in RGB space using NextDiT-style architecture  
     *note*: requires large number of steps to achieve sane results  
-  - [Anima Preview-v3](https://huggingface.co/circlestone-labs/Anima) new version of Anima
-  - [Bria FIBO](https://huggingface.co/briaai/FIBO) 8B parameter text-to-image model using Flow Matching  
-    includes *Normal*, *Edit*, and *Lite* (distilled) variants  
-    features lightweight SmolLM3-3B text encoder with efficient inference  
+  - [Baidu ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) in *base* and *turbo* (distilled) variants  
+    ERNIE is single-stream 8B DiT model with built-in prompt enhancer using Mistral-3 text encoder  
+  - [Nucleus-Image](https://huggingface.co/NucleusAI/Nucleus-Image)  
+    Nucleus is MoE text-to-image model with 2B active and 17B total params
+  - [Bria FIBO](https://huggingface.co/briaai/FIBO) in *Normal*, *Edit*, and *Lite* (distilled) variants  
+    FIBO is DiT 8B parameter text-to-image model using Flow Matching and lightweight SmolLM3-3B text encoder  
     *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
     *note*: verbose JSON prompts are desired, using simple text prompt is suboptimial  
+  - [Anima Preview-v3](https://huggingface.co/circlestone-labs/Anima)  
+    new version of Anima  
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
     *note*: more of an experimental model and doesn't support offloading  

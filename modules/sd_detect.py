@@ -144,6 +144,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'NanoBanana'
     elif 'ernie-image' in fn.lower():
         new_guess = 'ERNIE-Image'
+    elif 'nucleus-image' in fn.lower() or 'nucleusmoe-image' in fn.lower():
+        new_guess = 'Nucleus-Image'
     elif 'z-image' in fn.lower() or 'z_image' in fn.lower():
         new_guess = 'Z-Image'
     elif 'longcat-image' in fn.lower():

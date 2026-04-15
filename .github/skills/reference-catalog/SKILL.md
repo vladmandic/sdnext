@@ -57,6 +57,11 @@ Use this skill to audit and update SD.Next model reference catalogs with minimal
 - Keep formatting style consistent with nearby file conventions.
 - Avoid broad reformatting unrelated to edited records.
 
+6. Fields checks
+- Detect missing or extra fields compared to similar entries.
+- Validate field value formats (e.g. size in GB, date format).
+- Ensure that all fields are consistent and not null, empty or contain zero values.  
+
 ## Safe Edit Workflow
 
 1. Identify target entries and category intent.

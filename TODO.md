@@ -2,7 +2,10 @@
 
 ## Internal
 
-- Feature: implement `unload_auxiliary_models`
+- Feature: Diffusers [TextKVCache](https://huggingface.co/NucleusAI/Nucleus-Image#quick-start)
+- Feature: Chat-based interface
+- Feature: Add cloud providers
+- Feature: Multi-image inputs
 - Feature: RIFE update
 - Feature: RIFE in processing
 - Feature: SeedVR2 in processing
@@ -13,12 +16,12 @@
 - Feature: Auto handle scheduler `prediction_type`
 - Feature: Cache models in memory
 - Feature: JSON image metadata
-- Validate: Control tab add overrides handling
 - Feature: Integrate natural language image search
   [ImageDB](https://github.com/vladmandic/imagedb)
 - Feature: Multi-user support
 - Feature: Settings profile manager
 - Feature: Video tab add full API support
+- Validate: Control tab add overrides handling
 - Refactor: Unify *huggingface* and *diffusers* model folders
 - Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
 - Reimplement `llama` remover for Kanvas
@@ -46,8 +49,6 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image
 
-- Port: ERNIE-Image (merged, unpublished)
-- Port: NucleusMoE-Image (merged, unpublished)
 - Port: JoyAI-Image-Edit (pr in-progress)
 - Port: Lumina-DiMOO (pr in-progress)
 - Port: Step1X-Edit (pr in-progress)
@@ -145,6 +146,9 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 - [SEVA](https://github.com/Stability-AI/stable-virtual-camera)
   - Model that generates novel-view images of a scene from a single input photo.
   - Created: 2025-04 | Updated: 2025-06 | Stars: N/A (draft PR)
+- [Bria FIBO RMBG](https://huggingface.co/briaai/RMBG-2.0)
+  - Background removal model trained on Bria FIBO dataset
+  - Created: 2025-08 | Updated: 2025-09 | Stars: N/A (private model)
 
 ## Code TODO
 

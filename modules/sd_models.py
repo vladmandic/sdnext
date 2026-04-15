@@ -48,6 +48,7 @@ pipe_switch_task_exclude = [
     'StableDiffusionXLInstantIDPipeline',
     'XOmniPipeline',
     'HunyuanImagePipeline',
+    'NucleusMoEImagePipeline',
     'AuraFlowPipeline',
     'ChronoEditPipeline',
     'GoogleNanoBananaPipeline',
@@ -512,6 +513,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
         elif model_type in ['ERNIE-Image']:
             from pipelines.model_ernie import load_ernie_image
             sd_model = load_ernie_image(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['Nucleus-Image']:
+            from pipelines.model_nucleus import load_nucleus
+            sd_model = load_nucleus(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Z-Image']:
             from pipelines.model_z_image import load_z_image
@@ -1297,13 +1302,11 @@ def set_diffuser_pipe(pipe, new_pipe_type):
 
 
 def add_noise_pred_to_diffusers_callback(pipe):
-    print('HERE1', hasattr(pipe, "_callback_tensor_inputs"))
     if not hasattr(pipe, "_callback_tensor_inputs"):
         return pipe
     if pipe.__class__.__name__.startswith("Anima"):
         return pipe
     if pipe.__class__.__name__.startswith("ErnieImage"):
-        print('HERE2')
         return pipe
     if pipe.__class__.__name__.startswith("StableCascade") and ("predicted_image_embedding" not in pipe._callback_tensor_inputs): # pylint: disable=protected-access
         pipe.prior_pipe._callback_tensor_inputs.append("predicted_image_embedding") # pylint: disable=protected-access
