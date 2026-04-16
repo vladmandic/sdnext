@@ -12,7 +12,7 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
     sd_models.hf_auth_check(checkpoint_info)
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
-    log.debug(f'Load model: type=ERNIE-Image repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    log.debug(f'Load model: type=ERNIE-Image repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} pe={shared.opts.model_ernie_enable_pe}')
 
     transformer = generic.load_transformer(
         repo_id,
@@ -25,6 +25,9 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
         load_config=diffusers_load_config,
     )
 
+    if not shared.opts.model_ernie_enable_pe:
+        load_args['pe'] = False
+
     pipe = diffusers.ErnieImagePipeline.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,
@@ -34,6 +37,7 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
     )
     pipe.task_args = {
         'output_type': 'np',
+        'use_pe': shared.opts.model_ernie_enable_pe,
     }
 
     del transformer

@@ -110,6 +110,8 @@ def create_settings(cmd_opts):
         "model_chrono_temporal_steps": OptionInfo(0, "Temporal steps", gr.Slider, {"minimum": 0, "maximum": 50, "step": 1 }),
         "model_qwen_layer_sep": OptionInfo("<h2>Qwen layered</h2>", "", gr.HTML),
         "model_qwen_layers": OptionInfo(2, "Qwen layered number of layers", gr.Slider, {"minimum": 2, "maximum": 9, "step": 1 }),
+        "model_ernie_sep": OptionInfo("<h2>ERNIE-Image</h2>", "", gr.HTML),
+        "model_ernie_enable_pe": OptionInfo(False, "Enable prompt-enhance"),
     }))
 
     # --- Model Offloading ---

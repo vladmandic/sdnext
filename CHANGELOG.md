@@ -22,6 +22,7 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
     *note*: requires large number of steps to achieve sane results  
   - [Baidu ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) in *base* and *turbo* (distilled) variants  
     ERNIE is single-stream 8B DiT model with built-in prompt enhancer using Mistral-3 text encoder  
+    *note*: ERNIE has a built-in prompt-enhancer which is disabled by default, can be enabled in *settings -> model options*  
   - [Nucleus-Image](https://huggingface.co/NucleusAI/Nucleus-Image)  
     Nucleus is MoE text-to-image model with 2B active and 17B total params
   - [Bria FIBO](https://huggingface.co/briaai/FIBO) in *Normal*, *Edit*, and *Lite* (distilled) variants  
