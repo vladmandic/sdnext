@@ -9,9 +9,12 @@ loaded_model: str = None
 
 
 def get_bucket(size: int):
-    if not hasattr(shared.sd_model, 'vae_temporal_compression_ratio'):
-        return int(size) - (int(size) % 32)
-    return int(size) - (int(size) % shared.sd_model.vae_temporal_compression_ratio)
+    # LTX pipelines validate width/height divisible by 32 across all families
+    ratio = getattr(shared.sd_model, 'vae_spatial_compression_ratio', None)
+    if not isinstance(ratio, int) or ratio < 32:
+        ratio = 32
+    size = int(size)
+    return size - (size % ratio)
 
 
 def get_frames(frames: int):
@@ -57,8 +60,30 @@ def load_upsample(upsample_pipe, upsample_repo_id):
     return upsample_pipe
 
 
-def get_conditions(width, height, condition_strength, condition_images, condition_files, condition_video, condition_video_frames, condition_video_skip):
+def _condition_cls(family: str):
+    if family == '2.x':
+        try:
+            from diffusers.pipelines.ltx2.pipeline_ltx2_condition import LTX2VideoCondition
+            return LTX2VideoCondition
+        except ImportError:
+            log.warning('LTX conditions: LTX2VideoCondition not available in installed diffusers')
+            return None
     from diffusers.pipelines.ltx.pipeline_ltx_condition import LTXVideoCondition
+    return LTXVideoCondition
+
+
+def make_condition(condition_cls, family: str, frames, strength: float, is_video: bool):
+    if family == '2.x':
+        return condition_cls(frames=frames, index=0, strength=strength)
+    if is_video:
+        return condition_cls(video=frames, frame_index=0, strength=strength)
+    return condition_cls(image=frames, frame_index=0, strength=strength)
+
+
+def get_conditions(width, height, condition_strength, condition_images, condition_files, condition_video, condition_video_frames, condition_video_skip, family: str = '0.9'):
+    condition_cls = _condition_cls(family)
+    if condition_cls is None:
+        return []
     conditions = []
     if condition_images is not None:
         for condition_image in condition_images:
@@ -67,32 +92,32 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
                     from modules.api.api import decode_base64_to_image
                     condition_image = decode_base64_to_image(condition_image)
                 condition_image = condition_image.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
-                conditions.append(LTXVideoCondition(image=condition_image, frame_index=0, strength=condition_strength))
-                log.debug(f'Video condition: image={condition_image.size} strength={condition_strength}')
+                conditions.append(make_condition(condition_cls, family, condition_image, condition_strength, is_video=False))
+                log.debug(f'Video condition: family={family} image={condition_image.size} strength={condition_strength}')
             except Exception as e:
                 log.error(f'LTX condition image: {e}')
     if condition_files is not None:
-        condition_images = []
+        batch_images = []
         for fn in condition_files:
             try:
                 if hasattr(fn, 'name'):
                     condition_image = Image.open(fn.name).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
                 else:
                     condition_image = fn.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
-                condition_images.append(condition_image)
+                batch_images.append(condition_image)
             except Exception as e:
                 log.error(f'LTX condition files: {e}')
-        if len(condition_images) > 0:
-            conditions.append(LTXVideoCondition(video=condition_images, frame_index=0, strength=condition_strength))
-            log.debug(f'Video condition: files={len(condition_images)} size={condition_images[0].size} strength={condition_strength}')
+        if len(batch_images) > 0:
+            conditions.append(make_condition(condition_cls, family, batch_images, condition_strength, is_video=True))
+            log.debug(f'Video condition: family={family} files={len(batch_images)} size={batch_images[0].size} strength={condition_strength}')
     if condition_video is not None:
         from modules.video_models.video_utils import get_video_frames
         try:
             condition_frames = get_video_frames(condition_video, num_frames=condition_video_frames, skip_frames=condition_video_skip)
             condition_frames = [f.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS) for f in condition_frames]
             if len(condition_frames) > 0:
-                conditions.append(LTXVideoCondition(video=condition_frames, frame_index=0, strength=condition_strength))
-                log.debug(f'Video condition: frames={len(condition_frames)} size={condition_frames[0].size} strength={condition_strength}')
+                conditions.append(make_condition(condition_cls, family, condition_frames, condition_strength, is_video=True))
+                log.debug(f'Video condition: family={family} frames={len(condition_frames)} size={condition_frames[0].size} strength={condition_strength}')
         except Exception as e:
             log.error(f'LTX condition video: {e}')
     return conditions
@@ -114,16 +139,19 @@ def get_generator(seed):
     return torch.Generator().manual_seed(seed)
 
 
-def vae_decode(latents, decode_timestep, seed):
+def vae_decode(latents, decode_timestep, seed, denormalize: bool = True):
     t0 = time.time()
-    log.debug(f'Video: cls={shared.sd_model.vae.__class__.__name__} op=vae latents={latents.shape} timestep={decode_timestep}')
+    if latents.ndim == 4:
+        latents = latents.unsqueeze(0)
+    log.debug(f'Video: cls={shared.sd_model.vae.__class__.__name__} op=vae latents={latents.shape} timestep={decode_timestep} denormalize={denormalize}')
     from diffusers.utils.torch_utils import randn_tensor
-    latents = shared.sd_model._denormalize_latents( # pylint: disable=protected-access
-        latents,
-        shared.sd_model.vae.latents_mean,
-        shared.sd_model.vae.latents_std,
-        shared.sd_model.vae.config.scaling_factor
-    )
+    if denormalize:
+        latents = shared.sd_model._denormalize_latents( # pylint: disable=protected-access
+            latents,
+            shared.sd_model.vae.latents_mean,
+            shared.sd_model.vae.latents_std,
+            shared.sd_model.vae.config.scaling_factor
+        )
     latents = latents.to(device=devices.device, dtype=devices.dtype)
     if not shared.sd_model.vae.config.timestep_conditioning:
         timestep = None
@@ -132,10 +160,7 @@ def vae_decode(latents, decode_timestep, seed):
         timestep = torch.tensor([decode_timestep], device=devices.device, dtype=latents.dtype)
         noise_scale = torch.tensor([decode_timestep], device=devices.device, dtype=devices.dtype)[:, None, None, None, None]
         latents = (1 - noise_scale) * latents + noise_scale * noise
-    frames = shared.sd_model.vae.decode(latents, timestep, return_dict=False)[0] # n, c, f, h, w
-    # frames = frames.squeeze(0) if frames.ndim == 5 else frames
-    # frames = frames.permute(1, 2, 3, 0)
-    # frames = shared.sd_model.video_processor.postprocess_video(frames, output_type='pil')
+    frames = shared.sd_model.vae.decode(latents, timestep, return_dict=False)[0]
     t1 = time.time()
     timer.process.add('vae', t1 - t0)
     return frames

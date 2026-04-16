@@ -46,7 +46,8 @@ def set_overrides(p: processing.StableDiffusionProcessingVideo, selected: Model)
     if 'SkyReelsV2DiffusionForcing' in cls:
         p.task_args['overlap_history'] = 17
     # LTX
-    if cls == 'LTXImageToVideoPipeline' or cls == 'LTXConditionPipeline':
+    ltx_i2v_classes = ('LTXImageToVideoPipeline', 'LTXConditionPipeline', 'LTX2ImageToVideoPipeline', 'LTX2ConditionPipeline')
+    if cls in ltx_i2v_classes:
         p.task_args['generator'] = None
     if cls == 'LTXConditionPipeline':
         p.task_args['strength'] = p.denoising_strength
