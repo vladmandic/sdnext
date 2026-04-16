@@ -18,8 +18,8 @@ matmul_configs = [
     for BM in [32, 64, 128, 256]
     for BN in [32, 64, 128, 256]
     for BK in [32, 64, 128]
-    for GM in [8, 16]
-    for w in [8, 16]
+    for GM in [4, 8]
+    for w in [4, 8]
     for s in [2]
 ]
 
