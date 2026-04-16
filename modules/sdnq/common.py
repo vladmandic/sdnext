@@ -328,12 +328,17 @@ weights_dtype_order = [
     "uint16", "float16_e1m15fnu", "float16_e2m14fnu", "float16_e3m13fnu", "float16_e4m12fnu", "float16_e5m11fnu",
 ]
 
-is_rdna2 = bool(devices.backend == "rocm" and devices.get_hip_agent().gfx_version < 0x1100)
 use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
 
 def check_torch_compile(): # dynamo can be disabled after startup
     return use_torch_compile and not torch._dynamo.config.disable # pylint: disable=protected-access
 
+
+if devices.backend == "rocm":
+    gfx_version = devices.get_hip_agent().gfx_version
+    is_rdna2_and_older = bool(gfx_version < 0x940 or (gfx_version < 0x1100 and gfx_version >= 0x1000))
+else:
+    is_rdna2_and_older = False
 
 if os.environ.get("SDNQ_ALLOW_FP8_MM", None) is None:
     if devices.backend == "cuda":
@@ -353,12 +358,12 @@ else:
     use_tensorwise_fp8_matmul = os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"}
 
 if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
-    use_contiguous_mm = bool(is_rdna2 or devices.backend in {"ipex", "mps", "cpu", "openvino", "zluda"})
+    use_contiguous_mm = bool(is_rdna2_and_older or devices.backend in {"ipex", "mps", "cpu", "openvino", "zluda"})
 else:
     use_contiguous_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
 
 if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
-    use_triton_mm = bool(is_rdna2 or devices.backend == "zluda")
+    use_triton_mm = bool(is_rdna2_and_older or devices.backend == "zluda")
 else:
     use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
 
