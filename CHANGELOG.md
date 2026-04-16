@@ -1,12 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-15
+## Update for 2026-04-16
 
-### Highlights for 2026-04-15
+### Highlights for 2026-04-16
 
 *What's New?*
 - Built-in **Tag-Autocomplete** with support for 10+ tag databases
-- New models! **Zeta-Chroma**, **ERNIE**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**
+- New models! **Zeta-Chroma**, **ERNIE**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**, **LTX 2.3 v1.1**
 - Additional Schedulers, updates to NudeNet, OpenVINO and ROCm and other features
 
 And tons of *quality-of-life* improvements and *bug-fixes*!
@@ -14,13 +14,13 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-15
+### Details for 2026-04-16
 
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
     Chroma generates images directly in RGB space using NextDiT-style architecture  
     *note*: requires large number of steps to achieve sane results  
-  - [Baidu ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) in *base* and *turbo* (distilled) variants  
+  - [Baidu ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) in *base* and *turbo* (distilled) variants in both original precision and SDNQ-4bit quantiztion  
     ERNIE is single-stream 8B DiT model with built-in prompt enhancer using Mistral-3 text encoder  
     *note*: ERNIE has a built-in prompt-enhancer which is disabled by default, can be enabled in *settings -> model options*  
   - [Nucleus-Image](https://huggingface.co/NucleusAI/Nucleus-Image)  
@@ -34,6 +34,7 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
     *note*: more of an experimental model and doesn't support offloading  
+  - [LTX Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) add *1.1 Distilled* and *1.1 Distilled-SDNQ* variants  
 - **Features**
   - **Tag Autocomplete** native implementation!  
     select and activate any number of different auto-complete databases  
@@ -59,7 +60,9 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
     default device is now `AUTO`, override which devices are allowed to be used in *settings -> backend settings*  
     perform detection of fp16 capabilities instead of forcing fp32 by default  
     add *experimental* support for `NPU` devices, typically available on AI-PC/Copilot-PC devices  
-  - **SDNQ** add quant support to `nn.Embedding` type  
+  - **SDNQ** improvements  
+    add quant support to `nn.Embedding` type  
+    support fp execution according to gpu capabilities  
 - **UI**
   - `gallery` send-to button advanced options with right-click
   - `tag autocomplete` quick toggle in main prompt area

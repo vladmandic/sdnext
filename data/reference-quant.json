@@ -235,5 +235,24 @@
     "size": 11.6,
     "tags": "quantized",
     "date": "2026 January"
+  },
+  "Baidu ERNIE-Image sdnq-dynamic-int4": {
+    "path": "OzzyGT/ERNIE_Image_sdnq_dynamic_int4",
+    "preview": "baidu--ERNIE-Image.jpg",
+    "desc": "ERNIE-Image is a text-to-image diffusion transformer model that combines a Mistral3 text encoder with a FlowMatch transformer and Flux2-style VAE for 1024px image generation.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.0, steps: 50",
+    "size": 23.93,
+    "date": "2026 April"
+  },
+  "Baidu ERNIE-Image-Turbo sdnq-dynamic-int4": {
+    "path": "OzzyGT/ERNIE_Image_Turbo_sdnq_dynamic_int4",
+    "preview": "baidu--ERNIE-Image-Turbo.jpg",
+    "desc": "ERNIE-Image-Turbo is a distilled ERNIE-Image variant optimized for fast generation with fewer denoising steps.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 8",
+    "size": 23.37,
+    "tags": "distilled",
+    "date": "2026 April"
   }
 }
