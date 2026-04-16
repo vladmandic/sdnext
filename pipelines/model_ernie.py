@@ -26,7 +26,7 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
     )
 
     if not shared.opts.model_ernie_enable_pe:
-        load_args['pe'] = False
+        load_args['pe'] = None
 
     pipe = diffusers.ErnieImagePipeline.from_pretrained(
         repo_id,
