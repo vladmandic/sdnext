@@ -1,4 +1,5 @@
 import diffusers
+from modules.logger import log
 
 
 pipelines = {
@@ -131,7 +132,6 @@ def get_pipelines():
                 'ONNX Stable Diffusion Upscale': getattr(diffusers, 'OnnxStableDiffusionUpscalePipeline', None),
             }
         except Exception as e:
-            from modules.logger import log
             log.error(f'ONNX initialization error: {e}')
             onnx_pipelines = {}
         pipelines.update(onnx_pipelines)
