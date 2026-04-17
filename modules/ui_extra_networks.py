@@ -969,8 +969,10 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
                 url = item.name.replace('Diffusers/', '')
                 url = f'<a href="https://huggingface.co/{url}" target="_blank">https://huggingface.co/models/{url}</a>' if url is not None else 'N/A'
             else:
-                url = info.get('id', None) if info is not None else None
-                url = f'<a href="https://civitai.com/models/{url}" target="_blank">civitai.com/models/{url}</a>' if url is not None else 'N/A'
+                info_id = info.get('id', None)
+                nsfw = info.get('nsfw', False) if info_id is not None else False
+                tld = "red" if nsfw else "com"
+                url = f'<a href="https://civitai.{tld}/models/{info_id}" target="_blank">civitai.{tld}/models/{info_id}</a>' if info_id is not None else 'N/A'
             text = f'''
                 <h2 style="border-bottom: 1px solid var(--button-primary-border-color); margin: 0em 0px 1em 0 !important">{item.name}</h2>
                 <table style="width: 100%; line-height: 1.5em;"><tbody>
