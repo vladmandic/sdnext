@@ -8,7 +8,6 @@ import html
 import base64
 import urllib.parse
 import threading
-from typing import TYPE_CHECKING
 from types import SimpleNamespace
 from pathlib import Path
 from html.parser import HTMLParser
@@ -881,11 +880,10 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
         from modules import images
         page, item = get_item(state, params)
         is_style = (page is not None) and (page.title == 'Style')
-        is_valid = (item is not None) and hasattr(item, 'name') and hasattr(item, 'filename')
+        is_valid = False
 
-        if is_valid:
-            if TYPE_CHECKING:
-                assert item is not None # Part of the definition of "is_valid"
+        if (item is not None) and hasattr(item, 'name') and hasattr(item, 'filename'):
+            is_valid = True
             stat_size, stat_mtime = modelstats.stat(item.filename)
             if hasattr(item, 'size') and item.size > 0:
                 stat_size = item.size
