@@ -13,11 +13,11 @@ import triton
 import triton.language as tl
 
 try:
-    from .common import is_rdna2
+    from .common import is_rdna2_and_older
 except Exception:
-    is_rdna2 = False
+    is_rdna2_and_older = False
 
-if is_rdna2:
+if is_rdna2_and_older:
     matmul_configs = [
         triton.Config({'BLOCK_SIZE_M': BM, 'BLOCK_SIZE_N': BN, "BLOCK_SIZE_K": BK, "GROUP_SIZE_M": GM}, num_warps=w, num_stages=s)
         for BM in [64, 128]
