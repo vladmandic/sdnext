@@ -133,7 +133,7 @@ class DateTimeEncoder(json.JSONEncoder):
 
 
 class ExtraNetworksPage:
-    def __init__(self, title):
+    def __init__(self, title: str):
         self.title = title
         self.name = title.lower()
         self.allow_negative_prompt = False
@@ -197,7 +197,7 @@ class ExtraNetworksPage:
             errors.display(e, 'Network version')
         return all_versions[0]
 
-    def link_preview(self, filename):
+    def link_preview(self, filename: str):
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
         mtime = os.path.getmtime(filename) if os.path.exists(filename) else 0
         preview = f"{shared.opts.subpath}/sdapi/v1/network/thumb?filename={quoted_filename}&mtime={mtime}"
@@ -255,7 +255,7 @@ class ExtraNetworksPage:
             log.info(f'Network thumbnails: type={self.name} created={created}')
             self.missing_thumbs.clear()
 
-    def create_items(self, tabname):
+    def create_items(self, tabname: str):
         if self.refresh_time is not None and self.refresh_time > refresh_time: # cached results
             return
         t0 = time.time()
@@ -275,7 +275,7 @@ class ExtraNetworksPage:
         debug(f'EN create-items: page={self.name} items={len(self.items)} time={t1-t0:.2f}')
         self.list_time += t1-t0
 
-    def create_page(self, tabname, skip = False):
+    def create_page(self, tabname: str, skip = False):
         debug(f'EN create-page: {self.name}')
         if self.page_time > refresh_time and len(self.html) > 0: # cached page
             return self.patch(self.html, tabname)
@@ -387,7 +387,7 @@ class ExtraNetworksPage:
     def allowed_directories_for_previews(self):
         return []
 
-    def create_html(self, item, tabname):
+    def create_html(self, item, tabname: str):
         def random_bright_color():
             r = random.randint(100, 255)
             g = random.randint(100, 255)
@@ -428,7 +428,7 @@ class ExtraNetworksPage:
                 errors.display(e, 'Networks')
             return ""
 
-    def find_preview_file(self, path):
+    def find_preview_file(self, path: str | None):
         if path is None:
             return 'html/missing.png'
         if os.path.join('models', 'Reference') in path:
@@ -449,7 +449,7 @@ class ExtraNetworksPage:
                 return file
         return 'html/missing.png'
 
-    def find_preview(self, filename):
+    def find_preview(self, filename: str):
         t0 = time.time()
         preview_file = self.find_preview_file(filename)
         self.preview_time += time.time() - t0
@@ -502,7 +502,7 @@ class ExtraNetworksPage:
                 debug(f'EN missing-preview: {item["name"]}')
         self.preview_time += time.time() - t0
 
-    def find_description(self, path, info=None):
+    def find_description(self, path: str | None, info=None):
         t0 = time.time()
         class HTMLFilter(HTMLParser):
             text = ""
@@ -534,7 +534,7 @@ class ExtraNetworksPage:
         self.desc_time += t1-t0
         return f.text
 
-    def find_info(self, path):
+    def find_info(self, path: str | None):
         data = {}
         if shared.cmd_opts.no_metadata:
             return data
@@ -593,7 +593,7 @@ def register_pages():
         register_page(ExtraNetworksPageTextualInversion())
 
 
-def get_pages(title=None):
+def get_pages(title: str | None = None):
     visible = shared.opts.extra_networks
     pages: list[ExtraNetworksPage] = []
     if 'All' in visible or visible == []: # default en sort order
@@ -645,7 +645,7 @@ class ExtraNetworksUi:
         self.state: gr.State = None
 
 
-def create_ui(container, button_parent, tabname, skip_indexing = False):
+def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing = False):
     if 'networks' in shared.opts.ui_disabled:
         return None
     debug(f'EN create-ui: {tabname}')
