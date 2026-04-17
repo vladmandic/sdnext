@@ -967,7 +967,7 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
                 '''
             if item.name.startswith('Diffusers'):
                 url = item.name.replace('Diffusers/', '')
-                url = f'<a href="https://huggingface.co/{url}" target="_blank">https://huggingface.co/models/{url}</a>' if url is not None else 'N/A'
+                url = f'<a href="https://huggingface.co/{url}" target="_blank">https://huggingface.co/models/{url}</a>'
             else:
                 info_id = info.get('id', None)
                 nsfw = info.get('nsfw', False) if info_id is not None else False
