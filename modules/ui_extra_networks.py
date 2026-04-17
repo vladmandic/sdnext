@@ -890,14 +890,9 @@ def create_ui(container, button_parent, tabname, skip_indexing = False):
             if hasattr(item, 'mtime') and item.mtime is not None:
                 stat_mtime = item.mtime
             desc = item.description
-            fullinfo = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True, as_type="dict")
-            if 'modelVersions' in fullinfo: # sanitize massive objects
-                fullinfo['modelVersions'] = []
-            info = fullinfo
-            if isinstance(info, list):
-                item.filename = None
-                log.warning('Network: show details not supported for compound item')
-                info = None
+            info = shared.readfile(os.path.splitext(item.filename)[0] + '.json', silent=True, as_type="dict")
+            if 'modelVersions' in info: # sanitize massive objects
+                info['modelVersions'] = []
             if prompt is not None and len(prompt) > 0:
                 item.prompt = prompt
             if negative is not None and len(negative) > 0:
