@@ -107,6 +107,7 @@ def create_paths(opts):
     create_path(fix_path('ckpt_dir'))
     create_path(fix_path('diffusers_dir'))
     create_path(fix_path('hfcache_dir'))
+    create_path(fix_path('xetcache_dir'))
     create_path(fix_path('vae_dir'))
     create_path(fix_path('unet_dir'))
     create_path(fix_path('te_dir'))

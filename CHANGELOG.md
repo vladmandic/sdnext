@@ -1,20 +1,21 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-17
+## Update for 2026-04-18
 
-### Highlights for 2026-04-17
+### Highlights for 2026-04-18
 
 *What's New?*
 - Built-in **Tag-Autocomplete** with support for 10+ tag databases
 - New models! **Zeta-Chroma**, **ERNIE**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**, **LTX 2.3 v1.1**
-- Major **Kanvas** update, additional Schedulers, updates to NudeNet, OpenVINO and ROCm and other features
+- Major **Kanvas** update for enhanced inpaint/outpaint
+- Additional Schedulers, updates to NudeNet, OpenVINO and ROCm and other features
 
 And tons of *quality-of-life* improvements and *bug-fixes*!
 In addition, to jump on a bandwagon, we're now fully **AI agent** ready with detailed instructions and skills!
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-17
+### Details for 2026-04-18
 
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
@@ -51,6 +52,7 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
     allows for any *settings* property name (as defined in `modules/ui_definitions.py` and saved to `config.json`)  
   - **preview** add explicit `method=None`  
     if you want to skip preview, but show finished images, works with batch progression  
+  - add **xet cache** to *settings -> paths* and initialize on startup
 - **Compute**
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  
@@ -63,11 +65,13 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
   - **SDNQ** improvements  
     add quant support to `nn.Embedding` type  
     support fp execution according to gpu capabilities  
+    enhanced `triton` kernels for RDNA2/RDNA3  
 - **Kanvas**
     multi-image workflow: add additional stagaes as needed (when starting generate, sdnext will use image/mask from active stage)  
     full undo/redo  
     list, select, transform any shapes  
     magic-wand paint with auto-fill and perceptual tolerance  
+    see [Kanvas Docs](https://vladmandic.github.io/sdnext-docs/Kanvas) for details  
 - **UI**
   - `gallery` send-to button advanced options with right-click
   - `tag autocomplete` quick toggle in main prompt area

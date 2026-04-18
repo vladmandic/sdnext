@@ -18,6 +18,7 @@ def hf_init():
     os.environ.setdefault('HF_HUB_ETAG_TIMEOUT', '10')
     os.environ.setdefault('HF_ENABLE_PARALLEL_LOADING', 'true' if opts.sd_parallel_load else 'false')
     os.environ.setdefault('HF_HUB_CACHE', opts.hfcache_dir)
+    os.environ.setdefault('HF_XET_CACHE', opts.xetcache_dir)
     if opts.hf_transfer_mode == 'requests':
         os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'false')
         os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'false')
@@ -42,14 +43,21 @@ def hf_init():
 
 
 def hf_check_cache():
-    prev_default = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')
     from modules.modelstats import stat
+    prev_default = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')
     if opts.hfcache_dir != prev_default:
         size, _mtime = stat(prev_default)
-        if size//1024//1024 > 16:
-            log.warning(f'Cache location changed: previous="{prev_default}" size={size//1024//1024} MB')
-    size, _mtime = stat(opts.hfcache_dir)
-    log.debug(f'Huggingface: cache="{opts.hfcache_dir}" size={size//1024//1024} MB')
+        if size//1024//1024 > 32:
+            log.warning(f'Huggingface cache changed: type=huggingface unused="{prev_default}" size={size//1024//1024} MB')
+    prev_default = os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'xet')
+    if opts.xetcache_dir != prev_default:
+        size, _mtime = stat(prev_default)
+        if size//1024//1024 > 32:
+            log.warning(f'Huggingface cache changed: type=xet unused="{prev_default}" size={size//1024//1024} MB')
+
+    hf_size, _mtime = stat(opts.hfcache_dir)
+    xet_size, _mtime = stat(opts.xetcache_dir)
+    log.debug(f'Huggingface: cache="{opts.hfcache_dir}" size={hf_size//1024//1024} MB xet="{opts.xetcache_dir}" size={xet_size//1024//1024} MB')
 
 
 def hf_search(keyword):
