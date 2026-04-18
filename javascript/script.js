@@ -1,5 +1,5 @@
 async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms)); // eslint-disable-line no-promise-executor-return
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
 }
 
 function gradioApp() {
