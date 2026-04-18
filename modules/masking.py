@@ -4,6 +4,7 @@ import sys
 import time
 import gradio as gr
 import numpy as np
+import torch
 import cv2
 from PIL import Image, ImageFilter, ImageOps
 from transformers import SamModel, SamImageProcessor, MaskGenerationPipeline
@@ -236,6 +237,8 @@ def run_segment(input_image: gr.Image, input_mask: np.ndarray):
     input_mask_size = np.count_nonzero(input_mask)
     debug(f'Segment SAM: {vars(opts)}')
     for mask, score in zip(outputs['masks'], outputs['scores'], strict=False):
+        if isinstance(mask, torch.Tensor):
+            mask = mask.cpu().numpy()
         mask = mask.astype('uint8')
         mask_size = np.count_nonzero(mask)
         if mask_size == 0:
@@ -259,6 +262,9 @@ def run_segment(input_image: gr.Image, input_mask: np.ndarray):
 
 def run_rembg(input_image: Image.Image, input_mask: np.ndarray):
     try:
+        from installer import install
+        for pkg in ["dctorch==0.1.2", "pymatting", "pooch", "rembg"]:
+            install(pkg, no_deps=True, ignore=False)
         import rembg
     except Exception as e:
         log.error(f'Mask Rembg load failed: {e}')

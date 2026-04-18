@@ -123,6 +123,7 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
   - patch `unipc` for timesteps device placement, thanks @resonantsky
   - `civitai` search and base-model discovery improvements
   - ui log formatting  
+  - auto-masking with `rembg`
 
 ## Update for 2026-04-01
 
