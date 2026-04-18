@@ -90,6 +90,7 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
     *model*: `port-model`, `debug-model`, `analyze-model`, `reference-catalog`  
     *github*: `github-issues`, `github-features`  
     *diffusers*: `diffusers-code`  
+    *docs*: `update-docs`  
     *other*: `todo`  
 - **CLI**
   - add `cli/hf-info` and update `cli/hf-search.py`
