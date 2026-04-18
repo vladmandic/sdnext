@@ -19,7 +19,8 @@ Read markdown files in the `wiki/` folder, fix markdown syntax issues, and impro
 
 Primary scope:
 
-- Files under `wiki/**/*.md`
+- Files under `wiki/**/*.md`, but can be used on any markdown file in the repo if specified by the user
+- Skip any files starting with `_` (e.g. `_footer.md`) or non-markdown files (e.g. `LICENSE.txt`) to avoid unintended edits to non-doc files or templates.
 
 Baseline actions:
 
@@ -53,6 +54,14 @@ Expanded actions (when user allows full pass):
 
 ## Procedure
 
+## Validation Tool
+
+Use the repo-local validation script before and after doc edits when possible:
+
+- `test/check-docs` to validate all wiki markdown files
+- `test/check-docs wiki/File.md` to validate one or more specific files
+- `test/check-docs --fix wiki/File.md` only when a safe markdownlint auto-fix is appropriate
+
 ### 1. Confirm Target And Depth
 
 Extract from user prompt:
@@ -67,6 +76,7 @@ If targets are missing, ask for paths before editing.
 
 For each target file:
 
+- If the scope is broad or unclear, run `test/check-docs` first to establish the current markdown baseline.
 - Scan for syntax/rendering issues
 - Identify readability pain points (dense blocks, weak headings, mixed terminology)
 - Note risky sections where edits may alter meaning
@@ -129,6 +139,7 @@ For fenced code blocks:
 
 Validate each edited file against this checklist:
 
+- `test/check-docs` or `test/check-docs <file...>` passes for the affected scope
 - markdown renders correctly
 - heading hierarchy is logical
 - code fences include language where known
