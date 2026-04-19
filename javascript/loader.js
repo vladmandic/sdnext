@@ -1,4 +1,5 @@
 const appStartTime = performance.now();
+let monitorLogActive = false;
 
 async function preloadImages() {
   const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -26,6 +27,39 @@ async function preloadImages() {
   }
 }
 
+function joinArgs(messages) {
+  let output = '';
+  for (let i = 0; i < messages.length; i++) {
+    let arg = messages[i];
+    if (arg === undefined) arg = 'undefined';
+    if (arg === null) arg = 'null';
+    output += ' ';
+    if (typeof arg === 'object') output += JSON.stringify(arg).replace(/["]+/g, '');
+    else output += arg;
+  }
+  return output;
+}
+
+async function monitorLog() {
+  if (window.logBufferDirty) {
+    window.logBufferDirty = false;
+    const maxLines = 5; // print last n logs from ring buffer to splash-log
+    const lines = [];
+    // print last 5 logs from ring buffer in reverse order
+    for (let i = window.logRingBuffer.length - 1; i >= Math.max(0, window.logRingBuffer.length - maxLines); i--) {
+      const logEntry = window.logRingBuffer[i];
+      let color = 'white';
+      if (logEntry.type === 'error') color = 'palevioletred';
+      else if (logEntry.type === 'debug') color = 'gray';
+      const html = `<div class="splash-log-row" style="color: ${color}">${logEntry.ts} &nbsp; ${joinArgs(logEntry.msg)}</div>`;
+      lines.push(html);
+    }
+    const splashLogEl = document.getElementById('splashLog');
+    if (splashLogEl) splashLogEl.innerHTML = lines.join('');
+  }
+  if (monitorLogActive) setTimeout(monitorLog, 1000);
+}
+
 async function removeSplash() {
   const splash = document.getElementById('splash');
   if (splash) splash.remove();
@@ -33,6 +67,7 @@ async function removeSplash() {
   const t = Math.round(performance.now() - appStartTime);
   log('startupTime', t);
   xhrPost(`${window.api}/log`, { message: `ready time=${t}` });
+  monitorLogActive = false;
 }
 
 async function createSplash() {
@@ -43,6 +78,7 @@ async function createSplash() {
     <div id="splash" class="splash" style="background: ${dark ? 'black' : 'white'}">
       <div class="loading"><div class="loader"></div></div>
       <div id="motd" class="motd""></div>
+      <div id="splashLog" class="splash-log" style="position: fixed; bottom: 0; text-align: left; padding: 8vh 8px 8px 8px; font-size: 12px; width: 100%; background: linear-gradient(0deg, darkslategray, transparent); opacity: 50%;"></div>
     </div>`;
   document.body.insertAdjacentHTML('beforeend', splash);
   const ok = await preloadImages();
@@ -51,14 +87,23 @@ async function createSplash() {
     return;
   }
   const imgEl = `<div id="spash-img" class="splash-img" alt="logo" style="background-image: url(file=html/logo-bg-${dark ? 'dark' : 'light'}.jpg), url(file=html/logo-bg-${num}.jpg); background-blend-mode: ${dark ? 'multiply' : 'lighten'}"></div>`;
-  document.getElementById('splash').insertAdjacentHTML('afterbegin', imgEl);
-  authFetch(`${window.api}/motd`)
+  const splashEl = document.getElementById('splash');
+  if (splashEl) splashEl.insertAdjacentHTML('afterbegin', imgEl);
+
+  monitorLogActive = true;
+  monitorLog();
+
+  await authFetch(`${window.api}/motd`)
     .then((res) => res.text())
     .then((text) => {
+      const clean = text.replace(/["]+/g, '');
+      log('getMOTD', clean);
       const motdEl = document.getElementById('motd');
-      if (motdEl) motdEl.innerHTML = text.replace(/["]+/g, '');
+      if (motdEl) motdEl.innerHTML = clean;
     })
     .catch((err) => error(`getMOTD: ${err}`));
+
+  log('loadGradioUi');
 }
 
 window.onload = createSplash;

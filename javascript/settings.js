@@ -15,7 +15,7 @@ function monitorOption(option, callback) {
   monitoredOpts.push({ [option]: callback });
 }
 
-const AppyOpts = [
+const AppyOpts = [ // monitored opts
   { compact_view: (val, old) => toggleCompact(val, old) },
   { gradio_theme: (val, old) => setTheme(val, old) },
   { font_size: (val, old) => setFontSize(val, old) },
@@ -38,7 +38,12 @@ async function updateOpts(json_string) {
 
   for (const op of AppyOpts) {
     const [key, callback] = Object.entries(op)[0];
-    if (callback) callback(new_opts[key], opts[key]);
+    if (callback) {
+      const t3 = performance.now();
+      callback(new_opts[key], opts[key]);
+      const t4 = performance.now();
+      if (t4 - t3 > 100) debug('AppyOptSlow', key, `time=${Math.round(t4 - t3)}`);
+    }
   }
 
   const t2 = performance.now();
@@ -109,7 +114,7 @@ function updateAllOpts() {
   return true;
 }
 
-onAfterUiUpdate(async () => {
+async function onAfterUiUpdateCallback() {
   if (!updateAllOpts()) return;
   const json_elem = gradioApp().getElementById('settings_json');
   const textarea = json_elem.querySelector('textarea');
@@ -146,15 +151,19 @@ onAfterUiUpdate(async () => {
       });
     }, 250);
   };
-});
+}
 
-onOptionsChanged(() => {
+onAfterUiUpdate(onAfterUiUpdateCallback);
+
+async function onOptionsChangedCallback() {
   const setting_elems = gradioApp().querySelectorAll('#settings [id^="setting_"]');
   setting_elems.forEach((elem) => {
     const setting_name = elem.id.replace('setting_', '');
     markIfModified(setting_name, opts[setting_name]);
   });
-});
+}
+
+onOptionsChanged(onOptionsChangedCallback);
 
 async function initModels() {
   const warn = () => `

@@ -18,15 +18,15 @@ async function waitForOpts() {
         break;
       }
     }
-    await sleep(50);
+    await sleep(100);
     t1 = performance.now();
   }
 }
 
 async function initStartup() {
   const t0 = performance.now();
-  log('gradio', `time=${Math.round(t0 - appStartTime)}`);
-  log('initStartup');
+  log('initGradio', `time=${Math.round(t0 - appStartTime)}`);
+  log('initUi');
   if (window.setupLogger) await setupLogger();
 
   // all items here are non-blocking async calls
@@ -54,22 +54,23 @@ async function initStartup() {
   }
   setRefreshInterval();
   executeCallbacks(uiReadyCallbacks);
-  initLogMonitor();
   setupExtraNetworks();
 
   // optinally wait for modern ui
   if (window.waitForUiReady) await waitForUiReady();
   initAutocomplete();
   monitorConnection();
-  removeSplash();
 
   // post startup tasks that may take longer but are not critical
   showNetworks();
   setHints();
   applyStyles();
   initIndexDB();
+  initLogMonitor();
   t1 = performance.now();
   log('initStartup', Math.round(1000 * (t1 - t0) / 1000000));
+
+  removeSplash();
 }
 
 onUiLoaded(initStartup);

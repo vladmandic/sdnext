@@ -526,6 +526,23 @@ def create_settings(cmd_opts):
         "compact_view": OptionInfo(False, "Compact view"),
         "ui_columns": OptionInfo(4, "Gallery view columns", gr.Slider, {"minimum": 1, "maximum": 8, "step": 1}),
 
+        'uiux_separator_appearance': OptionInfo("<h2>Appearance</h2>", "", gr.HTML),
+        "uiux_grid_image_size": OptionInfo(150, "Grid image size", gr.Slider, {"minimum": 64, "maximum": 1024, "step": 1}),
+        "uiux_panel_min_width": OptionInfo(35, "Panel minimum width", gr.Number),
+        "uiux_hide_legacy": OptionInfo(True, "Hide legacy tabs"),
+        "uiux_persist_layout": OptionInfo(True, "Persist UI layout"),
+        "uiux_no_slider_layout": OptionInfo(False, "Hide input range sliders"),
+        "uiux_show_labels_aside": OptionInfo(False, "Show labels for aside tabs"),
+        "uiux_show_labels_main": OptionInfo(False, "Show labels for main tabs"),
+        "uiux_show_labels_tabs": OptionInfo(True, "Show labels for page tabs"),
+        "uiux_show_input_range_ticks": OptionInfo(True, "Show ticks for input range slider", gr.Checkbox, {"visible": False}),
+        "uiux_no_headers_params": OptionInfo(False, "Hide params headers", gr.Checkbox, {"visible": False}),
+        "uiux_show_outline_params": OptionInfo(True, "Show parameter outline", gr.Checkbox, {"visible": False}),
+
+        'uiux_separator_mobile': OptionInfo("<h2>Mobile</h2>", "", gr.HTML),
+        "uiux_default_layout": OptionInfo("Auto", "Layout", gr.Radio, {"choices": ["Auto","Desktop", "Mobile"]}),
+        "uiux_mobile_scale": OptionInfo(0.7, "Mobile scale", gr.Slider, {"minimum": 0.5, "maximum": 1, "step": 0.05}),
+
         "images_sep_log": OptionInfo("<h2>Log Display</h2>", "", gr.HTML),
         "logmonitor_show": OptionInfo(True, "Show log view"),
         "logmonitor_refresh_period": OptionInfo(5000, "Log view update period", gr.Slider, {"minimum": 0, "maximum": 30000, "step": 25}),
