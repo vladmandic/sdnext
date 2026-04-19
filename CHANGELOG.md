@@ -1,21 +1,23 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-18
+## Update for 2026-04-19
 
-### Highlights for 2026-04-18
+### Highlights for 2026-04-19
 
 *What's New?*
-- Built-in **Tag-Autocomplete** with support for 10+ tag databases
 - New models! **Zeta-Chroma**, **ERNIE**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**, **LTX 2.3 v1.1**
 - Major **Kanvas** update for enhanced inpaint/outpaint
+- Built-in **Tag-Autocomplete** with support for *10+* tag databases
 - Additional Schedulers, updates to NudeNet, OpenVINO and ROCm and other features
 
 And tons of *quality-of-life* improvements and *bug-fixes*!
 In addition, to jump on a bandwagon, we're now fully **AI agent** ready with detailed instructions and skills!
 
+For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
+
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-18
+### Details for 2026-04-19
 
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
@@ -94,6 +96,9 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
     *other*: `todo`  
 - **CLI**
   - add `cli/hf-info` and update `cli/hf-search.py`
+- **Docs**
+  - validation of all links
+  - syntax/structure/language corrections accross all documents
 - **Obsoleted**
   - removed *system-info* from *extensions-builtin*
 - **Internal**
@@ -102,6 +107,7 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
   - additional *typing* and *typechecks*, thanks @awsr
   - refactor `hash-cache` management, thanks @awsr
   - validate all `reference` jsons and backfill all fields  
+  - sticter `js` linting, thanks @awsr
 - **Fixes**
   - Prohibit `python==3.14` unless `--experimental`
   - UI CSS fixes, thanks @awsr
