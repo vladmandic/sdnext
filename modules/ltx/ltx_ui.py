@@ -1,6 +1,7 @@
 import os
 import gradio as gr
-from modules import ui_sections
+from modules import ui_sections, ui_symbols
+from modules.ui_components import ToolButton
 from modules.logger import log
 from modules.video_models.models_def import models
 from modules.ltx import ltx_process, ltx_capabilities
@@ -48,7 +49,7 @@ def _model_change(model_name: str):
     )
 
 
-def create_ui(prompt, negative, styles, overrides, init_image, _init_strength, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, width, height, frames, seed):
+def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="ltx_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -56,10 +57,19 @@ def create_ui(prompt, negative, styles, overrides, init_image, _init_strength, l
             with gr.Row():
                 ltx_models = [m.name for m in models['LTX Video']] if 'LTX Video' in models else ['None']
                 model = gr.Dropdown(label='LTX model', choices=ltx_models, value=ltx_models[0], elem_id="ltx_model")
+            with gr.Accordion(open=False, label='Size', elem_id='ltx_size_accordion'):
+                width, height = ui_sections.create_resolution_inputs('ltx', default_width=832, default_height=480)
+                with gr.Row():
+                    frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=121, elem_id='ltx_frames')
+                    seed = gr.Number(label='Initial seed', value=-1, elem_id='ltx_seed', container=True)
+                    random_seed = ToolButton(ui_symbols.random, elem_id='ltx_seed_random')
+                    random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
             input_media_accordion = gr.Accordion(open=False, label="Input media", elem_id='ltx_input_media_accordion', visible=False)
             with input_media_accordion:
                 ltx_init_image = gr.Image(label='Image', elem_id='ltx_init_image', type='pil', image_mode='RGB', width=256, height=256)
                 ltx_condition_strength = gr.Slider(label='LTX input strength', minimum=0.0, maximum=1.0, step=0.05, value=1.0, elem_id='ltx_condition_strength')
+                with gr.Row():
+                    last_image = gr.Image(label='Last image', elem_id='ltx_last_image', type='pil', image_mode='RGB', width=256, height=256)
                 multi_condition_group = gr.Group(visible=False)
                 with multi_condition_group:
                     gr.Markdown('**Prefix conditioning**: supply a video or gallery to anchor the opening frames', elem_id='ltx_prefix_conditioning_label')
@@ -137,7 +147,7 @@ def create_ui(prompt, negative, styles, overrides, init_image, _init_strength, l
         seed,
         upsample_enable, upsample_ratio,
         refine_enable, refine_strength,
-        ltx_condition_strength, ltx_init_image, init_image, last_image, condition_files, condition_video, condition_video_frames, condition_video_skip,
+        ltx_condition_strength, ltx_init_image, last_image, condition_files, condition_video, condition_video_frames, condition_video_skip,
         decode_timestep, image_cond_noise_scale,
         mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf,
         audio_enable,

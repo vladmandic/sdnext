@@ -12,7 +12,7 @@ def change_sections(duration, mp4_fps, mp4_interpolate, latent_ws, variant):
     return gr.update(value=f'Target video: {num_frames} frames in {num_sections} sections'), gr.update(lines=max(2, 2*num_sections//3))
 
 
-def create_ui(prompt, negative, styles, _overrides, init_image, last_image, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf):
+def create_ui(prompt, negative, styles, _overrides, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="framepack_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -22,11 +22,12 @@ def create_ui(prompt, negative, styles, _overrides, init_image, last_image, mp4_
             with gr.Row():
                 resolution = gr.Slider(label="FP resolution", minimum=240, maximum=1088, value=640, step=16)
                 duration = gr.Slider(label="FP duration", minimum=1, maximum=120, value=4, step=0.1)
-                mp4_fps = gr.Slider(label="FP target FPS", minimum=1, maximum=60, value=24, step=1)
-                mp4_interpolate = gr.Slider(label="FP interpolation", minimum=0, maximum=10, value=0, step=1)
             with gr.Row():
                 section_html = gr.HTML(show_label=False, elem_id="framepack_section_html")
             with gr.Accordion(label="Inputs", open=False):
+                with gr.Row():
+                    init_image = gr.Image(label='FP init image', elem_id='framepack_init_image', type='pil', image_mode='RGB', width=256, height=256)
+                    last_image = gr.Image(label='FP last image', elem_id='framepack_last_image', type='pil', image_mode='RGB', width=256, height=256)
                 with gr.Row():
                     start_weight = gr.Slider(label="FP init strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_start_weight")
                     end_weight = gr.Slider(label="FP end strength", value=1.0, minimum=0.0, maximum=2.0, step=0.05, elem_id="framepack_end_weight")

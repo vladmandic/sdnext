@@ -122,7 +122,6 @@ def run_ltx(task_id,
             refine_strength: float,
             condition_strength: float,
             ltx_init_image,
-            condition_image,
             condition_last,
             condition_files,
             condition_video,
@@ -213,15 +212,13 @@ def run_ltx(task_id,
         from modules.video_models import models_def, video_overrides
         selected = next((m for m in models_def.models.get(engine, []) if m.name == model), None)
 
-        effective_init_image = ltx_init_image if ltx_init_image is not None else condition_image
-
-        if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and effective_init_image is None:
+        if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and ltx_init_image is None:
             yield from abort('No input image provided. Please upload or select an image.', ok=True)
             return
 
         condition_images = []
-        if effective_init_image is not None:
-            condition_images.append(effective_init_image)
+        if ltx_init_image is not None:
+            condition_images.append(ltx_init_image)
         if condition_last is not None:
             condition_images.append(condition_last)
         conditions = []
@@ -254,7 +251,7 @@ def run_ltx(task_id,
             frames=get_frames(frames),
             cfg_scale=float(guidance_scale) if guidance_scale is not None and guidance_scale > 0 else caps.default_cfg,
             denoising_strength=float(condition_strength) if condition_strength is not None else 1.0,
-            init_image=effective_init_image,
+            init_image=ltx_init_image,
             vae_type='Default',
             vae_tile_frames=16,
         )
@@ -279,9 +276,9 @@ def run_ltx(task_id,
         if caps.supports_multi_condition and conditions:
             p.task_args['conditions'] = conditions
 
-        if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and effective_init_image is not None:
+        if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and ltx_init_image is not None:
             from modules import images
-            p.task_args['image'] = images.resize_image(resize_mode=2, im=effective_init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
+            p.task_args['image'] = images.resize_image(resize_mode=2, im=ltx_init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
 
         if caps.family == '2.x' and caps.is_distilled:
             from diffusers.pipelines.ltx2.utils import DISTILLED_SIGMA_VALUES
