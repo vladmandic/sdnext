@@ -40,13 +40,41 @@ def load_upsample(upsample_pipe, upsample_repo_id):
     if upsample_pipe is None:
         t0 = time.time()
         from diffusers.pipelines.ltx.pipeline_ltx_latent_upsample import LTXLatentUpsamplePipeline
-        log.info(f'Video load: cls={LTXLatentUpsamplePipeline.__class__.__name__} repo="{upsample_repo_id}"')
+        log.info(f'Video load: cls={LTXLatentUpsamplePipeline.__name__} repo="{upsample_repo_id}"')
         upsample_pipe = LTXLatentUpsamplePipeline.from_pretrained(
             upsample_repo_id,
             vae=shared.sd_model.vae,
             cache_dir=shared.opts.hfcache_dir,
             torch_dtype=devices.dtype,
         )
+        t1 = time.time()
+        timer.process.add('load', t1 - t0)
+    return upsample_pipe
+
+
+def load_upsample_2x(upsample_pipe, upsample_repo_id):
+    # 2.x ships the upsampler as a bare nn.Module in a subfolder; no from_pretrained on the
+    # pipeline wrapper, so we load the model + construct the pipeline manually.
+    if upsample_pipe is None:
+        t0 = time.time()
+        from diffusers.pipelines.ltx2.pipeline_ltx2_latent_upsample import LTX2LatentUpsamplePipeline
+        from diffusers.pipelines.ltx2.latent_upsampler import LTX2LatentUpsamplerModel
+        from modules import sd_checkpoint
+        log.info(f'Video load: cls={LTX2LatentUpsamplePipeline.__name__} repo="{upsample_repo_id}"')
+        latent_upsampler = LTX2LatentUpsamplerModel.from_pretrained(
+            upsample_repo_id,
+            subfolder='latent_upsampler',
+            cache_dir=shared.opts.hfcache_dir,
+            torch_dtype=devices.dtype,
+        ).to(devices.device)
+        upsample_pipe = LTX2LatentUpsamplePipeline(
+            vae=shared.sd_model.vae,
+            latent_upsampler=latent_upsampler,
+        )
+        # Synthetic checkpoint_info gives this pipe its own OffloadHook cache slot, so routing
+        # it through apply_balanced_offload does not invalidate the main pipe's module map
+        # (sd_offload.py:488 keys on sd_checkpoint_info.name).
+        upsample_pipe.sd_checkpoint_info = sd_checkpoint.CheckpointInfo('ltx-upsampler-2.x')
         t1 = time.time()
         timer.process.add('load', t1 - t0)
     return upsample_pipe

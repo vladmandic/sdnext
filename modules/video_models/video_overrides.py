@@ -17,9 +17,11 @@ def load_override(selected: Model, **load_args):
     # LTX
     if 'LTXVideo 0.9.5 I2V' in selected.name:
         kwargs['vae'] = diffusers.AutoencoderKLLTXVideo.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir, **load_args)
-    # OzzyGT LTX-2.3 mirrors ship connectors twice: sharded safetensors + .index.json plus a
-    # redundant unsharded diffusion_pytorch_model.safetensors of the same weights. Diffusers
-    # fetches both but loads sharded; skip the ~6.3 GB duplicate.
+    # OzzyGT LTX-2.3 mirrors pack connectors/ twice by design: sharded (*-00001-of-0000N +
+    # .index.json) and unsharded diffusion_pytorch_model.safetensors of the byte-identical
+    # weights. snapshot_download faithfully fetches both; diffusers' component loader picks
+    # sharded when the index is present. ignore_patterns skips the ~6.3 GB unsharded copy
+    # without reaching for a cleaner upstream mirror.
     ltx2_redundant_connector_repos = {
         'OzzyGT/LTX-2.3',
         'OzzyGT/LTX-2.3-sdnq-dynamic-int4',

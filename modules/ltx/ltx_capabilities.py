@@ -9,8 +9,8 @@ class LTXCaps:
     name: str
     repo_cls_name: str
     family: str  # '0.9' or '2.x'
+    variant: str  # '0.9', '2.0', '2.3' (finer-grained sub-variant)
     is_distilled: bool
-    is_ltx_2_3: bool
     is_i2v: bool
     supports_input_media: bool
     supports_multi_condition: bool
@@ -76,18 +76,22 @@ def get_caps(model_name: str) -> Optional[LTXCaps]:
 
     is_ltx2 = cls_name in LTX2_CLASSES
     family = '2.x' if is_ltx2 else '0.9'
+    # 2.x sub-variant detection: unknown 2.x mirrors fall through to '2.0' (conservative default).
+    if is_ltx2:
+        variant = '2.3' if '2.3' in model_name else '2.0'
+    else:
+        variant = '0.9'
     is_distilled = 'Distilled' in model_name
     is_i2v = 'I2V' in model_name or cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline')
     is_condition_cls = cls_name in CONDITION_CLASSES
     supports_input_media = is_i2v or is_condition_cls
-    is_ltx_2_3 = is_ltx2 and '2.3' in model_name
 
     caps = LTXCaps(
         name=model_name,
         repo_cls_name=cls_name,
         family=family,
+        variant=variant,
         is_distilled=is_distilled,
-        is_ltx_2_3=is_ltx_2_3,
         is_i2v=is_i2v,
         supports_input_media=supports_input_media,
         supports_multi_condition=is_condition_cls,
@@ -96,7 +100,7 @@ def get_caps(model_name: str) -> Optional[LTXCaps]:
         supports_stg=is_ltx2,
         supports_audio=is_ltx2,
         supports_frame_rate_kwarg=is_ltx2,
-        use_cross_timestep=is_ltx_2_3,
+        use_cross_timestep=(variant == '2.3'),
         default_cfg=3.0,
         default_steps=30 if is_ltx2 else 50,
         default_sampler_shift=-1.0,
@@ -112,16 +116,16 @@ def get_caps(model_name: str) -> Optional[LTXCaps]:
         caps.default_steps = 8
 
     if is_ltx2 and not is_distilled:
-        if is_ltx_2_3:
+        if variant == '2.3':
             caps.stage2_dev_lora_repo = 'CalamitousFelicitousness/LTX-2.3-distilled-lora-384-Diffusers'
-        elif '2.0' in model_name:
+        elif variant == '2.0':
             caps.stage2_dev_lora_repo = 'CalamitousFelicitousness/LTX-2.0-distilled-lora-384-Diffusers'
     caps.supports_canonical_stage2 = caps.stage2_dev_lora_repo is not None
 
     if is_ltx2:
-        if '2.3' in model_name:
+        if variant == '2.3':
             caps.stg_default_blocks = [28]
-        elif '2.0' in model_name:
+        elif variant == '2.0':
             caps.stg_default_blocks = [29]
         else:
             caps.stg_default_blocks = [28]

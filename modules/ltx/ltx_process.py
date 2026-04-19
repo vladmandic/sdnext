@@ -6,7 +6,7 @@ from PIL import Image
 from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, devices, extra_networks, call_queue
 from modules.logger import log
 from modules.ltx import ltx_capabilities
-from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsample, get_conditions, get_generator, get_prompts, vae_decode
+from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsample, load_upsample_2x, get_conditions, get_generator, get_prompts, vae_decode
 from modules.processing_callbacks import diffusers_callback
 from modules.video_models.video_vae import set_vae_params
 from modules.video_models.video_save import save_video
@@ -20,6 +20,7 @@ upsample_repo_id_09 = 'a-r-r-o-w/LTX-Video-0.9.7-Latent-Spatial-Upsampler-diffus
 upsample_repo_id_20 = 'Lightricks/LTX-2'
 upsample_repo_id_23 = 'CalamitousFelicitousness/LTX-2.3-Spatial-Upsampler-x2-1.1-Diffusers'
 upsample_pipe = None
+upsample_pipe_2x = None
 
 STAGE2_DEV_LORA_ADAPTER = 'ltx2_stage2_distilled'
 
@@ -394,20 +395,10 @@ def run_ltx(task_id,
                         latents = upsample_pipe(latents=latents, **up_args).frames[0]
                         upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe)
                     else:
-                        from diffusers.pipelines.ltx2.pipeline_ltx2_latent_upsample import LTX2LatentUpsamplePipeline
-                        from diffusers.pipelines.ltx2.latent_upsampler import LTX2LatentUpsamplerModel
-                        # Skip apply_balanced_offload on the upsampler; checkpoint_name differs from the main
-                        # pipe so the shared OffloadHook (sd_offload.py:488) would rebuild and force a heavy
-                        # re-init on the next refine. At ~2.3GB it fits on device; free after the pass.
-                        upsample_repo = upsample_repo_id_23 if '2.3' in caps.name else upsample_repo_id_20
-                        log.info(f'Video load: cls={LTX2LatentUpsamplePipeline.__name__} family=2.x repo={upsample_repo} auto={auto_refine_upsample}')
-                        latent_upsampler = LTX2LatentUpsamplerModel.from_pretrained(
-                            upsample_repo,
-                            subfolder='latent_upsampler',
-                            cache_dir=shared.opts.hfcache_dir,
-                            torch_dtype=devices.dtype,
-                        ).to(devices.device)
-                        up_pipe = LTX2LatentUpsamplePipeline(vae=shared.sd_model.vae, latent_upsampler=latent_upsampler)
+                        global upsample_pipe_2x # pylint: disable=global-statement
+                        upsample_repo = upsample_repo_id_23 if caps.variant == '2.3' else upsample_repo_id_20
+                        upsample_pipe_2x = load_upsample_2x(upsample_pipe_2x, upsample_repo)
+                        upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x)
                         # 2.x base pass returns denormalized latents; latents_normalized=False tells the
                         # upsampler "already raw, do not denormalize again".
                         up_args = {
@@ -420,12 +411,10 @@ def run_ltx(task_id,
                         }
                         if latents.ndim == 4:
                             latents = latents.unsqueeze(0)
-                        log.debug(f'Video: op=upsample family=2.x latents={latents.shape} {up_args}')
+                        log.debug(f'Video: op=upsample family=2.x latents={latents.shape} auto={auto_refine_upsample} {up_args}')
                         yield None, 'LTX: Upsample in progress...'
-                        latents = up_pipe(latents=latents, **up_args).frames[0]
-                        latent_upsampler.to('cpu')
-                        del up_pipe, latent_upsampler
-                        devices.torch_gc(force=True, reason='ltx:upsample')
+                        latents = upsample_pipe_2x(latents=latents, **up_args).frames[0]
+                        upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x)
                 except AssertionError as e:
                     yield from abort(e, ok=True, p=p)
                     return
