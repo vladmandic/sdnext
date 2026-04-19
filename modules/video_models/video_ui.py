@@ -113,8 +113,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
                 engine = gr.Dropdown(label='Video engine', choices=visible_engines(), value='None', elem_id="video_engine")
                 model = gr.Dropdown(label='Video model', choices=[''], value='None', elem_id="video_model")
                 btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load")
-            with gr.Accordion(open=True, label="Model", elem_id='video_model_accordion'):
-                url = gr.HTML(label='Model URL', elem_id='video_model_url', value='<br><br>')
+            url = gr.HTML(label='Model URL', elem_id='video_model_url', value='<br><br>')
             with gr.Accordion(open=False, label="Parameters", elem_id='video_parameters_accordion'):
                 steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "video", default_steps=50)
                 with gr.Row():
