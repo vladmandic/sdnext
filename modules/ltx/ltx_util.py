@@ -5,11 +5,8 @@ from modules import devices, shared, sd_models, timer, extra_networks
 from modules.logger import log
 
 
-loaded_model: str = None
-
-
 def get_bucket(size: int):
-    # LTX pipelines validate width/height divisible by 32 across all families
+    # LTX pipes validate width/height divisible by 32 across all families.
     ratio = getattr(shared.sd_model, 'vae_spatial_compression_ratio', None)
     if not isinstance(ratio, int) or ratio < 32:
         ratio = 32
@@ -22,21 +19,16 @@ def get_frames(frames: int):
 
 
 def load_model(engine: str, model: str):
-    global loaded_model # pylint: disable=global-statement
-    if not shared.sd_loaded:
-        loaded_model = None
-    if loaded_model == model:
-        return
-    if model is None or model == '' or model=='None':
-        loaded_model = None
+    if model is None or model == '' or model == 'None':
         shared.sd_model = None
         return
     t0 = time.time()
     from modules.video_models import models_def, video_load
     selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0]
+    # video_load owns the cache; pipe-class mismatch inside it invalidates the name-based hit
+    # when Unload Models (or any external swap) silently replaced shared.sd_model.
     log.info(f'Video load: engine="{engine}" selected="{model}" {selected}')
     video_load.load_model(selected)
-    loaded_model = model
     t1 = time.time()
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     t2 = time.time()

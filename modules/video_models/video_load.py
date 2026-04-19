@@ -36,6 +36,12 @@ def load_model(selected: models_def.Model):
     global loaded_model # pylint: disable=global-statement
     if not shared.sd_loaded:
         loaded_model = None
+    elif loaded_model == selected.name and selected.repo_cls is not None and not isinstance(shared.sd_model, selected.repo_cls):
+        # shared.sd_model auto-reloads the default checkpoint when model_data.sd_model is None,
+        # which silently swaps the pipe class behind the name-based cache. Pipe-class mismatch
+        # is the reliable signal that the cached name no longer maps to the cached object.
+        log.warning(f'Video load: cached model="{selected.name}" pipe class swapped to {type(shared.sd_model).__name__}; forcing reload')
+        loaded_model = None
     if loaded_model == selected.name:
         return ''
     if shared.sd_loaded:
