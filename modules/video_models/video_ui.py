@@ -9,6 +9,14 @@ from modules.video_models import video_run
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 
+# Engines surfaced on their own dedicated tab; hide from the general Video tab dropdown
+# so users aren't offered two paths to the same models.
+HIDDEN_ENGINES = {'LTX Video'}
+
+
+def visible_engines():
+    return [name for name in models_def.models if name not in HIDDEN_ENGINES]
+
 
 def engine_change(engine):
     debug(f'Video change: engine="{engine}"')
@@ -127,7 +135,7 @@ def create_ui(prompt, negative, styles, overrides, init_image, init_strength, la
             with gr.Row():
                 generate = gr.Button('Generate', elem_id="video_generate_btn", variant='primary', visible=False)
             with gr.Row():
-                engine = gr.Dropdown(label='Video engine', choices=list(models_def.models), value='None', elem_id="video_engine")
+                engine = gr.Dropdown(label='Video engine', choices=visible_engines(), value='None', elem_id="video_engine")
                 model = gr.Dropdown(label='Video model', choices=[''], value='None', elem_id="video_model")
                 btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load")
             with gr.Row():
