@@ -23,12 +23,13 @@ def _model_change(model_name: str):
             gr.update(),                # guidance_scale
             gr.update(),                # steps
             gr.update(),                # sampler_shift
+            gr.update(),                # dynamic_shift
             gr.update(interactive=False),  # decode_timestep
             gr.update(interactive=False),  # image_cond_noise_scale
             gr.update(visible=False),   # audio_accordion
         )
-    # distilled 2.x variants use a fixed canonical refine schedule; the strength slider is meaningless there
-    refine_strength_interactive = not (caps.family == '2.x' and caps.is_distilled)
+    # 2.x refine runs fixed canonical schedules; refine_strength only feeds 0.9.x LTXConditionPipeline.
+    refine_strength_interactive = caps.family == '0.9'
     return (
         gr.update(visible=caps.supports_input_media),
         gr.update(visible=caps.supports_multi_condition),
@@ -40,6 +41,7 @@ def _model_change(model_name: str):
         gr.update(value=caps.default_cfg),
         gr.update(value=caps.default_steps),
         gr.update(value=caps.default_sampler_shift),
+        gr.update(value=caps.default_dynamic_shift),
         gr.update(interactive=caps.supports_decode_timestep),
         gr.update(interactive=caps.supports_image_cond_noise_scale),
         gr.update(visible=caps.supports_audio),
@@ -115,6 +117,7 @@ def create_ui(prompt, negative, styles, overrides, init_image, _init_strength, l
             guidance_scale,
             steps,
             sampler_shift,
+            dynamic_shift,
             decode_timestep,
             image_cond_noise_scale,
             audio_accordion,
