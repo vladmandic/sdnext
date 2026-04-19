@@ -1,7 +1,7 @@
 import os
 import torch
 import diffusers
-from modules import shared, processing
+from modules import shared, processing, devices
 from modules.logger import log
 from modules.video_models.models_def import Model
 
@@ -17,6 +17,35 @@ def load_override(selected: Model, **load_args):
     # LTX
     if 'LTXVideo 0.9.5 I2V' in selected.name:
         kwargs['vae'] = diffusers.AutoencoderKLLTXVideo.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir, **load_args)
+    # OzzyGT LTX-2.3 mirrors ship connectors twice: sharded safetensors + .index.json plus a
+    # redundant unsharded diffusion_pytorch_model.safetensors of the same weights. Diffusers
+    # fetches both but loads sharded; skip the ~6.3 GB duplicate.
+    ltx2_redundant_connector_repos = {
+        'OzzyGT/LTX-2.3',
+        'OzzyGT/LTX-2.3-sdnq-dynamic-int4',
+    }
+    if selected.repo in ltx2_redundant_connector_repos:
+        kwargs['ignore_patterns'] = ['connectors/diffusion_pytorch_model.safetensors']
+    # LTX2TextConnectors weights are byte-identical across all 2.3 variants (verified by blob
+    # hash). Pre-load from a canonical repo so per-variant fetches skip connectors/ entirely.
+    # FP16 variants share OzzyGT/LTX-2.3; SDNQ variants share the pre-quantized mirror.
+    ltx2_connectors_cls = None
+    try:
+        from diffusers.pipelines.ltx2 import LTX2TextConnectors
+        ltx2_connectors_cls = LTX2TextConnectors
+    except ImportError as e:
+        log.warning(f'Video load: LTX2TextConnectors unavailable ({e}); dedup of LTX-2.3 connectors disabled')
+    if ('LTXVideo 2.3' in selected.name and shared.opts.te_shared_t5 and ltx2_connectors_cls is not None):
+        conn_repo = 'OzzyGT/LTX-2.3-sdnq-dynamic-int4' if 'SDNQ' in selected.name else 'OzzyGT/LTX-2.3'
+        log.debug(f'Video load: module=connectors repo="{conn_repo}" cls={ltx2_connectors_cls.__name__} shared={shared.opts.te_shared_t5}')
+        kwargs['connectors'] = ltx2_connectors_cls.from_pretrained(
+            conn_repo,
+            subfolder='connectors',
+            torch_dtype=devices.dtype,
+            cache_dir=shared.opts.hfcache_dir,
+            ignore_patterns=['connectors/diffusion_pytorch_model.safetensors'],
+            **load_args,
+        )
     # WAN
     if 'WAN 2.1 14B' in selected.name:
         kwargs['vae'] = diffusers.AutoencoderKLWan.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir, **load_args)

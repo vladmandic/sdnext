@@ -88,6 +88,13 @@ def load_model(selected: models_def.Model):
                 selected.te = 'ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers'
                 selected.te_folder = 'text_encoder'
                 selected.te_revision = None
+            if selected.te_cls.__name__ == 'Gemma3ForConditionalGeneration' and shared.opts.te_shared_t5:
+                if 'SDNQ' in selected.name:
+                    selected.te = 'OzzyGT/LTX-2.3-sdnq-dynamic-int4'
+                else:
+                    selected.te = 'OzzyGT/LTX-2.3'
+                selected.te_folder = 'text_encoder'
+                selected.te_revision = None
 
             log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("transformers")}')
             kwargs["text_encoder"] = selected.te_cls.from_pretrained(
@@ -158,7 +165,11 @@ def load_model(selected: models_def.Model):
         return msg
 
     t1 = time.time()
-    if shared.sd_model.__class__.__name__.startswith("LTX"):
+    cls_name = shared.sd_model.__class__.__name__
+    # LTX 0.9.x is plain linear; pin use_dynamic_shifting=False against upstream config drift.
+    # LTX-2.x canonical is token-count-based dynamic shift (base_shift=0.95, max_shift=2.05);
+    # disabling it there would take the model off-distribution.
+    if cls_name.startswith("LTX") and not cls_name.startswith("LTX2"):
         shared.sd_model.scheduler.config.use_dynamic_shifting = False
     shared.sd_model.default_scheduler = copy.deepcopy(shared.sd_model.scheduler) if hasattr(shared.sd_model, "scheduler") else None
     shared.sd_model.sd_checkpoint_info = sd_checkpoint.CheckpointInfo(selected.repo)

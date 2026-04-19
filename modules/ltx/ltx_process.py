@@ -1,7 +1,5 @@
 import os
-import copy
 import time
-import numpy as np
 import torch
 from PIL import Image
 
@@ -17,7 +15,50 @@ from modules.video_models.video_utils import check_av
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
 upsample_repo_id_09 = 'a-r-r-o-w/LTX-Video-0.9.7-Latent-Spatial-Upsampler-diffusers'
+# Upsampler weights are tied to the family VAE; using the wrong one preserves structure
+# but drifts per-channel latent statistics (decodes desaturated / crushed contrast).
+upsample_repo_id_20 = 'Lightricks/LTX-2'
+upsample_repo_id_23 = 'CalamitousFelicitousness/LTX-2.3-Spatial-Upsampler-x2-1.1-Diffusers'
 upsample_pipe = None
+
+STAGE2_DEV_LORA_ADAPTER = 'ltx2_stage2_distilled'
+
+
+def _canonical_ltx2_guidance(caps) -> dict:
+    # Four-way composition (cfg + stg + modality + rescale) from huggingface/diffusers#13217.
+    # Distilled bakes these into its sigma schedule; skip or we double-apply.
+    if caps.family != '2.x' or caps.is_distilled:
+        return {}
+    return {
+        'stg_scale': caps.stg_default_scale,
+        'modality_scale': caps.modality_default_scale,
+        'guidance_rescale': caps.guidance_rescale_default,
+        'spatio_temporal_guidance_blocks': list(caps.stg_default_blocks),
+        'audio_guidance_scale': 7.0,
+        'audio_stg_scale': 1.0,
+        'audio_modality_scale': 3.0,
+        'audio_guidance_rescale': 0.7,
+    }
+
+
+def _canonical_stage2_dev_kwargs() -> dict:
+    # Stage 2 identity guidance from huggingface/diffusers#13217. The distilled LoRA makes Dev
+    # behave like Distilled, which was trained at identity; Stage 1's four-way composition on
+    # top double-dips and produces striping/flicker.
+    from diffusers.pipelines.ltx2.utils import STAGE_2_DISTILLED_SIGMA_VALUES
+    return {
+        'sigmas': list(STAGE_2_DISTILLED_SIGMA_VALUES),
+        'noise_scale': float(STAGE_2_DISTILLED_SIGMA_VALUES[0]),
+        'guidance_scale': 1.0,
+        'stg_scale': 0.0,
+        'modality_scale': 1.0,
+        'guidance_rescale': 0.0,
+        'audio_guidance_scale': 1.0,
+        'audio_stg_scale': 0.0,
+        'audio_modality_scale': 1.0,
+        'audio_guidance_rescale': 0.0,
+        'spatio_temporal_guidance_blocks': None,
+    }
 
 
 def _latent_pass(caps, prompt, negative, width, height, frames, steps, guidance_scale, mp4_fps, conditions, image_cond_noise_scale, seed, image=None):
@@ -43,17 +84,21 @@ def _latent_pass(caps, prompt, negative, width, height, frames, steps, guidance_
     if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and image is not None:
         base_args['image'] = image
     if caps.family == '2.x' and caps.is_distilled:
-        # distilled 2.x was trained with a fixed sigma schedule; override diffusers' linspace default
         from diffusers.pipelines.ltx2.utils import DISTILLED_SIGMA_VALUES
         base_args['sigmas'] = list(DISTILLED_SIGMA_VALUES)
         base_args.pop('num_inference_steps', None)
+    base_args.update(_canonical_ltx2_guidance(caps))
+    if caps.use_cross_timestep:
+        base_args['use_cross_timestep'] = True
     log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=latent_pass args_keys={list(base_args.keys())}')
     result = shared.sd_model(**base_args)
+    # video latents strip the batch dim; audio latents keep it so LTX2Pipeline.prepare_audio_latents
+    # can rewrap them when re-entered as ndim==4 at Stage 2.
     latents = result.frames[0] if hasattr(result, 'frames') else None
-    audio = None
+    audio_latents = None
     if hasattr(result, 'audio') and result.audio is not None:
-        audio = result.audio[0].float().cpu()
-    return latents, audio
+        audio_latents = result.audio
+    return latents, audio_latents
 
 
 def run_ltx(task_id,
@@ -128,6 +173,40 @@ def run_ltx(task_id,
             yield from abort(f'Video: cls={shared.sd_model.__class__.__name__} selected model is not LTX', ok=True)
             return
 
+        # Lightricks TI2VidTwoStagesPipeline: Stage 1 at half-res, 2x upsample, Stage 2 refine at target.
+        # Auto-couple when the user picks Refine but not Upsample. Condition variants still need per-stage
+        # conditioning rebuild, so keep them on the same-resolution path.
+        auto_refine_upsample = (
+            refine_enable
+            and caps.supports_canonical_stage2
+            and not upsample_enable
+            and not caps.supports_multi_condition
+        )
+        effective_upsample_enable = upsample_enable or auto_refine_upsample
+        effective_upsample_ratio = upsample_ratio if upsample_enable else 2.0
+        target_w = get_bucket(width)
+        target_h = get_bucket(height)
+        if auto_refine_upsample:
+            # Stage 1 at target/2 needs multiple-of-32; 2x upsample then forces final divisible by 64.
+            # Derive final from base, otherwise Stage 2 silently falls to base*2 != target.
+            base_w = get_bucket(target_w // 2)
+            base_h = get_bucket(target_h // 2)
+            final_w = base_w * 2
+            final_h = base_h * 2
+            if (final_w, final_h) != (target_w, target_h):
+                log.warning(f'LTX: two-stage refine needs resolution divisible by 64; adjusting {target_w}x{target_h} -> {final_w}x{final_h}')
+        elif effective_upsample_enable:
+            base_w = target_w
+            base_h = target_h
+            final_w = get_bucket(effective_upsample_ratio * target_w)
+            final_h = get_bucket(effective_upsample_ratio * target_h)
+        else:
+            base_w = target_w
+            base_h = target_h
+            final_w = target_w
+            final_h = target_h
+        log.debug(f'LTX: resolution planning target={target_w}x{target_h} base={base_w}x{base_h} final={final_w}x{final_h} auto_refine_upsample={auto_refine_upsample}')
+
         videojob = shared.state.begin('Video', task_id=task_id)
         shared.state.job_count = 1
 
@@ -170,8 +249,8 @@ def run_ltx(task_id,
             sampler_name=sampler_name,
             sampler_shift=float(sampler_shift),
             steps=int(steps),
-            width=get_bucket(width),
-            height=get_bucket(height),
+            width=base_w,
+            height=base_h,
             frames=get_frames(frames),
             cfg_scale=float(guidance_scale) if guidance_scale is not None and guidance_scale > 0 else caps.default_cfg,
             denoising_strength=float(condition_strength) if condition_strength is not None else 1.0,
@@ -205,277 +284,354 @@ def run_ltx(task_id,
             p.task_args['image'] = images.resize_image(resize_mode=2, im=effective_init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
 
         if caps.family == '2.x' and caps.is_distilled:
-            # distilled 2.x was trained with a fixed sigma schedule; override diffusers' linspace default
             from diffusers.pipelines.ltx2.utils import DISTILLED_SIGMA_VALUES
             p.task_args['sigmas'] = list(DISTILLED_SIGMA_VALUES)
             p.task_args.pop('num_inference_steps', None)
+        p.task_args.update(_canonical_ltx2_guidance(caps))
 
         framewise = caps.family == '0.9'
         set_vae_params(p, framewise=framewise)
 
+        # Snapshot scheduler + shared.opts before mutation so the try/finally restores on every exit
+        # path (abort, interrupt, Stage 2 scheduler swap). Without this, run-specific sampler settings
+        # leak into shared.opts.data and across runs/tabs, and the default_scheduler snapshot from
+        # video_load.py:171 gets clobbered by a deepcopy of the mutated scheduler on every run.
         orig_dynamic_shift = shared.opts.schedulers_dynamic_shift
         orig_sampler_shift = shared.opts.schedulers_shift
-        shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
-        shared.opts.data['schedulers_shift'] = sampler_shift
-        if hasattr(shared.sd_model, 'scheduler') and hasattr(shared.sd_model.scheduler, 'config') and hasattr(shared.sd_model.scheduler, 'register_to_config'):
-            if hasattr(shared.sd_model.scheduler.config, 'use_dynamic_shifting'):
-                shared.sd_model.scheduler.config.use_dynamic_shifting = dynamic_shift
-                shared.sd_model.scheduler.register_to_config(use_dynamic_shifting=dynamic_shift)
-            if hasattr(shared.sd_model.scheduler.config, 'flow_shift') and sampler_shift is not None and sampler_shift >= 0:
-                shared.sd_model.scheduler.config.flow_shift = sampler_shift
-                shared.sd_model.scheduler.register_to_config(flow_shift=sampler_shift)
-            shared.sd_model.default_scheduler = copy.deepcopy(shared.sd_model.scheduler)
-
-        if selected is not None:
-            video_overrides.set_overrides(p, selected)
-
-        t0 = time.time()
-        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-        t1 = time.time()
-
-        samplejob = shared.state.begin('Sample')
-        yield None, 'LTX: Generate in progress...'
-
-        audio = None
-        pixels = None
-        frames_out = None
-        needs_latent_path = upsample_enable or refine_enable
+        orig_scheduler = shared.sd_model.scheduler
+        orig_default_scheduler = getattr(shared.sd_model, 'default_scheduler', None)
+        orig_use_dynamic_shifting = getattr(orig_scheduler.config, 'use_dynamic_shifting', None) if hasattr(orig_scheduler, 'config') else None
+        orig_flow_shift = getattr(orig_scheduler.config, 'flow_shift', None) if hasattr(orig_scheduler, 'config') else None
 
         try:
-            if needs_latent_path:
-                prompt_final, negative_final, networks = get_prompts(prompt, negative, styles)
-                extra_networks.activate(p, networks)
-                latents, audio = _latent_pass(
-                    caps=caps,
-                    prompt=prompt_final,
-                    negative=negative_final,
-                    width=width,
-                    height=height,
-                    frames=frames,
-                    steps=steps,
-                    guidance_scale=p.cfg_scale,
-                    mp4_fps=mp4_fps,
-                    conditions=conditions,
-                    image_cond_noise_scale=image_cond_noise_scale if caps.supports_image_cond_noise_scale else None,
-                    seed=int(seed) if seed is not None else -1,
-                    image=p.task_args.get('image'),
-                )
-            else:
-                processed = processing.process_images(p)
-                if processed is None or processed.images is None or len(processed.images) == 0:
-                    yield from abort('Video: process_images returned no frames', ok=True, p=p)
-                    return
-                pixels = processed.images
-                if getattr(processed, 'audio', None) is not None:
-                    audio = processed.audio
-                latents = None
-        except AssertionError as e:
-            yield from abort(e, ok=True, p=p)
-            return
-        except Exception as e:
-            yield from abort(e, ok=False, p=p)
-            return
+            shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
+            shared.opts.data['schedulers_shift'] = sampler_shift
+            if hasattr(shared.sd_model, 'scheduler') and hasattr(shared.sd_model.scheduler, 'config') and hasattr(shared.sd_model.scheduler, 'register_to_config'):
+                if hasattr(shared.sd_model.scheduler.config, 'use_dynamic_shifting'):
+                    shared.sd_model.scheduler.config.use_dynamic_shifting = dynamic_shift
+                    shared.sd_model.scheduler.register_to_config(use_dynamic_shifting=dynamic_shift)
+                if hasattr(shared.sd_model.scheduler.config, 'flow_shift') and sampler_shift is not None and sampler_shift >= 0:
+                    shared.sd_model.scheduler.config.flow_shift = sampler_shift
+                    shared.sd_model.scheduler.register_to_config(flow_shift=sampler_shift)
+                # Do NOT re-snapshot default_scheduler; that overwrites video_load.py:171's load-time
+                # snapshot with the run-mutated config, so reset_scheduler then carries the last run's choice.
 
-        t2 = time.time()
-        shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-        devices.torch_gc(force=True, reason='ltx:base')
-        t3 = time.time()
-        timer.process.add('offload', t1 - t0)
-        timer.process.add('base', t2 - t1)
-        timer.process.add('offload', t3 - t2)
-        shared.state.end(samplejob)
+            if selected is not None:
+                video_overrides.set_overrides(p, selected)
 
-        if upsample_enable and latents is not None:
-            t4 = time.time()
-            upsamplejob = shared.state.begin('Upsample')
-            try:
-                if caps.family == '0.9':
-                    global upsample_pipe # pylint: disable=global-statement
-                    upsample_pipe = load_upsample(upsample_pipe, upsample_repo_id_09)
-                    upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe)
-                    up_args = {
-                        'width': get_bucket(upsample_ratio * width),
-                        'height': get_bucket(upsample_ratio * height),
-                        'generator': get_generator(int(seed) if seed is not None else -1),
-                        'output_type': 'latent',
-                    }
-                    if latents.ndim == 4:
-                        latents = latents.unsqueeze(0)
-                    log.debug(f'Video: op=upsample family=0.9 latents={latents.shape} {up_args}')
-                    yield None, 'LTX: Upsample in progress...'
-                    latents = upsample_pipe(latents=latents, **up_args).frames[0]
-                    upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe)
-                else:
-                    from diffusers.pipelines.ltx2.pipeline_ltx2_latent_upsample import LTX2LatentUpsamplePipeline
-                    log.info(f'Video load: cls={LTX2LatentUpsamplePipeline.__name__} family=2.x')
-                    up_pipe = LTX2LatentUpsamplePipeline.from_pretrained(
-                        'Lightricks/LTX-2-Latent-Upsampler',
-                        vae=shared.sd_model.vae,
-                        cache_dir=shared.opts.hfcache_dir,
-                        torch_dtype=devices.dtype,
-                    )
-                    up_pipe = sd_models.apply_balanced_offload(up_pipe)
-                    up_args = {
-                        'width': get_bucket(upsample_ratio * width),
-                        'height': get_bucket(upsample_ratio * height),
-                        'num_frames': get_frames(frames),
-                        'latents_normalized': True,
-                        'generator': get_generator(int(seed) if seed is not None else -1),
-                        'output_type': 'latent',
-                    }
-                    if latents.ndim == 4:
-                        latents = latents.unsqueeze(0)
-                    log.debug(f'Video: op=upsample family=2.x latents={latents.shape} {up_args}')
-                    yield None, 'LTX: Upsample in progress...'
-                    latents = up_pipe(latents=latents, **up_args).frames[0]
-                    up_pipe = sd_models.apply_balanced_offload(up_pipe)
-            except AssertionError as e:
-                yield from abort(e, ok=True, p=p)
-                return
-            except Exception as e:
-                yield from abort(e, ok=False, p=p)
-                return
-            t5 = time.time()
-            timer.process.add('upsample', t5 - t4)
-            shared.state.end(upsamplejob)
-
-        if refine_enable and latents is not None:
-            t7 = time.time()
-            refinejob = shared.state.begin('Refine')
+            t0 = time.time()
             shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-            devices.torch_gc(force=True, reason='ltx:refine')
-            # refine is the terminal stage when enabled: let the pipeline decode internally so the final vae pass runs
-            # inside the same offload/cudnn context as a normal generation, matching the Generic Video tab
-            refine_args = {
-                'prompt': prompt_final,
-                'negative_prompt': negative_final,
-                'width': get_bucket((upsample_ratio if upsample_enable else 1.0) * width),
-                'height': get_bucket((upsample_ratio if upsample_enable else 1.0) * height),
-                'num_frames': get_frames(frames),
-                'num_inference_steps': steps,
-                'generator': get_generator(int(seed) if seed is not None else -1),
-                'callback_on_step_end': diffusers_callback,
-                'output_type': 'pil',
-            }
-            if p.cfg_scale is not None and p.cfg_scale > 0:
-                refine_args['guidance_scale'] = p.cfg_scale
-            if caps.supports_frame_rate_kwarg:
-                refine_args['frame_rate'] = float(mp4_fps)
-            if caps.supports_image_cond_noise_scale and image_cond_noise_scale is not None:
-                refine_args['image_cond_noise_scale'] = image_cond_noise_scale
-            if caps.supports_multi_condition and conditions:
-                refine_args['conditions'] = conditions
-            if caps.family == '2.x':
-                if caps.is_distilled:
-                    # distilled variants have a canonical Stage-2 refine schedule they were trained on;
-                    # see diffusers.pipelines.ltx2.utils and Lightricks/LTX-2 ti2vid_two_stages pipeline
-                    from diffusers.pipelines.ltx2.utils import STAGE_2_DISTILLED_SIGMA_VALUES
-                    refine_args['sigmas'] = list(STAGE_2_DISTILLED_SIGMA_VALUES)
-                else:
-                    # non-distilled: truncate the default linspace schedule to match user-controlled refine_strength
-                    default_sigmas = np.linspace(1.0, 1.0 / steps, steps)
-                    num_skip = max(steps - max(int(steps * refine_strength), 1), 0)
-                    refine_args['sigmas'] = default_sigmas[num_skip:].tolist()
-                refine_args.pop('num_inference_steps', None)
-            elif caps.repo_cls_name == 'LTXConditionPipeline':
-                refine_args['denoise_strength'] = refine_strength
-            if latents.ndim == 4:
-                latents = latents.unsqueeze(0)
-            log.debug(f'Video: op=refine cls={caps.repo_cls_name} latents={latents.shape}')
-            yield None, 'LTX: Refine in progress...'
-            try:
-                result = shared.sd_model(latents=latents, **refine_args)
-                pixels = result.frames[0] if hasattr(result, 'frames') else None
-                if hasattr(result, 'audio') and result.audio is not None:
-                    audio = result.audio[0].float().cpu()
-                latents = None
-            except AssertionError as e:
-                yield from abort(e, ok=True, p=p)
-                return
-            except Exception as e:
-                yield from abort(e, ok=False, p=p)
-                return
-            t8 = time.time()
-            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-            t9 = time.time()
-            timer.process.add('refine', t8 - t7)
-            timer.process.add('offload', t9 - t8)
-            shared.state.end(refinejob)
+            t1 = time.time()
 
-        shared.opts.data['schedulers_dynamic_shift'] = orig_dynamic_shift
-        shared.opts.data['schedulers_shift'] = orig_sampler_shift
+            samplejob = shared.state.begin('Sample')
+            yield None, 'LTX: Generate in progress...'
 
-        if needs_latent_path:
-            extra_networks.deactivate(p)
-
-        if needs_latent_path and latents is not None:
-            # only reached when upsample ran without refine; refine decodes through the pipeline and sets latents=None
-            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'], force=True)
-            devices.torch_gc(force=True, reason='ltx:vae')
-            yield None, 'LTX: VAE decode in progress...'
-            try:
-                if torch.is_tensor(latents):
-                    # 0.9.x returns raw latents with output_type='latent'; 2.x pre-denormalizes them
-                    frames_out = vae_decode(latents, decode_timestep if caps.supports_decode_timestep else 0.0, int(seed) if seed is not None else -1, denormalize=caps.family == '0.9')
-                else:
-                    frames_out = latents
-            except AssertionError as e:
-                yield from abort(e, ok=True, p=p)
-                return
-            except Exception as e:
-                yield from abort(e, ok=False, p=p)
-                return
-            pixels = frames_out
-            t10 = time.time()
-            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
-            t11 = time.time()
-            timer.process.add('offload', t11 - t10)
-
-        if not audio_enable:
             audio = None
+            stage1_audio_latents = None
+            pixels = None
+            frames_out = None
+            needs_latent_path = upsample_enable or refine_enable
 
-        try:
-            aac_sample_rate = shared.sd_model.vocoder.config.output_sampling_rate
-        except Exception:
-            aac_sample_rate = 24000
+            try:
+                if needs_latent_path:
+                    prompt_final, negative_final, networks = get_prompts(prompt, negative, styles)
+                    extra_networks.activate(p, networks)
+                    latents, stage1_audio_latents = _latent_pass(
+                        caps=caps,
+                        prompt=prompt_final,
+                        negative=negative_final,
+                        width=base_w,
+                        height=base_h,
+                        frames=frames,
+                        steps=steps,
+                        guidance_scale=p.cfg_scale,
+                        mp4_fps=mp4_fps,
+                        conditions=conditions,
+                        image_cond_noise_scale=image_cond_noise_scale if caps.supports_image_cond_noise_scale else None,
+                        seed=int(seed) if seed is not None else -1,
+                        image=p.task_args.get('image'),
+                    )
+                else:
+                    processed = processing.process_images(p)
+                    if processed is None or processed.images is None or len(processed.images) == 0:
+                        yield from abort('Video: process_images returned no frames', ok=True, p=p)
+                        return
+                    pixels = processed.images
+                    if getattr(processed, 'audio', None) is not None:
+                        audio = processed.audio
+                    latents = None
+            except AssertionError as e:
+                yield from abort(e, ok=True, p=p)
+                return
+            except Exception as e:
+                yield from abort(e, ok=False, p=p)
+                return
 
-        num_frames, video_file, _thumb = save_video(
-            p=p,
-            pixels=pixels,
-            audio=audio,
-            mp4_fps=mp4_fps,
-            mp4_codec=mp4_codec,
-            mp4_opt=mp4_opt,
-            mp4_ext=mp4_ext,
-            mp4_sf=mp4_sf,
-            mp4_video=mp4_video,
-            mp4_frames=mp4_frames,
-            mp4_interpolate=mp4_interpolate,
-            aac_sample_rate=aac_sample_rate,
-            metadata={},
-        )
+            t2 = time.time()
+            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+            devices.torch_gc(force=True, reason='ltx:base')
+            t3 = time.time()
+            timer.process.add('offload', t1 - t0)
+            timer.process.add('base', t2 - t1)
+            timer.process.add('offload', t3 - t2)
+            shared.state.end(samplejob)
 
-        t_end = time.time()
-        if isinstance(pixels, list) and len(pixels) > 0 and isinstance(pixels[0], Image.Image):
-            w, h = pixels[0].size
-        elif hasattr(pixels, 'ndim') and pixels.ndim == 5:
-            _n, _c, _t, h, w = pixels.shape
-        elif hasattr(pixels, 'ndim') and pixels.ndim == 4:
-            _n, h, w, _c = pixels.shape
-        elif hasattr(pixels, 'shape'):
-            h, w = pixels.shape[-2], pixels.shape[-1]
-        else:
-            w, h = p.width, p.height
-        resolution = f'{w}x{h}' if num_frames > 0 else None
-        summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')
-        memory = shared.mem_mon.summary()
-        total_time = max(t_end - t0, 1e-6)
-        fps = f'{num_frames/total_time:.2f}'
-        its = f'{(steps)/total_time:.2f}'
+            if effective_upsample_enable and latents is not None:
+                t4 = time.time()
+                upsamplejob = shared.state.begin('Upsample')
+                try:
+                    if caps.family == '0.9':
+                        global upsample_pipe # pylint: disable=global-statement
+                        upsample_pipe = load_upsample(upsample_pipe, upsample_repo_id_09)
+                        upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe)
+                        up_args = {
+                            'width': final_w,
+                            'height': final_h,
+                            'generator': get_generator(int(seed) if seed is not None else -1),
+                            'output_type': 'latent',
+                        }
+                        if latents.ndim == 4:
+                            latents = latents.unsqueeze(0)
+                        log.debug(f'Video: op=upsample family=0.9 latents={latents.shape} {up_args}')
+                        yield None, 'LTX: Upsample in progress...'
+                        latents = upsample_pipe(latents=latents, **up_args).frames[0]
+                        upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe)
+                    else:
+                        from diffusers.pipelines.ltx2.pipeline_ltx2_latent_upsample import LTX2LatentUpsamplePipeline
+                        from diffusers.pipelines.ltx2.latent_upsampler import LTX2LatentUpsamplerModel
+                        # Skip apply_balanced_offload on the upsampler; checkpoint_name differs from the main
+                        # pipe so the shared OffloadHook (sd_offload.py:488) would rebuild and force a heavy
+                        # re-init on the next refine. At ~2.3GB it fits on device; free after the pass.
+                        upsample_repo = upsample_repo_id_23 if '2.3' in caps.name else upsample_repo_id_20
+                        log.info(f'Video load: cls={LTX2LatentUpsamplePipeline.__name__} family=2.x repo={upsample_repo} auto={auto_refine_upsample}')
+                        latent_upsampler = LTX2LatentUpsamplerModel.from_pretrained(
+                            upsample_repo,
+                            subfolder='latent_upsampler',
+                            cache_dir=shared.opts.hfcache_dir,
+                            torch_dtype=devices.dtype,
+                        ).to(devices.device)
+                        up_pipe = LTX2LatentUpsamplePipeline(vae=shared.sd_model.vae, latent_upsampler=latent_upsampler)
+                        # 2.x base pass returns denormalized latents; latents_normalized=False tells the
+                        # upsampler "already raw, do not denormalize again".
+                        up_args = {
+                            'width': final_w,
+                            'height': final_h,
+                            'num_frames': get_frames(frames),
+                            'latents_normalized': False,
+                            'generator': get_generator(int(seed) if seed is not None else -1),
+                            'output_type': 'latent',
+                        }
+                        if latents.ndim == 4:
+                            latents = latents.unsqueeze(0)
+                        log.debug(f'Video: op=upsample family=2.x latents={latents.shape} {up_args}')
+                        yield None, 'LTX: Upsample in progress...'
+                        latents = up_pipe(latents=latents, **up_args).frames[0]
+                        latent_upsampler.to('cpu')
+                        del up_pipe, latent_upsampler
+                        devices.torch_gc(force=True, reason='ltx:upsample')
+                except AssertionError as e:
+                    yield from abort(e, ok=True, p=p)
+                    return
+                except Exception as e:
+                    yield from abort(e, ok=False, p=p)
+                    return
+                t5 = time.time()
+                timer.process.add('upsample', t5 - t4)
+                shared.state.end(upsamplejob)
 
-        shared.state.end(videojob)
-        progress.finish_task(task_id)
-        p.close()
+            if refine_enable and latents is not None:
+                t7 = time.time()
+                refinejob = shared.state.begin('Refine')
+                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+                devices.torch_gc(force=True, reason='ltx:refine')
+                # Refine is terminal: let the pipe decode internally so the final VAE pass runs inside
+                # the same offload/cudnn context as a normal generation (matches Generic Video tab).
+                refine_args = {
+                    'prompt': prompt_final,
+                    'negative_prompt': negative_final,
+                    'width': final_w,
+                    'height': final_h,
+                    'num_frames': get_frames(frames),
+                    'num_inference_steps': steps,
+                    'generator': get_generator(int(seed) if seed is not None else -1),
+                    'callback_on_step_end': diffusers_callback,
+                    'output_type': 'pil',
+                }
+                if p.cfg_scale is not None and p.cfg_scale > 0:
+                    refine_args['guidance_scale'] = p.cfg_scale
+                if caps.supports_frame_rate_kwarg:
+                    refine_args['frame_rate'] = float(mp4_fps)
+                if caps.supports_image_cond_noise_scale and image_cond_noise_scale is not None:
+                    refine_args['image_cond_noise_scale'] = image_cond_noise_scale
+                if caps.supports_multi_condition and conditions:
+                    refine_args['conditions'] = conditions
+                # Thread Stage-1 I2V init image through Stage 2 so first-frame identity survives refine.
+                if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and p.task_args.get('image') is not None:
+                    refine_args['image'] = p.task_args['image']
+                # Thread Stage-1 audio latents into Stage 2 on 2.x. The video branch cross-attends
+                # audio every layer; letting prepare_audio_latents fall back to fresh noise biases
+                # the video branch off-distribution (desaturated output on distilled 2.x).
+                if caps.family == '2.x':
+                    if stage1_audio_latents is not None:
+                        refine_args['audio_latents'] = stage1_audio_latents.to(device=devices.device)
+                    if caps.use_cross_timestep:
+                        refine_args['use_cross_timestep'] = True
 
-        log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={fps} its={its} resolution={resolution} time={t_end-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')
-        yield video_file, f'LTX: Generation completed | File {video_file} | Frames {num_frames} | Resolution {resolution} | f/s {fps} | it/s {its} ' + f"<div class='performance'><p>{summary} {memory}</p></div>"
+                saved_scheduler_stage2 = None
+                try:
+                    if caps.supports_canonical_stage2:
+                        # Dev 2.x Stage 2: swap scheduler, fuse distilled LoRA, 3 steps on the distilled
+                        # sigma schedule at identity guidance (huggingface/diffusers#13217).
+                        log.info(f'LTX: canonical Stage 2 via distilled LoRA repo={caps.stage2_dev_lora_repo}')
+                        from diffusers import FlowMatchEulerDiscreteScheduler
+                        offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
+                        saved_scheduler_stage2 = shared.sd_model.scheduler
+                        shared.sd_model.scheduler = FlowMatchEulerDiscreteScheduler.from_config(
+                            saved_scheduler_stage2.config,
+                            use_dynamic_shifting=False,
+                            shift_terminal=None,
+                        )
+                        shared.sd_model.load_lora_weights(
+                            caps.stage2_dev_lora_repo,
+                            adapter_name=STAGE2_DEV_LORA_ADAPTER,
+                            cache_dir=shared.opts.hfcache_dir,
+                            **offline_args,
+                        )
+                        shared.sd_model.set_adapters([STAGE2_DEV_LORA_ADAPTER], [1.0])
+                        # Do NOT apply _canonical_ltx2_guidance on this path; its audio-branch kwargs
+                        # would clobber the identity set.
+                        refine_args.update(_canonical_stage2_dev_kwargs())
+                        refine_args.pop('num_inference_steps', None)
+                    elif caps.family == '2.x':
+                        # Distilled 2.x. Dev 2.x with a LoRA hit the branch above.
+                        from diffusers.pipelines.ltx2.utils import STAGE_2_DISTILLED_SIGMA_VALUES
+                        refine_args['sigmas'] = list(STAGE_2_DISTILLED_SIGMA_VALUES)
+                        refine_args.pop('num_inference_steps', None)
+                        # LTX2Pipeline/LTX2ImageToVideoPipeline default noise_scale=0.0 when not passed;
+                        # sigma=0 user latents mismatched against sigmas[0] scheduler collapses output.
+                        # LTX2ConditionPipeline auto-infers this; do the same explicitly for T2V/I2V.
+                        refine_args['noise_scale'] = float(refine_args['sigmas'][0])
+                        refine_args.update(_canonical_ltx2_guidance(caps))
+                    elif caps.repo_cls_name == 'LTXConditionPipeline':
+                        refine_args['denoise_strength'] = refine_strength
+                    if latents.ndim == 4:
+                        latents = latents.unsqueeze(0)
+                    log.debug(f'Video: op=refine cls={caps.repo_cls_name} latents={latents.shape} canonical_stage2={caps.supports_canonical_stage2}')
+                    yield None, 'LTX: Refine in progress...'
+                    try:
+                        result = shared.sd_model(latents=latents, **refine_args)
+                        pixels = result.frames[0] if hasattr(result, 'frames') else None
+                        if hasattr(result, 'audio') and result.audio is not None:
+                            audio = result.audio[0].float().cpu()
+                        latents = None
+                    except AssertionError as e:
+                        yield from abort(e, ok=True, p=p)
+                        return
+                    except Exception as e:
+                        yield from abort(e, ok=False, p=p)
+                        return
+                finally:
+                    if saved_scheduler_stage2 is not None:
+                        try:
+                            from modules.lora.extra_networks_lora import unload_diffusers
+                            unload_diffusers()
+                        except Exception as e:
+                            log.warning(f'LTX: canonical Stage 2 LoRA unload failed: {e}')
+                        shared.sd_model.scheduler = saved_scheduler_stage2
+                        log.debug('LTX: canonical Stage 2 cleanup done (LoRA unloaded, scheduler restored)')
+                t8 = time.time()
+                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+                t9 = time.time()
+                timer.process.add('refine', t8 - t7)
+                timer.process.add('offload', t9 - t8)
+                shared.state.end(refinejob)
+
+            if needs_latent_path:
+                extra_networks.deactivate(p)
+
+            if needs_latent_path and latents is not None:
+                # Only reached on upsample-without-refine; refine decodes through the pipe and nulls latents.
+                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'], force=True)
+                devices.torch_gc(force=True, reason='ltx:vae')
+                yield None, 'LTX: VAE decode in progress...'
+                try:
+                    if torch.is_tensor(latents):
+                        # 0.9.x returns raw latents with output_type='latent'; 2.x pre-denormalizes.
+                        frames_out = vae_decode(latents, decode_timestep if caps.supports_decode_timestep else 0.0, int(seed) if seed is not None else -1, denormalize=caps.family == '0.9')
+                    else:
+                        frames_out = latents
+                except AssertionError as e:
+                    yield from abort(e, ok=True, p=p)
+                    return
+                except Exception as e:
+                    yield from abort(e, ok=False, p=p)
+                    return
+                pixels = frames_out
+                t10 = time.time()
+                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+                t11 = time.time()
+                timer.process.add('offload', t11 - t10)
+
+            if not audio_enable:
+                audio = None
+
+            try:
+                aac_sample_rate = shared.sd_model.vocoder.config.output_sampling_rate
+            except Exception:
+                aac_sample_rate = 24000
+
+            num_frames, video_file, _thumb = save_video(
+                p=p,
+                pixels=pixels,
+                audio=audio,
+                mp4_fps=mp4_fps,
+                mp4_codec=mp4_codec,
+                mp4_opt=mp4_opt,
+                mp4_ext=mp4_ext,
+                mp4_sf=mp4_sf,
+                mp4_video=mp4_video,
+                mp4_frames=mp4_frames,
+                mp4_interpolate=mp4_interpolate,
+                aac_sample_rate=aac_sample_rate,
+                metadata={},
+            )
+
+            t_end = time.time()
+            if isinstance(pixels, list) and len(pixels) > 0 and isinstance(pixels[0], Image.Image):
+                w, h = pixels[0].size
+            elif hasattr(pixels, 'ndim') and pixels.ndim == 5:
+                _n, _c, _t, h, w = pixels.shape
+            elif hasattr(pixels, 'ndim') and pixels.ndim == 4:
+                _n, h, w, _c = pixels.shape
+            elif hasattr(pixels, 'shape'):
+                h, w = pixels.shape[-2], pixels.shape[-1]
+            else:
+                w, h = p.width, p.height
+            resolution = f'{w}x{h}' if num_frames > 0 else None
+            summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')
+            memory = shared.mem_mon.summary()
+            total_time = max(t_end - t0, 1e-6)
+            fps = f'{num_frames/total_time:.2f}'
+            its = f'{(steps)/total_time:.2f}'
+
+            shared.state.end(videojob)
+            progress.finish_task(task_id)
+            p.close()
+
+            log.info(f'Processed: fn="{video_file}" frames={num_frames} fps={fps} its={its} resolution={resolution} time={t_end-t0:.2f} timers={timer.process.dct()} memory={memstats.memory_stats()}')
+            yield video_file, f'LTX: Generation completed | File {video_file} | Frames {num_frames} | Resolution {resolution} | f/s {fps} | it/s {its} ' + f"<div class='performance'><p>{summary} {memory}</p></div>"
+        finally:
+            shared.opts.data['schedulers_dynamic_shift'] = orig_dynamic_shift
+            shared.opts.data['schedulers_shift'] = orig_sampler_shift
+            if shared.sd_model.scheduler is not orig_scheduler:
+                shared.sd_model.scheduler = orig_scheduler
+            if orig_default_scheduler is not None and shared.sd_model.default_scheduler is not orig_default_scheduler:
+                shared.sd_model.default_scheduler = orig_default_scheduler
+            if hasattr(shared.sd_model.scheduler, 'config') and hasattr(shared.sd_model.scheduler, 'register_to_config'):
+                if orig_use_dynamic_shifting is not None and hasattr(shared.sd_model.scheduler.config, 'use_dynamic_shifting'):
+                    shared.sd_model.scheduler.config.use_dynamic_shifting = orig_use_dynamic_shifting
+                    shared.sd_model.scheduler.register_to_config(use_dynamic_shifting=orig_use_dynamic_shifting)
+                if orig_flow_shift is not None and hasattr(shared.sd_model.scheduler.config, 'flow_shift'):
+                    shared.sd_model.scheduler.config.flow_shift = orig_flow_shift
+                    shared.sd_model.scheduler.register_to_config(flow_shift=orig_flow_shift)
+            log.debug(f'LTX: scheduler/opts restored dynamic_shift={orig_dynamic_shift} sampler_shift={orig_sampler_shift}')
