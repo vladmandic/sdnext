@@ -6,7 +6,7 @@
 
 *What's New?*
 - New models! **Zeta-Chroma**, **ERNIE**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**, **LTX 2.3 v1.1**
-- Major **Kanvas** update for enhanced inpaint/outpaint
+- Major **Kanvas** update for enhanced inpaint/outpaint and overal more responsive **UI**
 - Built-in **Tag-Autocomplete** with support for *10+* tag databases
 - Additional Schedulers, updates to NudeNet, OpenVINO and ROCm and other features
 
@@ -77,6 +77,8 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 - **UI**
   - `gallery` send-to button advanced options with right-click
   - `tag autocomplete` quick toggle in main prompt area
+  - a lot of small performance optimizations that add up to faster load times and more responsive ui
+  - add ui `log` during startup
 - **Caption & Prompt Enhance**
   - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune
 - **Agents**
@@ -108,6 +110,9 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - refactor `hash-cache` management, thanks @awsr
   - validate all `reference` jsons and backfill all fields  
   - sticter `js` linting, thanks @awsr
+  - ui: remove non-passive event listeners
+  - ui: add debounce to ui updates
+  - ui: utilize requestanimationframe for paint optimizations
 - **Fixes**
   - Prohibit `python==3.14` unless `--experimental`
   - UI CSS fixes, thanks @awsr
