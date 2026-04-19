@@ -1,4 +1,5 @@
 import time
+from contextlib import contextmanager
 import torch
 from PIL import Image
 from modules import devices, shared, sd_models, timer, extra_networks
@@ -78,6 +79,51 @@ def load_upsample_2x(upsample_pipe, upsample_repo_id):
         t1 = time.time()
         timer.process.add('load', t1 - t0)
     return upsample_pipe
+
+
+@contextmanager
+def temp_scheduler_opts(sd_model, *, dynamic_shift=None, sampler_shift=None):
+    # Run-scoped override of shared.opts scheduler settings and scheduler.config. Snapshots
+    # five pieces of state (shared.opts dynamic_shift + shift, scheduler object, default_scheduler
+    # snapshot, and scheduler.config use_dynamic_shifting + flow_shift) and restores every one on
+    # exit. Keeps run-specific sampler settings out of config.json and prevents default_scheduler
+    # from getting clobbered by a deepcopy of the mutated scheduler at video_load.py:171. The
+    # scheduler-object restore matters for Stage 2 refine, which swaps the scheduler entirely.
+    orig_dynamic_shift = shared.opts.schedulers_dynamic_shift
+    orig_sampler_shift = shared.opts.schedulers_shift
+    orig_scheduler = sd_model.scheduler
+    orig_default_scheduler = getattr(sd_model, 'default_scheduler', None)
+    orig_use_dynamic_shifting = getattr(orig_scheduler.config, 'use_dynamic_shifting', None) if hasattr(orig_scheduler, 'config') else None
+    orig_flow_shift = getattr(orig_scheduler.config, 'flow_shift', None) if hasattr(orig_scheduler, 'config') else None
+
+    try:
+        if dynamic_shift is not None:
+            shared.opts.data['schedulers_dynamic_shift'] = dynamic_shift
+        if sampler_shift is not None:
+            shared.opts.data['schedulers_shift'] = sampler_shift
+        if hasattr(sd_model, 'scheduler') and hasattr(sd_model.scheduler, 'config') and hasattr(sd_model.scheduler, 'register_to_config'):
+            if dynamic_shift is not None and hasattr(sd_model.scheduler.config, 'use_dynamic_shifting'):
+                sd_model.scheduler.config.use_dynamic_shifting = dynamic_shift
+                sd_model.scheduler.register_to_config(use_dynamic_shifting=dynamic_shift)
+            if sampler_shift is not None and sampler_shift >= 0 and hasattr(sd_model.scheduler.config, 'flow_shift'):
+                sd_model.scheduler.config.flow_shift = sampler_shift
+                sd_model.scheduler.register_to_config(flow_shift=sampler_shift)
+        yield
+    finally:
+        shared.opts.data['schedulers_dynamic_shift'] = orig_dynamic_shift
+        shared.opts.data['schedulers_shift'] = orig_sampler_shift
+        if sd_model.scheduler is not orig_scheduler:
+            sd_model.scheduler = orig_scheduler
+        if orig_default_scheduler is not None and sd_model.default_scheduler is not orig_default_scheduler:
+            sd_model.default_scheduler = orig_default_scheduler
+        if hasattr(sd_model.scheduler, 'config') and hasattr(sd_model.scheduler, 'register_to_config'):
+            if orig_use_dynamic_shifting is not None and hasattr(sd_model.scheduler.config, 'use_dynamic_shifting'):
+                sd_model.scheduler.config.use_dynamic_shifting = orig_use_dynamic_shifting
+                sd_model.scheduler.register_to_config(use_dynamic_shifting=orig_use_dynamic_shifting)
+            if orig_flow_shift is not None and hasattr(sd_model.scheduler.config, 'flow_shift'):
+                sd_model.scheduler.config.flow_shift = orig_flow_shift
+                sd_model.scheduler.register_to_config(flow_shift=orig_flow_shift)
+        log.debug(f'LTX: scheduler/opts restored dynamic_shift={orig_dynamic_shift} sampler_shift={orig_sampler_shift}')
 
 
 def _condition_cls(family: str):
