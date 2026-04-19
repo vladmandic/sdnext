@@ -9,15 +9,10 @@ function gradioApp() {
   return elem.shadowRoot ? elem.shadowRoot : elem;
 }
 
-function logFn(func) {
-  return async (...args) => {
+function logFn(func) { // not recommended: use log, debug or error explicitly
+  return async function () { // eslint-disable-line func-names
     const t0 = performance.now();
-    let returnValue;
-    if (func.constructor.name.toLowerCase() === 'asyncfunction') {
-      returnValue = await func(...args);
-    } else {
-      returnValue = func(...args);
-    }
+    const returnValue = func(...arguments);
     const t1 = performance.now();
     log(func.name, `time=${Math.round(t1 - t0)}`);
     return returnValue;
