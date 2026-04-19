@@ -39,26 +39,50 @@ let uiCurrentTab = null;
 let uiAfterUpdateTimeout = null;
 
 function onAfterUiUpdate(callback) {
+  if (typeof callback !== 'function') {
+    error(`onAfterUiUpdate was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   uiAfterUpdateCallbacks.push(callback);
 }
 
 function onUiUpdate(callback) {
+  if (typeof callback !== 'function') {
+    error(`onUiUpdate was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   uiUpdateCallbacks.push(callback);
 }
 
 function onUiLoaded(callback) {
+  if (typeof callback !== 'function') {
+    error(`onUiLoaded was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   uiLoadedCallbacks.push(callback);
 }
 
 function onUiReady(callback) {
+  if (typeof callback !== 'function') {
+    error(`onUiReady was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   uiReadyCallbacks.push(callback);
 }
 
 function onUiTabChange(callback) {
+  if (typeof callback !== 'function') {
+    error(`onUiTabChange was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   uiTabChangeCallbacks.push(callback);
 }
 
 function onOptionsChanged(callback) {
+  if (typeof callback !== 'function') {
+    error(`onOptionsChanged was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   optionsChangedCallbacks.push(callback);
 }
 
