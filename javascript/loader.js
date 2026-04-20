@@ -43,10 +43,10 @@ function joinArgs(messages) {
 async function monitorLog() {
   if (window.logBufferDirty) {
     window.logBufferDirty = false;
-    const maxLines = 5; // print last n logs from ring buffer to splash-log
+    const maxLines = 100; // print last n logs from ring buffer to splash-log
     const lines = [];
-    // print last 5 logs from ring buffer in reverse order
-    for (let i = window.logRingBuffer.length - 1; i >= Math.max(0, window.logRingBuffer.length - maxLines); i--) {
+    // print last n logs from ring buffer in time order
+    for (let i = Math.max(0, window.logRingBuffer.length - maxLines); i < window.logRingBuffer.length; i++) {
       const logEntry = window.logRingBuffer[i];
       let color = 'white';
       if (logEntry.type === 'error') color = 'palevioletred';
@@ -57,7 +57,7 @@ async function monitorLog() {
     const splashLogEl = document.getElementById('splashLog');
     if (splashLogEl) splashLogEl.innerHTML = lines.join('');
   }
-  if (monitorLogActive) setTimeout(monitorLog, 1000);
+  if (monitorLogActive) setTimeout(monitorLog, 250);
 }
 
 async function removeSplash() {

@@ -2,8 +2,9 @@ window.logRingBuffer = [];
 window.logBufferDirty = false;
 
 const logBuffer = (ts, type, msg) => {
+  const maxLogLength = 8;
   window.logRingBuffer.push({ ts, type, msg });
-  if (window.logRingBuffer.length > 10) window.logRingBuffer.shift();
+  if (window.logRingBuffer.length > maxLogLength) window.logRingBuffer.shift();
   window.logBufferDirty = true;
 };
 
