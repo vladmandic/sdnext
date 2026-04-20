@@ -2,13 +2,17 @@ import os
 import sys
 import time
 import json
-from typing import overload, Literal
+from typing import overload, Literal, Protocol
 import fasteners
 import orjson
 from modules.logger import log
 
 
 locking_available = True # used by file read/write locking
+
+
+class Has__dict__(Protocol):
+    __dict__: dict
 
 
 @overload
@@ -74,7 +78,7 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
     return data
 
 
-def writefile(obj, filename, mode='w', silent=False, atomic=False):
+def writefile(obj: dict | list | Has__dict__, filename, mode='w', silent=False, atomic=False):
     import tempfile
     global locking_available # pylint: disable=global-statement
     lock_file = None
@@ -86,18 +90,16 @@ def writefile(obj, filename, mode='w', silent=False, atomic=False):
 
     try:
         t0 = time.time()
-        data = obj.copy()
         # skipkeys=True, ensure_ascii=True, check_circular=True, allow_nan=True
-        if type(data) == dict:
+        if isinstance(obj, (dict, list)):
+            data = obj.copy()
             output = json.dumps(data, indent=2, default=default)
-        elif type(data) == list:
+        elif hasattr(obj, "__dict__"):
+            data = obj.__dict__.copy()
+            for k in data:
+                if data[k] is None:
+                    data.pop(k)
             output = json.dumps(data, indent=2, default=default)
-        elif isinstance(data, object):
-            simple = {}
-            for k in data.__dict__:
-                if data.__dict__[k] is not None:
-                    simple[k] = data.__dict__[k]
-            output = json.dumps(simple, indent=2, default=default)
         else:
             raise ValueError('not a valid object')
     except Exception as err:
