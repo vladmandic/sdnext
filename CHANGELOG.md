@@ -113,6 +113,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - ui: remove non-passive event listeners
   - ui: add debounce to ui updates
   - ui: utilize requestanimationframe for paint optimizations
+  - ui: profile callbacks
 - **Fixes**
   - Prohibit `python==3.14` unless `--experimental`
   - UI CSS fixes, thanks @awsr
