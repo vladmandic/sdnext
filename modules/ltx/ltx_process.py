@@ -298,7 +298,7 @@ def run_ltx(task_id,
                 video_overrides.set_overrides(p, selected)
 
             t0 = time.time()
-            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, silent=True)
             t1 = time.time()
 
             samplejob = shared.state.begin('Sample')
@@ -346,7 +346,11 @@ def run_ltx(task_id,
                 return
 
             t2 = time.time()
-            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+            # silent=True everywhere in run_ltx: per-module stats were already dumped during the
+            # load-time balanced_offload pass. Upsample/refine boundaries force a rebuild because
+            # the global offload_hook_instance is keyed on checkpoint_name (sd_offload.py:488),
+            # but re-logging the same inventory adds noise without information.
+            shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, silent=True)
             devices.torch_gc(force=True, reason='ltx:base')
             t3 = time.time()
             timer.process.add('offload', t1 - t0)
@@ -367,7 +371,7 @@ def run_ltx(task_id,
                     if caps.family == '0.9':
                         global upsample_pipe # pylint: disable=global-statement
                         upsample_pipe = load_upsample(upsample_pipe, upsample_repo_id_09)
-                        upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe, exclude=upsample_exclude)
+                        upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe, exclude=upsample_exclude, silent=True)
                         up_args = {
                             'width': final_w,
                             'height': final_h,
@@ -379,12 +383,12 @@ def run_ltx(task_id,
                         log.debug(f'Video: op=upsample family=0.9 latents={latents.shape} {up_args}')
                         yield None, 'LTX: Upsample in progress...'
                         latents = upsample_pipe(latents=latents, **up_args).frames[0]
-                        upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe, exclude=upsample_exclude)
+                        upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe, exclude=upsample_exclude, silent=True)
                     else:
                         global upsample_pipe_2x # pylint: disable=global-statement
                         upsample_repo = upsample_repo_id_23 if caps.variant == '2.3' else upsample_repo_id_20
                         upsample_pipe_2x = load_upsample_2x(upsample_pipe_2x, upsample_repo)
-                        upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x, exclude=upsample_exclude)
+                        upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x, exclude=upsample_exclude, silent=True)
                         # 2.x base pass returns denormalized latents; latents_normalized=False tells the
                         # upsampler "already raw, do not denormalize again".
                         up_args = {
@@ -400,7 +404,7 @@ def run_ltx(task_id,
                         log.debug(f'Video: op=upsample family=2.x latents={latents.shape} auto={auto_refine_upsample} {up_args}')
                         yield None, 'LTX: Upsample in progress...'
                         latents = upsample_pipe_2x(latents=latents, **up_args).frames[0]
-                        upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x, exclude=upsample_exclude)
+                        upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x, exclude=upsample_exclude, silent=True)
                 except AssertionError as e:
                     yield from abort(e, ok=True, p=p)
                     return
@@ -414,7 +418,7 @@ def run_ltx(task_id,
             if refine_enable and latents is not None:
                 t7 = time.time()
                 refinejob = shared.state.begin('Refine')
-                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, silent=True)
                 devices.torch_gc(force=True, reason='ltx:refine')
                 # Refine is terminal: let the pipe decode internally so the final VAE pass runs inside
                 # the same offload/cudnn context as a normal generation (matches Generic Video tab).
@@ -512,7 +516,7 @@ def run_ltx(task_id,
                         shared.sd_model.scheduler = saved_scheduler_stage2
                         log.debug('LTX: canonical Stage 2 cleanup done (LoRA unloaded, scheduler restored)')
                 t8 = time.time()
-                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, silent=True)
                 t9 = time.time()
                 timer.process.add('refine', t8 - t7)
                 timer.process.add('offload', t9 - t8)
@@ -523,7 +527,7 @@ def run_ltx(task_id,
 
             if needs_latent_path and latents is not None:
                 # Only reached on upsample-without-refine; refine decodes through the pipe and nulls latents.
-                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'], force=True)
+                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'], force=True, silent=True)
                 devices.torch_gc(force=True, reason='ltx:vae')
                 yield None, 'LTX: VAE decode in progress...'
                 try:
@@ -540,7 +544,7 @@ def run_ltx(task_id,
                     return
                 pixels = frames_out
                 t10 = time.time()
-                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
+                shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, silent=True)
                 t11 = time.time()
                 timer.process.add('offload', t11 - t10)
 
