@@ -21,7 +21,7 @@
     "packages": ". venv/bin/activate && pip install --upgrade accelerate huggingface_hub safetensors tokenizers peft pytorch_lightning pylint ruff",
     "format": ". venv/bin/activate && pre-commit run --all-files",
     "format-win": "venv\\scripts\\activate && pre-commit run --all-files",
-    "eslint": "eslint . javascript/",
+    "eslint": "eslint javascript/",
     "eslint-ui": "cd extensions-builtin/sdnext-modernui && eslint . javascript/",
     "ruff": ". venv/bin/activate && ruff check",
     "ruff-win": "venv\\scripts\\activate && ruff check",
