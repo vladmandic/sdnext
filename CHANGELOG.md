@@ -20,14 +20,17 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 ### Details for 2026-04-21
 
 - **Models**
-  - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
-    Chroma generates images directly in RGB space using NextDiT-style architecture  
-    *note*: requires large number of steps to achieve sane results  
+  - [LTX Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) add *1.1 Distilled* and *1.1 Distilled-SDNQ* variants  
+    Includes support for native refiner/upscaler  
+    New LTX model also comes with new LTX UI interface in SD.Next!  
   - [Baidu ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) in *base* and *turbo* (distilled) variants in both original precision and SDNQ-4bit quantiztion  
     ERNIE is single-stream 8B DiT model with built-in prompt enhancer using Mistral-3 text encoder  
     *note*: ERNIE has a built-in prompt-enhancer which is disabled by default, can be enabled in *settings -> model options*  
   - [Nucleus-Image](https://huggingface.co/NucleusAI/Nucleus-Image)  
-    Nucleus is MoE text-to-image model with 2B active and 17B total params
+    Nucleus is MoE text-to-image model with 2B active and 17B total params  
+  - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
+    Chroma generates images directly in RGB space using NextDiT-style architecture  
+    *note*: requires large number of steps to achieve sane results  
   - [Bria FIBO](https://huggingface.co/briaai/FIBO) in *Normal*, *Edit*, and *Lite* (distilled) variants  
     FIBO is DiT 8B parameter text-to-image model using Flow Matching and lightweight SmolLM3-3B text encoder  
     *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
@@ -37,7 +40,6 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
     *note*: more of an experimental model and doesn't support offloading  
-  - [LTX Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) add *1.1 Distilled* and *1.1 Distilled-SDNQ* variants  
 - **Features**
   - **Tag Autocomplete** native implementation!  
     select and activate any number of different auto-complete databases  
@@ -75,6 +77,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
     magic-wand paint with auto-fill and perceptual tolerance  
     see [Kanvas Docs](https://vladmandic.github.io/sdnext-docs/Kanvas) for details  
 - **UI**
+  - redesigned *video -> ltx* interface
   - `gallery` send-to button advanced options with right-click
   - `tag autocomplete` quick toggle in main prompt area
   - a lot of small performance optimizations that add up to faster load times and more responsive ui
