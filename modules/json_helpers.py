@@ -2,17 +2,12 @@ import os
 import sys
 import time
 import json
-from typing import overload, Literal, Protocol
+from typing import overload, Literal
 import fasteners
 import orjson
 from modules.logger import log
 
-
-locking_available = True # used by file read/write locking
-
-
-class Has__dict__(Protocol):
-    __dict__: dict
+locking_available = True  # used by file read/write locking
 
 
 @overload
@@ -22,39 +17,42 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
 @overload
 def readfile(filename: str, silent: bool = False, lock: bool = False) -> dict | list: ...
 def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type="") -> dict | list:
-    global locking_available # pylint: disable=global-statement
+    global locking_available  # pylint: disable=global-statement
     data = {} if as_type == "dict" else []
     lock_file = None
     locked = False
+
     if lock and locking_available:
         try:
             lock_file = fasteners.InterProcessReaderWriterLock(f"{filename}.lock")
-            lock_file.logger.disabled = True # type: ignore - False positive. Bad typing in Fasteners.
+            lock_file.logger.disabled = True  # type: ignore - False positive. Bad typing in Fasteners.
             locked = lock_file.acquire_read_lock(blocking=True, timeout=3)
         except Exception as err:
             lock_file = None
             locking_available = False
             log.error(f'File read lock: file="{filename}" {err}')
             locked = False
+
     try:
         # if not os.path.exists(filename):
         #    return {}
         t0 = time.time()
         with open(filename, "rb") as file:
             b = file.read()
-            data = orjson.loads(b) # pylint: disable=no-member
+            data = orjson.loads(b)  # pylint: disable=no-member
         # if type(data) is str:
         #    data = json.loads(data)
         t1 = time.time()
         if not silent:
-            fn = f'{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}' # pylint: disable=protected-access
-            log.debug(f'Read: file="{filename}" json={len(data)} bytes={os.path.getsize(filename)} time={t1-t0:.3f} fn={fn}')
+            fn = f"{sys._getframe(2).f_code.co_name}:{sys._getframe(1).f_code.co_name}"  # pylint: disable=protected-access
+            log.debug(f'Read: file="{filename}" json={len(data)} bytes={os.path.getsize(filename)} time={t1 - t0:.3f} fn={fn}')
     except FileNotFoundError as err:
         if not silent:
             log.debug(f'Read failed: file="{filename}" {err}')
     except Exception as err:
         if not silent:
             log.error(f'Read failed: file="{filename}" {err}')
+
     try:
         if locking_available and lock_file is not None:
             lock_file.release_read_lock()
@@ -62,6 +60,7 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
             os.remove(f"{filename}.lock")
     except Exception:
         locking_available = False
+
     if isinstance(data, list) and as_type == "dict":
         if not data:
             return {}
@@ -78,9 +77,10 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
     return data
 
 
-def writefile(obj: dict | list | Has__dict__, filename, mode='w', silent=False, atomic=False):
+def writefile(obj: dict | list, filename, mode="w", silent=False, atomic=False):
     import tempfile
-    global locking_available # pylint: disable=global-statement
+
+    global locking_available  # pylint: disable=global-statement
     lock_file = None
     locked = False
 
@@ -90,31 +90,23 @@ def writefile(obj: dict | list | Has__dict__, filename, mode='w', silent=False, 
 
     try:
         t0 = time.time()
-        # skipkeys=True, ensure_ascii=True, check_circular=True, allow_nan=True
-        if isinstance(obj, (dict, list)):
-            data = obj.copy()
-            output = json.dumps(data, indent=2, default=default)
-        elif hasattr(obj, "__dict__"):
-            data = obj.__dict__.copy()
-            for k in data:
-                if data[k] is None:
-                    data.pop(k)
-            output = json.dumps(data, indent=2, default=default)
-        else:
-            raise ValueError('not a valid object')
+        data = obj.copy()  # Ensure keys/items aren't added/deleted during json.dumps
+        output = json.dumps(data, indent=2, default=default)
     except Exception as err:
         log.error(f'Save failed: file="{filename}" {err}')
         return
+
     try:
         if locking_available:
             lock_file = fasteners.InterProcessReaderWriterLock(f"{filename}.lock") if locking_available else None
-            lock_file.logger.disabled = True # type: ignore - False positive. Bad typing in Fasteners.
+            lock_file.logger.disabled = True  # type: ignore - False positive. Bad typing in Fasteners.
             locked = lock_file.acquire_write_lock(blocking=True, timeout=3) if lock_file is not None else False
     except Exception as err:
         locking_available = False
         lock_file = None
         log.error(f'File write lock: file="{filename}" {err}')
         locked = False
+
     try:
         if atomic:
             with tempfile.NamedTemporaryFile(mode=mode, encoding="utf8", delete=False, dir=os.path.dirname(filename)) as f:
@@ -127,10 +119,11 @@ def writefile(obj: dict | list | Has__dict__, filename, mode='w', silent=False, 
                 file.write(output)
         t1 = time.time()
         if not silent:
-            datalength = len(data) if isinstance(data, (dict, list)) else (len(data.__dict__))
-            log.debug(f'Save: file="{filename}" json={datalength} bytes={len(output)} time={t1-t0:.3f}')
+            datalength = len(data)
+            log.debug(f'Save: file="{filename}" json={datalength} bytes={len(output)} time={t1 - t0:.3f}')
     except Exception as err:
         log.error(f'Save failed: file="{filename}" {err}')
+
     try:
         if locking_available and lock_file is not None:
             lock_file.release_write_lock()
