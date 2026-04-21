@@ -5,7 +5,7 @@ import time
 from typing import TYPE_CHECKING
 import torch
 from modules.lora import lora_common as l
-from modules import shared, devices, errors, model_quant
+from modules import shared, devices, errors
 from modules.logger import log
 
 if TYPE_CHECKING:
