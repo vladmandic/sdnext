@@ -358,10 +358,16 @@ def run_ltx(task_id,
                 t4 = time.time()
                 upsamplejob = shared.state.begin('Upsample')
                 try:
+                    # Shared-VAE exclude: both upsample pipes receive shared.sd_model.vae as a
+                    # constructor formality (pure latent -> latent forward). The main pipe already
+                    # owns the VAE's hook lifecycle, so walking it again here hits meta tensors
+                    # from the prior offload pass. Excluding also shortens the walk to the one
+                    # module that actually belongs to this pipe: latent_upsampler.
+                    upsample_exclude = ['vae']
                     if caps.family == '0.9':
                         global upsample_pipe # pylint: disable=global-statement
                         upsample_pipe = load_upsample(upsample_pipe, upsample_repo_id_09)
-                        upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe)
+                        upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe, exclude=upsample_exclude)
                         up_args = {
                             'width': final_w,
                             'height': final_h,
@@ -373,12 +379,12 @@ def run_ltx(task_id,
                         log.debug(f'Video: op=upsample family=0.9 latents={latents.shape} {up_args}')
                         yield None, 'LTX: Upsample in progress...'
                         latents = upsample_pipe(latents=latents, **up_args).frames[0]
-                        upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe)
+                        upsample_pipe = sd_models.apply_balanced_offload(upsample_pipe, exclude=upsample_exclude)
                     else:
                         global upsample_pipe_2x # pylint: disable=global-statement
                         upsample_repo = upsample_repo_id_23 if caps.variant == '2.3' else upsample_repo_id_20
                         upsample_pipe_2x = load_upsample_2x(upsample_pipe_2x, upsample_repo)
-                        upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x)
+                        upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x, exclude=upsample_exclude)
                         # 2.x base pass returns denormalized latents; latents_normalized=False tells the
                         # upsampler "already raw, do not denormalize again".
                         up_args = {
@@ -394,7 +400,7 @@ def run_ltx(task_id,
                         log.debug(f'Video: op=upsample family=2.x latents={latents.shape} auto={auto_refine_upsample} {up_args}')
                         yield None, 'LTX: Upsample in progress...'
                         latents = upsample_pipe_2x(latents=latents, **up_args).frames[0]
-                        upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x)
+                        upsample_pipe_2x = sd_models.apply_balanced_offload(upsample_pipe_2x, exclude=upsample_exclude)
                 except AssertionError as e:
                     yield from abort(e, ok=True, p=p)
                     return
