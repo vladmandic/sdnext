@@ -6,7 +6,7 @@ from PIL import Image
 from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, devices, extra_networks, call_queue
 from modules.logger import log
 from modules.ltx import ltx_capabilities
-from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsample, load_upsample_2x, get_conditions, get_generator, get_prompts, temp_scheduler_opts, vae_decode
+from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsample, load_upsample_2x, get_conditions, get_generator, get_prompts, ltx_scheduler_opts, vae_decode
 from modules.processing_callbacks import diffusers_callback
 from modules.video_models.video_vae import set_vae_params
 from modules.video_models.video_save import save_video
@@ -290,10 +290,10 @@ def run_ltx(task_id,
         framewise = caps.family == '0.9'
         set_vae_params(p, framewise=framewise)
 
-        # Scheduler + shared.opts mutation is wrapped in temp_scheduler_opts so restore runs on
+        # Scheduler + shared.opts mutation is wrapped in ltx_scheduler_opts so restore runs on
         # every exit path (normal return, abort, interrupt, Stage 2 scheduler swap). See the
         # helper's docstring for the five pieces of state it snapshots.
-        with temp_scheduler_opts(shared.sd_model, dynamic_shift=dynamic_shift, sampler_shift=sampler_shift):
+        with ltx_scheduler_opts(shared.sd_model, dynamic_shift=dynamic_shift, sampler_shift=sampler_shift):
             if selected is not None:
                 video_overrides.set_overrides(p, selected)
 

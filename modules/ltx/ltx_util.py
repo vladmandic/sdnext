@@ -82,7 +82,7 @@ def load_upsample_2x(upsample_pipe, upsample_repo_id):
 
 
 @contextmanager
-def temp_scheduler_opts(sd_model, *, dynamic_shift=None, sampler_shift=None):
+def ltx_scheduler_opts(sd_model, *, dynamic_shift=None, sampler_shift=None):
     # Run-scoped override of shared.opts scheduler settings and scheduler.config. Snapshots
     # five pieces of state (shared.opts dynamic_shift + shift, scheduler object, default_scheduler
     # snapshot, and scheduler.config use_dynamic_shifting + flow_shift) and restores every one on
