@@ -1363,12 +1363,14 @@ def get_version(force=False):
             subprocess.run('git config log.showsignature false', capture_output=True, shell=True, check=True)
         except Exception:
             pass
+
         try:
             ver = run('git', 'log --pretty=format:"%h %ad" -1 --date=short', check=True)[0].stdout or '  '
             commit, updated = ver.split(' ')
             version['commit'], version['updated'] = commit, updated
         except Exception as e:
             log.warning(f'Version: where=commit {e}')
+
         try:
             origin = run('git', 'remote get-url origin', check=True)[0].stdout
             branch_name = run('git', 'rev-parse --abbrev-ref HEAD', check=True)[0].stdout
@@ -1378,6 +1380,7 @@ def get_version(force=False):
                 log.warning('Version: detached state detected')
         except Exception as e:
             log.warning(f'Version: where=branch {e}')
+
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
                 branch_ui = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout
@@ -1387,6 +1390,7 @@ def get_version(force=False):
         except Exception as e:
             log.warning(f'Version: where=modernui {e}')
             version['ui'] = 'unknown'
+
         try:
             if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
                 version['kanvas'] = 'disabled'
@@ -1398,6 +1402,7 @@ def get_version(force=False):
         except Exception as e:
             log.warning(f'Version: where=kanvas {e}')
             version['kanvas'] = 'unknown'
+
     ts('version', t_start)
     return version
 
@@ -1427,6 +1432,33 @@ def check_ui(ver):
         except Exception as e:
             log.debug(f'Branch switch: {e}')
     ts('ui', t_start)
+
+
+def check_kanvas(ver):
+    def same(ver):
+        core = ver['branch'] if ver is not None and 'branch' in ver else 'unknown'
+        kanvas = ver['kanvas'] if ver is not None and 'kanvas' in ver else 'unknown'
+        return (core == kanvas) or (core == 'master' and kanvas == 'main') or (core == 'dev' and kanvas == 'dev') or (core == 'HEAD')
+
+    if 'vladmandic/sdnext' not in ver.get('url', ''):
+        return
+    t_start = time.time()
+    if not same(ver):
+        log.debug(f'Branch mismatch: {ver}')
+        try:
+            if 'dev' in ver['branch']:
+                target = 'dev'
+            elif 'main' in ver['branch'] or 'master' in ver['branch']:
+                target = 'main'
+            else:
+                target =None
+            if target:
+                git('checkout ' + target, folder='extensions-builtin/sdnext-kanvas', ignore=True, optional=True)
+                ver = get_version(force=True)
+                log.debug(f'Branch sync: {ver}')
+        except Exception as e:
+            log.debug(f'Branch switch: {e}')
+    ts('kanvas', t_start)
 
 
 def check_venv():
@@ -1480,6 +1512,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
     if args.version or args.skip_git:
         return
     check_ui(ver)
+    check_kanvas(ver)
     commit = git('rev-parse HEAD')
     global git_commit # pylint: disable=global-statement
     git_commit = commit[:7]

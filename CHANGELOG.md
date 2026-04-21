@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-20
+## Update for 2026-04-21
 
-### Highlights for 2026-04-20
+### Highlights for 2026-04-21
 
 *What's New?*
 - New models! **Zeta-Chroma**, **ERNIE**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**, **LTX 2.3 v1.1**
@@ -17,7 +17,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-20
+### Details for 2026-04-21
 
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
@@ -104,6 +104,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 - **Obsoleted**
   - removed *system-info* from *extensions-builtin*
 - **Internal**
+  - sync `kanvas` branch with core branch
   - `history` accepts both latent and pixel entries
   - wrap `hf-download` methods
   - additional *typing* and *typechecks*, thanks @awsr
