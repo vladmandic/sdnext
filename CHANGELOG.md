@@ -1,11 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-21
+## Update for 2026-04-22
 
-### Highlights for 2026-04-21
+### Highlights for 2026-04-22
 
 *What's New?*
-- New models! **Zeta-Chroma**, **ERNIE**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**, **LTX 2.3 v1.1**
+- New image models! **ERNIE-Image**, **Zeta-Chroma**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**
+- New video model: **LTX 2.3 v1.1** *(and new UI for it)*
 - Major **Kanvas** update for enhanced inpaint/outpaint and overal more responsive **UI**
 - Built-in **Tag-Autocomplete** with support for *10+* tag databases
 - Additional Schedulers, updates to NudeNet, OpenVINO and ROCm and other features
@@ -17,7 +18,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-21
+### Details for 2026-04-22
 
 - **Models**
   - [LTX Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) add *1.1 Distilled* and *1.1 Distilled-SDNQ* variants  

@@ -2,6 +2,7 @@
 
 ## Internal
 
+- Feature: Gallery thumb-size, quick delete/download/info, disable delete on Reference
 - Feature: Diffusers [TextKVCache](https://huggingface.co/NucleusAI/Nucleus-Image#quick-start)
 - Feature: Chat-based interface
 - Feature: Add cloud providers
