@@ -1,20 +1,23 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-16
+## Update for 2026-04-21
 
-### Highlights for 2026-04-16
+### Highlights for 2026-04-21
 
 *What's New?*
-- Built-in **Tag-Autocomplete** with support for 10+ tag databases
 - New models! **Zeta-Chroma**, **ERNIE**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**, **LTX 2.3 v1.1**
+- Major **Kanvas** update for enhanced inpaint/outpaint and overal more responsive **UI**
+- Built-in **Tag-Autocomplete** with support for *10+* tag databases
 - Additional Schedulers, updates to NudeNet, OpenVINO and ROCm and other features
 
 And tons of *quality-of-life* improvements and *bug-fixes*!
 In addition, to jump on a bandwagon, we're now fully **AI agent** ready with detailed instructions and skills!
 
+For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
+
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-16
+### Details for 2026-04-21
 
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
@@ -51,6 +54,7 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
     allows for any *settings* property name (as defined in `modules/ui_definitions.py` and saved to `config.json`)  
   - **preview** add explicit `method=None`  
     if you want to skip preview, but show finished images, works with batch progression  
+  - add **xet cache** to *settings -> paths* and initialize on startup
 - **Compute**
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
     now covers both ROCm on Windows and Linux  
@@ -63,9 +67,18 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
   - **SDNQ** improvements  
     add quant support to `nn.Embedding` type  
     support fp execution according to gpu capabilities  
+    enhanced `triton` kernels for RDNA2/RDNA3  
+- **Kanvas**
+    multi-image workflow: add additional stagaes as needed (when starting generate, sdnext will use image/mask from active stage)  
+    full undo/redo  
+    list, select, transform any shapes  
+    magic-wand paint with auto-fill and perceptual tolerance  
+    see [Kanvas Docs](https://vladmandic.github.io/sdnext-docs/Kanvas) for details  
 - **UI**
   - `gallery` send-to button advanced options with right-click
   - `tag autocomplete` quick toggle in main prompt area
+  - a lot of small performance optimizations that add up to faster load times and more responsive ui
+  - add ui `log` during startup
 - **Caption & Prompt Enhance**
   - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune
 - **Agents**
@@ -81,17 +94,29 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
     *model*: `port-model`, `debug-model`, `analyze-model`, `reference-catalog`  
     *github*: `github-issues`, `github-features`  
     *diffusers*: `diffusers-code`  
+    *docs*: `update-docs`  
     *other*: `todo`  
 - **CLI**
   - add `cli/hf-info` and update `cli/hf-search.py`
+- **Docs**
+  - validation of all links
+  - syntax/structure/language corrections accross all documents
 - **Obsoleted**
   - removed *system-info* from *extensions-builtin*
 - **Internal**
+  - sync `kanvas` branch with core branch
   - `history` accepts both latent and pixel entries
   - wrap `hf-download` methods
   - additional *typing* and *typechecks*, thanks @awsr
   - refactor `hash-cache` management, thanks @awsr
   - validate all `reference` jsons and backfill all fields  
+  - sticter `js` linting, thanks @awsr
+  - ui: remove non-passive event listeners
+  - ui: add debounce to ui updates
+  - ui: utilize requestanimationframe for paint optimizations
+  - ui: profile callbacks
+  - ui: validate callbacks before use, thanks @awsr
+  - ui: log formatting  
 - **Fixes**
   - Prohibit `python==3.14` unless `--experimental`
   - UI CSS fixes, thanks @awsr
@@ -113,7 +138,7 @@ In addition, to jump on a bandwagon, we're now fully **AI agent** ready with det
   - patch `z-image` for fp16 compatibility, thanks @resonantsky
   - patch `unipc` for timesteps device placement, thanks @resonantsky
   - `civitai` search and base-model discovery improvements
-  - ui log formatting  
+  - auto-masking with `rembg`
 
 ## Update for 2026-04-01
 

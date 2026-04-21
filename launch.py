@@ -182,11 +182,11 @@ def clean_server():
                     pass
     collected = gc.collect() # python gc
     modules_cleaned = sorted(sys.modules.keys())
-    modules_keys = [m.split('.')[0] for m in modules_cleaned if not m.startswith('_')]
-    modules_sorted = {}
-    for module_key in modules_keys:
-        modules_sorted[module_key] = len([m for m in modules_cleaned if m.startswith(module_key)])
-    log.trace(f'Server modules: {modules_sorted}')
+    # modules_keys = [m.split('.')[0] for m in modules_cleaned if not m.startswith('_')]
+    # modules_sorted = {}
+    # for module_key in modules_keys:
+    #     modules_sorted[module_key] = len([m for m in modules_cleaned if m.startswith(module_key)])
+    # log.trace(f'Server modules: {modules_sorted}')
     t1 = time.time()
     log.trace(f'Server modules: total={len(modules_loaded)} unloaded={len(removed_removed)} remaining={len(modules_cleaned)} gc={collected} time={t1-t0:.2f}')
 

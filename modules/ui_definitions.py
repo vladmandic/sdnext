@@ -64,6 +64,7 @@ def create_settings(cmd_opts):
 
     default_hfcache_dir = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(paths.models_path, 'huggingface')
     default_checkpoint = list_checkpoint_titles()[0] if len(list_checkpoint_titles()) > 0 else "model.safetensors"
+    default_xetcache_dir = os.environ.get("HF_XET_CACHE ", None) or os.path.join(paths.models_path, 'xet')
 
     hide_dirs = {"visible": not cmd_opts.hide_ui_dir_config}
 
@@ -384,6 +385,7 @@ def create_settings(cmd_opts):
         "ckpt_dir": OptionInfo(os.path.join(paths.models_path, 'Stable-diffusion'), "Folder with stable diffusion models", folder=True),
         "diffusers_dir": OptionInfo(os.path.join(paths.models_path, 'Diffusers'), "Folder with Huggingface models", folder=True),
         "hfcache_dir": OptionInfo(default_hfcache_dir, "Folder for Huggingface cache", folder=True),
+        "xetcache_dir": OptionInfo(default_xetcache_dir, "Folder for XET cache", folder=True),
         "tunable_dir": OptionInfo(os.path.join(paths.models_path, 'tunable'), "Folder for Tunable ops cache", folder=True),
         "vae_dir": OptionInfo(os.path.join(paths.models_path, 'VAE'), "Folder with VAE files", folder=True),
         "unet_dir": OptionInfo(os.path.join(paths.models_path, 'UNET'), "Folder with UNET files", folder=True),
@@ -523,6 +525,23 @@ def create_settings(cmd_opts):
         "aspect_ratios": OptionInfo("1:1, 4:3, 3:2, 16:9, 16:10, 21:9, 2:3, 3:4, 9:16, 10:16, 9:21", "Allowed aspect ratios"),
         "compact_view": OptionInfo(False, "Compact view"),
         "ui_columns": OptionInfo(4, "Gallery view columns", gr.Slider, {"minimum": 1, "maximum": 8, "step": 1}),
+
+        'uiux_separator_appearance': OptionInfo("<h2>Appearance</h2>", "", gr.HTML),
+        "uiux_grid_image_size": OptionInfo(150, "Grid image size", gr.Slider, {"minimum": 64, "maximum": 1024, "step": 1}),
+        "uiux_panel_min_width": OptionInfo(35, "Panel minimum width", gr.Number),
+        "uiux_hide_legacy": OptionInfo(True, "Hide legacy tabs"),
+        "uiux_persist_layout": OptionInfo(True, "Persist UI layout"),
+        "uiux_no_slider_layout": OptionInfo(False, "Hide input range sliders"),
+        "uiux_show_labels_aside": OptionInfo(False, "Show labels for aside tabs"),
+        "uiux_show_labels_main": OptionInfo(False, "Show labels for main tabs"),
+        "uiux_show_labels_tabs": OptionInfo(True, "Show labels for page tabs"),
+        "uiux_show_input_range_ticks": OptionInfo(True, "Show ticks for input range slider", gr.Checkbox, {"visible": False}),
+        "uiux_no_headers_params": OptionInfo(False, "Hide params headers", gr.Checkbox, {"visible": False}),
+        "uiux_show_outline_params": OptionInfo(True, "Show parameter outline", gr.Checkbox, {"visible": False}),
+
+        'uiux_separator_mobile': OptionInfo("<h2>Mobile</h2>", "", gr.HTML),
+        "uiux_default_layout": OptionInfo("Auto", "Layout", gr.Radio, {"choices": ["Auto","Desktop", "Mobile"]}),
+        "uiux_mobile_scale": OptionInfo(0.7, "Mobile scale", gr.Slider, {"minimum": 0.5, "maximum": 1, "step": 0.05}),
 
         "images_sep_log": OptionInfo("<h2>Log Display</h2>", "", gr.HTML),
         "logmonitor_show": OptionInfo(True, "Show log view"),

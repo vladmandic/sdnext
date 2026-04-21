@@ -1,3 +1,13 @@
+window.logRingBuffer = [];
+window.logBufferDirty = false;
+
+const logBuffer = (ts, type, msg) => {
+  const maxLogLength = 8;
+  window.logRingBuffer.push({ ts, type, msg });
+  if (window.logRingBuffer.length > maxLogLength) window.logRingBuffer.shift();
+  window.logBufferDirty = true;
+};
+
 const scrollBottom = async (el) => {
   const lastChild = el.lastElementChild;
   if (lastChild) lastChild.scrollIntoView({ behavior: 'smooth' });
@@ -11,6 +21,7 @@ const log = async (...msg) => {
     scrollBottom(window.logger);
   }
   console.log(ts, ...msg);
+  logBuffer(ts, 'log', msg);
 };
 
 const debug = async (...msg) => {
@@ -21,6 +32,7 @@ const debug = async (...msg) => {
     scrollBottom(window.logger);
   }
   console.debug(ts, ...msg);
+  logBuffer(ts, 'debug', msg);
 };
 
 const error = async (...msg) => {
@@ -31,6 +43,7 @@ const error = async (...msg) => {
     scrollBottom(window.logger);
   }
   console.error(ts, ...msg);
+  logBuffer(ts, 'error', msg);
   // const txt = msg.join(' ');
   // if (!txt.includes('asctime') && !txt.includes('xhr.')) xhrPost('/sdapi/v1/log', { error: txt }); // eslint-disable-line no-use-before-define
 };

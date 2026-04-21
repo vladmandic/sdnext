@@ -1270,11 +1270,12 @@ async function initGalleryAutoRefresh() {
   let galleryTab = isModern ? document.getElementById('gallery_tabitem') : document.getElementById('tab_gallery');
   let timeout = 0;
   while (!galleryTab && timeout++ < 60) {
-    await new Promise((resolve) => { setTimeout(resolve, 1000); });
+    await new Promise((resolve) => { setTimeout(resolve, 2500); });
     galleryTab = isModern ? document.getElementById('gallery_tabitem') : document.getElementById('tab_gallery');
   }
   if (!galleryTab) {
-    throw new Error('Timed out waiting for gallery tab element');
+    error('Gallery: timeout');
+    return;
   }
   const displayNoneRegEx = /display:\s*none/;
   async function galleryAutoRefresh(mutations) {

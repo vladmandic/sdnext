@@ -1,5 +1,5 @@
 async function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms)); // eslint-disable-line no-promise-executor-return
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
 }
 
 function gradioApp() {
@@ -9,7 +9,7 @@ function gradioApp() {
   return elem.shadowRoot ? elem.shadowRoot : elem;
 }
 
-function logFn(func) {
+function logFn(func) { // not recommended: use log, debug or error explicitly
   return async function () { // eslint-disable-line func-names
     const t0 = performance.now();
     const returnValue = func(...arguments);
@@ -39,26 +39,50 @@ let uiCurrentTab = null;
 let uiAfterUpdateTimeout = null;
 
 function onAfterUiUpdate(callback) {
+  if (typeof callback !== 'function') {
+    error(`onAfterUiUpdate was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   uiAfterUpdateCallbacks.push(callback);
 }
 
 function onUiUpdate(callback) {
+  if (typeof callback !== 'function') {
+    error(`onUiUpdate was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   uiUpdateCallbacks.push(callback);
 }
 
 function onUiLoaded(callback) {
+  if (typeof callback !== 'function') {
+    error(`onUiLoaded was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   uiLoadedCallbacks.push(callback);
 }
 
 function onUiReady(callback) {
+  if (typeof callback !== 'function') {
+    error(`onUiReady was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   uiReadyCallbacks.push(callback);
 }
 
 function onUiTabChange(callback) {
+  if (typeof callback !== 'function') {
+    error(`onUiTabChange was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   uiTabChangeCallbacks.push(callback);
 }
 
 function onOptionsChanged(callback) {
+  if (typeof callback !== 'function') {
+    error(`onOptionsChanged was called without a valid value. Expected a function but got: ${callback}`);
+    return;
+  }
   optionsChangedCallbacks.push(callback);
 }
 
@@ -67,7 +91,10 @@ function executeCallbacks(queue, arg) {
   for (const callback of queue) {
     if (!callback) continue;
     try {
+      const t0 = performance.now();
       callback(arg);
+      const t1 = performance.now();
+      if (t1 - t0 > 250) log('callbackSlow', callback.name || callback, `time=${Math.round(t1 - t0)}`);
     } catch (e) {
       error(`executeCallbacks: ${callback} ${e}`);
     }
@@ -83,17 +110,21 @@ function scheduleAfterUiUpdateCallbacks() {
 
 let executedOnLoaded = false;
 const ignoreElements = ['logMonitorData', 'logWarnings', 'logErrors', 'tooltip-container', 'logger'];
+const ignoreElementsSet = new Set(ignoreElements);
 const ignoreClasses = ['wrap'];
 
 let mutationTimer = null;
 let validMutations = [];
+
 async function mutationCallback(mutations) {
-  let newMutations = mutations;
-  if (newMutations.length > 0) newMutations = newMutations.filter((m) => m.target.nodeName !== 'LABEL');
-  if (newMutations.length > 0) newMutations = newMutations.filter((m) => ignoreElements.indexOf(m.target.id) === -1);
-  if (newMutations.length > 0) newMutations = newMutations.filter((m) => m.target.id !== 'logWarnings' && m.target.id !== 'logErrors');
-  if (newMutations.length > 0) newMutations = newMutations.filter((m) => !m.target.classList?.contains('wrap'));
-  if (newMutations.length > 0) validMutations = validMutations.concat(newMutations);
+  if (mutations.length <= 0) return;
+  for (const mutation of mutations) {
+    const target = mutation.target;
+    if (target.nodeName === 'LABEL') continue;
+    if (ignoreElementsSet.has(target.id)) continue;
+    if (target.classList?.contains(ignoreClasses[0])) continue;
+    validMutations.push(mutation);
+  }
   if (validMutations.length < 1) return;
 
   if (mutationTimer) clearTimeout(mutationTimer);
@@ -113,12 +144,13 @@ async function mutationCallback(mutations) {
     }
     validMutations = [];
     mutationTimer = null;
-  }, 50);
+  }, 100);
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  log('DOMContentLoaded');
   const mutationObserver = new MutationObserver(mutationCallback);
-  mutationObserver.observe(gradioApp(), { childList: true, subtree: true });
+  mutationObserver.observe(gradioApp(), { childList: true, subtree: true, attributes: false });
 });
 
 /**

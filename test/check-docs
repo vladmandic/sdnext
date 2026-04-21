@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT_DIR"
+
+if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  cat <<'EOF'
+Usage:
+  test/check-docs
+  test/check-docs wiki/File.md wiki/Other.md
+  test/check-docs --fix wiki/File.md
+
+Runs markdownlint-cli2 against wiki markdown files.
+If no files are provided, all wiki markdown files are checked except files whose
+basename starts with an underscore.
+
+Any arguments are passed through to markdownlint-cli2.
+EOF
+  exit 0
+fi
+
+if [[ $# -eq 0 ]]; then
+  mapfile -t targets < <(rg --files wiki | rg '\.md$' | rg -v '(^|/)_')
+else
+  targets=("$@")
+fi
+
+if [[ ${#targets[@]} -eq 0 ]]; then
+  echo "No markdown files matched." >&2
+  exit 1
+fi
+
+exec npx --yes markdownlint-cli2 "${targets[@]}"
