@@ -179,7 +179,7 @@ def installed(package, friendly: str | None = None, quiet = False): # pylint: di
                         if args.experimental:
                             log.warning(f'Install: package="{p[0]}" installed={pkg_version} required={p[1]} allowing experimental')
                         else:
-                            log.warning(f'Install: package="{p[0]}" installed={pkg_version} required={p[1]} version mismatch')
+                            log.warning(f'Install: package="{p[0]}" installed={pkg_version} required={p[1]} updating...')
                             global restart_required # pylint: disable=global-statement
                             restart_required = True
                     ok = ok and (exact or args.experimental)

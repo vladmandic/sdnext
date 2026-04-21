@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-19
+## Update for 2026-04-20
 
-### Highlights for 2026-04-19
+### Highlights for 2026-04-20
 
 *What's New?*
 - New models! **Zeta-Chroma**, **ERNIE**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**, **LTX 2.3 v1.1**
@@ -17,7 +17,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-19
+### Details for 2026-04-20
 
 - **Models**
   - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
@@ -114,6 +114,8 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - ui: add debounce to ui updates
   - ui: utilize requestanimationframe for paint optimizations
   - ui: profile callbacks
+  - ui: validate callbacks before use, thanks @awsr
+  - ui: log formatting  
 - **Fixes**
   - Prohibit `python==3.14` unless `--experimental`
   - UI CSS fixes, thanks @awsr
@@ -135,7 +137,6 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - patch `z-image` for fp16 compatibility, thanks @resonantsky
   - patch `unipc` for timesteps device placement, thanks @resonantsky
   - `civitai` search and base-model discovery improvements
-  - ui log formatting  
   - auto-masking with `rembg`
 
 ## Update for 2026-04-01
