@@ -1,6 +1,6 @@
 import os
 import time
-import concurrent
+import concurrent.futures
 from modules import shared, errors, sd_models, sd_models_compile, files_cache
 from modules.logger import log
 from modules.lora import network, lora_overrides, lora_convert, lora_diffusers
