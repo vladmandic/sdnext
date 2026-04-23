@@ -12,7 +12,7 @@ def webpath(fn):
     else:
         uri = fn
     uri = uri.replace('\\', '/')
-    uri = f'file={uri}?{os.path.getmtime(fn)}'
+    uri = f'file={uri}?{int(os.path.getmtime(fn))}'
     return uri
 
 
