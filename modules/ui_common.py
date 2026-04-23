@@ -507,9 +507,10 @@ def update_token_counter(text: str):
             return gr.update(value=f"<span class='gr-box gr-text-input'>??/{max_length}</span>", visible=True)
 
         token_counts = [len(group) - int(has_bos_token) - int(has_eos_token) for group in ids]
+        token_counts = [tc for tc in token_counts if tc > 0]
         if len(token_counts) > 1:
             visible = True
-            count_formatted = f"{token_counts}/{sum(token_counts)}"
+            count_formatted = f"{token_counts} {sum(token_counts)}"
         elif len(token_counts) == 1 and token_counts[0] > 0:
             visible = True
             count_formatted = str(token_counts[0])
