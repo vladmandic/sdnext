@@ -1,3 +1,5 @@
+window.gradioObserver = null;
+
 async function sleep(ms) {
   return new Promise((resolve) => { setTimeout(resolve, ms); });
 }
@@ -15,6 +17,7 @@ function logFn(func) { // not recommended: use log, debug or error explicitly
     const returnValue = func(...arguments);
     const t1 = performance.now();
     log(func.name, `time=${Math.round(t1 - t0)}`);
+    timer(func.name, t1 - t0);
     return returnValue;
   };
 }
@@ -95,6 +98,7 @@ function executeCallbacks(queue, arg) {
       callback(arg);
       const t1 = performance.now();
       if (t1 - t0 > 250) log('callbackSlow', callback.name || callback, `time=${Math.round(t1 - t0)}`);
+      timer(callback.name || 'anonymousCallback', t1 - t0);
     } catch (e) {
       error(`executeCallbacks: ${callback} ${e}`);
     }
@@ -149,8 +153,8 @@ async function mutationCallback(mutations) {
 
 document.addEventListener('DOMContentLoaded', () => {
   log('DOMContentLoaded');
-  const mutationObserver = new MutationObserver(mutationCallback);
-  mutationObserver.observe(gradioApp(), { childList: true, subtree: true, attributes: false });
+  window.gradioObserver = new MutationObserver(mutationCallback);
+  window.gradioObserver.observe(gradioApp(), { childList: true, subtree: true, attributes: false });
 });
 
 /**

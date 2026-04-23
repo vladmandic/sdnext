@@ -163,6 +163,7 @@ function setFontSize(val, old) {
     appliedFontSize = nextSize;
     const t1 = performance.now();
     log('setFontSize', nextSize, `time=${Math.round(t1 - t0)}`);
+    timer('setFontSize', t1 - t0);
   });
 }
 
@@ -473,6 +474,7 @@ function registerTextareaCallback() {
   // sortUIElements();
   if (promptsInitialized) return;
   if (promptRegistrationInProgress) return;
+  const t0 = performance.now();
 
   const app = gradioApp();
   if (!app) return;
@@ -540,7 +542,9 @@ function registerTextareaCallback() {
     promptsInitialized = registeredPromptIds.size === total;
     if (promptsInitialized) {
       promptRegistrationInProgress = false;
-      log('initPrompts', registeredPromptIds.size);
+      const t1 = performance.now();
+      log('initPrompts', { count: registeredPromptIds.size, time: Math.round(t1 - t0) });
+      timer('initPrompts', t1 - t0);
       return;
     }
 
@@ -709,6 +713,7 @@ async function browseFolder() {
 }
 
 async function reconnectUI() {
+  const t0 = performance.now();
   const gallery = gradioApp().getElementById('txt2img_gallery');
   const task_id = localStorage.getItem('task');
   const api_logo = Array.from(gradioApp().querySelectorAll('img')).filter((el) => el?.src?.endsWith('api-logo.svg'));
@@ -738,5 +743,7 @@ async function reconnectUI() {
   };
   const sd_model_observer = new MutationObserver(sd_model_callback);
   sd_model_observer.observe(sd_model, { attributes: true, childList: true, subtree: true });
-  log('reconnectUI');
+  const t1 = performance.now();
+  log('reconnectUI', Math.round(t1 - t0));
+  timer('reconnectUI', t1 - t0);
 }

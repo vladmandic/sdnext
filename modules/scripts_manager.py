@@ -187,20 +187,19 @@ class Script:
         """
         pass # pylint: disable=unnecessary-pass
 
+    """
+    # script can define two methods below, they are not defined by default to skip unnecessary calls for scripts that don't need this functionality
     def before_component(self, component: IOComponent, **kwargs):
-        """
-        Called before a component is created.
-        Use elem_id/label fields of kwargs to figure out which component it is.
-        This can be useful to inject your own components somewhere in the middle of vanilla UI.
-        You can return created components in the ui() function to add them to the list of arguments for your processing functions
-        """
+        # Called before a component is created.
+        # Use elem_id/label fields of kwargs to figure out which component it is.
+        # This can be useful to inject your own components somewhere in the middle of vanilla UI.
+        # You can return created components in the ui() function to add them to the list of arguments for your processing functions
         pass # pylint: disable=unnecessary-pass
 
     def after_component(self, component: IOComponent, **kwargs):
-        """
-        Called after a component is created. Same as above.
-        """
+        # Called after a component is created. Same as above.
         pass # pylint: disable=unnecessary-pass
+    """
 
     def describe(self):
         """unused"""
@@ -453,7 +452,6 @@ class ScriptRunner:
             script.name = wrap_call(script.title, script.filename, "title", default=script.filename).lower()
             api_args = []
             for control in controls:
-                debug(f'Script control: parent={script.parent} script="{script.name}" label="{control.label}" type={control} id={control.elem_id}')
                 if hasattr(gr.components, 'IOComponent'):
                     if not isinstance(control, gr.components.IOComponent):
                         log.error(f'Invalid script control: "{script.filename}" control={control}')
@@ -462,6 +460,7 @@ class ScriptRunner:
                     if not isinstance(control, gr.components.Component):
                         log.error(f'Invalid script control: "{script.filename}" control={control}')
                         continue
+                debug(f'Script control: parent={script.parent} script="{script.name}" label="{control.label}" type={control} id={control.elem_id}')
                 control.custom_script_source = os.path.basename(script.filename)
                 arg_info = api_models.ScriptArg(label=control.label or "")
                 for field in ("value", "minimum", "maximum", "step", "choices"):
@@ -498,7 +497,10 @@ class ScriptRunner:
                     continue
                 t0 = time.time()
                 with gr.Group(elem_id=f'{parent}_script_{script.title().lower().replace(" ", "_")}', elem_classes=['group-extension']) as group:
-                    create_script_ui(script, inputs, inputs_alwayson)
+                    try:
+                        create_script_ui(script, inputs, inputs_alwayson)
+                    except Exception as e:
+                        errors.display(e, f'Create Script UI: type=internal fn="{script.filename}"')
                 script.group = group
                 time_setup[script.title()] = time_setup.get(script.title(), 0) + (time.time()-t0)
 
@@ -513,7 +515,10 @@ class ScriptRunner:
                         continue
                     t0 = time.time()
                     with gr.Group(elem_id=f'{parent}_script_{script.title().lower().replace(" ", "_")}', elem_classes=['group-extension']) as group:
-                        create_script_ui(script, inputs, inputs_alwayson)
+                        try:
+                            create_script_ui(script, inputs, inputs_alwayson)
+                        except Exception as e:
+                            errors.display(e, f'Create Script UI: type=builtin fn="{script.filename}"')
                     script.group = group
                     time_setup[script.title()] = time_setup.get(script.title(), 0) + (time.time()-t0)
 
@@ -528,7 +533,10 @@ class ScriptRunner:
                         continue
                     t0 = time.time()
                     with gr.Group(elem_id=f'{parent}_script_{script.title().lower().replace(" ", "_")}', elem_classes=['group-extension']) as group:
-                        create_script_ui(script, inputs, inputs_alwayson)
+                        try:
+                            create_script_ui(script, inputs, inputs_alwayson)
+                        except Exception as e:
+                            errors.display(e, f'Create Script UI: type=extension fn="{script.filename}"')
                     script.group = group
                     time_setup[script.title()] = time_setup.get(script.title(), 0) + (time.time()-t0)
 
@@ -539,7 +547,10 @@ class ScriptRunner:
                 continue
             with gr.Group(elem_id=f'{parent}_script_{script.title().lower().replace(" ", "_")}', elem_classes=['group-scripts'], visible=False) as group:
                 t0 = time.time()
-                create_script_ui(script, inputs, inputs_alwayson)
+                try:
+                    create_script_ui(script, inputs, inputs_alwayson)
+                except Exception as e:
+                    errors.display(e, f'Create Script UI: type=selectable fn="{script.filename}"')
                 time_setup[script.title()] = time_setup.get(script.title(), 0) + (time.time()-t0)
                 script.group = group
 
@@ -737,28 +748,42 @@ class ScriptRunner:
         s.report()
 
     def before_component(self, component: IOComponent, **kwargs):
+        if component is None or isinstance(component, gr.Blocks):
+            return
         s = ScriptSummary('before-component')
         for script in self.scripts:
+            if not hasattr(script, 'before_component'):
+                continue
+            for elem_id, callback in script.on_before_component_elem_id:
+                if elem_id == kwargs.get("elem_id"):
+                    try:
+                        callback(OnComponent(component=component))
+                    except Exception as e:
+                        errors.display(e, f"Running script before component: id={elem_id} fn={script.filename}")
             try:
                 script.before_component(component, **kwargs)
             except Exception as e:
-                errors.display(e, f'Running script before component: {script.filename}')
+                errors.display(e, f'Running script before component: fn={script.filename}')
             s.record(script.title())
         s.report()
 
     def after_component(self, component: IOComponent, **kwargs):
+        if component is None or isinstance(component, gr.Blocks):
+            return
         s = ScriptSummary('after-component')
         for script in self.scripts:
+            if not hasattr(script, 'after_component'):
+                continue
             for elem_id, callback in script.on_after_component_elem_id:
                 if elem_id == kwargs.get("elem_id"):
                     try:
                         callback(OnComponent(component=component))
                     except Exception as e:
-                        errors.display(e, f"Running script before_component_elem_id: {script.filename}")
+                        errors.display(e, f"Running script after component: id={elem_id} fn={script.filename}")
             try:
                 script.after_component(component, **kwargs)
             except Exception as e:
-                errors.display(e, f'Running script after component: {script.filename}')
+                errors.display(e, f'Running script after component: fn={script.filename}')
             s.record(script.title())
         s.report()
 

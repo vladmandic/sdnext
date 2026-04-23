@@ -855,7 +855,8 @@ async function gallerySearch() {
     }
 
     const t1 = performance.now();
-    updateStatusWithSort('Filter', ['Images', `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    updateStatusWithSort('Filter', ['Images', `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], `${iconStopwatch} ${Math.round(t1 - t0).toLocaleString()}ms`);
+    timer(`galleryFilter:${str}`, t1 - t0);
     refreshGallerySelection();
   }, 250);
 }
@@ -936,7 +937,8 @@ async function gallerySort(key) {
 
   const t1 = performance.now();
   log(`gallerySort: sort=${sortMode.name} len=${arr.length} time=${Math.floor(t1 - t0)}`);
-  updateStatusWithSort(['Images', arr.length.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  updateStatusWithSort(['Images', arr.length.toLocaleString()], `${iconStopwatch} ${Math.round(t1 - t0).toLocaleString()}ms`);
+  timer(`gallerySort:${sortMode.name}`, t1 - t0);
   refreshGallerySelection();
 }
 
@@ -1025,7 +1027,8 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
       await idbFolderCleanup(keptGalleryHashes, recursiveFolder, controller.signal)
         .then((delcount) => {
           const t1 = performance.now();
-          log(`Thumbnail DB cleanup: folder=${folder} kept=${keptGalleryHashes.size} deleted=${delcount} time=${Math.floor(t1 - t0)}ms`);
+          log(`Thumbnail DB cleanup: folder=${folder} kept=${keptGalleryHashes.size} deleted=${delcount} time=${Math.round(t1 - t0)}ms`);
+          timer(`thumbnailDBCleanup:${folder}`, t1 - t0);
           currentGalleryFolder = null;
           el.clearCacheFolder.innerText = '<select a folder first>';
           updateStatusWithSort('Thumbnail cache cleared');
@@ -1139,6 +1142,7 @@ async function fetchFilesHT(evt, controller) {
 
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
+  timer(`galleryFetch:${evt.target.name}`, t1 - t0);
   updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
   galleryProgressBar.start(numFiles);
   addSeparators();
@@ -1320,7 +1324,7 @@ async function blockQueueUntilReady() {
 }
 
 async function initGallery() { // triggered on gradio change to monitor when ui gets sufficiently constructed
-  log('initGallery');
+  const t0 = performance.now();
   el.folders = gradioApp().getElementById('tab-gallery-folders');
   el.files = gradioApp().getElementById('tab-gallery-files');
   el.status = gradioApp().getElementById('tab-gallery-status');
@@ -1363,6 +1367,9 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     'outdir_img2img_grids',
     'outdir_control_grids',
   ].forEach((op) => { monitorOption(op, updateFolders); });
+  const t1 = performance.now();
+  log('initGallery', Math.round(t1 - t0));
+  timer('initGallery', t1 - t0);
 }
 
 // register on startup

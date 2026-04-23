@@ -66,6 +66,7 @@ async function removeSplash() {
   log('removeSplash');
   const t = Math.round(performance.now() - appStartTime);
   log('startupTime', t);
+  timer('splashVisible', t);
   xhrPost(`${window.api}/log`, { message: `ready time=${t}` });
   monitorLogActive = false;
 }

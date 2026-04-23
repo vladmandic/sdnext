@@ -217,6 +217,7 @@ async function filterExtraNetworksForTab(searchTerm) {
   }
   const t1 = performance.now();
   log(`filterExtraNetworks: text="${searchTerm}" items=${items} match=${found} time=${Math.round(t1 - t0)}`);
+  timer(`filterExtraNetworks:${searchTerm}`, t1 - t0);
 }
 
 function tryToRemoveExtraNetworkFromPrompt(textarea, text) {
@@ -282,6 +283,7 @@ function sortExtraNetworks(fixed = 'no') {
   const desc = sortDesc[sortVal];
   const t1 = performance.now();
   log('sortNetworks', { name: pagename, val: sortVal, order: desc, fixed: fixed === 'fixed', items: num, time: Math.round(t1 - t0) });
+  timer(`sortExtraNetworks:${desc}`, t1 - t0);
   return desc;
 }
 

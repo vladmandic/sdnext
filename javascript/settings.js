@@ -46,9 +46,7 @@ async function updateOpts(json_string) {
     }
   }
 
-  const t2 = performance.now();
   window.opts = new_opts;
-  log('updateOpts', `settings=${Object.keys(new_opts).length} callbacks=${Math.round(t2 - t1)} apply=${Math.round(t1 - t0)}`);
   Object.entries(opts_metadata).forEach(([opt, meta]) => {
     if (!opts_tabs[meta.tab_name]) opts_tabs[meta.tab_name] = {};
     if (!opts_tabs[meta.tab_name].unsaved_keys) opts_tabs[meta.tab_name].unsaved_keys = new Set();
@@ -56,6 +54,9 @@ async function updateOpts(json_string) {
     if (!meta.is_stored) opts_tabs[meta.tab_name].unsaved_keys.add(opt);
     else opts_tabs[meta.tab_name].saved_keys.add(opt);
   });
+  const t2 = performance.now();
+  log('updateOpts', `settings=${Object.keys(new_opts).length} callbacks=${Math.round(t2 - t1)} apply=${Math.round(t1 - t0)}`);
+  timer('updateOpts', t2 - t0);
 }
 
 function showAllSettings() {
@@ -201,6 +202,7 @@ async function initModels() {
 
 async function initSettings() {
   if (settingsInitialized) return;
+  const t0 = performance.now();
   settingsInitialized = true;
   const tabNavElements = gradioApp().querySelector('#settings > .tab-nav');
   if (!tabNavElements) {
@@ -228,5 +230,7 @@ async function initSettings() {
     tabContentWrapper.appendChild(elem);
     observer.observe(elem, { attributes: true, attributeFilter: ['style'] });
   });
-  log('initSettings');
+  const t1 = performance.now();
+  log('initSettings', Math.round(t1 - t0));
+  timer('initSettings', t1 - t0);
 }

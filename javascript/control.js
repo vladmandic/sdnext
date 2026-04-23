@@ -17,6 +17,7 @@ function controlInputMode(inputMode, ...args) {
 }
 
 async function setupControlUI() {
+  const t0 = performance.now();
   const tabs = ['input', 'output', 'preview'];
   for (const tab of tabs) {
     const btn = gradioApp().getElementById(`control-${tab}-button`);
@@ -46,5 +47,7 @@ async function setupControlUI() {
   });
   intersectionObserver.observe(el); // monitor visibility of tab
 
-  log('initControlUI');
+  const t1 = performance.now();
+  log('setupControlUI', Math.round(t1 - t0));
+  timer('setupControlUI', t1 - t0);
 }

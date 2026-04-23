@@ -400,6 +400,7 @@ class ReqGetLog(BaseModel):
 
 
 class ReqPostLog(BaseModel):
+    json: dict | None = Field(default=None, title="Data", description="The data to log")
     message: str | None = Field(default=None, title="Message", description="The info message to log")
     debug: str | None = Field(default=None, title="Debug message", description="The debug message to log")
     error: str | None = Field(default=None, title="Error message", description="The error message to log")

@@ -148,6 +148,7 @@ const engine = {
       this.indices.clear();
       return;
     }
+    const t0 = performance.now();
     const toLoad = enabled.filter((n) => !this.indices.has(n));
     const toRemove = [...this.indices.keys()].filter((n) => !enabled.includes(n));
     toRemove.forEach((n) => this.indices.delete(n));
@@ -164,7 +165,9 @@ const engine = {
             if (cat.name) this.categoryNames[id] = cat.name;
           });
         }
-        log('autoComplete', { loaded: name, tags: data.tags?.length || 0 });
+        const t1 = performance.now();
+        log('autoComplete', { loaded: name, tags: data.tags?.length || 0, time: Math.round(t1 - t0) });
+        timer(`autocompleteLoad:${name}`, t1 - t0);
       } catch (e) {
         log('autoComplete', { failed: name, error: e });
       }
@@ -508,6 +511,7 @@ function patchConfigBridge() {
 // -- Initialization --
 
 async function initAutocomplete() {
+  const t0 = performance.now();
   const enabled = window.opts?.autocomplete_enabled || [];
   active = window.opts?.autocomplete_active || false;
   log('autoComplete', { active, enabled });
@@ -543,9 +547,9 @@ async function initAutocomplete() {
       attached++;
     }
   });
-  log('autoComplete', { attached, dicts: engine.indices.size });
   // Reload when settings change
-  onOptionsChanged(async () => {
+
+  async function optionsChangedCallback() {
     const newActive = window.opts?.autocomplete_active || false;
     const newEnabled = window.opts?.autocomplete_enabled || [];
     const currentKeys = [...engine.indices.keys()].sort().join(',');
@@ -556,9 +560,13 @@ async function initAutocomplete() {
       active = newActive;
       patchActiveButton();
     }
-  });
+  }
+  onOptionsChanged(optionsChangedCallback);
   // Watch for config updates from the script UI bridge
   patchConfigBridge();
   patchActiveButton();
-  onAfterUiUpdate(() => patchConfigBridge());
+  onAfterUiUpdate(patchConfigBridge);
+  const t1 = performance.now();
+  log('autoComplete', { attached, dicts: engine.indices.size, time: Math.round(t1 - t0) });
+  timer('autocompleteInit', t1 - t0);
 }

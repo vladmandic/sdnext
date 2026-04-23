@@ -115,12 +115,13 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - refactor `hash-cache` management, thanks @awsr
   - validate all `reference` jsons and backfill all fields  
   - sticter `js` linting, thanks @awsr
+  - ui: add profiling info
   - ui: remove non-passive event listeners
   - ui: add debounce to ui updates
   - ui: utilize requestanimationframe for paint optimizations
   - ui: profile callbacks
   - ui: validate callbacks before use, thanks @awsr
-  - ui: log formatting  
+  - ui: log formatting
 - **Fixes**
   - Prohibit `python==3.14` unless `--experimental`
   - UI CSS fixes, thanks @awsr
@@ -139,6 +140,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - controlnet processor error handling
   - error handling for same-device check
   - error handling for undefined pipeline
+  - erorr handling for `scripts` loader
   - patch `z-image` for fp16 compatibility, thanks @resonantsky
   - patch `unipc` for timesteps device placement, thanks @resonantsky
   - `civitai` search and base-model discovery improvements

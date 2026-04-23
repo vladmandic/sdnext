@@ -235,6 +235,7 @@ async function bindImageViewer() {
 }
 
 async function initImageViewer() {
+  const t0 = performance.now();
   // main elements
   const modal = document.createElement('div');
   modal.id = 'lightboxModal';
@@ -341,7 +342,9 @@ async function initImageViewer() {
   modal.append(modalExif);
 
   gradioApp().appendChild(modal);
-  log('initImageViewer');
+  const t1 = performance.now();
+  log('initImageViewer', Math.round(t1 - t0));
+  timer('initImageViewer', t1 - t0);
 }
 
 onAfterUiUpdate(bindImageViewer);
