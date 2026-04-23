@@ -35,10 +35,8 @@ def format_dt(d: datetime, seconds = False) -> str:
 
 
 def ts2utc(timestamp: int) -> datetime:
-    try:
-        return datetime.fromtimestamp(timestamp, timezone.utc)
-    except Exception:
-        return "unknown"
+    return datetime.fromtimestamp(timestamp, timezone.utc)
+
 
 def active() -> list[Extension]:
     if shared.opts.disable_all_extensions == "all":
