@@ -1,9 +1,8 @@
 import os
 import gradio.routes
 import gradio.utils
-from modules import shared, theme
+from modules import extensions, scripts_manager, shared, theme
 from modules.paths import script_path, data_path
-import modules.scripts_manager
 from modules.logger import log
 
 
@@ -14,7 +13,6 @@ def webpath(fn):
         uri = fn
     uri = uri.replace('\\', '/')
     uri = f'file={uri}?{os.path.getmtime(fn)}'
-    # uri = f'js?file={uri}&{os.path.getmtime(fn)}'
     return uri
 
 
@@ -29,7 +27,7 @@ def html_head():
         else:
             head += f'<script type="text/javascript" src="{webpath(script_js)}"></script>\n'
     added = []
-    for script in modules.scripts_manager.list_scripts("javascript", ".js"):
+    for script in scripts_manager.list_scripts("javascript", ".js"):
         if script.filename in main or script.filename in skip:
             continue
         if '.esm' in script.filename or '.mjs' in script.filename:
@@ -37,7 +35,7 @@ def html_head():
         else:
             head += f'<script type="text/javascript" src="{webpath(script.path)}"></script>\n'
         added.append(script.path)
-    for script in modules.scripts_manager.list_scripts("javascript", ".mjs"):
+    for script in scripts_manager.list_scripts("javascript", ".mjs"):
         head += f'<script type="module" src="{webpath(script.path)}"></script>\n'
         added.append(script.path)
     added = [a.replace(script_path, '').replace('\\', '/') for a in added]
@@ -71,22 +69,22 @@ def html_css(css: list[str]):
         f = os.path.join(script_path, 'javascript', cssfile)
         if os.path.isfile(f):
             head += stylesheet(f)
-    for cssfile in modules.scripts_manager.list_files_with_name("style.css"):
+    for cssfile in scripts_manager.list_files_with_name("style.css"):
         if not os.path.isfile(cssfile):
             continue
         head += stylesheet(cssfile)
 
     usercss = os.path.join(data_path, "user.css") if os.path.exists(os.path.join(data_path, "user.css")) else None
-    if modules.shared.opts.theme_type == 'Standard':
-        themecss = os.path.join(script_path, "javascript", f"{modules.shared.opts.gradio_theme}.css")
+    if shared.opts.theme_type == 'Standard':
+        themecss = os.path.join(script_path, "javascript", f"{shared.opts.gradio_theme}.css")
         if os.path.exists(themecss):
             head += stylesheet(themecss)
             log.debug(f'UI theme: css="{themecss}" base="{css}" user="{usercss}"')
         else:
             log.error(f'UI theme: css="{themecss}" path="{os.getcwd()}" not found')
-    elif modules.shared.opts.theme_type == 'Modern':
-        theme_folder = next((e.path for e in modules.extensions.extensions if e.name == 'sdnext-modernui'), None)
-        themecss = os.path.join(theme_folder or '', 'themes', f'{modules.shared.opts.gradio_theme}.css')
+    elif shared.opts.theme_type == 'Modern':
+        theme_folder = next((e.path for e in extensions.extensions if e.name == 'sdnext-modernui'), None)
+        themecss = os.path.join(theme_folder or '', 'themes', f'{shared.opts.gradio_theme}.css')
         if os.path.exists(themecss):
             head += stylesheet(themecss)
             log.debug(f'UI theme: css="{themecss}" base="{css}" user="{usercss}"')
