@@ -67,11 +67,10 @@ def html_css(css: list[str]):
         return f'<link rel="stylesheet" property="stylesheet" href="{webpath(fn)}">'
 
     head = ''
-    if css is not None:
-        for cssfile in css:
-            f = os.path.join(script_path, 'javascript', cssfile)
-            if os.path.isfile(f):
-                head += stylesheet(f)
+    for cssfile in css:
+        f = os.path.join(script_path, 'javascript', cssfile)
+        if os.path.isfile(f):
+            head += stylesheet(f)
     for cssfile in modules.scripts_manager.list_files_with_name("style.css"):
         if not os.path.isfile(cssfile):
             continue
@@ -104,9 +103,12 @@ def reload_javascript():
     login = html_login()
     js = html_head()
 
-    css_base = theme.reload_gradio_theme()
-    css_timesheet = "timesheet.css"
-    css = html_css([css_base, css_timesheet])
+    css_files: list[str] = []
+    if (css_base := theme.reload_gradio_theme()) is not None:
+        css_files.append(css_base)
+    css_files.append("timesheet.css")
+
+    css = html_css(css_files)
     body = html_body()
 
     def template_response(*args, **kwargs):
