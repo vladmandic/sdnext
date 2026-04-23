@@ -1,9 +1,10 @@
 import os
+
 import gradio.routes
-import gradio.utils
+
 from modules import extensions, scripts_manager, shared, theme
-from modules.paths import script_path, data_path
 from modules.logger import log
+from modules.paths import data_path, script_path
 
 
 def webpath(fn):
