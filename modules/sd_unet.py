@@ -9,7 +9,7 @@ failed_unet = []
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 
-dit_models = ['Flux', 'StableDiffusion3', 'HiDream', 'Lumina2', 'Chroma', 'Wan', 'Qwen']
+dit_models = ['Flux', 'StableDiffusion3', 'HiDream', 'Lumina2', 'Chroma', 'Wan', 'Qwen', 'Anima']
 
 
 def load_unet_sdxl_nunchaku(repo_id):
