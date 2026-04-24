@@ -464,17 +464,26 @@ def connect_reuse_seed(seed: gr.Number, reuse_seed_btn: gr.Button, generation_in
         reuse_seed_btn.click(fn=copy_seed, _js="(x, y) => [x, selected_gallery_index()]", show_progress='hidden', inputs=[generation_info, dummy_component], outputs=[seed, dummy_component, subseed_strength])
 
 
+def tokens_outer(*inner: str):
+    return f"""<div class='gr-box gr-text-input token-counter-contents'>{"".join(inner)}</div>"""
+
+
+def tokens_details(counts: list[int]):
+    return f"""[<div class='token-counter-detailed'>{', '.join([str(t) for t in counts])}</div>]"""  # Note: "[" and "]" are outside of the div tag
+
+
+def tokens_summary(total: int | str, max: int | str):
+    return f"""<div class='token-counter-totals'>{total}/{max}</div>"""
+
+
 def update_token_counter(text: str):
     if shared.state.job_count > 0:
         log.debug('Tokenizer busy')
-        return gr.update(value="<span class='gr-box gr-text-input'>--/--</span>", visible=True)
+        return gr.update(value=tokens_outer(tokens_summary("--", "--")), visible=True)
 
     from modules.extra_networks import parse_prompt
 
-    count_formatted = '0'
     max_length = 0
-    visible = False
-
     prompt, _ = parse_prompt(text)
     prompt_list = [prompt]
     ids = []
@@ -504,14 +513,15 @@ def update_token_counter(text: str):
             if tokenizer not in warn_once_set:
                 log.warning(f"Token counter: {e}")
                 warn_once_set.add(tokenizer)
-            return gr.update(value=f"<span class='gr-box gr-text-input'>??/{max_length}</span>", visible=True)
+            return gr.update(value=tokens_outer(tokens_summary("??", max_length)), visible=True)
 
         token_counts = [len(group) - int(has_bos_token) - int(has_eos_token) for group in ids]
         token_counts = [tc for tc in token_counts if tc > 0]
         if len(token_counts) > 1:
-            visible = True
-            count_formatted = f"{token_counts} {sum(token_counts)}"
+            details_html = tokens_details(token_counts)
+            totals_html = tokens_summary(sum(token_counts), max_length)
+            return gr.update(value=tokens_outer(details_html, totals_html), visible=True)
         elif len(token_counts) == 1 and token_counts[0] > 0:
-            visible = True
-            count_formatted = str(token_counts[0])
-    return gr.update(value=f"<span class='gr-box gr-text-input'>{count_formatted}/{max_length}</span>", visible=visible)
+            totals_html = tokens_summary(token_counts[0], max_length)
+            return gr.update(value=tokens_outer(totals_html), visible=True)
+    return gr.update(value=tokens_outer(tokens_summary(0, max_length)), visible=False)
