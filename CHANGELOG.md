@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-22
+## Update for 2026-04-24
 
-### Highlights for 2026-04-22
+### Highlights for 2026-04-24
 
 *What's New?*
 - New image models! **ERNIE-Image**, **Zeta-Chroma**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**
@@ -18,7 +18,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-22
+### Details for 2026-04-24
 
 - **Models**
   - [LTX Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) add *1.1 Distilled* and *1.1 Distilled-SDNQ* variants  
@@ -123,8 +123,9 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - ui: validate callbacks before use, thanks @awsr
   - ui: log formatting
 - **Fixes**
-  - Prohibit `python==3.14` unless `--experimental`
-  - UI CSS fixes, thanks @awsr
+  - ui restore state on startup
+  - prohibit `python==3.14` unless `--experimental`
+  - ui CSS fixes, thanks @awsr
   - detect/warn if space present in system path
   - add `ftfy` to requirements
   - upscaler init error should not block server
