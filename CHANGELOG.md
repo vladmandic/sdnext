@@ -22,7 +22,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 
 - **Models**
   - [LTX Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) add *1.1 Distilled* and *1.1 Distilled-SDNQ* variants  
-    Includes support for native refiner/upscaler  
+    Includes support for native refiner, upscaler and audio!  
     New LTX model also comes with new LTX UI interface in SD.Next!  
   - [Baidu ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) in *base* and *turbo* (distilled) variants in both original precision and SDNQ-4bit quantiztion  
     ERNIE is single-stream 8B DiT model with built-in prompt enhancer using Mistral-3 text encoder  

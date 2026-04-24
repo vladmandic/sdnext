@@ -28,7 +28,7 @@ async function waitForOpts() {
 
 async function postStartup() {
   log('postStartup');
-  if (window.gradioObserver) window.gradioObserver.disconnect();
+  // if (window.gradioObserver) window.gradioObserver.disconnect();
   if (window.hintsObserver) window.hintsObserver.disconnect();
   logTimers();
 }
