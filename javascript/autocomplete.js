@@ -42,6 +42,14 @@ const CATEGORY_NAMES = {
   13: 'color',
 };
 
+// Glyph + color per result kind. Renders in place of the category dot for non-tag results.
+const KIND_GLYPHS = {
+  tag: { glyph: '●', color: null }, // color pulled from tag category
+  lora: { glyph: '◆', color: '#8a66ff' },
+  embed: { glyph: '▲', color: '#1abc9c' },
+  wildcard: { glyph: '★', color: '#f1c40f' },
+};
+
 let active = false;
 
 // -- Utilities (ported from Enso) --
@@ -103,34 +111,98 @@ function caretViewportY(textarea) {
 class TagIndex {
   constructor(data) {
     this.categories = data.categories || {};
-    // Build sorted array of {name, category, count} from raw [name, catId, count] tuples
-    this.tags = data.tags.map(([name, category, count]) => ({
+    // Tuples are [name, catId, count] or [name, catId, count, aliases]. Default `aliases = []`
+    // keeps legacy 3-tuple dictionaries working unchanged.
+    this.tags = data.tags.map(([name, category, count, aliases = []]) => ({
       name: name.toLowerCase(),
       display: name,
       category,
       count,
+      aliases,
     }));
     this.tags.sort((a, b) => a.name.localeCompare(b.name));
+    // Alias index parallel to this.tags. Each entry has .name so lowerBound works on both.
+    this.aliasEntries = [];
+    for (const tag of this.tags) {
+      if (!tag.aliases || tag.aliases.length === 0) continue;
+      for (const alias of tag.aliases) {
+        this.aliasEntries.push({ name: alias.toLowerCase(), display: alias, tag });
+      }
+    }
+    this.aliasEntries.sort((a, b) => a.name.localeCompare(b.name));
+    // Optional translations companion: foreign_term -> canonical_tag_name.
+    // tagByName is keyed on canonical lowercased name for O(1) resolution from a translation hit.
+    this.translations = new Map();
+    this.tagByName = new Map(this.tags.map((t) => [t.name, t]));
+    if (data.translations && typeof data.translations === 'object') {
+      for (const [foreign, canonical] of Object.entries(data.translations)) {
+        if (typeof foreign !== 'string' || typeof canonical !== 'string') continue;
+        this.translations.set(foreign.toLowerCase(), { canonical: canonical.toLowerCase(), foreign });
+      }
+    }
+    // Sorted translation keys for prefix+substring scan via lowerBound.
+    this.translationEntries = [...this.translations.entries()]
+      .map(([foreignLower, { canonical, foreign }]) => ({ name: foreignLower, foreign, canonical }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  /** Prefix search with binary search. Returns matches sorted by count descending. */
+  /** Prefix search with binary search across canonical names and aliases. Returns matches sorted by count descending. */
   search(prefix, limit = 20) {
     const query = prefix.toLowerCase().replace(/ /g, '_');
     if (!query) return [];
-    const start = lowerBound(this.tags, query);
+    // Canonical prefix matches
     const matches = [];
+    const start = lowerBound(this.tags, query);
     for (let i = start; i < this.tags.length && matches.length < limit * 5; i++) {
       if (!this.tags[i].name.startsWith(query)) break;
       matches.push(this.tags[i]);
     }
-    // Substring fallback for 4+ chars if prefix found nothing
+    // Alias prefix matches. Annotate so render can show "canonical (alias)".
+    const aliasStart = lowerBound(this.aliasEntries, query);
+    for (let i = aliasStart; i < this.aliasEntries.length && matches.length < limit * 10; i++) {
+      const entry = this.aliasEntries[i];
+      if (!entry.name.startsWith(query)) break;
+      matches.push({ ...entry.tag, matchedVia: 'alias', matchedAlias: entry.display });
+    }
+    // Substring fallback (canonical + aliases) for 4+ char queries when prefix matching returned nothing.
     if (matches.length === 0 && query.length >= 4) {
       for (let i = 0; i < this.tags.length && matches.length < limit * 5; i++) {
         if (this.tags[i].name.includes(query)) matches.push(this.tags[i]);
       }
+      for (let i = 0; i < this.aliasEntries.length && matches.length < limit * 10; i++) {
+        const entry = this.aliasEntries[i];
+        if (entry.name.includes(query)) matches.push({ ...entry.tag, matchedVia: 'alias', matchedAlias: entry.display });
+      }
     }
-    matches.sort((a, b) => b.count - a.count);
-    return matches.slice(0, limit);
+    // Translation lookup. Prefix scan over foreign terms, resolving to canonical tags when present.
+    if (this.translationEntries.length > 0) {
+      const tStart = lowerBound(this.translationEntries, query);
+      for (let i = tStart; i < this.translationEntries.length && matches.length < limit * 10; i++) {
+        const entry = this.translationEntries[i];
+        if (!entry.name.startsWith(query)) break;
+        const canonicalTag = this.tagByName.get(entry.canonical);
+        if (canonicalTag) matches.push({ ...canonicalTag, matchedVia: 'translation', matchedTerm: entry.foreign });
+      }
+      // Substring fallback over translation keys (CJK/short foreign terms benefit from 2-char threshold)
+      if (query.length >= 2) {
+        for (let i = 0; i < this.translationEntries.length && matches.length < limit * 10; i++) {
+          const entry = this.translationEntries[i];
+          if (entry.name.includes(query) && !entry.name.startsWith(query)) {
+            const canonicalTag = this.tagByName.get(entry.canonical);
+            if (canonicalTag) matches.push({ ...canonicalTag, matchedVia: 'translation', matchedTerm: entry.foreign });
+          }
+        }
+      }
+    }
+    // Dedupe by canonical name; prefer canonical (no matchedVia) over alias/translation matches.
+    const seen = new Map();
+    for (const tag of matches) {
+      const existing = seen.get(tag.name);
+      if (!existing || (existing.matchedVia && !tag.matchedVia)) seen.set(tag.name, tag);
+    }
+    const result = [...seen.values()];
+    result.sort((a, b) => b.count - a.count);
+    return result.slice(0, limit);
   }
 }
 
@@ -194,47 +266,100 @@ const engine = {
 
 // -- Textarea integration --
 
-/** Extract the current word being typed at the cursor position. */
+/**
+ * Extract the current completion context at the cursor position.
+ *
+ * Returns { word, start, end, mode } where:
+ *   mode === 'tag':      ordinary tag completion
+ *   mode === 'lora':     inside an unclosed `<lora:...` span; `start` points at the `<`
+ *   mode === 'wildcard': inside an unclosed `__...` span; `start` points at the first `_`
+ *
+ * `start..end` is the replacement range the appropriate insert function should overwrite.
+ * Embeddings are served under `mode === 'tag'` and merged into tag-mode results by the engine.
+ */
 function getCurrentWord(textarea) {
   const { value, selectionStart } = textarea;
   if (selectionStart !== textarea.selectionEnd) return null; // has selection
-  // Scan backward from cursor to find word start
-  let start = selectionStart;
-  while (start > 0) {
-    const ch = value[start - 1];
+  // Scan backward from cursor to the nearest hard separator
+  let wordStart = selectionStart;
+  while (wordStart > 0) {
+    const ch = value[wordStart - 1];
     if (ch === ',' || ch === '\n') break;
-    start--;
+    wordStart--;
   }
-  // Skip leading whitespace
-  while (start < selectionStart && value[start] === ' ') start++;
-  const word = value.slice(start, selectionStart);
-  if (!word) return null;
-  // Skip if inside angle brackets (LoRA/embedding syntax)
+  // Skip leading whitespace between the separator and the typed word
+  while (wordStart < selectionStart && value[wordStart] === ' ') wordStart++;
+  const segment = value.slice(wordStart, selectionStart);
+  // LoRA / extra-network trigger: unclosed `<` with `kind:` prefix
   const before = value.slice(0, selectionStart);
   const lastOpen = before.lastIndexOf('<');
   const lastClose = before.lastIndexOf('>');
-  if (lastOpen > lastClose) return null;
-  // Skip if inside wildcard syntax
-  const wcBefore = before.slice(start);
-  if (wcBefore.startsWith('__') && !wcBefore.endsWith('__')) return null;
-  return { word, start, end: selectionStart };
+  if (lastOpen > lastClose && lastOpen >= wordStart) {
+    const inside = before.slice(lastOpen + 1); // e.g. "lora:foo" or "lora:" or "lor"
+    const colon = inside.indexOf(':');
+    // Require `<lora:`; before the colon the kind is ambiguous (could be lora/embed/hypernet).
+    if (colon >= 0 && inside.slice(0, colon).toLowerCase() === 'lora') {
+      return { word: inside.slice(colon + 1), start: lastOpen, end: selectionStart, mode: 'lora' };
+    }
+    // Inside `<...` but not yet a recognized kind, suppress completion.
+    return null;
+  }
+  // Wildcard trigger: unclosed `__` that doesn't close within the current word
+  if (segment.startsWith('__') && !segment.slice(2).includes('__')) {
+    return { word: segment.slice(2), start: wordStart, end: selectionStart, mode: 'wildcard' };
+  }
+  // Ordinary tag
+  if (!segment) return null;
+  return { word: segment, start: wordStart, end: selectionStart, mode: 'tag' };
+}
+
+/** Escape bare parens so tag names like `fate_(series)` aren't parsed as attention syntax. */
+function escapeParensForPrompt(name) {
+  return name.replace(/([()])/g, '\\$1');
+}
+
+/**
+ * Insert an extra-network reference at the current trigger position.
+ *   kind === 'lora':     inserts `<lora:name:1.0>` over the range including the leading `<`
+ *   kind === 'wildcard': inserts `__name__` over the range including the leading `__`
+ * Embeddings use insertTag directly so they go through comma-separator and paren-escape logic.
+ */
+function insertExtraNetwork(textarea, item, kind) {
+  const info = getCurrentWord(textarea);
+  if (!info || info.mode !== kind) return;
+  const { value } = textarea;
+  const before = value.slice(0, info.start);
+  const after = value.slice(info.end);
+  let insertion;
+  if (kind === 'lora') {
+    insertion = `<lora:${item.display ?? item.name}:1.0>`;
+  } else if (kind === 'wildcard') {
+    insertion = `__${item.display ?? item.name}__`;
+  } else {
+    return;
+  }
+  textarea.value = before + insertion + after;
+  const cursorPos = before.length + insertion.length;
+  textarea.selectionStart = cursorPos;
+  textarea.selectionEnd = cursorPos;
+  if (typeof updateInput === 'function') updateInput(textarea);
 }
 
 /** Insert a tag at the current word position, replacing the typed prefix. */
 function insertTag(textarea, tagName) {
   const info = getCurrentWord(textarea);
-  if (!info) return;
+  if (!info || info.mode !== 'tag') return;
   const { value } = textarea;
   const before = value.slice(0, info.start);
   const after = value.slice(info.end);
-  // Build insertion: tag + separator
+  // Build insertion: tag + separator. Parens in tag names are escaped so the prompt parser doesn't read them as attention syntax.
   const useComma = window.opts?.autocomplete_append_comma ?? true;
   const sep = useComma ? ',' : '';
   const needsSepBefore = before.length > 0 && before.trimEnd().length > 0 && !before.trimEnd().endsWith(',');
   const prefix = needsSepBefore ? `${sep} ` : '';
   let suffix = `${sep} `;
   if (after.length > 0 && after.trimStart().startsWith(',')) suffix = ' ';
-  const insertion = `${prefix}${tagName}${suffix}`;
+  const insertion = `${prefix}${escapeParensForPrompt(tagName)}${suffix}`;
   textarea.value = before.trimEnd() + (before.trimEnd().length > 0 ? ' ' : '') + insertion + after.trimStart();
   // Position cursor after the inserted tag + separator
   const cursorPos = before.trimEnd().length + (before.trimEnd().length > 0 ? 1 : 0) + insertion.length;
@@ -280,10 +405,9 @@ const dropdown = {
 
   show(results, textarea, query) {
     if (results.length === 0) { this.hide(); return; }
-    if (this.textarea !== textarea) {
-      if (this.textarea) this.resizeObserver.unobserve(this.textarea);
-      this.resizeObserver.observe(textarea);
-    }
+    // Switching textareas: clear prior state so a stale render can't leak across.
+    if (this.textarea && this.textarea !== textarea) this.hide();
+    if (this.textarea !== textarea) this.resizeObserver.observe(textarea);
     this.results = results;
     this.textarea = textarea;
     this.query = query || '';
@@ -312,23 +436,49 @@ const dropdown = {
       if (i === this.selectedIndex) li.classList.add('selected');
       const dot = document.createElement('span');
       dot.className = 'autocomplete-category';
-      dot.style.color = engine.categoryColors[tag.category] || '#888';
-      dot.textContent = '\u25CF';
-      dot.title = engine.categoryNames[tag.category] || '';
+      const kind = tag.kind || 'tag';
+      const kindStyle = KIND_GLYPHS[kind] || KIND_GLYPHS.tag;
+      dot.style.color = kindStyle.color || engine.categoryColors[tag.category] || '#888';
+      dot.textContent = kindStyle.glyph;
+      dot.title = kind === 'tag' ? (engine.categoryNames[tag.category] || '') : kind;
       const name = document.createElement('span');
       name.className = 'autocomplete-tag';
       const tagText = replaceUnderscores ? tag.display.replace(/_/g, ' ') : tag.display;
-      const matchPos = tag.name.indexOf(queryNorm);
-      if (matchPos >= 0 && queryNorm.length > 0) {
+      const canonicalMatch = tag.name.indexOf(queryNorm);
+      if (canonicalMatch >= 0 && queryNorm.length > 0) {
         const mark = document.createElement('mark');
-        mark.textContent = tagText.slice(matchPos, matchPos + queryNorm.length);
+        mark.textContent = tagText.slice(canonicalMatch, canonicalMatch + queryNorm.length);
         name.append(
-          document.createTextNode(tagText.slice(0, matchPos)),
+          document.createTextNode(tagText.slice(0, canonicalMatch)),
           mark,
-          document.createTextNode(tagText.slice(matchPos + queryNorm.length)),
+          document.createTextNode(tagText.slice(canonicalMatch + queryNorm.length)),
         );
       } else {
         name.textContent = tagText;
+      }
+      // Alias/translation-matched rows append " (foreign)" with the query fragment highlighted.
+      let annotationTerm = null;
+      if (tag.matchedVia === 'alias') annotationTerm = tag.matchedAlias;
+      else if (tag.matchedVia === 'translation') annotationTerm = tag.matchedTerm;
+      if (annotationTerm) {
+        const annotationDisplay = replaceUnderscores ? annotationTerm.replace(/_/g, ' ') : annotationTerm;
+        const annotationLower = annotationTerm.toLowerCase();
+        const annotationMatch = annotationLower.indexOf(queryNorm);
+        const prefix = tag.matchedVia === 'translation' ? ' \u{1F310} ' : ' (';
+        const suffix = tag.matchedVia === 'translation' ? '' : ')';
+        name.appendChild(document.createTextNode(prefix));
+        if (annotationMatch >= 0 && queryNorm.length > 0) {
+          const mark = document.createElement('mark');
+          mark.textContent = annotationDisplay.slice(annotationMatch, annotationMatch + queryNorm.length);
+          name.append(
+            document.createTextNode(annotationDisplay.slice(0, annotationMatch)),
+            mark,
+            document.createTextNode(annotationDisplay.slice(annotationMatch + queryNorm.length)),
+          );
+        } else {
+          name.appendChild(document.createTextNode(annotationDisplay));
+        }
+        if (suffix) name.appendChild(document.createTextNode(suffix));
       }
       const count = document.createElement('span');
       count.className = 'autocomplete-count';
@@ -386,8 +536,15 @@ const dropdown = {
       }
       return;
     }
-    const tag = this.results[this.selectedIndex];
-    if (this.textarea) insertTag(this.textarea, tag.display);
+    const result = this.results[this.selectedIndex];
+    if (this.textarea) {
+      if (result.kind === 'lora' || result.kind === 'wildcard') {
+        insertExtraNetwork(this.textarea, result, result.kind);
+      } else {
+        // 'embed' kind and untagged tag results both go through insertTag (comma-aware, paren-escaped).
+        insertTag(this.textarea, result.display ?? result.name);
+      }
+    }
     this.hide();
   },
 };
@@ -398,33 +555,58 @@ let debounceTimer = null;
 
 function onInput(textarea) {
   if (!active) return;
+  // IME candidate window open: value isn't committed, and Enter would race with tag accept.
+  if (textarea.dataset.imeActive === '1') return;
   const minChars = window.opts?.autocomplete_min_chars ?? 3;
   const info = getCurrentWord(textarea);
-  if (!info || info.word.length < minChars) {
+  if (!info) {
+    dropdown.hide();
+    return;
+  }
+  // Extra-network triggers have a zero threshold so `<lora:` alone surfaces results.
+  const threshold = info.mode === 'tag' ? minChars : 0;
+  if (info.word.length < threshold) {
     dropdown.hide();
     return;
   }
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(() => {
-    const results = engine.searchAll(info.word);
+    let results;
+    if (info.mode === 'lora') {
+      results = window.autocompleteXn ? window.autocompleteXn.searchLoras(info.word) : [];
+    } else if (info.mode === 'wildcard') {
+      results = window.autocompleteXn ? window.autocompleteXn.searchWildcards(info.word) : [];
+    } else {
+      const tagResults = engine.searchAll(info.word);
+      const embedResults = window.autocompleteXn ? window.autocompleteXn.searchEmbeddings(info.word) : [];
+      // Embeddings fold into tag-mode results (a1111 tagcomplete parity).
+      results = [...embedResults, ...tagResults];
+    }
     dropdown.show(results, textarea, info.word);
   }, 150);
 }
 
 function onKeyDown(e) {
   if (!dropdown.visible) return;
+  if (e.isComposing) return; // IME candidate selection, let the browser commit the candidate
+  // Modifier + nav/accept keys belong to other handlers (editAttention.js on Ctrl+Arrow,
+  // generate hotkey on Ctrl+Enter). Let them through even with the dropdown open.
+  const hasModifier = e.ctrlKey || e.metaKey || e.altKey;
   switch (e.key) {
     case 'ArrowDown':
+      if (hasModifier) return;
       e.preventDefault();
       e.stopPropagation();
       dropdown.navigate(1);
       break;
     case 'ArrowUp':
+      if (hasModifier) return;
       e.preventDefault();
       e.stopPropagation();
       dropdown.navigate(-1);
       break;
     case 'Enter':
+      if (hasModifier) return;
       if (dropdown.selectedIndex >= 0) {
         e.preventDefault();
         e.stopPropagation();
@@ -432,6 +614,7 @@ function onKeyDown(e) {
       }
       break;
     case 'Tab':
+      if (hasModifier) return;
       e.preventDefault();
       e.stopPropagation();
       dropdown.accept();
@@ -450,7 +633,14 @@ function onKeyDown(e) {
 function attachAutocomplete(textarea) {
   textarea.addEventListener('input', () => onInput(textarea));
   textarea.addEventListener('keydown', onKeyDown);
+  textarea.addEventListener('compositionstart', () => { textarea.dataset.imeActive = '1'; });
+  textarea.addEventListener('compositionend', () => { delete textarea.dataset.imeActive; });
+  textarea.addEventListener('focusin', () => {
+    if (dropdown.visible && dropdown.textarea && dropdown.textarea !== textarea) dropdown.hide();
+  });
   textarea.addEventListener('focusout', () => {
+    // Cancel any in-flight debounced dropdown.show; otherwise it fires against a stale textarea.
+    clearTimeout(debounceTimer);
     setTimeout(() => dropdown.hide(), 200);
   });
 }
@@ -484,13 +674,21 @@ function patchActiveButton() {
 // -- Config bridge --
 
 /** Monkey-patch script config bridge textboxes to push autocomplete config changes to window.opts immediately. */
+let bridgeWarnedMissingDescriptor = false;
 function patchConfigBridge() {
+  const proto = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
+  if (!proto?.get || !proto?.set) {
+    if (!bridgeWarnedMissingDescriptor) {
+      log('autoComplete', { bridge: 'skipped', reason: 'HTMLTextAreaElement.prototype.value descriptor missing' });
+      bridgeWarnedMissingDescriptor = true;
+    }
+    return;
+  }
   const elements = gradioApp().querySelectorAll('[id$="_tag_autocomplete_config_json"]');
   for (const el of elements) {
     const textarea = el.querySelector('textarea');
     if (!textarea || textarea.acBridgePatched) continue;
     textarea.acBridgePatched = true;
-    const proto = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value');
     Object.defineProperty(textarea, 'value', {
       set(newValue) {
         const oldValue = proto.get.call(textarea);
@@ -500,7 +698,7 @@ function patchConfigBridge() {
             const cfg = JSON.parse(newValue);
             for (const [key, val] of Object.entries(cfg)) window.opts[key] = val;
             executeCallbacks(optionsChangedCallbacks);
-          } catch { /* ignore parse errors */ }
+          } catch { /* ignore parse errors; the bridge is best-effort */ }
         }
       },
       get() { return proto.get.call(textarea); },
@@ -538,6 +736,7 @@ async function initAutocomplete() {
   document.head.appendChild(style);
   dropdown.init();
   await engine.loadEnabled();
+  if (window.autocompleteXn) window.autocompleteXn.loadAll();
   // Attach to all prompt textareas; even if no dictionaries loaded yet, they may be enabled later via script UI
   let attached = 0;
   PROMPT_IDS.forEach((id) => {
@@ -560,6 +759,7 @@ async function initAutocomplete() {
       active = newActive;
       patchActiveButton();
     }
+    if (window.autocompleteXn) window.autocompleteXn.loadAll();
   }
   onOptionsChanged(optionsChangedCallback);
   // Watch for config updates from the script UI bridge

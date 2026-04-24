@@ -521,7 +521,8 @@ class ItemAutocompleteContent(BaseModel):
     name: str = Field(title="Name", description="Autocomplete file identifier")
     version: str = Field(default="", title="Version", description="Version string")
     categories: dict = Field(default_factory=dict, title="Categories", description="Category definitions with name and color")
-    tags: list = Field(default_factory=list, title="Tags", description="Tag entries as [name, category_id, post_count] tuples")
+    tags: list = Field(default_factory=list, title="Tags", description="Tag entries as [name, category_id, post_count, aliases?] tuples")
+    translations: Optional[dict[str, str]] = Field(default=None, title="Translations", description="Optional foreign_term -> canonical_tag_name map")
 
 class ItemAutocompleteRemote(BaseModel):
     name: str = Field(title="Name", description="Autocomplete file identifier")

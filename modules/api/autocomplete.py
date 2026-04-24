@@ -6,6 +6,7 @@ are hosted on HuggingFace and downloaded on demand.
 """
 
 import asyncio
+import collections
 import json
 import os
 
@@ -16,7 +17,10 @@ from modules.logger import log
 
 
 autocomplete_dir: str = ""
-cache: dict[str, dict] = {}
+# LRU cap. Realistic usage enables up to ~16 dictionaries at once; the bound also protects
+# against bloat when users disable/re-enable many dicts in one session.
+CACHE_MAX_ENTRIES = 16
+cache: collections.OrderedDict[str, dict] = collections.OrderedDict()
 HF_REPO = "CalamitousFelicitousness/prompt-vocab"
 HF_BASE = f"https://huggingface.co/datasets/{HF_REPO}/resolve/main"
 MANIFEST_CACHE_SEC = 300  # re-fetch manifest every 5 minutes
@@ -49,13 +53,27 @@ def get_cached(name: str) -> dict:
         except Exception as e:
             raise HTTPException(status_code=404, detail=f"Not found: {name} ({e})") from e
     stat = os.stat(path)
+    # Translations live in an optional companion file; its mtime is folded into the cache key
+    # so edits to either file invalidate a stale entry.
+    translations_path = os.path.join(autocomplete_dir, f"{name}.translations.json")
+    translations_mtime = os.stat(translations_path).st_mtime if os.path.isfile(translations_path) else 0.0
     entry = cache.get(name)
-    if entry and entry['mtime'] == stat.st_mtime:
+    if entry and entry['mtime'] == stat.st_mtime and entry.get('translations_mtime', 0.0) == translations_mtime:
+        cache.move_to_end(name)
         return entry
     with open(path, encoding='utf-8') as f:
         data = json.load(f)
+    if translations_mtime:
+        try:
+            with open(translations_path, encoding='utf-8') as tf:
+                translations = json.load(tf)
+            if isinstance(translations, dict):
+                data['translations'] = translations
+        except Exception as e:
+            log.warning(f'Autocomplete: failed to load translations for "{name}": {e}')
     entry = {
         'mtime': stat.st_mtime,
+        'translations_mtime': translations_mtime,
         'size': stat.st_size,
         'meta': {
             'name': data.get('name', name),
@@ -69,6 +87,9 @@ def get_cached(name: str) -> dict:
         'content': data,
     }
     cache[name] = entry
+    cache.move_to_end(name)
+    while len(cache) > CACHE_MAX_ENTRIES:
+        cache.popitem(last=False)
     return entry
 
 
@@ -117,6 +138,7 @@ async def get_content(name: str) -> ItemAutocompleteContent:
         version=content.get('version', ''),
         categories=content.get('categories', {}),
         tags=content.get('tags', []),
+        translations=content.get('translations'),
     )
 
 
@@ -139,6 +161,9 @@ def fetch_manifest_sync() -> list[dict]:
         manifest_cache['fetched_at'] = now
         return entries
     except Exception as e:
+        # Zero the timestamp so the next call retries immediately instead of serving the
+        # last-known-good payload for the full 5-minute window after a transient failure.
+        manifest_cache['fetched_at'] = 0
         log.warning(f"Autocomplete: Failed to fetch manifest: {e}")
         return manifest_cache.get('data', [])
 
@@ -196,7 +221,10 @@ async def list_remote() -> list[ItemAutocompleteRemote]:
 
 
 def download_sync(name: str) -> str:
-    """Download a tag file from HuggingFace to the local autocomplete directory."""
+    """Download a tag file from HuggingFace to the local autocomplete directory.
+    If the manifest entry declares `translations: true`, fetches the `{name}.translations.json`
+    companion too. Companion failure is logged but does not fail the primary download.
+    """
     import requests
     if '/' in name or '\\' in name or '..' in name:
         raise HTTPException(status_code=400, detail="Invalid name")
@@ -217,6 +245,21 @@ def download_sync(name: str) -> str:
     os.replace(tmp, target)
     cache.pop(name, None)
     log.info(f'Autocomplete: name="{name}" url={url} ({size / 1024 / 1024:.2f}MB) downloaded')
+    # Optional companion translations file. Manifest flag controls whether to attempt the download.
+    manifest_entry = next((e for e in manifest_cache.get('data', []) if e.get('name') == name), None)
+    if manifest_entry and manifest_entry.get('translations'):
+        tr_url = f"{HF_BASE}/{name}.translations.json"
+        tr_target = os.path.join(autocomplete_dir, f"{name}.translations.json")
+        try:
+            tr_resp = requests.get(tr_url, timeout=60)
+            tr_resp.raise_for_status()
+            tr_tmp = tr_target + ".tmp"
+            with open(tr_tmp, 'wb') as f:
+                f.write(tr_resp.content)
+            os.replace(tr_tmp, tr_target)
+            log.info(f'Autocomplete: name="{name}" translations downloaded')
+        except Exception as e:
+            log.warning(f'Autocomplete: failed to fetch translations for "{name}": {e}')
     return target
 
 
