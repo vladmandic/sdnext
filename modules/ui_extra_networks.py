@@ -764,7 +764,7 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
             global refresh_time # pylint: disable=global-statement
             refresh_time = time.time()
         if not skip_indexing:
-            import concurrent
+            import concurrent.futures
             with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:
                 for page in get_pages():
                     executor.submit(page.create_items, ui.tabname)
