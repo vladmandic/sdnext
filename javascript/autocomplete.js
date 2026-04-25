@@ -296,13 +296,17 @@ function getCurrentWord(textarea) {
   const lastOpen = before.lastIndexOf('<');
   const lastClose = before.lastIndexOf('>');
   if (lastOpen > lastClose && lastOpen >= wordStart) {
-    const inside = before.slice(lastOpen + 1); // e.g. "lora:foo" or "lora:" or "lor"
+    const inside = before.slice(lastOpen + 1); // e.g. "lora:foo", "lora:", "lor", or ""
     const colon = inside.indexOf(':');
-    // Require `<lora:`; before the colon the kind is ambiguous (could be lora/embed/hypernet).
-    if (colon >= 0 && inside.slice(0, colon).toLowerCase() === 'lora') {
+    if (colon < 0) {
+      // Bare `<` (or `<lo`, `<lora` partial). LoRA is the only `<...>` kind we ship,
+      // so browse-all-loras; whatever the user typed gets overwritten on accept.
+      return { word: '', start: lastOpen, end: selectionStart, mode: 'lora' };
+    }
+    if (inside.slice(0, colon).toLowerCase() === 'lora') {
       return { word: inside.slice(colon + 1), start: lastOpen, end: selectionStart, mode: 'lora' };
     }
-    // Inside `<...` but not yet a recognized kind, suppress completion.
+    // Recognized colon but unknown kind, suppress completion.
     return null;
   }
   // Wildcard trigger: unclosed `__` that doesn't close within the current word
@@ -567,6 +571,7 @@ const dropdown = {
 // -- Event handlers --
 
 let debounceTimer = null;
+let focusoutHideTimer = null;
 
 function onInput(textarea) {
   if (!active) return;
@@ -657,11 +662,16 @@ function attachAutocomplete(textarea) {
   textarea.addEventListener('compositionend', () => { delete textarea.dataset.imeActive; });
   textarea.addEventListener('focusin', () => {
     if (dropdown.visible && dropdown.textarea && dropdown.textarea !== textarea) dropdown.hide();
+    // Cancel any pending hide from a recent blur so refocusing within 200ms doesn't close the dropdown.
+    clearTimeout(focusoutHideTimer);
+    focusoutHideTimer = null;
+    // Re-fire input handling so a partial tag at the cursor reopens the dropdown.
+    onInput(textarea);
   });
   textarea.addEventListener('focusout', () => {
     // Cancel any in-flight debounced dropdown.show; otherwise it fires against a stale textarea.
     clearTimeout(debounceTimer);
-    setTimeout(() => dropdown.hide(), 200);
+    focusoutHideTimer = setTimeout(() => dropdown.hide(), 200);
   });
 }
 

@@ -24,7 +24,8 @@ class XnIndex {
 
   search(prefix, limit = 20) {
     const query = String(prefix).toLowerCase();
-    if (!query) return [];
+    // Empty query returns the first `limit` items so `<lora:` or `__` alone shows a browsable list.
+    if (!query) return this.items.slice(0, limit);
     const start = lowerBound(this.items, query);
     const matches = [];
     for (let i = start; i < this.items.length && matches.length < limit; i++) {
