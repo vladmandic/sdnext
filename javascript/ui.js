@@ -601,14 +601,14 @@ function monitorServerStatus() {
   document.close();
 }
 
-const delay = ms => new Promise((resolve) => setTimeout(resolve, ms));
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)); // eslint-disable-line no-promise-executor-return
 
-async function restartReload(initial=true) {
+async function restartReload(initial = true) {
   document.body.style = 'background: #222222; font-size: 1rem; font-family:monospace; margin-top:20%; color:lightgray; text-align:center';
   document.body.innerHTML = '<h1>Server shutdown in progress...</h1>';
   if (initial) await delay(10000);
   try {
-    const res = await authFetch(`${window.api}/progress?skip_current_image=true`)
+    const res = await authFetch(`${window.api}/progress?skip_current_image=true`);
     console.log('restartReload', res);
     if (res?.ok) {
       document.body.innerHTML = '<h1>Server restart in progress...</h1>';

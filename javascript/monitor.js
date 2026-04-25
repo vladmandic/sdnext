@@ -25,8 +25,8 @@ class ConnectionMonitorState {
   static setData({ online, data }) {
     if (online !== this.online) {
       this.online = online;
-      this.ts = new Date()
-      debug('monitorState', { online: ConnectionMonitorState.online, ts: ConnectionMonitorState.ts })
+      this.ts = new Date();
+      debug('monitorState', { online: ConnectionMonitorState.online, ts: ConnectionMonitorState.ts });
     }
     if (data?.updated) this.version = data.updated;
     if (data?.commit) this.commit = data.commit;
@@ -98,7 +98,7 @@ async function monitorConnection() {
     ConnectionMonitorState.startup = new Date();
     ConnectionMonitorState.url = res.url.split('/sdapi')[0].replace('https:', 'wss:').replace('http:', 'ws:'); // update global url as ws need fqdn
     updateIndicator(true, data);
-    wsMonitorLoop(url);
+    wsMonitorLoop();
   } catch {
     updateIndicator(false, data);
     setTimeout(monitorConnection, ConnectionMonitorState.delay);

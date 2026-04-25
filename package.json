@@ -23,6 +23,7 @@
     "format-win": "venv\\scripts\\activate && pre-commit run --all-files",
     "eslint": "eslint javascript/",
     "eslint-ui": "cd extensions-builtin/sdnext-modernui && eslint . javascript/",
+    "eslint-kanvas": "cd extensions-builtin/sdnext-kanvas && eslint . src/",
     "ruff": ". venv/bin/activate && ruff check",
     "ruff-win": "venv\\scripts\\activate && ruff check",
     "pylint": ". venv/bin/activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",
@@ -31,8 +32,8 @@
     "pyright-win": "venv\\scripts\\activate && pyright --threads 4",
     "ty": ". venv/bin/activate && ty check",
     "ty-win": "venv\\scripts\\activate && ty check",
-    "lint": "npm run format && npm run eslint && npm run eslint-ui && npm run ruff && npm run pylint",
-    "lint-win": "npm run format-win && npm run eslint && npm run eslint-ui && npm run ruff-win && npm run pylint-win",
+    "lint": "npm run format && npm run eslint && npm run eslint-ui && npm run eslint-kanvas && npm run ruff && npm run pylint",
+    "lint-win": "npm run format-win && npm run eslint && npm run eslint-ui && npm run eslint-kanvas && npm run ruff-win && npm run pylint-win",
     "test": ". venv/bin/activate; python launch.py --debug --test",
     "todo": "grep -oIPR 'TODO.*' *.py modules/ pipelines/ | sort -u",
     "debug": "grep -ohIPR 'SD_.*?_DEBUG' *.py modules/ pipelines/ | sort -u"
@@ -43,16 +44,15 @@
     "@eslint/js": "^9.39.2",
     "@eslint/json": "^0.14.0",
     "@eslint/markdown": "^7.5.1",
+    "@google/genai": "^1.41.0",
     "@html-eslint/eslint-plugin": "^0.52.1",
+    "argparse": "^2.0.1",
+    "debug": "^4.4.3",
     "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
     "eslint-config-airbnb-extended": "^3.0.0",
     "eslint-plugin-promise": "^7.2.1",
-    "@google/genai": "^1.41.0",
     "globals": "^17.0.0"
-  },
-  "dependencies": {
-    "argparse": "^2.0.1"
   },
   "//": {
     "disabled": {

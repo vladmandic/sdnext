@@ -109,6 +109,7 @@ const jsConfig = defineConfig([
         initChangelog: 'readonly',
         sendNotification: 'readonly',
         monitorConnection: 'readonly',
+        ConnectionMonitorState: 'readonly',
       },
     },
   },
