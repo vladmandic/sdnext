@@ -563,11 +563,14 @@ def run_ltx(task_id,
             except Exception:
                 aac_sample_rate = 24000
 
+            # LTX conditions the model on mp4_fps as the source frame rate; RIFE inflates frames at save time.
+            # Scale the saved fps by the interpolation factor so the output preserves the user's intended duration.
+            save_fps = mp4_fps * (mp4_interpolate + 1) if mp4_interpolate > 0 else mp4_fps
             num_frames, video_file, _thumb = save_video(
                 p=p,
                 pixels=pixels,
                 audio=audio,
-                mp4_fps=mp4_fps,
+                mp4_fps=save_fps,
                 mp4_codec=mp4_codec,
                 mp4_opt=mp4_opt,
                 mp4_ext=mp4_ext,
