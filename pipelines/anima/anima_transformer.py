@@ -19,6 +19,7 @@ Supported input formats (safetensors only; GGUF and .pth are rejected early):
 - Bare BFL keys: ``blocks.0.self_attn.q_proj.weight`` (e.g. ``rdbtAnima_v027``)
 - ``model.diffusion_model.`` prefix (e.g. ``animaika_v35``)
 - ``diffusion_model.`` prefix (ComfyUI-style export)
+- ``net.`` prefix (NVIDIA/Cosmos native export, e.g. ``animayume_v04``)
 
 Quantization: SDNQ (pre/post/auto) and ``layerwise_quantization`` are honored.
 SDNQ pre-mode is applied post-load here because this path bypasses
@@ -35,7 +36,7 @@ from modules import shared, devices, sd_models, model_quant, errors
 from modules.logger import log
 
 
-KNOWN_PREFIXES = ("model.diffusion_model.", "diffusion_model.")
+KNOWN_PREFIXES = ("model.diffusion_model.", "diffusion_model.", "net.")
 ADAPTER_PREFIX = "llm_adapter."
 COSMOS_1_MARKER = "net.blocks.block1.blocks.0.block.attn.to_q.0.weight"
 
