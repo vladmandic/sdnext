@@ -31,10 +31,10 @@ def _model_change(model_name: str):
         )
     # 2.x refine runs fixed canonical schedules; refine_strength only feeds 0.9.x LTXConditionPipeline.
     refine_strength_interactive = caps.family == '0.9'
-    # Default Refine on for Dev 2.x T2V/I2V: Lightricks' production recipe is Stage 1 + 2x upsample
-    # + Stage 2 refine (auto_refine_upsample at ltx_process.py:179 couples the stages once Refine is on).
-    # Multi-condition variants are excluded for the same reason auto_refine_upsample excludes them.
-    refine_default = caps.supports_canonical_stage2 and not caps.supports_multi_condition
+    # Default Refine on for any 2.x variant whose refine path expects upsampled latents (Dev and
+    # Distilled T2V/I2V). auto_refine_upsample at ltx_process.py:179 couples the stages once Refine
+    # is on. Condition variants are excluded by supports_two_stage_refine.
+    refine_default = caps.supports_two_stage_refine
     return (
         gr.update(visible=caps.supports_input_media),
         gr.update(visible=caps.supports_multi_condition),

@@ -174,13 +174,13 @@ def run_ltx(task_id,
             return
 
         # Lightricks TI2VidTwoStagesPipeline: Stage 1 at half-res, 2x upsample, Stage 2 refine at target.
-        # Auto-couple when the user picks Refine but not Upsample. Condition variants still need per-stage
-        # conditioning rebuild, so keep them on the same-resolution path.
+        # Auto-couple when the user picks Refine but not Upsample. Both Dev and Distilled refine paths
+        # expect upsampled latents; same-res refine on Distilled produces oversaturation. Condition
+        # variants still need per-stage conditioning rebuild and are excluded by supports_two_stage_refine.
         auto_refine_upsample = (
             refine_enable
-            and caps.supports_canonical_stage2
+            and caps.supports_two_stage_refine
             and not upsample_enable
-            and not caps.supports_multi_condition
         )
         effective_upsample_enable = upsample_enable or auto_refine_upsample
         effective_upsample_ratio = upsample_ratio if upsample_enable else 2.0
