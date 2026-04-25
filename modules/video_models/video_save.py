@@ -273,9 +273,11 @@ def save_video(
             stream.output_queue.push(('progress', (None, 'Saving video...')))
         if mp4_interpolate > 0:
             x = pixels.squeeze(0).permute(1, 0, 2, 3)
+            x = (x.clamp(-1., 1.) + 1.0) * 0.5  # RIFE expects [0, 1]; video pixels are [-1, 1]
             interpolated = rife.interpolate_nchw(x, count=mp4_interpolate+1)
             pixels = torch.stack(interpolated, dim=0)
             pixels = pixels.permute(1, 2, 0, 3, 4)
+            pixels = pixels * 2.0 - 1.0  # back to [-1, 1] for downstream save
 
         n, _c, t, h, w = pixels.shape
         x = torch.clamp(pixels.float(), -1., 1.) * 127.5 + 127.5
