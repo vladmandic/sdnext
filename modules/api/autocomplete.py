@@ -12,6 +12,7 @@ import os
 
 from fastapi.exceptions import HTTPException
 
+from modules import shared
 from modules.api.models import ItemAutocomplete, ItemAutocompleteContent, ItemAutocompleteRemote
 from modules.logger import log
 
@@ -54,9 +55,18 @@ def get_cached(name: str) -> dict:
             raise HTTPException(status_code=404, detail=f"Not found: {name} ({e})") from e
     stat = os.stat(path)
     # Translations live in an optional companion file; its mtime is folded into the cache key
-    # so edits to either file invalidate a stale entry.
+    # so edits to either file invalidate a stale entry. The opt gate forces mtime to 0 when off,
+    # so toggling the setting also invalidates the cache.
+    translations_enabled = bool(shared.opts.data.get('autocomplete_translations', False))
     translations_path = os.path.join(autocomplete_dir, f"{name}.translations.json")
-    translations_mtime = os.stat(translations_path).st_mtime if os.path.isfile(translations_path) else 0.0
+    translations_mtime = os.stat(translations_path).st_mtime if (translations_enabled and os.path.isfile(translations_path)) else 0.0
+    # Diagnostic: opt is on but the manifest-declared companion is missing locally.
+    # Logged once per name per session so user bug reports show the state without flooding the log.
+    if translations_enabled and not os.path.isfile(translations_path) and name not in translations_warned:
+        manifest_entry = next((e for e in manifest_cache.get('data', []) if e.get('name') == name), None)
+        if manifest_entry and manifest_entry.get('translations'):
+            log.warning(f'Autocomplete: translations file missing for "{name}"; toggle the setting or hit Update to redownload')
+            translations_warned.add(name)
     entry = cache.get(name)
     if entry and entry['mtime'] == stat.st_mtime and entry.get('translations_mtime', 0.0) == translations_mtime:
         cache.move_to_end(name)
@@ -101,6 +111,8 @@ def list_all_sync() -> list[ItemAutocomplete]:
     for filename in sorted(os.listdir(autocomplete_dir)):
         if not filename.endswith('.json') or filename.startswith('.') or filename == 'manifest.json':
             continue
+        if filename.endswith('.translations.json'):
+            continue  # companion file, served via the parent dict's `translations` field
         name = filename.rsplit('.', 1)[0]
         try:
             entry = get_cached(name)
@@ -175,7 +187,7 @@ def local_names() -> set[str]:
     return {
         f.rsplit('.', 1)[0]
         for f in os.listdir(autocomplete_dir)
-        if f.endswith('.json') and not f.startswith('.') and f != 'manifest.json'
+        if f.endswith('.json') and not f.startswith('.') and f != 'manifest.json' and not f.endswith('.translations.json')
     }
 
 
@@ -245,22 +257,54 @@ def download_sync(name: str) -> str:
     os.replace(tmp, target)
     cache.pop(name, None)
     log.info(f'Autocomplete: name="{name}" url={url} ({size / 1024 / 1024:.2f}MB) downloaded')
-    # Optional companion translations file. Manifest flag controls whether to attempt the download.
     manifest_entry = next((e for e in manifest_cache.get('data', []) if e.get('name') == name), None)
     if manifest_entry and manifest_entry.get('translations'):
-        tr_url = f"{HF_BASE}/{name}.translations.json"
-        tr_target = os.path.join(autocomplete_dir, f"{name}.translations.json")
-        try:
-            tr_resp = requests.get(tr_url, timeout=60)
-            tr_resp.raise_for_status()
-            tr_tmp = tr_target + ".tmp"
-            with open(tr_tmp, 'wb') as f:
-                f.write(tr_resp.content)
-            os.replace(tr_tmp, tr_target)
-            log.info(f'Autocomplete: name="{name}" translations downloaded')
-        except Exception as e:
-            log.warning(f'Autocomplete: failed to fetch translations for "{name}": {e}')
+        download_translations_sync(name)
     return target
+
+
+def download_translations_sync(name: str) -> bool:
+    """Fetch the `<name>.translations.json` companion file. Returns True on success.
+    Caller is responsible for verifying the manifest declares the companion exists.
+    """
+    import requests
+    if '/' in name or '\\' in name or '..' in name:
+        return False
+    os.makedirs(autocomplete_dir, exist_ok=True)
+    tr_url = f"{HF_BASE}/{name}.translations.json"
+    tr_target = os.path.join(autocomplete_dir, f"{name}.translations.json")
+    try:
+        tr_resp = requests.get(tr_url, timeout=60)
+        tr_resp.raise_for_status()
+        tr_tmp = tr_target + ".tmp"
+        with open(tr_tmp, 'wb') as f:
+            f.write(tr_resp.content)
+        os.replace(tr_tmp, tr_target)
+        cache.pop(name, None)  # invalidate so next get_cached picks up the new mtime
+        log.info(f'Autocomplete: name="{name}" translations downloaded')
+        return True
+    except Exception as e:
+        log.warning(f'Autocomplete: failed to fetch translations for "{name}": {e}')
+        return False
+
+
+# Per-name flag so the missing-companion warning fires once per session, not on every API request.
+translations_warned: set[str] = set()
+
+
+def sync_translations_for_enabled() -> None:
+    """For each enabled dict whose manifest carries `translations: true`, ensure the
+    companion file exists locally. Called from a background thread on the toggle flip.
+    """
+    enabled = list(shared.opts.data.get('autocomplete_enabled', []))
+    manifest = manifest_cache.get('data', [])
+    for entry in manifest:
+        name = entry.get('name')
+        if not name or name not in enabled or not entry.get('translations'):
+            continue
+        target = os.path.join(autocomplete_dir, f"{name}.translations.json")
+        if not os.path.isfile(target):
+            download_translations_sync(name)
 
 
 async def download(name: str):

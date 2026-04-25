@@ -1,6 +1,7 @@
 """Always-on script providing tag autocomplete dictionary management UI."""
 
 import json
+import threading
 import gradio as gr
 from modules import shared, scripts_manager
 from modules.api import autocomplete as ac_api
@@ -21,13 +22,15 @@ def get_all_names():
 
 def get_config_json():
     """Serialize autocomplete opts for the JS config bridge."""
+    enabled = [n for n in shared.opts.data.get('autocomplete_enabled', []) if not n.endswith('.translations')]
     return json.dumps({
         "autocomplete_active": bool(shared.opts.data.get('autocomplete_active', False)),
-        "autocomplete_enabled": list(shared.opts.data.get('autocomplete_enabled', [])),
+        "autocomplete_enabled": enabled,
         "autocomplete_min_chars": shared.opts.data.get('autocomplete_min_chars', 3),
         "autocomplete_replace_underscores": shared.opts.data.get('autocomplete_replace_underscores', True),
         "autocomplete_append_comma": shared.opts.data.get('autocomplete_append_comma', True),
         "autocomplete_at_prefix_artist": shared.opts.data.get('autocomplete_at_prefix_artist', False),
+        "autocomplete_translations": bool(shared.opts.data.get('autocomplete_translations', False)),
     })
 
 
@@ -64,6 +67,21 @@ def on_append_comma_change(value):
 def on_at_prefix_artist_change(value):
     shared.opts.data['autocomplete_at_prefix_artist'] = bool(value)
     shared.opts.save(silent=True)
+    return get_config_json()
+
+
+def on_translations_change(value):
+    enabled = bool(value)
+    shared.opts.data['autocomplete_translations'] = enabled
+    shared.opts.save(silent=True)
+    # Drop cached entries so the new setting takes effect on the next get_content call.
+    ac_api.cache.clear()
+    # Reset the missing-companion warning set so the next request re-evaluates and re-logs if needed.
+    ac_api.translations_warned.clear()
+    # On enable, sync any missing companion files in the background; downloads land
+    # while the user works and become visible on the next dict request.
+    if enabled:
+        threading.Thread(target=ac_api.sync_translations_for_enabled, daemon=True).start()
     return get_config_json()
 
 
@@ -177,6 +195,11 @@ class AutocompleteScript(scripts_manager.Script):
                     value=shared.opts.data.get('autocomplete_at_prefix_artist', False),
                     elem_id=self.elem_id("at_prefix_artist"),
                 )
+                translations_cb = gr.Checkbox(
+                    label="Foreign-term translations",
+                    value=shared.opts.data.get('autocomplete_translations', False),
+                    elem_id=self.elem_id("translations"),
+                )
                 min_chars = gr.Slider(
                     label="Min characters",
                     minimum=2, maximum=6, step=1,
@@ -197,10 +220,11 @@ class AutocompleteScript(scripts_manager.Script):
         replace_underscores.change(fn=on_replace_underscores_change, inputs=[replace_underscores], outputs=[config_json])
         append_comma.change(fn=on_append_comma_change, inputs=[append_comma], outputs=[config_json])
         at_prefix_artist.change(fn=on_at_prefix_artist_change, inputs=[at_prefix_artist], outputs=[config_json])
+        translations_cb.change(fn=on_translations_change, inputs=[translations_cb], outputs=[config_json])
         refresh_btn.click(fn=on_refresh, inputs=[], outputs=[enabled_dd, status])
         update_btn.click(fn=on_update, inputs=[enabled_dd], outputs=[status])
 
-        for comp in [enabled_dd, min_chars, replace_underscores, append_comma, at_prefix_artist, config_json, status]:
+        for comp in [enabled_dd, min_chars, replace_underscores, append_comma, at_prefix_artist, translations_cb, config_json, status]:
             comp.do_not_save_to_config = True
 
-        return [active_cb, enabled_dd, min_chars, replace_underscores, append_comma, at_prefix_artist, config_json]
+        return [active_cb, enabled_dd, min_chars, replace_underscores, append_comma, at_prefix_artist, translations_cb, config_json]

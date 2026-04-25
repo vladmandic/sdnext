@@ -528,6 +528,7 @@
     {"id":"","label":"FP VAE","localized":"","hint":"","ui":"video"},
     {"id":"","label":"FPS","localized":"","hint":"","ui":"video"},
     {"id":"","label":"Foreground threshold","localized":"","hint":"","ui":"extras"},
+    {"id":"","label":"Foreign-term translations","localized":"","hint":"Resolve foreign-language tag names to canonical English tags in the autocomplete dropdown.<br>Currently shipped for <i>danbooru</i> (Japanese) and <i>sankaku</i> (Japanese, Korean, Chinese, German, French, Italian, Portuguese, Russian, Spanish).<br><br>Enable if you prompt in non-English languages or want to look up tags by their foreign equivalent.<br>Disabled by default.","ui":"script_autocomplete"},
     {"id":"","label":"Frame change sensitivity","localized":"","hint":"","ui":"extras"},
     {"id":"","label":"Filename","localized":"","hint":"","ui":"extras"},
     {"id":"","label":"Force model eval","localized":"","hint":"","ui":"settings_sd"},
