@@ -81,8 +81,9 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - redesigned *video -> ltx* interface
   - `gallery` send-to button advanced options with right-click
   - `tag autocomplete` quick toggle in main prompt area
-  - a lot of small performance optimizations that add up to faster load times and more responsive ui
   - add ui `log` during startup
+  - update `vlad-neomorph` theme
+  - a lot of small performance optimizations that add up to faster load times and more responsive ui
 - **Caption & Prompt Enhance**
   - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune
 - **Agents**
