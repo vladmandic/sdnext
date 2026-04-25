@@ -472,8 +472,8 @@ def tokens_details(counts: list[int]):
     return f"""[<div class='token-counter-detailed'>{', '.join([str(t) for t in counts])}</div>]"""  # Note: "[" and "]" are outside of the div tag
 
 
-def tokens_summary(total: int | str, max: int | str):
-    return f"""<div class='token-counter-totals'>{total}/{max}</div>"""
+def tokens_summary(total: int | str, max_length: int | str):
+    return f"""<div class='token-counter-totals'>{total}/{max_length}</div>"""
 
 
 def update_token_counter(text: str):
