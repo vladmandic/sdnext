@@ -42,10 +42,10 @@ def _canonical_ltx2_guidance(caps) -> dict:
     }
 
 
-def _canonical_stage2_dev_kwargs() -> dict:
-    # Stage 2 identity guidance from huggingface/diffusers#13217. The distilled LoRA makes Dev
-    # behave like Distilled, which was trained at identity; Stage 1's four-way composition on
-    # top double-dips and produces striping/flicker.
+def _canonical_stage2_kwargs() -> dict:
+    # Stage 2 identity guidance from huggingface/diffusers#13217. Applied to both Dev (with
+    # distilled LoRA on top) and Distilled. Distilled was trained at identity; Dev's four-way
+    # composition on top of the LoRA double-dips and produces striping/flicker.
     from diffusers.pipelines.ltx2.utils import STAGE_2_DISTILLED_SIGMA_VALUES
     return {
         'sigmas': list(STAGE_2_DISTILLED_SIGMA_VALUES),
@@ -468,39 +468,32 @@ def run_ltx(task_id,
 
                 saved_scheduler_stage2 = None
                 try:
-                    if caps.supports_canonical_stage2:
-                        # Dev 2.x Stage 2: swap scheduler, fuse distilled LoRA, 3 steps on the distilled
-                        # sigma schedule at identity guidance (huggingface/diffusers#13217).
-                        log.info(f'LTX: canonical Stage 2 via distilled LoRA repo={caps.stage2_dev_lora_repo}')
+                    if caps.family == '2.x':
+                        # Stage 2 recipe (huggingface/diffusers#13217): fresh scheduler with shifting
+                        # disabled, 3 steps on STAGE_2_DISTILLED_SIGMA_VALUES, identity guidance.
+                        # Dev runs Distilled-on-Dev via the LoRA; Distilled is already at identity.
                         from diffusers import FlowMatchEulerDiscreteScheduler
-                        offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
                         saved_scheduler_stage2 = shared.sd_model.scheduler
                         shared.sd_model.scheduler = FlowMatchEulerDiscreteScheduler.from_config(
                             saved_scheduler_stage2.config,
                             use_dynamic_shifting=False,
                             shift_terminal=None,
                         )
-                        shared.sd_model.load_lora_weights(
-                            caps.stage2_dev_lora_repo,
-                            adapter_name=STAGE2_DEV_LORA_ADAPTER,
-                            cache_dir=shared.opts.hfcache_dir,
-                            **offline_args,
-                        )
-                        shared.sd_model.set_adapters([STAGE2_DEV_LORA_ADAPTER], [1.0])
-                        # Do NOT apply _canonical_ltx2_guidance on this path; its audio-branch kwargs
-                        # would clobber the identity set.
-                        refine_args.update(_canonical_stage2_dev_kwargs())
+                        if caps.supports_canonical_stage2:
+                            log.info(f'LTX: canonical Stage 2 via distilled LoRA repo={caps.stage2_dev_lora_repo}')
+                            offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
+                            shared.sd_model.load_lora_weights(
+                                caps.stage2_dev_lora_repo,
+                                adapter_name=STAGE2_DEV_LORA_ADAPTER,
+                                cache_dir=shared.opts.hfcache_dir,
+                                **offline_args,
+                            )
+                            shared.sd_model.set_adapters([STAGE2_DEV_LORA_ADAPTER], [1.0])
+                        else:
+                            log.info('LTX: canonical Stage 2 (Distilled native, no LoRA)')
+                        # Identity kwargs override any guidance left from earlier in refine_args.
+                        refine_args.update(_canonical_stage2_kwargs())
                         refine_args.pop('num_inference_steps', None)
-                    elif caps.family == '2.x':
-                        # Distilled 2.x. Dev 2.x with a LoRA hit the branch above.
-                        from diffusers.pipelines.ltx2.utils import STAGE_2_DISTILLED_SIGMA_VALUES
-                        refine_args['sigmas'] = list(STAGE_2_DISTILLED_SIGMA_VALUES)
-                        refine_args.pop('num_inference_steps', None)
-                        # LTX2Pipeline/LTX2ImageToVideoPipeline default noise_scale=0.0 when not passed;
-                        # sigma=0 user latents mismatched against sigmas[0] scheduler collapses output.
-                        # LTX2ConditionPipeline auto-infers this; do the same explicitly for T2V/I2V.
-                        refine_args['noise_scale'] = float(refine_args['sigmas'][0])
-                        refine_args.update(_canonical_ltx2_guidance(caps))
                     elif caps.repo_cls_name == 'LTXConditionPipeline':
                         refine_args['denoise_strength'] = refine_strength
                     if latents.ndim == 4:
@@ -521,13 +514,14 @@ def run_ltx(task_id,
                         return
                 finally:
                     if saved_scheduler_stage2 is not None:
-                        try:
-                            from modules.lora.extra_networks_lora import unload_diffusers
-                            unload_diffusers()
-                        except Exception as e:
-                            log.warning(f'LTX: canonical Stage 2 LoRA unload failed: {e}')
+                        if caps.supports_canonical_stage2:
+                            try:
+                                from modules.lora.extra_networks_lora import unload_diffusers
+                                unload_diffusers()
+                            except Exception as e:
+                                log.warning(f'LTX: canonical Stage 2 LoRA unload failed: {e}')
                         shared.sd_model.scheduler = saved_scheduler_stage2
-                        log.debug('LTX: canonical Stage 2 cleanup done (LoRA unloaded, scheduler restored)')
+                        log.debug('LTX: canonical Stage 2 cleanup done (scheduler restored)')
                 t8 = time.time()
                 shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, silent=True)
                 t9 = time.time()
