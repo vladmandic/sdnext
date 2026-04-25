@@ -583,8 +583,15 @@ function monitorServerStatus() {
         <script>
           function monitorServerStatus() {
             fetch('${window.api}/progress?skip_current_image=true')
-              .then((res) => { !res?.ok ? setTimeout(monitorServerStatus, 1000) : location.reload(); })
-              .catch((e) => setTimeout(monitorServerStatus, 1000))
+              .then((res) => {
+                console.log('monitorServerStatus', res);
+                if (res.ok) location.reload();
+                else setTimeout(monitorServerStatus, 1000);
+              })
+              .catch((err) => {
+                console.error('monitorServerStatus', err);
+                setTimeout(monitorServerStatus, 1000);
+              })
           }
           window.onload = () => monitorServerStatus();
         </script>
@@ -594,12 +601,24 @@ function monitorServerStatus() {
   document.close();
 }
 
-function restartReload() {
+const delay = ms => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function restartReload(initial=true) {
   document.body.style = 'background: #222222; font-size: 1rem; font-family:monospace; margin-top:20%; color:lightgray; text-align:center';
   document.body.innerHTML = '<h1>Server shutdown in progress...</h1>';
-  authFetch(`${window.api}/progress?skip_current_image=true`)
-    .then((res) => setTimeout(restartReload, 1000))
-    .catch((e) => setTimeout(monitorServerStatus, 500));
+  if (initial) await delay(10000);
+  try {
+    const res = await authFetch(`${window.api}/progress?skip_current_image=true`)
+    console.log('restartReload', res);
+    if (res?.ok) {
+      document.body.innerHTML = '<h1>Server restart in progress...</h1>';
+      setTimeout(() => location.reload(), 10000);
+    } else {
+      setTimeout(() => restartReload(false), 2500);
+    }
+  } catch {
+    setTimeout(() => restartReload(false), 2500);
+  }
   return [];
 }
 

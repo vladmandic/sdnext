@@ -1,5 +1,8 @@
+let monitorActive = false;
+
 class ConnectionMonitorState {
   static ws = undefined;
+  static url = '';
   static delay = 1000;
   static element;
   static version = '';
@@ -8,6 +11,7 @@ class ConnectionMonitorState {
   static model = '';
   static startup = '';
   static online = false;
+  static ts = Date();
 
   static getModel() {
     const cp = opts?.sd_model_checkpoint || '';
@@ -19,7 +23,11 @@ class ConnectionMonitorState {
   }
 
   static setData({ online, data }) {
-    this.online = online;
+    if (online !== this.online) {
+      this.online = online;
+      this.ts = new Date()
+      debug('monitorState', { online: ConnectionMonitorState.online, ts: ConnectionMonitorState.ts })
+    }
     if (data?.updated) this.version = data.updated;
     if (data?.commit) this.commit = data.commit;
     if (data?.branch) this.branch = data.branch;
@@ -55,25 +63,22 @@ async function updateIndicator(online, data = {}, msg = undefined) {
   if (msg) log('monitorConnection:', { online, data, msg });
 }
 
-async function wsMonitorLoop(url) {
+async function wsMonitorLoop() {
+  const delayed = new Date() - this.ts;
+  if ((delayed > 60 * 60) && (ConnectionMonitorState.delay < 60) && !ConnectionMonitorState.online) ConnectionMonitorState.delay = 60000;
+  else if ((delayed > 60) && (this.delay < 10) && !ConnectionMonitorState.online) ConnectionMonitorState.delay = 10000;
+  else ConnectionMonitorState.delay = 2500;
   try {
-    ConnectionMonitorState.ws = new WebSocket(`${url}/queue/join`);
+    ConnectionMonitorState.ws = new WebSocket(`${ConnectionMonitorState.url}/queue/join`);
     ConnectionMonitorState.ws.onopen = () => {};
     ConnectionMonitorState.ws.onmessage = (evt) => updateIndicator(true);
-    ConnectionMonitorState.ws.onclose = () => {
-      setTimeout(() => wsMonitorLoop(url), ConnectionMonitorState.delay); // happens regularly if there is no traffic
-    };
-    ConnectionMonitorState.ws.onerror = (e) => {
-      updateIndicator(false, {}, e.message); // actual error
-      setTimeout(() => wsMonitorLoop(url), ConnectionMonitorState.delay);
-    };
+    ConnectionMonitorState.ws.onclose = () => setTimeout(wsMonitorLoop, ConnectionMonitorState.delay); // main re-check loop
+    ConnectionMonitorState.ws.onerror = (e) => updateIndicator(false, {}, e.message); // actual error
   } catch (e) {
     updateIndicator(false, {}, e.message);
     setTimeout(monitorConnection, ConnectionMonitorState.delay); // eslint-disable-line no-use-before-define
   }
 }
-
-let monitorActive = false;
 
 async function monitorConnection() {
   if (!monitorActive) { // start monitor loop only once on startup
@@ -91,8 +96,8 @@ async function monitorConnection() {
     data = await res.json();
     log('monitorConnection:', { data });
     ConnectionMonitorState.startup = new Date();
+    ConnectionMonitorState.url = res.url.split('/sdapi')[0].replace('https:', 'wss:').replace('http:', 'ws:'); // update global url as ws need fqdn
     updateIndicator(true, data);
-    const url = res.url.split('/sdapi')[0].replace('https:', 'wss:').replace('http:', 'ws:'); // update global url as ws need fqdn
     wsMonitorLoop(url);
   } catch {
     updateIndicator(false, data);

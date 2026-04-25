@@ -146,6 +146,8 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - patch `unipc` for timesteps device placement, thanks @resonantsky
   - `civitai` search and base-model discovery improvements
   - auto-masking with `rembg`
+  - token counter formatting, thanks @awsr
+  - ui server restart
 
 ## Update for 2026-04-01
 
