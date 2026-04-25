@@ -223,13 +223,26 @@ def run_ltx(task_id,
         if condition_last is not None:
             condition_images.append(condition_last)
         conditions = []
+        conditions_stage2 = []
         if caps.supports_multi_condition:
+            # Stage 1 conditions match base latent dims; Stage 2 rebuilds at final dims so frame
+            # indices and spatial sizes survive the 2x upsample. Same source PIL/file refs feed
+            # both calls; get_conditions handles the resize.
             conditions = get_conditions(
-                width, height, condition_strength,
+                base_w, base_h, condition_strength,
                 condition_images, condition_files, condition_video,
                 condition_video_frames, condition_video_skip,
                 family=caps.family,
             )
+            if (final_w, final_h) != (base_w, base_h):
+                conditions_stage2 = get_conditions(
+                    final_w, final_h, condition_strength,
+                    condition_images, condition_files, condition_video,
+                    condition_video_frames, condition_video_skip,
+                    family=caps.family,
+                )
+            else:
+                conditions_stage2 = conditions
 
         sampler_name = processing.get_sampler_name(sampler_index)
         sd_samplers.create_sampler(sampler_name, shared.sd_model)
@@ -439,8 +452,8 @@ def run_ltx(task_id,
                     refine_args['frame_rate'] = float(mp4_fps)
                 if caps.supports_image_cond_noise_scale and image_cond_noise_scale is not None:
                     refine_args['image_cond_noise_scale'] = image_cond_noise_scale
-                if caps.supports_multi_condition and conditions:
-                    refine_args['conditions'] = conditions
+                if caps.supports_multi_condition and conditions_stage2:
+                    refine_args['conditions'] = conditions_stage2
                 # Thread Stage-1 I2V init image through Stage 2 so first-frame identity survives refine.
                 if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and p.task_args.get('image') is not None:
                     refine_args['image'] = p.task_args['image']

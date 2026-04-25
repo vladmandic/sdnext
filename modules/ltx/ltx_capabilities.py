@@ -38,7 +38,7 @@ class LTXCaps:
     guidance_rescale_default: float = 0.0
     supports_canonical_stage2: bool = False
     # Stage 1 at target/2 -> 2x upsample -> Stage 2 at target. Distilled needs upsampled latents
-    # for refine; same-res refine oversaturates. Condition variants would need per-stage rebuild.
+    # for refine; same-res refine oversaturates. Condition variants rebuild conditions per stage.
     supports_two_stage_refine: bool = False
     stage2_dev_lora_repo: Optional[str] = None
 
@@ -124,7 +124,7 @@ def get_caps(model_name: str) -> Optional[LTXCaps]:
         elif variant == '2.0':
             caps.stage2_dev_lora_repo = 'CalamitousFelicitousness/LTX-2.0-distilled-lora-384-Diffusers'
     caps.supports_canonical_stage2 = caps.stage2_dev_lora_repo is not None
-    caps.supports_two_stage_refine = is_ltx2 and not is_condition_cls
+    caps.supports_two_stage_refine = is_ltx2
 
     if is_ltx2:
         if variant == '2.3':
