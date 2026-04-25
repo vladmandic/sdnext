@@ -28,6 +28,7 @@ allow_native = [
     'f1',
     'chroma',
     'zimage',
+    'anima',
 ]
 
 

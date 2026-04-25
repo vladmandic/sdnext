@@ -502,4 +502,9 @@ def assign_network_names_to_compvis_modules(sd_model):
             if "norm" in network_name and "linear" not in network_name and shared.sd_model_type != "sd3":
                 continue
             module.network_layer_name = network_name
+    if hasattr(sd_model, 'llm_adapter') and sd_model.llm_adapter is not None:
+        for name, module in sd_model.llm_adapter.named_modules():
+            network_name = "lora_llm_adapter_" + name.replace(".", "_")
+            network_layer_mapping[network_name] = module
+            module.network_layer_name = network_name
     shared.sd_model.network_layer_mapping = network_layer_mapping
