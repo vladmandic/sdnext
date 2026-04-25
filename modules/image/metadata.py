@@ -132,7 +132,7 @@ def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[s
             image.load()
         except Exception:
             return '', {}
-    items = image.info or {}
+    items = dict(image.info) if image.info else {}  # copy so popping doesn't mutate the source image's info dict
     geninfo = items.pop('parameters', None) or items.pop('UserComment', None) or ''
     if isinstance(geninfo, dict):
         if 'UserComment' in geninfo:
@@ -184,12 +184,8 @@ def read_info_from_image(image: Image.Image, watermark: bool = False) -> tuple[s
     for key in ['exif', 'ExifOffset', 'JpegIFOffset', 'JpegIFByteCount', 'ExifVersion', 'icc_profile', 'jfif', 'jfif_version', 'jfif_unit', 'jfif_density', 'adobe', 'photoshop', 'loop', 'duration', 'dpi', 'xmp']: # remove unwanted tags
         items.pop(key, None)
 
-    try:
-        items['width'] = image.width
-        items['height'] = image.height
-        items['mode'] = image.mode
-    except Exception:
-        pass
+    if geninfo and 'parameters' not in items: # restore so callers re-stamping items preserve original generation params
+        items['parameters'] = geninfo
 
     debug(f'Metadata geninfoi: "{geninfo}"')
     debug(f'Metadata items: "{items}"')
