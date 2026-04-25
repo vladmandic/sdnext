@@ -27,6 +27,7 @@ def get_config_json():
         "autocomplete_min_chars": shared.opts.data.get('autocomplete_min_chars', 3),
         "autocomplete_replace_underscores": shared.opts.data.get('autocomplete_replace_underscores', True),
         "autocomplete_append_comma": shared.opts.data.get('autocomplete_append_comma', True),
+        "autocomplete_at_prefix_artist": shared.opts.data.get('autocomplete_at_prefix_artist', False),
     })
 
 
@@ -56,6 +57,12 @@ def on_replace_underscores_change(value):
 
 def on_append_comma_change(value):
     shared.opts.data['autocomplete_append_comma'] = bool(value)
+    shared.opts.save(silent=True)
+    return get_config_json()
+
+
+def on_at_prefix_artist_change(value):
+    shared.opts.data['autocomplete_at_prefix_artist'] = bool(value)
     shared.opts.save(silent=True)
     return get_config_json()
 
@@ -165,6 +172,11 @@ class AutocompleteScript(scripts_manager.Script):
                     value=shared.opts.data.get('autocomplete_append_comma', True),
                     elem_id=self.elem_id("append_comma"),
                 )
+                at_prefix_artist = gr.Checkbox(
+                    label="Keep @ on artist insert",
+                    value=shared.opts.data.get('autocomplete_at_prefix_artist', False),
+                    elem_id=self.elem_id("at_prefix_artist"),
+                )
                 min_chars = gr.Slider(
                     label="Min characters",
                     minimum=2, maximum=6, step=1,
@@ -184,10 +196,11 @@ class AutocompleteScript(scripts_manager.Script):
         min_chars.change(fn=on_min_chars_change, inputs=[min_chars], outputs=[config_json])
         replace_underscores.change(fn=on_replace_underscores_change, inputs=[replace_underscores], outputs=[config_json])
         append_comma.change(fn=on_append_comma_change, inputs=[append_comma], outputs=[config_json])
+        at_prefix_artist.change(fn=on_at_prefix_artist_change, inputs=[at_prefix_artist], outputs=[config_json])
         refresh_btn.click(fn=on_refresh, inputs=[], outputs=[enabled_dd, status])
         update_btn.click(fn=on_update, inputs=[enabled_dd], outputs=[status])
 
-        for comp in [enabled_dd, min_chars, replace_underscores, append_comma, config_json, status]:
+        for comp in [enabled_dd, min_chars, replace_underscores, append_comma, at_prefix_artist, config_json, status]:
             comp.do_not_save_to_config = True
 
-        return [active_cb, enabled_dd, min_chars, replace_underscores, append_comma, config_json]
+        return [active_cb, enabled_dd, min_chars, replace_underscores, append_comma, at_prefix_artist, config_json]

@@ -763,7 +763,8 @@
     {"id":"","label":"Kanvas Settings","localized":"","hint":"","ui":"control"},
     {"id":"","label":"Keep Thinking Trace","localized":"","hint":"Include the model's reasoning process in the final output.<br>Useful for understanding how the model arrived at its answer.<br>Only works with models that support thinking mode.","ui":"script_prompt_enhance"},
     {"id":"","label":"Keep Prefill","localized":"","hint":"Include the prefill text at the beginning of the final output.<br>If disabled, the prefill text used to guide the model is removed from the result.","ui":"script_prompt_enhance"},
-    {"id":"","label":"Keep aspect ratio","localized":"","hint":"","ui":"control"}
+    {"id":"","label":"Keep aspect ratio","localized":"","hint":"","ui":"control"},
+    {"id":"","label":"Keep @ on artist insert","localized":"","hint":"Type <code>@</code> in the prompt to filter autocomplete to artist tags only.<br>This setting controls only what gets inserted on accept; the <code>@</code> filter works for every model.<br><br><b>Enable</b> for models that require the <code>@</code> prefix in the prompt itself, e.g. <i>Anima</i>. Inserts as <code>@artist name</code> with underscores converted to spaces.<br><b>Disable</b> for booru-trained models that take plain artist tags, e.g. <i>SDXL</i>, <i>Pony</i>, <i>Illustrious</i>, <i>NoobAI</i>. The typed <code>@</code> is consumed and the artist name is inserted as a normal tag.","ui":"script_autocomplete"}
   ],
   "l": [
     {"id":"prompt_enhance_load","label":"Load model","localized":"","hint":"","ui":"script_prompt_enhance"},

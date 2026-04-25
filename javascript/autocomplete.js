@@ -271,6 +271,7 @@ const engine = {
  *
  * Returns { word, start, end, mode } where:
  *   mode === 'tag':      ordinary tag completion
+ *   mode === 'artist':   leading `@` trigger; results filtered to artist category and inserted with `@` preserved
  *   mode === 'lora':     inside an unclosed `<lora:...` span; `start` points at the `<`
  *   mode === 'wildcard': inside an unclosed `__...` span; `start` points at the first `_`
  *
@@ -308,10 +309,17 @@ function getCurrentWord(textarea) {
   if (segment.startsWith('__') && !segment.slice(2).includes('__')) {
     return { word: segment.slice(2), start: wordStart, end: selectionStart, mode: 'wildcard' };
   }
+  // Artist trigger: leading `@` filters tag results to the artist category.
+  if (segment.startsWith('@')) {
+    return { word: segment.slice(1), start: wordStart, end: selectionStart, mode: 'artist' };
+  }
   // Ordinary tag
   if (!segment) return null;
   return { word: segment, start: wordStart, end: selectionStart, mode: 'tag' };
 }
+
+// Booru schemas (danbooru/e621/sankaku) all assign category id 1 to artist tags.
+const ARTIST_CATEGORY_ID = 1;
 
 /** Escape bare parens so tag names like `fate_(series)` aren't parsed as attention syntax. */
 function escapeParensForPrompt(name) {
@@ -348,7 +356,7 @@ function insertExtraNetwork(textarea, item, kind) {
 /** Insert a tag at the current word position, replacing the typed prefix. */
 function insertTag(textarea, tagName) {
   const info = getCurrentWord(textarea);
-  if (!info || info.mode !== 'tag') return;
+  if (!info || (info.mode !== 'tag' && info.mode !== 'artist')) return;
   const { value } = textarea;
   const before = value.slice(0, info.start);
   const after = value.slice(info.end);
@@ -359,7 +367,14 @@ function insertTag(textarea, tagName) {
   const prefix = needsSepBefore ? `${sep} ` : '';
   let suffix = `${sep} `;
   if (after.length > 0 && after.trimStart().startsWith(',')) suffix = ' ';
-  const insertion = `${prefix}${escapeParensForPrompt(tagName)}${suffix}`;
+  // Artist mode: optionally keep the `@` prefix (Anima syntax); always convert underscores to spaces
+  // since Anima requires space-separated artist names. The `@` is consumed for non-Anima models.
+  let body = tagName;
+  if (info.mode === 'artist') {
+    body = body.replace(/_/g, ' ');
+    if (window.opts?.autocomplete_at_prefix_artist) body = `@${body}`;
+  }
+  const insertion = `${prefix}${escapeParensForPrompt(body)}${suffix}`;
   textarea.value = before.trimEnd() + (before.trimEnd().length > 0 ? ' ' : '') + insertion + after.trimStart();
   // Position cursor after the inserted tag + separator
   const cursorPos = before.trimEnd().length + (before.trimEnd().length > 0 ? 1 : 0) + insertion.length;
@@ -563,8 +578,10 @@ function onInput(textarea) {
     dropdown.hide();
     return;
   }
-  // Extra-network triggers have a zero threshold so `<lora:` alone surfaces results.
-  const threshold = info.mode === 'tag' ? minChars : 0;
+  // Threshold by mode. Trigger characters carry their own signal so we can lower (or zero) the bar.
+  let threshold = minChars;
+  if (info.mode === 'lora' || info.mode === 'wildcard') threshold = 0;
+  else if (info.mode === 'artist') threshold = 1;
   if (info.word.length < threshold) {
     dropdown.hide();
     return;
@@ -576,6 +593,9 @@ function onInput(textarea) {
       results = window.autocompleteXn ? window.autocompleteXn.searchLoras(info.word) : [];
     } else if (info.mode === 'wildcard') {
       results = window.autocompleteXn ? window.autocompleteXn.searchWildcards(info.word) : [];
+    } else if (info.mode === 'artist') {
+      // `@` trigger: tag-search filtered to the artist category. The category-1 color carries the visual cue.
+      results = engine.searchAll(info.word).filter((t) => t.category === ARTIST_CATEGORY_ID);
     } else {
       const tagResults = engine.searchAll(info.word);
       const embedResults = window.autocompleteXn ? window.autocompleteXn.searchEmbeddings(info.word) : [];
