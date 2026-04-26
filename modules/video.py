@@ -5,6 +5,7 @@ from PIL import Image
 from modules import shared, errors
 from modules.logger import log
 from modules.image.namegen import FilenameGenerator # pylint: disable=unused-import
+from modules.paths import resolve_output_path
 
 
 def interpolate_frames(images, count: int = 0, scale: float = 1.0, pad: int = 1, change: float = 0.3):
@@ -71,13 +72,14 @@ def save_video(p, images, filename = None, video_type: str = 'none', duration: f
         namegen = FilenameGenerator(p, seed=seed, prompt=prompt, image=image)
     else:
         namegen = FilenameGenerator(None, seed=0, prompt='', image=image)
+    base_path = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_video)
     if filename is None and p is not None:
         filename = namegen.apply(shared.opts.samples_filename_pattern if shared.opts.samples_filename_pattern and len(shared.opts.samples_filename_pattern) > 0 else "[seq]-[prompt_words]")
-        filename = os.path.join(shared.opts.outdir_video, filename)
+        filename = os.path.join(base_path, filename)
         filename = namegen.sequence(filename)
     else:
         if os.path.sep not in filename:
-            filename = os.path.join(shared.opts.outdir_video, filename)
+            filename = os.path.join(base_path, filename)
     ext = video_type.lower().split('/')[0] if '/' in video_type else video_type.lower()
     if not filename.lower().endswith(ext):
         filename += f'.{ext}'
