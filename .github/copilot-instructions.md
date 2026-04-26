@@ -125,4 +125,8 @@ Use these repo-local skills for recurring SD.Next model integration work:
   File: `.github/skills/todo/SKILL.md`  
   Use when searching the full codebase for `TODO` markers and producing a markdown document with proposed next steps for each item.
 
+- `update-docs`  
+  File: `.github/skills/update-docs/SKILL.md`  
+  Use when reading markdown files from `wiki/` to correct markdown syntax, improve readability, and optionally normalize structure, links, and terminology while preserving technical meaning.
+
 When creating and updating skills, update this file and the index in `.github/skills/README.md` accordingly.

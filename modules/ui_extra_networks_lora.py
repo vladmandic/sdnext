@@ -1,6 +1,6 @@
 import os
 import json
-import concurrent
+import concurrent.futures
 from modules import shared, ui_extra_networks, modelstats
 from modules.logger import log
 from modules.lora import lora_load

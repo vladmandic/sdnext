@@ -103,6 +103,7 @@ async function logMonitor() {
 async function initLogMonitor() {
   const el = document.getElementsByTagName('footer')[0];
   if (!el) return;
+  const t0 = performance.now();
   el.classList.add('log-monitor');
   const ui_disabled = Array.isArray(window.opts.ui_disabled) ? window.opts.ui_disabled : [];
   if (ui_disabled.includes('logs')) return;
@@ -126,5 +127,7 @@ async function initLogMonitor() {
   el.style.display = 'none';
   authFetch(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
   logMonitor();
-  log('initLogMonitor');
+  const t1 = performance.now();
+  log('initLogMonitor', Math.round(t1 - t0));
+  timer('initLogMonitor', t1 - t0);
 }

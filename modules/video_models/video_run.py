@@ -65,14 +65,14 @@ def generate(*args, **kwargs):
             log.warning('Video: op=T2V init image not supported')
     elif 'I2V' in model:
         if init_image is None:
-            return video_utils.queue_err('init image not set')
+            return video_utils.queue_err('No input image provided. Please upload or select an image.')
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         log.debug(f'Video: op=I2V init={init_image} resized={p.task_args["image"]}')
     elif 'FLF2V' in model:
         if init_image is None:
-            return video_utils.queue_err('init image not set')
+            return video_utils.queue_err('No input image provided. Please upload or select an image.')
         if last_image is None:
-            return video_utils.queue_err('last image not set')
+            return video_utils.queue_err('No last frame image provided. Please upload or select an image.')
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         p.task_args['last_image'] = images.resize_image(resize_mode=2, im=last_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         log.debug(f'Video: op=FLF2V init={init_image} last={last_image} resized={p.task_args["image"]}')
@@ -82,7 +82,7 @@ def generate(*args, **kwargs):
             log.debug(f'Video: op=VACE reference={init_image} resized={p.task_args["reference_images"]}')
     elif 'Animate' in model:
         if init_image is None:
-            return video_utils.queue_err('init image not set')
+            return video_utils.queue_err('No input image provided. Please upload or select an image.')
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         p.task_args['mode'] = 'animate'
         p.task_args['pose_video'] = [] # input pose video to condition the generation on. must be a list of PIL images.

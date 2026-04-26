@@ -400,6 +400,7 @@ class ReqGetLog(BaseModel):
 
 
 class ReqPostLog(BaseModel):
+    json: dict | None = Field(default=None, title="Data", description="The data to log")
     message: str | None = Field(default=None, title="Message", description="The info message to log")
     debug: str | None = Field(default=None, title="Debug message", description="The debug message to log")
     error: str | None = Field(default=None, title="Error message", description="The error message to log")
@@ -520,7 +521,8 @@ class ItemAutocompleteContent(BaseModel):
     name: str = Field(title="Name", description="Autocomplete file identifier")
     version: str = Field(default="", title="Version", description="Version string")
     categories: dict = Field(default_factory=dict, title="Categories", description="Category definitions with name and color")
-    tags: list = Field(default_factory=list, title="Tags", description="Tag entries as [name, category_id, post_count] tuples")
+    tags: list = Field(default_factory=list, title="Tags", description="Tag entries as [name, category_id, post_count, aliases?] tuples")
+    translations: Optional[dict[str, str]] = Field(default=None, title="Translations", description="Optional foreign_term -> canonical_tag_name map")
 
 class ItemAutocompleteRemote(BaseModel):
     name: str = Field(title="Name", description="Autocomplete file identifier")

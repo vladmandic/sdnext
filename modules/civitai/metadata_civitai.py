@@ -216,7 +216,7 @@ def civit_search_metadata(title: str | None = None, raw: bool = False):
             scanned += 1
             candidates.append(item)
     log.debug(f'CivitAI search metadata: type={title if isinstance(title, str) else "all"} workers={max_workers} skip={len(re_skip)} items={len(candidates)}')
-    import concurrent
+    import concurrent.futures
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
         future_items = {}
         for candidate in candidates:

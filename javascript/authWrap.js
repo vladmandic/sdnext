@@ -26,7 +26,9 @@ async function authFetch(url, options = {}) {
     res = await fetch(url, options);
     if (!res.ok) error('fetch', { status: res?.status || 503, url, user, token });
   } catch (err) {
-    error('fetch', { status: res?.status || 503, url, user, token, error: err });
+    if (ConnectionMonitorState.online) {
+      error('fetch', { status: res?.status || 503, url, user, token, error: err });
+    }
   }
   return res;
 }

@@ -29,13 +29,16 @@ class Item:
         self.preview = preview
         self.info = info
         self.ops = ops.copy()
-        self.images = images
+        if ['video'] in ops:
+            self.images = None
+        else:
+            self.images = images
 
     def __str__(self):
         if self.latent is not None:
             return f'Item(ts="{self.name}" ops={self.ops} latent={self.latent.shape} size={self.size})'
         elif self.images is not None:
-            return f'Item(ts="{self.name}" ops={self.ops} images={self.images})'
+            return f'Item(ts="{self.name}" ops={self.ops} images={len(self.images) if isinstance(self.images, list) else self.images})'
         else:
             return f'Item(ts="{self.name}" ops={self.ops} unknown content)'
 

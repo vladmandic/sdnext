@@ -86,6 +86,11 @@ def get_embeddings():
         return models.ResEmbeddings(loaded=[], skipped=[])
     return models.ResEmbeddings(loaded=list(db.word_embeddings.keys()), skipped=list(db.skipped_embeddings.keys()))
 
+def get_wildcards():
+    """List wildcard basenames (relative path with `.txt` stripped) from the configured wildcards directory."""
+    from modules import ui_extra_networks_wildcards
+    return [{"name": n} for n in ui_extra_networks_wildcards.list_wildcard_names()]
+
 def get_extra_networks(page: str | None = None, name: str | None = None, filename: str | None = None, title: str | None = None, fullname: str | None = None, hash: str | None = None): # pylint: disable=redefined-builtin
     """List extra networks (LoRA, checkpoints, embeddings, etc.) with optional filtering by page, name, filename, title, fullname, or hash."""
     res = []

@@ -30,18 +30,25 @@ DESCRIPTIONS = {
 
 
 def build_entry(filepath: str) -> dict:
-    """Build a manifest entry from a tag JSON file."""
+    """Build a manifest entry from a tag JSON file.
+    If a `<name>.translations.json` companion sits next to the file, the entry gets
+    `translations: true` so the client-side downloader knows to pull the companion too.
+    """
     with open(filepath, encoding="utf-8") as f:
         data = json.load(f)
     name = data.get("name") or os.path.splitext(os.path.basename(filepath))[0]
     size_mb = round(os.path.getsize(filepath) / (1024 * 1024), 1)
-    return {
+    entry = {
         "name": name,
         "description": DESCRIPTIONS.get(name, ""),
         "version": data.get("version", ""),
         "tag_count": len(data.get("tags", [])),
         "size_mb": size_mb,
     }
+    translations_path = os.path.join(os.path.dirname(filepath), f"{name}.translations.json")
+    if os.path.isfile(translations_path):
+        entry["translations"] = True
+    return entry
 
 
 def update_manifest(directory: str) -> bool:
@@ -86,6 +93,10 @@ def main():
     for filepath in args.files:
         basename = os.path.splitext(os.path.basename(filepath))[0]
         if basename in exclude or basename == "manifest":
+            continue
+        # Skip translation companion files. They're pulled in automatically via `translations: true`
+        # flags on their parent dict entries; standalone entries would be malformed.
+        if basename.endswith(".translations"):
             continue
         if not os.path.isfile(filepath):
             print(f"  Skipping {filepath}: not found", file=sys.stderr)

@@ -416,32 +416,45 @@ button.custom-button {
   z-index: 999;
 }
 
-.token-counter {
-  min-width: 0 !important;
-  position: absolute;
-  right: 1em;
-  top: -0.5em;
-  width: auto;
-  z-index: 100;
-}
-
-.token-counter span {
-  background: var(--input-background-fill) !important;
-  border: 2px solid rgba(192, 192, 192, 0.4) !important;
+.token-counter > .token-counter-contents {
+  display: flex;
+  flex-direction: row;
+  line-height: normal;
+  padding: 2px 4px 4px 4px;
+  margin: 0 !important;
+  color: var(--body-text-color);
+  background: var(--input-background-fill);
+  border: 2px solid rgba(192, 192, 192, 0.4);
   box-shadow: 0 0 0.0 0.3em rgba(192, 192, 192, 0.15), inset 0 0 0.6em rgba(192, 192, 192, 0.075);
 }
 
-.token-counter.error span {
-  border: 2px solid rgba(255, 0, 0, 0.4) !important;
-  box-shadow: 0 0 0.0 0.3em rgba(255, 0, 0, 0.15), inset 0 0 0.6em rgba(255, 0, 0, 0.075);
+.token-counter-detailed {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex-shrink: 1;
 }
 
-.token-counter div {
-  display: inline;
+.token-counter-totals {
+  &:not(:only-of-type) {
+    margin-left: 6px;
+  }
+  flex-shrink: 0;
 }
 
-.token-counter span {
-  padding: 0.1em 0.75em;
+/* Outermost instance of .token-counter */
+.token-counter:not(:has(> .token-counter-contents)) {
+  min-width: 0 !important;
+  position: absolute !important;
+  right: 2em;
+  top: -1em;
+  width: auto !important;
+  z-index: 100;
+  background: transparent !important;
+  &.error .token-counter-contents {
+    border: 2px solid rgba(255, 0, 0, 0.4) !important;
+    box-shadow: 0 0 0.0 0.3em rgba(255, 0, 0, 0.15), inset 0 0 0.6em rgba(255, 0, 0, 0.075);
+  }
 }
 
 .performance {

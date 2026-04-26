@@ -21,6 +21,7 @@ log_cost = {
     "/sdapi/v1/browser/thumb": -1,
     "/sdapi/v1/network/thumb": -1,
     "/run/predict": -1,
+    "/queue/join": -1,
     "/internal/progress": -1,
     "/sdapi/v1/version": -1,
     "/sdapi/v1/log": -1,

@@ -1,3 +1,4 @@
+window.hintsObserver = null;
 const allLocales = ['en', 'tb', 'nb', 'hr', 'es', 'it', 'fr', 'de', 'pt', 'ru', 'zh', 'ja', 'ko', 'hi', 'ar', 'bn', 'ur', 'id', 'vi', 'tr', 'sr', 'po', 'he', 'xx', 'qq', 'tlh'];
 const localeData = {
   prev: null,
@@ -11,7 +12,6 @@ const localeData = {
   btn: null,
   expandTimeout: null, // Property for expansion timeout
   currentElement: null, // Track current element for expansion
-  observer: null, // MutationObserver for DOM changes
 };
 let localeTimeout = null;
 const isTouchDevice = 'ontouchstart' in window;
@@ -73,7 +73,7 @@ async function tooltipCreate() {
     gradioApp().addEventListener('pointerover', tooltipShowDelegated); // eslint-disable-line no-use-before-define
     gradioApp().addEventListener('pointerout', tooltipHideDelegated); // eslint-disable-line no-use-before-define
   }
-  if (!localeData.observer) initializeDOMObserver(); // eslint-disable-line no-use-before-define
+  if (!window.hintsObserver) initializeDOMObserver(); // eslint-disable-line no-use-before-define
 }
 
 async function expandTooltip(element, longHint) {
@@ -345,6 +345,7 @@ async function setHints() {
   localeData.finished = true;
   localeData.initial = false;
   const t1 = performance.now();
+  timer('setHints', t1 - t0);
   // localeData.btn.style.backgroundColor = localeData.locale !== 'en' ? 'var(--primary-500)' : '';
   log('touchDevice', isTouchDevice);
   log('setHints', { type: localeData.type, locale: localeData.locale, elements: elements.length, localized, hints, data: localeData.data.length, override: overrideData.length, time: Math.round(t1 - t0) });
@@ -379,11 +380,11 @@ async function applyHintToElement(el) {
 
 // Initialize MutationObserver for immediate hint application
 function initializeDOMObserver() {
-  if (localeData.observer) {
-    localeData.observer.disconnect();
+  if (window.hintsObserver) {
+    window.hintsObserver.disconnect();
   }
 
-  localeData.observer = new MutationObserver((mutations) => {
+  window.hintsObserver = new MutationObserver((mutations) => {
     // Process added nodes immediately
     for (const mutation of mutations) {
       if (mutation.type === 'childList') {
@@ -421,7 +422,7 @@ function initializeDOMObserver() {
   // Start observing the entire gradio app for changes
   const targetNode = gradioApp();
   if (targetNode) {
-    localeData.observer.observe(targetNode, {
+    window.hintsObserver.observe(targetNode, {
       childList: true,
       subtree: true,
     });

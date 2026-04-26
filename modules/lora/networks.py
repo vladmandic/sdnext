@@ -9,7 +9,7 @@ from modules.logger import log, console
 
 
 applied_layers: list[str] = []
-default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2']
+default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'llm_adapter']
 
 
 def network_activate(include=None, exclude=None):
@@ -99,7 +99,7 @@ def network_deactivate(include=None, exclude=None):
             sd_models.move_model(sd_model, device=devices.cpu)
         modules = {}
 
-        components = include if len(include) > 0 else ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer']
+        components = include if len(include) > 0 else ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer', 'llm_adapter']
         components = [x for x in components if x not in exclude]
         active_components = []
         for name in components:

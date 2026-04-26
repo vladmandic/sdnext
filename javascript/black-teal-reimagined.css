@@ -583,7 +583,7 @@ svg.feather.feather-image,
   background-color: var(--background-color);
 }
 
-.block.token-counter span {
+.token-counter > .token-counter-contents {
   background-color: var(--input-background-fill) !important;
   box-shadow: 2px 2px 2px #111;
   border: none !important;

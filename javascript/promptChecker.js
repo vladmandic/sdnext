@@ -27,7 +27,7 @@ function setupBracketChecking(idPrompt, idCounter) {
 }
 
 async function initPromptChecker() {
-  log('initPromptChecker');
+  const t0 = performance.now();
   setupBracketChecking('txt2img_prompt', 'txt2img_token_counter');
   setupBracketChecking('txt2img_neg_prompt', 'txt2img_negative_token_counter');
   setupBracketChecking('img2img_prompt', 'img2img_token_counter');
@@ -36,4 +36,7 @@ async function initPromptChecker() {
   setupBracketChecking('control_neg_prompt', 'control_negative_token_counter');
   setupBracketChecking('video_prompt', 'video_token_counter');
   setupBracketChecking('video_neg_prompt', 'video_negative_token_counter');
+  const t1 = performance.now();
+  log('initPromptChecker', Math.round(t1 - t0));
+  timer('initPromptChecker', t1 - t0);
 }

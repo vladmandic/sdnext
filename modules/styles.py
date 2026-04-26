@@ -336,7 +336,7 @@ class StyleDatabase:
         self.styles.clear()
 
         def list_folder(folder):
-            import concurrent
+            import concurrent.futures
             future_items = {}
             style_files = list(files_cache.list_files(folder, ext_filter=['.json'], recursive=files_cache.not_hidden))
             with concurrent.futures.ThreadPoolExecutor(max_workers=shared.max_workers) as executor:

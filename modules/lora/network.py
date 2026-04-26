@@ -68,6 +68,8 @@ class NetworkOnDisk:
             return 'chroma'
         if base.startswith('zimage'):
             return 'zimage'
+        if base.startswith('anima'):
+            return 'anima'
         if base.startswith('qwen'):
             return 'qwen'
 
@@ -98,6 +100,8 @@ class NetworkOnDisk:
             return 'xl'
         if 'chroma' in self.name.lower():
             return 'chroma'
+        if 'anima' in self.name.lower():
+            return 'anima'
 
         return ''
 

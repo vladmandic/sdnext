@@ -71,11 +71,13 @@ def get_log(req: models.ReqGetLog = Depends()):
     return lines
 
 def post_log(req: models.ReqPostLog):
-    if req.message is not None:
+    if req.json is not None:
+        log.info(f'UI {req.message or ""}: {req.json}')
+    elif req.message is not None:
         log.info(f'UI: {req.message}')
-    if req.debug is not None:
+    elif req.debug is not None:
         log.debug(f'UI: {req.debug}')
-    if req.error is not None:
+    elif req.error is not None:
         log.error(f'UI: {req.error}')
     return {}
 

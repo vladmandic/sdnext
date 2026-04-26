@@ -1,7 +1,7 @@
 import os
 import html
 import json
-import concurrent
+import concurrent.futures
 from datetime import datetime
 from modules import shared, ui_extra_networks, sd_models, modelstats, paths, devices
 from modules.logger import log

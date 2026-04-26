@@ -60,6 +60,10 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
   File: `todo/SKILL.md`
   Use when scanning the full codebase for `TODO` markers and producing a markdown document with proposed next steps for each item.
 
+- `update-docs`
+  File: `update-docs/SKILL.md`
+  Use when reading markdown files from `wiki/` to correct markdown syntax, improve readability, and optionally normalize structure/links while preserving technical meaning.
+
 ## Notes
 
 - Keep skills narrowly task-oriented and reusable.

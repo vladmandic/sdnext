@@ -4,6 +4,10 @@ window.titles = {};
 let tabSelected = '';
 let txt2img_textarea;
 let img2img_textarea;
+let fontSizeApplyRaf = 0;
+let pendingFontSize = null;
+let appliedFontSize = null;
+let cachedGradioRoot = null;
 const wait_time = 800;
 const token_timeouts = {};
 let uiLoaded = false;
@@ -132,18 +136,35 @@ async function setTheme(val, old) {
 }
 
 function setFontSize(val, old) {
-  const size = val || opts.font_size;
-  if (size === old) return;
-  document.documentElement.style.setProperty('--font-size', `${size}px`);
-  gradioApp().style.setProperty('--font-size', `${size}px`);
-  gradioApp().style.setProperty('--text-xxs', `${size - 3}px`);
-  gradioApp().style.setProperty('--text-xs', `${size - 2}px`);
-  gradioApp().style.setProperty('--text-sm', `${size - 1}px`);
-  gradioApp().style.setProperty('--text-md', `${size}px`);
-  gradioApp().style.setProperty('--text-lg', `${size + 1}px`);
-  gradioApp().style.setProperty('--text-xl', `${size + 2}px`);
-  gradioApp().style.setProperty('--text-xxl', `${size + 3}px`);
-  log('setFontSize', size);
+  const size = Number(val || opts.font_size);
+  if (!Number.isFinite(size)) return;
+  if (size === old || size === appliedFontSize || size === pendingFontSize) return;
+  pendingFontSize = size;
+  if (fontSizeApplyRaf) return;
+
+  fontSizeApplyRaf = requestAnimationFrame(() => {
+    const t0 = performance.now();
+    fontSizeApplyRaf = 0;
+    const nextSize = pendingFontSize;
+    pendingFontSize = null;
+    if (!Number.isFinite(nextSize) || nextSize === appliedFontSize) return;
+
+    cachedGradioRoot = cachedGradioRoot || gradioApp();
+    const rootStyle = cachedGradioRoot.style;
+    document.documentElement.style.setProperty('--font-size', `${nextSize}px`);
+    rootStyle.setProperty('--font-size', `${nextSize}px`);
+    rootStyle.setProperty('--text-xxs', `${nextSize - 3}px`);
+    rootStyle.setProperty('--text-xs', `${nextSize - 2}px`);
+    rootStyle.setProperty('--text-sm', `${nextSize - 1}px`);
+    rootStyle.setProperty('--text-md', `${nextSize}px`);
+    rootStyle.setProperty('--text-lg', `${nextSize + 1}px`);
+    rootStyle.setProperty('--text-xl', `${nextSize + 2}px`);
+    rootStyle.setProperty('--text-xxl', `${nextSize + 3}px`);
+    appliedFontSize = nextSize;
+    const t1 = performance.now();
+    log('setFontSize', nextSize, `time=${Math.round(t1 - t0)}`);
+    timer('setFontSize', t1 - t0);
+  });
 }
 
 function switchToTab(tab) {
@@ -350,6 +371,28 @@ function clearPrompts(prompt, negative_prompt) {
 }
 
 const promptTokenCountUpdateFuncs = {};
+const registeredPromptTextareas = new WeakSet();
+const registeredPromptIds = new Set();
+const pendingCounterPlacement = new Set();
+const promptRegistrationConfig = [
+  ['txt2img_prompt', 'txt2img_token_counter', 'txt2img_token_button'],
+  ['txt2img_neg_prompt', 'txt2img_negative_token_counter', 'txt2img_negative_token_button'],
+  ['img2img_prompt', 'img2img_token_counter', 'img2img_token_button'],
+  ['img2img_neg_prompt', 'img2img_negative_token_counter', 'img2img_negative_token_button'],
+  ['control_prompt', 'control_token_counter', 'control_token_button'],
+  ['control_neg_prompt', 'control_negative_token_counter', 'control_negative_token_button'],
+];
+let promptRegistrationRaf = 0;
+let promptRegistrationCursor = 0;
+let promptRegistrationInProgress = false;
+
+function scheduleIdleUI(task) {
+  if (typeof window.requestIdleCallback === 'function') {
+    window.requestIdleCallback(task, { timeout: 500 });
+  } else {
+    setTimeout(task, 0);
+  }
+}
 
 function recalculatePromptTokens(name) {
   if (promptTokenCountUpdateFuncs[name]) {
@@ -427,30 +470,92 @@ function sortUIElements() {
   log('sortUIElements');
 }
 
-onAfterUiUpdate(async () => {
-  async function registerTextarea(id, id_counter, id_button) {
-    const prompt = gradioApp().getElementById(id);
-    if (!prompt) return;
-    const counter = gradioApp().getElementById(id_counter);
-    const localTextarea = gradioApp().querySelector(`#${id} > label > textarea`);
-    if (counter.parentElement === prompt.parentElement) return;
-    prompt.parentElement.insertBefore(counter, prompt);
-    prompt.parentElement.style.position = 'relative';
-    promptTokenCountUpdateFuncs[id] = () => { update_token_counter(id_button); };
-    localTextarea.addEventListener('input', promptTokenCountUpdateFuncs[id]);
-  }
-
+function registerTextareaCallback() {
   // sortUIElements();
   if (promptsInitialized) return;
-  log('initPrompts');
-  registerTextarea('txt2img_prompt', 'txt2img_token_counter', 'txt2img_token_button');
-  registerTextarea('txt2img_neg_prompt', 'txt2img_negative_token_counter', 'txt2img_negative_token_button');
-  registerTextarea('img2img_prompt', 'img2img_token_counter', 'img2img_token_button');
-  registerTextarea('img2img_neg_prompt', 'img2img_negative_token_counter', 'img2img_negative_token_button');
-  registerTextarea('control_prompt', 'control_token_counter', 'control_token_button');
-  registerTextarea('control_neg_prompt', 'control_negative_token_counter', 'control_negative_token_button');
-  promptsInitialized = true;
-});
+  if (promptRegistrationInProgress) return;
+  const t0 = performance.now();
+
+  const app = gradioApp();
+  if (!app) return;
+
+  const registerTextarea = (id, id_counter, id_button) => {
+    const prompt = app.getElementById(id);
+    const counter = app.getElementById(id_counter);
+    const localTextarea = prompt?.querySelector('label > textarea');
+    if (!prompt || !counter || !localTextarea || !prompt.parentElement) return false;
+
+    const promptParent = prompt.parentElement;
+    const needsCounterPlacement = counter.parentElement !== promptParent || counter.nextElementSibling !== prompt;
+    if (needsCounterPlacement && !pendingCounterPlacement.has(id)) {
+      pendingCounterPlacement.add(id);
+      scheduleIdleUI(() => {
+        pendingCounterPlacement.delete(id);
+        const currentPrompt = app.getElementById(id);
+        const currentCounter = app.getElementById(id_counter);
+        if (!currentPrompt || !currentCounter || !currentPrompt.parentElement) return;
+        const currentParent = currentPrompt.parentElement;
+        if (currentCounter.parentElement !== currentParent || currentCounter.nextElementSibling !== currentPrompt) {
+          currentParent.insertBefore(currentCounter, currentPrompt);
+        }
+        if (currentParent.style.position !== 'relative') {
+          currentParent.style.position = 'relative';
+        }
+      });
+    }
+
+    if (!promptTokenCountUpdateFuncs[id]) promptTokenCountUpdateFuncs[id] = () => { update_token_counter(id_button); };
+    if (!registeredPromptTextareas.has(localTextarea)) {
+      localTextarea.addEventListener('input', promptTokenCountUpdateFuncs[id]);
+      registeredPromptTextareas.add(localTextarea);
+    }
+    return true;
+  };
+
+  const runPromptRegistrationStep = () => {
+    promptRegistrationRaf = 0;
+    const total = promptRegistrationConfig.length;
+    let cfg = null;
+
+    // Process one prompt registration per frame to avoid long blocking work.
+    for (let attempts = 0; attempts < total; attempts += 1) {
+      const nextCfg = promptRegistrationConfig[promptRegistrationCursor];
+      promptRegistrationCursor = (promptRegistrationCursor + 1) % total;
+      const [id] = nextCfg;
+      if (!registeredPromptIds.has(id)) {
+        cfg = nextCfg;
+        break;
+      }
+    }
+
+    if (cfg) {
+      const [id] = cfg;
+      if (registerTextarea(...cfg)) {
+        registeredPromptIds.add(id);
+      } else {
+        // Prompt not available yet, retry on next onAfterUiUpdate callback.
+        promptRegistrationInProgress = false;
+        return;
+      }
+    }
+
+    promptsInitialized = registeredPromptIds.size === total;
+    if (promptsInitialized) {
+      promptRegistrationInProgress = false;
+      const t1 = performance.now();
+      log('initPrompts', { count: registeredPromptIds.size, time: Math.round(t1 - t0) });
+      timer('initPrompts', t1 - t0);
+      return;
+    }
+
+    promptRegistrationRaf = requestAnimationFrame(runPromptRegistrationStep);
+  };
+
+  promptRegistrationInProgress = true;
+  promptRegistrationRaf = requestAnimationFrame(runPromptRegistrationStep);
+}
+
+onAfterUiUpdate(registerTextareaCallback);
 
 function update_txt2img_tokens(...args) {
   update_token_counter('txt2img_token_button');
@@ -478,8 +583,15 @@ function monitorServerStatus() {
         <script>
           function monitorServerStatus() {
             fetch('${window.api}/progress?skip_current_image=true')
-              .then((res) => { !res?.ok ? setTimeout(monitorServerStatus, 1000) : location.reload(); })
-              .catch((e) => setTimeout(monitorServerStatus, 1000))
+              .then((res) => {
+                console.log('monitorServerStatus', res);
+                if (res.ok) location.reload();
+                else setTimeout(monitorServerStatus, 1000);
+              })
+              .catch((err) => {
+                console.error('monitorServerStatus', err);
+                setTimeout(monitorServerStatus, 1000);
+              })
           }
           window.onload = () => monitorServerStatus();
         </script>
@@ -489,12 +601,24 @@ function monitorServerStatus() {
   document.close();
 }
 
-function restartReload() {
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms)); // eslint-disable-line no-promise-executor-return
+
+async function restartReload(initial = true) {
   document.body.style = 'background: #222222; font-size: 1rem; font-family:monospace; margin-top:20%; color:lightgray; text-align:center';
   document.body.innerHTML = '<h1>Server shutdown in progress...</h1>';
-  authFetch(`${window.api}/progress?skip_current_image=true`)
-    .then((res) => setTimeout(restartReload, 1000))
-    .catch((e) => setTimeout(monitorServerStatus, 500));
+  if (initial) await delay(10000);
+  try {
+    const res = await authFetch(`${window.api}/progress?skip_current_image=true`);
+    console.log('restartReload', res);
+    if (res?.ok) {
+      document.body.innerHTML = '<h1>Server restart in progress...</h1>';
+      setTimeout(() => location.reload(), 10000);
+    } else {
+      setTimeout(() => restartReload(false), 2500);
+    }
+  } catch {
+    setTimeout(() => restartReload(false), 2500);
+  }
   return [];
 }
 
@@ -564,7 +688,7 @@ function createThemeElement() {
   return el;
 }
 
-function toggleCompact(val, old) {
+async function toggleCompact(val, old) {
   if (val === old) return;
   log('toggleCompact', val, old);
   if (val) {
@@ -608,6 +732,7 @@ async function browseFolder() {
 }
 
 async function reconnectUI() {
+  const t0 = performance.now();
   const gallery = gradioApp().getElementById('txt2img_gallery');
   const task_id = localStorage.getItem('task');
   const api_logo = Array.from(gradioApp().querySelectorAll('img')).filter((el) => el?.src?.endsWith('api-logo.svg'));
@@ -637,5 +762,7 @@ async function reconnectUI() {
   };
   const sd_model_observer = new MutationObserver(sd_model_callback);
   sd_model_observer.observe(sd_model, { attributes: true, childList: true, subtree: true });
-  log('reconnectUI');
+  const t1 = performance.now();
+  log('reconnectUI', Math.round(t1 - t0));
+  timer('reconnectUI', t1 - t0);
 }
