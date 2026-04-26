@@ -19,8 +19,9 @@ class ROCmScript(scripts_manager.Script):
             return []
 
         from scripts.rocm import rocm_mgr, rocm_vars, rocm_profiles  # pylint: disable=no-name-in-module
-
-        config = rocm_mgr.load_config()
+        # Add a global enable toggle
+        saved = rocm_mgr.load_config()
+        config = saved.copy() if saved else {}
         var_names = []
         components = []
 
@@ -62,11 +63,26 @@ class ROCmScript(scripts_manager.Script):
                 for v in rocm_vars.HIPBLASLT_VARS:
                     rules.append(f"#rocm_var_{v.lower()} {{ opacity: 0.45; pointer-events: none; }}")
             return f"<style>{' '.join(rules)}</style>" if rules else ""
-
+        saved = rocm_mgr.load_config()
         with gr.Accordion('ROCm: Advanced Config', open=False, elem_id='rocm_config'):
             with gr.Row():
                 gr.HTML("<p><u>Advanced configuration for ROCm users.</u></p><br><p>This script aims to take the guesswork out of configuring MIOpen and rocBLAS on Windows ROCm, but also to expose the functioning switches of MIOpen for advanced configurations.</p><br><p>For best performance ensure that cuDNN and PyTorch tunable ops are set to <b><i>default</i></b> in Backend Settings.</p><br><p>This script was written with the intent to support ROCm Windows users, it should however, function identically for Linux users.</p><br>")
             with gr.Row():
+                is_enabled = gr.Checkbox(
+                    label="Enable ROCm Config",
+                    value=(saved.get("ENABLE_ROCM_CONFIG", "0") == "1"),
+                    elem_id="rocm_enable"
+                )
+                # Add change handler to save state immediately
+                def _save_enable_rocm_config(val):
+                    cfg = rocm_mgr.load_config().copy()
+                    cfg["ENABLE_ROCM_CONFIG"] = "1" if val else "0"
+                    rocm_mgr.save_config(cfg)
+                    rocm_mgr.apply_env(cfg)
+                    return []
+                is_enabled.change(fn=_save_enable_rocm_config, inputs=[is_enabled], outputs=[], show_progress='hidden')
+            with gr.Row():
+                
                 btn_info   = gr.Button("Refresh Info",   variant="primary", elem_id="rocm_btn_info",   size="sm")
                 btn_apply  = gr.Button("Apply",          variant="primary", elem_id="rocm_btn_apply",  size="sm")
                 btn_reset  = gr.Button("Defaults",       elem_id="rocm_btn_reset",  size="sm")
@@ -144,7 +160,21 @@ class ROCmScript(scripts_manager.Script):
         gemm_comp = components[var_names.index("MIOPEN_GEMM_ENFORCE_BACKEND")]
         gemm_comp.change(fn=gemm_changed, inputs=[gemm_comp], outputs=[style_out] + components, show_progress='hidden')
 
-        def apply_fn(*values):
+        def apply_fn(is_enabled_val, *values):
+            if not is_enabled_val:
+                return [gr.update()] * (1 + len(components))
+    
+            try:
+                cfg = rocm_mgr.load_config().copy()
+                rocm_mgr.apply_all(var_names, list(values))
+        
+                # Save the checkbox state explicitly using the passed value
+                cfg["ENABLE_ROCM_CONFIG"] = "1" if is_enabled_val else "0"
+                rocm_mgr.save_config(cfg)
+                saved = rocm_mgr.load_config()
+            except Exception as e:
+                print(f"ROCm config save failed: {e}")
+            config = {}
             rocm_mgr.apply_all(var_names, list(values))
             saved = rocm_mgr.load_config()
             arch = saved.get(rocm_mgr._ARCH_KEY, "")
@@ -163,8 +193,14 @@ class ROCmScript(scripts_manager.Script):
             return result
 
         def reset_fn():
+            # Preserve ENABLE_ROCM_CONFIG if present
+            prev_cfg = rocm_mgr.load_config().copy()
+            enable_val = prev_cfg.get("ENABLE_ROCM_CONFIG")
             rocm_mgr.reset_defaults()
             updated = rocm_mgr.load_config()
+            if enable_val is not None:
+                updated["ENABLE_ROCM_CONFIG"] = enable_val
+                rocm_mgr.save_config(updated)
             arch = updated.get(rocm_mgr._ARCH_KEY, "")
             unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
             gemm_val = updated.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
@@ -196,7 +232,15 @@ class ROCmScript(scripts_manager.Script):
             return result
 
         def delete_fn():
+            # Preserve ENABLE_ROCM_CONFIG if present
+            prev_cfg = rocm_mgr.load_config().copy()
+            enable_val = prev_cfg.get("ENABLE_ROCM_CONFIG")
             rocm_mgr.delete_config()
+            # After delete, re-inject ENABLE_ROCM_CONFIG if it was set
+            if enable_val is not None:
+                cfg = rocm_mgr.load_config().copy()
+                cfg["ENABLE_ROCM_CONFIG"] = enable_val
+                rocm_mgr.save_config(cfg)
             gemm_default = rocm_vars.ROCM_ENV_VARS.get("MIOPEN_GEMM_ENFORCE_BACKEND", {}).get("default", "1")
             result = [gr.update(value=_build_style(None, gemm_default == "1"))]
             for name in var_names:
@@ -210,8 +254,14 @@ class ROCmScript(scripts_manager.Script):
             return result
 
         def profile_fn(arch):
+            # Preserve ENABLE_ROCM_CONFIG if present
+            prev_cfg = rocm_mgr.load_config().copy()
+            enable_val = prev_cfg.get("ENABLE_ROCM_CONFIG")
             rocm_mgr.apply_profile(arch)
             updated = rocm_mgr.load_config()
+            if enable_val is not None:
+                updated["ENABLE_ROCM_CONFIG"] = enable_val
+                rocm_mgr.save_config(updated)
             unavailable = rocm_profiles.UNAVAILABLE.get(arch, set())
             gemm_val = updated.get("MIOPEN_GEMM_ENFORCE_BACKEND", "1")
             result = [gr.update(value=_build_style(unavailable, gemm_val == "1"))]
@@ -227,7 +277,7 @@ class ROCmScript(scripts_manager.Script):
             return result
 
         btn_info.click(fn=_info_html, inputs=[], outputs=[info_out], show_progress='hidden')
-        btn_apply.click(fn=apply_fn, inputs=components, outputs=[style_out] + components, show_progress='hidden')
+        btn_apply.click(fn=apply_fn, inputs=[is_enabled] + components,  outputs=[style_out] + components, show_progress='hidden')
         btn_reset.click(fn=reset_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
         btn_clear.click(fn=clear_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
         btn_delete.click(fn=delete_fn, inputs=[], outputs=[style_out] + components, show_progress='hidden')
