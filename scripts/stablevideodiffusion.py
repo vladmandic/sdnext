@@ -69,6 +69,7 @@ class SVDScript(scripts_manager.Script):
         return frames
 
     def run(self, p: processing.StableDiffusionProcessing, model, num_frames, override_resolution, min_guidance_scale, max_guidance_scale, decode_chunk_size, motion_bucket_id, noise_aug_strength, video_type, duration, gif_loop, mp4_pad, mp4_interpolate): # pylint: disable=arguments-differ, unused-argument
+        p.video_interpolate = mp4_interpolate
         image = getattr(p, 'init_images', None)
         if image is None or len(image) == 0:
             log.error('SVD: no init_images')
