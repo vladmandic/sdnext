@@ -66,7 +66,7 @@ async function updateIndicator(online, data = {}, msg = undefined) {
 async function wsMonitorLoop() {
   const delayed = new Date() - this.ts;
   if ((delayed > 60 * 60) && (ConnectionMonitorState.delay < 60) && !ConnectionMonitorState.online) ConnectionMonitorState.delay = 60000;
-  else if ((delayed > 60) && (this.delay < 10) && !ConnectionMonitorState.online) ConnectionMonitorState.delay = 10000;
+  else if ((delayed > 5 * 60) && (this.delay < 10) && !ConnectionMonitorState.online) ConnectionMonitorState.delay = 10000;
   else ConnectionMonitorState.delay = 2500;
   try {
     ConnectionMonitorState.ws = new WebSocket(`${ConnectionMonitorState.url}/queue/join`);
