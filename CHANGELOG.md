@@ -1,15 +1,16 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-25
+## Update for 2026-04-26
 
-### Highlights for 2026-04-25
+### Highlights for 2026-04-26
 
 *What's New?*
 - New image models! **ERNIE-Image**, **Zeta-Chroma**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**
 - New video model: **LTX 2.3 v1.1** *(with audio, refiner and upscaler)*
 - Major **Kanvas** update for enhanced inpaint/outpaint and overal more responsive **UI**
-- Built-in **Tag-Autocomplete** with support for *10+* tag databases
-- Additional Schedulers, updates to NudeNet, OpenVINO and ROCm and other features
+- Built-in **Tag-Autocomplete** with support for *10+* tag databases and support for networks!
+- Additional *Schedulers*, updates to *NudeNet*, *RIFE*, *OpenVINO* and *ROCm* and other features
+- [Launcher](https://github.com/vladmandic/sdnext-launcher) tweaks
 
 And tons of *quality-of-life* improvements and *bug-fixes*!
 In addition, to jump on a bandwagon, we're now fully **AI agent** ready with detailed instructions and skills!
@@ -18,7 +19,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-25
+### Details for 2026-04-26
 
 - **Models**
   - [LTX Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) add *1.1 Distilled* and *1.1 Distilled-SDNQ* variants  
@@ -38,18 +39,21 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
     *note*: verbose JSON prompts are desired, using simple text prompt is suboptimial  
   - [Anima Preview-v3](https://huggingface.co/circlestone-labs/Anima)  
     new version of Anima  
+    added support for finetunes (safetensors) loading and LoRAs!  
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
     *note*: more of an experimental model and doesn't support offloading  
 - **Features**
   - **Tag Autocomplete** native implementation!  
-    select and activate any number of different auto-complete databases  
+    support for tags/words: select and activate any number of different auto-complete databases  
+    support for networks: works with lora, embeddings, wildcards, etc
     see *Extras -> Autocomplete* for all settings  
   - **NudeNet** add image safety evaluation models  
     supports `LlavaGuard` and `QwenGuard`  
   - **schedulers** add `ER-SDE` solver  
     with *1S, 2M, 3M* variants in both *EPS* and *FlowMatch* flavors  
   - **LoRA** rewrite `z-image` support and add all known variants
+  - **RIFE** update to v4.26 and enhance video interpolation processing  
   - **installer** auto-restart on upgrade
   - enhanced **filename** pattern processing  
     *settings -> image paths -> directory/filename pattern*  
@@ -82,6 +86,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - `gallery` send-to button advanced options with right-click
   - `tag autocomplete` quick toggle in main prompt area
   - add ui `log` during startup
+  - ui exception handling will show any captured exceptions directly in a ui, thanks @awsr
   - update `vlad-neomorph` theme
   - a lot of small performance optimizations that add up to faster load times and more responsive ui
 - **Caption & Prompt Enhance**
@@ -103,6 +108,8 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
     *other*: `todo`  
 - **CLI**
   - add `cli/hf-info` and update `cli/hf-search.py`
+- **API**
+  - new GET `/sdapi/v1/wildcards` endpoint
 - **Docs**
   - validation of all links
   - syntax/structure/language corrections accross all documents
@@ -149,6 +156,10 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - auto-masking with `rembg`
   - token counter formatting, thanks @awsr
   - ui server restart
+  - `torchvision` video patch
+  - preserve `image.info`
+  - color grading preserve metadata
+  - resolve video output path
 
 ## Update for 2026-04-01
 
