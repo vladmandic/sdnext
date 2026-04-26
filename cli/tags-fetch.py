@@ -123,18 +123,38 @@ def fetch_with_retry(session: requests.Session, url: str, params: dict | None = 
                 raise
 
 
+# -- Auth --
+
+def parse_login_key(key: str | None) -> tuple[str, str] | None:
+    """Parse a `login:api_key` string. Returns (login, api_key) or None if unset/invalid."""
+    if not key or ":" not in key:
+        return None
+    login, api_key = key.split(":", 1)
+    login = login.strip()
+    api_key = api_key.strip()
+    if not login or not api_key:
+        return None
+    return login, api_key
+
+
 # -- Fetchers --
 
-def fetch_danbooru(min_count: int = 10, partial_path: str = "", **_kwargs) -> list:
-    """Fetch tags from Danbooru API, paginated."""
+def fetch_danbooru(min_count: int = 10, partial_path: str = "", api_key: str | None = None, **_kwargs) -> list:
+    """Fetch tags from Danbooru API, paginated.
+    With `api_key` set (login:api_key) the rate limit rises from anon (~1 rps) to authenticated (~10 rps).
+    """
+    auth = parse_login_key(api_key)
+    sleep_sec = 0.1 if auth else 1.0
     start_page, tags = load_partial(partial_path)
     page = (start_page + 1) if start_page is not None else 1
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
     while True:
-        url = f"https://danbooru.donmai.us/tags.json?limit=1000&page={page}&search[order]=count"
+        params: dict[str, str] = {"limit": "1000", "page": str(page), "search[order]": "count"}
+        if auth:
+            params["login"], params["api_key"] = auth
         try:
-            resp = fetch_with_retry(session, url)
+            resp = fetch_with_retry(session, "https://danbooru.donmai.us/tags.json", params=params)
         except requests.RequestException as e:
             print(f"  Error on page {page}: {e}", file=sys.stderr)
             break
@@ -153,21 +173,27 @@ def fetch_danbooru(min_count: int = 10, partial_path: str = "", **_kwargs) -> li
         if page % SAVE_INTERVAL == 0:
             save_partial(partial_path, page, tags)
         page += 1
-        time.sleep(0.5)
+        time.sleep(sleep_sec)
     tags.sort(key=lambda t: t[2], reverse=True)
     return tags
 
 
-def fetch_e621(min_count: int = 10, partial_path: str = "", **_kwargs) -> list:
-    """Fetch tags from e621 API, paginated."""
+def fetch_e621(min_count: int = 10, partial_path: str = "", api_key: str | None = None, **_kwargs) -> list:
+    """Fetch tags from e621 API, paginated.
+    With `api_key` set (login:api_key) the rate limit rises from anon (~1 rps) to authenticated.
+    """
+    auth = parse_login_key(api_key)
+    sleep_sec = 0.25 if auth else 1.0
     start_page, tags = load_partial(partial_path)
     page = (start_page + 1) if start_page is not None else 1
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
     while True:
-        url = f"https://e621.net/tags.json?limit=320&page={page}&search[order]=count"
+        params: dict[str, str] = {"limit": "320", "page": str(page), "search[order]": "count"}
+        if auth:
+            params["login"], params["api_key"] = auth
         try:
-            resp = fetch_with_retry(session, url)
+            resp = fetch_with_retry(session, "https://e621.net/tags.json", params=params)
         except requests.RequestException as e:
             print(f"  Error on page {page}: {e}", file=sys.stderr)
             break
@@ -186,9 +212,61 @@ def fetch_e621(min_count: int = 10, partial_path: str = "", **_kwargs) -> list:
         if page % SAVE_INTERVAL == 0:
             save_partial(partial_path, page, tags)
         page += 1
-        time.sleep(1.0)
+        time.sleep(sleep_sec)
     tags.sort(key=lambda t: t[2], reverse=True)
     return tags
+
+
+def fetch_danbooru_style_aliases(base_url: str, api_key: str | None, partial_path: str, sleep_sec: float) -> dict[str, list[str]]:
+    """Fetch active tag aliases from a Danbooru-style /tag_aliases.json endpoint.
+    Works for both danbooru.donmai.us and e621.net, which share the same schema.
+    Returns {consequent_name: [antecedent_names]}.
+    """
+    partial = {}
+    start_page, collected = load_partial(partial_path)
+    if collected and isinstance(collected, dict):
+        partial = collected
+    page = (start_page + 1) if start_page is not None else 1
+    auth = parse_login_key(api_key)
+    session = requests.Session()
+    session.headers["User-Agent"] = USER_AGENT
+    while True:
+        params: dict[str, str] = {"limit": "1000", "page": str(page), "search[status]": "active"}
+        if auth:
+            params["login"], params["api_key"] = auth
+        try:
+            resp = fetch_with_retry(session, base_url, params=params)
+        except requests.RequestException as e:
+            print(f"  Error on alias page {page}: {e}", file=sys.stderr)
+            break
+        data = resp.json()
+        if not data:
+            break
+        for row in data:
+            ant = row.get("antecedent_name")
+            con = row.get("consequent_name")
+            if not ant or not con:
+                continue
+            partial.setdefault(con, []).append(ant)
+        print(f"  Alias page {page}: {len(data)} rows (total consequents: {len(partial)})", file=sys.stderr)
+        if page % SAVE_INTERVAL == 0:
+            # .partial for alias harvests stores the dict directly under `tags` for reuse of the loader.
+            save_partial(partial_path, page, partial)  # type: ignore[arg-type]
+        page += 1
+        time.sleep(sleep_sec)
+    return partial
+
+
+def fetch_danbooru_aliases(api_key: str | None = None, partial_path: str = "", **_kwargs) -> dict[str, list[str]]:
+    """Harvest active tag aliases from Danbooru. Authenticated runs go ~10x faster."""
+    sleep_sec = 0.1 if parse_login_key(api_key) else 1.0
+    return fetch_danbooru_style_aliases("https://danbooru.donmai.us/tag_aliases.json", api_key, partial_path, sleep_sec)
+
+
+def fetch_e621_aliases(api_key: str | None = None, partial_path: str = "", **_kwargs) -> dict[str, list[str]]:
+    """Harvest active tag aliases from e621 (same schema as danbooru)."""
+    sleep_sec = 0.25 if parse_login_key(api_key) else 1.0
+    return fetch_danbooru_style_aliases("https://e621.net/tag_aliases.json", api_key, partial_path, sleep_sec)
 
 
 def fetch_gelbooru(base_url: str, min_count: int = 10, api_key: str | None = None, rate_limit: float = 0.5, partial_path: str = "") -> list:
@@ -259,16 +337,117 @@ def fetch_rule34(min_count: int = 10, api_key: str | None = None, partial_path: 
     return fetch_gelbooru("https://api.rule34.xxx/index.php", min_count=min_count, api_key=api_key, partial_path=partial_path)
 
 
-def fetch_sankaku(min_count: int = 10, partial_path: str = "", **_kwargs) -> list:
+def fetch_danbooru_translations(api_key: str | None = None, partial_path: str = "", **_kwargs) -> dict[str, str]:
+    """Harvest foreign-name to canonical mappings from Danbooru's wiki.
+    Each wiki page has `title` (canonical tag) and `other_names[]` (alternate names, often JA/KR/ZH).
+    Returns {other_name_lower: title_lower}. Full harvest; authenticated runs go ~10x faster.
+    """
+    auth = parse_login_key(api_key)
+    sleep_sec = 0.1 if auth else 1.0
+    partial: dict[str, str] = {}
+    start_page, collected = load_partial(partial_path)
+    if collected and isinstance(collected, dict):
+        partial = collected
+    page = (start_page + 1) if start_page is not None else 1
+    session = requests.Session()
+    session.headers["User-Agent"] = USER_AGENT
+    while True:
+        params: dict[str, str] = {"limit": "1000", "page": str(page), "only": "title,other_names"}
+        if auth:
+            params["login"], params["api_key"] = auth
+        try:
+            resp = fetch_with_retry(session, "https://danbooru.donmai.us/wiki_pages.json", params=params)
+        except requests.RequestException as e:
+            print(f"  Error on wiki page {page}: {e}", file=sys.stderr)
+            break
+        data = resp.json()
+        if not data:
+            break
+        added = 0
+        for wiki in data:
+            title = (wiki.get("title") or "").strip().lower()
+            if not title:
+                continue
+            for other in wiki.get("other_names") or []:
+                other_norm = (other or "").strip().lower()
+                if not other_norm or other_norm == title:
+                    continue
+                # First-wins: if two wiki pages claim the same foreign term, keep the first seen.
+                partial.setdefault(other_norm, title)
+                added += 1
+        print(f"  Wiki page {page}: {len(data)} entries ({added} names, total: {len(partial)})", file=sys.stderr)
+        if page % SAVE_INTERVAL == 0:
+            save_partial(partial_path, page, partial)  # type: ignore[arg-type]
+        page += 1
+        time.sleep(sleep_sec)
+    return partial
+
+
+def fetch_rule34_aliases(partial_path: str = "", **_kwargs) -> dict[str, list[str]]:
+    """Harvest rule34.xxx aliases by scraping the public /index.php?page=alias&s=list listing.
+    No API key required (alias list is public). 50 rows per page; `pid` advances by 50; empty page = done.
+    """
+    import re
+    from html import unescape
+    partial: dict[str, list[str]] = {}
+    start_pid, collected = load_partial(partial_path)
+    if collected and isinstance(collected, dict):
+        partial = collected
+    pid = (start_pid + 50) if start_pid is not None else 0
+    session = requests.Session()
+    # A browser-like UA is needed; the default python-requests UA gets 403.
+    session.headers["User-Agent"] = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/138.0.0.0 Safari/537.36"
+    # Matches the 4 <td> cells of an alias row: checkbox, alias-link, canonical-link, reason.
+    # Each tag link's text is `tagname` (possibly with ` (count)` suffix), so we extract from the tags= URL param instead.
+    row_re = re.compile(r'<tr class="(?:even|odd)"[^>]*>.*?</tr>', re.DOTALL)
+    tag_re = re.compile(r'tags=([^"&]+)')
+    while True:
+        try:
+            resp = fetch_with_retry(session, "https://rule34.xxx/index.php",
+                                    params={"page": "alias", "s": "list", "pid": str(pid)})
+        except requests.RequestException as e:
+            print(f"  Error on alias pid={pid}: {e}", file=sys.stderr)
+            break
+        rows = row_re.findall(resp.text)
+        if not rows:
+            break
+        added = 0
+        for row in rows:
+            matches = tag_re.findall(row)
+            if len(matches) < 2:
+                continue
+            ant = unescape(matches[0]).strip()
+            con = unescape(matches[1]).strip()
+            if not ant or not con:
+                continue
+            partial.setdefault(con, []).append(ant)
+            added += 1
+        print(f"  Alias pid={pid}: {len(rows)} rows ({added} parsed, total consequents: {len(partial)})", file=sys.stderr)
+        if len(rows) < 50:
+            break  # last page
+        if (pid // 50) % SAVE_INTERVAL == 0:
+            save_partial(partial_path, pid, partial)  # type: ignore[arg-type]
+        pid += 50
+        time.sleep(1.0)
+    return partial
+
+
+def fetch_sankaku(min_count: int = 10, partial_path: str = "", translations_out: dict | None = None, **_kwargs) -> list:
     """Fetch tags from Sankaku Complex (chan.sankakucomplex.com).
 
     Uses the public JSON API at sankakuapi.com which supports order=count,
     so we can stop early when counts drop below min_count.
     Tag names come as English with spaces - converted to lowercase.
+
+    If `translations_out` is provided, it is populated with {foreign_term_lower: canonical_lower}
+    harvested from each tag's name_ja + translations[] fields in the same pass, avoiding a second
+    full-API walk.
     """
     start_page, tags = load_partial(partial_path)
     page = (start_page + 1) if start_page is not None else 1
     page_size = 200
+    # Languages to include in translations. EN is already the canonical tag, so it's excluded.
+    translation_langs = {"ja", "ko", "zh", "de", "it", "pt", "ru", "fr", "es"}
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
     while True:
@@ -290,6 +469,18 @@ def fetch_sankaku(min_count: int = 10, partial_path: str = "", **_kwargs) -> lis
                 continue
             name = name.strip().lower()
             tags.append([name, tag.get("type", 0), count])
+            if translations_out is None:
+                continue
+            # name_ja is present on most tags; translations[] covers other languages when available.
+            name_ja = (tag.get("name_ja") or "").strip().lower()
+            if name_ja and name_ja != name:
+                translations_out.setdefault(name_ja, name)
+            for entry in tag.get("translations") or []:
+                lang = (entry.get("lang") or "").strip().lower()
+                term = (entry.get("translation") or "").strip().lower()
+                if not term or lang not in translation_langs or term == name:
+                    continue
+                translations_out.setdefault(term, name)
         below_threshold = all(tag.get("post_count", 0) < min_count for tag in data)
         print(f"  Page {page}: {len(data)} tags (total: {len(tags)})", file=sys.stderr)
         if below_threshold:
@@ -344,27 +535,55 @@ def fetch_idol(min_count: int = 10, partial_path: str = "", **_kwargs) -> list:
 
 
 SOURCES = {
-    "danbooru": {"fetch": fetch_danbooru, "type_map": DANBOORU_TYPE_MAP},
-    "e621": {"fetch": fetch_e621, "type_map": E621_TYPE_MAP},
-    "rule34": {"fetch": fetch_rule34, "type_map": RULE34_TYPE_MAP},
-    "sankaku": {"fetch": fetch_sankaku, "type_map": SANKAKU_TYPE_MAP},
+    "danbooru": {
+        "fetch": fetch_danbooru, "type_map": DANBOORU_TYPE_MAP,
+        "fetch_aliases": fetch_danbooru_aliases,
+        "fetch_translations": fetch_danbooru_translations,
+    },
+    "e621": {
+        "fetch": fetch_e621, "type_map": E621_TYPE_MAP,
+        "fetch_aliases": fetch_e621_aliases,
+    },
+    "rule34": {
+        "fetch": fetch_rule34, "type_map": RULE34_TYPE_MAP,
+        "fetch_aliases": fetch_rule34_aliases,
+    },
+    "sankaku": {"fetch": fetch_sankaku, "type_map": SANKAKU_TYPE_MAP},  # translations harvested inline
     "idol": {"fetch": fetch_idol, "type_map": IDOL_TYPE_MAP},
 }
 
 
-def write_dict(name: str, tags: list, type_map: dict, output_path: str, separator: str = "_"):
+def write_dict(name: str, tags: list, type_map: dict, output_path: str,
+               separator: str = "_", aliases: dict[str, list[str]] | None = None):
     """Write dict JSON file atomically.
 
     type_map remaps source-native category IDs to unified IDs.
     separator controls the word separator in tag names:
       "_" (default) → "high_resolution" (booru convention, anime/illustration models)
       " " → "high resolution" (natural language, SDXL/Flux-style models)
+    aliases, if provided, is {canonical_name: [alternative_names]}. A 4-tuple is emitted
+      only for tags that have non-empty aliases, keeping the on-disk size of alias-free
+      tags unchanged for backward compatibility with clients reading 3-tuples.
     """
+    aliases = aliases or {}
     normalized = []
+    matched_aliases = 0
     for t in tags:
-        tag_name = t[0].replace(" ", "_") if separator == "_" else t[0].replace("_", " ")
+        source_name = t[0]
+        canonical_key = source_name.strip().lower()
+        tag_name = source_name.replace(" ", "_") if separator == "_" else source_name.replace("_", " ")
         category = type_map.get(t[1], 0)
-        normalized.append([tag_name, category, t[2]])
+        tag_aliases = aliases.get(canonical_key) or aliases.get(tag_name.lower())
+        if tag_aliases:
+            # Normalize alias word-separator to match the tag's separator choice.
+            if separator == "_":
+                tag_aliases = [a.replace(" ", "_") for a in tag_aliases]
+            else:
+                tag_aliases = [a.replace("_", " ") for a in tag_aliases]
+            normalized.append([tag_name, category, t[2], tag_aliases])
+            matched_aliases += 1
+        else:
+            normalized.append([tag_name, category, t[2]])
     data = {
         "name": name,
         "version": date.today().isoformat(),
@@ -377,23 +596,77 @@ def write_dict(name: str, tags: list, type_map: dict, output_path: str, separato
         json.dump(data, f, ensure_ascii=False, separators=(",", ":"))
     os.replace(tmp_path, output_path)
     size_mb = os.path.getsize(output_path) / (1024 * 1024)
-    print(f"  Written: {output_path} ({len(tags)} tags, {size_mb:.1f} MB)", file=sys.stderr)
+    alias_note = f", {matched_aliases} with aliases" if matched_aliases else ""
+    print(f"  Written: {output_path} ({len(tags)} tags{alias_note}, {size_mb:.1f} MB)", file=sys.stderr)
 
 
-def fetch_source(name: str, output: str, min_count: int, api_key: str | None = None, separator: str = "_"):
-    """Fetch and write a single source."""
+def write_translations(mapping: dict[str, str], output_path: str):
+    """Write the translations companion file atomically.
+    `mapping` is {foreign_term: canonical_tag_name}, both lowercased and underscore-normalized.
+    """
+    if not mapping:
+        return
+    os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
+    tmp_path = output_path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
+        json.dump(mapping, f, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    os.replace(tmp_path, output_path)
+    size_kb = os.path.getsize(output_path) / 1024
+    print(f"  Translations: {output_path} ({len(mapping)} terms, {size_kb:.1f} KB)", file=sys.stderr)
+
+
+def fetch_source(name: str, output: str, min_count: int, keys: dict[str, str] | None = None, separator: str = "_"):
+    """Fetch and write a single source. `keys` maps source name to `login:token` (or rule34's `uid:token`)."""
     if name not in SOURCES:
         print(f"Unknown source: {name}. Available: {', '.join(SOURCES.keys())}", file=sys.stderr)
         sys.exit(1)
     source = SOURCES[name]
+    keys = keys or {}
+    api_key = keys.get(name)
     partial_path = output + ".partial"
     print(f"Fetching {name} (min_count={min_count})...", file=sys.stderr)
-    tags = source["fetch"](min_count=min_count, api_key=api_key, partial_path=partial_path)
+
+    # Sankaku collects translations inline during the tag walk to avoid a second full API pass.
+    translations_inline: dict[str, str] | None = {} if name == "sankaku" else None
+    tags = source["fetch"](
+        min_count=min_count, api_key=api_key, partial_path=partial_path,
+        translations_out=translations_inline,
+    ) if translations_inline is not None else source["fetch"](
+        min_count=min_count, api_key=api_key, partial_path=partial_path,
+    )
     if not tags:
         print(f"  No tags fetched for {name}", file=sys.stderr)
         return
-    write_dict(name, tags, source["type_map"], output, separator=separator)
+
+    # Optional alias harvest via a separate .partial file (independent resume).
+    aliases: dict[str, list[str]] = {}
+    if source.get("fetch_aliases"):
+        alias_partial = output + ".aliases.partial"
+        print(f"Fetching {name} aliases...", file=sys.stderr)
+        try:
+            aliases = source["fetch_aliases"](api_key=api_key, partial_path=alias_partial)
+            clear_partial(alias_partial)
+        except Exception as e:
+            print(f"  Alias fetch failed for {name}: {e}", file=sys.stderr)
+            aliases = {}
+
+    write_dict(name, tags, source["type_map"], output, separator=separator, aliases=aliases)
     clear_partial(partial_path)
+
+    # Translations: either inline (sankaku) or via a dedicated fetcher (danbooru wiki).
+    translations: dict[str, str] = translations_inline or {}
+    if source.get("fetch_translations"):
+        tr_partial = output + ".translations.partial"
+        print(f"Fetching {name} translations...", file=sys.stderr)
+        try:
+            translations = source["fetch_translations"](api_key=api_key, partial_path=tr_partial) or {}
+            clear_partial(tr_partial)
+        except Exception as e:
+            print(f"  Translation fetch failed for {name}: {e}", file=sys.stderr)
+    if translations:
+        tr_output = output.replace(".json", ".translations.json") if output.endswith(".json") else f"{output}.translations.json"
+        write_translations(translations, tr_output)
+
     from importlib.util import spec_from_file_location, module_from_spec
     spec = spec_from_file_location("tags_manifest", os.path.join(os.path.dirname(__file__), "tags-manifest.py"))
     mod = module_from_spec(spec)
@@ -408,19 +681,29 @@ def main():
     parser.add_argument("--output", "-o", help="Output file path (for single source)")
     parser.add_argument("--output-dir", "-d", help="Output directory (for 'all')")
     parser.add_argument("--min-count", "-m", type=int, default=10, help="Minimum post count to include (default: 10)")
-    parser.add_argument("--key", "-k", help="API key as USER_ID:API_KEY (required for rule34)")
+    parser.add_argument("--key", "-k", help="Rule34 API key as USER_ID:API_KEY")
+    parser.add_argument("--danbooru-key", help="Danbooru login:api_key (raises rate limit from 1 to 10 rps)")
+    parser.add_argument("--e621-key", help="e621 login:api_key (raises rate limit)")
     parser.add_argument("--spaces", action="store_true", help="Use spaces instead of underscores in tag names (for natural language models like SDXL/Flux)")
     args = parser.parse_args()
     separator = " " if args.spaces else "_"
+    # Per-source key map. Rule34 keeps the original `--key` (uid:token); danbooru/e621 get dedicated flags.
+    keys: dict[str, str] = {}
+    if args.key:
+        keys["rule34"] = args.key
+    if args.danbooru_key:
+        keys["danbooru"] = args.danbooru_key
+    if args.e621_key:
+        keys["e621"] = args.e621_key
 
     if args.source == "all":
         output_dir = args.output_dir or "."
         for name in SOURCES:
             output = os.path.join(output_dir, f"{name}.json")
-            fetch_source(name, output, args.min_count, api_key=args.key, separator=separator)
+            fetch_source(name, output, args.min_count, keys=keys, separator=separator)
     else:
         output = args.output or f"{args.source}.json"
-        fetch_source(args.source, output, args.min_count, api_key=args.key, separator=separator)
+        fetch_source(args.source, output, args.min_count, keys=keys, separator=separator)
 
     print("Done.", file=sys.stderr)
 

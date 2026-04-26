@@ -7,6 +7,20 @@ from modules.logger import log
 wildcards_list = []
 
 
+def list_wildcard_names() -> list[str]:
+    """Enumerate wildcard basenames (relative path, `.txt` stripped). Shared with the autocomplete API."""
+    wildcards_dir = shared.opts.wildcards_dir
+    if not wildcards_dir or not os.path.isdir(wildcards_dir):
+        return []
+    files = files_cache.list_files(wildcards_dir, ext_filter=[".txt"], recursive=True)
+    names = []
+    for filename in files:
+        relname = os.path.relpath(filename, wildcards_dir)
+        names.append(os.path.splitext(relname)[0])
+    names.sort()
+    return names
+
+
 class ExtraNetworksPageWildcards(ui_extra_networks.ExtraNetworksPage):
     def __init__(self):
         super().__init__('Wildcards')
