@@ -212,7 +212,9 @@ def load_config() -> Dict[str, str]:
             # Purge unsafe vars from a stale saved config and re-persist only if the file existed.
             # When running without a saved config (first run / after Delete), load_config() must
             # never create the file - that only happens via save_config() on Apply or Apply Profile.
-            dirty = {k for k in _cache if k in _UNSET_VARS or (k != _ARCH_KEY and k not in ROCM_ENV_VARS)}
+            # Allow ENABLE_ROCM_CONFIG as a meta/config key
+            allowed_meta = {"ENABLE_ROCM_CONFIG"}
+            dirty = {k for k in _cache if k in _UNSET_VARS or (k != _ARCH_KEY and k not in ROCM_ENV_VARS and k not in allowed_meta)}
             if dirty:
                 _cache = {k: v for k, v in _cache.items() if k not in dirty}
                 writefile(_cache, str(CONFIG))
