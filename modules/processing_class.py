@@ -691,6 +691,9 @@ class StableDiffusionProcessingVideo(StableDiffusionProcessing):
         self.vae_tile_frames: int = kwargs.pop('vae_tile_frames', 0)
         self.video_engine: str = kwargs.pop('video_engine', None)
         self.video_model: str = kwargs.pop('video_model', None)
+        self.video_interpolate: int = kwargs.pop('video_interpolate', 0)
+        self.video_interpolate_scale: float = kwargs.pop('video_interpolate_scale', 1.0)
+        self.video_interpolated: bool = False
         self.scheduler_shift: float = 0.0
         debug(f'Process init: mode={self.__class__.__name__} kwargs={kwargs}') # pylint: disable=protected-access
         super().__init__(**kwargs)
