@@ -1,39 +1,43 @@
 # TODO
 
-## Internal
+## Features
 
-- Feature: Gallery thumb-size, quick delete/download/info, disable delete on Reference
-- Feature: Diffusers [TextKVCache](https://huggingface.co/NucleusAI/Nucleus-Image#quick-start)
-- Feature: Chat-based interface
-- Feature: Add cloud providers
-- Feature: Multi-image inputs
-- Feature: `RIFE` update
-- Feature: `RIFE` in processing
-- Feature: `SeedVR2` in processing
-- Feature: Add video models to `Reference`
-- Feature: Add <https://huggingface.co/briaai/RMBG-2.0> to `REMBG`
-- Deploy: Lite vs Expert mode
-- Engine: `TensorRT` acceleration
-- Feature: Auto handle scheduler `prediction_type`
-- Feature: Cache models in memory
-- Feature: JSON image metadata
-- Feature: Integrate natural language image search
-  [ImageDB](https://github.com/vladmandic/imagedb)
-- Feature: Multi-user support
-- Feature: Settings profile manager
-- Feature: Video tab add full API support
-- Validate: Control tab add overrides handling
-- Refactor: Unify *huggingface* and *diffusers* model folders
-- Refactor: [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
-- Reimplement `llama` remover for Kanvas
-- Integrate: [Depth3D](https://github.com/vladmandic/sd-extension-depth3d)
+### Assigned
 
-## OnHold
+- Gallery: thumb-size, quick delete/download/info @vladmandic
+- Chat-based interface, @vladmandic
+- Multi-image inputs, @vladmandic
+- Control tab verify overrides handling, @vladmandic
+- Reimplement `llama` remover for Kanvas, @vladmandic
+- Integrate [Depth3D](https://github.com/vladmandic/sd-extension-depth3d), @vladmandic
 
-- Feature: LoRA add OMI format support for SD35/FLUX.1, on-hold
-- Feature: Remote Text-Encoder support, sidelined for the moment
+- Cloud providers, @CalamitousFelicitousness
+- Video processing add full API support, @CalamitousFelicitousness
 
-## Modular
+### Unassigned
+
+- Processing -> Video capabilities
+  - `RIFE` in processing
+  - `SeedVR2` in processing
+- Video model loader: Add video models to Reference
+- REMBG add <https://huggingface.co/briaai/RMBG-2.0>
+- UI Lite vs Expert mode
+- TensorRT acceleration
+- Auto handle scheduler `prediction_type`
+- Cache models in memory
+- JSON image metadata
+- Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb)
+- Unify *huggingface* and *diffusers* model folders
+- Refactor [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
+
+### OnHold
+
+- LoRA add OMI format support for SD35/FLUX.1, on-hold
+- Remote Text-Encoder support, sidelined for the moment
+- Multi-user support
+- Settings profile manager
+
+### Modular
 
 *Pending finalization of modular pipelines implementation and development of compatibility layer*
 
@@ -43,6 +47,7 @@
 - [MagCache](https://github.com/huggingface/diffusers/pull/12744)
 - [SmoothCache](https://github.com/huggingface/diffusers/issues/11135)
 - [STG](https://github.com/huggingface/diffusers/blob/main/examples/community/README.md#spatiotemporal-skip-guidance)
+- [TextKVCache](https://huggingface.co/NucleusAI/Nucleus-Image#quick-start), @vladmandic
 
 ## New models / Pipelines
 
@@ -50,17 +55,16 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image
 
-- Port: JoyAI-Image-Edit (pr in-progress)
-- Port: Lumina-DiMOO (pr in-progress)
-- Port: Step1X-Edit (pr in-progress)
-- [VIBE Image Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit)
-- [UltraFlux](https://huggingface.co/Owen777/UltraFlux-v1)
-- [Mugen](https://huggingface.co/CabalResearch/Mugen)
-- [Liquid](https://github.com/FoundationVision/Liquid)
-- [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B)
-- [Liquid](https://github.com/FoundationVision/Liquid)
-- [Tencent HY-WU](https://huggingface.co/tencent/HY-WU)
-- [nVidia Cosmos-Transfer-2.5](https://github.com/huggingface/diffusers/pull/13066)
+- [JoyAI-Image-Edit](https://github.com/huggingface/diffusers/pull/13444) (pr in-progress)
+- [Lumina-DiMOO](https://github.com/huggingface/diffusers/pull/12468) (pr stalled)
+- [Step1X-Edit](https://github.com/huggingface/diffusers/pull/12249) (pr stalled)
+- [VIBE Image Edit](https://huggingface.co/iitolstykh/VIBE-Image-Edit) (diffusers-compatible)
+- [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B) (in diffusers)
+- [nVidia Cosmos-Transfer-2.5](https://huggingface.co/nvidia/Cosmos-Transfer2.5-2B) (in diffusers)
+- [UltraFlux](https://huggingface.co/Owen777/UltraFlux-v1) (diffusers-compatible)
+- [Tencent HY-WU](https://huggingface.co/tencent/HY-WU) (transformers-compatible)
+- [Mugen](https://huggingface.co/CabalResearch/Mugen) (sdxl with flux vae experiment, not clean)
+- [Liquid](https://github.com/FoundationVision/Liquid) (autoregressive, not clean)
 
 ### Video
 
