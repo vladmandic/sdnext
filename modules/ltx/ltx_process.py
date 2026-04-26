@@ -563,9 +563,18 @@ def run_ltx(task_id,
             except Exception:
                 aac_sample_rate = 24000
 
-            # LTX conditions the model on mp4_fps as the source frame rate; RIFE inflates frames at save time.
-            # Scale the saved fps by the interpolation factor so the output preserves the user's intended duration.
-            save_fps = mp4_fps * (mp4_interpolate + 1) if mp4_interpolate > 0 else mp4_fps
+            if mp4_interpolate > 0:
+                p.video_interpolate = mp4_interpolate
+                from modules.processing_video import apply_video_interpolation
+                # pixels is 5-D (N,C,T,H,W); RIFE needs 4-D (T,C,H,W) in [0,1]
+                x = pixels.squeeze(0).permute(1, 0, 2, 3)
+                x = (x.clamp(-1., 1.) + 1.0) * 0.5
+                x = apply_video_interpolation(p, x, count=mp4_interpolate)
+                x = x * 2.0 - 1.0
+                pixels = x.permute(1, 0, 2, 3).unsqueeze(0)
+            # LTX is conditioned on mp4_fps as the source rate; scale saved fps to keep duration constant
+            from modules.processing_video import interpolation_factor
+            save_fps = mp4_fps * interpolation_factor(p)
             num_frames, video_file, _thumb = save_video(
                 p=p,
                 pixels=pixels,
