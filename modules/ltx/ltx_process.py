@@ -563,10 +563,14 @@ def run_ltx(task_id,
             except Exception:
                 aac_sample_rate = 24000
 
-            if mp4_interpolate > 0:
+            if mp4_interpolate > 0 and pixels is not None:
                 p.video_interpolate = mp4_interpolate
                 from modules.processing_video import apply_video_interpolation
-                # pixels is 5-D (N,C,T,H,W); RIFE needs 4-D (T,C,H,W) in [0,1]
+                # refine path returns PIL list (output_type='pil'); decode path returns 5-D tensor
+                if isinstance(pixels, list) and len(pixels) > 0 and isinstance(pixels[0], Image.Image):
+                    from modules.video_models.video_save import images_to_tensor
+                    pixels = images_to_tensor(pixels)
+                # pixels is 5-D (N,C,T,H,W) in [-1,1]; RIFE needs 4-D (T,C,H,W) in [0,1]
                 x = pixels.squeeze(0).permute(1, 0, 2, 3)
                 x = (x.clamp(-1., 1.) + 1.0) * 0.5
                 x = apply_video_interpolation(p, x, count=mp4_interpolate)
