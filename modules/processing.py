@@ -536,6 +536,14 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             if shared.state.interrupted:
                 break
 
+        if getattr(p, 'video_interpolate', 0) > 0 and len(output_images) > 1:
+            from modules.processing_video import apply_video_interpolation, expand_infotexts
+            n_before = len(output_images)
+            output_images = apply_video_interpolation(p, output_images)
+            n_after = len(output_images)
+            if n_after > n_before and len(infotexts) == n_before:
+                infotexts = expand_infotexts(infotexts, max(0, p.video_interpolate - 1))
+
         if not p.xyz:
             if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):
                 shared.sd_model.restore_pipeline()

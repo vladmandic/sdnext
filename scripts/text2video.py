@@ -54,6 +54,7 @@ class ModelScopeScript(scripts_manager.Script):
     def run(self, p: processing.StableDiffusionProcessing, model_name, use_default, num_frames, video_type, duration, gif_loop, mp4_pad, mp4_interpolate): # pylint: disable=arguments-differ, unused-argument
         if model_name == 'None':
             return None
+        p.video_interpolate = mp4_interpolate
         model = [m for m in MODELS if m['name'] == model_name][0]
         log.debug(f'Text2Video: model={model} defaults={use_default} frames={num_frames}, video={video_type} duration={duration} loop={gif_loop} pad={mp4_pad} interpolate={mp4_interpolate}')
 
@@ -90,4 +91,5 @@ class ModelScopeScript(scripts_manager.Script):
 
         if video_type != 'None':
             video.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=duration, loop=gif_loop, pad=mp4_pad, interpolate=mp4_interpolate)
+            p.video_saved = True
         return processed

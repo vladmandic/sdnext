@@ -248,6 +248,7 @@ class AnimateDiffScript(scripts_manager.Script):
         p.extra_generation_params['AnimateDiff'] = loaded_adapter
         p.do_not_save_grid = True
         p.ops.append('video')
+        p.video_interpolate = mp4_interpolate
         p.task_args['generator'] = None
         p.task_args['num_frames'] = frames
         p.task_args['num_inference_steps'] = p.steps
@@ -267,3 +268,4 @@ class AnimateDiffScript(scripts_manager.Script):
         if video_type != 'None':
             log.debug(f'AnimateDiff video: type={video_type} duration={duration} loop={gif_loop} pad={mp4_pad} interpolate={mp4_interpolate}')
             save_video(p, filename=None, images=processed.images, video_type=video_type, duration=duration, loop=gif_loop, pad=mp4_pad, interpolate=mp4_interpolate)
+            p.video_saved = True
