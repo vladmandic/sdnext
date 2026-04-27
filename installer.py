@@ -38,7 +38,8 @@ debug = log.debug if os.environ.get('SD_INSTALL_DEBUG', None) is not None else l
 setuptools, distutils = None, None # defined via ensure_base_requirements
 current_branch = None
 pip_log = '--log pip.log ' if os.environ.get('SD_PIP_DEBUG', None) is not None else ''
-log_file = os.path.join(os.path.dirname(__file__), 'sdnext.log')
+main_directory = os.path.dirname(os.path.abspath(__file__))
+log_file = os.path.join(main_directory, 'sdnext.log')
 hostname = socket.gethostname()
 log_rolled = False
 first_call = True
@@ -1279,7 +1280,7 @@ def install_requirements():
 # set environment variables controling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
-    os.environ.setdefault('PIP_CONSTRAINT', 'constraints.txt')
+    os.environ.setdefault('PIP_CONSTRAINT', os.path.join(main_directory, 'constraints.txt'))
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
     os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
