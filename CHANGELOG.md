@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-26
+## Update for 2026-04-27
 
-### Highlights for 2026-04-26
+### Highlights for 2026-04-27
 
 *What's New?*
 - New image models! **ERNIE-Image**, **Zeta-Chroma**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**
@@ -19,7 +19,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-26
+### Details for 2026-04-27
 
 - **Models**
   - [LTX Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) add *1.1 Distilled* and *1.1 Distilled-SDNQ* variants  
@@ -53,7 +53,8 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - **schedulers** add `ER-SDE` solver  
     with *1S, 2M, 3M* variants in both *EPS* and *FlowMatch* flavors  
   - **LoRA** rewrite `z-image` support and add all known variants
-  - **RIFE** update to v4.26 and enhance video interpolation processing  
+  - **RIFE** update to v4.26  
+    enhance video interpolation processing  
   - **installer** auto-restart on upgrade
   - enhanced **filename** pattern processing  
     *settings -> image paths -> directory/filename pattern*  
