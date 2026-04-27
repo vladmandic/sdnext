@@ -112,4 +112,5 @@ class VGenI2VScript(scripts_manager.Script):
         shared.sd_model = orig_pipeline
         if video_type != 'None' and processed is not None:
             video.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=duration, loop=gif_loop, pad=mp4_pad, interpolate=mp4_interpolate)
+            p.video_saved = True
         return processed

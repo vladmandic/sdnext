@@ -19,6 +19,7 @@ from modules.ui_common import infotext_to_html
 from modules.api import script
 from modules.generation_parameters_copypaste import create_override_settings_dict
 from modules.paths import resolve_output_path
+from modules import video as video_module  # alias avoids shadow by local `video` cv2 capture name at control_run:584
 
 
 debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
@@ -795,9 +796,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         image_txt = ''
         p.init_images = output_images # may be used for hires
 
-    if video_type != 'None' and isinstance(output_images, list) and 'video' in p.ops:
+    if video_type != 'None' and isinstance(output_images, list) and 'video' in p.ops and not getattr(p, 'video_saved', False):
         p.do_not_save_grid = True # pylint: disable=attribute-defined-outside-init
-        output_filename = video.save_video(p, filename=None, images=output_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate, sync=True)
+        output_filename = video_module.save_video(p, filename=None, images=output_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate, sync=True)
         if shared.opts.gradio_skip_video:
             output_filename = ''
         image_txt = f'| Frames {len(output_images)} | Size {output_images[0].width}x{output_images[0].height}'
