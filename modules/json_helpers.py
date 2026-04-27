@@ -11,12 +11,12 @@ locking_available = True  # used by file read/write locking
 
 
 @overload
-def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type: Literal["dict"]) -> dict: ...
+def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool = False, *, as_type: Literal["dict"]) -> dict: ...
 @overload
-def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type: Literal["list"]) -> list: ...
+def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool = False, *, as_type: Literal["list"]) -> list: ...
 @overload
-def readfile(filename: str, silent: bool = False, lock: bool = False) -> dict | list: ...
-def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type="") -> dict | list:
+def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool = False) -> dict | list: ...
+def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool = False, *, as_type="") -> dict | list:
     global locking_available  # pylint: disable=global-statement
     data = {} if as_type == "dict" else []
     lock_file = None
@@ -77,7 +77,7 @@ def readfile(filename: str, silent: bool = False, lock: bool = False, *, as_type
     return data
 
 
-def writefile(obj: dict | list, filename, mode="w", silent=False, atomic=False):
+def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", silent=False, atomic=False):
     import tempfile
 
     global locking_available  # pylint: disable=global-statement
