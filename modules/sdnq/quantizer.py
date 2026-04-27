@@ -480,10 +480,19 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             param_name=param_name,
         )
 
-        if use_svd and not svd_is_transposed and sdnq_dequantizer.use_quantized_matmul:
-            svd_up = svd_up.t_()
-            svd_down = svd_down.t_()
-            svd_is_transposed = True
+        # sdnq_quantize_layer_weight transposes weight/scale in-place when use_quantized_matmul
+        # is True; svd needs to follow so the loss-check shapes line up. Track the orientation
+        # both ways so a later iteration that flips use_quantized_matmul back to False
+        # untransposes svd instead of carrying a stale transpose.
+        if use_svd and svd_up is not None:
+            if sdnq_dequantizer.use_quantized_matmul and not svd_is_transposed:
+                svd_up = svd_up.t_()
+                svd_down = svd_down.t_()
+                svd_is_transposed = True
+            elif not sdnq_dequantizer.use_quantized_matmul and svd_is_transposed:
+                svd_up = svd_up.t_()
+                svd_down = svd_down.t_()
+                svd_is_transposed = False
 
         quantization_loss = torch.nn.functional.mse_loss(weight, sdnq_dequantizer(quantized_weight, scale, zero_point, svd_up, svd_down, skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul, dtype=weight.dtype, skip_compile=True)).div_(weight_std)
         if quantization_loss <= dynamic_loss_threshold:
