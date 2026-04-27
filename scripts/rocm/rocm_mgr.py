@@ -518,7 +518,7 @@ def info() -> dict:
 
 
 # Apply saved config to os.environ at import time (only when ROCm is present)
-if installer.torch_info.get('type', None) == 'rocm':
+if installer.torch_info.get('type', None) == 'rocm' and CONFIG.exists():
     try:
         apply_env()
     except Exception as _e:
