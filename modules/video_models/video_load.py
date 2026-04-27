@@ -62,6 +62,7 @@ def load_model(selected: models_def.Model):
         os.unsetenv('HF_HUB_OFFLINE')
 
     kwargs = video_overrides.load_override(selected, **offline_args)
+    component_failed = False
 
     # text encoder
     if selected.te_cls is not None:
@@ -109,6 +110,7 @@ def load_model(selected: models_def.Model):
         except Exception as e:
             log.error(f'video load: module=te cls={selected.te_cls.__name__} {e}')
             errors.display(e, 'video')
+            component_failed = True
 
     # transformer
     if selected.dit_cls is not None:
@@ -140,8 +142,13 @@ def load_model(selected: models_def.Model):
         except Exception as e:
             log.error(f'video load: module=transformer cls={selected.dit_cls.__name__} {e}')
             errors.display(e, 'video')
+            component_failed = True
 
     # model
+    if component_failed:
+        msg = f'Video load: model="{selected.name}" failed - one or more components could not be loaded, see error above'
+        log.error(msg)
+        return msg
     try:
         if selected.repo_cls is None:
             shared.sd_model = load_custom(selected.repo)
