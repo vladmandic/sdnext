@@ -137,8 +137,6 @@ def create_ui(startup_timer = None) -> gr.Blocks:
             timer.startup.record("ui-gallery")
             interfaces += [(gallery_interface, "Gallery", "gallery")]
 
-    interfaces += script_callbacks.ui_tabs_callback()
-
     with gr.Blocks(analytics_enabled=False) as settings_interface:
         from modules import ui_settings
         ui_settings.create_ui(ui_disabled)
@@ -147,6 +145,8 @@ def create_ui(startup_timer = None) -> gr.Blocks:
         shared.opts.reorder()
         timer.startup.record("ui-extensions")
         interfaces += [(settings_interface, "System", "system")]
+
+    interfaces += script_callbacks.ui_tabs_callback()
 
     if 'info' not in ui_disabled:
         with gr.Blocks(analytics_enabled=False) as info_interface:
