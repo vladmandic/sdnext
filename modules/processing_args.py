@@ -323,12 +323,12 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     elif 'callback' in possible:
         args['callback'] = diffusers_callback_legacy
 
-    if 'image' in kwargs:
-        if isinstance(kwargs['image'], list) and isinstance(kwargs['image'][0], Image.Image):
+    if 'image' in kwargs and kwargs['image'] is not None:
+        if isinstance(kwargs['image'], list) and len(kwargs['image']) > 0 and isinstance(kwargs['image'][0], Image.Image):
             p.init_images = kwargs['image']
-        if isinstance(kwargs['image'], Image.Image):
+        elif isinstance(kwargs['image'], Image.Image):
             p.init_images = [kwargs['image']]
-        if isinstance(kwargs['image'], torch.Tensor):
+        elif isinstance(kwargs['image'], torch.Tensor):
             p.init_images = kwargs['image']
 
     # handle remaining args
