@@ -599,8 +599,9 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
     if 'base' not in p.skip:
         output = process_base(p)
     else:
-        images, _index=shared.history.selected
-        output = SimpleNamespace(images=images)
+        # images, _index = shared.history.selected
+        images = shared.history.last_latent
+        output = SimpleNamespace(images=images) if images is not None else None
 
     if (output is None or (hasattr(output, 'images') and len(output.images) == 0)) and has_images:
         if output is not None:
