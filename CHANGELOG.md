@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-27
+## Update for 2026-04-28
 
-### Highlights for 2026-04-27
+### Highlights for 2026-04-28
 
 *What's New?*
 - New image models! **ERNIE-Image**, **Zeta-Chroma**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**
@@ -19,7 +19,7 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-04-27
+### Details for 2026-04-28
 
 - **Models**
   - [LTX Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) add *1.1 Distilled* and *1.1 Distilled-SDNQ* variants  
@@ -161,6 +161,8 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - preserve `image.info`
   - color grading preserve metadata
   - resolve video output path
+  - `rocm` script do not auto-apply if no config, thanks @awsr
+  - ui settings callback, thanks @awsr
 
 ## Update for 2026-04-01
 
