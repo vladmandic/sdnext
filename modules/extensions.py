@@ -35,7 +35,10 @@ def format_dt(d: datetime, seconds = False) -> str:
 
 
 def ts2utc(timestamp: int) -> datetime:
-    return datetime.fromtimestamp(timestamp, timezone.utc)
+    try:
+        return datetime.fromtimestamp(timestamp, timezone.utc)
+    except Exception:
+        return datetime(2000, 1, 1, tzinfo=timezone.utc)
 
 
 def active() -> list[Extension]:
