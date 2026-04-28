@@ -109,8 +109,8 @@ callback_map = dict(
     callbacks_before_process=[],
     callbacks_after_process=[],
     callbacks_model_loaded=[],
-    callbacks_ui_tabs=[],
     callbacks_ui_settings=[],
+    callbacks_ui_tabs=[],
     callbacks_before_image_saved=[],
     callbacks_image_saved=[],
     callbacks_image_save_btn=[],
@@ -200,6 +200,16 @@ def model_loaded_callback(sd_model):
             report_exception(e, c, 'model_loaded_callback')
 
 
+def ui_settings_callback():
+    for c in callback_map['callbacks_ui_settings']:
+        try:
+            t0 = time.time()
+            c.callback()
+            timer(t0, c.script, 'ui_settings')
+        except Exception as e:
+            report_exception(e, c, 'ui_settings_callback')
+
+
 def ui_tabs_callback():
     res = []
     for c in callback_map['callbacks_ui_tabs']:
@@ -210,16 +220,6 @@ def ui_tabs_callback():
         except Exception as e:
             report_exception(e, c, 'ui_tabs_callback')
     return res
-
-
-def ui_settings_callback():
-    for c in callback_map['callbacks_ui_settings']:
-        try:
-            t0 = time.time()
-            c.callback()
-            timer(t0, c.script, 'ui_settings')
-        except Exception as e:
-            report_exception(e, c, 'ui_settings_callback')
 
 
 def before_image_saved_callback(params: ImageSaveParams):
@@ -411,6 +411,12 @@ def on_model_loaded(callback):
     add_callback(callback_map['callbacks_model_loaded'], callback)
 
 
+def on_ui_settings(callback):
+    """register a function to be called before UI settings are populated; add your settings
+    by using shared.opts.add_option(shared.OptionInfo(...)) """
+    add_callback(callback_map['callbacks_ui_settings'], callback)
+
+
 def on_ui_tabs(callback):
     """register a function to be called when the UI is creating new tabs.
     The function must either return a None, which means no new tabs to be added, or a list, where
@@ -422,12 +428,6 @@ def on_ui_tabs(callback):
     elem_id is HTML id for the tab
     """
     add_callback(callback_map['callbacks_ui_tabs'], callback)
-
-
-def on_ui_settings(callback):
-    """register a function to be called before UI settings are populated; add your settings
-    by using shared.opts.add_option(shared.OptionInfo(...)) """
-    add_callback(callback_map['callbacks_ui_settings'], callback)
 
 
 def on_before_image_saved(callback):

@@ -400,6 +400,7 @@ class ReqGetLog(BaseModel):
 
 
 class ReqPostLog(BaseModel):
+    json: dict | None = Field(default=None, title="Data", description="The data to log")
     message: str | None = Field(default=None, title="Message", description="The info message to log")
     debug: str | None = Field(default=None, title="Debug message", description="The debug message to log")
     error: str | None = Field(default=None, title="Error message", description="The error message to log")
@@ -415,7 +416,7 @@ class ResProgress(BaseModel):
     progress: float = Field(title="Progress", description="The progress with a range of 0 to 1")
     eta_relative: float = Field(title="ETA in secs")
     state: dict = Field(title="State", description="The current state snapshot")
-    current_image: str | None = Field(default=None, title="Current image", description="The current image in base64 format. opts.show_progress_every_n_steps is required for this to work.")
+    current_image: str | None = Field(default=None, title="Current image", description="The current image in base64 format")
     textinfo: str | None = Field(default=None, title="Info text", description="Info text used by WebUI.")
 
 class ResHistory(BaseModel):
@@ -508,6 +509,29 @@ class ItemLoadedModel(BaseModel):
     size_bytes: Optional[int] = Field(default=None, title="Size (bytes)", description="Total parameter memory footprint in bytes")
     dtype: Optional[str] = Field(default=None, title="Dtype", description="Effective data type (e.g., float16, nf4)")
     extra: Optional[dict] = Field(default=None, title="Extra metadata", description="Additional metadata (role, class, quantization method, etc.)")
+
+class ItemAutocomplete(BaseModel):
+    name: str = Field(title="Name", description="Autocomplete file identifier (filename without extension)")
+    version: str = Field(default="", title="Version", description="Version string")
+    tag_count: int = Field(default=0, title="Tag count", description="Number of tags")
+    categories: dict = Field(default_factory=dict, title="Categories", description="Category ID to display name mapping")
+    size: int = Field(default=0, title="Size", description="File size in bytes")
+
+class ItemAutocompleteContent(BaseModel):
+    name: str = Field(title="Name", description="Autocomplete file identifier")
+    version: str = Field(default="", title="Version", description="Version string")
+    categories: dict = Field(default_factory=dict, title="Categories", description="Category definitions with name and color")
+    tags: list = Field(default_factory=list, title="Tags", description="Tag entries as [name, category_id, post_count, aliases?] tuples")
+    translations: Optional[dict[str, str]] = Field(default=None, title="Translations", description="Optional foreign_term -> canonical_tag_name map")
+
+class ItemAutocompleteRemote(BaseModel):
+    name: str = Field(title="Name", description="Autocomplete file identifier")
+    description: str = Field(default="", title="Description", description="Human-readable description")
+    version: str = Field(default="", title="Version", description="Version string")
+    tag_count: int = Field(default=0, title="Tag count", description="Number of tags")
+    size_mb: float = Field(default=0, title="Size (MB)", description="Approximate file size in megabytes")
+    downloaded: bool = Field(default=False, title="Downloaded", description="Whether available locally")
+    update_available: bool = Field(default=False, title="Update available", description="Whether a newer version exists remotely")
 
 # helper function
 

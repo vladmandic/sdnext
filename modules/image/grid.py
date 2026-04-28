@@ -64,18 +64,24 @@ def get_grid_size(imgs: list, batch_size=1, rows: int | None = None, cols: int |
 
 
 def image_grid(imgs: list, batch_size=1, rows: int | None = None, cols: int | None = None):
-    rows, cols = get_grid_size(imgs, batch_size, rows=rows, cols=cols)
-    params = script_callbacks.ImageGridLoopParams(imgs, cols, rows)
-    script_callbacks.image_grid_callback(params)
-    imgs = [i for i in imgs if i is not None] if imgs is not None else []
+    if isinstance(imgs, Image.Image):
+        return imgs
+    imgs = [i for i in imgs if i is not None] if imgs is not None and isinstance(imgs, list) else []
     if len(imgs) == 0:
         return None
-    w, h = max(i.width for i in imgs if i is not None), max(i.height for i in imgs if i is not None)
-    grid = Image.new('RGB', size=(params.cols * w, params.rows * h), color=shared.opts.grid_background)
-    for i, img in enumerate(params.imgs):
-        if img is not None:
-            grid.paste(img, box=(i % params.cols * w, i // params.cols * h))
-    return grid
+    try:
+        rows, cols = get_grid_size(imgs, batch_size, rows=rows, cols=cols)
+        params = script_callbacks.ImageGridLoopParams(imgs, cols, rows)
+        script_callbacks.image_grid_callback(params)
+        w, h = max(i.width for i in imgs if i is not None), max(i.height for i in imgs if i is not None)
+        grid = Image.new('RGB', size=(params.cols * w, params.rows * h), color=shared.opts.grid_background)
+        for i, img in enumerate(params.imgs):
+            if img is not None:
+                grid.paste(img, box=(i % params.cols * w, i // params.cols * h))
+        return grid
+    except Exception as e:
+        log.error(f'Grid: images={imgs} {e}')
+        return None
 
 
 def split_grid(image: Image.Image, tile_w=512, tile_h=512, overlap=64):

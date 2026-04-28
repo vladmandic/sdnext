@@ -26,7 +26,11 @@ debug = log.trace if os.environ.get('SD_XYZ_DEBUG', None) is not None else lambd
 class XYZGridScript(scripts_manager.Script):
     current_axis_options = []
 
-    def show(self, is_img2img):
+    def __init__(self):
+        super().__init__()
+        self.infotext_fields = ()
+
+    def show(self, _is_img2img):
         return scripts_manager.AlwaysVisible
 
     def title(self):

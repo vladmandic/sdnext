@@ -97,6 +97,30 @@ class FilenameGenerator:
             self.batch_number = NOTHING
             self.iter_number = NOTHING
 
+    def apply_p(self, param):
+        try:
+            if self.p is None:
+                return NOTHING
+            val = getattr(self.p, param, None)
+            if val is not None:
+                val = str(val)
+                debug_log(f'Filename apply: param="{param}" value="{val}"')
+                return val
+        except Exception as e:
+            log.error(f'Filename apply param: {param} {e}')
+        return NOTHING
+
+    def apply_opt(self, opt):
+        try:
+            val = shared.opts.data.get(opt, None)
+            if val is not None:
+                val = str(val)
+                debug_log(f'Filename apply: opt="{opt}" value="{val}"')
+                return val
+        except Exception as e:
+            log.error(f'Filename apply opt: {opt} {e}')
+        return NOTHING
+
     def hasprompt(self, *args):
         lower = self.prompt.lower()
         if getattr(self, 'p', None) is None or getattr(self, 'prompt', None) is None:
@@ -279,6 +303,14 @@ class FilenameGenerator:
                     res += text + str(replacement).replace('/', '-').replace('\\', '-')
                     continue
             else:
+                replacement = self.apply_p(pattern)
+                if replacement != NOTHING:
+                    res += text + str(replacement).replace('/', '-').replace('\\', '-')
+                    continue
+                replacement = self.apply_opt(pattern)
+                if replacement != NOTHING:
+                    res += text + str(replacement).replace('/', '-').replace('\\', '-')
+                    continue
                 res += text + f'[{pattern}]' # reinsert unknown pattern
         return res
 

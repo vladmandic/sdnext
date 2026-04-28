@@ -15,7 +15,7 @@ class SDUpscaleScript(scripts_manager.Script):
     def show(self, is_img2img):
         return is_img2img
 
-    def ui(self, is_img2img):
+    def ui(self, _is_img2img):
         with gr.Row():
             info = gr.HTML("<span>&nbsp SD Upscale</span><br>")
         with gr.Row():

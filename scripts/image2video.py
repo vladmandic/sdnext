@@ -57,6 +57,7 @@ class VGenI2VScript(scripts_manager.Script):
             return None
         if p.init_images is None or len(p.init_images) == 0:
             return None
+        p.video_interpolate = mp4_interpolate
         model = [m for m in MODELS if m['name'] == model_name][0]
         repo_id = model['url']
         log.debug(f'Image2Video: model={model_name} frames={num_frames}, video={video_type} duration={duration} loop={gif_loop} pad={mp4_pad} interpolate={mp4_interpolate}')
@@ -111,4 +112,5 @@ class VGenI2VScript(scripts_manager.Script):
         shared.sd_model = orig_pipeline
         if video_type != 'None' and processed is not None:
             video.save_video(p, filename=None, images=processed.images, video_type=video_type, duration=duration, loop=gif_loop, pad=mp4_pad, interpolate=mp4_interpolate)
+            p.video_saved = True
         return processed

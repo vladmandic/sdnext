@@ -48,7 +48,7 @@ function dimensionChange(e, is_width, is_height) {
   }
 }
 
-onAfterUiUpdate(() => {
+function aspectRatioCallback() {
   const arPreviewRect = gradioApp().querySelector('#imageARPreview');
   if (arPreviewRect) arPreviewRect.style.display = 'none';
   const tabImg2img = gradioApp().querySelector('#tab_img2img');
@@ -68,4 +68,6 @@ onAfterUiUpdate(() => {
       });
     }
   }
-});
+}
+
+onAfterUiUpdate(aspectRatioCallback);

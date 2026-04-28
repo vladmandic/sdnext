@@ -163,7 +163,9 @@ class GoogleNanoBananaPipeline():
 
 
 def load_nanobanana(checkpoint_info, diffusers_load_config): # pylint: disable=unused-argument
-    pipe = GoogleNanoBananaPipeline(model_name = checkpoint_info.filename)
+    from modules import sd_models
+    repo_id = sd_models.path_to_repo(checkpoint_info)
+    pipe = GoogleNanoBananaPipeline(model_name = repo_id)
     return pipe
 
 

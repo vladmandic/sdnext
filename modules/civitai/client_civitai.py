@@ -1,6 +1,7 @@
 import os
 import time
 from modules.logger import log
+from modules.civitai.basemodels_civitai import fetch_github_base_models
 from modules.civitai.models_civitai import CivitModel, CivitVersion, CivitImage, CivitSearchResponse, CivitTagResponse, CivitCreatorResponse, CivitUserProfile
 
 
@@ -202,13 +203,13 @@ class CivitaiClient:
         if options_cache and (now - options_cache_time) < OPTIONS_TTL:
             return options_cache
         from modules import shared
-        result: dict = {'types': [], 'sort': [], 'period': [], 'base_models': []}
+        result: dict = {'types': [], 'sort': [], 'period': [], 'base_models': [], 'base_models_info': []}
         # Send invalid params to trigger 400 with valid enum values in error response
         probes = [
             ('types', '/models', {'types': '__invalid__'}),
             ('sort', '/models', {'sort': '__invalid__'}),
             ('period', '/models', {'period': '__invalid__'}),
-            ('base_models', '/models', {'baseModels': '__invalid__'}),
+            ('base_models', '/images', {'baseModels': '__invalid__'}),  # /models no longer validates baseModels; /images still does
         ]
         for key, path, params in probes:
             try:
@@ -255,9 +256,22 @@ class CivitaiClient:
                             break
             except Exception as e:
                 log.debug(f'CivitAI discover options: key={key} {e}')
+        # Merge live probe names with github metadata. The probe is the source
+        # of truth for which names exist; github provides per-entry metadata and
+        # doubles as a fallback name list if the probe returned empty.
+        github_entries = fetch_github_base_models()
+        github_index: dict = {entry['name']: entry for entry in github_entries}
+        probe_names: list = result['base_models']
+        if not probe_names and github_entries:
+            probe_names = [entry['name'] for entry in github_entries]
+            result['base_models'] = probe_names
+        result['base_models_info'] = [
+            github_index.get(name, {'name': name, 'type': 'image', 'group': '', 'hidden': False})
+            for name in probe_names
+        ]
         options_cache = result
         options_cache_time = now
-        log.debug(f'CivitAI options: types={len(result["types"])} sort={len(result["sort"])} period={len(result["period"])} base_models={len(result["base_models"])}')
+        log.debug(f'CivitAI options: types={len(result["types"])} sort={len(result["sort"])} period={len(result["period"])} base_models={len(result["base_models"])} (enriched={len(github_index)})')
         return result
 
 

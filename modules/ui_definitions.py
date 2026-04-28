@@ -64,6 +64,7 @@ def create_settings(cmd_opts):
 
     default_hfcache_dir = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(paths.models_path, 'huggingface')
     default_checkpoint = list_checkpoint_titles()[0] if len(list_checkpoint_titles()) > 0 else "model.safetensors"
+    default_xetcache_dir = os.environ.get("HF_XET_CACHE ", None) or os.path.join(paths.models_path, 'xet')
 
     hide_dirs = {"visible": not cmd_opts.hide_ui_dir_config}
 
@@ -74,7 +75,7 @@ def create_settings(cmd_opts):
         "sd_model_checkpoint": OptionInfo(default_checkpoint, "Base model", DropdownEditable, lambda: {"choices": list_checkpoint_titles()}, refresh=refresh_checkpoints),
         "sd_model_refiner": OptionInfo('None', "Refiner model", gr.Dropdown, lambda: {"choices": ['None'] + list_checkpoint_titles()}, refresh=refresh_checkpoints),
         "sd_unet": OptionInfo("Default", "UNET model", gr.Dropdown, lambda: {"choices": shared_items.sd_unet_items()}, refresh=shared_items.refresh_unet_list),
-        "latent_history": OptionInfo(16, "Latent history size", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
+        "latent_history": OptionInfo(20, "Latent history size", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
 
         "advanced_sep": OptionInfo("<h2>Advanced Options</h2>", "", gr.HTML),
         "sd_checkpoint_autoload": OptionInfo(True, "Model auto-load on start"),
@@ -110,6 +111,8 @@ def create_settings(cmd_opts):
         "model_chrono_temporal_steps": OptionInfo(0, "Temporal steps", gr.Slider, {"minimum": 0, "maximum": 50, "step": 1 }),
         "model_qwen_layer_sep": OptionInfo("<h2>Qwen layered</h2>", "", gr.HTML),
         "model_qwen_layers": OptionInfo(2, "Qwen layered number of layers", gr.Slider, {"minimum": 2, "maximum": 9, "step": 1 }),
+        "model_ernie_sep": OptionInfo("<h2>ERNIE-Image</h2>", "", gr.HTML),
+        "model_ernie_enable_pe": OptionInfo(False, "Enable prompt-enhance"),
     }))
 
     # --- Model Offloading ---
@@ -155,6 +158,7 @@ def create_settings(cmd_opts):
         "sdnq_use_svd": OptionInfo(False, "Use SVD quantization", gr.Checkbox),
         "sdnq_use_dynamic_quantization": OptionInfo(False, "Use Dynamic quantization", gr.Checkbox),
         "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
+        "sdnq_quantize_embedding_layers": OptionInfo(False, "Quantize embedding layers", gr.Checkbox),
         "sdnq_dequantize_compile": OptionInfo(devices.has_triton(early=True), "Dequantize using torch.compile", gr.Checkbox),
         "sdnq_use_quantized_matmul": OptionInfo(False, "Use quantized MatMul", gr.Checkbox),
         "sdnq_use_quantized_matmul_conv": OptionInfo(False, "Use quantized MatMul with conv", gr.Checkbox),
@@ -179,7 +183,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('vae_encoder', "Variational Auto Encoder"), {
         "sd_vae": OptionInfo("Automatic", "VAE model", gr.Dropdown, lambda: {"choices": shared_items.sd_vae_items()}, refresh=shared_items.refresh_vae_list),
         "diffusers_vae_upcast": OptionInfo("default", "VAE upcasting", gr.Radio, {"choices": ['default', 'true', 'false']}),
-        "no_half_vae": OptionInfo(False if not cmd_opts.use_openvino else True, "Full precision (--no-half-vae)"),
+        "no_half_vae": OptionInfo(False, "Full precision (--no-half-vae)"),
         "diffusers_vae_slicing": OptionInfo(True, "VAE slicing", gr.Checkbox),
         "diffusers_vae_tiling": OptionInfo(cmd_opts.lowvram, "VAE tiling", gr.Checkbox),
         "diffusers_vae_tile_size": OptionInfo(0, "VAE tile size", gr.Slider, {"minimum": 0, "maximum": 4096, "step": 8 }),
@@ -207,7 +211,7 @@ def create_settings(cmd_opts):
         "math_sep": OptionInfo("<h2>Execution Precision</h2>", "", gr.HTML),
         "precision": OptionInfo("Autocast", "Precision type", gr.Radio, {"choices": ["Autocast", "Full"], "visible": False}),
         "cuda_dtype": OptionInfo("Auto", "Device precision type", gr.Radio, {"choices": ["Auto", "FP32", "FP16", "BF16"]}),
-        "no_half": OptionInfo(False if not cmd_opts.use_openvino else True, "Force full precision (--no-half)", None, None, None),
+        "no_half": OptionInfo(False, "Force full precision (--no-half)", None, None, None),
         "upcast_sampling": OptionInfo(False if sys.platform != "darwin" else True, "Upcast sampling", gr.Checkbox, {"visible": False}),
 
         "generator_sep": OptionInfo("<h2>Noise Options</h2>", "", gr.HTML),
@@ -264,10 +268,11 @@ def create_settings(cmd_opts):
         "ipex_optimize": OptionInfo([], "IPEX Optimize", gr.CheckboxGroup, {"choices": ["Model", "TE", "VAE", "Upscaler"], "visible": devices.backend == "ipex"}),
 
         "openvino_sep": OptionInfo("<h2>OpenVINO</h2>", "", gr.HTML, {"visible": cmd_opts.use_openvino}),
-        "openvino_devices": OptionInfo([], "OpenVINO devices to use", gr.CheckboxGroup, {"choices": get_openvino_device_list() if cmd_opts.use_openvino else [], "visible": cmd_opts.use_openvino}),
+        "openvino_devices": OptionInfo([], "OpenVINO device", gr.CheckboxGroup, {"choices": get_openvino_device_list() if cmd_opts.use_openvino else [], "visible": cmd_opts.use_openvino}),
         "openvino_accuracy": OptionInfo("default", "OpenVINO accuracy mode", gr.Radio, {"choices": ["default", "performance", "accuracy"], "visible": cmd_opts.use_openvino}),
+        "openvino_compile_backend": OptionInfo("openvino_fx", "OpenVINO compile backend", gr.Radio, {"choices": ["openvino", "openvino_fx"], "visible": cmd_opts.use_openvino}),
         "openvino_disable_model_caching": OptionInfo(True, "OpenVINO disable model caching", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
-        "openvino_disable_memory_cleanup": OptionInfo(True, "OpenVINO disable memory cleanup after compile", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
+        "openvino_disable_memory_cleanup": OptionInfo(True, "OpenVINO disable memory cleanup", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
 
         "directml_sep": OptionInfo("<h2>DirectML</h2>", "", gr.HTML, {"visible": devices.backend == "directml"}),
         "directml_memory_provider": OptionInfo(default_memory_provider, "DirectML memory stats provider", gr.Radio, {"choices": memory_providers, "visible": devices.backend == "directml"}),
@@ -366,7 +371,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('compile', "Model Compile"), {
         "cuda_compile_sep": OptionInfo("<h2>Model Compile</h2>", "", gr.HTML),
         "cuda_compile": OptionInfo([] if not cmd_opts.use_openvino else ["Model", "VAE", "Upscaler", "Control"], "Compile Model", gr.CheckboxGroup, {"choices": ["Model", "TE", "VAE", "LLM", "Control", "Upscaler"]}),
-        "cuda_compile_backend": OptionInfo("inductor" if not cmd_opts.use_openvino else "openvino_fx", "Model compile backend", gr.Radio, {"choices": ['none', 'inductor', 'cudagraphs', 'aot_ts_nvfuser', 'hidet', 'migraphx', 'ipex', 'onediff', 'stable-fast', 'deep-cache', 'olive-ai', 'openvino_fx']}),
+        "cuda_compile_backend": OptionInfo("inductor" if not cmd_opts.use_openvino else "openvino_fx", "Model compile backend", gr.Radio, {"choices": ['none', 'inductor', 'cudagraphs', 'aot_ts_nvfuser', 'hidet', 'migraphx', 'ipex', 'onediff', 'stable-fast', 'deep-cache', 'olive-ai', 'openvino', 'openvino_fx']}),
         "cuda_compile_mode": OptionInfo("default", "Model compile mode", gr.Radio, {"choices": ['default', 'reduce-overhead', 'max-autotune', 'max-autotune-no-cudagraphs']}),
         "cuda_compile_options": OptionInfo(["repeated", "fullgraph", "dynamic"] if not cmd_opts.use_openvino else [], "Model compile options", gr.CheckboxGroup, {"choices": ["precompile", "repeated", "fullgraph", "dynamic", "verbose"]}),
         "deep_cache_interval": OptionInfo(3, "DeepCache cache interval", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1}),
@@ -380,6 +385,7 @@ def create_settings(cmd_opts):
         "ckpt_dir": OptionInfo(os.path.join(paths.models_path, 'Stable-diffusion'), "Folder with stable diffusion models", folder=True),
         "diffusers_dir": OptionInfo(os.path.join(paths.models_path, 'Diffusers'), "Folder with Huggingface models", folder=True),
         "hfcache_dir": OptionInfo(default_hfcache_dir, "Folder for Huggingface cache", folder=True),
+        "xetcache_dir": OptionInfo(default_xetcache_dir, "Folder for XET cache", folder=True),
         "tunable_dir": OptionInfo(os.path.join(paths.models_path, 'tunable'), "Folder for Tunable ops cache", folder=True),
         "vae_dir": OptionInfo(os.path.join(paths.models_path, 'VAE'), "Folder with VAE files", folder=True),
         "unet_dir": OptionInfo(os.path.join(paths.models_path, 'UNET'), "Folder with UNET files", folder=True),
@@ -387,6 +393,7 @@ def create_settings(cmd_opts):
         "lora_dir": OptionInfo(os.path.join(paths.models_path, 'Lora'), "Folder with LoRA network(s)", folder=True),
         "styles_dir": OptionInfo(os.path.join(paths.models_path, 'styles'), "File or Folder with user-defined styles", folder=True),
         "wildcards_dir": OptionInfo(os.path.join(paths.models_path, 'wildcards'), "Folder with user-defined wildcards", folder=True),
+        "autocomplete_dir": OptionInfo(os.path.join(paths.models_path, 'autocomplete'), "Folder with tag autocomplete files", folder=True),
         "embeddings_dir": OptionInfo(os.path.join(paths.models_path, 'embeddings'), "Folder with textual inversion embeddings", folder=True),
         "control_dir": OptionInfo(os.path.join(paths.models_path, 'control'), "Folder with Control models", folder=True),
         "yolo_dir": OptionInfo(os.path.join(paths.models_path, 'yolo'), "Folder with Yolo models", folder=True),
@@ -519,6 +526,23 @@ def create_settings(cmd_opts):
         "compact_view": OptionInfo(False, "Compact view"),
         "ui_columns": OptionInfo(4, "Gallery view columns", gr.Slider, {"minimum": 1, "maximum": 8, "step": 1}),
 
+        'uiux_separator_appearance': OptionInfo("<h2>Appearance</h2>", "", gr.HTML),
+        "uiux_grid_image_size": OptionInfo(150, "Grid image size", gr.Slider, {"minimum": 64, "maximum": 1024, "step": 1}),
+        "uiux_panel_min_width": OptionInfo(35, "Panel minimum width", gr.Number),
+        "uiux_hide_legacy": OptionInfo(True, "Hide legacy tabs"),
+        "uiux_persist_layout": OptionInfo(True, "Persist UI layout"),
+        "uiux_no_slider_layout": OptionInfo(False, "Hide input range sliders"),
+        "uiux_show_labels_aside": OptionInfo(False, "Show labels for aside tabs"),
+        "uiux_show_labels_main": OptionInfo(False, "Show labels for main tabs"),
+        "uiux_show_labels_tabs": OptionInfo(True, "Show labels for page tabs"),
+        "uiux_show_input_range_ticks": OptionInfo(True, "Show ticks for input range slider", gr.Checkbox, {"visible": False}),
+        "uiux_no_headers_params": OptionInfo(False, "Hide params headers", gr.Checkbox, {"visible": False}),
+        "uiux_show_outline_params": OptionInfo(True, "Show parameter outline", gr.Checkbox, {"visible": False}),
+
+        'uiux_separator_mobile': OptionInfo("<h2>Mobile</h2>", "", gr.HTML),
+        "uiux_default_layout": OptionInfo("Auto", "Layout", gr.Radio, {"choices": ["Auto","Desktop", "Mobile"]}),
+        "uiux_mobile_scale": OptionInfo(0.7, "Mobile scale", gr.Slider, {"minimum": 0.5, "maximum": 1, "step": 0.05}),
+
         "images_sep_log": OptionInfo("<h2>Log Display</h2>", "", gr.HTML),
         "logmonitor_show": OptionInfo(True, "Show log view"),
         "logmonitor_refresh_period": OptionInfo(5000, "Log view update period", gr.Slider, {"minimum": 0, "maximum": 30000, "step": 25}),
@@ -533,8 +557,8 @@ def create_settings(cmd_opts):
 
     # --- Live Previews ---
     options_templates.update(options_section(('live-preview', "Live Previews"), {
-        "show_progress_every_n_steps": OptionInfo(1, "Live preview display period", gr.Slider, {"minimum": 0, "maximum": 20, "step": 1}),
-        "show_progress_type": OptionInfo("TAESD", "Live preview method", gr.Radio, {"choices": ["Simple", "Approximate", "TAESD", "Full VAE"]}),
+        "show_progress_every_n_steps": OptionInfo(1, "Live preview display period", gr.Slider, {"minimum": 0, "maximum": 20, "step": 1, "visible": False}),
+        "show_progress_type": OptionInfo("TAESD", "Live preview method", gr.Dropdown, {"choices": ["None", "Simple", "Approximate", "TAESD", "Full"]}),
         "live_preview_refresh_period": OptionInfo(500, "Progress update period", gr.Slider, {"minimum": 0, "maximum": 5000, "step": 25}),
         "taesd_variant": OptionInfo(shared_items.sd_taesd_items()[0], "TAESD variant", gr.Dropdown, {"choices": shared_items.sd_taesd_items()}),
         "taesd_layers": OptionInfo(3, "TAESD decode layers", gr.Slider, {"minimum": 1, "maximum": 3, "step": 1}),
@@ -655,6 +679,14 @@ def create_settings(cmd_opts):
                 "disabled_extensions": OptionInfo([], "Disable these extensions", gr.Textbox, {"visible": False}),
                 "sd_checkpoint_hash": OptionInfo("", "SHA256 hash of the current checkpoint", gr.Textbox, {"visible": False}),
                 "tooltips": OptionInfo("UI Tooltips", "UI tooltips", gr.Radio, {"choices": ["None", "Browser default", "UI tooltips"], "visible": False}),
+
+                # Autocomplete settings (controlled via Tag Autocomplete script UI)
+                "autocomplete_active": OptionInfo(False, "Enable Autocomplete", gr.Checkbox, {"visible": False}),
+                "autocomplete_enabled": OptionInfo([], "Enabled tag autocomplete files", gr.Dropdown, {"multiselect": True, "choices": [], "visible": False}),
+                "autocomplete_min_chars": OptionInfo(3, "Min autocomplete chars", gr.Slider, {"minimum": 2, "maximum": 6, "step": 1, "visible": False}),
+                "autocomplete_replace_underscores": OptionInfo(True, "Replace underscores in autocomplete", gr.Checkbox, {"visible": False}),
+                "autocomplete_append_comma": OptionInfo(True, "Append comma after autocomplete", gr.Checkbox, {"visible": False}),
+
                 # Caption settings (controlled via Caption Tab UI)
                 "caption_default_type": OptionInfo("VLM", "Default caption type", gr.Radio, {"choices": ["VLM", "OpenCLiP", "Tagger"], "visible": False}),
                 "tagger_show_scores": OptionInfo(False, "Tagger: show confidence scores in results", gr.Checkbox, {"visible": False}),

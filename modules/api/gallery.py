@@ -103,6 +103,8 @@ def register_api(app: FastAPI): # register api
     def get_image_thumbnail(filepath):
         try:
             stat_size, stat_mtime = modelstats.stat(filepath)
+            if stat_size < 1024:
+                return {}
             image = Image.open(filepath)
             geninfo, _items = images.read_info_from_image(image)
             h = shared.opts.extra_networks_card_size

@@ -42,11 +42,12 @@ def prompt_check(
 def image_guard(
     image: str = Body("", title='input image'),
     policy: str = Body("", title='optional policy definition'),
+    model: str = Body("", title='optional policy model name'),
 ):
     """Evaluate an image against a content policy using the ImageGuard classifier."""
     from scripts.nudenet import imageguard # pylint: disable=no-name-in-module
     image = api.decode_base64_to_image(image)
-    res = imageguard.image_guard(image=image, policy=policy)
+    res = imageguard.image_guard(image=image, policy=policy, model_name=model)
     return res
 
 
@@ -60,8 +61,8 @@ def banned_words(
     return found
 
 
-def register_api(app):
-    app.add_api_route("/sdapi/v1/nudenet", nudenet_censor, methods=["POST"], response_model=dict, tags=["Processing"])
-    app.add_api_route("/sdapi/v1/prompt-lang", prompt_check, methods=["POST"], response_model=dict, tags=["Processing"])
-    app.add_api_route("/sdapi/v1/image-guard", image_guard, methods=["POST"], response_model=dict, tags=["Processing"])
-    app.add_api_route("/sdapi/v1/prompt-banned", banned_words, methods=["POST"], response_model=list, tags=["Processing"])
+def register_api(api_instance):
+    api_instance.add_api_route("/sdapi/v1/nudenet", nudenet_censor, methods=["POST"], response_model=dict, tags=["Processing"])
+    api_instance.add_api_route("/sdapi/v1/prompt-lang", prompt_check, methods=["POST"], response_model=dict, tags=["Processing"])
+    api_instance.add_api_route("/sdapi/v1/image-guard", image_guard, methods=["POST"], response_model=dict, tags=["Processing"])
+    api_instance.add_api_route("/sdapi/v1/prompt-banned", banned_words, methods=["POST"], response_model=list, tags=["Processing"])

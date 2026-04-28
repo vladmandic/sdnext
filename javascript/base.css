@@ -4,11 +4,14 @@
 .gradio-button.tool { max-width: min-content; min-width: min-content !important; align-self: end; font-size: 1.4em; color: var(--body-text-color) !important; }
 
 /* token counters */
-.token-counter { position: absolute; display: inline-block; right: 0; min-width: 0 !important; width: auto; z-index: 100; top: 0; }
-.token-counter span { background: var(--input-background-fill) !important; box-shadow: 0 0 0.0 0.3em rgba(192,192,192,0.15), inset 0 0 0.6em rgba(192,192,192,0.075); border: 2px solid rgba(192,192,192,0.4) !important; }
-.token-counter.error span{ box-shadow: 0 0 0.0 0.3em rgba(255,0,0,0.15), inset 0 0 0.6em rgba(255,0,0,0.075); border: 2px solid rgba(255,0,0,0.4) !important; }
-.token-counter div { display: inline; }
-.token-counter span { padding: 0.1em 0.75em; }
+.token-counter > .token-counter-contents { display: flex; flex-direction: row; line-height: normal; padding: 2px 4px 4px 4px; margin: 0 !important; color: white; background: var(--input-background-fill); border: 2px solid rgba(192, 192, 192, 0.4); box-shadow: 0 0 0.0 0.3em rgba(192, 192, 192, 0.15), inset 0 0 0.6em rgba(192, 192, 192, 0.075); }
+.token-counter-detailed { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex-shrink: 1; }
+.token-counter-totals { flex-shrink: 0;
+  &:not(:only-of-type) { margin-left: 6px; }
+}
+.token-counter:not(:has(> .token-counter-contents)) { min-width: 0 !important; position: absolute !important; right: 2em; top: -1em; width: auto !important; z-index: 100; background: transparent !important;
+  &.error .token-counter-contents { border: 2px solid rgba(255, 0, 0, 0.4) !important; box-shadow: 0 0 0.0 0.3em rgba(255, 0, 0, 0.15), inset 0 0 0.6em rgba(255, 0, 0, 0.075); }
+}
 
 /* tooltips and statuses */
 .infotext { overflow-wrap: break-word; }

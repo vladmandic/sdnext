@@ -28,7 +28,7 @@ def search_civitai(
     t0 = time.time()
 
     # URL query → extract model ID (e.g. https://civitai.com/models/967405/nova-orange-xl)
-    url_match = re.match(r'https?://civitai\.com/models/(\d+)', query.strip())
+    url_match = re.match(r'https?://civitai\.(?:com|red)/models/(\d+)', query.strip())
     if url_match:
         query = url_match.group(1)
         log.info(f'CivitAI: extracted model id={query} from URL')

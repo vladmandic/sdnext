@@ -7,7 +7,7 @@ from modules import scripts_manager, shared
 
 class ROCmScript(scripts_manager.Script):
     def title(self):
-        return "Windows ROCm: Advanced Config"
+        return "ROCm: Advanced Config"
 
     def show(self, _is_img2img):
         if shared.cmd_opts.use_rocm or installer.torch_info.get('type') == 'rocm':
@@ -35,7 +35,7 @@ class ROCmScript(scripts_manager.Script):
                 choices = rocm_mgr._dropdown_choices(meta["options"])
                 display = rocm_mgr._dropdown_display(val, meta["options"])
                 return gr.Dropdown(label=meta["desc"], choices=choices, value=display, elem_id=f"rocm_var_{name.lower()}")
-            return gr.Textbox(label=meta["desc"], value=rocm_mgr._expand_venv(val), lines=1)
+            return gr.Textbox(label=meta["desc"], value=rocm_mgr._expand_venv(val), lines=2)
 
         def _info_html():
             d = rocm_mgr.info()
@@ -47,22 +47,11 @@ class ROCmScript(scripts_manager.Script):
             section("ROCm / HIP")
             for k, v in d.get("rocm", {}).items():
                 row(k, v)
-            section("System DB")
-            sdb = d.get("system_db", {})
-            row("path", sdb.get("path", ""))
-            for sub in ("solver_db", "find_db", "kernel_db"):
-                for fname, sz in sdb.get(sub, {}).items():
-                    row(sub.replace("_", " "), f"{fname} &nbsp; {sz}")
             section("User DB (~/.miopen/db)")
             udb = d.get("user_db", {})
             row("path", udb.get("path", ""))
             for fname, finfo in udb.get("files", {}).items():
                 row(fname, finfo)
-            section("User cache (~/.miopen/cache)")
-            ucache = d.get("user_cache", {})
-            row("path", ucache.get("path", ""))
-            for fname, sz in ucache.get("files", {}).items():
-                row(fname, sz)
             return f"<table style='width:100%;border-collapse:collapse'>{''.join(rows)}</table>"
 
         def _build_style(unavailable, hipblaslt_disabled=False):

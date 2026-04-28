@@ -1,5 +1,4 @@
 
-
 def xyz_grid_enum(option: str = "") -> list[dict]:
     """List XYZ grid axis options. Optionally filter by label prefix/suffix and expand choices."""
     from scripts.xyz import xyz_grid_classes # pylint: disable=no-name-in-module
@@ -21,5 +20,5 @@ def xyz_grid_enum(option: str = "") -> list[dict]:
     return options
 
 
-def register_api(app):
-    app.add_api_route("/sdapi/v1/xyz-grid", xyz_grid_enum, methods=["GET"], response_model=list[dict], tags=["Scripts"])
+def register_api(api):
+    api.add_api_route("/sdapi/v1/xyz-grid", xyz_grid_enum, methods=["GET"], response_model=list[dict], tags=["Scripts"])

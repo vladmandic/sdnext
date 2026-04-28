@@ -13,12 +13,15 @@ request_cost = {
     "/sdapi/v1/control": 5,
 }
 log_cost = {
+    "/.well-known/appspecific/com.chrome.devtools.json": -1,
+    "/info": -1,
     "/file": -1,
     "/token": -1,
     "/theme.css": -1,
     "/sdapi/v1/browser/thumb": -1,
     "/sdapi/v1/network/thumb": -1,
     "/run/predict": -1,
+    "/queue/join": -1,
     "/internal/progress": -1,
     "/sdapi/v1/version": -1,
     "/sdapi/v1/log": -1,

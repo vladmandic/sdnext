@@ -107,6 +107,7 @@ def create_paths(opts):
     create_path(fix_path('ckpt_dir'))
     create_path(fix_path('diffusers_dir'))
     create_path(fix_path('hfcache_dir'))
+    create_path(fix_path('xetcache_dir'))
     create_path(fix_path('vae_dir'))
     create_path(fix_path('unet_dir'))
     create_path(fix_path('te_dir'))
@@ -129,6 +130,7 @@ def create_paths(opts):
     create_path(fix_path('styles_dir'))
     create_path(fix_path('yolo_dir'))
     create_path(fix_path('wildcards_dir'))
+    create_path(fix_path('autocomplete_dir'))
 
     # Create resolved output paths (base + specific)
     base_samples = opts.data.get('outdir_samples', '')

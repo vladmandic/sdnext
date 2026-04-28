@@ -132,7 +132,6 @@ def checkpoint_titles(use_short=False):
 
 def list_models():
     t0 = time.time()
-    global checkpoints_list # pylint: disable=global-statement
     checkpoints_list.clear()
     checkpoint_aliases.clear()
     ext_filter = [".safetensors"]
@@ -157,7 +156,9 @@ def list_models():
         elif shared.cmd_opts.ckpt != shared.default_sd_model_file:
             log.warning(f'Load model: path="{shared.cmd_opts.ckpt}" not found')
     log.info(f'Available Models: safetensors="{shared.opts.ckpt_dir}":{len(safetensors_list)} diffusers="{shared.opts.diffusers_dir}":{len(diffusers_list)} reference={len(list(shared.reference_models))} items={len(checkpoints_list)} time={time.time()-t0:.2f}')
-    checkpoints_list = dict(sorted(checkpoints_list.items(), key=lambda cp: cp[1].filename))
+    sorted_items = sorted(checkpoints_list.items(), key=lambda cp: cp[1].filename)
+    checkpoints_list.clear()
+    checkpoints_list.update(sorted_items)
 
 
 def update_model_hashes(model_list: dict | None = None, model_type: str = 'checkpoint'):

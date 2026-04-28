@@ -37,6 +37,7 @@ package-lock.json
 *.rar
 *.7z
 *.pyc
+*.out
 /*.bat
 /*.sh
 /*.txt

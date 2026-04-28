@@ -1,8 +1,8 @@
 import io
+import os
 import copy
 import json
 import inspect
-import os.path
 from rich import progress # pylint: disable=redefined-builtin
 import torch
 import safetensors.torch
@@ -10,6 +10,9 @@ import safetensors.torch
 from modules import paths, shared, errors
 from modules.logger import log, console
 from modules.sd_checkpoint import CheckpointInfo # pylint: disable=unused-import
+
+
+debug = log.trace if os.environ.get('SD_LOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 
 
 class NoWatermark:
@@ -38,16 +41,35 @@ def path_to_repo(checkpoint_info):
         repo_id = checkpoint_info.name
     else:
         repo_id = checkpoint_info # fallback if fn is used with str param
+    repo_orig = repo_id
     repo_id = repo_id.replace('\\', '/')
-    if repo_id.startswith('Diffusers/'):
-        repo_id = repo_id.split('Diffusers/')[-1]
-    if repo_id.startswith('models--'):
-        repo_id = repo_id.split('models--')[-1]
+
+    remove_prefix = ['Diffusers', 'huggingface', 'models--']
+    for opt in [shared.opts.ckpt_dir, shared.opts.diffusers_dir, shared.opts.hfcache_dir]:
+        remove_prefix.append(opt.replace('\\', '/'))
+        try:
+            relative = os.path.relpath(opt, start=shared.opts.models_dir).replace('\\', '/')
+            if not relative.startswith('.'):
+                remove_prefix.append(relative)
+        except Exception:
+            pass
+        basename = os.path.basename(opt).replace('\\', '/')
+        if basename:
+            remove_prefix.append(basename)
+
+    debug(f'Path sanitize: prefixes={remove_prefix}')
+    for prefix in remove_prefix:
+        if repo_id.startswith(prefix):
+            repo_id = repo_id.lstrip(prefix)
+            break
+
+    repo_id = repo_id.lstrip('/')
     repo_id = repo_id.replace('--', '/')
-    if repo_id.count('/') != 1:
-        log.warning(f'Model: repo="{repo_id}" repository not recognized')
     if '+' in repo_id:
         repo_id = repo_id.split('+')[0]
+    if repo_id.count('/') > 1:
+        log.warning(f'Model: repo="{repo_id}" repository not recognized')
+    debug(f'Path: from="{repo_orig}" to="{repo_id}"')
     return repo_id
 
 
@@ -179,6 +201,7 @@ def apply_function_to_model(sd_model, function, options, op=None):
             sd_model.prior_pipe.prior = function(sd_model.prior_pipe.prior, op="prior_pipe.prior", sd_model=sd_model)
             if op == "sdnq" and "StableCascade" in sd_model.__class__.__name__:
                 sd_model.prior_pipe.prior.clip_txt_pooled_mapper = backup_clip_txt_pooled_mapper
+
     if "TE" in options:
         if hasattr(sd_model, 'text_encoder') and hasattr(sd_model.text_encoder, 'config'):
             if hasattr(sd_model, 'decoder_pipe') and hasattr(sd_model.decoder_pipe, 'text_encoder') and hasattr(sd_model.decoder_pipe.text_encoder, 'config'):
@@ -195,6 +218,7 @@ def apply_function_to_model(sd_model, function, options, op=None):
             sd_model.mllm = function(sd_model.mllm, op="text_encoder_mllm", sd_model=sd_model)
         if hasattr(sd_model, 'prior_pipe') and hasattr(sd_model.prior_pipe, 'text_encoder') and hasattr(sd_model.prior_pipe.text_encoder, 'config'):
             sd_model.prior_pipe.text_encoder = function(sd_model.prior_pipe.text_encoder, op="prior_pipe.text_encoder", sd_model=sd_model)
+
     if "VAE" in options:
         if hasattr(sd_model, 'vae') and hasattr(sd_model.vae, 'decode'):
             if op == "compile":

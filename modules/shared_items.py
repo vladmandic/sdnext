@@ -30,6 +30,7 @@ pipelines = {
     'Chroma': getattr(diffusers, 'ChromaPipeline', None),
     'Sana': getattr(diffusers, 'SanaPipeline', None),
     'Lumina-Next': getattr(diffusers, 'LuminaText2ImgPipeline', None),
+    # 'Lumina-DiMOO': getattr(diffusers, 'LuminaDiMOOPipeline', None),
     'Lumina 2': getattr(diffusers, 'Lumina2Pipeline', None),
     'AuraFlow': getattr(diffusers, 'AuraFlowPipeline', None),
     'Kandinsky 2.1': getattr(diffusers, 'KandinskyCombinedPipeline', None),
@@ -47,25 +48,27 @@ pipelines = {
     'WanAI': getattr(diffusers, 'WanPipeline', None),
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
     'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
+    'ERNIE-Image': getattr(diffusers, 'ErnieImagePipeline', None),
+    'Nucleus-Image': getattr(diffusers, 'NucleusMoEImagePipeline', None),
     'Z-Image': getattr(diffusers, 'ZImagePipeline', None),
     'FLUX2': getattr(diffusers, 'Flux2Pipeline', None),
     'FLUX2 Klein': getattr(diffusers, 'Flux2KleinPipeline', None),
     'LongCat': getattr(diffusers, 'LongCatImagePipeline', None),
     'GLM-Image': getattr(diffusers, 'GlmImagePipeline', None),
+    'VIBE': getattr(diffusers, 'VIBESanaEditingPipeline', getattr(diffusers, 'DiffusionPipeline', None)),
     # dynamically imported and redefined later
     'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
-    'Monetico': getattr(diffusers, 'DiffusionPipeline', None),
     'OmniGen2': getattr(diffusers, 'DiffusionPipeline', None),
     'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None),
     'SegMoE': getattr(diffusers, 'DiffusionPipeline', None),
     'FLite': getattr(diffusers, 'DiffusionPipeline', None),
     'Bria': getattr(diffusers, 'DiffusionPipeline', None),
-    'hdm': getattr(diffusers, 'DiffusionPipeline', None),
     'X-Omni': getattr(diffusers, 'DiffusionPipeline', None),
     'HunyuanImage3': getattr(diffusers, 'DiffusionPipeline', None),
     'ChronoEdit': getattr(diffusers, 'DiffusionPipeline', None),
     'Anima': getattr(diffusers, 'DiffusionPipeline', None),
     'SDXS': getattr(diffusers, 'DiffusionPipeline', None),
+    'Step1X-Edit': getattr(diffusers, 'DiffusionPipeline', None),
 }
 
 
@@ -137,6 +140,7 @@ def get_pipelines():
         pipelines.update(onnx_pipelines)
     for k, v in pipelines.items():
         if k != 'Autodetect' and v is None:
+            from modules.logger import log
             log.error(f'Model="{k}" diffusers={diffusers.__version__} path={diffusers.__file__} pipeline not available')
     return pipelines
 
@@ -154,5 +158,5 @@ def get_repo(model):
         return None
 
 
-sdnq_quant_modes = ["int8", "int7", "int6", "uint5", "uint4", "uint3", "uint2", "float8_e4m3fn", "float7_e3m3fn", "float6_e3m2fn", "float5_e2m2fn", "float4_e2m1fn", "float3_e1m1fn", "float2_e1m0fn"]
+sdnq_quant_modes = ["int8", "int7", "int6", "uint5", "uint4", "uint3", "uint2", "float8_e4m3fn", "float8_e3m4fn", "float7_e3m3fn", "float6_e3m2fn", "float5_e2m2fn", "float4_e2m1fn", "float3_e1m1fn", "float2_e1m0fn"]
 sdnq_matmul_modes = ["auto", "int8", "float8_e4m3fn", "float16"]

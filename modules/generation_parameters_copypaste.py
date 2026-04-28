@@ -24,7 +24,7 @@ param_aliases: dict[str, str] = {}
 
 
 class ParamBinding:
-    def __init__(self, paste_button, tabname: str, source_text_component=None, source_image_component=None, source_tabname=None, override_settings_component=None, paste_field_names=None):
+    def __init__(self, paste_button, tabname: str, source_text_component=None, source_image_component=None, source_tabname=None, override_settings_component=None, paste_field_names=None, skip_image: bool = False, only_prompt: bool = False):
         self.paste_button = paste_button
         self.tabname = tabname
         self.source_text_component = source_text_component
@@ -32,6 +32,8 @@ class ParamBinding:
         self.source_tabname = source_tabname
         self.override_settings_component = override_settings_component
         self.paste_field_names = paste_field_names or []
+        self.skip_image = skip_image
+        self.only_prompt = only_prompt
         # debug(f'ParamBinding: {vars(self)}')
 
 
@@ -142,23 +144,26 @@ def get_all_fields():
     return all_fields
 
 
-def create_buttons(tabs_list: list[str]) -> dict[str, gr.Button]:
+def create_buttons(tabs_list: list[str], label_prefix: str = "➠", label_override: str | None = None, id_suffix: str = "") -> dict[str, gr.Button]:
     buttons = {}
     for tab in tabs_list:
-        name = tab
-        if name == 'txt2img':
-            name = 'Text'
-        elif name == 'img2img':
-            name = 'Image'
-        elif name == 'inpaint':
-            name = 'Inpaint'
-        elif name == 'extras':
-            name = 'Process'
-        elif name == 'control':
-            name = 'Control'
-        elif name == 'caption':
-            name = 'Caption'
-        buttons[tab] = gr.Button(f"➠ {name}", elem_id=f"{tab}_tab")
+        if label_override is not None:
+            display = label_override
+        else:
+            display = tab
+            if display == 'txt2img':
+                display = 'Text'
+            elif display == 'img2img':
+                display = 'Image'
+            elif display == 'inpaint':
+                display = 'Inpaint'
+            elif display == 'extras':
+                display = 'Process'
+            elif display == 'control':
+                display = 'Control'
+            elif display == 'caption':
+                display = 'Caption'
+        buttons[tab] = gr.Button(f"{label_prefix} {display}", elem_id=f"{tab}_tab{id_suffix}")
     return buttons
 
 
@@ -198,7 +203,7 @@ def connect_paste_params_buttons():
         fields: list[tuple[gr.components.Component, str]] = paste_fields[binding.tabname]["fields"]
 
         destination_image_component = paste_fields[binding.tabname]["init_img"]
-        if binding.source_image_component:
+        if binding.source_image_component and not binding.skip_image:
             if isinstance(destination_image_component, gr.Image):
                 binding.paste_button.click(
                     _js="extract_image_from_gallery" if isinstance(binding.source_image_component, gr.Gallery) else None,
@@ -216,10 +221,18 @@ def connect_paste_params_buttons():
                     show_progress='hidden',
                 )
         override_settings_component = binding.override_settings_component or paste_fields[binding.tabname]["override_settings_component"]
-        if binding.source_text_component is not None and fields is not None:
-            connect_paste(binding.paste_button, fields, binding.source_text_component, override_settings_component, binding.tabname)
+        if binding.only_prompt:
+            override_settings_component = None
+        text_fields = fields
+        if binding.only_prompt and fields is not None:
+            text_fields = [(component, key) for component, key in fields if key in ('Prompt', 'Negative prompt')]
+        if binding.source_text_component is not None and text_fields is not None:
+            connect_paste(binding.paste_button, text_fields, binding.source_text_component, override_settings_component, binding.tabname)
         if binding.source_tabname is not None and fields is not None and binding.source_tabname in paste_fields:
-            paste_field_names = ['Prompt', 'Negative prompt', 'Steps'] + (["Seed"] if shared.opts.send_seed else []) + binding.paste_field_names
+            if binding.only_prompt:
+                paste_field_names = ['Prompt', 'Negative prompt']
+            else:
+                paste_field_names = ['Prompt', 'Negative prompt', 'Steps'] + (["Seed"] if shared.opts.send_seed else []) + binding.paste_field_names
             if "fields" in paste_fields[binding.source_tabname] and paste_fields[binding.source_tabname]["fields"] is not None:
                 binding.paste_button.click(
                     fn=lambda *x: x,

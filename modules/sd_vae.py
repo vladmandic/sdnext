@@ -145,7 +145,7 @@ def apply_vae_config(model_file, vae_file, sd_model):
                 sd_model.vae.config[k] = v
 
 
-def load_vae_diffusers(model_file, vae_file=None, vae_source="unknown-source"):
+def load_vae(model_file, vae_file=None, vae_source="unknown-source"):
     if vae_file is None:
         return None
     if not os.path.exists(vae_file):
@@ -222,7 +222,7 @@ def reload_vae_weights(sd_model=None, vae_file=unspecified):
         return None
 
     if hasattr(sd_model, "vae") and getattr(sd_model, "sd_checkpoint_info", None) is not None:
-        vae = load_vae_diffusers(sd_model.sd_checkpoint_info.filename, vae_file, vae_source)
+        vae = load_vae(sd_model.sd_checkpoint_info.filename, vae_file, vae_source)
         if vae is not None:
             if not hasattr(sd_model, 'original_vae'):
                 sd_model.original_vae = sd_model.vae

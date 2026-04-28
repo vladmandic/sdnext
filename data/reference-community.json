@@ -82,7 +82,7 @@
     "extras": ""
   },
   "WAI-Ani-Pony XL v14": {
-    "path": "waiANIPONYXL_v140.safetensors.safetensors@https://civitai.com/api/download/models/1767402",
+    "path": "waiANIPONYXL_v140.safetensors@https://civitai.com/api/download/models/1767402",
     "preview": "waiANIPONYXL_v140.jpg",
     "desc": "",
     "tags": "community",
@@ -132,20 +132,12 @@
     "date": "2025 January",
     "skip": true
   },
-  "Anima Preview 1": {
-    "path": "CalamitousFelicitousness/Anima-sdnext-diffusers",
-    "preview": "CalamitousFelicitousness--Anima-sdnext-diffusers.jpg",
-    "desc": "Modified Cosmos-Predict-2B that replaces the T5-11B text encoder with Qwen3-0.6B. Anima is a 2 billion parameter text-to-image model created via a collaboration between CircleStone Labs and Comfy Org. It is focused mainly on anime concepts, characters, and styles, but is also capable of generating a wide variety of other non-photorealistic content. The model is designed for making illustrations and artistic images, and will not work well at realism.",
+  "Anima Preview 3": {
+    "path": "CalamitousFelicitousness/Anima-Preview-3-sdnext-diffusers",
+    "preview": "CalamitousFelicitousness--Anima-Preview-3-sdnext-diffusers.jpg",
+    "desc": "Anima Preview V3 with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
     "tags": "community",
-    "date": "2026 January",
-    "skip": true
-  },
-  "Anima Preview 2": {
-    "path": "CalamitousFelicitousness/Anima-Preview-2-sdnext-diffusers",
-    "preview": "CalamitousFelicitousness--Anima-Preview-2-sdnext-diffusers.jpg",
-    "desc": "Anima Preview V2 with improved hyperparameters, extended medium-resolution training for more character knowledge, and a regularization dataset for better natural language comprehension. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder.",
-    "tags": "community",
-    "date": "2026 March",
+    "date": "2026 April",
     "skip": true
   },
   "FireRed Image Edit 1.0": {

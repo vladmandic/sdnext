@@ -5,7 +5,7 @@ from torch.nn import functional as F
 from ..common.half_precision_fixes import safe_pad_operation, safe_interpolate_operation
 from torchvision.transforms import ToTensor, ToPILImage
 
-def adain_color_fix(target: Image, source: Image):
+def adain_color_fix(target: Image.Image, source: Image.Image):
     # Convert images to tensors
     to_tensor = ToTensor()
     target_tensor = to_tensor(target).unsqueeze(0)
@@ -20,7 +20,7 @@ def adain_color_fix(target: Image, source: Image):
 
     return result_image
 
-def wavelet_color_fix(target: Image, source: Image):
+def wavelet_color_fix(target: Image.Image, source: Image.Image):
     # Convert images to tensors
     to_tensor = ToTensor()
     target_tensor = to_tensor(target).unsqueeze(0)

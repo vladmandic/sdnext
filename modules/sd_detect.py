@@ -53,8 +53,6 @@ def guess_by_name(fn, current_guess):
         new_guess = 'SegMoE'
     elif 'hunyuandit' in fn.lower():
         new_guess = 'HunyuanDiT'
-    elif 'hdm-xut' in fn.lower():
-        new_guess = 'hdm'
     elif 'pixart-xl' in fn.lower():
         new_guess = 'PixArt Alpha'
     elif 'stable-diffusion-3' in fn.lower():
@@ -69,6 +67,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'Sana'
     elif 'lumina-next' in fn.lower():
         new_guess = 'Lumina-Next'
+    elif 'lumina-dimoo' in fn.lower():
+        new_guess = 'Lumina-DiMOO'
     elif 'lumina-image-2' in fn.lower():
         new_guess = 'Lumina 2'
     elif 'kolors' in fn.lower():
@@ -81,8 +81,6 @@ def guess_by_name(fn, current_guess):
         new_guess = 'CogView 4'
     elif 'meissonic' in fn.lower():
         new_guess = 'Meissonic'
-    elif 'monetico' in fn.lower():
-        new_guess = 'Monetico'
     elif 'omnigen2' in fn.lower():
         new_guess = 'OmniGen2'
     elif 'omnigen' in fn.lower():
@@ -91,6 +89,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'Stable Diffusion 3'
     elif 'hidream' in fn.lower():
         new_guess = 'HiDream'
+    elif 'zeta-chroma' in fn.lower() or 'zetachroma' in fn.lower():
+        new_guess = 'ZetaChroma'
     elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
         new_guess = 'Chroma'
     elif 'flux.2' in fn.lower() and 'klein' in fn.lower():
@@ -114,7 +114,7 @@ def guess_by_name(fn, current_guess):
         new_guess = 'WanAI'
     if 'chronoedit' in fn.lower():
         new_guess = 'ChronoEdit'
-    elif 'bria' in fn.lower():
+    elif 'bria' in fn.lower() or 'fibo' in fn.lower():
         new_guess = 'Bria'
     elif 'qwen' in fn.lower() or 'firered' in fn.lower() or 'unipic3' in fn.lower():
         new_guess = 'Qwen'
@@ -142,6 +142,10 @@ def guess_by_name(fn, current_guess):
         new_guess = 'PRX'
     elif 'gemini-' in fn.lower() and 'image' in fn.lower():
         new_guess = 'NanoBanana'
+    elif 'ernie-image' in fn.lower():
+        new_guess = 'ERNIE-Image'
+    elif 'nucleus-image' in fn.lower() or 'nucleusmoe-image' in fn.lower():
+        new_guess = 'Nucleus-Image'
     elif 'z-image' in fn.lower() or 'z_image' in fn.lower():
         new_guess = 'Z-Image'
     elif 'longcat-image' in fn.lower():
@@ -152,6 +156,10 @@ def guess_by_name(fn, current_guess):
         new_guess = 'GLM-Image'
     elif 'sdxs-1b' in fn.lower():
         new_guess = 'SDXS'
+    elif 'step1x-edit' in fn.lower():
+        new_guess = 'Step1X-Edit'
+    elif 'vibe-image-edit' in fn.lower():
+        new_guess = 'VIBE'
     if debug_load:
         log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess

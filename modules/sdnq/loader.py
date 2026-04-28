@@ -3,7 +3,7 @@ import json
 import torch
 from diffusers.models.modeling_utils import ModelMixin
 
-from .common import dtype_dict, use_tensorwise_fp8_matmul, check_torch_compile, conv_types, linear_types
+from .common import dtype_dict, is_fp8_mm_supported, use_tensorwise_fp8_matmul, check_torch_compile, conv_types, linear_types
 from .quantizer import SDNQConfig, sdnq_post_load_quant, prepare_weight_for_matmul, prepare_svd_for_matmul, get_quant_args_from_config
 from .forward import get_forward_func
 from .file_loader import load_files
@@ -172,6 +172,10 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype | None = None, dequan
         if hasattr(module, "sdnq_dequantizer"):
             layer_class_name = module.original_class.__name__
             current_use_quantized_matmul = use_quantized_matmul
+
+            if not is_fp8_mm_supported and module.sdnq_dequantizer.quantized_matmul_dtype in {"fp8", "float8_e4m3fn"}:
+                current_use_quantized_matmul = False
+
             if current_use_quantized_matmul:
                 if layer_class_name in conv_types:
                     output_channel_size, channel_size = module.sdnq_dequantizer.original_shape[:2]

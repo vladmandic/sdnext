@@ -15,7 +15,7 @@ class UpscalerAsymmetricVAE(Upscaler):
             UpscalerData("Asymmetric VAE v2", None, self),
         ]
 
-    def do_upscale(self, img: Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None):
         if selected_model is None:
             return img
         import diffusers
@@ -55,7 +55,7 @@ class UpscalerWanUpscale(Upscaler):
             UpscalerData("WAN Asymmetric Upscale", None, self),
         ]
 
-    def do_upscale(self, img: Image, selected_model=None):
+    def do_upscale(self, img: Image.Image, selected_model=None):
         if selected_model is None:
             return img
         import torch.nn.functional as FN

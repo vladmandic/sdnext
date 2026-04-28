@@ -162,6 +162,27 @@
     "date": "2025 November"
   },
 
+  "Baidu ERNIE-Image": {
+    "path": "baidu/ERNIE-Image",
+    "preview": "baidu--ERNIE-Image.jpg",
+    "desc": "ERNIE-Image is a text-to-image diffusion transformer model that combines a Mistral3 text encoder with a FlowMatch transformer and Flux2-style VAE for 1024px image generation.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 4.0, steps: 50",
+    "size": 23.93,
+    "date": "2026 April"
+  },
+
+  "NucleusAI Nucleus-Image": {
+    "path": "NucleusAI/Nucleus-Image",
+    "preview": "NucleusAI--Nucleus-Image.jpg",
+    "desc": "Nucleus-Image is a sparse mixture-of-experts diffusion transformer with 17B total parameters and about 2B active parameters per forward pass, using a Qwen3-VL text encoder and Qwen-Image VAE for 1024px generation.",
+    "skip": true,
+    "variant": "bf16",
+    "extras": "sampler: Default, cfg_scale: 8.0, steps: 50",
+    "size": 48.11,
+    "date": "2026 April"
+  },
+
   "Qwen-Image": {
     "path": "Qwen/Qwen-Image",
     "preview": "Qwen--Qwen-Image.jpg",
@@ -243,6 +264,15 @@
     "extras": "",
     "size": 26.84,
     "date": "2025 July"
+  },
+  "lodestones Zeta-Chroma": {
+    "path": "lodestones/Zeta-Chroma",
+    "preview": "lodestones--Zeta-Chroma.jpg",
+    "desc": "Zeta-Chroma is a pixel-space diffusion transformer image model from lodestones that generates images directly in RGB space using a NextDiT-style architecture.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.0, steps: 30",
+    "size": 12.11,
+    "date": "2026 April"
   },
 
   "Meituan LongCat Image": {
@@ -442,7 +472,7 @@
     "desc": "X-Omni: Reinforcement learning makes discrete autoregressive image generative models great again",
     "preview": "X-Omni--X-Omni-SFT.jpg",
     "skip": true,
-    "size": 0,
+    "size": 23.8,
     "date": "2024 September",
     "experimental": true
   },
@@ -547,7 +577,7 @@
     "preview": "hunyuanvideo-community--HunyuanImage-2.1-Diffusers.jpg",
     "extras": "",
     "skip": true,
-    "size": 0,
+    "size": 51.88,
     "date": "2025 August"
   },
   "Tencent HunyuanImage 2.1 Refiner": {
@@ -556,7 +586,7 @@
     "preview": "hunyuanvideo-community--HunyuanImage-2.1-Diffusers.jpg",
     "extras": "",
     "skip": true,
-    "size": 0,
+    "size": 48.01,
     "date": "2025 August"
   },
   "Tencent HunyuanDiT 1.2": {
@@ -874,6 +904,26 @@
     "extras": "sampler: Default",
     "size": 15.3,
     "date": "2026 January"
+  },
+
+  "Bria FIBO": {
+    "path": "briaai/FIBO",
+    "preview": "briaai--FIBO.jpg",
+    "desc": "BRIA FIBO is an 8-billion parameter text-to-image diffusion model using Flow Matching and featuring a lightweight SmolLM3-3B text encoder. Delivers high-quality, detailed image generation with efficient inference.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 16.2,
+    "date": "2025 December"
+  },
+
+  "Bria Fibo-Edit": {
+    "path": "briaai/Fibo-Edit",
+    "preview": "briaai--Fibo-Edit.jpg",
+    "desc": "BRIA Fibo-Edit is the image editing variant of FIBO, enabling precise image manipulation through text instructions while maintaining consistency and quality.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 3.5",
+    "size": 16.2,
+    "date": "2025 December"
   }
 
 }

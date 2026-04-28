@@ -30,8 +30,10 @@ async function logMonitor() {
       const level = `<td style="color: var(--color-${l.level.toLowerCase()})">${l.level}</td>`;
       if (l.level === 'WARNING') logWarnings++;
       if (l.level === 'ERROR') logErrors++;
-      const module = `<td style="color: var(--var(--neutral-400))">${l.module}</td>`;
-      row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}<td>${l.facility}</td>${module}<td>${htmlEscape(l.msg)}</td>`;
+      const module = `<td style="color: var(--neutral-400)">${l.module}</td>`;
+      const facilityText = l.facility.length > 20 ? `${l.facility.substring(0, 20)}...` : l.facility;
+      const facility = l.facility !== 'sd' ? `<td>${facilityText}</td>` : '<td></td>';
+      row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}${facility}${module}<td>${htmlEscape(l.msg)}</td>`;
       logMonitorEl.appendChild(row);
     } catch (e) {
       error(`logMonitor: ${e}\n${line}`);
@@ -101,6 +103,7 @@ async function logMonitor() {
 async function initLogMonitor() {
   const el = document.getElementsByTagName('footer')[0];
   if (!el) return;
+  const t0 = performance.now();
   el.classList.add('log-monitor');
   const ui_disabled = Array.isArray(window.opts.ui_disabled) ? window.opts.ui_disabled : [];
   if (ui_disabled.includes('logs')) return;
@@ -124,5 +127,7 @@ async function initLogMonitor() {
   el.style.display = 'none';
   authFetch(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
   logMonitor();
-  log('initLogMonitor');
+  const t1 = performance.now();
+  log('initLogMonitor', Math.round(t1 - t0));
+  timer('initLogMonitor', t1 - t0);
 }

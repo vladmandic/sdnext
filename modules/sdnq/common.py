@@ -6,7 +6,7 @@ import torch
 
 from modules import shared, devices
 
-sdnq_version = "0.1.7"
+sdnq_version = "0.1.8"
 
 dtype_dict = {
     ### Integers
@@ -286,9 +286,10 @@ if hasattr(torch, "float8_e5m2fnuz"):
     torch_dtype_dict[torch.float8_e5m2fnuz] = "float8_e5m2fnuz"
 
 linear_types = {"Linear", "SDNQLinear"}
+embedding_types = {"Embedding", "SDNQEmbedding", "Gemma4TextScaledWordEmbedding"}
 conv_types = {"Conv1d", "Conv2d", "Conv3d", "SDNQConv1d", "SDNQConv2d", "SDNQConv3d"}
 conv_transpose_types = {"ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d", "SDNQConvTranspose1d", "SDNQConvTranspose2d", "SDNQConvTranspose3d"}
-allowed_types = set.union(linear_types, conv_types, conv_transpose_types)
+allowed_types = set.union(linear_types, embedding_types, conv_types, conv_transpose_types)
 
 accepted_weight_dtypes = set(dtype_dict.keys())
 accepted_matmul_dtypes = {"int8", "fp8", "fp16", "float8_e4m3fn", "float16"}
@@ -327,12 +328,28 @@ weights_dtype_order = [
     "uint16", "float16_e1m15fnu", "float16_e2m14fnu", "float16_e3m13fnu", "float16_e4m12fnu", "float16_e5m11fnu",
 ]
 
-is_rdna2 = bool(devices.backend == "rocm" and devices.get_hip_agent().gfx_version < 0x1100)
 use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
 
 def check_torch_compile(): # dynamo can be disabled after startup
     return use_torch_compile and not torch._dynamo.config.disable # pylint: disable=protected-access
 
+
+if devices.backend == "rocm":
+    gfx_version = devices.get_hip_agent().gfx_version
+    is_rdna2_and_older = bool(gfx_version < 0x940 or (gfx_version < 0x1100 and gfx_version >= 0x1000))
+else:
+    is_rdna2_and_older = False
+
+if os.environ.get("SDNQ_ALLOW_FP8_MM", None) is None:
+    if devices.backend == "cuda":
+        is_fp8_mm_supported = bool(torch.cuda.get_device_capability(devices.device) >= (8,9))
+    elif devices.backend == "rocm":
+        gfx_version = devices.get_hip_agent().gfx_version
+        is_fp8_mm_supported = bool(gfx_version >= 0x1200 or (gfx_version >= 0x940 and gfx_version < 0x1000))
+    else:
+        is_fp8_mm_supported = False
+else:
+    is_fp8_mm_supported = os.environ.get("SDNQ_ALLOW_FP8_MM", "0").lower() not in {"0", "false", "no"}
 
 if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
     # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
@@ -341,12 +358,12 @@ else:
     use_tensorwise_fp8_matmul = os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"}
 
 if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
-    use_contiguous_mm = bool(is_rdna2 or devices.backend in {"ipex", "mps", "cpu", "openvino", "zluda"})
+    use_contiguous_mm = bool(is_rdna2_and_older or devices.backend in {"ipex", "mps", "cpu", "openvino", "zluda"})
 else:
     use_contiguous_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
 
 if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
-    use_triton_mm = bool(is_rdna2 or devices.backend == "zluda")
+    use_triton_mm = bool(is_rdna2_and_older or devices.backend == "zluda")
 else:
     use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
 
@@ -482,6 +499,10 @@ module_skip_keys_dict = {
     ],
     "Gemma3nForCausalLM": [
         ["lm_head", "correction_coefs", "prediction_coefs", "embedding_projection"],
+        {}
+    ],
+    "Gemma4ForConditionalGeneration": [
+        ["lm_head", "embed_audio", "embed_vision", "patch_embedder", "embed_tokens", "subsample_conv_projection", "output_proj"],
         {}
     ],
     "MoondreamModel": [

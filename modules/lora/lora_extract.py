@@ -186,19 +186,6 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
             progress.remove_task(task)
         t3 = time.time()
 
-        # TODO: lora: support pre-quantized flux
-        # if 'te' in modules and getattr(shared.sd_model, 'transformer', None) is not None:
-        #     for name, module in shared.sd_model.transformer.named_modules():
-        #         if "norm" in name and "linear" not in name:
-        #             continue
-        #         weights_backup = getattr(module, "network_weights_backup", None)
-        #         if weights_backup is None:
-        #             continue
-        #         module.svdhandler = SVDHandler()
-        #         module.svdhandler.network_name = "lora_transformer_" + name.replace(".", "_")
-        #         module.svdhandler.decompose(module.weight, weights_backup)
-        #         module.svdhandler.findrank(rank, rank_ratio)
-
         lora_state_dict = {}
         for sub in ['text_encoder', 'text_encoder_2', 'unet', 'transformer']:
             submodel = getattr(shared.sd_model, sub, None)

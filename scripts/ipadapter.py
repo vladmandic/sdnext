@@ -14,7 +14,7 @@ class IPAdapterScript(scripts_manager.Script):
     def title(self):
         return 'IP Adapters'
 
-    def show(self, is_img2img):
+    def show(self, _is_img2img):
         return scripts_manager.AlwaysVisible
 
     def load_images(self, files):

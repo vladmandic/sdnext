@@ -53,3 +53,46 @@ def load_lumina2(checkpoint_info, diffusers_load_config=None):
 
     devices.torch_gc(force=True, reason='load')
     return pipe
+
+
+def load_lumina_dimoo(checkpoint_info, diffusers_load_config=None):
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
+    repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
+
+    load_config, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
+    log.debug(f'Load model: type=LuminaDiMOO repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_config}')
+
+    pipe_cls = getattr(diffusers, 'LuminaDiMOOPipeline', None)
+    if pipe_cls is not None:
+        pipe = pipe_cls.from_pretrained(
+            repo_id,
+            cache_dir=shared.opts.diffusers_dir,
+            **load_config,
+        )
+    else:
+        try:
+            pipe = diffusers.DiffusionPipeline.from_pretrained(
+                repo_id,
+                cache_dir=shared.opts.diffusers_dir,
+                trust_remote_code=True,
+                **load_config,
+            )
+        except Exception as e:
+            raise RuntimeError(f'Lumina-DiMOO is not available in installed diffusers={diffusers.__version__}. Please update diffusers to a version that includes LuminaDiMOOPipeline.') from e
+
+    devices.torch_gc(force=True, reason='load')
+    return pipe
+
+""" Reference
+  "AlphaVLLM Lumina DiMOO": {
+    "path": "Alpha-VLLM/Lumina-DiMOO",
+    "desc": "Lumina-DiMOO is an omni diffusion large language model for multimodal generation and understanding with text-to-image, image editing and understanding capabilities.",
+    "preview": "Alpha-VLLM--Lumina-DiMOO.jpg",
+    "skip": true,
+    "extras": "sampler: Default",
+    "size": 0,
+    "date": "2025 September"
+  },
+"""

@@ -42,6 +42,8 @@ def get_model_type(pipe):
         model_type = 'sc'
     elif "AuraFlow" in name:
         model_type = 'auraflow'
+    elif 'ZetaChroma' in name:
+        model_type = 'zetachroma'
     elif 'Chroma' in name:
         model_type = 'chroma'
     elif "Flux2" in name:
@@ -50,6 +52,8 @@ def get_model_type(pipe):
         model_type = 'f1'
     elif "ZImage" in name or "Z-Image" in name:
         model_type = 'zimage'
+    elif "LuminaDiMOO" in name:
+        model_type = 'luminadimoo'
     elif "Lumina2" in name:
         model_type = 'lumina2'
     elif "Lumina" in name:
@@ -64,9 +68,13 @@ def get_model_type(pipe):
         model_type = 'cogview4'
     elif "Sana" in name:
         model_type = 'sana'
+    elif 'VIBE' in name:
+        model_type = 'sana'
     elif "HiDream" in name:
         model_type = 'h1'
-    elif "Cosmos2TextToImage" in name or "AnimaTextToImage" in name:
+    elif "AnimaTextToImage" in name:
+        model_type = 'anima'
+    elif "Cosmos2TextToImage" in name:
         model_type = 'cosmos'
     elif "FLite" in name:
         model_type = 'flite'
@@ -74,13 +82,23 @@ def get_model_type(pipe):
         model_type = 'pixartsigma'
     elif "PixArtAlpha" in name:
         model_type = 'pixartalpha'
+    elif 'FIBO' in name:
+        model_type = 'fibo'
     elif "Bria" in name:
         model_type = 'bria'
+    elif 'Kolors' in name:
+        model_type = 'kolors'
+    elif 'Meissonic' in name:
+        model_type = 'meissonic'
     elif 'Qwen' in name:
         model_type = 'qwen'
+    elif 'ErnieImage' in name or 'ERNIE-Image' in name:
+        model_type = 'ernieimage'
+    elif 'NucleusMoEImage' in name or 'Nucleus-Image' in name:
+        model_type = 'nucleusimage'
     elif 'NextStep' in name:
         model_type = 'nextstep'
-    elif 'X-Omni' in name:
+    elif 'XOmni' in name or 'X-Omni' in name:
         model_type = 'x-omni'
     elif 'Photoroom' in name:
         model_type = 'prx'
@@ -88,14 +106,14 @@ def get_model_type(pipe):
         model_type = 'longcat'
     elif 'GlmImage' in name:
         model_type = 'glmimage'
-    elif 'Ovis-Image' in name:
+    elif 'Step1XEdit' in name:
+        model_type = 'step1x_edit'
+    elif 'OvisImage' in name or 'Ovis-Image' in name:
         model_type = 'ovis'
     elif 'Wan' in name:
         model_type = 'wanai'
     elif 'ChronoEdit' in name:
         model_type = 'chrono'
-    elif 'HDM-xut' in name:
-        model_type = 'hdm'
     elif 'HunyuanImage3' in name:
         model_type = 'hunyuanimage3'
     elif 'HunyuanImage' in name:

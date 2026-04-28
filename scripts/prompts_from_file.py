@@ -97,7 +97,7 @@ class PromptsFromFileScript(scripts_manager.Script):
     def title(self):
         return "Prompts from file"
 
-    def ui(self, is_img2img):
+    def ui(self, _is_img2img):
         with gr.Row():
             gr.HTML('<span">&nbsp Prompt from file</span><br>')
         with gr.Row():

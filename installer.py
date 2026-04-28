@@ -179,7 +179,7 @@ def installed(package, friendly: str | None = None, quiet = False): # pylint: di
                         if args.experimental:
                             log.warning(f'Install: package="{p[0]}" installed={pkg_version} required={p[1]} allowing experimental')
                         else:
-                            log.warning(f'Install: package="{p[0]}" installed={pkg_version} required={p[1]} version mismatch')
+                            log.warning(f'Install: package="{p[0]}" installed={pkg_version} required={p[1]} updating...')
                             global restart_required # pylint: disable=global-statement
                             restart_required = True
                     ok = ok and (exact or args.experimental)
@@ -352,9 +352,10 @@ def branch(folder=None):
 
 
 # restart process
-def restart():
+def restart(argv: list | None = None):
+    argv = argv if isinstance(argv, list) else sys.argv
     log.critical('Restarting process...')
-    os.execv(sys.executable, ['python'] + sys.argv)
+    os.execv(sys.executable, ['python'] + argv)
 
 
 # update git repository
@@ -484,7 +485,7 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "0325ca4c5938a7e300f3e3b9ee7ec85f52d01bb5" # diffusers commit hash == 0.37.1.dev-0331
+    target_commit = "0f1abc4ae8b0eb2a3b40e82a310507281144c423" # diffusers commit hash == 0.37.1.dev-0427
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
@@ -513,7 +514,7 @@ def check_transformers():
     pkg_tokenizers = package_spec('tokenizers')
     # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
     # target_commit = "aad13b87ed59f2afcfaebc985f403301887a35fc" # transformers commit hash == 5.3.0
-    target_commit = "2dba8e0495974930af02274d75bd182d22cc1686" # transformers commit hash == 5.3.0.dev-0331
+    target_commit = "380e3cc5d59912a48508cb6d4959a31cd460e12e" # transformers commit hash == 5.5.0.dev-0409
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
@@ -705,7 +706,7 @@ def install_ipex():
 
 def install_openvino():
     t_start = time.time()
-    log.info('OpenVINO: selected')
+    log.info('Backend: OpenVINO')
     os.environ.setdefault('PYTORCH_TRACING_MODE', 'TORCHFX')
     if sys.platform == 'darwin':
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0 torchvision==0.26.0')
@@ -713,7 +714,7 @@ def install_openvino():
         torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+cpu torchvision==0.26.0 --index-url https://download.pytorch.org/whl/cpu')
 
     if not (args.skip_all or args.skip_requirements):
-        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2026.0.0'), 'openvino')
+        install(os.environ.get('OPENVINO_COMMAND', 'openvino==2026.1.0'), 'openvino')
     ts('openvino', t_start)
     return torch_command
 
@@ -762,13 +763,34 @@ def check_cudnn():
 
 def get_cuda_arch(capability):
     major, minor = capability
-    mapping = {9: "Hopper",
-               8: "Ada Lovelace" if minor == 9 else "Ampere",
-               7: "Turing" if minor == 5 else "Volta",
-               6: "Pascal",
-               5: "Maxwell",
-               3: "Kepler"}
-    name = mapping.get(major, "Unknown")
+    if torch_info.get('cuda', None) is not None:
+        mapping = {
+            12: "Blackwell",
+            10: "Blackwell",
+            9: "Hopper",
+            8: "Ada Lovelace" if minor == 9 else "Ampere",
+            7: "Turing" if minor == 5 else "Volta",
+            6: "Pascal",
+            5: "Maxwell",
+            4: "Kepler",
+            3: "Kepler",
+            2: "Fermi",
+        }
+        name = mapping.get(major, "")
+    elif torch_info.get('rocm', None) is not None:
+        mapping = {
+            (8, 0): "GCN",
+            (9, 0): "Vega",
+            (9, 4): "Vega",
+            (9, 6): "Vega",
+            (10, 1): "RDNA1",
+            (10, 3): "RDNA2",
+            (11, 0): "RDNA3",
+            (11, 5): "CDNA3",
+        }
+        name = mapping.get((major, minor), "")
+    else:
+        name = ''
     return f"{major}.{minor} {name}"
 
 
@@ -856,74 +878,84 @@ def check_torch():
             pass
         torch_info.set(version=torch.__version__)
         if 'cpu' in torch.__version__:
-            if is_cuda_available:
-                if args.use_cuda:
-                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is selected - reinstalling')
-                    install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
+            try:
+                if is_cuda_available:
+                    if args.use_cuda:
+                        log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is selected - reinstalling')
+                        install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
+                    else:
+                        log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is available - consider reinstalling')
+                elif is_rocm_available:
+                    if args.use_rocm:
+                        log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is selected - reinstalling')
+                        install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
+                    else:
+                        log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is available - consider reinstalling')
+                if args.use_openvino:
+                    torch_info.set(type='openvino')
                 else:
-                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and CUDA is available - consider reinstalling')
-            elif is_rocm_available:
-                if args.use_rocm:
-                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is selected - reinstalling')
-                    install(torch_command, 'torch torchvision', quiet=True, reinstall=True, force=True) # foce reinstall
-                else:
-                    log.warning(f'Torch: version="{torch.__version__}" CPU version installed and ROCm is available - consider reinstalling')
-            if args.use_openvino:
-                torch_info.set(type='openvino')
-            else:
-                torch_info.set(type='cpu')
+                    torch_info.set(type='cpu')
+            except Exception as e:
+                log.error(f'Torch: type=cpu {e}')
 
         if hasattr(torch, "xpu") and torch.xpu.is_available() and allow_ipex:
-            if shutil.which('icpx') is not None:
-                log.info(f'{os.popen("icpx --version").read().rstrip()}')
-            torch_info.set(type='xpu')
-            for device in range(torch.xpu.device_count()):
-                props = torch.xpu.get_device_properties(device)
-                gpu = {
-                    'gpu': torch.xpu.get_device_name(device),
-                    'platform': props.platform_name,
-                    'driver': props.driver_version,
-                    'vram': round(props.total_memory / 1024 / 1024),
-                    'units': props.max_compute_units,
-                }
-                log.info(f'Torch detected: {gpu}')
-                gpu_info.append(gpu)
-
-        elif torch.cuda.is_available() and (allow_cuda or allow_rocm):
-            if args.use_zluda:
-                torch_info.set(type="zluda", cuda=torch.version.cuda)
-            elif torch.version.cuda and allow_cuda:
-                torch_info.set(type='cuda', cuda=torch.version.cuda, cudnn=torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else 'N/A')
-            elif torch.version.hip and allow_rocm:
-                torch_info.set(type='rocm', hip=torch.version.hip)
-            else:
-                log.warning('Torch backend: cannot detect type')
-            log.info(f"Torch backend: {torch_info}")
-            for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
-                gpu = {
-                    'gpu': torch.cuda.get_device_name(device),
-                    'vram': round(torch.cuda.get_device_properties(device).total_memory / 1024 / 1024),
-                    'arch': get_cuda_arch(torch.cuda.get_device_capability(device)),
-                    'cores': torch.cuda.get_device_properties(device).multi_processor_count,
-                }
-                gpu_info.append(gpu)
-                log.info(f'Torch detected: {gpu}')
-
-        else:
             try:
-                if args.use_directml and allow_directml:
-                    import torch_directml # pylint: disable=import-error
-                    dml_ver = package_version("torch-directml")
-                    log.warning(f'Torch backend: DirectML ({dml_ver})')
-                    log.warning('DirectML: end-of-life')
-                    for i in range(0, torch_directml.device_count()):
-                        gpu = {
-                            'gpu': torch_directml.device_name(i),
-                        }
-                        gpu_info.append(gpu)
-                        log.info(f'Torch detected GPU: {gpu}')
-            except Exception:
-                log.warning("Torch reports CUDA not available")
+                if shutil.which('icpx') is not None:
+                    log.info(f'{os.popen("icpx --version").read().rstrip()}')
+                torch_info.set(type='xpu')
+                for device in range(torch.xpu.device_count()):
+                    props = torch.xpu.get_device_properties(device)
+                    gpu = {
+                        'gpu': torch.xpu.get_device_name(device),
+                        'platform': props.platform_name,
+                        'driver': props.driver_version,
+                        'vram': round(props.total_memory / 1024 / 1024),
+                        'units': props.max_compute_units,
+                    }
+                    log.info(f'Torch detected: {gpu}')
+                    gpu_info.append(gpu)
+            except Exception as e:
+                log.error(f'Torch: type=xpu {e}')
+
+        if torch.cuda.is_available() and (allow_cuda or allow_rocm):
+            try:
+                if args.use_zluda:
+                    torch_info.set(type="zluda", cuda=torch.version.cuda)
+                elif torch.version.cuda and allow_cuda:
+                    torch_info.set(type='cuda', cuda=torch.version.cuda, cudnn=torch.backends.cudnn.version() if torch.backends.cudnn.is_available() else 'N/A')
+                elif torch.version.hip and allow_rocm:
+                    torch_info.set(type='rocm', hip=torch.version.hip)
+                else:
+                    log.warning('Torch backend: cannot detect type')
+                log.info(f"Torch backend: {torch_info}")
+                for device in [torch.cuda.device(i) for i in range(torch.cuda.device_count())]:
+                    props = torch.cuda.get_device_properties(device)
+                    gpu = {
+                        'gpu': torch.cuda.get_device_name(device),
+                        'vram': round(props.total_memory / 1024 / 1024),
+                        'arch': get_cuda_arch(torch.cuda.get_device_capability(device)),
+                        'cores': props.multi_processor_count,
+                    }
+                    gpu_info.append(gpu)
+                    log.info(f'Torch detected: {gpu}')
+            except Exception as e:
+                log.error(f'Torch: type=cuda/rocm {e}')
+
+        if args.use_directml and allow_directml:
+            try:
+                import torch_directml # pylint: disable=import-error
+                dml_ver = package_version("torch-directml")
+                log.warning(f'Torch backend: DirectML ({dml_ver})')
+                log.warning('DirectML: end-of-life')
+                for i in range(0, torch_directml.device_count()):
+                    gpu = {
+                        'gpu': torch_directml.device_name(i),
+                    }
+                    gpu_info.append(gpu)
+                    log.info(f'Torch detected: {gpu}')
+            except Exception as e:
+                log.warning(f"Torch: type=directml {e}")
+
     except Exception as e:
         log.error(f'Torch cannot load: {e}')
         if not args.ignore:
@@ -1016,6 +1048,7 @@ def install_extensions(force=False):
         'sd-extension-framepack',
         'sd-extension-nudenet',
         'sd-extension-promptgen',
+        'sd-extension-system-info',
     ]
     if args.profile:
         pr = cProfile.Profile()
@@ -1134,7 +1167,7 @@ def install_gradio():
         return
     install('gradio==3.43.2', no_deps=True)
     install('gradio-client==0.5.0', no_deps=True, quiet=True)
-    pkgs = ['fastapi', 'websockets', 'aiofiles', 'ffmpy', 'pydub', 'uvicorn', 'semantic-version', 'altair', 'python-multipart', 'matplotlib']
+    pkgs = ['fastapi', 'websockets', 'aiofiles', 'ffmpy', 'pydub', 'uvicorn', 'semantic-version', 'altair', 'python-multipart', 'matplotlib', 'importlib-resources']
     for pkg in pkgs:
         if not installed(pkg, quiet=True):
             install(pkg, quiet=True)
@@ -1330,12 +1363,14 @@ def get_version(force=False):
             subprocess.run('git config log.showsignature false', capture_output=True, shell=True, check=True)
         except Exception:
             pass
+
         try:
             ver = run('git', 'log --pretty=format:"%h %ad" -1 --date=short', check=True)[0].stdout or '  '
             commit, updated = ver.split(' ')
             version['commit'], version['updated'] = commit, updated
         except Exception as e:
             log.warning(f'Version: where=commit {e}')
+
         try:
             origin = run('git', 'remote get-url origin', check=True)[0].stdout
             branch_name = run('git', 'rev-parse --abbrev-ref HEAD', check=True)[0].stdout
@@ -1345,6 +1380,7 @@ def get_version(force=False):
                 log.warning('Version: detached state detected')
         except Exception as e:
             log.warning(f'Version: where=branch {e}')
+
         try:
             if os.path.exists('extensions-builtin/sdnext-modernui'):
                 branch_ui = run('git', 'rev-parse --abbrev-ref HEAD', check=True, cwd='extensions-builtin/sdnext-modernui')[0].stdout
@@ -1354,6 +1390,7 @@ def get_version(force=False):
         except Exception as e:
             log.warning(f'Version: where=modernui {e}')
             version['ui'] = 'unknown'
+
         try:
             if os.environ.get('SD_KANVAS_DISABLE', None) is not None:
                 version['kanvas'] = 'disabled'
@@ -1365,6 +1402,7 @@ def get_version(force=False):
         except Exception as e:
             log.warning(f'Version: where=kanvas {e}')
             version['kanvas'] = 'unknown'
+
     ts('version', t_start)
     return version
 
@@ -1394,6 +1432,33 @@ def check_ui(ver):
         except Exception as e:
             log.debug(f'Branch switch: {e}')
     ts('ui', t_start)
+
+
+def check_kanvas(ver):
+    def same(ver):
+        core = ver['branch'] if ver is not None and 'branch' in ver else 'unknown'
+        kanvas = ver['kanvas'] if ver is not None and 'kanvas' in ver else 'unknown'
+        return (core == kanvas) or (core == 'master' and kanvas == 'main') or (core == 'dev' and kanvas == 'dev') or (core == 'HEAD')
+
+    if 'vladmandic/sdnext' not in ver.get('url', ''):
+        return
+    t_start = time.time()
+    if not same(ver):
+        log.debug(f'Branch mismatch: {ver}')
+        try:
+            if 'dev' in ver['branch']:
+                target = 'dev'
+            elif 'main' in ver['branch'] or 'master' in ver['branch']:
+                target = 'main'
+            else:
+                target =None
+            if target:
+                git('checkout ' + target, folder='extensions-builtin/sdnext-kanvas', ignore=True, optional=True)
+                ver = get_version(force=True)
+                log.debug(f'Branch sync: {ver}')
+        except Exception as e:
+            log.debug(f'Branch switch: {e}')
+    ts('kanvas', t_start)
 
 
 def check_venv():
@@ -1447,6 +1512,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
     if args.version or args.skip_git:
         return
     check_ui(ver)
+    check_kanvas(ver)
     commit = git('rev-parse HEAD')
     global git_commit # pylint: disable=global-statement
     git_commit = commit[:7]

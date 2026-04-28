@@ -109,11 +109,14 @@ class Options:
         'google/gemma-3-4b-it',
         'google/gemma-3n-E2B-it',
         'google/gemma-3n-E4B-it',
+        'google/gemma-4-E2B-it',
+        'google/gemma-4-E4B-it',
         # Gemma Finetunes
         'nidum/Nidum-Gemma-3-4B-it-Uncensored',
         'allura-org/Gemma-3-Glitter-4B',
         'coder3101/gemma-3-27b-it-heretic-v2',
         'p-e-w/gemma-3-12b-it-heretic',
+        'p-e-w/gemma-4-E2B-it-heretic-ara',
         'DavidAU/gemma-3-4b-it-heretic-uncensored-abliterated-Extreme',
         'DavidAU/Gemma-3-4B-VL-it-Gemini-Pro-Heretic-Uncensored-Thinking',
         'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning',
@@ -173,6 +176,8 @@ class Options:
         'google/gemma-3-4b-it': {},
         'google/gemma-3n-E2B-it': {},
         'google/gemma-3n-E4B-it': {},
+        'google/gemma-4-E2B-it': {},
+        'google/gemma-4-E4B-it': {},
         # Gemma Finetunes
         'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
         'allura-org/Gemma-3-Glitter-4B': {},
@@ -267,6 +272,7 @@ class Options:
         'qwen2_5_vl': 'Qwen2_5_VLForConditionalGeneration',
         'qwen2_vl': 'Qwen2VLForConditionalGeneration',
         'mistral3': 'Mistral3ForConditionalGeneration',
+        'gemma4': 'Gemma4ForConditionalGeneration',
     }
 
     # default = list(models)[1] # gemma-3-4b-it
@@ -415,7 +421,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.compile()
         except Exception as e:
             log.error(f'Prompt enhance: load {e}')
-            errors.display(e, 'Prompt enhance')
+            if debug_enabled:
+                errors.display(e, 'Prompt enhance')
         devices.torch_gc()
         self.busy = False
 
@@ -758,7 +765,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             debug_log(f'Prompt enhance: len={input_len} shape={inputs["input_ids"].shape} sample={sample} temp={temperature} penalty={penalty} max={tokens}')
         except Exception as e:
             log.error(f'Prompt enhance tokenize: {e}')
-            errors.display(e, 'Prompt enhance')
+            if debug_enabled:
+                errors.display(e, 'Prompt enhance')
             self.busy = False
             return prompt_text # Return original text part on error
         try:
@@ -787,7 +795,8 @@ class PromptEnhanceScript(scripts_manager.Script):
         except Exception as e:
             outputs = None
             log.error(f'Prompt enhance generate: {e}')
-            errors.display(e, 'Prompt enhance')
+            if debug_enabled:
+                errors.display(e, 'Prompt enhance')
             self.busy = False
             response = f'Error: {str(e)}'
         finally:
@@ -848,8 +857,9 @@ class PromptEnhanceScript(scripts_manager.Script):
         """Update vision toggle interactivity and value based on model selection."""
         repo_name = get_model_repo_from_display(model_name)
         is_vl = is_vision_model(repo_name)
-        # When non-VL model: disable and uncheck. When VL model: enable and check.
-        return gr.update(interactive=is_vl, value=is_vl)
+        if not is_vl:
+            return gr.update(interactive=False, value=False)
+        return gr.update(interactive=is_vl)
 
     def ui(self, _is_img2img):
         with gr.Accordion('Prompt enhance', open=False, elem_id='prompt_enhance'):
@@ -862,7 +872,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             with gr.Row():
                 # Set initial state based on whether default model supports vision
                 default_is_vl = is_vision_model(Options.default)
-                use_vision = gr.Checkbox(label='Use vision', value=default_is_vl, interactive=default_is_vl, elem_id='prompt_enhance_use_vision')
+                use_vision = gr.Checkbox(label='Use vision', value=False, interactive=default_is_vl, elem_id='prompt_enhance_use_vision')
             gr.HTML('<br>')
             with gr.Group():
                 with gr.Row():
@@ -919,15 +929,17 @@ class PromptEnhanceScript(scripts_manager.Script):
                         clear_btn = gr.Button(value='Clear', elem_id='prompt_enhance_clear', variant='secondary')
                         clear_btn.click(fn=lambda: '', inputs=[], outputs=[prompt_output])
                         copy_btn = gr.Button(value='Set prompt', elem_id='prompt_enhance_copy', variant='secondary')
-                        copy_btn.click(fn=lambda x: x, inputs=[prompt_output], outputs=[self.prompt])
+                        if self.prompt: # not registered for api script runner
+                            copy_btn.click(fn=lambda x: x, inputs=[prompt_output], outputs=[self.prompt])
             if self.image is None:
                 self.image = gr.Image(type='pil', interactive=False, visible=False, width=64, height=64) # dummy image
             # Update vision toggle interactivity when model changes
             llm_model.change(fn=self.update_vision_toggle, inputs=[llm_model], outputs=[use_vision], show_progress=False)
-            apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking], outputs=[prompt_output, self.prompt])
+            if self.prompt:
+                apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking], outputs=[prompt_output, self.prompt])
         return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking]
 
-    def after_component(self, component, **kwargs): # searching for actual ui prompt components
+    def after_component(self, component, **_kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
             self.prompt = component
             self.prompt.use_original = True

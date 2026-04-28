@@ -182,11 +182,11 @@ def clean_server():
                     pass
     collected = gc.collect() # python gc
     modules_cleaned = sorted(sys.modules.keys())
-    modules_keys = [m.split('.')[0] for m in modules_cleaned if not m.startswith('_')]
-    modules_sorted = {}
-    for module_key in modules_keys:
-        modules_sorted[module_key] = len([m for m in modules_cleaned if m.startswith(module_key)])
-    log.trace(f'Server modules: {modules_sorted}')
+    # modules_keys = [m.split('.')[0] for m in modules_cleaned if not m.startswith('_')]
+    # modules_sorted = {}
+    # for module_key in modules_keys:
+    #     modules_sorted[module_key] = len([m for m in modules_cleaned if m.startswith(module_key)])
+    # log.trace(f'Server modules: {modules_sorted}')
     t1 = time.time()
     log.trace(f'Server modules: total={len(modules_loaded)} unloaded={len(removed_removed)} remaining={len(modules_cleaned)} gc={collected} time={t1-t0:.2f}')
 
@@ -303,9 +303,18 @@ def main():
     get_custom_args()
     installer.update_wiki()
 
+    if args.upgrade:
+        if installer.restart_required:
+            log.warning('Installer: restarting now to apply upgrade...')
+            if '--upgrade' in sys.argv:
+                sys.argv.remove('--upgrade')
+            if '--update' in sys.argv:
+                sys.argv.remove('--update')
+            installer.restart(sys.argv)
+        else:
+            log.debug('Installer: no modifications')
+
     uv, instance = start_server(immediate=True, server=None)
-    if installer.restart_required:
-        log.warning('Restart is recommended due to packages updates...')
     t_server = time.time()
     t_monitor = time.time()
 

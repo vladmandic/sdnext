@@ -10,6 +10,10 @@ class SDNQLayer(torch.nn.Module):
         self.original_class = original_layer.__class__
         self.forward_func = forward_func
 
+    @property
+    def dtype(self: torch.nn.Module):
+        return self.sdnq_dequantizer.result_dtype if hasattr(self, "sdnq_dequantizer") else self.weight.dtype
+
     def dequantize(self: torch.nn.Module):
         if self.weight.__class__.__name__ == "SDNQTensor": # pylint: disable=access-member-before-definition
             self.weight = torch.nn.Parameter(self.weight.dequantize(), requires_grad=True) # pylint: disable=attribute-defined-outside-init
@@ -29,6 +33,9 @@ class SDNQLayer(torch.nn.Module):
 
 class SDNQLinear(SDNQLayer, torch.nn.Linear):
     original_class: torch.nn.Linear
+
+class SDNQEmbedding(SDNQLayer, torch.nn.Embedding):
+    original_class: torch.nn.Embedding
 
 class SDNQConv1d(SDNQLayer, torch.nn.Conv1d):
     original_class: torch.nn.Conv1d
@@ -51,6 +58,7 @@ class SDNQConvTranspose3d(SDNQLayer, torch.nn.ConvTranspose3d):
 
 torch.serialization.add_safe_globals([SDNQLayer])
 torch.serialization.add_safe_globals([SDNQLinear])
+torch.serialization.add_safe_globals([SDNQEmbedding])
 torch.serialization.add_safe_globals([SDNQConv1d])
 torch.serialization.add_safe_globals([SDNQConv2d])
 torch.serialization.add_safe_globals([SDNQConv3d])
@@ -63,6 +71,10 @@ def get_sdnq_wrapper_class(original_layer, forward_func):
     match original_layer.__class__.__name__:
         case "Linear":
             return SDNQLinear(original_layer, forward_func)
+        case "Embedding":
+            return SDNQEmbedding(original_layer, forward_func)
+        case "Gemma4TextScaledWordEmbedding":
+            return SDNQEmbedding(original_layer, forward_func)
         case "Conv1d":
             return SDNQConv1d(original_layer, forward_func)
         case "Conv2d":

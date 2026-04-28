@@ -263,19 +263,23 @@ class State:
     def set_current_image(self):
         if self.job == 'VAE' or self.job == 'Upscale': # avoid generating preview while vae is running
             return False
-        from modules.shared import opts, cmd_opts
-        if cmd_opts.lowvram or self.api or (opts.show_progress_every_n_steps <= 0):
+        from modules.shared import cmd_opts
+        if cmd_opts.lowvram or self.api or self.disable_preview:
             return False
-        if (not self.disable_preview) and (abs(self.sampling_step - self.current_image_sampling_step) >= opts.show_progress_every_n_steps):
-            return self.do_set_current_image()
-        return False
+        return self.do_set_current_image()
 
     def do_set_current_image(self):
+        from modules import shared, images, sd_samplers_common
         if (self.current_latent is None) or self.disable_preview or (self.preview_job == self.job_no):
             return False
-        from modules import shared
-        from modules.sd_samplers_common import samples_to_image_grid, sample_to_image
         self.preview_job = self.job_no
+
+        if (shared.opts.show_progress_type == "None") and (shared.history.last_image is not None):
+            last_image = images.image_grid(shared.history.last_image)
+            self.assign_current_image(last_image)
+            self.preview_job = -1
+            return True
+
         try:
             sample = self.current_latent
             self.current_image_sampling_step = self.sampling_step
@@ -288,7 +292,7 @@ class State:
                         sample = self.current_noise_pred * (-self.current_sigma / (self.current_sigma**2 + 1) ** 0.5) + (original_sample / (self.current_sigma**2 + 1)) # pylint: disable=invalid-unary-operand-type
             except Exception:
                 pass # ignore sigma errors
-            image = samples_to_image_grid(sample) if shared.opts.show_progress_grid else sample_to_image(sample)
+            image = sd_samplers_common.samples_to_image_grid(sample)
             self.assign_current_image(image)
             self.preview_job = -1
             return True

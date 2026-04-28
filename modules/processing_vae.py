@@ -68,7 +68,7 @@ def full_vqgan_decode(latents, model):
         decoded = []
 
     # delete vae after OpenVINO compile
-    if 'VAE' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx" and shared.compiled_model_state.first_pass_vae:
+    if 'VAE' in shared.opts.cuda_compile and shared.compiled_model_state.first_pass_vae and (shared.opts.cuda_compile_backend == "openvino_fx" or shared.opts.cuda_compile_backend == "openvino"):
         shared.compiled_model_state.first_pass_vae = False
         if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_model, "vqgan"):
             model.vqgan.apply(sd_models_utils.convert_to_faketensors)
@@ -163,7 +163,7 @@ def full_vae_decode(latents, model):
         del model.vae.orig_dtype
 
     # delete vae after OpenVINO compile
-    if 'VAE' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx" and shared.compiled_model_state.first_pass_vae:
+    if 'VAE' in shared.opts.cuda_compile and shared.compiled_model_state.first_pass_vae and (shared.opts.cuda_compile_backend == "openvino_fx" or shared.opts.cuda_compile_backend == "openvino"):
         shared.compiled_model_state.first_pass_vae = False
         if not shared.opts.openvino_disable_memory_cleanup and hasattr(shared.sd_model, "vae"):
             model.vae.apply(sd_models_utils.convert_to_faketensors)

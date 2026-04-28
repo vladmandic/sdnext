@@ -34,7 +34,7 @@ def _invalidate_extra_networks():
         page.create_items('txt2img')
 
 
-def register_api(app):
-    app.add_api_route("/sdapi/v1/lora", get_lora, methods=["GET"], response_model=dict, tags=["Enumerators"])
-    app.add_api_route("/sdapi/v1/loras", get_loras, methods=["GET"], response_model=list[dict], tags=["Enumerators"])
-    app.add_api_route("/sdapi/v1/refresh-loras", post_refresh_loras, methods=["POST"], tags=["Functional"])
+def register_api(api):
+    api.add_api_route("/sdapi/v1/lora", get_lora, methods=["GET"], response_model=dict, tags=["Enumerators"])
+    api.add_api_route("/sdapi/v1/loras", get_loras, methods=["GET"], response_model=list[dict], tags=["Enumerators"])
+    api.add_api_route("/sdapi/v1/refresh-loras", post_refresh_loras, methods=["POST"], tags=["Functional"])

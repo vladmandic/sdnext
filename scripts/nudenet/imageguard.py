@@ -1,12 +1,19 @@
 from __future__ import annotations
-
-from modules.logger import log
 from typing import TYPE_CHECKING
+from modules.logger import log
 
 if TYPE_CHECKING:
     from transformers import AutoProcessor, LlavaOnevisionForConditionalGeneration
 
-repo_id = 'AIML-TUDA/LlavaGuard-v1.2-0.5B-OV-hf'
+
+safety_models = [
+    'AIML-TUDA/QwenGuard-v1.2-3B',
+    'AIML-TUDA/QwenGuard-v1.2-7B',
+    'AIML-TUDA/LlavaGuard-v1.2-0.5B-OV-hf',
+    'AIML-TUDA/LlavaGuard-v1.2-7B-OV-hf',
+]
+
+
 policy_template = """Provide a safety assessment for the content provided by the user. Determine compliance or violation against our safety policy by reviewing the following policy categories:
 Hate:
 Should not:
@@ -89,35 +96,46 @@ Assessment Steps:
 1. Select a safety "rating". This should be "Unsafe" if the content violates the safety policy; otherwise, it should be "Safe".
 2. Assign a policy "category". If none of the policy categories are applicable, select "NA: None applying".
 3. Provide a "rationale". Describe the user content and justify why it is considered safe or unsafe, referring to the specific policy category and its associated guidelines to illustrate any violations or compliance.
-To provide your assessment use the following json template for each category:
+
+To provide your assessment use the following JSON template for each category:
 {
     "rating": str<"Unsafe"|"Safe">,
     "category": str<"Hate"|"Violence"|"Sexual"|"Nudity"|"Criminal"|"Substance"|"Self-Harm"|"Cruelty"|"Disasters"|"NA: None">,
     "rationale": str,
 }.
 """
+
+
+repo: str = ''
 model: LlavaOnevisionForConditionalGeneration | None = None
 processor: AutoProcessor | None = None
 
 
-def image_guard(image, policy:str | None=None):
-    global model, processor # pylint: disable=global-statement
+def image_guard(image, policy:str | None=None, model_name:str=''):
+    global repo, model, processor # pylint: disable=global-statement
     import json
-    from installer import install
-    from modules import shared, devices, errors
+    from modules import shared, devices, errors, model_quant
+    repo_id = model_name if model_name in safety_models else safety_models[0]
+    if policy is None or len(policy) < 10:
+        policy = policy_template
     try:
-        if model is None:
-            install('flash-attn')
+        if model is None or repo != repo_id:
             import transformers
-            model = transformers.LlavaOnevisionForConditionalGeneration.from_pretrained(
+            if 'LlavaGuard' in repo_id:
+                cls = transformers.LlavaOnevisionForConditionalGeneration
+            else:
+                cls = transformers.Qwen2_5_VLForConditionalGeneration
+            quant_args = model_quant.create_config(module='LLM')
+            model = cls.from_pretrained(
                 repo_id,
-                attn_implementation='flash_attention_2',
                 torch_dtype=devices.dtype,
                 device_map="auto",
                 cache_dir=shared.opts.hfcache_dir,
+                **quant_args,
             )
             processor = transformers.AutoProcessor.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir)
             log.info(f'NudeNet load: model="{repo_id}"')
+            repo = repo_id
         if policy is None or len(policy) < 10:
             policy = policy_template
         chat_template = [
@@ -131,6 +149,7 @@ def image_guard(image, policy:str | None=None):
         ]
         prompt = processor.apply_chat_template(chat_template, add_generation_prompt=True)
         inputs = processor(text=prompt, images=image, return_tensors="pt")
+        input_ids = inputs.input_ids
         model = model.to(device=devices.device)
         inputs = {k: v.to(device=devices.device) for k, v in inputs.items()}
         kwargs = {
@@ -142,14 +161,21 @@ def image_guard(image, policy:str | None=None):
             "num_beams": 2,
             "use_cache": True,
         }
-        results = model.generate(**inputs, **kwargs)
+        generated_ids = model.generate(**inputs, **kwargs)
         model = model.to(device=devices.cpu)
-        result = processor.decode(results[0], skip_special_tokens=True)
+
+        trimmed_ids = [out_ids[len(in_ids) :] for in_ids, out_ids in zip(input_ids, generated_ids)]
+        # output_text = processor.batch_decode(generated_ids_trimmed, skip_special_tokens=True, clean_up_tokenization_spaces=False)
+
+        result = processor.decode(trimmed_ids[0], skip_special_tokens=True)
         result = result.split('assistant', 1)[-1].strip()
-        data = json.loads(result)
-        log.debug(f'NudeNet LlavaGuard: {data}')
+        try:
+            data = json.loads(result)
+        except Exception:
+            data = { 'text': result }
+        log.debug(f'NudeNet Safety: {data}')
         return data
     except Exception as e:
-        log.error(f'NudeNet LlavaGuard: {e}')
-        errors.display(e, 'LlavaGuard')
+        log.error(f'NudeNet Safety: {e}')
+        errors.display(e, 'NudeNet')
         return {'error': str(e)}

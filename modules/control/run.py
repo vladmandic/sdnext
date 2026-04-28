@@ -19,6 +19,7 @@ from modules.ui_common import infotext_to_html
 from modules.api import script
 from modules.generation_parameters_copypaste import create_override_settings_dict
 from modules.paths import resolve_output_path
+from modules import video as video_module  # alias avoids shadow by local `video` cv2 capture name at control_run:584
 
 
 debug = os.environ.get('SD_CONTROL_DEBUG', None) is not None
@@ -149,69 +150,72 @@ def check_active(p, unit_type: str, units: list[unit.Unit]):
     active_units: list[unit.Unit] = [] # all active units
     num_units = 0
     for u in units:
-        if u.type != unit_type:
-            continue
-        num_units += 1
-        debug_log(f'Control unit: i={num_units} type={u.type} enabled={u.enabled} cn={u.controlnet} proc={u.process}')
-        if not u.enabled:
+        try:
+            if u.type != unit_type:
+                continue
+            num_units += 1
+            debug_log(f'Control unit: i={num_units} type={u.type} enabled={u.enabled} cn={u.controlnet} proc={u.process}')
+            if not u.enabled:
+                if u.controlnet is not None and u.controlnet.model is not None:
+                    debug_log(f'Control unit offload: model="{u.controlnet.model_id}" device={devices.cpu}')
+                    sd_models.move_model(u.controlnet.model, devices.cpu)
+                continue
             if u.controlnet is not None and u.controlnet.model is not None:
-                debug_log(f'Control unit offload: model="{u.controlnet.model_id}" device={devices.cpu}')
-                sd_models.move_model(u.controlnet.model, devices.cpu)
-            continue
-        if u.controlnet is not None and u.controlnet.model is not None:
-            debug_log(f'Control unit offload: model="{u.controlnet.model_id}" device={devices.device}')
-            sd_models.move_model(u.controlnet.model, devices.device)
-        if unit_type == 't2i adapter' and u.adapter.model is not None:
-            active_process.append(u.process)
-            active_model.append(u.adapter)
-            active_strength.append(float(u.strength))
-            p.adapter_conditioning_factor = u.factor
-            active_units.append(u)
-            log.debug(f'Control T2I-Adapter unit: i={num_units} process="{u.process.processor_id}" model="{u.adapter.model_id}" strength={u.strength} factor={u.factor}')
-        elif unit_type == 'controlnet' and (u.controlnet.model is not None or is_unified_model()):
-            active_process.append(u.process)
-            active_model.append(u.controlnet)
-            active_strength.append(float(u.strength))
-            active_start.append(float(u.start))
-            active_end.append(float(u.end))
-            p.guess_mode = u.guess
-            active_units.append(u)
-            if isinstance(u.mode, str):
-                if not hasattr(p, 'control_mode'):
-                    p.control_mode = []
-                p.control_mode.append(u.choices.index(u.mode) if u.mode in u.choices else 0)
-                p.is_tile = p.is_tile or 'tile' in u.mode.lower()
-                p.control_tile = u.tile
-                p.extra_generation_params["Control mode"] = u.mode
-            log.debug(f'Control unit: i={num_units} type=ControlNet process="{u.process.processor_id}" model="{u.controlnet.model_id}" strength={u.strength} guess={u.guess} start={u.start} end={u.end} mode={u.mode}')
-        elif unit_type == 'xs' and u.controlnet.model is not None:
-            active_process.append(u.process)
-            active_model.append(u.controlnet)
-            active_strength.append(float(u.strength))
-            active_start.append(float(u.start))
-            active_end.append(float(u.end))
-            active_units.append(u)
-            log.debug(f'Control unit: i={num_units} type=ControlNetXS process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
-        elif unit_type == 'lite' and u.controlnet.model is not None:
-            active_process.append(u.process)
-            active_model.append(u.controlnet)
-            active_strength.append(float(u.strength))
-            active_units.append(u)
-            log.debug(f'Control unit: i={num_units} type=ControlLLite process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
-        elif unit_type == 'reference':
-            p.override = u.override
-            p.attention = u.attention
-            p.query_weight = float(u.query_weight)
-            p.adain_weight = float(u.adain_weight)
-            p.fidelity = u.fidelity
-            active_units.append(u)
-            log.debug('Control Reference unit')
-        else:
-            if u.process.processor_id is not None:
+                debug_log(f'Control unit offload: model="{u.controlnet.model_id}" device={devices.device}')
+                sd_models.move_model(u.controlnet.model, devices.device)
+            if unit_type == 't2i adapter' and u.adapter.model is not None:
                 active_process.append(u.process)
+                active_model.append(u.adapter)
+                active_strength.append(float(u.strength))
+                p.adapter_conditioning_factor = u.factor
                 active_units.append(u)
-                log.debug(f'Control unit: i={num_units} type=Process process={u.process.processor_id}')
-            active_strength.append(float(u.strength))
+                log.debug(f'Control T2I-Adapter unit: i={num_units} process="{u.process.processor_id}" model="{u.adapter.model_id}" strength={u.strength} factor={u.factor}')
+            elif unit_type == 'controlnet' and (u.controlnet.model is not None or is_unified_model()):
+                active_process.append(u.process)
+                active_model.append(u.controlnet)
+                active_strength.append(float(u.strength))
+                active_start.append(float(u.start))
+                active_end.append(float(u.end))
+                p.guess_mode = u.guess
+                active_units.append(u)
+                if isinstance(u.mode, str):
+                    if not hasattr(p, 'control_mode'):
+                        p.control_mode = []
+                    p.control_mode.append(u.choices.index(u.mode) if u.mode in u.choices else 0)
+                    p.is_tile = p.is_tile or 'tile' in u.mode.lower()
+                    p.control_tile = u.tile
+                    p.extra_generation_params["Control mode"] = u.mode
+                log.debug(f'Control unit: i={num_units} type=ControlNet process="{u.process.processor_id}" model="{u.controlnet.model_id}" strength={u.strength} guess={u.guess} start={u.start} end={u.end} mode={u.mode}')
+            elif unit_type == 'xs' and u.controlnet.model is not None:
+                active_process.append(u.process)
+                active_model.append(u.controlnet)
+                active_strength.append(float(u.strength))
+                active_start.append(float(u.start))
+                active_end.append(float(u.end))
+                active_units.append(u)
+                log.debug(f'Control unit: i={num_units} type=ControlNetXS process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
+            elif unit_type == 'lite' and u.controlnet.model is not None:
+                active_process.append(u.process)
+                active_model.append(u.controlnet)
+                active_strength.append(float(u.strength))
+                active_units.append(u)
+                log.debug(f'Control unit: i={num_units} type=ControlLLite process={u.process.processor_id} model={u.controlnet.model_id} strength={u.strength} guess={u.guess} start={u.start} end={u.end}')
+            elif unit_type == 'reference':
+                p.override = u.override
+                p.attention = u.attention
+                p.query_weight = float(u.query_weight)
+                p.adain_weight = float(u.adain_weight)
+                p.fidelity = u.fidelity
+                active_units.append(u)
+                log.debug('Control Reference unit')
+            else:
+                if u.process.processor_id is not None:
+                    active_process.append(u.process)
+                    active_units.append(u)
+                    log.debug(f'Control unit: i={num_units} type=Process process={u.process.processor_id}')
+                active_strength.append(float(u.strength))
+        except Exception as e:
+            log.error(f'Control unit error: i={num_units} type={u.type} error={e}')
     debug_log(f'Control active: process={len(active_process)} model={len(active_model)}')
     return active_process, active_model, active_strength, active_start, active_end, active_units
 
@@ -534,6 +538,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     p.is_tile = False
     p.init_control = inits or []
     p.orig_init_images = inputs
+    p.video_interpolate = video_interpolate
 
     # TODO modernui: monkey-patch for missing tabs.select event
     if p.selected_scale_tab_before == 0 and p.resize_name_before != 'None' and p.scale_by_before != 1 and inputs is not None and len(inputs) > 0:
@@ -791,9 +796,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         image_txt = ''
         p.init_images = output_images # may be used for hires
 
-    if video_type != 'None' and isinstance(output_images, list) and 'video' in p.ops:
+    if video_type != 'None' and isinstance(output_images, list) and 'video' in p.ops and not getattr(p, 'video_saved', False):
         p.do_not_save_grid = True # pylint: disable=attribute-defined-outside-init
-        output_filename = video.save_video(p, filename=None, images=output_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate, sync=True)
+        output_filename = video_module.save_video(p, filename=None, images=output_images, video_type=video_type, duration=video_duration, loop=video_loop, pad=video_pad, interpolate=video_interpolate, sync=True)
         if shared.opts.gradio_skip_video:
             output_filename = ''
         image_txt = f'| Frames {len(output_images)} | Size {output_images[0].width}x{output_images[0].height}'

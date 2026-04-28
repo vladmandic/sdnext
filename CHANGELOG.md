@@ -1,20 +1,168 @@
 # Change Log for SD.Next
 
-## Update for 2026-04-04
+## Update for 2026-04-28
+
+### Highlights for 2026-04-28
+
+*What's New?*
+- New image models! **ERNIE-Image**, **Zeta-Chroma**, **Nucleus**, **Bria-FIBO**, **Anima-v3**, **SDXS-1B**
+- New video model: **LTX 2.3 v1.1** *(with audio, refiner and upscaler)*
+- Major **Kanvas** update for enhanced inpaint/outpaint and overal more responsive **UI**
+- Built-in **Tag-Autocomplete** with support for *10+* tag databases and support for networks!
+- Additional *Schedulers*, updates to *NudeNet*, *RIFE*, *OpenVINO* and *ROCm* and other features
+- [Launcher](https://github.com/vladmandic/sdnext-launcher) tweaks
+
+And tons of *quality-of-life* improvements and *bug-fixes*!
+In addition, to jump on a bandwagon, we're now fully **AI agent** ready with detailed instructions and skills!
+
+For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md)  
+
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-04-28
 
 - **Models**
+  - [LTX Video 2.3](https://huggingface.co/Lightricks/LTX-2.3) add *1.1 Distilled* and *1.1 Distilled-SDNQ* variants  
+    Includes support for native refiner, upscaler and audio!  
+    New LTX model also comes with new LTX UI interface in SD.Next!  
+  - [Baidu ERNIE-Image](https://huggingface.co/baidu/ERNIE-Image) in *base* and *turbo* (distilled) variants in both original precision and SDNQ-4bit quantiztion  
+    ERNIE is single-stream 8B DiT model with built-in prompt enhancer using Mistral-3 text encoder  
+    *note*: ERNIE has a built-in prompt-enhancer which is disabled by default, can be enabled in *settings -> model options*  
+  - [Nucleus-Image](https://huggingface.co/NucleusAI/Nucleus-Image)  
+    Nucleus is MoE text-to-image model with 2B active and 17B total params  
+  - [Zeta-Chroma](https://huggingface.co/lodestones/Zeta-Chroma) pixel-space diffusion transformer image model  
+    Chroma generates images directly in RGB space using NextDiT-style architecture  
+    *note*: requires large number of steps to achieve sane results  
+  - [Bria FIBO](https://huggingface.co/briaai/FIBO) in *Normal*, *Edit*, and *Lite* (distilled) variants  
+    FIBO is DiT 8B parameter text-to-image model using Flow Matching and lightweight SmolLM3-3B text encoder  
+    *note*: this is a [gated model](https://vladmandic.github.io/sdnext-docs/Gated/)  
+    *note*: verbose JSON prompts are desired, using simple text prompt is suboptimial  
+  - [Anima Preview-v3](https://huggingface.co/circlestone-labs/Anima)  
+    new version of Anima  
+    added support for finetunes (safetensors) loading and LoRAs!  
   - [AiArtLab SDXS-1B](https://huggingface.co/AiArtLab/sdxs-1b) Simple Diffusion XS *(training still in progress)*  
     this model combines Qwen3.5-1.8B text encoder with SDXL-style UNET with only 1.6B parameters and custom 32ch VAE  
+    *note*: more of an experimental model and doesn't support offloading  
+- **Features**
+  - **Tag Autocomplete** native implementation!  
+    support for tags/words: select and activate any number of different auto-complete databases  
+    support for networks: works with lora, embeddings, wildcards, etc
+    see *Extras -> Autocomplete* for all settings  
+  - **NudeNet** add image safety evaluation models  
+    supports `LlavaGuard` and `QwenGuard`  
+  - **schedulers** add `ER-SDE` solver  
+    with *1S, 2M, 3M* variants in both *EPS* and *FlowMatch* flavors  
+  - **LoRA** rewrite `z-image` support and add all known variants
+  - **RIFE** update to v4.26  
+    enhance video interpolation processing  
+  - **installer** auto-restart on upgrade
+  - enhanced **filename** pattern processing  
+    *settings -> image paths -> directory/filename pattern*  
+    allows for any *processing* property name (as defined in `modules/processing_class.py` and saved to `ui-config.json`)  
+    allows for any *settings* property name (as defined in `modules/ui_definitions.py` and saved to `config.json`)  
+  - **preview** add explicit `method=None`  
+    if you want to skip preview, but show finished images, works with batch progression  
+  - add **xet cache** to *settings -> paths* and initialize on startup
 - **Compute**
   - **ROCm** futher work on advanced configuration and tuning, thanks @resonantsky  
+    now covers both ROCm on Windows and Linux  
     see *main interface -> scripts -> rocm advanced config*  
+  - **OpenVINO**  
+    update to `openvino==2026.1.0`  
+    default device is now `AUTO`, override which devices are allowed to be used in *settings -> backend settings*  
+    perform detection of fp16 capabilities instead of forcing fp32 by default  
+    add *experimental* support for `NPU` devices, typically available on AI-PC/Copilot-PC devices  
+  - **SDNQ** improvements  
+    add quant support to `nn.Embedding` type  
+    support fp execution according to gpu capabilities  
+    enhanced `triton` kernels for RDNA2/RDNA3  
+- **Kanvas**
+    multi-image workflow: add additional stagaes as needed (when starting generate, sdnext will use image/mask from active stage)  
+    full undo/redo  
+    list, select, transform any shapes  
+    magic-wand paint with auto-fill and perceptual tolerance  
+    see [Kanvas Docs](https://vladmandic.github.io/sdnext-docs/Kanvas) for details  
+- **UI**
+  - redesigned *video -> ltx* interface
+  - `gallery` send-to button advanced options with right-click
+  - `tag autocomplete` quick toggle in main prompt area
+  - add ui `log` during startup
+  - ui exception handling will show any captured exceptions directly in a ui, thanks @awsr
+  - update `vlad-neomorph` theme
+  - a lot of small performance optimizations that add up to faster load times and more responsive ui
+- **Caption & Prompt Enhance**
+  - [Google Gemma 4] in *E2B* and *E4B* variants as well as *heretic* fine-tune
+- **Agents**
+  framework for AI agent based work in `.github/`  
+  *note*: all skills are agent-model agnostic  
+  - general instructions:  
+    `AGENTS.md`, `copilot-instructions.md`  
+  - additional instructions in `instructions/`:  
+    `core.instructions.md`, `ui.instructions.md`  
+  - skills in in `skills/README.md`:  
+    *coding*: `fix-lint` (must before commit)  
+    *validation*: `check-models`, `check-api`, `check-schedulers`, `check-processing`, `check-scripts`  
+    *model*: `port-model`, `debug-model`, `analyze-model`, `reference-catalog`  
+    *github*: `github-issues`, `github-features`  
+    *diffusers*: `diffusers-code`  
+    *docs*: `update-docs`  
+    *other*: `todo`  
+- **CLI**
+  - add `cli/hf-info` and update `cli/hf-search.py`
+- **API**
+  - new GET `/sdapi/v1/wildcards` endpoint
+- **Docs**
+  - validation of all links
+  - syntax/structure/language corrections accross all documents
+- **Obsoleted**
+  - removed *system-info* from *extensions-builtin*
 - **Internal**
-  - additional typing and typechecks, thanks @awsr
-  - Prohibit python==3.14 unless `--experimental`
+  - sync `kanvas` branch with core branch
+  - `history` accepts both latent and pixel entries
+  - wrap `hf-download` methods
+  - additional *typing* and *typechecks*, thanks @awsr
+  - refactor `hash-cache` management, thanks @awsr
+  - validate all `reference` jsons and backfill all fields  
+  - sticter `js` linting, thanks @awsr
+  - ui: add profiling info
+  - ui: remove non-passive event listeners
+  - ui: add debounce to ui updates
+  - ui: utilize requestanimationframe for paint optimizations
+  - ui: profile callbacks
+  - ui: validate callbacks before use, thanks @awsr
+  - ui: log formatting
 - **Fixes**
-  - UI CSS fixes, thanks @awsr
-  - detect/warn if space in system path
+  - ui restore state on startup
+  - prohibit `python==3.14` unless `--experimental`
+  - ui CSS fixes, thanks @awsr
+  - detect/warn if space present in system path
   - add `ftfy` to requirements
+  - upscaler init error should not block server
+  - improve torch nvidia arch detection
+  - add torch amd arch detection
+  - prompt weighted lists and internal wildcards
+  - improve `path_to_repo` handling for custom paths
+  - eliminate `api` auth security bypass
+  - multiple `schedulers` signature corrections
+  - multiple models reverse model classification
+  - normalize device none error
+  - model refresh not refreshing internal list
+  - controlnet processor error handling
+  - error handling for same-device check
+  - error handling for undefined pipeline
+  - erorr handling for `scripts` loader
+  - patch `z-image` for fp16 compatibility, thanks @resonantsky
+  - patch `unipc` for timesteps device placement, thanks @resonantsky
+  - `civitai` search and base-model discovery improvements
+  - auto-masking with `rembg`
+  - token counter formatting, thanks @awsr
+  - ui server restart
+  - `torchvision` video patch
+  - preserve `image.info`
+  - color grading preserve metadata
+  - resolve video output path
+  - `rocm` script do not auto-apply if no config, thanks @awsr
+  - ui settings callback, thanks @awsr
 
 ## Update for 2026-04-01
 
@@ -2939,7 +3087,7 @@ All-in-all, we're around ~180 commits worth of updates, check the changelog for 
   - control: add stats
   - settings: reorganized and simplified  
   - browser -> server logging framework  
-  - add addtional themes: `black-reimagined`, thanks @Artheriax  
+  - add additional themes: `black-reimagined`, thanks @Artheriax  
 - **Batch**
   - image batch processing will use caption files if they exist instead of default prompt  
 
@@ -3378,7 +3526,7 @@ And there are also other goodies like multiple *XYZ grid* improvements, addition
 
 - [APG: Adaptive Projected Guidance](https://arxiv.org/pdf/2410.02416)
   - latest algo to provide better guidance for image generation, can be used instead of existing guidance rescale and/or PAG  
-  - in addtion to stronger guidance and reduction of burn at high guidance values, it can also increase image details  
+  - in addition to stronger guidance and reduction of burn at high guidance values, it can also increase image details  
   - compatible with *sd15/sdxl/sc*  
   - select in scripts -> apg  
   - for low    cfg scale, use positive momentum: e.g. cfg=2 => momentum=0.6

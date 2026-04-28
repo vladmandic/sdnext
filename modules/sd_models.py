@@ -11,7 +11,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from modules.logger import log
-from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, attention
+from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, sd_hijack_hfhub, attention
 from modules.memstats import memory_stats
 from modules.shared_helpers import walk_files
 from modules.modeldata import model_data
@@ -48,6 +48,7 @@ pipe_switch_task_exclude = [
     'StableDiffusionXLInstantIDPipeline',
     'XOmniPipeline',
     'HunyuanImagePipeline',
+    'NucleusMoEImagePipeline',
     'AuraFlowPipeline',
     'ChronoEditPipeline',
     'GoogleNanoBananaPipeline',
@@ -71,6 +72,7 @@ def set_huggingface_options(quiet=False):
         sd_hijack_safetensors.hijack_safetensors(shared.opts.runai_streamer_diffusers, shared.opts.runai_streamer_transformers)
     else:
         sd_hijack_safetensors.restore_safetensors()
+    sd_hijack_hfhub.init_hijack()
 
 
 def set_caption_load_options():
@@ -85,6 +87,7 @@ def set_caption_load_options():
         if shared.opts.caption_to_gpu:
             log.debug(f'Caption loader: to_gpu={shared.opts.caption_to_gpu}')
         sd_hijack_safetensors.restore_safetensors()
+    sd_hijack_hfhub.init_hijack()
 
 
 def set_vae_options(sd_model, vae=None, op:str='model', quiet:bool=False):
@@ -359,6 +362,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_lumina import load_lumina
             sd_model = load_lumina(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
+        elif model_type in ['Lumina-DiMOO']:
+            from pipelines.model_lumina import load_lumina_dimoo
+            sd_model = load_lumina_dimoo(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Kolors']:
             from pipelines.model_kolors import load_kolors
             sd_model = load_kolors(checkpoint_info, diffusers_load_config)
@@ -382,6 +389,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
         elif model_type in ['FLEX']:
             from pipelines.model_flex import load_flex
             sd_model = load_flex(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['ZetaChroma']:
+            from pipelines.model_zetachroma import load_zetachroma
+            sd_model = load_zetachroma(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Chroma']:
             from pipelines.model_chroma import load_chroma
@@ -443,6 +454,14 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_bria import load_bria
             sd_model = load_bria(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['Step1X-Edit']:
+            from pipelines.model_step1x_edit import load_step1x_edit
+            sd_model = load_step1x_edit(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['VIBE']:
+            from pipelines.model_vibe import load_vibe
+            sd_model = load_vibe(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Qwen']:
             from pipelines.model_qwen import load_qwen
             sd_model = load_qwen(checkpoint_info, diffusers_load_config)
@@ -491,6 +510,14 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_prx import load_prx
             sd_model = load_prx(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['ERNIE-Image']:
+            from pipelines.model_ernie import load_ernie_image
+            sd_model = load_ernie_image(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['Nucleus-Image']:
+            from pipelines.model_nucleus import load_nucleus
+            sd_model = load_nucleus(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Z-Image']:
             from pipelines.model_z_image import load_z_image
             sd_model = load_z_image(checkpoint_info, diffusers_load_config)
@@ -499,7 +526,7 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_longcat import load_longcat
             sd_model = load_longcat(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Overfit']:
+        elif model_type in ['Ovis-Image', 'Overfit']:
             from pipelines.model_ovis import load_ovis
             sd_model = load_ovis(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -857,7 +884,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         vae_file = None
         if model_type.startswith('Stable Diffusion') and (op == 'model' or op == 'refiner'): # preload vae for sd models
             vae_file, vae_source = sd_vae.resolve_vae(checkpoint_info.filename)
-            vae = sd_vae.load_vae_diffusers(checkpoint_info.path, vae_file, vae_source)
+            vae = sd_vae.load_vae(checkpoint_info.path, vae_file, vae_source)
             if vae is not None:
                 diffusers_load_config["vae"] = vae
                 timer.load.record("vae")
@@ -1279,6 +1306,8 @@ def add_noise_pred_to_diffusers_callback(pipe):
         return pipe
     if pipe.__class__.__name__.startswith("Anima"):
         return pipe
+    if pipe.__class__.__name__.startswith("ErnieImage"):
+        return pipe
     if pipe.__class__.__name__.startswith("StableCascade") and ("predicted_image_embedding" not in pipe._callback_tensor_inputs): # pylint: disable=protected-access
         pipe.prior_pipe._callback_tensor_inputs.append("predicted_image_embedding") # pylint: disable=protected-access
     elif "noise_pred" not in pipe._callback_tensor_inputs: # pylint: disable=protected-access
@@ -1385,7 +1414,7 @@ def unload_model_weights(op='model'):
         shared.compiled_model_state.partitioned_modules.clear()
     if (op == 'model' or op == 'dict') and model_data.sd_model:
         log.debug(f'Current {op}: {memory_stats()}')
-        if not ('Model' in shared.opts.cuda_compile and shared.opts.cuda_compile_backend == "openvino_fx"):
+        if not ('Model' in shared.opts.cuda_compile and (shared.opts.cuda_compile_backend == "openvino_fx" or shared.opts.cuda_compile_backend == "openvino")):
             disable_offload(model_data.sd_model)
             move_model(model_data.sd_model, 'meta')
         model_data.sd_model = None

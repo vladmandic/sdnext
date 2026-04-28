@@ -5,8 +5,8 @@ Contains optimized tensor operations and video processing functions
 Extracted from: seedvr2.py (lines 1633-1730)
 """
 
+from typing import List
 import torch
-from typing import List, Union
 
 
 def optimized_video_rearrange(video_tensors: List[torch.Tensor]) -> List[torch.Tensor]:

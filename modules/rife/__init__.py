@@ -16,16 +16,21 @@ from modules import devices, shared, paths
 from modules.logger import log
 
 
-model_url = 'https://github.com/vladmandic/rife/raw/main/model/flownet-v46.pkl'
+# Practical-RIFE v4.25 weights (MIT). Default URL points at the upstream HolyWu mirror;
+# can be swapped to a self-hosted mirror without any other code change.
+model_url = 'https://github.com/HolyWu/vs-rife/releases/download/model/flownet_v4.25.pkl'
 model: RifeModel = None
 
 
-def load(model_path: str = 'rife/flownet-v46.pkl'):
+def load(model_path: str = 'rife/flownet_v4.25.pkl'):
     global model # pylint: disable=global-statement
     if model is None:
         from modules import modelloader
         model_dir = os.path.join(paths.models_path, 'RIFE')
-        model_path = modelloader.load_file_from_url(url=model_url, model_dir=model_dir, file_name='flownet-v46.pkl')
+        model_path = modelloader.load_file_from_url(url=model_url, model_dir=model_dir, file_name='flownet_v4.25.pkl')
+        legacy_path = os.path.join(model_dir, 'flownet-v46.pkl')
+        if os.path.exists(legacy_path):
+            log.info(f'Video interpolate: legacy v3.9 weights at "{legacy_path}" are no longer used and can be deleted')
         log.debug(f'Video interpolate: model="{model_path}"')
         model = RifeModel()
         model.load_model(model_path, -1)
@@ -144,8 +149,8 @@ def interpolate_nchw(images: list, count: int = 2, scale: float = 1.0):
                 I1 = f_pad(frame.unsqueeze(0))
                 for i in range(count-1):
                     output = model.inference(I0, I1, (i+1) * 1. / (count), scale)
-                    interpolated.append(output)
-                interpolated.append(I1)
+                    interpolated.append(output[:, :, :h, :w])
+                interpolated.append(I1[:, :, :h, :w])
                 pbar.update(1)
 
     t1 = time.time()

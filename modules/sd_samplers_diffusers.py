@@ -5,12 +5,15 @@ import inspect
 import diffusers
 from modules import shared, errors
 from modules.logger import log
+from modules.sd_samplers_hijack import init_samplers_hijack
 from modules.sd_samplers_common import SamplerData, flow_models
 
 
 debug = os.environ.get('SD_SAMPLER_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
 scheduler_overrides = {}  # set by sd_samplers.create_sampler() before constructor call
+flow_exclude = ['PeRFlow']
+init_samplers_hijack()
 
 # Diffusers schedulers
 try:
@@ -62,6 +65,7 @@ try:
     from modules.schedulers.scheduler_unipc_flowmatch import FlowUniPCMultistepScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.scheduler_flashflow import FlashFlowMatchEulerDiscreteScheduler # pylint: disable=ungrouped-imports
     from modules.schedulers.perflow import PeRFlowScheduler # pylint: disable=ungrouped-imports
+    from modules.schedulers.scheduler_ersde import ERSDEScheduler # pylint: disable=ungrouped-imports
 except Exception as e:
     log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
@@ -90,14 +94,12 @@ try:
         RungeKutta57Scheduler,
         RungeKutta67Scheduler,
         SpecializedRKScheduler,
-        # RESMultistepSDEScheduler,
-        # BongTangentScheduler,
-        # SimpleExponentialScheduler,
     )
 except Exception as e:
     log.error(f'Sampler import: version={diffusers.__version__} error: {e}')
     if os.environ.get('SD_SAMPLER_DEBUG', None) is not None:
         errors.display(e, 'Samplers')
+
 
 config = {
     # beta_start, beta_end are typically per-scheduler, but we don't want them as they should be taken from the model itself as those are values model was trained on
@@ -154,6 +156,13 @@ config.update({
     'UFOGen': { },
     'BDIA DDIM': { 'clip_sample': False, 'set_alpha_to_one': True, 'steps_offset': 0, 'clip_sample_range': 1.0, 'sample_max_value': 1.0, 'timestep_spacing': 'leading', 'rescale_betas_zero_snr': False, 'thresholding': False, 'gamma': 1.0 },
 
+    'ER-SDE': { 'solver_order': 1, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True },
+    'ER-SDE 2M': { 'solver_order': 2, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True },
+    'ER-SDE 3M': { 'solver_order': 3, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True },
+    'ER-SDE FlowMatch': { 'solver_order': 1, 'func_type': 7, 'clip_sample': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
+    'ER-SDE 2M FlowMatch': { 'solver_order': 2, 'func_type': 7, 'clip_sample': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
+    'ER-SDE 3M FlowMatch': { 'solver_order': 3, 'func_type': 7, 'clip_sample': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
+
     'PNDM': { 'skip_prk_steps': False, 'set_alpha_to_one': False, 'steps_offset': 0, 'timestep_spacing': 'linspace' },
     'IPNDM': { },
     'DDPM': { 'variance_type': "fixed_small", 'clip_sample': False, 'thresholding': False, 'clip_sample_range': 1.0, 'sample_max_value': 1.0, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False },
@@ -161,6 +170,7 @@ config.update({
     'KDPM2': { 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_beta_sigmas': False, 'steps_offset': 0, 'timestep_spacing': 'linspace' },
     'KDPM2 a': { 'use_karras_sigmas': False, 'use_exponential_sigmas': False, 'use_beta_sigmas': False, 'steps_offset': 0, 'timestep_spacing': 'linspace' },
     'CMSI': { },
+    'LCM': { },
     'CogX DDIM': { 'beta_schedule': "scaled_linear", 'beta_start': 0.00085, 'beta_end': 0.012, 'set_alpha_to_one': True, 'rescale_betas_zero_snr': False },
     'DDIM Parallel': {},
     'DDPM Parallel': {},
@@ -213,6 +223,7 @@ config.update({
     'Lobatto 4': { 'variant': 'lobatto_iiia_4s', **config['Res4Lyf'] },
     'Radau IIA 2': { 'variant': 'radau_iia_2s', **config['Res4Lyf'] },
     'Radau IIA 3': { 'variant': 'radau_iia_3s', **config['Res4Lyf'] },
+    'Radau IIA 4': { 'variant': 'radau_iia_5s', **config['Res4Lyf'] },
     'Gauss-Legendre 2S': { 'variant': 'gauss-legendre_2s', **config['Res4Lyf'] },
     'Gauss-Legendre 3S': { 'variant': 'gauss-legendre_3s', **config['Res4Lyf'] },
     'Gauss-Legendre 4S': { 'variant': 'gauss-legendre_4s', **config['Res4Lyf'] },
@@ -241,7 +252,7 @@ samplers_data_diffusers = [
     SamplerData('DPM++ SDE', lambda model: DiffusionSampler('DPM++ SDE', DPMSolverMultistepScheduler, model), [], {}),
     SamplerData('DPM++ 2M SDE', lambda model: DiffusionSampler('DPM++ 2M SDE', DPMSolverMultistepScheduler, model), [], {}),
     SamplerData('DPM++ 2M EDM', lambda model: DiffusionSampler('DPM++ 2M EDM', EDMDPMSolverMultistepScheduler, model), [], {}),
-    SamplerData('DPM++ Cosine', lambda model: DiffusionSampler('DPM++ 2M EDM', CosineDPMSolverMultistepScheduler, model), [], {}),
+    SamplerData('DPM++ Cosine', lambda model: DiffusionSampler('DPM++ Cosine', CosineDPMSolverMultistepScheduler, model), [], {}),
     SamplerData('DPM SDE', lambda model: DiffusionSampler('DPM SDE', DPMSolverSDEScheduler, model), [], {}),
 
     SamplerData('DPM++ Inverse', lambda model: DiffusionSampler('DPM++ Inverse', DPMSolverMultistepInverseScheduler, model), [], {}),
@@ -276,7 +287,14 @@ samplers_data_diffusers = [
     SamplerData('CMSI', lambda model: DiffusionSampler('CMSI', CMStochasticIterativeScheduler, model), [], {}),
 
     SamplerData('VDM Solver', lambda model: DiffusionSampler('VDM Solver', VDMScheduler, model), [], {}),
-    SamplerData('BDIA DDIM', lambda model: DiffusionSampler('BDIA DDIM g=0', BDIA_DDIMScheduler, model), [], {}),
+    SamplerData('BDIA DDIM', lambda model: DiffusionSampler('BDIA DDIM', BDIA_DDIMScheduler, model), [], {}),
+    SamplerData('ER-SDE', lambda model: DiffusionSampler('ER-SDE', ERSDEScheduler, model), [], {}),
+    SamplerData('ER-SDE 2M', lambda model: DiffusionSampler('ER-SDE 2M', ERSDEScheduler, model), [], {}),
+    SamplerData('ER-SDE 3M', lambda model: DiffusionSampler('ER-SDE 3M', ERSDEScheduler, model), [], {}),
+    SamplerData('ER-SDE FlowMatch', lambda model: DiffusionSampler('ER-SDE FlowMatch', ERSDEScheduler, model), [], {}),
+    SamplerData('ER-SDE 2M FlowMatch', lambda model: DiffusionSampler('ER-SDE 2M FlowMatch', ERSDEScheduler, model), [], {}),
+    SamplerData('ER-SDE 3M FlowMatch', lambda model: DiffusionSampler('ER-SDE 3M FlowMatch', ERSDEScheduler, model), [], {}),
+    SamplerData('BDIA DDIM', lambda model: DiffusionSampler('BDIA DDIM', BDIA_DDIMScheduler, model), [], {}),
     SamplerData('LCM', lambda model: DiffusionSampler('LCM', LCMScheduler, model), [], {}),
     SamplerData('LCM FlowMatch', lambda model: DiffusionSampler('LCM FlowMatch', FlowMatchLCMScheduler, model), [], {}),
     SamplerData('TCD', lambda model: DiffusionSampler('TCD', TCDScheduler, model), [], {}),
@@ -308,7 +326,7 @@ samplers_data_diffusers = [
     SamplerData('RES-Multistep 3M', lambda model: DiffusionSampler('RES-Multistep 3M', RESMultistepScheduler, model), [], {}),
     SamplerData('RES-SDE 2S', lambda model: DiffusionSampler('RES-SDE 2S', RESSinglestepSDEScheduler, model), [], {}),
     SamplerData('RES-SDE 3S', lambda model: DiffusionSampler('RES-SDE 3S', RESSinglestepSDEScheduler, model), [], {}),
-    SamplerData('DEIS-Multistep', lambda model: DiffusionSampler('DEIS Multistep', RESDEISMultistepScheduler, model), [], {}),
+    SamplerData('DEIS-Multistep', lambda model: DiffusionSampler('DEIS-Multistep', RESDEISMultistepScheduler, model), [], {}),
     SamplerData('DEIS-Unified 1S', lambda model: DiffusionSampler('DEIS-Unified 1S', RESUnifiedScheduler, model), [], {}),
     SamplerData('DEIS-Unified 2M', lambda model: DiffusionSampler('DEIS-Unified 2M', RESUnifiedScheduler, model), [], {}),
     SamplerData('Sigmoid Sigma', lambda model: DiffusionSampler('Sigmoid Sigma', CommonSigmaScheduler, model), [], {}),
@@ -331,8 +349,8 @@ samplers_data_diffusers = [
     SamplerData('Lobatto 3', lambda model: DiffusionSampler('Lobatto 3', LobattoScheduler, model), [], {}),
     SamplerData('Lobatto 4', lambda model: DiffusionSampler('Lobatto 4', LobattoScheduler, model), [], {}),
     SamplerData('Radau IIA 2', lambda model: DiffusionSampler('Radau IIA 2', RadauIIAScheduler, model), [], {}),
-    SamplerData('Radau IIA 3', lambda model: DiffusionSampler('Radau IIA 2', RadauIIAScheduler, model), [], {}),
-    SamplerData('Radau IIA 4', lambda model: DiffusionSampler('Radau IIA 2', RadauIIAScheduler, model), [], {}),
+    SamplerData('Radau IIA 3', lambda model: DiffusionSampler('Radau IIA 3', RadauIIAScheduler, model), [], {}),
+    SamplerData('Radau IIA 4', lambda model: DiffusionSampler('Radau IIA 4', RadauIIAScheduler, model), [], {}),
     SamplerData('Gauss-Legendre 2S', lambda model: DiffusionSampler('Gauss-Legendre 2S', GaussLegendreScheduler, model), [], {}),
     SamplerData('Gauss-Legendre 3S', lambda model: DiffusionSampler('Gauss-Legendre 3S', GaussLegendreScheduler, model), [], {}),
     SamplerData('Gauss-Legendre 4S', lambda model: DiffusionSampler('Gauss-Legendre 4S', GaussLegendreScheduler, model), [], {}),
@@ -408,8 +426,8 @@ class DiffusionSampler:
         timesteps = [int(x) for x in timesteps if x.isdigit()]
         sched_sigma = get_override('schedulers_sigma')
         if len(timesteps) == 0:
-            if 'sigma_schedule' in self.config:
-                self.config['sigma_schedule'] = sched_sigma if sched_sigma != 'default' else None
+            if 'sigma_schedule' in self.config and sched_sigma != 'default':
+                self.config['sigma_schedule'] = sched_sigma
             if sched_sigma == 'default' and shared.sd_model_type in flow_models and 'use_flow_sigmas' in self.config:
                 self.config['use_flow_sigmas'] = True
             elif sched_sigma == 'betas' and 'use_beta_sigmas' in self.config:
@@ -466,7 +484,7 @@ class DiffusionSampler:
             del self.config['beta_end']
             del self.config['beta_schedule']
             del self.config['prediction_type']
-        if 'prediction_type' in self.config and 'Flow' in name:
+        if ('prediction_type' in self.config) and ('Flow' in name) and (name not in flow_exclude):
             self.config['prediction_type'] = 'flow_prediction'
         if 'SGM' in name:
             self.config['timestep_spacing'] = 'trailing'

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Architecture-specific MIOpen solver profiles for AMD GCN/RDNA GPUs.
 
 Sources:

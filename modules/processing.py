@@ -315,7 +315,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 p.ops.append('detailer')
                 if not p.do_not_save_samples and get_opt(p, 'save_images_before_detailer'):
                     info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                    images.save_image(Image.fromarray(sample), path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=get_opt(p, 'samples_format'), info=info, p=p, suffix="-before-detailer")
+                    images.save_image(image, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=get_opt(p, 'samples_format'), info=info, p=p, suffix="-before-detailer")
                 sample = detailer.detail(sample, p)
                 if isinstance(sample, list):
                     if len(sample) > 0:
@@ -426,6 +426,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
         image.info["parameters"] = info
         out_infotexts.append(info)
         out_images.append(image)
+    shared.history.add(None, info=out_infotexts, ops=p.ops, images=out_images)
     return out_images, out_infotexts
 
 
@@ -534,6 +535,14 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
             timer.process.record('post')
             if shared.state.interrupted:
                 break
+
+        if getattr(p, 'video_interpolate', 0) > 0 and len(output_images) > 1:
+            from modules.processing_video import apply_video_interpolation, expand_infotexts
+            n_before = len(output_images)
+            output_images = apply_video_interpolation(p, output_images)
+            n_after = len(output_images)
+            if n_after > n_before and len(infotexts) == n_before:
+                infotexts = expand_infotexts(infotexts, max(0, p.video_interpolate - 1))
 
         if not p.xyz:
             if hasattr(shared.sd_model, 'restore_pipeline') and (shared.sd_model.restore_pipeline is not None):

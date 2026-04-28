@@ -40,7 +40,7 @@ class NetworkOnDisk:
                 m[k] = v
             self.metadata = m
         self.alias = self.metadata.get('ss_output_name', self.name)
-        sha256 = hashes.sha256_from_cache(self.filename, "lora/" + self.name) or hashes.sha256_from_cache(self.filename, "lora/" + self.name, use_addnet_hash=True) or self.metadata.get('sshs_model_hash')
+        sha256 = hashes.sha256_from_cache(self.filename, "lora/" + self.name) or hashes.sha256_from_cache(self.filename, "lora/" + self.name, store='hashes-addnet') or self.metadata.get('sshs_model_hash')
         self.set_hash(sha256)
         self.sd_version = self.detect_version()
 
@@ -68,6 +68,8 @@ class NetworkOnDisk:
             return 'chroma'
         if base.startswith('zimage'):
             return 'zimage'
+        if base.startswith('anima'):
+            return 'anima'
         if base.startswith('qwen'):
             return 'qwen'
 
@@ -98,6 +100,8 @@ class NetworkOnDisk:
             return 'xl'
         if 'chroma' in self.name.lower():
             return 'chroma'
+        if 'anima' in self.name.lower():
+            return 'anima'
 
         return ''
 
@@ -107,7 +111,7 @@ class NetworkOnDisk:
 
     def read_hash(self):
         if not self.hash:
-            self.set_hash(hashes.sha256(self.filename, "lora/" + self.name, use_addnet_hash=self.is_safetensors) or '')
+            self.set_hash(hashes.sha256(self.filename, "lora/" + self.name, store='hashes-addnet' if self.is_safetensors else None) or '')
 
     def get_info(self):
         data = {}

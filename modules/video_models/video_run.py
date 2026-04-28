@@ -65,14 +65,14 @@ def generate(*args, **kwargs):
             log.warning('Video: op=T2V init image not supported')
     elif 'I2V' in model:
         if init_image is None:
-            return video_utils.queue_err('init image not set')
+            return video_utils.queue_err('No input image provided. Please upload or select an image.')
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         log.debug(f'Video: op=I2V init={init_image} resized={p.task_args["image"]}')
     elif 'FLF2V' in model:
         if init_image is None:
-            return video_utils.queue_err('init image not set')
+            return video_utils.queue_err('No input image provided. Please upload or select an image.')
         if last_image is None:
-            return video_utils.queue_err('last image not set')
+            return video_utils.queue_err('No last frame image provided. Please upload or select an image.')
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         p.task_args['last_image'] = images.resize_image(resize_mode=2, im=last_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         log.debug(f'Video: op=FLF2V init={init_image} last={last_image} resized={p.task_args["image"]}')
@@ -82,7 +82,7 @@ def generate(*args, **kwargs):
             log.debug(f'Video: op=VACE reference={init_image} resized={p.task_args["reference_images"]}')
     elif 'Animate' in model:
         if init_image is None:
-            return video_utils.queue_err('init image not set')
+            return video_utils.queue_err('No input image provided. Please upload or select an image.')
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
         p.task_args['mode'] = 'animate'
         p.task_args['pose_video'] = [] # input pose video to condition the generation on. must be a list of PIL images.
@@ -160,12 +160,23 @@ def generate(*args, **kwargs):
     else:
         audio = None
 
+    if mp4_interpolate > 0 and pixels is not None:
+        p.video_interpolate = mp4_interpolate
+        from modules.processing_video import apply_video_interpolation
+        # pixels is 5-D (N,C,T,H,W) in [-1,1]; RIFE needs 4-D (T,C,H,W) in [0,1]
+        x = pixels.squeeze(0).permute(1, 0, 2, 3)
+        x = (x.clamp(-1., 1.) + 1.0) * 0.5
+        x = apply_video_interpolation(p, x, count=mp4_interpolate)
+        x = x * 2.0 - 1.0
+        pixels = x.permute(1, 0, 2, 3).unsqueeze(0)
+    from modules.processing_video import interpolation_factor
+    save_fps = mp4_fps * interpolation_factor(p)
     _num_frames, video_file, _thumb = video_save.save_video(
         p=p,
         pixels=pixels,
         audio=audio,
         binary=processed.bytes,
-        mp4_fps=mp4_fps,
+        mp4_fps=save_fps,
         mp4_codec=mp4_codec,
         mp4_opt=mp4_opt,
         mp4_ext=mp4_ext,

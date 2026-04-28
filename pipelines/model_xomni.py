@@ -113,4 +113,5 @@ def load_xomni(checkpoint_info, diffusers_load_config=None):
 
     pipe = XOmniPipeline()
     pipe.load(repo_id, load_config=diffusers_load_config)
+    devices.torch_gc(force=True, reason='load')
     return pipe

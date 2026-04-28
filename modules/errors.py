@@ -23,7 +23,7 @@ def display(e: Exception, task: str, suppress=None):
         suppress = []
     if isinstance(e, ErrorLimiterAbort):
         return
-    log.critical(f"{task or 'error'}: {type(e).__name__}")
+    log.error(f"{task or 'error'}: {type(e).__name__}")
     """
     trace = traceback.format_exc()
     log.error(trace)

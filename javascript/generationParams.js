@@ -20,6 +20,7 @@ let control_gallery;
 let modal;
 
 async function initiGenerationParams() {
+  const t0 = performance.now();
   if (!modal) modal = gradioApp().getElementById('lightboxModal');
   if (!modal) return;
 
@@ -37,5 +38,7 @@ async function initiGenerationParams() {
   if (!img2img_gallery) img2img_gallery = attachGalleryListeners('img2img');
   if (!control_gallery) control_gallery = attachGalleryListeners('control');
   modalObserver.observe(modal, { attributes: true, attributeFilter: ['style'] });
-  log('initGenerationParams');
+  const t1 = performance.now();
+  log('initGenerationParams', Math.round(t1 - t0));
+  timer('initGenerationParams', t1 - t0);
 }

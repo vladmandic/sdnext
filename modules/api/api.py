@@ -1,9 +1,10 @@
+import os
 from threading import Lock
 from secrets import compare_digest
 from fastapi import FastAPI, APIRouter, Depends, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.exceptions import HTTPException
-from modules import errors, shared
+from modules import errors, shared, paths
 from modules.logger import log
 from modules.api import models, endpoints, script, helpers, server, generate, process, control, docs, gpu
 
@@ -85,6 +86,7 @@ class Api:
         self.add_api_route("/sdapi/v1/detailers", endpoints.get_detailers, methods=["GET"], response_model=list[models.ItemDetailer])
         self.add_api_route("/sdapi/v1/prompt-styles", endpoints.get_prompt_styles, methods=["GET"], response_model=list[models.ItemStyle])
         self.add_api_route("/sdapi/v1/embeddings", endpoints.get_embeddings, methods=["GET"], response_model=models.ResEmbeddings)
+        self.add_api_route("/sdapi/v1/wildcards", endpoints.get_wildcards, methods=["GET"], response_model=list[dict], tags=["Enumerators"])
         self.add_api_route("/sdapi/v1/sd-vae", endpoints.get_sd_vaes, methods=["GET"], response_model=list[models.ItemVae])
         self.add_api_route("/sdapi/v1/extensions", endpoints.get_extensions_list, methods=["GET"], response_model=list[models.ItemExtension])
         self.add_api_route("/sdapi/v1/extra-networks", endpoints.get_extra_networks, methods=["GET"], response_model=list[models.ItemExtraNetwork])
@@ -107,15 +109,20 @@ class Api:
 
         # options api
         from modules.api import options
-        options.register_api(self.app)
+        options.register_api(self)
 
         # caption api
         from modules.api import caption
-        caption.register_api(self.app)
+        caption.register_api(self)
 
         # lora api
         from modules.api import loras
-        loras.register_api(self.app)
+        loras.register_api(self)
+
+        # autocomplete api
+        from modules.api import autocomplete as autocomplete_api
+        autocomplete_api.init(getattr(shared.opts, 'autocomplete_dir', '') or os.path.join(paths.models_path, 'autocomplete'))
+        autocomplete_api.register_api(self)
 
         # gallery api
         from modules.api import gallery
@@ -123,25 +130,25 @@ class Api:
 
         # nudenet api
         from modules.api import nudenet
-        nudenet.register_api(self.app)
+        nudenet.register_api(self)
 
         # xyz-grid api
         from modules.api import xyz_grid
-        xyz_grid.register_api(self.app)
+        xyz_grid.register_api(self)
 
         # civitai api
         from modules.civitai import api_civitai
-        api_civitai.register_api(self.app)
+        api_civitai.register_api(self)
 
         # rembg api
         from modules.rembg import rembg_api
-        rembg_api.register_api(self.app)
+        rembg_api.register_api(self)
 
         # hide trailing-slash duplicates from OpenAPI schema
         from fastapi.routing import APIRoute
-        paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
+        route_paths = {r.path for r in self.app.routes if hasattr(r, 'path')}
         for route in self.app.routes:
-            if isinstance(route, APIRoute) and len(route.path) > 1 and route.path.endswith('/') and route.path[:-1] in paths:
+            if isinstance(route, APIRoute) and len(route.path) > 1 and route.path.endswith('/') and route.path[:-1] in route_paths:
                 route.include_in_schema = False
 
         # upload api

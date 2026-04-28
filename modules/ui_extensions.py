@@ -395,7 +395,7 @@ def create_html(search_text, sort_column):
             ext['status'] = 0
         style = "style='cursor: help;width: 1rem;margin: 0.2em;'"
         if ext['url'] is None or ext['url'] == '':
-            status = f"<div title='Local'>{ui_symbols.svg_bullet.style('#00C0FD')}</div>"
+            status = f"<div {style} title='Local'>{ui_symbols.svg_bullet.style('#00C0FD')}</div>"
         elif ext['status'] > 0:
             if ext['status'] == 1:
                 status = f"<div {style} title='Verified'>{ui_symbols.svg_bullet.style('#00FD9C')}</div>"
