@@ -244,7 +244,7 @@ def cleanup_broken_packages():
         pass
 
 
-def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constraints = True) -> tuple[subprocess.CompletedProcess, str]:
+def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constraints = True) -> tuple[subprocess.CompletedProcess | None, str]:
     t_start = time.time()
     originalArg = arg
     arg = arg.replace('>=', '==').strip()
