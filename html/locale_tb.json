@@ -4817,7 +4817,7 @@
     },
     {
       "id": 13,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "Source Telemetry",
       "reload": "",
       "hint": "Upload and synchronize source data for recursive generation, delta-patching, or neural guidance processing"

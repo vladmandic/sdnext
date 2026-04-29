@@ -4817,9 +4817,9 @@
     },
     {
       "id": 13,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "入力メディア",
-      "reload": "Input Media",
+      "reload": "Input",
       "hint": "画像間変換、インペイント、またはコントロール処理に使用する入力画像を追加します"
     },
     {

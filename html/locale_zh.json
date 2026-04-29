@@ -4817,7 +4817,7 @@
     },
     {
       "id": 13,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "输入媒体",
       "reload": "",
       "hint": "添加用于图生图、重绘或控制处理的输入图像"

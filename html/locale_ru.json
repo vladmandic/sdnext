@@ -4817,7 +4817,7 @@
     },
     {
       "id": 14,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "Входные медиаданные",
       "reload": "",
       "hint": "Добавить входное изображение для использования в image-to-image, inpaint или для управления генерацией"

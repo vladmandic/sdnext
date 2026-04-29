@@ -4817,7 +4817,7 @@
     },
     {
       "id": 0,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "Media Input",
       "reload": "n/a",
       "hint": "Addere imaginem input adhibendam pro processu imaginis-ad-imaginem, inpaint, vel moderationis"

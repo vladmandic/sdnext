@@ -4817,7 +4817,7 @@
     },
     {
       "id": 13,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "Media wejściowe",
       "reload": "",
       "hint": "Dodaj obraz wejściowy do użycia w przetwarzaniu typu image-to-image, inpaint lub control"

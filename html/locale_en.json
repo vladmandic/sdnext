@@ -700,7 +700,6 @@
   "i": [
     {"id":"control_nav","label":"Images","localized":"","hint":"Create images<br>Unified interface<br>Supports T2I and I2I<br>With optional control guidance"},
     {"id":"img2img_nav","label":"I2I","localized":"","hint":"Create image from image<br>Legacy interface that mimics original image-to-image interface and behavior"},
-    {"id":"img2img_results_input_mobile","label":"Input","localized":"","hint":"Show/hide selection of input media used to guide generation","ui":"img2img"},
     {"id":"","label":"Image","localized":"","hint":"Create image from image","ui":"img2img"},
     {"id":"","label":"Inpaint","localized":"","hint":"","ui":"img2img"},
     {"id":"control_params_mask","label":"Inputs","localized":"","hint":"Settings related to Input images","ui":"control"},
@@ -711,7 +710,7 @@
     {"id":"","label":"Image Paths","localized":"","hint":"Settings related to image filenames, and output directories"},
     {"id":"","label":"Image Metadata","localized":"","hint":"Settings related to handling of metadata that is created with generated images"},
     {"id":"","label":"IP Adapters","localized":"","hint":"IP adapters are plugin models that can guide generation towards desired outcome","ui":"txt2img"},
-    {"id":"","label":"Input Media","localized":"","hint":"Add input image to be used for image-to-image, inpaint or control processing","ui":"control"},
+    {"id":"","label":"Input","localized":"","hint":"Add input image to be used for image-to-image, inpaint or control processing","ui":"control"},
     {"id":"","label":"Input Image","localized":"","hint":"","ui":"caption"},
     {"id":"","label":"IPEX","localized":"","hint":"","ui":"settings_backends"},
     {"id":"","label":"Image Gallery","localized":"","hint":"","ui":"settings_saving-images"},

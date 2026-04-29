@@ -4817,7 +4817,7 @@
     },
     {
       "id": 14,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "Eingabemedien",
       "reload": "",
       "hint": "Eingabebild hinzufügen, das für Image-to-Image-, Inpaint- oder Control-Verarbeitung verwendet werden soll"

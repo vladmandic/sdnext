@@ -4817,7 +4817,7 @@
     },
     {
       "id": 13,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "Media Masukan",
       "reload": "n/a",
       "hint": "Tambahkan gambar masukan untuk digunakan dalam pemrosesan image-to-image, inpaint, atau kontrol"

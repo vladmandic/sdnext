@@ -4817,7 +4817,7 @@
     },
     {
       "id": 13,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "입력 미디어",
       "reload": "n/a",
       "hint": "이미지 대 이미지, 인페인트 또는 제어 처리에 사용할 입력 이미지 추가"

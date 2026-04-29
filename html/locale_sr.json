@@ -4817,7 +4817,7 @@
     },
     {
       "id": 14,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "Ulazni medij",
       "reload": "",
       "hint": "Dodajte ulaznu sliku koja će se koristiti za obradu slike-u-sliku, inpaint ili kontrolnu obradu"

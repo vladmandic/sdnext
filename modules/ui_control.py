@@ -167,8 +167,6 @@ def create_ui(_blocks: gr.Blocks=None):
 
                 with gr.Accordion(open=False, label="Input", elem_id="control_input", elem_classes=["small-accordion"]):
                     with gr.Row():
-                        show_input = gr.Checkbox(label="Show input", value=True, elem_id="control_show_input")
-                    with gr.Row():
                         input_type = gr.Radio(label="Control input type", choices=['Control only', 'Init image same as control', 'Separate init image'], value='Control only', type='index', elem_id='control_input_type')
                     with gr.Row():
                         denoising_strength = gr.Slider(minimum=0.00, maximum=0.99, step=0.01, label='Denoising strength', value=0.30, elem_id="control_input_denoising_strength")
@@ -220,7 +218,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 timer.startup.record('ui-networks')
 
             with gr.Row(elem_id='control-inputs'):
-                with gr.Column(scale=9, elem_id='control-input-column', visible=True) as column_input:
+                with gr.Column(scale=9, elem_id='control-input-column', visible=True) as _column_input:
                     gr.HTML('<span id="control-input-button">Input</p>')
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-input'):
                         input_mode = gr.Label(value='select', visible=False)
@@ -276,7 +274,6 @@ def create_ui(_blocks: gr.Blocks=None):
             btn_update = gr.Button('Update', interactive=True, visible=False, elem_id='control_update')
             btn_update.click(fn=get_units, inputs=controls, outputs=[], show_progress='hidden', queue=False)
 
-            show_input.change(fn=lambda x: gr.update(visible=x), inputs=[show_input], outputs=[column_input])
             input_type.change(fn=lambda x: gr.update(visible=x == 2), inputs=[input_type], outputs=[column_init])
             btn_prompt_counter.click(
                 fn=call_queue.wrap_queued_call(ui_common.update_token_counter),

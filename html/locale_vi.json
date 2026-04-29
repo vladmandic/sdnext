@@ -4817,7 +4817,7 @@
     },
     {
       "id": 13,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "Phương tiện đầu vào",
       "reload": "",
       "hint": "Thêm hình ảnh đầu vào để sử dụng cho xử lý hình ảnh thành hình ảnh, inpaint hoặc điều khiển"

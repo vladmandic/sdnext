@@ -4817,7 +4817,7 @@
     },
     {
       "id": 13,
-      "label": "Input Media",
+      "label": "Input",
       "localized": "Medios de entrada",
       "reload": "",
       "hint": "Añadir imagen de entrada para ser utilizada para el procesamiento de imagen a imagen, inpaint o control"
