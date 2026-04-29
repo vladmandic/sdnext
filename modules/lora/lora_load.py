@@ -339,9 +339,11 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
         shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, force=True, silent=True) # some layers may end up on cpu without hook
 
     # Activate native modules loaded via diffusers path (e.g., LoKR on Flux2)
+    # Also restore backed-up weights when previously active native modules are removed
+    from modules.lora import networks
     native_nets = [net for net in l.loaded_networks if len(net.modules) > 0]
-    if native_nets:
-        from modules.lora import networks
+    had_native = len(networks.applied_layers) > 0
+    if native_nets or had_native:
         networks.network_activate()
 
     if len(l.loaded_networks) > 0 and l.debug:
