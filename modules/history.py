@@ -80,7 +80,6 @@ class History:
                 break
             current_index -= 1
         if item.latent is None:
-            print('HERE')
             return None, -1
         log.debug(f'History get: index={current_index} time={item.ts} shape={list(item.latent.shape)} dtype={item.latent.dtype} count={self.count}')
         return item.latent.to(devices.device), current_index

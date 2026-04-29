@@ -386,7 +386,9 @@ class Processor:
     def preview(self):
         import modules.ui_control_helpers as helpers
         input_image = helpers.input_source
+        if input_image is None:
+            return []
         if isinstance(input_image, list):
             input_image = input_image[0]
         debug('Control process preview')
-        return self.__call__(input_image)
+        return [self.__call__(input_image)]

@@ -290,9 +290,9 @@ def run_rembg(input_image: Image.Image, input_mask: np.ndarray):
             'alpha_matting_foreground_threshold': 240,
             'alpha_matting_background_threshold': 10,
             'alpha_matting_erode_size': int(opts.mask_erode * 40),
-            'session': rembg.new_session(opts.model),
+            'session': rembg.new_session(opts.model), # pylint: disable=c-extension-no-member
         }
-        mask = rembg.remove(**args)
+        mask = rembg.remove(**args) # pylint: disable=c-extension-no-member
     mask = np.array(mask)
     if input_mask is None:
         input_mask = np.zeros(mask.shape, dtype='uint8')
@@ -574,13 +574,13 @@ def create_segment_ui():
         return controls
 
 
-def bind_controls(image_controls: list[gr.Image], preview_image: gr.Image, output_image: gr.Image):
+def bind_controls(image_controls: list[gr.Image], output_image: gr.Image):
     for image_control in image_controls:
-        btn_mask.click(run_mask, inputs=[image_control], outputs=[preview_image])
+        btn_mask.click(run_mask, inputs=[image_control], outputs=[output_image])
         btn_lama.click(run_lama, inputs=[image_control], outputs=[output_image])
-        image_control.edit(fn=run_mask_live, inputs=[image_control], outputs=[preview_image])
+        image_control.edit(fn=run_mask_live, inputs=[image_control], outputs=[output_image])
         for control in controls:
-            control.change(fn=run_mask_live, inputs=[image_control], outputs=[preview_image])
+            control.change(fn=run_mask_live, inputs=[image_control], outputs=[output_image])
 
 
 def process_kanvas(kanvas_data):

@@ -39,7 +39,7 @@ def test_processors(image):
         draw.text((10, 10), processor_id, (0,0,0), font=font)
         draw.text((8, 8), processor_id, (255,255,255), font=font)
         res.append(output)
-        yield output, None, None, res
+        yield output, None, res
     rows = round(math.sqrt(len(res)))
     cols = math.ceil(len(res) / rows)
     w, h = 256, 256
@@ -52,8 +52,7 @@ def test_processors(image):
         thumb = image.copy().convert('RGB')
         thumb.thumbnail((w, h), Image.Resampling.HAMMING)
         grid.paste(thumb, box=(x, y))
-    yield None, grid, None, res
-    return None, grid, None, res # preview_process, output_image, output_video, output_gallery
+    yield None, grid, res
 
 
 def test_controlnets(prompt, negative, image):
@@ -90,7 +89,7 @@ def test_controlnets(prompt, negative, image):
         draw.text((10, 10), model_id, (0,0,0), font=font)
         draw.text((8, 8), model_id, (255,255,255), font=font)
         res.append(output)
-        yield output, None, None, res
+        yield output, None, res
     rows = round(math.sqrt(len(res)))
     cols = math.ceil(len(res) / rows)
     w, h = 256, 256
@@ -103,8 +102,7 @@ def test_controlnets(prompt, negative, image):
         thumb = image.copy().convert('RGB')
         thumb.thumbnail((w, h), Image.Resampling.HAMMING)
         grid.paste(thumb, box=(x, y))
-    yield None, grid, None, res
-    return None, grid, None, res # preview_process, output_image, output_video, output_gallery
+    yield grid, None, res
 
 
 def test_adapters(prompt, negative, image):
@@ -142,7 +140,7 @@ def test_adapters(prompt, negative, image):
         draw.text((10, 10), model_id, (0,0,0), font=font)
         draw.text((8, 8), model_id, (255,255,255), font=font)
         res.append(output)
-        yield output, None, None, res
+        yield output, None, res
     rows = round(math.sqrt(len(res)))
     cols = math.ceil(len(res) / rows)
     w, h = 256, 256
@@ -155,8 +153,7 @@ def test_adapters(prompt, negative, image):
         thumb = image.copy().convert('RGB')
         thumb.thumbnail((w, h), Image.Resampling.HAMMING)
         grid.paste(thumb, box=(x, y))
-    yield None, grid, None, res
-    return None, grid, None, res # preview_process, output_image, output_video, output_gallery
+    yield grid, None, res
 
 
 def test_xs(prompt, negative, image):
@@ -193,7 +190,7 @@ def test_xs(prompt, negative, image):
         draw.text((10, 10), model_id, (0,0,0), font=font)
         draw.text((8, 8), model_id, (255,255,255), font=font)
         res.append(output)
-        yield output, None, None, res
+        yield output, None, res
     rows = round(math.sqrt(len(res)))
     cols = math.ceil(len(res) / rows)
     w, h = 256, 256
@@ -206,8 +203,7 @@ def test_xs(prompt, negative, image):
         thumb = image.copy().convert('RGB')
         thumb.thumbnail((w, h), Image.Resampling.HAMMING)
         grid.paste(thumb, box=(x, y))
-    yield None, grid, None, res
-    return None, grid, None, res # preview_process, output_image, output_video, output_gallery
+    yield grid, None, res
 
 
 def test_lite(prompt, negative, image):
@@ -245,7 +241,7 @@ def test_lite(prompt, negative, image):
         draw.text((10, 10), model_id, (0,0,0), font=font)
         draw.text((8, 8), model_id, (255,255,255), font=font)
         res.append(output)
-        yield output, None, None, res
+        yield output, None, res
     rows = round(math.sqrt(len(res)))
     cols = math.ceil(len(res) / rows)
     w, h = 256, 256
@@ -258,5 +254,5 @@ def test_lite(prompt, negative, image):
         thumb = image.copy().convert('RGB')
         thumb.thumbnail((w, h), Image.Resampling.HAMMING)
         grid.paste(thumb, box=(x, y))
-    yield None, grid, None, res
-    return None, grid, None, res # preview_process, output_image, output_video, output_gallery
+    yield grid, None, res
+    return grid, None, res # preview_process, output_image, output_video, output_gallery

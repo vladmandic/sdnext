@@ -11,7 +11,7 @@ from modules import shared, ui_components, ui_symbols, ui_common, masking # pyli
 from modules import ui_control_helpers as helpers
 
 
-def create_ui_elements(units, result_txt, preview_process):
+def create_ui_elements(units, result_txt, output_gallery):
     max_units = shared.opts.control_max_units
     with gr.Accordion('Control elements', open=False, elem_id="control_elements"):
         with gr.Tabs(elem_id='control-tabs') as _tabs_control_type:
@@ -54,7 +54,7 @@ def create_ui_elements(units, result_txt, preview_process):
                         process_id = process_id,
                         model_id = model_id,
                         model_strength = model_strength,
-                        preview_process = preview_process,
+                        preview_process = output_gallery,
                         preview_btn = preview_btn,
                         image_upload = image_upload,
                         image_reuse = image_reuse,
@@ -103,7 +103,7 @@ def create_ui_elements(units, result_txt, preview_process):
                         process_id = process_id,
                         model_id = model_id,
                         model_strength = model_strength,
-                        preview_process = preview_process,
+                        preview_process = output_gallery,
                         preview_btn = btn_preview,
                         image_upload = image_upload,
                         image_reuse = image_reuse,
@@ -150,7 +150,7 @@ def create_ui_elements(units, result_txt, preview_process):
                         process_id = process_id,
                         model_id = model_id,
                         model_strength = model_strength,
-                        preview_process = preview_process,
+                        preview_process = output_gallery,
                         preview_btn = btn_preview,
                         image_upload = image_upload,
                         image_reuse = image_reuse,
@@ -196,7 +196,7 @@ def create_ui_elements(units, result_txt, preview_process):
                         process_id = process_id,
                         model_id = model_id,
                         model_strength = model_strength,
-                        preview_process = preview_process,
+                        preview_process = output_gallery,
                         preview_btn = btn_preview,
                         image_upload = image_upload,
                         image_reuse = image_reuse,
@@ -239,7 +239,7 @@ def create_ui_elements(units, result_txt, preview_process):
                         process_id = process_id,
                         model_id = model_id,
                         model_strength = model_strength,
-                        preview_process = preview_process,
+                        preview_process = output_gallery,
                         preview_btn = btn_preview,
                         image_upload = image_upload,
                         image_reuse = image_reuse,
