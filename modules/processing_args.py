@@ -156,7 +156,10 @@ def task_specific_kwargs(p, model):
     if ('WanVACEPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
         task_args['reference_images'] = p.init_images
     if ('GoogleNanoBananaPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
-        task_args['image'] = p.init_images[0]
+        if hasattr(p, 'orig_init_images') and (p.orig_init_images is not None) and len(p.orig_init_images) > 0:
+            task_args['images'] = p.orig_init_images
+        else:
+            task_args['images'] = p.init_images
     if ('GlmImagePipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
         task_args['image'] = p.init_images
     if 'BlipDiffusionPipeline' in model_cls:

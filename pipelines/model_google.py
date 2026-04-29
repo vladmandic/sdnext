@@ -28,8 +28,6 @@ aspect_ratios_buckets = {
 def google_requirements():
     from installer import install # , reload
     install('google-genai==1.52.0')
-    # install('pydantic==2.11.7', ignore=True, quiet=True)
-    # reload('pydantic', '2.11.7')
 
 
 def get_size_buckets(width: int, height: int) -> tuple[str, str]:
@@ -55,15 +53,18 @@ class GoogleNanoBananaPipeline():
             contents=prompt,
         )
 
-    def img2img(self, prompt, image):
+    def img2img(self, prompt, images):
         from google import genai # pylint: disable=no-name-in-module
-        image_bytes = io.BytesIO()
-        image.save(image_bytes, format='JPEG')
+        image_bytes_list = []
+        for image in images:
+            image_bytes = io.BytesIO()
+            image.save(image_bytes, format='JPEG')
+            image_bytes_list.append(genai.types.Part.from_bytes(data=image_bytes.getvalue(), mime_type='image/jpeg'))
         return self.client.models.generate_content(
             model=self.model,
             config=self.config,
             contents=[
-                genai.types.Part.from_bytes(data=image_bytes.getvalue(), mime_type='image/jpeg'),
+                *image_bytes_list,
                 prompt,
             ],
         )
@@ -108,7 +109,7 @@ class GoogleNanoBananaPipeline():
         log.debug(f'Cloud: model="{self.model}" args={args_log}')
         return args
 
-    def __call__(self, prompt: list[str], width: int, height: int, image: Image.Image = None):
+    def __call__(self, prompt: list[str], width: int, height: int, images: list[Image.Image] = []):
         from google import genai # pylint: disable=no-name-in-module
         if self.client is None:
             args = self.get_args()
@@ -125,13 +126,13 @@ class GoogleNanoBananaPipeline():
             response_modalities=["IMAGE"],
             image_config=image_config
         )
-        log.debug(f'Cloud: model="{self.model}" prompt="{prompt}" size={image_size} ar={aspect_ratio} image={image}')
+        log.debug(f'Cloud: model="{self.model}" prompt="{prompt}" size={image_size} ar={aspect_ratio} images={len(images) if images is not None else 0}')
         # log.debug(f'Cloud: config={self.config}')
 
         try:
             t0 = time.time()
-            if image is not None:
-                response = self.img2img(prompt, image)
+            if images is not None and len(images) > 0:
+                response = self.img2img(prompt, images)
             else:
                 response = self.txt2img(prompt)
             t1 = time.time()
