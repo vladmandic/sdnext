@@ -8,11 +8,15 @@ function controlInputMode(inputMode, ...args) {
   const tabNames = ['Image', 'Video', 'Batch', 'Folder'];
   let inputTab = tabNames[tabIdx] || 'Image';
   log('controlInputMode', { mode: inputMode, tab: inputTab, kanvas: typeof Kanvas });
+
+  // if kanvas is available overwrite image inputs with kanvas images
   if ((inputTab === 'Image') && (typeof 'Kanvas' !== 'undefined')) {
     inputTab = 'Kanvas';
-    args[0] = window.kanvas.getImage();
-    args[1] = window.kanvas.getImage(); // TODO support separate control
+    for (let i = 0; i < window.kanvas.stages.maxStages; i++) {
+      args[4 + i] = window.kanvas.getImage(1 + i, false, false);
+    }
   }
+
   return [inputTab, ...args];
 }
 

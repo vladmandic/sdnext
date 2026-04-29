@@ -16,7 +16,6 @@ busy = False # used to synchronize select_input and generate_click
 input_source = None
 input_init = None
 input_mask = None
-input_prev = None
 
 
 def initialize():
@@ -85,6 +84,8 @@ def get_video(filepath: str):
 def process_kanvas(x): # only used when kanvas overrides gr.Image object
     image = None
     mask = None
+    if x is None:
+        return image, mask
     try: # try base64 decode
         t0 = time.time()
         image_data = x.get('image', '')
@@ -130,33 +131,35 @@ def process_kanvas(x): # only used when kanvas overrides gr.Image object
     return image, mask
 
 
-def select_input(input_mode, input_image, init_image, init_type, input_video, input_batch, input_folder):
-    global busy, input_source, input_init, input_mask, input_prev # pylint: disable=global-statement
+def select_input(input_mode, init_type, input_video, input_batch, input_folder, *args):
+    global busy, input_source, input_init, input_mask # pylint: disable=global-statement
     t0 = time.time()
     busy = False
-    selected_input = input_image # default: Image or Kanvas
+    selected_input = args[0]
+    init_image = args[1]
     if input_mode == 'Video':
         selected_input = input_video
     elif input_mode == 'Batch':
         selected_input = input_batch
     elif input_mode == 'Folder':
         selected_input = input_folder
+    elif input_mode == 'Kanvas':
+        pass # temp assignment only until we process kanvas inputs
+    else:
+        log.error(f'Input: type={input_mode} unrecognized')
+        selected_input = None
 
     size = [gr.update(), gr.update()]
     if selected_input is None:
-        # log.debug(f'Select input: image={selected_input}')
         input_source = None
         return [gr.Tabs.update(), ''] + size
-    elif selected_input == input_prev:
-        # log.debug(f'Select input: image={selected_input} no change')
-        return [gr.Tabs.update(), ''] + size
-    input_prev = selected_input
 
     busy = True
     input_type = type(selected_input)
     input_mask = None
     status = 'Control input | Unknown'
     res = [gr.Tabs.update(selected='out-gallery'), status]
+
     # control inputs
     if isinstance(selected_input, Image.Image): # image via upload -> image
         if input_mode == 'Outpaint':
@@ -164,23 +167,31 @@ def select_input(input_mode, input_image, init_image, init_type, input_video, in
             selected_input, input_mask = masking.outpaint(input_image=selected_input)
         input_source = [selected_input]
         input_type = 'PIL.Image'
-        status = f'Control input | Image | Size {selected_input.width if selected_input else 0}x{selected_input.height if selected_input else 0} | Mode {selected_input.mode if selected_input else "Unknown"}'
+        status = f'Input | Image | Size {selected_input.width if selected_input else 0}x{selected_input.height if selected_input else 0} | Mode {selected_input.mode if selected_input else "Unknown"}'
         size = [gr.update(value=selected_input.width), gr.update(value=selected_input.height)]
         res = [gr.Tabs.update(selected='out-gallery'), status]
     elif isinstance(selected_input, dict) and 'kanvas' in selected_input: # kanvas via js -> kanvas dict
-        selected_input, input_mask = process_kanvas(selected_input)
-        input_source = [selected_input]
+        input_source = []
+        for i, selected in enumerate(args):
+            img, mask = process_kanvas(selected)
+            if img is not None: # use all images
+                input_source.append(img)
+            if i == 0: # use only first mask
+                selected_input = img
+                input_mask = mask
+            if i == 1:
+                init_image = img # control: separate init image
         input_type = 'Kanvas'
-        status = f'Control input | Kanvas | Size {selected_input.width if selected_input else 0}x{selected_input.height if selected_input else 0} | Mode {selected_input.mode if selected_input else "Unknown"}'
-        if selected_input:
-            size = [gr.update(value=selected_input.width), gr.update(value=selected_input.height)]
+        status = f'Input | Kanvas | Images {len(input_source)}'
+        if len(input_source) > 0:
+            size = [gr.update(value=input_source[0].width), gr.update(value=input_source[0].height)]
         res = [gr.Tabs.update(selected='out-gallery'), status]
     elif isinstance(selected_input, dict) and 'mask' in selected_input: # inpaint -> dict image+mask
         input_mask = selected_input['mask']
         selected_input = selected_input['image']
         input_source = [selected_input]
         input_type = 'PIL.Image'
-        status = f'Control input | Image | Size {selected_input.width if selected_input else 0}x{selected_input.height if selected_input else 0} | Mode {selected_input.mode if selected_input else "Unknown"}'
+        status = f'Input | Image | Size {selected_input.width if selected_input else 0}x{selected_input.height if selected_input else 0} | Mode {selected_input.mode if selected_input else "Unknown"}'
         res = [gr.Tabs.update(selected='out-gallery'), status]
     elif isinstance(selected_input, gr.components.image.Image): # not likely
         input_source = [selected_input.value]
@@ -198,10 +209,11 @@ def select_input(input_mode, input_image, init_image, init_type, input_video, in
         else:
             input_type = 'files'
             input_source = selected_input
-        status = f'Control input | Images | Files {len(input_source)}'
+        status = f'Input | Images | Files {len(input_source)}'
         res = [gr.Tabs.update(selected='out-gallery'), status]
     else: # unknown
         input_source = None
+
     if init_type == 0: # Control only
         input_init = None
     elif init_type == 1: # Init image same as control assigned during runtime

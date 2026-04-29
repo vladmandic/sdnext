@@ -238,7 +238,10 @@ def create_ui(_blocks: gr.Blocks=None):
                             input_folder = gr.File(label="Input", show_label=False, file_count='directory', file_types=['image'], interactive=True, height=gr_height)
                 with gr.Column(scale=9, elem_id='control-init-column', visible=False) as column_init:
                     gr.HTML('<span id="control-init-button">Init input</p>')
-                    init_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, elem_classes=['control-image'])
+                    if (installer.version['kanvas'] == 'disabled') or (installer.version['kanvas'] == 'unavailable'):
+                        init_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, elem_classes=['control-image'])
+                    else:
+                        init_image = gr.HTML(value='<h1 style="text-align:center;color:var(--color-error);margin:1em;">Kanvas not initialized</h1>', elem_id='kanvas-container')
                 with gr.Column(scale=9, elem_id='control-output-column', visible=True) as _column_output:
                     gr.HTML('<span id="control-output-button">Output</p>')
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-output') as output_tabs:
@@ -254,11 +257,6 @@ def create_ui(_blocks: gr.Blocks=None):
 
             with gr.Row(elem_id="control_script_container"):
                 input_script_args = scripts_manager.scripts_current.setup_ui(parent='control', accordion=True)
-
-            # handlers
-            # for btn in input_buttons:
-            #     btn.click(fn=helpers.copy_input, inputs=[input_mode, btn, input_image, input_resize, input_inpaint], outputs=[input_image, input_resize, input_inpaint], _js='controlInputMode')
-            #     btn.click(fn=helpers.transfer_input, inputs=[btn], outputs=[input_image, input_resize, input_inpaint] + input_buttons)
 
             # hidden button to update gradio control values
             for u in units:
@@ -280,10 +278,11 @@ def create_ui(_blocks: gr.Blocks=None):
                 show_progress = 'hidden',
             )
 
+            image_inputs = 5 * [input_image, init_image] # need to repeat controls for kanvas and non-kanvas modes
             select_dict = dict(
                 fn=helpers.select_input,
                 _js="controlInputMode",
-                inputs=[input_mode, input_image, init_image, input_type, input_video, input_batch, input_folder],
+                inputs=[input_mode, input_type, input_video, input_batch, input_folder] + image_inputs,
                 outputs=[output_tabs, result_txt, width_before, height_before],
                 show_progress='hidden',
                 queue=False,

@@ -1530,7 +1530,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
             api_base = f'https://api.github.com/repos/{url_parts}'
         else:
             api_base = 'https://api.github.com/repos/vladmandic/sdnext'
-        branches = requests.get(f'{api_base}/branches', timeout=10).json()
+        branches = requests.get(f'{api_base}/branches', timeout=5).json()
         branch_names = [b['name'] for b in branches if 'name' in b]
         log.trace(f'Repository branches: active={branch_name} available={branch_names}')
     except Exception as e:
@@ -1541,7 +1541,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         ts('latest', t_start)
         return
     try:
-        commits = requests.get(f'{api_base}/branches/{branch_name}', timeout=10).json()
+        commits = requests.get(f'{api_base}/branches/{branch_name}', timeout=5).json()
         latest = commits['commit']['sha']
         if len(latest) != 40:
             log.error(f'Repository error: commit={latest} invalid')
