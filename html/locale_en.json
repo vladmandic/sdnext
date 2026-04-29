@@ -710,7 +710,7 @@
     {"id":"","label":"Image Paths","localized":"","hint":"Settings related to image filenames, and output directories"},
     {"id":"","label":"Image Metadata","localized":"","hint":"Settings related to handling of metadata that is created with generated images"},
     {"id":"","label":"IP Adapters","localized":"","hint":"IP adapters are plugin models that can guide generation towards desired outcome","ui":"txt2img"},
-    {"id":"","label":"Input","localized":"","hint":"Add input image to be used for image-to-image, inpaint or control processing","ui":"control"},
+    {"id":"","label":"Input","localized":"","hint":"Add input image to be used for image-to-image, inpaint or control processing<br>Click to minimize/maximize","ui":"control"},
     {"id":"","label":"Input Image","localized":"","hint":"","ui":"caption"},
     {"id":"","label":"IPEX","localized":"","hint":"","ui":"settings_backends"},
     {"id":"","label":"Image Gallery","localized":"","hint":"","ui":"settings_saving-images"},
@@ -1005,7 +1005,7 @@
     {"id":"","label":"Network parameters","localized":"","hint":""}
   ],
   "o": [
-    {"id":"txt2img_results_mobile","label":"Output","localized":"","hint":"Show/hide selection of output media: generation resuls and live previews during generation process","ui":"txt2img"},
+    {"id":"txt2img_results_mobile","label":"Output","localized":"","hint":"Generation resuls and live previews during generation process<br>Click to minimize/maximize","ui":"txt2img"},
     {"id":"","label":"OpenCLiP","localized":"","hint":"Analyze image using CLiP model via OpenCLiP","ui":"caption"},
     {"id":"","label":"ONNX","localized":"","hint":""},
     {"id":"","label":"Override","localized":"","hint":"Override settings that can change server behavior and are typically applied from imported image metadata","ui":"txt2img"},
@@ -1073,7 +1073,6 @@
     {"id":"","label":"Preset Block Merge","localized":"","hint":"","ui":"models_merge_tab"},
     {"id":"","label":"Preview metadata","localized":"","hint":""},
     {"id":"","label":"Prompt","localized":"","hint":"Describe image you want to generate","ui":"txt2img"},
-    {"id":"","label":"Processed Preview","localized":"","hint":"Show/hide section from pre-processing of input images before actual generate","ui":"control"},
     {"id":"","label":"PixelArt","localized":"","hint":"","ui":"extras"},
     {"id":"","label":"PAG: Perturbed attention guidance","localized":"","hint":"","ui":"settings_advanced"},
     {"id":"","label":"PAB: Pyramid attention broadcast","localized":"","hint":"","ui":"settings_advanced"},
@@ -1106,7 +1105,6 @@
     {"id":"","label":"Processor","localized":"","hint":"Processor type to use to preprocess image used for ControlNet","ui":"control"},
     {"id":"","label":"Pose confidence","localized":"","hint":"","ui":"control"},
     {"id":"","label":"Parameter free","localized":"","hint":"","ui":"control"},
-    {"id":"","label":"Processed","localized":"","hint":"Show/hide section with processed images","ui":"control"},
     {"id":"","label":"Postprocess mask","localized":"","hint":"","ui":"extras"},
     {"id":"","label":"PixelArt block size","localized":"","hint":"","ui":"extras"},
     {"id":"","label":"PixelArt sharpen","localized":"","hint":"","ui":"extras"},

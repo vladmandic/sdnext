@@ -241,12 +241,6 @@ def create_ui(_blocks: gr.Blocks=None):
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-init'):
                         with gr.Tab('Image', id='init-image') as tab_image_init:
                             init_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, elem_classes=['control-image'])
-                        with gr.Tab('Video', id='init-video') as tab_video_init:
-                            init_video = gr.Video(label="Input", show_label=False, interactive=True, height=gr_height, elem_classes=['control-image'])
-                        with gr.Tab('Batch', id='init-batch') as tab_batch_init:
-                            init_batch = gr.File(label="Input", show_label=False, file_count='multiple', file_types=['image'], interactive=True, height=gr_height, elem_classes=['control-image'])
-                        with gr.Tab('Folder', id='init-folder') as tab_folder_init:
-                            init_folder = gr.File(label="Input", show_label=False, file_count='directory', file_types=['image'], interactive=True, height=gr_height, elem_classes=['control-image'])
                 with gr.Column(scale=9, elem_id='control-output-column', visible=True) as _column_output:
                     gr.HTML('<span id="control-output-button">Output</p>')
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-output') as output_tabs:
@@ -304,7 +298,7 @@ def create_ui(_blocks: gr.Blocks=None):
             prompt.submit(**select_dict)
             negative.submit(**select_dict)
             btn_generate.click(**select_dict)
-            for ctrl in [input_image, input_video, input_batch, input_folder, init_image, init_video, init_batch, init_folder, tab_image, tab_video, tab_batch, tab_folder, tab_image_init, tab_video_init, tab_batch_init, tab_folder_init]:
+            for ctrl in [input_image, input_video, input_batch, input_folder, init_image, tab_image, tab_video, tab_batch, tab_folder, tab_image_init]:
                 if hasattr(ctrl, 'change'):
                     ctrl.change(**select_dict)
                 if hasattr(ctrl, 'clear'):

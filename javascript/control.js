@@ -10,8 +10,8 @@ function controlInputMode(inputMode, ...args) {
   log('controlInputMode', { mode: inputMode, tab: inputTab, kanvas: typeof Kanvas });
   if ((inputTab === 'Image') && (typeof 'Kanvas' !== 'undefined')) {
     inputTab = 'Kanvas';
-    const imageData = window.kanvas.getImage();
-    args[0] = imageData;
+    args[0] = window.kanvas.getImage();
+    args[1] = window.kanvas.getImage(); // TODO support separate control
   }
   return [inputTab, ...args];
 }
