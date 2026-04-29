@@ -23,9 +23,9 @@ SD.Next is a powerful, open-source WebUI app for AI image and video generation, 
 ## Table of contents
 
 - [Documentation](https://vladmandic.github.io/sdnext-docs/)
-- [SD.Features](#features--capabilities)
+- [Features & Capabilities](#features-and-capabilities)
 - [Supported AI Models](#supported-ai-models)
-- [Supported Platforms & Hardware](#supported-platforms--hardware)
+- [Supported Platforms & Hardware](#supported-platforms-and-hardware)
 - [Getting started](#getting-started)
 
 ### Screenshot: Desktop interface
@@ -43,7 +43,7 @@ SD.Next is a powerful, open-source WebUI app for AI image and video generation, 
 
 <br>
 
-## Features & Capabilities
+## Features and Capabilities
 
 SD.Next is feature-rich with a focus on performance, flexibility, and user experience. Key features include:
 - [Multi-platform](#platform-support!  
@@ -68,7 +68,7 @@ SD.Next includes many features not found in other WebUIs, such as:
 
 SD.Next supports broad range of models: [supported models](https://vladmandic.github.io/sdnext-docs/Model-Support/) and [model specs](https://vladmandic.github.io/sdnext-docs/Models/)  
 
-## Supported Platforms & Hardware
+## Supported Platforms and Hardware
 
 - *nVidia* GPUs using **CUDA** libraries on both *Windows and Linux*  
 - *AMD* GPUs using **ROCm** libraries on both *Linux and Windows*
@@ -106,7 +106,7 @@ webui.ps1  # PowerShell
 > If you run into issues, check out [troubleshooting](https://vladmandic.github.io/sdnext-docs/Troubleshooting/) and [debugging](https://vladmandic.github.io/sdnext-docs/Debug/) guides  
 
 
-## Community & Support
+## Community and Support
 
 If you're unsure how to use a feature, best place to start is [Docs](https://vladmandic.github.io/sdnext-docs/) and if its not there,  
 check [ChangeLog](https://vladmandic.github.io/sdnext-docs/CHANGELOG/) for when feature was first introduced as it will always have a short note on how to use it  
