@@ -276,7 +276,7 @@ def create_ui(gr_status, gr_file):
         return 'Save receipe not implemented yet'
 
     with gr.Row():
-        gr.HTML('<h2>&nbsp<a href="https://vladmandic.github.io/sdnext-docs/Loader" target="_blank">Custom model loader</a><br></h2>')
+        gr.HTML('<h3>&nbsp<a href="https://vladmandic.github.io/sdnext-docs/Loader" target="_blank">Custom model loader</a><br></h2>')
     with gr.Row():
         choices = list(shared_items.pipelines)
         choices = ['Current' if x.startswith('Custom') else x for x in choices]

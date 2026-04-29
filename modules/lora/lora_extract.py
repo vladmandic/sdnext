@@ -238,7 +238,7 @@ def create_ui():
 
     with gr.Tab(label="Extract LoRA"):
         with gr.Row():
-            gr.HTML('<h2>&nbspExtract currently loaded LoRA(s)<br></h2>')
+            gr.HTML('<h3>&nbspExtract currently loaded LoRA(s)<br></h3>')
         with gr.Row():
             loaded = gr.Textbox(placeholder="Press refresh to query loaded LoRA", label="Loaded LoRA", interactive=False)
             create_refresh_button(loaded, lambda: None, lambda: {'value': loaded_lora_str()}, "lora_extract_refresh")

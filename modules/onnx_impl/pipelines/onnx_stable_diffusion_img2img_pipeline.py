@@ -29,7 +29,7 @@ class OnnxStableDiffusionImg2ImgPipeline(diffusers.OnnxStableDiffusionImg2ImgPip
         feature_extractor: Any,
         requires_safety_checker: bool = True
     ):
-        super().__init__(vae_encoder, vae_decoder, text_encoder, tokenizer, unet, scheduler, safety_checker, feature_extractor, requires_safety_checker)
+        super().__init__(vae_encoder, vae_decoder, text_encoder, tokenizer, unet, scheduler, safety_checker, feature_extractor, requires_safety_checker) # pylint: disable=too-many-function-args
         self.image_processor = VaeImageProcessor(vae_scale_factor=64)
 
     def __call__(
@@ -72,7 +72,7 @@ class OnnxStableDiffusionImg2ImgPipeline(diffusers.OnnxStableDiffusionImg2ImgPip
 
         image = self.image_processor.preprocess(image).cpu().numpy()
 
-        # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
+        # `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
         # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
         # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0

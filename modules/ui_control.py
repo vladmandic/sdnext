@@ -167,7 +167,7 @@ def create_ui(_blocks: gr.Blocks=None):
 
                 with gr.Accordion(open=False, label="Input", elem_id="control_input", elem_classes=["small-accordion"]):
                     with gr.Row():
-                        input_type = gr.Radio(label="Control input type", choices=['Control only', 'Init image same as control', 'Separate init image'], value='Control only', type='index', elem_id='control_input_type')
+                        input_type = gr.Radio(label="Use init image", choices=['No: Control only', '1st: Same as control', '2nd: Separate image'], value='No: Control only', type='index', elem_id='control_input_type')
                     with gr.Row():
                         denoising_strength = gr.Slider(minimum=0.00, maximum=0.99, step=0.01, label='Denoising strength', value=0.30, elem_id="control_input_denoising_strength")
 
@@ -238,9 +238,7 @@ def create_ui(_blocks: gr.Blocks=None):
                             input_folder = gr.File(label="Input", show_label=False, file_count='directory', file_types=['image'], interactive=True, height=gr_height)
                 with gr.Column(scale=9, elem_id='control-init-column', visible=False) as column_init:
                     gr.HTML('<span id="control-init-button">Init input</p>')
-                    with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-init'):
-                        with gr.Tab('Image', id='init-image') as tab_image_init:
-                            init_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, elem_classes=['control-image'])
+                    init_image = gr.Image(label="Input", show_label=False, type="pil", interactive=True, tool="editor", height=gr_height, elem_classes=['control-image'])
                 with gr.Column(scale=9, elem_id='control-output-column', visible=True) as _column_output:
                     gr.HTML('<span id="control-output-button">Output</p>')
                     with gr.Tabs(elem_classes=['control-tabs'], elem_id='control-tab-output') as output_tabs:
@@ -298,7 +296,7 @@ def create_ui(_blocks: gr.Blocks=None):
             prompt.submit(**select_dict)
             negative.submit(**select_dict)
             btn_generate.click(**select_dict)
-            for ctrl in [input_image, input_video, input_batch, input_folder, init_image, tab_image, tab_video, tab_batch, tab_folder, tab_image_init]:
+            for ctrl in [input_image, input_video, input_batch, input_folder, init_image, tab_image, tab_video, tab_batch, tab_folder]:
                 if hasattr(ctrl, 'change'):
                     ctrl.change(**select_dict)
                 if hasattr(ctrl, 'clear'):

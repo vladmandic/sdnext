@@ -181,7 +181,7 @@ def create_ui():
                     return ['None'] + sd_models.checkpoint_titles()
 
                 with gr.Row():
-                    gr.HTML('<h2>&nbspMerge multiple models<br></h2>')
+                    gr.HTML('<h3>&nbspMerge multiple models<br></h2>')
                 with gr.Row(equal_height=False):
                     with gr.Column(variant='compact'):
                         with gr.Row():
@@ -422,7 +422,7 @@ def create_ui():
 
             with gr.Tab(label="Replace", elem_id="models_replace_tab"):
                 with gr.Row():
-                    gr.HTML('<h2>&nbspReplace model components<br></h2>')
+                    gr.HTML('<h3>&nbspReplace model components<br></h2>')
                 with gr.Row():
                     with gr.Column(scale=3):
                         model_type = gr.Dropdown(label="Base model type", choices=['sd15', 'sdxl', 'sd21', 'sd35', 'flux.1'], value='sdxl', interactive=False)
@@ -628,7 +628,7 @@ def create_ui():
                 from modules.models_hf import hf_search, hf_select, hf_download_model, hf_update_token
                 with gr.Column(scale=6):
                     with gr.Row():
-                        gr.HTML('<h2>&nbspDownload model from huggingface<br></h2>')
+                        gr.HTML('<h3>&nbspDownload model from huggingface<br></h2>')
                     with gr.Row():
                         hf_search_text = gr.Textbox('', label='Search models', placeholder='search huggingface models')
                         hf_search_btn = ToolButton(value=ui_symbols.search, interactive=True, elem_id="hf_text_search")
