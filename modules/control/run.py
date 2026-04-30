@@ -749,7 +749,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         continue
                     index += 1
 
-                    if getattr(pipe, 'use_images_direct', False):
+                    if getattr(pipe, 'use_images_direct', False) or getattr(p, 'use_images_direct', False):
                         p.init_images = inputs
                     else:
                         processed_image, blended_image = preprocess_image(p,
@@ -765,8 +765,8 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                                                           has_models,
                                                                           active_units,
                                                                         )
-                    if is_generator:
-                        yield (None, blended_image, '') # result is control_output, proces_output
+                        if is_generator:
+                            yield (None, blended_image, '') # result is control_output, proces_output
 
                     # final check
                     if has_models:
