@@ -247,6 +247,8 @@ def vae_postprocess(tensor, model, output_type='np'):
                 if tensor.ndim == 6 and tensor.shape[1] == 1:
                     tensor = tensor.squeeze(0)
                 images = model.video_processor.postprocess_video(tensor, output_type='pil')
+                if isinstance(images, list) and len(images) > 0 and isinstance(images[0], list):
+                    images = [frame for batch in images for frame in batch]
             elif hasattr(model, 'image_processor'):
                 if tensor.ndim == 5 and tensor.shape[1] == 3: # Qwen Image
                     tensor = tensor[:, :, 0]
