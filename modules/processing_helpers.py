@@ -562,12 +562,17 @@ def apply_circular(enable: bool, model):
 
 
 def save_intermediate(p, latents, suffix):
-    for i in range(len(latents)):
-        from modules.processing import create_infotext
-        info=create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, [], iteration=p.iteration, position_in_batch=i)
+    from modules.processing import create_infotext
+    from modules.image import convert
+    is_latent = torch.is_tensor(latents) and latents.shape[-1] != 3
+    if is_latent:
         decoded = processing_vae.vae_decode(latents=latents, model=shared.sd_model, output_type='pil', vae_type=p.vae_type, width=p.width, height=p.height)
-        for j in range(len(decoded)):
-            images.save_image(decoded[j], path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix=suffix)
+    else:
+        items = latents if isinstance(latents, list) else ([latents[j] for j in range(latents.shape[0])] if hasattr(latents, 'shape') else [latents])
+        decoded = [convert.to_pil(img) if not hasattr(img, 'width') else img for img in items]
+    for i in range(len(decoded)):
+        info = create_infotext(p, p.all_prompts, p.all_seeds, p.all_subseeds, [], iteration=p.iteration, position_in_batch=i)
+        images.save_image(decoded[i], path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=shared.opts.samples_format, info=info, p=p, suffix=suffix)
 
 
 def update_sampler(p, sd_model, second_pass=False):
