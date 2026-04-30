@@ -40,7 +40,7 @@ def get_size_buckets(width: int, height: int) -> tuple[str, str]:
 
 class GoogleNanoBananaPipeline():
     def __init__(self, model_name: str):
-        self.use_images_direct = True
+        self.skip_processing = True
         self.model = model_name
         self.client = None
         self.config = None

@@ -170,6 +170,7 @@ def create_ui(_blocks: gr.Blocks=None):
                         input_type = gr.Radio(label="Use init image", choices=['No: Control only', '1st: Same as control', '2nd: Separate image'], value='No: Control only', type='index', elem_id='control_input_type')
                     with gr.Row():
                         denoising_strength = gr.Slider(minimum=0.00, maximum=0.99, step=0.01, label='Denoising strength', value=0.30, elem_id="control_input_denoising_strength")
+                        skip_processing = gr.Checkbox(label="Skip input processing", value=False, elem_id="control_input_skip_processing")
 
                 with gr.Accordion(open=False, label="Size", elem_id="control_size", elem_classes=["small-accordion"]):
                     with gr.Tabs():
@@ -318,7 +319,7 @@ def create_ui(_blocks: gr.Blocks=None):
                 resize_mode_before, resize_name_before, resize_context_before, width_before, height_before, scale_by_before, selected_scale_tab_before,
                 resize_mode_after, resize_name_after, resize_context_after, width_after, height_after, scale_by_after, selected_scale_tab_after,
                 resize_mode_mask, resize_name_mask, resize_context_mask, width_mask, height_mask, scale_by_mask, selected_scale_tab_mask,
-                denoising_strength, batch_count, batch_size,
+                denoising_strength, skip_processing, batch_count, batch_size,
                 enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps,
                 refiner_start, refiner_prompt, refiner_negative,
                 video_skip_frames, video_type, video_duration, video_loop, video_pad, video_interpolate,

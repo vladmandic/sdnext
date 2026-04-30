@@ -276,6 +276,7 @@ class StableDiffusionProcessing:
                  tome_ratio: float | None = None,
                  todo_ratio: float | None = None,
                  # overrides
+                 skip_processing: bool = False,
                  override_settings_restore_afterwards: bool = True,
                  override_settings: dict[str, Any] | None = None,
                  # metadata
@@ -491,6 +492,7 @@ class StableDiffusionProcessing:
         self.scale_by_before = scale_by_before
         self.scale_by_after = scale_by_after
         self.scale_by_mask = scale_by_mask
+        self.skip_processing = skip_processing
 
         # special handled items
         if firstphase_width != 0 or firstphase_height != 0:

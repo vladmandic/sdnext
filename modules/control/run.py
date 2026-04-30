@@ -339,7 +339,8 @@ def control_process(p: StableDiffusionProcessingControl,
 def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 units: list[unit.Unit] | None = None, inputs: list[Image.Image] | None = None, inits: list[Image.Image] | None = None, mask: Image.Image = None, unit_type: str | None = None, is_generator: bool = True,
                 input_type: int = 0,
-                prompt: str = '', negative_prompt: str = '', styles: list[str] | None = None,
+                prompt: str = '', negative_prompt: str = '',
+                styles: list[str] | None = None,
                 steps: int = 20, sampler_index: int | None = None,
                 seed: int = -1, subseed: int = -1, subseed_strength: float = 0, seed_resize_from_h: int = -1, seed_resize_from_w: int = -1,
                 guidance_name: str = 'Default', guidance_scale: float = 6.0, guidance_rescale: float = 0.0, guidance_start: float = 0.0, guidance_stop: float = 1.0,
@@ -358,7 +359,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 resize_mode_before: int = 0, resize_name_before: str = 'None', resize_context_before: str = 'None', width_before: int = 512, height_before: int = 512, scale_by_before: float = 1.0, selected_scale_tab_before: int = 0,
                 resize_mode_after: int = 0, resize_name_after: str = 'None', resize_context_after: str = 'None', width_after: int = 0, height_after: int = 0, scale_by_after: float = 1.0, selected_scale_tab_after: int = 0,
                 resize_mode_mask: int = 0, resize_name_mask: str = 'None', resize_context_mask: str = 'None', width_mask: int = 0, height_mask: int = 0, scale_by_mask: float = 1.0, selected_scale_tab_mask: int = 0,
-                denoising_strength: float = 0.3, batch_count: int = 1, batch_size: int = 1,
+                denoising_strength: float = 0.3,
+                skip_processing: bool = False,
+                batch_count: int = 1, batch_size: int = 1,
                 enable_hr: bool = False, hr_sampler_index: int | None = None, hr_denoising_strength: float = 0.0, hr_resize_mode: int = 0, hr_resize_context: str = 'None', hr_upscaler: str | None = None, hr_force: bool = False, hr_second_pass_steps: int = 20,
                 hr_scale: float = 1.0, hr_resize_x: int = 0, hr_resize_y: int = 0, refiner_steps: int = 5, refiner_start: float = 0.0, refiner_prompt: str = '', refiner_negative: str = '',
                 video_skip_frames: int = 0, video_type: str = 'None', video_duration: float = 2.0, video_loop: bool = False, video_pad: int = 0, video_interpolate: int = 0,
@@ -456,6 +459,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         seed_resize_from_h = seed_resize_from_h,
         seed_resize_from_w = seed_resize_from_w,
         denoising_strength = denoising_strength,
+        skip_processing = skip_processing,
         # modular guidance
         guidance_name = guidance_name,
         guidance_scale = guidance_scale,
@@ -749,8 +753,9 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         continue
                     index += 1
 
-                    if getattr(pipe, 'use_images_direct', False) or getattr(p, 'use_images_direct', False):
+                    if getattr(pipe, 'skip_processing', False) or getattr(p, 'skip_processing', False):
                         p.init_images = inputs
+                        p.extra_generation_params['Process'] = False
                     else:
                         processed_image, blended_image = preprocess_image(p,
                                                                           pipe,
