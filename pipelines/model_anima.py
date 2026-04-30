@@ -81,6 +81,12 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     AnimaTextToImagePipeline = pipeline_mod.AnimaTextToImagePipeline
     AnimaLLMAdapter = adapter_mod.AnimaLLMAdapter
 
+    from pipelines.anima.anima_image import build_anima_pipeline_classes
+    AnimaImageToImagePipeline, AnimaInpaintPipeline = build_anima_pipeline_classes(AnimaTextToImagePipeline)
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["anima"] = AnimaTextToImagePipeline
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["anima"] = AnimaImageToImagePipeline
+    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["anima"] = AnimaInpaintPipeline
+
     # UNET dropdown (shared.opts.sd_unet) may redirect the transformer to a
     # community file that bundles both the transformer and the llm_adapter.
     transformer, llm_adapter = load_transformer_components(repo_id, diffusers_load_config, AnimaLLMAdapter)
