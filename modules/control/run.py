@@ -274,6 +274,68 @@ def init_units(units: list[unit.Unit]):
             u.process.override = u.override
 
 
+def control_process(p: StableDiffusionProcessingControl,
+                    input_script_args: list | None = None,
+                    override_script_name: str | None = None,
+                    override_script_args: list | None = None,
+                    input_image: Image.Image = None, # only used for tiling, otherwise processor.preprocess_image set p params
+                   ):
+    debug_log(f'Control exec pipeline: task={sd_models.get_diffusers_task(pipe)} class={pipe.__class__}')
+    if sd_models.get_diffusers_task(pipe) != sd_models.DiffusersTaskType.TEXT_2_IMAGE: # force vae back to gpu if not in txt2img mode
+        sd_models.move_model(pipe.vae, devices.device)
+
+    # what are we doing?
+    if 'control' in p.ops:
+        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_control_samples)
+    elif 'img2img' in p.ops:
+        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples)
+    elif 'txt2img' in p.ops:
+        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples)
+    else: # fallback to txt2img
+        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples)
+
+    # init scripts
+    p.scripts = scripts_manager.scripts_control
+    p.script_args = input_script_args or []
+    if len(p.script_args) == 0:
+        if not p.scripts:
+            p.scripts.initialize_scripts(False)
+        p.script_args = script.init_default_script_args(p.scripts)
+
+    # init override scripts
+    if override_script_name and override_script_args and len(override_script_name) > 0:
+        selectable_scripts, selectable_script_idx = script.get_selectable_script(override_script_name, p.scripts)
+        if selectable_scripts:
+            for idx in range(len(override_script_args)):
+                p.script_args[selectable_scripts.args_from + idx] = override_script_args[idx]
+            p.script_args[0] = selectable_script_idx + 1
+
+    # actual processing
+    script_run = False
+    processed: processing.Processed = None
+    if p.is_tile:
+        processed: processing.Processed = tile.run_tiling(p, input_image)
+    if processed is None and p.scripts is not None:
+        processed = p.scripts.run(p, *p.script_args)
+    if processed is None:
+        processed: processing.Processed = processing.process_images(p) # run actual pipeline
+    else:
+        script_run = True
+
+    # postprocessing
+    if p.scripts is not None:
+        processed = p.scripts.after(p, processed, *p.script_args)
+
+    output = None
+    info = None
+    if processed is not None and processed.images is not None:
+        output = processed.images
+        info = [processed.infotext(p, i) for i in range(len(output))]
+
+    # output = pipe(**vars(p)).images # debug: direct pipe exec call
+    return output, info, script_run
+
+
 def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 units: list[unit.Unit] | None = None, inputs: list[Image.Image] | None = None, inits: list[Image.Image] | None = None, mask: Image.Image = None, unit_type: str | None = None, is_generator: bool = True,
                 input_type: int = 0,
@@ -633,17 +695,20 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 processed_image = None
                 if frame is not None:
                     inputs = [Image.fromarray(frame)] # cv2 to pil
-                for i, input_image in enumerate(inputs):
-                    if input_image is not None:
-                        p.ops.append('img2img')
+                for i, input_image in enumerate(inputs): # loop per-input, but with early-break
                     if pipe is None: # pipe may have been reset externally
                         if video is None:
                             break # non-video: pipeline was consumed, no need to re-process remaining inputs
                         pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, active_units, control_conditioning, control_guidance_start, control_guidance_end, inits)
                         debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
+
                     pipe.restore_pipeline = restore_pipeline
                     shared.sd_model.restore_pipeline = restore_pipeline
                     debug_log(f'Control Control image: {i + 1} of {len(inputs)}')
+
+                    if input_image is not None:
+                        p.ops.append('img2img')
+
                     if shared.state.skipped:
                         shared.state.skipped = False
                         continue
@@ -652,6 +717,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         if is_generator:
                             yield terminate('Interrupted')
                         return terminate('Interrupted')
+
                     # get input
                     if isinstance(input_image, str) and os.path.exists(input_image):
                         try:
@@ -664,7 +730,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         debug_log('Control Init image: same as control')
                         init_image = input_image
                     elif inits is None or len(inits) == 0:
-                        debug_log('Control Init image: none')
+                        debug_log('Control init image: none')
                         init_image = None
                     elif len(inits) > i and isinstance(inits[i], str):
                         debug_log(f'Control: init image: {inits[i]}')
@@ -683,7 +749,22 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         continue
                     index += 1
 
-                    processed_image, blended_image = preprocess_image(p, pipe, input_image, init_image, mask, input_type, unit_type, active_process, active_model, selected_models, has_models, active_units)
+                    if getattr(pipe, 'use_images_direct', False):
+                        p.init_images = inputs
+                    else:
+                        processed_image, blended_image = preprocess_image(p,
+                                                                          pipe,
+                                                                          input_image,
+                                                                          init_image,
+                                                                          mask,
+                                                                          input_type,
+                                                                          unit_type,
+                                                                          active_process,
+                                                                          active_model,
+                                                                          selected_models,
+                                                                          has_models,
+                                                                          active_units,
+                                                                        )
                     if is_generator:
                         yield (None, blended_image, '') # result is control_output, proces_output
 
@@ -701,62 +782,18 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         if unit_type == 'lite':
                             instance.apply(selected_models, processed_image, control_conditioning)
 
-                    # what are we doing?
-                    if 'control' in p.ops:
-                        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_control_samples)
-                    elif 'img2img' in p.ops:
-                        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_img2img_samples)
-                    elif 'txt2img' in p.ops:
-                        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples)
-                    else: # fallback to txt2img
-                        p.outpath_samples = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_txt2img_samples)
-
                     # pipeline
                     output = None
                     script_run = False
-                    if pipe is not None: # run new pipeline
-                        debug_log(f'Control exec pipeline: task={sd_models.get_diffusers_task(pipe)} class={pipe.__class__}')
-                        if sd_models.get_diffusers_task(pipe) != sd_models.DiffusersTaskType.TEXT_2_IMAGE: # force vae back to gpu if not in txt2img mode
-                            sd_models.move_model(pipe.vae, devices.device)
-
-                        # init scripts
-                        p.scripts = scripts_manager.scripts_control
-                        p.script_args = input_script_args or []
-                        if len(p.script_args) == 0:
-                            if not p.scripts:
-                                p.scripts.initialize_scripts(False)
-                            p.script_args = script.init_default_script_args(p.scripts)
-
-                        # init override scripts
-                        if override_script_name and override_script_args and len(override_script_name) > 0:
-                            selectable_scripts, selectable_script_idx = script.get_selectable_script(override_script_name, p.scripts)
-                            if selectable_scripts:
-                                for idx in range(len(override_script_args)):
-                                    p.script_args[selectable_scripts.args_from + idx] = override_script_args[idx]
-                                p.script_args[0] = selectable_script_idx + 1
-
-                        # actual processing
-                        processed: processing.Processed = None
-                        if p.is_tile:
-                            processed: processing.Processed = tile.run_tiling(p, input_image)
-                        if processed is None and p.scripts is not None:
-                            processed = p.scripts.run(p, *p.script_args)
-                        if processed is None:
-                            processed: processing.Processed = processing.process_images(p) # run actual pipeline
-                        else:
-                            script_run = True
-
-                        # postprocessing
-                        if p.scripts is not None:
-                            processed = p.scripts.after(p, processed, *p.script_args)
-                        output = None
-                        if processed is not None and processed.images is not None:
-                            output = processed.images
-                            info_txt = [processed.infotext(p, i) for i in range(len(output))]
-
-                        # output = pipe(**vars(p)).images # alternative direct pipe exec call
-                    else: # blend all processed images and return
+                    if pipe is None: # blend all processed images and return
                         output = processed_image
+                    else: # run new pipeline
+                        output, info_txt, script_run = control_process(p,
+                                                                       input_script_args,
+                                                                       override_script_name,
+                                                                       override_script_args,
+                                                                       input_image,
+                                                                      )
 
                     # outputs
                     output = output or []
