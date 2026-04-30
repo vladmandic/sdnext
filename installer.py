@@ -37,7 +37,7 @@ log = logging.getLogger('sdnext.installer')
 debug = log.debug if os.environ.get('SD_INSTALL_DEBUG', None) is not None else lambda *args, **kwargs: None
 setuptools, distutils = None, None # defined via ensure_base_requirements
 current_branch = None
-pip_log = '--log pip.log ' if os.environ.get('SD_PIP_DEBUG', None) is not None else ''
+pip_log = '--log pip.log' if os.environ.get('SD_PIP_DEBUG', None) is not None else ''
 log_file = os.path.join(os.path.dirname(__file__), 'sdnext.log')
 hostname = socket.gethostname()
 log_rolled = False
@@ -244,26 +244,35 @@ def cleanup_broken_packages():
         pass
 
 
-def pip(arg: str, ignore: bool = False, quiet: bool = True, uv = True) -> tuple[subprocess.CompletedProcess, str]:
+def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constraints = True) -> tuple[subprocess.CompletedProcess | None, str]:
     t_start = time.time()
     originalArg = arg
-    arg = arg.replace('>=', '==')
+    arg = arg.replace('>=', '==').strip()
     if opts.get('offline_mode', False):
         log.warning('Offline mode enabled')
         return None, 'offline'
-    package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").replace(" ", " ").strip()
+    package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").strip()
     uv = uv and args.uv and not package.startswith('git+')
     pipCmd = "uv pip" if uv else "pip"
     if not quiet and '-r ' not in arg:
         log.info(f'Install: package="{package}" mode={"uv" if uv else "pip"}')
-    env_args = os.environ.get("PIP_EXTRA_ARGS", "")
-    all_args = f'{pip_log}{arg} {env_args}'.strip()
+    env_args = os.environ.get("PIP_EXTRA_ARGS", "").strip()
+    all_args: list[str] = []
+    if pip_log:
+        all_args.append(pip_log)
+    all_args.append(arg)
+    if env_args:
+        all_args.append(env_args)
+    if constraints and "-c " not in env_args:
+        all_args.append("-c constraints.txt")
     if not quiet:
-        log.debug(f'Running: {pipCmd}="{all_args}"')
-    result, output = run(sys.executable, "-m", pipCmd, all_args)
+        log.debug(f'Running: {pipCmd}="{" ".join(all_args)}"')
+
+    result, output = run(sys.executable, "-m", pipCmd, *all_args)
+
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
-            log.warning(f'Install: cmd="{pipCmd}" args="{all_args}" cannot use uv, fallback to pip')
+            log.warning(f'Install: cmd="{pipCmd}" args="{" ".join(all_args)}" cannot use uv, fallback to pip')
             debug(f'Install: uv pip error: {result.stderr}')
             cleanup_broken_packages()
             return pip(originalArg, ignore, quiet, uv=False)
@@ -1279,7 +1288,6 @@ def install_requirements():
 # set environment variables controling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
-    os.environ.setdefault('PIP_CONSTRAINT', 'constraints.txt')
     os.environ.setdefault('ACCELERATE', 'True')
     os.environ.setdefault('ATTN_PRECISION', 'fp16')
     os.environ.setdefault('ClDeviceGlobalMemSizeAvailablePercent', '100')
