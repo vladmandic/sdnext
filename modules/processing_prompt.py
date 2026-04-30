@@ -152,7 +152,7 @@ def set_prompt(p,
             negative_attention_masks = prompt_parser_diffusers.embedder('negative_prompt_attention_masks')
 
             if negative_embeds is None:
-                log.warning('Prompt parser encode: empty negative prompt embeds')
+                # log.warning('Prompt parser encode: empty negative prompt embeds')
                 prompt_parser_diffusers.embedder = None
                 args = set_fallback_prompt(args, possible, prompts=None, negative_prompts=negative_prompts, prompts_2=None, negative_prompts_2=None)
                 prompt_attention = 'fixed'

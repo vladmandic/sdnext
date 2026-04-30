@@ -16,7 +16,7 @@ def http_get_hijack(*args, **kwargs):
     fn = kwargs.get("displayed_filename", None)
     size = kwargs.get("expected_size", None)
     if fn and not fn.endswith(".json") and size is not None and size > 10240:
-        log.debug(f'Download start: type=http fn="{fn}" size={size}')
+        log.debug(f'Download: type=http fn="{fn}" size={size}')
     debug(f'Download start: type=http args={args} kwargs={kwargs}')
     t0 = time.time()
     res = orig_http_get(*args, **kwargs)
@@ -34,7 +34,7 @@ def xet_get_hijack(*args, **kwargs):
     fn = kwargs.get("displayed_filename", None)
     size = kwargs.get("expected_size", None)
     if fn and not fn.endswith(".json"):
-        log.debug(f'Download start: type=xet fn="{fn}" size={size}')
+        log.debug(f'Download: type=xet fn="{fn}" size={size}')
     debug(f'Download start: type=xet args={args} kwargs={kwargs}')
     res = orig_xet_get(*args, **kwargs)
     debug(f'Download end: type=xet res={res}')

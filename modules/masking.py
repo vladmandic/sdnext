@@ -385,7 +385,9 @@ def outpaint(input_image: Image.Image, outpaint_type: str = 'Edge'):
 
 
 def run_mask(input_image: Image.Image, input_mask: Image.Image | None = None, return_type: str | None = None, mask_blur: int | None = None, mask_padding: int | None = None, invert=None):
-    if isinstance(input_image, list) and len(input_image) > 0:
+    if input_image is None:
+        return input_mask
+    elif isinstance(input_image, list) and len(input_image) > 0:
         input_image = input_image[0]
     elif isinstance(input_image, dict):
         input_mask = input_image.get('mask', None)
@@ -401,7 +403,11 @@ def run_mask(input_image: Image.Image, input_mask: Image.Image | None = None, re
     debug(f'Run mask: fn={fn}') # pylint: disable=protected-access
     debug(f'Run mask: opts={opts}') # pylint: disable=protected-access
 
-    size = min(input_image.width, input_image.height)
+    try:
+        size = min(input_image.width, input_image.height)
+    except Exception as e:
+        log.error(f'Mask input image error: {e}')
+        return input_mask
     if invert is not None:
         opts.invert = invert
 
