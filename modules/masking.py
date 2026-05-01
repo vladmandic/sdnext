@@ -406,7 +406,6 @@ def run_mask(input_image: Image.Image, input_mask: Image.Image | None = None, re
     try:
         size = min(input_image.width, input_image.height)
     except Exception as e:
-        log.error(f'Mask input image error: {e}')
         return input_mask
     if invert is not None:
         opts.invert = invert
