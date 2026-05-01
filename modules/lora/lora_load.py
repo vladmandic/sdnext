@@ -342,8 +342,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
     # Also restore backed-up weights when previously active native modules are removed
     from modules.lora import networks
     native_nets = [net for net in l.loaded_networks if len(net.modules) > 0]
-    had_native = len(networks.applied_layers) > 0
-    if native_nets or had_native:
+    if native_nets or networks.native_active:
         networks.network_activate()
 
     if len(l.loaded_networks) > 0 and l.debug:

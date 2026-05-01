@@ -9,6 +9,7 @@ from modules.logger import log, console
 
 
 applied_layers: list[str] = []
+native_active: bool = False
 default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'llm_adapter']
 
 
@@ -74,6 +75,8 @@ def network_activate(include=None, exclude=None):
 
             if task is not None and len(applied_layers) == 0:
                 pbar.remove_task(task) # hide progress bar for no action
+    global native_active # pylint: disable=global-statement
+    native_active = len(l.loaded_networks) > 0
     l.timer.activate += time.time() - t0
     if l.debug and len(l.loaded_networks) > 0:
         log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={round(backup_size/1024/1024/1024, 2)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} device={device} time={l.timer.summary}')
