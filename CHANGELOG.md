@@ -18,6 +18,7 @@
     state is preserved across sessions and can be used to hide rarely used panels and declutter the workspace  
   - **Kanvas** re-order stages by clicking on active stage  
     order of stages detemines order of images passed to model  
+  - **Kanvas** *magic-wand* tool now works on mask layer and auto-creates mask based on perceptual tolerance  
 - **Control**
   - remove buttons: *input/control/process*
   - move params *control input type* to control menu section
