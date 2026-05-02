@@ -4,7 +4,7 @@
 
 - Tag multi-image pipes with `use_images_direct` and allow UI override
 
-## Update for 2026-04-30
+## Update for 2026-05-02
 
 - **Features**
   - **Multi-image** workflows!
@@ -27,6 +27,8 @@
   - refactor `pip` installer, thanks @awsr
 - **Fixes**
   - save handle already decoded images
+  - ernie-image preview
+  - lora false deactivate
 
 ## Update for 2026-04-28
 

@@ -242,7 +242,7 @@ def process_base(p: processing.StableDiffusionProcessing):
 
 def process_hires(p: processing.StableDiffusionProcessing, output):
     # optional second pass
-    if (output is None) or (output.images is None):
+    if (output is None) or not hasattr(output, 'images') or (output.images is None):
         return output
     if p.enable_hr:
         jobid = shared.state.begin('Hires')
@@ -368,7 +368,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
 
 def process_refine(p: processing.StableDiffusionProcessing, output):
     # optional refiner pass or decode
-    if (output is None) or (output.images is None):
+    if (output is None) or not hasattr(output, 'images') or (output.images is None):
         return output
     if is_refiner_enabled(p):
         if shared.opts.samples_save and not p.do_not_save_samples and shared.opts.save_images_before_refiner and hasattr(shared.sd_model, 'vae'):

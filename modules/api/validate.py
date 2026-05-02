@@ -5,6 +5,7 @@ from modules.logger import log
 # value is cost: -1=disabled, 0=unlimited, 1=default, >1 expensive
 request_cost = {
     "/file": 0,
+    "/internal/progress": 0,
     "/run/predict": 0,
     "/sdapi/v1/browser/thumb": 0,
     "/sdapi/v1/network/thumb": 0,
