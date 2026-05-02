@@ -1,17 +1,14 @@
 # Change Log for SD.Next
 
-## TODO
-
-- Tag multi-image pipes with `use_images_direct` and allow UI override
-
 ## Update for 2026-05-02
 
 - **Features**
   - **Multi-image** workflows!
     for models that support multiple images as inputs, you can now add multiple stages in Kanvas  
     prompts like "*place character from first image, add background from second image, render in style from third image*" are now possible  
+  - option *inputs -> skip processing* to force images to passed to model as-is without any pre-processing  
+    examples of models that support multi-inputs: *qwen-image-edit, flux.2, google-gemini*  
   - **Anima** support for *img2img* and *inpaint* workflows
-  - option *inputs -> skip processing* to force images to passed to model as-is without any pre-processing
 - **UI**
   - add button to manually reorient input/output panels
   - all ui panels can be minimized/maximized by clicking on their header  
@@ -29,6 +26,7 @@
   - save handle already decoded images
   - ernie-image preview
   - lora false deactivate
+  - kandinsky-5 t2i/i2i workflows
 
 ## Update for 2026-04-28
 

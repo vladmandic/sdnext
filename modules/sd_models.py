@@ -51,6 +51,7 @@ pipe_switch_task_exclude = [
     'NucleusMoEImagePipeline',
     'AuraFlowPipeline',
     'ChronoEditPipeline',
+    'Kandinsky5I2IPipeline',
     'GoogleNanoBananaPipeline',
 ]
 i2i_pipes = [
@@ -482,7 +483,7 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_kandinsky import load_kandinsky3
             sd_model = load_kandinsky3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Kandinsky 5.0'] and model_type:
+        elif model_type in ['Kandinsky 5.0']:
             from pipelines.model_kandinsky import load_kandinsky5
             sd_model = load_kandinsky5(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
