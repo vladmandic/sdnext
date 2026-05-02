@@ -360,8 +360,11 @@ def run_ltx(task_id,
                         yield from abort('Video: process_images returned no frames', ok=True, p=p)
                         return
                     pixels = processed.images
-                    if getattr(processed, 'audio', None) is not None:
-                        audio = processed.audio
+                    raw_audio = getattr(processed, 'audio', None)
+                    if raw_audio is not None:
+                        # Strip batch dim from (B, 2, N); write_audio expects (2, N) for the
+                        # transpose-to-interleaved path used by AAC s16.
+                        audio = raw_audio[0].float().cpu() if raw_audio.ndim == 3 else raw_audio.float().cpu()
                     latents = None
             except AssertionError as e:
                 yield from abort(e, ok=True, p=p)

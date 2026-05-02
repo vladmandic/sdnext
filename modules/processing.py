@@ -528,7 +528,7 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
                         output_images.append(batch_image)
                         infotexts.append(batch_infotext)
 
-            audio = getattr(samples, 'audio', None)
+            audio = getattr(samples, 'audio', None) or getattr(p, 'audio_capture', None)
 
             if shared.cmd_opts.lowvram:
                 devices.torch_gc(force=True, reason='lowvram')

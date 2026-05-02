@@ -628,6 +628,10 @@ def process_diffusers(p: processing.StableDiffusionProcessing):
     timer.process.add('lora', lora_common.timer.total)
     lora_common.timer.clear(complete=True)
 
+    # process_decode flattens video output to a frame list and drops the audio attribute;
+    # stash it on `p` so video pipelines can recover it after process_images returns.
+    if output is not None and getattr(output, 'audio', None) is not None:
+        p.audio_capture = output.audio
     results = process_decode(p, output)
     timer.process.record('decode')
 
