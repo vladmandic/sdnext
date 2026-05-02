@@ -830,7 +830,7 @@
     {"id":"","label":"LTX enable refine","localized":"","hint":"","ui":"video"},
     {"id":"","label":"LTX refine strength","localized":"","hint":"","ui":"video"},
     {"id":"","label":"LTX decode timestep","localized":"","hint":"","ui":"video"},
-    {"id":"","label":"LTX enable audio","localized":"","hint":"","ui":"video"},
+    {"id":"","label":"LTX save audio","localized":"","hint":"LTX-2 audio-capable models always generate audio from the same prompt as video; this toggle controls whether the audio track is included in the saved video file","ui":"video"},
     {"id":"","label":"Loop","localized":"","hint":"","ui":"extras"},
     {"id":"","label":"Local directory name","localized":"","hint":"Directory where to install extension, leave blank for default","ui":"component-8746"},
     {"id":"","label":"Libs","localized":"","hint":"","ui":"component-8779"},

@@ -109,7 +109,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
             audio_accordion = gr.Accordion(open=False, label="Audio", elem_id='ltx_audio_accordion', visible=False)
             with audio_accordion:
                 with gr.Row():
-                    audio_enable = gr.Checkbox(label='LTX enable audio', value=False, elem_id="ltx_audio_enable")
+                    audio_enable = gr.Checkbox(label='LTX save audio', value=True, elem_id="ltx_audio_enable")
 
         with gr.Column(elem_id='ltx-output-column', scale=2) as _column_output:
             with gr.Row():
