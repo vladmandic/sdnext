@@ -958,6 +958,8 @@ class PromptEnhanceScript(scripts_manager.Script):
         shared.prompt_styles.apply_styles_to_extra(p)
         p.styles = []
         jobid = shared.state.begin('LLM')
+        p.extra_generation_params['LLM'] = get_model_repo_from_display(llm_model)
+        p.extra_generation_params['Original'] = p.prompt
         p.prompt = self.enhance(
             prompt=p.prompt,
             seed=p.seed,
@@ -980,5 +982,4 @@ class PromptEnhanceScript(scripts_manager.Script):
             keep_thinking=keep_thinking,
         )
         timer.process.record('prompt')
-        p.extra_generation_params['LLM'] = llm_model
         shared.state.end(jobid)

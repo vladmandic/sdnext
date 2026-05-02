@@ -11,6 +11,7 @@
   - **Anima** support for *img2img* and *inpaint* workflows
   - custom **VAE** loader for all pipelines  
     *note*: vae still needs to be compatible with the model  
+  - add prompt enhance info to image metadata  
 - **UI**
   - add button to manually reorient input/output panels
   - all ui panels can be minimized/maximized by clicking on their header  
