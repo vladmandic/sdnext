@@ -18,6 +18,9 @@ def load_lumina(checkpoint_info, diffusers_load_config=None):
         cache_dir = shared.opts.diffusers_dir,
         **load_config,
     )
+
+    generic.load_vae_override(pipe, diffusers_load_config)
+
     sd_hijack_te.init_hijack(pipe)
     devices.torch_gc(force=True, reason='load')
     return pipe
@@ -46,6 +49,8 @@ def load_lumina2(checkpoint_info, diffusers_load_config=None):
         transformer=transformer,
         **load_config,
     )
+
+    generic.load_vae_override(pipe, diffusers_load_config)
 
     del transformer
     del text_encoder

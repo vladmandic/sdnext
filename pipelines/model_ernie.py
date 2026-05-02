@@ -40,6 +40,8 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
         'use_pe': shared.opts.model_ernie_enable_pe,
     }
 
+    generic.load_vae_override(pipe, diffusers_load_config)
+
     del transformer
     del text_encoder
     sd_hijack_te.init_hijack(pipe)

@@ -125,6 +125,9 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
         **load_args,
     )
 
+    # generic.load_vae_override(pipe, diffusers_load_config, override_cls=diffusers.AutoencoderKLQwenImage, override_args={'low_cpu_mem_usage': False, 'ignore_mismatched_sizes': True})
+    generic.load_vae_override(pipe, diffusers_load_config)
+
     del text_encoder
     del transformer
     del llm_adapter

@@ -42,6 +42,8 @@ def load_nucleus(checkpoint_info, diffusers_load_config=None):
         'output_type': 'np',
     }
 
+    generic.load_vae_override(pipe, diffusers_load_config)
+
     del transformer
     del text_encoder
     del processor

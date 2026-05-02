@@ -60,6 +60,8 @@ def load_flux(checkpoint_info, diffusers_load_config=None):
         **load_args,
     )
 
+    generic.load_vae_override(pipe, diffusers_load_config)
+
     if os.environ.get('SD_REMOTE_T5', None) is not None:
         from modules import sd_te_remote
         log.warning('Remote-TE: applying patch')

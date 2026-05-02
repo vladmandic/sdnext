@@ -9,6 +9,8 @@
   - option *inputs -> skip processing* to force images to passed to model as-is without any pre-processing  
     examples of models that support multi-inputs: *qwen-image-edit, flux.2, google-gemini*  
   - **Anima** support for *img2img* and *inpaint* workflows
+  - custom **VAE** loader for all pipelines  
+    *note*: vae still needs to be compatible with the model  
 - **UI**
   - add button to manually reorient input/output panels
   - all ui panels can be minimized/maximized by clicking on their header  

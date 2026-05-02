@@ -52,6 +52,8 @@ def load_z_image(checkpoint_info, diffusers_load_config=None):
         **load_args,
     )
 
+    generic.load_vae_override(pipe, diffusers_load_config)
+
     del transformer
     del text_encoder
     sd_hijack_te.init_hijack(pipe)

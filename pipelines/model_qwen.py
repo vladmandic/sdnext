@@ -88,6 +88,8 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
         pipe.task_args['layers'] = shared.opts.model_qwen_layers
         pipe.task_args['resolution'] = 640
 
+    generic.load_vae_override(pipe, diffusers_load_config)
+
     del text_encoder
     del transformer
     sd_hijack_te.init_hijack(pipe)

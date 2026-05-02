@@ -25,6 +25,8 @@ def load_auraflow(checkpoint_info, diffusers_load_config=None):
         **load_args,
     )
 
+    generic.load_vae_override(pipe, diffusers_load_config)
+
     del text_encoder
     del transformer
     sd_hijack_te.init_hijack(pipe)

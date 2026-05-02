@@ -169,25 +169,38 @@ def load_vae(model_file, vae_file=None, vae_source="unknown-source"):
     vae_config = sd_detect.get_load_config(model_file, model_type, config_type='json')
     if vae_config is not None:
         diffusers_load_config['config'] = os.path.join(vae_config, 'vae')
-    log.info(f'Load module: type=VAE model="{vae_file}" source={vae_source} config={diffusers_load_config}')
     try:
         import diffusers
-        if os.path.isfile(vae_file):
+        vae_class = None
+        vae_loader = None
+        if shared.sd_loaded and getattr(shared.sd_model, 'vae', None) is not None:
+            vae_class = shared.sd_model.vae.__class__
+            vae_loader = vae_class.from_single_file if os.path.isfile(vae_file) else vae_class.from_pretrained
+        elif os.path.isfile(vae_file):
             if os.path.getsize(vae_file) > 1310944880: # 1.3GB
-                vae = diffusers.ConsistencyDecoderVAE.from_pretrained('openai/consistency-decoder', **diffusers_load_config) # consistency decoder does not have from single file, so we'll just download it once more
+                vae_class = diffusers.ConsistencyDecoderVAE
+                vae_loader = vae_class.from_pretrained
+                vae_file = 'openai/consistency-decoder'
             elif os.path.getsize(vae_file) < 10000000: # 10MB
-                vae = diffusers.AutoencoderTiny.from_single_file(vae_file, **diffusers_load_config)
-            else:
-                vae = diffusers.AutoencoderKL.from_single_file(vae_file, **diffusers_load_config)
-                if getattr(vae.config, 'scaling_factor', 0) == 0.18125 and shared.sd_model_type == 'sdxl':
-                    vae.config.scaling_factor = 0.13025
-                    log.debug('Setting model: component=VAE fix scaling factor')
-            vae = vae.to(devices.dtype_vae)
+                vae_class = diffusers.AutoencoderTiny
+                vae_loader = vae_class.from_single_file
+            else: # fallback
+                vae_class = diffusers.AutoencoderKL
+                # if getattr(vae.config, 'scaling_factor', 0) == 0.18125 and shared.sd_model_type == 'sdxl':
+                #     vae.config.scaling_factor = 0.13025
+                #     log.debug('Setting model: component=VAE fix scaling factor')
+            vae_loader = vae_class.from_single_file
         else:
             if 'consistency-decoder' in vae_file:
-                vae = diffusers.ConsistencyDecoderVAE.from_pretrained(vae_file, **diffusers_load_config)
-            else:
-                vae = diffusers.AutoencoderKL.from_pretrained(vae_file, **diffusers_load_config)
+                vae_class = diffusers.ConsistencyDecoderVAE
+            else: # fallback
+                vae_class = diffusers.AutoencoderKL
+            vae_loader = vae_class.from_pretrained
+        if vae_loader is not None:
+            log.info(f'Load module: type=VAE model="{vae_file}" source={vae_source} cls={vae_class.__name__} config={diffusers_load_config}')
+            vae = vae_loader(vae_file, **diffusers_load_config)
+            vae = vae.to(devices.dtype_vae)
+
         global loaded_vae_file # pylint: disable=global-statement
         loaded_vae_file = os.path.basename(vae_file)
         # log.debug(f'Diffusers VAE config: {vae.config}')
