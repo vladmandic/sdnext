@@ -94,24 +94,7 @@ def _latent_pass(caps, prompt, negative, width, height, frames, steps, guidance_
     log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=latent_pass args_keys={list(base_args.keys())}')
     result = shared.sd_model(**base_args)
     latents = result.frames[0] if hasattr(result, 'frames') else None
-    # output_type='latent' already returns denormalized + unpacked audio_latents. Threading
-    # them into Stage 2 re-noises at sigma=0.909 (prepare_audio_latents) and 3 refine steps
-    # cannot recover broadband content. Decode here mirroring the pipeline's non-latent path;
-    # cast only the input tensor since mutating module dtypes shifts BWE activations.
-    audio_waveform = None
-    if hasattr(result, 'audio') and result.audio is not None:
-        pipe = shared.sd_model
-        if hasattr(pipe, 'audio_vae') and hasattr(pipe, 'vocoder'):
-            try:
-                audio_latents = result.audio.to(device=devices.device, dtype=pipe.audio_vae.dtype)
-                with torch.no_grad():
-                    mel = pipe.audio_vae.decode(audio_latents, return_dict=False)[0]
-                    waveform = pipe.vocoder(mel)
-                audio_waveform = waveform[0].float().cpu()
-            except Exception as e:
-                log.warning(f'LTX: Stage 1 audio decode failed: {e}')
-                audio_waveform = None
-    return latents, audio_waveform
+    return latents
 
 
 def run_ltx(task_id,
@@ -330,7 +313,6 @@ def run_ltx(task_id,
             yield None, 'LTX: Generate in progress...'
 
             audio = None
-            stage1_audio = None
             pixels = None
             frames_out = None
             needs_latent_path = upsample_enable or refine_enable
@@ -339,7 +321,7 @@ def run_ltx(task_id,
                 if needs_latent_path:
                     prompt_final, negative_final, networks = get_prompts(prompt, negative, styles)
                     extra_networks.activate(p, networks)
-                    latents, stage1_audio = _latent_pass(
+                    latents = _latent_pass(
                         caps=caps,
                         prompt=prompt_final,
                         negative=negative_final,
@@ -514,6 +496,8 @@ def run_ltx(task_id,
                     try:
                         result = shared.sd_model(latents=latents, **refine_args)
                         pixels = result.frames[0] if hasattr(result, 'frames') else None
+                        if hasattr(result, 'audio') and result.audio is not None:
+                            audio = result.audio[0].float().cpu()
                         latents = None
                     except AssertionError as e:
                         yield from abort(e, ok=True, p=p)
@@ -564,8 +548,6 @@ def run_ltx(task_id,
                 t11 = time.time()
                 timer.process.add('offload', t11 - t10)
 
-            if stage1_audio is not None:
-                audio = stage1_audio
             if not audio_enable:
                 audio = None
 
