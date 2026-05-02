@@ -369,7 +369,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                 sd_models.move_model(self.llm, devices.cpu, force=True)
                 self.llm = None
                 self.tokenizer = None
-                devices.torch_gc(force=True, reason='prompt enhance model switch')
+                devices.torch_gc(force=True, reason='prompt-enhance:load')
                 log.debug(f'Prompt enhance: name="{self.model}" unload')
             self.model = None
             load_args = { 'pretrained_model_name_or_path': model_repo if not gguf_args else model_gguf }
@@ -439,7 +439,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.model = None
             self.llm = None
             self.tokenizer = None
-            devices.torch_gc(force=True, reason='prompt enhance unload')
+            devices.torch_gc(force=True, reason='prompt-enhance:unload')
             log.debug(f'Prompt enhance: model="{model_name}" unloaded')
         else:
             log.debug('Prompt enhance: no model loaded')
@@ -801,7 +801,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             response = f'Error: {str(e)}'
         finally:
             offload_aux('prompt_enhance')
-            devices.torch_gc(force=True, reason='prompt enhance offload')
+            devices.torch_gc(force=False, reason='prompt-enhance')
         t1 = time.time()
 
         if isinstance(response, list):

@@ -26,6 +26,7 @@
 - **Internal**
   - refactor `pip` installer, thanks @awsr
 - **Fixes**
+  - add missing `jquery` and `sparkline` js scripts
   - save handle already decoded images
   - ernie-image preview
   - lora false deactivate
