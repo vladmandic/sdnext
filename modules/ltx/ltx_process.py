@@ -93,13 +93,25 @@ def _latent_pass(caps, prompt, negative, width, height, frames, steps, guidance_
         base_args['use_cross_timestep'] = True
     log.debug(f'Video: cls={shared.sd_model.__class__.__name__} op=latent_pass args_keys={list(base_args.keys())}')
     result = shared.sd_model(**base_args)
-    # video latents strip the batch dim; audio latents keep it so LTX2Pipeline.prepare_audio_latents
-    # can rewrap them when re-entered as ndim==4 at Stage 2.
     latents = result.frames[0] if hasattr(result, 'frames') else None
-    audio_latents = None
+    # output_type='latent' already returns denormalized + unpacked audio_latents. Threading
+    # them into Stage 2 re-noises at sigma=0.909 (prepare_audio_latents) and 3 refine steps
+    # cannot recover broadband content. Decode here mirroring the pipeline's non-latent path;
+    # cast only the input tensor since mutating module dtypes shifts BWE activations.
+    audio_waveform = None
     if hasattr(result, 'audio') and result.audio is not None:
-        audio_latents = result.audio
-    return latents, audio_latents
+        pipe = shared.sd_model
+        if hasattr(pipe, 'audio_vae') and hasattr(pipe, 'vocoder'):
+            try:
+                audio_latents = result.audio.to(device=devices.device, dtype=pipe.audio_vae.dtype)
+                with torch.no_grad():
+                    mel = pipe.audio_vae.decode(audio_latents, return_dict=False)[0]
+                    waveform = pipe.vocoder(mel)
+                audio_waveform = waveform[0].float().cpu()
+            except Exception as e:
+                log.warning(f'LTX: Stage 1 audio decode failed: {e}')
+                audio_waveform = None
+    return latents, audio_waveform
 
 
 def run_ltx(task_id,
@@ -318,7 +330,7 @@ def run_ltx(task_id,
             yield None, 'LTX: Generate in progress...'
 
             audio = None
-            stage1_audio_latents = None
+            stage1_audio = None
             pixels = None
             frames_out = None
             needs_latent_path = upsample_enable or refine_enable
@@ -327,7 +339,7 @@ def run_ltx(task_id,
                 if needs_latent_path:
                     prompt_final, negative_final, networks = get_prompts(prompt, negative, styles)
                     extra_networks.activate(p, networks)
-                    latents, stage1_audio_latents = _latent_pass(
+                    latents, stage1_audio = _latent_pass(
                         caps=caps,
                         prompt=prompt_final,
                         negative=negative_final,
@@ -457,14 +469,10 @@ def run_ltx(task_id,
                 # Thread Stage-1 I2V init image through Stage 2 so first-frame identity survives refine.
                 if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and p.task_args.get('image') is not None:
                     refine_args['image'] = p.task_args['image']
-                # Thread Stage-1 audio latents into Stage 2 on 2.x. The video branch cross-attends
-                # audio every layer; letting prepare_audio_latents fall back to fresh noise biases
-                # the video branch off-distribution (desaturated output on distilled 2.x).
-                if caps.family == '2.x':
-                    if stage1_audio_latents is not None:
-                        refine_args['audio_latents'] = stage1_audio_latents.to(device=devices.device)
-                    if caps.use_cross_timestep:
-                        refine_args['use_cross_timestep'] = True
+                # Audio cross-attention still runs in Stage 2 for video conditioning, but the
+                # vocoder output is discarded; Stage 1 decode (see _latent_pass) is authoritative.
+                if caps.family == '2.x' and caps.use_cross_timestep:
+                    refine_args['use_cross_timestep'] = True
 
                 saved_scheduler_stage2 = None
                 try:
@@ -503,8 +511,6 @@ def run_ltx(task_id,
                     try:
                         result = shared.sd_model(latents=latents, **refine_args)
                         pixels = result.frames[0] if hasattr(result, 'frames') else None
-                        if hasattr(result, 'audio') and result.audio is not None:
-                            audio = result.audio[0].float().cpu()
                         latents = None
                     except AssertionError as e:
                         yield from abort(e, ok=True, p=p)
@@ -555,6 +561,8 @@ def run_ltx(task_id,
                 t11 = time.time()
                 timer.process.add('offload', t11 - t10)
 
+            if stage1_audio is not None:
+                audio = stage1_audio
             if not audio_enable:
                 audio = None
 
