@@ -213,7 +213,7 @@ def create_ui():
                         clip_model = gr.Dropdown([], value=shared.opts.caption_openclip_model, label='CLiP Model', elem_id='clip_clip_model')
                         ui_common.create_refresh_button(clip_model, openclip.refresh_clip_models, lambda: {"choices": openclip.refresh_clip_models()}, 'clip_models_refresh')
                         blip_model = gr.Dropdown(list(openclip.caption_models), value=shared.opts.caption_openclip_blip_model, label='Caption Model', elem_id='btN_clip_blip_model')
-                        clip_mode = gr.Dropdown(openclip.caption_types, label='Mode', value='fast', elem_id='clip_clip_mode')
+                        clip_mode = gr.Dropdown(openclip.caption_types, label='CLiP Mode', value='fast', elem_id='clip_clip_mode')
                     with gr.Accordion(label='Caption: Advanced Options', open=False, visible=True):
                         with gr.Row():
                             clip_max_length = gr.Slider(label='clip: max length', value=shared.opts.caption_openclip_max_length, minimum=16, maximum=1024, step=1, elem_id='clip_caption_max_length')
@@ -305,7 +305,7 @@ def create_ui():
                 movement = gr.Label(elem_id="caption_label_movement", label="Movement", num_top_classes=5, visible=False)
                 trending = gr.Label(elem_id="caption_label_trending", label="Trending", num_top_classes=5, visible=False)
                 flavor = gr.Label(elem_id="caption_label_flavor", label="Flavor", num_top_classes=5, visible=False)
-                clip_labels_text = gr.Textbox(elem_id="caption_clip_labels_text", label="CLIP Analysis", lines=15, interactive=False, visible=False, show_label=False)
+                clip_labels_text = gr.Textbox(elem_id="caption_clip_labels_text", label="CLiP Analysis", lines=15, interactive=False, visible=False, show_label=False)
             with gr.Row(elem_id='copy_buttons_caption'):
                 copy_caption_buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras"])
 
