@@ -57,7 +57,7 @@ class ExtraNetwork:
     def __init__(self, name: str):
         self.name = name
 
-    def activate(self, p: StableDiffusionProcessing, params_list: list[ExtraNetworkParams]):
+    def activate(self, p: StableDiffusionProcessing, params_list: list[ExtraNetworkParams], *args, **kwargs):
         """
         Called by processing on every run. Whatever the extra network is meant to do should be activated here. Passes arguments related to this extra network in params_list. User passes arguments by specifying this in his prompt:
         <name:arg1:arg2:arg3>
