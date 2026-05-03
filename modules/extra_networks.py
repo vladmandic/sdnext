@@ -161,9 +161,9 @@ def parse_prompt(prompt: str | None) -> tuple[str, defaultdict[str, list[ExtraNe
     return updated_prompt, res
 
 
-def parse_prompts(prompts: list[str], extra_data=None):
+def parse_prompts(prompts: list[str], extra_data: defaultdict[str, list[ExtraNetworkParams]] | None = None):
     updated_prompt_list: list[str] = []
-    extra_data: defaultdict[str, list[ExtraNetworkParams]] = extra_data or defaultdict(list)
+    extra_data = extra_data or defaultdict(list)
     for prompt in prompts:
         updated_prompt, parsed_extra_data = parse_prompt(prompt)
         if not extra_data:
