@@ -150,7 +150,7 @@ def parse_prompt(prompt: str | None) -> tuple[str, defaultdict[str, list[ExtraNe
     if prompt is None:
         return "", res
     if isinstance(prompt, list):
-        return parse_prompts(prompt)
+        return parse_prompts(prompt)  # type: ignore --- Fallback for incorrect function calls
 
     def found(m: re.Match[str]):
         name, args = m.group(1, 2)
