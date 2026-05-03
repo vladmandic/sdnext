@@ -3,7 +3,7 @@ from __future__ import annotations
 import re
 import inspect
 from collections import defaultdict
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from modules import errors, shared
 from modules.logger import log
 
@@ -126,7 +126,7 @@ def deactivate(p: StableDiffusionProcessing, extra_network_data: defaultdict[str
     if p.disable_extra_networks:
         return
     if force is None:
-        force = shared.opts.lora_force_reload
+        force = cast("bool", shared.opts.lora_force_reload)
     extra_network_data = extra_network_data or p.network_data
 
     for extra_network_name in extra_network_data:
