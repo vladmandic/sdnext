@@ -62,10 +62,12 @@ def _canonical_stage2_kwargs() -> dict:
     }
 
 
-def _latent_pass(caps, prompt, negative, width, height, frames, steps, guidance_scale, mp4_fps, conditions, image_cond_noise_scale, seed, image=None):
+def _latent_pass(caps, prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask, width, height, frames, steps, guidance_scale, mp4_fps, conditions, image_cond_noise_scale, seed, image=None):
     base_args = {
-        'prompt': prompt,
-        'negative_prompt': negative,
+        'prompt_embeds': prompt_embeds,
+        'prompt_attention_mask': prompt_attention_mask,
+        'negative_prompt_embeds': negative_prompt_embeds,
+        'negative_prompt_attention_mask': negative_prompt_attention_mask,
         'width': get_bucket(width),
         'height': get_bucket(height),
         'num_frames': get_frames(frames),
@@ -168,6 +170,15 @@ def run_ltx(task_id,
             yield from abort(f'Video: cls={shared.sd_model.__class__.__name__} selected model is not LTX', ok=True)
             return
 
+        # get_generator(-1) reseeds globally per call, so every stage would otherwise
+        # roll an uncorrelated seed. Resolve once and thread the int through.
+        import random
+        if seed is None or int(seed) < 0:
+            random.seed()
+            resolved_seed = int(random.randrange(4294967294))
+        else:
+            resolved_seed = int(seed)
+
         # Lightricks TI2VidTwoStagesPipeline: Stage 1 at half-res, 2x upsample, Stage 2 refine at target.
         # Auto-couple when the user picks Refine but not Upsample. Both Dev and Distilled refine paths
         # expect upsampled latents; same-res refine on Distilled produces oversaturation. Condition
@@ -251,7 +262,7 @@ def run_ltx(task_id,
             prompt=prompt,
             negative_prompt=negative,
             styles=styles,
-            seed=int(seed) if seed is not None else -1,
+            seed=resolved_seed,
             sampler_name=sampler_name,
             sampler_shift=float(sampler_shift),
             steps=int(steps),
@@ -321,10 +332,28 @@ def run_ltx(task_id,
                 if needs_latent_path:
                     prompt_final, negative_final, networks = get_prompts(prompt, negative, styles)
                     extra_networks.activate(p, networks)
+                    # Encode once and reuse across stages; encode_prompt short-circuits when
+                    # embeds are passed to __call__. CPU park keeps them off GPU between stages.
+                    prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask = shared.sd_model.encode_prompt(
+                        prompt=prompt_final,
+                        negative_prompt=negative_final,
+                        do_classifier_free_guidance=True,
+                        device=devices.device,
+                    )
+                    prompt_embeds = prompt_embeds.cpu()
+                    prompt_attention_mask = prompt_attention_mask.cpu() if prompt_attention_mask is not None else None
+                    negative_prompt_embeds = negative_prompt_embeds.cpu() if negative_prompt_embeds is not None else None
+                    negative_prompt_attention_mask = negative_prompt_attention_mask.cpu() if negative_prompt_attention_mask is not None else None
+                    # encode_prompt outside pipe.__call__ bypasses the post-forward offload hook;
+                    # re-anchor so the text encoder doesn't stay pinned through Stage 1 forward.
+                    shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, force=True, silent=True)
+                    devices.torch_gc(force=True, reason='ltx:encode')
                     latents = _latent_pass(
                         caps=caps,
-                        prompt=prompt_final,
-                        negative=negative_final,
+                        prompt_embeds=prompt_embeds,
+                        prompt_attention_mask=prompt_attention_mask,
+                        negative_prompt_embeds=negative_prompt_embeds,
+                        negative_prompt_attention_mask=negative_prompt_attention_mask,
                         width=base_w,
                         height=base_h,
                         frames=frames,
@@ -333,7 +362,7 @@ def run_ltx(task_id,
                         mp4_fps=mp4_fps,
                         conditions=conditions,
                         image_cond_noise_scale=image_cond_noise_scale if caps.supports_image_cond_noise_scale else None,
-                        seed=int(seed) if seed is not None else -1,
+                        seed=resolved_seed,
                         image=p.task_args.get('image'),
                     )
                 else:
@@ -385,7 +414,7 @@ def run_ltx(task_id,
                         up_args = {
                             'width': final_w,
                             'height': final_h,
-                            'generator': get_generator(int(seed) if seed is not None else -1),
+                            'generator': get_generator(resolved_seed),
                             'output_type': 'latent',
                         }
                         if latents.ndim == 4:
@@ -406,7 +435,7 @@ def run_ltx(task_id,
                             'height': final_h,
                             'num_frames': get_frames(frames),
                             'latents_normalized': False,
-                            'generator': get_generator(int(seed) if seed is not None else -1),
+                            'generator': get_generator(resolved_seed),
                             'output_type': 'latent',
                         }
                         if latents.ndim == 4:
@@ -433,13 +462,15 @@ def run_ltx(task_id,
                 # Refine is terminal: let the pipe decode internally so the final VAE pass runs inside
                 # the same offload/cudnn context as a normal generation (matches Generic Video tab).
                 refine_args = {
-                    'prompt': prompt_final,
-                    'negative_prompt': negative_final,
+                    'prompt_embeds': prompt_embeds,
+                    'prompt_attention_mask': prompt_attention_mask,
+                    'negative_prompt_embeds': negative_prompt_embeds,
+                    'negative_prompt_attention_mask': negative_prompt_attention_mask,
                     'width': final_w,
                     'height': final_h,
                     'num_frames': get_frames(frames),
                     'num_inference_steps': steps,
-                    'generator': get_generator(int(seed) if seed is not None else -1),
+                    'generator': get_generator(resolved_seed),
                     'callback_on_step_end': diffusers_callback,
                     'output_type': 'pil',
                 }
@@ -454,10 +485,14 @@ def run_ltx(task_id,
                 # Thread Stage-1 I2V init image through Stage 2 so first-frame identity survives refine.
                 if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and p.task_args.get('image') is not None:
                     refine_args['image'] = p.task_args['image']
-                # Audio cross-attention still runs in Stage 2 for video conditioning, but the
-                # vocoder output is discarded; Stage 1 decode (see _latent_pass) is authoritative.
                 if caps.family == '2.x' and caps.use_cross_timestep:
                     refine_args['use_cross_timestep'] = True
+                # output_type='latent' skips the post-loop audio_vae + vocoder pass when audio
+                # is unwanted; per-step audio cross-attention still runs for video conditioning.
+                # Internal video decode is also skipped; vae_decode below picks it up.
+                want_audio = caps.supports_audio and audio_enable
+                if not want_audio:
+                    refine_args['output_type'] = 'latent'
 
                 saved_scheduler_stage2 = None
                 try:
@@ -495,10 +530,14 @@ def run_ltx(task_id,
                     yield None, 'LTX: Refine in progress...'
                     try:
                         result = shared.sd_model(latents=latents, **refine_args)
-                        pixels = result.frames[0] if hasattr(result, 'frames') else None
-                        if hasattr(result, 'audio') and result.audio is not None:
-                            audio = result.audio[0].float().cpu()
-                        latents = None
+                        out = result.frames[0] if hasattr(result, 'frames') else None
+                        if want_audio:
+                            pixels = out
+                            if hasattr(result, 'audio') and result.audio is not None:
+                                audio = result.audio[0].float().cpu()
+                            latents = None
+                        else:
+                            latents = out
                     except AssertionError as e:
                         yield from abort(e, ok=True, p=p)
                         return
@@ -526,14 +565,15 @@ def run_ltx(task_id,
                 extra_networks.deactivate(p)
 
             if needs_latent_path and latents is not None:
-                # Only reached on upsample-without-refine; refine decodes through the pipe and nulls latents.
+                # Decode any path that leaves latents intact: upsample-without-refine, or
+                # refine with output_type='latent' (audio_enable=False).
                 shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'], force=True, silent=True)
                 devices.torch_gc(force=True, reason='ltx:vae')
                 yield None, 'LTX: VAE decode in progress...'
                 try:
                     if torch.is_tensor(latents):
                         # 0.9.x returns raw latents with output_type='latent'; 2.x pre-denormalizes.
-                        frames_out = vae_decode(latents, decode_timestep if caps.supports_decode_timestep else 0.0, int(seed) if seed is not None else -1, denormalize=caps.family == '0.9')
+                        frames_out = vae_decode(latents, decode_timestep if caps.supports_decode_timestep else 0.0, resolved_seed, denormalize=caps.family == '0.9')
                     else:
                         frames_out = latents
                 except AssertionError as e:
