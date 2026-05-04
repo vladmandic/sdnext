@@ -196,11 +196,16 @@ function updateGalleryStyles() {
     }
     .gallery-overlay {
       position: absolute;
-      width: ${size}px;
-      height: 32px;
-      background-color: rgba(0,0,0,0.5);
+      height: 24px;
+      background-color: rgba(0,0,0,0.7);
       display: block;
-      margin-top: calc(${size}px - 32px);
+      text-align: right;
+      padding: 4px;
+      font-size: 1.2em;
+      letter-spacing: 0.5em;
+      width: 140px;
+      margin-top: calc(140px - 32px);
+      opacity: 75%;
     }
     :host(.gallery-file-selected) .gallery-file {
       box-shadow: 0 0 0 2px var(--sd-button-selected-color);
@@ -1326,11 +1331,41 @@ async function initGalleryAutoRefresh() {
   galleryVisObserver.observe(galleryTab, { attributeFilter: ['class', 'style'], attributeOldValue: true });
 }
 
+async function overlayDelete(evt) {
+  console.log('galleryDelete', evt);
+  evt.stopPropagation();
+}
+
+async function overlayDownload(evt) {
+  console.log('galleryDownload', evt);
+  evt.stopPropagation();
+}
+
+async function overlayInfo(evt) {
+  console.log('galleryInfo', evt);
+  evt.stopPropagation();
+}
+
 async function createOverlay() {
   if (el.overlay) return;
   el.overlay = document.createElement('div');
   el.overlay.className = 'gallery-overlay';
-  // const btnDownload = document.createElement('span');
+  const btnDownload = document.createElement('span');
+  btnDownload.innerHTML = '\udb85\udc64';
+  btnDownload.title = 'Download image';
+  btnDownload.style.cursor = 'pointer';
+  btnDownload.addEventListener('click', overlayDownload);
+  const btnDelete = document.createElement('span');
+  btnDelete.innerHTML = '\uf05c';
+  btnDelete.title = 'Delete image';
+  btnDelete.style.cursor = 'pointer';
+  btnDelete.addEventListener('click', overlayDelete);
+  const btnInfo = document.createElement('span');
+  btnInfo.innerHTML = '\uf05a';
+  btnInfo.title = 'Image metadata';
+  btnInfo.style.cursor = 'pointer';
+  btnInfo.addEventListener('click', overlayInfo);
+  el.overlay.append(btnInfo, btnDelete, btnDownload);
 }
 
 async function blockQueueUntilReady() {
