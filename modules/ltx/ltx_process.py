@@ -170,15 +170,6 @@ def run_ltx(task_id,
             yield from abort(f'Video: cls={shared.sd_model.__class__.__name__} selected model is not LTX', ok=True)
             return
 
-        # get_generator(-1) reseeds globally per call, so every stage would otherwise
-        # roll an uncorrelated seed. Resolve once and thread the int through.
-        import random
-        if seed is None or int(seed) < 0:
-            random.seed()
-            resolved_seed = int(random.randrange(4294967294))
-        else:
-            resolved_seed = int(seed)
-
         # Lightricks TI2VidTwoStagesPipeline: Stage 1 at half-res, 2x upsample, Stage 2 refine at target.
         # Auto-couple when the user picks Refine but not Upsample. Both Dev and Distilled refine paths
         # expect upsampled latents; same-res refine on Distilled produces oversaturation. Condition
@@ -262,7 +253,7 @@ def run_ltx(task_id,
             prompt=prompt,
             negative_prompt=negative,
             styles=styles,
-            seed=resolved_seed,
+            seed=int(seed) if seed is not None else -1,
             sampler_name=sampler_name,
             sampler_shift=float(sampler_shift),
             steps=int(steps),
@@ -275,6 +266,7 @@ def run_ltx(task_id,
             vae_type='Default',
             vae_tile_frames=16,
         )
+        processing.fix_seed(p)
         p.scripts = None
         p.script_args = None
         p.do_not_save_grid = True
@@ -362,7 +354,7 @@ def run_ltx(task_id,
                         mp4_fps=mp4_fps,
                         conditions=conditions,
                         image_cond_noise_scale=image_cond_noise_scale if caps.supports_image_cond_noise_scale else None,
-                        seed=resolved_seed,
+                        seed=p.seed,
                         image=p.task_args.get('image'),
                     )
                 else:
@@ -414,7 +406,7 @@ def run_ltx(task_id,
                         up_args = {
                             'width': final_w,
                             'height': final_h,
-                            'generator': get_generator(resolved_seed),
+                            'generator': get_generator(p.seed),
                             'output_type': 'latent',
                         }
                         if latents.ndim == 4:
@@ -435,7 +427,7 @@ def run_ltx(task_id,
                             'height': final_h,
                             'num_frames': get_frames(frames),
                             'latents_normalized': False,
-                            'generator': get_generator(resolved_seed),
+                            'generator': get_generator(p.seed),
                             'output_type': 'latent',
                         }
                         if latents.ndim == 4:
@@ -470,7 +462,7 @@ def run_ltx(task_id,
                     'height': final_h,
                     'num_frames': get_frames(frames),
                     'num_inference_steps': steps,
-                    'generator': get_generator(resolved_seed),
+                    'generator': get_generator(p.seed),
                     'callback_on_step_end': diffusers_callback,
                     'output_type': 'pil',
                 }
@@ -573,7 +565,7 @@ def run_ltx(task_id,
                 try:
                     if torch.is_tensor(latents):
                         # 0.9.x returns raw latents with output_type='latent'; 2.x pre-denormalizes.
-                        frames_out = vae_decode(latents, decode_timestep if caps.supports_decode_timestep else 0.0, resolved_seed, denormalize=caps.family == '0.9')
+                        frames_out = vae_decode(latents, decode_timestep if caps.supports_decode_timestep else 0.0, p.seed, denormalize=caps.family == '0.9')
                     else:
                         frames_out = latents
                 except AssertionError as e:
