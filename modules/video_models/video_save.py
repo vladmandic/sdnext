@@ -80,22 +80,25 @@ def numpy_to_tensor(images):
     return tensor
 
 
+def add_audio_stream(container, audio_sample_rate: int):
+    # Must be registered before the first container.mux(); avformat_write_header runs there
+    # and freezes the stream set, after which new streams have time_base=0/0.
+    audio_stream = container.add_stream("aac", rate=audio_sample_rate)
+    audio_stream.codec_context.sample_rate = audio_sample_rate
+    audio_stream.codec_context.layout = "stereo"
+    audio_stream.codec_context.time_base = Fraction(1, audio_sample_rate)
+    log.debug(f'Audio: codec={audio_stream.codec_context.name} rate={audio_stream.codec_context.sample_rate} layout={audio_stream.codec_context.layout} base={audio_stream.codec_context.time_base}')
+    return audio_stream
+
+
 def write_audio(
     container,
+    audio_stream,
     samples: torch.Tensor,
     audio_sample_rate: int,
 ) -> None:
     av = check_av()
-    # create stream
-    audio_options = { 'time_base': f'1/{audio_sample_rate}' }
-    audio_stream = container.add_stream("aac", rate=audio_sample_rate, options=audio_options)
-    audio_stream.codec_context.sample_rate = audio_sample_rate
-    audio_stream.codec_context.layout = "stereo"
     audio_stream.codec_context.format = "fltp"
-    audio_stream.codec_context.time_base = Fraction(1, audio_sample_rate)
-    # audio_stream.time_base = audio_stream.codec_context.time_base # TODO audio set time-base
-    log.debug(f'Audio: codec={audio_stream.codec_context.name} rate={audio_stream.codec_context.sample_rate} layout={audio_stream.codec_context.layout} format={audio_stream.codec_context.format} base={audio_stream.codec_context.time_base}')
-    # init input samples
     if samples.ndim == 1:
         samples = samples[:, None]
     if samples.shape[1] != 2 and samples.shape[0] == 2:
@@ -111,13 +114,11 @@ def write_audio(
         layout="stereo",
     )
     audio_frames.sample_rate = audio_sample_rate
-    # init resampler
     audio_resampler = av.audio.resampler.AudioResampler(
         format=audio_stream.codec_context.format,
         layout=audio_stream.codec_context.layout,
         rate=audio_stream.codec_context.sample_rate,
     )
-    # resample
     pts = 0
     for resampled in audio_resampler.resample(audio_frames):
         resampled.pts = resampled.pts or 0
@@ -126,7 +127,6 @@ def write_audio(
         for packet in packets:
             container.mux(packet)
         pts += resampled.samples
-    # flush audio encoder
     for packet in audio_stream.encode():
         container.mux(packet)
 
@@ -177,6 +177,7 @@ def atomic_save_video(
         stream.width = video_array.shape[2]
         stream.height = video_array.shape[1]
         stream.pix_fmt = pix_fmt
+        audio_stream = add_audio_stream(container, aac) if audio is not None else None
         for img in video_array:
             frame = av.VideoFrame.from_ndarray(img, format="rgb24")
             for packet in stream.encode_lazy(frame):
@@ -185,9 +186,9 @@ def atomic_save_video(
                 pbar.update(task, advance=1)
         for packet in stream.encode(): # flush
             container.mux(packet)
-        if audio is not None:
+        if audio_stream is not None:
             try:
-                write_audio(container, audio, aac)
+                write_audio(container, audio_stream, audio, aac)
             except Exception as e:
                 log.error(f'Video audio encoding: {e}')
                 errors.display(e, 'Audio')

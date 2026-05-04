@@ -452,17 +452,32 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
     return output
 
 
+class AudioFrameList(list):
+    """list subclass with an audio attribute. Plain lists can't hold attributes,
+    so process_decode uses this when the pipeline output includes audio."""
+    audio = None
+
+
+def attach_audio(results, audio):
+    if audio is None:
+        return results
+    wrapped = AudioFrameList(results if isinstance(results, list) else list(results))
+    wrapped.audio = audio
+    return wrapped
+
+
 def process_decode(p: processing.StableDiffusionProcessing, output):
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, exclude=['vae'])
     if output is not None:
         if hasattr(output, 'bytes') and output.bytes is not None:
             log.debug(f'Generated: bytes={len(output.bytes)}')
             return output
+        audio = getattr(output, 'audio', None)
         if not hasattr(output, 'images') and hasattr(output, 'frames'):
             log.debug(f'Generated: frames={len(output.frames[0])}')
             output.images = output.frames[0]
         if output.images is not None and len(output.images) > 0 and isinstance(output.images[0], Image.Image):
-            return output.images
+            return attach_audio(output.images, audio)
         model = shared.sd_model if not is_refiner_enabled(p) else shared.sd_refiner
         if not hasattr(model, 'vae'):
             if hasattr(model, 'pipe') and hasattr(model.pipe, 'vae'):
@@ -506,8 +521,9 @@ def process_decode(p: processing.StableDiffusionProcessing, output):
             results = []
     else:
         log.warning('Processing: no results')
+        audio = None
         results = []
-    return results
+    return attach_audio(results, audio)
 
 
 def update_pipeline(sd_model, p: processing.StableDiffusionProcessing):
