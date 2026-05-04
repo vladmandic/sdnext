@@ -326,12 +326,13 @@ def run_ltx(task_id,
                     extra_networks.activate(p, networks)
                     # Encode once and reuse across stages; encode_prompt short-circuits when
                     # embeds are passed to __call__. CPU park keeps them off GPU between stages.
-                    prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask = shared.sd_model.encode_prompt(
-                        prompt=prompt_final,
-                        negative_prompt=negative_final,
-                        do_classifier_free_guidance=True,
-                        device=devices.device,
-                    )
+                    with devices.inference_context():
+                        prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask = shared.sd_model.encode_prompt(
+                            prompt=prompt_final,
+                            negative_prompt=negative_final,
+                            do_classifier_free_guidance=True,
+                            device=devices.device,
+                        )
                     prompt_embeds = prompt_embeds.cpu()
                     prompt_attention_mask = prompt_attention_mask.cpu() if prompt_attention_mask is not None else None
                     negative_prompt_embeds = negative_prompt_embeds.cpu() if negative_prompt_embeds is not None else None
