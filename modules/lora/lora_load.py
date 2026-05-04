@@ -86,10 +86,25 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
         if ernie_net is not None:
             lora_cache[name] = ernie_net
         return ernie_net
+    if shared.sd_model_type == 'chroma':
+        from pipelines.chroma import chroma_lora
+        lora_scale = shared.opts.extra_networks_default_multiplier
+        chroma_net = None
+        for try_fn in (chroma_lora.try_load_lora, chroma_lora.try_load_lokr, chroma_lora.try_load_loha, chroma_lora.try_load_oft):
+            sub = try_fn(name, network_on_disk, lora_scale)
+            if sub is None:
+                continue
+            if chroma_net is None:
+                chroma_net = sub
+            else:
+                chroma_net.modules.update(sub.modules)
+        if chroma_net is not None:
+            lora_cache[name] = chroma_net
+        return chroma_net
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')
-    if shared.sd_model_type in ['f1', 'chroma']: # if kohya flux lora, convert state_dict
+    if shared.sd_model_type == 'f1': # if kohya flux lora, convert state_dict
         state_dict = lora_convert._convert_kohya_flux_lora_to_diffusers(state_dict) or state_dict # pylint: disable=protected-access
     if shared.sd_model_type == 'sd3': # if kohya flux lora, convert state_dict
         try:
