@@ -12,7 +12,8 @@
   - **LTX** support for *audio* generation
   - custom **VAE** loader for all pipelines  
     *note*: vae still needs to be compatible with the model  
-  - add prompt enhance info to image metadata  
+  - **Prompt enhance** add info to image metadata  
+  - **Ernie-Image** initial LoRA support
 - **UI**
   - add button to manually reorient input/output panels
   - all ui panels can be minimized/maximized by clicking on their header  

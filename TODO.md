@@ -4,12 +4,10 @@
 
 ### Assigned
 
-- Gallery: thumb-size, quick delete/download/info @vladmandic
+- Gallery: quick delete/download/info @vladmandic
 - Chat-based interface, @vladmandic
-- Multi-image inputs, @vladmandic
 - Control tab verify overrides handling, @vladmandic
 - Reimplement `llama` remover for Kanvas, @vladmandic
-- Integrate [Depth3D](https://github.com/vladmandic/sd-extension-depth3d), @vladmandic
 
 - Cloud providers, @CalamitousFelicitousness
 - Video processing add full API support, @CalamitousFelicitousness

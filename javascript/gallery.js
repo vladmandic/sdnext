@@ -20,6 +20,7 @@ const el = {
   search: undefined,
   status: undefined,
   btnSend: undefined,
+  overlay: undefined,
   clearCacheFolder: undefined,
   size: undefined,
 };
@@ -132,7 +133,7 @@ async function awaitForGallery(expectedSize, signal) {
 
 function updateGalleryStyles() {
   if (opts.theme_type?.toLowerCase() === 'modern') {
-    folderStylesheet.replaceSync(`
+    folderStylesheet.replace(`
       .gallery-folder {
         cursor: pointer;
         padding: 8px 6px 8px 6px;
@@ -165,7 +166,7 @@ function updateGalleryStyles() {
       }
     `);
   } else {
-    folderStylesheet.replaceSync(`
+    folderStylesheet.replace(`
       .gallery-folder {
         cursor: pointer;
         padding: 8px 6px 8px 6px;
@@ -183,7 +184,7 @@ function updateGalleryStyles() {
     `);
   }
   const size = el.size ? el.size.value : opts.extra_networks_card_size;
-  fileStylesheet.replaceSync(`
+  fileStylesheet.replace(`
     .gallery-file {
       object-fit: contain;
       cursor: pointer;
@@ -192,6 +193,14 @@ function updateGalleryStyles() {
     }
     .gallery-file:hover {
       filter: grayscale(100%);
+    }
+    .gallery-overlay {
+      position: absolute;
+      width: ${size}px;
+      height: 32px;
+      background-color: rgba(0,0,0,0.5);
+      display: block;
+      margin-top: calc(${size}px - 32px);
     }
     :host(.gallery-file-selected) .gallery-file {
       box-shadow: 0 0 0 2px var(--sd-button-selected-color);
@@ -413,9 +422,7 @@ class GalleryFolder extends HTMLElement {
     this.div.classList.add('gallery-folder-selected');
     GalleryFolder.#active = this;
     for (const folder of GalleryFolder.folders) {
-      if (folder !== this) {
-        folder.div.classList.remove('gallery-folder-selected');
-      }
+      if (folder !== this) folder.div.classList.remove('gallery-folder-selected');
     }
   }
 }
@@ -460,7 +467,6 @@ class GalleryFile extends HTMLElement {
     this.height = 0;
     this.shadow = this.attachShadow({ mode: 'open' });
     this.shadow.adoptedStyleSheets = [fileStylesheet];
-
     this.firstRun = true;
   }
 
@@ -473,9 +479,7 @@ class GalleryFile extends HTMLElement {
     if (dir && dir[1]) {
       const dirPath = dir[1];
       const isOpen = separatorStates.get(dirPath);
-      if (isOpen === false) {
-        this.style.display = 'none';
-      }
+      if (isOpen === false) this.style.display = 'none';
     }
 
     this.hash = await getHash(`${this.src}/${this.size}/${this.mtime}`)
@@ -518,7 +522,7 @@ class GalleryFile extends HTMLElement {
           this.size = json.size;
           this.mtime = new Date(json.mtime);
           if (opts.browser_cache && this.hash) {
-            await idbAdd({
+            idbAdd({
               hash: this.hash,
               folder: this.fullFolder,
               file: this.name,
@@ -538,15 +542,19 @@ class GalleryFile extends HTMLElement {
         img.src = `file=${this.src}`;
       }
     }
-    if (this.#signal.aborted) { // Do not change the operations order from here...
-      return;
-    }
+    if (this.#signal.aborted) return;
     galleryHashes.add(this.hash);
-    if (!ok) {
-      return;
-    } // ... to here unless modifications are also being made to maintenance functionality and the usage of AbortController/AbortSignal
+    if (!ok) return;
+
     img.onclick = () => {
       setGallerySelectionByElement(this, { send: true });
+    };
+    img.onpointerenter = () => {
+      el.overlay.display = 'block';
+      this.shadow.appendChild(el.overlay);
+    };
+    img.onpointerleave = () => {
+      el.overlay.display = 'none';
     };
     img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
     this.title = img.title;
@@ -554,7 +562,7 @@ class GalleryFile extends HTMLElement {
     // Final visibility check based on search term.
     const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase());
     if (this.style.display !== 'none') { // Only proceed if not already hidden by a closed separator
-      this.style.display = shouldDisplayBasedOnSearch ? 'unset' : 'none';
+      this.style.display = shouldDisplayBasedOnSearch ? 'flex' : 'none';
     }
 
     this.shadow.appendChild(img);
@@ -1318,6 +1326,13 @@ async function initGalleryAutoRefresh() {
   galleryVisObserver.observe(galleryTab, { attributeFilter: ['class', 'style'], attributeOldValue: true });
 }
 
+async function createOverlay() {
+  if (el.overlay) return;
+  el.overlay = document.createElement('div');
+  el.overlay.className = 'gallery-overlay';
+  // const btnDownload = document.createElement('span');
+}
+
 async function blockQueueUntilReady() {
   // Add block to maintenanceQueue until cache is ready
   maintenanceQueue.enqueue({
@@ -1351,6 +1366,7 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
     el.size.addEventListener('input', updateGalleryStyles);
   }
   blockQueueUntilReady(); // Run first
+  createOverlay();
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
