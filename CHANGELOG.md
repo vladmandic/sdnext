@@ -9,11 +9,11 @@
   - option *inputs -> skip processing* to force images to passed to model as-is without any pre-processing  
     examples of models that support multi-inputs: *qwen-image-edit, flux.2, google-gemini*  
   - **Anima** support for *img2img* and *inpaint* workflows
+  - **Ernie-Image** add *LoRA* support, *img2img* and *inpaint* workflows
   - **LTX** support for *audio* generation
+  - **Prompt enhance** add info to image metadata  
   - custom **VAE** loader for all pipelines  
     *note*: vae still needs to be compatible with the model  
-  - **Prompt enhance** add info to image metadata  
-  - **Ernie-Image** initial LoRA support
 - **UI**
   - add button to manually reorient input/output panels
   - all ui panels can be minimized/maximized by clicking on their header  
