@@ -71,6 +71,21 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
         if anima_net is not None:
             lora_cache[name] = anima_net
         return anima_net
+    if shared.sd_model_type == 'ernieimage':
+        from pipelines.ernie import ernie_lora
+        lora_scale = shared.opts.extra_networks_default_multiplier
+        ernie_net = None
+        for try_fn in (ernie_lora.try_load_lora, ernie_lora.try_load_lokr, ernie_lora.try_load_loha, ernie_lora.try_load_oft):
+            sub = try_fn(name, network_on_disk, lora_scale)
+            if sub is None:
+                continue
+            if ernie_net is None:
+                ernie_net = sub
+            else:
+                ernie_net.modules.update(sub.modules)
+        if ernie_net is not None:
+            lora_cache[name] = ernie_net
+        return ernie_net
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')

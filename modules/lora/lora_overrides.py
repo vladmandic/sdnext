@@ -29,6 +29,7 @@ allow_native = [
     'chroma',
     'zimage',
     'anima',
+    'ernieimage',
 ]
 
 
