@@ -1,6 +1,8 @@
 /* eslint-disable max-classes-per-file */
 let ws;
 let url;
+let currentSize = 0;
+let currentSort = 'none';
 let currentImage = null;
 let currentGalleryFolder = null;
 let pruneImagesTimer;
@@ -19,6 +21,7 @@ const el = {
   status: undefined,
   btnSend: undefined,
   clearCacheFolder: undefined,
+  size: undefined,
 };
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
@@ -26,12 +29,12 @@ const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl'
 const gallerySorter = {
   nameA: { name: 'Name Ascending', func: (a, b) => a.name.localeCompare(b.name) },
   nameD: { name: 'Name Descending', func: (b, a) => a.name.localeCompare(b.name) },
-  sizeA: { name: 'Size Ascending', func: (a, b) => a.size - b.size },
-  sizeD: { name: 'Size Descending', func: (b, a) => a.size - b.size },
-  resA: { name: 'Resolution Ascending', func: (a, b) => a.width * a.height - b.width * b.height },
-  resD: { name: 'Resolution Descending', func: (b, a) => a.width * a.height - b.width * b.height },
-  modA: { name: 'Modified Ascending', func: (a, b) => a.mtime - b.mtime },
-  modD: { name: 'Modified Descending', func: (b, a) => a.mtime - b.mtime },
+  sizeD: { name: 'Size Ascending', func: (a, b) => a.size - b.size },
+  sizeA: { name: 'Size Descending', func: (b, a) => a.size - b.size },
+  resD: { name: 'Resolution Ascending', func: (a, b) => a.width * a.height - b.width * b.height },
+  resA: { name: 'Resolution Descending', func: (b, a) => a.width * a.height - b.width * b.height },
+  modD: { name: 'Modified Ascending', func: (a, b) => a.mtime - b.mtime },
+  modA: { name: 'Modified Descending', func: (b, a) => a.mtime - b.mtime },
   none: { name: 'None', func: undefined },
 };
 
@@ -179,12 +182,13 @@ function updateGalleryStyles() {
       }
     `);
   }
+  const size = el.size ? el.size.value : opts.extra_networks_card_size;
   fileStylesheet.replaceSync(`
     .gallery-file {
       object-fit: contain;
       cursor: pointer;
-      height: ${opts.extra_networks_card_size}px;
-      width: ${opts.browser_fixed_width ? `${opts.extra_networks_card_size}px` : 'unset'};
+      height: ${size}px;
+      width: ${opts.browser_fixed_width ? `${size}px` : 'unset'};
     }
     .gallery-file:hover {
       filter: grayscale(100%);
@@ -558,8 +562,10 @@ class GalleryFile extends HTMLElement {
 }
 
 async function createThumb(img) {
-  const height = opts.extra_networks_card_size;
-  const width = opts.browser_fixed_width ? opts.extra_networks_card_size : 0;
+  const sizeEl = document.getElementById('gallery-thumb-size');
+  currentSize = sizeEl ? parseInt(sizeEl.value, 10) : opts.extra_networks_card_size;
+  const height = currentSize;
+  const width = opts.browser_fixed_width ? currentSize : 0;
   const canvas = document.createElement('canvas');
   const scaleY = height / img.height;
   const scaleX = width > 0 ? width / img.width : scaleY;
@@ -872,8 +878,13 @@ const findDuplicates = (arr, key) => {
 };
 
 async function gallerySort(key) {
-  if (!Object.hasOwn(gallerySorter, key)) {
-    error(`Gallery: "${key}" is not a valid gallery sorting key`);
+  // if currentSort does not start with key, default to key+A
+  // else if currentSort ends with A change to D and vice versa for toggling sort order
+  if (currentSort.startsWith(key)) currentSort = currentSort.endsWith('A') ? `${key}D` : `${key}A`;
+  else currentSort = `${key}A`;
+
+  if (!Object.hasOwn(gallerySorter, currentSort)) {
+    error(`Gallery: "${currentSort}" is not a valid gallery sorting key`);
     return;
   }
   const t0 = performance.now();
@@ -901,7 +912,7 @@ async function gallerySort(key) {
     folderGroups.get(dir).push(file);
   }
 
-  sortMode = gallerySorter[key];
+  sortMode = gallerySorter[currentSort];
 
   // Sort root files
   rootFiles.sort(sortMode.func);
@@ -1329,22 +1340,26 @@ async function initGallery() { // triggered on gradio change to monitor when ui 
   el.files = gradioApp().getElementById('tab-gallery-files');
   el.status = gradioApp().getElementById('tab-gallery-status');
   el.search = gradioApp().querySelector('#tab-gallery-search textarea');
+  el.size = document.getElementById('tab-gallery-thumb-size');
   if (!el.folders || !el.files || !el.status || !el.search) {
     error('initGallery', 'Missing gallery elements');
     return;
   }
 
+  if (el.size) {
+    el.size.value = opts.extra_networks_card_size;
+    el.size.addEventListener('input', updateGalleryStyles);
+  }
   blockQueueUntilReady(); // Run first
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
   galleryClearInit();
+
   const progress = gradioApp().getElementById('tab-gallery-progress');
-  if (progress) {
-    galleryProgressBar.attachTo(progress);
-  } else {
-    log('initGallery', 'Failed to attach loading progress bar');
-  }
+  if (progress) galleryProgressBar.attachTo(progress);
+  else log('initGallery', 'Failed to attach loading progress bar');
+
   el.search.addEventListener('input', gallerySearch);
   el.btnSend = gradioApp().getElementById('tab-gallery-send-image');
   document.getElementById('tab-gallery-files').style.height = opts.logmonitor_show ? '75vh' : '85vh';

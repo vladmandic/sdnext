@@ -59,6 +59,7 @@ def create_ui():
     with gr.Blocks() as tab:
         with gr.Row(elem_id='tab-gallery-sort-buttons'):
             sort_buttons = []
+            """
             sort_buttons.append(sort_nameA := ToolButton(value=ui_symbols.sort_alpha_asc, elem_classes=['gallery-sort']))
             sort_buttons.append(sort_nameD := ToolButton(value=ui_symbols.sort_alpha_dsc, elem_classes=['gallery-sort']))
             sort_buttons.append(sort_sizeA := ToolButton(value=ui_symbols.sort_size_asc, elem_classes=['gallery-sort']))
@@ -67,6 +68,11 @@ def create_ui():
             sort_buttons.append(sort_resD := ToolButton(value=ui_symbols.sort_num_dsc, elem_classes=['gallery-sort']))
             sort_buttons.append(sort_modA := ToolButton(value=ui_symbols.sort_time_asc, elem_classes=['gallery-sort']))
             sort_buttons.append(sort_modD := ToolButton(value=ui_symbols.sort_time_dsc, elem_classes=['gallery-sort']))
+            """
+            sort_buttons.append(sort_name := ToolButton(value=ui_symbols.sort_alpha, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_size := ToolButton(value=ui_symbols.sort_size, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_res := ToolButton(value=ui_symbols.sort_num, elem_classes=['gallery-sort']))
+            sort_buttons.append(sort_time := ToolButton(value=ui_symbols.sort_time, elem_classes=['gallery-sort']))
             gr.Textbox(show_label=False, placeholder='Search', elem_id='tab-gallery-search')
             gr.HTML('', elem_id='tab-gallery-status')
             gr.HTML('', elem_id='tab-gallery-progress')
@@ -81,6 +87,7 @@ def create_ui():
                 gallery_images, gen_info, html_info, _html_info_formatted, html_log = ui_common.create_output_panel("gallery")
                 btn_gallery_image.click(fn=read_media, _js='gallerySendImage', inputs=[html_info], outputs=[gallery_images, gallery_video, html_info, gen_info, html_log])
 
+    """
     sort_nameA.click(fn=None, _js='() => gallerySort("nameA")')
     sort_nameD.click(fn=None, _js='() => gallerySort("nameD")')
     sort_sizeA.click(fn=None, _js='() => gallerySort("sizeA")')
@@ -89,5 +96,10 @@ def create_ui():
     sort_resD.click(fn=None, _js='() => gallerySort("resD")')
     sort_modA.click(fn=None, _js='() => gallerySort("modA")')
     sort_modD.click(fn=None, _js='() => gallerySort("modD")')
+    """
+    sort_name.click(fn=None, _js='() => gallerySort("name")')
+    sort_size.click(fn=None, _js='() => gallerySort("size")')
+    sort_res.click(fn=None, _js='() => gallerySort("res")')
+    sort_time.click(fn=None, _js='() => gallerySort("mod")')
 
     return [(tab, 'Gallery', 'tab-gallery')]

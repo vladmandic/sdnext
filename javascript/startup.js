@@ -65,14 +65,14 @@ async function initStartup() {
   }
 
   executeCallbacks(uiReadyCallbacks);
-  startupPromises.push(initGallery());
-  startupPromises.push(setRefreshInterval());
-  startupPromises.push(setupExtraNetworks());
 
   // optinally wait for modern ui
   if (window.waitForUiReady) await waitForUiReady();
 
   // post startup tasks that may take longer but are not critical
+  startupPromises.push(initGallery());
+  startupPromises.push(setRefreshInterval());
+  startupPromises.push(setupExtraNetworks());
   startupPromises.push(initAutocomplete());
   startupPromises.push(monitorConnection());
   startupPromises.push(showNetworks());

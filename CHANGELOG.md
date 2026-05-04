@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-02
+## Update for 2026-05-04
 
 - **Features**
   - **Multi-image** workflows!
@@ -9,6 +9,7 @@
   - option *inputs -> skip processing* to force images to passed to model as-is without any pre-processing  
     examples of models that support multi-inputs: *qwen-image-edit, flux.2, google-gemini*  
   - **Anima** support for *img2img* and *inpaint* workflows
+  - **LTX** support for *audio* generation
   - custom **VAE** loader for all pipelines  
     *note*: vae still needs to be compatible with the model  
   - add prompt enhance info to image metadata  
@@ -19,6 +20,7 @@
   - **Kanvas** re-order stages by clicking on active stage  
     order of stages detemines order of images passed to model  
   - **Kanvas** *magic-wand* tool now works on mask layer and auto-creates mask based on perceptual tolerance  
+  - **Gallery** add thumbnail size slider
 - **Control**
   - remove buttons: *input/control/process*
   - move params *control input type* to control menu section
