@@ -40,6 +40,11 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
         'use_pe': shared.opts.model_ernie_enable_pe,
     }
 
+    from pipelines.ernie.ernie_image import ErnieImageImg2ImgPipeline, ErnieImageInpaintPipeline
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["ernieimage"] = diffusers.ErnieImagePipeline
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["ernieimage"] = ErnieImageImg2ImgPipeline
+    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["ernieimage"] = ErnieImageInpaintPipeline
+
     generic.load_vae_override(pipe, diffusers_load_config)
 
     del transformer
