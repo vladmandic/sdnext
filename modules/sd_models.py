@@ -53,12 +53,14 @@ pipe_switch_task_exclude = [
     'ChronoEditPipeline',
     'Kandinsky5I2IPipeline',
     'GoogleNanoBananaPipeline',
+    'Step1XEditPipeline',
 ]
 i2i_pipes = [
     'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',
     'OmniGenPipeline', 'OmniGen2Pipeline',
     'StableDiffusionAdapterPipeline', 'StableDiffusionXLAdapterPipeline',
     'StableDiffusionControlNetXSPipeline', 'StableDiffusionXLControlNetXSPipeline',
+    'Step1XEditPipeline',
 ]
 
 

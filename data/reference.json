@@ -924,6 +924,16 @@
     "extras": "sampler: Default, cfg_scale: 3.5",
     "size": 16.2,
     "date": "2025 December"
+  },
+
+  "StepFun Step1X-Edit v1.1": {
+    "path": "stepfun-ai/Step1X-Edit-v1p1-diffusers",
+    "preview": "stepfun-ai--Step1X-Edit-v1p1.jpg",
+    "desc": "Multimodal image editing model using Step1X transformer architecture with Qwen2.5-VL text encoding, trained with Flow Matching scheduler for high-quality in-context image edits and refinements.",
+    "skip": true,
+    "extras": "sampler: Default",
+    "size": 24.85,
+    "date": "2025 September"
   }
 
 }

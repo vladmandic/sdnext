@@ -128,12 +128,18 @@ def task_specific_kwargs(p, model):
             'width': width,
         }
 
+    fake_i2i = ['QwenImageEditPipeline', 'QwenImageEditPlusPipeline', 'WanImageToVideoPipeline', 'ChronoEditPipeline']
+    can_i2i = ['QwenImageEditPipeline', 'QwenImageEditPlusPipeline', 'QwenImageLayeredPipeline', 'Kandinsky5I2IPipeline', 'QwenImageLayeredPipeline', 'WanImageToVideoPipeline','ChronoEditPipeline', 'GoogleNanoBananaPipeline', 'GlmImagePipeline', 'Step1XEditPipeline']
+
     # model specific args
-    if (('QwenImageEdit' in model_cls) or ('Kandinsky5I2IPipeline' in model_cls)) and (p.init_images is None or len(p.init_images) == 0):
+    if (model_cls in fake_i2i) and (len(getattr(p, 'init_images', [])) == 0):
         log.debug(f'Model init: cls={model_cls} image=blank')
-        task_args['image'] = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so i2i pipeline does not error-out on t2i
-    if ('QwenImageLayeredPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
-        task_args['image'] = p.init_images[0].convert('RGBA')
+        p.init_images = [Image.new('RGB', (p.width, p.height), (0, 0, 0))] # monkey-patch so i2i pipeline does not error-out on t2i
+    if (model_cls in can_i2i) and (len(getattr(p, 'init_images', [])) > 0):
+        task_args['image'] = p.init_images
+
+    if ('QwenImageLayeredPipeline' in model_cls) and (task_args.get('image', None) is not None):
+        task_args['image'] = [i.convert('RGBA') for i in task_args['image']]
     if ('LatentConsistencyModelPipeline' in model_cls) and (len(p.init_images) > 0):
         p.ops.append('lcm')
         init_latents = [processing_vae.vae_encode(image, model=shared.sd_model, vae_type=p.vae_type).squeeze(dim=0) for image in p.init_images]
@@ -145,17 +151,8 @@ def task_specific_kwargs(p, model):
             'width': p.width,
             'height': p.height,
         }
-    if ('WanImageToVideoPipeline' in model_cls) or ('ChronoEditPipeline' in model_cls):
-        if (p.init_images is not None) and (len(p.init_images) > 0):
-            task_args['image'] = p.init_images[0]
-        else:
-            task_args['image'] = Image.new('RGB', (p.width, p.height), (0, 0, 0)) # monkey-patch so wan-i2i pipeline does not error-out on t2i
     if ('WanVACEPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
         task_args['reference_images'] = p.init_images
-    if ('GoogleNanoBananaPipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
-        task_args['images'] = p.init_images
-    if ('GlmImagePipeline' in model_cls) and (p.init_images is not None) and (len(p.init_images) > 0):
-        task_args['image'] = p.init_images
     if 'BlipDiffusionPipeline' in model_cls:
         if len(p.init_images) == 0:
             log.error('BLiP diffusion requires init image')
