@@ -66,14 +66,6 @@ class ExtraNetwork:
         raise NotImplementedError
 
 
-def is_stepwise(en_obj):
-    all_args = []
-    for en in en_obj:
-        all_args.extend(en.positional[1:])
-        all_args.extend(en.named.values())
-    return any([len(str(x).split("@")) > 1 for x in all_args]) # noqa C419 # pylint: disable=use-a-generator
-
-
 def activate(p, extra_network_data=None, step=0, include=None, exclude=None):
     """call activate for extra networks in extra_network_data in specified order, then call activate for all remaining registered networks with an empty argument list"""
     if exclude is None:
@@ -85,14 +77,6 @@ def activate(p, extra_network_data=None, step=0, include=None, exclude=None):
     extra_network_data = extra_network_data or p.network_data
     # if extra_network_data is None or len(extra_network_data) == 0:
         # return
-    stepwise = False
-    for extra_network_args in extra_network_data.values():
-        stepwise = stepwise or is_stepwise(extra_network_args)
-    functional = shared.opts.lora_functional
-    if shared.opts.lora_force_diffusers and stepwise:
-        log.warning("Network load: type=LoRA method=composable loader=diffusers not compatible")
-        stepwise = False
-    shared.opts.data['lora_functional'] = stepwise or functional
 
     for extra_network_name, extra_network_args in extra_network_data.items():
         extra_network = extra_network_registry.get(extra_network_name, None)
@@ -122,9 +106,6 @@ def activate(p, extra_network_data=None, step=0, include=None, exclude=None):
             errors.display(e, f"Activating network: type={extra_network_name}")
 
     p.network_data = extra_network_data
-    if stepwise:
-        p.stepwise_lora = True
-        shared.opts.data['lora_functional'] = functional
 
 
 def deactivate(p, extra_network_data=None, force=None):
