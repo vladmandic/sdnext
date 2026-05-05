@@ -75,8 +75,6 @@ def activate(p, extra_network_data=None, step=0, include=None, exclude=None):
     if p.disable_extra_networks:
         return
     extra_network_data = extra_network_data or p.network_data
-    # if extra_network_data is None or len(extra_network_data) == 0:
-        # return
 
     for extra_network_name, extra_network_args in extra_network_data.items():
         extra_network = extra_network_registry.get(extra_network_name, None)
@@ -115,8 +113,7 @@ def deactivate(p, extra_network_data=None, force=None):
     if force is None:
         force = shared.opts.lora_force_reload
     extra_network_data = extra_network_data or p.network_data
-    # if extra_network_data is None or len(extra_network_data) == 0:
-    #    return
+
     for extra_network_name in extra_network_data:
         extra_network = extra_network_registry.get(extra_network_name, None)
         if extra_network is None:
