@@ -3,6 +3,7 @@ let ws;
 let url;
 let currentSize = 0;
 let currentSort = 'none';
+let currentName = '';
 let currentImage = null;
 let currentGalleryFolder = null;
 let pruneImagesTimer;
@@ -557,6 +558,8 @@ class GalleryFile extends HTMLElement {
     img.onpointerenter = () => {
       el.overlay.display = 'block';
       this.shadow.appendChild(el.overlay);
+      currentImage = this.src;
+      currentName = this.name;
     };
     img.onpointerleave = () => {
       el.overlay.display = 'none';
@@ -1017,24 +1020,24 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
     if (typeof folder !== 'string' || typeof imgCount !== 'number') {
       throw new Error('Function called with invalid arguments');
     }
-    debug('Thumbnail DB cleanup: Waiting for gallery data to settle');
+    debug('thumbCacheCleanup: wait');
     await awaitForGallery(imgCount, controller.signal);
   } catch (err) {
-    debug(`Thumbnail DB cleanup: Skipping cleanup for "${folder}" due to "${err}"`);
+    error('thumbCacheCleanup', { folder, error: err });
     return;
   }
 
   maintenanceQueue.enqueue({
     signal: controller.signal,
     callback: async () => {
-      log(`Thumbnail DB cleanup: Checking if "${folder}" needs cleaning`);
+      log('maintenanceQueue', { folder });
       const t0 = performance.now();
       const keptGalleryHashes = force ? new Set() : new Set(galleryHashes.values()); // External context should be safe since this function run is guarded by AbortController/AbortSignal in the SimpleFunctionQueue
       const folderNormalized = folder.replace(/\/+/g, '/').replace(/\/$/, '');
       const recursiveFolder = IDBKeyRange.bound(folderNormalized, `${folderNormalized}\uffff`, false, true);
       const cachedHashesCount = await idbCount(recursiveFolder)
         .catch((e) => {
-          error(`Thumbnail DB cleanup: Error when getting entry count for "${folder}".`, e);
+          error('maintenanceQueue', { folder, error: e });
           return Infinity; // Forces next check to fail if something went wrong
         });
       const cleanupCount = cachedHashesCount - keptGalleryHashes.size;
@@ -1044,21 +1047,21 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
       }
 
       if (controller.signal.aborted) {
-        debug(`Thumbnail DB cleanup: Cancelling "${folder}" cleanup due to "${controller.signal.reason}"`);
+        debug('maintenanceQueue', { folder, reason: controller.signal.reason });
         return;
       }
       const cb_clearMsg = showCleaningMsg(cleanupCount);
       await idbFolderCleanup(keptGalleryHashes, recursiveFolder, controller.signal)
         .then((delcount) => {
           const t1 = performance.now();
-          log(`Thumbnail DB cleanup: folder=${folder} kept=${keptGalleryHashes.size} deleted=${delcount} time=${Math.round(t1 - t0)}ms`);
+          log('maintenanceQueue', { folder, kept: keptGalleryHashes.size, deleted: delcount, time: Math.round(t1 - t0) });
           timer(`thumbnailDBCleanup:${folder}`, t1 - t0);
           currentGalleryFolder = null;
           el.clearCacheFolder.innerText = '<select a folder first>';
           updateStatusWithSort('Thumbnail cache cleared');
         })
         .catch((reason) => {
-          SimpleFunctionQueue.abortLogger('Thumbnail DB cleanup:', reason);
+          SimpleFunctionQueue.abortLogger('thumbCacheCleanup', reason);
         })
         .finally(async () => {
           await new Promise((resolve) => { setTimeout(resolve, 1000); }); // Delay removal by 1 second to ensure at least minimum visibility
@@ -1081,7 +1084,7 @@ function resetGalleryState(reason) {
 
 function clearCacheIfDisabled(browser_cache) {
   if (browser_cache === false) {
-    log('Thumbnail DB cleanup:', 'Image gallery cache setting disabled. Clearing cache.');
+    log('thumbCacheCleanup', { disabled: true });
     const controller = resetGalleryState('Clearing all thumbnails from cache');
     maintenanceQueue.enqueue({
       signal: controller.signal,
@@ -1090,13 +1093,13 @@ function clearCacheIfDisabled(browser_cache) {
         const cb_clearMsg = showCleaningMsg(0, true);
         await idbClearAll(controller.signal)
           .then(() => {
-            log(`Thumbnail DB cleanup: Cache cleared. time=${Math.floor(performance.now() - t0)}ms`);
+            log('thumbCacheCleanup', { time: Math.floor(performance.now() - t0) });
             currentGalleryFolder = null;
             el.clearCacheFolder.innerText = '<select a folder first>';
             updateStatusWithSort('Thumbnail cache cleared');
           })
           .catch((e) => {
-            SimpleFunctionQueue.abortLogger('Thumbnail DB cleanup:', e);
+            SimpleFunctionQueue.abortLogger('thumbCacheCleanup', e);
           })
           .finally(async () => {
             await new Promise((resolve) => { setTimeout(resolve, 1000); });
@@ -1332,18 +1335,51 @@ async function initGalleryAutoRefresh() {
 }
 
 async function overlayDelete(evt) {
-  console.log('galleryDelete', evt);
+  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`);
   evt.stopPropagation();
+  if (!res || res.status !== 200) {
+    error('galleryDelete', { file: currentImage, status: res?.status, statusText: res?.statusText });
+    return;
+  }
+  const data = await res.json();
+  log('galleryDelete', data);
+  GalleryFolder.getActive()?.click();
 }
 
 async function overlayDownload(evt) {
-  console.log('galleryDownload', evt);
+  log('galleryDownload', currentImage);
+  const link = document.createElement('a');
+  link.href = `/file=${encodeURIComponent(currentImage)}`;
+  link.download = currentName;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
   evt.stopPropagation();
 }
 
 async function overlayInfo(evt) {
-  console.log('galleryInfo', evt);
   evt.stopPropagation();
+  const tgt = document.getElementById('html_info_formatted_gallery');
+  if (!tgt) return;
+  const res = await authFetch(`${window.api}/png-info?file=${encodeURI(currentImage)}`);
+  if (!res || res.status !== 200) return;
+  const data = await res.json();
+  log('galleryInfo res', data);
+  const prompt = data?.parameters?.Prompt || '';
+  const negative = data?.parameters?.Negative || data?.parameters?.['Negative prompt'] || '';
+  const raw = data?.info || '';
+  const params = data?.parameters || {};
+  delete params.Prompt;
+  delete params.Negative;
+  delete params['Negative prompt'];
+  const paramsFormatted = Object.entries(params).map(([key, value]) => `<b>${key}:</b> ${value}`).join('<br>');
+  tgt.innerHTML = `
+    <div><b>File:</b> ${currentImage}</div>
+    <div><b>Prompt:</b> ${prompt}</div>
+    <div><b>Negative:</b> ${negative}</div>
+    <div>${paramsFormatted}</div>
+    <div><b>Raw:</b><pre style="white-space: pre-wrap; margin: 0.5em">${raw}</pre></div>
+  `;
 }
 
 async function createOverlay() {

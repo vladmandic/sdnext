@@ -4,7 +4,6 @@
 
 ### Assigned
 
-- Gallery: quick delete/download/info @vladmandic
 - Chat-based interface, @vladmandic
 - Control tab verify overrides handling, @vladmandic
 - Reimplement `llama` remover for Kanvas, @vladmandic

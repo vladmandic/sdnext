@@ -93,6 +93,9 @@ class Api:
         self.add_api_route("/sdapi/v1/unets", endpoints.get_unets, methods=["GET"], response_model=list[models.ItemUNet])
 
         # functional api
+        self.add_api_route("/sdapi/v1/file", endpoints.get_file, methods=["GET"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/delete-image", endpoints.get_deleteimage, methods=["GET"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/png-info", endpoints.get_pnginfo, methods=["GET"], response_model=models.ResImageInfo, tags=["Functional"])
         self.add_api_route("/sdapi/v1/png-info", endpoints.post_pnginfo, methods=["POST"], response_model=models.ResImageInfo, tags=["Functional"])
         self.add_api_route("/sdapi/v1/checkpoint", endpoints.get_checkpoint, methods=["GET"], tags=["Functional"])
         self.add_api_route("/sdapi/v1/checkpoint", endpoints.set_checkpoint, methods=["POST"], tags=["Functional"])

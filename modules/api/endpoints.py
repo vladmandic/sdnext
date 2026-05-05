@@ -323,6 +323,73 @@ def get_extensions_list():
             })
     return ext_list
 
+def get_file(file: str):
+    import os
+    from pathlib import Path
+    from starlette.responses import FileResponse
+    from fastapi.exceptions import HTTPException
+    allowed_dirs = shared.demo.allowed_paths
+    if not file.strip():
+        raise HTTPException(status_code=400, detail="file path is required")
+    if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
+        raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
+    if not os.path.exists(file):
+        raise HTTPException(status_code=404, detail=f"file not found: {file}")
+    if os.path.isdir(file):
+        raise HTTPException(status_code=403, detail=f"file {file}: is a directory")
+    return FileResponse(file, media_type='application/octet-stream', filename=file)
+
+def get_deleteimage(file: str):
+    import os
+    from pathlib import Path
+    from fastapi.exceptions import HTTPException
+    allowed_dirs = shared.demo.allowed_paths
+    if not file.strip():
+        raise HTTPException(status_code=400, detail="file path is required")
+    if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
+        raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
+    if not os.path.exists(file):
+        raise HTTPException(status_code=404, detail=f"file not found: {file}")
+    if os.path.isdir(file):
+        raise HTTPException(status_code=403, detail=f"file {file}: is a directory")
+    if os.path.splitext(file)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+        raise HTTPException(status_code=403, detail=f"file {file}: not an image file")
+    try:
+        os.remove(file)
+        return {"deleted": f"{file}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"error deleting file {file}: {str(e)}") from e
+
+def get_pnginfo(file: str):
+    """Extract generation parameters from a image file path. Returns raw info string and parsed parameters dict."""
+    import os
+    from pathlib import Path
+    from PIL import Image
+    from fastapi.exceptions import HTTPException
+    from modules import images, infotext
+    allowed_dirs = shared.demo.allowed_paths
+    if not file.strip():
+        raise HTTPException(status_code=400, detail="file path is required")
+    if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
+        raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
+    if os.path.splitext(file)[1].lower() not in (".png", ".jpg", ".jpeg", ".webp"):
+        raise HTTPException(status_code=403, detail=f"file {file}: not an image file")
+    if not os.path.isfile(file):
+        raise HTTPException(status_code=403, detail=f"file {file}: not an image file")
+    image = None
+    try:
+        image = Image.open(file)
+        image.load()
+    except Exception as e:
+        raise HTTPException(status_code=403, detail=f"file {file}: not an image file") from e
+    if image is None:
+        raise HTTPException(status_code=403, detail=f"file {file}: not an image file")
+    geninfo, items = images.read_info_from_image(image)
+    if geninfo is None:
+        geninfo = ""
+    params = infotext.parse(geninfo)
+    return models.ResImageInfo(info=geninfo, items=items, parameters=params)
+
 def post_pnginfo(req: models.ReqImageInfo):
     """Extract generation parameters from a PNG image's metadata. Returns raw info string and parsed parameters dict."""
     from modules import images, script_callbacks, infotext
