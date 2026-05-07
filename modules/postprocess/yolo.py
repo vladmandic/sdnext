@@ -483,6 +483,51 @@ class YoloRestorer(Detailer):
             np_images.append(annotated) # save debug image with boxes
         return np_images
 
+    def make_processing(self, image, prompt='', negative='', steps=10, strength=0.3, resolution=1024, seed=-1, overrides=None):
+        """Build a synthetic Img2Img processing object to run restore() standalone, with no base generation pass.
+
+        The primary params map to the detailer_* fields restore() reads directly. overrides is an optional
+        dict of the remaining detailer_* settings; None values are skipped and fall through to shared.opts
+        via detailer_opt(). The seed is resolved here so restore()'s inpaint passes are reproducible and the
+        effective value can be reported back.
+        """
+        from modules.processing_helpers import get_fixed_seed
+        from modules.paths import resolve_output_path
+        seed = int(get_fixed_seed(seed))
+        outpath = resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_extras_samples)
+        p = processing.StableDiffusionProcessingImg2Img(
+            sd_model=shared.sd_model,
+            prompt=prompt or '',
+            negative_prompt=negative or '',
+            init_images=[image],
+            outpath_samples=outpath,
+            outpath_grids=outpath,
+            batch_size=1,
+            n_iter=1,
+            seed=seed,
+            width=image.width,
+            height=image.height,
+            detailer_enabled=True,
+            detailer_prompt=prompt or '',
+            detailer_negative=negative or '',
+            detailer_steps=steps,
+            detailer_strength=strength,
+            detailer_resolution=resolution,
+        )
+        for attr, val in (overrides or {}).items():
+            if val is not None:
+                setattr(p, attr, val)
+        # restore() at yolo.py reads all_prompts[0]/all_negative_prompts[0]; the rest avoid AttributeError downstream
+        p.all_prompts = [p.detailer_prompt or '']
+        p.all_negative_prompts = [p.detailer_negative or '']
+        p.all_seeds = [seed]
+        p.all_subseeds = [-1]
+        p.scripts = None
+        p.is_control = False
+        p.do_not_save_samples = True
+        p.do_not_save_grid = True
+        return p
+
     def change_mode(self, dropdown, text):
         self.ui_mode = not self.ui_mode
         if self.ui_mode:
@@ -533,10 +578,16 @@ class YoloRestorer(Detailer):
                 ui_mode.click(fn=self.change_mode, inputs=[detailers, detailers_text], outputs=[detailers, detailers_text, refresh_btn])
             with gr.Row():
                 classes = gr.Textbox(label="Detailer classes", placeholder="Classes", elem_id=f"{tab}_detailer_classes")
+            if tab == 'extras': # Process tab is standalone, there is no base prompt to fall back to
+                prompt_placeholder = 'detailer prompt, leave empty for none'
+                negative_placeholder = 'detailer negative prompt, leave empty for none'
+            else:
+                prompt_placeholder = 'detailer prompt or leave empty to use main prompt'
+                negative_placeholder = 'detailer prompt or leave empty to use main prompt'
             with gr.Row():
-                prompt = gr.Textbox(label="Detailer prompt", value='', placeholder='detailer prompt or leave empty to use main prompt', lines=2, elem_id=f"{tab}_detailer_prompt", elem_classes=["prompt"])
+                prompt = gr.Textbox(label="Detailer prompt", value='', placeholder=prompt_placeholder, lines=2, elem_id=f"{tab}_detailer_prompt", elem_classes=["prompt"])
             with gr.Row():
-                negative = gr.Textbox(label="Detailer negative prompt", value='', placeholder='detailer prompt or leave empty to use main prompt', lines=2, elem_id=f"{tab}_detailer_negative", elem_classes=["prompt"])
+                negative = gr.Textbox(label="Detailer negative prompt", value='', placeholder=negative_placeholder, lines=2, elem_id=f"{tab}_detailer_negative", elem_classes=["prompt"])
             with gr.Row():
                 steps = gr.Slider(label="Detailer steps", elem_id=f"{tab}_detailer_steps", value=10, minimum=0, maximum=99, step=1)
                 strength = gr.Slider(label="Detailer strength", elem_id=f"{tab}_detailer_strength", value=0.3, minimum=0, maximum=1, step=0.01)
@@ -557,6 +608,23 @@ class YoloRestorer(Detailer):
             with gr.Row(elem_classes=['flex-break']):
                 renoise_value = gr.Slider(minimum=0.5, maximum=1.5, step=0.01, label='Renoise', value=shared.opts.detailer_sigma_adjust, elem_id=f"{tab}_detailer_renoise")
                 renoise_end = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Renoise end', value=shared.opts.detailer_sigma_adjust_max, elem_id=f"{tab}_detailer_renoise_end")
+            sampler_block = None
+            if tab == 'extras': # fold the standalone sampler settings into the detailer accordion; values applied per-job in make_processing, never global opts
+                from modules import sd_samplers
+                sd_samplers.set_samplers()
+                sampler_choices = [s.name for s in sd_samplers.samplers if s.name != 'Same as primary']
+                with gr.Accordion('Sampler', open=False, elem_id=f"{tab}_detailer_sampler_accordion", elem_classes=["small-accordion"]):
+                    with gr.Row():
+                        d_sampler = gr.Dropdown(label='Sampling method', choices=sampler_choices, value='Default', elem_id=f"{tab}_detailer_sampler")
+                        d_prediction = gr.Dropdown(label='Prediction method', choices=['default', 'epsilon', 'sample', 'v_prediction', 'flow_prediction'], value='default', elem_id=f"{tab}_detailer_prediction")
+                    with gr.Row():
+                        d_shift = gr.Slider(label='Flow shift', minimum=0, maximum=10, step=0.1, value=shared.opts.schedulers_shift, elem_id=f"{tab}_detailer_shift")
+                        d_cfg = gr.Slider(label='Guidance scale', minimum=0, maximum=30, step=0.1, value=6.0, elem_id=f"{tab}_detailer_cfg")
+                    with gr.Row():
+                        d_options = gr.CheckboxGroup(label='Options', choices=['low order', 'thresholding', 'dynamic', 'rescale'], value=['low order'], elem_id=f"{tab}_detailer_options")
+                    with gr.Row():
+                        d_seed = gr.Number(label='Seed', value=-1, precision=0, elem_id=f"{tab}_detailer_seed")
+                sampler_block = {'sampler': d_sampler, 'prediction': d_prediction, 'shift': d_shift, 'cfg_scale': d_cfg, 'options': d_options, 'seed': d_seed}
 
             merge.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
             detailers.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
@@ -573,6 +641,8 @@ class YoloRestorer(Detailer):
             save.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
             sort.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
             seg.change(fn=ui_settings_change, inputs=[merge, detailers, detailers_text, classes, strength, padding, blur, min_confidence, max_detected, min_size, max_size, iou, steps, renoise_value, renoise_end, resolution, save, sort, seg], outputs=[])
+            if tab == 'extras':
+                return enabled, prompt, negative, steps, strength, resolution, sampler_block
             return enabled, prompt, negative, steps, strength, resolution
 
 

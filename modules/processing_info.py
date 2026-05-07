@@ -118,11 +118,11 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
             args["Hires steps"] = p.hr_second_pass_steps
             args["Hires strength"] = p.hr_denoising_strength
             args["Hires sampler"] = p.hr_sampler_name if p.hr_sampler_name != 'Default' else None
-            args["Hires CFG scale"] = p.cfg_image if p.cfg_image > -1 else None
+            args["Hires CFG scale"] = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
     if 'refine' in p.ops:
         args["Refine"] = p.enable_hr
         args["Refiner"] = None if (not shared.opts.add_model_name_to_info) or (not shared.sd_refiner) or (not shared.sd_refiner.sd_checkpoint_info.model_name) else shared.sd_refiner.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
-        args['Hires CFG scale'] = p.cfg_image if p.cfg_image > -1 else None
+        args['Hires CFG scale'] = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
         args['Refiner steps'] = p.refiner_steps
         args['Refiner start'] = p.refiner_start
         args["Hires steps"] = p.hr_second_pass_steps
@@ -130,7 +130,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if ('img2img' in p.ops or 'inpaint' in p.ops) and ('txt2img' not in p.ops and 'hires' not in p.ops): # real img2img/inpaint
         args["Init image size"] = f"{getattr(p, 'init_img_width', 0)}x{getattr(p, 'init_img_height', 0)}"
         args["Init image hash"] = getattr(p, 'init_img_hash', None)
-        args['Image CFG scale'] = p.cfg_image if p.cfg_image > -1 else None
+        args['Image CFG scale'] = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
         args["Mask weight"] = getattr(p, "inpainting_mask_weight", shared.opts.inpainting_mask_weight) if p.is_using_inpainting_conditioning else None
         args["Denoising strength"] = getattr(p, 'denoising_strength', None)
         if args["Size"] != args["Init image size"]:
