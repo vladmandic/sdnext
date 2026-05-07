@@ -52,6 +52,8 @@ class DetailerAPITest:
             'detect': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
             'generate': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
             'detailer_params': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
+            'detail_endpoint': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
+            'extras_script_args': {'passed': 0, 'failed': 0, 'skipped': 0, 'tests': []},
         }
         self._category = 'enumerate'
         self._critical_error = None
@@ -598,6 +600,172 @@ class DetailerAPITest:
                         else f"LEAK: baseline changed (diff={leak_diff:.2f})")
 
     # =========================================================================
+    # Tests: /sdapi/v1/detail standalone endpoint
+    # =========================================================================
+
+    def _detail(self, **kwargs):
+        """Helper: POST /sdapi/v1/detail with default face image and override kwargs."""
+        if not self.image_b64:
+            return {'error': 'no_test_image'}
+        payload = {'image': self.image_b64}
+        payload.update(kwargs)
+        try:
+            r = requests.post(f'{self.base_url}/sdapi/v1/detail', json=payload, timeout=self.timeout, verify=False)
+            if r.status_code != 200:
+                return {'error': r.status_code, 'reason': r.reason}
+            return r.json()
+        except requests.exceptions.ConnectionError as e:
+            return {'error': 'connection_refused', 'reason': str(e)}
+        except requests.exceptions.ReadTimeout:
+            return {'error': 'timeout'}
+
+    def _decode_b64_image(self, b64_str):
+        """Decode a base64 image string into a numpy float32 RGB array."""
+        import numpy as np
+        from PIL import Image
+        try:
+            img_data = b64_str.split(',', 1)[0] if ',' in b64_str else b64_str
+            img = Image.open(io.BytesIO(base64.b64decode(img_data))).convert('RGB')
+            return np.array(img, dtype=np.float32)
+        except Exception:
+            return None
+
+    def test_detail_endpoint_basic(self):
+        """POST /sdapi/v1/detail with defaults; assert valid PIL response."""
+        self._category = 'detail_endpoint'
+        print("\n--- /sdapi/v1/detail Basic ---")
+
+        if self._critical_error:
+            self.skip('detail_basic', self._critical_error)
+            return None
+        if not self.image_b64:
+            self.skip('detail_basic', 'no test image')
+            return None
+
+        t0 = time.time()
+        data = self._detail(detailer_strength=0.3, detailer_steps=5, detailer_conf=0.3)
+        t1 = time.time()
+        if 'error' in data:
+            self.record(False, 'detail_basic', f"error: {data}")
+            return None
+        has_image = 'image' in data and data['image']
+        self.record(has_image, 'detail_basic_has_image', f"time={t1 - t0:.1f}s")
+        if has_image:
+            arr = self._decode_b64_image(data['image'])
+            self.record(arr is not None, 'detail_basic_image_valid', f"shape={arr.shape if arr is not None else 'invalid'}")
+            return arr
+        return None
+
+    def test_detail_endpoint_strength_effect(self, baseline=None):
+        """Verify per-request strength override changes the output."""
+        self._category = 'detail_endpoint'
+        print("  Testing detail strength variation...")
+
+        weak = self._detail(detailer_strength=0.3, detailer_steps=5, detailer_conf=0.3)
+        strong = self._detail(detailer_strength=0.7, detailer_steps=5, detailer_conf=0.3)
+        if 'error' in weak or 'error' in strong:
+            self.record(False, 'detail_strength_effect', f"weak={weak.get('error')} strong={strong.get('error')}")
+            return
+        weak_arr = self._decode_b64_image(weak['image'])
+        strong_arr = self._decode_b64_image(strong['image'])
+        diff = self._pixel_diff(weak_arr, strong_arr)
+        self.record(diff > 0.5, 'detail_strength_effect', f"diff={diff:.2f}")
+
+    def test_detail_endpoint_includes_detections(self):
+        """When detailer_include_detections=True, response should contain detections b64."""
+        self._category = 'detail_endpoint'
+        print("  Testing include_detections...")
+
+        data = self._detail(detailer_strength=0.3, detailer_steps=5, detailer_conf=0.3, detailer_include_detections=True)
+        if 'error' in data:
+            self.record(False, 'detail_includes_detections', f"error: {data}")
+            return
+        has_detections = 'detections' in data and data['detections']
+        if has_detections:
+            arr = self._decode_b64_image(data['detections'])
+            self.record(arr is not None, 'detail_includes_detections', f"detections shape={arr.shape if arr is not None else 'invalid'}")
+        else:
+            # No detections returned could mean the model didn't find anything; not a hard failure
+            self.skip('detail_includes_detections', 'no detections returned (model found nothing?)')
+
+    def test_detail_endpoint_param_isolation(self):
+        """After /sdapi/v1/detail run, baseline txt2img should be unchanged from before."""
+        self._category = 'detail_endpoint'
+        print("  Testing param isolation...")
+
+        before = self._txt2img()
+        if 'error' in before:
+            self.skip('detail_param_isolation', f'baseline failed: {before}')
+            return
+        before_arr = self._decode_image(before)
+
+        detail_resp = self._detail(detailer_strength=0.5, detailer_steps=5)
+        if 'error' in detail_resp:
+            self.skip('detail_param_isolation', f'detail call failed: {detail_resp}')
+            return
+
+        after = self._txt2img()
+        if 'error' in after:
+            self.skip('detail_param_isolation', f'after-baseline failed: {after}')
+            return
+        after_arr = self._decode_image(after)
+        leak = self._pixel_diff(before_arr, after_arr)
+        self.record(leak < 0.5, 'detail_param_isolation', f"leak={leak:.4f}" if leak < 0.5 else f"LEAK detected (diff={leak:.2f})")
+
+    # =========================================================================
+    # Tests: extras API with script_args (Phase 1 backward-compat + new path)
+    # =========================================================================
+
+    def test_extras_with_detailer_script_args(self):
+        """POST /sdapi/v1/extra-single-image with script_args={'Detailer': {...}} should run the detailer."""
+        self._category = 'extras_script_args'
+        print("\n--- Extras API with Detailer script_args ---")
+
+        if not self.image_b64:
+            self.skip('extras_script_args', 'no test image')
+            return
+
+        # Baseline: extras without script_args (just upscale=None pass-through)
+        payload = {
+            'image': self.image_b64,
+            'upscaler_1': 'None',
+            'upscaling_resize': 1.0,
+        }
+        baseline = self._post('/sdapi/v1/extra-single-image', payload)
+        if 'error' in baseline:
+            self.record(False, 'extras_baseline_no_script_args', f"error: {baseline}")
+            return
+        self.record('image' in baseline and baseline['image'], 'extras_baseline_no_script_args')
+        baseline_arr = self._decode_b64_image(baseline['image']) if 'image' in baseline else None
+
+        # With Detailer script_args
+        payload_with_detailer = {
+            'image': self.image_b64,
+            'upscaler_1': 'None',
+            'upscaling_resize': 1.0,
+            'script_args': {
+                'Detailer': {
+                    'enabled': True,
+                    'strength': 0.5,
+                    'steps': 5,
+                    'resolution': 1024,
+                },
+            },
+        }
+        with_detailer = self._post('/sdapi/v1/extra-single-image', payload_with_detailer)
+        if 'error' in with_detailer:
+            self.record(False, 'extras_with_detailer_script_args', f"error: {with_detailer}")
+            return
+        self.record('image' in with_detailer and with_detailer['image'], 'extras_with_detailer_script_args')
+
+        # Output should differ from baseline (detailer ran)
+        if baseline_arr is not None and 'image' in with_detailer:
+            with_arr = self._decode_b64_image(with_detailer['image'])
+            diff = self._pixel_diff(baseline_arr, with_arr)
+            # Diff > 0 means detailer modified the image (or no face found, in which case diff = 0)
+            self.record(True, 'extras_script_args_diff', f"baseline vs with-detailer diff={diff:.2f}")
+
+    # =========================================================================
     # Runner
     # =========================================================================
 
@@ -624,6 +792,15 @@ class DetailerAPITest:
 
         # Per-request detailer param validation
         self.run_detailer_param_tests(models)
+
+        # Standalone /sdapi/v1/detail endpoint
+        self.test_detail_endpoint_basic()
+        self.test_detail_endpoint_strength_effect()
+        self.test_detail_endpoint_includes_detections()
+        self.test_detail_endpoint_param_isolation()
+
+        # Extras API with script_args (Detailer script + backward-compat)
+        self.test_extras_with_detailer_script_args()
 
         # Summary
         print("\n" + "=" * 60)

@@ -343,6 +343,7 @@ class ReqProcess(BaseModel):
     upscaler_1: str = Field(default="None", title="Main upscaler", description=f"The name of the main upscaler to use, it has to be one of this list: {' , '.join([x.name for x in shared.sd_upscalers])}")
     upscaler_2: str = Field(default="None", title="Refine upscaler", description=f"The name of the secondary upscaler to use, it has to be one of this list: {' , '.join([x.name for x in shared.sd_upscalers])}")
     extras_upscaler_2_visibility: float = Field(default=0, title="Refine upscaler visibility", ge=0, le=1, allow_inf_nan=False, description="Sets the visibility of secondary upscaler, values should be between 0 and 1.")
+    script_args: dict | None = Field(default=None, title="Script args", description="Per-script arguments keyed by script name, e.g. {\"Detailer\": {\"strength\": 0.5}, \"Remove background\": {\"model\": \"u2net\"}}.")
 
 class ResProcess(BaseModel):
     html_info: str = Field(title="HTML info", description="A series of HTML tags containing the process info.")
@@ -385,6 +386,36 @@ class ReqProcessBatch(ReqProcess):
 
 class ResProcessBatch(ResProcess):
     images: list[str] = Field(title="Images", description="The generated images in base64 format.")
+
+class ReqDetail(BaseModel):
+    image: str = Field(title="Image", description="Base64-encoded input image to detail")
+    seed: int | None = Field(default=-1, title="Seed", description="Seed for inpainting passes (-1 = random)")
+    detailer_models: list[str] | None = Field(default=None, title="Detailer models", description="List of YOLO detailer model names to run; falls back to shared.opts.detailer_models when omitted")
+    detailer_prompt: str | None = Field(default=None, title="Detailer prompt", description="Override prompt for detailer pass; supports [PROMPT]/[prompt] splice tokens")
+    detailer_negative: str | None = Field(default=None, title="Detailer negative", description="Override negative prompt for detailer pass")
+    detailer_steps: int | None = Field(default=None, ge=0, le=99, title="Detailer steps")
+    detailer_strength: float | None = Field(default=None, ge=0.0, le=1.0, title="Detailer strength")
+    detailer_resolution: int | None = Field(default=None, ge=256, le=4096, title="Detailer resolution")
+    detailer_classes: str | None = Field(default=None, title="Detailer classes", description="Comma-separated class allowlist (e.g. 'face,eye')")
+    detailer_conf: float | None = Field(default=None, ge=0.0, le=1.0, title="Min confidence")
+    detailer_iou: float | None = Field(default=None, ge=0.0, le=1.0, title="Max overlap (IoU)")
+    detailer_max: int | None = Field(default=None, ge=1, title="Max detections")
+    detailer_min_size: float | None = Field(default=None, ge=0.0, le=1.0, title="Min relative size")
+    detailer_max_size: float | None = Field(default=None, ge=0.0, le=1.0, title="Max relative size")
+    detailer_blur: int | None = Field(default=None, ge=0, le=100, title="Mask blur")
+    detailer_padding: int | None = Field(default=None, ge=0, le=100, title="Mask padding")
+    detailer_segmentation: bool | None = Field(default=None, title="Use segmentation", description="Use seg-mask instead of bbox (requires a -seg model)")
+    detailer_merge: bool | None = Field(default=None, title="Merge detections")
+    detailer_sort: bool | None = Field(default=None, title="Sort detections", description="Sort detections left-to-right for consistency")
+    detailer_sigma_adjust: float | None = Field(default=None, ge=0.5, le=1.5, title="Renoise sigma")
+    detailer_sigma_adjust_max: float | None = Field(default=None, ge=0.0, le=1.0, title="Renoise end")
+    detailer_include_detections: bool | None = Field(default=None, title="Include detections", description="Return annotated debug image alongside the detailed result")
+
+class ResDetail(BaseModel):
+    image: str = Field(title="Image", description="Detailed image (base64)")
+    detections: str | None = Field(default=None, title="Detections", description="Annotated debug image (base64) when detailer_include_detections=True")
+    seed: int = Field(default=-1, title="Seed", description="Effective seed used for the detailer pass")
+    info: str = Field(default='', title="Info", description="Postprocessing info string")
 
 class ReqImageInfo(BaseModel):
     image: str = Field(title="Image", description="The base64 encoded image")
