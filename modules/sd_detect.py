@@ -91,8 +91,6 @@ def guess_by_name(fn, current_guess):
         new_guess = 'HiDreamO1'
     elif 'hidream' in fn.lower():
         new_guess = 'HiDream'
-    elif 'hidream' in fn.lower():
-        new_guess = 'HiDream'
     elif 'zeta-chroma' in fn.lower() or 'zetachroma' in fn.lower():
         new_guess = 'ZetaChroma'
     elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
