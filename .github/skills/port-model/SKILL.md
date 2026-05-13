@@ -1,12 +1,12 @@
 ---
 name: port-model
-description: "Port or add a model to SD.Next using existing Diffusers and custom pipeline patterns. Use when implementing a new model loader, custom pipeline, checkpoint conversion path, or SD.Next model-type integration."
+description: "Port or add a model to SD.Next using a phased integration flow: select the least-new-code path that follows SD.Next conventions, then implement loader and routing updates, then validate."
 argument-hint: "Describe the source model, target task, checkpoint format, and whether the model already has a Diffusers pipeline"
 ---
 
 # Port Model To SD.Next And Diffusers
 
-Read the task, identify the model architecture and artifact layout, choose the narrowest integration path that matches existing SD.Next patterns, implement the loader and pipeline wiring, and validate the result.
+Read the task, identify the model architecture and artifact layout, choose the integration path that requires the least amount of new code while adhering to SD.Next patterns, implement the loader and pipeline wiring, and validate the result.
 
 ## When To Use
 
@@ -87,6 +87,12 @@ Useful examples by pattern:
 - Shared Qwen loader pattern: `pipelines/model_z_image.py`, `pipelines/model_flux2_klein.py`
 
 ## Integration Decision Tree
+
+Use this quick order before diving into detailed path requirements:
+
+1. If an upstream Diffusers pipeline already covers the model, choose path 1.
+2. If upstream support is insufficient but the model can be expressed as a Diffusers-style custom package, choose path 2.
+3. If artifacts are raw checkpoints or single-file weights without a usable Diffusers layout, choose path 3.
 
 ### 1. Upstream Diffusers Support Exists
 

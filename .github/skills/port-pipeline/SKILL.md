@@ -1,6 +1,6 @@
 ---
 name: port-pipeline
-description: "Port custom model pipeline implementations to Diffusers. Use when migrating custom or non-Diffusers pipeline code into SD.Next repo-local pipeline files such as pipelines/model_<name>.py or pipelines/<model>/pipeline.py while preserving behavior, avoiding new dependencies, and keeping device/attention handling configurable."
+description: "Port custom model pipeline implementations to Diffusers using phased priorities: preserve behavior first, avoid new dependencies second, and keep device/attention handling configurable throughout. Use when migrating custom or non-Diffusers pipeline code into SD.Next repo-local pipeline files such as pipelines/model_<name>.py or pipelines/<model>/pipeline.py."
 argument-hint: "Provide source pipeline path, target SD.Next destination path, and target pipeline class name"
 ---
 
@@ -26,20 +26,29 @@ Before implementation, confirm these required inputs with the user:
 3. Target pipeline class name
 
 If any of the above are missing or ambiguous, stop and ask concise clarification questions before writing code.
+If the user input is invalid (for example, nonexistent path, non-Python source file, or invalid class name), report the specific validation error and request corrected input before writing code.
 
 ## Constraints
 
+Priority 1 - behavior constraints:
+
+- Preserve externally visible behavior of the source pipeline unless the user asks for intentional changes
+
+Priority 2 - dependency constraints:
+
 - Do not add new dependencies
+
+Priority 3 - runtime configurability constraints:
+
 - Do not hard-code device type (`cpu`, `cuda`, `mps`, etc.)
 - Do not hard-code attention type or backend assumptions
-- Preserve externally visible behavior of the source pipeline unless the user asks for intentional changes
 
 ## Workflow
 
 1. Collect Inputs
 - Ask for source path, destination path, and target pipeline name.
 - Confirm destination is an SD.Next repo-local pipeline location, not an upstream Diffusers repository path.
-- Confirm runtime assumptions and expected task type (text-to-image, image-to-image, inpaint, etc.).
+- Confirm runtime assumptions, including device configuration, memory constraints, and expected task type (text-to-image, image-to-image, inpaint, etc.).
 
 2. Analyze Source Pipeline
 - Inspect model loading, prompt processing, denoising or sampling loop, scheduler interactions, and output post-processing.

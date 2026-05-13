@@ -62,17 +62,27 @@ Use the repo-local validation script before and after doc edits when possible:
 - `test/check-docs wiki/File.md` to validate one or more specific files
 - `test/check-docs --fix wiki/File.md` only when a safe markdownlint auto-fix is appropriate
 
-### 1. Confirm Target And Depth
+### 1. Confirm Target
 
 Extract from user prompt:
 
 - target markdown file(s) in `wiki/`
-- desired depth: syntax-only, readability, or full pass
 - constraints (tone, audience, preserve wording, max rewrite level)
 
 If targets are missing, ask for paths before editing.
 
-### 2. Read And Diagnose
+### 2. Confirm Depth
+
+Extract from user prompt:
+
+- desired depth mode:
+	- syntax-only: fix markdown syntax/rendering issues only; do not rewrite wording or structure beyond what syntax requires
+	- readability: include syntax fixes plus clarity and scanability edits without broad restructuring
+	- full pass: include syntax, readability, structure normalization, terminology consistency, and broader doc cleanup
+
+If depth is missing, default to readability and state that assumption.
+
+### 3. Read And Diagnose
 
 For each target file:
 
@@ -81,7 +91,7 @@ For each target file:
 - Identify readability pain points (dense blocks, weak headings, mixed terminology)
 - Note risky sections where edits may alter meaning
 
-### 3. Normalize Heading Hierarchy
+### 4. Normalize Heading Hierarchy
 
 Apply heading structure rules before deep rewrites:
 
@@ -90,7 +100,7 @@ Apply heading structure rules before deep rewrites:
 - ensure sibling sections use consistent levels
 - rename headings only when it improves clarity without changing meaning
 
-### 4. Apply Syntax Fixes First
+### 5. Apply Syntax Fixes First
 
 Fix rendering/correctness issues first, such as:
 
@@ -101,7 +111,7 @@ Fix rendering/correctness issues first, such as:
 - inconsistent table delimiter rows
 - accidental HTML/markdown mixing that breaks rendering
 
-### 5. Apply Readability Improvements
+### 6. Apply Readability Improvements
 
 Make editorial improvements while preserving meaning:
 
@@ -117,7 +127,7 @@ Apply tone constraints during edits:
 - approachable wording for normal users
 - no unexplained technical babble
 
-### 6. Run Link Integrity Pass
+### 7. Run Link Integrity Pass
 
 Check and fix obvious link issues:
 
@@ -127,7 +137,7 @@ Check and fix obvious link issues:
 
 If link targets cannot be verified from repo context, keep the original target and flag it in the report.
 
-### 7. Add Code Block Language Tags
+### 8. Add Code Block Language Tags
 
 For fenced code blocks:
 
@@ -135,7 +145,7 @@ For fenced code blocks:
 - correct clearly wrong tags
 - leave tag blank only when language cannot be inferred safely
 
-### 8. Run Completion Checks
+### 9. Run Completion Checks
 
 Validate each edited file against this checklist:
 
@@ -147,7 +157,7 @@ Validate each edited file against this checklist:
 - no factual changes introduced
 - tone is concise, technical, and approachable
 
-### 9. Report Results
+### 10. Report Results
 
 Return:
 

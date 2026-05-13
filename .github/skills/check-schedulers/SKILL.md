@@ -1,6 +1,6 @@
 ---
 name: check-schedulers
-description: "Audit scheduler registrations starting from modules/sd_samplers_diffusers.py and verify class loadability, config validity against scheduler capabilities, and SamplerData correctness."
+description: "Run a phased scheduler audit from modules/sd_samplers_diffusers.py: verify class loadability first, then config validity against scheduler capabilities, then SamplerData correctness."
 argument-hint: "Optionally focus on a scheduler subset, such as flow-matching, res4lyf, or parallel schedulers"
 ---
 
@@ -41,7 +41,7 @@ Treat this as a two-level check:
 Notes:
 
 - For non-`torch.nn.Module` schedulers, "compiled" means the scheduler integration path is executable in runtime checks (not necessarily `torch.compile`).
-- If the environment cannot run compile checks, report this explicitly and still complete static validation.
+- If the environment cannot run compile checks, explicitly state this in the findings summary and proceed with static validation only.
 
 ## Procedure
 

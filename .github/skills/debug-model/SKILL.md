@@ -21,15 +21,11 @@ Read the error, identify which integration layer is failing, isolate the smalles
 
 Always debug from the outside in.
 
-1. Detection and routing
-2. Loader arguments and component selection
-3. Checkpoint path and artifact layout
-4. Weight loading and key mapping
-5. Prompt encoding
-6. Sampling forward path
-7. Output postprocessing and SD.Next task integration
+1. Integration entry checks: detection and routing.
+2. Load path checks: loader arguments and component selection, checkpoint path and artifact layout, then weight loading and key mapping.
+3. Runtime path checks: prompt encoding, sampling forward path, and output postprocessing plus SD.Next task integration.
 
-Do not start by rewriting the architecture if the failure is likely in detection, loader wiring, or output handling.
+Do not start by rewriting the architecture when the failure appears in detection, loader wiring, or output handling. Only consider architecture rewrites after these layers are validated and the root cause is confirmed to be architectural.
 
 ## Files To Check First
 

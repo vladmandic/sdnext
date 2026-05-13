@@ -1,12 +1,12 @@
 ---
 name: github-issues
-description: "Read SD.Next GitHub issues with [Issue] in the title and generate a markdown report with short summary, status, and suggested next steps per issue."
+description: "Read SD.Next GitHub issues with the literal string [Issue] in the title and produce a phased markdown report: short summary first, then status, then suggested next steps per issue."
 argument-hint: "Optionally specify state (open/closed/all), max issues, and whether to include labels/assignees"
 ---
 
 # Summarize SD.Next [Issues] GitHub Issues
 
-Fetch issues from the SD.Next GitHub repository that contain `[Issue]` in the title, then produce a concise markdown report with one entry per issue.
+Fetch issues from the SD.Next GitHub repository that contain the literal string `[Issue]` in the title, then produce a concise markdown report with one entry per issue.
 
 ## When To Use
 
@@ -87,6 +87,7 @@ If there are many issues, keep summaries short and prioritize clarity.
 
 ## Reporting Rules
 
+- Prioritize outputs in this order: accuracy first, then concise summaries and actions, then markdown presentation.
 - Keep each issue summary concise and actionable.
 - Do not invent facts not present in issue data.
 - If issue body is sparse, state assumptions explicitly.

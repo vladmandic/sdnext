@@ -1,7 +1,7 @@
 ---
 name: check-models
 description: "Audit SD.Next model integrations end-to-end: loaders, detect/routing, reference catalogs, and pipeline API contracts."
-argument-hint: "Optionally focus on a model family, repo id, or a subset: loader, detect-routing, references, pipeline-contracts"
+argument-hint: "Optionally focus on a specific model family, repo id, or one or more audit categories: loader, detect-routing, references, pipeline-contracts"
 ---
 
 # Check Model Integrations End-To-End
@@ -17,7 +17,7 @@ Run a consolidated model-integration audit that combines loader checks, detect/r
 
 ## Combined Scope
 
-This skill combines four audit surfaces:
+This skill combines four audit surfaces. Run them in this order unless user scope limits categories:
 
 1. Loader consistency (`check-loaders` equivalent)
 2. Detect/routing parity (`check-detect-routing` equivalent)

@@ -32,14 +32,20 @@ This file is the route registration hub and must be treated as the source of tru
 
 ## Audit Goals
 
-For every endpoint, verify:
+For every endpoint, verify in this order:
 
-1. Route method and path are valid and unique after subpath handling.
-2. Handler call signature is compatible with the route declaration.
-3. Declared `response_model` is coherent with returned payload shape.
-4. Request body or query params implied by handler type hints are consistent with expected client usage.
-5. Authentication behavior is intentional (`auth=True` default in `add_api_route`).
-6. OpenAPI schema exposure is correct (including trailing-slash duplicate suppression).
+1. Route validation:
+	- Route method and path are valid and unique after subpath handling.
+2. Handler validation:
+	- Handler call signature is compatible with the route declaration.
+3. Request signature validation:
+	- Request body or query params implied by handler type hints are consistent with expected client usage.
+4. Response signature validation:
+	- Declared `response_model` is coherent with returned payload shape.
+5. Auth validation:
+	- Authentication behavior is intentional (`auth=True` default in `add_api_route`).
+6. OpenAPI validation:
+	- OpenAPI schema exposure is correct (including trailing-slash duplicate suppression).
 
 ## Procedure
 
@@ -91,7 +97,7 @@ If feasible in the current environment:
 - Generate OpenAPI schema and spot-check key endpoints.
 - Confirm trailing-slash duplicate suppression behavior remains correct.
 
-If runtime schema checks are not feasible, explicitly state that and rely on static validation.
+If runtime schema checks are not feasible, include a note in the findings section stating that runtime checks were skipped, then rely on static validation.
 
 ## Reporting Format
 

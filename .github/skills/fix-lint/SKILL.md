@@ -1,6 +1,6 @@
 ---
 name: fix-lint
-description: "Run SD.Next lint workflow tools in order and fix issues as needed, while ignoring lint findings explicitly marked with TODO."
+description: "Run the SD.Next lint workflow in phased order: execute tools in sequence first, then apply minimal fixes, while ignoring findings explicitly marked by TODO comments in code."
 argument-hint: "Optionally focus on a subset of tools or files, otherwise run full workflow"
 ---
 
@@ -43,7 +43,7 @@ Note that `pylint` can run for considerable time, so run with no timeouts.
 ## Fix Policy
 
 - Fix issues reported by each tool before moving on.
-- Ignore lint issues explicitly marked with `TODO`.
+- Ignore lint issues explicitly marked by `TODO` comments in code.
 - Do not suppress errors globally just to pass checks.
 - Keep fixes minimal and targeted to reported findings.
 - Preserve existing project conventions and avoid unrelated refactors.

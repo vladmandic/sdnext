@@ -6,7 +6,7 @@ argument-hint: "Describe which catalog files to audit (or use all), whether to o
 
 # Reference Catalog Maintenance
 
-Use this skill to audit and update SD.Next model reference catalogs with minimal, safe, and deterministic edits.
+Use this skill to audit and update SD.Next model reference catalogs using a phased approach: validate structure first, then resolve duplicates/conflicts, then apply minimal deterministic edits.
 
 ## When To Use
 
@@ -26,10 +26,19 @@ Use this skill to audit and update SD.Next model reference catalogs with minimal
 
 ## Core Rules
 
-- Do not move entries between categories unless explicitly requested or strongly evidenced.
+Priority 1 - data safety and category stability:
+
+- Verify category placement across catalogs and report conflicts first.
+- Move entries between categories only when explicitly requested, or when placement is supported by at least two independent metadata sources.
 - Keep changes targeted to only affected records.
+
+Priority 2 - schema and formatting consistency:
+
 - Preserve existing field names and conventions used by neighboring entries.
 - Prefer deterministic normalization (stable key order, consistent value style).
+
+Priority 3 - assets and size backfill:
+
 - Do not overwrite real thumbnails with placeholders.
 - For `size` backfill, use `cli/hf-info.py` as the primary source of truth.
 
@@ -47,6 +56,7 @@ Use this skill to audit and update SD.Next model reference catalogs with minimal
 3. Cross-catalog consistency
 - Detect likely duplicates across `reference*.json` files.
 - Flag conflicting metadata for the same model key/name.
+- Resolve duplicates by keeping the most complete record in the correct category, then merge missing non-conflicting metadata from duplicate records.
 - Report category conflicts; only auto-fix when rules are explicit.
 
 4. Thumbnail alignment

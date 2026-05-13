@@ -6,7 +6,7 @@ argument-hint: "Optionally focus on specific folders or TODO categories, otherwi
 
 # Audit TODO Markers And Propose Next Steps
 
-Search the repository for TODO markers, collect each actionable item, and produce a markdown report with recommended next steps.
+Run this workflow in order: (1) search the repository for TODO markers, (2) deduplicate results, (3) categorize TODOs, (4) propose actionable next steps, and (5) produce a markdown report.
 
 ## When To Use
 
@@ -38,7 +38,7 @@ Look for common TODO variants such as:
 - `/* TODO */`
 - inline TODO notes in comments or docstrings
 
-Ignore generated/vendor output when clearly not user-maintained.
+Ignore files in common generated or vendor directories (for example `node_modules`, `dist`, `build`, `.venv`, `venv`) unless the user explicitly requests including them.
 
 ## What To Capture
 

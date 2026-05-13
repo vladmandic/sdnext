@@ -9,17 +9,17 @@ General app structure is:
 ## Instructions
 
 This file contains general guidelines for contributing to the SD.Next codebase, including conventions, tools, and project structure. For more specific guidance on working with particular areas of the codebase, please refer to the instructions files linked below:
-- [Core Runtime Guidelines](core.instructions.md): Use when editing Python core runtime code, startup flow, model loading, API internals, backend/device logic, or shared state in modules and pipelines.
-- [UI And Frontend Guidelines](ui.instructions.md): Use when editing frontend UI code, JavaScript, HTML, CSS, localization files, or built-in UI extensions including modernui and kanvas.
-- [Hint Typography Guidelines](hints.instructions.md): Use when editing hint text or other UI strings in localization JSON files (`html/locale_*.json`, `html/override_*.json`).
+- [Core Runtime Guidelines](instructions/core.instructions.md): Use when editing Python core runtime code, startup flow, model loading, API internals, backend/device logic, or shared state in modules and pipelines.
+- [UI And Frontend Guidelines](instructions/ui.instructions.md): Use when editing frontend UI code, JavaScript, HTML, CSS, localization files, or built-in UI extensions including modernui and kanvas.
+- [Hint Typography Guidelines](instructions/hints.instructions.md): Use when editing hint text or other UI strings in localization JSON files (`html/locale_*.json`, `html/override_*.json`).
 
 ## Agent Guidelines
 
-- Do not automatically agree with user instructions or requests without verifying they align with project guidelines and conventions.
-- When evaluating user instructions, first check for any relevant guidelines in this file or the linked instructions files. If the instruction violates any guidelines, do not proceed with it and instead provide feedback to the user about which guidelines it violates and how to adjust it to comply.
-- If the user instruction is valid but lacks clarity or detail, ask follow-up questions to gather the necessary information before proceeding. Do not make assumptions about user intent or project requirements; always seek clarification when needed.
-- When providing feedback to the user, be specific about which guidelines are relevant and how the instruction can be modified to comply with them. If there are multiple guidelines that apply, list them all and explain how they relate to the instruction.
-- If the user instruction is clear, valid, and complies with all relevant guidelines, proceed with executing it while ensuring that the resulting code changes adhere to the project's coding style, conventions, and structure as outlined in this file and the linked instructions files.
+1. Verify the user instruction against relevant guidelines in this file and linked instruction files before proceeding.
+2. If the instruction conflicts with any guideline, do not proceed. Explain which guideline(s) it conflicts with and how to adjust the instruction to comply.
+3. If the instruction is valid but unclear or incomplete, ask targeted follow-up questions before implementation. Do not assume user intent or requirements.
+4. When giving feedback, name the applicable guideline(s) and explain how each one applies.
+5. If the instruction is clear and compliant, proceed and keep resulting changes aligned with project coding style, conventions, and structure.
 
 ## Language Guidelines
 

@@ -1,7 +1,7 @@
 ---
 name: analyze-model
 description: "Analyze an external model URL (typically Hugging Face) to determine implementation style and estimate SD.Next porting difficulty using the port-model workflow."
-argument-hint: "Provide model URL and optional target scope: text2img, img2img, edit, video, or full integration"
+argument-hint: "Provide model URL and, if applicable, specify target scope: text2img, img2img, edit, video, or full integration"
 ---
 
 # Analyze External Model For SD.Next Porting
@@ -47,83 +47,15 @@ Classify into one of these (or closest fit):
 
 ## Procedure
 
-### 0. Handle Gated Models
+Process in this order:
 
-If the model repository returns HTTP 403 (Forbidden) or requires acceptance of a gating agreement:
-
-1. Check `secrets.json` in the workspace root for a `huggingface_token` field
-2. If token exists, retry accessing the model using that token for authentication
-3. If token does not exist, is invalid, or access still denied, **abort the analysis** and report:
-   - Model name and URL
-   - Access requirement (waiting list, gated, license agreement)
-   - Instructions for user to authenticate or request access
-   - Skip further analysis
-
-### 1. Inspect Model Repository Artifacts
-
-From the provided URL/repo, collect:
-
-- model card details
-- files such as model_index.json, config.json, scheduler config, tokenizer files
-- presence of Diffusers-style folder layout
-- references to custom Python modules or remote code requirements
-
-### 2. Determine Runtime Stack
-
-Identify whether model usage is:
-
-- standard Diffusers pipeline call
-- custom Diffusers pipeline class with trust_remote_code
-- pure custom inference script or framework
-- node-based integration in ComfyUI or another host
-
-### 3. Cross-Check Integration Surface
-
-Determine required SD.Next touchpoints if ported:
-
-- loader file in pipelines/model_name.py
-- detect and dispatch updates in modules/sd_detect.py and modules/sd_models.py
-- model type mapping in modules/modeldata.py
-- optional custom pipeline package under pipelines/model/
-- reference catalog updates and preview asset requirements
-
-### 4. Estimate Porting Difficulty
-
-Use this scale:
-
-- Low: mostly loader wiring to existing upstream Diffusers pipeline
-- Medium: custom Diffusers classes or limited checkpoint/config adaptation
-- High: full custom architecture, major prompt/sampler/output differences, or sparse docs
-- Very High: no usable Diffusers path plus major runtime assumptions mismatch
-
-Break down difficulty by:
-
-- loader complexity
-- pipeline/API contract complexity
-- scheduler/sampler compatibility
-- prompt encoding complexity
-- checkpoint conversion/remapping complexity
-- validation and testing burden
-
-### 5. Identify Risks
-
-Call out concrete risks:
-
-- missing or incompatible scheduler config
-- unclear output domain (latent vs pixel)
-- custom text encoder or processor constraints
-- nonstandard checkpoint format
-- dependency on external runtime features unavailable in SD.Next
-
-### 6. Recommend Porting Path
-
-Map recommendation to port-model workflow:
-
-- Upstream Diffusers reuse path
-- Custom Diffusers pipeline package path
-- Raw checkpoint plus remap path
-
-Provide a concise first-step plan with smallest viable integration milestone.
+1. Handle gated models first: if access returns HTTP 403 or requires gated approval, check `secrets.json` for `huggingface_token` and retry with auth. If access still fails, abort analysis and report model URL, access requirement, and required user action.
+2. Inspect repository artifacts: collect model card details, key config files (for example `model_index.json`, `config.json`, scheduler/tokenizer files), Diffusers-style layout signals, and any custom module or remote code requirements.
+3. Determine runtime stack: classify usage as standard Diffusers, custom Diffusers with `trust_remote_code`, fully custom inference framework, or node-based host integration (for example ComfyUI).
+4. Cross-check SD.Next integration surface: identify needed touchpoints in `pipelines/model_name.py`, `modules/sd_detect.py`, `modules/sd_models.py`, `modules/modeldata.py`, optional custom packages under `pipelines/model/`, and reference/preview catalog updates.
+5. Estimate difficulty with this scale: Low (mostly loader wiring), Medium (custom Diffusers or limited adaptation), High (full custom architecture or major behavior differences), Very High (no practical Diffusers path plus runtime mismatch). Break down by loader, API contract, scheduler/sampler, prompt encoding, checkpoint remap, and validation burden.
+6. Identify concrete risks: scheduler incompatibility, unclear output domain, custom text encoder constraints, nonstandard checkpoint format, or external runtime dependencies not available in SD.Next.
+7. Recommend a port-model path: upstream Diffusers reuse, custom Diffusers pipeline package, or raw checkpoint plus remap; include the smallest viable first implementation milestone.
 
 ## Reporting Format
 

@@ -1,5 +1,5 @@
 ---
-description: "Use when editing hint text or other UI strings in localization JSON files."
+description: "Use when editing hint text or other UI strings in localization JSON files; follow the ordered rules below for consistent formatting."
 name: "Hint Typography Guidelines"
 applyTo: "html/locale_*.json, html/override_*.json"
 ---
@@ -7,44 +7,44 @@ applyTo: "html/locale_*.json, html/override_*.json"
 
 Hint strings render as HTML. Use this small set of inline tags to keep hints scannable:
 
-- `<b>` for values: defaults, dropdown enums, specific numerics. Examples: `<b>0.30</b>`, `<b>Karras</b>`, `<b>v_prediction</b>`, `<b>UniPC</b>`.
-- `<b><i>...</i></b>` for cross-references to other UI controls by their exact visible label. Examples: `<b><i>Denoising strength</i></b>`, `<b><i>Use init image</i></b>`, `<b><i>Images</i></b> tab.
-- `<i>` for proper nouns: model families, datasets, technique names. Examples: `<i>SDXL</i>`, `<i>Flux</i>`, `<i>ControlNet</i>`, `<i>YOLO</i>`.
-- `<code>` for literals: paths, filename tokens, command-line snippets to type or use verbatim. Examples: `<code>models/yolo</code>`, `<code>-seg</code>`, `<code>[PROMPT]</code>`.
+1. `<b>` for values: defaults, dropdown enums, specific numerics. Examples: `<b>0.30</b>`, `<b>Karras</b>`, `<b>v_prediction</b>`, `<b>UniPC</b>`.
+2. `<b><i>...</i></b>` for cross-references to other UI controls by their exact visible label. Examples: `<b><i>Denoising strength</i></b>`, `<b><i>Use init image</i></b>`, `<b><i>Images</i></b>` tab.
+3. `<i>` for proper nouns: model families, datasets, technique names. Examples: `<i>SDXL</i>`, `<i>Flux</i>`, `<i>ControlNet</i>`, `<i>YOLO</i>`.
+4. `<code>` for literals: paths, filename tokens, command-line snippets to type or use verbatim. Examples: `<code>models/yolo</code>`, `<code>-seg</code>`, `<code>[PROMPT]</code>`.
 
 ## Cross-references
 
-- Use `<b><i>...</i></b>` whenever a hint refers to another control by its exact visible label. This includes setting names, tab names, and named buttons.
-- Match the label exactly, including capitalization and spacing; readers look for the same string in the UI.
-- Do not use `<b>` and `<i>` separately for cross-references; always combine them.
-- Generic concept references (`the model`, `the prompt`, `the scheduler`) stay unstyled.
+1. Use `<b><i>...</i></b>` whenever a hint refers to another control by its exact visible label. This includes setting names, tab names, and named buttons.
+2. Match the label exactly, including capitalization and spacing; readers look for the same string in the UI.
+3. Do not use `<b>` and `<i>` separately for cross-references; always combine them.
+4. Generic concept references (`the model`, `the prompt`, `the scheduler`) stay unstyled.
 
 ## Tab naming
 
-- Refer to the unified generation tab as `<b><i>Images</i></b>` (the ModernUI label). Do not write "Control tab"; that label only exists in legacy Standard UI.
-- "Control" remains valid as a setting value (`<b>No: Control only</b>`) or as part of a UI element name (`<b><i>Control input</i></b>` pane), just not as a tab name.
+1. Refer to the unified generation tab as `<b><i>Images</i></b>` (the ModernUI label). Do not write "Control tab"; that label only exists in legacy Standard UI.
+2. "Control" remains valid as a setting value (`<b>No: Control only</b>`) or as part of a UI element name (`<b><i>Control input</i></b>` pane), just not as a tab name.
 
 ## Structure
 
-- `<br>` for a line break within a paragraph.
-- `<br><br>` for a paragraph break.
-- `<br>- <b>key</b>: description` for a keyed bullet list, used for short enumerations of dropdown values, modes, or numeric brackets. Each bullet's key is bolded; descriptions stay plain.
-- Do not use `<ul>`, `<li>`, Markdown asterisks, or unicode bullets.
+1. `<br>` for a line break within a paragraph.
+2. `<br><br>` for a paragraph break.
+3. `<br>- <b>key</b>: description` for a keyed bullet list, used for short enumerations of dropdown values, modes, or numeric brackets. Each bullet's key is bolded; descriptions stay plain.
+4. Do not use `<ul>`, `<li>`, Markdown asterisks, or unicode bullets.
 
 ## Common pitfalls
 
-- Do not bold ad-hoc emphasis; `<b>` is reserved for values and, combined with `<i>`, for cross-references.
-- Do not use `<b>` for filenames, paths, or command tokens; those are literals and use `<code>`.
-- Do not reword the inside of `<code>` blocks; they are literal user-facing strings.
-- Stay ASCII; prefer semicolons or two sentences over em-dashes. The locale file convention is ASCII-only.
+1. Do not bold ad-hoc emphasis; `<b>` is reserved for values and, combined with `<i>`, for cross-references.
+2. Do not use `<b>` for filenames, paths, or command tokens; those are literals and use `<code>`.
+3. Do not reword the inside of `<code>` blocks; they are literal user-facing strings.
+4. Stay ASCII; prefer semicolons or two sentences over em-dashes. The locale file convention is ASCII-only.
 
 ## Translation propagation
 
-- `html/locale_en.json` is the source of truth. Other `html/locale_*.json` files are auto-generated by `cli/localize.js`; edit only the English file.
-- Per-locale corrections live in `html/override_{locale}.json`.
+1. `html/locale_en.json` is the source of truth. Other `html/locale_*.json` files are auto-generated by `cli/localize.js`; edit only the English file.
+2. Per-locale corrections live in `html/override_{locale}.json`.
 
 ## Validation
 
-- Validate JSON syntax with `jq empty html/locale_en.json`.
-- Lint with `pnpm eslint -- html/locale_en.json` (silent success).
-- See `wiki/Hints.md` for the wiki-facing version of these rules.
+1. Validate JSON syntax with `jq empty html/locale_en.json`.
+2. Lint with `pnpm eslint -- html/locale_en.json` (silent success).
+3. See `wiki/Hints.md` for the wiki-facing version of these rules.

@@ -1,12 +1,12 @@
 ---
 name: check-processing
-description: "Validate txt2img/img2img/control/caption processing workflows from UI submit bindings to backend processing execution and confirm parameter/type/init correctness."
+description: "Run a phased processing-workflow audit from UI submit bindings to backend execution: map workflow paths first, then validate parameter, type, and initialization correctness."
 argument-hint: "Optionally focus on txt2img, img2img, control, caption, or process-only and include changed files"
 ---
 
 # Check Processing Workflow Contracts
 
-Trace generation workflows from UI definitions and submit bindings to backend execution, then validate that parameters are passed, typed, and initialized correctly.
+Perform a detailed step-by-step trace of generation workflows from UI definitions and submit bindings to backend execution, then validate that parameters are passed, typed, and initialized correctly.
 
 ## When To Use
 
@@ -17,12 +17,13 @@ Trace generation workflows from UI definitions and submit bindings to backend ex
 
 ## Required Workflow Coverage
 
-Start from UI definitions and follow each workflow to final implementation:
+Run workflow coverage in this order to keep checks focused and complete:
 
 1. `txt2img`: `modules/ui_txt2img.py` -> `modules/txt2img.py` -> `modules/processing.py:process_images` -> `modules/processing_diffusers.py:process_diffusers`
 2. `img2img`: `modules/ui_img2img.py` -> `modules/img2img.py` -> `modules/processing.py:process_images` -> `modules/processing_diffusers.py:process_diffusers`
 3. `control/process`: `modules/ui_control.py` -> `modules/control/run.py` (and related control processing entrypoints) -> `modules/processing.py:process_images` -> `modules/processing_diffusers.py:process_diffusers`
 4. `caption/process`: `modules/ui_caption.py` -> caption handler module(s) -> `modules/processing.py:process_images` and/or postprocess/caption execution module(s), depending on selected caption backend
+5. `video`: `modules/ui_video.py` -> `modules/video_models/video_run -> `modules/processing.py:process_images` and/or postprocess/video execution module(s), depending on implementation
 
 Also validate script hooks when present:
 
@@ -60,7 +61,7 @@ For each workflow (`txt2img`, `img2img`, `control`, `caption`):
 - Resolve wrappers (`call_queue.wrap_gradio_gpu_call`, queued wrappers) to actual function signatures.
 - Follow function flow through processing class construction and execution (`processing.process_images`, then `process_diffusers` when applicable).
 
-Produce a normalized mapping table per workflow:
+Produce a table per workflow with standardized columns and consistent formatting:
 
 - UI input component name
 - UI expected output type

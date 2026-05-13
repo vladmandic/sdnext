@@ -9,6 +9,7 @@
 - Reimplement `llama` remover for Kanvas, @vladmandic
 - Implement [pruna](https://github.com/PrunaAI/pruna), @vladmandic
 - Change params to default, @vladmandic
+- Use `caption` to analyze image consistency/quality, @vladmandic
 
 - Detailer postprocessing, @CalamitousFelicitousness
 - Cloud providers, @CalamitousFelicitousness
