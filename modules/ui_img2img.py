@@ -29,13 +29,7 @@ def process_caption(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_singl
             log.error('Caption: Output directory not provided for uploaded files')
             return [gr.update(), None]
         for image_path in image_paths:
-            if not os.path.isfile(image_path):
-                continue
-            try:
-                img = Image.open(image_path)
-            except Exception as e:
-                log.warning(f'Caption: Skipping file="{image_path}" error={e}')
-                continue
+            img = Image.open(image_path)
             filename = os.path.basename(image_path)
             left, _ = os.path.splitext(filename)
             with open(os.path.join(ii_output_dir, f"{left}.txt"), 'a', encoding='utf-8') as f:
