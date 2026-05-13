@@ -2,6 +2,13 @@
 
 ## Update for 2026-05-13
 
+- **AI**
+  - Cognitive analysis and improvements to *all* AI prompts
+  - Automated fixes using `/check-` skills
+  - Automated syntax, spelling and readability improvements to `/wiki` pages
+
+## Update for 2026-05-13
+
 ### Highlights for 2026-05-13
 
 Just two weeks since last release, but we have a lot of new models and features to cover!
