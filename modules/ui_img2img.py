@@ -15,21 +15,31 @@ def process_caption(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_singl
         return [caption(ii_singles[mode]["image"]), None]
     if mode == 5:
         if len(ii_input_files) > 0:
-            images = [f.name for f in ii_input_files]
+            image_paths = [f.name for f in ii_input_files]
         else:
             if not os.path.isdir(ii_input_dir):
                 log.error(f"Caption: Input directory not found: {ii_input_dir}")
                 return [gr.update(), None]
-            images = os.listdir(ii_input_dir)
+            image_paths = [os.path.join(ii_input_dir, f) for f in os.listdir(ii_input_dir)]
         if ii_output_dir != "":
             os.makedirs(ii_output_dir, exist_ok=True)
-        else:
+        elif os.path.isdir(ii_input_dir):
             ii_output_dir = ii_input_dir
-        for image in images:
-            img = Image.open(image)
-            filename = os.path.basename(image)
+        else:
+            log.error('Caption: Output directory not provided for uploaded files')
+            return [gr.update(), None]
+        for image_path in image_paths:
+            if not os.path.isfile(image_path):
+                continue
+            try:
+                img = Image.open(image_path)
+            except Exception as e:
+                log.warning(f'Caption: Skipping file="{image_path}" error={e}')
+                continue
+            filename = os.path.basename(image_path)
             left, _ = os.path.splitext(filename)
-            print(caption(img), file=open(os.path.join(ii_output_dir, f"{left}.txt"), 'a', encoding='utf-8')) # pylint: disable=consider-using-with
+            with open(os.path.join(ii_output_dir, f"{left}.txt"), 'a', encoding='utf-8') as f:
+                print(caption(img), file=f)
     return [gr.update(), None]
 
 
