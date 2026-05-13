@@ -418,10 +418,10 @@ def post_pnginfo(req: models.ReqImageInfo):
     """Extract generation parameters from a PNG image's metadata. Returns raw info string and parsed parameters dict."""
     from modules import images, script_callbacks, infotext
     if not req.image.strip():
-        return models.ResImageInfo(info="")
+        return models.ResImageInfo(info="", items={}, parameters={})
     image = helpers.decode_base64_to_image(req.image.strip())
     if image is None:
-        return models.ResImageInfo(info="")
+        return models.ResImageInfo(info="", items={}, parameters={})
     geninfo, items = images.read_info_from_image(image)
     if geninfo is None:
         geninfo = ""
