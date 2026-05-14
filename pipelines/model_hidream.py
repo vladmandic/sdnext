@@ -47,20 +47,25 @@ def load_hidream_o1(checkpoint_info, diffusers_load_config=None):
     o1_load_config = diffusers_load_config.copy()
     o1_load_config['trust_remote_code'] = True
 
+    path_args = {}
+    if 'vladmandic' in repo_id.lower():
+        path_args['subfolder'] = 'transformer'
     transformer = HiDreamO1Qwen3VLTransformer.from_pretrained(
         repo_id,
         cache_dir=shared.opts.hfcache_dir,
         trust_remote_code=True,
-        subfolder='transformer' if 'vladmandic' in repo_id.lower() else None,
+        **path_args,
         **load_args,
         **quant_args,
     )
     if shared.opts.diffusers_offload_mode != 'none' and transformer is not None:
         sd_models.move_model(transformer, devices.cpu)
 
+    if 'vladmandic' in repo_id.lower():
+        path_args['subfolder'] = 'processor'
     processor = transformers.AutoProcessor.from_pretrained(
         repo_id,
-        subfolder='processor' if 'vladmandic' in repo_id.lower() else None,
+        **path_args,
         cache_dir=shared.opts.hfcache_dir,
         trust_remote_code=True,
     )
