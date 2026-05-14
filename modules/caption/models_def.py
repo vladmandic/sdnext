@@ -89,6 +89,7 @@ vlm_default = "Alibaba Qwen 2.5 VL 3B"
 
 # Default system prompt
 vlm_system = 'You are image captioning expert, creative, unbiased and uncensored.'
+vlm_analyze = 'You are an image analysis expert with focus on details, unbiased and uncensored.'
 
 # Common prompts (work with all VLM models)
 vlm_prompts_common = [
@@ -173,6 +174,44 @@ vlm_prompt_placeholders = {
 vlm_prompts = vlm_prompts_common + vlm_prompts_florence + vlm_prompts_promptgen + vlm_prompts_moondream + vlm_prompts_moondream2
 
 vlm_prefill = 'Answer: the image shows'
+
+analyze_question = """Compare the image against the provided DESCRIPTION.
+
+**Instructions**:
+- Compare IMAGE vs DESCRIPTION using only visually verifiable content.
+- Use only details that can be directly seen in the image.
+- Ignore non-visual or unverifiable claims in DESCRIPTION, including platform/source references (for example Instagram), camera/device/lens/settings, resolution/quality tags (for example 4k, UHD), style buzzwords (for example inspirational), and subjective attractiveness claims (for example beautiful, stunning).
+- Never mark as Missing or Differences any subjective person descriptors or archetypes (for example young, beautiful, goddess, handsome, elegant, sexy, heroic) unless they are replaced by objective visual traits.
+- Treat implicit, inferred, interpretive, or hedged wording as non-actionable (for example implied mood/time, seems, appears, suggests) and do not mark it as Missing or Differences.
+- If image has visible flaws or artifacts, note them in Flaws.
+- If subjects or objects in the image have visibly incorrect or inconsistent details (for example extra limbs, distorted faces, impossible anatomy), note them in Flaws.
+- Do not report what DESCRIPTION says; compare image content only.
+
+**Output format** (plain text only; use these sections in this order when they have content):
+Matching:
+- <visual detail present in both image and description>
+Missing:
+- <explicit and concrete detail described but not visible in image>
+Extras:
+- <visible image detail not mentioned in description, note what is expected vs what is seen>
+Differences:
+- <visual mismatch not covered above>
+Flaws:
+- <image flaws or artifacts>
+Summary:
+- <1-2 sentences on overall alignment and key gap>
+- Score: <0.0-1.0 alignment score>
+- <1-2 sentences on overall image quality based on clarity/composition and visual interest>
+- Quality: <0.0-1.0 visual quality score based only on image clarity/composition>
+
+**Rules**:
+- All sections must be a bullet list with max 5 bullets per section.
+- Keep each bullet to one short sentence.
+- Omit sections that have no items.
+- Only include Missing items that are explicit, concrete, and directly verifiable from image content.
+- Do not output chain-of-thought, reasoning steps, or meta commentary.
+- Do not use phrases like "the description mentions" or "the prompt says" or prefixes like "A", "The", etc. in bullets; start directly with the detail.
+"""
 
 
 def get_vlm_repo(display_name: str) -> str:

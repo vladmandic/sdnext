@@ -31,6 +31,7 @@ log_cost = {
     "/sdapi/v1/memory": -1,
     "/sdapi/v1/platform": -1,
     "/sdapi/v1/checkpoint": -1,
+    "/sdapi/v1/gpu-smi": -1,
     "/sdapi/v1/status": 60,
     "/sdapi/v1/progress": 60,
 }

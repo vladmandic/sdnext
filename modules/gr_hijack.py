@@ -1,6 +1,6 @@
 import time
 from PIL import Image
-import gradio as gr
+import gradio
 import gradio.processing_utils
 from modules import scripts_manager, patches, gr_tempdir
 from modules.logger import log
@@ -13,7 +13,7 @@ original_BlockContext_init = None
 original_Blocks_get_config_file = None
 
 
-def process_kanvas(self, x): # only used when kanvas overrides gr.Image object
+def process_kanvas(self, x): # only used when kanvas overrides gradio.Image object
     import numpy as np
     t0 = time.time()
     image_data = list(x.get('image', {}).values())
@@ -72,7 +72,7 @@ def gr_image_preprocess(self, x):
 
 def add_classes_to_gradio_component(comp):
     """
-    this adds gradio-* to the component for css styling (ie gradio-button to gr.Button), as well as some others
+    this adds gradio-* to the component for css styling (ie gradio-button to gradio.Button), as well as some others
     """
     comp.elem_classes = [f"gradio-{comp.get_block_name()}", *(comp.elem_classes or [])]
     if getattr(comp, 'multiselect', False):
@@ -150,10 +150,26 @@ def reset_gradio_sessions(job_id):
 
 
 def patch_gradio():
-    orig_cancel_tasks = gradio.utils.cancel_tasks
-    orig_restore_session_state = gradio.route_utils.restore_session_state
-    orig_call_prediction = gradio.queueing.Queue.call_prediction
-    orig_blocks_preprocess_data = gradio.blocks.Blocks.preprocess_data
+    try:
+        orig_cancel_tasks = gradio.utils.cancel_tasks
+    except Exception:
+        log.error(f'Gradio patch: version={gradio.__version__} cancel_tasks not found')
+        orig_cancel_tasks = None
+    try:
+        orig_restore_session_state = gradio.route_utils.restore_session_state
+    except Exception:
+        log.error(f'Gradio patch: version={gradio.__version__} restore_session_state not found')
+        orig_restore_session_state = None
+    try:
+        orig_call_prediction = gradio.queueing.Queue.call_prediction
+    except Exception:
+        log.error(f'Gradio patch: version={gradio.__version__} call_prediction not found')
+        orig_call_prediction = None
+    try:
+        orig_blocks_preprocess_data = gradio.blocks.Blocks.preprocess_data
+    except Exception:
+        log.error(f'Gradio patch: version={gradio.__version__} preprocess_data not found')
+        orig_blocks_preprocess_data = None
 
     async def wrap_cancel_tasks(task_ids: set[str]):
         log.error(f'Gradio cancel: task={task_ids}')
@@ -208,10 +224,14 @@ def patch_gradio():
             log.error(f"Gradio preprocess: {e}")
             raise
 
-    gradio.queueing.Queue.call_prediction = wrap_call_prediction
-    gradio.route_utils.restore_session_state = wrap_restore_session_state
-    gradio.utils.cancel_tasks = wrap_cancel_tasks
-    gradio.blocks.Blocks.preprocess_data = wrap_blocks_preprocess_data
+    if orig_call_prediction is not None:
+        gradio.queueing.Queue.call_prediction = wrap_call_prediction
+    if orig_restore_session_state is not None:
+        gradio.route_utils.restore_session_state = wrap_restore_session_state
+    if orig_cancel_tasks is not None:
+        gradio.utils.cancel_tasks = wrap_cancel_tasks
+    if orig_blocks_preprocess_data is not None:
+        gradio.blocks.Blocks.preprocess_data = wrap_blocks_preprocess_data
 
 
 def patch_gradio_future():
@@ -248,14 +268,14 @@ def init():
     global hijacked, original_IOComponent_init, original_Block_get_config, original_BlockContext_init, original_Blocks_get_config_file # pylint: disable=global-statement
     if hijacked:
         return
-    gr.components.Image.preprocess =  gr_image_preprocess
-    if hasattr(gr.components, 'IOComponent'):
-        gr.components.IOComponent.pil_to_temp_file =  gr_tempdir.pil_to_temp_file
-        original_IOComponent_init = patches.patch(__name__, obj=gr.components.IOComponent, field="__init__", replacement=IOComponent_init)
-    original_Block_get_config = patches.patch(__name__, obj=gr.blocks.Block, field="get_config", replacement=Block_get_config)
-    original_BlockContext_init = patches.patch(__name__, obj=gr.blocks.BlockContext, field="__init__", replacement=BlockContext_init)
-    original_Blocks_get_config_file = patches.patch(__name__, obj=gr.blocks.Blocks, field="get_config_file", replacement=Blocks_get_config_file)
+    gradio.components.Image.preprocess =  gr_image_preprocess
+    if hasattr(gradio.components, 'IOComponent'):
+        gradio.components.IOComponent.pil_to_temp_file =  gr_tempdir.pil_to_temp_file
+        original_IOComponent_init = patches.patch(__name__, obj=gradio.components.IOComponent, field="__init__", replacement=IOComponent_init)
+    original_Block_get_config = patches.patch(__name__, obj=gradio.blocks.Block, field="get_config", replacement=Block_get_config)
+    original_BlockContext_init = patches.patch(__name__, obj=gradio.blocks.BlockContext, field="__init__", replacement=BlockContext_init)
+    original_Blocks_get_config_file = patches.patch(__name__, obj=gradio.blocks.Blocks, field="get_config_file", replacement=Blocks_get_config_file)
     patch_gradio()
-    if not gr.__version__.startswith('3.43'):
+    if not gradio.__version__.startswith('3.43'):
         patch_gradio_future()
     hijacked = True

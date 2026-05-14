@@ -76,9 +76,9 @@ If targets are missing, ask for paths before editing.
 Extract from user prompt:
 
 - desired depth mode:
-	- syntax-only: fix markdown syntax/rendering issues only; do not rewrite wording or structure beyond what syntax requires
-	- readability: include syntax fixes plus clarity and scanability edits without broad restructuring
-	- full pass: include syntax, readability, structure normalization, terminology consistency, and broader doc cleanup
+  - syntax-only: fix markdown syntax/rendering issues only; do not rewrite wording or structure beyond what syntax requires
+  - readability: include syntax fixes plus clarity and scanability edits without broad restructuring
+  - full pass: include syntax, readability, structure normalization, terminology consistency, and broader doc cleanup
 
 If depth is missing, default to readability and state that assumption.
 

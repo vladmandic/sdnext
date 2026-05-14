@@ -8,7 +8,7 @@ Provides three specialized backends and one unified dispatch endpoint:
 - POST /sdapi/v1/vqa       — Vision-Language Models (Qwen, Gemma, Florence, Moondream, etc.)
 
 **Dispatch endpoint** (discriminated union routed by ``backend`` field):
-- POST /sdapi/v1/caption   — Routes to any backend via ``backend: "openclip" | "tagger" | "vlm"``
+- POST /sdapi/v1/caption   — Routes to any backend via ``backend: "openclip" | "tagger" | "vlm" | "analyze"``
 
 **Discovery endpoints** (GET, no request body):
 - GET /sdapi/v1/openclip       — List available OpenCLIP models
@@ -22,7 +22,7 @@ The dispatch endpoint uses a discriminated union (ReqCaptionDispatch) and a supe
 response model (ResCaptionDispatch) that includes fields from all backends.
 
 Core processing logic is shared between direct and dispatch handlers via
-``do_openclip``, ``do_tagger``, and ``do_vqa`` functions to avoid duplication.
+``do_openclip``, ``do_tagger``, and ``do_caption`` functions to avoid duplication.
 """
 
 import threading
@@ -212,9 +212,13 @@ class ReqCaptionVLM(BaseModel):
     keep_prefill: bool | None = Field(default=None, title="Keep Prefill", description="Keep prefill text in final output.")
 
 
+class ReqCaptionAnalyze(ReqCaptionVLM):
+    backend: Literal["analyze"] = Field(..., description="Backend selector. Use 'analyze' for detailed image analysis using VLM.")
+
+
 # Discriminated union for the dispatch endpoint
 ReqCaptionDispatch = Annotated[
-    ReqCaptionOpenCLIP | ReqCaptionTagger | ReqCaptionVLM,
+    ReqCaptionOpenCLIP | ReqCaptionTagger | ReqCaptionVLM | ReqCaptionAnalyze,
     Field(discriminator="backend")
 ]
 
@@ -225,7 +229,7 @@ class ResCaptionDispatch(BaseModel):
     Contains fields from all backends - only relevant fields are populated based on the backend used.
     """
     # Common
-    backend: str = Field(title="Backend", description="The backend that processed the request: 'openclip', 'tagger', or 'vlm'.")
+    backend: str = Field(title="Backend", description="The backend that processed the request: 'openclip', 'tagger', 'vlm', or 'analyze'.")
     # OpenCLIP fields
     caption: str | None = Field(default=None, title="Caption", description="Generated caption (OpenCLIP backend).")
     medium: str | None = Field(default=None, title="Medium", description="Detected artistic medium (OpenCLIP with analyze=True).")
@@ -310,7 +314,7 @@ def build_vqa_kwargs(req) -> dict:
     return kwargs or None
 
 
-def do_vqa(image, req):
+def do_caption(image, req):
     """Core VLM captioning logic shared by direct and dispatch endpoints.
 
     Returns (answer, annotated_b64).
@@ -320,6 +324,43 @@ def do_vqa(image, req):
         question=req.question,
         system_prompt=req.system,
         prompt=req.prompt or '',
+        image=image,
+        model_name=req.model,
+        prefill=req.prefill,
+        thinking_mode=req.thinking_mode,
+        generation_kwargs=build_vqa_kwargs(req)
+    )
+    if isinstance(answer, str) and answer.startswith('Error:'):
+        raise HTTPException(status_code=422, detail=answer)
+    annotated_b64 = None
+    if req.include_annotated:
+        annotated_img = vqa.get_last_annotated_image()
+        if annotated_img is not None:
+            annotated_b64 = helpers.encode_pil_to_base64(annotated_img)
+    return answer, annotated_b64
+
+
+def do_analyze(image, req):
+    from modules.caption import vqa
+    from modules.caption.models_def import analyze_question
+    if req.question is None or len(req.question.strip()) < 2:
+        question = analyze_question
+    else:
+        question = req.question.strip()
+    if req.prompt is None or len(req.prompt.strip()) < 2:
+        from modules import images, infotext
+        info, _items = images.read_info_from_image(image)
+        items = infotext.parse(info)
+        prompt = (items.get('Prompt', None) or items.get('prompt', None)) if isinstance(items, dict) else None
+        if prompt is None:
+            return 'Error: No prompt found in image metadata.', None
+    else:
+        prompt = req.prompt.strip()
+    prompt = f"{question}\n\nDESCRIPTION: {prompt}"
+    answer = vqa.analyze(
+        question="Use Prompt",
+        system_prompt=req.system,
+        prompt=prompt,
         image=image,
         model_name=req.model,
         prefill=req.prefill,
@@ -496,7 +537,13 @@ def post_vqa(req: ReqVQA):
     - ``422``: Model returned an error (e.g., unsupported task for model)
     """
     image = validate_image(req.image)
-    answer, annotated_b64 = do_vqa(image, req)
+    answer, annotated_b64 = do_caption(image, req)
+    return ResVQA(answer=answer, annotated_image=annotated_b64)
+
+
+def post_analyze(req: ReqVQA):
+    image = validate_image(req.image)
+    answer, annotated_b64 = do_analyze(image, req)
     return ResVQA(answer=answer, annotated_image=annotated_b64)
 
 
@@ -518,9 +565,13 @@ def post_caption_dispatch(req: ReqCaptionDispatch):
        WaifuDiffusion or DeepBooru anime/illustration tagging. Response populates ``tags``
        (and ``scores`` when ``show_scores=True``).
 
-    3. **VLM** (``backend: "vlm"``):
+     3. **VLM** (``backend: "vlm"``):
        Vision-Language Models for flexible image understanding. Response populates ``answer``
        (and ``annotated_image`` when ``include_annotated=True`` with detection tasks).
+
+     4. **Analyze** (``backend: "analyze"``):
+         VLM-powered prompt analysis path that extracts or uses supplied prompt text and returns
+         an analysis response in ``answer`` (and ``annotated_image`` when available).
 
     **Direct Endpoints** (backend-specific models, simpler interface):
     - POST /sdapi/v1/openclip — OpenCLIP only
@@ -542,8 +593,12 @@ def post_caption_dispatch(req: ReqCaptionDispatch):
         return ResCaptionDispatch(backend="tagger", tags=tags, scores=scores)
     elif req.backend == "vlm":
         image = validate_image(req.image)
-        answer, annotated_b64 = do_vqa(image, req)
+        answer, annotated_b64 = do_caption(image, req)
         return ResCaptionDispatch(backend="vlm", answer=answer, annotated_image=annotated_b64)
+    elif req.backend == 'analyze':
+        image = validate_image(req.image)
+        answer, annotated_b64 = do_analyze(image, req)
+        return ResCaptionDispatch(backend="analyze", answer=answer, annotated_image=annotated_b64)
     else:
         raise HTTPException(status_code=400, detail=f"Unknown backend: {req.backend}")
 
@@ -667,6 +722,7 @@ def register_api(api):
     api.add_api_route("/sdapi/v1/caption", post_caption_dispatch, methods=["POST"], response_model=ResCaptionDispatch, tags=["Caption"])
     api.add_api_route("/sdapi/v1/openclip", post_caption, methods=["POST"], response_model=ResCaption, tags=["Caption"])
     api.add_api_route("/sdapi/v1/vqa", post_vqa, methods=["POST"], response_model=ResVQA, tags=["Caption"])
+    api.add_api_route("/sdapi/v1/analyze", post_analyze, methods=["POST"], response_model=ResVQA, tags=["Caption"])
     api.add_api_route("/sdapi/v1/vqa/models", get_vqa_models, methods=["GET"], response_model=list[ItemVLMModel], tags=["Caption"])
     api.add_api_route("/sdapi/v1/vqa/prompts", get_vqa_prompts, methods=["GET"], response_model=ResVLMPrompts, tags=["Caption"])
     api.add_api_route("/sdapi/v1/tagger", post_tagger, methods=["POST"], response_model=ResTagger, tags=["Caption"])

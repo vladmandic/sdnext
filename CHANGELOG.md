@@ -2,12 +2,18 @@
 
 ## Update for 2026-05-14
 
+- **Features**
+  - **Captioning** new feature: analyze existing images for prompt adherence  
+    *tip*: image analysis requires larger VLM model to produce quality output  
+    new api endpoint: `/sdapi/v1/analyze`  
 - **AI**
   - Cognitive analysis and improvements to *all* AI prompts
   - Automated fixes using `/check-` skills
   - Automated syntax, spelling and readability improvements to `/wiki` pages
 - **Fixes**
   - *hidream-o1* prequant loading
+  - `gradio` initial hijack
+  - `SmolVLM` captioning
 
 ## Update for 2026-05-13
 

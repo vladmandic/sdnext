@@ -13,15 +13,48 @@ from modules import shared, devices, errors, model_quant, sd_models, sd_models_c
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log, console
 from modules.caption import vqa_detection
-from modules.caption.models_def import vlm_models, vlm_system, vlm_default, vlm_prefill, vlm_prompts, vlm_prompt_mapping, vlm_prompt_placeholders, vlm_prompts_common, vlm_prompts_florence, vlm_prompts_moondream, vlm_prompts_moondream2, vlm_prompts_promptgen, get_vlm_repo
+from modules.caption.models_def import vlm_models, vlm_system, vlm_analyze, vlm_default, vlm_prefill, vlm_prompts, vlm_prompt_mapping, vlm_prompt_placeholders, vlm_prompts_common, vlm_prompts_florence, vlm_prompts_moondream, vlm_prompts_moondream2, vlm_prompts_promptgen, analyze_question, get_vlm_repo # pylint: disable=unused-import
 
 # Debug logging - function-based to avoid circular import
 debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
+
 
 def debug(*args, **kwargs):
     if debug_enabled:
         log.trace(*args, **kwargs)
 
+
+class BatchWriter:
+    def __init__(self, folder, mode='w', fmt='txt', filename=None):
+        self.folder = folder
+        self.file = None
+        self.mode = mode
+        self.format = fmt
+        self.entries = []
+        self.filename = filename
+
+    def add(self, file, text):
+        if self.format == 'txt':
+            txt_file = os.path.splitext(file)[0] + ".txt" if not self.filename else self.filename
+            if self.mode == 'a':
+                text = '\n' + text
+            with open(os.path.join(self.folder, txt_file), self.mode, encoding='utf-8') as f:
+                f.write(text)
+        if self.format == 'json':
+            json_file = os.path.splitext(file)[0] + ".json" if not self.filename else self.filename
+            self.mode = 'w'
+            try:
+                dct = json.loads(text)
+                entry = {"file": file, **dct}
+            except Exception:
+                entry = {"file": file, "answer": text}
+            self.entries.append(entry)
+            with open(os.path.join(self.folder, json_file), self.mode, encoding='utf-8') as f:
+                f.write(json.dumps(self.entries, ensure_ascii=False, indent=2))
+
+    def close(self):
+        if self.file is not None:
+            self.file.close()
 
 
 def get_prompts_for_model(model_name: str) -> list:
@@ -213,7 +246,8 @@ def clean(response, question, prefill=None):
     else:
         # Remove prefill if it's present in the cleaned response
         if len(prefill_text) > 0 and response.startswith(prefill_text):
-            response = response[len(prefill_text):].strip()
+            response = response[len(prefill_text):]
+    response = response.replace('\n\n', '\n').strip()
 
     return response
 
@@ -759,7 +793,7 @@ class VQA:
             self.loaded = repo
             devices.torch_gc()
 
-    def _mistral(self, question: str, image: Image.Image, repo: str, system_prompt: str | None = None, model_name: str | None = None, prefill: str | None = None, thinking_mode: bool = False):
+    def _mistral(self, question: str, image: Image.Image, repo: str, system_prompt: str | None = None, model_name: str | None = None, prefill: str | None = None, thinking_mode: bool = False): # pylint: disable=unused-argument
         self._load_mistral(repo)
         move_aux_to_gpu('vqa')
         cls_name = self.model.__class__.__name__
@@ -911,7 +945,7 @@ class VQA:
             log.debug(f'Caption load: vlm="{repo}"')
             self._unload_current()
             quant_args = model_quant.create_config(module='LLM')
-            self.model = transformers.AutoModelForVision2Seq.from_pretrained(
+            self.model = transformers.AutoModelForImageTextToText.from_pretrained(
                 repo,
                 cache_dir=shared.opts.hfcache_dir,
                 torch_dtype=devices.dtype,
@@ -1358,7 +1392,7 @@ class VQA:
         self.last_annotated_image = None
         self.last_detection_data = None
         self._generation_overrides = generation_kwargs  # Set per-request overrides
-        jobid = shared.state.begin('Caption LLM')
+        jobid = shared.state.begin('VLM')
         t0 = time.time()
         model_name = model_name or shared.opts.caption_vlm_model
         prefill = vlm_prefill if prefill is None else prefill  # Use provided prefill when specified
@@ -1379,7 +1413,7 @@ class VQA:
             return 'Error: No input image provided. Please upload or select an image.'
 
         # Convert friendly prompt names to internal tokens/commands
-        if question == "Use Prompt":
+        if question.lower() == "use prompt":
             # Use content from Prompt field directly - requires user input
             if not prompt or len(prompt.strip()) < 2:
                 log.error(f'VQA caption: model="{model_name}" error="Please enter a prompt"')
@@ -1401,21 +1435,21 @@ class VQA:
             question = get_internal_prompt(question, prompt)
         # else: question is already an internal token or custom text
 
-        from modules import modelloader
-        modelloader.hf_login()
-        sd_models.set_caption_load_options()
+        if model_name is None:
+            log.error(f'Caption: type=vlm model="{model_name}" no model selected')
+            shared.state.end(jobid)
+            return ''
+        vqa_model = get_vlm_repo(model_name)
+        if vqa_model == model_name and model_name not in vlm_models.values():
+            log.error(f'Caption: type=vlm model="{model_name}" unknown')
+            shared.state.end(jobid)
+            return ''
+        if self.model is None or self.loaded != vqa_model:
+            from modules import modelloader
+            modelloader.hf_login()
+            sd_models.set_caption_load_options()
 
         try:
-            if model_name is None:
-                log.error(f'Caption: type=vlm model="{model_name}" no model selected')
-                shared.state.end(jobid)
-                return ''
-            vqa_model = get_vlm_repo(model_name)
-            if vqa_model == model_name and model_name not in vlm_models.values():
-                log.error(f'Caption: type=vlm model="{model_name}" unknown')
-                shared.state.end(jobid)
-                return ''
-
             handler = 'unknown'
             if 'git' in vqa_model.lower():
                 handler = 'git'
@@ -1519,26 +1553,43 @@ class VQA:
         shared.state.end(jobid)
         return answer
 
+    def analyze(
+        self,
+        question: str = "",
+        system_prompt: str | None = None,
+        prompt: str | None = None,
+        image: list[Image.Image] | Image.Image | dict | None = None,
+        model_name: str | None = None,
+        prefill: str | None = None, # pylint: disable=unused-argument
+        thinking_mode: bool | None = None,
+        quiet: bool = False,
+        generation_kwargs: dict | None = None,
+    ) -> str:
+        if question is None or len(question.strip()) < 2:
+            question = analyze_question
+        if prompt is None or len(prompt.strip()) < 2:
+            from modules import images, infotext
+            info, _items = images.read_info_from_image(image)
+            items = infotext.parse(info)
+            prompt = (items.get('Prompt', None) or items.get('prompt', None)) if isinstance(items, dict) else None
+            if prompt is None:
+                log.error('VQA analyze: no prompt found in image metadata')
+                return 'Error: No prompt found in image metadata.'
+        prompt = f"{question}\n\nDESCRIPTION: {prompt}"
+        answer = self.caption(
+            question="Use Prompt",
+            system_prompt=system_prompt,
+            prompt=prompt,
+            image=image,
+            model_name=model_name,
+            prefill='',
+            thinking_mode=thinking_mode,
+            quiet=quiet,
+            generation_kwargs=generation_kwargs,
+        )
+        return answer
 
-    def batch(self, model_name, system_prompt, batch_files, batch_folder, batch_str, question, prompt, write, append, recursive, prefill=None, thinking_mode=False):
-        class BatchWriter:
-            def __init__(self, folder, mode='w'):
-                self.folder = folder
-                self.csv = None
-                self.file = None
-                self.mode = mode
-
-            def add(self, file, prompt_text):
-                txt_file = os.path.splitext(file)[0] + ".txt"
-                if self.mode == 'a':
-                    prompt_text = '\n' + prompt_text
-                with open(os.path.join(self.folder, txt_file), self.mode, encoding='utf-8') as f:
-                    f.write(prompt_text)
-
-            def close(self):
-                if self.file is not None:
-                    self.file.close()
-
+    def batch(self, model_name, system_prompt, batch_files, batch_folder, batch_str, question, prompt, save_txt, append_txt, save_json, recursive, prefill=None, thinking_mode=False, vlm_mode='caption'):
         files = []
         if batch_files is not None:
             files += [f.name for f in batch_files]
@@ -1552,34 +1603,47 @@ class VQA:
             return ''
         jobid = shared.state.begin('Caption batch')
         prompts = []
-        if write:
-            mode = 'w' if not append else 'a'
-            writer = BatchWriter(os.path.dirname(files[0]), mode=mode)
+        if save_txt:
+            mode = 'w' if not append_txt else 'a'
+            writer_txt = BatchWriter(folder=os.path.dirname(files[0]), mode=mode, fmt='txt')
+        if save_json:
+            writer_json = BatchWriter(folder=os.path.dirname(files[0]), fmt='json', filename=f'{vlm_mode}.json')
         orig_offload = shared.opts.caption_offload
         shared.opts.caption_offload = False
         try:
             import rich.progress as rp
-            pbar = rp.Progress(rp.TextColumn('[cyan]Caption:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
+            pbar = rp.Progress(rp.TextColumn('[cyan]VLM:'), rp.BarColumn(), rp.MofNCompleteColumn(), rp.TaskProgressColumn(), rp.TimeRemainingColumn(), rp.TimeElapsedColumn(), rp.TextColumn('[cyan]{task.description}'), console=console)
             with pbar:
                 task = pbar.add_task(total=len(files), description='starting...')
                 for file in files:
-                    pbar.update(task, advance=1, description=file)
+                    pbar.update(task, advance=1, description=f'file={file}')
                     try:
                         if shared.state.interrupted:
                             break
-                        img = Image.open(file)
-                        result = self.caption(question, system_prompt, prompt, img, model_name, prefill, thinking_mode, quiet=True)
-                        # Save annotated image if available
-                        if self.last_annotated_image and write:
+                        try:
+                            img = Image.open(file)
+                        except Exception:
+                            continue
+                        if vlm_mode == 'caption':
+                            result = self.caption(question, system_prompt, prompt, img, model_name, prefill, thinking_mode, quiet=True)
+                        elif vlm_mode == 'analyze':
+                            result = self.analyze(question, system_prompt, prompt, img, model_name, prefill, thinking_mode, quiet=True)
+                        else:
+                            result = f'Unknown mode: {vlm_mode}'
+                        if self.last_annotated_image and (save_txt or save_json): # save annotated image if available
                             annotated_path = os.path.splitext(file)[0] + "_annotated.png"
                             self.last_annotated_image.save(annotated_path)
                         prompts.append(result)
-                        if write:
-                            writer.add(file, result)
+                        if save_txt:
+                            writer_txt.add(file, result)
+                        if save_json:
+                            writer_json.add(file, result)
                     except Exception as e:
                         log.error(f'Caption batch: {e}')
-            if write:
-                writer.close()
+            if save_txt:
+                writer_txt.close()
+            if save_json:
+                writer_json.close()
         finally:
             shared.opts.caption_offload = orig_offload
             offload_aux('vqa')
@@ -1603,6 +1667,9 @@ def get_instance() -> VQA:
 def caption(*args, **kwargs):
     return get_instance().caption(*args, **kwargs)
 
+
+def analyze(*args, **kwargs):
+    return get_instance().analyze(*args, **kwargs)
 
 
 def unload_model():

@@ -6,14 +6,38 @@ from modules.caption import openclip
 
 default_task = "Normal Caption"
 
-def vlm_caption_wrapper(question, system_prompt, prompt, image, model_name, prefill, thinking_mode):
-    """Wrapper for vqa.caption that handles annotated image display."""
-    from modules.caption import vqa
-    answer = vqa.caption(question, system_prompt, prompt, image, model_name, prefill, thinking_mode)
-    annotated_image = vqa.get_last_annotated_image()
-    if annotated_image is not None:
-        return answer, gr.update(value=annotated_image, visible=True)
-    return answer, gr.update(visible=False)
+
+def caption_wrapper(tab, image,
+                    vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode,
+                    analyze_question, analyze_system, analyze_prompt, analyze_model,
+                    clip_model, blip_model, clip_mode,
+                    wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape,
+                   ):
+    """Wrapper for vqa.caption, vqa.analysis, openclip.caption_image, tagger.tag."""
+    if tab <= 0:
+        log.debug('Caption: mode="VLM Caption"')
+        from modules.caption import vqa
+        answer = vqa.caption(vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode)
+        annotated_image = vqa.get_last_annotated_image()
+        if annotated_image is not None:
+            return answer, gr.update(value=annotated_image, visible=True)
+        return answer, gr.update(visible=False)
+    elif tab == 1:
+        log.debug('Caption: mode="VLM Analyze"')
+        from modules.caption import vqa
+        answer = vqa.analyze(analyze_question, analyze_system, analyze_prompt, image, analyze_model, vlm_thinking_mode)
+        return answer, gr.update(visible=False)
+    elif tab == 2:
+        log.debug('Caption: mode="OpenCLIP"')
+        caption = openclip.caption_image(image, clip_model, blip_model, clip_mode)
+        return caption, gr.update(visible=False)
+    elif tab == 3:
+        log.debug('Caption: mode="Tagger"')
+        tags = tagger_tag_wrapper(image, wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape)
+        return tags, gr.update(visible=False)
+    else:
+        log.error(f'Caption: mode={tab} unknown')
+        return 'Unknown caption mode', gr.update(visible=False)
 
 
 def update_vlm_prompts_for_model(model_name):
@@ -153,6 +177,7 @@ def create_ui():
             with gr.Row():
                 image = gr.Image(type='pil', label="Image", height=512, visible=True, image_mode='RGB', elem_id='caption_image')
             with gr.Tabs(elem_id="mode_caption"):
+
                 with gr.Tab("VLM Caption", elem_id="tab_vlm_caption"):
                     from modules.caption import vqa
                     current_vlm_model = shared.opts.caption_vlm_model or vqa.vlm_default
@@ -201,13 +226,47 @@ def create_ui():
                         with gr.Row():
                             vlm_batch_str = gr.Textbox(label="Folder", value="", interactive=True, elem_id='vlm_batch_str')
                         with gr.Row():
-                            vlm_save_output = gr.Checkbox(label='Save Caption Files', value=True, elem_id="vlm_save_output")
+                            vlm_save_txt = gr.Checkbox(label='Save Caption Files', value=True, elem_id="vlm_save_output")
                             vlm_save_append = gr.Checkbox(label='Append Caption Files', value=False, elem_id="vlm_save_append")
+                            vlm_save_json = gr.Checkbox(label='Save Caption JSON', value=True, elem_id="vlm_save_json")
                             vlm_folder_recursive = gr.Checkbox(label='Recursive', value=False, elem_id="vlm_folder_recursive")
                         with gr.Row(elem_id='caption_buttons_batch'):
                             btn_vlm_caption_batch = gr.Button("Batch Caption", variant='primary', elem_id="btn_vlm_caption_batch")
                     with gr.Row():
                         btn_vlm_caption = gr.Button("Caption", variant='primary', elem_id="btn_vlm_caption")
+
+                with gr.Tab("VLM Analyze", elem_id="tab_vlm_analyze"):
+                    from modules.caption import vqa
+                    analyze_question_placeholder = 'Enter your analysis question or leave blank to use default'
+                    analyze_prompt_placeholder = 'Enter your prompt to match with image or leave blank to use image metadata'
+                    with gr.Row():
+                        analyze_system = gr.Textbox(label="System Prompt", value=vqa.vlm_analyze, lines=1, elem_id='analyze_system')
+                    with gr.Row():
+                        analyze_question = gr.Textbox(label="Question", placeholder=analyze_question_placeholder, lines=1, elem_id='analyze_question')
+                    with gr.Row():
+                        analyze_prompt = gr.Textbox(label="Prompt", placeholder=analyze_prompt_placeholder, lines=2, elem_id='analyze_prompt')
+                    with gr.Row(elem_id='caption_buttons_query'):
+                        analyze_model = gr.Dropdown(list(vqa.vlm_models), value=current_vlm_model, label='VLM Model', elem_id='analyze_model')
+                    with gr.Row():
+                        analyze_load_btn = gr.Button(value='Load', elem_id='analyze_load', variant='secondary')
+                        analyze_unload_btn = gr.Button(value='Unload', elem_id='analyze_unload', variant='secondary')
+                    with gr.Accordion(label='Analyze: Batch', open=False, visible=True):
+                        with gr.Row():
+                            analyze_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='analyze_batch_files')
+                        with gr.Row():
+                            analyze_batch_folder = gr.File(label="Folder", show_label=True, file_count='directory', file_types=['image'], interactive=True, height=100, elem_id='analyze_batch_folder')
+                        with gr.Row():
+                            analyze_batch_str = gr.Textbox(label="Folder", value="", interactive=True, elem_id='analyze_batch_str')
+                        with gr.Row():
+                            analyze_save_txt = gr.Checkbox(label='Save Analysis Files', value=True, elem_id="analyze_save_txt")
+                            analyze_save_append = gr.Checkbox(label='Append Analysis Files', value=False, elem_id="analyze_save_append")
+                            analyze_save_json = gr.Checkbox(label='Save Analysis JSON', value=False, elem_id="analyze_save_json")
+                            analyze_folder_recursive = gr.Checkbox(label='Recursive', value=False, elem_id="analyze_folder_recursive")
+                        with gr.Row(elem_id='caption_buttons_batch'):
+                            btn_analyze_caption_batch = gr.Button("Batch Analysis", variant='primary', elem_id="btn_analyze_caption_batch")
+                    with gr.Row():
+                        btn_analyze_caption = gr.Button("Analyze", variant='primary', elem_id="btn_analyze_caption")
+
                 with gr.Tab("OpenCLiP", elem_id='tab_openclip'):
                     with gr.Row():
                         clip_model = gr.Dropdown([], value=shared.opts.caption_openclip_model, label='CLiP Model', elem_id='clip_clip_model')
@@ -244,8 +303,9 @@ def create_ui():
                         with gr.Row():
                             btn_clip_caption_batch = gr.Button("Batch Caption", variant='primary', elem_id="btn_clip_caption_batch")
                     with gr.Row():
-                        btn_clip_caption_img = gr.Button("Caption", variant='primary', elem_id="btn_clip_caption_img")
-                        btn_clip_analyze_img = gr.Button("Analyze", variant='primary', elem_id="btn_clip_analyze_img")
+                        btn_clip_caption_img = gr.Button("CLiP Caption", variant='primary', elem_id="btn_clip_caption_img")
+                        btn_clip_analyze_img = gr.Button("CLiP Analyze", variant='primary', elem_id="btn_clip_analyze_img")
+
                 with gr.Tab("Tagger", elem_id='tab_tagger'):
                     from modules.caption import tagger
                     with gr.Row():
@@ -294,6 +354,7 @@ def create_ui():
                             label="Default Caption Type",
                             elem_id="default_caption_type"
                         )
+
         with gr.Column(variant='compact', elem_id='caption_output'):
             with gr.Row(elem_id='caption_output_prompt'):
                 prompt = gr.Textbox(label="Answer", lines=12, placeholder="ai generated image description")
@@ -309,13 +370,69 @@ def create_ui():
             with gr.Row(elem_id='copy_buttons_caption'):
                 copy_caption_buttons = generation_parameters_copypaste.create_buttons(["txt2img", "img2img", "control", "extras"])
 
-    btn_clip_caption_img.click(openclip.caption_image, inputs=[image, clip_model, blip_model, clip_mode], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
-    btn_clip_analyze_img.click(openclip.analyze_image, inputs=[image, clip_model, blip_model], outputs=[medium, artist, movement, trending, flavor, clip_labels_text]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
-    btn_clip_caption_batch.click(fn=openclip.caption_batch, inputs=[clip_batch_files, clip_batch_folder, clip_batch_str, clip_model, blip_model, clip_mode, clip_save_output, clip_save_append, clip_folder_recursive], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
-    btn_vlm_caption.click(fn=vlm_caption_wrapper, inputs=[vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode], outputs=[prompt, output_image])
-    btn_vlm_caption_batch.click(fn=vqa.batch, inputs=[vlm_model, vlm_system, vlm_batch_files, vlm_batch_folder, vlm_batch_str, vlm_question, vlm_prompt, vlm_save_output, vlm_save_append, vlm_folder_recursive, vlm_prefill, vlm_thinking_mode], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
-    btn_wd_tag.click(fn=tagger_tag_wrapper, inputs=[image, wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
-    btn_wd_tag_batch.click(fn=tagger_batch_wrapper, inputs=[wd_model, wd_batch_files, wd_batch_folder, wd_batch_str, wd_save_output, wd_save_append, wd_folder_recursive, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape], outputs=[prompt]).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+    dummy = gr.Label(value='-1', visible=False)
+    btn_vlm_caption.click(
+        _js="getCaptionActiveTab", # js to insert current tab name as first argument
+        fn=caption_wrapper,
+        inputs=[dummy, image,
+                vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode,
+                analyze_question, analyze_system, analyze_prompt, analyze_model,
+                clip_model, blip_model, clip_mode,
+                wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape
+               ],
+        outputs=[prompt, output_image]
+    )
+    vlm_batch = gr.State('caption')
+    btn_vlm_caption_batch.click(
+        fn=vqa.batch,
+        inputs=[vlm_model, vlm_system, vlm_batch_files, vlm_batch_folder, vlm_batch_str, vlm_question, vlm_prompt, vlm_save_txt, vlm_save_append, vlm_save_json, vlm_folder_recursive, vlm_prefill, vlm_thinking_mode, vlm_batch],
+        outputs=[prompt]
+    ).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+
+    btn_analyze_caption.click(
+        _js="getCaptionActiveTab", # js to insert current tab name as first argument
+        fn=caption_wrapper,
+        inputs=[dummy, image,
+                vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode,
+                analyze_question, analyze_system, analyze_prompt, analyze_model,
+                clip_model, blip_model, clip_mode,
+                wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape
+               ],
+        outputs=[prompt, output_image]
+    )
+    analyze_batch = gr.State('analyze')
+    btn_analyze_caption_batch.click(
+        fn=vqa.batch,
+        inputs=[analyze_model, analyze_system, analyze_batch_files, analyze_batch_folder, analyze_batch_str, analyze_question, analyze_prompt, analyze_save_txt, analyze_save_append, analyze_save_json,analyze_folder_recursive, vlm_prefill, vlm_thinking_mode, analyze_batch],
+        outputs=[prompt]
+    ).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+
+    btn_clip_caption_img.click(
+        fn=openclip.caption_image,
+        inputs=[image, clip_model, blip_model, clip_mode],
+        outputs=[prompt]
+    ).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+    btn_clip_analyze_img.click(
+        fn=openclip.analyze_image,
+        inputs=[image, clip_model, blip_model],
+        outputs=[medium, artist, movement, trending, flavor, clip_labels_text]
+    ).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+
+    btn_wd_tag.click(
+        fn=tagger_tag_wrapper,
+        inputs=[image, wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape],
+        outputs=[prompt]
+    ).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+    btn_wd_tag_batch.click(
+        fn=tagger_batch_wrapper,
+        inputs=[wd_model, wd_batch_files, wd_batch_folder, wd_batch_str, wd_save_output, wd_save_append, wd_folder_recursive, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape],
+        outputs=[prompt]
+    ).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
+    btn_clip_caption_batch.click(
+        fn=openclip.caption_batch,
+        inputs=[dummy, clip_batch_files, clip_batch_folder, clip_batch_str, clip_model, blip_model, clip_mode, clip_save_output, clip_save_append, clip_folder_recursive],
+        outputs=[prompt]
+    ).then(fn=lambda: gr.update(visible=False), inputs=[], outputs=[output_image])
 
     # Dynamic UI updates based on selected model and task
     vlm_model.change(fn=update_vlm_prompts_for_model, inputs=[vlm_model], outputs=[vlm_question])
@@ -324,6 +441,9 @@ def create_ui():
     # Load/Unload model buttons
     vlm_load_btn.click(fn=vqa.load_model, inputs=[vlm_model], outputs=[])
     vlm_unload_btn.click(fn=vqa.unload_model, inputs=[], outputs=[])
+    analyze_load_btn.click(fn=vqa.load_model, inputs=[vlm_model], outputs=[])
+    analyze_unload_btn.click(fn=vqa.unload_model, inputs=[], outputs=[])
+
     def tagger_load_wrapper(model_name):
         from modules.caption import tagger
         return tagger.load_model(model_name)

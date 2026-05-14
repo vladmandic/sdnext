@@ -35,17 +35,17 @@ This file is the route registration hub and must be treated as the source of tru
 For every endpoint, verify in this order:
 
 1. Route validation:
-	- Route method and path are valid and unique after subpath handling.
+  - Route method and path are valid and unique after subpath handling.
 2. Handler validation:
-	- Handler call signature is compatible with the route declaration.
+  - Handler call signature is compatible with the route declaration.
 3. Request signature validation:
-	- Request body or query params implied by handler type hints are consistent with expected client usage.
+  - Request body or query params implied by handler type hints are consistent with expected client usage.
 4. Response signature validation:
-	- Declared `response_model` is coherent with returned payload shape.
+  - Declared `response_model` is coherent with returned payload shape.
 5. Auth validation:
-	- Authentication behavior is intentional (`auth=True` default in `add_api_route`).
+  - Authentication behavior is intentional (`auth=True` default in `add_api_route`).
 6. OpenAPI validation:
-	- OpenAPI schema exposure is correct (including trailing-slash duplicate suppression).
+  - OpenAPI schema exposure is correct (including trailing-slash duplicate suppression).
 
 ## Procedure
 

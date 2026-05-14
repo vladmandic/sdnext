@@ -252,6 +252,11 @@ function create_submit_args(args) {
   return res;
 }
 
+function getCaptionActiveTab(...args) {
+  const res = create_tab_index_args('mode_caption', args);
+  return res;
+}
+
 function showSubmitButtons(tabname, show) {}
 
 function clearGallery(tabname) {
