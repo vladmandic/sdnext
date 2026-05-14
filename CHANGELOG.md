@@ -1,11 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-13
+## Update for 2026-05-14
 
 - **AI**
   - Cognitive analysis and improvements to *all* AI prompts
   - Automated fixes using `/check-` skills
   - Automated syntax, spelling and readability improvements to `/wiki` pages
+- **Fixes**
+  - *hidream-o1* prequant loading
 
 ## Update for 2026-05-13
 
