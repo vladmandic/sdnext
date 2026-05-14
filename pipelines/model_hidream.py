@@ -51,6 +51,7 @@ def load_hidream_o1(checkpoint_info, diffusers_load_config=None):
         repo_id,
         cache_dir=shared.opts.hfcache_dir,
         trust_remote_code=True,
+        subfolder='transformer' if 'vladmandic' in repo_id.lower() else None,
         **load_args,
         **quant_args,
     )
@@ -59,6 +60,7 @@ def load_hidream_o1(checkpoint_info, diffusers_load_config=None):
 
     processor = transformers.AutoProcessor.from_pretrained(
         repo_id,
+        subfolder='processor' if 'vladmandic' in repo_id.lower() else None,
         cache_dir=shared.opts.hfcache_dir,
         trust_remote_code=True,
     )
