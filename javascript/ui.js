@@ -107,7 +107,7 @@ function extract_image_from_gallery(gallery) {
 function send_to_kanvas(gallery) {
   const [image] = extract_image_from_gallery(gallery);
   log('sendToKanvas', image);
-  if (window.loadFromURL && image.data) window.loadFromURL(image.data);
+  if (window.loadFromURL && image && image.data) window.loadFromURL(image.data);
 }
 
 async function setTheme(val, old) {

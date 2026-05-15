@@ -132,14 +132,6 @@
     "date": "2025 January",
     "skip": true
   },
-  "Anima Preview 3": {
-    "path": "CalamitousFelicitousness/Anima-Preview-3-sdnext-diffusers",
-    "preview": "CalamitousFelicitousness--Anima-Preview-3-sdnext-diffusers.jpg",
-    "desc": "Anima Preview V3 with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
-    "tags": "community",
-    "date": "2026 April",
-    "skip": true
-  },
   "FireRed Image Edit 1.0": {
     "path": "FireRedTeam/FireRed-Image-Edit-1.0",
     "preview": "FireRedTeam--FireRed-Image-Edit-1.0.jpg",

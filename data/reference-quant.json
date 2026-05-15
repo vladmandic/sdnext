@@ -255,22 +255,20 @@
     "tags": "distilled",
     "date": "2026 April"
   },
-  "Anima Preview 3 sdnq-dynamic-int8": {
-    "path": "vladmandic/Anima-Preview-3-diffusers-SDNQ-8bit-dynamic",
-    "preview": "CalamitousFelicitousness--Anima-Preview-3-sdnext-diffusers.jpg",
-    "desc": "Anima Preview V3 with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
-    "tags": "community",
-    "date": "2026 April",
-    "size": 3.19,
+  "Anima 1.0 Base sdnq-svd-dynamic-uint4": {
+    "path": "vladmandic/Anima-1.0-Base-sdnq-svd-dynamic-uint4",
+    "preview": "vladmandic--Anima-1.0-Base.jpg",
+    "desc": "Anima 1.0 Base with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
+    "date": "2026 May",
+    "size": 2.41,
     "skip": true
   },
-  "Anima Preview 3 Turbo sdnq-dynamic-int8": {
-    "path": "vladmandic/Anima-Preview-3-turbo-diffusers-SDNQ-8bit-dynamic",
-    "preview": "CalamitousFelicitousness--Anima-Preview-3-sdnext-diffusers.jpg",
-    "desc": "Anima Preview V3 with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
-    "tags": "community",
-    "date": "2026 April",
-    "size": 3.19,
+  "Anima 1.0 Turbo sdnq-svd-dynamic-uint4": {
+    "path": "vladmandic/Anima-1.0-Turbo-sdnq-svd-dynamic-uint4",
+    "preview": "vladmandic--Anima-1.0-Turbo.jpg",
+    "desc": "Anima 1.0 Turbo with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
+    "date": "2026 May",
+    "size": 2.41,
     "skip": true
   },
   "HiDream-O1 Image sdnq-dynamic-int8": {

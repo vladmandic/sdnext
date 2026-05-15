@@ -1,7 +1,10 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-14
+## Update for 2026-05-15
 
+- **Models**
+  - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
+    in both original precision and SDNQ-4bit quantiztion  
 - **Features**
   - **Captioning** new feature: analyze existing images for prompt adherence  
     *tip*: image analysis requires larger VLM model to produce quality output  

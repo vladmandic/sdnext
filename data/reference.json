@@ -277,6 +277,14 @@
     "size": 12.11,
     "date": "2026 April"
   },
+  "Anima 1.0 Base": {
+    "path": "vladmandic/Anima-1.0-Base",
+    "preview": "vladmandic--Anima-1.0-Base.jpg",
+    "desc": "Anima 1.0 Base with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
+    "date": "2026 May",
+    "size": 5.5,
+    "skip": true
+  },
   "Meituan LongCat Image": {
     "path": "meituan-longcat/LongCat-Image",
     "preview": "meituan-longcat--LongCat-Image.jpg",
