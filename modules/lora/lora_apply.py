@@ -149,7 +149,7 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
     weight, new_weight = None, None
     if not bias and hasattr(self, "sdnq_dequantizer"):
         try:
-            from modules.sdnq import sdnq_quantize_layer
+            from modules.sdnq import SDNQConfig, sdnq_quantize_layer
             if hasattr(self, "sdnq_dequantizer_backup"):
                 use_svd = bool(self.sdnq_svd_up_backup is not None)
                 dequantize_fp32 = bool(self.sdnq_scale_backup.dtype == torch.float32)
@@ -179,23 +179,25 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
 
             new_weight = dequant_weight.to(devices.device, dtype=torch.float32) + lora_weights.to(devices.device, dtype=torch.float32)
             self.weight = torch.nn.Parameter(new_weight, requires_grad=False)
-            del self.sdnq_dequantizer, self.scale, self.zero_point, self.svd_up, self.svd_down
+            self.sdnq_dequantizer = self.scale = self.zero_point = self.svd_up = self.svd_down = None
             self = sdnq_quantize_layer(
                 self,
-                weights_dtype=sdnq_dequantizer.weights_dtype,
-                quantized_matmul_dtype=sdnq_dequantizer.quantized_matmul_dtype,
-                torch_dtype=sdnq_dequantizer.result_dtype,
-                group_size=sdnq_dequantizer.group_size,
-                svd_rank=sdnq_dequantizer.svd_rank,
-                use_quantized_matmul=sdnq_dequantizer.use_quantized_matmul,
-                use_quantized_matmul_conv=sdnq_dequantizer.use_quantized_matmul,
-                use_svd=use_svd,
-                dequantize_fp32=dequantize_fp32,
-                svd_steps=shared.opts.sdnq_svd_steps,
-                quant_conv=True, # quant_conv is True if conv layers ends up here
-                non_blocking=False,
-                quantization_device=devices.device,
-                return_device=device,
+                SDNQConfig(
+                    weights_dtype=sdnq_dequantizer.weights_dtype,
+                    quantized_matmul_dtype=sdnq_dequantizer.quantized_matmul_dtype,
+                    torch_dtype=sdnq_dequantizer.result_dtype,
+                    group_size=sdnq_dequantizer.group_size,
+                    svd_rank=sdnq_dequantizer.svd_rank,
+                    use_quantized_matmul=sdnq_dequantizer.use_quantized_matmul,
+                    use_quantized_matmul_conv=sdnq_dequantizer.use_quantized_matmul,
+                    use_svd=use_svd,
+                    dequantize_fp32=dequantize_fp32,
+                    svd_steps=shared.opts.sdnq_svd_steps,
+                    quant_conv=True, # quant_conv is True if conv layers ends up here
+                    non_blocking=False,
+                    quantization_device=devices.device,
+                    return_device=device,
+                ),
                 param_name=getattr(self, 'network_layer_name', None),
             )[0].to(device)
             weight = None
