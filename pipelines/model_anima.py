@@ -64,13 +64,23 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=Anima repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    # download custom pipeline modules from repo
-    try:
-        pipeline_file = hf.hf_hub_download(repo_id, filename='pipeline.py', cache_dir=shared.opts.diffusers_dir)
-        adapter_file = hf.hf_hub_download(repo_id, filename='llm_adapter/modeling_llm_adapter.py', cache_dir=shared.opts.diffusers_dir)
-    except Exception as e:
-        log.error(f'Load model: type=Anima failed to download custom modules: {e}')
-        return None
+    # load-or-download custom pipeline modules from repo
+    if os.path.exists(os.path.join(repo_id, 'pipeline.py')):
+        pipeline_file = os.path.join(repo_id, 'pipeline.py')
+    else:
+        try:
+            adapter_file = hf.hf_hub_download(repo_id, filename='llm_adapter/modeling_llm_adapter.py', cache_dir=shared.opts.diffusers_dir)
+        except Exception as e:
+            log.error(f'Load model: type=Anima failed to download custom modules: {e}')
+            return None
+    if os.path.exists(os.path.join(repo_id, 'llm_adapter/modeling_llm_adapter.py')):
+        adapter_file = os.path.join(repo_id, 'llm_adapter/modeling_llm_adapter.py')
+    else:
+        try:
+            adapter_file = hf.hf_hub_download(repo_id, filename='llm_adapter/modeling_llm_adapter.py', cache_dir=shared.opts.diffusers_dir)
+        except Exception as e:
+            log.error(f'Load model: type=Anima failed to download custom modules: {e}')
+            return None
 
     # dynamically import custom classes and register in sys.modules so
     # Diffusers' from_pretrained can resolve them via trust_remote_code

@@ -336,7 +336,7 @@ def sdnq_quantize_layer(layer, quantization_config: "SDNQConfig", torch_dtype: t
 @devices.inference_context()
 def apply_sdnq_to_module(model, quantization_config: "SDNQConfig", torch_dtype: torch.dtype | None = None, full_param_name: str = ""): # pylint: disable=unused-argument
     if not list(model.children()):
-        return model
+        return model, quantization_config
     for module_name, module in model.named_children():
         if full_param_name:
             param_name = full_param_name + "." + module_name
