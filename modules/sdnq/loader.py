@@ -4,7 +4,9 @@ import torch
 from diffusers.models.modeling_utils import ModelMixin
 
 from .common import dtype_dict, is_fp8_mm_supported, use_tensorwise_fp8_matmul, check_torch_compile, conv_types, linear_types
-from .quantizer import SDNQConfig, sdnq_post_load_quant, prepare_weight_for_matmul, prepare_svd_for_matmul, get_quant_args_from_config
+from .quantizer import SDNQConfig, sdnq_post_load_quant
+from .quant_utils import prepare_weight_for_matmul, prepare_svd_for_matmul
+from .utils import get_quant_args_from_config, check_param_name_in
 from .forward import get_forward_func
 from .file_loader import load_files
 
@@ -191,16 +193,24 @@ def post_process_model(model):
     return model
 
 
-def apply_sdnq_options_to_module(model, dtype: torch.dtype | None = None, dequantize_fp32: bool | None = None, use_quantized_matmul: bool | None = None):
+def apply_sdnq_options_to_module(model, quantization_config: SDNQConfig, dtype: torch.dtype | None = None, dequantize_fp32: bool | None = None, use_quantized_matmul: bool | None = None, full_param_name: str = ""):
     has_children = list(model.children())
     if not has_children:
         if dtype is not None and getattr(model, "dtype", torch.float32) not in {torch.float32, torch.float64}:
             model = model.to(dtype=dtype)
         return model
     for module_name, module in model.named_children():
+        if full_param_name:
+            param_name = full_param_name + "." + module_name
+        else:
+            param_name = module_name
         if hasattr(module, "sdnq_dequantizer"):
             layer_class_name = module.original_class.__name__
             current_use_quantized_matmul = use_quantized_matmul
+            if layer_class_name in conv_types:
+                current_use_quantized_matmul = None
+            elif check_param_name_in(param_name, quantization_config.modules_to_not_use_matmul) is not None:
+                current_use_quantized_matmul = None
 
             if not is_fp8_mm_supported and module.sdnq_dequantizer.quantized_matmul_dtype in {"fp8", "float8_e4m3fn"}:
                 current_use_quantized_matmul = False
@@ -260,14 +270,14 @@ def apply_sdnq_options_to_module(model, dtype: torch.dtype | None = None, dequan
                 module.forward_func = get_forward_func(module.original_class.__name__, module.sdnq_dequantizer.quantized_matmul_dtype, current_use_quantized_matmul)
             setattr(model, module_name, module)
         else:
-            setattr(model, module_name, apply_sdnq_options_to_module(module, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul))
+            setattr(model, module_name, apply_sdnq_options_to_module(module, quantization_config, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul, full_param_name=param_name))
     return model
 
 
 def apply_sdnq_options_to_model(model, dtype: torch.dtype | None = None, dequantize_fp32: bool | None = None, use_quantized_matmul: bool | None = None):
     if use_quantized_matmul and not check_torch_compile():
         raise RuntimeError("SDNQ Quantized MatMul requires a working Triton install.")
-    model = apply_sdnq_options_to_module(model, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
+    model = apply_sdnq_options_to_module(model, model.quantization_config, dtype=dtype, dequantize_fp32=dequantize_fp32, use_quantized_matmul=use_quantized_matmul)
     if hasattr(model, "quantization_config"):
         if use_quantized_matmul is not None:
             model.quantization_config.use_quantized_matmul = use_quantized_matmul
