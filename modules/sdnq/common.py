@@ -439,8 +439,8 @@ common_skip_keys = (
 
 
 # modules_to_not_convert: ["x_embedder", "y_embedder"]
-# modules_to_not_use_matmul: {"int8": ["x_embedder", "y_embedder"], "float8_e4m3fn": ["x_embedder", "y_embedder"]}
 # modules_dtype_dict: {"minimum_6bit": ["x_embedder", "y_embedder"]}
+# modules_to_not_use_matmul: {"int8": ["x_embedder", "y_embedder"], "float8_e4m3fn": ["x_embedder", "y_embedder"]}
 
 module_skip_keys_dict = {
     "FluxTransformer2DModel": [
