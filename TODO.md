@@ -7,9 +7,7 @@
 - Chat-based interface, @vladmandic
 - Control tab verify overrides handling, @vladmandic
 - Reimplement `llama` remover for Kanvas, @vladmandic
-- Implement [pruna](https://github.com/PrunaAI/pruna), @vladmandic
 - Change params to default, @vladmandic
-- Use `caption` to analyze image consistency/quality, @vladmandic
 
 - Detailer postprocessing, @CalamitousFelicitousness
 - Cloud providers, @CalamitousFelicitousness
@@ -32,6 +30,7 @@
 
 ### OnHold
 
+- Implement [pruna](https://github.com/PrunaAI/pruna), @vladmandic, pending support for transformers 5.5
 - LoRA add OMI format support for SD35/FLUX.1, on-hold
 - Remote Text-Encoder support, sidelined for the moment
 - Multi-user support
@@ -88,6 +87,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Other/Unsorted
 
+- [GPEN Face Restoration](https://github.com/yangxy/GPEN)
 - [ByteDance DreamO](https://github.com/bytedance/DreamO)
   - Unified image customization framework combining face identity preservation, virtual try-on, style transfer, etc.
   - Created: 2025-05 | Updated: 2025-08 | Stars: 1,700

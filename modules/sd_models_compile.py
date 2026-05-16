@@ -4,7 +4,7 @@ import logging
 import torch
 from modules import shared, errors, devices, sd_models, sd_models_utils
 from modules.logger import log
-from installer import setup_logging
+from installer import setup_logging, install
 
 debug = os.environ.get('SD_COMPILE_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
@@ -83,6 +83,18 @@ def optimize_openvino(sd_model, clear_cache=True):
         sd_models.set_accelerate(sd_model)
     except Exception as e:
         log.warning(f"Model compile: task=OpenVINO: {e}")
+    return sd_model
+
+
+def compile_pruna(sd_model):
+    # TODO
+    # install('pruna') # TODO pruna: enable when it supports transformers==5.5
+    """
+    from pruna import smash, SmashConfig
+    smash_config = SmashConfig(["deepcache", "stable_fast"])
+    smashed_model = smash(model=sd_model, smash_config=smash_config)
+    return smashed_model
+    """
     return sd_model
 
 
@@ -285,6 +297,7 @@ def compile_diffusers(sd_model, apply_to_components=True, op="Model"):
     if shared.opts.cuda_compile_backend == 'none':
         log.warning(f'{op} compile enabled but no backend specified')
         return sd_model
+    t0 = time.time()
     log.info(f"{op} compile: pipeline={sd_model.__class__.__name__} backend={shared.opts.cuda_compile_backend} options={shared.opts.cuda_compile_options}")
     if shared.opts.cuda_compile_backend == 'onediff':
         sd_model = compile_onediff(sd_model)
@@ -292,9 +305,13 @@ def compile_diffusers(sd_model, apply_to_components=True, op="Model"):
         sd_model = compile_stablefast(sd_model)
     elif shared.opts.cuda_compile_backend == 'deep-cache':
         sd_model = compile_deepcache(sd_model)
+    elif shared.opts.cuda_compile_backend == 'pruna':
+        sd_model = compile_pruna(sd_model)
     else:
         check_deepcache(False)
         sd_model = compile_torch(sd_model, apply_to_components=apply_to_components, op=op)
+    t1 = time.time()
+    log.debug(f"{op} compile: time={t1-t0:.2f}")
     return sd_model
 
 
