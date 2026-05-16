@@ -185,7 +185,6 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
                 SDNQConfig(
                     weights_dtype=sdnq_dequantizer.weights_dtype,
                     quantized_matmul_dtype=sdnq_dequantizer.quantized_matmul_dtype,
-                    torch_dtype=sdnq_dequantizer.result_dtype,
                     group_size=sdnq_dequantizer.group_size,
                     svd_rank=sdnq_dequantizer.svd_rank,
                     use_quantized_matmul=sdnq_dequantizer.use_quantized_matmul,
@@ -198,6 +197,7 @@ def network_add_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Group
                     quantization_device=devices.device,
                     return_device=device,
                 ),
+                torch_dtype=sdnq_dequantizer.result_dtype,
                 param_name=getattr(self, 'network_layer_name', None),
             )[0].to(device)
             weight = None
