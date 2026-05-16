@@ -48,7 +48,7 @@ def create_anyres_preprocess(
 
         target_width = int(round(target_width / patch_size)) * patch_size
         target_height = int(round(target_height / patch_size)) * patch_size
-        pil_image = pil_image.resize((target_width, target_height), resample=Image.BICUBIC)
+        pil_image = pil_image.resize((target_width, target_height), resample=Image.Resampling.BICUBIC)
 
         to_tensor = transforms.Compose([
             transforms.ToTensor(),

@@ -1662,10 +1662,10 @@ def generate_crop_size_list(num_patches, patch_size, max_ratio=4.0):
 
 def center_crop(pil_image, crop_size):
     while pil_image.size[0] >= 2 * crop_size[0] and pil_image.size[1] >= 2 * crop_size[1]:
-        pil_image = pil_image.resize(tuple(x // 2 for x in pil_image.size), resample=Image.BOX)
+        pil_image = pil_image.resize(tuple(x // 2 for x in pil_image.size), resample=Image.Resampling.BOX)
 
     scale = max(crop_size[0] / pil_image.size[0], crop_size[1] / pil_image.size[1])
-    pil_image = pil_image.resize(tuple(round(x * scale) for x in pil_image.size), resample=Image.BICUBIC)
+    pil_image = pil_image.resize(tuple(round(x * scale) for x in pil_image.size), resample=Image.Resampling.BICUBIC)
 
     crop_left = random.randint(0, pil_image.size[0] - crop_size[0])
     crop_upper = random.randint(0, pil_image.size[1] - crop_size[1])
