@@ -9,6 +9,8 @@
   - **Captioning** new feature: analyze existing images for prompt adherence  
     *tip*: image analysis requires larger VLM model to produce quality output  
     new api endpoint: `/sdapi/v1/analyze`  
+  - **HF download** use `XET` by default  
+    see *settings -> huggingface -> download method* for options  
 - **AI**
   - Cognitive analysis and improvements to *all* AI prompts
   - Automated fixes using `/check-` skills
@@ -18,6 +20,7 @@
   - `gradio` initial hijack
   - `SmolVLM` captioning
   - `gradio` temp files guard against large image
+  - `diffusers` patch custom pipelines for `qk_norm`
 
 ## Update for 2026-05-13
 

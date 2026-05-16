@@ -440,8 +440,10 @@ class TransformerBlock(nn.Module):
             processing of `context` conditions.
     """
 
-    def __init__(self, dim, num_attention_heads, attention_head_dim, qk_norm="rms_norm", eps=1e-6):
+    def __init__(self, dim, num_attention_heads, attention_head_dim, qk_norm: str | bool | None = "rms_norm", eps=1e-6):
         super().__init__()
+        if isinstance(qk_norm, bool):
+            qk_norm = "rms_norm" if qk_norm else None
 
         self.norm1 = AdaLayerNormZero(dim)
 

@@ -106,9 +106,11 @@ class FluxSingleTransformerBlock(nn.Module):
 @maybe_allow_in_graph
 class FluxTransformerBlock(nn.Module):
     def __init__(
-        self, dim: int, num_attention_heads: int, attention_head_dim: int, qk_norm: str = "rms_norm", eps: float = 1e-6
+        self, dim: int, num_attention_heads: int, attention_head_dim: int, qk_norm: str | bool | None = "rms_norm", eps: float = 1e-6
     ):
         super().__init__()
+        if isinstance(qk_norm, bool):
+            qk_norm = "rms_norm" if qk_norm else None
 
         self.norm1 = AdaLayerNormZero(dim)
         self.norm1_context = AdaLayerNormZero(dim)

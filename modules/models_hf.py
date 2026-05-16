@@ -1,7 +1,6 @@
 import os
 import time
 import gradio as gr
-from installer import install
 from modules.logger import log
 from modules.shared import opts
 
@@ -19,22 +18,20 @@ def hf_init():
     os.environ.setdefault('HF_ENABLE_PARALLEL_LOADING', 'true' if opts.sd_parallel_load else 'false')
     os.environ.setdefault('HF_HUB_CACHE', opts.hfcache_dir)
     os.environ.setdefault('HF_XET_CACHE', opts.xetcache_dir)
-    if opts.hf_transfer_mode == 'requests':
+    if opts.hf_transfer_mode == 'HTTP':
         os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'false')
-        os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'false')
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'true')
-    elif opts.hf_transfer_mode == 'rust':
-        install('hf_transfer')
+    elif opts.hf_transfer_mode == 'XET':
         os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'false')
-        os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'true')
-        os.environ.setdefault('HF_HUB_DISABLE_XET', 'true')
-    elif opts.hf_transfer_mode == 'xet':
-        install('hf_xet')
-        import huggingface_hub
-        huggingface_hub.utils._runtime.is_xet_available = lambda: True  # pylint: disable=protected-access
-        os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'true')
-        os.environ.setdefault('HF_HUB_ENABLE_HF_TRANSFER', 'true')
         os.environ.setdefault('HF_HUB_DISABLE_XET', 'false')
+    elif opts.hf_transfer_mode == 'XET HighPerformance':
+        os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'true')
+        os.environ.setdefault('HF_HUB_DISABLE_XET', 'false')
+        os.environ.setdefault('HF_XET_RECONSTRUCT_WRITE_SEQUENTIALLY', 'false')
+    elif opts.hf_transfer_mode == 'XET Sequential':
+        os.environ.setdefault('HF_XET_HIGH_PERFORMANCE', 'false')
+        os.environ.setdefault('HF_HUB_DISABLE_XET', 'false')
+        os.environ.setdefault('HF_XET_RECONSTRUCT_WRITE_SEQUENTIALLY', 'true')
 
     obfuscated_token = None
     if len(opts.huggingface_token) > 0 and opts.huggingface_token.startswith('hf_'):

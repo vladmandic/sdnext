@@ -23,6 +23,14 @@ from .edit_head import MetaConnector
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
 
 
+def _normalize_qk_norm(qk_norm: str | bool | None) -> str | None:
+    """Normalize legacy boolean qk_norm values to Diffusers-compatible strings."""
+    if isinstance(qk_norm, bool):
+        # Legacy checkpoints can store qk_norm as bool while current diffusers expects a string.
+        return "rms_norm" if qk_norm else None
+    return qk_norm
+
+
 class SanaLinearAttnProcessor2_0:
     r"""Processor for implementing scaled dot-product linear attention."""
 
@@ -112,7 +120,7 @@ class SanaTransformerBlock(nn.Module):
         cross_attention_dim: int = 2240,
         norm_eps: float = 1e-6,
         mlp_ratio: float = 2.5,
-        qk_norm: str | None = None,
+        qk_norm: str | bool | None = None,
         *,
         attention_out_bias: bool = True,
         attention_bias: bool = True,
@@ -130,12 +138,13 @@ class SanaTransformerBlock(nn.Module):
             cross_attention_dim (int): The dimension of the cross-attention context.
             norm_eps (float): Epsilon value for layer normalization stability.
             mlp_ratio (float): Expansion ratio for the feed-forward network hidden dimension.
-            qk_norm (str | None): Normalization method for Query/Key vectors.
+            qk_norm (str | bool | None): Normalization method for Query/Key vectors.
             attention_out_bias (bool): Whether to include bias in the attention output projection.
             attention_bias (bool): Whether to include bias in the attention Q/K/V projections.
             norm_elementwise_affine (bool): Whether to learn affine parameters for normalization.
         """
         super().__init__()
+        qk_norm = _normalize_qk_norm(qk_norm)
 
         # 1. Self Attention
         self.norm1 = nn.LayerNorm(dim, elementwise_affine=False, eps=norm_eps)
@@ -269,7 +278,7 @@ class VIBESanaEditingModel(SanaTransformer2DModel):
         patch_size: int = 1,
         norm_eps: float = 1e-6,
         interpolation_scale: int | None = None,
-        qk_norm: str | None = None,
+        qk_norm: str | bool | None = None,
         timestep_scale: float = 1.0,
         input_condition_type: str = "channel_cat",
         edit_head_input_dim: int = 2048,
@@ -299,7 +308,7 @@ class VIBESanaEditingModel(SanaTransformer2DModel):
             patch_size (int): Size of the patches extracted from the input latent.
             norm_eps (float): Epsilon for layer normalization.
             interpolation_scale (int | None): Scale factor for positional embedding interpolation.
-            qk_norm (str | None): Normalization type for Query/Key (e.g., 'rms_norm').
+            qk_norm (str | bool | None): Normalization type for Query/Key (e.g., 'rms_norm').
             timestep_scale (float): Scale factor for the timestep.
             input_condition_type (str): Method for conditioning on the input image. Options: 'channel_cat', 'seq_cat'.
             edit_head_input_dim (int): Input dimension for the `MetaConnector` edit head.
@@ -311,6 +320,7 @@ class VIBESanaEditingModel(SanaTransformer2DModel):
             guidance_embeds (bool): Whether to use additional guidance embeddings.
         """
         super(SanaTransformer2DModel, self).__init__()
+        qk_norm = _normalize_qk_norm(qk_norm)
 
         out_channels = out_channels or in_channels
         inner_dim = num_attention_heads * attention_head_dim
