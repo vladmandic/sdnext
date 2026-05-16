@@ -1,36 +1,39 @@
+from __future__ import annotations
+
 """Sharpfin color management (ICC profile handling).
 
 Vendored from https://github.com/drhead/sharpfin (Apache 2.0)
 """
 
 from io import BytesIO
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from warnings import warn
 
 import numpy as np
-from torch import Tensor
 
-import PIL.Image as image
-import PIL.ImageCms as image_cms
-
-from PIL.Image import Image
+from PIL import Image
 from PIL.ImageCms import (
     Direction, Intent, ImageCmsProfile, PyCMSError,
     createProfile, getDefaultIntent, isIntentSupported, profileToProfile
 )
+from PIL.ImageCms import Flags as cms_flags
 from PIL.ImageOps import exif_transpose
 
-image.MAX_IMAGE_PIXELS = None
+if TYPE_CHECKING:
+    from PIL import ImageFile
+    from torch import Tensor
+
+Image.MAX_IMAGE_PIXELS = None
 
 _SRGB = createProfile(colorSpace='sRGB')
 
 _INTENT_FLAGS = {
-    Intent.PERCEPTUAL: image_cms.FLAGS["HIGHRESPRECALC"],
+    Intent.PERCEPTUAL: cms_flags.HIGHRESPRECALC,
     Intent.RELATIVE_COLORIMETRIC: (
-        image_cms.FLAGS["HIGHRESPRECALC"] |
-        image_cms.FLAGS["BLACKPOINTCOMPENSATION"]
+        cms_flags.HIGHRESPRECALC |
+        cms_flags.BLACKPOINTCOMPENSATION
     ),
-    Intent.ABSOLUTE_COLORIMETRIC: image_cms.FLAGS["HIGHRESPRECALC"]
+    Intent.ABSOLUTE_COLORIMETRIC: cms_flags.HIGHRESPRECALC
 }
 
 class CMSWarning(UserWarning):
@@ -71,13 +74,8 @@ def _add_info(info: dict[str, Any], source: object, key: str) -> None:
     except Exception:
         pass
 
-def apply_srgb(
-    img: Image
-) -> Image:
-    if hasattr(img, 'filename'):
-        path = img.filename
-    else:
-        path = ""
+def apply_srgb(img: Image.Image | ImageFile.ImageFile) -> Image.Image:
+    path = getattr(img, "filename", "")
 
     try:
         img.load()
@@ -131,7 +129,7 @@ def apply_srgb(
                             flags=flags
                         )
                     else:
-                        img = cast('Image', profileToProfile(
+                        img = cast('Image.Image', profileToProfile(
                             img,
                             profile,
                             _SRGB,
@@ -167,7 +165,7 @@ def apply_srgb(
 
     return img
 
-def put_srgb(img: Image, tensor: Tensor) -> None:
+def put_srgb(img: Image.Image, tensor: Tensor) -> None:
     if img.mode not in ("RGB", "RGBA", "RGBa"):
         raise ValueError(f"Image has non-RGB mode {img.mode}.")
 

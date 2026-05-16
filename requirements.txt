@@ -37,7 +37,7 @@ pandas==2.3.1
 protobuf==6.33.5
 pytorch_lightning==2.6.1
 urllib3==1.26.19
-Pillow==10.4.0
+Pillow==12.2.0
 timm==1.0.24
 pyparsing==3.3.2
 typing-extensions==4.15.0
