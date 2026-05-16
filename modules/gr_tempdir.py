@@ -68,6 +68,13 @@ def pil_to_temp_file(self, img: Image.Image, dir: str, format="png") -> str: # p
         name = file_obj.name
         debug(f'Image registered: {name}')
         return name
+
+    mp = round(img.width * img.height / 1000 / 1000, 2)
+    if mp > shared.opts.img_max_size_mp:
+        log.warning(f'Save temp: width={img.width} height={img.height} mp={mp} max={shared.opts.img_max_size_mp} image too large')
+        scale = shared.opts.img_max_size_mp * 1000 / mp
+        img = img.resize((int(img.width * scale), int(img.height * scale)), resample=Image.Resampling.NEAREST)
+
     if shared.opts.temp_dir != "":
         folder = shared.opts.temp_dir
     use_metadata = False

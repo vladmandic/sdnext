@@ -268,7 +268,8 @@ def init():
     global hijacked, original_IOComponent_init, original_Block_get_config, original_BlockContext_init, original_Blocks_get_config_file # pylint: disable=global-statement
     if hijacked:
         return
-    gradio.components.Image.preprocess =  gr_image_preprocess
+    if hasattr(gradio.components, 'Image'):
+        gradio.components.Image.preprocess =  gr_image_preprocess
     if hasattr(gradio.components, 'IOComponent'):
         gradio.components.IOComponent.pil_to_temp_file =  gr_tempdir.pil_to_temp_file
         original_IOComponent_init = patches.patch(__name__, obj=gradio.components.IOComponent, field="__init__", replacement=IOComponent_init)

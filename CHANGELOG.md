@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-15
+## Update for 2026-05-16
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -17,6 +17,7 @@
   - *hidream-o1* prequant loading
   - `gradio` initial hijack
   - `SmolVLM` captioning
+  - `gradio` temp files guard against large image
 
 ## Update for 2026-05-13
 

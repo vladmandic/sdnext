@@ -418,7 +418,7 @@ def create_settings(cmd_opts):
         "keep_incomplete": OptionInfo(True, "Save interrupted images"),
         "samples_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl"]}),
         "jpeg_quality": OptionInfo(90, "Image quality", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
-        "img_max_size_mp": OptionInfo(1000, "Maximum image size (MP)", gr.Slider, {"minimum": 100, "maximum": 2000, "step": 1}),
+        "img_max_size_mp": OptionInfo(1000, "Maximum image size (MP)", gr.Slider, {"minimum": 10, "maximum": 2000, "step": 1}),
         "webp_lossless": OptionInfo(False, "WebP lossless compression"),
         "save_selected_only": OptionInfo(True, "UI save only saves selected image"),
         "include_mask": OptionInfo(False, "Include mask in outputs"),
