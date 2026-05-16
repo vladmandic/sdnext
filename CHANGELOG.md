@@ -21,6 +21,7 @@
   - `SmolVLM` captioning
   - `gradio` temp files guard against large image
   - `diffusers` patch custom pipelines for `qk_norm`
+  - *GHSA* fixes, thanks @SSJCorpSec for reporting
 
 ## Update for 2026-05-13
 

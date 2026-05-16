@@ -127,7 +127,21 @@ def check_updates(_id_task, disable_list, search_text, sort_column):
 
 
 def normalize_git_url(url: str | None) -> str:
-    return '' if url is None else url.strip().removesuffix('.git')
+    _url = '' if url is None else url.strip().removesuffix('.git')
+    # check if url starts with valid prefixes:https://, http://, git://, ssh://, else raise error
+    if _url.startswith(('https://', 'http://', 'git://', 'ssh://', 'git@')):
+        return _url
+    raise ValueError(f'Invalid git URL: {url}')
+
+
+def sanize_dirname(dirname: str) -> str:
+    # strip any characters now in allow r"[A-Za-z0-9_.-]
+    if '..' in dirname or dirname.startswith('/') or dirname.startswith('\\'):
+        raise ValueError(f'Invalid directory name: {dirname}')
+    _dirname = re.sub(r'[^A-Za-z0-9_.-]', '', dirname.strip())
+    if _dirname == '':
+        raise ValueError(f'Invalid directory name: {dirname}')
+    return _dirname
 
 
 def install_extension_from_url(dirname, url, branch_name, search_text, sort_column):
@@ -140,6 +154,7 @@ def install_extension_from_url(dirname, url, branch_name, search_text, sort_colu
         return ['', '']
     if not dirname:
         dirname = url.split('/')[-1]
+    dirname = sanize_dirname(dirname)
     target_dir = os.path.join(extensions.extensions_dir, dirname)
     log.info(f'Installing extension: {url} into {target_dir}')
     if os.path.exists(target_dir):
@@ -154,7 +169,7 @@ def install_extension_from_url(dirname, url, branch_name, search_text, sort_colu
         args = {
             'url': url,
             'to_path': tmpdir,
-            'allow_unsafe_protocols': True,
+            'allow_unsafe_protocols': False,
             'allow_unsafe_options': True,
             'filter': ['blob:none'],
         }

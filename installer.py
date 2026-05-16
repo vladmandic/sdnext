@@ -214,7 +214,8 @@ def run(cmd: str, *nargs: str, **kwargs):
         "env": os.environ,
     }
     options |= kwargs  # Override defaults with passed kwargs
-    result = subprocess.run(f'"{cmd}" {" ".join(nargs)}', **options, shell=True, capture_output=True, text=True)
+    argstr = " ".join(nargs)
+    result = subprocess.run(f'"{cmd}" {argstr}', **options, shell=True, capture_output=True, text=True)
     result.stdout = result.stdout.strip()
     result.stderr = result.stderr.strip()
     txt = result.stdout
