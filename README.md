@@ -5,7 +5,6 @@
 
 SD.Next is a powerful, open-source WebUI app for AI image and video generation, built on Stable Diffusion and supporting dozens of advanced models. Create, caption, and process images and videos with a modern, cross-platform interface—perfect for artists, researchers, and AI enthusiasts.
 
-
 ![Stars](https://img.shields.io/github/stars/vladmandic/sdnext?style=social)
 ![Forks](https://img.shields.io/github/forks/vladmandic/sdnext?style=social)
 ![Contributors](https://img.shields.io/github/contributors/vladmandic/sdnext)
@@ -18,7 +17,7 @@ SD.Next is a powerful, open-source WebUI app for AI image and video generation, 
 [Docs](https://vladmandic.github.io/sdnext-docs/) | [Wiki](https://github.com/vladmandic/sdnext/wiki) | [Discord](https://discord.gg/VjvR2tabEX) | [Changelog](CHANGELOG.md)
 
 </div>
-</br>
+<br>
 
 ## Table of contents
 
@@ -39,14 +38,13 @@ SD.Next is a powerful, open-source WebUI app for AI image and video generation, 
 <div align="center">
 <img src="https://github.com/user-attachments/assets/ced9fe0c-d2c2-46d1-94a7-8f9f2307ce38" alt="SD.Next: AI art generator mobile interface screenshot" width="35%">
 </div>
-</div>
 
 <br>
 
 ## Features and Capabilities
 
 SD.Next is feature-rich with a focus on performance, flexibility, and user experience. Key features include:
-- [Multi-platform](#platform-support!  
+- [Multi-platform](https://vladmandic.github.io/sdnext-docs/nVidia/)!  
 - Many [diffusion models](https://vladmandic.github.io/sdnext-docs/Model-Support/)!  
 - Fully localized to ~15 languages and with support for many [UI themes](https://vladmandic.github.io/sdnext-docs/Themes/)!
 - [Desktop](#screenshot-desktop-interface) and [Mobile](#screenshot-mobile-interface) support!  
@@ -105,7 +103,6 @@ webui.ps1  # PowerShell
 > [!WARNING]
 > If you run into issues, check out [troubleshooting](https://vladmandic.github.io/sdnext-docs/Troubleshooting/) and [debugging](https://vladmandic.github.io/sdnext-docs/Debug/) guides  
 
-
 ## Community and Support
 
 If you're unsure how to use a feature, best place to start is [Docs](https://vladmandic.github.io/sdnext-docs/) and if its not there,  
@@ -125,7 +122,7 @@ Please see [Contributing](CONTRIBUTING) for details on how to contribute to this
 ## Evolution
 
 <a href="https://star-history.com/#vladmandic/sdnext&Date">
-  <picture width=640>
+  <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=vladmandic/sdnext&type=Date&theme=dark" />
     <img src="https://api.star-history.com/svg?repos=vladmandic/sdnext&type=Date" alt="starts" width="320">
   </picture>
