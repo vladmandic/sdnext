@@ -50,12 +50,12 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Scheduler": shared.sd_model.scheduler.__class__.__name__ if getattr(shared.sd_model, 'scheduler', None) is not None else None,
         "Seed": all_seeds[index],
         "Seed resize from": None if p.seed_resize_from_w <= 0 or p.seed_resize_from_h <= 0 else f"{p.seed_resize_from_w}x{p.seed_resize_from_h}",
-        "CFG scale": p.cfg_scale if p.cfg_scale > 1.0 else 1.0,
-        "CFG rescale": p.diffusers_guidance_rescale if p.diffusers_guidance_rescale > 0 else None,
+        "CFG scale": p.cfg_scale if p.cfg_scale > -1 else None,
+        "CFG rescale": p.cfg_rescale if p.cfg_rescale > -1 else None,
         "CFG end": p.cfg_end if p.cfg_end < 1.0 else None,
-        "CFG true": p.pag_scale if p.pag_scale > 0 else None,
-        "CFG adaptive": p.pag_adaptive if p.pag_adaptive != 0.5 else None,
-        "Clip skip": p.clip_skip if p.clip_skip > 1 else None,
+        "CFG true": p.cfg_true if p.cfg_true > 0 else None,
+        "CFG adaptive": p.cfg_adaptive if p.cfg_adaptive != 0.5 else None,
+        "CLiP-skip": p.clip_skip if p.clip_skip > 1 else None,
         "Batch": f'{p.n_iter}x{p.batch_size}' if p.n_iter > 1 or p.batch_size > 1 else None,
         "Refiner prompt": p.refiner_prompt if len(p.refiner_prompt) > 0 else None,
         "Refiner negative": p.refiner_negative if len(p.refiner_negative) > 0 else None,
@@ -109,20 +109,20 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
             args["Hires force"] = p.hr_force
             args["Hires steps"] = p.hr_second_pass_steps
             args["Hires strength"] = p.hr_denoising_strength
-            args["Hires sampler"] = p.hr_sampler_name
-            args["Hires CFG scale"] = p.image_cfg_scale
+            args["Hires sampler"] = p.hr_sampler_name if p.hr_sampler_name != 'Default' else None
+            args["Hires CFG scale"] = p.cfg_image if p.cfg_image > -1 else None
     if 'refine' in p.ops:
         args["Refine"] = p.enable_hr
         args["Refiner"] = None if (not shared.opts.add_model_name_to_info) or (not shared.sd_refiner) or (not shared.sd_refiner.sd_checkpoint_info.model_name) else shared.sd_refiner.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
-        args['Hires CFG scale'] = p.image_cfg_scale
+        args['Hires CFG scale'] = p.cfg_image if p.cfg_image > -1 else None
         args['Refiner steps'] = p.refiner_steps
         args['Refiner start'] = p.refiner_start
         args["Hires steps"] = p.hr_second_pass_steps
-        args["Hires sampler"] = p.hr_sampler_name
+        args["Hires sampler"] = p.hr_sampler_name if p.hr_sampler_name != 'Default' else None
     if ('img2img' in p.ops or 'inpaint' in p.ops) and ('txt2img' not in p.ops and 'hires' not in p.ops): # real img2img/inpaint
         args["Init image size"] = f"{getattr(p, 'init_img_width', 0)}x{getattr(p, 'init_img_height', 0)}"
         args["Init image hash"] = getattr(p, 'init_img_hash', None)
-        args['Image CFG scale'] = p.image_cfg_scale
+        args['Image CFG scale'] = p.cfg_image if p.cfg_image > -1 else None
         args["Mask weight"] = getattr(p, "inpainting_mask_weight", shared.opts.inpainting_mask_weight) if p.is_using_inpainting_conditioning else None
         args["Denoising strength"] = getattr(p, 'denoising_strength', None)
         if args["Size"] != args["Init image size"]:

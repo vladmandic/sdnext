@@ -33,7 +33,7 @@ def create_ui():
                     with gr.Accordion(open=False, label="Samplers", elem_classes=["small-accordion"], elem_id="txt2img_sampler_group"):
                         ui_sections.create_sampler_options('txt2img')
                     seed, reuse_seed, subseed, reuse_subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w = ui_sections.create_seed_inputs('txt2img')
-                    guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_guidance.create_guidance_inputs('txt2img')
+                    guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end = ui_guidance.create_guidance_inputs('txt2img')
                     vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('txt2img')
                     grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_file, grading_lut_strength = ui_sections.create_color_inputs('txt2img')
                     hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires = ui_sections.create_latent_inputs('txt2img')
@@ -59,7 +59,7 @@ def create_ui():
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
                 batch_count, batch_size,
                 guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop,
-                cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end,
+                cfg_scale, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end,
                 clip_skip,
                 seed, subseed, subseed_strength, seed_resize_from_h, seed_resize_from_w,
                 height, width,
@@ -121,10 +121,10 @@ def create_ui():
                 # advanced
                 (cfg_scale, "CFG scale"),
                 (cfg_end, "CFG end"),
-                (clip_skip, "Clip skip"),
-                (image_cfg_scale, "Image CFG scale"),
-                (image_cfg_scale, "Hires CFG scale"),
-                (diffusers_guidance_rescale, "CFG rescale"),
+                (clip_skip, "CLiP-skip"),
+                (cfg_image, "Image CFG scale"),
+                (cfg_image, "Hires CFG scale"),
+                (cfg_rescale, "CFG rescale"),
                 (vae_type, "VAE type"),
                 (tiling, "Tiling"),
                 (hidiffusion, "HiDiffusion"),
@@ -155,8 +155,8 @@ def create_ui():
                 (refiner_prompt, "refiner prompt"),
                 (refiner_negative, "Refiner negative"),
                 # pag
-                (pag_scale, "CFG true"),
-                (pag_adaptive, "CFG adaptive"),
+                (cfg_true, "CFG true"),
+                (cfg_adaptive, "CFG adaptive"),
                 # hidden
                 (seed_resize_from_w, "Seed resize from-1"),
                 (seed_resize_from_h, "Seed resize from-2"),

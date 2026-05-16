@@ -31,7 +31,7 @@ legacy_options = options_section(('legacy_options', "Legacy options"), {
     "diffusers_move_refiner": LegacyOption(False, "Move refiner model to CPU when not in use", gr.Checkbox, {"visible": False }),
     "diffusers_extract_ema": LegacyOption(False, "Use model EMA weights when possible", gr.Checkbox, {"visible": False }),
     "batch_cond_uncond": LegacyOption(True, "Do conditional and unconditional denoising in one batch", gr.Checkbox, {"visible": False}),
-    "CLIP_stop_at_last_layers": LegacyOption(1, "Clip skip", gr.Slider, {"minimum": 1, "maximum": 8, "step": 1, "visible": False}),
+    "CLIP_stop_at_last_layers": LegacyOption(1, "CLiP-skip", gr.Slider, {"minimum": 1, "maximum": 8, "step": 1, "visible": False}),
     "dataset_filename_join_string": LegacyOption(" ", "Filename join string", gr.Textbox, { "visible": False }),
     "dataset_filename_word_regex": LegacyOption("", "Filename word regex", gr.Textbox, { "visible": False }),
     "diffusers_force_zeros": LegacyOption(False, "Force zeros for prompts when empty", gr.Checkbox, {"visible": False}),

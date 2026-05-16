@@ -128,7 +128,7 @@ def save_files(js_data, files, html_info, index):
             self.width = getattr(self, 'width', None) or getattr(self, 'Width', None) or getattr(self, 'Size-1', None) or 0
             self.height = getattr(self, 'height', None) or getattr(self, 'Height', None) or getattr(self, 'Size-2', None) or 0
             self.cfg_scale = getattr(self, 'cfg_scale', None) or getattr(self, 'CFG scale', None) or 0
-            self.clip_skip = getattr(self, 'clip_skip', None) or getattr(self, 'Clip skip', None) or 1
+            self.clip_skip = getattr(self, 'clip_skip', None) or getattr(self, 'CLiP-skip', None) or 1
             self.denoising_strength = getattr(self, 'denoising_strength', None) or getattr(self, 'Denoising', None) or 0
             self.index_of_first_image = getattr(self, 'index_of_first_image', 0)
             self.subseed = getattr(self, 'subseed', None) or getattr(self, 'Subseed', None)

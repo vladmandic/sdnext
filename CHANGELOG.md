@@ -5,6 +5,9 @@
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
     in both original precision and SDNQ-4bit quantiztion  
+- **Changes**
+  - all **Guidance** params are now set to *-1* by default to allow using model defaults and avoid confusion with different model behaviour  
+    log will print default values used by model if not set by user  
 - **Features**
   - **Captioning** new feature: analyze existing images for prompt adherence  
     *tip*: image analysis requires larger VLM model to produce quality output  

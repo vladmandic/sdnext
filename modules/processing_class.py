@@ -48,9 +48,9 @@ class StableDiffusionProcessing:
                  # legacy guidance
                  cfg_scale: float = 6.0,
                  cfg_end: float = 1,
-                 diffusers_guidance_rescale: float = 0.0,
-                 pag_scale: float = 0.0,
-                 pag_adaptive: float = 0.5,
+                 cfg_rescale: float = 0.0,
+                 cfg_true: float = 0.0,
+                 cfg_adaptive: float = 0.5,
                  # styles
                  styles: list[str] | None = None,
                  # vae
@@ -151,7 +151,7 @@ class StableDiffusionProcessing:
                  denoising_strength: float = 0.3,
                  init_images: list | None = None,
                  init_control: list | None = None,
-                 image_cfg_scale: float | None = None,
+                 cfg_image: float | None = None,
                  initial_noise_multiplier: float | None = None, # pylint: disable=unused-argument # a1111 compatibility
                  # resize
                  scale_by: float = 1,
@@ -400,7 +400,7 @@ class StableDiffusionProcessing:
         self.resize_name = resize_name
         self.resize_context = resize_context
         self.denoising_strength = denoising_strength
-        self.image_cfg_scale = image_cfg_scale
+        self.cfg_image = cfg_image
         self.scale_by = scale_by
         self.mask = mask
         self.image_mask = mask # TODO processing: remove duplicate mask params
@@ -465,9 +465,9 @@ class StableDiffusionProcessing:
         self.guidance_stop = guidance_stop
         self.cfg_scale = cfg_scale
         self.cfg_end = cfg_end
-        self.diffusers_guidance_rescale = diffusers_guidance_rescale
-        self.pag_scale = pag_scale
-        self.pag_adaptive = pag_adaptive
+        self.cfg_rescale = cfg_rescale
+        self.cfg_true = cfg_true
+        self.cfg_adaptive = cfg_adaptive
         self.selected_scale_tab = selected_scale_tab
         self.mask_for_overlay = mask_for_overlay
         self.paste_to = paste_to

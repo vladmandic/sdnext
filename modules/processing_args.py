@@ -179,6 +179,18 @@ def get_params(model):
         return possible
 
 
+def get_defaults(model, kwargs):
+    remove = ['return_dict', 'output_type', 'num_images_per_prompt', 'callback', 'callback_on_step_end_tensor_inputs']
+    try:
+        signature = inspect.signature(type(model).__call__, follow_wrapped=True)
+        defaults = {k: v.default for k, v in signature.parameters.items() if v.default is not inspect.Parameter.empty and v.default is not None} # get all defaults
+        defaults = {k: v for k, v in defaults.items() if k not in kwargs} # only log defaults that are not already set by kwargs
+        defaults = {k: v for k, v in defaults.items() if k not in remove} # remove common args that are not useful to log
+        log.debug(f'Pipeline: cls={model.__class__.__name__} defaults={defaults}')
+    except Exception as e:
+        log.error(f'Pipeline defaults: {e}')
+
+
 def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:list | None=None, negative_prompts_2:list | None=None, prompt_attention:str | None=None, desc:str | None='', **kwargs):
     t0 = time.time()
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
@@ -245,17 +257,20 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     if hasattr(model, 'scheduler') and hasattr(model.scheduler, 'noise_sampler_seed') and hasattr(model.scheduler, 'noise_sampler'):
         model.scheduler.noise_sampler = None # noise needs to be reset instead of using cached values
         model.scheduler.noise_sampler_seed = p.seeds # some schedulers have internal noise generator and do not use pipeline generator
-    if 'seed' in possible and p.seed is not None:
+
+    if ('seed' in possible) and (p.seed is not None) and (p.seed > -1):
         args['seed'] = p.seed
-    if 'noise_sampler_seed' in possible and p.seeds is not None:
+    if ('noise_sampler_seed' in possible) and (p.seeds is not None):
         args['noise_sampler_seed'] = p.seeds
-    if 'guidance_scale' in possible and p.cfg_scale is not None and p.cfg_scale > 0:
+    if ('guidance_scale' in possible) and (p.cfg_scale is not None) and (p.cfg_scale > -1):
         args['guidance_scale'] = p.cfg_scale
-    if 'img_guidance_scale' in possible and hasattr(p, 'image_cfg_scale') and p.image_cfg_scale is not None and p.image_cfg_scale > 0:
-        args['img_guidance_scale'] = p.image_cfg_scale
+    if ('img_guidance_scale' in possible) and hasattr(p, 'cfg_image') and (p.cfg_image is not None) and (p.cfg_image > -1):
+        args['img_guidance_scale'] = p.cfg_image
+
     if getattr(getattr(model, 'config', None), 'is_distilled', False) and args.get('guidance_scale', 0) > 1 and not getattr(p, 'distilled_warned', False):
         log.warning(f'Pipeline: cls={model.__class__.__name__} distilled=True cfg_scale={args["guidance_scale"]} ignored, forced to 1')
         p.distilled_warned = True
+
     if 'generator' in possible:
         generator = get_generator(p)
         args['generator'] = generator
@@ -272,15 +287,14 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
     if 'Kandinsky' in model.__class__.__name__ or 'Cosmos2' in model.__class__.__name__ or 'OmniGen2' in model.__class__.__name__:
         kwargs['output_type'] = 'np' # only set latent if model has vae
     if 'StableCascade' in model.__class__.__name__:
-        kwargs.pop("guidance_scale") # remove
         kwargs.pop("num_inference_steps") # remove
         if 'prior_num_inference_steps' in possible:
             args["prior_num_inference_steps"] = p.steps
             args["num_inference_steps"] = p.refiner_steps
-        if 'prior_guidance_scale' in possible:
+        if 'prior_guidance_scale' in possible and (p.cfg_scale is not None) and (p.cfg_scale > -1):
             args["prior_guidance_scale"] = p.cfg_scale
-        if 'decoder_guidance_scale' in possible:
-            args["decoder_guidance_scale"] = p.image_cfg_scale
+        if 'decoder_guidance_scale' in possible and (p.cfg_image is not None) and (p.cfg_image > -1):
+            args["decoder_guidance_scale"] = p.cfg_image
     if 'Flex2' in model.__class__.__name__:
         if len(getattr(p, 'init_images', [])) > 0:
             args['inpaint_image'] = p.init_images[0] if isinstance(p.init_images, list) else p.init_images
@@ -334,12 +348,13 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
             if type(kwargs[arg]) == float or type(kwargs[arg]) == int:
                 if kwargs[arg] <= -1: # skip -1 as default value
                     continue
+            if kwargs[arg] is None: # skip None values
+                continue
             args[arg] = kwargs[arg]
 
     # optional preprocess
     if hasattr(model, 'preprocess') and callable(model.preprocess):
         model.preprocess(p, args)
-
 
     # handle task specific args
     if sd_models.get_diffusers_task(model) == sd_models.DiffusersTaskType.MODULAR:
@@ -401,6 +416,8 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
             args['control_image'] = args['image']
 
     sd_hijack_hypertile.hypertile_set(p, hr=len(getattr(p, 'init_images', [])) > 0)
+
+    get_defaults(model, args)
 
     # debug info
     clean = args.copy()

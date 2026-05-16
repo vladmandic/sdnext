@@ -117,7 +117,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         pipe._cfg_end_applied = True # pylint: disable=protected-access
         if "PAG" in shared.sd_model.__class__.__name__:
             pipe._guidance_scale = 1.001 if pipe._guidance_scale > 1 else pipe._guidance_scale  # pylint: disable=protected-access
-            pipe._pag_scale = 0.001  # pylint: disable=protected-access
+            pipe._cfg_true = 0.001  # pylint: disable=protected-access
         else:
             pipe._guidance_scale = 0.0  # pylint: disable=protected-access
             for key in ["prompt_embeds", "negative_prompt_embeds", "add_text_embeds", "add_time_ids"]:

@@ -383,7 +383,7 @@ def civitai_meta_to_parameters(meta: dict | None) -> str:
         (('Size',), 'Size'),
         (('Model',), 'Model'),
         (('Model hash', 'modelHash'), 'Model hash'),
-        (('clipSkip', 'clip_skip', 'Clip skip'), 'Clip skip'),
+        (('clipSkip', 'clip_skip', 'CLiP-skip'), 'CLiP-skip'),
         (('denoisingStrength', 'Denoising strength'), 'Denoising strength'),
     ]
     consumed = {'prompt', 'negativeprompt', 'negative_prompt'}

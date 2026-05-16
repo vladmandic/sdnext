@@ -467,7 +467,7 @@ def run_ltx(task_id,
                     'callback_on_step_end': diffusers_callback,
                     'output_type': 'pil',
                 }
-                if p.cfg_scale is not None and p.cfg_scale > 0:
+                if p.cfg_scale is not None and p.cfg_scale > -1:
                     refine_args['guidance_scale'] = p.cfg_scale
                 if caps.supports_frame_rate_kwarg:
                     refine_args['frame_rate'] = float(mp4_fps)
