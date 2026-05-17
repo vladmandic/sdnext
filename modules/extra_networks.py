@@ -35,7 +35,7 @@ class ExtraNetworkParams:
     def __init__(self, items: list[str] | None = None):
         self.items: list[str] = items or []
         self.positional: list[str] = []
-        self.named = {}
+        self.named: dict[str, str] = {}
         for item in self.items:
             parts = item.split('=', 2) if isinstance(item, str) else [item]
             if len(parts) == 2:
