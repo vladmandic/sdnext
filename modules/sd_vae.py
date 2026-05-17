@@ -1,15 +1,22 @@
+from __future__ import annotations
+
 import os
 import glob
+from typing import TYPE_CHECKING, cast
 import torch
 from modules import shared, errors, paths, devices, sd_models, sd_detect
 from modules.logger import log
 
+if TYPE_CHECKING:
+    from diffusers import DiffusionPipeline
+    from modules.sd_checkpoint import CheckpointInfo
+
 
 vae_ignore_keys = {"model_ema.decay", "model_ema.num_updates"}
-vae_dict = {}
-base_vae = None
-loaded_vae_file = None
-checkpoint_info = None
+vae_dict: dict[str, str] = {}
+base_vae = None  # Unused
+loaded_vae_file: str | None = None
+checkpoint_info: CheckpointInfo | None = None
 vae_path = os.path.abspath(os.path.join(paths.models_path, 'VAE'))
 debug = os.environ.get('SD_VAE_DEBUG', None) is not None
 unspecified = object()
@@ -19,7 +26,7 @@ vae_scale_override = {
 }
 
 
-def get_vae_scale_factor(model=None):
+def get_vae_scale_factor(model: DiffusionPipeline | None = None):
     if not shared.sd_loaded:
         vae_scale_factor = 8
         return vae_scale_factor
@@ -41,20 +48,20 @@ def get_vae_scale_factor(model=None):
     else:
         # log.warning(f'VAE: cls={model.__class__.__name__ if model else "None"} scale=unknown')
         vae_scale_factor = 8
-    if hasattr(model, 'patch_size'):
+    if model is not None and hasattr(model, 'patch_size'):
         patch_size = model.patch_size
     if debug:
         log.trace(f'VAE: cls={model.__class__.__name__ if model else "None"} scale={vae_scale_factor} patch={patch_size}')
     return vae_scale_factor * patch_size
 
 
-def load_vae_dict(filename):
+def load_vae_dict(filename: str):
     vae_ckpt = sd_models.read_state_dict(filename, what='vae')
     vae_dict_1 = {k: v for k, v in vae_ckpt.items() if k[0:4] != "loss" and k not in vae_ignore_keys}
     return vae_dict_1
 
 
-def get_filename(filepath):
+def get_filename(filepath: str):
     if filepath.endswith(".json"):
         return os.path.basename(os.path.dirname(filepath))
     else:
@@ -92,7 +99,7 @@ def refresh_vae_list():
     return vae_dict
 
 
-def find_vae_near_checkpoint(checkpoint_file):
+def find_vae_near_checkpoint(checkpoint_file: str):
     checkpoint_path = os.path.splitext(checkpoint_file)[0]
     for vae_location in [f"{checkpoint_path}.vae.pt", f"{checkpoint_path}.vae.ckpt", f"{checkpoint_path}.vae.safetensors"]:
         if os.path.isfile(vae_location):
@@ -100,11 +107,11 @@ def find_vae_near_checkpoint(checkpoint_file):
     return None
 
 
-def resolve_vae(checkpoint_file):
+def resolve_vae(checkpoint_file: str):
     if shared.opts.sd_vae == 'TAESD':
         return None, None
     if shared.cmd_opts.vae is not None: # 1st
-        return shared.cmd_opts.vae, 'forced'
+        return cast("str", shared.cmd_opts.vae), 'forced'
     if shared.opts.sd_vae == "Default": # 2nd
         return None, None
     vae_near_checkpoint = find_vae_near_checkpoint(checkpoint_file)
@@ -125,7 +132,7 @@ def resolve_vae(checkpoint_file):
     return None, None
 
 
-def apply_vae_config(model_file, vae_file, sd_model):
+def apply_vae_config(model_file: str, vae_file: str, sd_model: DiffusionPipeline):
     def get_vae_config():
         config_file = os.path.join(paths.sd_configs_path, os.path.splitext(os.path.basename(model_file))[0] + '_vae.json')
         if config_file is not None and os.path.exists(config_file):
@@ -145,7 +152,7 @@ def apply_vae_config(model_file, vae_file, sd_model):
                 sd_model.vae.config[k] = v
 
 
-def load_vae(model_file, vae_file=None, vae_source="unknown-source"):
+def load_vae(model_file: str, vae_file: str | None = None, vae_source: str | None = "unknown-source"):
     if vae_file is None:
         return None
     if not os.path.exists(vae_file):
@@ -174,7 +181,7 @@ def load_vae(model_file, vae_file=None, vae_source="unknown-source"):
         import diffusers
         vae_class = None
         vae_loader = None
-        if shared.sd_loaded and getattr(shared.sd_model, 'vae', None) is not None:
+        if shared.sd_model is not None and getattr(shared.sd_model, 'vae', None) is not None:
             vae_class = shared.sd_model.vae.__class__
             vae_loader = vae_class.from_single_file if os.path.isfile(vae_file) else vae_class.from_pretrained
         elif os.path.isfile(vae_file):
@@ -213,7 +220,7 @@ def load_vae(model_file, vae_file=None, vae_source="unknown-source"):
     return None
 
 
-def reload_vae_weights(sd_model=None, vae_file=unspecified):
+def reload_vae_weights(sd_model: DiffusionPipeline | None = None, vae_file = unspecified):
     if not sd_model:
         sd_model = shared.sd_model
     if sd_model is None:
@@ -222,25 +229,27 @@ def reload_vae_weights(sd_model=None, vae_file=unspecified):
     checkpoint_info = sd_model.sd_checkpoint_info
     checkpoint_file = checkpoint_info.filename
     if vae_file == unspecified:
-        vae_file, vae_source = resolve_vae(checkpoint_file)
+        vae_file_path, vae_source = resolve_vae(checkpoint_file)
     else:
+        vae_file_path = cast("str | None", vae_file)
         vae_source = "function-argument"
-    if vae_file is None or vae_file == 'None':
+
+    if vae_file_path is None or vae_file_path == 'None':
         if hasattr(sd_model, 'original_vae'):
             sd_models.set_diffuser_options(sd_model, vae=sd_model.original_vae, op='vae')
             log.info("VAE restored")
             return None
-    if loaded_vae_file == vae_file:
+    if loaded_vae_file == vae_file_path:
         return None
 
-    if hasattr(sd_model, "vae") and getattr(sd_model, "sd_checkpoint_info", None) is not None:
-        vae = load_vae(sd_model.sd_checkpoint_info.filename, vae_file, vae_source)
+    if vae_file_path is not None and hasattr(sd_model, "vae") and getattr(sd_model, "sd_checkpoint_info", None) is not None:
+        vae = load_vae(sd_model.sd_checkpoint_info.filename, vae_file_path, vae_source)
         if vae is not None:
             if not hasattr(sd_model, 'original_vae'):
                 sd_model.original_vae = sd_model.vae
                 sd_models.move_model(sd_model.original_vae, devices.cpu)
             sd_models.set_diffuser_options(sd_model, vae=vae, op='vae')
-            apply_vae_config(sd_model.sd_checkpoint_info.filename, vae_file, sd_model)
+            apply_vae_config(sd_model.sd_checkpoint_info.filename, vae_file_path, sd_model)
 
     if not shared.cmd_opts.lowvram and not shared.cmd_opts.medvram:
         sd_models.move_model(sd_model, devices.device)
