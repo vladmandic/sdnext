@@ -28,6 +28,7 @@
   - custom `vae` loader
   - `attention` execution guard against `cpu` tensors
   - downloaded diffuser model use `snapshot` path
+  - improve `settings` search
 
 ## Update for 2026-05-13
 

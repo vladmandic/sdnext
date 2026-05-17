@@ -138,19 +138,33 @@ async function onAfterUiUpdateCallback() {
 
   const settingsSearch = gradioApp().querySelectorAll('#settings_search > label > textarea')[0];
   let settingsTimer;
+  let settingSearchValue = '';
+
+  function doSettingsSearch() {
+    if (settingSearchValue === settingsSearch.value.trim().toLowerCase()) return;
+    showAllSettings();
+    const value = settingsSearch.value.trim().toLowerCase();
+    log('doSettingsSearch', value);
+    settingSearchValue = value;
+    getSettingsTabs().forEach((section) => {
+      section.querySelectorAll('.dirtyable').forEach((setting) => {
+        const visible = setting.innerText.toLowerCase().includes(value) || setting.id.toLowerCase().includes(value);
+        const parent = setting.closest('.settings_section');
+        if (!visible) parent.style.display = 'none';
+        else parent.style.removeProperty('display');
+      });
+    });
+  }
+
   settingsSearch.oninput = (e) => {
     if (settingsTimer) clearTimeout(settingsTimer);
-    settingsTimer = setTimeout(() => {
-      log('settingsSearch', e.target.value);
-      showAllSettings();
-      getSettingsTabs().forEach((section) => {
-        section.querySelectorAll('.dirtyable').forEach((setting) => {
-          const visible = setting.innerText.toLowerCase().includes(e.target.value.toLowerCase()) || setting.id.toLowerCase().includes(e.target.value.toLowerCase());
-          if (!visible) setting.style.display = 'none';
-          else setting.style.removeProperty('display');
-        });
-      });
-    }, 250);
+    settingsTimer = setTimeout(doSettingsSearch, 250);
+  };
+  settingsSearch.onkeypress = (e) => {
+    if (e.key === 'Enter') {
+      if (settingsTimer) clearTimeout(settingsTimer);
+      doSettingsSearch();
+    }
   };
 }
 

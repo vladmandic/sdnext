@@ -140,6 +140,7 @@ def create_settings(cmd_opts):
 
     # --- Model Quantization ---
     options_templates.update(options_section(("quantization", "Model Quantization"), {
+        "quantize_sep": OptionInfo("<h2>Quantization General</h2>", "", gr.HTML),
         "models_not_to_quant": OptionInfo("", "Model types not to quantize"),
 
         "sdnq_quantize_sep": OptionInfo("<h2>SDNQ: SD.Next Quantization</h2>", "", gr.HTML),
@@ -570,6 +571,7 @@ def create_settings(cmd_opts):
 
     # --- Postprocessing ---
     options_templates.update(options_section(('postprocessing', "Postprocessing"), {
+        "postprocessing_sep": OptionInfo("<h2>Postprocessing Operations</h2>", "", gr.HTML),
         'postprocessing_enable_in_main_ui': OptionInfo([], "Additional postprocessing operations", gr.Dropdown, lambda: {"multiselect":True, "choices": [x.name for x in shared_items.postprocessing_scripts()]}),
         'postprocessing_operation_order': OptionInfo([], "Postprocessing operation order", gr.Dropdown, lambda: {"multiselect":True, "choices": [x.name for x in shared_items.postprocessing_scripts()], "visible": False }),
 
