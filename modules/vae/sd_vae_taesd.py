@@ -86,9 +86,11 @@ def get_model(model_cls, variant=None):
     return model_cls, variant
 
 
-def load_model(model_type = 'decoder', variant = None):
+def load_model(model_type = 'decoder', variant = None, vae_file: str | None = None):
     global prev_cls, prev_type, prev_model, prev_warnings # pylint: disable=global-statement
-    model_cls = shared.sd_model_type
+    model_cls = shared.sd_model_type if shared.sd_loaded else None
+    if vae_file is not None and os.path.exists(vae_file):
+        model_cls = 'sdxl'
     if model_cls is None or model_cls == 'none':
         return None, variant
     model_cls, variant = get_model(model_cls, variant)
@@ -131,10 +133,17 @@ def load_model(model_type = 'decoder', variant = None):
             else:
                 from modules.taesd.taesd import TAESD
                 vae = TAESD(decoder_path=fn if model_type=='decoder' else None, encoder_path=fn if model_type=='encoder' else None)
+                """
+                _vae = diffusers.AutoencoderKL()
+                from installer import Dot
+                _config = diffusers.AutoencoderKL().config.copy()
+                vae.config = Dot(_config) # set config for compatibility with standard vae
+                """
             if vae is not None:
                 prev_warnings = False # reset warnings for new model
                 vae = vae.to(devices.device, dtype=dtype)
                 TAESD_MODELS[variant]['model'] = vae
+                vae.config = {}
             return vae, variant
     elif variant.startswith('Hybrid'):
         cfg = CQYAN_MODELS[variant].get(model_cls, None)

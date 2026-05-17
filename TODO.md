@@ -7,7 +7,6 @@
 - Chat-based interface, @vladmandic
 - Control tab verify overrides handling, @vladmandic
 - Reimplement `llama` remover for Kanvas, @vladmandic
-- Change params to default, @vladmandic
 
 - Detailer postprocessing, @CalamitousFelicitousness
 - Cloud providers, @CalamitousFelicitousness

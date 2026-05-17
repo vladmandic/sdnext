@@ -4,7 +4,6 @@ import json
 import torch
 import requests
 from PIL import Image
-from safetensors.torch import _tobytes
 from modules.logger import log
 
 
@@ -45,6 +44,12 @@ dtypes = {
     "bfloat16": torch.bfloat16,
     "uint8": torch.uint8,
 }
+
+
+def tensor_to_bytes(tensor: torch.Tensor) -> bytes:
+    # Convert tensor to a compact raw byte buffer for remote VAE binary endpoints.
+    tensor = tensor.detach().to(device="cpu").contiguous()
+    return tensor.view(torch.uint8).numpy().tobytes()
 
 
 def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_type: str | None = None):
@@ -103,7 +108,7 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 url=url,
                 headers=headers,
                 params=params,
-                data=_tobytes(latent, "tensor"),
+                data=tensor_to_bytes(latent),
                 timeout=300,
             )
             if not response.ok:

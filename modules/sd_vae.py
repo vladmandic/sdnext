@@ -169,6 +169,7 @@ def load_vae(model_file, vae_file=None, vae_source="unknown-source"):
     vae_config = sd_detect.get_load_config(model_file, model_type, config_type='json')
     if vae_config is not None:
         diffusers_load_config['config'] = os.path.join(vae_config, 'vae')
+    vae = None
     try:
         import diffusers
         vae_class = None
@@ -177,38 +178,36 @@ def load_vae(model_file, vae_file=None, vae_source="unknown-source"):
             vae_class = shared.sd_model.vae.__class__
             vae_loader = vae_class.from_single_file if os.path.isfile(vae_file) else vae_class.from_pretrained
         elif os.path.isfile(vae_file):
-            if os.path.getsize(vae_file) > 1310944880: # 1.3GB
+            size = os.path.getsize(vae_file)
+            if size > 1310944880: # 1.3GB
                 vae_class = diffusers.ConsistencyDecoderVAE
                 vae_loader = vae_class.from_pretrained
                 vae_file = 'openai/consistency-decoder'
-            elif os.path.getsize(vae_file) < 10000000: # 10MB
-                vae_class = diffusers.AutoencoderTiny
-                vae_loader = vae_class.from_single_file
+            elif size < 25000000: # 25MB
+                log.error(f'Load module: type=VAE file="{vae_file}" size={size} invalid')
+                vae_loader = None
+                vae_class = None
             else: # fallback
                 vae_class = diffusers.AutoencoderKL
-                # if getattr(vae.config, 'scaling_factor', 0) == 0.18125 and shared.sd_model_type == 'sdxl':
-                #     vae.config.scaling_factor = 0.13025
-                #     log.debug('Setting model: component=VAE fix scaling factor')
-            vae_loader = vae_class.from_single_file
+                vae_loader = vae_class.from_single_file
         else:
             if 'consistency-decoder' in vae_file:
                 vae_class = diffusers.ConsistencyDecoderVAE
             else: # fallback
                 vae_class = diffusers.AutoencoderKL
             vae_loader = vae_class.from_pretrained
+
         if vae_loader is not None:
             log.info(f'Load module: type=VAE model="{vae_file}" source={vae_source} cls={vae_class.__name__} config={diffusers_load_config}')
             vae = vae_loader(vae_file, **diffusers_load_config)
             vae = vae.to(devices.dtype_vae)
-
-        global loaded_vae_file # pylint: disable=global-statement
-        loaded_vae_file = os.path.basename(vae_file)
-        # log.debug(f'Diffusers VAE config: {vae.config}')
-        if shared.opts.diffusers_offload_mode == 'none':
-            sd_models.move_model(vae, devices.device)
+            global loaded_vae_file # pylint: disable=global-statement
+            loaded_vae_file = os.path.basename(vae_file)
+            if shared.opts.diffusers_offload_mode == 'none':
+                sd_models.move_model(vae, devices.device)
         return vae
     except Exception as e:
-        log.error(f"Load VAE failed: model={vae_file} {e}")
+        log.error(f"Load module: type=VAE model={vae_file} {e}")
         if debug:
             errors.display(e, 'VAE')
     return None
