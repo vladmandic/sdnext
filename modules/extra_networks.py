@@ -1,18 +1,24 @@
+from __future__ import annotations
+
 import re
 import inspect
 from collections import defaultdict
+from typing import TYPE_CHECKING
 from modules import errors, shared
 from modules.logger import log
 
+if TYPE_CHECKING:
+    from modules.processing_class import StableDiffusionProcessing
 
-extra_network_registry = {}
+
+extra_network_registry: dict[str, ExtraNetwork] = {}
 
 
 def initialize():
     extra_network_registry.clear()
 
 
-def register_extra_network(extra_network):
+def register_extra_network(extra_network: ExtraNetwork):
     extra_network_registry[extra_network.name] = extra_network
 
 
@@ -26,9 +32,9 @@ def register_default_extra_networks():
 
 
 class ExtraNetworkParams:
-    def __init__(self, items=None):
-        self.items = items or []
-        self.positional = []
+    def __init__(self, items: list[str] | None = None):
+        self.items: list[str] = items or []
+        self.positional: list[str] = []
         self.named = {}
         for item in self.items:
             parts = item.split('=', 2) if isinstance(item, str) else [item]
@@ -48,10 +54,10 @@ class ExtraNetworkParams:
 
 
 class ExtraNetwork:
-    def __init__(self, name):
+    def __init__(self, name: str):
         self.name = name
 
-    def activate(self, p, params_list):
+    def activate(self, p: StableDiffusionProcessing, params_list: list[ExtraNetworkParams]):
         """
         Called by processing on every run. Whatever the extra network is meant to do should be activated here. Passes arguments related to this extra network in params_list. User passes arguments by specifying this in his prompt:
         <name:arg1:arg2:arg3>
@@ -68,14 +74,14 @@ class ExtraNetwork:
         """
         raise NotImplementedError
 
-    def deactivate(self, p, force=False):
+    def deactivate(self, p: StableDiffusionProcessing, force=False):
         """
         Called at the end of processing for housekeeping. No need to do anything here.
         """
         raise NotImplementedError
 
 
-def activate(p, extra_network_data=None, step=0, include=None, exclude=None):
+def activate(p: StableDiffusionProcessing, extra_network_data: defaultdict[str, list[ExtraNetworkParams]] | None = None, step=0, include: list | None = None, exclude: list | None = None):
     """call activate for extra networks in extra_network_data in specified order, then call activate for all remaining registered networks with an empty argument list"""
     if exclude is None:
         exclude = []
@@ -115,7 +121,7 @@ def activate(p, extra_network_data=None, step=0, include=None, exclude=None):
     p.network_data = extra_network_data
 
 
-def deactivate(p, extra_network_data=None, force=None):
+def deactivate(p: StableDiffusionProcessing, extra_network_data: defaultdict[str, list[ExtraNetworkParams]] | None = None, force: bool | None = None):
     """call deactivate for extra networks in extra_network_data in specified order, then call deactivate for all remaining registered networks"""
     if p.disable_extra_networks:
         return
