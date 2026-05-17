@@ -14,6 +14,10 @@
     new api endpoint: `/sdapi/v1/analyze`  
   - **HF download** use `XET` by default  
     see *settings -> huggingface -> download method* for options  
+- **Compute**
+  - **CUDA** update to `torch==2.12` with `cuda==13.2`
+  - **ROCm** update to `torch==2.12`
+  - **IPEX** update to `torch==2.12`
 - **AI**
   - Cognitive analysis and improvements to *all* AI prompts
   - Automated fixes using `/check-` skills
