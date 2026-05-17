@@ -25,7 +25,15 @@ def set_triton_flash_attention(backend: str):
             sdpa_pre_triton_flash_atten = torch.nn.functional.scaled_dot_product_attention
             @wraps(sdpa_pre_triton_flash_atten)
             def sdpa_triton_flash_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
-                if query.shape[-1] <= 128 and attn_mask is None and query.dtype != torch.float32:
+                use_triton = (
+                    query.shape[-1] <= 128
+                    and attn_mask is None
+                    and query.dtype != torch.float32
+                    and query.device.type != "cpu"
+                    and key.device == query.device
+                    and value.device == query.device
+                )
+                if use_triton:
                     if scale is None:
                         scale = query.shape[-1] ** (-0.5)
                     head_size_og = query.size(3)
@@ -101,7 +109,15 @@ def set_ck_flash_attention(backend: str, device: torch.device):
         sdpa_pre_flash_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_flash_atten)
         def sdpa_flash_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
-            if query.shape[-1] <= 128 and attn_mask is None and query.dtype != torch.float32:
+            use_flash = (
+                query.shape[-1] <= 128
+                and attn_mask is None
+                and query.dtype != torch.float32
+                and query.device.type != "cpu"
+                and key.device == query.device
+                and value.device == query.device
+            )
+            if use_flash:
                 is_unsqueezed = False
                 if query.dim() == 3:
                     query = query.unsqueeze(0)
@@ -168,7 +184,15 @@ def set_sage_attention(backend: str, device: torch.device):
         sdpa_pre_sage_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_sage_atten)
         def sdpa_sage_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
-            if (query.shape[-1] in {128, 96, 64}) and (attn_mask is None) and (query.dtype != torch.float32):
+            use_sage = (
+                query.shape[-1] in {128, 96, 64}
+                and attn_mask is None
+                and query.dtype != torch.float32
+                and query.device.type != "cpu"
+                and key.device == query.device
+                and value.device == query.device
+            )
+            if use_sage:
                 if enable_gqa:
                     key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
                     value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)

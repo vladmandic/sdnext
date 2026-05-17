@@ -26,6 +26,7 @@
   - `diffusers` patch custom pipelines for `qk_norm`
   - *GHSA* fixes, thanks @SSJCorpSec for reporting
   - custom `vae` loader
+  - `attention` execution guard against `cpu` tensors
 
 ## Update for 2026-05-13
 
