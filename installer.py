@@ -668,9 +668,9 @@ def install_rocm_zluda():
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1')
         else:
             if rocm.version is None or float(rocm.version) >= 7.2: # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+rocm7.2 torchvision==0.26.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.12.0+rocm7.2 torchvision==0.27.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
             elif rocm.version == "7.1":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+rocm7.1 torchvision==0.26.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.12.0+rocm7.1 torchvision==0.27.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
             elif rocm.version == "7.0":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+rocm7.0 torchvision==0.25.0+rocm7.0 --index-url https://download.pytorch.org/whl/rocm7.0')
             elif rocm.version == "6.4":
@@ -708,7 +708,7 @@ def install_ipex():
     if args.use_nightly:
         torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+xpu torchvision==0.26.0+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.12.0+xpu torchvision==0.27.0+xpu --index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command

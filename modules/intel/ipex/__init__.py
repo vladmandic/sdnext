@@ -67,7 +67,6 @@ def ipex_init(): # pylint: disable=too-many-statements
             torch.cuda.stream = torch.xpu.stream
             torch.cuda.Event = torch.xpu.Event
             torch.cuda.Stream = torch.xpu.Stream
-            torch.cuda.Optional = torch.xpu.Optional
             torch.cuda.streams = torch.xpu.streams
             torch.cuda.Any = torch.xpu.Any
             torch.cuda.default_generators = torch.xpu.default_generators
@@ -164,6 +163,9 @@ def ipex_init(): # pylint: disable=too-many-statements
                 torch.cuda.Union = torch.xpu.Union
                 torch.cuda._device = torch.xpu._device
                 torch.cuda._device_t = torch.xpu._device_t
+
+            if torch_version[0] < 2 or (torch_version[0] == 2 and torch_version[1] < 12):
+                torch.cuda.Optional = torch.xpu.Optional
 
             # Memory:
             if "linux" in sys.platform and "WSL2" in os.popen("uname -a").read():
