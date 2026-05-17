@@ -27,6 +27,7 @@
   - *GHSA* fixes, thanks @SSJCorpSec for reporting
   - custom `vae` loader
   - `attention` execution guard against `cpu` tensors
+  - downloaded diffuser model use `snapshot` path
 
 ## Update for 2026-05-13
 

@@ -628,13 +628,16 @@ def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_c
             sd_model = diffusers.StableDiffusionXLPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             sd_model.model_type = sd_model.__class__.__name__
     except Exception as e:
-        err3 = e  # ignore last error
-        log.error(f"StableDiffusionPipeline: {e}")
+        err3 = e
         if debug_load:
             errors.display(e, "Load StableDiffusionPipeline")
 
-    if err3 is not None:
-        log.error(f'Load {op}: {checkpoint_info.path} detected={err0} auto={err1} diffusion={err2} base={err3}')
+    if sd_model is None:
+        log.error(f'Load {op}: path="{checkpoint_info.path}" pipeline={pipeline.__class__.__name__} type="{model_type}"')
+        log.error(f'Load {op}: attempt detected:  {err0}')
+        log.error(f'Load {op}: attempt auto:      {err1}')
+        log.error(f'Load {op}: attempt diffusion: {err2}')
+        log.error(f'Load {op}: attempt base:      {err3}')
         return None
 
     return sd_model

@@ -146,7 +146,7 @@ def list_models():
             checkpoint_info.register()
     diffusers_list = []
     for repo in modelloader.load_diffusers_models(clear=True):
-        checkpoint_info = CheckpointInfo(repo['name'], sha=repo['hash'], folder=repo['folder'])
+        checkpoint_info = CheckpointInfo(repo['name'], sha=repo['hash'], folder=repo['path'])
         diffusers_list.append(checkpoint_info)
         if checkpoint_info.name is not None:
             checkpoint_info.register()
