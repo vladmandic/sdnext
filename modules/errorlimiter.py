@@ -2,17 +2,15 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from threading import Lock
-from typing import TYPE_CHECKING, ClassVar
+from typing import ClassVar
 
-if TYPE_CHECKING:
-    from collections.abc import Iterable
 
 _instance_id = 0
 _lock = Lock()
 
 
 def _make_unique(name: str):
-    global _instance_id # pylint: disable=global-statement
+    global _instance_id  # pylint: disable=global-statement
     with _lock:  # Guard against race conditions
         new_name = f"{name}__{_instance_id}"
         _instance_id += 1
