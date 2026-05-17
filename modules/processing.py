@@ -52,9 +52,9 @@ class Processed:
         self.height = p.height if hasattr(p, 'height') else (self.images[0].height if len(self.images) > 0 else 0)
 
         self.sampler_name = p.sampler_name or ''
-        self.cfg_scale = p.cfg_scale if p.cfg_scale > -1 else None
+        self.cfg_scale = p.cfg_scale if (p.cfg_scale is not None and p.cfg_scale > -1) else None
         self.cfg_end = p.cfg_end if p.cfg_end < 1 else None
-        self.cfg_image = p.cfg_image if p.cfg_image > -1 else None
+        self.cfg_image = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
         self.steps = p.steps or 0
         self.batch_size = max(1, p.batch_size)
         self.denoising_strength = p.denoising_strength
