@@ -580,26 +580,27 @@ def test_parse_key_all_prefixes():
 
 
 def test_resolve_targets_qkv_chunking():
+    from modules.lora.native_loader import ChunkSpec
     # Kohya double_blocks fused QKV → three chunks targeting Q/K/V.
     targets = F.resolve_targets('lora_unet_', 'double_blocks_0_img_attn_qkv')
     assert targets == [
-        ('transformer_blocks.0.attn.to_q', 0, 3),
-        ('transformer_blocks.0.attn.to_k', 1, 3),
-        ('transformer_blocks.0.attn.to_v', 2, 3),
+        ('transformer_blocks.0.attn.to_q', ChunkSpec(idx=0, total=3)),
+        ('transformer_blocks.0.attn.to_k', ChunkSpec(idx=1, total=3)),
+        ('transformer_blocks.0.attn.to_v', ChunkSpec(idx=2, total=3)),
     ], f'kohya img_attn.qkv → {targets}'
 
     targets = F.resolve_targets('lora_unet_', 'double_blocks_5_txt_attn_qkv')
     assert targets == [
-        ('transformer_blocks.5.attn.add_q_proj', 0, 3),
-        ('transformer_blocks.5.attn.add_k_proj', 1, 3),
-        ('transformer_blocks.5.attn.add_v_proj', 2, 3),
+        ('transformer_blocks.5.attn.add_q_proj', ChunkSpec(idx=0, total=3)),
+        ('transformer_blocks.5.attn.add_k_proj', ChunkSpec(idx=1, total=3)),
+        ('transformer_blocks.5.attn.add_v_proj', ChunkSpec(idx=2, total=3)),
     ], f'kohya txt_attn.qkv → {targets}'
 
     targets = F.resolve_targets('diffusion_model.', 'single_blocks.7.linear1')
-    assert targets == [('single_transformer_blocks.7.attn.to_qkv_mlp_proj', None, None)]
+    assert targets == [('single_transformer_blocks.7.attn.to_qkv_mlp_proj', None)]
 
     targets = F.resolve_targets('transformer.', 'transformer_blocks.0.attn.to_q')
-    assert targets == [('transformer_blocks.0.attn.to_q', None, None)]
+    assert targets == [('transformer_blocks.0.attn.to_q', None)]
 
     targets = F.resolve_targets('weird_prefix.', 'whatever')
     assert targets == []
@@ -654,7 +655,7 @@ def test_parse_key_lycoris_prefix():
 
     # resolve_targets: the underscored path is returned verbatim (no chunk).
     targets = F.resolve_targets('lycoris_', 'transformer_blocks_0_attn_add_k_proj')
-    assert targets == [('transformer_blocks_0_attn_add_k_proj', None, None)], f'targets={targets}'
+    assert targets == [('transformer_blocks_0_attn_add_k_proj', None)], f'targets={targets}'
     return True
 
 
@@ -691,7 +692,7 @@ def test_parse_key_bare_diffusers_and_peft_default():
 
     # resolve_targets passes the bare-diffusers path through verbatim.
     targets = F.resolve_targets(bd, 'single_transformer_blocks.5.attn.to_out')
-    assert targets == [('single_transformer_blocks.5.attn.to_out', None, None)], f'targets={targets}'
+    assert targets == [('single_transformer_blocks.5.attn.to_out', None)], f'targets={targets}'
     return True
 
 
