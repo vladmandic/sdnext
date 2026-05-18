@@ -295,6 +295,8 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
 
 @devices.inference_context()
 def sdnq_quantize_layer(layer, quantization_config: "SDNQConfig", torch_dtype: torch.dtype | None = None, param_name: str = "", quant_kwargs: dict | None = None): # pylint: disable=unused-argument
+    if torch_dtype is None:
+        torch_dtype = layer.weight.dtype
     if quant_kwargs is None:
         quant_kwargs = get_quant_kwargs(layer, quantization_config, torch_dtype=torch_dtype, param_name=param_name)
 
@@ -343,7 +345,7 @@ def sdnq_quantize_layer(layer, quantization_config: "SDNQConfig", torch_dtype: t
         if quant_kwargs["use_quantized_matmul"] and not layer.sdnq_dequantizer.use_quantized_matmul:
             quantization_config.modules_to_not_use_matmul.append(param_name)
     else:
-        layer.weight = layer.weight.to(return_device, dtype=torch_dtype, non_blocking=non_blocking)
+        layer.weight = torch.nn.Parameter(layer.weight.to(return_device, dtype=torch_dtype, non_blocking=non_blocking), requires_grad=False)
         if use_dynamic_quantization:
             quantization_config.modules_to_not_convert.append(param_name)
 
