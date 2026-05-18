@@ -143,46 +143,6 @@ def get_block_counts():
     return num_double, num_single
 
 
-class NetworkModuleLokrSliceChunk(network_lokr.NetworkModuleLokr):
-    """LoKR module that returns one row-range of the Kronecker product.
-
-    Used when a LoKR adapter targets a fused weight with unequal chunk sizes
-    (e.g., Chroma single ``linear1`` = Q/K/V/proj_mlp at dims [3072, 3072, 3072, 12288]).
-    The shared ``NetworkModuleLokrChunk`` only supports equal-sized chunks via
-    ``torch.chunk``; this variant slices an explicit row range.
-    """
-    def __init__(self, net, weights, start_row, end_row):
-        super().__init__(net, weights)
-        self.start_row = start_row
-        self.end_row = end_row
-
-    def calc_updown(self, target):
-        if self.w1 is not None:
-            w1 = self.w1.to(target.device, dtype=target.dtype)
-        else:
-            w1a = self.w1a.to(target.device, dtype=target.dtype)
-            w1b = self.w1b.to(target.device, dtype=target.dtype)
-            w1 = w1a @ w1b
-        if self.w2 is not None:
-            w2 = self.w2.to(target.device, dtype=target.dtype)
-        else:
-            from modules.lora import lyco_helpers
-            if self.t2 is None:
-                w2a = self.w2a.to(target.device, dtype=target.dtype)
-                w2b = self.w2b.to(target.device, dtype=target.dtype)
-                w2 = w2a @ w2b
-            else:
-                t2 = self.t2.to(target.device, dtype=target.dtype)
-                w2a = self.w2a.to(target.device, dtype=target.dtype)
-                w2b = self.w2b.to(target.device, dtype=target.dtype)
-                w2 = lyco_helpers.make_weight_cp(t2, w2a, w2b)
-        full_shape = [w1.size(0) * w2.size(0), w1.size(1) * w2.size(1)]
-        updown = network_lokr.make_kron(full_shape, w1, w2)
-        updown = updown[self.start_row:self.end_row]
-        output_shape = list(updown.shape)
-        return self.finalize_updown(updown, target, output_shape)
-
-
 def try_load_lora(name, network_on_disk, lora_scale):
     """Try loading a Chroma LoRA (plus DoRA) as native modules."""
     t0 = time.time()
@@ -247,7 +207,7 @@ def try_load_lokr(name, network_on_disk, lora_scale):
         rng = slice_info.get(network_key)
         if rng is not None:
             start, end = rng
-            net.modules[network_key] = NetworkModuleLokrSliceChunk(net, nw, start, end)
+            net.modules[network_key] = network_lokr.NetworkModuleLokrSliceChunk(net, nw, start, end)
         else:
             net.modules[network_key] = network_lokr.NetworkModuleLokr(net, nw)
 
