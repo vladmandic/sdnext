@@ -206,6 +206,8 @@ def check_nunchaku(module: str = ''):
         if module in nunchaku_modules:
             from modules import mit_nunchaku
             mit_nunchaku.install_nunchaku()
+            import torch._dynamo
+            torch._dynamo.config.recompile_limit = 16 # Set a higher limit # pylint: disable=protected-access
             return mit_nunchaku.ok
     return False
 

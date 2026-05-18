@@ -1,6 +1,7 @@
 import torch
 import transformers
 import diffusers
+from huggingface_hub import hf_hub_download
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from modules.logger import log
 from pipelines import generic
@@ -13,11 +14,12 @@ def load_nunchaku():
     nunchaku_precision = nunchaku.utils.get_precision()
     nunchaku_rank = 128
     nunchaku_repo = f"nunchaku-ai/nunchaku-z-image-turbo/svdq-{nunchaku_precision}_r{nunchaku_rank}-z-image-turbo.safetensors"
+    repo_id, filename = nunchaku_repo.rsplit('/', 1)
     log.debug(f'Load module: quant=Nunchaku module=transformer repo="{nunchaku_repo}" attention={shared.opts.nunchaku_attention}')
+    local_path = hf_hub_download(repo_id=repo_id, filename=filename, cache_dir=shared.opts.hfcache_dir)
     transformer = nunchaku.NunchakuZImageTransformer2DModel.from_pretrained( # pylint: disable=no-member
-        nunchaku_repo,
+        local_path,
         torch_dtype=devices.dtype,
-        cache_dir=shared.opts.hfcache_dir,
     )
     return transformer
 

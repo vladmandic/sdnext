@@ -592,7 +592,6 @@ def create_settings(cmd_opts):
         "postprocessing_sep_seedvr": OptionInfo("<h2>SeedVR</h2>", "", gr.HTML),
         "seedvr_cfg_scale": OptionInfo(3.5, "SeedVR CFG Scale", gr.Slider, {"minimum": 1, "maximum": 15, "step": 1}),
 
-
         "postprocessing_sep_upscalers": OptionInfo("<h2>Upscaling</h2>", "", gr.HTML),
         "upscaler_unload": OptionInfo(False, "Unload upscaler after processing"),
         "upscaler_latent_steps": OptionInfo(20, "Upscaler latent steps", gr.Slider, {"minimum": 4, "maximum": 100, "step": 1}),
@@ -603,7 +602,6 @@ def create_settings(cmd_opts):
         "resize_quality": OptionInfo("PIL Lanczos", "Image resize algorithm", gr.Dropdown, {"choices": ["PIL Lanczos", "Sharpfin MKS2021", "Sharpfin Lanczos3", "Sharpfin Mitchell", "Sharpfin Catmull-Rom"]}),
         "resize_linearize_srgb": OptionInfo(True, "Apply sRGB linearization"),
     }))
-
 
     # --- Huggingface ---
     options_templates.update(options_section(('huggingface', "Huggingface"), {
