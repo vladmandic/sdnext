@@ -206,7 +206,7 @@ def ipex_init(): # pylint: disable=too-many-statements
             # Fix functions with ipex:
             torch.has_cuda = True
             torch.version.cuda = "12.1"
-            torch.backends.cuda.is_built = return_true
+            torch.backends.cuda.is_built = return_false
             torch._utils._get_available_device_type = return_xpu_string
 
             # torch.xpu.mem_get_info always returns the total memory as free memory
