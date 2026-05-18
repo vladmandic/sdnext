@@ -30,7 +30,7 @@ class QuantizationMethod(str, Enum):
 
 
 @devices.inference_context()
-def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, hadamard_group_size=128, svd_rank=32, svd_steps=8, use_svd=False, use_hadamard=False, use_quantized_matmul=False, use_stochastic_rounding=False, dequantize_fp32=True, using_pre_calculated_svd=False, skip_sr=False, param_name=None): # pylint: disable=unused-argument
+def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int8", quantized_matmul_dtype=None, torch_dtype=None, group_size=0, hadamard_group_size=128, svd_rank=32, svd_steps=8, use_svd=False, use_hadamard=False, use_quantized_matmul=False, use_stochastic_rounding=False, dequantize_fp32=True, using_pre_calculated_svd=False, using_pre_rotated_hadamard=False, skip_sr=False, param_name=None): # pylint: disable=unused-argument
     num_of_groups = 1
     is_conv_type = False
     is_conv_transpose_type = False
@@ -205,7 +205,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         use_quantized_matmul=use_quantized_matmul,
         re_quantize_for_matmul=re_quantize_for_matmul,
         use_stochastic_rounding=use_stochastic_rounding,
-        use_hadamard=use_hadamard,
+        use_hadamard=bool(use_hadamard or using_pre_rotated_hadamard),
         layer_class_name=layer_class_name,
     )
 
@@ -264,14 +264,13 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             use_svd=False,
             use_hadamard=False,
             using_pre_calculated_svd=use_svd,
+            using_pre_rotated_hadamard=use_hadamard,
             use_quantized_matmul=current_use_quantized_matmul,
             use_stochastic_rounding=use_stochastic_rounding,
             dequantize_fp32=dequantize_fp32,
             param_name=param_name,
         )
 
-        sdnq_dequantizer.use_hadamard = use_hadamard
-        sdnq_dequantizer.hadamard_group_size = hadamard_group_size
         if sdnq_dequantizer.use_quantized_matmul:
             weight_data["svd_up"] = svd_up_t
             weight_data["svd_down"] = svd_down_t
