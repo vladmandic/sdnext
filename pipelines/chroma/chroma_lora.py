@@ -191,7 +191,10 @@ def try_load_lokr(name, network_on_disk, lora_scale):
     groups = group_by_suffixes(state_dict, LOKR_SUFFIXES)
     groups, slice_info = expand_chroma_fused_lokr(groups)
     groups = apply_static_rename(groups, static_rename)
-    slice_info = {static_rename.get(k, k): v for k, v in slice_info.items()}
+    # Mirror apply_static_rename: the slice_info dict must use the same final
+    # network keys as ``groups`` (static rename applied + ``lora_transformer_``
+    # prefix) so the per-target lookup in the loop matches.
+    slice_info = {'lora_transformer_' + static_rename.get(k, k): v for k, v in slice_info.items()}
 
     unmapped = 0
     for network_key, w in groups.items():
