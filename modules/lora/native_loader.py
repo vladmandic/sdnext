@@ -37,8 +37,9 @@ import torch
 from modules import shared, sd_models
 from modules.logger import log
 from modules.lora import (
-    lora_convert, network, network_boft, network_hada, network_lokr,
-    network_lora, network_oft,
+    lora_convert, network, network_boft, network_full, network_glora,
+    network_hada, network_ia3, network_lokr, network_lora, network_norm,
+    network_oft,
 )
 from modules.lora import lora_common as l
 
@@ -594,6 +595,210 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
                 net.modules[network_key] = network_oft.NetworkModuleOFT(net, nw)
 
     return finalize_network(net, name, "OFT", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+
+
+def try_load_ia3(name, network_on_disk, lora_scale, *,
+                 resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
+                 bare_prefixes=(), bare_diffusers_prefixes=(),
+                 arch_name="generic"):
+    """Generic IA3 loader.
+
+    IA3 stores a per-row or per-column scale vector keyed under ``.weight``
+    plus an ``.on_input`` flag selecting which axis. ``.weight`` alone is too
+    generic for the marker scan (it overlaps every other family's
+    ``.lora_down.weight`` / ``.hada_w*`` keys), so the marker gate insists on
+    ``.on_input`` while the suffix table includes both.
+
+    Fused targets are skipped with a warning. There is no real-world IA3-on-DiT
+    prevalence to justify the asymmetry between ``on_input=True`` (which would
+    replicate cleanly across Q/K/V) and ``on_input=False`` (which would need
+    output-axis slicing).
+    """
+    t0 = time.time()
+    state_dict = read_state_dict(network_on_disk.filename, what="network")
+    if not has_marker(state_dict, IA3_MARKERS):
+        return None
+
+    mapping = resolve_mapping()
+    net = new_network(name, network_on_disk)
+    groups = group_by_suffixes(
+        state_dict, IA3_SUFFIXES,
+        prefixes=prefixes,
+        bare_prefixes=bare_prefixes,
+        bare_diffusers_prefixes=bare_diffusers_prefixes,
+    )
+
+    unmapped = 0
+    skipped = 0
+    for (prefix, base), w in groups.items():
+        if not ("weight" in w and "on_input" in w):
+            continue
+        targets = resolve_targets(prefix, base)
+        if any(t[1] is not None for t in targets):
+            log.warning(f'Network load: type=IA3 name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            skipped += 1
+            continue
+        for diffusers_path, _ in targets:
+            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            sd_module = mapping.get(network_key)
+            if sd_module is None:
+                unmapped += 1
+                continue
+            nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
+            net.modules[network_key] = network_ia3.NetworkModuleIa3(net, nw)
+
+    return finalize_network(net, name, "IA3", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+
+
+def try_load_glora(name, network_on_disk, lora_scale, *,
+                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
+                   bare_prefixes=(), bare_diffusers_prefixes=(),
+                   arch_name="generic"):
+    """Generic GLoRA loader.
+
+    GLoRA stores four low-rank components (``a1`` / ``a2`` / ``b1`` / ``b2``)
+    and computes ``W_delta = w2b @ w1b + (target @ w2a) @ w1a``; the second
+    term is target-dependent. Fused targets are skipped: the target-dependent
+    term doesn't slice cleanly across projections without redirecting
+    calc_updown to a fused proxy weight, and the file pattern is vanishingly
+    rare on DiT architectures.
+    """
+    t0 = time.time()
+    state_dict = read_state_dict(network_on_disk.filename, what="network")
+    if not has_marker(state_dict, GLORA_MARKERS):
+        return None
+
+    mapping = resolve_mapping()
+    net = new_network(name, network_on_disk)
+    groups = group_by_suffixes(
+        state_dict, GLORA_SUFFIXES,
+        prefixes=prefixes,
+        bare_prefixes=bare_prefixes,
+        bare_diffusers_prefixes=bare_diffusers_prefixes,
+    )
+
+    unmapped = 0
+    skipped = 0
+    for (prefix, base), w in groups.items():
+        if not all(k in w for k in ("a1.weight", "a2.weight", "b1.weight", "b2.weight")):
+            continue
+        targets = resolve_targets(prefix, base)
+        if any(t[1] is not None for t in targets):
+            log.warning(f'Network load: type=GLoRA name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            skipped += 1
+            continue
+        for diffusers_path, _ in targets:
+            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            sd_module = mapping.get(network_key)
+            if sd_module is None:
+                unmapped += 1
+                continue
+            nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
+            net.modules[network_key] = network_glora.NetworkModuleGLora(net, nw)
+
+    return finalize_network(net, name, "GLoRA", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+
+
+def try_load_norm(name, network_on_disk, lora_scale, *,
+                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
+                  bare_prefixes=(), bare_diffusers_prefixes=(),
+                  arch_name="generic"):
+    """Generic Norm (LayerNorm / RMSNorm weight + bias delta) loader.
+
+    Norm targets are never fused, so the chunk dispatch is dropped.
+
+    Loader-local stamping: ``lora_convert.assign_network_names_to_compvis_modules``
+    deliberately skips setting ``module.network_layer_name`` for transformer
+    norm modules (except SD3) because of legacy CompVis UNet collisions. This
+    loader bypasses the guard locally: for each target it actually binds, it
+    sets ``network_layer_name`` directly on the host module so
+    ``network_activate`` will apply the delta. Stamping is idempotent and only
+    touches modules a Norm adapter explicitly targets.
+    """
+    t0 = time.time()
+    state_dict = read_state_dict(network_on_disk.filename, what="network")
+    if not has_marker(state_dict, NORM_MARKERS):
+        return None
+
+    mapping = resolve_mapping()
+    net = new_network(name, network_on_disk)
+    groups = group_by_suffixes(
+        state_dict, NORM_SUFFIXES,
+        prefixes=prefixes,
+        bare_prefixes=bare_prefixes,
+        bare_diffusers_prefixes=bare_diffusers_prefixes,
+    )
+
+    unmapped = 0
+    for (prefix, base), w in groups.items():
+        if "w_norm" not in w:
+            continue
+        targets = resolve_targets(prefix, base)
+        if not targets:
+            unmapped += 1
+            continue
+        for diffusers_path, chunk in targets:
+            if chunk is not None:
+                continue  # norm targets are not fused
+            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            sd_module = mapping.get(network_key)
+            if sd_module is None:
+                unmapped += 1
+                continue
+            if not getattr(sd_module, "network_layer_name", None):
+                sd_module.network_layer_name = network_key
+            nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
+            net.modules[network_key] = network_norm.NetworkModuleNorm(net, nw)
+
+    return finalize_network(net, name, "Norm", lora_scale, t0, unmapped=unmapped)
+
+
+def try_load_full(name, network_on_disk, lora_scale, *,
+                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
+                  bare_prefixes=(), bare_diffusers_prefixes=(),
+                  arch_name="generic"):
+    """Generic Full (full-rank weight delta) loader.
+
+    Full adapters carry a complete weight delta (``diff``, same shape as the
+    host weight) and an optional bias delta (``diff_b``). Fused targets are
+    skipped with a warning: ``diff`` has the host weight's full shape and
+    row-slicing across three projections is well-defined arithmetically, but
+    no chunk class exists.
+    """
+    t0 = time.time()
+    state_dict = read_state_dict(network_on_disk.filename, what="network")
+    if not has_marker(state_dict, FULL_MARKERS):
+        return None
+
+    mapping = resolve_mapping()
+    net = new_network(name, network_on_disk)
+    groups = group_by_suffixes(
+        state_dict, FULL_SUFFIXES,
+        prefixes=prefixes,
+        bare_prefixes=bare_prefixes,
+        bare_diffusers_prefixes=bare_diffusers_prefixes,
+    )
+
+    unmapped = 0
+    skipped = 0
+    for (prefix, base), w in groups.items():
+        if "diff" not in w:
+            continue
+        targets = resolve_targets(prefix, base)
+        if any(t[1] is not None for t in targets):
+            log.warning(f'Network load: type=Full name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            skipped += 1
+            continue
+        for diffusers_path, _ in targets:
+            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            sd_module = mapping.get(network_key)
+            if sd_module is None:
+                unmapped += 1
+                continue
+            nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
+            net.modules[network_key] = network_full.NetworkModuleFull(net, nw)
+
+    return finalize_network(net, name, "Full", lora_scale, t0, unmapped=unmapped, skipped=skipped)
 
 
 # === Per-arch umbrella ===
