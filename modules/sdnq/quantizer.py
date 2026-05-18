@@ -111,7 +111,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
 
     if use_hadamard:
         if channel_size % hadamard_group_size != 0:
-            hadamard_pow2 = math.log2(hadamard_group_size)
+            hadamard_pow2 = int(math.log2(hadamard_group_size))
             while channel_size % hadamard_group_size != 0:
                 hadamard_pow2 -= 1
                 hadamard_group_size = 2 ** hadamard_pow2
