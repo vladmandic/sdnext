@@ -3,7 +3,6 @@
 from dataclasses import dataclass
 from enum import Enum
 
-import math
 import torch
 
 from transformers.quantizers import HfQuantizer
@@ -21,7 +20,7 @@ from .packed_float import pack_float
 from .forward import get_forward_func
 from .layers import get_sdnq_wrapper_class
 
-from .quant_utils import quantize_weight, apply_svdquant, rotate_hadamard, prepare_weight_for_matmul, prepare_svd_for_matmul
+from .quant_utils import quantize_weight, apply_svdquant, apply_hadamard, prepare_weight_for_matmul, prepare_svd_for_matmul
 from .utils import check_param_name_in, get_quant_args_from_config, get_quant_kwargs, add_module_skip_keys
 
 
@@ -85,10 +84,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
     elif layer_class_name in linear_types:
         is_linear_type = True
         reduction_axes = -1
-        try:
-            output_channel_size, channel_size = weight.shape
-        except Exception as e:
-            raise ValueError(f"SDNQ: param_name={param_name} layer_class_name={layer_class_name} weight_shape={weight.shape} weights_dtype={weights_dtype} quantized_matmul_dtype={quantized_matmul_dtype} unsupported") from e
+        output_channel_size, channel_size = weight.shape
         use_quantized_matmul = use_quantized_matmul and channel_size >= 32 and output_channel_size >= 32 and output_channel_size % 16 == 0 and channel_size % 16 == 0
     else:
         if weight.ndim > 1:
@@ -110,15 +106,7 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         scale_dtype = torch_dtype
 
     if use_hadamard:
-        if channel_size % hadamard_group_size != 0:
-            hadamard_pow2 = int(math.log2(hadamard_group_size))
-            while channel_size % hadamard_group_size != 0:
-                hadamard_pow2 -= 1
-                hadamard_group_size = 2 ** hadamard_pow2
-        if hadamard_group_size < 4:
-            use_hadamard = False
-    if use_hadamard:
-        weight = rotate_hadamard(weight, group_size=hadamard_group_size, is_conv=bool(is_conv_type or is_conv_transpose_type))
+        weight, use_hadamard, hadamard_group_size = apply_hadamard(weight, group_size=hadamard_group_size, layer_class_name=layer_class_name)
 
     if use_svd:
         try:
@@ -233,11 +221,15 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
 
     if weight.dtype != torch.float64:
         weight = weight.to(dtype=torch.float32)
-    weight_std = weight.std().square_().clamp_(min=1e-8)
+    original_weight_fp32 = weight.clone()
+    weight_std = original_weight_fp32.std().square_().clamp_(min=1e-8)
+
+    if use_hadamard:
+        weight, use_hadamard, hadamard_group_size = apply_hadamard(weight, group_size=hadamard_group_size, layer_class_name=layer_class_name)
 
     if use_svd:
         try:
-            svd_weight, svd_up, svd_down = apply_svdquant(weight, rank=svd_rank, niter=svd_steps, dtype=torch_dtype)
+            weight, svd_up, svd_down = apply_svdquant(weight, rank=svd_rank, niter=svd_steps, dtype=torch_dtype)
             svd_up, svd_down = prepare_svd_for_matmul(svd_up, svd_down, False)
             if use_quantized_matmul:
                 svd_up_t, svd_down_t = svd_up.clone().t_(), svd_down.clone().t_()
@@ -247,11 +239,9 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
         except Exception:
             svd_up, svd_down = None, None
             svd_up_t, svd_down_t = None, None
-            svd_weight = weight
     else:
         svd_up, svd_down = None, None
         svd_up_t, svd_down_t = None, None
-        svd_weight = weight
 
     quantization_loss = None
     for i in range(weights_dtype_order.index(weights_dtype), len(weights_dtype_order)):
@@ -262,7 +252,7 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             current_use_quantized_matmul = use_quantized_matmul
 
         sdnq_dequantizer, weight_data = sdnq_quantize_layer_weight(
-            svd_weight,
+            weight,
             layer_class_name=layer_class_name,
             weights_dtype=current_weights_dtype,
             quantized_matmul_dtype=quantized_matmul_dtype,
@@ -272,7 +262,7 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             svd_rank=svd_rank,
             svd_steps=svd_steps,
             use_svd=False,
-            use_hadamard=use_hadamard,
+            use_hadamard=False,
             using_pre_calculated_svd=use_svd,
             use_quantized_matmul=current_use_quantized_matmul,
             use_stochastic_rounding=use_stochastic_rounding,
@@ -280,6 +270,8 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             param_name=param_name,
         )
 
+        sdnq_dequantizer.use_hadamard = use_hadamard
+        sdnq_dequantizer.hadamard_group_size = hadamard_group_size
         if sdnq_dequantizer.use_quantized_matmul:
             weight_data["svd_up"] = svd_up_t
             weight_data["svd_down"] = svd_down_t
@@ -287,9 +279,23 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             weight_data["svd_up"] = svd_up
             weight_data["svd_down"] = svd_down
 
-        quantization_loss = torch.nn.functional.mse_loss(weight, sdnq_dequantizer(**weight_data, skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul, dtype=weight.dtype, skip_compile=True)).div_(weight_std)
+        quantization_loss = torch.nn.functional.mse_loss(
+            original_weight_fp32,
+            sdnq_dequantizer(
+                weight_data["weight"],
+                weight_data["scale"],
+                weight_data["zero_point"],
+                weight_data["svd_up"],
+                weight_data["svd_down"],
+                skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul,
+                dtype=weight.dtype,
+                skip_compile=True,
+            ),
+        ).div_(weight_std)
         if quantization_loss <= dynamic_loss_threshold:
+            del original_weight_fp32
             return sdnq_dequantizer, weight_data
+    del original_weight_fp32
     return None
 
 

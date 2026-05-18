@@ -1,7 +1,8 @@
+import math
 import torch
 
 from modules import devices
-from .common import dtype_dict, use_contiguous_mm
+from .common import dtype_dict, use_contiguous_mm, conv_types, conv_transpose_types
 
 
 @devices.inference_context()
@@ -102,7 +103,7 @@ def get_hadamard(n: int, dtype: torch.dtype = torch.float32, device: torch.devic
 
 
 @devices.inference_context()
-def rotate_hadamard(weight: torch.Tensor, hadamard: torch.Tensor | None = None, group_size: int = 128, is_conv: bool = False) -> torch.Tensor:
+def rotate_hadamard(weight: torch.Tensor, group_size: int = 128, hadamard: torch.Tensor | None = None, is_conv: bool = False) -> torch.Tensor:
     if hadamard is None:
         hadamard = get_hadamard(group_size, dtype=weight.dtype, device=weight.device)
     if is_conv:
@@ -114,6 +115,27 @@ def rotate_hadamard(weight: torch.Tensor, hadamard: torch.Tensor | None = None, 
     if is_conv:
         result = result.unflatten(-1, weight_shape)
     return result
+
+
+@devices.inference_context()
+def apply_hadamard(weight: torch.Tensor, group_size: int = 128, hadamard: torch.Tensor | None = None, layer_class_name: str | None = None) -> torch.Tensor:
+    is_conv = False
+    use_hadamard = True
+    if layer_class_name in conv_types or layer_class_name in conv_transpose_types:
+        is_conv = True
+        channel_size = weight.shape[1]
+    else:
+        channel_size = weight.shape[-1]
+    if channel_size % group_size != 0:
+        hadamard_pow2 = int(math.log2(group_size))
+        while channel_size % group_size != 0:
+            hadamard_pow2 -= 1
+            group_size = 2 ** hadamard_pow2
+    if group_size < 4:
+        use_hadamard = False
+    if use_hadamard:
+        weight = rotate_hadamard(weight, group_size=group_size, is_conv=is_conv)
+    return weight, use_hadamard, group_size
 
 
 @devices.inference_context()
