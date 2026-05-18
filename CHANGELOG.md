@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-17
+## Update for 2026-05-18
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -9,19 +9,25 @@
   - all **Guidance** params are now set to *-1* by default to allow using model defaults and avoid confusion with different model behaviour  
     log will print default values used by model if not set by user  
 - **Features**
+  - **SDNQ** additional quantization algorithm: *Hadamard Rotations*  
+    much higher quality than base SDNQ, but runs slightly slower  
+    still faster than SVD and can be combined together with SVD for combined benefits  
   - **Captioning** new feature: analyze existing images for prompt adherence  
     *tip*: image analysis requires larger VLM model to produce quality output  
     new api endpoint: `/sdapi/v1/analyze`  
   - **HF download** use `XET` by default  
     see *settings -> huggingface -> download method* for options  
+  - **Nunchaku** consider DEV builds when auto-installing
 - **Compute**
-  - **CUDA** update to `torch==2.12` with `cuda==13.2`
-  - **ROCm** update to `torch==2.12`
-  - **IPEX** update to `torch==2.12`
+  - update `torch==2.12` for *CUDA, ROCm, IPEX*
 - **AI**
   - Cognitive analysis and improvements to *all* AI prompts
   - Automated fixes using `/check-` skills
   - Automated syntax, spelling and readability improvements to `/wiki` pages
+- **Internal**
+  - complete refactor of `modernui` javascript codebase to typescript!
+  - improve `kanvas` typing
+  - additional strong typing in core, thanks @awsr
 - **Fixes**
   - *hidream-o1* prequant loading
   - `gradio` initial hijack
@@ -33,6 +39,8 @@
   - `attention` execution guard against `cpu` tensors
   - downloaded diffuser model use `snapshot` path
   - improve `settings` search
+  - `nunchaku` z-image loader
+  - `ui` server log monitor
 
 ## Update for 2026-05-13
 

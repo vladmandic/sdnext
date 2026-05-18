@@ -1,5 +1,10 @@
 # TODO
 
+## Issues
+
+- Kanvas changing blur/dilate makes mask unusable
+- LTX audio leaks from previous runs
+
 ## Features
 
 ### Assigned
@@ -53,13 +58,13 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Image
 
-- [JoyAI-Image-Edit](https://github.com/huggingface/diffusers/pull/13444) (pr in-progress)
 - [nVidia Cosmos-Predict-2.5](https://huggingface.co/nvidia/Cosmos-Predict2.5-2B) (in diffusers)
 - [nVidia Cosmos-Transfer-2.5](https://huggingface.co/nvidia/Cosmos-Transfer2.5-2B) (in diffusers)
 - [Tencent HY-WU](https://huggingface.co/tencent/HY-WU) (transformers-compatible)
 
 ### Video
 
+- [ByteDance Lance](https://github.com/bytedance/Lance)
 - [HY-OmniWeaving](https://huggingface.co/tencent/HY-OmniWeaving)
 - [OpenMOSS MOVA](https://huggingface.co/OpenMOSS-Team/MOVA-720p)
 - [Wan2.2-Animate](https://huggingface.co/Wan-AI/Wan2.2-Animate-14B)
