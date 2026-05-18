@@ -414,25 +414,27 @@ CAT_PARSE = category('parse')
 
 
 def test_parse_key_all_prefixes():
-    """parse_key recognizes BFL, PEFT, kohya, and bare keys with the right base+suffix."""
+    """parse_key recognizes BFL, PEFT, kohya, and bare-diffusers keys.
+
+    Returns (prefix_used, base, suffix) - prefix_used is the matched
+    KNOWN_PREFIXES element, BARE_DIFFUSERS_PREFIX_USED for bare paths
+    matching BARE_DIFFUSERS_PREFIXES, or None when no prefix is recognized.
+    """
+    bd = Z.BARE_DIFFUSERS_PREFIX_USED
     cases = [
-        # BFL prefix -> dotted base, lora_A normalized to lora_down
         ('diffusion_model.layers.0.attention.to_q.lora_A.weight',
          Z.LORA_SUFFIXES,
-         ('lora_transformer_layers_0_attention_to_q', 'lora_down.weight')),
-        # PEFT prefix
+         ('diffusion_model.', 'layers.0.attention.to_q', 'lora_down.weight')),
         ('transformer.layers.0.attention.to_v.lora_B.weight',
          Z.LORA_SUFFIXES,
-         ('lora_transformer_layers_0_attention_to_v', 'lora_up.weight')),
-        # kohya flat underscore form
+         ('transformer.', 'layers.0.attention.to_v', 'lora_up.weight')),
         ('lora_unet_layers_0_attention_to_k.lora_down.weight',
          Z.LORA_SUFFIXES,
-         ('lora_transformer_layers_0_attention_to_k', 'lora_down.weight')),
-        # Bare dotted (no recognized prefix)
+         ('lora_unet_', 'layers_0_attention_to_k', 'lora_down.weight')),
+        # Bare path starting with a known block prefix
         ('layers.0.attention.to_out.0.lora_A.weight',
          Z.LORA_SUFFIXES,
-         ('lora_transformer_layers_0_attention_to_out_0', 'lora_down.weight')),
-        # Unrelated keys reject cleanly
+         (bd, 'layers.0.attention.to_out.0', 'lora_down.weight')),
         ('random.unrelated.key', Z.LORA_SUFFIXES, None),
     ]
     for key, suffixes, expected in cases:
@@ -580,11 +582,23 @@ def test_loha_bfl_proj():
     return True
 
 
-def test_loha_legacy_fused_qkv_skipped():
-    """LoHA on legacy fused attention.qkv is skipped with a warning (no chunk variant)."""
+def test_loha_legacy_fused_qkv_chunked():
+    """LoHA on legacy fused attention.qkv emits 3 HadaChunk modules.
+
+    Post-migration the generic LoHA loader uses NetworkModuleHadaChunk for
+    equal-chunks dispatch (the chunk class was added in the flux2 PR and is
+    now shared infrastructure).
+    """
     net = _load_via(Z.try_load_loha, sd_loha_legacy_fused_qkv_skipped())
-    # Either no net returned (nothing matched) or net with zero modules
-    assert net is None or len(net.modules) == 0, f'expected no modules, got {net.modules if net else None}'
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    expected = {
+        'lora_transformer_layers_0_attention_to_q',
+        'lora_transformer_layers_0_attention_to_k',
+        'lora_transformer_layers_0_attention_to_v',
+    }
+    assert set(net.modules) == expected, f'got {set(net.modules)}'
+    for mod in net.modules.values():
+        assert isinstance(mod, network_hada.NetworkModuleHadaChunk)
     return True
 
 
@@ -689,7 +703,7 @@ def run_tests():
         test_lokr_bfl_adaln,
         test_lokr_legacy_fused_qkv_chunked,
         test_loha_bfl_proj,
-        test_loha_legacy_fused_qkv_skipped,
+        test_loha_legacy_fused_qkv_chunked,
         test_oft_lycoris_no_npe,
         test_oft_legacy_fused_qkv_skipped,
     ]:
