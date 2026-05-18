@@ -376,21 +376,23 @@ CAT_PARSE = category('parse')
 
 
 def test_parse_key_all_prefixes():
-    """parse_key recognizes BFL, PEFT, kohya, and bare keys."""
+    """parse_key returns (prefix_used, base, suffix). ERNIE has no path renames
+    so resolve_targets passes the base through verbatim."""
+    bd = E.BARE_DIFFUSERS_PREFIX_USED
     cases = [
         ('diffusion_model.layers.0.mlp.gate_proj.lora_A.weight',
          E.LORA_SUFFIXES,
-         ('lora_transformer_layers_0_mlp_gate_proj', 'lora_down.weight')),
+         ('diffusion_model.', 'layers.0.mlp.gate_proj', 'lora_down.weight')),
         ('transformer.layers.1.self_attention.to_q.lora_B.weight',
          E.LORA_SUFFIXES,
-         ('lora_transformer_layers_1_self_attention_to_q', 'lora_up.weight')),
+         ('transformer.', 'layers.1.self_attention.to_q', 'lora_up.weight')),
         ('lora_unet_layers_0_mlp_linear_fc2.lora_down.weight',
          E.LORA_SUFFIXES,
-         ('lora_transformer_layers_0_mlp_linear_fc2', 'lora_down.weight')),
-        # Bare path (no prefix) - ernie parse_key allows fallthrough
+         ('lora_unet_', 'layers_0_mlp_linear_fc2', 'lora_down.weight')),
+        # Bare path starting with a known block prefix
         ('layers.0.mlp.up_proj.lora_A.weight',
          E.LORA_SUFFIXES,
-         ('lora_transformer_layers_0_mlp_up_proj', 'lora_down.weight')),
+         (bd, 'layers.0.mlp.up_proj', 'lora_down.weight')),
         ('random.unrelated.key', E.LORA_SUFFIXES, None),
     ]
     for key, suffixes, expected in cases:
