@@ -3,8 +3,9 @@
 import torch
 
 from ...common import compile_func, fp_mm_func # noqa: TID252
-from ...packed_float import unpack_float # noqa: TID252
 from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
+from ...quant_utils import rotate_hadamard # noqa: TID252
+from ...packed_float import unpack_float # noqa: TID252
 
 from .forward import check_mats
 from .linear_fp8_tensorwise import quantize_fp_mm_input_tensorwise
@@ -17,6 +18,8 @@ def fp16_matmul(
     bias: torch.FloatTensor | None = None,
     svd_up: torch.FloatTensor | None = None,
     svd_down: torch.FloatTensor | None = None,
+    use_hadamard: bool = False,
+    hadamard_group_size: int = 128,
     quantized_weight_shape: torch.Size | None = None,
     weights_dtype: str | None = None,
 ) -> torch.FloatTensor:
@@ -27,6 +30,8 @@ def fp16_matmul(
         weight = weight.to(dtype=torch.float16) # fp8 weights
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])
+    if use_hadamard:
+        input = rotate_hadamard(input, group_size=hadamard_group_size)
     if svd_up is not None:
         input = input.flatten(0,-2)
         if bias is not None:
@@ -53,6 +58,8 @@ def quantized_linear_forward_fp16_matmul(self, input: torch.FloatTensor) -> torc
         bias=self.bias,
         svd_up=self.svd_up,
         svd_down=self.svd_down,
+        use_hadamard=self.sdnq_dequantizer.use_hadamard,
+        hadamard_group_size=self.sdnq_dequantizer.hadamard_group_size,
         quantized_weight_shape=quantized_weight_shape,
         weights_dtype=self.sdnq_dequantizer.weights_dtype,
     )

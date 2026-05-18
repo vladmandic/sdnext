@@ -394,6 +394,7 @@ if fp_mm_func is None:
 
 
 if use_torch_compile:
+    torch._dynamo.config.recompile_limit = max(8192, getattr(torch._dynamo.config, "recompile_limit", 0))
     torch._dynamo.config.cache_size_limit = max(8192, getattr(torch._dynamo.config, "cache_size_limit", 0))
     torch._dynamo.config.accumulated_recompile_limit = max(8192, getattr(torch._dynamo.config, "accumulated_recompile_limit", 0))
     def compile_func(fn, **kwargs):

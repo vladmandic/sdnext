@@ -78,11 +78,13 @@ def get_quant_kwargs(layer: torch.nn.Module, quantization_config, torch_dtype: t
     quant_kwargs = {
         "weights_dtype": quantization_config.weights_dtype,
         "quantized_matmul_dtype": quantization_config.quantized_matmul_dtype,
+        "hadamard_group_size": quantization_config.hadamard_group_size,
         "group_size": quantization_config.group_size,
         "svd_rank": quantization_config.svd_rank,
         "svd_steps": quantization_config.svd_steps,
         "dynamic_loss_threshold": quantization_config.dynamic_loss_threshold,
         "use_svd": quantization_config.use_svd,
+        "use_hadamard": quantization_config.use_hadamard,
         "use_quantized_matmul": quantization_config.use_quantized_matmul,
         "use_quantized_matmul_conv": quantization_config.use_quantized_matmul_conv,
         "use_dynamic_quantization": quantization_config.use_dynamic_quantization,
