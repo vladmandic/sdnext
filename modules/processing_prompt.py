@@ -1,7 +1,13 @@
+from __future__ import annotations
+
 import os
+from typing import TYPE_CHECKING
 import torch
 from modules import shared, errors, timer, prompt_parser_diffusers
 from modules.logger import log
+
+if TYPE_CHECKING:
+    from modules.processing_class import StableDiffusionProcessing
 
 
 debug_enabled = os.environ.get('SD_PROMPT_DEBUG', None) is not None
@@ -46,11 +52,11 @@ def fix_prompt_batch(p, prompts, negative_prompts, prompts_2, negative_prompts_2
     return prompts, negative_prompts, prompts_2, negative_prompts_2
 
 
-def fix_prompt_model(cls, prompts, negative_prompts, prompts_2, negative_prompts_2):
+def fix_prompt_model(cls: str, prompts: list, negative_prompts: list, prompts_2: list, negative_prompts_2: list):
     if 'OmniGen' in cls:
         prompts = [p.replace('|image|', '<img><|image_1|></img>') for p in prompts]
     if 'PixArtSigmaPipeline' in cls: # pixart-sigma pipeline throws list-of-list for negative prompt
-        negative_prompts = negative_prompts[0]
+        negative_prompts = negative_prompts[0]  # type: ignore --- Handle list-of-list
     return prompts, negative_prompts, prompts_2, negative_prompts_2
 
 
@@ -70,7 +76,7 @@ def set_fallback_prompt(args: dict, possible: list[str], prompts, negative_promp
     return args
 
 
-def set_prompt(p,
+def set_prompt(p: StableDiffusionProcessing,
                args: dict,
                possible: list[str],
                cls: str,
@@ -81,7 +87,7 @@ def set_prompt(p,
                negative_prompts: list[str],
                prompts_2: list[str],
                negative_prompts_2: list[str],
-              ) -> dict:
+              ):
     prompt_attention = prompt_attention or getattr(p, 'prompt_attention', None) or shared.opts.prompt_attention
     if (prompt_attention != 'fixed') and ('Onnx' not in cls) and ('prompt' not in p.task_args) and (
         ('StableDiffusion' in cls) or

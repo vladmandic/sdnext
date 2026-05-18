@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import os
 import sys
 import inspect
 import hashlib
-from typing import Any
+from collections import defaultdict
+from typing import Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 import numpy as np
 from PIL import Image, ImageOps
@@ -10,6 +13,9 @@ from modules import shared, images, scripts_manager, masking, sd_models, sd_vae,
 from modules.logger import log
 from modules.paths import resolve_output_path
 from modules.image.util import flatten
+
+if TYPE_CHECKING:
+    from modules.extra_networks import ExtraNetworkParams
 
 
 debug = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -323,7 +329,9 @@ class StableDiffusionProcessing:
         self.negative_prompt_attention_masks = []
         self.disable_extra_networks = False
         self.iteration = 0
-        self.network_data = network_data or {}
+        self.network_data: defaultdict[str, list[ExtraNetworkParams]] = defaultdict(list)
+        if network_data is not None:
+            self.network_data |= network_data
 
         # initializers
         self.prompt = prompt
