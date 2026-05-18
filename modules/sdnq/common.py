@@ -8,6 +8,12 @@ from modules import shared, devices
 
 sdnq_version = "0.1.9"
 
+torch_version = torch.__version__[:4]
+if torch_version[-1] not in {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}:
+    torch_version = torch_version[:-1]
+torch_version = torch_version.split(".")
+torch_version[0], torch_version[1] = int(torch_version[0]), int(torch_version[1])
+
 dtype_dict = {
     ### Integers
     "int32": {"min": -2147483648, "max": 2147483647, "num_bits": 32, "sign": 1, "exponent": 0, "mantissa": 31, "target_dtype": torch.int32, "torch_dtype": torch.int32, "storage_dtype": torch.int32, "is_unsigned": False, "is_integer": True, "is_packed": False},
@@ -403,8 +409,9 @@ if use_torch_compile:
             kwargs["fullgraph"] = True
         if kwargs.get("dynamic", None) is None:
             kwargs["dynamic"] = False
-        if kwargs.get("recompile_limit", None) is None:
-            kwargs["recompile_limit"] = 8192
+        if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 12):
+            if kwargs.get("recompile_limit", None) is None:
+                kwargs["recompile_limit"] = 8192
         if os.environ.get("SDNQ_COMPILE_KWARGS", None) is not None:
             for key, value in json.loads(os.environ.get("SDNQ_COMPILE_KWARGS")).items():
                 kwargs[key] = value
