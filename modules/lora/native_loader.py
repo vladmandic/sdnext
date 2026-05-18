@@ -1,0 +1,337 @@
+"""Shared scaffolding for native adapter loaders.
+
+The four native adapter loaders (z-image, chroma, ernie, flux2) all implement
+the same algorithm:
+
+1. Read the safetensors state dict
+2. Test for family-specific markers; bail out if absent
+3. Resolve the diffusers ``network_layer_mapping``
+4. Group state-dict entries by ``(prefix, base)``
+5. For each group, ask the arch to resolve targets (diffusers paths + chunk specs)
+6. Instantiate a :class:`network.NetworkModule*` per resolved target
+7. Return a populated :class:`network.Network` (or ``None`` if no matches)
+
+This module holds the parts of that algorithm that don't vary between
+architectures. Constants (suffix and marker tables), helpers (``has_marker``,
+``resolve_mapping``, ``new_network``, ``finalize_network``, ``shapes_match``),
+the parameterized parsing primitives (``parse_key``, ``group_by_suffixes``),
+and the two cross-arch key normalizations (``unwrap_peft_wrapper`` and
+``strip_peft_adapter_name``) live here.
+
+The variance that does remain is captured by ``ChunkSpec`` (how a row range
+of a fused weight is described) and the per-arch ``resolve_targets`` callable
+each loader passes in (how a parsed ``(prefix, base)`` maps to one or more
+diffusers paths plus optional chunk descriptors).
+
+Per-arch loader modules import this module and pass their own ``prefixes``,
+``bare_prefixes``, ``bare_diffusers_prefixes``, and ``resolve_targets`` to the
+generic helpers. Loader business logic itself lands in subsequent commits.
+"""
+
+import os
+import time
+from dataclasses import dataclass
+
+import torch
+
+from modules import shared, sd_models
+from modules.logger import log
+from modules.lora import lora_convert, network
+from modules.lora import lora_common as l
+
+
+# Universal prefix list shared by every native arch loader. Per-arch loaders
+# extend this with arch-specific entries (e.g. flux2 adds ``"lycoris_"``).
+KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_")
+
+
+# Sentinel ``prefix_used`` value emitted by :func:`parse_key` when a bare path
+# starting with a member of ``bare_diffusers_prefixes`` matches. Loader
+# ``resolve_targets`` callables dispatch on this string to pass the base path
+# through verbatim (no rename required, the path is already in diffusers form).
+BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
+
+
+SUFFIX_NORMALIZE = {
+    "lora_A.weight": "lora_down.weight",
+    "lora_B.weight": "lora_up.weight",
+}
+
+
+# === Family suffix tables ===
+# Alpha / scale / bias / dora_scale flow into ``weights.w`` via the base
+# ``network.NetworkModule.__init__`` and are listed here so they survive the
+# suffix-filter pass in :func:`parse_key`.
+
+LORA_SUFFIXES = (
+    ".lora_down.weight", ".lora_up.weight", ".lora_mid.weight",
+    ".lora_A.weight",    ".lora_B.weight",
+    ".alpha", ".dora_scale", ".bias", ".scale",
+)
+LOKR_SUFFIXES = (
+    ".lokr_w1", ".lokr_w2",
+    ".lokr_w1_a", ".lokr_w1_b",
+    ".lokr_w2_a", ".lokr_w2_b",
+    ".lokr_t2",
+    ".alpha", ".dora_scale", ".bias", ".scale",
+)
+LOHA_SUFFIXES = (
+    ".hada_w1_a", ".hada_w1_b",
+    ".hada_w2_a", ".hada_w2_b",
+    ".hada_t1",   ".hada_t2",
+    ".alpha", ".dora_scale", ".bias", ".scale",
+)
+OFT_SUFFIXES = (
+    ".oft_blocks", ".oft_diag",
+    ".alpha", ".dora_scale", ".bias", ".scale",
+)
+IA3_SUFFIXES = (
+    ".weight", ".on_input",
+    ".alpha", ".scale",
+)
+GLORA_SUFFIXES = (
+    ".a1.weight", ".a2.weight",
+    ".b1.weight", ".b2.weight",
+    ".alpha", ".dora_scale", ".scale",
+)
+NORM_SUFFIXES = (
+    ".w_norm", ".b_norm",
+    ".alpha", ".scale",
+)
+FULL_SUFFIXES = (
+    ".diff", ".diff_b",
+    ".alpha", ".scale",
+)
+
+
+# === Family marker tables ===
+# Presence of any marker substring anywhere in a key triggers a try-load attempt
+# for that family. Markers are deliberately narrower than suffixes (e.g. IA3's
+# ``.on_input`` rather than ``.weight``) so :func:`has_marker` does not light up
+# on accidental overlaps with other families.
+
+LORA_MARKERS = (
+    ".lora_down.weight", ".lora_up.weight",
+    ".lora_A.weight", ".lora_B.weight",
+    # PEFT named-adapter saves embed the slot name as ``.lora_A.<name>.weight``;
+    # the trailing-dot forms catch every variant.
+    ".lora_A.", ".lora_B.",
+)
+LOKR_MARKERS = (".lokr_w1", ".lokr_w2")
+LOHA_MARKERS = (".hada_w1_a", ".hada_w1_b", ".hada_w2_a", ".hada_w2_b")
+OFT_MARKERS = (".oft_blocks", ".oft_diag")
+IA3_MARKERS = (".on_input",)  # NOT .weight - too generic, overlaps every other family
+GLORA_MARKERS = (".a1.weight", ".a2.weight", ".b1.weight", ".b2.weight")
+NORM_MARKERS = (".w_norm",)
+FULL_MARKERS = (".diff",)
+
+
+# === Chunk descriptor ===
+
+
+@dataclass(frozen=True)
+class ChunkSpec:
+    """How to slice a fused weight along dim 0 for one target module.
+
+    Two forms supported:
+
+    - Equal chunks (``idx`` + ``total``): fused QKV split into Q/K/V via
+      ``torch.chunk(up, total, dim=0)[idx]``. Used by flux2 / z-image where
+      Q, K and V have the same ``out_features``.
+    - Row range (``start`` + ``end``): asymmetric partition via
+      ``up[start:end]``. Used by chroma's single-block ``linear1`` which
+      fuses Q / K / V / proj_mlp at unequal sizes
+      (``[3072, 3072, 3072, 12288]``).
+
+    Generic loaders check :attr:`is_equal_chunks` to decide between the two
+    forms and select the appropriate ``NetworkModule*Chunk`` /
+    ``NetworkModule*SliceChunk`` variant.
+    """
+    idx: int | None = None
+    total: int | None = None
+    start: int | None = None
+    end: int | None = None
+
+    @property
+    def is_equal_chunks(self) -> bool:
+        return self.idx is not None and self.total is not None
+
+
+# === Key normalizations (applied universally by parse_key) ===
+
+
+def unwrap_peft_wrapper(key):
+    """Strip the ``base_model.model.`` prefix added by ``peft.save_pretrained``.
+
+    PeftModel.save_pretrained prepends this wrapper to every adapter key. The
+    content underneath can be any of the standard prefixes (BFL, diffusers PEFT,
+    kohya, bare); a single strip lets the rest of :func:`parse_key` handle the
+    unwrapped key normally. Mirrors the diffusers ``Flux2LoraLoaderMixin``
+    behavior of renaming ``base_model.model.`` to ``diffusion_model.`` before
+    feeding the converter.
+    """
+    if key.startswith("base_model.model."):
+        return key[len("base_model.model."):]
+    return key
+
+
+def strip_peft_adapter_name(key):
+    """Normalize ``.lora_[AB].<adapter_name>.weight`` to ``.lora_[AB].weight``.
+
+    ``peft.PeftModel`` and the diffusers ``save_lora_adapter`` exporter embed
+    the adapter slot name into the saved key (``"default"`` when not explicitly
+    set). Strip a single non-dotted name segment so the suffix table matches
+    without having to list every plausible adapter name.
+    """
+    for inner in (".lora_A.", ".lora_B."):
+        idx = key.find(inner)
+        if idx == -1:
+            continue
+        rest = key[idx + len(inner):]
+        if rest == "weight" or not rest.endswith(".weight"):
+            continue
+        adapter_name = rest[:-len(".weight")]
+        if adapter_name and "." not in adapter_name:
+            return key[:idx] + inner + "weight"
+    return key
+
+
+# === Core helpers ===
+
+
+def has_marker(state_dict, markers):
+    """Substring scan: does any key in ``state_dict`` contain any marker?"""
+    return any(any(m in k for m in markers) for k in state_dict)
+
+
+def resolve_mapping():
+    """Ensure ``network_layer_mapping`` is populated, return it (or empty dict)."""
+    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+    lora_convert.assign_network_names_to_compvis_modules(sd_model)
+    return getattr(shared.sd_model, "network_layer_mapping", {}) or {}
+
+
+def new_network(name, network_on_disk):
+    """Construct an empty :class:`network.Network` with the file's mtime stamped."""
+    net = network.Network(name, network_on_disk)
+    net.mtime = os.path.getmtime(network_on_disk.filename)
+    return net
+
+
+def finalize_network(net, name, family, lora_scale, t0, unmapped=0, mismatch=0, skipped=0):
+    """Emit the standard debug log line and return the populated network (or ``None``).
+
+    Returns ``None`` when no modules were bound. Logs at debug only; loader
+    callers can surface higher-level outcomes at info if needed.
+    """
+    if len(net.modules) == 0:
+        if unmapped or mismatch or skipped:
+            log.debug(
+                f'Network load: type={family} name="{name}" native no-match'
+                f' unmapped={unmapped} mismatch={mismatch} skipped={skipped}'
+            )
+        return None
+    log.debug(
+        f'Network load: type={family} name="{name}" native modules={len(net.modules)}'
+        f' unmapped={unmapped} mismatch={mismatch} skipped={skipped} scale={lora_scale}'
+    )
+    l.timer.activate += time.time() - t0
+    return net
+
+
+def shapes_match(sd_module, down_w: torch.Tensor, up_w: torch.Tensor) -> bool:
+    """LoRA-style rank-and-dim sanity check against the live module weight.
+
+    Honors SDNQ-quantized modules by reading the original shape from the
+    dequantizer rather than the packed weight tensor.
+    """
+    if not hasattr(sd_module, "weight"):
+        return False
+    if hasattr(sd_module, "sdnq_dequantizer"):
+        mod_shape = sd_module.sdnq_dequantizer.original_shape
+    else:
+        mod_shape = sd_module.weight.shape
+    if len(mod_shape) < 2 or len(down_w.shape) < 2 or len(up_w.shape) < 2:
+        return False
+    return down_w.shape[1] == mod_shape[1] and up_w.shape[0] == mod_shape[0]
+
+
+# === Parsing primitives ===
+
+
+def parse_key(key, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, bare_prefixes=(), bare_diffusers_prefixes=()):
+    """Return ``(prefix_used, base, suffix_normalized)`` or ``None``.
+
+    ``prefix_used`` is the matched element of ``prefixes``, ``BARE_DIFFUSERS_PREFIX_USED``
+    if a member of ``bare_diffusers_prefixes`` matched, or ``None`` for a key
+    that matched a member of ``bare_prefixes``. ``base`` is the path with prefix
+    and suffix removed. ``suffix_normalized`` is the suffix (without the leading
+    dot) after applying :data:`SUFFIX_NORMALIZE` (e.g. ``lora_A.weight`` becomes
+    ``lora_down.weight``).
+
+    Always applies :func:`unwrap_peft_wrapper` and :func:`strip_peft_adapter_name`
+    to the raw key before format detection so callers do not have to opt in.
+    """
+    key = unwrap_peft_wrapper(key)
+    key = strip_peft_adapter_name(key)
+    prefix_used = None
+    stripped = key
+    for p in prefixes:
+        if key.startswith(p):
+            prefix_used = p
+            stripped = key[len(p):]
+            break
+    if prefix_used is None:
+        if any(key.startswith(p) for p in bare_diffusers_prefixes):
+            prefix_used = BARE_DIFFUSERS_PREFIX_USED
+        elif not any(key.startswith(p) for p in bare_prefixes):
+            return None
+
+    matched_suffix = None
+    split_at = -1
+    for marker in suffixes:
+        if stripped.endswith(marker):
+            split_at = len(stripped) - len(marker)
+            matched_suffix = marker.lstrip(".")
+            break
+    if split_at < 0:
+        return None
+
+    base = stripped[:split_at]
+    if not base:
+        return None
+
+    suffix = SUFFIX_NORMALIZE.get(matched_suffix, matched_suffix)
+    return prefix_used, base, suffix
+
+
+def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, bare_prefixes=(), bare_diffusers_prefixes=()):
+    """Group state-dict entries by ``(prefix_used, base)``.
+
+    Returns ``{(prefix_used, base): {suffix: tensor, ...}}`` where each suffix
+    is the normalized form produced by :func:`parse_key`. Per-family loaders
+    apply their own key-presence gates on each group (e.g. LoRA requires both
+    ``lora_down.weight`` and ``lora_up.weight``).
+    """
+    groups: dict[tuple, dict[str, torch.Tensor]] = {}
+    for key, value in state_dict.items():
+        parsed = parse_key(
+            key, suffixes,
+            prefixes=prefixes,
+            bare_prefixes=bare_prefixes,
+            bare_diffusers_prefixes=bare_diffusers_prefixes,
+        )
+        if parsed is None:
+            continue
+        prefix_used, base, suffix = parsed
+        slot = groups.get((prefix_used, base))
+        if slot is None:
+            slot = {}
+            groups[(prefix_used, base)] = slot
+        slot[suffix] = value
+    return groups
+
+
+# Surface ``sd_models.read_state_dict`` here so loader modules don't have to
+# import ``sd_models`` directly; keeps the per-arch wrapper imports compact.
+read_state_dict = sd_models.read_state_dict
