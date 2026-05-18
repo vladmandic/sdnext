@@ -73,7 +73,7 @@ def apply_svdquant(weight: torch.FloatTensor, rank: int = 32, niter: int = 8, dt
 
 HADAMARD_N2_MATRIX = [[1, 1], [1, -1]]
 @devices.inference_context()
-def get_hadamard(n: int, dtype: torch.dtype = torch.float32, device: torch.device | None = None):
+def build_hadamard(n: int, dtype: torch.dtype = torch.float32, device: torch.device | None = None):
     if n == 1:
         return torch.ones((1, 1), dtype=dtype, device=device)
     H = torch.tensor(HADAMARD_N2_MATRIX, dtype=dtype, device=device)
@@ -82,6 +82,23 @@ def get_hadamard(n: int, dtype: torch.dtype = torch.float32, device: torch.devic
         H = torch.kron(H, torch.tensor(HADAMARD_N2_MATRIX, dtype=dtype, device=device))
         current_size *= 2
     return H.div_(n**0.5)
+
+
+# 128x128 Hadamard matrix is just 64 KB at FP32
+# And is the exact same matrix on all model layers
+# So we can safely cache a single one
+HADAMARD_MATRIX_CACHE = {}
+@devices.inference_context()
+def get_hadamard(n: int, dtype: torch.dtype = torch.float32, device: torch.device | None = None):
+    global HADAMARD_MATRIX_CACHE
+    device = devices.normalize_device(device)
+    if HADAMARD_MATRIX_CACHE.get(n, None) is None:
+        HADAMARD_MATRIX_CACHE[n] = {}
+    if HADAMARD_MATRIX_CACHE[n].get(device, None) is None:
+        HADAMARD_MATRIX_CACHE[n][device] = {}
+    if HADAMARD_MATRIX_CACHE[n][device].get(dtype, None) is None:
+        HADAMARD_MATRIX_CACHE[n][device][dtype] = build_hadamard(n, dtype=dtype, device=device)
+    return HADAMARD_MATRIX_CACHE[n][device][dtype]
 
 
 @devices.inference_context()
