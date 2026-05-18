@@ -36,7 +36,10 @@ import torch
 
 from modules import shared, sd_models
 from modules.logger import log
-from modules.lora import lora_convert, network
+from modules.lora import (
+    lora_convert, network, network_boft, network_hada, network_lokr,
+    network_lora, network_oft,
+)
 from modules.lora import lora_common as l
 
 
@@ -335,3 +338,283 @@ def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, 
 # Surface ``sd_models.read_state_dict`` here so loader modules don't have to
 # import ``sd_models`` directly; keeps the per-arch wrapper imports compact.
 read_state_dict = sd_models.read_state_dict
+
+
+# === Generic family loaders ===
+#
+# Each loader takes a per-arch ``resolve_targets`` callable returning a list of
+# ``(diffusers_path, ChunkSpec | None)`` tuples for each parsed group. The
+# loader builds the network key as ``"lora_transformer_" + path.replace(".", "_")``
+# and instantiates the appropriate ``network.NetworkModule*`` subclass.
+#
+# Fused-target handling per family:
+#
+# - LoRA: chunk at load time (lora_up is sliced along dim 0). Both equal and
+#   unequal ChunkSpec shapes are supported.
+# - LoKR: defer to NetworkModuleLokrChunk (equal) or NetworkModuleLokrSliceChunk
+#   (unequal) which materialize the Kronecker product once and return the
+#   designated slice.
+# - LoHA: only equal ChunkSpec is supported via NetworkModuleHadaChunk. Unequal
+#   slices and Tucker-decomposed LoHAs on fused targets are skipped with a
+#   warning (no slice variant exists, and Tucker keys cannot arise on Linear
+#   layers per LyCORIS upstream — see network_hada.NetworkModuleHadaChunk).
+# - OFT/BOFT: no chunk variant exists; fused targets are skipped with a
+#   warning. Discrimination is by ``oft_blocks.ndim`` (3-D OFT, 4-D BOFT),
+#   mirroring upstream LyCORIS ``algo_check``.
+
+
+def _slice_lora_chunk(w, chunk: ChunkSpec):
+    """Return a shallow copy of ``w`` with ``lora_up.weight`` sliced per ``chunk``.
+
+    Equal-chunks form uses ``torch.chunk`` (faster for the symmetric case);
+    row-range form uses tensor slicing for arbitrary partitions.
+    """
+    up = w["lora_up.weight"]
+    if chunk.is_equal_chunks:
+        sliced = torch.chunk(up, chunk.total, dim=0)[chunk.idx].contiguous()
+    else:
+        sliced = up[chunk.start:chunk.end].contiguous()
+    out = dict(w)
+    out["lora_up.weight"] = sliced
+    return out
+
+
+def try_load_lora(name, network_on_disk, lora_scale, *,
+                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
+                  bare_prefixes=(), bare_diffusers_prefixes=(),
+                  arch_name="generic"):
+    """Generic LoRA loader (handles DoRA via the universal ``finalize_updown`` hook).
+
+    Fused targets are chunked at load time by slicing ``lora_up`` along dim 0;
+    the down-side is shared across the resolved targets.
+    """
+    t0 = time.time()
+    state_dict = read_state_dict(network_on_disk.filename, what="network")
+    if not has_marker(state_dict, LORA_MARKERS):
+        return None
+
+    mapping = resolve_mapping()
+    net = new_network(name, network_on_disk)
+    groups = group_by_suffixes(
+        state_dict, LORA_SUFFIXES,
+        prefixes=prefixes,
+        bare_prefixes=bare_prefixes,
+        bare_diffusers_prefixes=bare_diffusers_prefixes,
+    )
+
+    unmapped = 0
+    mismatch = 0
+    for (prefix, base), w in groups.items():
+        if "lora_down.weight" not in w or "lora_up.weight" not in w:
+            continue
+        for diffusers_path, chunk in resolve_targets(prefix, base):
+            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            sd_module = mapping.get(network_key)
+            if sd_module is None:
+                unmapped += 1
+                continue
+
+            target_w = _slice_lora_chunk(w, chunk) if chunk is not None else w
+
+            if not shapes_match(sd_module, target_w["lora_down.weight"], target_w["lora_up.weight"]):
+                log.warning(
+                    f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key}'
+                    f' lora={target_w["lora_down.weight"].shape[1]}x{target_w["lora_up.weight"].shape[0]}'
+                    f' module={getattr(sd_module, "weight", None).shape if hasattr(sd_module, "weight") else "?"}'
+                    f' shape mismatch'
+                )
+                mismatch += 1
+                continue
+
+            nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=target_w, sd_module=sd_module)
+            net.modules[network_key] = network_lora.NetworkModuleLora(net, nw)
+
+    return finalize_network(net, name, "LoRA", lora_scale, t0, unmapped=unmapped, mismatch=mismatch)
+
+
+def try_load_lokr(name, network_on_disk, lora_scale, *,
+                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
+                  bare_prefixes=(), bare_diffusers_prefixes=(),
+                  arch_name="generic"):
+    """Generic LoKR loader.
+
+    Stores only the compact LoKR factors and dispatches to
+    :class:`network_lokr.NetworkModuleLokrChunk` (equal chunks) or
+    :class:`network_lokr.NetworkModuleLokrSliceChunk` (row range) at apply
+    time. Both materialize ``kron(w1, w2)`` once per forward pass and return
+    the designated slice; full materialization happens lazily inside the
+    module rather than at load.
+    """
+    t0 = time.time()
+    state_dict = read_state_dict(network_on_disk.filename, what="network")
+    if not has_marker(state_dict, LOKR_MARKERS):
+        return None
+
+    mapping = resolve_mapping()
+    net = new_network(name, network_on_disk)
+    groups = group_by_suffixes(
+        state_dict, LOKR_SUFFIXES,
+        prefixes=prefixes,
+        bare_prefixes=bare_prefixes,
+        bare_diffusers_prefixes=bare_diffusers_prefixes,
+    )
+
+    unmapped = 0
+    for (prefix, base), w in groups.items():
+        has_1 = "lokr_w1" in w or ("lokr_w1_a" in w and "lokr_w1_b" in w)
+        has_2 = "lokr_w2" in w or ("lokr_w2_a" in w and "lokr_w2_b" in w)
+        if not (has_1 and has_2):
+            continue
+        for diffusers_path, chunk in resolve_targets(prefix, base):
+            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            sd_module = mapping.get(network_key)
+            if sd_module is None:
+                unmapped += 1
+                continue
+            nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
+            if chunk is None:
+                net.modules[network_key] = network_lokr.NetworkModuleLokr(net, nw)
+            elif chunk.is_equal_chunks:
+                net.modules[network_key] = network_lokr.NetworkModuleLokrChunk(net, nw, chunk.idx, chunk.total)
+            else:
+                net.modules[network_key] = network_lokr.NetworkModuleLokrSliceChunk(net, nw, chunk.start, chunk.end)
+
+    return finalize_network(net, name, "LoKR", lora_scale, t0, unmapped=unmapped)
+
+
+def try_load_loha(name, network_on_disk, lora_scale, *,
+                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
+                  bare_prefixes=(), bare_diffusers_prefixes=(),
+                  arch_name="generic"):
+    """Generic LoHA (Hadamard product) loader.
+
+    Standard non-Tucker LoHA on fused targets uses
+    :class:`network_hada.NetworkModuleHadaChunk` for equal-chunks dispatch.
+    Tucker-decomposed LoHAs on fused targets and any unequal-chunks dispatch
+    are skipped with a warning: no slice variant exists, and Tucker keys
+    cannot arise on Linear layers per LyCORIS upstream.
+    """
+    t0 = time.time()
+    state_dict = read_state_dict(network_on_disk.filename, what="network")
+    if not has_marker(state_dict, LOHA_MARKERS):
+        return None
+
+    mapping = resolve_mapping()
+    net = new_network(name, network_on_disk)
+    groups = group_by_suffixes(
+        state_dict, LOHA_SUFFIXES,
+        prefixes=prefixes,
+        bare_prefixes=bare_prefixes,
+        bare_diffusers_prefixes=bare_diffusers_prefixes,
+    )
+
+    unmapped = 0
+    skipped = 0
+    for (prefix, base), w in groups.items():
+        if not all(k in w for k in ("hada_w1_a", "hada_w1_b", "hada_w2_a", "hada_w2_b")):
+            continue
+        is_tucker = "hada_t1" in w or "hada_t2" in w
+        targets = resolve_targets(prefix, base)
+        is_fused = any(t[1] is not None for t in targets)
+        if is_fused and is_tucker:
+            log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={base} Tucker fused QKV skipped (unsupported)')
+            skipped += 1
+            continue
+        for diffusers_path, chunk in targets:
+            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            sd_module = mapping.get(network_key)
+            if sd_module is None:
+                unmapped += 1
+                continue
+            nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
+            if chunk is None:
+                net.modules[network_key] = network_hada.NetworkModuleHada(net, nw)
+            elif chunk.is_equal_chunks:
+                net.modules[network_key] = network_hada.NetworkModuleHadaChunk(net, nw, chunk.idx, chunk.total)
+            else:
+                log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} unequal fused chunks unsupported')
+                skipped += 1
+
+    return finalize_network(net, name, "LoHA", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+
+
+def try_load_oft(name, network_on_disk, lora_scale, *,
+                 resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
+                 bare_prefixes=(), bare_diffusers_prefixes=(),
+                 arch_name="generic"):
+    """Generic OFT/BOFT loader.
+
+    OFT and BOFT share the ``oft_blocks`` save key and are discriminated by
+    tensor dimensionality (3-D OFT, 4-D BOFT), mirroring upstream
+    ``algo_check``. Both kohya (``oft_blocks`` + alpha-as-constraint) and
+    LyCORIS (``oft_diag``) OFT layouts route through
+    :class:`network_oft.NetworkModuleOFT`; BOFT routes through
+    :class:`network_boft.NetworkModuleBOFT`.
+
+    Fused targets are skipped with a warning for both algorithms: OFT block
+    structure (and BOFT's per-stage block partition) is tied to the target
+    module's ``out_features``, so a per-Q/K/V split would require re-deriving
+    the rotations per chunk.
+    """
+    t0 = time.time()
+    state_dict = read_state_dict(network_on_disk.filename, what="network")
+    if not has_marker(state_dict, OFT_MARKERS):
+        return None
+
+    mapping = resolve_mapping()
+    net = new_network(name, network_on_disk)
+    groups = group_by_suffixes(
+        state_dict, OFT_SUFFIXES,
+        prefixes=prefixes,
+        bare_prefixes=bare_prefixes,
+        bare_diffusers_prefixes=bare_diffusers_prefixes,
+    )
+
+    unmapped = 0
+    skipped = 0
+    for (prefix, base), w in groups.items():
+        if not ("oft_blocks" in w or "oft_diag" in w):
+            continue
+        is_boft = "oft_blocks" in w and w["oft_blocks"].ndim == 4
+        targets = resolve_targets(prefix, base)
+        if any(t[1] is not None for t in targets):
+            log.warning(f'Network load: type={"BOFT" if is_boft else "OFT"} name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
+            skipped += 1
+            continue
+        for diffusers_path, _ in targets:
+            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            sd_module = mapping.get(network_key)
+            if sd_module is None:
+                unmapped += 1
+                continue
+            nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
+            if is_boft:
+                net.modules[network_key] = network_boft.NetworkModuleBOFT(net, nw)
+            else:
+                net.modules[network_key] = network_oft.NetworkModuleOFT(net, nw)
+
+    return finalize_network(net, name, "OFT", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+
+
+# === Per-arch umbrella ===
+
+
+def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
+    """Run each family loader in order and merge any non-None results.
+
+    Per-arch loader modules expose a ``try_load(name, nod, scale)`` entry point
+    that the dispatcher in ``modules.lora.lora_load`` calls. That entry point
+    is a thin wrapper around this helper: it passes ``family_loaders`` as a
+    tuple of partial-applied generic loaders, each already bound to the arch's
+    ``resolve_targets`` and prefix tuples.
+    """
+    net = None
+    for try_fn in family_loaders:
+        sub = try_fn(name, network_on_disk, lora_scale)
+        if sub is None:
+            continue
+        if net is None:
+            net = sub
+        else:
+            net.modules.update(sub.modules)
+    return net
