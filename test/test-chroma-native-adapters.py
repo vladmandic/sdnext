@@ -528,25 +528,22 @@ CAT_PARSE = category('parse')
 
 
 def test_parse_key_all_prefixes():
-    """parse_key recognizes BFL, PEFT, kohya keys with the right flat_key + suffix.
-
-    Chroma's parse_key returns (flat_key, suffix) where flat_key is the
-    underscored Flux-layout path (before static rename).
-    """
+    """parse_key returns (prefix_used, base, suffix). Rename to diffusers happens
+    in resolve_targets, not parse_key."""
     cases = [
-        # BFL prefix -> dotted base flattened to underscores
         ('diffusion_model.double_blocks.0.img_attn.proj.lora_A.weight',
          C.LORA_SUFFIXES,
-         ('double_blocks_0_img_attn_proj', 'lora_down.weight')),
-        # PEFT prefix -> stays in diffusers form
+         ('diffusion_model.', 'double_blocks.0.img_attn.proj', 'lora_down.weight')),
         ('transformer.transformer_blocks.0.attn.to_q.lora_B.weight',
          C.LORA_SUFFIXES,
-         ('transformer_blocks_0_attn_to_q', 'lora_up.weight')),
-        # kohya prefix - already flat underscores
+         ('transformer.', 'transformer_blocks.0.attn.to_q', 'lora_up.weight')),
         ('lora_unet_double_blocks_0_img_attn_qkv.lora_down.weight',
          C.LORA_SUFFIXES,
-         ('double_blocks_0_img_attn_qkv', 'lora_down.weight')),
-        # Unrelated keys reject cleanly
+         ('lora_unet_', 'double_blocks_0_img_attn_qkv', 'lora_down.weight')),
+        # Bare BFL path (no prefix)
+        ('double_blocks.0.img_attn.proj.lora_A.weight',
+         C.LORA_SUFFIXES,
+         (None, 'double_blocks.0.img_attn.proj', 'lora_down.weight')),
         ('random.unrelated.key', C.LORA_SUFFIXES, None),
     ]
     for key, suffixes, expected in cases:
@@ -575,20 +572,27 @@ def test_marker_disambiguation():
     return True
 
 
-def test_static_rename_table():
-    """build_static_rename produces correct Flux to diffusers path remappings.
-
-    Verifies the rename templates against the documented chroma_lora layout:
-    double_blocks_X_img_attn_proj -> transformer_blocks_X_attn_to_out_0, etc.
+def test_resolve_targets_static_renames():
+    """resolve_targets produces the documented Flux-to-diffusers remappings
+    for non-fused targets in both kohya and BFL forms.
     """
-    rename = C.build_static_rename(N_DOUBLE, N_SINGLE)
-    # Spot-check key remappings
-    assert rename['double_blocks_0_img_attn_proj'] == 'transformer_blocks_0_attn_to_out_0'
-    assert rename['double_blocks_0_txt_attn_proj'] == 'transformer_blocks_0_attn_to_add_out'
-    assert rename['double_blocks_1_img_mlp_0'] == 'transformer_blocks_1_ff_net_0_proj'
-    assert rename['double_blocks_1_img_mlp_2'] == 'transformer_blocks_1_ff_net_2'
-    assert rename['double_blocks_0_txt_mlp_0'] == 'transformer_blocks_0_ff_context_net_0_proj'
-    assert rename['single_blocks_0_linear2'] == 'single_transformer_blocks_0_proj_out'
+    cases = [
+        # kohya
+        (('lora_unet_', 'double_blocks_0_img_attn_proj'), 'transformer_blocks.0.attn.to_out.0'),
+        (('lora_unet_', 'double_blocks_0_txt_attn_proj'), 'transformer_blocks.0.attn.to_add_out'),
+        (('lora_unet_', 'double_blocks_1_img_mlp_0'),     'transformer_blocks.1.ff.net.0.proj'),
+        (('lora_unet_', 'double_blocks_1_img_mlp_2'),     'transformer_blocks.1.ff.net.2'),
+        (('lora_unet_', 'double_blocks_0_txt_mlp_0'),     'transformer_blocks.0.ff_context.net.0.proj'),
+        (('lora_unet_', 'single_blocks_0_linear2'),       'single_transformer_blocks.0.proj_out'),
+        # BFL dotted - same diffusers paths
+        (('diffusion_model.', 'double_blocks.0.img_attn.proj'), 'transformer_blocks.0.attn.to_out.0'),
+        (('diffusion_model.', 'single_blocks.0.linear2'),       'single_transformer_blocks.0.proj_out'),
+    ]
+    for (prefix, base), expected_path in cases:
+        targets = C.resolve_targets(prefix, base)
+        assert len(targets) == 1, f'({prefix}, {base}) -> {targets}'
+        path, chunk = targets[0]
+        assert path == expected_path and chunk is None, f'({prefix}, {base}) -> {targets}'
     return True
 
 
@@ -747,13 +751,8 @@ def test_lokr_bfl_img_attn_proj():
     return True
 
 
-def test_lokr_bfl_img_attn_qkv_slice_chunked():
-    """BFL LoKR on fused img_attn.qkv emits 3 SliceChunk modules with row ranges.
-
-    Chroma's expand_chroma_fused_lokr uses NetworkModuleLokrSliceChunk for all
-    fused targets (even equal-chunks), since the implementation is general
-    and start/end ranges express both forms.
-    """
+def test_lokr_bfl_img_attn_qkv_chunked():
+    """BFL LoKR on fused img_attn.qkv emits 3 LokrChunk modules (equal chunks)."""
     net = _load_via(C.try_load_lokr, sd_lokr_bfl_img_attn_qkv_equal_chunks())
     assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
     expected = {
@@ -763,9 +762,8 @@ def test_lokr_bfl_img_attn_qkv_slice_chunked():
     }
     assert set(net.modules) == expected
     for nk, mod in net.modules.items():
-        assert isinstance(mod, network_lokr.NetworkModuleLokrSliceChunk), f'{nk}: type={type(mod).__name__}'
-        # Each chunk row range is HIDDEN rows wide
-        assert mod.end_row - mod.start_row == HIDDEN, f'{nk}: range={mod.start_row}:{mod.end_row}'
+        assert isinstance(mod, network_lokr.NetworkModuleLokrChunk), f'{nk}: type={type(mod).__name__}'
+        assert mod.num_chunks == 3, f'{nk}: num_chunks={mod.num_chunks}'
     return True
 
 
@@ -799,10 +797,18 @@ def test_loha_bfl_img_attn_proj():
     return True
 
 
-def test_loha_bfl_img_attn_qkv_skipped():
-    """LoHA on fused img_attn.qkv is dropped (chroma has no LoHA chunk variant)."""
+def test_loha_bfl_img_attn_qkv_chunked():
+    """LoHA on fused img_attn.qkv emits 3 HadaChunk modules (equal chunks)."""
     net = _load_via(C.try_load_loha, sd_loha_bfl_img_attn_qkv_skipped())
-    assert net is None or len(net.modules) == 0
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    expected = {
+        'lora_transformer_transformer_blocks_0_attn_to_q',
+        'lora_transformer_transformer_blocks_0_attn_to_k',
+        'lora_transformer_transformer_blocks_0_attn_to_v',
+    }
+    assert set(net.modules) == expected
+    for mod in net.modules.values():
+        assert isinstance(mod, network_hada.NetworkModuleHadaChunk)
     return True
 
 
@@ -847,13 +853,13 @@ def test_lokr_calc_updown_shape():
     return True
 
 
-def test_lokr_slicechunk_equal_calc_updown_shape():
-    """LokrSliceChunk with equal-width range produces (HIDDEN, HIDDEN) output."""
+def test_lokr_chunk_equal_calc_updown_shape():
+    """LokrChunk equal-chunks dispatch produces (HIDDEN, HIDDEN) output for the QKV split."""
     net = _load_via(C.try_load_lokr, sd_lokr_bfl_img_attn_qkv_equal_chunks())
     mod = make_network_for_module(next(iter(net.modules.values())))
     target = torch.randn(HIDDEN, HIDDEN)
     updown, _ = mod.calc_updown(target)
-    assert_shape(updown, target.shape, label='LokrSliceChunk equal range')
+    assert_shape(updown, target.shape, label='LokrChunk equal range')
     return True
 
 
@@ -899,7 +905,7 @@ def run_tests():
     t0 = time.time()
 
     log.warning('=== Parsing primitives ===')
-    for fn in [test_parse_key_all_prefixes, test_marker_disambiguation, test_static_rename_table]:
+    for fn in [test_parse_key_all_prefixes, test_marker_disambiguation, test_resolve_targets_static_renames]:
         run_test(CAT_PARSE, fn)
 
     log.warning('=== Loaders ===')
@@ -917,10 +923,10 @@ def run_tests():
         test_lora_distilled_guidance,
         test_lora_dora_threading,
         test_lokr_bfl_img_attn_proj,
-        test_lokr_bfl_img_attn_qkv_slice_chunked,
+        test_lokr_bfl_img_attn_qkv_chunked,
         test_lokr_bfl_single_linear1_unequal_chunks,
         test_loha_bfl_img_attn_proj,
-        test_loha_bfl_img_attn_qkv_skipped,
+        test_loha_bfl_img_attn_qkv_chunked,
         test_oft_bfl_img_attn_proj,
         test_oft_bfl_img_attn_qkv_skipped,
     ]:
@@ -930,7 +936,7 @@ def run_tests():
     for fn in [
         test_lora_calc_updown_shape,
         test_lokr_calc_updown_shape,
-        test_lokr_slicechunk_equal_calc_updown_shape,
+        test_lokr_chunk_equal_calc_updown_shape,
         test_lokr_slicechunk_unequal_calc_updown_shape,
         test_loha_calc_updown_shape,
         test_oft_calc_updown_shape,
