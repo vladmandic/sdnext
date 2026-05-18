@@ -23,6 +23,7 @@ function htmlEscape(text) {
 
 async function logMonitor() {
   const addLogLine = (line) => {
+    if (!logMonitorEl) logMonitorEl = document.getElementById('logMonitorData');
     try {
       const l = JSON.parse(line.replaceAll('\n', ' ').replaceAll('\\', '\\\\'));
       const row = document.createElement('tr');
@@ -128,6 +129,6 @@ async function initLogMonitor() {
   authFetch(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
   logMonitor();
   const t1 = performance.now();
-  log('initLogMonitor', Math.round(t1 - t0));
+  log('initLogMonitor', { show: opts.logmonitor_show, time: Math.round(t1 - t0) });
   timer('initLogMonitor', t1 - t0);
 }

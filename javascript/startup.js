@@ -65,6 +65,8 @@ async function initStartup() {
     window.api = `${window.subpath}/sdapi/v1`;
   }
 
+  startupPromises.push(initLogMonitor());
+
   executeCallbacks(uiReadyCallbacks);
 
   // optinally wait for modern ui
@@ -80,7 +82,6 @@ async function initStartup() {
   startupPromises.push(setHints());
   startupPromises.push(applyStyles());
   startupPromises.push(initIndexDB());
-  startupPromises.push(initLogMonitor());
   startupPromises.push(initTableSorter());
 
   t1 = performance.now();

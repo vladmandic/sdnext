@@ -17,7 +17,7 @@ const log = async (...msg) => {
   const dt = new Date();
   const ts = `${dt.getHours().toString().padStart(2, '0')}:${dt.getMinutes().toString().padStart(2, '0')}:${dt.getSeconds().toString().padStart(2, '0')}.${dt.getMilliseconds().toString().padStart(3, '0')}`;
   if (window.logger) {
-    window.logger.innerHTML += window.logPrettyPrint(...msg);
+    if (window.logPrettyPrint) window.logger.innerHTML += window.logPrettyPrint(...msg);
     scrollBottom(window.logger);
   }
   console.log(ts, ...msg);
@@ -28,7 +28,7 @@ const debug = async (...msg) => {
   const dt = new Date();
   const ts = `${dt.getHours().toString().padStart(2, '0')}:${dt.getMinutes().toString().padStart(2, '0')}:${dt.getSeconds().toString().padStart(2, '0')}.${dt.getMilliseconds().toString().padStart(3, '0')}`;
   if (window.logger) {
-    window.logger.innerHTML += window.logPrettyPrint(...msg);
+    if (window.logPrettyPrint) window.logger.innerHTML += window.logPrettyPrint(...msg);
     scrollBottom(window.logger);
   }
   console.debug(ts, ...msg);
@@ -39,7 +39,7 @@ const error = async (...msg) => {
   const dt = new Date();
   const ts = `${dt.getHours().toString().padStart(2, '0')}:${dt.getMinutes().toString().padStart(2, '0')}:${dt.getSeconds().toString().padStart(2, '0')}.${dt.getMilliseconds().toString().padStart(3, '0')}`;
   if (window.logger) {
-    window.logger.innerHTML += window.logPrettyPrint(...msg);
+    if (window.logPrettyPrint) window.logger.innerHTML += window.logPrettyPrint(...msg);
     scrollBottom(window.logger);
   }
   console.error(ts, ...msg);
