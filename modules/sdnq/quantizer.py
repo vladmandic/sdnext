@@ -283,9 +283,9 @@ def sdnq_quantize_layer_weight_dynamic(weight, layer_class_name=None, weights_dt
             sdnq_dequantizer(
                 weight_data["weight"],
                 weight_data["scale"],
-                weight_data["zero_point"],
-                weight_data["svd_up"],
-                weight_data["svd_down"],
+                zero_point=weight_data["zero_point"],
+                svd_up=weight_data["svd_up"],
+                svd_down=weight_data["svd_down"],
                 skip_quantized_matmul=sdnq_dequantizer.use_quantized_matmul,
                 dtype=weight.dtype,
                 skip_compile=True,

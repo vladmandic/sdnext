@@ -3,9 +3,10 @@
 import torch
 
 from ...common import dtype_dict, compile_func # noqa: TID252
+from ...dequantizer import dequantize_symmetric, dequantize_asymmetric # noqa: TID252
+from ...quant_utils import get_hadamard # noqa: TID252
 from ...packed_int import unpack_int # noqa: TID252
 from ...packed_float import unpack_float # noqa: TID252
-from ...dequantizer import dequantize_symmetric, dequantize_asymmetric # noqa: TID252
 
 
 def quantized_embedding(
@@ -15,8 +16,7 @@ def quantized_embedding(
     zero_point: torch.FloatTensor | None = None,
     svd_up: torch.FloatTensor | None = None,
     svd_down: torch.FloatTensor | None = None,
-    use_hadamard: bool = False,
-    hadamard_group_size: int = 128,
+    hadamard: torch.FloatTensor | None = None,
     embed_scale: torch.FloatTensor | float | None = None,
     result_dtype: torch.dtype | None = None,
     weight_shape: torch.Size | None = None,
@@ -37,8 +37,7 @@ def quantized_embedding(
             weight[input], scale[input], zero_point[input],
             svd_up=svd_up[input] if svd_up is not None else svd_up,
             svd_down=svd_down,
-            use_hadamard=use_hadamard,
-            hadamard_group_size=hadamard_group_size,
+            hadamard=hadamard,
             dtype=result_dtype,
             )
     else:
@@ -46,8 +45,7 @@ def quantized_embedding(
             weight[input], scale[input],
             svd_up=svd_up[input] if svd_up is not None else svd_up,
             svd_down=svd_down,
-            use_hadamard=use_hadamard,
-            hadamard_group_size=hadamard_group_size,
+            hadamard=hadamard,
             dtype=result_dtype,
         )
     del input
@@ -61,6 +59,11 @@ def quantized_embedding(
 
 
 def quantized_embedding_forward(self: torch.nn.Module, input: torch.Tensor) -> torch.FloatTensor:
+    if self.sdnq_dequantizer.use_hadamard:
+        hadamard = get_hadamard(self.sdnq_dequantizer.hadamard_group_size, dtype=input.dtype, device=input.device)
+    else:
+        hadamard = None
+
     return quantized_embedding(
         input,
         self.weight,
@@ -68,8 +71,7 @@ def quantized_embedding_forward(self: torch.nn.Module, input: torch.Tensor) -> t
         zero_point=self.zero_point,
         svd_up=self.svd_up,
         svd_down=self.svd_down,
-        use_hadamard=self.sdnq_dequantizer.use_hadamard,
-        hadamard_group_size=self.sdnq_dequantizer.hadamard_group_size,
+        hadamard=hadamard,
         embed_scale=getattr(self, "scalar_embed_scale", None),
         result_dtype=self.sdnq_dequantizer.result_dtype,
         weight_shape=self.sdnq_dequantizer.result_shape,

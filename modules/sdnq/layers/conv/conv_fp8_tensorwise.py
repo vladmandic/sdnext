@@ -4,7 +4,7 @@ import torch
 
 from ...common import compile_func # noqa: TID252
 from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
-from ...quant_utils import rotate_hadamard # noqa: TID252
+from ...quant_utils import rotate_hadamard, get_hadamard # noqa: TID252
 from ...packed_float import unpack_float # noqa: TID252
 
 from .forward import get_conv_args, process_conv_input
@@ -24,15 +24,14 @@ def conv_fp8_matmul_tensorwise(
     bias: torch.FloatTensor | None = None,
     svd_up: torch.FloatTensor | None = None,
     svd_down: torch.FloatTensor | None = None,
-    use_hadamard: bool = False,
-    hadamard_group_size: int = 128,
+    hadamard: torch.FloatTensor | None = None,
     quantized_weight_shape: torch.Size | None = None,
     weights_dtype: str | None = None,
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
-    if use_hadamard:
-        input = rotate_hadamard(input, group_size=hadamard_group_size)
+    if hadamard is not None:
+        input = rotate_hadamard(input, hadamard=hadamard)
     if svd_up is not None:
         input = input.flatten(0,-2)
         if bias is not None:
@@ -72,13 +71,18 @@ def conv_fp8_matmul_tensorwise(
 
 def quantized_conv_forward_fp8_matmul_tensorwise(self, input) -> torch.FloatTensor:
     if torch.numel(input) / input.shape[2] < 32:
-        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, self.scale, self.zero_point, self.svd_up, self.svd_down, skip_quantized_matmul=True), self.bias)
+        return self._conv_forward(input, self.sdnq_dequantizer(self.weight, self.scale, zero_point=self.zero_point, svd_up=self.svd_up, svd_down=self.svd_down, skip_quantized_matmul=True), self.bias)
     if self.sdnq_dequantizer.re_quantize_for_matmul:
-        weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight, self.scale, self.zero_point, None, None)
+        weight, scale = self.sdnq_dequantizer.re_quantize_matmul(self.weight, self.scale, zero_point=self.zero_point)
         quantized_weight_shape = None
     else:
         weight, scale = self.weight, self.scale
         quantized_weight_shape = self.sdnq_dequantizer.quantized_weight_shape if self.sdnq_dequantizer.is_packed else None
+    if self.sdnq_dequantizer.use_hadamard:
+        hadamard = get_hadamard(self.sdnq_dequantizer.hadamard_group_size, dtype=input.dtype, device=input.device)
+    else:
+        hadamard = None
+
     conv_type, stride, padding, dilation = get_conv_args(input.ndim, self.stride, self.padding, self.dilation)
     return conv_fp8_matmul_tensorwise(
         input, weight, scale,
@@ -89,8 +93,7 @@ def quantized_conv_forward_fp8_matmul_tensorwise(self, input) -> torch.FloatTens
         bias=self.bias,
         svd_up=self.svd_up,
         svd_down=self.svd_down,
-        use_hadamard=self.sdnq_dequantizer.use_hadamard,
-        hadamard_group_size=self.sdnq_dequantizer.hadamard_group_size,
+        hadamard=hadamard,
         quantized_weight_shape=quantized_weight_shape,
         weights_dtype=self.sdnq_dequantizer.weights_dtype,
     )
