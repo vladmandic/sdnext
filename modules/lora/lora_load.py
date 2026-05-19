@@ -17,6 +17,18 @@ exclude_errors = [
     "'ChronoEditTransformer3DModel'",
 ]
 
+# shared.sd_model_type -> dotted module path of a pipeline native loader
+# exposing ``try_load(name, network_on_disk, lora_scale)``. New archs add an
+# entry here and ship a per-arch ``try_load`` (either binding native_loader's
+# generic helpers via try_load_chain, or rolling their own).
+_NATIVE_DISPATCH = {
+    'zimage':     'pipelines.z_image.zimage_lora',
+    'chroma':     'pipelines.chroma.chroma_lora',
+    'ernieimage': 'pipelines.ernie.ernie_lora',
+    'f2':         'pipelines.flux.flux2_lora',
+    'anima':      'pipelines.anima.anima_lora',
+}
+
 
 def lora_dump(lora, dct):
     import tempfile
@@ -49,64 +61,14 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
         log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" type=lora {"cached" if cached else ""}')
     if cached is not None:
         return cached
-    if shared.sd_model_type == 'zimage':
-        from pipelines.z_image import zimage_lora
-        lora_scale = shared.opts.extra_networks_default_multiplier
-        zimage_net = None
-        for try_fn in (zimage_lora.try_load_lora, zimage_lora.try_load_lokr, zimage_lora.try_load_loha, zimage_lora.try_load_oft):
-            sub = try_fn(name, network_on_disk, lora_scale)
-            if sub is None:
-                continue
-            if zimage_net is None:
-                zimage_net = sub
-            else:
-                zimage_net.modules.update(sub.modules)
-        if zimage_net is not None:
-            lora_cache[name] = zimage_net
-        return zimage_net
-    if shared.sd_model_type == 'anima':
-        from pipelines.anima import anima_lora
-        lora_scale = shared.opts.extra_networks_default_multiplier
-        anima_net = anima_lora.try_load_lora(name, network_on_disk, lora_scale)
-        if anima_net is not None:
-            lora_cache[name] = anima_net
-        return anima_net
-    if shared.sd_model_type == 'ernieimage':
-        from pipelines.ernie import ernie_lora
-        lora_scale = shared.opts.extra_networks_default_multiplier
-        ernie_net = None
-        for try_fn in (ernie_lora.try_load_lora, ernie_lora.try_load_lokr, ernie_lora.try_load_loha, ernie_lora.try_load_oft):
-            sub = try_fn(name, network_on_disk, lora_scale)
-            if sub is None:
-                continue
-            if ernie_net is None:
-                ernie_net = sub
-            else:
-                ernie_net.modules.update(sub.modules)
-        if ernie_net is not None:
-            lora_cache[name] = ernie_net
-        return ernie_net
-    if shared.sd_model_type == 'chroma':
-        from pipelines.chroma import chroma_lora
-        lora_scale = shared.opts.extra_networks_default_multiplier
-        chroma_net = None
-        for try_fn in (chroma_lora.try_load_lora, chroma_lora.try_load_lokr, chroma_lora.try_load_loha, chroma_lora.try_load_oft):
-            sub = try_fn(name, network_on_disk, lora_scale)
-            if sub is None:
-                continue
-            if chroma_net is None:
-                chroma_net = sub
-            else:
-                chroma_net.modules.update(sub.modules)
-        if chroma_net is not None:
-            lora_cache[name] = chroma_net
-        return chroma_net
-    if shared.sd_model_type == 'f2':
-        from pipelines.flux import flux2_lora
-        f2_net = flux2_lora.try_load(name, network_on_disk, shared.opts.extra_networks_default_multiplier)
-        if f2_net is not None:
-            lora_cache[name] = f2_net
-        return f2_net
+    native_module = _NATIVE_DISPATCH.get(shared.sd_model_type)
+    if native_module is not None:
+        import importlib
+        mod = importlib.import_module(native_module)
+        net = mod.try_load(name, network_on_disk, shared.opts.extra_networks_default_multiplier)
+        if net is not None:
+            lora_cache[name] = net
+        return net
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')

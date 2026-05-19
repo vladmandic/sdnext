@@ -63,6 +63,11 @@ COSMOS_2_FLAT_RENAME = OrderedDict([
 ])
 
 
+def try_load(name, network_on_disk, lora_scale):
+    """Single dispatcher entry point. Anima only supports the LoRA family."""
+    return try_load_lora(name, network_on_disk, lora_scale)
+
+
 def try_load_lora(name, network_on_disk, lora_scale):
     """Try loading an Anima LoRA as native modules.
 
