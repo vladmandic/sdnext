@@ -23,7 +23,7 @@ from .pulid_utils import img2tensor, tensor2img
 from eva_clip import create_model_and_transforms
 from eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from encoders_transformer import IDFormer, IDEncoder
-from modules.errors import log
+from modules.logger import log
 
 
 debug = log.trace if os.environ.get('SD_PULID_DEBUG', None) is not None else lambda *args, **kwargs: None

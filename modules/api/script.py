@@ -1,7 +1,7 @@
 from fastapi.exceptions import HTTPException
 import gradio as gr
 from modules.api import models
-from modules.errors import log
+from modules.logger import log
 from modules import scripts_manager
 
 

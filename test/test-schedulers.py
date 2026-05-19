@@ -7,7 +7,7 @@ import torch
 # Ensure we can import modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from modules.errors import log
+from modules.logger import log
 from modules.res4lyf import (
     BASE, SIMPLE, VARIANTS,
     RESUnifiedScheduler, RESMultistepScheduler, RESDEISMultistepScheduler,

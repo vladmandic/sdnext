@@ -2,7 +2,7 @@ import platform
 from typing import NamedTuple, Optional
 from collections.abc import Callable
 import torch
-from modules.errors import log
+from modules.logger import log
 from modules.sd_hijack_utils import CondFunc
 
 

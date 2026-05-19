@@ -4,7 +4,7 @@ import json
 
 
 if os.environ.get('SD_PASTE_DEBUG', None) is not None:
-    from modules.errors import log
+    from modules.logger import log
     debug = log.trace
 else:
     debug = lambda *args, **kwargs: None # pylint: disable=unnecessary-lambda-assignment
@@ -20,6 +20,8 @@ def quote(text):
 
 
 def unquote(text):
+    if text is None:
+        return ''
     if len(text) == 0 or text[0] != '"' or text[-1] != '"':
         return text
     try:
@@ -29,41 +31,49 @@ def unquote(text):
 
 
 def parse(infotext):
-    if not isinstance(infotext, str):
+    if not isinstance(infotext, str) or len(infotext.strip()) == 0:
         return {}
     debug(f'Raw: {infotext}')
 
     remaining = infotext.replace('\nSteps:', ' Steps:')
-    params = [' steps:', ' seed:', ' width:', ' height:', ' sampler:', ' size:', ' cfg scale:', ' pipeline:'] # first param is one of those
-    params += ['\nsteps:', '\nseed:', '\nwidth:', '\nheight:', '\nsampler:', '\nsize:', '\ncfg scale:', '\npipeline:']
-    params += ['.steps:', '.seed:', '.width:', '.height:', '.sampler:', '.size:', '.cfg scale:', '.pipeline:']
+    params = ['steps: ', 'seed: ', 'width: ', 'height: ', 'sampler: ', 'size: ', 'cfg scale: ', 'pipeline: '] # first param is one of those
+    prompts = ['negative prompt: ', 'template: ', 'negative template: '] # first prompt field is implied
+    search = params + prompts
 
-    prompt_end = [remaining.lower().find(p) for p in params if p in remaining.lower()]
-    prompt_end += [remaining.lower().find('negative prompt:')]
-    prompt_end = [p for p in prompt_end if p > -1]
-    prompt_end = min(prompt_end) if len(prompt_end) > 0 else 0
-    prompt = remaining[:prompt_end]
-    remaining = remaining.replace(prompt, '')
-    if prompt.lower().startswith('prompt: '):
-        prompt = prompt[8:]
-    # debug(f'Prompt: {prompt}')
+    def extract(keyword, text): # attempt to extract prompt from params
+        debug(f'Params extract: keyword="{keyword}" text="{text}"')
+        if keyword not in text.lower():
+            return '', text
+        if text.lower().startswith(f'{keyword}:'):
+            text = text[len(keyword) + 1:]
+        text = text.strip("\n").strip()
+        idxs = [text.lower().find(param) for param in search if param in text.lower()]
+        idx = min(idxs) if len(idxs) > 0 else 0
+        res = text[:idx]
+        text = text.replace(res, '')
+        res = res.strip("\n").strip()
+        debug(f'Params extract: keyword="{keyword}" idx={idx} res="{res}"')
+        return res, text
 
-    param_idx = [remaining.lower().find(p) for p in params if p in remaining.lower()]
-    param_idx = [p for p in param_idx if p > -1]
-    param_idx = min(param_idx) if len(param_idx) > 0 else 0
-    negative = remaining[:param_idx] if param_idx > 0 else ''
-    remaining = remaining.replace(negative, '')
-    if negative.lower().startswith('negative prompt: '):
-        negative = negative[16:]
-    # debug(f'Negative: {negative}')
+    prompt, remaining = extract('', remaining) # prompt is always first
+    negative, remaining = extract('negative prompt', remaining)
+    template, remaining = extract('template', remaining)
+    negative_template, remaining = extract('negative template', remaining)
 
     params = dict(re_param.findall(remaining))
     if len(list(params)) == 0:
         params['Prompt'] = infotext
         return params
-    params['Prompt'] = prompt
-    params['Negative prompt'] = negative
+    params['Prompt'] = prompt if len(prompt) > 0 else None
+    params['Negative prompt'] = negative if len(negative) > 0 else None
+    params['Template'] = template if len(template) > 0 else None
+    params['Negative template'] = negative_template if len(negative_template) > 0 else None
+    if params['Template'] == params['Prompt']:
+        params.pop('Template', None)
+    if params['Negative template'] == params['Negative prompt']:
+        params.pop('Negative template', None)
     debug(f'Params: {params}')
+
     for key, val in params.copy().items():
         val = unquote(val).strip(" ,\n").replace('\\\n', '')
         size = re_size.match(val)

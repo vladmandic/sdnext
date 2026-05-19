@@ -22,6 +22,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         return ''
     if not hasattr(shared.sd_model, 'sd_checkpoint_info'):
         return ''
+
     if index is None:
         index = position_in_batch + iteration * p.batch_size
     if all_prompts is None:
@@ -40,6 +41,13 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         all_subseeds.insert(0, int(p.subseed))
     while len(all_negative_prompts) <= index:
         all_negative_prompts.insert(0, p.negative_prompt)
+    if p.all_templates is not None:
+        while len(p.all_templates) <= index:
+            p.all_templates.insert(0, '')
+    if p.all_negative_templates is not None:
+        while len(p.all_negative_templates) <= index:
+            p.all_negative_templates.insert(0, '')
+
     comment = ', '.join(comments) if comments is not None and type(comments) is list else None
     ops = list(set(p.ops))
     args = {
@@ -208,7 +216,12 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         if type(v) is float or type(v) is int:
             if v <= -1:
                 del args[k]
-        if isinstance(v, str):
+        if type(v) is list:
+            if len(v) == 0:
+                del args[k]
+            else:
+                args[k] = ', '.join([str(x) for x in v])
+        if type(v) is str:
             if len(v) == 0 or v == '0x0':
                 del args[k]
     debug(f'Infotext: args={args}')
@@ -219,7 +232,13 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if hasattr(p, 'original_negative'):
         args['Original negative'] = p.original_negative
 
+    template = p.all_templates[index] if p.all_templates is not None and p.all_templates[index] else None
+    negative_template = p.all_negative_templates[index] if p.all_negative_templates is not None and p.all_negative_templates[index] else None
+    template_text = f"\nTemplate: {template}" if template else ''
+    negative_template_text = f"\nNegative template: {negative_template}" if negative_template else ''
+
     negative_prompt_text = f"\nNegative prompt: {all_negative_prompts[index] if all_negative_prompts[index] else ''}"
-    infotext = f"{all_prompts[index]}{negative_prompt_text}\n{params_text}".strip()
+    infotext = f"{all_prompts[index]}{negative_prompt_text}{template_text}{negative_template_text}\n{params_text}".strip()
+
     debug(f'Infotext: "{infotext}"')
     return infotext

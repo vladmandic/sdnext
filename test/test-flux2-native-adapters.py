@@ -50,7 +50,7 @@ finally:
 installer.add_args(modules.cmd_args.parser)
 modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
-from modules.errors import log   # pylint: disable=wrong-import-position
+from modules.logger import log   # pylint: disable=wrong-import-position
 from modules import shared        # pylint: disable=wrong-import-position
 from modules.lora import (         # pylint: disable=wrong-import-position
     network, network_lora, network_lokr, network_hada, network_oft, network_boft,

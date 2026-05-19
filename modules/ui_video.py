@@ -53,6 +53,8 @@ def create_ui():
         paste_fields = [
             (prompt, "Prompt"), # cannot add more fields as they are not defined yet
             (negative, "Negative prompt"),
+            (prompt, "Template"), # override prompt with template if available
+            (negative, "Negative template"),
             (width, "Width"),
             (height, "Height"),
             (frames, "Frames"),

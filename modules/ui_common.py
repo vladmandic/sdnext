@@ -53,17 +53,42 @@ def plaintext_to_html(text, elem_classes=None):
 def infotext_to_html(text):
     res = infotext.parse(text)
     prompt = res.get('Prompt', '')
-    negative = res.get('Negative prompt', '')
     res.pop('Prompt', None)
+    negative = res.get('Negative prompt', '')
     res.pop('Negative prompt', None)
+    template = res.get('Template', '')
+    res.pop('Template', None)
+    negative_template = res.get('Negative template', '')
+    res.pop('Negative template', None)
+
+    runtime = {}
+    runtime['App'] = res.get('App', '')
+    res.pop('App', None)
+    runtime['Version'] = res.get('Version', '')
+    res.pop('Version', None)
+    runtime['Pipeline'] = res.get('Pipeline', '')
+    res.pop('Pipeline', None)
+    runtime['Operations'] = res.get('Operations', '')
+    res.pop('Operations', None)
+
     params = [f'{k}: {v}' for k, v in res.items() if v is not None and not k.endswith('-1') and not k.endswith('-2')]
     params = '| '.join(params) if len(params) > 0 else ''
+
+    runtime = [f'{k}: {v}' for k, v in runtime.items() if v is not None and not k.endswith('-1') and not k.endswith('-2')]
+    runtime = '| '.join(runtime) if len(runtime) > 0 else ''
+
     code = ''
-    if len(prompt) > 0:
+    if prompt is not None and len(prompt) > 0:
         code += f'<p><b>Prompt:</b> {html.escape(prompt)}</p>'
-    if len(negative) > 0:
+    if negative is not None and len(negative) > 0:
         code += f'<p><b>Negative:</b> {html.escape(negative)}</p>'
-    if len(params) > 0:
+    if template is not None and len(template) > 0:
+        code += f'<p><b>Template:</b> {html.escape(template)}</p>'
+    if negative_template is not None and len(negative_template) > 0:
+        code += f'<p><b>Negative Template:</b> {html.escape(negative_template)}</p>'
+    if runtime is not None and len(runtime) > 0:
+        code += f'<p><b>Runtime:</b> {html.escape(runtime)}</p>'
+    if params is not None and len(params) > 0:
         code += f'<p><b>Parameters:</b> {html.escape(params)}</p>'
     return code
 

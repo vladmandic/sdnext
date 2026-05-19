@@ -18,7 +18,6 @@ import time
 import types
 import torch
 import numpy as np
-from types import SimpleNamespace
 
 script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, script_dir)
@@ -40,7 +39,7 @@ _mock_taesd.CQYAN_MODELS = {}
 _mock_taesd.encode = lambda x: torch.zeros(1, 4, 8, 8)
 sys.modules['modules.vae.sd_vae_taesd'] = _mock_taesd
 
-from modules.errors import log
+from modules.logger import log
 
 # Results tracking
 results = {
@@ -417,7 +416,7 @@ def _make_mock_p(**overrides):
         'extra_generation_params': {},
     }
     defaults.update(overrides)
-    return SimpleNamespace(**defaults)
+    return types.SimpleNamespace(**defaults)
 
 
 def test_correction_noop():

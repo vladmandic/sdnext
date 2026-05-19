@@ -354,6 +354,8 @@ def create_ui(_blocks: gr.Blocks=None):
                 # prompt
                 (prompt, "Prompt"),
                 (negative, "Negative prompt"),
+                (prompt, "Template"), # override prompt with template if available
+                (negative, "Negative template"),
                 (styles, "Styles"),
                 # input
                 (denoising_strength, "Denoising strength"),
