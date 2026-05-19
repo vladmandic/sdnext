@@ -4957,7 +4957,7 @@
     },
     {
       "id": 33,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "마스크된 영역만 인페인트",
       "reload": "n/a",
       "hint": ""

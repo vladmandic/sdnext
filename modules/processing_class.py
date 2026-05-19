@@ -106,10 +106,6 @@ class StableDiffusionProcessing:
                  grid_save: bool | None = None,
                  grid_format: str | None = None,
                  return_grid: bool | None = None,
-                 save_mask: bool | None = None,
-                 save_mask_composite: bool | None = None,
-                 return_mask: bool | None = None,
-                 return_mask_composite: bool | None = None,
                  keep_incomplete: bool | None = None,
                  image_metadata: bool | None = None,
                  jpeg_quality: int | None = None,
@@ -390,10 +386,6 @@ class StableDiffusionProcessing:
         self.grid_save = grid_save
         self.grid_format = grid_format
         self.return_grid = return_grid
-        self.save_mask = save_mask
-        self.save_mask_composite = save_mask_composite
-        self.return_mask = return_mask
-        self.return_mask_composite = return_mask_composite
         self.keep_incomplete = keep_incomplete
         self.image_metadata = image_metadata
         self.jpeg_quality = jpeg_quality
@@ -778,9 +770,9 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         if type(self.image_mask) == list:
             self.image_mask = self.image_mask[0]
         if 'Control' in self.__class__.__name__:
-            self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1) # blur/padding are handled in masking module
+            self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, invert=self.inpainting_mask_invert==1) # blur/padding are handled in masking module
         elif self.image_mask is not None:
-            self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1, mask_blur=self.mask_blur, mask_padding=self.inpaint_full_res_padding) # old img2img
+            self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, invert=self.inpainting_mask_invert==1, mask_blur=self.mask_blur, mask_padding=self.inpaint_full_res_padding) # old img2img
         if self.inpaint_full_res and self.image_mask is not None: # mask only inpaint
             self.mask_for_overlay = self.image_mask
             mask = self.image_mask.convert('L')

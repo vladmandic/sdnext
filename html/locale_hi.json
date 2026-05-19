@@ -4957,7 +4957,7 @@
     },
     {
       "id": 33,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "केवल मास्क किया गया इनपेंट करें",
       "reload": "n/a",
       "hint": ""

@@ -110,7 +110,7 @@ def preprocess_image(
     if input_mask is not None:
         p.extra_generation_params["Mask only"] = masking.opts.mask_only if masking.opts.mask_only else None
         p.extra_generation_params["Mask auto"] = masking.opts.auto_mask if masking.opts.auto_mask != 'None' else None
-        p.extra_generation_params["Mask invert"] = masking.opts.invert if masking.opts.invert else None
+        p.extra_generation_params["Mask invert"] = masking.opts.mask_invert if masking.opts.mask_invert else None
         p.extra_generation_params["Mask blur"] = masking.opts.mask_blur if masking.opts.mask_blur > 0 else None
         p.extra_generation_params["Mask erode"] = masking.opts.mask_erode if masking.opts.mask_erode > 0 else None
         p.extra_generation_params["Mask dilate"] = masking.opts.mask_dilate if masking.opts.mask_dilate > 0 else None

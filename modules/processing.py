@@ -3,7 +3,7 @@ import json
 import time
 import numpy as np
 from PIL import Image, ImageOps
-from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer
+from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer, masking
 from modules.logger import log
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 from modules.processing_class import ( # pylint: disable=unused-import
@@ -373,28 +373,12 @@ def process_samples(p: StableDiffusionProcessing, samples):
             if _overlay:
                 image = apply_overlay(image, p.paste_to, i, p.overlay_images)
 
-            _save_mask = get_opt(p, 'save_mask')
-            _save_mask_composite = get_opt(p, 'save_mask_composite')
-            _return_mask = get_opt(p, 'return_mask')
-            _return_mask_composite = get_opt(p, 'return_mask_composite')
-            if hasattr(p, 'mask_for_overlay') and p.mask_for_overlay and any([_save_mask, _save_mask_composite, _return_mask, _return_mask_composite]):
-                image_mask = p.mask_for_overlay.convert('RGB')
-                image1 = image.convert('RGBA').convert('RGBa')
-                image2 = Image.new('RGBa', image.size)
-                mask = images.resize_image(3, p.mask_for_overlay, image.width, image.height).convert('L')
-                image_mask_composite = Image.composite(image1, image2, mask).convert('RGBA')
-                info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
-                _fmt = get_opt(p, 'samples_format')
-                if _save_mask:
-                    images.save_image(image_mask, p.outpath_samples, "", p.seeds[i], p.prompts[i], _fmt, info=info, p=p, suffix="-mask")
-                if _save_mask_composite:
-                    images.save_image(image_mask_composite, p.outpath_samples, "", p.seeds[i], p.prompts[i], _fmt, info=info, p=p, suffix="-mask-composite")
-                if _return_mask:
-                    out_infotexts.append(info)
-                    out_images.append(image_mask)
-                if _return_mask_composite:
-                    out_infotexts.append(info)
-                    out_images.append(image_mask_composite)
+            if masking.opts.mask_return and p.image_mask is not None:
+                out_infotexts.append(create_infotext(p, all_prompts=['Mask']))
+                if p.mask_for_overlay is not None:
+                    out_images.append(p.mask_for_overlay.convert('RGB'))
+                else:
+                    out_images.append(p.image_mask.convert('RGB'))
 
             _inc_mask = getattr(p, 'include_mask', None)
             if _inc_mask is None:
@@ -426,6 +410,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
         image.info["parameters"] = info
         out_infotexts.append(info)
         out_images.append(image)
+
     shared.history.add(None, info=out_infotexts, ops=p.ops, images=out_images)
     return out_images, out_infotexts
 

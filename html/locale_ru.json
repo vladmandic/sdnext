@@ -4957,7 +4957,7 @@
     },
     {
       "id": 34,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "Закрашивать только маску",
       "reload": "",
       "hint": "Ограничить Inpaint только замаскированной областью"

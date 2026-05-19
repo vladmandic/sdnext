@@ -4957,7 +4957,7 @@
     },
     {
       "id": 0,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "Inpaint solum obductum",
       "reload": "n/a",
       "hint": ""

@@ -450,8 +450,6 @@ def create_settings(cmd_opts):
         "save_images_before_refiner": OptionInfo(False, "Save image before refiner"),
         "save_images_before_detailer": OptionInfo(False, "Save image before detailer"),
         "save_images_before_color_correction": OptionInfo(False, "Save image before color correction"),
-        "save_mask": OptionInfo(False, "Save inpainting mask"),
-        "save_mask_composite": OptionInfo(False, "Save inpainting masked composite"),
         "gradio_skip_video": OptionInfo(False, "Do not display video output in UI"),
 
         "image_sep_watermark": OptionInfo("<h2>Watermarking</h2>", "", gr.HTML),
@@ -552,8 +550,6 @@ def create_settings(cmd_opts):
 
         "images_sep_ui": OptionInfo("<h2>Outputs & Images</h2>", "", gr.HTML),
         "return_grid": OptionInfo(True, "Show grid in results"),
-        "return_mask": OptionInfo(False, "Inpainting include greyscale mask in results"),
-        "return_mask_composite": OptionInfo(False, "Inpainting include masked composite in results"),
         "send_seed": OptionInfo(True, "Send seed when sending prompt or image to other interface", gr.Checkbox, {"visible": False}),
         "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
     }))

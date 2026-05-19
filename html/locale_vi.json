@@ -4957,7 +4957,7 @@
     },
     {
       "id": 33,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "Chỉ inpaint vùng được che",
       "reload": "",
       "hint": "Chỉ thực hiện vẽ lại trên vùng mặt nạ được chỉ định"

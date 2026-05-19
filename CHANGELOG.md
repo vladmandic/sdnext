@@ -6,7 +6,7 @@
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
     in both original precision and SDNQ-4bit quantiztion  
 - **Features**
-  - **SDNQ** additional quantization algorithm: *Hadamard Rotations*  
+  - **SDNQ** new quantization algorithm: *Hadamard Rotations*  
     much higher quality than base SDNQ, but runs slightly slower  
     still faster than SVD and can be combined together with SVD for combined benefits  
   - **Metadata**
@@ -15,6 +15,8 @@
   - **Captioning** new feature: analyze existing images for prompt adherence  
     *tip*: image analysis requires larger VLM model to produce quality output  
     new api endpoint: `/sdapi/v1/analyze`  
+  - **Masking** updated interface and capabilities  
+    you can now also select mask type instead of focing alpha mask with all models  
   - **HF download** use `XET` by default  
     see *settings -> huggingface -> download method* for options  
   - **Nunchaku** consider DEV builds when auto-installing
@@ -46,6 +48,7 @@
   - improve `settings` search
   - `nunchaku` z-image loader
   - `ui` server log monitor
+  - `kanvas` enable toolbar on *send-to* action
 
 ## Update for 2026-05-13
 

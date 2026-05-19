@@ -4957,9 +4957,9 @@
     },
     {
       "id": 33,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "マスクされた部分のみインペイント",
-      "reload": "Inpaint masked only",
+      "reload": "Focus mask",
       "hint": ""
     },
     {

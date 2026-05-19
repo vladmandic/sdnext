@@ -4964,7 +4964,7 @@
     },
     {
       "id": 0,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "Inpaintaj samo maskirano",
       "reload": "",
       "hint": ""

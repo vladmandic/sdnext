@@ -4957,7 +4957,7 @@
     },
     {
       "id": 33,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "Inpaint tylko zamaskowanego",
       "reload": "",
       "hint": "Wypełniaj tylko zamaskowany obszar"

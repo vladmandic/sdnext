@@ -382,8 +382,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 save_images_before_highres_fix: bool | None = None, save_images_before_refiner: bool | None = None,
                 save_images_before_detailer: bool | None = None, save_images_before_color_correction: bool | None = None,
                 grid_save: bool | None = None, grid_format: str | None = None, return_grid: bool | None = None,
-                save_mask: bool | None = None, save_mask_composite: bool | None = None,
-                return_mask: bool | None = None, return_mask_composite: bool | None = None,
                 keep_incomplete: bool | None = None, image_metadata: bool | None = None, jpeg_quality: int | None = None,
                 # scheduler/noise overrides
                 schedulers_prediction_type: str | None = None, schedulers_beta_schedule: str | None = None, schedulers_timesteps: str | None = None,
@@ -545,12 +543,10 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         save_images_before_highres_fix=save_images_before_highres_fix, save_images_before_refiner=save_images_before_refiner,
         save_images_before_detailer=save_images_before_detailer, save_images_before_color_correction=save_images_before_color_correction,
         grid_save=grid_save, grid_format=grid_format, return_grid=return_grid,
-        save_mask=save_mask, save_mask_composite=save_mask_composite,
-        return_mask=return_mask, return_mask_composite=return_mask_composite,
         keep_incomplete=keep_incomplete, image_metadata=image_metadata, jpeg_quality=jpeg_quality,
         # inpaint
         inpaint_full_res = masking.opts.mask_only,
-        inpainting_mask_invert = 1 if masking.opts.invert else 0,
+        inpainting_mask_invert = 1 if masking.opts.mask_invert else 0,
         # hdr
         hdr_mode=hdr_mode, hdr_brightness=hdr_brightness, hdr_color=hdr_color, hdr_sharpen=hdr_sharpen, hdr_clamp=hdr_clamp,
         hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundary=hdr_max_boundary, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio, hdr_apply_hires=hdr_apply_hires,

@@ -4957,7 +4957,7 @@
     },
     {
       "id": 34,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "Sadece maskeli alanı inpaint et",
       "reload": "",
       "hint": ""

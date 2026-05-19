@@ -4957,7 +4957,7 @@
     },
     {
       "id": 33,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "التلوين للمناطق المقنعة فقط",
       "reload": "",
       "hint": ""

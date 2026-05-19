@@ -163,7 +163,7 @@ def select_input(input_mode, init_type, input_video, input_batch, input_folder, 
     # control inputs
     if isinstance(selected_input, Image.Image): # image via upload -> image
         if input_mode == 'Outpaint':
-            masking.opts.invert = True
+            masking.opts.mask_invert = True
             selected_input, input_mask = masking.outpaint(input_image=selected_input)
         input_source = [selected_input]
         input_type = 'PIL.Image'

@@ -4957,7 +4957,7 @@
     },
     {
       "id": 34,
-      "label": "Inpaint masked only",
+      "label": "Focus mask",
       "localized": "Inpaint solo maschera",
       "reload": "n/a",
       "hint": "Esegui il processo di inpainting solo sull'area mascherata"

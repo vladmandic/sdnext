@@ -4957,8 +4957,8 @@
     },
     {
       "id": 33,
-      "label": "Inpaint masked only",
-      "localized": "Inpaint masked only",
+      "label": "Focus mask",
+      "localized": "Focus mask",
       "reload": "",
       "hint": "Only change the area you have painted over."
     },
