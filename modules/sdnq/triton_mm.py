@@ -7,12 +7,14 @@ matmul_configs we use takes AMD and Intel into consideration too.
 SDNQ Triton configs can outperform RocBLAS and OneDNN.
 """
 
+import math
 import torch
 
 import triton
 import triton.language as tl
 
 
+min_block_size = 64
 matmul_configs = [
     triton.Config({'BLOCK_SIZE_M': BM, 'BLOCK_SIZE_N': BN, "BLOCK_SIZE_K": BK, "GROUP_SIZE_M": GM}, num_warps=w, num_stages=s)
     for BM in [64, 128, 256]
@@ -24,11 +26,12 @@ matmul_configs = [
 ]
 
 
-@triton.autotune(configs=matmul_configs, key=["M", "N", "K", "stride_bk", "ACCUMULATOR_DTYPE"], cache_results=True)
+@triton.autotune(configs=matmul_configs, key=["M_AT", "N_AT", "K_AT", "stride_bk", "ACCUMULATOR_DTYPE"], cache_results=True)
 @triton.jit
 def triton_mm_kernel(
     a_ptr, b_ptr, c_ptr,
     M: int, N: int, K: int,
+    M_AT: int, N_AT: int, K_AT: int,
     stride_am: int, stride_ak: int,
     stride_bk: int, stride_bn: int,
     stride_cm: int, stride_cn: int,
@@ -79,11 +82,12 @@ def triton_mm_kernel(
 
 
 # Intel requires tensor descriptors to perform good
-@triton.autotune(configs=matmul_configs, key=["M", "N", "K", "stride_bk", "ACCUMULATOR_DTYPE"], cache_results=True)
+@triton.autotune(configs=matmul_configs, key=["M_AT", "N_AT", "K_AT", "stride_bk", "ACCUMULATOR_DTYPE"], cache_results=True)
 @triton.jit
 def triton_mm_td_kernel(
     a_ptr, b_ptr, c_ptr,
     M: int, N: int, K: int,
+    M_AT: int, N_AT: int, K_AT: int,
     stride_am: int, stride_ak: int,
     stride_bk: int, stride_bn: int,
     stride_cm: int, stride_cn: int,
@@ -139,6 +143,9 @@ def int_mm(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     mm_kernel_func[grid](
         a, b, c,
         M, N, K,
+        math.ceil(M / min_block_size),
+        math.ceil(N / min_block_size),
+        math.ceil(K / min_block_size),
         a.stride(0), a.stride(1),
         b.stride(0), b.stride(1),
         c.stride(0), c.stride(1),
@@ -159,6 +166,9 @@ def fp_mm(a: torch.FloatTensor, b: torch.FloatTensor) -> torch.FloatTensor:
     mm_kernel_func[grid](
         a, b, c,
         M, N, K,
+        math.ceil(M / min_block_size),
+        math.ceil(N / min_block_size),
+        math.ceil(K / min_block_size),
         a.stride(0), a.stride(1),
         b.stride(0), b.stride(1),
         c.stride(0), c.stride(1),
