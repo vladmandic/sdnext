@@ -6,3 +6,5 @@
 - For UI tasks, also review instructions `.github/instructions/ui.instructions.md`
 
 For specific SKILLS, also review the relevant skill files specified in `.github/skills/README.md` and listed `.github/skills/*/SKILL.md`
+
+For specific GUIDELINES, also review the relevant guideline files specified in `wiki/Dev-*.md` and listed in `wiki/Dev-Home.md`

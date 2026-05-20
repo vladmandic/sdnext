@@ -21,7 +21,7 @@ applyTo: "launch.py, webui.py, installer.py, modules/**/*.py, pipelines/**/*.py,
 - Full startup: `python launch.py`
 - Full lint sequence: `pnpm lint`
 - Python checks individually: `pnpm ruff`, `pnpm pylint`
-- JS checks: `pnpm eslint` and `pnpm eslint-ui`
+- TypeScript checks: `pnpm eslint`, `pnpm tsc`
 
 ## Pitfalls
 
