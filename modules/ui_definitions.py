@@ -564,7 +564,7 @@ def create_settings(cmd_opts):
         "live_preview_downscale": OptionInfo(True, "Downscale high resolution live previews"),
 
         "notification_audio_enable": OptionInfo(False, "Play a notification upon completion"),
-        "notification_audio_path": OptionInfo("html/notification.mp3","Path to notification sound", component_args=hide_dirs, folder=True),
+        "notification_audio_path": OptionInfo("ui/assets/notification.mp3","Path to notification sound", component_args=hide_dirs, folder=True),
     }))
 
     # --- Postprocessing ---

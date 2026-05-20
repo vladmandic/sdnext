@@ -35,7 +35,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 # Default test images (in order of preference)
 DEFAULT_TEST_IMAGES = [
     'html/sdnext-robot-2k.jpg',
-    'html/favicon.png',
+    'ui/assets/favicon.png',
     'extensions-builtin/sdnext-modernui/html/logo.png',
 ]
 

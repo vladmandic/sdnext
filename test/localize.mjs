@@ -92,7 +92,7 @@ async function localize() {
   };
   console.log('params:', params);
 
-  const raw = fs.readFileSync('html/locale_en.json');
+  const raw = fs.readFileSync('ui/locale/locale_en.json');
   console.log('raw:', { bytes: raw.length });
   const json = JSON.parse(raw);
   console.log('targets:', { lang: Object.keys(languages), count: Object.keys(languages).length });
@@ -102,7 +102,7 @@ async function localize() {
     const lang = languages[locale];
     const langPrompt = prompt.replace('{language}', lang).trim();
     const output = {};
-    const fn = `html/locale_${locale}.json`;
+    const fn = `ui/locale/locale_${locale}.json`;
     if (fs.existsSync(fn)) {
       console.log('skip:', { index, locale, lang, fn });
       continue;

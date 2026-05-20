@@ -73,7 +73,7 @@ def setup_middleware(app: FastAPI, cmd_opts):
         }
         if err['code'] == 401 and 'file=' in req.url.path: # dont spam with unauth
             return JSONResponse(status_code=err['code'], content=jsonable_encoder(err))
-        if err['code'] == 404 and 'file=html/' in req.url.path: # dont spam with locales
+        if err['code'] == 404 and 'file=ui/' in req.url.path: # dont spam with locales
             return JSONResponse(status_code=err['code'], content=jsonable_encoder(err))
         if err["code"] == 429:  # dont spam with rate limit errors
             return JSONResponse(status_code=err["code"], content=jsonable_encoder(err))

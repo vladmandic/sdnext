@@ -1,7 +1,5 @@
 {
   "files.eol": "\n",
-  "python.analysis.extraPaths": [".", "./modules", "./scripts", "./pipelines"],
-  "python.analysis.typeCheckingMode": "off",
   "editor.formatOnSave": false,
   "python.REPL.enableREPLSmartSend": false,
   "eslint.enable": true,
@@ -13,6 +11,13 @@
     "json",
     "markdown"
   ],
+  "search.exclude": {
+    "**/__pycache__": true,
+    "**/node_modules": true,
+    "**/venv": true,
+    "**/*.mjs": true,
+    "**/*.map": true
+  },
   "githubPullRequests.ignoredPullRequestBranches": [
     "master"
   ]

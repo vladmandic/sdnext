@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-19
+## Update for 2026-05-20
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -32,7 +32,10 @@
   - Automated fixes using `/check-` skills
   - Automated syntax, spelling and readability improvements to `/wiki` pages
 - **Internal**
-  - complete refactor of `modernui` javascript codebase to typescript!
+  - complete refactor of `core` JavaScript codebase to TypeScript!
+  - complete refactor of `modernui` JavaScript codebase to TypeScript!
+  - remove of `/html` and `/javascript` folders
+  - add `/ui` folder for all ui-related code/css/assets
   - improve `kanvas` typing
   - additional strong typing in core, thanks @awsr
 - **Fixes**

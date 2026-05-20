@@ -339,7 +339,7 @@ def start_ui():
             max_threads=64,
             show_api=False,
             quiet=True,
-            favicon_path='html/favicon.svg',
+            favicon_path='ui/assets/favicon.svg',
             allowed_paths=allowed_paths,
             app_kwargs=fastapi_args,
             _frontend=True and shared.cmd_opts.share,

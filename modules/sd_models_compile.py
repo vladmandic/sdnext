@@ -4,7 +4,7 @@ import logging
 import torch
 from modules import shared, errors, devices, sd_models, sd_models_utils
 from modules.logger import log
-from installer import setup_logging, install
+from installer import setup_logging
 
 debug = os.environ.get('SD_COMPILE_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
@@ -87,8 +87,8 @@ def optimize_openvino(sd_model, clear_cache=True):
 
 
 def compile_pruna(sd_model):
-    # TODO
-    # install('pruna') # TODO pruna: enable when it supports transformers==5.5
+    # TODO pruna: enable when it supports transformers==5.5
+    # install('pruna')
     """
     from pruna import smash, SmashConfig
     smash_config = SmashConfig(["deepcache", "stable_fast"])

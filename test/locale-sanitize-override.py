@@ -15,7 +15,7 @@ if __name__ == "__main__":
     labels = []
     override = None
     try:
-        with open('html/locale_en.json', 'r', encoding="utf-8") as f:
+        with open('ui/locale/locale_en.json', 'r', encoding="utf-8") as f:
             locale = json.load(f)
         for v in locale.values():
             for item in v:

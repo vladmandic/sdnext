@@ -322,7 +322,7 @@ def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool
         elif "no submodule mapping found" in txt:
             log.warning(f'Git: folder="{folder}" submodules changed')
         elif 'or stash them' in txt:
-            log.error(f'Git: folder="{folder}" local changes detected')
+            log.warning(f'Git: folder="{folder}" local changes detected')
         else:
             log.error(f'Git: folder="{folder}" arg="{arg}" output={txt}')
         errors.append(f'git: {folder}')

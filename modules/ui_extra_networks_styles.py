@@ -114,7 +114,7 @@ class ExtraNetworkStyles(extra_networks.ExtraNetwork):
         super().__init__('style')
         self.indexes = {}
 
-    def activate(self, p, params_list):
+    def activate(self, p, params_list, *args, **kwargs):
         for param in params_list:
             if len(param.items) > 0:
                 style = None

@@ -348,7 +348,7 @@ class StyleDatabase:
                 for fn in style_files:
                     future_items[executor.submit(self.load_style, fn, None)] = fn
                 if self.built_in:
-                    fn = os.path.join('html', 'art-styles.json')
+                    fn = os.path.join('data', 'art-styles.json')
                     future_items[executor.submit(self.load_style, fn, 'Reference')] = fn
                 for future in concurrent.futures.as_completed(future_items):
                     future.result()

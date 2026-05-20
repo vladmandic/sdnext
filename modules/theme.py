@@ -19,7 +19,10 @@ gradio_theme = gr.themes.Base()
 
 
 def list_builtin_themes():
-    files = [os.path.splitext(f)[0] for f in os.listdir('javascript') if f.endswith('.css') and f not in ['base.css', 'sdnext.css', 'style.css']]
+    from modules.paths import script_path
+    folder = os.path.join(script_path, "ui", "css")
+    exclude = ['base.css', 'sdnext.css', 'style.css', 'timesheet.css', 'swagger.css']
+    files = [os.path.splitext(f)[0] for f in os.listdir(folder) if f.endswith('.css') and f not in exclude]
     return files
 
 

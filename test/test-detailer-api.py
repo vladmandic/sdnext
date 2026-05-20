@@ -36,7 +36,7 @@ FACE_TEST_IMAGES = [
 # Fallback images (no guaranteed faces)
 FALLBACK_IMAGES = [
     'html/sdnext-robot-2k.jpg',
-    'html/favicon.png',
+    'ui/assets/favicon.png',
 ]
 
 

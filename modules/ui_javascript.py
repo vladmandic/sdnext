@@ -19,16 +19,17 @@ def webpath(fn):
 
 def html_head():
     head = ''
-    main = ['script.js']
+    main = ['sdnext.mjs']
     skip = ['login.js']
     for js in main:
-        script_js = os.path.join(script_path, "javascript", js)
+        # script_js = os.path.join(script_path, 'javascript', js)
+        script_js = os.path.join(script_path, "ui", "dist", js)
         if '.esm' in js or '.mjs' in js:
             head += f'<script type="module" src="{webpath(script_js)}"></script>\n'
         else:
             head += f'<script type="text/javascript" src="{webpath(script_js)}"></script>\n'
     added = []
-    for script in scripts_manager.list_scripts("javascript", ".js"):
+    for script in scripts_manager.list_scripts('javascript', ".js"):
         if script.filename in main or script.filename in skip:
             continue
         if '.esm' in script.filename or '.mjs' in script.filename:
@@ -36,7 +37,7 @@ def html_head():
         else:
             head += f'<script type="text/javascript" src="{webpath(script.path)}"></script>\n'
         added.append(script.path)
-    for script in scripts_manager.list_scripts("javascript", ".mjs"):
+    for script in scripts_manager.list_scripts('javascript', ".mjs"):
         head += f'<script type="module" src="{webpath(script.path)}"></script>\n'
         added.append(script.path)
     added = [a.replace(script_path, '').replace('\\', '/') for a in added]
@@ -54,7 +55,8 @@ def html_body():
 
 
 def html_login():
-    fn = os.path.join(script_path, "javascript", "login.js")
+    # fn = os.path.join(script_path, 'javascript', 'login.js')
+    fn = os.path.join(script_path, "ui", "js", "login.js")
     with open(fn, encoding='utf8') as f:
         inline = f.read()
     js = f'<script type="text/javascript">{inline}</script>\n'
@@ -67,7 +69,8 @@ def html_css(css: list[str]):
 
     head = ''
     for cssfile in css:
-        f = os.path.join(script_path, 'javascript', cssfile)
+        # f = os.path.join(script_path, 'javascript', cssfile)
+        f = os.path.join(script_path, 'ui', 'css', cssfile)
         if os.path.isfile(f):
             head += stylesheet(f)
     for cssfile in scripts_manager.list_files_with_name("style.css"):
@@ -77,7 +80,8 @@ def html_css(css: list[str]):
 
     usercss = os.path.join(data_path, "user.css") if os.path.exists(os.path.join(data_path, "user.css")) else None
     if shared.opts.theme_type == 'Standard':
-        themecss = os.path.join(script_path, "javascript", f"{shared.opts.gradio_theme}.css")
+        # themecss = os.path.join(script_path, 'javascript', f"{shared.opts.gradio_theme}.css")
+        themecss = os.path.join(script_path, 'ui', 'css', f"{shared.opts.gradio_theme}.css")
         if os.path.exists(themecss):
             head += stylesheet(themecss)
             log.debug(f'UI theme: css="{themecss}" base="{css}" user="{usercss}"')
@@ -98,7 +102,7 @@ def html_css(css: list[str]):
 
 def reload_javascript():
     title = '<title>SD.Next</title>'
-    manifest = f'<link rel="manifest" href="{webpath(os.path.join(script_path, "html", "manifest.json"))}">'
+    manifest = f'<link rel="manifest" href="{webpath(os.path.join(script_path, "ui", "manifest", "manifest.json"))}">'
     login = html_login()
     js = html_head()
 
@@ -121,8 +125,8 @@ def reload_javascript():
         for line in lines:
             if 'meta name="twitter:' in line:
                 res.body = res.body.replace(line.encode("utf8"), b'')
-            if 'iframeResizer.contentWindow.min.js' in line:
-                res.body = res.body.replace(line.encode("utf8"), b'src="file=javascript/iframeResizer.min.js"')
+            if 'iframeResizer.contentWindow' in line:
+                res.body = res.body.replace(line.encode("utf8"), b'src="file=ui/js/iframeResizer.js"')
         res.init_headers()
         return res
 
