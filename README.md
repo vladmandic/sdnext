@@ -112,7 +112,7 @@ And for any question, reach out on [Discord](https://discord.gg/VjvR2tabEX) or o
 
 ### Contributing
 
-Please see [Contributing](CONTRIBUTING) for details on how to contribute to this project  
+Please see [Contributing](https://raw.githubusercontent.com/vladmandic/sdnext/refs/heads/dev/CONTRIBUTING) for details on how to contribute to this project  
 
 ## License & Credits
 
