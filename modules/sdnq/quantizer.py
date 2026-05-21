@@ -369,16 +369,17 @@ def apply_sdnq_to_module(model, quantization_config: "SDNQConfig", torch_dtype: 
         if hasattr(module, "weight") and module.weight is not None:
             param_name = param_name + ".weight"
             layer_class_name = module.__class__.__name__
+            param_in_modules_to_not_convert = check_param_name_in(param_name, quantization_config.modules_to_not_convert)
             if (
                 layer_class_name in allowed_types
                 and module.weight.dtype in {torch.float64, torch.float32, torch.float16, torch.bfloat16}
-                and check_param_name_in(param_name, quantization_config.modules_to_not_convert) is None
+                and param_in_modules_to_not_convert is None
                 and not (layer_class_name in embedding_types and not quantization_config.quant_embedding)
                 and not ((layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quantization_config.quant_conv)
             ):
                 module, quantization_config = sdnq_quantize_layer(module, quantization_config, torch_dtype=torch_dtype, param_name=param_name)
                 setattr(model, module_name, module)
-            else:
+            elif param_in_modules_to_not_convert is None:
                 quantization_config.modules_to_not_convert.append(param_name)
 
         module, quantization_config = apply_sdnq_to_module(module, quantization_config, torch_dtype=torch_dtype, full_param_name=param_name)
