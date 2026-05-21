@@ -5,8 +5,8 @@ import { getENActiveTab } from './extraNetworks';
 import { log } from './logger';
 import { timer } from './timers';
 
-function attachGalleryListeners(tabName: string): Element | null {
-  const gallery = gradioApp().querySelector(`#${tabName}_gallery`);
+function attachGalleryListeners(tabName: string): HTMLElement | null {
+  const gallery: HTMLElement | null = gradioApp().querySelector(`#${tabName}_gallery`);
   if (!gallery) return null;
   gallery.addEventListener('click', () => {
     // log('galleryItemSelected:', tabName);

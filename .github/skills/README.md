@@ -32,6 +32,10 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
   File: `check-processing/SKILL.md`
   Use when validating txt2img/img2img/control processing workflows from UI submit definitions to backend execution with parameter, type, and initialization checks.
 
+- `check-ui`
+  File: `check-ui/SKILL.md`
+  Use when auditing Python-to-JavaScript UI bindings for Gradio `_js` callbacks, verifying `window` exposure and `ui/globals.d.ts` registration.
+
 - `check-scripts`
   File: `check-scripts/SKILL.md`
   Use when auditing `scripts/*.py` for correct Script overrides (`__init__`, `title`, `show`) and verifying `ui()` output compatibility with `run()` or `process()` parameters.

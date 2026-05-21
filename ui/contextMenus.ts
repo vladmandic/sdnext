@@ -73,32 +73,34 @@ const contextMenuInit = () => {
   async function addContextMenuEventListener(): Promise<void> {
     if (eventListenerApplied) return;
     log('initContextMenu');
-    gradioApp().addEventListener('click', (e) => {
-      if (!e.isTrusted) return;
+    gradioApp().addEventListener('click', (e: Event) => {
+      const mouseEvent = e as MouseEvent;
+      if (!mouseEvent.isTrusted) return;
       const oldMenu = gradioApp().querySelector('#context-menu');
       if (oldMenu) oldMenu.remove();
       menuSpecs.forEach((v, k) => {
         const items = v.filter((item) => item.primary);
-        const target = e.target as Element | null;
+        const target = mouseEvent.target as Element | null;
         if (!target) return;
         const matched = target.closest(k);
         if (items.length > 0 && matched) {
-          showContextMenu(e, matched, items);
-          e.preventDefault();
+          showContextMenu(mouseEvent, matched, items);
+          mouseEvent.preventDefault();
         }
       });
     });
-    gradioApp().addEventListener('contextmenu', (e) => {
+    gradioApp().addEventListener('contextmenu', (e: Event) => {
+      const mouseEvent = e as MouseEvent;
       const oldMenu = gradioApp().querySelector('#context-menu');
       if (oldMenu) oldMenu.remove();
       menuSpecs.forEach((v, k) => {
         const items = v.filter((item) => !item.primary);
-        const target = e.target as Element | null;
+        const target = mouseEvent.target as Element | null;
         if (!target) return;
         const matched = target.closest(k);
         if (items.length > 0 && matched) {
-          showContextMenu(e, matched, items);
-          e.preventDefault();
+          showContextMenu(mouseEvent, matched, items);
+          mouseEvent.preventDefault();
         }
       });
     });

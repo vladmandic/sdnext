@@ -634,6 +634,8 @@ export function updateInput(target) {
   Object.defineProperty(e, 'target', { value: target });
   target.dispatchEvent(e);
 }
+
+window.restartReload = restartReload;
 window.updateInput = updateInput;
 window.clip_gallery_urls = clip_gallery_urls;
 window.extract_image_from_gallery = extract_image_from_gallery;
@@ -641,6 +643,7 @@ window.getCaptionActiveTab = getCaptionActiveTab;
 window.get_img2img_tab_index = get_img2img_tab_index;
 window.modelmerger = modelmerger;
 window.selected_gallery_index = selected_gallery_index;
+window.selected_gallery_files = selected_gallery_files;
 window.send_to_kanvas = send_to_kanvas;
 window.submit_control = submit_control;
 window.submit_framepack = submit_framepack;
@@ -650,6 +653,20 @@ window.submit_postprocessing = submit_postprocessing;
 window.submit_txt2img = submit_txt2img;
 window.submit_video = submit_video;
 window.submit_video_wrapper = submit_video_wrapper;
+window.switch_to_txt2img = switch_to_txt2img;
+window.switch_to_img2img_tab = switch_to_img2img_tab;
+window.switch_to_img2img = switch_to_img2img;
+window.switch_to_inpaint = switch_to_inpaint;
+window.switch_to_sketch = switch_to_sketch;
+window.switch_to_composite = switch_to_composite;
+window.switch_to_extras = switch_to_extras;
+window.switch_to_control = switch_to_control;
+window.switch_to_video = switch_to_video;
+window.switch_to_caption = switch_to_caption;
+window.recalculate_prompts_txt2img = recalculate_prompts_txt2img;
+window.recalculate_prompts_img2img = recalculate_prompts_img2img;
+window.recalculate_prompts_inpaint = recalculate_prompts_inpaint;
+window.recalculate_prompts_control = recalculate_prompts_control;
 
 let desiredCheckpointName = null;
 function selectCheckpoint(name) {
@@ -673,6 +690,34 @@ function selectVAE(name) {
 }
 
 let desiredUNetName = null;
+
+function consumeDesiredCheckpointName(v) {
+  const res = desiredCheckpointName;
+  desiredCheckpointName = null;
+  return [res || v, null];
+}
+
+function consumeDesiredVAEName(v) {
+  const res = desiredVAEName;
+  desiredVAEName = null;
+  return [res || v, null];
+}
+
+function consumeDesiredUNetName(v) {
+  const res = desiredUNetName;
+  desiredUNetName = null;
+  return [res || v, null];
+}
+
+function getDesiredCheckpointName() {
+  return desiredCheckpointName;
+}
+
+window.consumeDesiredCheckpointName = consumeDesiredCheckpointName;
+window.consumeDesiredVAEName = consumeDesiredVAEName;
+window.consumeDesiredUNetName = consumeDesiredUNetName;
+window.getDesiredCheckpointName = getDesiredCheckpointName;
+
 function selectUNet(name) {
   desiredUNetName = name;
   gradioApp().getElementById('change_unet').click();
@@ -704,6 +749,8 @@ function updateImg2imgResizeToTextAfterChangingImage() {
   return [];
 }
 
+window.currentImageResolutionimg2img = currentImageResolutionimg2img;
+window.currentImageResolutioncontrol = currentImageResolutioncontrol;
 window.updateImg2imgResizeToTextAfterChangingImage = updateImg2imgResizeToTextAfterChangingImage;
 
 function createThemeElement(): HTMLImageElement {

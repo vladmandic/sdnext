@@ -45,7 +45,9 @@ declare global {
     getCaptionActiveTab?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     get_img2img_tab_index?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     modelmerger?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    restartReload?: (initial?: boolean) => void; // ui/ui.ts
     selected_gallery_index?: () => number; // ui/ui.ts
+    selected_gallery_files?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     send_to_kanvas?: (gallery: { data?: string }[]) => void; // ui/ui.ts
     submit_control?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_framepack?: (...args: unknown[]) => unknown[]; // ui/ui.ts
@@ -55,6 +57,26 @@ declare global {
     submit_txt2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_video?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_video_wrapper?: (...args: unknown[]) => void; // ui/ui.ts
+    currentImageResolutionimg2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    currentImageResolutioncontrol?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    switch_to_txt2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    switch_to_img2img_tab?: (...args: unknown[]) => void; // ui/ui.ts
+    switch_to_img2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    switch_to_inpaint?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    switch_to_sketch?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    switch_to_composite?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    switch_to_extras?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    switch_to_control?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    switch_to_video?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    switch_to_caption?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    recalculate_prompts_txt2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    recalculate_prompts_img2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    recalculate_prompts_inpaint?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    recalculate_prompts_control?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    consumeDesiredCheckpointName?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    consumeDesiredVAEName?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    consumeDesiredUNetName?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    getDesiredCheckpointName?: () => string | null; // ui/ui.ts
     updateImg2imgResizeToTextAfterChangingImage?: () => unknown[]; // ui/ui.ts
     authFetch: (url: RequestInfo | URL, options?: RequestInit) => Promise<Response | undefined>; // ui/authWrap.ts
     controlInputMode?: (inputMode: string, ...args: unknown[]) => unknown[]; // ui/control.ts
@@ -95,8 +117,7 @@ declare global {
     checkPaused?: (state?: boolean) => void; // ui/progressBar.ts
     requestInterrupt?: () => void; // ui/progressBar.ts
     deleteFile?: (filename: string) => Promise<void>; // ui/script.ts
-    executeCallbacks?: (queue: ((...args: unknown[]) => void)[], arg?: unknown) => void; // ui/script.ts
-    gradioApp: () => HTMLElement; // ui/script.ts
+    gradioApp: () => Document | Element | ShadowRoot; // ui/script.ts
     onAfterUiUpdate?: (callback: () => void) => void; // ui/script.ts
     onOptionsChanged?: (callback: () => void) => void; // ui/script.ts
     onUiLoaded?: (callback: () => void) => void; // ui/script.ts
@@ -130,6 +151,7 @@ declare global {
       getImage: (index: number, includeMask: boolean, includeAlpha: boolean) => { kanvas: true; image: string | null; mask: string | null } | null;
     }; // extensions-builtin/sdnext-kanvas/src/Kanvas.ts
     loadFromURL?: (url: string) => unknown; // external
+    getKanvasData?: () => { kanvas: true; image: string | null; mask: string | null } | null; // extensions-builtin/sdnext-kanvas/javascript/kanvas.mjs
 
     // browser api
     showDirectoryPicker: () => Promise<FileSystemDirectoryHandle>;

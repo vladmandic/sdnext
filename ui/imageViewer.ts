@@ -245,7 +245,7 @@ async function bindImageViewer() {
   const galleryPreviews = gradioApp().querySelectorAll('.gradio-gallery > div.preview');
   for (const galleryPreview of galleryPreviews) {
     if (!galleryPreview.hasAttribute('data-listener')) galleryPreview.addEventListener('click', galleryClickEventHandler, true);
-    galleryPreview.setAttribute('data-listener', true);
+    galleryPreview.setAttribute('data-listener', 'true');
     galleryPreview.querySelectorAll('img').forEach(setupImageForLightbox);
   }
 }

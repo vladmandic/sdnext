@@ -6784,10 +6784,10 @@ var require_iframeResizer = __commonJS({
             function chkDimension(dimension) {
               return "0px" === (settings[settingId] && settings[settingId].iframe.style[dimension]);
             }
-            function isVisible(el2) {
+            function isVisible2(el2) {
               return null !== el2.offsetParent;
             }
-            if (settings[settingId] && isVisible(settings[settingId].iframe) && (chkDimension("height") || chkDimension("width"))) {
+            if (settings[settingId] && isVisible2(settings[settingId].iframe) && (chkDimension("height") || chkDimension("width"))) {
               trigger(
                 "Visibility change",
                 "resize",
@@ -9938,9 +9938,12 @@ async function sleep(ms) {
 }
 function gradioApp() {
   const elems = document.getElementsByTagName("gradio-app");
-  const elem = elems.length === 0 ? document.documentElement : elems[0];
+  const elem = elems.length === 0 ? document : elems[0];
   if (elem !== document) elem.getElementById = (id) => document.getElementById(id);
-  return elem.shadowRoot ? elem.shadowRoot : elem;
+  if (elem !== document && elem.shadowRoot) {
+    return elem.shadowRoot;
+  }
+  return elem;
 }
 window.gradioApp = gradioApp;
 function getUICurrentTab() {
@@ -10161,8 +10164,8 @@ window.deleteFile = deleteFile;
 function uiElementIsVisible(el2) {
   if (el2 === document) return true;
   const computedStyle = getComputedStyle(el2);
-  const isVisible = computedStyle.display !== "none";
-  if (!isVisible) return false;
+  const isVisible2 = computedStyle.display !== "none";
+  if (!isVisible2) return false;
   return uiElementIsVisible(el2.parentNode);
 }
 function uiElementInSight(el2) {
@@ -11118,6 +11121,12 @@ function clip_gallery_urls(gallery) {
     (err) => error(`clipboard: ${files} ${err}`)
   );
 }
+function isVisible(el2) {
+  if (!el2) return false;
+  const rect = el2.getBoundingClientRect();
+  if (rect.width === 0 && rect.height === 0) return false;
+  return rect.top >= 0 && rect.left >= 0 && rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) && rect.right <= (window.innerWidth || document.documentElement.clientWidth);
+}
 function all_gallery_buttons() {
   let allGalleryButtons = gradioApp().querySelectorAll('[style="display: block;"].tabitem div[id$=_gallery].gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small');
   if (allGalleryButtons.length === 0) allGalleryButtons = gradioApp().querySelectorAll(".gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small");
@@ -11150,6 +11159,26 @@ function selected_gallery_index() {
     if (Number.isInteger(gallerySelection2.index)) result = gallerySelection2.index;
   }
   return result;
+}
+function selected_gallery_files(tabname) {
+  let allImages = [];
+  let allThumbnails;
+  if (tabname && tabname !== "gallery") allThumbnails = gradioApp().querySelectorAll("div[id$=_gallery].gradio-gallery .thumbnail-item.thumbnail-small");
+  else allThumbnails = gradioApp().querySelectorAll(".gradio-gallery .thumbnails > .thumbnail-item.thumbnail-small");
+  try {
+    allImages = Array.from(allThumbnails).map((v) => v.querySelector("img"));
+    if (tabname && tabname !== "gallery") allImages = allImages.filter((img) => isVisible(img));
+    allImages = allImages.map((img) => {
+      let fn = img.src;
+      if (fn.includes("file=")) fn = fn.split("file=")[1];
+      return decodeURI(fn);
+    });
+  } catch (err) {
+    error(`selected_gallery_files: ${err}`);
+  }
+  let selectedIndex = -1;
+  if (tabname && tabname !== "gallery") selectedIndex = selected_gallery_index();
+  return [allImages, selectedIndex];
 }
 function extract_image_from_gallery(gallery) {
   if (gallery.length === 0) return [null];
@@ -11211,6 +11240,56 @@ function setFontSize(val, old) {
     log("setFontSize", nextSize, `time=${Math.round(t1 - t0)}`);
     timer("setFontSize", t1 - t0);
   });
+}
+function switchToTab(tab) {
+  const tabs = Array.from(gradioApp().querySelectorAll("#tabs > .tab-nav > button"));
+  const btn = tabs?.find((t) => t.innerText === tab);
+  log("switchToTab", tab);
+  if (btn) btn.click();
+}
+function switch_to_txt2img(...args) {
+  switchToTab("Text");
+  return Array.from(arguments);
+}
+function switch_to_img2img_tab(no) {
+  switchToTab("Image");
+  gradioApp().getElementById("mode_img2img").querySelectorAll("button")[no].click();
+}
+function switch_to_img2img(...args) {
+  switchToTab("Image");
+  switch_to_img2img_tab(0);
+  return Array.from(arguments);
+}
+function switch_to_inpaint(...args) {
+  switchToTab("Image");
+  switch_to_img2img_tab(1);
+  return Array.from(arguments);
+}
+function switch_to_sketch(...args) {
+  switchToTab("Image");
+  switch_to_img2img_tab(2);
+  return Array.from(arguments);
+}
+function switch_to_composite(...args) {
+  switchToTab("Image");
+  switch_to_img2img_tab(3);
+  return Array.from(arguments);
+}
+function switch_to_extras(...args) {
+  switchToTab("Process");
+  return Array.from(arguments);
+}
+function switch_to_control(...args) {
+  switchToTab("Control");
+  return Array.from(arguments);
+}
+function switch_to_video(...args) {
+  switchToTab("Video");
+  return Array.from(arguments);
+}
+function switch_to_caption(...args) {
+  switchToTab("Caption");
+  return Array.from(arguments);
 }
 function get_tab_index(tabId) {
   let res = 0;
@@ -11353,6 +11432,31 @@ function scheduleIdleUI(task) {
     setTimeout(task, 0);
   }
 }
+function recalculatePromptTokens(name) {
+  if (promptTokenCountUpdateFuncs[name]) {
+    promptTokenCountUpdateFuncs[name]();
+  }
+}
+function recalculate_prompts_txt2img(...args) {
+  recalculatePromptTokens("txt2img_prompt");
+  recalculatePromptTokens("txt2img_neg_prompt");
+  return Array.from(arguments);
+}
+function recalculate_prompts_img2img(...args) {
+  recalculatePromptTokens("img2img_prompt");
+  recalculatePromptTokens("img2img_neg_prompt");
+  return Array.from(arguments);
+}
+function recalculate_prompts_inpaint(...args) {
+  recalculatePromptTokens("img2img_prompt");
+  recalculatePromptTokens("img2img_neg_prompt");
+  return Array.from(arguments);
+}
+function recalculate_prompts_control(...args) {
+  recalculatePromptTokens("control_prompt");
+  recalculatePromptTokens("control_neg_prompt");
+  return Array.from(arguments);
+}
 function registerDragDrop() {
   const qs = gradioApp().getElementById("quicksettings");
   if (!qs) return;
@@ -11468,6 +11572,7 @@ function updateInput2(target) {
   Object.defineProperty(e, "target", { value: target });
   target.dispatchEvent(e);
 }
+window.restartReload = restartReload;
 window.updateInput = updateInput2;
 window.clip_gallery_urls = clip_gallery_urls;
 window.extract_image_from_gallery = extract_image_from_gallery;
@@ -11475,6 +11580,7 @@ window.getCaptionActiveTab = getCaptionActiveTab;
 window.get_img2img_tab_index = get_img2img_tab_index;
 window.modelmerger = modelmerger;
 window.selected_gallery_index = selected_gallery_index;
+window.selected_gallery_files = selected_gallery_files;
 window.send_to_kanvas = send_to_kanvas;
 window.submit_control = submit_control;
 window.submit_framepack = submit_framepack;
@@ -11484,11 +11590,60 @@ window.submit_postprocessing = submit_postprocessing;
 window.submit_txt2img = submit_txt2img;
 window.submit_video = submit_video;
 window.submit_video_wrapper = submit_video_wrapper;
+window.switch_to_txt2img = switch_to_txt2img;
+window.switch_to_img2img_tab = switch_to_img2img_tab;
+window.switch_to_img2img = switch_to_img2img;
+window.switch_to_inpaint = switch_to_inpaint;
+window.switch_to_sketch = switch_to_sketch;
+window.switch_to_composite = switch_to_composite;
+window.switch_to_extras = switch_to_extras;
+window.switch_to_control = switch_to_control;
+window.switch_to_video = switch_to_video;
+window.switch_to_caption = switch_to_caption;
+window.recalculate_prompts_txt2img = recalculate_prompts_txt2img;
+window.recalculate_prompts_img2img = recalculate_prompts_img2img;
+window.recalculate_prompts_inpaint = recalculate_prompts_inpaint;
+window.recalculate_prompts_control = recalculate_prompts_control;
+var desiredCheckpointName = null;
+var desiredVAEName = null;
+var desiredUNetName = null;
+function consumeDesiredCheckpointName(v) {
+  const res = desiredCheckpointName;
+  desiredCheckpointName = null;
+  return [res || v, null];
+}
+function consumeDesiredVAEName(v) {
+  const res = desiredVAEName;
+  desiredVAEName = null;
+  return [res || v, null];
+}
+function consumeDesiredUNetName(v) {
+  const res = desiredUNetName;
+  desiredUNetName = null;
+  return [res || v, null];
+}
+function getDesiredCheckpointName() {
+  return desiredCheckpointName;
+}
+window.consumeDesiredCheckpointName = consumeDesiredCheckpointName;
+window.consumeDesiredVAEName = consumeDesiredVAEName;
+window.consumeDesiredUNetName = consumeDesiredUNetName;
+window.getDesiredCheckpointName = getDesiredCheckpointName;
+function currentImageResolutionimg2img(_a, _b, scaleBy) {
+  const img = gradioApp().querySelector('#mode_img2img > div[style="display: block;"] img');
+  return img ? [img.naturalWidth, img.naturalHeight, scaleBy] : [0, 0, scaleBy];
+}
+function currentImageResolutioncontrol(_a, _b, scaleBy) {
+  const img = gradioApp().querySelector('#control-tab-input > div[style="display: block;"] img');
+  return img ? [img.naturalWidth, img.naturalHeight, scaleBy] : [0, 0, scaleBy];
+}
 function updateImg2imgResizeToTextAfterChangingImage() {
   const el2 = gradioApp().getElementById("img2img_update_resize_to");
   if (el2) setTimeout(() => gradioApp().getElementById("img2img_update_resize_to").click(), 500);
   return [];
 }
+window.currentImageResolutionimg2img = currentImageResolutionimg2img;
+window.currentImageResolutioncontrol = currentImageResolutioncontrol;
 window.updateImg2imgResizeToTextAfterChangingImage = updateImg2imgResizeToTextAfterChangingImage;
 async function toggleCompact(val, old) {
   if (val === old) return;
@@ -14072,7 +14227,7 @@ async function bindImageViewer() {
   const galleryPreviews = gradioApp().querySelectorAll(".gradio-gallery > div.preview");
   for (const galleryPreview of galleryPreviews) {
     if (!galleryPreview.hasAttribute("data-listener")) galleryPreview.addEventListener("click", galleryClickEventHandler, true);
-    galleryPreview.setAttribute("data-listener", true);
+    galleryPreview.setAttribute("data-listener", "true");
     galleryPreview.querySelectorAll("img").forEach(setupImageForLightbox);
   }
 }
@@ -15343,31 +15498,33 @@ var contextMenuInit = () => {
     if (eventListenerApplied) return;
     log("initContextMenu");
     gradioApp().addEventListener("click", (e) => {
-      if (!e.isTrusted) return;
+      const mouseEvent = e;
+      if (!mouseEvent.isTrusted) return;
       const oldMenu = gradioApp().querySelector("#context-menu");
       if (oldMenu) oldMenu.remove();
       menuSpecs.forEach((v, k) => {
         const items = v.filter((item) => item.primary);
-        const target = e.target;
+        const target = mouseEvent.target;
         if (!target) return;
         const matched = target.closest(k);
         if (items.length > 0 && matched) {
-          showContextMenu(e, matched, items);
-          e.preventDefault();
+          showContextMenu(mouseEvent, matched, items);
+          mouseEvent.preventDefault();
         }
       });
     });
     gradioApp().addEventListener("contextmenu", (e) => {
+      const mouseEvent = e;
       const oldMenu = gradioApp().querySelector("#context-menu");
       if (oldMenu) oldMenu.remove();
       menuSpecs.forEach((v, k) => {
         const items = v.filter((item) => !item.primary);
-        const target = e.target;
+        const target = mouseEvent.target;
         if (!target) return;
         const matched = target.closest(k);
         if (items.length > 0 && matched) {
-          showContextMenu(e, matched, items);
-          e.preventDefault();
+          showContextMenu(mouseEvent, matched, items);
+          mouseEvent.preventDefault();
         }
       });
     });

@@ -381,28 +381,28 @@ def create_quicksettings(interfaces):
         button_set_checkpoint = gr.Button('Change model', elem_id='change_checkpoint', visible=False)
         button_set_checkpoint.click(
             fn=lambda value, _: run_settings_single(value, key='sd_model_checkpoint', force=True),
-            _js="function(v){ var res = desiredCheckpointName; desiredCheckpointName = ''; return [res || v, null]; }",
+            _js="consumeDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_checkpoint'], dummy_component],
             outputs=[shared.settings_components['sd_model_checkpoint'], text_settings],
         )
         button_set_refiner = gr.Button('Change refiner', elem_id='change_refiner', visible=False)
         button_set_refiner.click(
             fn=lambda value, _: run_settings_single(value, key='sd_model_checkpoint'),
-            _js="function(v){ var res = desiredCheckpointName; desiredCheckpointName = ''; return [res || v, null]; }",
+            _js="consumeDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_refiner'], dummy_component],
             outputs=[shared.settings_components['sd_model_refiner'], text_settings],
         )
         button_set_vae = gr.Button('Change VAE', elem_id='change_vae', visible=False)
         button_set_vae.click(
             fn=lambda value, _: run_settings_single(value, key='sd_vae'),
-            _js="function(v){ var res = desiredVAEName; desiredVAEName = ''; return [res || v, null]; }",
+            _js="consumeDesiredVAEName",
             inputs=[shared.settings_components['sd_vae'], dummy_component],
             outputs=[shared.settings_components['sd_vae'], text_settings],
         )
         button_set_unet = gr.Button("Change UNet", elem_id="change_unet", visible=False)
         button_set_unet.click(
             fn=lambda value, _: run_settings_single(value, key="sd_unet"),
-            _js="function(v){ var res = desiredUNetName; desiredUNetName = ''; return [res || v, null]; }",
+            _js="consumeDesiredUNetName",
             inputs=[shared.settings_components["sd_unet"], dummy_component],
             outputs=[shared.settings_components["sd_unet"], text_settings],
         )
@@ -427,7 +427,7 @@ def create_quicksettings(interfaces):
         button_set_reference = gr.Button('Change reference', elem_id='change_reference', visible=False)
         button_set_reference.click(
             fn=reference_submit,
-            _js="function(v){ return desiredCheckpointName; }",
+            _js="getDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_checkpoint']],
             outputs=[shared.settings_components['sd_model_checkpoint']],
         )

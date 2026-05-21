@@ -8,11 +8,14 @@ export async function sleep(ms) {
   return new Promise((resolve) => { setTimeout(resolve, ms); });
 }
 
-export function gradioApp(): Element {
+export function gradioApp(): Document | Element | ShadowRoot {
   const elems = document.getElementsByTagName('gradio-app');
-  const elem = elems.length === 0 ? document.documentElement : elems[0];
+  const elem: Document | Element = elems.length === 0 ? document : elems[0];
   if (elem !== document) elem.getElementById = (id) => document.getElementById(id);
-  return elem.shadowRoot ? elem.shadowRoot : elem;
+  if (elem !== document && elem.shadowRoot) {
+    return elem.shadowRoot;
+  }
+  return elem;
 }
 window.gradioApp = gradioApp;
 
