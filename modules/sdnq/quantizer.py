@@ -509,7 +509,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             if hasattr(layer, "sdnq_dequantizer"):
                 return True
         elif param_name.endswith(".weight"):
-            if not check_param_name_in(param_name, self.quantization_config.modules_to_not_convert) is not None:
+            if check_param_name_in(param_name, self.quantization_config.modules_to_not_convert) is None:
                 layer_class_name = get_module_from_name(model, param_name)[0].__class__.__name__
                 if layer_class_name in allowed_types:
                     if layer_class_name in embedding_types:
@@ -520,7 +520,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                             return True
                     else:
                         return True
-            self.quantization_config.modules_to_not_convert.append(param_name)
+                self.quantization_config.modules_to_not_convert.append(param_name)
         return False
 
     def check_quantized_param(self, *args, **kwargs) -> bool:
