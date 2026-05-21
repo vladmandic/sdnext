@@ -22,7 +22,7 @@ function dimensionChange(e: Event, isWidth: boolean, isHeight: boolean): void {
   else if (tabIndex === 3) targetElement = gradioApp().querySelector('#composite div[data-testid=image] img'); // Inpaint sketch
 
   if (targetElement && currentWidth && currentHeight) {
-    let arPreviewRect = gradioApp().querySelector('#imageARPreview') as HTMLElement | null;
+    let arPreviewRect = gradioApp().querySelector('#imageARPreview');
     if (!arPreviewRect) {
       arPreviewRect = document.createElement('div');
       arPreviewRect.id = 'imageARPreview';

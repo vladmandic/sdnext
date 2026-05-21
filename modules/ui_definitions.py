@@ -442,7 +442,7 @@ def create_settings(cmd_opts):
         "browser_folders": OptionInfo("", "Additional image browser folders"),
         "browser_gallery_autoupdate": OptionInfo(True, "Gallery auto-update on tab change", gr.Checkbox, { "visible": False}),
         "browser_fixed_width": OptionInfo(False, "Use fixed width thumbnails", gr.Checkbox, { "visible": False}),
-        "viewer_show_metadata": OptionInfo(True, "Show metadata in full screen image browser"),
+        "viewer_show_metadata": OptionInfo(True, "Show metadata in image viewer"),
 
         "save_sep_options": OptionInfo("<h2>Intermediate Image Saving</h2>", "", gr.HTML),
         "save_init_img": OptionInfo(False, "Save init images"),

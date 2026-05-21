@@ -72,6 +72,7 @@ declare global {
     extraNetworksFilterVersion?: (event: Event) => void; // ui/extraNetworks.ts
     extraNetworksSearchButton?: (event: Event) => void; // ui/extraNetworks.ts
     getCardDetails?: (...args: unknown[]) => unknown[]; // ui/extraNetworks.ts
+    quickSaveStyle?: () => void; // ui/extraNetworks.ts
     getENActivePage?: () => string; // ui/extraNetworks.ts
     refeshDetailsEN?: (args?: unknown) => void; // ui/extraNetworks.ts
     showCardDetails?: (event: Event) => void; // ui/extraNetworks.ts
@@ -80,6 +81,8 @@ declare global {
     getGallerySelection?: () => { index: number; files: { name?: string; title?: string; src?: string }[] }; // ui/gallery.ts
     gallerySendImage?: (images: unknown) => (string | null)[]; // ui/gallery.ts
     setGallerySelection?: (index: number, options?: { send?: boolean }) => void; // ui/gallery.ts
+    gallerySort?: (key: string) => void; // ui/gallery.ts
+    clearCache?: () => void; // ui/gallery.ts
     disableGPU?: () => Promise<void>; // ui/gpu.ts
     startGPU?: () => Promise<void>; // ui/gpu.ts
     refreshHistory?: () => void; // ui/history.ts

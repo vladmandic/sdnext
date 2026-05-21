@@ -10,7 +10,9 @@ let opts_metadata = {};
 const opts_tabs = {};
 
 function getSettingsTabs() {
-  return gradioApp().querySelectorAll('#tab_settings .tabitem');
+  let nodes = gradioApp().querySelectorAll('#tab_settings .tabitem');
+  if (!nodes || nodes.length === 0) nodes = gradioApp().querySelectorAll('.tab-content .tabitem');
+  return nodes;
 }
 
 const monitoredOpts: Record<string, any>[] = [

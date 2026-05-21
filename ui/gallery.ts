@@ -39,7 +39,6 @@ const el = {
   status: undefined,
   btnSend: undefined,
   overlay: undefined,
-  clearCacheFolder: undefined,
   size: undefined,
 };
 
@@ -921,7 +920,7 @@ const findDuplicates = (arr, key) => {
   });
 };
 
-async function gallerySort(key) {
+export async function gallerySort(key) {
   // if currentSort does not start with key, default to key+A
   // else if currentSort ends with A change to D and vice versa for toggling sort order
   if (currentSort.startsWith(key)) currentSort = currentSort.endsWith('A') ? `${key}D` : `${key}A`;
@@ -996,6 +995,7 @@ async function gallerySort(key) {
   timer(`gallerySort:${sortMode.name}`, t1 - t0);
   refreshGallerySelection();
 }
+window.gallerySort = gallerySort;
 
 /**
  * Function for removing the cleaning overlay
@@ -1019,8 +1019,8 @@ function showCleaningMsg(count, all = false) {
   const anim = document.createElement('span');
 
   parent.style.position = 'relative';
-  cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center; align-content: center; flex-wrap: wrap;';
-  msgDiv.style.cssText = 'display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px;';
+  cleaningOverlay.style.cssText = 'position: absolute; height: 100%; width: 100%; background-color: var(--sd-main-accent-color); display: flex; align-items: center; justify-content: center; align-content: center; flex-wrap: wrap; opacity: 0.8; border-radius: var(--sd-border-radius);';
+  msgDiv.style.cssText = 'display: block; color: var(--sd-button-normal-color); padding: 12px; border-radius: 8px; border-radius: var(--sd-border-radius);';
   msgText.style.cssText = 'font-size: 1.2em';
   msgInfo.style.cssText = 'font-size: 0.9em; text-align: center;';
   msgText.innerText = 'Thumbnail cleanup...';
@@ -1085,7 +1085,6 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
           log('maintenanceQueue', { folder, kept: keptGalleryHashes.size, deleted: delcount, time: Math.round(t1 - t0) });
           timer(`thumbnailDBCleanup:${folder}`, t1 - t0);
           currentGalleryFolder = null;
-          el.clearCacheFolder.innerText = '<select a folder first>';
           updateStatusWithSort('Thumbnail cache cleared');
         })
         .catch((reason) => {
@@ -1123,7 +1122,6 @@ function clearCacheIfDisabled(browser_cache) {
           .then(() => {
             log('thumbCacheCleanup', { time: Math.floor(performance.now() - t0) });
             currentGalleryFolder = null;
-            el.clearCacheFolder.innerText = '<select a folder first>';
             updateStatusWithSort('Thumbnail cache cleared');
           })
           .catch((e) => {
@@ -1138,36 +1136,14 @@ function clearCacheIfDisabled(browser_cache) {
   }
 }
 
-function addCacheClearLabel() { // Don't use async
-  const setting = document.querySelector('#setting_browser_cache');
-  if (setting) {
-    const div = document.createElement('div');
-    div.style.marginBlock = '0.75rem';
-
-    const span = document.createElement('span');
-    span.style.cssText = 'font-weight: bold; text-decoration: underline; cursor: pointer; color: var(--color-blue); user-select: none;';
-    span.innerText = '<select a folder first>';
-
-    div.append('Clear the thumbnail cache for: ', span, ' (double-click)');
-    setting.parentElement.insertAdjacentElement('afterend', div);
-    el.clearCacheFolder = span;
-
-    span.addEventListener('dblclick', (evt) => {
-      evt.preventDefault();
-      evt.stopPropagation();
-      if (!currentGalleryFolder) return;
-      el.clearCacheFolder.style.color = 'var(--color-green)';
-      setTimeout(() => {
-        el.clearCacheFolder.style.color = 'var(--color-blue)';
-      }, 1000);
-      const controller = resetGalleryState('Clearing folder thumbnails cache');
-      el.files.innerHTML = '';
-      thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
-    });
-    return true;
-  }
-  return false;
+export function clearCache() {
+  if (!currentGalleryFolder) return;
+  const controller = resetGalleryState('Clearing folder thumbnails cache');
+  el.files.innerHTML = '';
+  log('clearCache', { folder: currentGalleryFolder });
+  thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
 }
+window.clearCache = clearCache;
 
 async function fetchFilesHT(evt, controller) {
   const t0 = performance.now();
@@ -1224,9 +1200,6 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   }
   log(`gallery: connected=${wsConnected} state=${ws?.readyState} url=${ws?.url}`);
   currentGalleryFolder = evt.target.name;
-  if (el.clearCacheFolder) {
-    el.clearCacheFolder.innerText = currentGalleryFolder;
-  }
   if (!wsConnected) {
     await fetchFilesHT(evt, controller); // fallback to http
     return;
@@ -1312,18 +1285,8 @@ async function setOverlayAnimation() {
   const busyAnimation = document.createElement('style');
 
   // eslint-disable-next-line @stylistic/max-len
-  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:40px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}';
+  busyAnimation.textContent = '.idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:40px;position:relative;background:#aa3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}';
   document.head.append(busyAnimation);
-}
-
-async function galleryClearInit() {
-  let galleryClearInitTimeout = 0;
-  const tryCleanupInit = setInterval(() => {
-    if (addCacheClearLabel() || galleryClearInitTimeout++ === 60) {
-      clearInterval(tryCleanupInit);
-      monitorOption('browser_cache', clearCacheIfDisabled);
-    }
-  }, 1000);
 }
 
 async function initGalleryAutoRefresh() {
@@ -1475,7 +1438,6 @@ export async function initGallery() { // triggered on gradio change to monitor w
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
-  galleryClearInit();
 
   const progress = gradioApp().getElementById('tab-gallery-progress');
   if (progress) galleryProgressBar.attachTo(progress);

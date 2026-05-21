@@ -1,6 +1,20 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-20
+## Update for 2026-05-21
+
+### Highlights for 2026-05-21
+
+*What's New?*
+- **Anima** made it to release version
+- **SDNQ** new quantization algorithm with even higher quality
+- Improved image metadata options
+- New image analysis feature
+
+And we have new [Contibuting** & **Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
+
+Plus continued work on modernization of codebase: UI is now fully TypeScript based and new modular LoRA loader
+
+### Details for 2026-05-21
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -19,23 +33,27 @@
     you can now also select mask type instead of focing alpha mask with all models  
   - **HF download** use `XET` by default  
     see *settings -> huggingface -> download method* for options  
-  - **Nunchaku** consider DEV builds when auto-installing
+  - **Nunchaku** consider *DEV* builds when auto-installing
+  - **Gallery** add clear cache button to folder menu
 - **Changes**
   - all **Guidance** params are now set to *-1* by default to allow using model defaults and avoid confusion with different model behaviour  
     log will print default values used by model if not set by user  
   - restore params from image metadata will now prefer *template* field if present, otherwise use *prompt* field  
     this allows to preserve original prompt in case of wildcards or styles modifying the prompt  
-- **Compute**
-  - update `torch==2.12` for *CUDA, ROCm, IPEX*
+- **Docs**
+  - new [Contibuting** & **Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/)  
+    includes pages on *development setup, code structure, coding standards, ui development, themes, docs, hints* and more!  
 - **AI**
   - Cognitive analysis and improvements to *all* AI prompts
   - Automated fixes using `/check-` skills
   - Automated syntax, spelling and readability improvements to `/wiki` pages
 - **Internal**
+  - update `torch==2.12` for *CUDA, ROCm, IPEX*
   - complete refactor of `core` JavaScript codebase to TypeScript!
   - complete refactor of `modernui` JavaScript codebase to TypeScript!
   - remove of `/html` and `/javascript` folders
   - add `/ui` folder for all ui-related code/css/assets
+  - large refactor of `lora` native loader
   - improve `kanvas` typing
   - additional strong typing in core, thanks @awsr
 - **Fixes**
@@ -52,6 +70,8 @@
   - `nunchaku` z-image loader
   - `ui` server log monitor
   - `kanvas` enable toolbar on *send-to* action
+  - `hf download` model card lookup
+  - `ltx video` padding logic
 
 ## Update for 2026-05-13
 

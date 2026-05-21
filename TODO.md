@@ -2,10 +2,7 @@
 
 ## Issues
 
-- LTX audio leaks from previous runs
-- Dev-document UI:Core/ModernUI/Kanvas
-- Dev-document Hints
-- Dev-document LoRA
+- Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322
 - Torch lazy-load
 
 ## Features

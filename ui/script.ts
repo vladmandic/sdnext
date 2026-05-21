@@ -8,9 +8,9 @@ export async function sleep(ms) {
   return new Promise((resolve) => { setTimeout(resolve, ms); });
 }
 
-export function gradioApp(): any {
+export function gradioApp(): Element {
   const elems = document.getElementsByTagName('gradio-app');
-  const elem: any = elems.length === 0 ? document : elems[0];
+  const elem = elems.length === 0 ? document.documentElement : elems[0];
   if (elem !== document) elem.getElementById = (id) => document.getElementById(id);
   return elem.shadowRoot ? elem.shadowRoot : elem;
 }

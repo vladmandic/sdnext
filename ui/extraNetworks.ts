@@ -115,7 +115,7 @@ function readCardTags(el, tags) {
 function readCardDescription(page, item) {
   xhrGet('/sdapi/v1/network/desc', { page, item }, (data) => {
     const tabName = getENActiveTab();
-    const description = gradioApp().querySelector(`#${tabName}_description > label > textarea`) as HTMLTextAreaElement | null;
+    const description = gradioApp().querySelector(`#${tabName}_description > label > textarea`);
     if (description) {
       description.value = (data as any)?.description?.trim() || '';
       (window as any).updateInput(description);
@@ -402,6 +402,7 @@ export function quickSaveStyle() {
     // setTimeout(() => sortExtraNetworks('fixed'), 500);
   }
 }
+window.quickSaveStyle = quickSaveStyle;
 
 function selectHistory(id) {
   const headers = new Headers();

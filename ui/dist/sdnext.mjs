@@ -9938,7 +9938,7 @@ async function sleep(ms) {
 }
 function gradioApp() {
   const elems = document.getElementsByTagName("gradio-app");
-  const elem = elems.length === 0 ? document : elems[0];
+  const elem = elems.length === 0 ? document.documentElement : elems[0];
   if (elem !== document) elem.getElementById = (id) => document.getElementById(id);
   return elem.shadowRoot ? elem.shadowRoot : elem;
 }
@@ -10600,6 +10600,7 @@ function quickSaveStyle() {
     setTimeout(() => btnRefresh.click(), 100);
   }
 }
+window.quickSaveStyle = quickSaveStyle;
 var enDirty = false;
 function closeDetailsEN(...args) {
   enDirty = true;
@@ -11726,15 +11727,6 @@ async function idbFolderCleanup(keepSet, folder, signal) {
     });
   });
 }
-async function idbClearAll(signal) {
-  if (!db) return null;
-  return new Promise((resolve, reject) => {
-    const transaction = db.transaction(["thumbs"], "readwrite");
-    const props = { transaction, signal, resolve, reject };
-    configureTransactionAbort(props, null);
-    transaction.objectStore("thumbs").clear();
-  });
-}
 var idbAdd = add;
 var idbGet = get;
 
@@ -11890,7 +11882,9 @@ var settingsInitialized = false;
 var opts_metadata = {};
 var opts_tabs = {};
 function getSettingsTabs() {
-  return gradioApp().querySelectorAll("#tab_settings .tabitem");
+  let nodes = gradioApp().querySelectorAll("#tab_settings .tabitem");
+  if (!nodes || nodes.length === 0) nodes = gradioApp().querySelectorAll(".tab-content .tabitem");
+  return nodes;
 }
 var monitoredOpts = [
   { sd_model_checkpoint: null },
@@ -12665,6 +12659,7 @@ window.pbkdf2 = pbkdf2;
 // ui/gallery.ts
 var ws;
 var url;
+var currentSort = "none";
 var currentName = "";
 var currentImage = null;
 var currentTitle = "";
@@ -12683,7 +12678,6 @@ var el = {
   status: void 0,
   btnSend: void 0,
   overlay: void 0,
-  clearCacheFolder: void 0,
   size: void 0
 };
 var SUPPORTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "tiff", "jp2", "jxl", "gif", "mp4", "mkv", "avi", "mjpeg", "mpg", "avr"];
@@ -13411,6 +13405,63 @@ async function gallerySearch() {
     refreshGallerySelection();
   }, 250);
 }
+async function gallerySort(key) {
+  if (currentSort.startsWith(key)) currentSort = currentSort.endsWith("A") ? `${key}D` : `${key}A`;
+  else currentSort = `${key}A`;
+  if (!Object.hasOwn(gallerySorter, currentSort)) {
+    error(`Gallery: "${currentSort}" is not a valid gallery sorting key`);
+    return;
+  }
+  const t0 = performance.now();
+  const arr = Array.from(el.files.children).filter((node) => node.name);
+  if (arr.length === 0) return;
+  const fragment = document.createDocumentFragment();
+  const getDirPath = (node) => {
+    const match = node.name.match(/(.*)[/\\]/);
+    return match ? match[1] : "";
+  };
+  const rootFiles = arr.filter((node) => !getDirPath(node));
+  const subfolderFiles = arr.filter((node) => getDirPath(node));
+  const folderGroups = /* @__PURE__ */ new Map();
+  for (const file of subfolderFiles) {
+    const dir = getDirPath(file);
+    if (!folderGroups.has(dir)) {
+      folderGroups.set(dir, []);
+    }
+    folderGroups.get(dir).push(file);
+  }
+  sortMode = gallerySorter[currentSort];
+  rootFiles.sort(sortMode.func);
+  rootFiles.forEach((node) => fragment.appendChild(node));
+  const sortedFolderNames = Array.from(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
+  for (const folderName of sortedFolderNames) {
+    const files = folderGroups.get(folderName);
+    files.sort(sortMode.func);
+    files.forEach((node) => fragment.appendChild(node));
+  }
+  if (fragment.children.length === 0) return;
+  el.files.innerHTML = "";
+  el.files.appendChild(fragment);
+  addSeparators();
+  const all = Array.from(el.files.children);
+  for (const f of all) {
+    if (!f.name) continue;
+    const dir = f.name.match(/(.*)[/\\]/);
+    if (dir && dir[1]) {
+      const dirPath = dir[1];
+      const isOpen = separatorStates.get(dirPath);
+      if (isOpen === false) {
+        f.style.display = "none";
+      }
+    }
+  }
+  const t1 = performance.now();
+  log(`gallerySort: sort=${sortMode.name} len=${arr.length} time=${Math.floor(t1 - t0)}`);
+  updateStatusWithSort(["Images", arr.length.toLocaleString()], `${iconStopwatch} ${Math.round(t1 - t0).toLocaleString()}ms`);
+  timer(`gallerySort:${sortMode.name}`, t1 - t0);
+  refreshGallerySelection();
+}
+window.gallerySort = gallerySort;
 function showCleaningMsg(count, all = false) {
   const parent2 = el.folders.parentElement;
   const cleaningOverlay = document.createElement("div");
@@ -13419,8 +13470,8 @@ function showCleaningMsg(count, all = false) {
   const msgInfo = document.createElement("div");
   const anim = document.createElement("span");
   parent2.style.position = "relative";
-  cleaningOverlay.style.cssText = "position: absolute; height: 100%; width: 100%; background-color: hsl(210 50 20 / 0.8); display: flex; align-items: center; justify-content: center; align-content: center; flex-wrap: wrap;";
-  msgDiv.style.cssText = "display: block; background-color: hsl(0 0 10); color: white; padding: 12px; border-radius: 8px;";
+  cleaningOverlay.style.cssText = "position: absolute; height: 100%; width: 100%; background-color: var(--sd-main-accent-color); display: flex; align-items: center; justify-content: center; align-content: center; flex-wrap: wrap; opacity: 0.8; border-radius: var(--sd-border-radius);";
+  msgDiv.style.cssText = "display: block; color: var(--sd-button-normal-color); padding: 12px; border-radius: 8px; border-radius: var(--sd-border-radius);";
   msgText.style.cssText = "font-size: 1.2em";
   msgInfo.style.cssText = "font-size: 0.9em; text-align: center;";
   msgText.innerText = "Thumbnail cleanup...";
@@ -13472,7 +13523,6 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
         log("maintenanceQueue", { folder, kept: keptGalleryHashes.size, deleted: delcount, time: Math.round(t1 - t0) });
         timer(`thumbnailDBCleanup:${folder}`, t1 - t0);
         currentGalleryFolder = null;
-        el.clearCacheFolder.innerText = "<select a folder first>";
         updateStatusWithSort("Thumbnail cache cleared");
       }).catch((reason) => {
         SimpleFunctionQueue.abortLogger("thumbCacheCleanup", reason);
@@ -13494,59 +13544,14 @@ function resetGalleryState(reason) {
   resetGallerySelection();
   return controller;
 }
-function clearCacheIfDisabled(browser_cache) {
-  if (browser_cache === false) {
-    log("thumbCacheCleanup", { disabled: true });
-    const controller = resetGalleryState("Clearing all thumbnails from cache");
-    maintenanceQueue.enqueue({
-      signal: controller.signal,
-      callback: async () => {
-        const t0 = performance.now();
-        const cb_clearMsg = showCleaningMsg(0, true);
-        await idbClearAll(controller.signal).then(() => {
-          log("thumbCacheCleanup", { time: Math.floor(performance.now() - t0) });
-          currentGalleryFolder = null;
-          el.clearCacheFolder.innerText = "<select a folder first>";
-          updateStatusWithSort("Thumbnail cache cleared");
-        }).catch((e) => {
-          SimpleFunctionQueue.abortLogger("thumbCacheCleanup", e);
-        }).finally(async () => {
-          await new Promise((resolve) => {
-            setTimeout(resolve, 1e3);
-          });
-          cb_clearMsg();
-        });
-      }
-    });
-  }
+function clearCache() {
+  if (!currentGalleryFolder) return;
+  const controller = resetGalleryState("Clearing folder thumbnails cache");
+  el.files.innerHTML = "";
+  log("clearCache", { folder: currentGalleryFolder });
+  thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
 }
-function addCacheClearLabel() {
-  const setting = document.querySelector("#setting_browser_cache");
-  if (setting) {
-    const div = document.createElement("div");
-    div.style.marginBlock = "0.75rem";
-    const span = document.createElement("span");
-    span.style.cssText = "font-weight: bold; text-decoration: underline; cursor: pointer; color: var(--color-blue); user-select: none;";
-    span.innerText = "<select a folder first>";
-    div.append("Clear the thumbnail cache for: ", span, " (double-click)");
-    setting.parentElement.insertAdjacentElement("afterend", div);
-    el.clearCacheFolder = span;
-    span.addEventListener("dblclick", (evt) => {
-      evt.preventDefault();
-      evt.stopPropagation();
-      if (!currentGalleryFolder) return;
-      el.clearCacheFolder.style.color = "var(--color-green)";
-      setTimeout(() => {
-        el.clearCacheFolder.style.color = "var(--color-blue)";
-      }, 1e3);
-      const controller = resetGalleryState("Clearing folder thumbnails cache");
-      el.files.innerHTML = "";
-      thumbCacheCleanup(currentGalleryFolder, 0, controller, true);
-    });
-    return true;
-  }
-  return false;
-}
+window.clearCache = clearCache;
 async function fetchFilesHT(evt, controller) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
@@ -13595,9 +13600,6 @@ async function fetchFilesWS(evt) {
   }
   log(`gallery: connected=${wsConnected} state=${ws?.readyState} url=${ws?.url}`);
   currentGalleryFolder = evt.target.name;
-  if (el.clearCacheFolder) {
-    el.clearCacheFolder.innerText = currentGalleryFolder;
-  }
   if (!wsConnected) {
     await fetchFilesHT(evt, controller);
     return;
@@ -13674,17 +13676,8 @@ async function monitorGalleries() {
 }
 async function setOverlayAnimation() {
   const busyAnimation = document.createElement("style");
-  busyAnimation.textContent = ".idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:40px;position:relative;background:#ff3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}";
+  busyAnimation.textContent = ".idbBusyAnim{width:16px;height:16px;border-radius:50%;display:block;margin:40px;position:relative;background:#aa3d00;color:#fff;box-shadow:-24px 0,24px 0;box-sizing:border-box;animation:2s ease-in-out infinite overlayRotation}@keyframes overlayRotation{0%{transform:rotate(0)}100%{transform:rotate(360deg)}}";
   document.head.append(busyAnimation);
-}
-async function galleryClearInit() {
-  let galleryClearInitTimeout = 0;
-  const tryCleanupInit = setInterval(() => {
-    if (addCacheClearLabel() || galleryClearInitTimeout++ === 60) {
-      clearInterval(tryCleanupInit);
-      monitorOption("browser_cache", clearCacheIfDisabled);
-    }
-  }, 1e3);
 }
 async function initGalleryAutoRefresh() {
   const isModern = opts.theme_type?.toLowerCase() === "modern";
@@ -13832,7 +13825,6 @@ async function initGallery() {
   updateGalleryStyles();
   injectGalleryStatusCSS();
   setOverlayAnimation();
-  galleryClearInit();
   const progress = gradioApp().getElementById("tab-gallery-progress");
   if (progress) galleryProgressBar.attachTo(progress);
   else log("initGallery", "Failed to attach loading progress bar");
