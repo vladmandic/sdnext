@@ -6,7 +6,10 @@ from PIL import Image
 from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, devices, extra_networks, call_queue
 from modules.logger import log
 from modules.ltx import ltx_capabilities
+from modules.ltx.ltx_diffusers_patch import apply_patch as apply_ltx_diffusers_patch
 from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsample, load_upsample_2x, get_conditions, get_generator, get_prompts, ltx_scheduler_opts, vae_decode
+
+apply_ltx_diffusers_patch()
 from modules.processing_callbacks import diffusers_callback
 from modules.video_models.video_vae import set_vae_params
 from modules.video_models.video_save import save_video
@@ -153,6 +156,9 @@ def run_ltx(task_id,
 
     if model is None or len(model) == 0 or model == 'None':
         yield from abort('Video: no model selected', ok=True)
+        return
+    if model.startswith('─'):
+        yield from abort('Video: dropdown separator selected, pick an actual model below', ok=True)
         return
     check_av()
     progress.add_task_to_queue(task_id)
