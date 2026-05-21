@@ -29,10 +29,10 @@ def dequantize_asymmetric(weight: torch.ByteTensor, scale: torch.FloatTensor, ze
             result = result.add_(torch.mm(svd_up, svd_down).unflatten(-1, (*result.shape[1:],)))
         else:
             result = result.to(dtype=svd_up.dtype).addmm_(svd_up, svd_down)
-    if hadamard is not None:
-        result = rotate_hadamard(result, hadamard=hadamard, is_conv=is_conv)
     if dtype is not None:
         result = result.to(dtype=dtype)
+    if hadamard is not None:
+        result = rotate_hadamard(result, hadamard=hadamard, is_conv=is_conv)
     return result
 
 
