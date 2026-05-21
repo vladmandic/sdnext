@@ -7,6 +7,7 @@ import torch
 from modules import shared, devices
 
 sdnq_version = "0.1.9"
+sdnq_keys = {"weight", "scale", "zero_point", "svd_up", "svd_down"}
 
 torch_version = torch.__version__[:4]
 if torch_version[-1] not in {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}:

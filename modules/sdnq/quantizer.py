@@ -13,7 +13,23 @@ from diffusers.utils import get_module_from_name
 from accelerate import init_empty_weights
 
 from modules import devices, shared
-from .common import sdnq_version, dtype_dict, accepted_weight_dtypes, accepted_matmul_dtypes, weights_dtype_order, allowed_types, linear_types, embedding_types, conv_types, conv_transpose_types, compile_func, is_fp8_mm_supported, use_tensorwise_fp8_matmul, check_torch_compile
+from .common import (
+    sdnq_version,
+    sdnq_keys,
+    dtype_dict,
+    accepted_weight_dtypes,
+    accepted_matmul_dtypes,
+    allowed_types,
+    linear_types,
+    embedding_types,
+    conv_types,
+    conv_transpose_types,
+    weights_dtype_order,
+    is_fp8_mm_supported,
+    use_tensorwise_fp8_matmul,
+    check_torch_compile,
+    compile_func,
+)
 from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int
 from .packed_float import pack_float
@@ -506,7 +522,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     ):
         if self.pre_quantized:
             layer, _tensor_name = get_module_from_name(model, param_name)
-            if hasattr(layer, "sdnq_dequantizer"):
+            if hasattr(layer, "sdnq_dequantizer") and param_name.rsplit(".", maxsplit=1)[-1] in sdnq_keys:
                 return True
         elif param_name.endswith(".weight"):
             if check_param_name_in(param_name, self.quantization_config.modules_to_not_convert) is None:
@@ -550,7 +566,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             if param_value is not None:
                 if tensor_name == "weight":
                     return_dtype = param_value.dtype
-                elif self.quantization_config.dequantize_fp32:
+                elif self.quantization_config.dequantize_fp32 and tensor_name in sdnq_keys:
                     if param_value.dtype != torch.float64 and self.torch_dtype != torch.float64:
                         return_dtype = torch.float32
                     else:
