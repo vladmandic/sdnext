@@ -160,9 +160,37 @@ def run_settings(*args):
         return shared.opts.dumpjson(), f'{len(changed)} Settings changed without save: {", ".join(changed)}'
     return shared.opts.dumpjson(), f'{len(changed)} Settings changed{": " if len(changed) > 0 else ""}{", ".join(changed)}'
 
+model_keys_validated = {'sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_unet', 'sd_text_encoder'}
+
+
+def looks_like_custom_model_value(value):
+    # Cheap, non-network check to decide whether a typed string plausibly identifies a model.
+    # Mirrors the patterns handled in sd_checkpoint.get_closest_checkpoint_match without doing any IO.
+    if not isinstance(value, str) or not value:
+        return False
+    if value.startswith(('https://huggingface.co/', 'huggingface/', 'https://civitai.com/')):
+        return True
+    if value.endswith('.safetensors'):
+        return True
+    if ' ' not in value and value.count('/') in (1, 2):
+        return True
+    return False
+
+
 def run_settings_single(value, key, progress=False, force=False):
     if not shared.opts.same_type(value, shared.opts.data_labels[key].default):
         return gr.update(visible=True), shared.opts.dumpjson()
+    if key in model_keys_validated and not force and isinstance(value, str):
+        # Guard against editable dropdowns committing a partial filter string (e.g. user typed "a")
+        # which would otherwise trigger reload_model_weights -> select_checkpoint -> unload of the
+        # currently loaded model. Accept the value only if it matches a known choice or a recognized
+        # custom pattern (HF URL, user/model path, .safetensors path).
+        info = shared.opts.data_labels[key]
+        comp_args = info.component_args() if callable(info.component_args) else info.component_args or {}
+        choices = comp_args.get('choices', []) if isinstance(comp_args, dict) else []
+        if value not in choices and not looks_like_custom_model_value(value):
+            log.debug(f'Settings: ignored {key}="{value}" not in choices and not a recognized custom value')
+            return gr.update(value=getattr(shared.opts, key)), shared.opts.dumpjson()
     if not shared.opts.set(key, value, force):
         return gr.update(value=getattr(shared.opts, key)), shared.opts.dumpjson()
     if key == "cuda_compile_backend" and value == "olive-ai":
@@ -368,6 +396,13 @@ def create_quicksettings(interfaces):
             info = shared.opts.data_labels[k]
             if isinstance(component, gr.components.Textbox):
                 change_handlers = [component.blur, component.submit]
+            elif isinstance(component, gr.components.Dropdown) and getattr(component, 'allow_custom_value', False):
+                # Editable dropdowns (allow_custom_value=True) fire .change on every keystroke because
+                # Gradio binds keyup -> value = typed_text. Using .change here would queue a full model
+                # reload per letter and let in-flight server updates clobber what the user is typing.
+                # .blur fires after typing settles AND when an option is clicked (Gradio calls input.blur()
+                # on selection), so selecting from the list still works.
+                change_handlers = [component.blur]
             else:
                 change_handlers = [component.release if hasattr(component, 'release') else component.change]
             for change_handler in change_handlers:
