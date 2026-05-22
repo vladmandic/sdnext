@@ -56,6 +56,23 @@ KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_")
 BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
 
 
+# Default network-key prefix. Single-component arches (flux2, zimage, chroma,
+# ernie) keep this default; multi-component arches (anima: transformer plus
+# llm_adapter plus text_encoder) pass a callable that picks per ``prefix_used``.
+NETWORK_PREFIX_DEFAULT = "lora_transformer_"
+
+
+def _resolve_prefix(network_prefix, prefix_used):
+    """Return the network-key prefix for one parsed group.
+
+    ``network_prefix`` is either a literal string (single-component arches) or
+    a ``Callable[[str | None], str]`` that picks based on which arch prefix
+    was matched (multi-component arches route to ``lora_te_`` / ``lora_llm_adapter_``
+    / ``lora_transformer_`` etc.).
+    """
+    return network_prefix(prefix_used) if callable(network_prefix) else network_prefix
+
+
 SUFFIX_NORMALIZE = {
     "lora_A.weight": "lora_down.weight",
     "lora_B.weight": "lora_up.weight",
@@ -345,8 +362,12 @@ read_state_dict = sd_models.read_state_dict
 #
 # Each loader takes a per-arch ``resolve_targets`` callable returning a list of
 # ``(diffusers_path, ChunkSpec | None)`` tuples for each parsed group. The
-# loader builds the network key as ``"lora_transformer_" + path.replace(".", "_")``
-# and instantiates the appropriate ``network.NetworkModule*`` subclass.
+# loader builds the network key as ``network_prefix + path.replace(".", "_")``
+# where ``network_prefix`` defaults to ``"lora_transformer_"`` and may be
+# either a literal string (single-component arches) or a callable that picks
+# per ``prefix_used`` (multi-component arches such as Anima that route to
+# ``lora_te_`` or ``lora_llm_adapter_`` based on which arch prefix matched).
+# The loader then instantiates the appropriate ``network.NetworkModule*`` subclass.
 #
 # Fused-target handling per family:
 #
@@ -383,6 +404,7 @@ def _slice_lora_chunk(w, chunk: ChunkSpec):
 def try_load_lora(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
+                  network_prefix=NETWORK_PREFIX_DEFAULT,
                   arch_name="generic"):
     """Generic LoRA loader (handles DoRA via the universal ``finalize_updown`` hook).
 
@@ -408,8 +430,9 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
     for (prefix, base), w in groups.items():
         if "lora_down.weight" not in w or "lora_up.weight" not in w:
             continue
+        arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, chunk in resolve_targets(prefix, base):
-            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
                 unmapped += 1
@@ -436,6 +459,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
 def try_load_lokr(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
+                  network_prefix=NETWORK_PREFIX_DEFAULT,
                   arch_name="generic"):
     """Generic LoKR loader.
 
@@ -466,8 +490,9 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
         has_2 = "lokr_w2" in w or ("lokr_w2_a" in w and "lokr_w2_b" in w)
         if not (has_1 and has_2):
             continue
+        arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, chunk in resolve_targets(prefix, base):
-            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
                 unmapped += 1
@@ -486,6 +511,7 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
 def try_load_loha(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
+                  network_prefix=NETWORK_PREFIX_DEFAULT,
                   arch_name="generic"):
     """Generic LoHA (Hadamard product) loader.
 
@@ -521,8 +547,9 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
             log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={base} Tucker fused QKV skipped (unsupported)')
             skipped += 1
             continue
+        arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, chunk in targets:
-            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
                 unmapped += 1
@@ -542,6 +569,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
 def try_load_oft(name, network_on_disk, lora_scale, *,
                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                  bare_prefixes=(), bare_diffusers_prefixes=(),
+                 network_prefix=NETWORK_PREFIX_DEFAULT,
                  arch_name="generic"):
     """Generic OFT/BOFT loader.
 
@@ -582,8 +610,9 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
             log.warning(f'Network load: type={"BOFT" if is_boft else "OFT"} name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
             skipped += 1
             continue
+        arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, _ in targets:
-            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
                 unmapped += 1
@@ -600,6 +629,7 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
 def try_load_ia3(name, network_on_disk, lora_scale, *,
                  resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                  bare_prefixes=(), bare_diffusers_prefixes=(),
+                 network_prefix=NETWORK_PREFIX_DEFAULT,
                  arch_name="generic"):
     """Generic IA3 loader.
 
@@ -638,8 +668,9 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
             log.warning(f'Network load: type=IA3 name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
             skipped += 1
             continue
+        arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, _ in targets:
-            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
                 unmapped += 1
@@ -653,6 +684,7 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
 def try_load_glora(name, network_on_disk, lora_scale, *,
                    resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                    bare_prefixes=(), bare_diffusers_prefixes=(),
+                   network_prefix=NETWORK_PREFIX_DEFAULT,
                    arch_name="generic"):
     """Generic GLoRA loader.
 
@@ -687,8 +719,9 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
             log.warning(f'Network load: type=GLoRA name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
             skipped += 1
             continue
+        arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, _ in targets:
-            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
                 unmapped += 1
@@ -702,6 +735,7 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
 def try_load_norm(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
+                  network_prefix=NETWORK_PREFIX_DEFAULT,
                   arch_name="generic"):
     """Generic Norm (LayerNorm / RMSNorm weight + bias delta) loader.
 
@@ -737,10 +771,11 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
         if not targets:
             unmapped += 1
             continue
+        arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, chunk in targets:
             if chunk is not None:
                 continue  # norm targets are not fused
-            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
                 unmapped += 1
@@ -756,6 +791,7 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
 def try_load_full(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
+                  network_prefix=NETWORK_PREFIX_DEFAULT,
                   arch_name="generic"):
     """Generic Full (full-rank weight delta) loader.
 
@@ -789,8 +825,9 @@ def try_load_full(name, network_on_disk, lora_scale, *,
             log.warning(f'Network load: type=Full name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
             skipped += 1
             continue
+        arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, _ in targets:
-            network_key = "lora_transformer_" + diffusers_path.replace(".", "_")
+            network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
                 unmapped += 1

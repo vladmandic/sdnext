@@ -1,239 +1,227 @@
-"""Anima native LoRA loader.
+"""Anima native adapter loader.
 
-Handles three trainer formats observed in community Anima LoRAs:
-- Kohya: lora_unet_blocks_0_self_attn_q_proj.lora_down.weight (+ .alpha)
-- BFL/AI-toolkit: diffusion_model.blocks.0.self_attn.q_proj.lora_A.weight
-- Hybrid: BFL key shape with .alpha scalars, optionally with a Qwen3 text
-  encoder branch under text_encoders.qwen3_06b.transformer.model.layers...
+Anima ships with three trainable surfaces:
 
-Routes paths to one of three live components (transformer, llm_adapter,
-text_encoder) via lora_convert.assign_network_names_to_compvis_modules and
-the resulting network_layer_mapping.
+- ``transformer`` (Cosmos 2.0-style DiT), stamped as ``lora_transformer_*``
+- ``llm_adapter`` (custom MLP that projects Qwen3 hidden states into the DiT
+  cross-attention dim), stamped as ``lora_llm_adapter_*``
+- ``text_encoder`` (Qwen3Model), stamped as ``lora_te_*``
 
-Path renames mirror the Cosmos 2.0 table from
-diffusers.loaders.single_file_utils.convert_cosmos_transformer_checkpoint_to_diffusers,
-transposed into flat (underscore) form so the rewritten path matches
-network_layer_mapping keys without further conversion.
+The loader recognizes four ``ss_network_module`` formats in the wild:
+
+- kohya transformer: ``lora_unet_blocks_0_self_attn_q_proj.lora_down.weight``
+- kohya text-encoder: ``lora_te_layers_0_self_attn_q_proj.lora_down.weight``
+- BFL/AI-toolkit: ``diffusion_model.blocks.0.self_attn.q_proj.lora_A.weight``
+  with the adapter under ``diffusion_model.llm_adapter.*`` and the TE under
+  ``text_encoders.qwen3_06b.transformer.model.*``
+- LyCORIS Hadamard (LoHA): same kohya path structure but with
+  ``hada_w1_a`` / ``hada_w1_b`` / ``hada_w2_a`` / ``hada_w2_b`` weights
+
+All transformer paths route through :func:`cosmos_rename_flat` which mirrors
+``diffusers.loaders.single_file_utils.convert_cosmos_transformer_checkpoint_to_diffusers``'s
+``TRANSFORMER_KEYS_RENAME_DICT_COSMOS_2_0``, transposed into flat (underscore)
+form so str.replace produces a path that matches the diffusers module name
+already stamped on the network_layer_mapping. Adapter and TE paths bypass the
+rename and are flattened verbatim.
+
+Network-key construction (transformer vs llm_adapter vs te) is parameterized
+in :mod:`modules.lora.native_loader` via the ``network_prefix`` kwarg; this
+module supplies :func:`network_prefix_for` to pick per ``prefix_used``.
+Family-specific dispatch (LoRA, LoHA, LoKR, OFT, IA3, GLoRA, Norm, Full) is
+inherited from native_loader's generics; alpha / scale / DoRA flow through
+the standard ``NetworkWeights.w`` slots rather than being baked into the
+factor weights at load time.
 """
 
-import os
-import time
 from collections import OrderedDict
-from modules import shared, sd_models
-from modules.logger import log
-from modules.lora import network, network_lora, lora_convert
-from modules.lora import lora_common as l
+
+from modules.lora import native_loader
 
 
-KOHYA_PREFIX = 'lora_unet_'
-BFL_ADAPTER_PREFIX = 'diffusion_model.llm_adapter.'
-BFL_TRANSFORMER_PREFIX = 'diffusion_model.'
-BFL_TE_PREFIX = 'text_encoders.qwen3_06b.transformer.model.'
+# === Arch-specific prefix configuration ===
+#
+# Order matters: longer / more-specific prefixes must precede shorter ones,
+# because :func:`native_loader.parse_key` returns the first match. Both
+# ``diffusion_model.llm_adapter.`` and ``text_encoders.qwen3_06b.transformer.model.``
+# start with ``diffusion_model.`` / ``text_encoders.`` so they must be listed first.
 
-LORA_MARKERS = ('.lora_down.', '.lora_up.', '.lora_A.', '.lora_B.')
+ANIMA_PREFIXES = (
+    "diffusion_model.llm_adapter.",
+    "text_encoders.qwen3_06b.transformer.model.",
+    "diffusion_model.",
+    "lora_te_",
+    "lora_unet_",
+)
 
-# Cosmos 2.0 path rename, applied to underscore-flattened paths. Order
-# mirrors diffusers TRANSFORMER_KEYS_RENAME_DICT_COSMOS_2_0: longer
-# substrings precede substrings nested inside them, so str.replace does
-# not consume a fragment that a later rule still needs to match.
+
+# === Re-exports for test / back-compat ===
+# Tests address these through the anima_lora module surface; sibling pipelines
+# do the same (see flux2_lora / zimage_lora / ernie_lora).
+
+LORA_SUFFIXES = native_loader.LORA_SUFFIXES
+LOKR_SUFFIXES = native_loader.LOKR_SUFFIXES
+LOHA_SUFFIXES = native_loader.LOHA_SUFFIXES
+OFT_SUFFIXES = native_loader.OFT_SUFFIXES
+IA3_SUFFIXES = native_loader.IA3_SUFFIXES
+GLORA_SUFFIXES = native_loader.GLORA_SUFFIXES
+NORM_SUFFIXES = native_loader.NORM_SUFFIXES
+FULL_SUFFIXES = native_loader.FULL_SUFFIXES
+
+LORA_MARKERS = native_loader.LORA_MARKERS
+LOKR_MARKERS = native_loader.LOKR_MARKERS
+LOHA_MARKERS = native_loader.LOHA_MARKERS
+OFT_MARKERS = native_loader.OFT_MARKERS
+IA3_MARKERS = native_loader.IA3_MARKERS
+GLORA_MARKERS = native_loader.GLORA_MARKERS
+NORM_MARKERS = native_loader.NORM_MARKERS
+FULL_MARKERS = native_loader.FULL_MARKERS
+
+SUFFIX_NORMALIZE = native_loader.SUFFIX_NORMALIZE
+BARE_DIFFUSERS_PREFIX_USED = native_loader.BARE_DIFFUSERS_PREFIX_USED
+has_marker = native_loader.has_marker
+
+
+def parse_key(key, suffixes):
+    """Anima-bound :func:`native_loader.parse_key`."""
+    return native_loader.parse_key(key, suffixes, prefixes=ANIMA_PREFIXES)
+
+
+def group_by_suffixes(state_dict, suffixes):
+    """Anima-bound :func:`native_loader.group_by_suffixes`."""
+    return native_loader.group_by_suffixes(state_dict, suffixes, prefixes=ANIMA_PREFIXES)
+
+
+# === Cosmos 2.0 path rename (transformer only) ===
+#
+# Applied to underscore-flattened paths. Order mirrors diffusers
+# ``TRANSFORMER_KEYS_RENAME_DICT_COSMOS_2_0`` exactly: longer substrings must
+# precede substrings nested inside them so ``str.replace`` does not consume a
+# fragment that a later rule still needs to match. Numeric-suffixed entries
+# (e.g. ``t_embedder_1``) come first because the bare ``t_embedder`` would
+# otherwise eat the ``_1`` suffix.
+
 COSMOS_2_FLAT_RENAME = OrderedDict([
-    ('t_embedder_1', 'time_embed_t_embedder'),
-    ('t_embedding_norm', 'time_embed_norm'),
-    ('blocks', 'transformer_blocks'),
-    ('adaln_modulation_self_attn_1', 'norm1_linear_1'),
-    ('adaln_modulation_self_attn_2', 'norm1_linear_2'),
-    ('adaln_modulation_cross_attn_1', 'norm2_linear_1'),
-    ('adaln_modulation_cross_attn_2', 'norm2_linear_2'),
-    ('adaln_modulation_mlp_1', 'norm3_linear_1'),
-    ('adaln_modulation_mlp_2', 'norm3_linear_2'),
-    ('self_attn', 'attn1'),
-    ('cross_attn', 'attn2'),
-    ('q_proj', 'to_q'),
-    ('k_proj', 'to_k'),
-    ('v_proj', 'to_v'),
-    ('output_proj', 'to_out_0'),
-    ('q_norm', 'norm_q'),
-    ('k_norm', 'norm_k'),
-    ('mlp_layer1', 'ff_net_0_proj'),
-    ('mlp_layer2', 'ff_net_2'),
-    ('x_embedder_proj_1', 'patch_embed_proj'),
-    ('final_layer_adaln_modulation_1', 'norm_out_linear_1'),
-    ('final_layer_adaln_modulation_2', 'norm_out_linear_2'),
-    ('final_layer_linear', 'proj_out'),
+    ("t_embedder_1", "time_embed_t_embedder"),
+    ("t_embedding_norm", "time_embed_norm"),
+    ("blocks", "transformer_blocks"),
+    ("adaln_modulation_self_attn_1", "norm1_linear_1"),
+    ("adaln_modulation_self_attn_2", "norm1_linear_2"),
+    ("adaln_modulation_cross_attn_1", "norm2_linear_1"),
+    ("adaln_modulation_cross_attn_2", "norm2_linear_2"),
+    ("adaln_modulation_mlp_1", "norm3_linear_1"),
+    ("adaln_modulation_mlp_2", "norm3_linear_2"),
+    ("self_attn", "attn1"),
+    ("cross_attn", "attn2"),
+    ("q_proj", "to_q"),
+    ("k_proj", "to_k"),
+    ("v_proj", "to_v"),
+    ("output_proj", "to_out_0"),
+    ("q_norm", "norm_q"),
+    ("k_norm", "norm_k"),
+    ("mlp_layer1", "ff_net_0_proj"),
+    ("mlp_layer2", "ff_net_2"),
+    ("x_embedder_proj_1", "patch_embed_proj"),
+    ("final_layer_adaln_modulation_1", "norm_out_linear_1"),
+    ("final_layer_adaln_modulation_2", "norm_out_linear_2"),
+    ("final_layer_linear", "proj_out"),
 ])
 
 
-def try_load(name, network_on_disk, lora_scale):
-    """Single dispatcher entry point. Anima only supports the LoRA family."""
-    return try_load_lora(name, network_on_disk, lora_scale)
-
-
-def try_load_lora(name, network_on_disk, lora_scale):
-    """Try loading an Anima LoRA as native modules.
-
-    Returns a Network with native modules, or None if the file is not a
-    recognized Anima format. Recognition is gated on Anima-specific path
-    fragments so a non-Anima file routed here under a mounted Anima model
-    is rejected rather than force-loaded.
-    """
-    t0 = time.time()
-    state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')
-    has_lora = any(any(m in k for m in LORA_MARKERS) for k in state_dict)
-    if not has_lora:
-        return None
-    is_anima = any(
-        k.startswith(KOHYA_PREFIX + 'blocks_')
-        or k.startswith(BFL_TRANSFORMER_PREFIX + 'blocks.')
-        or k.startswith(BFL_ADAPTER_PREFIX)
-        or k.startswith(BFL_TE_PREFIX)
-        for k in state_dict
-    )
-    if not is_anima:
-        return None
-    state_dict = apply_lora_alphas(state_dict)
-    sd_model = getattr(shared.sd_model, 'pipe', shared.sd_model)
-    lora_convert.assign_network_names_to_compvis_modules(sd_model)
-    net = network.Network(name, network_on_disk)
-    net.mtime = os.path.getmtime(network_on_disk.filename)
-    matched = 0
-    unmatched = 0
-    unmatched_samples = []
-    for base, weights in group_keys(state_dict):
-        network_key = resolve_network_key(base)
-        if network_key is None:
-            unmatched += 1
-            if len(unmatched_samples) < 5:
-                unmatched_samples.append(base)
-            continue
-        sd_module = sd_model.network_layer_mapping.get(network_key)
-        if sd_module is None:
-            unmatched += 1
-            if len(unmatched_samples) < 5:
-                unmatched_samples.append(f'{base} (key={network_key})')
-            continue
-        if not shapes_match(sd_module, weights):
-            log.warning(f'Network load: type=LoRA name="{name}" shape mismatch key={network_key}')
-            continue
-        nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=weights, sd_module=sd_module)
-        net.modules[network_key] = network_lora.NetworkModuleLora(net, nw)
-        matched += 1
-    if matched == 0:
-        return None
-    log.debug(f'Network load: type=LoRA name="{name}" method=native modules={matched} unmatched={unmatched} scale={lora_scale}')
-    if unmatched > 0 and l.debug:
-        log.debug(f'Network load: type=LoRA name="{name}" unmatched_samples={unmatched_samples}')
-    l.timer.activate += time.time() - t0
-    return net
-
-
-def apply_lora_alphas(state_dict):
-    """Bake .alpha scalars into lora_down / lora_up.
-
-    Native module loading consumes lora_down/lora_up directly; there is no
-    alpha kwarg path. Mirrors flux2_lora.apply_lora_alphas, with kohya and
-    BFL down/up names both supported (the hybrid format uses BFL keys with
-    kohya-style .alpha).
-    """
-    alpha_keys = [k for k in state_dict if k.endswith('.alpha')]
-    if not alpha_keys:
-        return state_dict
-    for alpha_key in alpha_keys:
-        base = alpha_key[:-len('.alpha')]
-        down_key = next((c for c in (f'{base}.lora_down.weight', f'{base}.lora_A.weight') if c in state_dict), None)
-        if down_key is None:
-            continue
-        rank = state_dict[down_key].shape[0]
-        alpha = state_dict.pop(alpha_key).item()
-        scale = alpha / rank
-        scale_down = scale
-        scale_up = 1.0
-        while scale_down * 2 < scale_up:
-            scale_down *= 2
-            scale_up /= 2
-        state_dict[down_key] = state_dict[down_key] * scale_down
-        up_key = next((c for c in (f'{base}.lora_up.weight', f'{base}.lora_B.weight') if c in state_dict), None)
-        if up_key is not None:
-            state_dict[up_key] = state_dict[up_key] * scale_up
-    remaining = [k for k in state_dict if k.endswith('.alpha')]
-    if remaining:
-        log.debug(f'Network load: type=LoRA stripped {len(remaining)} orphaned alpha keys')
-        for k in remaining:
-            del state_dict[k]
-    return state_dict
-
-
-def normalize_weight_key(suffix):
-    """Rewrite PEFT-style suffixes to kohya/native form (lora_A to lora_down, lora_B to lora_up)."""
-    return suffix.replace('lora_A.', 'lora_down.').replace('lora_B.', 'lora_up.')
-
-
-def group_keys(state_dict):
-    """Group state-dict keys by base path and yield (base, weights) pairs.
-
-    Bases keep their source key shape (kohya flat or BFL dotted) for
-    component routing in resolve_network_key.
-    """
-    groups = {}
-    for key, weight in state_dict.items():
-        base = None
-        suffix = None
-        if key.startswith(KOHYA_PREFIX):
-            base, _, suffix = key.partition('.')
-        else:
-            for marker in LORA_MARKERS:
-                pos = key.find(marker)
-                if pos != -1:
-                    base = key[:pos]
-                    suffix = key[pos + 1:]
-                    break
-        if base is None or suffix is None:
-            continue
-        groups.setdefault(base, {})[normalize_weight_key(suffix)] = weight
-    for base, weights in groups.items():
-        if 'lora_down.weight' in weights and 'lora_up.weight' in weights:
-            yield base, weights
-
-
-def resolve_network_key(base):
-    """Map a grouped base path to the network_layer_mapping lookup key.
-
-    Adapter and TE prefixes must be checked before the bare BFL transformer
-    prefix because both are extensions of diffusion_model.
-    """
-    if base.startswith(KOHYA_PREFIX):
-        flat = base[len(KOHYA_PREFIX):]
-        return 'lora_transformer_' + cosmos_rename_flat(flat)
-    if base.startswith(BFL_ADAPTER_PREFIX):
-        rest = base[len(BFL_ADAPTER_PREFIX):]
-        return 'lora_llm_adapter_' + rest.replace('.', '_')
-    if base.startswith(BFL_TE_PREFIX):
-        rest = base[len(BFL_TE_PREFIX):]
-        return 'lora_te_' + rest.replace('.', '_')
-    if base.startswith(BFL_TRANSFORMER_PREFIX):
-        rest = base[len(BFL_TRANSFORMER_PREFIX):]
-        flat = rest.replace('.', '_')
-        return 'lora_transformer_' + cosmos_rename_flat(flat)
-    return None
-
-
 def cosmos_rename_flat(flat):
-    """Apply the Cosmos 2.0 path rename to a flattened path."""
+    """Apply the Cosmos 2.0 path rename to a flattened (underscore) path."""
     for k, v in COSMOS_2_FLAT_RENAME.items():
         flat = flat.replace(k, v)
     return flat
 
 
-def shapes_match(sd_module, weights):
-    """Confirm LoRA rank dimensions line up with the live module weight."""
-    if not hasattr(sd_module, 'weight'):
-        return True
-    if hasattr(sd_module, 'sdnq_dequantizer'):
-        mod_shape = sd_module.sdnq_dequantizer.original_shape
-    else:
-        mod_shape = sd_module.weight.shape
-    if len(mod_shape) < 2:
-        return False
-    return (
-        weights['lora_down.weight'].shape[1] == mod_shape[1]
-        and weights['lora_up.weight'].shape[0] == mod_shape[0]
+# === Target resolution (arch-specific) ===
+
+
+def resolve_targets(prefix_used, base):
+    """Return ``[(diffusers_path, ChunkSpec | None), ...]`` for a parsed group.
+
+    Anima has no fused QKV (every kohya / BFL key targets a single diffusers
+    module), so ``ChunkSpec`` is always ``None`` and each call returns at most
+    one target.
+
+    The returned ``diffusers_path`` is already underscore-flattened; the
+    generic loader's ``path.replace('.', '_')`` is a no-op on it. Routing into
+    the right namespace (transformer / llm_adapter / te) is handled separately
+    by :func:`network_prefix_for`.
+    """
+    if prefix_used == "lora_unet_":
+        return [(cosmos_rename_flat(base), None)]
+    if prefix_used == "diffusion_model.":
+        return [(cosmos_rename_flat(base.replace(".", "_")), None)]
+    if prefix_used == "diffusion_model.llm_adapter.":
+        return [(base.replace(".", "_"), None)]
+    if prefix_used in ("text_encoders.qwen3_06b.transformer.model.", "lora_te_"):
+        return [(base.replace(".", "_"), None)]
+    return []
+
+
+def network_prefix_for(prefix_used):
+    """Pick the ``network_layer_mapping`` namespace prefix.
+
+    ``lora_convert.assign_network_names_to_compvis_modules`` stamps three
+    namespaces on Anima modules; this picks the right one based on which arch
+    prefix the key matched.
+    """
+    if prefix_used == "diffusion_model.llm_adapter.":
+        return "lora_llm_adapter_"
+    if prefix_used in ("text_encoders.qwen3_06b.transformer.model.", "lora_te_"):
+        return "lora_te_"
+    return "lora_transformer_"
+
+
+# === Native loaders (thin wrappers over native_loader generics) ===
+
+_BIND_KWARGS = dict(
+    resolve_targets=resolve_targets,
+    prefixes=ANIMA_PREFIXES,
+    network_prefix=network_prefix_for,
+    arch_name="anima",
+)
+
+
+def try_load_lora(name, network_on_disk, lora_scale):
+    return native_loader.try_load_lora(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_lokr(name, network_on_disk, lora_scale):
+    return native_loader.try_load_lokr(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_loha(name, network_on_disk, lora_scale):
+    return native_loader.try_load_loha(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_oft(name, network_on_disk, lora_scale):
+    return native_loader.try_load_oft(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_ia3(name, network_on_disk, lora_scale):
+    return native_loader.try_load_ia3(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_glora(name, network_on_disk, lora_scale):
+    return native_loader.try_load_glora(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_norm(name, network_on_disk, lora_scale):
+    return native_loader.try_load_norm(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_full(name, network_on_disk, lora_scale):
+    return native_loader.try_load_full(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load(name, network_on_disk, lora_scale):
+    """Run every Anima family loader, merge any that match."""
+    return native_loader.try_load_chain(
+        name, network_on_disk, lora_scale,
+        family_loaders=(
+            try_load_lora, try_load_lokr, try_load_loha, try_load_oft,
+            try_load_ia3, try_load_glora, try_load_norm, try_load_full,
+        ),
     )
