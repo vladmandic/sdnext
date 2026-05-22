@@ -4,6 +4,7 @@
 
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322
 - Torch lazy-load
+- pnpm-vs-npm
 
 ## Features
 

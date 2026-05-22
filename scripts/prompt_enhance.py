@@ -1026,8 +1026,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             # Update vision toggle interactivity when model changes
             llm_model.change(fn=self.update_vision_toggle, inputs=[llm_model], outputs=[use_vision], show_progress=False)
             if self.prompt:
-                apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens,max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity], outputs=[prompt_output, self.prompt])
-        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity]
+                apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity], outputs=[prompt_output, self.prompt])
+        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity]
 
     def after_component(self, component, **_kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
@@ -1038,7 +1038,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.image.use_original = True
 
     def before_process(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=unused-argument
-        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking = args
+        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity = args
         if not apply_auto and not p.enhance_prompt:
             return
         if shared.state.skipped or shared.state.interrupted:
@@ -1071,6 +1071,10 @@ class PromptEnhanceScript(scripts_manager.Script):
             prefill=prefill_text,
             keep_prefill=keep_prefill,
             keep_thinking=keep_thinking,
+            custom_args=custom_args,
+            process_words=process_words,
+            semantic_threshold=semantic_threshold,
+            embedding_similarity=embedding_similarity,
         )
         timer.process.record('prompt')
         shared.state.end(jobid)
