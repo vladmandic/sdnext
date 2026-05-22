@@ -328,6 +328,7 @@ function cardClicked(textToAdd) {
   updateInput(textarea);
   markSelectedCards(extractLoraNames(textarea.value), 'lora');
 }
+window.cardClicked = cardClicked;
 
 function extraNetworksSearchButton(event) {
   // log('extraNetworksSearchButton', event);

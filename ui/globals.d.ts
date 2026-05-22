@@ -90,6 +90,7 @@ declare global {
     getGitHubWikiPage?: () => string; // ui/docs.ts
     getGuidanceDocs?: (guider: string | { label?: string }) => void; // ui/guidance.ts
     applyStyles?: (styles?: string | string[] | ArrayLike<{ textContent: string | null }>) => string; // ui/extraNetworks.ts
+    cardClicked?: (textToAdd: string) => void; // ui/extraNetworks.ts
     closeDetailsEN?: (...args: unknown[]) => unknown[]; // ui/extraNetworks.ts
     extraNetworksFilterVersion?: (event: Event) => void; // ui/extraNetworks.ts
     extraNetworksSearchButton?: (event: Event) => void; // ui/extraNetworks.ts

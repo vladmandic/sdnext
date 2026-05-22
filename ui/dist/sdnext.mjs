@@ -34,9 +34,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/.pnpm/jquery@4.0.0/node_modules/jquery/dist/jquery.js
+// node_modules/jquery/dist/jquery.js
 var require_jquery = __commonJS({
-  "node_modules/.pnpm/jquery@4.0.0/node_modules/jquery/dist/jquery.js"(exports, module) {
+  "node_modules/jquery/dist/jquery.js"(exports, module) {
     (function(global2, factory) {
       "use strict";
       if (typeof module === "object" && typeof module.exports === "object") {
@@ -6932,9 +6932,9 @@ var require_iframeResizer = __commonJS({
   }
 });
 
-// node_modules/.pnpm/exifr@7.1.3/node_modules/exifr/dist/full.umd.js
+// node_modules/exifr/dist/full.umd.js
 var require_full_umd = __commonJS({
-  "node_modules/.pnpm/exifr@7.1.3/node_modules/exifr/dist/full.umd.js"(exports, module) {
+  "node_modules/exifr/dist/full.umd.js"(exports, module) {
     !(function(e, t) {
       "object" == typeof exports && "undefined" != typeof module ? t(exports) : "function" == typeof define && define.amd ? define("exifr", ["exports"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).exifr = {});
     })(exports, (function(e) {
@@ -8414,9 +8414,9 @@ this.ifd0Offset: ${this.ifd0Offset}, file.byteLength: ${e2.byteLength}`), e2.tif
   }
 });
 
-// node_modules/.pnpm/wheel@1.0.0/node_modules/wheel/index.js
+// node_modules/wheel/index.js
 var require_wheel = __commonJS({
-  "node_modules/.pnpm/wheel@1.0.0/node_modules/wheel/index.js"(exports, module) {
+  "node_modules/wheel/index.js"(exports, module) {
     module.exports = addWheelListener;
     module.exports.addWheelListener = addWheelListener;
     module.exports.removeWheelListener = removeWheelListener;
@@ -8429,9 +8429,9 @@ var require_wheel = __commonJS({
   }
 });
 
-// node_modules/.pnpm/bezier-easing@2.1.0/node_modules/bezier-easing/src/index.js
+// node_modules/bezier-easing/src/index.js
 var require_src = __commonJS({
-  "node_modules/.pnpm/bezier-easing@2.1.0/node_modules/bezier-easing/src/index.js"(exports, module) {
+  "node_modules/bezier-easing/src/index.js"(exports, module) {
     var NEWTON_ITERATIONS = 4;
     var NEWTON_MIN_SLOPE = 1e-3;
     var SUBDIVISION_PRECISION = 1e-7;
@@ -8524,9 +8524,9 @@ var require_src = __commonJS({
   }
 });
 
-// node_modules/.pnpm/amator@1.1.0/node_modules/amator/index.js
+// node_modules/amator/index.js
 var require_amator = __commonJS({
-  "node_modules/.pnpm/amator@1.1.0/node_modules/amator/index.js"(exports, module) {
+  "node_modules/amator/index.js"(exports, module) {
     var BezierEasing = require_src();
     var animations = {
       ease: BezierEasing(0.25, 0.1, 0.25, 1),
@@ -8655,9 +8655,9 @@ var require_amator = __commonJS({
   }
 });
 
-// node_modules/.pnpm/ngraph.events@1.4.0/node_modules/ngraph.events/dist/ngraph.events.cjs
+// node_modules/ngraph.events/dist/ngraph.events.cjs
 var require_ngraph_events = __commonJS({
-  "node_modules/.pnpm/ngraph.events@1.4.0/node_modules/ngraph.events/dist/ngraph.events.cjs"(exports, module) {
+  "node_modules/ngraph.events/dist/ngraph.events.cjs"(exports, module) {
     "use strict";
     function c(e) {
       s(e);
@@ -8699,9 +8699,9 @@ var require_ngraph_events = __commonJS({
   }
 });
 
-// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/kinetic.js
+// node_modules/panzoom/lib/kinetic.js
 var require_kinetic = __commonJS({
-  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/kinetic.js"(exports, module) {
+  "node_modules/panzoom/lib/kinetic.js"(exports, module) {
     module.exports = kinetic;
     function kinetic(getPoint, scroll, settings) {
       if (typeof settings !== "object") {
@@ -8799,9 +8799,9 @@ var require_kinetic = __commonJS({
   }
 });
 
-// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeTextSelectionInterceptor.js
+// node_modules/panzoom/lib/makeTextSelectionInterceptor.js
 var require_makeTextSelectionInterceptor = __commonJS({
-  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeTextSelectionInterceptor.js"(exports, module) {
+  "node_modules/panzoom/lib/makeTextSelectionInterceptor.js"(exports, module) {
     module.exports = makeTextSelectionInterceptor;
     function makeTextSelectionInterceptor(useFake) {
       if (useFake) {
@@ -8842,9 +8842,9 @@ var require_makeTextSelectionInterceptor = __commonJS({
   }
 });
 
-// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/transform.js
+// node_modules/panzoom/lib/transform.js
 var require_transform = __commonJS({
-  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/transform.js"(exports, module) {
+  "node_modules/panzoom/lib/transform.js"(exports, module) {
     module.exports = Transform;
     function Transform() {
       this.x = 0;
@@ -8854,9 +8854,9 @@ var require_transform = __commonJS({
   }
 });
 
-// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeSvgController.js
+// node_modules/panzoom/lib/makeSvgController.js
 var require_makeSvgController = __commonJS({
-  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeSvgController.js"(exports, module) {
+  "node_modules/panzoom/lib/makeSvgController.js"(exports, module) {
     module.exports = makeSvgController;
     module.exports.canAttach = isSVGElement;
     function makeSvgController(svgElement, options) {
@@ -8919,9 +8919,9 @@ var require_makeSvgController = __commonJS({
   }
 });
 
-// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeDomController.js
+// node_modules/panzoom/lib/makeDomController.js
 var require_makeDomController = __commonJS({
-  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeDomController.js"(exports, module) {
+  "node_modules/panzoom/lib/makeDomController.js"(exports, module) {
     module.exports = makeDomController;
     module.exports.canAttach = isDomElement;
     function makeDomController(domElement, options) {
@@ -8962,9 +8962,9 @@ var require_makeDomController = __commonJS({
   }
 });
 
-// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/index.js
+// node_modules/panzoom/index.js
 var require_panzoom = __commonJS({
-  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/index.js"(exports, module) {
+  "node_modules/panzoom/index.js"(exports, module) {
     "use strict";
     var wheel = require_wheel();
     var animate = require_amator();
@@ -9782,7 +9782,7 @@ var require_panzoom = __commonJS({
   }
 });
 
-// node_modules/.pnpm/jquery@4.0.0/node_modules/jquery/dist-module/wrappers/jquery.node-module-wrapper.js
+// node_modules/jquery/dist-module/wrappers/jquery.node-module-wrapper.js
 var import_jquery = __toESM(require_jquery(), 1);
 var jquery_node_module_wrapper_default = import_jquery.default;
 
@@ -10541,6 +10541,26 @@ async function markSelectedCards(selected, page = "") {
     else el2.classList.remove("card-selected");
   });
 }
+function extractLoraNames(prompt) {
+  const regex = /<lora:([^:>]+)(?::[\d.]+)?>/g;
+  const names = [];
+  let match = regex.exec(prompt);
+  while (match !== null) {
+    names.push(match[1]);
+    match = regex.exec(prompt);
+  }
+  return names;
+}
+function cardClicked(textToAdd) {
+  const tabName = getENActiveTab();
+  log("cardClicked", tabName, textToAdd);
+  const textarea = activePromptTextarea[tabName];
+  if (textarea.value.indexOf(textToAdd) !== -1) textarea.value = textarea.value.replace(textToAdd, "");
+  else textarea.value += textToAdd;
+  updateInput(textarea);
+  markSelectedCards(extractLoraNames(textarea.value), "lora");
+}
+window.cardClicked = cardClicked;
 function extraNetworksSearchButton(event2) {
   const tabName = getENActiveTab();
   const searchTextarea = gradioApp().querySelector(`#${tabName}_extra_search textarea`);
@@ -16432,7 +16452,7 @@ function keyupEditAttention(event2) {
 }
 addEventListener("keydown", (event2) => keyupEditAttention(event2));
 
-// node_modules/.pnpm/jquery-sparkline@2.4.0/node_modules/jquery-sparkline/jquery.sparkline.js
+// node_modules/jquery-sparkline/jquery.sparkline.js
 (function(document2, Math2, undefined2) {
   (function(factory) {
     if (typeof define === "function" && define.amd) {
