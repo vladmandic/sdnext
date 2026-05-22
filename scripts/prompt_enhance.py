@@ -5,6 +5,7 @@ import re
 import time
 import random
 import base64
+import textwrap
 import torch
 import transformers
 import gradio as gr
@@ -13,6 +14,7 @@ from modules import scripts_manager, shared, devices, errors, processing, sd_mod
 from modules import ui_control_helpers
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
+from modules.caption.logits import LogitsParser
 
 
 debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
@@ -111,24 +113,10 @@ class Options:
         'google/gemma-3n-E4B-it',
         'google/gemma-4-E2B-it',
         'google/gemma-4-E4B-it',
-        # Gemma Finetunes
-        'nidum/Nidum-Gemma-3-4B-it-Uncensored',
-        'allura-org/Gemma-3-Glitter-4B',
-        'coder3101/gemma-3-27b-it-heretic-v2',
-        'p-e-w/gemma-3-12b-it-heretic',
-        'p-e-w/gemma-4-E2B-it-heretic-ara',
-        'DavidAU/gemma-3-4b-it-heretic-uncensored-abliterated-Extreme',
-        'DavidAU/Gemma-3-4B-VL-it-Gemini-Pro-Heretic-Uncensored-Thinking',
-        'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning',
-        'coder3101/Big-Tiger-Gemma-27B-v3-heretic-v2',
         # Qwen3.5
-        'Qwen/Qwen3.5-0.8B',
         'Qwen/Qwen3.5-2B',
         'Qwen/Qwen3.5-4B',
         'Qwen/Qwen3.5-9B',
-        'Qwen/Qwen3.5-27B',
-        'Qwen/Qwen3.5-35B-A3B',
-        'coder3101/Qwen3.5-27B-heretic',
         # Qwen3-VL
         'Qwen/Qwen3-VL-2B-Instruct',
         'Qwen/Qwen3-VL-2B-Thinking',
@@ -136,39 +124,26 @@ class Options:
         'Qwen/Qwen3-VL-4B-Thinking',
         'Qwen/Qwen3-VL-8B-Instruct',
         'Qwen/Qwen3-VL-8B-Thinking',
-        # Qwen3-VL Finetunes
-        'coder3101/Qwen3-VL-2B-Instruct-heretic',
-        'coder3101/Qwen3-VL-2B-Thinking-heretic',
-        'coder3101/Qwen3-VL-4B-Instruct-heretic',
-        'coder3101/Qwen3-VL-4B-Thinking-heretic',
-        'coder3101/Qwen3-VL-8B-Instruct-heretic',
-        'coder3101/Qwen3-VL-32B-Instruct-heretic-v2',
-        'coder3101/Qwen3-VL-32B-Thinking-heretic-v2',
-        'prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it',
         # Qwen2.5-VL
         'Qwen/Qwen2.5-VL-3B-Instruct',
-        # Qwen2.5-VL Finetunes
-        'coder3101/Qwen2.5-VL-3B-Instruct-heretic',
-        'coder3101/Qwen2.5-VL-7B-Instruct-heretic',
-        'coder3101/Qwen2.5-VL-32B-Instruct-heretic',
-        'coder3101/Qwen2.5-VL-72B-Instruct-heretic',
         # Mistral
         'mistralai/Ministral-3-3B-Instruct-2512-BF16',
         'mistralai/Ministral-3-8B-Instruct-2512-BF16',
-        'mistralai/Ministral-3-14B-Instruct-2512-BF16',
-        'mistralai/Devstral-Small-2-24B-Instruct-2512',
         'mistralai/Ministral-3-3B-Reasoning-2512',
         'mistralai/Ministral-3-8B-Reasoning-2512',
-        'mistralai/Ministral-3-14B-Reasoning-2512',
-        # Mistral Finetunes
-        'coder3101/Mistral-Small-3.2-24B-Instruct-2506-heretic',
-        'coder3101/Ministral-3-3B-Reasoning-2512-heretic',
-        'coder3101/Ministral-3-8B-Reasoning-2512-heretic',
-        'coder3101/Ministral-3-14B-Reasoning-2512-heretic',
+        # Finetunes
+        'p-e-w/gemma-4-E2B-it-heretic-ara',
+        'trohrbaugh/gemma-4-E4B-it-heretic-ara',
+        'trohrbaugh/Qwen3.5-9B-heretic-v2',
     ]
     cloud = [
+        'google/gemini-3.5-flash',
         'google/gemini-3.1-pro-preview',
-        'google/gemini-3-flash-preview',
+        'google/gemini-3.1-flash-lite',
+        'google/gemini-3.1-flash-lite-preview',
+        'google/gemini-2.5-flash',
+        'google/gemini-2.5-flash-lite',
+        'google/gemini-2.5-pro',
     ]
     models = {
         # Gemma
@@ -178,23 +153,11 @@ class Options:
         'google/gemma-3n-E4B-it': {},
         'google/gemma-4-E2B-it': {},
         'google/gemma-4-E4B-it': {},
-        # Gemma Finetunes
-        'nidum/Nidum-Gemma-3-4B-it-Uncensored': {},
-        'allura-org/Gemma-3-Glitter-4B': {},
-        'coder3101/gemma-3-27b-it-heretic-v2': {},
-        'p-e-w/gemma-3-12b-it-heretic': {},
-        'DavidAU/gemma-3-4b-it-heretic-uncensored-abliterated-Extreme': {},
-        'DavidAU/Gemma-3-4B-VL-it-Gemini-Pro-Heretic-Uncensored-Thinking': {},
-        'DavidAU/Gemma3-27B-it-vl-GLM-4.7-Uncensored-Heretic-Deep-Reasoning': {},
-        'coder3101/Big-Tiger-Gemma-27B-v3-heretic-v2': {},
         # Qwen3.5
         'Qwen/Qwen3.5-0.8B': {},
         'Qwen/Qwen3.5-2B': {},
         'Qwen/Qwen3.5-4B': {},
         'Qwen/Qwen3.5-9B': {},
-        'Qwen/Qwen3.5-27B': {},
-        'Qwen/Qwen3.5-35B-A3B': {},
-        'coder3101/Qwen3.5-27B-heretic': {},
         # Qwen3
         'Qwen/Qwen3-0.6B': {},
         'Qwen/Qwen3-1.7B': {},
@@ -207,42 +170,25 @@ class Options:
         'Qwen/Qwen3-VL-4B-Thinking': {},
         'Qwen/Qwen3-VL-8B-Instruct': {},
         'Qwen/Qwen3-VL-8B-Thinking': {},
-        # Qwen3-VL Finetunes
-        'coder3101/Qwen3-VL-2B-Instruct-heretic': {},
-        'coder3101/Qwen3-VL-2B-Thinking-heretic': {},
-        'coder3101/Qwen3-VL-4B-Instruct-heretic': {},
-        'coder3101/Qwen3-VL-4B-Thinking-heretic': {},
-        'coder3101/Qwen3-VL-8B-Instruct-heretic': {},
-        'coder3101/Qwen3-VL-32B-Instruct-heretic-v2': {},
-        'coder3101/Qwen3-VL-32B-Thinking-heretic-v2': {},
-        'prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it': {},
         # Qwen2.5
         'Qwen/Qwen2.5-0.5B-Instruct': {},
         'Qwen/Qwen2.5-1.5B-Instruct': {},
         'Qwen/Qwen2.5-3B-Instruct': {},
         # Qwen2.5-VL
         'Qwen/Qwen2.5-VL-3B-Instruct': {},
-        # Qwen2.5-VL Finetunes
-        'coder3101/Qwen2.5-VL-3B-Instruct-heretic': {},
-        'coder3101/Qwen2.5-VL-7B-Instruct-heretic': {},
-        'coder3101/Qwen2.5-VL-32B-Instruct-heretic': {},
-        'coder3101/Qwen2.5-VL-72B-Instruct-heretic': {},
         # Llama
         'meta-llama/Llama-3.2-1B-Instruct': {},
         'meta-llama/Llama-3.2-3B-Instruct': {},
+        'meta-llama/Llama-3.2-8B-Instruct': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-3B': {},
-        'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF': {
-            'repo': 'meta-llama/Llama-3.2-1B-Instruct', # original repo so we can load missing components
-            'type': 'llama', # required so gguf loader knows what to do
-            'gguf': 'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF', # gguf repo
-            'file': 'Llama-3.2-1B-Instruct-Uncensored.i1-Q4_0.gguf', # gguf file inside repo
-        },
+        'google/gemini-3.5-flash': {},
         'google/gemini-3.1-pro-preview': {},
+        'google/gemini-3.1-flash-lite': {},
         'google/gemini-3.1-flash-lite-preview': {},
-        'google/gemini-3-flash-preview': {},
-        'google/gemini-2.5-pro': {},
         'google/gemini-2.5-flash': {},
+        'google/gemini-2.5-flash-lite': {},
+        'google/gemini-2.5-pro': {},
         # SmolLM
         'HuggingFaceTB/SmolLM2-135M-Instruct': {},
         'HuggingFaceTB/SmolLM2-360M-Instruct': {},
@@ -253,17 +199,19 @@ class Options:
         # Mistral
         'mistralai/Ministral-3-3B-Instruct-2512-BF16': {},
         'mistralai/Ministral-3-8B-Instruct-2512-BF16': {},
-        'mistralai/Ministral-3-14B-Instruct-2512-BF16': {},
-        'mistralai/Devstral-Small-2-24B-Instruct-2512': {},
         'mistralai/Ministral-3-3B-Reasoning-2512': {},
         'mistralai/Ministral-3-8B-Reasoning-2512': {},
-        'mistralai/Ministral-3-14B-Reasoning-2512': {},
-        # Mistral Finetunes
-        'coder3101/Mistral-Small-3.2-24B-Instruct-2506-heretic': {},
-        'p-e-w/Mistral-Nemo-Instruct-2407-heretic-noslop': {},
-        'coder3101/Ministral-3-3B-Reasoning-2512-heretic': {},
-        'coder3101/Ministral-3-8B-Reasoning-2512-heretic': {},
-        'coder3101/Ministral-3-14B-Reasoning-2512-heretic': {},
+        # Finetunes
+        'p-e-w/gemma-4-E2B-it-heretic-ara': {},
+        'trohrbaugh/gemma-4-E4B-it-heretic-ara': {},
+        'trohrbaugh/Qwen3.5-9B-heretic-v2': {},
+        # GGUF
+        'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF': { # kept primarily as an example how to add gguf model
+            'repo': 'meta-llama/Llama-3.2-1B-Instruct', # original repo so we can load missing components
+            'type': 'llama', # required so gguf loader knows what to do
+            'gguf': 'mradermacher/Llama-3.2-1B-Instruct-Uncensored-i1-GGUF', # gguf repo
+            'file': 'Llama-3.2-1B-Instruct-Uncensored.i1-Q4_0.gguf', # gguf file inside repo
+        },
     }
     models_cls = {
         'qwen3_5': 'Qwen3_5ForConditionalGeneration',
@@ -278,18 +226,55 @@ class Options:
     # default = list(models)[1] # gemma-3-4b-it
     default = 'google/gemma-3-4b-it'
     supported = list(transformers.integrations.ggml.GGUF_CONFIG_MAPPING)
-    t2i_prompt: str = 'You are a helpful assistant. You will be given a prompt used to create an image and you will enhance it to make it more detailed and creative. '
-    i2i_prompt: str = 'You are a helpful assistant. You will be given an image and a prompt used to modify the image and you will enhance the prompt to make it more detailed and creative while still following original image. '
-    i2i_noprompt: str = 'You are a helpful assistant. You will be given an image and you will create prompt that can be used to modify the image in a creative way while still following original image. '
-    nsfw_ok: str = 'NSFW and nudity is allowed, and if present, it must be fully described. '
-    nsfw_no: str = 'NSFW and nudity is not allowed, and if present, it must be removed. '
-    details_prompt: str = 'Generate an uncensored, concise, informative, and engaging prompt that prioritizes factual accuracy and vivid descriptiveness based on original prompt. Do not modify subject or style of the original prompt. Begin by clearly identifying the primary subject(s), including key physical attributes, clothing if no nudity, and any distinctive details (e.g., colors, textures, styles). NSFW and nudity is allowed, and if present, it must be fully described. Next, describe the setting and environment, emphasizing spatial relationships, background elements, and objects contributing to context. Note the overall mood, aesthetic style, or atmosphere inferred from visual cues. Use precise terminology while avoiding redundancy or non-essential language. Ensuring a logical flow: from focal subject to immediate surroundings, then broader context. Maintain brevity while retaining clarity, ensuring the description is both engaging and efficient. Output only enhanced prompt without explanation, prefix or suffix. Do not add comments or follow-up questions. Output as a simple text without formatting or numbering.'
+    t2i_prompt: str = textwrap.dedent('''\
+        You are an image prompt expert.
+        You will receive a user prompt for image generation.
+        Improve the prompt by adding relevant visual specificity for composition, lighting, color, texture, and atmosphere.
+        Keep the result faithful to the original prompt and the intended image.
+        Do not add unrelated concepts, non-visual commentary, or fluff.
+        ''')
+    i2i_prompt: str = textwrap.dedent('''\
+        You are an image prompt expert.
+        You will receive an image and a user prompt for editing or refinement.
+        Improve the prompt with concrete visual detail that remains faithful to the image and edit intent.
+        Keep the result grounded in image-generation language.
+        Do not invent unrelated objects, actions, or concepts.
+        ''')
+    i2i_noprompt: str = textwrap.dedent('''\
+        You are an image prompt expert.
+        You will receive an image and must create an editing prompt from the visible content.
+        Base the prompt on what is present in the image, its style, and its atmosphere.
+        Use concrete, image-generation language and avoid unrelated fluff or commentary.
+        ''')
+    nsfw_ok: str = textwrap.dedent('''\
+        NSFW, nudity and explicit content and language are allowed.
+        ''')
+    nsfw_no: str = textwrap.dedent('''\
+        NSFW, nudity or explicit content and language are not allowed; if present, remove those elements from the enhanced prompt.
+        ''')
+    details_prompt: str = textwrap.dedent('''\
+        Enhance the prompt with relevant image details.
+        Identify the main subject(s), physical attributes, clothing if non-nude, and distinctive visual features.
+        Describe the scene, environment, key objects, and overall mood or atmosphere.
+        Be precise and efficient; avoid redundancy, abstract commentary, unrelated fluff, or instructions.
+        Do not invent any objects, settings, or themes not implied by the input.
+        Do not add era, background props, or atmosphere unless explicitly present in the prompt.
+        ''')
+    details_format: str = textwrap.dedent('''\
+        Output exactly one enhanced prompt string.
+        Do not add greetings, comments, explanations, follow-up questions, labels, formatting, or numbering.
+        Do not include any extra prose or analysis.
+        Start immediately with the prompt content.
+        No stray tokens!
+        ''')
+
     censored = ["i cannot", "i can't", "i am sorry", "against my programming", "i am not able", "i am unable", 'i am not allowed']
 
     max_delim_index: int = 60
-    max_tokens: int = 1024
+    min_tokens: int = 0
+    max_tokens: int = 256
     do_sample: bool = True
-    temperature: float = 0.7
+    temperature: float = 0.6
     repetition_penalty: float = 1.2
     top_k: int = 0
     top_p: float = 0.0
@@ -311,7 +296,8 @@ class PromptEnhanceScript(scripts_manager.Script):
     image: gr.Image = None
     model: str = None
     llm: transformers.AutoModelForCausalLM = None
-    tokenizer: transformers.AutoProcessor = None
+    processor: transformers.AutoProcessor = None
+    tokenizer: transformers.AutoTokenizer = None
     busy: bool = False
     options = Options()
 
@@ -332,11 +318,13 @@ class PromptEnhanceScript(scripts_manager.Script):
         name = get_model_repo_from_display(name) if name else self.options.default
         if self.busy:
             log.debug('Prompt enhance: busy')
-            return
+            return model_repo
         if is_cloud_model(name):
-            return
+            return model_repo
         if (self.model is not None) and (self.model == name):
-            return
+            return model_repo
+
+        model_repo = sd_models.path_to_repo(model_repo) if model_repo else None
 
         self.busy = True
         from modules import modelloader, model_quant, ggml
@@ -355,7 +343,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                 log.error(f'Prompt enhance: name="{name}" repo="{model_repo}" fn="{model_file}" type={model_type} gguf not supported')
                 log.trace(f'Prompt enhance: gguf supported={self.options.supported}')
                 self.busy = False
-                return
+                return model_repo
             ggml.install_gguf()
             gguf_args['model_type'] = model_type
             gguf_args['gguf_file'] = model_file
@@ -369,8 +357,9 @@ class PromptEnhanceScript(scripts_manager.Script):
                 sd_models.move_model(self.llm, devices.cpu, force=True)
                 self.llm = None
                 self.tokenizer = None
+                self.processor = None
                 devices.torch_gc(force=True, reason='prompt-enhance:load')
-                log.debug(f'Prompt enhance: name="{self.model}" unload')
+                log.debug(f'Prompt enhance: unload="{self.model}"')
             self.model = None
             load_args = { 'pretrained_model_name_or_path': model_repo if not gguf_args else model_gguf }
             if model_subfolder:
@@ -401,15 +390,12 @@ class PromptEnhanceScript(scripts_manager.Script):
                 sd_models.set_huggingface_options(quiet=True)
             self.llm.eval()
             register_aux('prompt_enhance', self.llm)
-            if model_repo in self.options.img2img:
-                cls = transformers.AutoProcessor # required to encode image
-            else:
-                cls = transformers.AutoTokenizer
             tokenizer_args = { 'pretrained_model_name_or_path': model_repo }
             if model_tokenizer:
                 tokenizer_args['subfolder'] = model_tokenizer
-            self.tokenizer = cls.from_pretrained(**tokenizer_args, cache_dir=shared.opts.hfcache_dir)
-            self.tokenizer.is_processor = model_repo in self.options.img2img
+            self.tokenizer = transformers.AutoTokenizer.from_pretrained(**tokenizer_args, cache_dir=shared.opts.hfcache_dir)
+            if model_repo in self.options.img2img:
+                self.processor = transformers.AutoProcessor.from_pretrained(**tokenizer_args, cache_dir=shared.opts.hfcache_dir)
 
             if debug_enabled:
                 modules = sd_modules.get_model_stats(self.llm) + sd_modules.get_model_stats(self.tokenizer)
@@ -417,7 +403,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                     debug_log(f'Prompt enhance: {m}')
             self.model = name
             t1 = time.time()
-            log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" time={t1-t0:.2f} loaded')
+            log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" processor="{self.processor.__class__.__name__ if self.processor else None}" tokenizer="{self.tokenizer.__class__.__name__ if self.tokenizer else None}" time={t1-t0:.2f} loaded')
             self.compile()
         except Exception as e:
             log.error(f'Prompt enhance: load {e}')
@@ -425,6 +411,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                 errors.display(e, 'Prompt enhance')
         devices.torch_gc()
         self.busy = False
+        return model_repo
 
     def censored(self, response):
         text = response.lower().replace("i'm", "i am")
@@ -439,6 +426,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.model = None
             self.llm = None
             self.tokenizer = None
+            self.processor = None
             devices.torch_gc(force=True, reason='prompt-enhance:unload')
             log.debug(f'Prompt enhance: model="{model_name}" unloaded')
         else:
@@ -460,8 +448,9 @@ class PromptEnhanceScript(scripts_manager.Script):
 
         # remove special characters
         response = response.replace('"', '').replace("'", "").replace('"', '').replace('"', '').replace('**', '')
-        # remove repeating characters
+        # remove repeating characters and short repeated tokens from model collapse
         response = response.replace('\n\n', '\n').replace('  ', ' ').replace('...', '.')
+        response = re.sub(r'\b([A-Za-z]{1,3})(?:\s+\1){1,}\b', r'\1', response, flags=re.IGNORECASE)
 
         # remove comments between brackets (but not Reasoning:/Answer: which we may have added)
         response = re.sub(r'<.*?>', '', response)
@@ -488,6 +477,14 @@ class PromptEnhanceScript(scripts_manager.Script):
         response = '\n'.join(lines)
 
         response = response.strip()
+
+        # Remove leading conversational filler that some LLMs prepend
+        response = re.sub(
+            r'^(?:\s*(?:wait|okay|ok|sure|alright|yes|yep|hello|hi|thanks|thank you|no problem|of course|got it|i love|i like|i appreciate|great|excellent|right)[^.!?]*[.!?]\s*)+',
+            '',
+            response,
+            flags=re.IGNORECASE,
+        )
 
         # Handle prefill retention/removal
         prefill_text = (prefill_text or '').strip()
@@ -541,6 +538,52 @@ class PromptEnhanceScript(scripts_manager.Script):
             current_image = None
         return current_image
 
+    def get_default_args(self):
+        to_remove = ['_from_model_config', 'transformers_version']
+        config = {}
+        for k, v in transformers.GenerationConfig._get_default_generation_params().items(): # pylint: disable=protected-access
+            if v is not None:
+                config[k] = v
+        for k, v in transformers.GenerationConfig.from_model_config(self.llm.config).to_dict().items():
+            if v is not None:
+                config[k] = v
+        for k, v in self.llm.generation_config.to_dict().items():
+            if v is not None:
+                config[k] = v
+        config = {k: v for k, v in config.items() if k not in to_remove}
+        return config
+
+    def get_custom_args(self, args_str):
+        args = {}
+        if args_str is not None and len(args_str) > 0:
+            default_args = self.get_default_args()
+            pairs = re.split(r'[;\n]+', args_str)
+            for pair in pairs:
+                if '=' in pair:
+                    key, value = pair.split('=', maxsplit=1)
+                    key = key.strip()
+                    value = value.strip()
+                    if key not in default_args:
+                        log.warning(f'Prompt enhance: key="{key}" invalid')
+                        continue
+                    default_value = default_args[key]
+                    try:
+                        if isinstance(default_value, bool):
+                            value = value.lower() in ['true', '1', 'yes']
+                        elif isinstance(default_value, int):
+                            value = int(value)
+                        elif isinstance(default_value, float):
+                            value = float(value)
+                        elif isinstance(default_value, list):
+                            value = [v.strip() for v in value.split(',')]
+                        elif isinstance(default_value, str):
+                            pass
+                    except ValueError:
+                        log.warning(f'Prompt enhance: key="{key}" value="{value}" typecast failed')
+                    if key and value:
+                        args[key] = value
+        return args
+
     def enhance(self,
                 model: str | None=None,
                 prompt:str | None=None,
@@ -548,7 +591,8 @@ class PromptEnhanceScript(scripts_manager.Script):
                 prefix:str | None=None,
                 suffix:str | None=None,
                 sample:bool | None=None,
-                tokens:int | None=None,
+                min_tokens:int | None=None,
+                max_tokens:int | None=None,
                 temperature:float | None=None,
                 penalty:float | None=None,
                 top_k:int | None=None,
@@ -561,6 +605,10 @@ class PromptEnhanceScript(scripts_manager.Script):
                 prefill:str='',
                 keep_prefill:bool=False,
                 keep_thinking:bool=False,
+                custom_args:str | None=None,
+                process_words:str='',
+                semantic_threshold:float=0.0,
+                embedding_similarity:float=0.0,
                ):
         # Strip symbols from model name if present
         model = get_model_repo_from_display(model) if model else self.options.default
@@ -572,7 +620,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             use_vision = False
         prefix = prefix or ''
         suffix = suffix or ''
-        tokens = tokens or self.options.max_tokens
+        min_tokens = min_tokens or self.options.min_tokens
+        max_tokens = max_tokens or self.options.max_tokens
         penalty = penalty or self.options.repetition_penalty
         temperature = temperature or self.options.temperature
         top_k = top_k if top_k is not None else self.options.top_k
@@ -633,7 +682,7 @@ class PromptEnhanceScript(scripts_manager.Script):
         if current_image is not None and isinstance(current_image, Image.Image):
             if is_cloud_model(model):
                 pass
-            elif (self.tokenizer is None) or (not self.tokenizer.is_processor):
+            elif self.processor is None:
                 log.error('Prompt enhance: image not supported by model')
                 return prompt_text # Return original text part if image cannot be processed
             if prompt_text is not None and len(prompt_text) > 0:
@@ -641,6 +690,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                     system = self.options.i2i_prompt
                     system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
                     system += self.options.details_prompt
+                    system += self.options.details_format
                 chat_template = [
                     { "role": "system", "content": [
                         {"type": "text", "text": system }
@@ -655,6 +705,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                     system = self.options.i2i_noprompt
                     system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
                     system += self.options.details_prompt
+                    system += self.options.details_format
                 chat_template = [
                     { "role": "system", "content": [
                         {"type": "text", "text": system }
@@ -668,7 +719,8 @@ class PromptEnhanceScript(scripts_manager.Script):
                 system = self.options.t2i_prompt
                 system += self.options.nsfw_ok if nsfw else self.options.nsfw_no
                 system += self.options.details_prompt
-            if (self.tokenizer is None) or (not self.tokenizer.is_processor):
+                system += self.options.details_format
+            if self.processor is None:
                 chat_template = [
                     { "role": "system", "content": system },
                     { "role": "user",   "content": prompt_text },
@@ -688,6 +740,8 @@ class PromptEnhanceScript(scripts_manager.Script):
         use_prefill = len(prefill_text) > 0
         is_thinking = is_thinking_model(model)
 
+        debug_log(f'Prompt enhance: system="{system}"')
+        debug_log(f'Prompt enhance: prompt="{prompt_text}"')
         debug_log(f'Prompt template: roles={[msg["role"] for msg in chat_template]} thinking={is_thinking}:{thinking} prefill={use_prefill}')
         t0 = time.time()
         self.busy = True
@@ -697,12 +751,13 @@ class PromptEnhanceScript(scripts_manager.Script):
                 from modules.caption import gemini
                 kwargs = {
                     'temperature': temperature,
-                    'max_output_tokens': tokens,
+                    'min_output_tokens': min_tokens,
+                    'max_output_tokens': max_tokens,
                 }
                 model_name = model.replace('google/', '')
                 response = gemini.predict(prompt_text, current_image, model_name, system, model, prefill_text, thinking, kwargs)
                 t1 = time.time()
-                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} temperature={temperature} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
+                log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} prefill="{prefill_text[:20] if prefill_text else None}" response={len(response)}')
                 debug_log(f'Prompt enhance: response="{response}"')
                 self.busy = False
                 return response
@@ -716,15 +771,16 @@ class PromptEnhanceScript(scripts_manager.Script):
             template_kwargs = {'enable_thinking': thinking} if is_qwen35 else {}
 
             # Generate text prompt using template
+            apply_fn = self.processor if self.processor is not None else self.tokenizer
             try:
-                text_prompt = self.tokenizer.apply_chat_template(
+                text_prompt = apply_fn.apply_chat_template(
                     chat_template,
                     add_generation_prompt=True,
                     tokenize=False,
                     **template_kwargs,
                 )
             except TypeError:
-                text_prompt = self.tokenizer.apply_chat_template(
+                text_prompt = apply_fn.apply_chat_template(
                     chat_template,
                     tokenize=False,
                 )
@@ -748,43 +804,63 @@ class PromptEnhanceScript(scripts_manager.Script):
                 if use_prefill:
                     text_prompt += prefill_text
 
-            debug_log(f'Prompt enhance: final text_prompt (last 200 chars)="{text_prompt[-200:]}"')
+            # debug_log(f'Prompt enhance: template="{text_prompt}"')
 
             # Tokenize the final prompt
             # For VL models with images, pass the image to the processor (like VQA does)
-            if self.tokenizer.is_processor and current_image is not None:
-                inputs = self.tokenizer(text=[text_prompt], images=[current_image], padding=True, return_tensors="pt")
-            elif self.tokenizer.is_processor:
+            if self.processor is not None and current_image is not None:
+                inputs = self.processor(text=[text_prompt], images=[current_image], padding=True, return_tensors="pt")
+            elif self.processor is not None:
                 # VL processor without image - must use explicit text= parameter
-                inputs = self.tokenizer(text=[text_prompt], images=None, padding=True, return_tensors="pt")
+                inputs = self.processor(text=[text_prompt], images=None, padding=True, return_tensors="pt")
             else:
                 inputs = self.tokenizer(text_prompt, return_tensors="pt")
             inputs = inputs.to(devices.device).to(devices.dtype)
-
             input_len = inputs['input_ids'].shape[1]
-            debug_log(f'Prompt enhance: len={input_len} shape={inputs["input_ids"].shape} sample={sample} temp={temperature} penalty={penalty} max={tokens}')
         except Exception as e:
             log.error(f'Prompt enhance tokenize: {e}')
             if debug_enabled:
                 errors.display(e, 'Prompt enhance')
             self.busy = False
             return prompt_text # Return original text part on error
+
         try:
             with devices.inference_context():
                 move_aux_to_gpu('prompt_enhance')
                 gen_kwargs = {
                     'do_sample': sample,
                     'temperature': float(temperature),
-                    'max_new_tokens': int(tokens),
+                    'max_new_tokens': int(max_tokens),
                     'repetition_penalty': float(penalty),
                 }
+                if min_tokens > 0:
+                    gen_kwargs['min_new_tokens'] = int(min_tokens)
                 if top_k > 0:
                     gen_kwargs['top_k'] = int(top_k)
                 if top_p > 0:
                     gen_kwargs['top_p'] = float(top_p)
+
+                logits_processor = None
+                if process_words is not None and len(process_words.strip()) > 0 and self.tokenizer is not None:
+                    logits_processor = LogitsParser(self.tokenizer, process_words, semantic_threshold=semantic_threshold, embedding_similarity=embedding_similarity)
+                    gen_kwargs['logits_processor'] = [logits_processor]
+
+                custom = self.get_custom_args(custom_args)
+                for k, v in custom.items():
+                    gen_kwargs[k] = v
+
+                log.debug(f'Prompt enhance: cls={self.llm.__class__.__name__} model="{model}" tokens={input_len} args={gen_kwargs} custom={custom}')
+                defaults = {k: v for k, v in self.get_default_args().items() if k not in gen_kwargs}
+                log.debug(f'Prompt enhance: defaults={defaults}')
+
                 outputs = self.llm.generate(**inputs, **gen_kwargs)
+
+                if logits_processor is not None:
+                    log.debug(f'Prompt enhance: process={logits_processor.get_replacements()}')
+
             outputs_cropped = outputs[:, input_len:]
-            response = self.tokenizer.batch_decode(
+            decode_fn = self.processor if self.processor is not None else self.tokenizer
+            response = decode_fn.batch_decode(
                 outputs_cropped,
                 skip_special_tokens=True,
                 clean_up_tokenization_spaces=True,
@@ -810,7 +886,7 @@ class PromptEnhanceScript(scripts_manager.Script):
         if not is_censored:
             response = self.clean(response, keep_thinking=keep_thinking, prefill_text=prefill_text, keep_prefill=keep_prefill)
             response = self.post(response, prefix, suffix, networks)
-        log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} sample={sample} temperature={temperature} penalty={penalty} thinking={thinking} keep={keep_thinking}:{keep_prefill} prefill="{prefill_text[:20] if prefill_text else None}" tokens={tokens} inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
+        log.info(f'Prompt enhance: model="{model}" nsfw={nsfw} time={t1-t0:.2f} seed={seed} thinking={thinking} keep={keep_thinking}:{keep_prefill} prefill="{prefill_text[:20] if prefill_text else None}" inputs={input_len} outputs={outputs.shape[-1] if isinstance(outputs, torch.Tensor) else 0} prompt={len(prompt_text)} response={len(response)}')
         debug_log(f'Prompt enhance: prompt="{prompt_text}"')
         debug_log(f'Prompt enhance: response_after_clean="{response}"')
         self.busy = False
@@ -819,7 +895,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             return prompt # Return original full prompt on censorship
         return response
 
-    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking):
+    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity):
         response = self.enhance(
             prompt=prompt,
             image=image,
@@ -828,7 +904,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             model=llm_model,
             system=prompt_system,
             sample=do_sample,
-            tokens=max_tokens,
+            min_tokens=min_tokens,
+            max_tokens=max_tokens,
             temperature=temperature,
             penalty=repetition_penalty,
             top_k=top_k,
@@ -839,6 +916,10 @@ class PromptEnhanceScript(scripts_manager.Script):
             prefill=prefill_text,
             keep_prefill=keep_prefill,
             keep_thinking=keep_thinking,
+            custom_args=custom_args,
+            process_words=process_words,
+            semantic_threshold=semantic_threshold,
+            embedding_similarity=embedding_similarity,
         )
         if apply_prompt:
             return [response, response]
@@ -893,11 +974,12 @@ class PromptEnhanceScript(scripts_manager.Script):
                         model_file = gr.Textbox(label='Model file', value=None, interactive=True, elem_id='prompt_enhance_model_file', placeholder='Optional GGUF model file inside GGUF model repo')
                     with gr.Row():
                         custom_btn = gr.Button(value='Load custom model', elem_id='prompt_enhance_custom_load', variant='secondary')
-                        custom_btn.click(fn=self.load, inputs=[model_repo, model_repo, model_gguf, model_type, model_file], outputs=[])
+                        custom_btn.click(fn=self.load, inputs=[model_repo, model_repo, model_gguf, model_type, model_file], outputs=[llm_model])
                         llm_model.change(fn=self.get_custom, inputs=[llm_model], outputs=[model_repo, model_gguf, model_type, model_file])
                         gr.HTML('<br>')
                 with gr.Accordion('Options', open=False, elem_id='prompt_enhance_options'):
                     with gr.Row():
+                        min_tokens = gr.Slider(label='Min tokens', value=self.options.min_tokens, minimum=0, maximum=4096, step=1, interactive=True)
                         max_tokens = gr.Slider(label='Max tokens', value=self.options.max_tokens, minimum=10, maximum=4096, step=1, interactive=True)
                         do_sample = gr.Checkbox(label='Use samplers', value=self.options.do_sample, interactive=True)
                     with gr.Row():
@@ -913,6 +995,8 @@ class PromptEnhanceScript(scripts_manager.Script):
                         keep_thinking = gr.Checkbox(label='Keep Thinking Trace', value=False, interactive=True)
                         keep_prefill = gr.Checkbox(label='Keep Prefill', value=False, interactive=True)
                     with gr.Row():
+                        custom_args = gr.Textbox(label='Custom arguments', value='', placeholder='Optional: custom arguments for the model as k=v, semicolon delimited', interactive=True, lines=1)
+                    with gr.Row():
                         prefill_text = gr.Textbox(label='Prefill text', value='', placeholder='Optional: pre-fill start of model response', interactive=True, lines=1)
                     gr.HTML('<br>')
                 with gr.Accordion('Input', open=False, elem_id='prompt_enhance_system_prompt'): # Corrected elem_id reference
@@ -922,6 +1006,12 @@ class PromptEnhanceScript(scripts_manager.Script):
                         prompt_suffix = gr.Textbox(label='Prompt suffix', value='', placeholder='Text appended to the enhanced result', interactive=True, lines=2, elem_id='prompt_enhance_suffix')
                     with gr.Row():
                         prompt_system = gr.Textbox(label='System prompt', value='', placeholder='Leave empty to use built-in enhancement instructions', interactive=True, lines=4, elem_id='prompt_enhance_system')
+                with gr.Accordion('Process', open=False, elem_id='prompt_enhance_logits'): # Corrected elem_id reference
+                    with gr.Row():
+                        process_words = gr.Textbox(label='Words to process', value='', placeholder='list of words with optional substitutions', interactive=True, lines=3, elem_id='prompt_enhance_process_words')
+                    with gr.Row():
+                        semantic_threshold = gr.Slider(label='Semantic threshold', value=0.0, minimum=0.0, maximum=1.0, step=0.01, interactive=True, elem_id='prompt_enhance_semantic_threshold')
+                        embedding_similarity = gr.Slider(label='Embedding similarity', value=0.0, minimum=0.0, maximum=1.0, step=0.01, interactive=True, elem_id='prompt_enhance_embedding_similarity')
                 with gr.Accordion('Output', open=True, elem_id='prompt_enhance_output'): # Corrected elem_id reference
                     with gr.Row():
                         prompt_output = gr.Textbox(label='Enhanced prompt', value='', placeholder='Enhanced prompt will appear here', interactive=True, lines=4, max_lines=12, elem_id='prompt_enhance_result')
@@ -936,8 +1026,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             # Update vision toggle interactivity when model changes
             llm_model.change(fn=self.update_vision_toggle, inputs=[llm_model], outputs=[use_vision], show_progress=False)
             if self.prompt:
-                apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking], outputs=[prompt_output, self.prompt])
-        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking]
+                apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens,max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity], outputs=[prompt_output, self.prompt])
+        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity]
 
     def after_component(self, component, **_kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
@@ -948,7 +1038,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.image.use_original = True
 
     def before_process(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=unused-argument
-        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking = args
+        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking = args
         if not apply_auto and not p.enhance_prompt:
             return
         if shared.state.skipped or shared.state.interrupted:
@@ -969,7 +1059,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             model=llm_model,
             system=prompt_system,
             sample=do_sample,
-            tokens=max_tokens,
+            min_tokens=min_tokens,
+            max_tokens=max_tokens,
             temperature=temperature,
             penalty=repetition_penalty,
             top_k=top_k,

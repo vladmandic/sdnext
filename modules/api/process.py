@@ -155,7 +155,8 @@ class APIProcess:
                 prefix=req.prefix,
                 suffix=req.suffix,
                 sample=req.do_sample,
-                tokens=req.max_tokens,
+                min_tokens=req.min_tokens,
+                max_tokens=req.max_tokens,
                 temperature=req.temperature,
                 penalty=req.repetition_penalty,
                 top_k=req.top_k,
@@ -168,6 +169,10 @@ class APIProcess:
                 image=decode_base64_to_image(req.image) if req.image else None,
                 seed=seed,
                 nsfw=req.nsfw,
+                custom_args=req.custom_args,
+                process_words=req.process_words,
+                semantic_threshold=req.semantic_threshold,
+                embedding_similarity=req.embedding_similarity,
             )
         elif req.type == 'video':
             from modules.ui_video_vlm import enhance_prompt

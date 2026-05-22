@@ -359,6 +359,7 @@ class ReqPromptEnhance(BaseModel):
     prefix: Optional[str] = Field(title="Prefix", default=None, description="Text prepended to enhanced prompt")
     suffix: Optional[str] = Field(title="Suffix", default=None, description="Text appended to enhanced prompt")
     do_sample: Optional[bool] = Field(title="Sample", default=None, description="Enable sampling")
+    min_tokens: Optional[int] = Field(title="Min tokens", default=None, description="Min generation tokens")
     max_tokens: Optional[int] = Field(title="Max tokens", default=None, description="Max generation tokens")
     temperature: Optional[float] = Field(title="Temperature", default=None, description="Controls randomness in token selection (0=deterministic, higher=more creative)")
     repetition_penalty: Optional[float] = Field(title="Repetition penalty", default=None, description="Penalizes repeated tokens to reduce repetition (1.0=no penalty)")
@@ -369,6 +370,10 @@ class ReqPromptEnhance(BaseModel):
     use_vision: bool = Field(title="Use vision", default=True, description="Use vision if model supports it")
     prefill: Optional[str] = Field(title="Prefill", default=None, description="Text to prefill the model response with")
     keep_prefill: bool = Field(title="Keep prefill", default=False, description="Keep prefill text in the output")
+    custom_args: Optional[str] = Field(title="Custom args", default=None, description="Custom arguments for the model")
+    process_words: Optional[str] = Field(title="Banned words", default=None, description="List of words to process")
+    semantic_threshold: Optional[float] = Field(title="Semantic threshold", default=None, description="Semantic similarity threshold for processed words")
+    embedding_similarity: Optional[float] = Field(title="Embedding similarity", default=None, description="Embedding similarity threshold for processed words")
 
 class ResPromptEnhance(BaseModel):
     prompt: str = Field(title="Prompt", description="Enhanced prompt")

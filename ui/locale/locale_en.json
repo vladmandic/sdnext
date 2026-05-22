@@ -478,6 +478,8 @@
     {"id":"","label":"Extra noise multiplier for img2img","localized":"","hint":"","ui":"settings_legacy_options"},
     {"id":"","label":"Embeddings train templates directory","localized":"","hint":"","ui":"settings_legacy_options"},
     {"id":"","label":"Enable Hypernetwork support","localized":"","hint":"","ui":"settings_legacy_options"},
+    {"id":"","label":"Embedding similarity","localized":"","hint":"When words to process are present, the model will search for words with similar meaning and match them as well. Higher values make the filter more strict, requiring a closer match between words. Lower values allow more leniency. Default is disabled.","ui":"settings_legacy_options"},
+    {"id":"","label":"Enable embedding similarity","localized":"","hint":"When enabled, the model will attempt to match the style and content of the input image by comparing its embeddings to those of the generated image. This can help maintain consistency in style and content across generations.","ui":"settings_legacy_options"},
     {"id":"","label":"Enable tensorboard logging","localized":"","hint":"","ui":"settings_legacy_options"}
   ],
   "f": [
@@ -1434,6 +1436,7 @@
     {"id":"","label":"Search models","localized":"","hint":"","ui":"models_huggingface_tab"},
     {"id":"","label":"Select model","localized":"","hint":"","ui":"models_huggingface_tab"},
     {"id":"","label":"Specify model variant","localized":"","hint":"","ui":"models_huggingface_tab"},
+    {"id":"","label":"Semantic threshold","localized":"","hint":"Semantic threshold for text similarity filtering when process words are present. Higher values make the filter more strict, requiring a closer match between. Lower values allow more leniency. Default is disabled.","ui":"settings_text_encoder"},
     {"id":"","label":"Specify model revision","localized":"","hint":"","ui":"models_huggingface_tab"},
     {"id":"","label":"SegmentAnything","localized":"","hint":"","ui":"control"},
     {"id":"","label":"Sections","localized":"","hint":"","ui":"video"},
@@ -1638,6 +1641,7 @@
     {"id":"","label":"Width mask","localized":"","hint":"Target width of the input <b>mask</b> image in pixels (Mask sub-tab in the Size accordion). The mask is used for inpainting, outpainting, or as a control mask, and is resized so it aligns with the processing resolution.<br><br>Should be a multiple of 8 for <i>SD1.x</i> and <i>SDXL</i> latents; newer architectures (<i>Flux</i>, <i>SD3</i>, video models) may require higher multiples (16, 32, or 64). Values that don't match are automatically floored to the nearest valid multiple for the loaded model.","ui":"control"},
     {"id":"","label":"WebP lossless compression","localized":"","hint":"","ui":"settings_saving-images"},
     {"id":"","label":"wavelet","localized":"","hint":"","ui":"settings_postprocessing"},
+    {"id":"","label":"Words to process","localized":"","hint":"List of newline, comma or semicolon separated words to process, each item can be a single word or a pair word:replacement in which case the model will be steered away from the word and towards the replacement","ui":"settings_postprocessing"},
     {"id":"","label":"Weights clip","localized":"","hint":"Forced merged weights to be no heavier than the original model, preventing burn in and overly saturated models","ui":"models_merge_tab"}
   ],
   "x": [

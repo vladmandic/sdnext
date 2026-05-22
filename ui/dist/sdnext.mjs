@@ -16411,7 +16411,7 @@ function keyupEditAttention(event2) {
   function selectCurrentWord() {
     if (selectionStart !== selectionEnd) return false;
     const delimiters = `${window.opts.keyedit_delimiters} \r
-	`;
+  `;
     while (!delimiters.includes(text[selectionStart - 1]) && selectionStart > 0) selectionStart--;
     while (!delimiters.includes(text[selectionEnd]) && selectionEnd < text.length) selectionEnd++;
     target.setSelectionRange(selectionStart, selectionEnd);

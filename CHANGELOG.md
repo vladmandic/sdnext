@@ -1,20 +1,20 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-21
+## Update for 2026-05-22
 
-### Highlights for 2026-05-21
+### Highlights for 2026-05-22
 
 *What's New?*
 - **Anima** made it to release version
 - **SDNQ** new quantization algorithm with even higher quality
+- New **image analysis** feature and much improved **prompt enhance** capabilities which allow steering the model in real-time
 - Improved image metadata options
-- New image analysis feature
 
 And we have new [Contibuting** & **Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
 
 Plus continued work on modernization of codebase: UI is now fully TypeScript based and new modular LoRA loader
 
-### Details for 2026-05-21
+### Details for 2026-05-22
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -23,8 +23,19 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - **SDNQ** new quantization algorithm: *Hadamard Rotations*  
     much higher quality than base SDNQ, but runs slightly slower  
     still faster than SVD and can be combined together with SVD for combined benefits  
-  - **Metadata**
-    add *wildcards* (if used) info to image metadata  
+  - **Prompt enhance** tons of features  
+    cleanup list of predefined models, new models added and some old removed  
+    improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
+    improved system prompts  
+    new processing engine! now you can steer the model as its generating  
+    add words to list and model will either steer away from them towards safe choices or you choose specific replacements for them  
+    *for example*: `child:person, toy:airplane, dog:cat`  
+    will do exactly as you'd expect, steer away from first word towards (optional) second word  
+    and it expands the functionality with customizable embedding similarity:
+    *for example*, `child` can match `kid`, `girl`, `boy`  
+    and it expands the functionality with customizable semantic matching:
+    *for example*, `young ...` will match before next word appears in the prompt and steer away from it towards desired choices  
+  - add *wildcards* (if used) info to image metadata  
     if wildcards or styles modify prompt, add original prompt to image metadata as *template*  
   - **Captioning** new feature: analyze existing images for prompt adherence  
     *tip*: image analysis requires larger VLM model to produce quality output  
@@ -72,6 +83,7 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - `kanvas` enable toolbar on *send-to* action
   - `hf download` model card lookup
   - `ltx video` padding logic
+  - `prompt enhance` custom model loader
 
 ## Update for 2026-05-13
 

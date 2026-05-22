@@ -44,7 +44,7 @@ def path_to_repo(checkpoint_info):
     repo_orig = repo_id
     repo_id = repo_id.replace('\\', '/')
 
-    remove_prefix = ['Diffusers', 'huggingface', 'models--']
+    remove_prefix = ['Diffusers', 'huggingface', 'models--', 'https://huggingface.co/', 'http://huggingface.co/']
     for opt in [shared.opts.ckpt_dir, shared.opts.diffusers_dir, shared.opts.hfcache_dir]:
         remove_prefix.append(opt.replace('\\', '/'))
         try:
