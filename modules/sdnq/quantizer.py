@@ -181,7 +181,6 @@ def sdnq_quantize_layer_weight(weight, layer_class_name=None, weights_dtype="int
         else:
             group_size = -1
 
-
     cast_scale = True
     transpose_weights = False
     re_quantize_for_matmul = re_quantize_for_matmul or num_of_groups > 1
@@ -434,6 +433,7 @@ def sdnq_post_load_quant(
 ):
     quantization_config = SDNQConfig(
         weights_dtype=weights_dtype,
+        quantized_matmul_dtype=quantized_matmul_dtype,
         hadamard_group_size=hadamard_group_size,
         group_size=group_size,
         svd_rank=svd_rank,
