@@ -1,3 +1,5 @@
+# pylint: disable=redefined-builtin
+
 import math
 import torch
 
@@ -93,7 +95,7 @@ def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.devic
 HADAMARD_MATRIX_CACHE = {}
 @devices.inference_context()
 def get_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
-    global HADAMARD_MATRIX_CACHE
+    global HADAMARD_MATRIX_CACHE # pylint: disable=global-variable-not-assigned
     device = devices.normalize_device(device)
     if HADAMARD_MATRIX_CACHE.get(n, None) is None:
         HADAMARD_MATRIX_CACHE[n] = {}

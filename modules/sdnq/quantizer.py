@@ -515,10 +515,10 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
 
     def check_if_quantized_param(
         self,
-        model,
-        param_value: "torch.Tensor",
+        model: torch.nn.Module,
+        param_value: torch.Tensor, # pylint: disable=unused-argument
         param_name: str,
-        *args, **kwargs, # pylint: disable=unused-argument,keyword-arg-before-vararg
+        *args, **kwargs, # pylint: disable=unused-argument
     ):
         if self.pre_quantized:
             layer, _tensor_name = get_module_from_name(model, param_name)
@@ -554,7 +554,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     @devices.inference_context()
     def create_quantized_param( # pylint: disable=arguments-differ
         self,
-        model,
+        model: torch.nn.Module,
         param_value: torch.FloatTensor,
         param_name: str,
         target_device: torch.device,
@@ -605,7 +605,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             param_value = param_value.to(target_device, non_blocking=self.quantization_config.non_blocking).to(dtype=torch.float32 if param_value.dtype != torch.float64 else torch.float64)
 
         layer.weight = torch.nn.Parameter(param_value, requires_grad=False)
-        layer, self.quantization_config = sdnq_quantize_layer(layer, self.quantization_config, torch_dtype=torch_dtype, param_name=param_name, quant_kwargs=quant_kwargs)
+        layer, self.quantization_config = sdnq_quantize_layer(layer, self.quantization_config, torch_dtype=torch_dtype, param_name=param_name, quant_kwargs=quant_kwargs) # pylint: disable=attribute-defined-outside-init
 
         parent_module, tensor_name = get_module_from_name(model, param_name.removesuffix(tensor_name).removesuffix("."))
         setattr(parent_module, tensor_name, layer)
@@ -622,7 +622,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
 
     def _process_model_before_weight_loading( # pylint: disable=arguments-differ
         self,
-        model,
+        model: torch.nn.Module,
         device_map, # pylint: disable=unused-argument
         keep_in_fp32_modules: list[str] | None = None,
         **kwargs, # pylint: disable=unused-argument
@@ -641,7 +641,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                 self.quantization_config.modules_to_not_convert.extend(keep_in_fp32_modules)
             if hasattr(self, "get_modules_to_not_convert") and hasattr(model, "tie_weights"):
                 self.quantization_config.modules_to_not_convert.extend(self.get_modules_to_not_convert(model, add_default_skips=True))
-            model, self.quantization_config = add_module_skip_keys(model, self.quantization_config)
+            model, self.quantization_config = add_module_skip_keys(model, self.quantization_config) # pylint: disable=attribute-defined-outside-init
 
 
     def _process_model_after_weight_loading(self, model, **kwargs): # pylint: disable=unused-argument

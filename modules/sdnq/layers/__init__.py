@@ -20,7 +20,7 @@ class SDNQLayer(torch.nn.Module):
         elif hasattr(self, "sdnq_dequantizer"):
             self.weight = torch.nn.Parameter(self.sdnq_dequantizer(self.weight, self.scale, zero_point=self.zero_point, svd_up=self.svd_up, svd_down=self.svd_down, skip_quantized_matmul=self.sdnq_dequantizer.use_quantized_matmul), requires_grad=True) # pylint: disable=attribute-defined-outside-init
             del self.sdnq_dequantizer, self.scale, self.zero_point, self.svd_up, self.svd_down
-        self.__class__ = self.original_class
+        self.__class__ = self.original_class # pylint: disable=attribute-defined-outside-init
         del self.original_class, self.forward_func
         return self
 
