@@ -197,3 +197,5 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
 
 window.checkPaused = checkPaused;
 window.requestInterrupt = requestInterrupt;
+window.randomId = randomId;
+window.requestProgress = requestProgress;

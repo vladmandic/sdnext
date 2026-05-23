@@ -11123,6 +11123,8 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
 }
 window.checkPaused = checkPaused;
 window.requestInterrupt = requestInterrupt;
+window.randomId = randomId;
+window.requestProgress = requestProgress;
 
 // ui/ui.ts
 window.opts = {};
@@ -11754,6 +11756,7 @@ window.getDesiredCheckpointName = getDesiredCheckpointName;
 window.currentImageResolutionimg2img = currentImageResolutionimg2img;
 window.currentImageResolutioncontrol = currentImageResolutioncontrol;
 window.updateImg2imgResizeToTextAfterChangingImage = updateImg2imgResizeToTextAfterChangingImage;
+window.create_submit_args = create_submit_args;
 
 // ui/inputAccordion.ts
 function inputAccordionChecked(id, checked) {
@@ -15555,6 +15558,8 @@ var contextMenuInit = () => {
       if (index >= 0) v.splice(index, 1);
     });
   }
+  window.appendContextMenuOption = appendContextMenuOption2;
+  window.removeContextMenuOption = removeContextMenuOption2;
   async function addContextMenuEventListener2() {
     if (eventListenerApplied) return;
     log("initContextMenu");
@@ -16452,7 +16457,7 @@ function keyupEditAttention(event2) {
   function selectCurrentWord() {
     if (selectionStart !== selectionEnd) return false;
     const delimiters = `${window.opts.keyedit_delimiters} \r
-	`;
+  `;
     while (!delimiters.includes(text[selectionStart - 1]) && selectionStart > 0) selectionStart--;
     while (!delimiters.includes(text[selectionEnd]) && selectionEnd < text.length) selectionEnd++;
     target.setSelectionRange(selectionStart, selectionEnd);

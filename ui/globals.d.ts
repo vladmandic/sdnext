@@ -74,6 +74,7 @@ declare global {
     recalculate_prompts_inpaint?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     recalculate_prompts_control?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     consumeDesiredCheckpointName?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    create_submit_args?: (args: unknown[]) => unknown[]; // ui/ui.ts
     selectCheckpoint?: (name: string) => void; // ui/ui.ts
     selectVAE?: (name: string) => void; // ui/ui.ts
     selectUNet?: (name: string) => void; // ui/ui.ts
@@ -122,6 +123,8 @@ declare global {
     xhrPost?: (url: string, data: unknown, handler?: (json: unknown) => void, errorHandler?: (xhrObj: XMLHttpRequest) => void, ignore?: boolean, serverTimeout?: number) => void; // ui/logger.ts
     checkPaused?: (state?: boolean) => void; // ui/progressBar.ts
     requestInterrupt?: () => void; // ui/progressBar.ts
+    randomId?: () => string; // ui/progressBar.ts
+    requestProgress?: (id_task?: string, progressEl?: HTMLElement | null, galleryEl?: HTMLElement | null, atEnd?: (() => void) | null, onProgress?: ((progress: unknown) => void) | null, once?: boolean) => void; // ui/progressBar.ts
     deleteFile?: (filename: string) => Promise<void>; // ui/script.ts
     gradioApp: () => Document | Element | ShadowRoot; // ui/script.ts
     onAfterUiUpdate?: (callback: () => void) => void; // ui/script.ts
@@ -132,7 +135,8 @@ declare global {
     onUiUpdate?: (callback: () => void) => void; // ui/script.ts
     timer?: (name: string, elapsed: number) => Promise<void>; // ui/timers.ts
     markIfModified?: (setting_name: string, value: unknown) => void; // ui/settings.ts
-    waitForUiReady?: () => Promise<void>; // extensions-builtin/sdnext-modernui/src/index.ts
+    appendContextMenuOption?: (targetElementSelector: string, entryName: string, entryFunction: () => void, primary?: boolean) => string; // ui/contextMenus.ts
+    removeContextMenuOption?: (id: string) => void; // ui/contextMenus.ts
 
     // legacy module
     Hash?: any; // ui/js/sha256.ts
@@ -144,6 +148,7 @@ declare global {
     logger?: HTMLElement; // extensions-builtin/sdnext-modernui/src/logger.ts
     setupLogger?: () => Promise<void>; // extensions-builtin/sdnext-modernui/src/logger.ts
     logPrettyPrint?: (...args: unknown[]) => string; // extensions-builtin/sdnext-modernui/src/logger.ts
+    waitForUiReady?: () => Promise<void>; // extensions-builtin/sdnext-modernui/src/index.ts
 
     // kanvas
     Kanvas?: new (containerId: string, opts?: { width?: number; height?: number }) => {

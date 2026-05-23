@@ -70,6 +70,9 @@ const contextMenuInit = () => {
     });
   }
 
+  window.appendContextMenuOption = appendContextMenuOption;
+  window.removeContextMenuOption = removeContextMenuOption;
+
   async function addContextMenuEventListener(): Promise<void> {
     if (eventListenerApplied) return;
     log('initContextMenu');

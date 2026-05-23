@@ -12,7 +12,7 @@ applyTo: "launch.py, webui.py, installer.py, modules/**/*.py, pipelines/**/*.py,
 5. Keep extension and script loading resilient: when adding startup scans/hooks, preserve partial-failure tolerance and logging.
 6. Follow existing API/server patterns under `modules/api/` and reuse shared queue/state helpers rather than ad-hoc request handling.
 7. Reuse established model-loading and pipeline patterns (`modules/sd_*`, `pipelines/`) instead of creating parallel abstractions.
-8. For substantial Python changes, run at least relevant checks: `npm run ruff` and `npm run pylint` (or narrower equivalents when appropriate).
+8. For substantial Python changes, run at least relevant checks: `pnpm run ruff` and `pnpm run pylint` (or narrower equivalents when appropriate).
 
 ## Build And Test
 

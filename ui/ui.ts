@@ -253,7 +253,7 @@ function get_img2img_tab_index(...args) {
   return res;
 }
 
-function create_submit_args(args) {
+export function create_submit_args(args) {
   const res = Array.from<any>(args);
   if (Array.isArray(res[res.length - 3])) res[res.length - 3] = null;
   return res;
@@ -844,3 +844,4 @@ window.getDesiredCheckpointName = getDesiredCheckpointName;
 window.currentImageResolutionimg2img = currentImageResolutionimg2img;
 window.currentImageResolutioncontrol = currentImageResolutioncontrol;
 window.updateImg2imgResizeToTextAfterChangingImage = updateImg2imgResizeToTextAfterChangingImage;
+window.create_submit_args = create_submit_args;

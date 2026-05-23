@@ -35,7 +35,7 @@ def html_head():
         if '.esm' in script.filename or '.mjs' in script.filename:
             head += f'<script type="module" src="{webpath(script.path)}"></script>\n'
         else:
-            head += f'<script type="text/javascript" src="{webpath(script.path)}"></script>\n'
+            head += f'<script type="text/javascript" defer src="{webpath(script.path)}"></script>\n'
         added.append(script.path)
     for script in scripts_manager.list_scripts('javascript', ".mjs"):
         head += f'<script type="module" src="{webpath(script.path)}"></script>\n'

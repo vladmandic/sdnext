@@ -158,7 +158,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ## Code TODO
 
-> npm run todo
+> pnpm run todo
 
 ```code
 installer.py:652:15: W0511: TODO rocm: switch to pytorch source when it becomes available (fixme)

@@ -14,7 +14,7 @@ If rules conflict, prioritize earlier rules over later ones unless explicitly st
 3. Keep localization-friendly UI text changes synchronized with locale resources in `ui/locale/locale_*.json` when user-facing strings are added or changed. For dynamically generated UI text, ensure that localization keys are pre-defined and referenced appropriately in the codebase.
 4. Avoid combining visual changes that do not directly support the functional fixes being implemented; ensure UI PRs are scoped to a single purpose and remain reviewable.
 5. For extension UI work, respect each extension's boundaries and avoid cross-extension coupling.
-6. Validate TypeScript and JavaScript changes with `npm run eslint` and `npm run tsc` from the repository root, or the equivalent extension-level command when working inside an extension.
+6. Validate TypeScript and JavaScript changes with `pnpm run eslint` and `pnpm run tsc` from the repository root, or the equivalent extension-level command when working inside an extension.
 7. Maintain mobile compatibility when touching layout or interaction behavior.
 
 ## UI code locations
@@ -31,37 +31,41 @@ If rules conflict, prioritize earlier rules over later ones unless explicitly st
 
 ## Build and development commands
 
+Ensure `pnpm` is installed:
+
+- `npm install -g pnpm`
+
 Install dependencies from the repository root:
 
-- `npm install`
+- `pnpm install`
 
 Build UI components:
 
-- `npm run build:core` - build the core UI
-- `npm run build:modernui` - build ModernUI
-- `npm run build:kanvas` - build Kanvas
-- `npm run build` - build all UI components
+- `pnpm run build:core` - build the core UI
+- `pnpm run build:modernui` - build ModernUI
+- `pnpm run build:kanvas` - build Kanvas
+- `pnpm run build` - build all UI components
 
 Run development builds with watch mode:
 
-- `npm run dev:core` - development build for core UI
-- `npm run dev:modernui` - development build for ModernUI
-- `npm run dev:kanvas` - development build for Kanvas
+- `pnpm run dev:core` - development build for core UI
+- `pnpm run dev:modernui` - development build for ModernUI
+- `pnpm run dev:kanvas` - development build for Kanvas
 
 ## Lint and validation
 
 UI checks are required for all frontend contributions:
 
-- `npm run eslint:core` - lint core UI files
-- `npm run eslint:modernui` - lint ModernUI files
-- `npm run eslint:kanvas` - lint Kanvas files
-- `npm run eslint` - lint all UI code
-- `npm run tsc:core` - type-check core UI files
-- `npm run tsc:modernui` - type-check ModernUI files
-- `npm run tsc:kanvas` - type-check Kanvas files
-- `npm run tsc` - type-check all UI code
-- `npm run precommit` - run pre-commit checks across the repository
-- `npm run ui` - run full UI lint/type/build sequence
+- `pnpm run eslint:core` - lint core UI files
+- `pnpm run eslint:modernui` - lint ModernUI files
+- `pnpm run eslint:kanvas` - lint Kanvas files
+- `pnpm run eslint` - lint all UI code
+- `pnpm run tsc:core` - type-check core UI files
+- `pnpm run tsc:modernui` - type-check ModernUI files
+- `pnpm run tsc:kanvas` - type-check Kanvas files
+- `pnpm run tsc` - type-check all UI code
+- `pnpm run precommit` - run pre-commit checks across the repository
+- `pnpm run ui` - run full UI lint/type/build sequence
 
 ## Notes
 
