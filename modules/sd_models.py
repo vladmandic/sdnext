@@ -486,6 +486,10 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
             from pipelines.model_hunyuandit import load_hunyuandit
             sd_model = load_hunyuandit(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['Lens']:
+            from pipelines.model_lens import load_lens
+            sd_model = load_lens(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Kandinsky 2.1']:
             from pipelines.model_kandinsky import load_kandinsky21
             sd_model = load_kandinsky21(checkpoint_info, diffusers_load_config)

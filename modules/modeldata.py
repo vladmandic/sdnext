@@ -94,6 +94,8 @@ def get_model_type(pipe):
         model_type = 'kolors'
     elif 'Meissonic' in name:
         model_type = 'meissonic'
+    elif 'LensPipeline' in name:
+        model_type = 'lens'
     elif 'Qwen' in name:
         model_type = 'qwen'
     elif 'ErnieImage' in name or 'ERNIE-Image' in name:

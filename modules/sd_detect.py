@@ -99,6 +99,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'FLUX2 Klein'
     elif 'flux.2' in fn.lower():
         new_guess = 'FLUX2'
+    elif 'lens' in fn.lower():
+        new_guess = 'Lens'
     elif 'ultraflux' in fn.lower():
         new_guess = 'UltraFlux'
     elif 'flux' in fn.lower() or 'flex.1' in fn.lower():

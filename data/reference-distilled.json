@@ -28,6 +28,15 @@
     "tags": "distilled",
     "extras": "sampler: Default, cfg_scale: 7.0"
   },
+  "Microsoft Lens Turbo": {
+    "path": "microsoft/Lens-Turbo",
+    "preview": "microsoft--Lens-Turbo.jpg",
+    "desc": "Microsoft Lens-Turbo is the distilled Lens variant optimized for faster text-to-image generation with fewer steps.",
+    "skip": true,
+    "tags": "distilled",
+    "size": 30.53,
+    "date": "2026 May"
+  },
   "Tencent FLUX.1 Dev SRPO": {
     "path": "vladmandic/flux.1-dev-SRPO",
     "preview": "vladmandic--flux.1-dev-SRPO.jpg",

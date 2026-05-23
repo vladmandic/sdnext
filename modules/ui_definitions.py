@@ -113,6 +113,8 @@ def create_settings(cmd_opts):
         "model_qwen_layers": OptionInfo(2, "Qwen layered number of layers", gr.Slider, {"minimum": 2, "maximum": 9, "step": 1 }),
         "model_ernie_sep": OptionInfo("<h2>ERNIE-Image</h2>", "", gr.HTML),
         "model_ernie_enable_pe": OptionInfo(False, "Enable prompt-enhance"),
+        "model_lens_sep": OptionInfo("<h2>Lens</h2>", "", gr.HTML),
+        "model_lens_enable_pe": OptionInfo(False, "Enable prompt-enhance"),
     }))
 
     # --- Model Offloading ---

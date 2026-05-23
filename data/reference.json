@@ -38,6 +38,22 @@
     "size": 6.94,
     "date": "2023 July"
   },
+  "Microsoft Lens": {
+    "path": "microsoft/Lens",
+    "preview": "microsoft--Lens.jpg",
+    "desc": "Microsoft Lens is a text-to-image DiT model using GPT-OSS chat-style prompt encoding and Flux2 VAE decoding.",
+    "skip": true,
+    "size": 30.53,
+    "date": "2026 May"
+  },
+  "Microsoft Lens Base": {
+    "path": "microsoft/Lens-Base",
+    "preview": "microsoft--Lens-Base.jpg",
+    "desc": "Microsoft Lens-Base is the base variant of Lens for text-to-image generation with GPT-OSS prompt features.",
+    "skip": true,
+    "size": 30.53,
+    "date": "2026 May"
+  },
   "StabilityAI Stable Cascade": {
     "path": "huggingface/stabilityai/stable-cascade",
     "skip": true,

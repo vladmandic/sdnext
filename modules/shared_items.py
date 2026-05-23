@@ -54,6 +54,7 @@ pipelines = {
     'ERNIE-Image': getattr(diffusers, 'ErnieImagePipeline', None),
     'Nucleus-Image': getattr(diffusers, 'NucleusMoEImagePipeline', None),
     'Z-Image': getattr(diffusers, 'ZImagePipeline', None),
+    'Lens': getattr(diffusers, 'LensPipeline', None),
     'FLUX2': getattr(diffusers, 'Flux2Pipeline', None),
     'FLUX2 Klein': getattr(diffusers, 'Flux2KleinPipeline', None),
     'LongCat': getattr(diffusers, 'LongCatImagePipeline', None),
@@ -142,6 +143,12 @@ def get_pipelines():
             log.error(f'ONNX initialization error: {e}')
             onnx_pipelines = {}
         pipelines.update(onnx_pipelines)
+    if 'Lens' in pipelines and pipelines['Lens'] is None:
+        try:
+            import pipelines.lens as _lens
+            pipelines['Lens'] = getattr(diffusers, 'LensPipeline', None)
+        except Exception:
+            pass
     for k, v in pipelines.items():
         if k != 'Autodetect' and v is None:
             from modules.logger import log
@@ -158,6 +165,8 @@ def get_repo(model):
         return 'stabilityai/stable-diffusion-3.5-medium'
     elif model == 'FluxPipeline' or model == 'FLUX':
         return 'black-forest-labs/FLUX.1-dev'
+    elif model == 'LensPipeline' or model == 'Lens':
+        return 'microsoft/Lens'
     else:
         return None
 

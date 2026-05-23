@@ -1,11 +1,11 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-22
+## Update for 2026-05-23
 
-### Highlights for 2026-05-22
+### Highlights for 2026-05-23
 
 *What's New?*
-- **Anima** made it to release version
+- **Anima** made it to release version, Microsoft joins the game with **Lens**
 - **SDNQ** new quantization algorithm with even higher quality
 - New **image analysis** feature and much improved **prompt enhance** capabilities which allow steering the model in real-time
 - Improved image metadata options
@@ -14,11 +14,15 @@ And we have new [Contibuting** & **Development](https://vladmandic.github.io/sdn
 
 Plus continued work on modernization of codebase: UI is now fully TypeScript based and new modular LoRA loader
 
-### Details for 2026-05-22
+### Details for 2026-05-23
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
     in both original precision and SDNQ-4bit quantiztion  
+  - [Microsoft Lens](https://huggingface.co/microsoft/Lens) in *Standard*, *Base* and *Turbo* (distilled) variant  
+    3.8B text-to-image DiT model with 12B GPT-OSS text-encoding and Flux2 VAE  
+    oh, that 12B encoder is MoE with 3.6B activated plus its prequantized using `mxfp4`  
+    *note* Lens comes with its own prompt-refiner, enable in settings -> model options (disabled by default)  
 - **Features**
   - **SDNQ** new quantization algorithm: *Hadamard Rotations*  
     much higher quality than base SDNQ, but runs slightly slower  
