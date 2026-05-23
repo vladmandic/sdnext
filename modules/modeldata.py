@@ -157,6 +157,8 @@ class ModelData:
     def __init__(self):
         self.sd_model: DiffusionPipeline | None = None
         self.sd_refiner: DiffusionPipeline | None = None
+        self.sd_model_name = ''
+        self.sd_refiner_name = ''
         self.sd_dict = 'None'
         self.initial = True
         self.locked = True
@@ -173,6 +175,7 @@ class ModelData:
                 try:
                     from modules.sd_models import reload_model_weights
                     self.sd_model = reload_model_weights(op='model') # note: reload_model_weights directly updates model_data.sd_model and returns it at the end
+                    self.sd_model_name = shared.opts.sd_model_checkpoint
                     self.initial = False
                 except Exception as e:
                     log.error("Failed to load stable diffusion model")
@@ -190,6 +193,7 @@ class ModelData:
                 try:
                     from modules.sd_models import reload_model_weights
                     self.sd_refiner = reload_model_weights(op='refiner')
+                    self.sd_refiner_name = shared.opts.sd_model_refiner
                     self.initial = False
                 except Exception as e:
                     log.error("Failed to load stable diffusion model")
@@ -247,6 +251,10 @@ class Shared(sys.modules[__name__].__class__):
         return model_type
 
     @property
+    def sd_model_name(self):
+        return model_data.sd_model_name
+
+    @property
     def sd_refiner_type(self):
         try:
             if model_data.sd_refiner is None:
@@ -256,6 +264,10 @@ class Shared(sys.modules[__name__].__class__):
         except Exception:
             model_type = 'unknown'
         return model_type
+
+    @property
+    def sd_refiner_name(self):
+        return model_data.sd_refiner_name
 
     @property
     def console(self):

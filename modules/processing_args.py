@@ -181,14 +181,23 @@ def get_params(model):
 
 def get_defaults(model, kwargs):
     remove = ['return_dict', 'output_type', 'num_images_per_prompt', 'callback', 'callback_on_step_end_tensor_inputs']
+    default_cfg = 0
     try:
         signature = inspect.signature(type(model).__call__, follow_wrapped=True)
         defaults = {k: v.default for k, v in signature.parameters.items() if v.default is not inspect.Parameter.empty and v.default is not None} # get all defaults
         defaults = {k: v for k, v in defaults.items() if k not in kwargs} # only log defaults that are not already set by kwargs
         defaults = {k: v for k, v in defaults.items() if k not in remove} # remove common args that are not useful to log
         log.debug(f'Pipeline: cls={model.__class__.__name__} defaults={defaults}')
+        default_cfg = defaults.get('guidance_scale', 0)
     except Exception as e:
         log.error(f'Pipeline defaults: {e}')
+    try:
+        model_name = model.sd_checkpoint_info.name or model.sd_model_checkpoint
+        is_turbo = getattr(getattr(model, 'config', None), 'is_distilled', False) or 'turbo' in model_name.lower()
+        if is_turbo and default_cfg > 1:
+            log.warning(f'Pipeline: cls={model.__class__.__name__} model="{model_name}" type=turbo default guidance={default_cfg}')
+    except Exception:
+        pass
 
 
 def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:list | None=None, negative_prompts_2:list | None=None, prompt_attention:str | None=None, desc:str | None='', **kwargs):
