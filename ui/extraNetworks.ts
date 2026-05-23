@@ -364,7 +364,7 @@ function extraNetworksFilterVersion(event) {
 }
 
 let desiredStyle = '';
-function selectStyle(name) {
+export function selectStyle(name) {
   desiredStyle = name;
   const tabName = getENActiveTab();
   const button = gradioApp().querySelector(`#${tabName}_styles_select`);
@@ -657,3 +657,4 @@ window.sortExtraNetworks = sortExtraNetworks;
 window.refeshDetailsEN = refeshDetailsEN;
 window.extraNetworksSearchButton = extraNetworksSearchButton;
 window.extraNetworksFilterVersion = extraNetworksFilterVersion;
+window.selectStyle = selectStyle;

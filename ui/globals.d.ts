@@ -74,6 +74,10 @@ declare global {
     recalculate_prompts_inpaint?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     recalculate_prompts_control?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     consumeDesiredCheckpointName?: (...args: unknown[]) => unknown[]; // ui/ui.ts
+    selectCheckpoint?: (name: string) => void; // ui/ui.ts
+    selectVAE?: (name: string) => void; // ui/ui.ts
+    selectUNet?: (name: string) => void; // ui/ui.ts
+    selectReference?: (name: string) => void; // ui/ui.ts
     consumeDesiredVAEName?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     consumeDesiredUNetName?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     getDesiredCheckpointName?: () => string | null; // ui/ui.ts
@@ -100,6 +104,7 @@ declare global {
     refeshDetailsEN?: (args?: unknown) => void; // ui/extraNetworks.ts
     showCardDetails?: (event: Event) => void; // ui/extraNetworks.ts
     sortExtraNetworks?: (fixed?: string) => string; // ui/extraNetworks.ts
+    selectStyle?: (name: string) => void; // ui/extraNetworks.ts
     getGallerySelectedUrl?: () => string | null; // ui/gallery.ts
     getGallerySelection?: () => { index: number; files: { name?: string; title?: string; src?: string }[] }; // ui/gallery.ts
     gallerySendImage?: (images: unknown) => (string | null)[]; // ui/gallery.ts

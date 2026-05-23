@@ -34,9 +34,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/jquery/dist/jquery.js
+// node_modules/.pnpm/jquery@4.0.0/node_modules/jquery/dist/jquery.js
 var require_jquery = __commonJS({
-  "node_modules/jquery/dist/jquery.js"(exports, module) {
+  "node_modules/.pnpm/jquery@4.0.0/node_modules/jquery/dist/jquery.js"(exports, module) {
     (function(global2, factory) {
       "use strict";
       if (typeof module === "object" && typeof module.exports === "object") {
@@ -6932,9 +6932,9 @@ var require_iframeResizer = __commonJS({
   }
 });
 
-// node_modules/exifr/dist/full.umd.js
+// node_modules/.pnpm/exifr@7.1.3/node_modules/exifr/dist/full.umd.js
 var require_full_umd = __commonJS({
-  "node_modules/exifr/dist/full.umd.js"(exports, module) {
+  "node_modules/.pnpm/exifr@7.1.3/node_modules/exifr/dist/full.umd.js"(exports, module) {
     !(function(e, t) {
       "object" == typeof exports && "undefined" != typeof module ? t(exports) : "function" == typeof define && define.amd ? define("exifr", ["exports"], t) : t((e = "undefined" != typeof globalThis ? globalThis : e || self).exifr = {});
     })(exports, (function(e) {
@@ -8414,9 +8414,9 @@ this.ifd0Offset: ${this.ifd0Offset}, file.byteLength: ${e2.byteLength}`), e2.tif
   }
 });
 
-// node_modules/wheel/index.js
+// node_modules/.pnpm/wheel@1.0.0/node_modules/wheel/index.js
 var require_wheel = __commonJS({
-  "node_modules/wheel/index.js"(exports, module) {
+  "node_modules/.pnpm/wheel@1.0.0/node_modules/wheel/index.js"(exports, module) {
     module.exports = addWheelListener;
     module.exports.addWheelListener = addWheelListener;
     module.exports.removeWheelListener = removeWheelListener;
@@ -8429,9 +8429,9 @@ var require_wheel = __commonJS({
   }
 });
 
-// node_modules/bezier-easing/src/index.js
+// node_modules/.pnpm/bezier-easing@2.1.0/node_modules/bezier-easing/src/index.js
 var require_src = __commonJS({
-  "node_modules/bezier-easing/src/index.js"(exports, module) {
+  "node_modules/.pnpm/bezier-easing@2.1.0/node_modules/bezier-easing/src/index.js"(exports, module) {
     var NEWTON_ITERATIONS = 4;
     var NEWTON_MIN_SLOPE = 1e-3;
     var SUBDIVISION_PRECISION = 1e-7;
@@ -8524,9 +8524,9 @@ var require_src = __commonJS({
   }
 });
 
-// node_modules/amator/index.js
+// node_modules/.pnpm/amator@1.1.0/node_modules/amator/index.js
 var require_amator = __commonJS({
-  "node_modules/amator/index.js"(exports, module) {
+  "node_modules/.pnpm/amator@1.1.0/node_modules/amator/index.js"(exports, module) {
     var BezierEasing = require_src();
     var animations = {
       ease: BezierEasing(0.25, 0.1, 0.25, 1),
@@ -8655,9 +8655,9 @@ var require_amator = __commonJS({
   }
 });
 
-// node_modules/ngraph.events/dist/ngraph.events.cjs
+// node_modules/.pnpm/ngraph.events@1.4.0/node_modules/ngraph.events/dist/ngraph.events.cjs
 var require_ngraph_events = __commonJS({
-  "node_modules/ngraph.events/dist/ngraph.events.cjs"(exports, module) {
+  "node_modules/.pnpm/ngraph.events@1.4.0/node_modules/ngraph.events/dist/ngraph.events.cjs"(exports, module) {
     "use strict";
     function c(e) {
       s(e);
@@ -8699,9 +8699,9 @@ var require_ngraph_events = __commonJS({
   }
 });
 
-// node_modules/panzoom/lib/kinetic.js
+// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/kinetic.js
 var require_kinetic = __commonJS({
-  "node_modules/panzoom/lib/kinetic.js"(exports, module) {
+  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/kinetic.js"(exports, module) {
     module.exports = kinetic;
     function kinetic(getPoint, scroll, settings) {
       if (typeof settings !== "object") {
@@ -8799,9 +8799,9 @@ var require_kinetic = __commonJS({
   }
 });
 
-// node_modules/panzoom/lib/makeTextSelectionInterceptor.js
+// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeTextSelectionInterceptor.js
 var require_makeTextSelectionInterceptor = __commonJS({
-  "node_modules/panzoom/lib/makeTextSelectionInterceptor.js"(exports, module) {
+  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeTextSelectionInterceptor.js"(exports, module) {
     module.exports = makeTextSelectionInterceptor;
     function makeTextSelectionInterceptor(useFake) {
       if (useFake) {
@@ -8842,9 +8842,9 @@ var require_makeTextSelectionInterceptor = __commonJS({
   }
 });
 
-// node_modules/panzoom/lib/transform.js
+// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/transform.js
 var require_transform = __commonJS({
-  "node_modules/panzoom/lib/transform.js"(exports, module) {
+  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/transform.js"(exports, module) {
     module.exports = Transform;
     function Transform() {
       this.x = 0;
@@ -8854,9 +8854,9 @@ var require_transform = __commonJS({
   }
 });
 
-// node_modules/panzoom/lib/makeSvgController.js
+// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeSvgController.js
 var require_makeSvgController = __commonJS({
-  "node_modules/panzoom/lib/makeSvgController.js"(exports, module) {
+  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeSvgController.js"(exports, module) {
     module.exports = makeSvgController;
     module.exports.canAttach = isSVGElement;
     function makeSvgController(svgElement, options) {
@@ -8919,9 +8919,9 @@ var require_makeSvgController = __commonJS({
   }
 });
 
-// node_modules/panzoom/lib/makeDomController.js
+// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeDomController.js
 var require_makeDomController = __commonJS({
-  "node_modules/panzoom/lib/makeDomController.js"(exports, module) {
+  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/lib/makeDomController.js"(exports, module) {
     module.exports = makeDomController;
     module.exports.canAttach = isDomElement;
     function makeDomController(domElement, options) {
@@ -8962,9 +8962,9 @@ var require_makeDomController = __commonJS({
   }
 });
 
-// node_modules/panzoom/index.js
+// node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/index.js
 var require_panzoom = __commonJS({
-  "node_modules/panzoom/index.js"(exports, module) {
+  "node_modules/.pnpm/panzoom@9.4.4/node_modules/panzoom/index.js"(exports, module) {
     "use strict";
     var wheel = require_wheel();
     var animate = require_amator();
@@ -9782,7 +9782,7 @@ var require_panzoom = __commonJS({
   }
 });
 
-// node_modules/jquery/dist-module/wrappers/jquery.node-module-wrapper.js
+// node_modules/.pnpm/jquery@4.0.0/node_modules/jquery/dist-module/wrappers/jquery.node-module-wrapper.js
 var import_jquery = __toESM(require_jquery(), 1);
 var jquery_node_module_wrapper_default = import_jquery.default;
 
@@ -10594,6 +10594,12 @@ function extraNetworksFilterVersion(event2) {
   }
 }
 var desiredStyle = "";
+function selectStyle(name) {
+  desiredStyle = name;
+  const tabName = getENActiveTab();
+  const button = gradioApp().querySelector(`#${tabName}_styles_select`);
+  button.click();
+}
 function applyStyles(styles) {
   let newStyles;
   if (styles) {
@@ -10844,6 +10850,7 @@ window.sortExtraNetworks = sortExtraNetworks;
 window.refeshDetailsEN = refeshDetailsEN;
 window.extraNetworksSearchButton = extraNetworksSearchButton;
 window.extraNetworksFilterVersion = extraNetworksFilterVersion;
+window.selectStyle = selectStyle;
 
 // ui/generationParams.ts
 function attachGalleryListeners(tabName) {
@@ -11592,40 +11599,25 @@ function updateInput2(target) {
   Object.defineProperty(e, "target", { value: target });
   target.dispatchEvent(e);
 }
-window.restartReload = restartReload;
-window.updateInput = updateInput2;
-window.clip_gallery_urls = clip_gallery_urls;
-window.extract_image_from_gallery = extract_image_from_gallery;
-window.getCaptionActiveTab = getCaptionActiveTab;
-window.get_img2img_tab_index = get_img2img_tab_index;
-window.modelmerger = modelmerger;
-window.selected_gallery_index = selected_gallery_index;
-window.selected_gallery_files = selected_gallery_files;
-window.send_to_kanvas = send_to_kanvas;
-window.submit_control = submit_control;
-window.submit_framepack = submit_framepack;
-window.submit_img2img = submit_img2img;
-window.submit_ltx = submit_ltx;
-window.submit_postprocessing = submit_postprocessing;
-window.submit_txt2img = submit_txt2img;
-window.submit_video = submit_video;
-window.submit_video_wrapper = submit_video_wrapper;
-window.switch_to_txt2img = switch_to_txt2img;
-window.switch_to_img2img_tab = switch_to_img2img_tab;
-window.switch_to_img2img = switch_to_img2img;
-window.switch_to_inpaint = switch_to_inpaint;
-window.switch_to_sketch = switch_to_sketch;
-window.switch_to_composite = switch_to_composite;
-window.switch_to_extras = switch_to_extras;
-window.switch_to_control = switch_to_control;
-window.switch_to_video = switch_to_video;
-window.switch_to_caption = switch_to_caption;
-window.recalculate_prompts_txt2img = recalculate_prompts_txt2img;
-window.recalculate_prompts_img2img = recalculate_prompts_img2img;
-window.recalculate_prompts_inpaint = recalculate_prompts_inpaint;
-window.recalculate_prompts_control = recalculate_prompts_control;
 var desiredCheckpointName = null;
+function selectCheckpoint(name) {
+  desiredCheckpointName = name;
+  const tabName = getENActiveTab();
+  const btnModel = gradioApp().getElementById(`${tabName}_extra_model`);
+  const isRefiner = btnModel && btnModel.classList.contains("toolbutton-selected");
+  if (isRefiner) gradioApp().getElementById("change_refiner").click();
+  else gradioApp().getElementById("change_checkpoint").click();
+  log(`selectCheckpoint ${isRefiner ? "refiner" : "model"}: ${desiredCheckpointName}`);
+  markSelectedCards([desiredCheckpointName], "model");
+  setTimeout(requestProgress, 250);
+}
 var desiredVAEName = null;
+function selectVAE(name) {
+  desiredVAEName = name;
+  gradioApp().getElementById("change_vae").click();
+  log(`selectVAE: ${desiredVAEName}`);
+  markSelectedCards([desiredVAEName], "vae");
+}
 var desiredUNetName = null;
 function consumeDesiredCheckpointName(v) {
   const res = desiredCheckpointName;
@@ -11645,10 +11637,19 @@ function consumeDesiredUNetName(v) {
 function getDesiredCheckpointName() {
   return desiredCheckpointName;
 }
-window.consumeDesiredCheckpointName = consumeDesiredCheckpointName;
-window.consumeDesiredVAEName = consumeDesiredVAEName;
-window.consumeDesiredUNetName = consumeDesiredUNetName;
-window.getDesiredCheckpointName = getDesiredCheckpointName;
+function selectUNet(name) {
+  desiredUNetName = name;
+  gradioApp().getElementById("change_unet").click();
+  log(`selectUNet: ${desiredUNetName}`);
+  markSelectedCards([desiredUNetName], "unet");
+}
+function selectReference(name) {
+  log(`selectReference: ${name}`);
+  desiredCheckpointName = name;
+  gradioApp().getElementById("change_reference").click();
+  markSelectedCards([desiredCheckpointName], "model");
+  setTimeout(requestProgress, 250);
+}
 function currentImageResolutionimg2img(_a, _b, scaleBy) {
   const img = gradioApp().querySelector('#mode_img2img > div[style="display: block;"] img');
   return img ? [img.naturalWidth, img.naturalHeight, scaleBy] : [0, 0, scaleBy];
@@ -11662,9 +11663,6 @@ function updateImg2imgResizeToTextAfterChangingImage() {
   if (el2) setTimeout(() => gradioApp().getElementById("img2img_update_resize_to").click(), 500);
   return [];
 }
-window.currentImageResolutionimg2img = currentImageResolutionimg2img;
-window.currentImageResolutioncontrol = currentImageResolutioncontrol;
-window.updateImg2imgResizeToTextAfterChangingImage = updateImg2imgResizeToTextAfterChangingImage;
 async function toggleCompact(val, old) {
   if (val === old) return;
   log("toggleCompact", val, old);
@@ -11713,6 +11711,49 @@ async function reconnectUI() {
   log("reconnectUI", Math.round(t1 - t0));
   timer("reconnectUI", t1 - t0);
 }
+window.restartReload = restartReload;
+window.updateInput = updateInput2;
+window.clip_gallery_urls = clip_gallery_urls;
+window.extract_image_from_gallery = extract_image_from_gallery;
+window.getCaptionActiveTab = getCaptionActiveTab;
+window.get_img2img_tab_index = get_img2img_tab_index;
+window.modelmerger = modelmerger;
+window.selected_gallery_index = selected_gallery_index;
+window.selected_gallery_files = selected_gallery_files;
+window.send_to_kanvas = send_to_kanvas;
+window.submit_control = submit_control;
+window.submit_framepack = submit_framepack;
+window.submit_img2img = submit_img2img;
+window.submit_ltx = submit_ltx;
+window.submit_postprocessing = submit_postprocessing;
+window.submit_txt2img = submit_txt2img;
+window.submit_video = submit_video;
+window.submit_video_wrapper = submit_video_wrapper;
+window.switch_to_txt2img = switch_to_txt2img;
+window.switch_to_img2img_tab = switch_to_img2img_tab;
+window.switch_to_img2img = switch_to_img2img;
+window.switch_to_inpaint = switch_to_inpaint;
+window.switch_to_sketch = switch_to_sketch;
+window.switch_to_composite = switch_to_composite;
+window.switch_to_extras = switch_to_extras;
+window.switch_to_control = switch_to_control;
+window.switch_to_video = switch_to_video;
+window.switch_to_caption = switch_to_caption;
+window.recalculate_prompts_txt2img = recalculate_prompts_txt2img;
+window.recalculate_prompts_img2img = recalculate_prompts_img2img;
+window.recalculate_prompts_inpaint = recalculate_prompts_inpaint;
+window.recalculate_prompts_control = recalculate_prompts_control;
+window.selectCheckpoint = selectCheckpoint;
+window.selectVAE = selectVAE;
+window.selectUNet = selectUNet;
+window.selectReference = selectReference;
+window.consumeDesiredCheckpointName = consumeDesiredCheckpointName;
+window.consumeDesiredVAEName = consumeDesiredVAEName;
+window.consumeDesiredUNetName = consumeDesiredUNetName;
+window.getDesiredCheckpointName = getDesiredCheckpointName;
+window.currentImageResolutionimg2img = currentImageResolutionimg2img;
+window.currentImageResolutioncontrol = currentImageResolutioncontrol;
+window.updateImg2imgResizeToTextAfterChangingImage = updateImg2imgResizeToTextAfterChangingImage;
 
 // ui/inputAccordion.ts
 function inputAccordionChecked(id, checked) {
@@ -16411,7 +16452,7 @@ function keyupEditAttention(event2) {
   function selectCurrentWord() {
     if (selectionStart !== selectionEnd) return false;
     const delimiters = `${window.opts.keyedit_delimiters} \r
-  `;
+	`;
     while (!delimiters.includes(text[selectionStart - 1]) && selectionStart > 0) selectionStart--;
     while (!delimiters.includes(text[selectionEnd]) && selectionEnd < text.length) selectionEnd++;
     target.setSelectionRange(selectionStart, selectionEnd);
@@ -16452,7 +16493,7 @@ function keyupEditAttention(event2) {
 }
 addEventListener("keydown", (event2) => keyupEditAttention(event2));
 
-// node_modules/jquery-sparkline/jquery.sparkline.js
+// node_modules/.pnpm/jquery-sparkline@2.4.0/node_modules/jquery-sparkline/jquery.sparkline.js
 (function(document2, Math2, undefined2) {
   (function(factory) {
     if (typeof define === "function" && define.amd) {
