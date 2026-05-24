@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import sys
 import threading
+from types import ModuleType
 from typing import TYPE_CHECKING
 
 from modules import errors, shared
@@ -210,7 +211,7 @@ model_data = ModelData()
 
 
 # provides shared.sd_model field as a property
-class Shared(sys.modules[__name__].__class__):
+class Shared(ModuleType):
     @property
     def sd_loaded(self):
         return model_data.sd_model is not None
