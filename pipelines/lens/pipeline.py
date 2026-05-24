@@ -131,7 +131,8 @@ class LensPipeline(DiffusionPipeline):
         text_encoder: LensGptOssEncoder,
         tokenizer: PreTrainedTokenizerBase,
         transformer: LensTransformer2DModel,
-        reasoner: Optional[PromptReasoner] = True,
+        reasoner: Optional[PromptReasoner] = None,
+        use_reasoner=False,
     ) -> None:
         super().__init__()
         self.register_modules(
@@ -156,7 +157,7 @@ class LensPipeline(DiffusionPipeline):
                 self.transformer.config.selected_layer_index
             )
 
-        if reasoner is not None:
+        if use_reasoner and reasoner is None:
             self.reasoner = PromptReasoner(
                 text_encoder=self.text_encoder, tokenizer=self.tokenizer
             )
@@ -296,7 +297,6 @@ class LensPipeline(DiffusionPipeline):
     ) -> List[str]:
         if self.reasoner is None:
             return list(prompts)
-        print('HERE REFINE')
         return self.reasoner.refine(prompts, enable=enable_reasoner)
 
     # ------------------------------------------------------------------

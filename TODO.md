@@ -4,7 +4,6 @@
 
 - Inpaint: https://discord.com/channels/1101998836328697867/1130536562422186044/1506850651035144322
 - Torch lazy-load
-- pnpm-vs-npm
 
 ## Features
 
@@ -13,6 +12,7 @@
 - Chat-based interface, @vladmandic
 - Control tab verify overrides handling, @vladmandic
 - Reimplement `llama` remover for Kanvas, @vladmandic
+  Object clear: https://huggingface.co/jixin0101/ObjectClear
 
 - Detailer postprocessing, @CalamitousFelicitousness
 - Cloud providers, @CalamitousFelicitousness

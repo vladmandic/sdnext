@@ -38,11 +38,11 @@ class LensGptOssEncoder(GptOssForCausalLM):
                 f"layer_indices out of range; got {layers}, "
                 f"model has {len(self.model.layers)} layers"
             )
-        self._lens_selected_layers = layers
-        self._lens_max_layer = max(layers)
+        self._lens_selected_layers = layers # pylint: disable=attribute-defined-outside-init
+        self._lens_max_layer = max(layers) # pylint: disable=attribute-defined-outside-init
 
     @torch.no_grad()
-    def forward(  # type: ignore[override]
+    def forward(  # type: ignore[override] # pylint: keyword-arg-before-vararg
         self,
         input_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,
@@ -78,6 +78,12 @@ class LensGptOssEncoder(GptOssForCausalLM):
 
         model = self.model
         inputs_embeds = model.embed_tokens(input_ids)
+        target_dtype = inputs_embeds.dtype
+        if len(model.layers) > 0:
+            target_dtype = model.layers[0].self_attn.k_proj.weight.dtype
+        if inputs_embeds.dtype != target_dtype:
+            inputs_embeds = inputs_embeds.to(dtype=target_dtype)
+
         position_ids = torch.arange(
             inputs_embeds.shape[1], device=inputs_embeds.device
         ).unsqueeze(0).expand_as(input_ids)
