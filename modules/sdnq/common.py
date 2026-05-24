@@ -487,8 +487,10 @@ module_skip_keys_dict = {
     ],
     "LTX2VideoTransformer3DModel": [
         [
-            "audio_time_embed", "time_embed", "audio_caption_projection", "caption_projection", "proj_in", "audio_proj_in", "proj_out", "audio_proj_out",
-            "av_cross_attn_audio_scale_shift", "av_cross_attn_audio_v2a_gate", "av_cross_attn_video_a2v_gate", "av_cross_attn_video_scale_shift",
+            "adaln_single", "audio_adaln_single", "prompt_adaln_single", "audio_prompt_adaln_single",
+            "av_ca_a2v_gate_adaln_single", "av_ca_audio_scale_shift_adaln_single",
+            "av_ca_v2a_gate_adaln_single", "av_ca_video_scale_shift_adaln_single",
+            "patchify_proj", "audio_patchify_proj", "proj_out", "audio_proj_out",
         ],
         {},
         {},
