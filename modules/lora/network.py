@@ -27,7 +27,10 @@ class NetworkOnDisk:
         self.name = name
         self.filename = filename
         if filename.startswith(shared.cmd_opts.lora_dir):
-            self.fullname = os.path.splitext(filename[len(shared.cmd_opts.lora_dir):].strip("/"))[0]
+            # strip("/") missed Windows's leading backslash after the slice; normalize separators
+            # so the registry key is one canonical form on every OS.
+            rel = filename[len(shared.cmd_opts.lora_dir):].lstrip('/\\').replace('\\', '/')
+            self.fullname = os.path.splitext(rel)[0] if rel else name
         else:
             self.fullname = name
         self.metadata = {}
