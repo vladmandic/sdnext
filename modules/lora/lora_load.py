@@ -214,6 +214,13 @@ def list_available_networks():
             available_network_aliases[entry.name] = entry
             if entry.fullname != entry.name:
                 available_network_aliases[entry.fullname] = entry
+            # entry.name mangles dots to underscores for legacy reasons and entry.fullname
+            # carries any subfolder prefix, so neither matches when the user types the file's
+            # natural basename. setdefault avoids clobbering an explicit primary entry when
+            # two files in different subfolders share a basename.
+            basename_alias = os.path.splitext(os.path.basename(filename))[0]
+            if basename_alias and basename_alias not in (entry.name, entry.fullname):
+                available_network_aliases.setdefault(basename_alias, entry)
             if entry.shorthash:
                 available_network_hash_lookup[entry.shorthash] = entry
         except OSError as e: # should catch FileNotFoundError and PermissionError etc.
