@@ -90,6 +90,16 @@
     "date": "2025 May",
     "extras": ""
   },
+  "Z-Image-Turbo MoodyRealMix": {
+    "path": "resonantsky/MoodyRealMix-SDNQ-int8-svd-r32",
+    "preview": "MoodyRealMix-SDNQ-int8-svd-r32.jpg",
+    "desc": "Z-Image-Turbo Diffusers Pipeline custom int8 quantization of Moody Real Mix https://civitai.com/models/621441/moody-real-mix by https://civitai.com/user/catlover1937",
+    "skip": true,
+    "extras": "BF16 native, sampler: Default, cfg_scale: 1.0, steps: 8-10",
+    "size": 11.1,
+    "date": "2026 March"
+  },
+
   "Tiwaz CenKreChro": {
     "path": "Tiwaz/CenKreChro",
     "preview": "Tiwaz--CenKreChro.jpg",
