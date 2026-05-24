@@ -87,7 +87,8 @@ def add_audio_stream(container, audio_sample_rate: int):
     audio_stream.codec_context.sample_rate = audio_sample_rate
     audio_stream.codec_context.layout = "stereo"
     audio_stream.codec_context.time_base = Fraction(1, audio_sample_rate)
-    log.debug(f'Audio: codec={audio_stream.codec_context.name} rate={audio_stream.codec_context.sample_rate} layout={audio_stream.codec_context.layout} base={audio_stream.codec_context.time_base}')
+    audio_stream.bit_rate = 192000
+    log.debug(f'Audio: codec={audio_stream.codec_context.name} rate={audio_stream.codec_context.sample_rate} layout={audio_stream.codec_context.layout} base={audio_stream.codec_context.time_base} bitrate={audio_stream.bit_rate}')
     return audio_stream
 
 
@@ -105,12 +106,14 @@ def write_audio(
         samples = samples.T
     if samples.shape[1] != 2:
         raise ValueError(f"Expected samples with 2 channels; got shape {samples.shape}.")
-    if samples.dtype != torch.int16:
-        samples = torch.clip(samples, -1.0, 1.0)
-        samples = (samples * 32767.0).to(torch.int16)
+    samples = samples.float().cpu()
+    peak = samples.abs().max().item()
+    if peak > 1.0:
+        # Vocoder overshoots above unity; scale rather than hard-clip to avoid peak transients.
+        samples = samples / peak
     audio_frames = av.AudioFrame.from_ndarray(
-        samples.contiguous().reshape(1, -1).cpu().numpy(),
-        format="s16",
+        samples.contiguous().reshape(1, -1).numpy(),
+        format="flt",
         layout="stereo",
     )
     audio_frames.sample_rate = audio_sample_rate
