@@ -42,7 +42,7 @@ class LensGptOssEncoder(GptOssForCausalLM):
         self._lens_max_layer = max(layers) # pylint: disable=attribute-defined-outside-init
 
     @torch.no_grad()
-    def forward(  # type: ignore[override] # pylint: keyword-arg-before-vararg
+    def forward(  # type: ignore[override] # pylint: disable=keyword-arg-before-vararg
         self,
         input_ids: Optional[torch.LongTensor] = None,
         attention_mask: Optional[torch.Tensor] = None,

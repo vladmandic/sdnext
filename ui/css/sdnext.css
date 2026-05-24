@@ -1839,7 +1839,7 @@ background: var(--background-color)
 
 #tab-gallery-files gallery-file {
   /* Add a vertical gutter between items (left/right), matching existing small row spacing */
-  display: inline-block;
+  display: inline-block !important;
   margin-right: 0.2em;
   vertical-align: top; /* keep rows aligned on the top edge */
 }
