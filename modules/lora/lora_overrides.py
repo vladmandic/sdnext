@@ -31,6 +31,7 @@ allow_native = [
     'zimage',
     'anima',
     'ernieimage',
+    'ltxvideo',
 ]
 
 
@@ -38,8 +39,12 @@ force_classes_diffusers = [ # forced always
     'FluxKontextPipeline', 'FluxKontextInpaintPipeline',
 ]
 
+# Diffusers-path fuse skips fuse_lora/unload_lora_weights after set_adapters so adapters
+# stay live for multi-stage composition (LTX 2.x stage 2 distilled LoRA is composed on
+# top of user LoRAs; PEFT cannot selectively unfuse, so fuse breaks the composition).
 fuse_ignore = [
     'hunyuanvideo',
+    'ltxvideo',
 ]
 
 

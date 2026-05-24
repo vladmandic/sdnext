@@ -5,7 +5,7 @@ from PIL import Image
 
 from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, devices, extra_networks, call_queue
 from modules.logger import log
-from modules.ltx import ltx_capabilities
+from modules.ltx import ltx_capabilities, ltx_lora_helpers
 from modules.ltx.ltx_diffusers_patch import apply_patch as apply_ltx_diffusers_patch
 from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsample, load_upsample_2x, get_conditions, get_generator, get_prompts, ltx_scheduler_opts, vae_decode
 
@@ -24,8 +24,6 @@ upsample_repo_id_20 = 'Lightricks/LTX-2'
 upsample_repo_id_23 = 'CalamitousFelicitousness/LTX-2.3-Spatial-Upsampler-x2-1.1-Diffusers'
 upsample_pipe = None
 upsample_pipe_2x = None
-
-STAGE2_DEV_LORA_ADAPTER = 'ltx2_stage2_distilled'
 
 
 def _canonical_ltx2_guidance(caps) -> dict:
@@ -494,6 +492,7 @@ def run_ltx(task_id,
                     refine_args['output_type'] = 'latent'
 
                 saved_scheduler_stage2 = None
+                stage2_lora_added = False
                 try:
                     if caps.family == '2.x':
                         # Stage 2 recipe (huggingface/diffusers#13217): fresh scheduler with shifting
@@ -507,15 +506,17 @@ def run_ltx(task_id,
                             shift_terminal=None,
                         )
                         if caps.supports_canonical_stage2:
-                            log.info(f'LTX: canonical Stage 2 via distilled LoRA repo={caps.stage2_dev_lora_repo}')
-                            offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
-                            shared.sd_model.load_lora_weights(
-                                caps.stage2_dev_lora_repo,
-                                adapter_name=STAGE2_DEV_LORA_ADAPTER,
-                                cache_dir=shared.opts.hfcache_dir,
-                                **offline_args,
-                            )
-                            shared.sd_model.set_adapters([STAGE2_DEV_LORA_ADAPTER], [1.0])
+                            # Compose the distilled LoRA on top of any user LoRAs through the
+                            # standard extra_networks pipeline, so it routes via native or
+                            # diffusers per lora_force_diffusers and user LoRAs survive stage 2.
+                            synthetic_name = ltx_lora_helpers.ensure_registered(caps)
+                            if synthetic_name is not None:
+                                log.info(f'LTX: canonical Stage 2 via distilled LoRA repo={caps.stage2_dev_lora_repo}')
+                                augmented = ltx_lora_helpers.augment_network_data(networks, synthetic_name)
+                                extra_networks.activate(p, augmented)
+                                stage2_lora_added = True
+                            else:
+                                log.warning('LTX: canonical Stage 2 LoRA unavailable; refining without distillation adapter')
                         else:
                             log.info('LTX: canonical Stage 2 (Distilled native, no LoRA)')
                         # Identity kwargs override any guidance left from earlier in refine_args.
@@ -544,13 +545,15 @@ def run_ltx(task_id,
                         yield from abort(e, ok=False, p=p)
                         return
                 finally:
+                    if stage2_lora_added:
+                        # Re-activate with the user-only set; the standard diff-detection
+                        # path removes the synthetic adapter (native: restore-from-backup;
+                        # diffusers: set_adapters drops it from the active list).
+                        try:
+                            extra_networks.activate(p, networks)
+                        except Exception as e:
+                            log.warning(f'LTX: canonical Stage 2 LoRA restore failed: {e}')
                     if saved_scheduler_stage2 is not None:
-                        if caps.supports_canonical_stage2:
-                            try:
-                                from modules.lora.extra_networks_lora import unload_diffusers
-                                unload_diffusers()
-                            except Exception as e:
-                                log.warning(f'LTX: canonical Stage 2 LoRA unload failed: {e}')
                         shared.sd_model.scheduler = saved_scheduler_stage2
                         log.debug('LTX: canonical Stage 2 cleanup done (scheduler restored)')
                 t8 = time.time()
