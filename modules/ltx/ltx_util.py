@@ -138,28 +138,37 @@ def _condition_cls(family: str):
     return LTXVideoCondition
 
 
-def make_condition(condition_cls, family: str, frames, strength: float, is_video: bool):
+def make_condition(condition_cls, family: str, frames, strength: float, is_video: bool, index: int = 0):
     if family == '2.x':
-        return condition_cls(frames=frames, index=0, strength=strength)
+        # 2.x normalizes negative indices internally (pipeline_ltx2_condition.py:735).
+        return condition_cls(frames=frames, index=index, strength=strength)
     if is_video:
-        return condition_cls(video=frames, frame_index=0, strength=strength)
-    return condition_cls(image=frames, frame_index=0, strength=strength)
+        return condition_cls(video=frames, frame_index=index, strength=strength)
+    return condition_cls(image=frames, frame_index=index, strength=strength)
 
 
-def get_conditions(width, height, condition_strength, condition_images, condition_files, condition_video, condition_video_frames, condition_video_skip, family: str = '0.9'):
+def get_conditions(width, height, condition_strength, condition_images, condition_files, condition_video, condition_video_frames, condition_video_skip, family: str = '0.9', condition_indices: list | None = None):
+    # Use sdnext's aspect-preserving crop (resize_mode=2) to match the old LTX2ImageToVideoPipeline
+    # path that did images.resize_image(resize_mode=2, ...) before passing the init image to the
+    # pipeline. PIL's plain resize stretches the image and the downstream pipeline crops anyway.
+    from modules import images
+    def _resize(im):
+        return images.resize_image(resize_mode=2, im=im.convert('RGB'), width=width, height=height, upscaler_name=None, output_type='pil')
+
     condition_cls = _condition_cls(family)
     if condition_cls is None:
         return []
     conditions = []
     if condition_images is not None:
-        for condition_image in condition_images:
+        for i, condition_image in enumerate(condition_images):
             try:
                 if isinstance(condition_image, str):
                     from modules.api.api import decode_base64_to_image
                     condition_image = decode_base64_to_image(condition_image)
-                condition_image = condition_image.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
-                conditions.append(make_condition(condition_cls, family, condition_image, condition_strength, is_video=False))
-                log.debug(f'Video condition: family={family} image={condition_image.size} strength={condition_strength}')
+                condition_image = _resize(condition_image)
+                idx = condition_indices[i] if condition_indices is not None and i < len(condition_indices) else 0
+                conditions.append(make_condition(condition_cls, family, condition_image, condition_strength, is_video=False, index=idx))
+                log.debug(f'Video condition: family={family} image={condition_image.size} strength={condition_strength} index={idx}')
             except Exception as e:
                 log.error(f'LTX condition image: {e}')
     if condition_files is not None:
@@ -167,9 +176,9 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
         for fn in condition_files:
             try:
                 if hasattr(fn, 'name'):
-                    condition_image = Image.open(fn.name).convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+                    condition_image = _resize(Image.open(fn.name))
                 else:
-                    condition_image = fn.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+                    condition_image = _resize(fn)
                 batch_images.append(condition_image)
             except Exception as e:
                 log.error(f'LTX condition files: {e}')
@@ -180,7 +189,7 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
         from modules.video_models.video_utils import get_video_frames
         try:
             condition_frames = get_video_frames(condition_video, num_frames=condition_video_frames, skip_frames=condition_video_skip)
-            condition_frames = [f.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS) for f in condition_frames]
+            condition_frames = [_resize(f) for f in condition_frames]
             if len(condition_frames) > 0:
                 conditions.append(make_condition(condition_cls, family, condition_frames, condition_strength, is_video=True))
                 log.debug(f'Video condition: family={family} frames={len(condition_frames)} size={condition_frames[0].size} strength={condition_strength}')

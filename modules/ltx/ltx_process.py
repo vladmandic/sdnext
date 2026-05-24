@@ -85,7 +85,7 @@ def _latent_pass(caps, prompt_embeds, prompt_attention_mask, negative_prompt_emb
         base_args['image_cond_noise_scale'] = image_cond_noise_scale
     if caps.supports_multi_condition and conditions:
         base_args['conditions'] = conditions
-    if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and image is not None:
+    if caps.is_i2v and caps.repo_cls_name == 'LTXImageToVideoPipeline' and image is not None:
         base_args['image'] = image
     if caps.family == '2.x' and caps.is_distilled:
         from diffusers.pipelines.ltx2.utils import DISTILLED_SIGMA_VALUES
@@ -126,6 +126,7 @@ def run_ltx(task_id,
             condition_video,
             condition_video_frames: int,
             condition_video_skip: int,
+            start_source_mode: str,
             decode_timestep: float,
             image_cond_noise_scale: float,
             mp4_fps: int,
@@ -214,15 +215,37 @@ def run_ltx(task_id,
         from modules.video_models import models_def, video_overrides
         selected = next((m for m in models_def.models.get(engine, []) if m.name == model), None)
 
-        if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and ltx_init_image is None:
-            yield from abort('No input image provided. Please upload or select an image.', ok=True)
+        # Honor only the active start-source tab; inactive tab inputs are dropped so the
+        # tabbed UI enforces mutual exclusion at the data layer (the three sources all
+        # target latent frame 0 and would otherwise overwrite each other).
+        if start_source_mode != 'Image':
+            ltx_init_image = None
+        if start_source_mode != 'Video':
+            condition_video = None
+        if start_source_mode != 'Image Batch':
+            condition_files = None
+
+        if caps.is_i2v and ltx_init_image is None and condition_video is None and not condition_files:
+            yield from abort('No opening source provided. Pick a start tab and supply an Image, Video, or Image Batch.', ok=True)
             return
 
+        # Build condition list with per-frame indices: init image anchors at frame 0,
+        # last image anchors at the final latent frame (FLF2V). 2.x normalizes negative
+        # indices natively; 0.9.x requires the explicit latent_num_frames - 1 value
+        # (pipeline_ltx_condition.py applies the index directly without wrap-around).
         condition_images = []
+        condition_indices = []
         if ltx_init_image is not None:
             condition_images.append(ltx_init_image)
+            condition_indices.append(0)
         if condition_last is not None:
             condition_images.append(condition_last)
+            if caps.family == '2.x':
+                condition_indices.append(-1)
+            else:
+                ratio = getattr(getattr(shared.sd_model, 'vae', None), 'temporal_compression_ratio', 8)
+                latent_num_frames = (get_frames(frames) - 1) // ratio + 1
+                condition_indices.append(max(0, latent_num_frames - 1))
         conditions = []
         conditions_stage2 = []
         if caps.supports_multi_condition:
@@ -233,14 +256,14 @@ def run_ltx(task_id,
                 base_w, base_h, condition_strength,
                 condition_images, condition_files, condition_video,
                 condition_video_frames, condition_video_skip,
-                family=caps.family,
+                family=caps.family, condition_indices=condition_indices,
             )
             if (final_w, final_h) != (base_w, base_h):
                 conditions_stage2 = get_conditions(
                     final_w, final_h, condition_strength,
                     condition_images, condition_files, condition_video,
                     condition_video_frames, condition_video_skip,
-                    family=caps.family,
+                    family=caps.family, condition_indices=condition_indices,
                 )
             else:
                 conditions_stage2 = conditions
@@ -292,7 +315,7 @@ def run_ltx(task_id,
         if caps.supports_multi_condition and conditions:
             p.task_args['conditions'] = conditions
 
-        if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and ltx_init_image is not None:
+        if caps.is_i2v and caps.repo_cls_name == 'LTXImageToVideoPipeline' and ltx_init_image is not None:
             from modules import images
             p.task_args['image'] = images.resize_image(resize_mode=2, im=ltx_init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
 
@@ -480,7 +503,7 @@ def run_ltx(task_id,
                 if caps.supports_multi_condition and conditions_stage2:
                     refine_args['conditions'] = conditions_stage2
                 # Thread Stage-1 I2V init image through Stage 2 so first-frame identity survives refine.
-                if caps.is_i2v and caps.repo_cls_name in ('LTXImageToVideoPipeline', 'LTX2ImageToVideoPipeline') and p.task_args.get('image') is not None:
+                if caps.is_i2v and caps.repo_cls_name == 'LTXImageToVideoPipeline' and p.task_args.get('image') is not None:
                     refine_args['image'] = p.task_args['image']
                 if caps.family == '2.x' and caps.use_cross_timestep:
                     refine_args['use_cross_timestep'] = True
