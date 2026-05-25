@@ -3,6 +3,10 @@ import diffusers
 from modules import shared, sd_models, devices, model_quant, sd_hijack_te, sd_hijack_vae
 from modules.logger import log
 from pipelines import generic
+from pipelines.native_transformer import TransformerSpec
+
+
+KANDINSKY5_SPEC = TransformerSpec(cls=diffusers.Kandinsky5Transformer3DModel)
 
 
 def load_kandinsky21(checkpoint_info, diffusers_load_config=None):
@@ -83,7 +87,7 @@ def load_kandinsky5(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
     log.debug(f'Load model: type=Kandinsky50 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    transformer = generic.load_transformer(repo_id, cls_name=diffusers.Kandinsky5Transformer3DModel, load_config=diffusers_load_config)
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.Kandinsky5Transformer3DModel, load_config=diffusers_load_config, native_spec=KANDINSKY5_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
 
     if 'I2I' in repo_id:

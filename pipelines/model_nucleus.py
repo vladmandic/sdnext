@@ -3,6 +3,10 @@ import transformers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
 from modules.logger import log
 from pipelines import generic
+from pipelines.native_transformer import TransformerSpec
+
+
+NUCLEUS_SPEC = TransformerSpec(cls=diffusers.NucleusMoEImageTransformer2DModel)
 
 
 def load_nucleus(checkpoint_info, diffusers_load_config=None):
@@ -18,6 +22,7 @@ def load_nucleus(checkpoint_info, diffusers_load_config=None):
         repo_id,
         cls_name=diffusers.NucleusMoEImageTransformer2DModel,
         load_config=diffusers_load_config,
+        native_spec=NUCLEUS_SPEC,
     )
     text_encoder = generic.load_text_encoder(
         repo_id,
