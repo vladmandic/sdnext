@@ -8,7 +8,7 @@ custom Qwen3-projection MLP), or ``lora_te_*`` (Qwen3 text encoder). Routing
 is parameterized in ``modules.lora.native_adapter`` via the ``network_prefix``
 callable that ``pipelines.anima.anima_lora`` supplies.
 
-Covers the eight families exposed through native_adapter's generics (LoRA,
+Covers the families exposed through native_adapter's generics (LoRA,
 LoKR, LoHA, OFT, IA3, GLoRA, Norm, Full), focused on:
 
 - LoRA across all five recognized prefixes (BFL transformer / BFL llm_adapter /

@@ -2,8 +2,8 @@
 """
 Offline unit tests for Flux2/Klein native adapter loaders.
 
-Covers the nine native families (LoRA, LoKR, LoHA, OFT, BOFT, IA3,
-GLoRA, Norm, Full) plus DoRA threading via the universal
+Covers the native families (LoRA, LoKR, LoHA, OFT, BOFT, IA3, GLoRA,
+Norm, Full) plus DoRA threading via the universal
 NetworkModule.finalize_updown hook, and ex_bias accumulation across
 stacked Norm adapters.
 

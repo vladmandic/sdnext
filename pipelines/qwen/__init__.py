@@ -1,17 +1,12 @@
 """Qwen-Image pipeline package.
 
-Exports :data:`QWEN_SPEC` for use by :mod:`pipelines.model_qwen` together
-with :mod:`pipelines.native_transformer`. Qwen-Image is the lone Mode C
-arch: diffusers registers a no-op identity lambda as its
-``SINGLE_FILE_LOADABLE_CLASSES`` converter, so ``from_single_file`` silently
-accepts whatever key naming the community file uses and loads with mangled
-weights instead of raising.
-
-The spec explicitly sets ``converter=None`` to short-circuit the no-op
-pickup; if a real Qwen-Image converter is needed for some trainer dump
-in the wild, it can be plugged in here. Until then, validation surfaces a
-clear error listing unexpected/missing keys instead of letting a malformed
-file load silently.
+Exports :data:`QWEN_SPEC`. diffusers registers a no-op identity lambda
+for ``QwenImageTransformer2DModel`` in ``SINGLE_FILE_LOADABLE_CLASSES``,
+so ``from_single_file`` silently accepts whatever key naming the file
+uses and loads with mismatched weights. The spec sets ``converter=None``
+explicitly to skip that no-op; validation then surfaces mismatches as
+clear errors. A real converter can be plugged in here if a trainer
+format that needs one is encountered.
 """
 
 import diffusers
