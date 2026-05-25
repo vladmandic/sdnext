@@ -19,7 +19,7 @@ exclude_errors = [
 
 # shared.sd_model_type -> dotted module path of a pipeline native loader
 # exposing ``try_load(name, network_on_disk, lora_scale)``. New archs add an
-# entry here and ship a per-arch ``try_load`` (either binding native_loader's
+# entry here and ship a per-arch ``try_load`` (either binding native_adapter's
 # generic helpers via try_load_chain, or rolling their own).
 _NATIVE_DISPATCH = {
     'zimage':     'pipelines.z_image.zimage_lora',

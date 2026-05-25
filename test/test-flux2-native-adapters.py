@@ -580,7 +580,7 @@ def test_parse_key_all_prefixes():
 
 
 def test_resolve_targets_qkv_chunking():
-    from modules.lora.native_loader import ChunkSpec
+    from modules.lora.native_adapter import ChunkSpec
     # Kohya double_blocks fused QKV → three chunks targeting Q/K/V.
     targets = F.resolve_targets('lora_unet_', 'double_blocks_0_img_attn_qkv')
     assert targets == [

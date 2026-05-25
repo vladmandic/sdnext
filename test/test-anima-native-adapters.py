@@ -5,10 +5,10 @@ Offline unit tests for Anima native adapter loaders.
 Anima is the only native arch with a multi-component network namespace: keys
 route into ``lora_transformer_*`` (Cosmos 2.0 DiT), ``lora_llm_adapter_*`` (a
 custom Qwen3-projection MLP), or ``lora_te_*`` (Qwen3 text encoder). Routing
-is parameterized in ``modules.lora.native_loader`` via the ``network_prefix``
+is parameterized in ``modules.lora.native_adapter`` via the ``network_prefix``
 callable that ``pipelines.anima.anima_lora`` supplies.
 
-Covers the eight families exposed through native_loader's generics (LoRA,
+Covers the eight families exposed through native_adapter's generics (LoRA,
 LoKR, LoHA, OFT, IA3, GLoRA, Norm, Full), focused on:
 
 - LoRA across all five recognized prefixes (BFL transformer / BFL llm_adapter /
