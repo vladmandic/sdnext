@@ -5,10 +5,6 @@ import diffusers
 from modules import shared, sd_models, devices, model_quant, sd_hijack_te, sd_hijack_vae
 from modules.logger import log
 from pipelines import generic
-from pipelines.native_transformer import TransformerSpec
-
-
-HUNYUANIMAGE_SPEC = TransformerSpec(cls=diffusers.HunyuanImageTransformer2DModel)
 
 
 def load_hyimage(checkpoint_info, diffusers_load_config=None): # pylint: disable=unused-argument
@@ -20,6 +16,7 @@ def load_hyimage(checkpoint_info, diffusers_load_config=None): # pylint: disable
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
     log.debug(f'Load model: type=HunyuanImage21 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
+    from pipelines.hyimage import HUNYUANIMAGE_SPEC
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.HunyuanImageTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer", native_spec=HUNYUANIMAGE_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config, subfolder="text_encoder")
     text_encoder_2 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder_2", allow_shared=False)

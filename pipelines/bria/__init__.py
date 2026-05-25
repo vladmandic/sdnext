@@ -7,12 +7,10 @@ Bria ships two transformer variants:
 
 - The original Bria family uses a custom :class:`BriaTransformer2DModel`
   imported from :mod:`pipelines.bria.transformer_bria`. The custom class
-  has no entry in diffusers' ``SINGLE_FILE_LOADABLE_CLASSES`` table, so a
-  community single-file selection previously crashed in
-  ``ModelMixin.from_pretrained``.
+  has no entry in diffusers' ``SINGLE_FILE_LOADABLE_CLASSES`` table.
 - Bria FIBO (and FIBO Edit) use the upstream
   :class:`diffusers.BriaFiboTransformer2DModel`, which also lacks a
-  ``SINGLE_FILE_LOADABLE_CLASSES`` entry. Same crash.
+  ``SINGLE_FILE_LOADABLE_CLASSES`` entry.
 
 Both specs use the default 3-prefix detection
 (``model.diffusion_model.``, ``diffusion_model.``, ``net.``), no

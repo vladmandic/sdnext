@@ -3,11 +3,6 @@ import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from modules.logger import log
 from pipelines import generic
-from pipelines.native_transformer import TransformerSpec
-
-
-COGVIEW3_SPEC = TransformerSpec(cls=diffusers.CogView3PlusTransformer2DModel)
-COGVIEW4_SPEC = TransformerSpec(cls=diffusers.CogView4Transformer2DModel)
 
 
 def load_cogview3(checkpoint_info, diffusers_load_config=None):
@@ -19,6 +14,7 @@ def load_cogview3(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
     log.debug(f'Load model: type=CogView3 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
+    from pipelines.cogview import COGVIEW3_SPEC
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.CogView3PlusTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer", native_spec=COGVIEW3_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder")
 
@@ -45,6 +41,7 @@ def load_cogview4(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
     log.debug(f'Load model: type=CogView4 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
+    from pipelines.cogview import COGVIEW4_SPEC
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.CogView4Transformer2DModel, load_config=diffusers_load_config, subfolder="transformer", native_spec=COGVIEW4_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.GlmModel, load_config=diffusers_load_config, subfolder="text_encoder", allow_quant=True)
 

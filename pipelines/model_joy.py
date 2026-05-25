@@ -3,10 +3,6 @@ import transformers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
 from modules.logger import log
 from pipelines import generic
-from pipelines.native_transformer import TransformerSpec
-
-
-JOY_SPEC = TransformerSpec(cls=diffusers.JoyImageEditTransformer3DModel)
 
 
 def load_joy(checkpoint_info, diffusers_load_config=None):
@@ -18,6 +14,7 @@ def load_joy(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=JoyImageEdit repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
+    from pipelines.joy import JOY_SPEC
     transformer = generic.load_transformer(
         repo_id,
         cls_name=diffusers.JoyImageEditTransformer3DModel,
