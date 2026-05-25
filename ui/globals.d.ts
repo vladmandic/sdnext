@@ -49,6 +49,7 @@ declare global {
     selected_gallery_index?: () => number; // ui/ui.ts
     selected_gallery_files?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     send_to_kanvas?: (gallery: { data?: string }[]) => void; // ui/ui.ts
+    submit?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_control?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_framepack?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     submit_img2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts

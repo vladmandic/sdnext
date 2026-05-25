@@ -816,6 +816,7 @@ window.submit_framepack = submit_framepack;
 window.submit_img2img = submit_img2img;
 window.submit_ltx = submit_ltx;
 window.submit_postprocessing = submit_postprocessing;
+window.submit = submit_txt2img; // compatibility alias
 window.submit_txt2img = submit_txt2img;
 window.submit_video = submit_video;
 window.submit_video_wrapper = submit_video_wrapper;

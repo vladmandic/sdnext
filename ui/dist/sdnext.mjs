@@ -11728,6 +11728,7 @@ window.submit_framepack = submit_framepack;
 window.submit_img2img = submit_img2img;
 window.submit_ltx = submit_ltx;
 window.submit_postprocessing = submit_postprocessing;
+window.submit = submit_txt2img;
 window.submit_txt2img = submit_txt2img;
 window.submit_video = submit_video;
 window.submit_video_wrapper = submit_video_wrapper;
@@ -14183,7 +14184,6 @@ async function getExif(el2) {
   }
   let html = "";
   let params;
-  debug("getExif", exif);
   if (exif.parameters) {
     params = exif.parameters;
   } else if (exif.userComment) {
@@ -14191,6 +14191,7 @@ async function getExif(el2) {
   } else {
     params = "";
   }
+  debug("getExif", params);
   if (params.length > 0) html += `<b>Prompt</b> ${params || ""}<br>`;
   html = html.replace("Negative prompt:", "<br><b>Negative</b>");
   html = html.replace("Steps:", "<br><b>Params</b> Steps:");
@@ -16457,7 +16458,7 @@ function keyupEditAttention(event2) {
   function selectCurrentWord() {
     if (selectionStart !== selectionEnd) return false;
     const delimiters = `${window.opts.keyedit_delimiters} \r
-  `;
+	`;
     while (!delimiters.includes(text[selectionStart - 1]) && selectionStart > 0) selectionStart--;
     while (!delimiters.includes(text[selectionEnd]) && selectionEnd < text.length) selectionEnd++;
     target.setSelectionRange(selectionStart, selectionEnd);
