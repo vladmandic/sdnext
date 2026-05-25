@@ -903,6 +903,9 @@ class SDNQConfig(QuantizationConfigMixin):
         quantization_config_dict["return_device"] = str(quantization_config_dict["return_device"]) if quantization_config_dict["return_device"] is not None else None
         return quantization_config_dict
 
+    def __str__(self):
+        return f"SDNQConfig(weights_dtype={self.weights_dtype} quantized_matmul_dtype={self.quantized_matmul_dtype} hadamard_group_size={self.hadamard_group_size} group_size={self.group_size} svd_rank={self.svd_rank} svd_steps={self.svd_steps} dynamic_loss_threshold={self.dynamic_loss_threshold} use_svd={self.use_svd} use_hadamard={self.use_hadamard} quant_conv={self.quant_conv} quant_embedding={self.quant_embedding} use_quantized_matmul={self.use_quantized_matmul} use_quantized_matmul_conv={self.use_quantized_matmul_conv} use_static_quantization={self.use_static_quantization} use_dynamic_quantization={self.use_dynamic_quantization} use_stochastic_rounding={self.use_stochastic_rounding} dequantize_fp32={self.dequantize_fp32} non_blocking={self.non_blocking} add_skip_keys={self.add_skip_keys} quantization_device={self.quantization_device} return_device={self.return_device} modules_to_not_convert={self.modules_to_not_convert} modules_to_not_use_matmul={self.modules_to_not_use_matmul} modules_dtype_dict={self.modules_dtype_dict} modules_quant_config={self.modules_quant_config} is_training={self.is_training})"
+
 
 import diffusers.quantizers.auto # noqa: E402,RUF100 # pylint: disable=wrong-import-order
 diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
