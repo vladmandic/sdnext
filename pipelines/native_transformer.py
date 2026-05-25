@@ -171,6 +171,11 @@ def load(
     spec: TransformerSpec,
     diffusers_cfg: dict | None = None,
     sibling_classes: dict[str, type] | None = None,
+    *,
+    allow_quant: bool = True,
+    dtype=None,
+    modules_to_not_convert: list | None = None,
+    modules_dtype_dict: dict | None = None,
 ) -> tuple[object, dict[str, object]]:
     """Load the transformer (and any bundled siblings) from ``local_file``.
 
@@ -179,6 +184,11 @@ def load(
     Anima's ``AnimaLLMAdapter`` is loaded from remote_code at runtime).
     Missing sibling classes raise ``ValueError`` if the corresponding sibling
     keys are present in the bundled file.
+
+    Keyword-only arguments ``allow_quant``, ``dtype``, ``modules_to_not_convert``,
+    and ``modules_dtype_dict`` mirror the corresponding kwargs of
+    :func:`pipelines.generic.load_transformer` so the dispatch from there can
+    plumb the caller's intent through unchanged.
 
     Returns ``(transformer, siblings_dict)``. ``siblings_dict`` is keyed by
     sibling name and is empty for non-sibling specs, or for sibling specs
@@ -197,7 +207,10 @@ def load(
         )
 
     _, quant_args = model_quant.get_dit_args(
-        diffusers_cfg, module="Model", device_map=True, allow_quant=True,
+        diffusers_cfg, module="Model", device_map=True,
+        allow_quant=allow_quant,
+        modules_to_not_convert=modules_to_not_convert,
+        modules_dtype_dict=modules_dtype_dict,
     )
     quant_type = model_quant.get_quant_type(quant_args)
 
@@ -213,6 +226,7 @@ def load(
         f"transformer_keys={len(transformer_sd)} siblings={sibling_counts or '{}'}"
     )
 
+    effective_dtype = dtype if dtype is not None else devices.dtype
     transformer_cfg = fetch_component_config(repo_id, spec.subfolder)
     transformer = build_component(
         component_name="transformer",
@@ -223,6 +237,7 @@ def load(
         acceptable_missing=spec.acceptable_missing,
         quant_args=quant_args,
         quant_type=quant_type,
+        dtype=effective_dtype,
     )
     del transformer_sd
     devices.torch_gc()
@@ -248,6 +263,7 @@ def load(
             acceptable_missing=sibling_spec.acceptable_missing,
             quant_args={},
             quant_type=None,
+            dtype=effective_dtype,
         )
 
     sd_models.allow_post_quant = False
@@ -362,9 +378,13 @@ def build_component(
     acceptable_missing: tuple[str, ...],
     quant_args: dict,
     quant_type: str | None,
+    dtype=None,
 ) -> object:
     """Convert (if needed), instantiate, load weights, dtype-cast, quantize,
     and offload-place a single component. Raises on any hard failure.
+
+    ``dtype`` overrides ``devices.dtype`` when supplied; otherwise the global
+    default is used.
     """
     try:
         sd = converter(state_dict) if converter is not None else state_dict
@@ -373,7 +393,7 @@ def build_component(
         validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
         del sd
         devices.torch_gc()
-        component = component.to(dtype=devices.dtype)
+        component = component.to(dtype=dtype if dtype is not None else devices.dtype)
     except Exception as e:
         log.error(f"Load model: native_transformer {component_name} load failed: {e}")
         errors.display(e, "Load")
