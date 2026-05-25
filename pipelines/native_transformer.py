@@ -214,6 +214,7 @@ def load(
     )
     quant_type = model_quant.get_quant_type(quant_args)
 
+    log.debug(f'Load model: native_transformer reading state_dict cls={spec.cls.__name__} file="{os.path.basename(local_file)}"')
     state_dict = sd_models.read_state_dict(local_file, what="transformer")
     state_dict = strip_prefix(state_dict, spec.prefixes, spec.cls.__name__)
     check_forbidden_markers(state_dict, spec.forbidden_markers, spec.cls.__name__, local_file)
@@ -393,13 +394,20 @@ def build_component(
     (ignored for siblings).
     """
     try:
-        sd = converter(state_dict) if converter is not None else state_dict
+        if converter is not None:
+            log.debug(f'Load model: native_transformer {component_name} converter={converter.__name__} keys={len(state_dict)}')
+            sd = converter(state_dict)
+        else:
+            sd = state_dict
+        log.debug(f'Load model: native_transformer {component_name} loading keys={len(sd)} cls={cls.__name__}')
         component = cls.from_config(config)
         missing, unexpected = component.load_state_dict(sd, strict=False)
         validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
         del sd
         devices.torch_gc()
-        component = component.to(dtype=dtype if dtype is not None else devices.dtype)
+        target_dtype = dtype if dtype is not None else devices.dtype
+        log.debug(f'Load model: native_transformer {component_name} cast dtype={target_dtype}')
+        component = component.to(dtype=target_dtype)
     except Exception as e:
         log.error(f"Load model: native_transformer {component_name} load failed: {e}")
         errors.display(e, "Load")
