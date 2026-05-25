@@ -4,6 +4,10 @@ from huggingface_hub import file_exists
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from modules.logger import log
 from pipelines import generic
+from pipelines.native_transformer import TransformerSpec
+
+
+PIXART_SPEC = TransformerSpec(cls=diffusers.PixArtTransformer2DModel)
 
 
 def load_pixart(checkpoint_info, diffusers_load_config=None):
@@ -24,7 +28,7 @@ def load_pixart(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=PixArtSigma repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    transformer = generic.load_transformer(repo_id, cls_name=diffusers.PixArtTransformer2DModel, load_config=diffusers_load_config)
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.PixArtTransformer2DModel, load_config=diffusers_load_config, native_spec=PIXART_SPEC)
     text_encoder = generic.load_text_encoder(repo_id_tenc, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config)
 
     pipe = diffusers.PixArtSigmaPipeline.from_pretrained(

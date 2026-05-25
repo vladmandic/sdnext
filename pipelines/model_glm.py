@@ -5,6 +5,10 @@ import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from modules.logger import log, console
 from pipelines import generic
+from pipelines.native_transformer import TransformerSpec
+
+
+GLM_IMAGE_SPEC = TransformerSpec(cls=diffusers.GlmImageTransformer2DModel)
 
 
 class GLMTokenProgressProcessor(transformers.LogitsProcessor):
@@ -98,7 +102,8 @@ def load_glm_image(checkpoint_info, diffusers_load_config=None):
     transformer = generic.load_transformer(
         repo_id,
         cls_name=diffusers.GlmImageTransformer2DModel,
-        load_config=diffusers_load_config
+        load_config=diffusers_load_config,
+        native_spec=GLM_IMAGE_SPEC,
     )
 
     # Load text encoder (ByT5 for glyph) - cannot use shared T5 as GLM-Image requires specific ByT5 encoder (1472 hidden size)
