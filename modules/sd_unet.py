@@ -46,6 +46,15 @@ def load_unet(model, repo_id: str | None = None):
                 return
 
     if shared.opts.sd_unet == 'Default' or shared.opts.sd_unet == 'None':
+        # If a custom UNET / transformer was previously loaded, switching back
+        # to 'Default' has to actually revert the override. Without this, the
+        # model keeps the prior finetune transformer in memory and the
+        # dropdown looks "stuck".
+        if loaded_unet in (None, 'Default', 'None'):
+            return
+        log.info(f'Load module: type=UNet name="Default" (was="{loaded_unet}") reverting to base transformer')
+        loaded_unet = shared.opts.sd_unet
+        sd_models.load_diffuser()
         return
 
     if shared.opts.sd_unet not in list(unet_dict):
