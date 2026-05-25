@@ -546,9 +546,19 @@ class LensPipeline(DiffusionPipeline):
                 latents = self.scheduler.step(noise_pred, t, latents, return_dict=False)[0]
 
                 if callback_on_step_end is not None:
-                    cb_kwargs = {
-                        k: locals()[k] for k in callback_on_step_end_tensor_inputs
-                    }
+                    cb_kwargs = {}
+                    for k in callback_on_step_end_tensor_inputs:
+                        if k == "latents":
+                            cb_kwargs[k] = latents
+                        elif k == "prompt_embeds":
+                            cb_kwargs[k] = prompt_embeds
+                        elif k == "negative_prompt_embeds":
+                            cb_kwargs[k] = negative_prompt_embeds
+                        else:
+                            raise ValueError(
+                                f"callback_on_step_end_tensor_inputs entry {k!r} is not "
+                                f"in {self._callback_tensor_inputs}."
+                            )
                     cb_out = callback_on_step_end(self, i, t, cb_kwargs)
                     latents = cb_out.pop("latents", latents)
                     prompt_embeds = cb_out.pop("prompt_embeds", prompt_embeds)
