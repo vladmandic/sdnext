@@ -238,6 +238,8 @@ def load(
         quant_args=quant_args,
         quant_type=quant_type,
         dtype=effective_dtype,
+        modules_to_not_convert=modules_to_not_convert,
+        modules_dtype_dict=modules_dtype_dict,
     )
     del transformer_sd
     devices.torch_gc()
@@ -379,12 +381,16 @@ def build_component(
     quant_args: dict,
     quant_type: str | None,
     dtype=None,
+    modules_to_not_convert: list | None = None,
+    modules_dtype_dict: dict | None = None,
 ) -> object:
     """Convert (if needed), instantiate, load weights, dtype-cast, quantize,
     and offload-place a single component. Raises on any hard failure.
 
     ``dtype`` overrides ``devices.dtype`` when supplied; otherwise the global
-    default is used.
+    default is used. ``modules_to_not_convert`` and ``modules_dtype_dict``
+    are forwarded to :func:`apply_quant` for the transformer component
+    (ignored for siblings).
     """
     try:
         sd = converter(state_dict) if converter is not None else state_dict
@@ -400,7 +406,12 @@ def build_component(
         raise
 
     if component_name == "transformer":
-        apply_quant(component, quant_type)
+        apply_quant(
+            component,
+            quant_type,
+            modules_to_not_convert=modules_to_not_convert,
+            modules_dtype_dict=modules_dtype_dict,
+        )
 
     if shared.opts.diffusers_offload_mode != "none":
         sd_models.move_model(component, devices.cpu)
@@ -445,7 +456,12 @@ def validate_state_dict_load(
         )
 
 
-def apply_quant(transformer: object, quant_type: str | None) -> None:
+def apply_quant(
+    transformer: object,
+    quant_type: str | None,
+    modules_to_not_convert: list | None = None,
+    modules_dtype_dict: dict | None = None,
+) -> None:
     """Apply SDNQ / layerwise quantization to the bare transformer.
 
     SDNQ 'pre' and 'auto' would normally route through ``quantization_config``
@@ -453,6 +469,10 @@ def apply_quant(transformer: object, quant_type: str | None) -> None:
     we call the per-module quant path directly. SDNQ 'post' and
     ``layerwise_quantization`` go through ``do_post_load_quant`` as usual.
     NVIDIAModelOptConfig (TRT) is not supported on this path.
+
+    ``modules_to_not_convert`` and ``modules_dtype_dict`` are forwarded
+    to :func:`sdnq_quantize_model` so per-call skip lists set by the
+    caller are honored on the native path.
     """
     if quant_type == "NVIDIAModelOptConfig":
         log.warning(
@@ -464,5 +484,10 @@ def apply_quant(transformer: object, quant_type: str | None) -> None:
                 "Load model: native_transformer quant=SDNQ pre-mode applied post-load "
                 "on native path"
             )
-        model_quant.sdnq_quantize_model(transformer, op="transformer")
+        model_quant.sdnq_quantize_model(
+            transformer,
+            op="transformer",
+            modules_to_not_convert=modules_to_not_convert,
+            modules_dtype_dict=modules_dtype_dict,
+        )
     model_quant.do_post_load_quant(transformer, allow=False)
