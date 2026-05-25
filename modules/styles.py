@@ -331,7 +331,11 @@ class StyleDatabase:
                         filename=fn,
                         mtime=os.path.getmtime(fn),
                     )
-                    self.styles[style["name"]] = new_style
+                    # key by the prefixed name so styles with the same base name in different
+                    # subfolders do not collide and overwrite each other
+                    if name in self.styles:
+                        log.warning(f'Style duplicate name: name="{name}" file="{fn}" existing="{self.styles[name].filename}"')
+                    self.styles[name] = new_style
             except Exception as e:
                 log.error(f'Failed to load style: file="{fn}" error={e}')
             return new_style
