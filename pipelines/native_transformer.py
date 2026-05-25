@@ -6,11 +6,15 @@ Bypasses :func:`diffusers.loaders.FromOriginalModelMixin.from_single_file` so
 sdnext owns prefix detection, optional sibling partitioning, dtype/quant/offload
 handling, and explicit validation of missing/unexpected keys.
 
-The per-arch knobs are captured in :class:`TransformerSpec`. Arches register a
-spec at import time via :func:`register`; arches without a registration get a
-default spec that handles BFL-style ``model.diffusion_model.`` prefix stripping
-and opportunistically picks up a diffusers converter from
-``SINGLE_FILE_LOADABLE_CLASSES`` if the class has one.
+The per-arch knobs are captured in :class:`TransformerSpec`. Each pipeline
+defines its spec in ``pipelines/<arch>/__init__.py`` and passes it explicitly
+to :func:`load` (or to :func:`pipelines.generic.load_transformer` via the
+``native_spec`` kwarg). No class-keyed registry: two pipelines may share a
+transformer class but need different specs (e.g. Anima vs raw Cosmos both
+use ``CosmosTransformer3DModel`` but Anima has a bundled ``llm_adapter``
+sibling). Pipelines without a custom spec fall back to
+:func:`make_default_spec`, which opportunistically picks up a real converter
+from diffusers' ``SINGLE_FILE_LOADABLE_CLASSES`` table.
 
 Algorithm:
 
@@ -90,32 +94,17 @@ class TransformerSpec:
     forbidden_markers: tuple[tuple[str, str], ...] = ()
 
 
-REGISTRY: dict[type, TransformerSpec] = {}
+def make_default_spec(cls: type) -> TransformerSpec:
+    """Synthesize a default spec for ``cls``: default prefixes, no siblings,
+    no forbidden markers, and a converter picked up automatically from
+    diffusers' ``SINGLE_FILE_LOADABLE_CLASSES`` table if one exists (and is
+    not the no-op identity lambda that ``QwenImageTransformer2DModel`` and
+    a few other classes register).
 
-
-def register(cls: type, spec: TransformerSpec | None = None) -> None:
-    """Register a transformer class with an explicit spec, or with the default
-    spec if ``spec`` is None. Idempotent: re-registering the same class
-    replaces the previous entry.
+    Used by callers (notably :func:`pipelines.generic.load_transformer`) when
+    a pipeline does not supply a custom ``TransformerSpec`` of its own.
     """
-    if spec is None:
-        spec = TransformerSpec(cls=cls)
-    if spec.cls is not cls:
-        raise ValueError(f"register: spec.cls ({spec.cls.__name__}) does not match cls ({cls.__name__})")
-    REGISTRY[cls] = spec
-
-
-def lookup(cls: type) -> TransformerSpec:
-    """Return the registered spec for ``cls``, or synthesize a default one.
-
-    The synthesized default opportunistically pulls a converter from diffusers'
-    ``SINGLE_FILE_LOADABLE_CLASSES`` table if one exists for the class name and
-    is not a pass-through no-op lambda.
-    """
-    if cls in REGISTRY:
-        return REGISTRY[cls]
-    converter = auto_pickup_converter(cls)
-    return TransformerSpec(cls=cls, converter=converter)
+    return TransformerSpec(cls=cls, converter=auto_pickup_converter(cls))
 
 
 def auto_pickup_converter(cls: type) -> Callable[[dict], dict] | None:

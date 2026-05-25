@@ -9,7 +9,7 @@ Covers the pure helpers that own per-arch knob handling:
 - ``check_forbidden_markers`` for structural-mismatch rejection
 - ``is_noop_converter`` for diffusers no-op lambda detection
 - ``validate_state_dict_load`` for unexpected / missing key handling
-- ``register`` / ``lookup`` registry behavior and default spec synthesis
+- ``make_default_spec`` default-spec synthesis with diffusers converter pickup
 - ``auto_pickup_converter`` for diffusers ``SINGLE_FILE_LOADABLE_CLASSES`` integration
 - ``TransformerSpec`` / ``SiblingSpec`` defaults
 
@@ -306,58 +306,37 @@ def test_validate_empty_passes():
 
 
 # ============================================================
-# register / lookup
+# make_default_spec
 # ============================================================
 
 class FakeTransformer:
     """Minimal stand-in for a diffusers transformer class."""
 
 
-class FakeTransformer2:
-    """Second stand-in for register/lookup tests."""
-
-
-def test_register_with_explicit_spec():
-    nt.REGISTRY.clear()
-    spec = nt.TransformerSpec(cls=FakeTransformer, subfolder='custom_sub')
-    nt.register(FakeTransformer, spec)
-    assert nt.lookup(FakeTransformer) is spec
-
-
-def test_register_with_default_spec():
-    nt.REGISTRY.clear()
-    nt.register(FakeTransformer)
-    spec = nt.lookup(FakeTransformer)
+def test_make_default_spec_for_unknown_class():
+    spec = nt.make_default_spec(FakeTransformer)
     assert spec.cls is FakeTransformer
     assert spec.subfolder == 'transformer'
     assert spec.prefixes == nt.DEFAULT_PREFIXES
-    assert spec.converter is None
+    assert spec.converter is None  # no diffusers entry for FakeTransformer
     assert spec.siblings == {}
+    assert spec.forbidden_markers == ()
 
 
-def test_register_idempotent_replaces():
-    nt.REGISTRY.clear()
-    spec1 = nt.TransformerSpec(cls=FakeTransformer, subfolder='sub_one')
-    spec2 = nt.TransformerSpec(cls=FakeTransformer, subfolder='sub_two')
-    nt.register(FakeTransformer, spec1)
-    nt.register(FakeTransformer, spec2)
-    assert nt.lookup(FakeTransformer) is spec2
+def test_make_default_spec_picks_up_real_diffusers_converter():
+    import diffusers
+    spec = nt.make_default_spec(diffusers.FluxTransformer2DModel)
+    assert spec.converter is not None
+    assert spec.converter.__name__ == 'convert_flux_transformer_checkpoint_to_diffusers'
 
 
-def test_register_rejects_mismatched_cls():
-    try:
-        nt.register(FakeTransformer, nt.TransformerSpec(cls=FakeTransformer2))
-        raise AssertionError('expected ValueError')
-    except ValueError as e:
-        assert 'does not match' in str(e)
-
-
-def test_lookup_synthesizes_default_for_unregistered():
-    nt.REGISTRY.clear()
-    spec = nt.lookup(FakeTransformer)
-    assert spec.cls is FakeTransformer
-    assert spec.subfolder == 'transformer'  # default
-    assert spec.converter is None  # FakeTransformer has no diffusers entry
+def test_make_default_spec_skips_qwen_image_noop():
+    """QwenImageTransformer2DModel's diffusers entry is a no-op lambda; the
+    default spec must NOT pick it up, leaving converter=None so the caller
+    sees only their own (potentially absent) override."""
+    import diffusers
+    spec = nt.make_default_spec(diffusers.QwenImageTransformer2DModel)
+    assert spec.converter is None
 
 
 # ============================================================
@@ -701,14 +680,12 @@ def run_all():
     ]:
         run_test(cat, fn)
 
-    log.warning('=== register / lookup ===')
-    cat = category('registry')
+    log.warning('=== make_default_spec ===')
+    cat = category('default_spec')
     for fn in [
-        test_register_with_explicit_spec,
-        test_register_with_default_spec,
-        test_register_idempotent_replaces,
-        test_register_rejects_mismatched_cls,
-        test_lookup_synthesizes_default_for_unregistered,
+        test_make_default_spec_for_unknown_class,
+        test_make_default_spec_picks_up_real_diffusers_converter,
+        test_make_default_spec_skips_qwen_image_noop,
     ]:
         run_test(cat, fn)
 
