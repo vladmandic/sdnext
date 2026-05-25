@@ -121,7 +121,7 @@ class LensPipeline(DiffusionPipeline):
 
     model_cpu_offload_seq = "text_encoder->transformer->vae"
     _callback_tensor_inputs = [
-        "latents", "prompt_embeds", "negative_prompt_embeds",
+        "latents", "prompt_embeds", "negative_prompt_embeds", "noise_pred",
     ]
 
     def __init__(
@@ -554,6 +554,8 @@ class LensPipeline(DiffusionPipeline):
                             cb_kwargs[k] = prompt_embeds
                         elif k == "negative_prompt_embeds":
                             cb_kwargs[k] = negative_prompt_embeds
+                        elif k == "noise_pred":
+                            cb_kwargs[k] = noise_pred
                         else:
                             raise ValueError(
                                 f"callback_on_step_end_tensor_inputs entry {k!r} is not "
