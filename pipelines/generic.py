@@ -19,7 +19,7 @@ def _loader(component):
     return 'runai' if shared.opts.runai_streamer_transformers else 'default'
 
 
-def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer", allow_quant=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None):
+def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer", allow_quant=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None, **kwargs):
     if shared.state.interrupted:
         return None
     transformer = None
@@ -66,6 +66,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 cache_dir=shared.opts.hfcache_dir,
                 **load_args,
                 **quant_args,
+                **kwargs,
             )
         else:
             log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" loader={_loader("diffusers")} args={load_args}')
@@ -82,6 +83,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 cache_dir=shared.opts.hfcache_dir,
                 **load_args,
                 **quant_args,
+                **kwargs,
             )
 
         sd_models.allow_post_quant = False # we already handled it
@@ -93,16 +95,18 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 transformer.quantization_config = transformer.config.quantization_config
             elif (quant_type is not None) and (quant_args.get('quantization_config', None) is not None):
                 transformer.quantization_config = quant_args.get('quantization_config', None)
+
     except Exception as e:
         log.error(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} {e}')
         errors.display(e, 'Load')
         raise
+
     devices.torch_gc()
     shared.state.end(jobid)
     return transformer
 
 
-def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None):
+def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None, **kwargs):
     if shared.state.interrupted:
         return None
     text_encoder = None
@@ -163,6 +167,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                 text_encoder = nunchaku.NunchakuT5EncoderModel.from_pretrained(
                     repo_id,
                     torch_dtype=dtype,
+                    **kwargs,
                 )
                 text_encoder.quantization_method = 'SVDQuant'
             else:
@@ -179,6 +184,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                     cache_dir=shared.opts.hfcache_dir,
                     **load_args,
                     **quant_args,
+                    **kwargs,
                 )
         elif cls_name == transformers.UMT5EncoderModel and allow_shared and shared.opts.te_shared_t5:
             if 'sdnq-uint4-svd' in repo_id.lower():
@@ -193,6 +199,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                 subfolder=subfolder,
                 **load_args,
                 **quant_args,
+                **kwargs,
             )
         elif cls_name == transformers.Qwen2_5_VLForConditionalGeneration and allow_shared and shared.opts.te_shared_t5:
             repo_id = 'hunyuanvideo-community/HunyuanImage-2.1-Diffusers'
@@ -204,6 +211,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                 subfolder=subfolder,
                 **load_args,
                 **quant_args,
+                **kwargs,
             )
         # Qwen3ForCausalLM - shared text encoders by hidden_size:
         # - Z-Image, Klein-4B: Qwen3-4B (hidden_size=2560)
@@ -222,6 +230,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                 subfolder=subfolder,
                 **load_args,
                 **quant_args,
+                **kwargs,
             )
 
         # load from repo
@@ -236,6 +245,7 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                 cache_dir=shared.opts.hfcache_dir,
                 **load_args,
                 **quant_args,
+                **kwargs,
             )
 
         sd_models.allow_post_quant = False # we already handled it
@@ -247,10 +257,12 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
                 text_encoder.quantization_config = text_encoder.config.quantization_config
             elif (quant_type is not None) and (quant_args.get('quantization_config', None) is not None):
                 text_encoder.quantization_config = quant_args.get('quantization_config', None)
+
     except Exception as e:
         log.error(f'Load model: text_encoder="{repo_id}" cls={cls_name.__name__} {e}')
         errors.display(e, 'Load')
         raise
+
     devices.torch_gc()
     shared.state.end(jobid)
     return text_encoder

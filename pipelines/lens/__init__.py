@@ -3,6 +3,7 @@
 import diffusers as _diffusers
 import transformers as _transformers
 from .pipeline import LensPipeline, LensPipelineOutput
+from .pipeline_image import LensImg2ImgPipeline, LensInpaintPipeline
 from .reasoner import PromptReasoner
 from .resolution import RESOLUTION_BUCKETS, resolve_resolution
 from .text_encoder import LensGptOssEncoder
@@ -28,12 +29,19 @@ if not hasattr(_diffusers, "LensTransformer2DModel"):
     _diffusers.LensTransformer2DModel = LensTransformer2DModel
 if not hasattr(_diffusers, "LensPipeline"):
     _diffusers.LensPipeline = LensPipeline
+if not hasattr(_diffusers, "LensImg2ImgPipeline"):
+    _diffusers.LensImg2ImgPipeline = LensImg2ImgPipeline
+if not hasattr(_diffusers, "LensInpaintPipeline"):
+    _diffusers.LensInpaintPipeline = LensInpaintPipeline
 
+# Clean up local module references after registration.
 del _diffusers, _transformers
 
 __all__ = [
     "LensPipeline",
     "LensPipelineOutput",
+    "LensImg2ImgPipeline",
+    "LensInpaintPipeline",
     "LensTransformer2DModel",
     "LensGptOssEncoder",
     "PromptReasoner",

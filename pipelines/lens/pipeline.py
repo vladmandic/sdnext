@@ -131,8 +131,6 @@ class LensPipeline(DiffusionPipeline):
         text_encoder: LensGptOssEncoder,
         tokenizer: PreTrainedTokenizerBase,
         transformer: LensTransformer2DModel,
-        reasoner: Optional[PromptReasoner] = None,
-        use_reasoner=False,
     ) -> None:
         super().__init__()
         self.register_modules(
@@ -141,7 +139,6 @@ class LensPipeline(DiffusionPipeline):
             text_encoder=text_encoder,
             tokenizer=tokenizer,
             transformer=transformer,
-            reasoner=reasoner,
         )
         if self.tokenizer.pad_token_id is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
@@ -157,10 +154,9 @@ class LensPipeline(DiffusionPipeline):
                 self.transformer.config.selected_layer_index
             )
 
-        if use_reasoner and reasoner is None:
-            self.reasoner = PromptReasoner(
-                text_encoder=self.text_encoder, tokenizer=self.tokenizer
-            )
+        self.reasoner = PromptReasoner(
+            text_encoder=self.text_encoder, tokenizer=self.tokenizer
+        )
 
     # ------------------------------------------------------------------
     # Prompt encoding
@@ -295,7 +291,7 @@ class LensPipeline(DiffusionPipeline):
     def refine_prompt(
         self, prompts: Sequence[str], enable_reasoner: bool = False
     ) -> List[str]:
-        if self.reasoner is None:
+        if enable_reasoner and self.reasoner is None:
             return list(prompts)
         return self.reasoner.refine(prompts, enable=enable_reasoner)
 
@@ -369,6 +365,37 @@ class LensPipeline(DiffusionPipeline):
         latents = latents.reshape(b, c // 4, 2, 2, h, w)
         latents = latents.permute(0, 1, 4, 2, 5, 3)
         return latents.reshape(b, c // 4, h * 2, w * 2)
+
+    def _pack_latents(
+        self,
+        latents: torch.Tensor,
+        batch_size: int,
+        num_channels_latents: int,
+        height: int,
+        width: int,
+    ) -> torch.Tensor:
+        height = height // self.vae_scale_factor
+        width = width // self.vae_scale_factor
+        latents = latents.view(batch_size, num_channels_latents, height, 2, width, 2)
+        latents = latents.permute(0, 2, 4, 1, 3, 5)
+        return latents.reshape(batch_size, height * width, num_channels_latents * 4)
+
+    def _unpack_latents(
+        self,
+        latents: torch.Tensor,
+        height: int,
+        width: int,
+        vae_scale_factor: int, # pylint: disable=unused-argument
+    ) -> torch.Tensor:
+        batch_size, _seq_len, patch_ch = latents.shape
+        latent_h = height // self.vae_scale_factor
+        latent_w = width // self.vae_scale_factor
+        return (
+            latents
+            .view(batch_size, latent_h, latent_w, patch_ch // 4, 2, 2)
+            .permute(0, 3, 1, 4, 2, 5)
+            .reshape(batch_size, patch_ch // 4, latent_h * 2, latent_w * 2)
+        )
 
     @torch.no_grad()
     def _decode(self, latents: torch.Tensor, latent_h: int, latent_w: int):

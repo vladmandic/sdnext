@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-23
+## Update for 2026-05-25
 
-### Highlights for 2026-05-23
+### Highlights for 2026-05-25
 
 *What's New?*
 - **Anima** made it to release version, Microsoft joins the game with **Lens**
@@ -10,11 +10,11 @@
 - New **image analysis** feature and much improved **prompt enhance** capabilities which allow steering the model in real-time
 - Improved image metadata options
 
-And we have new [Contibuting** & **Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
+And we have new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
 
-Plus continued work on modernization of codebase: UI is now fully TypeScript based and new modular LoRA loader
+Plus continued work on modernization of codebase: UI is now fully TypeScript based and we have a new modular LoRA loader
 
-### Details for 2026-05-23
+### Details for 2026-05-25
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -23,6 +23,7 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
     3.8B text-to-image DiT model with 12B GPT-OSS text-encoding and Flux2 VAE  
     oh, that 12B encoder is MoE with 3.6B activated plus its prequantized using `mxfp4`  
     *note* Lens comes with its own prompt-refiner, enable in settings -> model options (disabled by default)  
+    *note* original Lens implements only text-2-image, SD.Next adds image-2-image and inpaint workflows as well  
 - **Features**
   - **SDNQ** new quantization algorithm: *Hadamard Rotations*  
     much higher quality than base SDNQ, but runs slightly slower  
@@ -56,7 +57,7 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - restore params from image metadata will now prefer *template* field if present, otherwise use *prompt* field  
     this allows to preserve original prompt in case of wildcards or styles modifying the prompt  
 - **Docs**
-  - new [Contibuting** & **Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/)  
+  - new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) home page  
     includes pages on *development setup, code structure, coding standards, ui development, themes, docs, hints* and more!  
 - **AI**
   - Cognitive analysis and improvements to *all* AI prompts
