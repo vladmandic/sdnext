@@ -21,11 +21,13 @@ def load_vibe(checkpoint_info, diffusers_load_config=None):
 
     sys.modules['vibe.transformer.vibe_sana_editing'] = diffusers # monkey patch since hf model_index.json points to custom class path
 
+    from pipelines.vibe import VIBE_SPEC
     transformer = generic.load_transformer(
         repo_id,
         cls_name=VIBESanaEditingModel,
         load_config=diffusers_load_config,
         allow_quant=False,
+        native_spec=VIBE_SPEC,
     )
     text_encoder = generic.load_text_encoder(
         repo_id,
