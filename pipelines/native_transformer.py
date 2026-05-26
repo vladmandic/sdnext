@@ -176,6 +176,8 @@ def load(
     dtype=None,
     modules_to_not_convert: list | None = None,
     modules_dtype_dict: dict | None = None,
+    quant_args: dict | None = None,
+    quant_type: str | None = None,
 ) -> tuple[object, dict[str, object]]:
     """Load the transformer (and any bundled siblings) from ``local_file``.
 
@@ -188,7 +190,9 @@ def load(
     Keyword-only arguments ``allow_quant``, ``dtype``, ``modules_to_not_convert``,
     and ``modules_dtype_dict`` mirror the corresponding kwargs of
     :func:`pipelines.generic.load_transformer` so the dispatch from there can
-    plumb the caller's intent through unchanged.
+    plumb the caller's intent through unchanged. ``quant_args`` and
+    ``quant_type`` are precomputed by the caller; when ``None`` they are
+    derived here via ``model_quant.get_dit_args``.
 
     Returns ``(transformer, siblings_dict)``. ``siblings_dict`` is keyed by
     sibling name and is empty for non-sibling specs, or for sibling specs
@@ -206,13 +210,14 @@ def load(
             f'got "{local_file}"'
         )
 
-    _, quant_args = model_quant.get_dit_args(
-        diffusers_cfg, module="Model", device_map=True,
-        allow_quant=allow_quant,
-        modules_to_not_convert=modules_to_not_convert,
-        modules_dtype_dict=modules_dtype_dict,
-    )
-    quant_type = model_quant.get_quant_type(quant_args)
+    if quant_args is None:
+        _, quant_args = model_quant.get_dit_args(
+            diffusers_cfg, module="Model", device_map=True,
+            allow_quant=allow_quant,
+            modules_to_not_convert=modules_to_not_convert,
+            modules_dtype_dict=modules_dtype_dict,
+        )
+        quant_type = model_quant.get_quant_type(quant_args)
 
     log.debug(f'Load model: native_transformer reading state_dict cls={spec.cls.__name__} file="{os.path.basename(local_file)}"')
     state_dict = sd_models.read_state_dict(local_file, what="transformer")
