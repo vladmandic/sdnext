@@ -42,9 +42,10 @@ from dataclasses import dataclass, field
 from typing import Callable
 
 import huggingface_hub as hf
+import torch
 
 from modules import shared, devices, sd_models, model_quant, errors
-from modules.logger import log
+from modules.logger import log, console
 
 
 DEFAULT_PREFIXES: tuple[str, ...] = (
@@ -376,6 +377,99 @@ def fetch_component_config(repo_id: str, subfolder: str) -> dict:
     return shared.readfile(local, as_type="dict")
 
 
+def build_component_quantized(
+    *,
+    component_name: str,
+    state_dict: dict,
+    config: dict,
+    cls: type,
+    quant_args: dict,
+    dtype,
+    acceptable_missing: tuple[str, ...],
+) -> object:
+    """Build a component with per-tensor SDNQ quantization during load.
+
+    Mirrors the per-tensor loop in
+    :func:`diffusers.models.model_loading_utils.load_model_dict_into_meta`:
+    iterates the (already-converted) state_dict and dispatches each tensor
+    through ``SDNQQuantizer.check_if_quantized_param`` /
+    ``create_quantized_param`` so Linear/Conv/Embed weights are packed to
+    uint4 as they land, while biases, LayerNorms, and other non-quantizable
+    parameters go through ``accelerate.set_module_tensor_to_device``.
+
+    The component is constructed inside ``init_empty_weights(include_buffers=
+    False)`` so parameter slots are meta tensors (no full bf16 instantiation
+    upfront) while computed buffers like ``rope.freqs`` materialize normally
+    during ``cls.from_config(config)``. After the loop, the quantizer's
+    ``_process_model_after_weight_loading`` hook attaches
+    ``quantization_config`` and handles the CPU offload move.
+
+    Caller is responsible for running the converter and prefix stripping
+    before passing ``state_dict``.
+    """
+    import rich.progress as rp
+    from accelerate import init_empty_weights
+    from accelerate.utils import set_module_tensor_to_device
+    from modules.sdnq.quantizer import SDNQQuantizer
+
+    quantization_config = quant_args.get("quantization_config")
+    if quantization_config is None:
+        raise ValueError(
+            f"Load model: native_transformer {component_name} "
+            f"per-tensor quantization requires quant_args['quantization_config']"
+        )
+
+    target_dtype = dtype if dtype is not None else devices.dtype
+    quantizer = SDNQQuantizer(quantization_config, pre_quantized=False)
+    quantizer.torch_dtype = target_dtype
+
+    with init_empty_weights(include_buffers=False):
+        component = cls.from_config(config)
+
+    quantizer._process_model_before_weight_loading(component, device_map=None)  # pylint: disable=protected-access
+
+    target_device = (
+        devices.cpu if shared.opts.diffusers_offload_mode != "none"
+        else devices.device
+    )
+
+    expected_keys = set(component.state_dict().keys())
+    loaded_keys: set[str] = set()
+    unexpected: list[str] = []
+    total = len(state_dict)
+
+    pbar = rp.Progress(
+        rp.TextColumn(f'[cyan]Load {component_name}:'),
+        rp.BarColumn(),
+        rp.MofNCompleteColumn(),
+        rp.TaskProgressColumn(),
+        rp.TimeRemainingColumn(),
+        rp.TimeElapsedColumn(),
+        rp.TextColumn('[cyan]{task.description}'),
+        console=console,
+    )
+    with pbar:
+        task = pbar.add_task(total=total, description=cls.__name__)
+        for name, value in state_dict.items():
+            if name in expected_keys:
+                if torch.is_floating_point(value):
+                    value = value.to(target_dtype)
+                if quantizer.check_if_quantized_param(component, value, name):
+                    quantizer.create_quantized_param(component, value, name, target_device, dtype=target_dtype)
+                else:
+                    set_module_tensor_to_device(component, name, target_device, value=value, dtype=target_dtype)
+                loaded_keys.add(name)
+            else:
+                unexpected.append(name)
+            pbar.update(task, advance=1)
+
+    missing = sorted(expected_keys - loaded_keys)
+    validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
+
+    component = quantizer._process_model_after_weight_loading(component)  # pylint: disable=protected-access
+    return component
+
+
 def build_component(
     *,
     component_name: str,
@@ -393,10 +487,16 @@ def build_component(
     """Convert (if needed), instantiate, load weights, dtype-cast, quantize,
     and offload-place a single component. Raises on any hard failure.
 
+    For the transformer component under SDNQ, the per-tensor pre-mode path
+    in :func:`build_component_quantized` is used so quantization is applied
+    in flight (one layer's worth of bf16 in memory at a time). All other
+    cases (siblings, non-quantized loads, NVIDIAModelOptConfig, layerwise
+    quant) go through the standard load_state_dict + post-quantize path.
+
     ``dtype`` overrides ``devices.dtype`` when supplied; otherwise the global
     default is used. ``modules_to_not_convert`` and ``modules_dtype_dict``
-    are forwarded to :func:`apply_quant` for the transformer component
-    (ignored for siblings).
+    are forwarded to :func:`apply_quant` for the post-mode path; pre-mode
+    receives them via the SDNQConfig in ``quant_args``.
     """
     try:
         if converter is not None:
@@ -404,6 +504,21 @@ def build_component(
             sd = converter(state_dict)
         else:
             sd = state_dict
+
+        if component_name == "transformer" and quant_type == "SDNQConfig":
+            component = build_component_quantized(
+                component_name=component_name,
+                state_dict=sd,
+                config=config,
+                cls=cls,
+                quant_args=quant_args,
+                dtype=dtype,
+                acceptable_missing=acceptable_missing,
+            )
+            del sd
+            devices.torch_gc()
+            return component
+
         log.debug(f'Load model: native_transformer {component_name} loading keys={len(sd)} cls={cls.__name__}')
         component = cls.from_config(config)
         missing, unexpected = component.load_state_dict(sd, strict=False)
@@ -475,28 +590,24 @@ def apply_quant(
     modules_to_not_convert: list | None = None,
     modules_dtype_dict: dict | None = None,
 ) -> None:
-    """Apply SDNQ / layerwise quantization to the bare transformer.
+    """Apply post-load quantization to a fully-loaded transformer.
 
-    SDNQ 'pre' and 'auto' would normally route through ``quantization_config``
-    at ``from_pretrained`` time; the native path bypasses that boundary, so
-    we call the per-module quant path directly. SDNQ 'post' and
-    ``layerwise_quantization`` go through ``do_post_load_quant`` as usual.
-    NVIDIAModelOptConfig (TRT) is not supported on this path.
+    Used as a fallback for cases that don't go through the per-tensor
+    pre-mode path in :func:`build_component_quantized`: ``layerwise_quantization``
+    (via ``do_post_load_quant``), and the no-quant case (no-op). SDNQ post
+    mode also reaches this path because pre-mode dispatch only triggers
+    when an SDNQConfig is present (which itself only happens under modes
+    ``pre`` or ``auto``).
 
     ``modules_to_not_convert`` and ``modules_dtype_dict`` are forwarded
     to :func:`sdnq_quantize_model` so per-call skip lists set by the
-    caller are honored on the native path.
+    caller are honored.
     """
     if quant_type == "NVIDIAModelOptConfig":
         log.warning(
             "Load model: native_transformer quant=TRT not supported on native path, skipping"
         )
     elif quant_type == "SDNQConfig":
-        if shared.opts.sdnq_quantize_mode == "pre":
-            log.info(
-                "Load model: native_transformer quant=SDNQ pre-mode applied post-load "
-                "on native path"
-            )
         model_quant.sdnq_quantize_model(
             transformer,
             op="transformer",
