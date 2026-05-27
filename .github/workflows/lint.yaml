@@ -64,7 +64,7 @@ jobs:
         run: uv run --active pylint --disable W0511 *.py modules/ pipelines/ scripts/ extensions-builtin/
 
       - name: install-runtime-deps
-        run: uv pip install setuptools==69.5.1
+        run: uv sync
 
       - name: test-run
         run: uv run python launch.py --test --uv
