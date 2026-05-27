@@ -9,9 +9,6 @@ jobs:
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
-      matrix:
-        flags:
-          - --test --uv
 
     steps:
       - name: checkout-code
@@ -26,7 +23,7 @@ jobs:
           python-version: 3.12.3
 
       - name: install-python-deps
-        run: uv pip install ruff pylint pre-commit --system
+        run: uv pip install ruff pylint pre-commit setuptools==69.5.1 --system
 
       - name: setup-node
         uses: actions/setup-node@main
@@ -66,10 +63,8 @@ jobs:
       - name: pylint
         run: uv run --active pylint --disable W0511 *.py modules/ pipelines/ scripts/ extensions-builtin/
 
-      - name: test
-        run: |
-          export COMMANDLINE_ARGS="${{ matrix.flags }}"
-          uv run python launch.py
+      - name: test-run
+        run: uv run --active --system-site-packages python launch.py --test --uv
 
       - name: pre-commit-run
         run: uv run --active pre-commit run --all-files
