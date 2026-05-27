@@ -5,6 +5,10 @@ check [ChangeLog](https://vladmandic.github.io/sdnext-docs/CHANGELOG/) for when 
 
 And for any question, reach out on [Discord](https://discord.gg/VjvR2tabEX) or open an [issue](https://github.com/vladmandic/sdnext/issues) or [discussion](https://github.com/vladmandic/sdnext/discussions)  
 
-### Contributing
+### Credits
 
-Please see [Contributing](https://raw.githubusercontent.com/vladmandic/sdnext/refs/heads/dev/CONTRIBUTING) for details on how to contribute to this project
+Main credit goes to [Automatic1111 WebUI](https://github.com/AUTOMATIC1111/stable-diffusion-webui) for the original codebase  
+
+### Development and Contributing
+
+Please see [Dev Home](https://vladmandic.github.io/sdnext-docs/Dev-Home/) for details on how to contribute to this project

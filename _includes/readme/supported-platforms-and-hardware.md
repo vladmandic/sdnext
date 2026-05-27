@@ -1,5 +1,7 @@
 ## Supported Platforms and Hardware
 
+SD.Next is designed to run on a wide range of hardware and platforms, with optimizations for various GPU architectures with acceleration and support for CPU-only execution. Supported platforms include:
+
 - *nVidia* GPUs using **CUDA** libraries on both *Windows and Linux*  
 - *AMD* GPUs using **ROCm** libraries on both *Linux and Windows*
 - *AMD* GPUs on Windows using **ZLUDA** libraries  

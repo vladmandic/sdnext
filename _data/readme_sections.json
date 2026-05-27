@@ -8,8 +8,12 @@
     "title": "Table of contents"
   },
   {
-    "slug": "features-and-capabilities",
-    "title": "Features and Capabilities"
+    "slug": "screenshots",
+    "title": "Screenshots"
+  },
+  {
+    "slug": "supported-workflows",
+    "title": "Supported Workflows"
   },
   {
     "slug": "supported-ai-models",
@@ -26,13 +30,5 @@
   {
     "slug": "community-and-support",
     "title": "Community and Support"
-  },
-  {
-    "slug": "license-credits",
-    "title": "License & Credits"
-  },
-  {
-    "slug": "evolution",
-    "title": "Evolution"
   }
 ]
