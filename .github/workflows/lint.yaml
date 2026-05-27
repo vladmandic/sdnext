@@ -67,10 +67,10 @@ jobs:
         run: pnpm run tsc
 
       - name: ruff
-        run: uv run ruff check
+        run: uv run --active ruff check
 
       - name: pylint
-        run: uv run pylint *.py modules/ pipelines/ scripts/ extensions-builtin/
+        run: uv run --active pylint *.py modules/ pipelines/ scripts/ extensions-builtin/
 
       - name: test
         run: |
