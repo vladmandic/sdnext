@@ -3,7 +3,7 @@
 
 # SD.Next: All-in-one WebUI
 
-SD.Next is a state-of-the-art, open-source server application and web interface (WebUI) for AI image and video generation, built on Stable Diffusion and supporting dozens of advanced models. Create, caption, and process images and videos with a modern, cross-platform interface — perfect for artists, researchers, and AI enthusiasts.
+SD.Next is a state-of-the-art, open-source server application and web interface (WebUI) for AI image and video generation, built on Stable Diffusion and supporting dozens of advanced models. Create, refine, caption, upscale and process images and videos with a modern, cross-platform application — perfect for artists, researchers, and AI enthusiasts.
 
 [![Stars](https://img.shields.io/github/stars/vladmandic/sdnext?style=for-the-badge&color=%237DD3FC)](https://ossinsight.io/analyze/vladmandic/sdnext#overview)
 [![Forks](https://img.shields.io/github/forks/vladmandic/sdnext?style=for-the-badge&color=%2360A5FA)](https://github.com/vladmandic/sdnext/forks)
