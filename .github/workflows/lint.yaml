@@ -63,11 +63,8 @@ jobs:
       - name: pylint
         run: uv run --active pylint --disable W0511 *.py modules/ pipelines/ scripts/ extensions-builtin/
 
-      - name: install-runtime-deps
-        run: uv sync
-
       - name: test-run
-        run: uv run python launch.py --test --uv
+        run: ./webui.sh --test --uv
 
       - name: pre-commit-run
         run: uv run --active pre-commit run --all-files
