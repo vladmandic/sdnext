@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-25
+## Update for 2026-05-27
 
-### Highlights for 2026-05-25
+### Highlights for 2026-05-27
 
 *What's New?*
 - **Anima** made it to release version, Microsoft joins the game with **Lens**
@@ -10,7 +10,7 @@
 - New **image analysis** feature and much improved **prompt enhance** capabilities which allow steering the model in real-time
 - Improved image metadata options
 
-And we have new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
+And we have new [Home](https://vladmandic.github.io/sdnext/) page and new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
 
 Plus continued work on modernization of codebase: UI is now fully TypeScript based and we have a new modular LoRA loader
 

@@ -14,7 +14,7 @@ SD.Next is a powerful, open-source WebUI app for AI image and video generation, 
 [![DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/vladmandic/sdnext)
 [![Sponsors](https://img.shields.io/static/v1?label=Sponsor&message=%E2%9D%A4&logo=GitHub&color=%23fe8e86)](https://github.com/sponsors/vladmandic)
 
-[Docs](https://vladmandic.github.io/sdnext-docs/) | [Wiki](https://github.com/vladmandic/sdnext/wiki) | [Discord](https://discord.gg/VjvR2tabEX) | [Changelog](CHANGELOG.md)
+[Home](https://vladmandic.github.io/sdnext/) | [Code](https://github.com/vladmandic/sdnext) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Wiki](https://github.com/vladmandic/sdnext/wiki) | [Discord](https://discord.gg/VjvR2tabEX) | [Changelog](CHANGELOG.md)
 
 </div>
 <br>
