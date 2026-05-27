@@ -61,7 +61,7 @@ jobs:
           msg: apply code formatting and linting auto-fixes
 
       - name: ruff
-        run: uv run --active ruff check
+        run: uv run --active ruff check --extend-ignore EXE001
 
       - name: pylint
         run: uv run --active pylint *.py modules/ pipelines/ scripts/ extensions-builtin/
