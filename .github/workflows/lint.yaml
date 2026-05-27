@@ -37,7 +37,7 @@ jobs:
         run: npm install -g pnpm
 
       - name: pnpm-ignore-scripts
-        run: pnpm config set ignore-scripts false
+        run: pnpm config set ignore-scripts true
 
       - name: pnpm-store-path
         id: pnpm-store
