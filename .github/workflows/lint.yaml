@@ -49,7 +49,7 @@ jobs:
             pnpm-store-
 
       - name: install-node-deps
-        run: pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile --unsafe-perm
 
       - name: pre-commit
         uses: pre-commit-ci/lite-action@v1.1.0
