@@ -1,0 +1,38 @@
+[
+  {
+    "slug": "hero",
+    "title": "hero"
+  },
+  {
+    "slug": "table-of-contents",
+    "title": "Table of contents"
+  },
+  {
+    "slug": "features-and-capabilities",
+    "title": "Features and Capabilities"
+  },
+  {
+    "slug": "supported-ai-models",
+    "title": "Supported AI Models"
+  },
+  {
+    "slug": "supported-platforms-and-hardware",
+    "title": "Supported Platforms and Hardware"
+  },
+  {
+    "slug": "getting-started",
+    "title": "Getting started"
+  },
+  {
+    "slug": "community-and-support",
+    "title": "Community and Support"
+  },
+  {
+    "slug": "license-credits",
+    "title": "License & Credits"
+  },
+  {
+    "slug": "evolution",
+    "title": "Evolution"
+  }
+]

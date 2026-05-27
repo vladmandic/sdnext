@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ page.title | default: site.title }}</title>
+    <meta name="description" content="{{ page.description | default: site.description }}" />
+    {% seo %}
+    <link rel="stylesheet" href="{{ '/assets/main.css' | relative_url }}" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <main class="page-content" aria-label="Content">
+        <div class="wrapper content-wrapper">{{ content }}</div>
+      </main>
+    </div>
+  </body>
+</html>

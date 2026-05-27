@@ -1,0 +1,41 @@
+# Site settings
+
+# These are used to personalize your new site. If you look in the HTML files, you will see them accessed via {{ site.title }}, {{ site.email }}, and so on.
+# You can create any custom variable you would like, and they will be accessible in the templates via {{ site.myvariable }}.
+
+title: SD.Next
+email: your-email@example.com
+description: >-
+  SD.Next: All-in-one WebUI for AI generative image and video creation, captioning and processing
+baseurl: "/sdnext"
+url: "https://vladmandic.github.io"
+
+markdown: kramdown
+kramdown:
+  input: GFM
+  hard_wrap: false
+  syntax_highlighter: rouge
+
+# GH immutable plugins
+plugins:
+  - jekyll-seo-tag
+
+# GH immutable settings
+lsi: false
+safe: true
+source: "."
+incremental: false
+highlighter: rouge
+
+# Excludes defaults
+exclude:
+  - .sass-cache/
+  - .jekyll-cache/
+  - gemfiles/
+  - Gemfile
+  - Gemfile.lock
+  - node_modules/
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
