@@ -51,4 +51,4 @@ repos:
   - id: indents-to-spaces
     args: ["--spaces=2"]
     types: [file]
-    files: \.(json|js|mjs|css|html|md|yaml|toml|sh)$
+    files: \.(json|js|css|html|md|yaml|toml|sh)$

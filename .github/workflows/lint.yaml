@@ -60,12 +60,6 @@ jobs:
         with:
           msg: apply code formatting and linting auto-fixes
 
-      - name: eslint
-        run: pnpm run eslint
-
-      - name: tsc
-        run: pnpm run tsc
-
       - name: ruff
         run: uv run --active ruff check
 
@@ -76,3 +70,12 @@ jobs:
         run: |
           export COMMANDLINE_ARGS="${{ matrix.flags }}"
           uv run python launch.py
+
+      - name: pre-commit-run
+        run: uv run --active pre-commit run --all-files
+
+      - name: eslint
+        run: pnpm run eslint
+
+      - name: tsc
+        run: pnpm run tsc
