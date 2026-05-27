@@ -1,4 +1,4 @@
-name: update-readme
+name: readme-sponsors
 
 on:
   workflow_dispatch:

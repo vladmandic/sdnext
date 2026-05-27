@@ -1,0 +1,75 @@
+name: lint
+
+on:
+  - push
+  - pull_request
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        flags:
+          - --test --uv
+
+    steps:
+      - name: checkout-code
+        uses: actions/checkout@main
+
+      - name: install-uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: setup-python
+        uses: actions/setup-python@main
+        with:
+          python-version: 3.12.3
+
+      - name: install-python-deps
+        run: uv pip install ruff pylint pre-commit
+
+      - name: setup-node
+        uses: actions/setup-node@main
+        with:
+          node-version: 24
+
+      - name: install-pnpm
+        run: npm install -g pnpm
+
+      - name: pnpm-store-path
+        id: pnpm-store
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: cache-pnpm-store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-
+
+      - name: install-node-deps
+        run: pnpm install --frozen-lockfile
+
+      - name: pre-commit
+        uses: pre-commit-ci/lite-action@v1.1.0
+        if: always()
+        with:
+          msg: apply code formatting and linting auto-fixes
+
+      - name: eslint
+        run: pnpm run eslint
+
+      - name: tsc
+        run: pnpm run tsc
+
+      - name: ruff
+        run: uv run ruff check
+
+      - name: pylint
+        run: uv run pylint *.py modules/ pipelines/ scripts/ extensions-builtin/
+
+      - name: test
+        run: |
+          export COMMANDLINE_ARGS="${{ matrix.flags }}"
+          uv run python launch.py
