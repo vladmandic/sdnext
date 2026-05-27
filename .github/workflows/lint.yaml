@@ -36,6 +36,9 @@ jobs:
       - name: install-pnpm
         run: npm install -g pnpm
 
+      - name: pnpm-ignore-scripts
+        run: pnpm config set ignore-scripts false
+
       - name: pnpm-store-path
         id: pnpm-store
         run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
