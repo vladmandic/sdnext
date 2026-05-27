@@ -26,7 +26,7 @@ jobs:
           python-version: 3.12.3
 
       - name: install-python-deps
-        run: uv pip install ruff pylint pre-commit
+        run: uv pip install ruff pylint pre-commit --system
 
       - name: setup-node
         uses: actions/setup-node@main
