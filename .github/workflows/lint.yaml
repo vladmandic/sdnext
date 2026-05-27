@@ -70,7 +70,7 @@ jobs:
         run: uv run --active pre-commit run --all-files
 
       - name: eslint
-        run: pnpm run eslint
+        run: pnpm run eslint:core
 
       - name: tsc
-        run: pnpm run tsc
+        run: pnpm run tsc:core
