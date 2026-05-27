@@ -131,7 +131,7 @@ const typescriptConfig = defineConfig([
   ...configs.base.typescript,
   {
     name: 'sdnext/ts',
-    files: ['ui/**/*.ts'],
+    files: ['ui/**/*.ts', 'src/*.ts'],
     rules: {
       '@typescript-eslint/ban-ts-comment': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
@@ -262,6 +262,9 @@ export default defineConfig([
     '**/node_modules',
     '**/extensions',
     '**/extensions-builtin',
+    'src/vendor/*', // Ignore vendor files (e.g. split.js) that are not meant to be edited
+    'javascript/*', // Ignore generated output file
+    '**/Vlad-Neomorph.css', // Waiting on plugin fix https://github.com/eslint/css/pull/411
     'javascript/*',
     'ui/dist/*',
     'ui/js/*',
