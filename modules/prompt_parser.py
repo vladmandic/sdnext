@@ -149,7 +149,7 @@ def get_learned_conditioning_prompt_schedules(prompts, steps):
                 return ''.join(flatten(args))
             def plain(self, args):
                 yield args[0].value
-            def __default__(self, data, children, meta):
+            def __default__(self, data, children, meta): # pylint: disable=unused-argument
                 yield from children
         return AtStep().transform(tree)
 

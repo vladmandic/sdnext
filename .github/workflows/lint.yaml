@@ -64,7 +64,7 @@ jobs:
         run: uv run --active ruff check --extend-ignore EXE001
 
       - name: pylint
-        run: uv run --active pylint *.py modules/ pipelines/ scripts/ extensions-builtin/
+        run: uv run --active pylint --disable W0511 *.py modules/ pipelines/ scripts/ extensions-builtin/
 
       - name: test
         run: |

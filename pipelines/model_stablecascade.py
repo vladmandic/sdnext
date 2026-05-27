@@ -166,10 +166,10 @@ def load_cascade_combined(checkpoint_info, diffusers_load_config=None):
 
 # Balanced offload hooks:
 class StableCascadeDecoderPipelineFixed(diffusers.StableCascadeDecoderPipeline):
-    def guidance_scale(self): # pylint: disable=invalid-overridden-method
+    def guidance_scale(self): # pylint: disable=invalid-overridden-method,method-hidden
         return self._guidance_scale
 
-    def do_classifier_free_guidance(self): # pylint: disable=invalid-overridden-method
+    def do_classifier_free_guidance(self): # pylint: disable=invalid-overridden-method,method-hidden
         return self._guidance_scale > 1
 
     @torch.no_grad()
