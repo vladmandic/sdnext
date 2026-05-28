@@ -67,7 +67,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
             transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
         elif local_file is not None and local_file.lower().endswith('.safetensors') and native_spec is not None:
             from pipelines import native_transformer
-            log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader=native_transformer args={load_args}')
+            log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader=native args={load_args}')
             transformer, _ = native_transformer.load(
                 local_file, repo_id, native_spec, load_config,
                 allow_quant=allow_quant,

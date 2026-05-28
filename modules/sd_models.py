@@ -1420,7 +1420,7 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
             new_pipeline = None
         new_class = getattr(new_pipeline, '__name__', None)
         if new_class is not None and new_class != old_class:
-            log.info(f'Load model: pipeline changed {old_class}->{new_class}, resetting sd_unet from "{shared.opts.sd_unet}" to Default')
+            log.info(f'Load model: pipeline cls={old_class} changed={new_class} unet="{shared.opts.sd_unet}" set to default')
             shared.opts.data["sd_unet"] = 'Default'
             sd_unet.loaded_unet = None
     if sd_model is None:  # previous model load failed

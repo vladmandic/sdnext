@@ -391,7 +391,7 @@ def create_quicksettings(interfaces):
         if shared.opts.notification_audio_enable and os.path.exists(os.path.join(paths.script_path, shared.opts.notification_audio_path)):
             gr.Audio(interactive=False, value=os.path.join(paths.script_path, shared.opts.notification_audio_path), elem_id="audio_notification", visible=False)
 
-        def change_checkpoint_with_unet_sync(value, progress=False, force=False):
+        def sync_checkpoint_unet(value, progress=False, force=False):
             checkpoint_update, settings_text = run_settings_single(value, key='sd_model_checkpoint', progress=progress, force=force)
             return checkpoint_update, get_value_for_setting('sd_unet'), settings_text
 
@@ -412,7 +412,7 @@ def create_quicksettings(interfaces):
             progress_flag = info.refresh is not None
             if k == 'sd_model_checkpoint':
                 def fn(value, progress=progress_flag):
-                    return change_checkpoint_with_unet_sync(value, progress=progress)
+                    return sync_checkpoint_unet(value, progress=progress)
                 outputs = [component, shared.settings_components['sd_unet'], text_settings]
             else:
                 def fn(value, k=k, progress=progress_flag):
@@ -426,12 +426,12 @@ def create_quicksettings(interfaces):
                     show_progress='full' if info.refresh is not None else 'hidden',
                 )
 
-        def set_checkpoint_sync_unet(value, _dummy):
-            return change_checkpoint_with_unet_sync(value, force=True)
+        def sync_checkpoint_unet_forced(value, _dummy):
+            return sync_checkpoint_unet(value, force=True)
 
         button_set_checkpoint = gr.Button('Change model', elem_id='change_checkpoint', visible=False)
         button_set_checkpoint.click(
-            fn=set_checkpoint_sync_unet,
+            fn=sync_checkpoint_unet_forced,
             _js="consumeDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_checkpoint'], dummy_component],
             outputs=[shared.settings_components['sd_model_checkpoint'], shared.settings_components['sd_unet'], text_settings],
