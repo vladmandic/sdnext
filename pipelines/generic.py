@@ -76,6 +76,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 modules_dtype_dict=modules_dtype_dict,
                 quant_args=quant_args,
                 quant_type=quant_type,
+                **kwargs,
             )
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
             log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("diffusers")} args={load_args}')

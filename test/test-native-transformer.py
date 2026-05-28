@@ -422,6 +422,19 @@ class MockMiniTransformer(torch.nn.Module):
         self.rope.register_buffer('freqs', torch.zeros(dim))
 
 
+class MockKwargsTransformer(MockMiniTransformer):
+    """Records the kwargs from_config received. Mirrors diffusers from_config,
+    which accepts **kwargs (config overrides); lets a test assert the native
+    load path forwards caller kwargs to construction instead of dropping them."""
+
+    last_kwargs: dict = {}
+
+    @classmethod
+    def from_config(cls, config: dict, **kwargs) -> 'MockKwargsTransformer':
+        cls.last_kwargs = dict(kwargs)
+        return cls(dim=config['dim'])
+
+
 def write_fixture(state_dict_keys: dict, fd: int, path: str) -> str:
     os.close(fd)
     safetensors.torch.save_file(state_dict_keys, path)
@@ -479,6 +492,55 @@ def test_load_end_to_end_with_bfl_prefix_no_converter():
         fixture_in_w = raw['model.diffusion_model.in_proj.weight'].to(loaded_in_w.dtype)
         assert torch.allclose(loaded_in_w, fixture_in_w)
         assert siblings == {}
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_forwards_kwargs_to_from_config():
+    """Caller **kwargs reach cls.from_config (the native path's only
+    construction step, since it bypasses from_pretrained/from_single_file).
+    Guards against silently dropping args a caller passes alongside
+    native_spec."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = {
+            'model.diffusion_model.in_proj.weight': torch.randn(dim, dim),
+            'model.diffusion_model.in_proj.bias': torch.zeros(dim),
+            'model.diffusion_model.out_proj.weight': torch.randn(dim, dim),
+            'model.diffusion_model.out_proj.bias': torch.zeros(dim),
+        }
+        write_fixture(raw, fd, path)
+
+        orig_fetch = nt.fetch_component_config
+        nt.fetch_component_config = lambda repo, sub: {'dim': dim}
+        from modules import model_quant
+        orig_get_dit = model_quant.get_dit_args
+        orig_get_qtype = model_quant.get_quant_type
+        orig_do_post = model_quant.do_post_load_quant
+        model_quant.get_dit_args = lambda *a, **k: ({}, {})
+        model_quant.get_quant_type = lambda *a, **k: None
+        model_quant.do_post_load_quant = lambda *a, **k: None
+
+        MockKwargsTransformer.last_kwargs = {}
+        try:
+            spec = nt.TransformerSpec(cls=MockKwargsTransformer)
+            transformer, _ = nt.load(
+                local_file=path,
+                repo_id='fake/repo',
+                spec=spec,
+                diffusers_cfg={},
+                low_cpu_mem_usage=True,
+            )
+        finally:
+            nt.fetch_component_config = orig_fetch
+            model_quant.get_dit_args = orig_get_dit
+            model_quant.get_quant_type = orig_get_qtype
+            model_quant.do_post_load_quant = orig_do_post
+
+        assert MockKwargsTransformer.last_kwargs == {'low_cpu_mem_usage': True}
+        assert isinstance(transformer, MockKwargsTransformer)
     finally:
         if os.path.exists(path):
             os.unlink(path)
@@ -711,6 +773,7 @@ def run_all():
     cat = category('load')
     for fn in [
         test_load_end_to_end_with_bfl_prefix_no_converter,
+        test_load_forwards_kwargs_to_from_config,
         test_load_end_to_end_with_sibling_partition,
         test_load_raises_on_missing_sibling_class,
         test_load_rejects_non_safetensors,

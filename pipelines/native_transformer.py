@@ -179,6 +179,7 @@ def load(
     modules_dtype_dict: dict | None = None,
     quant_args: dict | None = None,
     quant_type: str | None = None,
+    **kwargs,
 ) -> tuple[object, dict[str, object]]:
     """Load the transformer (and any bundled siblings) from ``local_file``.
 
@@ -193,7 +194,11 @@ def load(
     :func:`pipelines.generic.load_transformer` so the dispatch from there can
     plumb the caller's intent through unchanged. ``quant_args`` and
     ``quant_type`` are precomputed by the caller; when ``None`` they are
-    derived here via ``model_quant.get_dit_args``.
+    derived here via ``model_quant.get_dit_args``. Extra ``**kwargs`` are
+    forwarded to the transformer's ``cls.from_config``, the native path's
+    construction step (it bypasses ``from_pretrained``/``from_single_file``,
+    where ``load_transformer`` otherwise routes them). Siblings do not
+    receive them.
 
     Returns ``(transformer, siblings_dict)``. ``siblings_dict`` is keyed by
     sibling name and is empty for non-sibling specs, or for sibling specs
@@ -247,6 +252,7 @@ def load(
         dtype=effective_dtype,
         modules_to_not_convert=modules_to_not_convert,
         modules_dtype_dict=modules_dtype_dict,
+        **kwargs,
     )
     del transformer_sd
     devices.torch_gc()
@@ -386,6 +392,7 @@ def build_component_quantized(
     quant_args: dict,
     dtype,
     acceptable_missing: tuple[str, ...],
+    **kwargs,
 ) -> object:
     """Build a component with per-tensor SDNQ quantization during load.
 
@@ -424,7 +431,7 @@ def build_component_quantized(
     quantizer.torch_dtype = target_dtype
 
     with init_empty_weights(include_buffers=False):
-        component = cls.from_config(config)
+        component = cls.from_config(config, **kwargs)
 
     quantizer._process_model_before_weight_loading(component, device_map=None)  # pylint: disable=protected-access
 
@@ -483,6 +490,7 @@ def build_component(
     dtype=None,
     modules_to_not_convert: list | None = None,
     modules_dtype_dict: dict | None = None,
+    **kwargs,
 ) -> object:
     """Convert (if needed), instantiate, load weights, dtype-cast, quantize,
     and offload-place a single component. Raises on any hard failure.
@@ -496,7 +504,8 @@ def build_component(
     ``dtype`` overrides ``devices.dtype`` when supplied; otherwise the global
     default is used. ``modules_to_not_convert`` and ``modules_dtype_dict``
     are forwarded to :func:`apply_quant` for the post-mode path; pre-mode
-    receives them via the SDNQConfig in ``quant_args``.
+    receives them via the SDNQConfig in ``quant_args``. Extra ``**kwargs``
+    reach ``cls.from_config`` for both construction paths.
     """
     try:
         if converter is not None:
@@ -514,13 +523,14 @@ def build_component(
                 quant_args=quant_args,
                 dtype=dtype,
                 acceptable_missing=acceptable_missing,
+                **kwargs,
             )
             del sd
             devices.torch_gc()
             return component
 
         log.debug(f'Load model: native_transformer {component_name} loading keys={len(sd)} cls={cls.__name__}')
-        component = cls.from_config(config)
+        component = cls.from_config(config, **kwargs)
         missing, unexpected = component.load_state_dict(sd, strict=False)
         validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
         del sd
