@@ -22,6 +22,14 @@ function ShowStdOutStdErr {
 $PYTHON = if ($env:PYTHON) { $env:PYTHON } else { 'python' }
 $VENV_DIR = if ($env:VENV_DIR) { $env:VENV_DIR } else { Join-Path $PSScriptRoot 'venv' }
 
+$use_uv = $false
+foreach ($arg in $args) {
+    if ($arg -eq '--uv') {
+        $use_uv = $true
+        break
+    }
+}
+
 New-Item -Path 'tmp' -ItemType Directory -ErrorAction SilentlyContinue
 
 try {
@@ -58,9 +66,21 @@ if ($VENV_DIR -ne '-' -and $env:SKIP_VENV -ne '1') {
         $PYTHON_FULLNAME = & $PYTHON -c 'import sys; print(sys.executable)'
 
         Write-Output "Using python: $PYTHON_FULLNAME"
-        Write-Output "Creating VENV: $VENV_DIR"
 
-        & $PYTHON_FULLNAME -m venv $VENV_DIR 2>tmp\stderr.txt | Out-File tmp\stdout.txt
+        if ($use_uv) {
+            if (-not (Get-Command uv -ErrorAction SilentlyContinue)) {
+                Write-Output 'Warning: uv is not installed, falling back to python venv'
+                $use_uv = $false
+            }
+        }
+
+        if ($use_uv) {
+            Write-Output "Creating VENV: UV"
+            & uv venv $VENV_DIR 2>tmp\stderr.txt | Out-File tmp\stdout.txt
+        } else {
+            Write-Output "Creating VENV: VENV"
+            & $PYTHON_FULLNAME -m venv $VENV_DIR 2>tmp\stderr.txt | Out-File tmp\stdout.txt
+        }
 
         if ($LASTEXITCODE -eq 0) {
             $PYTHON = Join-Path $VENV_DIR 'Scripts\Python.exe'

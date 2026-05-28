@@ -51,6 +51,8 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
     see *settings -> huggingface -> download method* for options  
   - **Nunchaku** consider *DEV* builds when auto-installing
   - **Gallery** add clear cache button to folder menu
+  - **UV** much updated `--uv` support for fast installs  
+    now also supports global `uv` if present in the system  
 - **Changes**
   - all **Guidance** params are now set to *-1* by default to allow using model defaults and avoid confusion with different model behaviour  
     log will print default values used by model if not set by user  

@@ -16,24 +16,44 @@ goto :show_stdout_stderr
 
 :check_pip
 %PYTHON% -mpip --help >tmp/stdout.txt 2>tmp/stderr.txt
-if %ERRORLEVEL% == 0 goto :start_venv
+if %ERRORLEVEL% == 0 goto :check_uv_flag
 if "%PIP_INSTALLER_LOCATION%" == "" goto :show_stdout_stderr
 %PYTHON% "%PIP_INSTALLER_LOCATION%" >tmp/stdout.txt 2>tmp/stderr.txt
-if %ERRORLEVEL% == 0 goto :start_venv
+if %ERRORLEVEL% == 0 goto :check_uv_flag
 echo Cannot install pip
 goto :show_stdout_stderr
+
+:check_uv_flag
+set use_uv=0
+for %%i in (%*) do (
+    if /I "%%i"=="--uv" set use_uv=1
+)
+
+goto :start_venv
 
 :start_venv
 if ["%VENV_DIR%"] == ["-"] goto :skip_venv
 if ["%SKIP_VENV%"] == ["1"] goto :skip_venv
+if "%use_uv%" == "1" (
+    where uv >nul 2>&1
+    if %ERRORLEVEL% neq 0 (
+        echo Warning: uv is not installed, falling back to python venv
+        set use_uv=0
+    )
+)
 
 dir "%VENV_DIR%\Scripts\Python.exe" >tmp/stdout.txt 2>tmp/stderr.txt
 if %ERRORLEVEL% == 0 goto :activate_venv
 
 for /f "delims=" %%i in ('CALL %PYTHON% -c "import sys; print(sys.executable)"') do set PYTHON_FULLNAME="%%i"
 echo Using python: %PYTHON_FULLNAME%
-echo Creating VENV: %VENV_DIR%
-%PYTHON_FULLNAME% -m venv "%VENV_DIR%" >tmp/stdout.txt 2>tmp/stderr.txt
+if "%use_uv%" == "1" (
+    echo Creating VENV: UV
+    uv venv "%VENV_DIR%" >tmp/stdout.txt 2>tmp/stderr.txt
+) else (
+    echo Creating VENV: VENV
+    %PYTHON_FULLNAME% -m venv "%VENV_DIR%" >tmp/stdout.txt 2>tmp/stderr.txt
+)
 if %ERRORLEVEL% == 0 goto :activate_venv
 echo Failed creating VENV: "%VENV_DIR%"
 goto :show_stdout_stderr

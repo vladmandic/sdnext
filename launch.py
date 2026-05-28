@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import shlex
+import shutil
 import subprocess
 
 import installer
@@ -255,7 +256,7 @@ def main():
     log.info(f'Args: {sys.argv[1:]}')
     if not args.skip_env and not args.skip_all:
         installer.set_environment()
-    if args.uv:
+    if args.uv and shutil.which('uv') is None:
         installer.install('uv', 'uv')
     installer.install_gradio()
     installer.check_torch()

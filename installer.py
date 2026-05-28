@@ -208,6 +208,37 @@ def uninstall(package, quiet = False):
     return txt
 
 
+def uv_info():
+    uv_version = None
+    uv_cache_dir = None
+    uv_cache_active = False
+    uv_local = os.path.join(sys.prefix, "bin", "uv") # Prefer uv inside the venv
+    if os.path.exists(uv_local):
+        uv_version = subprocess.check_output([uv_local, "--version"], text=True).strip()
+        uv_cache_dir = subprocess.check_output([uv_local, "cache", "dir"], text=True).strip()
+    uv_global = shutil.which("uv") # Fallback: system uv
+    if uv_global:
+        uv_version = subprocess.check_output([uv_global, "--version"], text=True).strip()
+        uv_cache_dir = subprocess.check_output([uv_global, "cache", "dir"], text=True).strip()
+    uv_cache_disabled = os.environ.get("UV_NO_CACHE") == "1"
+    site = next(p for p in sys.path if p.endswith("site-packages"))
+    if uv_cache_dir and not uv_cache_disabled:
+        for root, _dirs, files in os.walk(site):
+            for f in files:
+                full = os.path.join(root, f)
+                try:
+                    st = os.stat(full)
+                except FileNotFoundError:
+                    continue
+                if st.st_nlink > 1: # Hardlink count > 1 means deduped
+                    uv_cache_active = True
+                cache_path = os.path.join(uv_cache_dir, f) # Or check if inode matches something in cache
+                if os.path.exists(cache_path):
+                    if os.stat(cache_path).st_ino == st.st_ino:
+                        uv_cache_active = True
+    log.debug(f'Package manager: app=uv version="{uv_version}" folder="{uv_cache_dir}" dedup={uv_cache_active}')
+
+
 def run(cmd: str, *nargs: str, **kwargs):
     options = {
         "check": False,
@@ -253,7 +284,8 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constr
         log.warning('Offline mode enabled')
         return None, 'offline'
     package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").strip()
-    uv = uv and args.uv and not package.startswith('git+')
+    # uv = uv and args.uv and not package.startswith('git+')
+    uv = uv and args.uv
     pipCmd = "uv pip" if uv else "pip"
     if not quiet and '-r ' not in arg:
         log.info(f'Install: package="{package}" mode={"uv" if uv else "pip"}')
@@ -264,20 +296,26 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constr
     all_args.append(arg)
     if env_args:
         all_args.append(env_args)
-    if constraints and "-c " not in env_args:
+    if constraints and "-c " not in env_args and arg.startswith("install"):
         all_args.append("-c constraints.txt")
     if not quiet:
         log.debug(f'Running: {pipCmd}="{" ".join(all_args)}"')
 
-    result, output = run(sys.executable, "-m", pipCmd, *all_args)
+    if uv:
+        result, output = run("uv", "pip", *all_args)
+    else:
+        result, output = run(sys.executable, "-m", pipCmd, *all_args)
 
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
+            print('HERE1', result)
+            print('HERE2', output)
             log.warning(f'Install: cmd="{pipCmd}" args="{" ".join(all_args)}" cannot use uv, fallback to pip')
             debug(f'Install: uv pip error: {result.stderr}')
             cleanup_broken_packages()
             return pip(originalArg, ignore, quiet, uv=False)
-    debug(f'Install {pipCmd}: {output}')
+    if os.environ.get('SD_INSTALL_DEBUG', None) is not None:
+        log.debug(f'PIP cmd="{pipCmd}": {output}')
     if result.returncode != 0 and not ignore:
         errors.append(f'pip: {package}')
         log.error(f'Install: {pipCmd}: {arg}')
@@ -294,7 +332,7 @@ def install(package, friendly: str | None = None, ignore: bool = False, reinstal
     if args.reinstall or args.upgrade:
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False
-    if (args.reinstall) or (reinstall) or (not installed(package, friendly, quiet=quiet)):
+    if args.reinstall or reinstall or not installed(package, friendly, quiet=quiet):
         deps = '' if not no_deps else '--no-deps '
         isolation = '' if not no_build_isolation else '--no-build-isolation '
         cmd = f"install{' --upgrade' if not args.uv else ''}{' --force-reinstall' if force else ''} {deps}{isolation}{package}"
@@ -432,6 +470,8 @@ def get_platform():
             'locale': locale.getlocale(),
             'setuptools': package_version('setuptools'),
             'docker': os.environ.get('SD_DOCKER', None) is not None,
+            'pip': package_version('pip'),
+            'uv': package_version('uv'),
             # 'host': platform.node(),
             # 'version': platform.version(),
         }
@@ -539,9 +579,9 @@ def check_transformers():
                 log.info(f'Install: package="transformers" version={target_transformers}')
             else:
                 log.info(f'Update: package="transformers" current={pkg_transformers.version} target={target_transformers}')
-            pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
-            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True, uv=False)
-            pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True, uv=False)
+            pip('uninstall --yes transformers', ignore=True, quiet=True)
+            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+            pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True)
     else:
         # Git commit-pinned version
         current = opts.get('transformers_version', '')
@@ -550,9 +590,9 @@ def check_transformers():
                 log.info(f'Install: package="transformers" commit={target_commit}')
             else:
                 log.info(f'Update: package="transformers" current={pkg_transformers.version} hash={current} target={target_commit}')
-            pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
-            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True, uv=False)
-            pip(f'install --upgrade git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True, uv=False)
+            pip('uninstall --yes transformers', ignore=True, quiet=True)
+            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+            pip(f'install --upgrade git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
             global transformers_commit # pylint: disable=global-statement
             transformers_commit = target_commit
     ts('transformers', t_start)
@@ -1490,6 +1530,8 @@ def check_venv():
     import site
     pkg_path = [try_relpath(p) for p in site.getsitepackages() if os.path.exists(p)]
     log.debug(f'Packages: prefix={try_relpath(sys.prefix)} site={pkg_path}')
+    if args.uv:
+        uv_info()
     for p in pkg_path:
         invalid = []
         for f in os.listdir(p):
@@ -1791,12 +1833,18 @@ def read_options():
 def ensure_base_requirements():
     t_start = time.time()
     setuptools_version = '69.5.1'
+    if (args.uv or '--uv' in sys.argv) and (shutil.which('uv') is not None): # early enable uv
+        args.uv = True # pylint: disable=attribute-defined-outside-init
+        uv_info()
 
     def update_setuptools():
         local_log = logging.getLogger('sdnext.installer')
         global setuptools, distutils # pylint: disable=global-statement
         # python may ship with incompatible setuptools
-        subprocess.run(f'"{sys.executable}" -m pip install setuptools=={setuptools_version}', shell=True, check=False, env=os.environ, capture_output=True)
+        if args.uv:
+            subprocess.run(f'uv pip install setuptools=={setuptools_version} wheel', shell=True, check=False, env=os.environ, capture_output=True)
+        else:
+            subprocess.run(f'"{sys.executable}" -m pip install setuptools=={setuptools_version} wheel', shell=True, check=False, env=os.environ, capture_output=True)
         # need to delete all references to modules to be able to reload them otherwise python will use cached version
         modules = [m for m in sys.modules if m.startswith('setuptools') or m.startswith('distutils')]
         for m in modules:
@@ -1825,6 +1873,7 @@ def ensure_base_requirements():
 
     try:
         global setuptools # pylint: disable=global-statement
+        import wheel # pylint: disable=unused-import
         import setuptools # pylint: disable=redefined-outer-name
         if setuptools.__version__ != setuptools_version:
             update_setuptools()
@@ -1832,13 +1881,13 @@ def ensure_base_requirements():
         update_setuptools()
 
     # used by installler itself so must be installed before requirements
-    install('rich==14.1.0', 'rich', quiet=True)
+    install('rich==15.0.0', 'rich', quiet=True)
     install('psutil', 'psutil', quiet=True)
     install('requests==2.32.3', 'requests', quiet=True)
     ts('base', t_start)
 
-# startup
 
+# startup
 ensure_base_requirements()
 from modules.logger import setup_logging # must be loaded after ensure_base_requirements
 from modules.logger import log as log_instance
