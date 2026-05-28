@@ -88,6 +88,5 @@ def apply_patch():
     except (OSError, TypeError):
         source = ''
     if _BROKEN_MARKER in source:
-        LTX2ConnectorTransformer1d.forward = _patched_forward
-        log.info('LTX2: patched diffusers connectors padding to fix audio token order (upstream #13564 regression)')
+        LTX2ConnectorTransformer1d.forward = _patched_forward # TODO ltx: patched diffusers connectors padding to fix audio token order (upstream #13564 regression)
     _PATCH_APPLIED = True
