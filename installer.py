@@ -308,8 +308,6 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constr
 
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
-            print('HERE1', result)
-            print('HERE2', output)
             log.warning(f'Install: cmd="{pipCmd}" args="{" ".join(all_args)}" cannot use uv, fallback to pip')
             debug(f'Install: uv pip error: {result.stderr}')
             cleanup_broken_packages()
