@@ -54,7 +54,7 @@ def load_unet(model, repo_id: str | None = None):
             return
         log.info(f'Load module: type=UNet name="Default" (was="{loaded_unet}") reverting to base transformer')
         loaded_unet = shared.opts.sd_unet
-        sd_models.load_diffuser()
+        sd_models.reload_model_weights(force=True)
         return
 
     if shared.opts.sd_unet not in list(unet_dict):
@@ -83,7 +83,7 @@ def load_unet(model, repo_id: str | None = None):
                 model.prior_pipe.text_encoder = prior_text_encoder.to(devices.device, dtype=devices.dtype)
         elif any([m in model.__class__.__name__ for m in dit_models]) or hasattr(model, 'transformer'): # noqa: C419 # pylint: disable=use-a-generator
             loaded_unet = shared.opts.sd_unet
-            sd_models.load_diffuser() # TODO model load: force-reloading entire model as loading transformers only leads to massive memory usage
+            sd_models.reload_model_weights(force=True) # full reload: in-place transformer swap leaks memory
         else:
             if not hasattr(model, 'unet') or model.unet is None:
                 log.error('Load module: type=UNET not found in current model')

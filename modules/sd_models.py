@@ -1412,7 +1412,9 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
     jobid = shared.state.begin('Load model')
     if sd_model is None:
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
-    if op == 'model' and sd_model is not None and shared.opts.sd_unet not in (None, 'Default', 'None'):
+    loaded_ckpt = getattr(sd_model, 'sd_checkpoint_info', None) if sd_model is not None else None
+    changed_checkpoint = loaded_ckpt is None or checkpoint_info is None or loaded_ckpt.filename != checkpoint_info.filename
+    if op == 'model' and sd_model is not None and changed_checkpoint and shared.opts.sd_unet not in (None, 'Default', 'None'):
         old_class = type(sd_model).__name__
         try:
             new_pipeline, _ = sd_detect.detect_pipeline(checkpoint_info.path, op)
