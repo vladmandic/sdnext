@@ -423,9 +423,9 @@ class MockMiniTransformer(torch.nn.Module):
 
 
 class MockKwargsTransformer(MockMiniTransformer):
-    """Records the kwargs from_config received. Mirrors diffusers from_config,
-    which accepts **kwargs (config overrides); lets a test assert the native
-    load path forwards caller kwargs to construction instead of dropping them."""
+    """Records the kwargs from_config received, so a test can assert the native
+    path forwards caller kwargs to construction. Mirrors diffusers from_config,
+    which accepts **kwargs."""
 
     last_kwargs: dict = {}
 
@@ -498,10 +498,8 @@ def test_load_end_to_end_with_bfl_prefix_no_converter():
 
 
 def test_load_forwards_kwargs_to_from_config():
-    """Caller **kwargs reach cls.from_config (the native path's only
-    construction step, since it bypasses from_pretrained/from_single_file).
-    Guards against silently dropping args a caller passes alongside
-    native_spec."""
+    """Caller **kwargs reach cls.from_config through the native load path
+    rather than being dropped."""
     fd, path = tempfile.mkstemp(suffix='.safetensors')
     try:
         dim = 8

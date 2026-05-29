@@ -191,13 +191,10 @@ def load(
 
     Keyword-only arguments ``allow_quant``, ``dtype``, ``modules_to_not_convert``,
     and ``modules_dtype_dict`` mirror the corresponding kwargs of
-    :func:`pipelines.generic.load_transformer` so the dispatch from there can
-    plumb the caller's intent through unchanged. ``quant_args`` and
-    ``quant_type`` are precomputed by the caller; when ``None`` they are
-    derived here via ``model_quant.get_dit_args``. Extra ``**kwargs`` are
-    forwarded to the transformer's ``cls.from_config``, the native path's
-    construction step (it bypasses ``from_pretrained``/``from_single_file``,
-    where ``load_transformer`` otherwise routes them). Siblings do not
+    :func:`pipelines.generic.load_transformer` and are forwarded unchanged.
+    ``quant_args`` and ``quant_type`` are precomputed by the caller; when
+    ``None`` they are derived here via ``model_quant.get_dit_args``. Extra
+    ``**kwargs`` reach the transformer's ``cls.from_config``; siblings do not
     receive them.
 
     Returns ``(transformer, siblings_dict)``. ``siblings_dict`` is keyed by

@@ -23,12 +23,9 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
     """Load a DiT transformer from the base repo, or from a user-selected
     single file when the UNET dropdown (``shared.opts.sd_unet``) is set.
 
-    When ``native_spec`` is supplied and a .safetensors override is selected,
-    dispatches to :func:`pipelines.native_transformer.load` so the per-arch
-    spec (multi-prefix detection, optional converter, optional sibling
-    partitioning, forbidden markers) drives the load. Pipelines without a
-    spec continue to use the legacy ``from_single_file`` path; this preserves
-    behavior for Mode D arches until they explicitly opt in.
+    With ``native_spec`` set and a .safetensors override selected, dispatches
+    to :func:`pipelines.native_transformer.load`. Without a spec, a single-file
+    override falls back to ``from_single_file``.
     """
     if shared.state.interrupted:
         return None
