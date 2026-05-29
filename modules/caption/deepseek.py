@@ -34,11 +34,11 @@ def load(repo: str):
     """Load DeepSeek VL2 model (experimental)."""
     global vl_gpt, vl_chat_processor, loaded_repo  # pylint: disable=global-statement
     if not shared.cmd_opts.experimental:
-        log.error(f'Caption: type=vlm model="DeepSeek VL2" repo="{repo}" is experimental-only')
+        log.error(f'LLM: type=vlm model="DeepSeek VL2" repo="{repo}" is experimental-only')
         return False
     folder = os.path.join(paths.script_path, 'repositories', 'deepseek-vl2')
     if not os.path.exists(folder):
-        log.error(f'Caption: type=vlm model="DeepSeek VL2" repo="{repo}" deepseek-vl2 repo not found')
+        log.error(f'LLM: type=vlm model="DeepSeek VL2" repo="{repo}" deepseek-vl2 repo not found')
         return False
     if vl_gpt is None or loaded_repo != repo:
         # GLOBAL PATCHES (not reverted): DeepSeek VL2 requires attrdict and uses LlamaFlashAttention2

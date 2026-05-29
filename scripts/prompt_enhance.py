@@ -15,6 +15,7 @@ from modules import ui_control_helpers
 from modules.sd_offload_aux import register_aux, deregister_aux, move_aux_to_gpu, offload_aux
 from modules.logger import log
 from modules.caption.logits import LogitsParser
+from modules.caption import helpers
 
 
 debug_enabled = os.environ.get('SD_LLM_DEBUG', None) is not None
@@ -132,7 +133,6 @@ class Options:
         'mistralai/Ministral-3-3B-Reasoning-2512',
         'mistralai/Ministral-3-8B-Reasoning-2512',
         # Finetunes
-        'p-e-w/gemma-4-E2B-it-heretic-ara',
         'trohrbaugh/gemma-4-E4B-it-heretic-ara',
         'trohrbaugh/Qwen3.5-9B-heretic-v2',
     ]
@@ -538,52 +538,6 @@ class PromptEnhanceScript(scripts_manager.Script):
             current_image = None
         return current_image
 
-    def get_default_args(self):
-        to_remove = ['_from_model_config', 'transformers_version']
-        config = {}
-        for k, v in transformers.GenerationConfig._get_default_generation_params().items(): # pylint: disable=protected-access
-            if v is not None:
-                config[k] = v
-        for k, v in transformers.GenerationConfig.from_model_config(self.llm.config).to_dict().items():
-            if v is not None:
-                config[k] = v
-        for k, v in self.llm.generation_config.to_dict().items():
-            if v is not None:
-                config[k] = v
-        config = {k: v for k, v in config.items() if k not in to_remove}
-        return config
-
-    def get_custom_args(self, args_str):
-        args = {}
-        if args_str is not None and len(args_str) > 0:
-            default_args = self.get_default_args()
-            pairs = re.split(r'[;\n]+', args_str)
-            for pair in pairs:
-                if '=' in pair:
-                    key, value = pair.split('=', maxsplit=1)
-                    key = key.strip()
-                    value = value.strip()
-                    if key not in default_args:
-                        log.warning(f'Prompt enhance: key="{key}" invalid')
-                        continue
-                    default_value = default_args[key]
-                    try:
-                        if isinstance(default_value, bool):
-                            value = value.lower() in ['true', '1', 'yes']
-                        elif isinstance(default_value, int):
-                            value = int(value)
-                        elif isinstance(default_value, float):
-                            value = float(value)
-                        elif isinstance(default_value, list):
-                            value = [v.strip() for v in value.split(',')]
-                        elif isinstance(default_value, str):
-                            pass
-                    except ValueError:
-                        log.warning(f'Prompt enhance: key="{key}" value="{value}" typecast failed')
-                    if key and value:
-                        args[key] = value
-        return args
-
     def enhance(self,
                 model: str | None=None,
                 prompt:str | None=None,
@@ -845,12 +799,12 @@ class PromptEnhanceScript(scripts_manager.Script):
                     logits_processor = LogitsParser(self.tokenizer, process_words, semantic_threshold=semantic_threshold, embedding_similarity=embedding_similarity)
                     gen_kwargs['logits_processor'] = [logits_processor]
 
-                custom = self.get_custom_args(custom_args)
+                custom = helpers.get_custom_args(self.llm, custom_args)
                 for k, v in custom.items():
                     gen_kwargs[k] = v
 
                 log.debug(f'Prompt enhance: cls={self.llm.__class__.__name__} model="{model}" tokens={input_len} args={gen_kwargs} custom={custom}')
-                defaults = {k: v for k, v in self.get_default_args().items() if k not in gen_kwargs}
+                defaults = {k: v for k, v in helpers.get_default_args(self.llm).items() if k not in gen_kwargs}
                 log.debug(f'Prompt enhance: defaults={defaults}')
 
                 outputs = self.llm.generate(**inputs, **gen_kwargs)

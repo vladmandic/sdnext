@@ -8,7 +8,7 @@ default_task = "Normal Caption"
 
 
 def caption_wrapper(tab, image,
-                    vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode,
+                    vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode, vlm_custom_args,
                     analyze_question, analyze_system, analyze_prompt, analyze_model,
                     clip_model, blip_model, clip_mode,
                     wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape,
@@ -17,7 +17,7 @@ def caption_wrapper(tab, image,
     if tab <= 0:
         log.debug('Caption: mode="VLM Caption"')
         from modules.caption import vqa
-        answer = vqa.caption(vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode)
+        answer = vqa.caption(vlm_question, vlm_system, vlm_prompt, image, vlm_model, vlm_prefill, vlm_thinking_mode, vlm_custom_args)
         annotated_image = vqa.get_last_annotated_image()
         if annotated_image is not None:
             return answer, gr.update(value=annotated_image, visible=True)
@@ -25,7 +25,7 @@ def caption_wrapper(tab, image,
     elif tab == 1:
         log.debug('Caption: mode="VLM Analyze"')
         from modules.caption import vqa
-        answer = vqa.analyze(analyze_question, analyze_system, analyze_prompt, image, analyze_model, vlm_thinking_mode)
+        answer = vqa.analyze(analyze_question, analyze_system, analyze_prompt, image, analyze_model, vlm_thinking_mode, vlm_custom_args)
         return answer, gr.update(visible=False)
     elif tab == 2:
         log.debug('Caption: mode="OpenCLIP"')
@@ -56,7 +56,7 @@ def update_vlm_prompt_placeholder(question):
 
 
 def update_vlm_params(*args):
-    vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode = args
+    vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args = args
     shared.opts.caption_vlm_max_length = int(vlm_max_tokens)
     shared.opts.caption_vlm_num_beams = int(vlm_num_beams)
     shared.opts.caption_vlm_temperature = float(vlm_temperature)
@@ -66,6 +66,7 @@ def update_vlm_params(*args):
     shared.opts.caption_vlm_keep_prefill = bool(vlm_keep_prefill)
     shared.opts.caption_vlm_keep_thinking = bool(vlm_keep_thinking)
     shared.opts.caption_vlm_thinking_mode = bool(vlm_thinking_mode)
+    shared.opts.caption_vlm_custom_args = vlm_custom_args
     shared.opts.save()
 
 
@@ -205,19 +206,22 @@ def create_ui():
                             vlm_do_sample = gr.Checkbox(label='Use Samplers', value=shared.opts.caption_vlm_do_sample, elem_id='vlm_do_sample')
                             vlm_thinking_mode = gr.Checkbox(label='Thinking Mode', value=shared.opts.caption_vlm_thinking_mode, elem_id='vlm_thinking_mode')
                         with gr.Row():
+                            vlm_custom_args = gr.Textbox(label='Custom Args', value=shared.opts.caption_vlm_custom_args, placeholder='key=value pairs separated by ; or newlines', lines=2, elem_id='vlm_custom_args')
+                        with gr.Row():
                             vlm_keep_thinking = gr.Checkbox(label='Keep Thinking Trace', value=shared.opts.caption_vlm_keep_thinking, elem_id='vlm_keep_thinking')
                             vlm_keep_prefill = gr.Checkbox(label='Keep Prefill', value=shared.opts.caption_vlm_keep_prefill, elem_id='vlm_keep_prefill')
                         with gr.Row():
                             vlm_prefill = gr.Textbox(label='Prefill Text', value='', lines=1, elem_id='vlm_prefill', placeholder='Optional prefill text for model to continue from')
-                        vlm_max_tokens.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
-                        vlm_num_beams.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
-                        vlm_temperature.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
-                        vlm_do_sample.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
-                        vlm_top_k.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
-                        vlm_top_p.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
-                        vlm_keep_prefill.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
-                        vlm_keep_thinking.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
-                        vlm_thinking_mode.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode], outputs=[])
+                        vlm_max_tokens.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args], outputs=[])
+                        vlm_num_beams.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args], outputs=[])
+                        vlm_temperature.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args], outputs=[])
+                        vlm_do_sample.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args], outputs=[])
+                        vlm_top_k.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args], outputs=[])
+                        vlm_top_p.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args], outputs=[])
+                        vlm_keep_prefill.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args], outputs=[])
+                        vlm_keep_thinking.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args], outputs=[])
+                        vlm_thinking_mode.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args], outputs=[])
+                        vlm_custom_args.change(fn=update_vlm_params, inputs=[vlm_max_tokens, vlm_num_beams, vlm_temperature, vlm_do_sample, vlm_top_k, vlm_top_p, vlm_keep_prefill, vlm_keep_thinking, vlm_thinking_mode, vlm_custom_args], outputs=[])
                     with gr.Accordion(label='Caption: Batch', open=False, visible=True):
                         with gr.Row():
                             vlm_batch_files = gr.File(label="Files", show_label=True, file_count='multiple', file_types=['image'], interactive=True, height=100, elem_id='vlm_batch_files')
@@ -375,7 +379,7 @@ def create_ui():
         _js="getCaptionActiveTab", # js to insert current tab name as first argument
         fn=caption_wrapper,
         inputs=[dummy, image,
-                vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode,
+                vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode, vlm_custom_args,
                 analyze_question, analyze_system, analyze_prompt, analyze_model,
                 clip_model, blip_model, clip_mode,
                 wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape
@@ -393,7 +397,7 @@ def create_ui():
         _js="getCaptionActiveTab", # js to insert current tab name as first argument
         fn=caption_wrapper,
         inputs=[dummy, image,
-                vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode,
+                vlm_question, vlm_system, vlm_prompt, vlm_model, vlm_prefill, vlm_thinking_mode, vlm_custom_args,
                 analyze_question, analyze_system, analyze_prompt, analyze_model,
                 clip_model, blip_model, clip_mode,
                 wd_model, wd_general_threshold, wd_character_threshold, wd_include_rating, wd_exclude_tags, wd_max_tags, wd_sort_alpha, wd_use_spaces, wd_escape

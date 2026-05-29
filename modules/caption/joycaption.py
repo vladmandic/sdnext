@@ -65,7 +65,7 @@ def load(repo: str | None = None):
     if llava_model is None or opts.repo != repo:
         opts.repo = repo
         llava_model = None
-        log.info(f'Caption: type=vlm model="JoyCaption" {str(opts)}')
+        log.info(f'LLM: type=vlm model="JoyCaption" {str(opts)}')
         processor = AutoProcessor.from_pretrained(repo, max_pixels=1024*1024, cache_dir=shared.opts.hfcache_dir)
         quant_args = model_quant.create_config(module='LLM')
         llava_model = LlavaForConditionalGeneration.from_pretrained(

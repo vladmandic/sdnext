@@ -226,16 +226,6 @@ def set_diffusers_attention(pipe, quiet = False):
                     pass
                 else:
                     log.error(f'Torch attention: type="{name}" cls={attention.__class__.__name__} pipe={pipe.__class__.__name__} {e}')
-        """ # each transformer typically has its own attention processor
-        if getattr(pipe, "transformer", None) is not None and hasattr(pipe.transformer, "set_attn_processor"):
-            try:
-                pipe.transformer.set_attn_processor(attention)
-            except Exception as e:
-                if 'Nunchaku' in pipe.transformer.__class__.__name__:
-                    pass
-                else:
-                    log.error(f'Torch attention: type="{name}" cls={attention.__class__.__name__} pipe={pipe.__class__.__name__} {e}')
-        """
 
     log.quiet(quiet, f'Setting model: attention="{shared.opts.cross_attention_optimization}"')
     if shared.opts.cross_attention_optimization == "Disabled":

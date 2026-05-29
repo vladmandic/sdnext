@@ -2,86 +2,82 @@ from modules import ui_symbols
 
 
 vlm_models = {
-    "Google Gemma 3 4B": "google/gemma-3-4b-it",
-    "Google Gemma 3n E2B": "google/gemma-3n-E2B-it", # 1.5GB
-    "Google Gemma 3n E4B": "google/gemma-3n-E4B-it", # 1.5GB
-    "Google Gemma 4 E2B": "google/gemma-4-E2B-it",
+    # primary
     "Google Gemma 4 E4B": "google/gemma-4-E4B-it",
-    "Heretic Gemma 4 E4B": "p-e-w/gemma-4-E2B-it-heretic-ara",
-    "Nidum Gemma 3 4B Uncensored": "nidum/Nidum-Gemma-3-4B-it-Uncensored",
-    "Allura Gemma 3 Glitter 4B": "allura-org/Gemma-3-Glitter-4B",
-    # Qwen3.5
-    "Alibaba Qwen 3.5 0.8B": "Qwen/Qwen3.5-0.8B",
-    "Alibaba Qwen 3.5 2B": "Qwen/Qwen3.5-2B",
-    "Alibaba Qwen 3.5 4B": "Qwen/Qwen3.5-4B",
+    "Google Gemma 4 E4B Trohrbaugh Heretic": "trohrbaugh/gemma-4-E4B-it-heretic-ara",
+    "Google Gemma 4 E2B": "google/gemma-4-E2B-it",
+    "Google Gemma 3n E4B": "google/gemma-3n-E4B-it",
+    "Google Gemma 3n E2B": "google/gemma-3n-E2B-it",
+    "Google Gemma 3 4B": "google/gemma-3-4b-it",
+    "Google Gemma 3 4B Allura Glitter": "allura-org/Gemma-3-Glitter-4B",
+    "Google Gemma 3 4B Nidum Uncensored": "nidum/Nidum-Gemma-3-4B-it-Uncensored",
     "Alibaba Qwen 3.5 9B": "Qwen/Qwen3.5-9B",
-    "Alibaba Qwen 3.5 27B": "Qwen/Qwen3.5-27B",
-    "Alibaba Qwen 3.5 35B-A3B": "Qwen/Qwen3.5-35B-A3B",
-    "Qwen 3.5 27B Heretic": "coder3101/Qwen3.5-27B-heretic",
-    "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
-    "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
-    "Alibaba Qwen 2.5 VL 3B": "Qwen/Qwen2.5-VL-3B-Instruct",
-    # Qwen2.5-VL Finetunes
-    "Qwen 2.5 VL 3B Heretic": "coder3101/Qwen2.5-VL-3B-Instruct-heretic",
-    "Qwen 2.5 VL 7B Heretic": "coder3101/Qwen2.5-VL-7B-Instruct-heretic",
-    "Qwen 2.5 VL 32B Heretic": "coder3101/Qwen2.5-VL-32B-Instruct-heretic",
-    "Qwen 2.5 VL 72B Heretic": "coder3101/Qwen2.5-VL-72B-Instruct-heretic",
-    "Alibaba Qwen 3 VL 2B": "Qwen/Qwen3-VL-2B-Instruct",
-    f"Alibaba Qwen 3 VL 2B Thinking {ui_symbols.reasoning}": "Qwen/Qwen3-VL-2B-Thinking",
-    "Alibaba Qwen 3 VL 4B": "Qwen/Qwen3-VL-4B-Instruct",
-    f"Alibaba Qwen 3 VL 4B Thinking {ui_symbols.reasoning}": "Qwen/Qwen3-VL-4B-Thinking",
-    "Alibaba Qwen 3 VL 8B": "Qwen/Qwen3-VL-8B-Instruct",
-    f"Alibaba Qwen 3 VL 8B Thinking {ui_symbols.reasoning}": "Qwen/Qwen3-VL-8B-Thinking",
-    # Qwen3-VL Finetunes
-    "Qwen 3 VL 2B Heretic": "coder3101/Qwen3-VL-2B-Instruct-heretic",
-    f"Qwen 3 VL 2B Thinking Heretic {ui_symbols.reasoning}": "coder3101/Qwen3-VL-2B-Thinking-heretic",
-    "Qwen 3 VL 4B Heretic": "coder3101/Qwen3-VL-4B-Instruct-heretic",
-    f"Qwen 3 VL 4B Thinking Heretic {ui_symbols.reasoning}": "coder3101/Qwen3-VL-4B-Thinking-heretic",
-    "Qwen 3 VL 8B Heretic": "coder3101/Qwen3-VL-8B-Instruct-heretic",
-    "Qwen 3 VL 32B Heretic v2": "coder3101/Qwen3-VL-32B-Instruct-heretic-v2",
-    f"Qwen 3 VL 32B Thinking Heretic v2 {ui_symbols.reasoning}": "coder3101/Qwen3-VL-32B-Thinking-heretic-v2",
-    "Qwen 3 VL 8B Abliterated Caption": "prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it",
-    "XiaomiMiMo MiMo VL 7B RL": "XiaomiMiMo/MiMo-VL-7B-RL-2508", # 8.3GB
-    "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
-    "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
-    "Apple FastVLM 0.5B": "apple/FastVLM-0.5B",
-    "Apple FastVLM 1.5B": "apple/FastVLM-1.5B",
-    "Apple FastVLM 7B": "apple/FastVLM-7B",
-    "Microsoft Florence 2 Base": "florence-community/Florence-2-base-ft", # 0.5GB
-    "Microsoft Florence 2 Large": "florence-community/Florence-2-large-ft", # 1.5GB
-    "MiaoshouAI PromptGen 1.5 Base": "Disty0/Florence-2-base-PromptGen-v1.5", # 0.5GB
-    "MiaoshouAI PromptGen 1.5 Large": "Disty0/Florence-2-large-PromptGen-v1.5", # 1.5GB
-    "MiaoshouAI PromptGen 2.0 Base": "Disty0/Florence-2-base-PromptGen-v2.0", # 0.5GB
-    "MiaoshouAI PromptGen 2.0 Large": "Disty0/Florence-2-large-PromptGen-v2.0", # 1.5GB
-    "CogFlorence 2.0 Large": "thwri/CogFlorence-2-Large-Freeze", # 1.6GB
+    "Alibaba Qwen 3.5 9B Trohrbaugh Heretic": "trohrbaugh/Qwen3.5-9B-heretic-v2",
+    "Alibaba Qwen 3.5 4B": "Qwen/Qwen3.5-4B",
+    "Alibaba Qwen 3.5 2B": "Qwen/Qwen3.5-2B",
+    "Alibaba Qwen 3.5 0.8B": "Qwen/Qwen3.5-0.8B",
+    "JoyTag": "fancyfeast/joytag",
+    "JoyCaption Beta": "fancyfeast/llama-joycaption-beta-one-hf-llava",
+    "JoyCaption Alpha": "fancyfeast/llama-joycaption-alpha-two-hf-llava",
+    f"Moondream 3 Preview {ui_symbols.reasoning}": "moondream/moondream3-preview",
+    f"Moondream 2 {ui_symbols.reasoning}": "vikhyatk/moondream2",
+    "Microsoft Florence 2 Large": "florence-community/Florence-2-large-ft",
+    "Microsoft Florence 2 Base": "florence-community/Florence-2-base-ft",
+    "MiaoshouAI PromptGen 2.0 Large": "Disty0/Florence-2-large-PromptGen-v2.0",
+    "MiaoshouAI PromptGen 2.0 Base": "Disty0/Florence-2-base-PromptGen-v2.0",
     "CogFlorence 2.2 Large": "thwri/CogFlorence-2.2-Large", # 1.6GB
-    f"Moondream 2 {ui_symbols.reasoning}": "vikhyatk/moondream2", # 3.7GB
-    f"Moondream 3 Preview {ui_symbols.reasoning}": "moondream/moondream3-preview", # 9.3GB (gated)
-    "Google Pix Textcaps": "google/pix2struct-textcaps-base", # 1.1GB
-    "Google PaliGemma 2 3B": "google/paligemma2-3b-pt-224",
-    "Salesforce BLIP Base": "Salesforce/blip-vqa-base", # 1.5GB
-    "Salesforce BLIP Large": "Salesforce/blip-vqa-capfilt-large", # 1.5GB
-    "Microsoft GIT TextCaps Base": "microsoft/git-base-textcaps", # 0.7GB
-    "Microsoft GIT VQA Base": "microsoft/git-base-vqav2", # 0.7GB
-    "Microsoft GIT VQA Large": "microsoft/git-large-vqav2", # 1.6GB
-    "ToriiGate 0.4 2B": "Minthy/ToriiGate-v0.4-2B",
+    # secondary or older
+    "XiaomiMiMo MiMo VL 7B RL": "XiaomiMiMo/MiMo-VL-7B-RL-2508",
+    "ViLT Base": "dandelin/vilt-b32-finetuned-vqa",
     "ToriiGate 0.4 7B": "Minthy/ToriiGate-v0.4-7B",
-    "ViLT Base": "dandelin/vilt-b32-finetuned-vqa", # 0.5GB
-    "JoyCaption Alpha": "fancyfeast/llama-joycaption-alpha-two-hf-llava", # 17.4GB
-    "JoyCaption Beta": "fancyfeast/llama-joycaption-beta-one-hf-llava", # 17.4GB
-    "JoyTag": "fancyfeast/joytag", # 0.7GB
-    "AIDC Ovis2 1B": "AIDC-AI/Ovis2-1B",
-    "AIDC Ovis2 2B": "AIDC-AI/Ovis2-2B",
-    "AIDC Ovis2 4B": "AIDC-AI/Ovis2-4B",
-    "ByteDance Sa2VA 1B": "ByteDance/Sa2VA-1B",
+    "ToriiGate 0.4 2B": "Minthy/ToriiGate-v0.4-2B",
+    "Salesforce BLIP Large": "Salesforce/blip-vqa-capfilt-large",
+    "Salesforce BLIP Base": "Salesforce/blip-vqa-base",
+    "Mistral Small 3.2 24B Coder Heretic": "coder3101/Mistral-Small-3.2-24B-Instruct-2506-heretic",
+    "Microsoft GIT VQA Large": "microsoft/git-large-vqav2",
+    "Microsoft GIT VQA Base": "microsoft/git-base-vqav2",
+    "Microsoft GIT TextCaps Base": "microsoft/git-base-textcaps",
+    "MiaoshouAI PromptGen 1.5 Large": "Disty0/Florence-2-large-PromptGen-v1.5",
+    "MiaoshouAI PromptGen 1.5 Base": "Disty0/Florence-2-base-PromptGen-v1.5",
+    "Huggingface Smol VL2 2B": "HuggingFaceTB/SmolVLM-Instruct",
+    "Huggingface Smol VL2 0.5B": "HuggingFaceTB/SmolVLM-500M-Instruct",
+    "Google Pix Textcaps": "google/pix2struct-textcaps-base",
+    "Google PaliGemma 2 3B": "google/paligemma2-3b-pt-224",
+    "CogFlorence 2.0 Large": "thwri/CogFlorence-2-Large-Freeze", # 1.6GB
     "ByteDance Sa2VA 4B": "ByteDance/Sa2VA-4B",
-    # Mistral Finetunes
-    "Mistral Small 3.2 24B Heretic": "coder3101/Mistral-Small-3.2-24B-Instruct-2506-heretic",
+    "ByteDance Sa2VA 1B": "ByteDance/Sa2VA-1B",
+    "Apple FastVLM 7B": "apple/FastVLM-7B",
+    "Apple FastVLM 1.5B": "apple/FastVLM-1.5B",
+    "Apple FastVLM 0.5B": "apple/FastVLM-0.5B",
+    f"Alibaba Qwen 3 VL 8B Thinking {ui_symbols.reasoning}": "Qwen/Qwen3-VL-8B-Thinking",
+    "Alibaba Qwen 3 VL 8B Coder Heretic": "coder3101/Qwen3-VL-8B-Instruct-heretic",
+    "Alibaba Qwen 3 VL 8B Abliterated Caption": "prithivMLmods/Qwen3-VL-8B-Abliterated-Caption-it",
+    "Alibaba Qwen 3 VL 8B": "Qwen/Qwen3-VL-8B-Instruct",
+    f"Alibaba Qwen 3 VL 4B Thinking {ui_symbols.reasoning}": "Qwen/Qwen3-VL-4B-Thinking",
+    f"Alibaba Qwen 3 VL 4B Thinking Coder Heretic {ui_symbols.reasoning}": "coder3101/Qwen3-VL-4B-Thinking-heretic",
+    "Alibaba Qwen 3 VL 4B Coder Heretic": "coder3101/Qwen3-VL-4B-Instruct-heretic",
+    "Alibaba Qwen 3 VL 4B": "Qwen/Qwen3-VL-4B-Instruct",
+    f"Alibaba Qwen 3 VL 32B Thinking Coder Heretic v2 {ui_symbols.reasoning}": "coder3101/Qwen3-VL-32B-Thinking-heretic-v2",
+    f"Alibaba Qwen 3 VL 2B Thinking {ui_symbols.reasoning}": "Qwen/Qwen3-VL-2B-Thinking",
+    f"Alibaba Qwen 3 VL 2B Thinking Coder Heretic {ui_symbols.reasoning}": "coder3101/Qwen3-VL-2B-Thinking-heretic",
+    "Alibaba Qwen 3 VL 2B Coder Heretic": "coder3101/Qwen3-VL-2B-Instruct-heretic",
+    "Alibaba Qwen 3 VL 2B": "Qwen/Qwen3-VL-2B-Instruct",
+    "Alibaba Qwen 2.5 VL 7B Coder Heretic": "coder3101/Qwen2.5-VL-7B-Instruct-heretic",
+    "Alibaba Qwen 2.5 VL 3B Coder Heretic": "coder3101/Qwen2.5-VL-3B-Instruct-heretic",
+    "Alibaba Qwen 2.5 VL 3B": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "Alibaba Qwen 2.5 Omni 3B": "Qwen/Qwen2.5-Omni-3B",
+    "Alibaba Qwen 2.0 VL 2B": "Qwen/Qwen2-VL-2B-Instruct",
+    "AIDC Ovis2 4B": "AIDC-AI/Ovis2-4B",
+    "AIDC Ovis2 2B": "AIDC-AI/Ovis2-2B",
+    "AIDC Ovis2 1B": "AIDC-AI/Ovis2-1B",
+    # cloud
+    f"Google Gemini 3.5 Flash {ui_symbols.cloud}": "google/gemini-3.5-flash",
     f"Google Gemini 3.1 Pro {ui_symbols.cloud}": "gemini-3.1-pro-preview",
-    f"Google Gemini 3.1 Flash Lite {ui_symbols.cloud}": "gemini-3.1-flash-lite-preview",
-    f"Google Gemini 3.0 Flash {ui_symbols.cloud}": "gemini-3-flash-preview",
+    f"Google Gemini 3.1 Flash Lite {ui_symbols.cloud}": "gemini-3.1-flash-lite",
+    f"Google Gemini 3.1 Flash Lite Preview {ui_symbols.cloud}": "gemini-3.1-flash-lite-preview",
     f"Google Gemini 2.5 Pro {ui_symbols.cloud}": "gemini-2.5-pro",
     f"Google Gemini 2.5 Flash {ui_symbols.cloud}": "gemini-2.5-flash",
+    f"Google Gemini 2.5 Flash Lite {ui_symbols.cloud}": "gemini-2.5-flash-lite",
 }
 
 # Default model
@@ -147,6 +143,14 @@ vlm_prompt_mapping = {
     "Point at...": "POINT_MODE",
     "Detect all...": "DETECT_MODE",
     "Detect Gaze": "DETECT_GAZE",
+}
+
+# Reverse prompt-mapping
+vlm_base_text_prompt_suffix = "Describe the main subject, scene layout, perspective, background, colors, lighting, textures, visible objects and their relationships, composition, and any clearly visible art style or medium. Keep the language vivid but objective, avoid subjective commentary, and output only a single caption text suitable for image generation."
+vlm_prompt_reverse_mapping = {
+    'CAPTION': f"Provide a short and concise, visually descriptive caption suitable for image generation. {vlm_base_text_prompt_suffix}",
+    'DETAILED CAPTION': f"Provide a detailed visual caption suitable for image generation. {vlm_base_text_prompt_suffix}",
+    'MORE DETAILED CAPTION': f"Provide a very detailed extended visual caption suitable for image generation. {vlm_base_text_prompt_suffix}",
 }
 
 # Placeholder hints for prompt field based on selected question

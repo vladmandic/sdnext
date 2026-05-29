@@ -40,11 +40,15 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
     *for example*, `child` can match `kid`, `girl`, `boy`  
     and it expands the functionality with customizable semantic matching:
     *for example*, `young ...` will match before next word appears in the prompt and steer away from it towards desired choices  
-  - add *wildcards* (if used) info to image metadata  
-    if wildcards or styles modify prompt, add original prompt to image metadata as *template*  
-  - **Captioning** new feature: analyze existing images for prompt adherence  
+  - **Captioning**
+    new feature: analyze existing images for prompt adherence  
     *tip*: image analysis requires larger VLM model to produce quality output  
     new api endpoint: `/sdapi/v1/analyze`  
+    cleanup list of predefined models, new models added and some old removed  
+    improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
+    improved system prompts  
+  - add *wildcards* (if used) info to image **metadata**  
+    if wildcards or styles modify prompt, add original prompt to image metadata as *template*  
   - **Masking** updated interface and capabilities  
     you can now also select mask type instead of focing alpha mask with all models  
   - **HF download** use `XET` by default  
@@ -75,7 +79,7 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - improve `kanvas` typing
   - additional strong typing in core, thanks @awsr
 - **Fixes**
-  - *hidream-o1* prequant loading
+  - `hidream-o1` prequant loading
   - `gradio` initial hijack
   - `SmolVLM` captioning
   - `gradio` temp files guard against large image
@@ -94,6 +98,7 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - `styles` loader exception handling
   - `kanvas` image change notification
   - `reinstall` force reinstal of transformers and diffusers
+  - `ipex` torch install error, thanks @liutyi
 
 ## Update for 2026-05-13
 
