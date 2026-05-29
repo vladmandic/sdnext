@@ -572,7 +572,7 @@ def check_transformers():
         target_tokenizers = '0.23.1'
     if target_transformers is not None:
         # Pinned release version (e.g. DirectML)
-        if (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
+        if args.reinstall or (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" version={target_transformers}')
             else:
@@ -583,7 +583,7 @@ def check_transformers():
     else:
         # Git commit-pinned version
         current = opts.get('transformers_version', '')
-        if (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
+        if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" commit={target_commit}')
             else:

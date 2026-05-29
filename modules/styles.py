@@ -305,40 +305,40 @@ class StyleDatabase:
                 pass
 
     def load_style(self, fn, prefix=None):
-        with open(fn, encoding='utf-8') as f:
-            new_style = None
-            try:
+        new_style = None
+        try:
+            with open(fn, encoding='utf-8') as f:
                 all_styles = json.load(f)
-                if type(all_styles) is dict:
-                    all_styles = [all_styles]
-                for style in all_styles:
-                    if type(style) is not dict or "name" not in style:
-                        raise ValueError('cannot parse style')
-                    basename = os.path.splitext(os.path.basename(fn))[0]
-                    name = re.sub(r'[\t\r\n]', '', style.get("name", basename)).strip()
-                    if prefix is not None:
-                        name = os.path.join(prefix, name)
-                    else:
-                        name = os.path.join(os.path.dirname(os.path.relpath(fn, self.path)), name)
-                    new_style = Style(
-                        name=name,
-                        desc=style.get('description', name),
-                        prompt=style.get("prompt", ""),
-                        negative_prompt=style.get("negative", ""),
-                        extra=style.get("extra", ""),
-                        wildcards=style.get("wildcards", ""),
-                        preview=style.get("preview", None),
-                        filename=fn,
-                        mtime=os.path.getmtime(fn),
-                    )
-                    # key by the prefixed name so styles with the same base name in different
-                    # subfolders do not collide and overwrite each other
-                    if name in self.styles:
-                        log.warning(f'Style duplicate name: name="{name}" file="{fn}" existing="{self.styles[name].filename}"')
-                    self.styles[name] = new_style
-            except Exception as e:
-                log.error(f'Failed to load style: file="{fn}" error={e}')
-            return new_style
+            if type(all_styles) is dict:
+                all_styles = [all_styles]
+            for style in all_styles:
+                if type(style) is not dict or "name" not in style:
+                    raise ValueError('cannot parse style')
+                basename = os.path.splitext(os.path.basename(fn))[0]
+                name = re.sub(r'[\t\r\n]', '', style.get("name", basename)).strip()
+                if prefix is not None:
+                    name = os.path.join(prefix, name)
+                else:
+                    name = os.path.join(os.path.dirname(os.path.relpath(fn, self.path)), name)
+                new_style = Style(
+                    name=name,
+                    desc=style.get('description', name),
+                    prompt=style.get("prompt", ""),
+                    negative_prompt=style.get("negative", ""),
+                    extra=style.get("extra", ""),
+                    wildcards=style.get("wildcards", ""),
+                    preview=style.get("preview", None),
+                    filename=fn,
+                    mtime=os.path.getmtime(fn),
+                )
+                # key by the prefixed name so styles with the same base name in different
+                # subfolders do not collide and overwrite each other
+                if name in self.styles:
+                    log.warning(f'Style duplicate name: name="{name}" file="{fn}" existing="{self.styles[name].filename}"')
+                self.styles[name] = new_style
+        except Exception as e:
+            log.error(f'Failed to load style: file="{fn}" error={e}')
+        return new_style
 
     def reload(self):
         t0 = time.time()

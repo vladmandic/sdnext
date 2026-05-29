@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-27
+## Update for 2026-05-29
 
-### Highlights for 2026-05-27
+### Highlights for 2026-05-29
 
 *What's New?*
 - **Anima** made it to release version, Microsoft joins the game with **Lens**
@@ -14,7 +14,7 @@ And we have new [Home](https://vladmandic.github.io/sdnext/) page and new [Contr
 
 Plus continued work on modernization of codebase: UI is now fully TypeScript based and we have a new modular LoRA loader
 
-### Details for 2026-05-25
+### Details for 2026-05-29
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -91,6 +91,9 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - `hf download` model card lookup
   - `ltx video` padding logic
   - `prompt enhance` custom model loader
+  - `styles` loader exception handling
+  - `kanvas` image change notification
+  - `reinstall` force reinstal of transformers and diffusers
 
 ## Update for 2026-05-13
 
