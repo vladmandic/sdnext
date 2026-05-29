@@ -57,6 +57,12 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - **Gallery** add clear cache button to folder menu
   - **UV** much updated `--uv` support for fast installs  
     now also supports global `uv` if present in the system  
+  - **Attention Dispatcher** new attention backends dispatcher  
+    in *settings -> attention Dispatcher*  
+    allows to use pluggable kernels defines either in packages or in new [kernels](https://huggingface.co/docs/kernels/index) library  
+    see [backends](https://huggingface.co/docs/diffusers/optimization/attention_backends#available-backends) for list of available attention backends  
+    *note* compatiblity matrix between torch backend, torch version and model specifics is relatively small at the moment  
+    *note* does not replace existing *attention* settings
 - **Changes**
   - all **Guidance** params are now set to *-1* by default to allow using model defaults and avoid confusion with different model behaviour  
     log will print default values used by model if not set by user  

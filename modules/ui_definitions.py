@@ -230,6 +230,9 @@ def create_settings(cmd_opts):
         "xformers_options": OptionInfo(['Flash attention'], "xFormers options", gr.CheckboxGroup, {"choices": ['Flash attention'] }),
         "dynamic_attention_slice_rate": OptionInfo(0.5, "Dynamic Attention slicing rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4), "step": 0.01}),
         "dynamic_attention_trigger_rate": OptionInfo(1, "Dynamic Attention trigger rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4)*2, "step": 0.01}),
+
+        "hf_attention_sep": OptionInfo("<h2>Attention Dispatcher</h2>", "", gr.HTML),
+        "hf_attention": OptionInfo('', "Attention dispatcher kernel", gr.Textbox),
     }))
 
     # --- Server Settings ---

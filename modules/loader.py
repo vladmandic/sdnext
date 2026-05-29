@@ -208,6 +208,7 @@ try:
 except Exception as e:
     log.error(f'Loader: diffusers=={diffusers.__version__ if "diffusers" in sys.modules else None} {e}')
     log.error('Please restart re-run the installer')
+    # errors.display(e, 'diffusers')
     sys.exit(1)
 
 try:

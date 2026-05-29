@@ -197,7 +197,7 @@ def set_diffuser_options(sd_model, vae=None, op:str='model', offload:bool=True, 
                 shared.opts.sdnq_use_quantized_matmul = False
             if module.quantization_config.use_quantized_matmul != shared.opts.sdnq_use_quantized_matmul:
                 from modules.sdnq.loader import apply_sdnq_options_to_model
-                log.debug(f'Setting {op} {module_name}: sdnq_use_quantized_matmul={shared.opts.sdnq_use_quantized_matmul}')
+                # log.debug(f'Setting {op} {module_name}: sdnq_use_quantized_matmul={shared.opts.sdnq_use_quantized_matmul}')
                 module = apply_sdnq_options_to_model(module, use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul)
                 setattr(sd_model, module_name, module)
 
@@ -968,6 +968,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
         prompt_parser_diffusers.cache.clear()
 
         set_diffuser_options(sd_model, vae, op, offload=False)
+        attention.set_attention_dispatcher(sd_model)
         sd_model = model_quant.do_post_load_quant(sd_model, allow=allow_post_quant) # run this before move model so it can be compressed in CPU
         timer.load.record("options")
 
@@ -1018,6 +1019,7 @@ def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: di
 
     if shared.opts.diffusers_offload_mode != 'balanced':
         devices.torch_gc(force=True, reason='load')
+
     if sd_model is not None:
         script_callbacks.model_loaded_callback(sd_model)
 

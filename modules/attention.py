@@ -1,6 +1,6 @@
 from functools import wraps
 import torch
-from modules import rocm
+from modules import rocm, errors
 from modules.logger import log
 from installer import install, installed, torch_info
 
@@ -255,3 +255,64 @@ def set_diffusers_attention(pipe, quiet = False):
         log.debug(f"Torch attention: slicing={shared.opts.attention_slicing}")
 
     pipe.current_attn_name = shared.opts.cross_attention_optimization
+
+
+orig_get_kernel = None
+def get_kernel_hijack(repo_id, revision=None, version=None, backend=None, user_agent=None, trust_remote_code: bool | list[str] = False): # pylint: disable=unused-argument
+    log.debug(f'Attention dispatcher hub: repo="{repo_id}" revision={revision} version={version} backend={backend}')
+    user_agent = 'kernels/0.14.1'
+    module = None
+    try:
+        module = orig_get_kernel(repo_id, revision=revision, version=version, backend=backend, user_agent=user_agent, trust_remote_code=True)
+    except Exception as e:
+        log.error(f'Attention dispatcher hub: {e}')
+        errors.display(e, 'kernels')
+    return module
+
+
+def get_hf_api_hijack(user_agent = None): # pylint: disable=unused-argument
+    from huggingface_hub import HfApi
+    return HfApi(library_name="kernels", user_agent="donottrack")
+
+
+def set_attention_dispatcher(pipe):
+    global orig_get_kernel # pylint: disable=global-statement
+    from modules import shared
+    attn = shared.opts.hf_attention.strip().lower()
+    if pipe is None or not hasattr(pipe, 'transformer') or not hasattr(pipe.transformer, 'set_attention_backend'):
+        return
+
+    from diffusers.models import attention_dispatch as a
+    backends = [b.value for b in a._AttentionBackendRegistry.list_backends()] # pylint: disable=protected-access
+    # https://huggingface.co/docs/kernels/index
+    # https://huggingface.co/docs/diffusers/optimization/attention_backends#available-backends
+
+    if 'hub' in attn:
+        try:
+            install('kernels==0.14.1')
+            import kernels
+            import kernels.utils
+            log.debug(f'Attention dispatcher: kernels={kernels.__version__}')
+            if orig_get_kernel is None:
+                orig_get_kernel = kernels.get_kernel
+                kernels.get_kernel = get_kernel_hijack
+                kernels.utils._get_hf_api = get_hf_api_hijack # pylint: disable=protected-access
+            from diffusers.utils import import_utils
+            import_utils._kernels_available = True # pylint: disable=protected-access
+            import_utils._kernels_version = kernels.__version__ # pylint: disable=protected-access
+        except Exception as e:
+            log.error(f'Attention dispatcher kernels: {e}')
+            return
+
+    prev = a._AttentionBackendRegistry.get_active_backend() # pylint: disable=protected-access
+    if attn in backends:
+        try:
+            pipe.transformer.set_attention_backend(attn)
+        except Exception as e:
+            log.error(f'Attention dispatcher: target={attn} {e}')
+        current = a._AttentionBackendRegistry.get_active_backend() # pylint: disable=protected-access
+        log.debug(f'Attention dispatcher: target={attn} previous={prev[0].value} active={current[0]} list={backends}')
+    elif len(attn) > 0:
+        log.warning(f'Attention dispatcher: active={prev[0].value} list={backends} target={attn} not found')
+    else:
+        log.debug(f'Attention dispatcher: active={prev[0].value} list={backends}')
