@@ -116,25 +116,30 @@ def create_paths(opts):
     create_path(fix_path('embeddings_dir'))
     create_path(fix_path('onnx_temp_dir'))
     create_path(fix_path('outdir_samples'))
-    create_path(fix_path('outdir_txt2img_samples'))
-    create_path(fix_path('outdir_img2img_samples'))
-    create_path(fix_path('outdir_control_samples'))
-    create_path(fix_path('outdir_extras_samples'))
-    create_path(fix_path('outdir_init_images'))
     create_path(fix_path('outdir_grids'))
-    create_path(fix_path('outdir_txt2img_grids'))
-    create_path(fix_path('outdir_img2img_grids'))
-    create_path(fix_path('outdir_control_grids'))
-    create_path(fix_path('outdir_save'))
-    create_path(fix_path('outdir_video'))
+    # per-type output dirs resolve against data_path via fix_path(), so create them bare
+    # only when no base folder is set; with a base configured, the resolved base+specific
+    # paths below are the real targets and the bare versions would just litter data_path
+    base_samples = opts.data.get('outdir_samples', '')
+    base_grids = opts.data.get('outdir_grids', '')
+    if not base_samples:
+        create_path(fix_path('outdir_txt2img_samples'))
+        create_path(fix_path('outdir_img2img_samples'))
+        create_path(fix_path('outdir_control_samples'))
+        create_path(fix_path('outdir_extras_samples'))
+        create_path(fix_path('outdir_init_images'))
+        create_path(fix_path('outdir_save'))
+        create_path(fix_path('outdir_video'))
+    if not base_grids:
+        create_path(fix_path('outdir_txt2img_grids'))
+        create_path(fix_path('outdir_img2img_grids'))
+        create_path(fix_path('outdir_control_grids'))
     create_path(fix_path('styles_dir'))
     create_path(fix_path('yolo_dir'))
     create_path(fix_path('wildcards_dir'))
     create_path(fix_path('autocomplete_dir'))
 
     # Create resolved output paths (base + specific)
-    base_samples = opts.data.get('outdir_samples', '')
-    base_grids = opts.data.get('outdir_grids', '')
     if base_samples:
         create_path(resolve_output_path(base_samples, opts.data.get('outdir_txt2img_samples', '')))
         create_path(resolve_output_path(base_samples, opts.data.get('outdir_img2img_samples', '')))
