@@ -1,9 +1,10 @@
-from modules.logger import log
 import os
 import time
 import torch
 import diffusers
 import transformers
+from modules.logger import log
+from modules.shared import opts
 
 
 def install_gguf():
@@ -13,7 +14,6 @@ def install_gguf():
     install('gguf', quiet=True)
     import importlib.metadata
     import gguf
-    from modules import shared
     scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')
     if os.path.exists(scripts_dir):
         os.rename(scripts_dir, scripts_dir + str(time.time()))
@@ -46,13 +46,36 @@ def load_gguf_state_dict(path: str, compute_dtype: torch.dtype) -> dict:
     return sd, stats
 
 
-def load_gguf(path, cls, compute_dtype: torch.dtype):
+def load_gguf_diffusers(path: str, cls, compute_dtype: torch.dtype, config: str | None = None, subfolder: str | None = None, variant: str | None = None):
+    _gguf = install_gguf()
+    loader = cls.from_single_file if hasattr(cls, 'from_single_file') else cls.from_pretrained
+    load_args = {}
+    if config is not None:
+        load_args['config'] = config
+    if subfolder is not None:
+        load_args['subfolder'] = subfolder
+    if variant is not None:
+        load_args['variant'] = variant
+    quantization_config = diffusers.GGUFQuantizationConfig(compute_dtype=compute_dtype)
+    module = loader(
+        path,
+        quantization_config = quantization_config,
+        torch_dtype=compute_dtype,
+        cache_dir=opts.hfcache_dir,
+        **load_args
+    )
+    module.gguf = 'gguf'
+    return module
+
+
+def load_gguf_transfortmers(repo_id: str, path: str, cls, compute_dtype: torch.dtype):
     _gguf = install_gguf()
     loader = cls.from_single_file if hasattr(cls, 'from_single_file') else cls.from_pretrained
     module = loader(
-        path,
-        quantization_config = diffusers.GGUFQuantizationConfig(compute_dtype=compute_dtype),
-        torch_dtype=compute_dtype,
+        repo_id,
+        dtype=compute_dtype,
+        gguf_file=path,
+        cache_dir=opts.hfcache_dir,
     )
     module.gguf = 'gguf'
     return module

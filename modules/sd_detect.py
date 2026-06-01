@@ -1,8 +1,7 @@
 import os
 import time
-import torch
 import diffusers
-from modules import shared, shared_items, devices, errors, model_tools
+from modules import shared, shared_items, errors, model_tools
 from modules.logger import log
 
 
@@ -58,8 +57,6 @@ def guess_by_name(fn, current_guess):
     elif 'stable-diffusion-3' in fn.lower():
         new_guess = 'Stable Diffusion 3'
     elif 'stable-cascade' in fn.lower() or 'stablecascade' in fn.lower() or 'wuerstchen3' in fn.lower() or ('sotediffusion' in fn.lower() and "v2" in fn.lower()):
-        if devices.dtype == torch.float16:
-            log.warning('Stable Cascade does not support Float16')
         new_guess = 'Stable Cascade'
     elif 'pixart-sigma' in fn.lower():
         new_guess = 'PixArt Sigma'

@@ -311,7 +311,7 @@ def move_base(model, device):
     return R
 
 
-def load_diffuser_initial(diffusers_load_config, op='model'):
+def load_diffuser_initial(diffusers_load_config: dict, op='model'):
     sd_model = None
     checkpoint_info = None
     ckpt_basename = os.path.basename(shared.cmd_opts.ckpt)
@@ -331,13 +331,13 @@ def load_diffuser_initial(diffusers_load_config, op='model'):
     return sd_model, checkpoint_info
 
 
-def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_config, op='model'):
+def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInfo, diffusers_load_config: dict, op='model'):
     from modules import sdnq # pylint: disable=unused-import
     sd_model = None
     global allow_post_quant # pylint: disable=global-statement
     unload_model_weights(op=op)
     shared.sd_model = None
-    model_type = detected_model_type.removesuffix(' SDNQ')
+    model_type = detected_model_type.removesuffix('SDNQ').strip()
     try:
         if model_type in ['Stable Cascade']:
             from pipelines.model_stablecascade import load_cascade_combined
@@ -569,7 +569,7 @@ def load_diffuser_force(detected_model_type, checkpoint_info, diffusers_load_con
         return sd_model, False
 
 
-def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_config, op='model'):
+def load_diffuser_folder(model_type: str, pipeline, checkpoint_info: CheckpointInfo, diffusers_load_config: dict, op='model'):
     sd_model = None
     files = walk_files(checkpoint_info.path, ['.safetensors', '.bin', '.ckpt'])
     if 'variant' not in diffusers_load_config and any('diffusion_pytorch_model.fp16' in f for f in files): # deal with diffusers lack of variant fallback when loading
@@ -647,7 +647,7 @@ def load_diffuser_folder(model_type, pipeline, checkpoint_info, diffusers_load_c
     return sd_model
 
 
-def load_diffuser_file(model_type, pipeline, checkpoint_info, diffusers_load_config, op='model'):
+def load_diffuser_file(model_type: str, pipeline, checkpoint_info: CheckpointInfo, diffusers_load_config: dict, op='model'):
     sd_model = None
     diffusers_load_config["extract_ema"] = shared.opts.diffusers_extract_ema
     if pipeline is None:
@@ -733,7 +733,7 @@ def load_sdnq_module(fn: str, module_name: str, load_method: str):
         return None, module_name, 0
 
 
-def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
+def load_sdnq_model(checkpoint_info: CheckpointInfo, pipeline, diffusers_load_config: dict, op: str):
     modules = {}
     global allow_post_quant # pylint: disable=global-statement
     allow_post_quant = False
@@ -778,7 +778,7 @@ def load_sdnq_model(checkpoint_info, pipeline, diffusers_load_config, op):
     return sd_model
 
 
-def set_overrides(sd_model, checkpoint_info, model_type):
+def set_overrides(sd_model, checkpoint_info: CheckpointInfo, model_type: str):
     checkpoint_info_name = checkpoint_info.name.lower()
     if "Kandinsky" in sd_model.__class__.__name__:
         sd_model.scheduler.name = 'DDIM'
@@ -822,7 +822,7 @@ def set_overrides(sd_model, checkpoint_info, model_type):
                 log.debug(f'Setting override from keys failed: {e}')
 
 
-def set_defaults(sd_model, checkpoint_info):
+def set_defaults(sd_model, checkpoint_info: CheckpointInfo):
     sd_model.sd_model_hash = checkpoint_info.calculate_shorthash() # pylint: disable=attribute-defined-outside-init
     sd_model.sd_checkpoint_info = checkpoint_info # pylint: disable=attribute-defined-outside-init
     sd_model.sd_model_checkpoint = checkpoint_info.filename # pylint: disable=attribute-defined-outside-init
@@ -839,7 +839,7 @@ def set_defaults(sd_model, checkpoint_info):
         sd_model.set_progress_bar_config(bar_format='Progress {rate_fmt}{postfix} {bar} {percentage:3.0f}% {n_fmt}/{total_fmt} {elapsed} {remaining}', ncols=80, colour='#327fba')
 
 
-def load_diffuser(checkpoint_info=None, op='model', revision=None): # pylint: disable=unused-argument
+def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', revision=None): # pylint: disable=unused-argument
     global allow_post_quant # pylint: disable=global-statement
     allow_post_quant = True # assume default
     logging.getLogger("diffusers").setLevel(logging.ERROR)
@@ -1404,7 +1404,7 @@ def reload_text_encoder(initial=False):
     apply_balanced_offload(shared.sd_model)
 
 
-def reload_model_weights(sd_model=None, info=None, op='model', force=False, revision=None):
+def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='model', force=False, revision=None):
     checkpoint_info = info or select_checkpoint(op=op) # are we selecting model or dictionary
     if checkpoint_info is None:
         unload_model_weights(op=op)
@@ -1453,7 +1453,7 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
     return None # should not be here
 
 
-def clear_caches(full:bool=False):
+def clear_caches(full: bool = False):
     from modules import prompt_parser_diffusers, memstats, sd_offload
     from modules.lora import lora_common, lora_load
     prompt_parser_diffusers.cache.clear()
@@ -1490,7 +1490,7 @@ def unload_model_weights(op='model'):
         log.debug(f'Unload {op}: {memory_stats()}  fn={fn}')
 
 
-def hf_auth_check(checkpoint_info, force:bool=False):
+def hf_auth_check(checkpoint_info: CheckpointInfo, force:bool=False):
     if shared.opts.offline_mode:
         log.info('Offline mode: skipping auth check')
         return False

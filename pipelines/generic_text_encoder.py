@@ -15,14 +15,15 @@ def get_shared(cls, repo_id, subfolder=None, variant=None):
     if variant is not None:
         args['variant'] = variant
     for name, item in shared_te_map.items():
-        if item['cls'] == cls and (item['identifier'] is None or item['identifier'].lower() in repo_id.lower()):
+        if item['cls'] == cls and (item.get('identifier', None) is None or item.get('identifier', None).lower() in repo_id.lower()):
             if item.get('config_class', None) is not None and item.get('config_path', None) is not None:
                 with open(item['config_path'], encoding='utf8') as f:
                     args['config'] = item['config_class'](**json.load(f))
             if item.get('target_subfolder', None) is not None:
                 args['subfolder'] = item['target_subfolder']
-            log.debug(f'Load model: text_encoder="{repo_id}" cls={cls.__name__} target="{item["target_repo"]}" args={args} shared="{name}"')
-            return item['target_repo'], args
+            target_repo = item.get('target_repo', repo_id)
+            log.debug(f'Load model: text_encoder="{repo_id}" cls={cls.__name__} target="{target_repo}" args={args} shared="{name}"')
+            return target_repo, args
     if subfolder is not None: # use default provided subfolder
         args['subfolder'] = subfolder
     return repo_id, args

@@ -1,5 +1,4 @@
 import os
-import diffusers
 from modules import shared, devices, errors, sd_models, model_quant
 from modules.logger import log
 from pipelines.generic_util import get_loader
@@ -43,21 +42,18 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
         if local_file is not None and local_file.lower().endswith('.gguf'):
             log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("diffusers")} args={load_args}')
             from modules import ggml
-            ggml.install_gguf()
-            loader = cls_name.from_single_file if hasattr(cls_name, 'from_single_file') else cls_name.from_pretrained
-            transformer = loader(
-                local_file,
-                quantization_config=diffusers.GGUFQuantizationConfig(compute_dtype=dtype),
-                cache_dir=shared.opts.hfcache_dir,
-                **load_args,
-            )
-            transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
+            ggml.load_gguf_diffusers(local_file, cls=cls_name, compute_dtype=dtype, config=repo_id, subfolder=subfolder, variant=variant)
+            # transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
+
         # 2. load safetensors with native loader if spec is available
         elif local_file is not None and local_file.lower().endswith('.safetensors') and native_spec is not None:
             from pipelines import native_transformer
             log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader=native args={load_args}')
             transformer, _ = native_transformer.load(
-                local_file, repo_id, native_spec, load_config,
+                local_file,
+                repo_id,
+                native_spec,
+                load_config,
                 allow_quant=allow_quant,
                 dtype=dtype,
                 modules_to_not_convert=modules_to_not_convert,
@@ -66,6 +62,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 quant_type=quant_type,
                 **kwargs,
             )
+
         # 3. load safetensors with diffusers loader
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
             log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("diffusers")} args={load_args}')
@@ -80,6 +77,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 **quant_args,
                 **kwargs,
             )
+
         # 4. default loading from diffusers repo
         else:
             log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" loader={get_loader("diffusers")} args={load_args}')
