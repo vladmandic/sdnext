@@ -39,7 +39,12 @@ def load_transformer_components(repo_id, diffusers_load_config, adapter_cls):
             log.error(f'Load model: type=Anima custom transformer="{local_file}": {e}')
             errors.display(e, 'Load')
             return None, None
-    transformer = generic.load_transformer(repo_id, cls_name=diffusers.CosmosTransformer3DModel, load_config=diffusers_load_config, subfolder="transformer")
+    transformer = generic.load_transformer(
+        repo_id,
+        cls_name=diffusers.CosmosTransformer3DModel,
+        load_config=diffusers_load_config,
+        subfolder="transformer"
+    )
     return transformer, None
 
 
@@ -89,7 +94,13 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     transformer, llm_adapter = load_transformer_components(repo_id, diffusers_load_config, AnimaLLMAdapter)
     if transformer is None:
         return None
-    text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3Model, load_config=diffusers_load_config, subfolder="text_encoder", allow_shared=False)
+    text_encoder = generic.load_text_encoder(
+        repo_id,
+        cls_name=transformers.Qwen3Model,
+        load_config=diffusers_load_config,
+        subfolder="text_encoder",
+        allow_shared=False
+    )
 
     if llm_adapter is None:
         shared.state.begin('Load adapter')

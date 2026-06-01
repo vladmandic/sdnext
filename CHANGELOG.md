@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-05-29
+## Update for 2026-06-01
 
-### Highlights for 2026-05-29
+### Highlights for 2026-06-01
 
 *What's New?*
 - **Anima** made it to release version, Microsoft joins the game with **Lens**
@@ -14,7 +14,7 @@ And we have new [Home](https://vladmandic.github.io/sdnext/) page and new [Contr
 
 Plus continued work on modernization of codebase: UI is now fully TypeScript based and we have a new modular LoRA loader
 
-### Details for 2026-05-29
+### Details for 2026-06-01
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -63,6 +63,9 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
     see [backends](https://huggingface.co/docs/diffusers/optimization/attention_backends#available-backends) for list of available attention backends  
     *note* compatiblity matrix between torch backend, torch version and model specifics is relatively small at the moment  
     *note* does not replace existing *attention* settings
+  - **Shared components** additional support for shared model components  
+    avoids unnecessary downloads and allows to share components between different models  
+    enabled by default, see *settings -> text encoder -> use shared instance*  
 - **Changes**
   - all **Guidance** params are now set to *-1* by default to allow using model defaults and avoid confusion with different model behaviour  
     log will print default values used by model if not set by user  
@@ -76,6 +79,8 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - Automated fixes using `/check-` skills
   - Automated syntax, spelling and readability improvements to `/wiki` pages
 - **Internal**
+  - massive new codebase/refactor to use native transformers loader!
+  - refactor shared components loader
   - update `torch==2.12` for *CUDA, ROCm, IPEX*
   - complete refactor of `core` JavaScript codebase to TypeScript!
   - complete refactor of `modernui` JavaScript codebase to TypeScript!
@@ -105,6 +110,9 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - `kanvas` image change notification
   - `reinstall` force reinstal of transformers and diffusers
   - `ipex` torch install error, thanks @liutyi
+  - `taesd` preview constant size with reduced layers  
+  - `output path` use correct base folder for initial folders  
+  - `ltx` prompt embeds move to device, thanks @ryanmeador
 
 ## Update for 2026-05-13
 
