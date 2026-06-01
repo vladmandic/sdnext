@@ -1,7 +1,6 @@
 """Shared scaffolding for native adapter loaders.
 
-The four native adapter loaders (z-image, chroma, ernie, flux2) all implement
-the same algorithm:
+Each per-arch native adapter loader implements the same algorithm:
 
 1. Read the safetensors state dict
 2. Test for family-specific markers; bail out if absent
@@ -25,7 +24,7 @@ diffusers paths plus optional chunk descriptors).
 
 Per-arch loader modules import this module and pass their own ``prefixes``,
 ``bare_prefixes``, ``bare_diffusers_prefixes``, and ``resolve_targets`` to the
-generic helpers. Loader business logic itself lands in subsequent commits.
+generic helpers.
 """
 
 import os
@@ -45,7 +44,8 @@ from modules.lora import lora_common as l
 
 
 # Universal prefix list shared by every native arch loader. Per-arch loaders
-# extend this with arch-specific entries (e.g. flux2 adds ``"lycoris_"``).
+# extend this with arch-specific entries when their files use additional
+# vendor-specific naming conventions.
 KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_")
 
 
@@ -56,9 +56,10 @@ KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_")
 BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
 
 
-# Default network-key prefix. Single-component arches (flux2, zimage, chroma,
-# ernie) keep this default; multi-component arches (anima: transformer plus
-# llm_adapter plus text_encoder) pass a callable that picks per ``prefix_used``.
+# Default network-key prefix. Single-component arches keep this default;
+# multi-component arches (those with separate text-encoder or adapter
+# components alongside the transformer) pass a callable that picks per
+# ``prefix_used``.
 NETWORK_PREFIX_DEFAULT = "lora_transformer_"
 
 

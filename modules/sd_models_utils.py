@@ -100,26 +100,29 @@ def read_state_dict(checkpoint_file, map_location=None, what:str='model'): # pyl
     if not os.path.isfile(checkpoint_file):
         log.error(f'Load dict: path="{checkpoint_file}" not a file')
         return None
+    _, extension = os.path.splitext(checkpoint_file)
+    if extension.lower() == ".ckpt" and shared.opts.sd_disable_ckpt:
+        log.warning(f"Checkpoint loading disabled: {checkpoint_file}")
+        return None
     try:
         pl_sd = None
-        with progress.open(checkpoint_file, 'rb', description=f'[cyan]Load {what}: [yellow]{checkpoint_file}', auto_refresh=True, console=console) as f:
-            _, extension = os.path.splitext(checkpoint_file)
-            if extension.lower() == ".ckpt" and shared.opts.sd_disable_ckpt:
-                log.warning(f"Checkpoint loading disabled: {checkpoint_file}")
-                return None
-            if shared.opts.stream_load:
-                if extension.lower() == ".safetensors":
-                    buffer = f.read()
-                    pl_sd = safetensors.torch.load(buffer)
-                else:
-                    buffer = io.BytesIO(f.read())
-                    pl_sd = torch.load(buffer, map_location='cpu')
-            else:
-                if extension.lower() == ".safetensors":
-                    pl_sd = safetensors.torch.load_file(checkpoint_file, device='cpu')
+        # safetensors.torch.load_file opens its own handle by path, so wrapping
+        # with progress.open leaves the bar stuck at 0/total. Skip the wrapper
+        # on that path; other paths actually read through f and update.
+        if extension.lower() == ".safetensors" and not shared.opts.stream_load:
+            pl_sd = safetensors.torch.load_file(checkpoint_file, device='cpu')
+        else:
+            with progress.open(checkpoint_file, 'rb', description=f'[cyan]Load {what}: [yellow]{checkpoint_file}', auto_refresh=True, console=console) as f:
+                if shared.opts.stream_load:
+                    if extension.lower() == ".safetensors":
+                        buffer = f.read()
+                        pl_sd = safetensors.torch.load(buffer)
+                    else:
+                        buffer = io.BytesIO(f.read())
+                        pl_sd = torch.load(buffer, map_location='cpu')
                 else:
                     pl_sd = torch.load(f, map_location='cpu')
-            sd = get_state_dict_from_checkpoint(pl_sd)
+        sd = get_state_dict_from_checkpoint(pl_sd)
         del pl_sd
     except Exception as e:
         errors.display(e, f'Load model: {checkpoint_file}')

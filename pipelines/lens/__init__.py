@@ -2,12 +2,16 @@
 
 import diffusers as _diffusers
 import transformers as _transformers
+from pipelines.native_transformer import TransformerSpec
 from .pipeline import LensPipeline, LensPipelineOutput
 from .pipeline_image import LensImg2ImgPipeline, LensInpaintPipeline
 from .reasoner import PromptReasoner
 from .resolution import RESOLUTION_BUCKETS, resolve_resolution
 from .text_encoder import LensGptOssEncoder
 from .transformer import LensTransformer2DModel
+
+
+LENS_SPEC = TransformerSpec(cls=LensTransformer2DModel)
 
 # ---------------------------------------------------------------------------
 # Make our custom subclasses discoverable by ``diffusers.DiffusionPipeline``.
@@ -38,6 +42,7 @@ if not hasattr(_diffusers, "LensInpaintPipeline"):
 del _diffusers, _transformers
 
 __all__ = [
+    "LENS_SPEC",
     "LensPipeline",
     "LensPipelineOutput",
     "LensImg2ImgPipeline",

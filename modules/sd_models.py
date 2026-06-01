@@ -1412,6 +1412,19 @@ def reload_model_weights(sd_model=None, info=None, op='model', force=False, revi
     jobid = shared.state.begin('Load model')
     if sd_model is None:
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
+    loaded_ckpt = getattr(sd_model, 'sd_checkpoint_info', None) if sd_model is not None else None
+    changed_checkpoint = loaded_ckpt is None or checkpoint_info is None or loaded_ckpt.filename != checkpoint_info.filename
+    if op == 'model' and sd_model is not None and changed_checkpoint and shared.opts.sd_unet not in (None, 'Default', 'None'):
+        old_class = type(sd_model).__name__
+        try:
+            new_pipeline, _ = sd_detect.detect_pipeline(checkpoint_info.path, op)
+        except Exception:
+            new_pipeline = None
+        new_class = getattr(new_pipeline, '__name__', None)
+        if new_class is not None and new_class != old_class:
+            log.info(f'Load model: pipeline cls={old_class} changed={new_class} unet="{shared.opts.sd_unet}" set to default')
+            shared.opts.data["sd_unet"] = 'Default'
+            sd_unet.loaded_unet = None
     if sd_model is None:  # previous model load failed
         current_checkpoint_info = None
     else:

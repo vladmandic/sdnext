@@ -95,10 +95,12 @@ def load_glm_image(checkpoint_info, diffusers_load_config=None):
     log.debug(f'Load model: type=GLM-Image repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     # Load transformer (DiT decoder - 7B) with quantization support
+    from pipelines.glm import GLM_IMAGE_SPEC
     transformer = generic.load_transformer(
         repo_id,
         cls_name=diffusers.GlmImageTransformer2DModel,
-        load_config=diffusers_load_config
+        load_config=diffusers_load_config,
+        native_spec=GLM_IMAGE_SPEC,
     )
 
     # Load text encoder (ByT5 for glyph) - cannot use shared T5 as GLM-Image requires specific ByT5 encoder (1472 hidden size)

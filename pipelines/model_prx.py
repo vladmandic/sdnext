@@ -14,7 +14,8 @@ def load_prx(checkpoint_info, diffusers_load_config=None):
     log.debug(f'Load model: type=PRX repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     from transformers.models.t5gemma.modeling_t5gemma import T5GemmaEncoder
-    transformer = generic.load_transformer(repo_id, cls_name=diffusers.PRXTransformer2DModel, load_config=diffusers_load_config)
+    from pipelines.prx import PRX_SPEC
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.PRXTransformer2DModel, load_config=diffusers_load_config, native_spec=PRX_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=T5GemmaEncoder, load_config=diffusers_load_config)
 
     pipe = diffusers.PRXPipeline.from_pretrained(

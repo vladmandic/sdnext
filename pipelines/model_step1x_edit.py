@@ -22,7 +22,8 @@ def load_step1x_edit(checkpoint_info, diffusers_load_config=None):
 
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
     processor = transformers.Qwen2_5_VLProcessor.from_pretrained(repo_id, cache_dir=shared.opts.hfcache_dir, subfolder='processor')
-    transformer = generic.load_transformer(repo_id, cls_name=Step1XEditTransformer2DModel, load_config=diffusers_load_config)
+    from pipelines.step1x import STEP1X_SPEC
+    transformer = generic.load_transformer(repo_id, cls_name=Step1XEditTransformer2DModel, load_config=diffusers_load_config, native_spec=STEP1X_SPEC)
 
     pipe = Step1XEditPipeline.from_pretrained(
         repo_id,

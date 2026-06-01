@@ -57,12 +57,14 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
             transformer_subfolder = "transformer"
 
     if transformer is None:
+        from pipelines.qwen import QWEN_SPEC
         transformer = generic.load_transformer(
             repo_transformer,
             subfolder=transformer_subfolder,
             cls_name=diffusers.QwenImageTransformer2DModel,
             load_config=diffusers_load_config,
             modules_to_not_convert=["transformer_blocks.0.img_mod.1.weight"],
+            native_spec=QWEN_SPEC,
         )
 
     repo_te = 'Qwen/Qwen-Image'

@@ -19,7 +19,14 @@ def _loader(component):
     return 'runai' if shared.opts.runai_streamer_transformers else 'default'
 
 
-def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer", allow_quant=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None, **kwargs):
+def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer", allow_quant=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None, native_spec=None, **kwargs):
+    """Load a DiT transformer from the base repo, or from a user-selected
+    single file when the UNET dropdown (``shared.opts.sd_unet``) is set.
+
+    With ``native_spec`` set and a .safetensors override selected, dispatches
+    to :func:`pipelines.native_transformer.load`. Without a spec, a single-file
+    override falls back to ``from_single_file``.
+    """
     if shared.state.interrupted:
         return None
     transformer = None
@@ -55,6 +62,19 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 **load_args,
             )
             transformer = model_quant.do_post_load_quant(transformer, allow=quant_type is not None)
+        elif local_file is not None and local_file.lower().endswith('.safetensors') and native_spec is not None:
+            from pipelines import native_transformer
+            log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader=native args={load_args}')
+            transformer, _ = native_transformer.load(
+                local_file, repo_id, native_spec, load_config,
+                allow_quant=allow_quant,
+                dtype=dtype,
+                modules_to_not_convert=modules_to_not_convert,
+                modules_dtype_dict=modules_dtype_dict,
+                quant_args=quant_args,
+                quant_type=quant_type,
+                **kwargs,
+            )
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
             log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={_loader("diffusers")} args={load_args}')
             if dtype is not None:

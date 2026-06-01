@@ -16,37 +16,25 @@ def _import_from_file(module_name, file_path):
     return mod
 
 
-def resolve_custom_transformer_path():
-    """Return an absolute path if the user selected a transformer in the UNET
-    dropdown and the file is resolvable, else ``None``.
-    """
-    sel = shared.opts.sd_unet
-    if sel is None or sel in ('Default', 'None'):
-        return None
-    from modules import sd_unet
-    if sel not in list(sd_unet.unet_dict):
-        log.error(f'Load module: type=transformer file="{sel}" not found')
-        return None
-    path = sd_unet.unet_dict[sel]
-    if not os.path.exists(path):
-        log.error(f'Load module: type=transformer path="{path}" does not exist')
-        return None
-    return path
-
-
 def load_transformer_components(repo_id, diffusers_load_config, adapter_cls):
     """Load (transformer, llm_adapter_or_none).
 
-    If the UNET dropdown points at a valid safetensors, route through the
-    custom-transformer helper, which also extracts the bundled adapter
-    weights. Otherwise fall back to ``generic.load_transformer`` and return
-    ``None`` for the adapter so the caller loads it from the base repo.
+    If the UNET dropdown points at a valid safetensors, route through
+    :mod:`pipelines.native_transformer` with :data:`pipelines.anima.ANIMA_SPEC`,
+    which extracts any bundled ``llm_adapter`` weights inline with the
+    transformer. Otherwise fall back to :func:`generic.load_transformer` and
+    return ``None`` for the adapter so the caller loads it from the base repo.
     """
-    local_file = resolve_custom_transformer_path()
+    from pipelines import native_transformer
+    local_file = native_transformer.resolve_path()
     if local_file is not None:
-        from pipelines.anima import anima_transformer
+        from pipelines.anima import ANIMA_SPEC
         try:
-            return anima_transformer.load_custom_transformer(repo_id, local_file, diffusers_load_config, adapter_cls)
+            transformer, siblings = native_transformer.load(
+                local_file, repo_id, ANIMA_SPEC, diffusers_load_config,
+                sibling_classes={'llm_adapter': adapter_cls},
+            )
+            return transformer, siblings.get('llm_adapter')
         except Exception as e:
             log.error(f'Load model: type=Anima custom transformer="{local_file}": {e}')
             errors.display(e, 'Load')

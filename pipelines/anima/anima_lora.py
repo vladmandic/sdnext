@@ -25,23 +25,23 @@ already stamped on the network_layer_mapping. Adapter and TE paths bypass the
 rename and are flattened verbatim.
 
 Network-key construction (transformer vs llm_adapter vs te) is parameterized
-in :mod:`modules.lora.native_loader` via the ``network_prefix`` kwarg; this
+in :mod:`modules.lora.native_adapter` via the ``network_prefix`` kwarg; this
 module supplies :func:`network_prefix_for` to pick per ``prefix_used``.
 Family-specific dispatch (LoRA, LoHA, LoKR, OFT, IA3, GLoRA, Norm, Full) is
-inherited from native_loader's generics; alpha / scale / DoRA flow through
+inherited from native_adapter's generics; alpha / scale / DoRA flow through
 the standard ``NetworkWeights.w`` slots rather than being baked into the
 factor weights at load time.
 """
 
 from collections import OrderedDict
 
-from modules.lora import native_loader
+from modules.lora import native_adapter
 
 
 # === Arch-specific prefix configuration ===
 #
 # Order matters: longer / more-specific prefixes must precede shorter ones,
-# because :func:`native_loader.parse_key` returns the first match. Both
+# because :func:`native_adapter.parse_key` returns the first match. Both
 # ``diffusion_model.llm_adapter.`` and ``text_encoders.qwen3_06b.transformer.model.``
 # start with ``diffusion_model.`` / ``text_encoders.`` so they must be listed first.
 
@@ -58,37 +58,37 @@ ANIMA_PREFIXES = (
 # Tests address these through the anima_lora module surface; sibling pipelines
 # do the same (see flux2_lora / zimage_lora / ernie_lora).
 
-LORA_SUFFIXES = native_loader.LORA_SUFFIXES
-LOKR_SUFFIXES = native_loader.LOKR_SUFFIXES
-LOHA_SUFFIXES = native_loader.LOHA_SUFFIXES
-OFT_SUFFIXES = native_loader.OFT_SUFFIXES
-IA3_SUFFIXES = native_loader.IA3_SUFFIXES
-GLORA_SUFFIXES = native_loader.GLORA_SUFFIXES
-NORM_SUFFIXES = native_loader.NORM_SUFFIXES
-FULL_SUFFIXES = native_loader.FULL_SUFFIXES
+LORA_SUFFIXES = native_adapter.LORA_SUFFIXES
+LOKR_SUFFIXES = native_adapter.LOKR_SUFFIXES
+LOHA_SUFFIXES = native_adapter.LOHA_SUFFIXES
+OFT_SUFFIXES = native_adapter.OFT_SUFFIXES
+IA3_SUFFIXES = native_adapter.IA3_SUFFIXES
+GLORA_SUFFIXES = native_adapter.GLORA_SUFFIXES
+NORM_SUFFIXES = native_adapter.NORM_SUFFIXES
+FULL_SUFFIXES = native_adapter.FULL_SUFFIXES
 
-LORA_MARKERS = native_loader.LORA_MARKERS
-LOKR_MARKERS = native_loader.LOKR_MARKERS
-LOHA_MARKERS = native_loader.LOHA_MARKERS
-OFT_MARKERS = native_loader.OFT_MARKERS
-IA3_MARKERS = native_loader.IA3_MARKERS
-GLORA_MARKERS = native_loader.GLORA_MARKERS
-NORM_MARKERS = native_loader.NORM_MARKERS
-FULL_MARKERS = native_loader.FULL_MARKERS
+LORA_MARKERS = native_adapter.LORA_MARKERS
+LOKR_MARKERS = native_adapter.LOKR_MARKERS
+LOHA_MARKERS = native_adapter.LOHA_MARKERS
+OFT_MARKERS = native_adapter.OFT_MARKERS
+IA3_MARKERS = native_adapter.IA3_MARKERS
+GLORA_MARKERS = native_adapter.GLORA_MARKERS
+NORM_MARKERS = native_adapter.NORM_MARKERS
+FULL_MARKERS = native_adapter.FULL_MARKERS
 
-SUFFIX_NORMALIZE = native_loader.SUFFIX_NORMALIZE
-BARE_DIFFUSERS_PREFIX_USED = native_loader.BARE_DIFFUSERS_PREFIX_USED
-has_marker = native_loader.has_marker
+SUFFIX_NORMALIZE = native_adapter.SUFFIX_NORMALIZE
+BARE_DIFFUSERS_PREFIX_USED = native_adapter.BARE_DIFFUSERS_PREFIX_USED
+has_marker = native_adapter.has_marker
 
 
 def parse_key(key, suffixes):
-    """Anima-bound :func:`native_loader.parse_key`."""
-    return native_loader.parse_key(key, suffixes, prefixes=ANIMA_PREFIXES)
+    """Anima-bound :func:`native_adapter.parse_key`."""
+    return native_adapter.parse_key(key, suffixes, prefixes=ANIMA_PREFIXES)
 
 
 def group_by_suffixes(state_dict, suffixes):
-    """Anima-bound :func:`native_loader.group_by_suffixes`."""
-    return native_loader.group_by_suffixes(state_dict, suffixes, prefixes=ANIMA_PREFIXES)
+    """Anima-bound :func:`native_adapter.group_by_suffixes`."""
+    return native_adapter.group_by_suffixes(state_dict, suffixes, prefixes=ANIMA_PREFIXES)
 
 
 # === Cosmos 2.0 path rename (transformer only) ===
@@ -174,7 +174,7 @@ def network_prefix_for(prefix_used):
     return "lora_transformer_"
 
 
-# === Native loaders (thin wrappers over native_loader generics) ===
+# === Native loaders (thin wrappers over native_adapter generics) ===
 
 _BIND_KWARGS = dict(
     resolve_targets=resolve_targets,
@@ -185,40 +185,40 @@ _BIND_KWARGS = dict(
 
 
 def try_load_lora(name, network_on_disk, lora_scale):
-    return native_loader.try_load_lora(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+    return native_adapter.try_load_lora(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
 def try_load_lokr(name, network_on_disk, lora_scale):
-    return native_loader.try_load_lokr(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+    return native_adapter.try_load_lokr(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
 def try_load_loha(name, network_on_disk, lora_scale):
-    return native_loader.try_load_loha(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+    return native_adapter.try_load_loha(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
 def try_load_oft(name, network_on_disk, lora_scale):
-    return native_loader.try_load_oft(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+    return native_adapter.try_load_oft(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
 def try_load_ia3(name, network_on_disk, lora_scale):
-    return native_loader.try_load_ia3(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+    return native_adapter.try_load_ia3(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
 def try_load_glora(name, network_on_disk, lora_scale):
-    return native_loader.try_load_glora(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+    return native_adapter.try_load_glora(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
 def try_load_norm(name, network_on_disk, lora_scale):
-    return native_loader.try_load_norm(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+    return native_adapter.try_load_norm(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
 def try_load_full(name, network_on_disk, lora_scale):
-    return native_loader.try_load_full(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+    return native_adapter.try_load_full(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
 def try_load(name, network_on_disk, lora_scale):
     """Run every Anima family loader, merge any that match."""
-    return native_loader.try_load_chain(
+    return native_adapter.try_load_chain(
         name, network_on_disk, lora_scale,
         family_loaders=(
             try_load_lora, try_load_lokr, try_load_loha, try_load_oft,

@@ -19,7 +19,7 @@ def load_flite(checkpoint_info, diffusers_load_config=None):
     diffusers.FLitePipeline = f_lite.FLitePipeline
     sys.modules['f_lite'] = f_lite
 
-    dit_model = generic.load_transformer(repo_id, cls_name=f_lite.DiT, load_config=diffusers_load_config, subfolder="dit_model")
+    dit_model = generic.load_transformer(repo_id, cls_name=f_lite.DiT, load_config=diffusers_load_config, subfolder="dit_model", native_spec=f_lite.FLITE_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder")
 
     pipe = f_lite.FLitePipeline.from_pretrained(
