@@ -28,6 +28,10 @@ upsample_pipe_2x = None
 STAGE2_DEV_LORA_ADAPTER = 'ltx2_stage2_distilled'
 
 
+def _prompt_tensors_to_device(*tensors):
+    return tuple(t.to(device=devices.device) if torch.is_tensor(t) else t for t in tensors)
+
+
 def _canonical_ltx2_guidance(caps) -> dict:
     # Four-way composition (cfg + stg + modality + rescale) from huggingface/diffusers#13217.
     # Distilled bakes these into its sigma schedule; skip or we double-apply.
@@ -66,6 +70,12 @@ def _canonical_stage2_kwargs() -> dict:
 
 
 def _latent_pass(caps, prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask, width, height, frames, steps, guidance_scale, mp4_fps, conditions, image_cond_noise_scale, seed, image=None):
+    prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask = _prompt_tensors_to_device(
+        prompt_embeds,
+        prompt_attention_mask,
+        negative_prompt_embeds,
+        negative_prompt_attention_mask,
+    )
     base_args = {
         'prompt_embeds': prompt_embeds,
         'prompt_attention_mask': prompt_attention_mask,
@@ -525,6 +535,17 @@ def run_ltx(task_id,
                         refine_args['denoise_strength'] = refine_strength
                     if latents.ndim == 4:
                         latents = latents.unsqueeze(0)
+                    (
+                        refine_args['prompt_embeds'],
+                        refine_args['prompt_attention_mask'],
+                        refine_args['negative_prompt_embeds'],
+                        refine_args['negative_prompt_attention_mask'],
+                    ) = _prompt_tensors_to_device(
+                        refine_args['prompt_embeds'],
+                        refine_args['prompt_attention_mask'],
+                        refine_args['negative_prompt_embeds'],
+                        refine_args['negative_prompt_attention_mask'],
+                    )
                     log.debug(f'Video: op=refine cls={caps.repo_cls_name} latents={latents.shape} canonical_stage2={caps.supports_canonical_stage2}')
                     yield None, 'LTX: Refine in progress...'
                     try:
