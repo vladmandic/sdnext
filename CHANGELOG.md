@@ -1,20 +1,21 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-01
+## Update for 2026-06-02
 
-### Highlights for 2026-06-01
+### Highlights for 2026-06-02
 
 *What's New?*
 - **Anima** made it to release version, Microsoft joins the game with **Lens**
 - **SDNQ** new quantization algorithm with even higher quality
 - New **image analysis** feature and much improved **prompt enhance** capabilities which allow steering the model in real-time
+- New workflows with ability to run **detailing** as post-processing on existing images  
 - Improved image metadata options
 
 And we have new [Home](https://vladmandic.github.io/sdnext/) page and new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
 
 Plus continued work on modernization of codebase: UI is now fully TypeScript based and we have a new modular LoRA loader
 
-### Details for 2026-06-01
+### Details for 2026-06-02
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -47,13 +48,11 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
     cleanup list of predefined models, new models added and some old removed  
     improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
     improved system prompts  
-  - add *wildcards* (if used) info to image **metadata**  
-    if wildcards or styles modify prompt, add original prompt to image metadata as *template*  
+  - **Detailer** available as post-processing task for existing images  
   - **Masking** updated interface and capabilities  
     you can now also select mask type instead of focing alpha mask with all models  
-  - **HF download** use `XET` by default  
-    see *settings -> huggingface -> download method* for options  
-  - **Nunchaku** consider *DEV* builds when auto-installing
+  - add *wildcards* (if used) info to image **metadata**  
+    if wildcards or styles modify prompt, add original prompt to image metadata as *template*  
   - **Gallery** add clear cache button to folder menu
   - **UV** much updated `--uv` support for fast installs  
     now also supports global `uv` if present in the system  
@@ -63,14 +62,17 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
     see [backends](https://huggingface.co/docs/diffusers/optimization/attention_backends#available-backends) for list of available attention backends  
     *note* compatiblity matrix between torch backend, torch version and model specifics is relatively small at the moment  
     *note* does not replace existing *attention* settings
-  - **Shared components** additional support for shared model components  
-    avoids unnecessary downloads and allows to share components between different models  
-    enabled by default, see *settings -> text encoder -> use shared instance*  
 - **Changes**
   - all **Guidance** params are now set to *-1* by default to allow using model defaults and avoid confusion with different model behaviour  
     log will print default values used by model if not set by user  
+  - **Shared components** additional support for shared model components  
+    avoids unnecessary downloads and allows to share components between different models  
+    enabled by default, see *settings -> text encoder -> use shared instance*  
   - restore params from image metadata will now prefer *template* field if present, otherwise use *prompt* field  
     this allows to preserve original prompt in case of wildcards or styles modifying the prompt  
+  - **HF download** use `XET` by default  
+    see *settings -> huggingface -> download method* for options  
+  - **Nunchaku** consider *DEV* builds when auto-installing
 - **Docs**
   - new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) home page  
     includes pages on *development setup, code structure, coding standards, ui development, themes, docs, hints* and more!  
