@@ -2,10 +2,10 @@
 
 import torch
 
-from ...common import compile_func, int_mm_func # noqa: TID252
-from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias # noqa: TID252
-from ...quant_utils import quantize_int_mm, rotate_hadamard, get_hadamard # noqa: TID252
-from ...packed_int import unpack_int # noqa: TID252
+from ...common import compile_func, int_mm_func
+from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias
+from ...quant_utils import quantize_int_mm, rotate_hadamard, get_hadamard
+from ...packed_int import unpack_int
 
 from .forward import check_mats
 

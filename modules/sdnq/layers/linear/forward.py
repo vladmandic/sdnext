@@ -2,7 +2,7 @@
 
 import torch
 
-from ...common import use_contiguous_mm # noqa: TID252
+from ...common import use_contiguous_mm
 
 
 def check_mats(input: torch.Tensor, weight: torch.Tensor, allow_contiguous_mm: bool = True) -> tuple[torch.Tensor, torch.Tensor]:

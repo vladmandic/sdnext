@@ -68,6 +68,7 @@ ignore = [
     "RUF022", # All is not sorted
     "RUF046", # Value being cast to `int` is already an integer
     "RUF051", # Prefer pop over del
+    "TID252", # Relative imports in vendored code
 ]
 fixable = ["ALL"]
 unfixable = []
