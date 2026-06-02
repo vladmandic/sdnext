@@ -9,13 +9,8 @@ checked_ok = False
 
 def check_dependencies():
     global checked_ok # pylint: disable=global-statement
-    from installer import installed, install
-    packages = [
-        ('ligo-segments', 'ligo-segments'),
-    ]
-    for pkg in packages:
-        if not installed(pkg[1], quiet=True):
-            install(pkg[0], pkg[1], ignore=False)
+    from installer import install
+    install('ligo-segments')
     try:
         from ligo.segments import segment # pylint: disable=unused-import
         checked_ok = True

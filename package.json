@@ -43,7 +43,8 @@
     "ruff": ". venv/bin/activate && ruff check",
     "pylint": ". venv/bin/activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",
     "pyright": ". venv/bin/activate && pyright --threads 4",
-    "ty": ". venv/bin/activate && ty check --force-exclude"
+    "ty": ". venv/bin/activate && ty check --force-exclude",
+    "compile": ". venv/bin/activate && python test/test-compile.py"
   },
   "devDependencies": {
     "@eslint/compat": "^2.1.0",

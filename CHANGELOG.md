@@ -115,6 +115,7 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - `taesd` preview constant size with reduced layers  
   - `output path` use correct base folder for initial folders  
   - `ltx` prompt embeds move to device, thanks @ryanmeador
+  - `openpose` processor
 
 ## Update for 2026-05-13
 

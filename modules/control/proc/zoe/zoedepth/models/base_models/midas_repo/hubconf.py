@@ -2,9 +2,9 @@ dependencies = ["torch"]
 
 import torch
 
-from midas.dpt_depth import DPTDepthModel
-from midas.midas_net import MidasNet
-from midas.midas_net_custom import MidasNet_small
+from .midas.dpt_depth import DPTDepthModel
+from .midas.midas_net import MidasNet
+from .midas.midas_net_custom import MidasNet_small
 
 def DPT_BEiT_L_512(pretrained=True, **kwargs):
     """ # This docstring shows up in hub.help()

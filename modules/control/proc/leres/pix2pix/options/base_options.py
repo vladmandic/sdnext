@@ -1,8 +1,8 @@
 import argparse
 import os
-from proc.leres.pix2pix.util import util
+from ..util import util
 # import torch
-from proc.leres.pix2pix import models
+from .. import models
 # import pix2pix.data
 import numpy as np
 
