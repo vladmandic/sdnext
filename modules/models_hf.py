@@ -44,12 +44,12 @@ def hf_check_cache():
     prev_default = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')
     if opts.hfcache_dir != prev_default:
         size, _mtime = stat(prev_default)
-        if size//1024//1024 > 32:
+        if size // 1024 // 1024 > 99:
             log.warning(f'Huggingface cache changed: type=huggingface unused="{prev_default}" size={size//1024//1024} MB')
     prev_default = os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'xet')
     if opts.xetcache_dir != prev_default:
         size, _mtime = stat(prev_default)
-        if size//1024//1024 > 32:
+        if size // 1024 // 1024 > 99:
             log.warning(f'Huggingface cache changed: type=xet unused="{prev_default}" size={size//1024//1024} MB')
 
     hf_size, _mtime = stat(opts.hfcache_dir)

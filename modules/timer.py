@@ -41,12 +41,14 @@ class Timer:
         self.records[category] += e + extra_time
         self.total += e + extra_time
 
-    def summary(self, min_time=default_min_time, total=True):
+    def summary(self, min_time=default_min_time, max_time=-1, total=True):
         if self.profile:
             min_time = -1
         self.total = sum(self.records.values())
         res = f"total={self.total:.2f} " if total else ''
         additions = [x for x in self.records.items() if x[1] >= min_time]
+        if max_time > 0:
+            additions = [x for x in additions if x[1] <= max_time]
         additions = sorted(additions, key=lambda x: x[1], reverse=True)
         if not additions:
             return res

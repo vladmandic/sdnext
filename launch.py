@@ -62,7 +62,8 @@ def get_custom_args():
         current = getattr(args, arg)
         if current != default:
             custom[arg] = getattr(args, arg)
-    log.info(f'Command line args: {sys.argv[1:]} {installer.print_dict(custom)}')
+    log.info(f'Command line args: {sys.argv[1:]}')
+    log.info(f'Command line parsed: {installer.print_dict(custom)}')
     if os.environ.get('SD_ENV_DEBUG', None) is not None:
         env = os.environ.copy()
         if 'PATH' in env:

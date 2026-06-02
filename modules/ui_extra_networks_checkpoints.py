@@ -42,7 +42,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
         if not shared.opts.sd_checkpoint_autodownload or not shared.opts.extra_network_reference_enable:
             log.debug(f'Networks: type="reference" autodownload={shared.opts.sd_checkpoint_autodownload} enable={shared.opts.extra_network_reference_enable}')
             return []
-        count = { 'total': 0, 'ready': 0, 'hidden': 0, 'experimental': 0, 'base': 0 }
+        count = { 'total': 0, 'ready': 0, 'hidden': 0, 'experimental': 0, 'base': 0, 'quantized': 0, 'distilled': 0, 'community': 0, 'cloud': 0, 'nunchaku': 0 }
 
         reference_base = readfile(os.path.join('data', 'reference.json'), as_type="dict")
         reference_quant = readfile(os.path.join('data', 'reference-quant.json'), as_type="dict")
@@ -89,6 +89,7 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 path = f'{v.get("path", "")}'
 
             tag = v.get('tags', '')
+            tag = tag.split(',')[0].strip() # take first tag if multiple
             if tag == 'nunchaku' and (devices.backend != 'cuda' and not shared.cmd_opts.experimental):
                 count['hidden'] += 1
                 continue
