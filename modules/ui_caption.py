@@ -244,9 +244,9 @@ def create_ui():
                     analyze_question_placeholder = 'Enter your analysis question or leave blank to use default'
                     analyze_prompt_placeholder = 'Enter your prompt to match with image or leave blank to use image metadata'
                     with gr.Row():
-                        analyze_system = gr.Textbox(label="System Prompt", value=vqa.vlm_analyze, lines=1, elem_id='analyze_system')
+                        analyze_system = gr.Textbox(label="Analyze System Prompt", value=vqa.vlm_analyze, lines=1, elem_id='analyze_system')
                     with gr.Row():
-                        analyze_question = gr.Textbox(label="Question", placeholder=analyze_question_placeholder, lines=1, elem_id='analyze_question')
+                        analyze_question = gr.Textbox(label="Analyze Question", placeholder=analyze_question_placeholder, lines=1, elem_id='analyze_question')
                     with gr.Row():
                         analyze_prompt = gr.Textbox(label="Prompt", placeholder=analyze_prompt_placeholder, lines=2, elem_id='analyze_prompt')
                     with gr.Row(elem_id='caption_buttons_query'):

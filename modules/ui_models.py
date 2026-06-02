@@ -581,16 +581,16 @@ def create_ui():
                 with gr.Accordion(label='Options', open=False, elem_id="civitai_search_options"):
                     civit_download_btn = gr.Button(value="Download model", variant='primary', elem_id="civitai_download_btn", visible=False)
                     with gr.Row():
-                        civit_type = gr.Dropdown(choices=type_fallback, label='Model type', value='', elem_id='civit_type')
-                        civit_base = gr.Dropdown(choices=base_models, label='Base model', value='')
+                        civit_type = gr.Dropdown(choices=type_fallback, label='CivitAI model type', value='', elem_id='civit_type')
+                        civit_base = gr.Dropdown(choices=base_models, label='CivitAI base model', value='')
                     with gr.Row():
-                        civit_sort = gr.Dropdown(choices=sort_fallback, label='Sort', value='', elem_id='civit_sort')
+                        civit_sort = gr.Dropdown(choices=sort_fallback, label='CivitAI sort', value='', elem_id='civit_sort')
                         civit_period = gr.Dropdown(
                             choices=['', 'AllTime', 'Year', 'Month', 'Week', 'Day'],
-                            label='Time period', value='', elem_id='civit_period',
+                            label='CivitAI time period', value='', elem_id='civit_period',
                         )
                     with gr.Row():
-                        civit_nsfw = gr.Checkbox(label='NSFW allowed', value=True)
+                        civit_nsfw = gr.Checkbox(label='CivitAI NSFW allowed', value=True)
                     with gr.Row():
                         civit_token = gr.Textbox(opts.civitai_token, label='CivitAI token', placeholder='optional access token for private or gated models', elem_id="civitai_token")
                     with gr.Row():

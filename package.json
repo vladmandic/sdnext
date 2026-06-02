@@ -18,7 +18,7 @@
     "venv": ". venv/bin/activate",
     "start": ". venv/bin/activate; python launch.py --debug",
     "localize": "node cli/localize.js",
-    "packages": ". venv/bin/activate && pip install --upgrade accelerate huggingface_hub hf_xet safetensors tokenizers peft pytorch_lightning pylint ruff",
+    "packages": ". venv/bin/activate && pip install --upgrade accelerate huggingface_hub hf_xet safetensors tokenizers peft pytorch_lightning pylint ruff ty pyright",
     "precommit": ". venv/bin/activate && pre-commit run --all-files",
     "lint": "npm run precommit && npm run eslint && npm run tsc && npm run ruff && npm run pylint",
     "test": ". venv/bin/activate; python launch.py --debug --test",

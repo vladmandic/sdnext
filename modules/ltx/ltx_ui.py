@@ -64,7 +64,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
             with gr.Accordion(open=False, label='Size', elem_id='ltx_size_accordion'):
                 width, height = ui_sections.create_resolution_inputs('ltx', default_width=832, default_height=480)
                 with gr.Row():
-                    frames = gr.Slider(label='Frames', minimum=1, maximum=1024, step=1, value=121, elem_id='ltx_frames')
+                    frames = gr.Slider(label='LTX Frames', minimum=1, maximum=1024, step=1, value=121, elem_id='ltx_frames')
                     seed = gr.Number(label='Initial seed', value=-1, elem_id='ltx_seed', container=True)
                     random_seed = ToolButton(ui_symbols.random, elem_id='ltx_seed_random')
                     random_seed.click(fn=lambda: -1, show_progress='hidden', inputs=[], outputs=[seed])
@@ -97,7 +97,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
                     refine_strength = gr.Slider(label='LTX refine strength', minimum=0.1, maximum=1.0, step=0.05, value=0.4, elem_id="ltx_refine_strength")
             parameters_accordion = gr.Accordion(open=False, label="Advanced", elem_id='ltx_parameters_accordion')
             with parameters_accordion:
-                steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "ltx", default_steps=40)
+                steps, sampler_index = ui_sections.create_sampler_and_steps_selection(None, "ltx", default_steps=50)
                 with gr.Row():
                     guidance_scale = gr.Slider(label='LTX guidance scale', minimum=0.0, maximum=14.0, step=0.1, value=4.0, elem_id="ltx_guidance_scale")
                 with gr.Row():
