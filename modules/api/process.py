@@ -137,6 +137,80 @@ class APIProcess:
         shared.state.end(jobid, api=False)
         return ResFace(classes=classes, labels=labels, scores=scores, boxes=boxes, images=images)
 
+    def post_detail(self, req: models.ReqDetail):
+        """Run the YOLO detailer on a single image as a standalone operation; no base generation pass.
+
+        Per-request fields override shared.opts.detailer_* via detailer_opt(p, attr) precedence
+        in modules/postprocess/yolo.py. Fields left as None fall through to the global setting.
+        """
+        import numpy as np
+        from PIL import Image
+        from modules.shared import yolo # pylint: disable=no-name-in-module
+
+        if shared.sd_model is None or not hasattr(shared.sd_model, 'sd_checkpoint_info'):
+            return JSONResponse(status_code=400, content={"error": "no base model selected"})
+        image = decode_base64_to_image(req.image)
+        if image is None:
+            return JSONResponse(status_code=400, content={"error": "invalid image"})
+
+        # Per-request overrides for the non-primary detailer fields; None values fall through to opts
+        # via detailer_opt(p, attr) -> shared.opts.<attr>.
+        overrides = {attr: getattr(req, attr) for attr in (
+            'detailer_models', 'detailer_classes', 'detailer_conf',
+            'detailer_iou', 'detailer_max', 'detailer_min_size',
+            'detailer_max_size', 'detailer_blur', 'detailer_padding',
+            'detailer_segmentation', 'detailer_merge', 'detailer_sort',
+            'detailer_sigma_adjust', 'detailer_sigma_adjust_max',
+            'detailer_include_detections',
+        ) if getattr(req, attr, None) is not None}
+
+        # Sampler block: request field names differ from the p attributes they set, so map explicitly.
+        # schedulers_* become per-job overrides (need a named sampler to take effect); cfg/sampler apply directly.
+        for req_attr, p_attr in (
+            ('detailer_sampler', 'hr_sampler_name'),
+            ('detailer_prediction', 'schedulers_prediction_type'),
+            ('detailer_shift', 'schedulers_shift'),
+            ('detailer_cfg_scale', 'cfg_scale'),
+            ('detailer_loworder', 'schedulers_use_loworder'),
+            ('detailer_thresholding', 'schedulers_use_thresholding'),
+            ('detailer_dynamic', 'schedulers_dynamic_shift'),
+            ('detailer_rescale', 'schedulers_rescale_betas'),
+        ):
+            val = getattr(req, req_attr, None)
+            if val is not None:
+                overrides[p_attr] = val
+
+        jobid = shared.state.begin('API-DETAIL', api=True)
+        try:
+            p = yolo.make_processing(
+                image,
+                prompt=req.detailer_prompt or '',
+                negative=req.detailer_negative or '',
+                steps=req.detailer_steps if req.detailer_steps is not None else 10,
+                strength=req.detailer_strength if req.detailer_strength is not None else 0.3,
+                resolution=req.detailer_resolution if req.detailer_resolution is not None else 1024,
+                seed=req.seed if req.seed is not None else -1,
+                overrides=overrides,
+            )
+
+            with self.queue_lock:
+                result = yolo.restore(np.array(image), p)
+
+            annotated_b64 = None
+            if isinstance(result, list) and len(result) > 0:
+                out_image = Image.fromarray(result[0])
+                if len(result) > 1 and result[1] is not None:
+                    annotated = result[1] if isinstance(result[1], Image.Image) else Image.fromarray(result[1])
+                    annotated_b64 = encode_pil_to_base64(annotated)
+            elif isinstance(result, np.ndarray):
+                out_image = Image.fromarray(result)
+            else:
+                return JSONResponse(status_code=500, content={"error": "detailer produced no result"})
+
+            return models.ResDetail(image=encode_pil_to_base64(out_image), detections=annotated_b64, seed=p.all_seeds[0])
+        finally:
+            shared.state.end(jobid, api=False)
+
     def post_prompt_enhance(self, req: models.ReqPromptEnhance):
         """Enhance a prompt using an LLM. Supports text, image-conditioned, and video prompt enhancement modes."""
         from modules import processing_helpers
@@ -209,23 +283,24 @@ class APIProcess:
 
     def set_upscalers(self, req: dict):
         reqDict = vars(req)
+        script_args = reqDict.pop('script_args', None)
         reqDict['extras_upscaler_1'] = reqDict.pop('upscaler_1', None)
         reqDict['extras_upscaler_2'] = reqDict.pop('upscaler_2', None)
-        return reqDict
+        return reqDict, script_args
 
     def extras_single_image_api(self, req: models.ReqProcessImage):
         """Upscale or postprocess a single image using the configured upscaler pipeline."""
-        reqDict = self.set_upscalers(req)
+        reqDict, script_args = self.set_upscalers(req)
         reqDict['image'] = helpers.decode_base64_to_image(reqDict['image'])
         with self.queue_lock:
-            result = postprocessing.run_extras(extras_mode=0, image_folder="", input_dir="", output_dir="", save_output=False, **reqDict)
+            result = postprocessing.run_extras(extras_mode=0, image_folder="", input_dir="", output_dir="", save_output=False, script_args=script_args, **reqDict)
         return models.ResProcessImage(image=helpers.encode_pil_to_base64(result[0][0]), html_info=result[1])
 
     def extras_batch_images_api(self, req: models.ReqProcessBatch):
         """Upscale or postprocess a batch of images using the configured upscaler pipeline."""
-        reqDict = self.set_upscalers(req)
+        reqDict, script_args = self.set_upscalers(req)
         image_list = reqDict.pop('imageList', [])
         image_folder = [helpers.decode_base64_to_image(x.data) for x in image_list]
         with self.queue_lock:
-            result = postprocessing.run_extras(extras_mode=1, image_folder=image_folder, image="", input_dir="", output_dir="", save_output=False, **reqDict)
+            result = postprocessing.run_extras(extras_mode=1, image_folder=image_folder, image="", input_dir="", output_dir="", save_output=False, script_args=script_args, **reqDict)
         return models.ResProcessBatch(images=list(map(helpers.encode_pil_to_base64, result[0])), html_info=result[1])
