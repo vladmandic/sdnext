@@ -36,7 +36,7 @@ def save_params(p, filename: str | None = None):
     if p is None:
         dct = {}
     else:
-        # sampler_index, sampler_shift, dynamic_shift, guidance_scale, guidance_true, init_image, init_strength, last_image, vae_type, vae_tile_frames, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, vlm_enhance, vlm_model, vlm_system_prompt, override_settings = args
+        # sampler_index, sampler_shift, dynamic_shift, guidance_scale, guidance_true, init_image, init_strength, last_image, vae_type, vae_tile_frames, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb, vlm_enhance, vlm_model, vlm_system_prompt, override_settings = args
         dct = {
             "Prompt": p.prompt,
             "Negative prompt": p.negative_prompt,
@@ -227,6 +227,7 @@ def save_video(
     mp4_sf: bool = False,  # save safetensors
     mp4_video: bool = True,  # save video
     mp4_frames: bool = False,  # save frames
+    mp4_thumb: bool = True,  # save thumbnail
     mp4_interpolate: int = 0,  # rife interpolation
     aac_sample_rate: int = 24000,  # audio sample rate
     stream=None,  # async progress reporting stream
@@ -251,7 +252,7 @@ def save_video(
         except Exception as e:
             log.error(f'Video output: file="{output_video}" write error {e}')
             errors.display(e, 'video')
-        thumb = save_thumbnail(output_video)
+        thumb = save_thumbnail(output_video) if mp4_thumb else None
         return 0, output_video, thumb
 
     if pixels is None:
@@ -322,5 +323,5 @@ def save_video(
         log.error(f'Video save: raw={size} {e}')
         errors.display(e, 'video')
     timer.process.add('save', time.time()-t_save)
-    thumb = save_thumbnail(output_video) if output_video is not None else None
+    thumb = save_thumbnail(output_video) if mp4_thumb and output_video is not None else None
     return t, output_video, thumb

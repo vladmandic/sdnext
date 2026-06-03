@@ -101,10 +101,11 @@ def create_ui_outputs():
                 mp4_video = gr.Checkbox(label='Video save video', value=True, elem_id="video_mp4_video")
                 mp4_frames = gr.Checkbox(label='Video save frames', value=False, elem_id="video_mp4_frames")
                 mp4_sf = gr.Checkbox(label='Video save safetensors', value=False, elem_id="video_mp4_sf")
-    return mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf
+                mp4_thumb = gr.Checkbox(label='Video save thumbnail', value=True, elem_id="video_mp4_thumb")
+    return mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb
 
 
-def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf):
+def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="video_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -172,7 +173,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
         guidance_scale, guidance_true,
         init_image, init_strength, last_image,
         vae_type, vae_tile_frames,
-        mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf,
+        mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb,
         vlm_enhance, vlm_model, vlm_system_prompt,
         overrides,
     ]
