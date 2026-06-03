@@ -26,6 +26,8 @@ def load_joy(checkpoint_info, diffusers_load_config=None):
         cls_name=transformers.Qwen3VLForConditionalGeneration,
         load_config=diffusers_load_config,
     )
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.JoyImageEditPipeline.from_pretrained(
         repo_id,

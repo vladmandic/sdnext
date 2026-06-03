@@ -22,6 +22,8 @@ def load_flite(checkpoint_info, diffusers_load_config=None):
     dit_model = generic.load_transformer(repo_id, cls_name=f_lite.DiT, load_config=diffusers_load_config, subfolder="dit_model", native_spec=f_lite.FLITE_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder")
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = f_lite.FLitePipeline.from_pretrained(
         "Freepik/F-Lite", # pr only exists on main repo
         revision="refs/pr/8",

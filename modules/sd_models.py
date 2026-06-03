@@ -1504,6 +1504,9 @@ def hf_auth_check(checkpoint_info: CheckpointInfo, force:bool=False):
         except Exception:
             pass
     repo_id = path_to_repo(checkpoint_info)
+    if repo_id is None or '/' not in repo_id:
+        # log.warning(f'Auth: repo="{repo_id}" invalid repo id')
+        return False
     try:
         login = modelloader.hf_login()
         return hf.auth_check(repo_id)

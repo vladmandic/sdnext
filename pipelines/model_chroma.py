@@ -17,6 +17,8 @@ def load_chroma(checkpoint_info, diffusers_load_config=None):
     from pipelines.chroma import CHROMA_SPEC
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.ChromaTransformer2DModel, load_config=diffusers_load_config, modules_to_not_convert=["distilled_guidance_layer"], native_spec=CHROMA_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.ChromaPipeline.from_pretrained(
         repo_id,

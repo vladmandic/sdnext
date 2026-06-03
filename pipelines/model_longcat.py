@@ -17,6 +17,10 @@ def load_longcat(checkpoint_info, diffusers_load_config=None):
     from pipelines.longcat import LONGCAT_SPEC
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.LongCatImageTransformer2DModel, load_config=diffusers_load_config, native_spec=LONGCAT_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
+
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     text_processor = transformers.Qwen2VLProcessor.from_pretrained(repo_id, subfolder='tokenizer', cache_dir=shared.opts.hfcache_dir)
 
     if 'edit' in repo_id.lower():

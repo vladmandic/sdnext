@@ -24,6 +24,8 @@ def load_chrono(checkpoint_info, diffusers_load_config=None):
     from pipelines.chrono import CHRONOEDIT_SPEC
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.ChronoEditTransformer3DModel, load_config=diffusers_load_config, subfolder="transformer", native_spec=CHRONOEDIT_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.UMT5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder")
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     try:
         pipe = diffusers.ChronoEditPipeline.from_pretrained(

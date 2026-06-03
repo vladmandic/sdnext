@@ -120,6 +120,8 @@ def load_glm_image(checkpoint_info, diffusers_load_config=None):
         load_config=diffusers_load_config,
         allow_shared=False
     )
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.GlmImagePipeline.from_pretrained(
         repo_id,

@@ -10,6 +10,8 @@ def load_nextstep(checkpoint_info, diffusers_load_config=None): # pylint: disabl
     repo_id = sd_models.path_to_repo(checkpoint_info)
     sd_models.hf_auth_check(checkpoint_info)
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     log.error(f'Load model: type=NextStep model="{checkpoint_info.name}" repo="{repo_id}" not supported')
 
     """

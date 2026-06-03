@@ -11,6 +11,8 @@ def load_omnigen(checkpoint_info, diffusers_load_config=None): # pylint: disable
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
     log.debug(f'Load model: type=OmniGen repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     transformer = diffusers.OmniGenTransformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",
@@ -47,6 +49,8 @@ def load_omnigen2(checkpoint_info, diffusers_load_config=None): # pylint: disabl
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
     log.debug(f'Load model: type=OmniGen2 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     transformer = OmniGen2Transformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",

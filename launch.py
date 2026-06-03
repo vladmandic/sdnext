@@ -215,13 +215,9 @@ def start_server(immediate=True, server=None):
 
     uvicorn = None
     if args.test:
-        log.info("Test only")
-        log.critical('Logging: level=critical')
-        log.error('Logging: level=error')
-        log.warning('Logging: level=warning')
-        log.info('Logging: level=info')
-        log.debug('Logging: level=debug')
-        log.trace('Logging: level=trace')
+        from pipelines.generic_test import test_pipelines
+        test_pipelines()
+        log.info("Test only: exiting...")
         server.wants_restart = False
     else:
         uvicorn = server.webui(restart=not immediate)

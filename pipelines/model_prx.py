@@ -18,6 +18,8 @@ def load_prx(checkpoint_info, diffusers_load_config=None):
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.PRXTransformer2DModel, load_config=diffusers_load_config, native_spec=PRX_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=T5GemmaEncoder, load_config=diffusers_load_config)
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = diffusers.PRXPipeline.from_pretrained(
         repo_id,
         transformer=transformer,

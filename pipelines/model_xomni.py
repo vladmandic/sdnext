@@ -112,6 +112,9 @@ def load_xomni(checkpoint_info, diffusers_load_config=None):
     sd_models.hf_auth_check(checkpoint_info)
 
     pipe = XOmniPipeline()
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     pipe.load(repo_id, load_config=diffusers_load_config)
     devices.torch_gc(force=True, reason='load')
     return pipe

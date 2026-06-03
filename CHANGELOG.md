@@ -93,6 +93,9 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - large refactor of `lora` native loader
   - improve `kanvas` typing
   - additional strong typing in core, thanks @awsr
+  - enhance automated testing  
+    `pnpm test` (uses `--test`) flag runs pipeline init checks  
+    `pnpm compile` (new) runs static python compile and import checks  
 - **Fixes**
   - `hidream-o1` prequant loading
   - `gradio` initial hijack

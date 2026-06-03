@@ -13,6 +13,8 @@ def load_kandinsky21(checkpoint_info, diffusers_load_config=None):
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
     log.debug(f'Load model: type=Kandinsky21 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = diffusers.KandinskyCombinedPipeline.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,
@@ -31,6 +33,8 @@ def load_kandinsky22(checkpoint_info, diffusers_load_config=None):
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
     log.debug(f'Load model: type=Kandinsky22 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = diffusers.KandinskyV22CombinedPipeline.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,
@@ -54,6 +58,8 @@ def load_kandinsky3(checkpoint_info, diffusers_load_config=None):
     unet = generic.load_transformer(repo_id, cls_name=diffusers.Kandinsky3UNet, load_config=diffusers_load_config, subfolder="unet", variant="fp16", native_spec=KANDINSKY3_UNET_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder", variant="fp16", allow_shared=False)
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = diffusers.Kandinsky3Pipeline.from_pretrained(
         repo_id,
         unet=unet,
@@ -93,6 +99,8 @@ def load_kandinsky5(checkpoint_info, diffusers_load_config=None):
     else:
         cls = diffusers.Kandinsky5T2IPipeline
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = cls.from_pretrained(
         repo_id,
         transformer=transformer,

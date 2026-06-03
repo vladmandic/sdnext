@@ -13,8 +13,12 @@ def load_lumina(checkpoint_info, diffusers_load_config=None):
 
     load_config, _quant_config = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=LuminaSFT repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
+
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     pipe = diffusers.LuminaText2ImgPipeline.from_pretrained(
-        'Alpha-VLLM/Lumina-Next-SFT-diffusers',
+        repo_id,
         cache_dir = shared.opts.diffusers_dir,
         **load_config,
     )
@@ -40,6 +44,9 @@ def load_lumina2(checkpoint_info, diffusers_load_config=None):
     log.debug(f'Load model: type=Lumina2 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.Lumina2Transformer2DModel, load_config=diffusers_load_config)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Gemma2Model, load_config=diffusers_load_config)
+
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     load_config, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     pipe = diffusers.Lumina2Pipeline.from_pretrained(
@@ -72,6 +79,9 @@ def load_lumina_dimoo(checkpoint_info, diffusers_load_config=None):
     from pipelines.lumina_dimmo.pipelines import LuminaDiMOOTextPipeline, LuminaDiMOOImagePipeline
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["luminadimoo"] = LuminaDiMOOTextPipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["luminadimoo"] = LuminaDiMOOImagePipeline
+
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     # Force slow tokenizer path for Lumina-DiMOO to avoid fast-tokenizer conversion failures.
     tokenizer = transformers.AutoTokenizer.from_pretrained(

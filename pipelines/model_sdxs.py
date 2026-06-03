@@ -38,6 +38,8 @@ def load_sdxs(checkpoint_info, diffusers_load_config=None):
 
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3_5ForConditionalGeneration, load_config=diffusers_load_config, allow_shared=False)
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = diffusers.DiffusionPipeline.from_pretrained(
         repo_id,
         text_encoder=text_encoder,

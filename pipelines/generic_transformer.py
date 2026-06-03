@@ -15,6 +15,8 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
     to :func:`pipelines.native_transformer.load`. Without a spec, a single-file
     override falls back to ``from_single_file``.
     """
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     if shared.state.interrupted:
         return None
     transformer = None

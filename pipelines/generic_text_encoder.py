@@ -51,6 +51,8 @@ def load_local_file(local_file, cls_name, quant_type): # t5-only
 def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None, **kwargs):
     if shared.state.interrupted:
         return None
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     text_encoder = None
     allow_shared = allow_shared and shared.opts.te_shared_te
     if load_config is None:

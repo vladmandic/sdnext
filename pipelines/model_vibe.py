@@ -36,6 +36,9 @@ def load_vibe(checkpoint_info, diffusers_load_config=None):
         allow_quant=False,
         allow_shared=False,
     )
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     processor = transformers.Qwen3VLProcessor.from_pretrained(
         repo_id,
         subfolder='tokenizer',

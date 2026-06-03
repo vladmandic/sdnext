@@ -24,6 +24,8 @@ def load_hunyuandit(checkpoint_info, diffusers_load_config=None):
     repo_te = 'Tencent-Hunyuan/HunyuanDiT-v1.2-Diffusers' if 'HunyuanDiT-v1' in repo_id else repo_id
     text_encoder_2 = generic.load_text_encoder(repo_te, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder_2", allow_shared=False) # this is not normal t5
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = diffusers.HunyuanDiTPipeline.from_pretrained(
         repo_id,
         transformer=transformer,

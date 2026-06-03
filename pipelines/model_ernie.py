@@ -29,6 +29,8 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
 
     if not shared.opts.model_ernie_enable_pe:
         load_args['pe'] = None
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.ErnieImagePipeline.from_pretrained(
         repo_id,
@@ -46,6 +48,9 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["ernieimage"] = diffusers.ErnieImagePipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["ernieimage"] = ErnieImageImg2ImgPipeline
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["ernieimage"] = ErnieImageInpaintPipeline
+
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     generic.load_vae_override(pipe, diffusers_load_config)
 

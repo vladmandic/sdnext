@@ -5,7 +5,7 @@ from modules.logger import log
 from pipelines import generic
 
 
-def load_llama(diffusers_load_config=None):
+def init_llama(diffusers_load_config=None):
     if diffusers_load_config is None:
         diffusers_load_config = {}
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
@@ -43,6 +43,8 @@ def load_hidream_o1(checkpoint_info, diffusers_load_config=None):
 
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, allow_quant=True)
     log.debug(f'Load model: type=HiDreamO1 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     o1_load_config = diffusers_load_config.copy()
     o1_load_config['trust_remote_code'] = True
@@ -99,13 +101,14 @@ def load_hidream(checkpoint_info, diffusers_load_config=None):
 
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.HiDreamImageTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer")
     text_encoder_3 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder_3")
-    text_encoder_4, tokenizer_4 = load_llama(diffusers_load_config)
 
     if shared.opts.teacache_enabled:
         from modules import teacache
         log.debug(f'Transformers cache: type=teacache patch=forward cls={diffusers.HiDreamImageTransformer2DModel.__name__}')
         diffusers.HiDreamImageTransformer2DModel.forward = teacache.teacache_hidream_forward # patch must be done before transformer is loaded
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     if 'I1' in repo_id:
         cls = diffusers.HiDreamImagePipeline
     elif 'E1' in repo_id:
@@ -122,6 +125,7 @@ def load_hidream(checkpoint_info, diffusers_load_config=None):
         log.error(f'Load model: type=HiDream model="{checkpoint_info.name}" repo="{repo_id}" not recognized')
         return False
 
+    text_encoder_4, tokenizer_4 = init_llama(diffusers_load_config)
     pipe = cls.from_pretrained(
         repo_id,
         transformer=transformer,

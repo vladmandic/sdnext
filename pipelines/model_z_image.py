@@ -7,7 +7,7 @@ from modules.logger import log
 from pipelines import generic
 
 
-def load_nunchaku():
+def init_nunchaku():
     import nunchaku
     if not hasattr(nunchaku, 'NunchakuZImageTransformer2DModel'): # not present in older versions of nunchaku
         return None
@@ -40,11 +40,14 @@ def load_z_image(checkpoint_info, diffusers_load_config=None):
 
     transformer = None
     if model_quant.check_nunchaku('Model'): # only available model
-        transformer = load_nunchaku()
+        transformer = init_nunchaku()
     if transformer is None:
         transformer = generic.load_transformer(repo_id, cls_name=diffusers.ZImageTransformer2DModel, load_config=diffusers_load_config)
 
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3ForCausalLM, load_config=diffusers_load_config)
+
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.ZImagePipeline.from_pretrained(
         repo_id,

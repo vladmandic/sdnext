@@ -21,6 +21,8 @@ def load_meissonic(checkpoint_info, diffusers_load_config=None):
     diffusers_load_config['trust_remote_code'] = True
 
     log.debug(f'Load model: type=Meissonic repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     model = TransformerMeissonic.from_pretrained(
         repo_id,
         subfolder="transformer",

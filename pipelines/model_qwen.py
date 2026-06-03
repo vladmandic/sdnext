@@ -73,6 +73,8 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
         load_config=diffusers_load_config
     )
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     repo_id, repo_subfolder = qwen.check_qwen_pruning(repo_id, repo_subfolder)
     if repo_subfolder is not None and repo_subfolder.startswith('nunchaku'):
         repo_subfolder = None

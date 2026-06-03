@@ -19,6 +19,9 @@ def load_cosmos_t2i(checkpoint_info, diffusers_load_config=None):
     text_encoder = generic.load_text_encoder(repo_te, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder", allow_shared=False) # cosmos does use standard t5
     safety_checker = Fake_safety_checker()
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     pipe = diffusers.Cosmos2TextToImagePipeline.from_pretrained(
         repo_id,
         transformer=transformer,

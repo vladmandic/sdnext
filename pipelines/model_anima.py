@@ -16,7 +16,7 @@ def _import_from_file(module_name, file_path):
     return mod
 
 
-def load_transformer_components(repo_id, diffusers_load_config, adapter_cls):
+def init_transformer_component(repo_id, diffusers_load_config, adapter_cls):
     """Load (transformer, llm_adapter_or_none).
 
     If the UNET dropdown points at a valid safetensors, route through
@@ -57,6 +57,9 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=Anima repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     # load-or-download custom pipeline modules from repo
     if os.path.exists(os.path.join(repo_id, 'pipeline.py')):
         pipeline_file = os.path.join(repo_id, 'pipeline.py')
@@ -91,7 +94,7 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
 
     # UNET dropdown (shared.opts.sd_unet) may redirect the transformer to a
     # community file that bundles both the transformer and the llm_adapter.
-    transformer, llm_adapter = load_transformer_components(repo_id, diffusers_load_config, AnimaLLMAdapter)
+    transformer, llm_adapter = init_transformer_component(repo_id, diffusers_load_config, AnimaLLMAdapter)
     if transformer is None:
         return None
     text_encoder = generic.load_text_encoder(

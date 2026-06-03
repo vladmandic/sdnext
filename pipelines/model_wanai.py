@@ -5,7 +5,7 @@ from modules.logger import log
 from pipelines import generic
 
 
-def load_text_encoder(repo_id, diffusers_load_config=None):
+def init_text_encoder(repo_id, diffusers_load_config=None):
     if diffusers_load_config is None:
         diffusers_load_config = {}
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
@@ -50,8 +50,10 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
     else:
         transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer')
         transformer_2 = None
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
-    text_encoder = load_text_encoder(repo_id, diffusers_load_config)
+    text_encoder = init_text_encoder(repo_id, diffusers_load_config)
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model')
 

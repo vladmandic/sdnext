@@ -16,7 +16,7 @@ def get_timestep_ratio_conditioning(t, alphas_cumprod):
     return ratio
 
 
-def load_text_encoder(path):
+def init_text_encoder(path):
     from transformers import CLIPTextConfig, CLIPTextModelWithProjection
     from accelerate.utils.modeling import set_module_tensor_to_device
     from accelerate import init_empty_weights
@@ -62,7 +62,7 @@ def load_text_encoder(path):
         return None
 
 
-def load_prior(path, config_file="default"):
+def init_prior(path, config_file="default"):
     from diffusers.models.unets import StableCascadeUNet
     prior_text_encoder = None
 
@@ -78,9 +78,9 @@ def load_prior(path, config_file="default"):
     prior_unet = StableCascadeUNet.from_single_file(path, config=config_file, torch_dtype=devices.dtype_unet, cache_dir=shared.opts.diffusers_dir)
 
     if os.path.isfile(os.path.splitext(path)[0] + "_text_encoder.safetensors"): # OneTrainer
-        prior_text_encoder = load_text_encoder(os.path.splitext(path)[0] + "_text_encoder.safetensors")
+        prior_text_encoder = init_text_encoder(os.path.splitext(path)[0] + "_text_encoder.safetensors")
     elif os.path.isfile(os.path.splitext(path)[0] + "_text_model.safetensors"): # KohyaSS
-        prior_text_encoder = load_text_encoder(os.path.splitext(path)[0] + "_text_model.safetensors")
+        prior_text_encoder = init_text_encoder(os.path.splitext(path)[0] + "_text_model.safetensors")
 
     return prior_unet, prior_text_encoder
 
@@ -97,6 +97,11 @@ def load_cascade_combined(checkpoint_info, diffusers_load_config=None):
     if 'cascade' in checkpoint_info.name.lower():
         diffusers_load_config["variant"] = 'bf16'
 
+    repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     if shared.opts.sd_unet != "Default" or 'stabilityai' in checkpoint_info.name.lower():
         if 'cascade' in checkpoint_info.name and ('lite' in checkpoint_info.name or (checkpoint_info.hash is not None and 'abc818bb0d' in checkpoint_info.hash)):
             decoder_folder = 'decoder_lite'
@@ -112,7 +117,7 @@ def load_cascade_combined(checkpoint_info, diffusers_load_config=None):
         # log.debug(f'StableCascade {decoder_folder}: scale={decoder.latent_dim_scale}')
         prior_text_encoder = None
         if shared.opts.sd_unet != "Default":
-            prior_unet, prior_text_encoder = load_prior(unet_dict[shared.opts.sd_unet])
+            prior_unet, prior_text_encoder = init_prior(unet_dict[shared.opts.sd_unet])
         else:
             prior_unet = StableCascadeUNet.from_pretrained("stabilityai/stable-cascade-prior", subfolder=prior_folder, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
         if prior_text_encoder is not None:

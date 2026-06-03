@@ -18,6 +18,8 @@ def load_lens(checkpoint_info, diffusers_load_config=None):
     transformer = generic.load_transformer(repo_id, cls_name=lens.LensTransformer2DModel, load_config=diffusers_load_config, native_spec=lens.LENS_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=lens.LensGptOssEncoder, load_config=diffusers_load_config, allow_quant=False)
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = lens.LensPipeline.from_pretrained(
         repo_id,
         transformer=transformer,

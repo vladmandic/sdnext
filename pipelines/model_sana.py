@@ -5,7 +5,7 @@ from modules import shared, sd_models, sd_hijack_te, devices, model_quant
 from modules.logger import log
 
 
-def load_quants(kwargs, repo_id, cache_dir):
+def init_quants(kwargs, repo_id, cache_dir):
     kwargs_copy = kwargs.copy()
     if 'Sana_1600M_1024px' in repo_id and model_quant.check_nunchaku('Model'): # only available model
         import nunchaku
@@ -34,6 +34,8 @@ def load_sana(checkpoint_info, kwargs=None):
     kwargs.pop('torch_dtype', None)
 
     # set variant since hf repos are a mess
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     if not repo_id.endswith('_diffusers'):
         repo_id = f'{repo_id}_diffusers'
     if 'Sana_1600M' in repo_id:
@@ -47,7 +49,7 @@ def load_sana(checkpoint_info, kwargs=None):
     if 'Sana_600M' in repo_id:
         kwargs['variant'] = 'fp16'
 
-    kwargs = load_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir)
+    kwargs = init_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir)
     log.debug(f'Load model: type=Sana repo="{repo_id}" args={list(kwargs)}')
 
     if devices.dtype == torch.bfloat16 or devices.dtype == torch.float32:
@@ -56,6 +58,7 @@ def load_sana(checkpoint_info, kwargs=None):
         cls = diffusers.SanaSprintPipeline
     else:
         cls = diffusers.SanaPipeline
+
     pipe = cls.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,

@@ -18,6 +18,9 @@ def load_ovis(checkpoint_info, diffusers_load_config=None):
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.OvisImageTransformer2DModel, load_config=diffusers_load_config, native_spec=OVIS_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3Model, load_config=diffusers_load_config)
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     pipe = diffusers.OvisImagePipeline.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,
