@@ -12,6 +12,9 @@ knobs that differ from the native-loader defaults:
 - Cosmos 1.0 structural marker: any community file whose state dict contains
   a Cosmos 1.0 nested key (``net.blocks.block1.*``) is rejected with a clear
   error since Anima is Cosmos 2.0 only.
+- Cosmos 2.0 required markers: the self-attention and adaptive layer-norm
+  modulation key families every Cosmos block carries. A UNET/DiT override
+  lacking them is not a Cosmos checkpoint and is dropped before load.
 - All other knobs (prefixes, ``acceptable_missing`` buffers) use the defaults
   from :mod:`pipelines.native_transformer`.
 """
@@ -36,5 +39,9 @@ ANIMA_SPEC = TransformerSpec(
             'net.blocks.block1.blocks.0.block.attn.to_q.0.weight',
             'unsupported Cosmos 1.0 structure',
         ),
+    ),
+    required_markers=(
+        ('self_attn.', 'Cosmos transformer self-attention blocks'),
+        ('adaln_modulation_', 'Cosmos adaptive layer-norm modulation'),
     ),
 )

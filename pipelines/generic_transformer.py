@@ -31,12 +31,25 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
         dtype = dtype or devices.dtype
 
         local_file = None
+        from modules import sd_unet
         if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
-            from modules import sd_unet
             if shared.opts.sd_unet not in list(sd_unet.unet_dict):
                 log.error(f'Load module: type=transformer file="{shared.opts.sd_unet}" not found')
             elif os.path.exists(sd_unet.unet_dict[shared.opts.sd_unet]):
                 local_file = sd_unet.unet_dict[shared.opts.sd_unet]
+
+        # drop a UNET/DiT override whose architecture does not match this model's
+        # transformer and load the base transformer instead of crashing inside the
+        # arch-specific converter; header-only check, so a large mismatched file is
+        # rejected before the eager state-dict read
+        if local_file is not None and local_file.lower().endswith('.safetensors') and native_spec is not None:
+            from pipelines import native_transformer
+            compatible, reason = native_transformer.check_override_compatible(local_file, native_spec)
+            if not compatible:
+                log.warning(f'Load model: transformer override="{shared.opts.sd_unet}" incompatible with cls={cls_name.__name__} ({reason}); ignoring override and loading base transformer')
+                shared.opts.data['sd_unet'] = 'Default'
+                sd_unet.loaded_unet = None
+                local_file = None
 
         # 1. load gguf
         if local_file is not None and local_file.lower().endswith('.gguf'):
