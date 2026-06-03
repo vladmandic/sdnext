@@ -55,6 +55,29 @@ def save_params(p, filename: str | None = None):
         file.write(params)
 
 
+def create_video_metadata(p: processing.StableDiffusionProcessingVideo | None, metadata: dict | None = None, filename: str | None = None):
+    metadata = metadata.copy() if metadata is not None else {}
+    if not shared.opts.image_metadata:
+        return metadata
+    if p is None:
+        return metadata
+    try:
+        info = processing.create_infotext(p)
+    except Exception as e:
+        log.debug(f'Video metadata: infotext failed: {e}')
+        info = ''
+    if len(info) == 0:
+        info = getattr(p, 'prompt', '') or ''
+    if len(info) == 0:
+        return metadata
+    title = os.path.basename(filename) if filename else 'SD.Next video'
+    metadata.setdefault('title', title)
+    metadata.setdefault('encoder', 'SD.Next')
+    metadata.setdefault('comment', info)
+    metadata.setdefault('description', info)
+    return metadata
+
+
 def images_to_tensor(images):
     if images is None or len(images) == 0:
         return None
@@ -310,6 +333,7 @@ def save_video(
 
         if mp4_video and (mp4_codec != 'none'):
             output_video = f'{output_filename}.{mp4_ext}'
+            metadata = create_video_metadata(p, metadata, output_filename)
             atomic_save_video(output_video, tensor=x, audio=audio, fps=mp4_fps, codec=mp4_codec, options=mp4_opt, aac=aac_sample_rate, metadata=metadata, pbar=pbar)
             if stream is not None:
                 stream.output_queue.push(('progress', (None, f'Video {os.path.basename(output_video)} | Codec {mp4_codec} | Size {w}x{h}x{t} | FPS {mp4_fps}')))
