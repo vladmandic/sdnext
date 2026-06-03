@@ -119,7 +119,7 @@ const addContextMenuEventListener = initContextResponse[2] as () => void;
 
 let generateOnRepeatInterval: ReturnType<typeof setInterval> | null = null;
 
-const generateForever = (genbuttonid: string): void => {
+export const generateForever = (genbuttonid: string): void => {
   if (generateOnRepeatInterval) {
     log('generateForever: cancel');
     clearInterval(generateOnRepeatInterval);
@@ -143,6 +143,7 @@ const generateForever = (genbuttonid: string): void => {
     }, 500);
   }
 };
+window.generateForever = generateForever;
 
 const reprocessClick = (tabId: string, state: string): void => {
   const btn = document.getElementById(`${tabId}_${state}`);

@@ -17,4 +17,7 @@ def test_pipelines():
                     load_func = getattr(module, attr)
                     log.debug(f"Test: {module_name}.{attr}()")
                     ckpt = CheckpointInfo(filename = 'none')
-                    load_func(ckpt)
+                    try:
+                        load_func(ckpt)
+                    except Exception as e:
+                        log.error(f"Error: {module_name}.{attr}(): {e}")

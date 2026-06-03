@@ -15627,6 +15627,7 @@ var generateForever = (genbuttonid) => {
     }, 500);
   }
 };
+window.generateForever = generateForever;
 var reprocessClick = (tabId, state) => {
   const btn = document.getElementById(`${tabId}_${state}`);
   window.submit_state = state;
