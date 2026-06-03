@@ -33,6 +33,7 @@ class ReqFramepack(BaseModel):
     mp4_sf: bool | None = Field(default=False, title="Save SafeTensors", description="Save SafeTensors for the video")
     mp4_video: bool | None = Field(default=True, title="Save Video", description="Save video")
     mp4_frames: bool | None = Field(default=False, title="Save Frames", description="Save frames for the video")
+    mp4_thumb: bool | None = Field(default=True, title="Save Thumbnail", description="Save thumbnail for the video")
     mp4_opt: str | None = Field(default="crf:16", title="Options", description="Options for the video codec")
     mp4_ext: str | None = Field(default="mp4", title="Format", description="Format for the video")
     mp4_interpolate: int | None = Field(default=0, title="Interpolation", description="Interpolation for the video")
@@ -109,6 +110,7 @@ def framepack_post(request: ReqFramepack):
         mp4_sf=request.mp4_sf,
         mp4_video=request.mp4_video,
         mp4_frames=request.mp4_frames,
+        mp4_thumb=request.mp4_thumb,
         mp4_opt=request.mp4_opt,
         mp4_ext=request.mp4_ext,
         mp4_interpolate=request.mp4_interpolate,
