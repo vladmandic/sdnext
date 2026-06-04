@@ -40,6 +40,7 @@ def load_hidream_o1(checkpoint_info, diffusers_load_config=None):
     from pipelines.hidream.hidream_o1 import HiDreamO1Pipeline, HiDreamO1ImagePipeline
     from pipelines.hidream.qwen3_vl_transformers import HiDreamO1Qwen3VLTransformer
     from pipelines.hidream.scheduler_flashfloweuler import FlashFlowMatchEulerDiscreteScheduler
+    generic.set_pipeline('HiDreamO1', HiDreamO1Pipeline)
 
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, allow_quant=True)
     log.debug(f'Load model: type=HiDreamO1 repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} quant="{model_quant.get_quant_type(quant_args)}" args={load_args}')

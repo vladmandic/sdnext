@@ -79,6 +79,7 @@ def load_lumina_dimoo(checkpoint_info, diffusers_load_config=None):
     from pipelines.lumina_dimmo.pipelines import LuminaDiMOOTextPipeline, LuminaDiMOOImagePipeline
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["luminadimoo"] = LuminaDiMOOTextPipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["luminadimoo"] = LuminaDiMOOImagePipeline
+    generic.set_pipeline('LuminaDiMOO', LuminaDiMOOTextPipeline)
 
     if repo_id is None or repo_id.lower() == 'none':
         return None

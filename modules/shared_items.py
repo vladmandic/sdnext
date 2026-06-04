@@ -1,13 +1,16 @@
 import diffusers
 
 
-pipelines = {
-    # note: not all pipelines can be used manually as they require prior pipeline next to decoder pipeline
-    'Autodetect': None,
-    'Custom Diffusers Pipeline': getattr(diffusers, 'DiffusionPipeline', None),
+class OnlinePipeline(diffusers.DiffusionPipeline):
+    pass
 
-    # standard pipelines
-    'Diffusion': getattr(diffusers, 'DiffusionPipeline', None),
+
+pipelines = {
+    'Autodetect': None,
+    'AutoPipeline': diffusers.AutoPipelineForText2Image,
+    'Diffusion': diffusers.DiffusionPipeline,
+
+    # standard diffusers pipelines
     'Stable Diffusion': getattr(diffusers, 'StableDiffusionPipeline', None),
     'Stable Diffusion Inpaint': getattr(diffusers, 'StableDiffusionInpaintPipeline', None),
     'Stable Diffusion Instruct': getattr(diffusers, 'StableDiffusionInstructPix2PixPipeline', None),
@@ -22,58 +25,60 @@ pipelines = {
     'Stable Cascade': getattr(diffusers, 'StableCascadeCombinedPipeline', None),
     'Stable Diffusion 3': getattr(diffusers, 'StableDiffusion3Pipeline', None),
     'Latent Consistency Model': getattr(diffusers, 'LatentConsistencyModelPipeline', None),
-    'PixArt Alpha': getattr(diffusers, 'PixArtAlphaPipeline', None),
-    'PixArt Sigma': getattr(diffusers, 'PixArtSigmaPipeline', None),
-    'HunyuanDiT': getattr(diffusers, 'HunyuanDiTPipeline', None),
-    'DeepFloyd IF': getattr(diffusers, 'IFPipeline', None),
-    'FLUX': getattr(diffusers, 'FluxPipeline', None),
-    'UltraFlux': getattr(diffusers, 'DiffusionPipeline', None),
-    'FLEX': getattr(diffusers, 'AutoPipelineForText2Image', None),
-    'Chroma': getattr(diffusers, 'ChromaPipeline', None),
-    'Sana': getattr(diffusers, 'SanaPipeline', None),
-    'Lumina-Next': getattr(diffusers, 'LuminaText2ImgPipeline', None),
-    'Lumina 2': getattr(diffusers, 'Lumina2Pipeline', None),
     'AuraFlow': getattr(diffusers, 'AuraFlowPipeline', None),
-    'Kandinsky 2.1': getattr(diffusers, 'KandinskyCombinedPipeline', None),
-    'Kandinsky 2.2': getattr(diffusers, 'KandinskyV22CombinedPipeline', None),
-    'Kandinsky 3.0': getattr(diffusers, 'Kandinsky3Pipeline', None),
-    'Kandinsky 5.0': getattr(diffusers, 'Kandinsky5T2IPipeline', None),
-    'Wuerstchen': getattr(diffusers, 'WuerstchenCombinedPipeline', None),
-    'Kolors': getattr(diffusers, 'KolorsPipeline', None),
-    'CogView 3': getattr(diffusers, 'CogView3PlusPipeline', None),
-    'CogView 4': getattr(diffusers, 'CogView4Pipeline', None),
-    'UniDiffuser': getattr(diffusers, 'UniDiffuserPipeline', None),
-    'Amused': getattr(diffusers, 'AmusedPipeline', None),
-    'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
-    'OmniGen': getattr(diffusers, 'OmniGenPipeline', None),
+    'Chroma': getattr(diffusers, 'ChromaPipeline', None),
+    'ChronoEdit': getattr(diffusers, 'ChronoEditPipeline', None),
+    'CogView3': getattr(diffusers, 'CogView3PlusPipeline', None),
+    'CogView4': getattr(diffusers, 'CogView4Pipeline', None),
     'Cosmos': getattr(diffusers, 'Cosmos2TextToImagePipeline', None),
-    'WanAI': getattr(diffusers, 'WanPipeline', None),
-    'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
-    'Joy': getattr(diffusers, 'JoyImageEditPipeline', None),
-    'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
-    'ERNIE-Image': getattr(diffusers, 'ErnieImagePipeline', None),
-    'Nucleus-Image': getattr(diffusers, 'NucleusMoEImagePipeline', None),
-    'Z-Image': getattr(diffusers, 'ZImagePipeline', None),
-    'Lens': getattr(diffusers, 'LensPipeline', None),
+    'DeepFloydIF': getattr(diffusers, 'IFPipeline', None),
+    'ERNIEImage': getattr(diffusers, 'ErnieImagePipeline', None),
+    'FLUX': getattr(diffusers, 'FluxPipeline', None),
+    'FLUX2Klein': getattr(diffusers, 'Flux2KleinPipeline', None),
     'FLUX2': getattr(diffusers, 'Flux2Pipeline', None),
-    'FLUX2 Klein': getattr(diffusers, 'Flux2KleinPipeline', None),
-    'LongCat': getattr(diffusers, 'LongCatImagePipeline', None),
     'GLM-Image': getattr(diffusers, 'GlmImagePipeline', None),
-    # dynamically imported and redefined later
-    'Meissonic': getattr(diffusers, 'DiffusionPipeline', None),
-    'OmniGen2': getattr(diffusers, 'DiffusionPipeline', None),
-    'InstaFlow': getattr(diffusers, 'DiffusionPipeline', None),
-    'SegMoE': getattr(diffusers, 'DiffusionPipeline', None),
-    'FLite': getattr(diffusers, 'DiffusionPipeline', None),
-    'Bria': getattr(diffusers, 'DiffusionPipeline', None),
-    'X-Omni': getattr(diffusers, 'DiffusionPipeline', None),
-    'HunyuanImage3': getattr(diffusers, 'DiffusionPipeline', None),
-    'ChronoEdit': getattr(diffusers, 'DiffusionPipeline', None),
-    'Anima': getattr(diffusers, 'DiffusionPipeline', None),
-    'SDXS': getattr(diffusers, 'DiffusionPipeline', None),
-    'Step1X-Edit': getattr(diffusers, 'DiffusionPipeline', None),
-    'VIBE': getattr(diffusers, 'DiffusionPipeline', None),
-    'Lumina-DiMOO': getattr(diffusers, 'DiffusionPipeline', None),
+    'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
+    'HunyuanDiT': getattr(diffusers, 'HunyuanDiTPipeline', None),
+    'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
+    'JoyEdit': getattr(diffusers, 'JoyImageEditPipeline', None),
+    'Kandinsky21': getattr(diffusers, 'KandinskyCombinedPipeline', None),
+    'Kandinsky22': getattr(diffusers, 'KandinskyV22CombinedPipeline', None),
+    'Kandinsky30': getattr(diffusers, 'Kandinsky3Pipeline', None),
+    'Kandinsky50': getattr(diffusers, 'Kandinsky5T2IPipeline', None),
+    'Kolors': getattr(diffusers, 'KolorsPipeline', None),
+    'LongCat': getattr(diffusers, 'LongCatImagePipeline', None),
+    'Lumina2': getattr(diffusers, 'Lumina2Pipeline', None),
+    'LuminaNext': getattr(diffusers, 'LuminaText2ImgPipeline', None),
+    'NucleusImage': getattr(diffusers, 'NucleusMoEImagePipeline', None),
+    'OmniGen': getattr(diffusers, 'OmniGenPipeline', None),
+    'PixArtAlpha': getattr(diffusers, 'PixArtAlphaPipeline', None),
+    'PixArtSigma': getattr(diffusers, 'PixArtSigmaPipeline', None),
+    'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
+    'Sana': getattr(diffusers, 'SanaPipeline', None),
+    'WanAI': getattr(diffusers, 'WanPipeline', None),
+    'ZImage': getattr(diffusers, 'ZImagePipeline', None),
+
+    # pipelines with custom code that is fetched online
+    'InstaFlow': OnlinePipeline,
+    'Anima': OnlinePipeline,
+
+    # sdnext custom pipelines are dynamically imported and redefined later
+    'Bria': None,
+    'FLite': None,
+    'FLEX': None,
+    'HiDreamO1': None,
+    'HunyuanImage3': None,
+    'Lens': None,
+    'LuminaDiMOO': None,
+    'Meissonic': None,
+    'OmniGen2': None,
+    'SDXS': None,
+    'SegMoE': None,
+    'Step1XEdit': None,
+    'UltraFlux': None,
+    'VIBE': None,
+    'XOmni': None,
+    'ZetaChroma': None,
 }
 
 
@@ -128,6 +133,7 @@ def list_crossattention():
 
 
 def get_pipelines():
+    from modules.logger import log
     if hasattr(diffusers, 'OnnxStableDiffusionPipeline') and 'ONNX Stable Diffusion' not in list(pipelines):
         try:
             from modules.onnx_impl import initialize_onnx
@@ -139,20 +145,21 @@ def get_pipelines():
                 'ONNX Stable Diffusion Upscale': getattr(diffusers, 'OnnxStableDiffusionUpscalePipeline', None),
             }
         except Exception as e:
-            from modules.logger import log
             log.error(f'ONNX initialization error: {e}')
             onnx_pipelines = {}
         pipelines.update(onnx_pipelines)
-    if 'Lens' in pipelines and pipelines['Lens'] is None:
-        try:
-            import pipelines.lens as _lens
-            pipelines['Lens'] = getattr(diffusers, 'LensPipeline', None)
-        except Exception:
-            pass
-    for k, v in pipelines.items():
+    stats_builtin = 0
+    stats_custom = 0
+    for k, v in pipelines.copy().items():
         if k != 'Autodetect' and v is None:
-            from modules.logger import log
-            log.error(f'Model="{k}" diffusers={diffusers.__version__} path={diffusers.__file__} pipeline not available')
+            stats_custom += 1
+            pipelines[k] = diffusers.DiffusionPipeline
+        else:
+            stats_builtin += 1
+    if stats_custom > 0:
+        log.debug(f'Pipelines init: diffusers={stats_builtin} custom={stats_custom}')
+    else:
+        log.debug(f'Pipelines init: verified={stats_builtin}')
     return pipelines
 
 
@@ -163,10 +170,6 @@ def get_repo(model):
         return 'stabilityai/stable-diffusion-xl-base-1.0'
     elif model == 'StableDiffusion3Pipeline' or model == 'Stable Diffusion 3':
         return 'stabilityai/stable-diffusion-3.5-medium'
-    elif model == 'FluxPipeline' or model == 'FLUX':
-        return 'black-forest-labs/FLUX.1-dev'
-    elif model == 'LensPipeline' or model == 'Lens':
-        return 'microsoft/Lens'
     else:
         return None
 

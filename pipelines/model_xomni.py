@@ -3,6 +3,7 @@ import transformers
 import diffusers
 from modules import shared, devices, sd_models, model_quant
 from modules.logger import log
+from pipelines import generic
 
 
 class XOmniPipeline(diffusers.DiffusionPipeline):
@@ -112,6 +113,7 @@ def load_xomni(checkpoint_info, diffusers_load_config=None):
     sd_models.hf_auth_check(checkpoint_info)
 
     pipe = XOmniPipeline()
+    generic.set_pipeline('XOmni', XOmniPipeline)
     if repo_id is None or repo_id.lower() == 'none':
         return None
 

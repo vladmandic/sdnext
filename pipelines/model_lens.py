@@ -18,6 +18,10 @@ def load_lens(checkpoint_info, diffusers_load_config=None):
     transformer = generic.load_transformer(repo_id, cls_name=lens.LensTransformer2DModel, load_config=diffusers_load_config, native_spec=lens.LENS_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=lens.LensGptOssEncoder, load_config=diffusers_load_config, allow_quant=False)
 
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["lens"] = lens.LensPipeline
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["lens"] = lens.LensImg2ImgPipeline
+    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["lens"] = lens.LensInpaintPipeline
+    generic.set_pipeline('Lens', lens.LensPipeline)
     if repo_id is None or repo_id.lower() == 'none':
         return None
     pipe = lens.LensPipeline.from_pretrained(
@@ -31,9 +35,6 @@ def load_lens(checkpoint_info, diffusers_load_config=None):
         "output_type": "np",
         "enable_reasoner": shared.opts.model_lens_enable_pe,
     }
-    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["lens"] = lens.LensPipeline
-    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["lens"] = lens.LensImg2ImgPipeline
-    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["lens"] = lens.LensInpaintPipeline
 
     sd_hijack_te.init_hijack(pipe)
     sd_hijack_vae.init_hijack(pipe)

@@ -18,7 +18,7 @@ def load_vibe(checkpoint_info, diffusers_load_config=None):
     from pipelines.vibe import VIBESanaEditingModel, VIBESanaEditingPipeline, VIBESanaImagePipeline
     diffusers.VIBESanaEditingPipeline = VIBESanaEditingPipeline
     diffusers.VIBESanaEditingModel = VIBESanaEditingModel
-
+    generic.set_pipeline('VIBE', VIBESanaEditingPipeline)
     sys.modules['vibe.transformer.vibe_sana_editing'] = diffusers # monkey patch since hf model_index.json points to custom class path
 
     from pipelines.vibe import VIBE_SPEC

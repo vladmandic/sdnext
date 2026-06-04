@@ -23,8 +23,7 @@ def load_zetachroma(checkpoint_info, diffusers_load_config=None):
     )
 
     from pipelines import generic, zetachroma
-
-    diffusers.ZetaChromaPipeline = zetachroma.ZetaChromaPipeline
+    generic.set_pipeline('ZetaChroma', zetachroma.ZetaChromaPipeline)
     sys.modules["zetachroma"] = zetachroma
 
     if repo_id is None or repo_id.lower() == 'none':

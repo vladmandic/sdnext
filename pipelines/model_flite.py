@@ -1,5 +1,4 @@
 import sys
-import diffusers
 import transformers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from modules.logger import log
@@ -16,7 +15,7 @@ def load_flite(checkpoint_info, diffusers_load_config=None):
     log.debug(f'Load model: type=FLite repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     from pipelines import f_lite
-    diffusers.FLitePipeline = f_lite.FLitePipeline
+    generic.set_pipeline('FLite', f_lite.FLitePipeline)
     sys.modules['f_lite'] = f_lite
 
     dit_model = generic.load_transformer(repo_id, cls_name=f_lite.DiT, load_config=diffusers_load_config, subfolder="dit_model", native_spec=f_lite.FLITE_SPEC)

@@ -19,6 +19,7 @@ def load_step1x_edit(checkpoint_info, diffusers_load_config=None):
 
     diffusers.Step1XEditPipeline = Step1XEditPipeline
     diffusers.Step1XEditTransformer2DModel = Step1XEditTransformer2DModel
+    generic.set_pipeline('Step1XEdit', Step1XEditPipeline)
 
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
     from pipelines.step1x import STEP1X_SPEC

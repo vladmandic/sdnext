@@ -44,6 +44,7 @@ def load_bria(checkpoint_info, diffusers_load_config=None):
         else:
             cls = diffusers.BriaFiboPipeline
             diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['bria-fibo'] = cls
+        generic.set_pipeline('Bria', cls)
 
         if repo_id is None or repo_id.lower() == 'none':
             return None
@@ -74,6 +75,7 @@ def load_bria(checkpoint_info, diffusers_load_config=None):
         from pipelines.bria import BRIA_SPEC
         transformer = generic.load_transformer(repo_id, cls_name=BriaTransformer2DModel, load_config=diffusers_load_config, native_spec=BRIA_SPEC)
         text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config)
+        generic.set_pipeline('Bria', BriaPipeline)
 
         if repo_id is None or repo_id.lower() == 'none':
             return None

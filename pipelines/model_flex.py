@@ -18,6 +18,7 @@ def load_flex(checkpoint_info, diffusers_load_config=None):
     text_encoder_2 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder_2")
 
     from pipelines.flex2 import Flex2Pipeline
+    generic.set_pipeline('FLEX', Flex2Pipeline)
     if repo_id is None or repo_id.lower() == 'none':
         return None
     pipe = Flex2Pipeline.from_pretrained(

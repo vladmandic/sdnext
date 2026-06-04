@@ -11,7 +11,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from modules.logger import log
-from modules import timer, paths, shared, shared_items, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, sd_hijack_transformers, sd_hijack_hfhub, attention
+from modules import timer, paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, sd_hijack_transformers, sd_hijack_hfhub, attention
 from modules.memstats import memory_stats
 from modules.shared_helpers import walk_files
 from modules.modeldata import model_data
@@ -344,16 +344,13 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             sd_model = load_cascade_combined(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
         elif model_type in ['InstaFlow']:
-            pipeline = diffusers.utils.get_class_from_dynamic_module('instaflow_one_step', module_file='pipeline.py')
-            shared_items.pipelines['InstaFlow'] = pipeline
-            sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+            from pipelines.model_instaflow import load_instaflow
+            sd_model = load_instaflow(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
         elif model_type in ['SegMoE']:
-            from pipelines.segmoe.segmoe_model import SegMoEPipeline
-            sd_model = SegMoEPipeline(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
-            sd_model = sd_model.pipe # segmoe pipe does its stuff in __init__ and __call__ is the original pipeline
+            from pipelines.model_segmoe import load_segmoe
+            sd_model = load_segmoe(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
-            shared_items.pipelines['SegMoE'] = SegMoEPipeline
         elif model_type in ['PixArt Sigma']:
             from pipelines.model_pixart import load_pixart
             sd_model = load_pixart(checkpoint_info, diffusers_load_config)
@@ -362,11 +359,11 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_sana import load_sana
             sd_model = load_sana(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Lumina-Next']:
+        elif model_type in ['LuminaNext']:
             from pipelines.model_lumina import load_lumina
             sd_model = load_lumina(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
-        elif model_type in ['Lumina-DiMOO']:
+        elif model_type in ['LuminaDiMOO']:
             from pipelines.model_lumina import load_lumina_dimoo
             sd_model = load_lumina_dimoo(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -390,7 +387,7 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_flux2 import load_flux2
             sd_model = load_flux2(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['FLUX2 Klein']:
+        elif model_type in ['FLUX2Klein']:
             from pipelines.model_flux2_klein import load_flux2_klein
             sd_model = load_flux2_klein(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -406,7 +403,7 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_chroma import load_chroma
             sd_model = load_chroma(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Lumina 2']:
+        elif model_type in ['Lumina2']:
             from pipelines.model_lumina import load_lumina2
             sd_model = load_lumina2(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -414,11 +411,11 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_sd3 import load_sd3
             sd_model = load_sd3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['CogView 3']:
+        elif model_type in ['CogView3']:
             from pipelines.model_cogview import load_cogview3
             sd_model = load_cogview3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['CogView 4']:
+        elif model_type in ['CogView4']:
             from pipelines.model_cogview import load_cogview4
             sd_model = load_cogview4(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -466,7 +463,7 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_bria import load_bria
             sd_model = load_bria(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Step1X-Edit']:
+        elif model_type in ['Step1XEdit']:
             from pipelines.model_step1x_edit import load_step1x_edit
             sd_model = load_step1x_edit(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -474,7 +471,7 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_vibe import load_vibe
             sd_model = load_vibe(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Joy']:
+        elif model_type in ['JoyEdit']:
             from pipelines.model_joy import load_joy
             sd_model = load_joy(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -490,19 +487,19 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_lens import load_lens
             sd_model = load_lens(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Kandinsky 2.1']:
+        elif model_type in ['Kandinsky21']:
             from pipelines.model_kandinsky import load_kandinsky21
             sd_model = load_kandinsky21(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
-        elif model_type in ['Kandinsky 2.2']:
+        elif model_type in ['Kandinsky22']:
             from pipelines.model_kandinsky import load_kandinsky22
             sd_model = load_kandinsky22(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
-        elif model_type in ['Kandinsky 3.0']:
+        elif model_type in ['Kandinsky30']:
             from pipelines.model_kandinsky import load_kandinsky3
             sd_model = load_kandinsky3(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Kandinsky 5.0']:
+        elif model_type in ['Kandinsky50']:
             from pipelines.model_kandinsky import load_kandinsky5
             sd_model = load_kandinsky5(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -518,7 +515,7 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_hyimage import load_hyimage3
             sd_model = load_hyimage3(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
             allow_post_quant = False
-        elif model_type in ['X-Omni']:
+        elif model_type in ['XOmni']:
             from pipelines.model_xomni import load_xomni
             sd_model = load_xomni(checkpoint_info, diffusers_load_config) # pylint: disable=assignment-from-none
             allow_post_quant = False
@@ -530,15 +527,15 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_prx import load_prx
             sd_model = load_prx(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['ERNIE-Image']:
+        elif model_type in ['ERNIEImage']:
             from pipelines.model_ernie import load_ernie_image
             sd_model = load_ernie_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Nucleus-Image']:
+        elif model_type in ['NucleusImage']:
             from pipelines.model_nucleus import load_nucleus
             sd_model = load_nucleus(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Z-Image']:
+        elif model_type in ['ZImage']:
             from pipelines.model_z_image import load_z_image
             sd_model = load_z_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False

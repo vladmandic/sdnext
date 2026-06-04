@@ -17,6 +17,8 @@ def load_ultraflux(checkpoint_info, diffusers_load_config=None):
     from pipelines.ultraflux.pipeline_flux import UltraFluxPipeline
     from pipelines.ultraflux.transformer_flux import FluxTransformer2DModel
     from pipelines.ultraflux.autoencoder_kl import AutoencoderUltraFluxKL
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['ultraflux'] = UltraFluxPipeline
+    generic.set_pipeline('UltraFlux', UltraFluxPipeline)
 
     transformer = generic.load_transformer(repo_id, cls_name=FluxTransformer2DModel, load_config=diffusers_load_config)
     text_encoder_2 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder='text_encoder_2')
@@ -45,8 +47,6 @@ def load_ultraflux(checkpoint_info, diffusers_load_config=None):
             pipe.scheduler.config.use_dynamic_shifting = False
         if hasattr(pipe.scheduler.config, 'time_shift'):
             pipe.scheduler.config.time_shift = 4
-
-    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['ultraflux'] = UltraFluxPipeline
 
     del text_encoder_2
     del transformer
