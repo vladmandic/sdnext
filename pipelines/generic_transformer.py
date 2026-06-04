@@ -30,6 +30,25 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
         quant_type = model_quant.get_quant_type(quant_args)
         dtype = dtype or devices.dtype
 
+        def load_from_repo():
+            nonlocal quant_args
+            log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" loader={get_loader("diffusers")} args={load_args}')
+            if 'sdnq-' in repo_id.lower():
+                quant_args = {}
+            if dtype is not None:
+                load_args['torch_dtype'] = dtype
+            if subfolder is not None:
+                load_args['subfolder'] = subfolder
+            if variant is not None:
+                load_args['variant'] = variant
+            return cls_name.from_pretrained(
+                repo_id,
+                cache_dir=shared.opts.hfcache_dir,
+                **load_args,
+                **quant_args,
+                **kwargs,
+            )
+
         local_file = None
         from modules import sd_unet
         if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
@@ -37,19 +56,6 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 log.error(f'Load module: type=transformer file="{shared.opts.sd_unet}" not found')
             elif os.path.exists(sd_unet.unet_dict[shared.opts.sd_unet]):
                 local_file = sd_unet.unet_dict[shared.opts.sd_unet]
-
-        # drop a UNET/DiT override whose architecture does not match this model's
-        # transformer and load the base transformer instead of crashing inside the
-        # arch-specific converter; header-only check, so a large mismatched file is
-        # rejected before the eager state-dict read
-        if local_file is not None and local_file.lower().endswith('.safetensors') and native_spec is not None:
-            from pipelines import native_transformer
-            compatible, reason = native_transformer.check_override_compatible(local_file, native_spec)
-            if not compatible:
-                log.warning(f'Load model: transformer override="{shared.opts.sd_unet}" incompatible with cls={cls_name.__name__} ({reason}); ignoring override and loading base transformer')
-                shared.opts.data['sd_unet'] = 'Default'
-                sd_unet.loaded_unet = None
-                local_file = None
 
         # 1. load gguf
         if local_file is not None and local_file.lower().endswith('.gguf'):
@@ -62,19 +68,25 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
         elif local_file is not None and local_file.lower().endswith('.safetensors') and native_spec is not None:
             from pipelines import native_transformer
             log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader=native args={load_args}')
-            transformer, _ = native_transformer.load(
-                local_file,
-                repo_id,
-                native_spec,
-                load_config,
-                allow_quant=allow_quant,
-                dtype=dtype,
-                modules_to_not_convert=modules_to_not_convert,
-                modules_dtype_dict=modules_dtype_dict,
-                quant_args=quant_args,
-                quant_type=quant_type,
-                **kwargs,
-            )
+            try:
+                transformer, _ = native_transformer.load(
+                    local_file,
+                    repo_id,
+                    native_spec,
+                    load_config,
+                    allow_quant=allow_quant,
+                    dtype=dtype,
+                    modules_to_not_convert=modules_to_not_convert,
+                    modules_dtype_dict=modules_dtype_dict,
+                    quant_args=quant_args,
+                    quant_type=quant_type,
+                    **kwargs,
+                )
+            except native_transformer.OverrideArchMismatch as e:
+                log.warning(f'Load model: transformer override="{shared.opts.sd_unet}" incompatible with cls={cls_name.__name__} ({e}); ignoring override and loading base transformer')
+                shared.opts.data['sd_unet'] = 'Default'
+                sd_unet.loaded_unet = None
+                transformer = load_from_repo()
 
         # 3. load safetensors with diffusers loader
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
@@ -91,24 +103,10 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 **kwargs,
             )
 
-        # 4. default loading from diffusers repo
+        # 4. default loading from diffusers repo (also the fallback when an
+        # incompatible override is dropped above)
         else:
-            log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" loader={get_loader("diffusers")} args={load_args}')
-            if 'sdnq-' in repo_id.lower():
-                quant_args = {}
-            if dtype is not None:
-                load_args['torch_dtype'] = dtype
-            if subfolder is not None:
-                load_args['subfolder'] = subfolder
-            if variant is not None:
-                load_args['variant'] = variant
-            transformer = cls_name.from_pretrained(
-                repo_id,
-                cache_dir=shared.opts.hfcache_dir,
-                **load_args,
-                **quant_args,
-                **kwargs,
-            )
+            transformer = load_from_repo()
 
         sd_models.allow_post_quant = False # we already handled it
         if shared.opts.diffusers_offload_mode != 'none' and transformer is not None:

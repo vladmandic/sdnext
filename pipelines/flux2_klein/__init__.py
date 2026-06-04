@@ -12,10 +12,6 @@ Routing through :mod:`pipelines.native_transformer` pulls the Klein
 ``Flux2Transformer2DModel`` at the right size, then runs the diffusers
 Flux 2 converter to split fused QKV blocks and rename BFL keys into the
 diffusers-expected names.
-
-``required_markers`` names the dual-stream block families the converter
-expects; a UNET/DiT override lacking them is not a Flux 2 checkpoint and is
-rejected before the converter.
 """
 
 import diffusers
@@ -27,8 +23,4 @@ from pipelines.native_transformer import TransformerSpec
 FLUX2_KLEIN_SPEC = TransformerSpec(
     cls=diffusers.Flux2Transformer2DModel,
     converter=convert_flux2_transformer_checkpoint_to_diffusers,
-    required_markers=(
-        ("double_blocks.", "Flux 2 double-stream transformer blocks"),
-        ("single_blocks.", "Flux 2 single-stream transformer blocks"),
-    ),
 )

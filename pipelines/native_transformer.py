@@ -21,9 +21,7 @@ Algorithm:
 1. Read the safetensors state dict (.gguf and .pth are rejected up front).
 2. Detect and strip one of the spec's known prefixes (raises on mixed prefixes).
 3. Check forbidden markers (catches structural mismatches like Cosmos 1.0 keys
-   in a Cosmos 2.0 loader) and required markers (catches a file from a wholly
-   different architecture, e.g. an Anima checkpoint selected as a Chroma
-   override, before it reaches the arch-specific converter).
+   in a Cosmos 2.0 loader).
 4. Partition off sibling component keys (e.g. Anima's bundled ``llm_adapter.*``).
 5. Run the spec's converter if present (else pass through unchanged).
 6. Fetch ``<subfolder>/config.json`` from the base repo, instantiate via
@@ -63,15 +61,15 @@ DEFAULT_ACCEPTABLE_MISSING: tuple[str, ...] = (
 
 
 class OverrideArchMismatch(Exception):
-    """Raised when a user-selected UNET/DiT override file does not match the
-    architecture of the spec's transformer class: it is missing the arch's
-    defining key families (``required_markers``) or carries a forbidden one.
+    """Raised when a user-selected UNET/DiT override cannot be loaded as the
+    spec's transformer class: the arch-specific converter rejects its keys, or
+    ``load_state_dict`` reports a structural mismatch (unexpected or missing
+    required keys).
 
-    Callers that can recover catch this to drop the override and fall back to
-    the base repo transformer (see
-    :func:`pipelines.generic_transformer.load_transformer`). Where it is not
-    caught it surfaces as a clear load error instead of an opaque crash inside
-    an arch-specific converter.
+    :func:`pipelines.generic_transformer.load_transformer` catches this to drop
+    the override and load the base repo transformer instead, so a stale or
+    wrong-arch UNET selection degrades to the base model rather than crashing
+    inside a converter.
     """
 
 
@@ -99,16 +97,6 @@ class TransformerSpec:
     prefixes, no converter, no siblings). Arches with bundled-sibling
     components (Anima) or unusual key conventions (custom converters,
     Cosmos-style structural markers) override the relevant fields.
-
-    ``required_markers`` and ``forbidden_markers`` are the two halves of the
-    structural arch check. Each is a tuple of ``(marker, description)``.
-    Forbidden markers are exact keys that must be absent (catches an
-    incompatible variant of the same family). Required markers are key-family
-    substrings that must each match at least one key (catches a file from a
-    different architecture entirely, e.g. an Anima checkpoint selected as a
-    Chroma override). Specs with a converter should set ``required_markers``,
-    since the converter runs before the normal load-time key validation and a
-    wrong-arch file would otherwise crash inside it.
     """
 
     cls: type
@@ -118,7 +106,6 @@ class TransformerSpec:
     siblings: dict[str, SiblingSpec] = field(default_factory=dict)
     acceptable_missing: tuple[str, ...] = DEFAULT_ACCEPTABLE_MISSING
     forbidden_markers: tuple[tuple[str, str], ...] = ()
-    required_markers: tuple[tuple[str, str], ...] = ()
 
 
 def make_default_spec(cls: type) -> TransformerSpec:
@@ -252,7 +239,6 @@ def load(
     state_dict = sd_models.read_state_dict(local_file, what="transformer")
     state_dict = strip_prefix(state_dict, spec.prefixes, spec.cls.__name__)
     check_forbidden_markers(state_dict, spec.forbidden_markers, spec.cls.__name__, local_file)
-    check_required_markers(state_dict, spec.required_markers, spec.cls.__name__, local_file)
     transformer_sd, sibling_sds = partition_siblings(state_dict, spec.siblings)
     del state_dict
 
@@ -311,80 +297,37 @@ def load(
     return transformer, loaded_siblings
 
 
-def detect_prefix(keys, prefixes: tuple[str, ...], type_name: str) -> str:
-    """Return the single known prefix shared by every key, or ``""`` when the
-    keys are bare (no known prefix present).
+def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) -> dict:
+    """Detect and uniformly strip the most common known prefix from every key.
 
     Order matters: longer prefixes win over shorter ones with the same suffix
     (e.g. ``model.diffusion_model.`` beats ``diffusion_model.``). If some keys
     match the dominant prefix and others do not, raises ValueError because
     mixed prefixes indicate a malformed file rather than a recoverable export
     quirk.
-
-    Operates on key names only (any iterable of strings), so it can run against
-    a header-only key list without reading tensor data.
     """
     sorted_prefixes = sorted(prefixes, key=len, reverse=True)
     counts: dict[str, int] = {}
-    total = 0
     seen = 0
-    for key in keys:
-        total += 1
+    for key in state_dict:
         for prefix in sorted_prefixes:
             if key.startswith(prefix):
                 counts[prefix] = counts.get(prefix, 0) + 1
                 seen += 1
                 break
+    total = len(state_dict)
     if seen == 0:
-        return ""
+        log.debug(f"Load model: type={type_name} native_transformer prefix=bare")
+        return state_dict
     dominant = max(counts, key=counts.get)
     if counts[dominant] != total:
         raise ValueError(
             f"Load model: type={type_name} native_transformer has mixed prefixes "
             f"(total={total} {dominant}={counts[dominant]})"
         )
-    return dominant
-
-
-def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) -> dict:
-    """Detect and uniformly strip the most common known prefix from every key.
-
-    Thin wrapper over :func:`detect_prefix` that rewrites the dict once a single
-    dominant prefix is confirmed; bare key sets pass through unchanged.
-    """
-    dominant = detect_prefix(state_dict, prefixes, type_name)
-    if dominant == "":
-        log.debug(f"Load model: type={type_name} native_transformer prefix=bare")
-        return state_dict
     log.debug(f'Load model: type={type_name} native_transformer prefix="{dominant}"')
     offset = len(dominant)
     return {key[offset:]: value for key, value in state_dict.items()}
-
-
-def first_present_marker(keys, markers: tuple[tuple[str, str], ...]) -> tuple[str, str] | None:
-    """Return the first ``(marker, description)`` whose exact key is present in
-    ``keys``, else None. ``keys`` is any container supporting ``in`` over key
-    names (dict or set). Backs the forbidden-marker check.
-    """
-    for marker, description in markers:
-        if marker in keys:
-            return marker, description
-    return None
-
-
-def first_missing_marker(keys, markers: tuple[tuple[str, str], ...]) -> tuple[str, str] | None:
-    """Return the first ``(marker, description)`` whose substring matches no key
-    in ``keys``, else None. Each marker names a key family (e.g.
-    ``"double_blocks."``) that a valid file of the arch must contain. Backs the
-    required-marker check.
-    """
-    if not markers:
-        return None
-    key_list = keys if isinstance(keys, (list, tuple)) else list(keys)
-    for marker, description in markers:
-        if not any(marker in k for k in key_list):
-            return marker, description
-    return None
 
 
 def check_forbidden_markers(
@@ -399,90 +342,12 @@ def check_forbidden_markers(
     file is from an incompatible architecture variant (e.g. Cosmos 1.0 keys
     showing up in a Cosmos 2.0 loader path).
     """
-    hit = first_present_marker(state_dict, forbidden_markers)
-    if hit is not None:
-        marker, description = hit
-        raise ValueError(
-            f"Load model: type={type_name} native_transformer rejects "
-            f'"{os.path.basename(local_file)}" ({description}; marker key {marker!r})'
-        )
-
-
-def check_required_markers(
-    state_dict: dict,
-    required_markers: tuple[tuple[str, str], ...],
-    type_name: str,
-    local_file: str,
-) -> None:
-    """Raise :class:`OverrideArchMismatch` if any required arch marker matches
-    no key. Each marker names a key family the arch's checkpoint must carry
-    (e.g. Chroma's ``"double_blocks."``); absence means the file is not a
-    ``type_name`` checkpoint. No-op when ``required_markers`` is empty.
-
-    Runs before the arch-specific converter, which would otherwise crash on a
-    wrong-arch file with an opaque error instead of this actionable one.
-    """
-    miss = first_missing_marker(state_dict, required_markers)
-    if miss is not None:
-        marker, description = miss
-        raise OverrideArchMismatch(
-            f"Load model: type={type_name} native_transformer rejects "
-            f'"{os.path.basename(local_file)}" (missing {description}; '
-            f"no key contains {marker!r})"
-        )
-
-
-def peek_keys(local_file: str) -> list[str]:
-    """Read only the safetensors header key list (no tensor data).
-
-    Lets :func:`check_override_compatible` reject a multi-GB mismatched override
-    before the eager full-tensor read in
-    :func:`modules.sd_models.read_state_dict`.
-    """
-    import safetensors.torch
-    with safetensors.torch.safe_open(local_file, framework="pt", device="cpu") as f:
-        return list(f.keys())
-
-
-def check_override_compatible(local_file: str, spec: TransformerSpec) -> tuple[bool, str]:
-    """Header-only architecture check for a user-selected UNET/DiT override.
-
-    Reads just the safetensors key list, detects and strips the spec's prefix,
-    then applies the spec's forbidden and required markers. Returns
-    ``(True, "")`` when the file looks loadable as ``spec.cls``, else
-    ``(False, reason)`` with a short human-readable reason. Never reads tensor
-    data.
-
-    On a header read error returns ``(True, "")`` to defer to the full loader
-    rather than misclassifying an I/O problem as an arch mismatch; the full
-    load then raises with the real error.
-    """
-    try:
-        raw_keys = peek_keys(local_file)
-    except Exception as e:  # pylint: disable=broad-except
-        log.debug(
-            f"Load model: native_transformer compatibility peek failed "
-            f'file="{os.path.basename(local_file)}": {e}'
-        )
-        return True, ""
-    try:
-        dominant = detect_prefix(raw_keys, spec.prefixes, spec.cls.__name__)
-    except ValueError as e:
-        return False, str(e)
-    if dominant:
-        offset = len(dominant)
-        stripped = [k[offset:] for k in raw_keys]
-    else:
-        stripped = raw_keys
-    forbidden = first_present_marker(set(stripped), spec.forbidden_markers)
-    if forbidden is not None:
-        marker, description = forbidden
-        return False, f"{description} (marker key {marker!r})"
-    missing = first_missing_marker(stripped, spec.required_markers)
-    if missing is not None:
-        marker, description = missing
-        return False, f"missing {description} (no key contains {marker!r})"
-    return True, ""
+    for marker, description in forbidden_markers:
+        if marker in state_dict:
+            raise ValueError(
+                f"Load model: type={type_name} native_transformer rejects "
+                f'"{os.path.basename(local_file)}" ({description}; marker key {marker!r})'
+            )
 
 
 def partition_siblings(
@@ -655,7 +520,14 @@ def build_component(
     try:
         if converter is not None:
             log.debug(f'Load model: native_transformer {component_name} converter={converter.__name__} keys={len(state_dict)}')
-            sd = converter(state_dict)
+            try:
+                sd = converter(state_dict)
+            except Exception as e:
+                raise OverrideArchMismatch(
+                    f"Load model: type={cls.__name__} native_transformer converter "
+                    f"{converter.__name__} rejected the override ({type(e).__name__}: {e}); "
+                    f"file does not look like a {cls.__name__} checkpoint"
+                ) from e
         else:
             sd = state_dict
 
@@ -683,6 +555,8 @@ def build_component(
         target_dtype = dtype if dtype is not None else devices.dtype
         log.debug(f'Load model: native_transformer {component_name} cast dtype={target_dtype}')
         component = component.to(dtype=target_dtype)
+    except OverrideArchMismatch:
+        raise
     except Exception as e:
         log.error(f"Load model: native_transformer {component_name} load failed: {e}")
         errors.display(e, "Load")
@@ -713,13 +587,14 @@ def validate_state_dict_load(
     unexpected: list[str],
     acceptable_missing: tuple[str, ...],
 ) -> None:
-    """Raise ValueError if load_state_dict produced unexpected keys or
-    non-acceptable missing keys. Buffer-only missing keys matching the
+    """Raise :class:`OverrideArchMismatch` if load_state_dict produced
+    unexpected keys or non-acceptable missing keys, which means the override's
+    weights do not fit the target class. Buffer-only missing keys matching the
     ``acceptable_missing`` prefix list are logged at debug level and ignored.
     """
     if unexpected:
         sample = ", ".join(unexpected[:5])
-        raise ValueError(
+        raise OverrideArchMismatch(
             f"Load model: native_transformer {component_name} has {len(unexpected)} "
             f"unexpected keys (sample: {sample})"
         )
@@ -728,7 +603,7 @@ def validate_state_dict_load(
     ]
     if hard_missing:
         sample = ", ".join(hard_missing[:5])
-        raise ValueError(
+        raise OverrideArchMismatch(
             f"Load model: native_transformer {component_name} missing "
             f"{len(hard_missing)} required keys (sample: {sample})"
         )
