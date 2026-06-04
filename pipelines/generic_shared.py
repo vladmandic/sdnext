@@ -1,5 +1,6 @@
 import os
 import transformers
+from transformers.models.qwen3_vl import Qwen3VLModel
 
 
 shared_te_map = {
@@ -94,5 +95,10 @@ shared_te_map = {
         'cls': transformers.Qwen3Model,
         'target_repo': 'vladmandic/Anima-1.0-Base',
         'target_subfolder': 'text_encoder',
+    },
+
+    'Qwen3-VL 8B Base': {
+        'cls': Qwen3VLModel,
+        'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
     },
 }

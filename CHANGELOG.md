@@ -25,6 +25,10 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
     oh, that 12B encoder is MoE with 3.6B activated plus its prequantized using `mxfp4`  
     *note* Lens comes with its own prompt-refiner, enable in settings -> model options (disabled by default)  
     *note* original Lens implements only text-2-image, SD.Next adds image-2-image and inpaint workflows as well  
+  - [Ideogram 4](https://huggingface.co/ideogram-ai/ideogram-4) open-weight 9.3B flow-matching single-stream DiT  
+    Qwen3-VL-8B text encoder (shared and deduped) and Flux2 VAE, with dual-transformer asymmetric CFG  
+    converted to a bf16-Diffusers repo with SDNQ-at-load  
+    *note* requires structured JSON-caption prompts, a plain-text prompt returns the model's built-in safety placeholder  
 - **Features**
   - **SDNQ** new quantization algorithm: *Hadamard Rotations*  
     much higher quality than base SDNQ, but runs slightly slower  

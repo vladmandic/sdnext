@@ -184,6 +184,14 @@
     "size": 20.3,
     "date": "2025 November"
   },
+  "Ideogram 4": {
+    "path": "CalamitousFelicitousness/Ideogram-4-bf16-Diffusers",
+    "desc": "Ideogram 4 is Ideogram's first open-weight text-to-image model: a 9.3B flow-matching single-stream DiT that uses a Qwen3-VL vision-language model as its text encoder, with strong in-image text rendering. Requires structured JSON-caption prompts; a plain-text prompt returns a built-in safety placeholder. Non-commercial license.",
+    "skip": true,
+    "extras": "sampler: Default, cfg_scale: 7.0, steps: 20, width: 1024, height: 1024",
+    "size": 50.0,
+    "date": "2026 June"
+  },
   "Baidu ERNIE-Image": {
     "path": "baidu/ERNIE-Image",
     "preview": "baidu--ERNIE-Image.jpg",

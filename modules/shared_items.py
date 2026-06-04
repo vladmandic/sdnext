@@ -40,6 +40,7 @@ pipelines = {
     'HiDream': getattr(diffusers, 'HiDreamImagePipeline', None),
     'HunyuanDiT': getattr(diffusers, 'HunyuanDiTPipeline', None),
     'HunyuanImage': getattr(diffusers, 'HunyuanImagePipeline', None),
+    'Ideogram4': getattr(diffusers, 'Ideogram4Pipeline', None),
     'JoyEdit': getattr(diffusers, 'JoyImageEditPipeline', None),
     'Kandinsky21': getattr(diffusers, 'KandinskyCombinedPipeline', None),
     'Kandinsky22': getattr(diffusers, 'KandinskyV22CombinedPipeline', None),
