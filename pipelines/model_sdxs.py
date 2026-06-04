@@ -7,8 +7,7 @@ from pipelines import generic
 
 
 class SDXSPipeline(diffusers.DiffusionPipeline):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+    name = "SDXSPipeline"
 
 
 def hijack_encode_text(prompt: str | list[str]):
