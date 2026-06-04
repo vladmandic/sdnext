@@ -71,7 +71,7 @@ def get_model(model_cls, variant=None):
     elif model_cls in {'f1', 'h1', 'zimage', 'lumina2', 'chroma', 'longcat', 'omnigen2', 'flite', 'ovis', 'kandinsky5', 'glmimage', 'cogview3', 'cogview4', 'ultraflux'}:
         model_cls = 'f1'
         variant = 'TAE FLUX.1'
-    elif model_cls in {'f2', 'ernieimage', 'lens'}:
+    elif model_cls in {'f2', 'ernieimage', 'lens', 'ideogram4'}:
         model_cls = 'f2'
         variant = 'TAE FLUX.2'
     elif model_cls in {'sd3'}:

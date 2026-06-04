@@ -167,7 +167,11 @@ class Ideogram4Pipeline(DiffusionPipeline):
         max_text_tokens = inputs["max_text_tokens"]
         latent_dim = self.transformer.config.in_channels
 
+        # The tapped forward bypasses the offload hook, so move the encoder on-device, then free it after.
+        from modules import devices, shared
+        self.text_encoder.to(device)
         llm_features = encode_text(self.text_encoder, inputs["token_ids"], inputs["text_position_ids"], inputs["indicator"])
+        self.text_encoder.to(devices.cpu)
 
         # At guidance 1.0 the unconditional velocity has zero weight, so skip the second
         # tower; only build the negative branch when some step needs it.
@@ -186,41 +190,45 @@ class Ideogram4Pipeline(DiffusionPipeline):
         text_z_padding = torch.zeros(batch_size, max_text_tokens, latent_dim, dtype=torch.float32, device=device)
 
         self._num_timesteps = num_steps
-        for i in range(num_steps - 1, -1, -1):
-            t_val = float(schedule(step_intervals[i + 1].unsqueeze(0)).item())
-            s_val = float(schedule(step_intervals[i].unsqueeze(0)).item())
-            t = torch.full((batch_size,), t_val, dtype=torch.float32, device=device)
+        with self.progress_bar(total=num_steps) as progress_bar:
+            for i in range(num_steps - 1, -1, -1):
+                t_val = float(schedule(step_intervals[i + 1].unsqueeze(0)).item())
+                s_val = float(schedule(step_intervals[i].unsqueeze(0)).item())
+                t = torch.full((batch_size,), t_val, dtype=torch.float32, device=device)
 
-            pos_z = torch.cat([text_z_padding, z], dim=1)
-            pos_out = self.transformer(
-                llm_features=llm_features,
-                x=pos_z,
-                t=t,
-                position_ids=inputs["position_ids"],
-                segment_ids=inputs["segment_ids"],
-                indicator=inputs["indicator"],
-            )
-            pos_v = pos_out[:, max_text_tokens:]
-
-            gw_i = gw_values[i]
-            if gw_i == 1.0:
-                v = pos_v  # unconditional weight is zero; skip the second tower
-            else:
-                neg_v = self.unconditional_transformer(
-                    llm_features=neg_llm_features,
-                    x=z,
+                pos_z = torch.cat([text_z_padding, z], dim=1)
+                pos_out = self.transformer(
+                    llm_features=llm_features,
+                    x=pos_z,
                     t=t,
-                    position_ids=neg_position_ids,
-                    segment_ids=neg_segment_ids,
-                    indicator=neg_indicator,
+                    position_ids=inputs["position_ids"],
+                    segment_ids=inputs["segment_ids"],
+                    indicator=inputs["indicator"],
                 )
-                v = gw_i * pos_v + (1.0 - gw_i) * neg_v
-            z = z + v * (s_val - t_val)
+                pos_v = pos_out[:, max_text_tokens:]
 
-            if callback_on_step_end is not None:
-                cb = callback_on_step_end(self, num_steps - 1 - i, t_val, {"latents": z})
-                if isinstance(cb, dict):
-                    z = cb.get("latents", z)
+                gw_i = gw_values[i]
+                if gw_i == 1.0:
+                    v = pos_v  # unconditional weight is zero; skip the second tower
+                else:
+                    neg_v = self.unconditional_transformer(
+                        llm_features=neg_llm_features,
+                        x=z,
+                        t=t,
+                        position_ids=neg_position_ids,
+                        segment_ids=neg_segment_ids,
+                        indicator=neg_indicator,
+                    )
+                    v = gw_i * pos_v + (1.0 - gw_i) * neg_v
+                z = z + v * (s_val - t_val)
+
+                if callback_on_step_end is not None:
+                    cb = callback_on_step_end(self, num_steps - 1 - i, t_val, {"latents": z})
+                    if isinstance(cb, dict):
+                        z = cb.get("latents", z)
+                # Live preview: denorm+unpack into Flux.2 latent space for TAE FLUX.2.
+                shared.state.current_latent = self.denorm_unpack(z, grid_h, grid_w)
+                progress_bar.update()
 
         if output_type == "latent":
             images = z
@@ -231,19 +239,20 @@ class Ideogram4Pipeline(DiffusionPipeline):
             return (images,)
         return ImagePipelineOutput(images=images)
 
-    def decode_latents(self, z: torch.Tensor, grid_h: int, grid_w: int, output_type: str = "pil"):
-        """Denormalize, unpatchify, and VAE-decode the image latents."""
+    def denorm_unpack(self, z: torch.Tensor, grid_h: int, grid_w: int) -> torch.Tensor:
+        """Denormalize the packed latent and unpatchify to (B, ae_channels, H, W) in VAE space."""
         batch_size = z.shape[0]
         patch = self.patch_size
-
         shift, scale = self.latent_norm(z.device, torch.float32)
         z = z.float() * scale + shift
-
         ae_channels = z.shape[-1] // (patch * patch)
         z = z.view(batch_size, grid_h, grid_w, patch, patch, ae_channels)
         z = z.permute(0, 5, 1, 3, 2, 4).contiguous()
-        z = z.view(batch_size, ae_channels, grid_h * patch, grid_w * patch)
+        return z.view(batch_size, ae_channels, grid_h * patch, grid_w * patch)
 
+    def decode_latents(self, z: torch.Tensor, grid_h: int, grid_w: int, output_type: str = "pil"):
+        """Denormalize, unpatchify, and VAE-decode the image latents."""
+        z = self.denorm_unpack(z, grid_h, grid_w)
         vae_dtype = next((p.dtype for p in self.vae.parameters() if torch.is_floating_point(p)), torch.float32)
         decoded = self.vae.decode(z.to(vae_dtype), return_dict=False)[0]
 
