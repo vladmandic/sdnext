@@ -173,6 +173,26 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                 current_noise_pred = current_noise_pred.view(b, h_patches, w_patches, channels, 2, 2)
                 current_noise_pred = current_noise_pred.permute(0, 3, 1, 4, 2, 5).reshape(b, channels, h_patches * 2, w_patches * 2)
             shared.state.current_noise_pred = current_noise_pred
+        elif 'Ideogram4' in pipe.__class__.__name__:  # packed normalized [B, seq, 128] -> Flux.2 latent space for TAE FLUX.2
+            latents = kwargs['latents']
+            if latents.ndim == 3:
+                b, seq_len, packed_ch = latents.shape
+                vae_scale = getattr(pipe, 'vae_scale_factor', 8)
+                patch = getattr(pipe, 'patch_size', 2)
+                grid_h = getattr(p, 'height', 1024) // (vae_scale * patch)
+                grid_w = getattr(p, 'width', 1024) // (vae_scale * patch)
+                if grid_h * grid_w != seq_len:  # fallback to square assumption
+                    grid_h = grid_w = int(seq_len ** 0.5)
+                bn = pipe.vae.bn
+                mean = bn.running_mean.view(1, 1, -1).to(device=latents.device, dtype=torch.float32)
+                std = torch.sqrt(bn.running_var + pipe.vae.config.batch_norm_eps).view(1, 1, -1).to(device=latents.device, dtype=torch.float32)
+                z = latents.float() * std + mean
+                ae_ch = packed_ch // (patch * patch)
+                z = z.view(b, grid_h, grid_w, patch, patch, ae_ch).permute(0, 5, 1, 3, 2, 4).reshape(b, ae_ch, grid_h * patch, grid_w * patch)
+                shared.state.current_latent = z
+            else:
+                shared.state.current_latent = latents
+            shared.state.current_noise_pred = current_noise_pred
         else:
             shared.state.current_latent = kwargs['latents']
             shared.state.current_noise_pred = current_noise_pred
