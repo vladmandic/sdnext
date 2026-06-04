@@ -6,7 +6,43 @@ from modules.logger import log
 from pipelines import generic
 
 
-def load_pixart(checkpoint_info, diffusers_load_config=None):
+def load_pixart_alpha(checkpoint_info, diffusers_load_config=None):
+    if diffusers_load_config is None:
+        diffusers_load_config = {}
+    repo_id = sd_models.path_to_repo(checkpoint_info)
+    sd_models.hf_auth_check(checkpoint_info)
+
+    repo_id_tenc = repo_id
+    repo_id_pipe = repo_id
+
+    load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
+    log.debug(f'Load model: type=PixArtAlpha repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
+
+    from pipelines.pixart import PIXART_SPEC
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.PixArtTransformer2DModel, load_config=diffusers_load_config, native_spec=PIXART_SPEC)
+    text_encoder = generic.load_text_encoder(repo_id_tenc, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config)
+
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+    pipe = diffusers.PixArtAlphaPipeline.from_pretrained(
+        repo_id_pipe,
+        transformer=transformer,
+        text_encoder=text_encoder,
+        cache_dir=shared.opts.diffusers_dir,
+        **load_args,
+    )
+
+    generic.load_vae_override(pipe, diffusers_load_config)
+
+    del text_encoder
+    del transformer
+    sd_hijack_te.init_hijack(pipe)
+
+    devices.torch_gc(force=True, reason='load')
+    return pipe
+
+
+def load_pixart_sigma(checkpoint_info, diffusers_load_config=None):
     if diffusers_load_config is None:
         diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)

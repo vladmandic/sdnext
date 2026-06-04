@@ -351,9 +351,13 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_segmoe import load_segmoe
             sd_model = load_segmoe(checkpoint_info, diffusers_load_config)
             allow_post_quant = True
-        elif model_type in ['PixArt Sigma']:
-            from pipelines.model_pixart import load_pixart
-            sd_model = load_pixart(checkpoint_info, diffusers_load_config)
+        elif model_type in ['PixArtAlpha']:
+            from pipelines.model_pixart import load_pixart_alpha
+            sd_model = load_pixart_alpha(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['PixArtSigma']:
+            from pipelines.model_pixart import load_pixart_sigma
+            sd_model = load_pixart_sigma(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Sana']:
             from pipelines.model_sana import load_sana
@@ -543,11 +547,11 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_longcat import load_longcat
             sd_model = load_longcat(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['Ovis-Image', 'Overfit']:
+        elif model_type in ['OvisImage']:
             from pipelines.model_ovis import load_ovis
             sd_model = load_ovis(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['GLM-Image']:
+        elif model_type in ['GLMImage']:
             from pipelines.model_glm import load_glm_image
             sd_model = load_glm_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False

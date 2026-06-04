@@ -557,7 +557,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         grading_clahe_clip=grading_clahe_clip, grading_clahe_grid=grading_clahe_grid,
         grading_shadows_tint=grading_shadows_tint, grading_highlights_tint=grading_highlights_tint, grading_split_tone_balance=grading_split_tone_balance,
         grading_vignette=grading_vignette, grading_grain=grading_grain,
-        grading_lut_file=grading_lut_file.name if hasattr(grading_lut_file, 'name') else (grading_lut_file or ''), grading_lut_strength=grading_lut_strength,
+        grading_lut_file=getattr(grading_lut_file, 'name', grading_lut_file) if grading_lut_file else '', grading_lut_strength=grading_lut_strength,
         # path
         outpath_samples=resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_control_samples),
         outpath_grids=resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_control_grids),

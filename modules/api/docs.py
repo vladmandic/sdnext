@@ -66,7 +66,7 @@ def create_docs(app: FastAPI):
         "dom_id": "#swagger-ui",
     }
 
-    @app.get("/docs", include_in_schema=True)
+    @app.get("/docs", include_in_schema=True) # override for the default fastapi swagger route
     async def custom_swagger_html():
         res = get_swagger_ui_html(
             title=f'{app.title}: Swagger UI',
@@ -79,7 +79,7 @@ def create_docs(app: FastAPI):
 
 
 def create_redocs(app: FastAPI):
-    @app.get("/redocs", include_in_schema=True)
+    @app.get("/redocs", include_in_schema=True) # override for the default fastapi redocs route
     async def custom_redoc_html():
         res = get_redoc_html(
             title=f'{app.title}: ReDoc',

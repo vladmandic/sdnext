@@ -1,4 +1,5 @@
 from fastapi.exceptions import HTTPException
+from fastapi.responses import JSONResponse, Response
 from modules import shared
 from modules.logger import log
 from modules.api import models, helpers
@@ -216,7 +217,7 @@ def post_unload_checkpoint():
     from modules import sd_models
     sd_models.unload_model_weights(op='model')
     sd_models.unload_model_weights(op='refiner')
-    return {}
+    return Response(status_code=204)
 
 def post_reload_checkpoint(force:bool=False):
     """Reload the selected checkpoint. Set ``force=True`` to unload first and do a clean reload."""
@@ -224,18 +225,19 @@ def post_reload_checkpoint(force:bool=False):
     if force:
         sd_models.unload_model_weights(op='model')
     sd_models.reload_model_weights()
-    return {}
+    return Response(status_code=204)
 
 def post_lock_checkpoint(lock:bool=False):
     """Lock or unlock the current model to prevent automatic model swaps."""
     from modules import modeldata
     modeldata.model_data.locked = lock
-    return {}
+    return Response(status_code=204)
 
 def post_refresh_unets():
     """Rescan UNet directories and update the available UNet list."""
     import modules.sd_unet
-    return modules.sd_unet.refresh_unet_list()
+    modules.sd_unet.refresh_unet_list()
+    return Response(status_code=204)
 
 def get_checkpoint():
     """Return information about the currently loaded checkpoint including type, class, title, and hash."""
@@ -273,12 +275,12 @@ def set_checkpoint(sd_model_checkpoint: str, dtype: str | None = None, force: bo
 def post_refresh_checkpoints():
     """Rescan checkpoint directories and update the available models list."""
     shared.refresh_checkpoints()
-    return {}
+    return Response(status_code=204)
 
 def post_refresh_vae():
     """Rescan VAE directories and update the available VAE list."""
     shared.refresh_vaes()
-    return {}
+    return Response(status_code=204)
 
 def get_modules():
     """Analyze the loaded model and return its sub-module breakdown with device, dtype, and parameter info."""

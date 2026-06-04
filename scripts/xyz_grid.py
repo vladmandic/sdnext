@@ -32,6 +32,9 @@ class XYZGridScript(scripts_manager.Script):
     def title(self):
         return "XYZ Grid Script"
 
+    def show(self, is_img2img): # pylint: disable=unused-argument
+        return True
+
     def ui(self, is_img2img):
         self.current_axis_options = [x for x in axis_options if type(x) == AxisOption or x.is_img2img == is_img2img]
         with gr.Row():

@@ -71,7 +71,7 @@ class ConnectionManager:
 
 ### api definitions
 
-def register_api(app: FastAPI): # register api
+def register_api(api): # register api
     manager = ConnectionManager()
 
     def get_video_thumbnail(filepath):
@@ -208,11 +208,11 @@ def register_api(app: FastAPI): # register api
             log.error(f'Gallery: {folder} {e}')
             return []
 
-    shared.api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[str])
-    shared.api.add_api_route("/sdapi/v1/browser/thumb", get_thumb, methods=["GET"], response_model=dict)
-    shared.api.add_api_route("/sdapi/v1/browser/files", ht_files, methods=["GET"], response_model=list)
+    api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[str])
+    api.add_api_route("/sdapi/v1/browser/thumb", get_thumb, methods=["GET"], response_model=dict)
+    api.add_api_route("/sdapi/v1/browser/files", ht_files, methods=["GET"], response_model=list)
 
-    @app.websocket("/sdapi/v1/browser/files")
+    @api.app.websocket("/sdapi/v1/browser/files")
     async def ws_files(ws: WebSocket):
         try:
             await manager.connect(ws)

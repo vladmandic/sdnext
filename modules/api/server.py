@@ -1,6 +1,6 @@
 import os
 import time
-from fastapi import Request, Depends
+from fastapi import Request, Depends, BackgroundTasks, Response
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse
 import installer
@@ -79,12 +79,12 @@ def post_log(req: models.ReqPostLog):
         log.debug(f'UI: {req.debug}')
     elif req.error is not None:
         log.error(f'UI: {req.error}')
-    return {}
+    return Response(status_code=204)
 
-def post_shutdown():
+def post_shutdown(background_tasks: BackgroundTasks):
     log.info("Shutdown request received")
-    import sys
-    sys.exit(0)
+    background_tasks.add_task(os._exit, 0)
+    return Response(status_code=204)
 
 def get_cmd_flags():
     return vars(shared.cmd_opts)
@@ -126,10 +126,11 @@ def get_status():
 
 def post_interrupt():
     shared.state.interrupt()
-    return {}
+    return Response(status_code=204)
 
 def post_skip():
     shared.state.skip()
+    return Response(status_code=204)
 
 def get_memory():
     try:
