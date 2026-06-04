@@ -10,10 +10,9 @@
 
 - Chat-based interface, @vladmandic
 - Control tab verify overrides handling, @vladmandic
-- Reimplement `llama` remover for Kanvas, @vladmandic
-  Object clear: https://huggingface.co/jixin0101/ObjectClear
+- [nVidia LocateAnything](https://huggingface.co/nvidia/LocateAnything-3B) detection for Detailer, @vladmandic
+- [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas, @vladmandic
 
-- Detailer postprocessing, @CalamitousFelicitousness
 - Cloud providers, @CalamitousFelicitousness
 - Video processing add full API support, @CalamitousFelicitousness
 
@@ -30,7 +29,6 @@
 - JSON image metadata
 - Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb)
 - Unify *huggingface* and *diffusers* model folders
-- Refactor [GGUF](https://huggingface.co/docs/diffusers/main/en/quantization/gguf)
 
 ### OnHold
 
@@ -91,6 +89,7 @@ TODO: Investigate which models are diffusers-compatible and prioritize!
 
 ### Other/Unsorted
 
+- [TryOnDiffusion](https://github.com/fashn-AI/tryondiffusion)
 - [GPEN Face Restoration](https://github.com/yangxy/GPEN)
 - [ByteDance DreamO](https://github.com/bytedance/DreamO)
   - Unified image customization framework combining face identity preservation, virtual try-on, style transfer, etc.
