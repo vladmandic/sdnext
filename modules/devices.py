@@ -337,7 +337,7 @@ def test_fp16():
             return fp16_ok
         elif backend == 'rocm':
             # gfx1102 (RX 7600, 7500, 7650 and 7700S) causes segfaults with fp16
-            # agent can be overriden to gfx1100 to get gfx1102 working with ROCm so check the gpu name as well
+            # agent can be overridden to gfx1100 to get gfx1102 working with ROCm so check the gpu name as well
             agent = get_hip_agent()
             agent_name = getattr(torch.cuda.get_device_properties(device), "name", "AMD Radeon RX 0000")
             if agent.gfx_version == 0x1102 or (agent.gfx_version == 0x1100 and any(i in agent_name for i in ("7600", "7500", "7650", "7700S"))):

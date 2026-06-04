@@ -7,7 +7,7 @@ from diffusers import StableDiffusionPipeline, StableDiffusionXLPipeline, AutoPi
 parser = argparse.ArgumentParser("lcm_convert")
 parser.add_argument("--name", help="Name of the new LCM model", type=str)
 parser.add_argument("--model", help="A model to convert", type=str)
-parser.add_argument("--lora-scale", default=1.0, help="Strenght of the LCM", type=float)
+parser.add_argument("--lora-scale", default=1.0, help="Strength of the LCM", type=float)
 parser.add_argument("--huggingface", action="store_true", help="Use Hugging Face models instead of safetensors models")
 parser.add_argument("--upload", action="store_true", help="Upload the new LCM model to Hugging Face")
 parser.add_argument("--no-half", action="store_true", help="Convert the new LCM model to FP32")

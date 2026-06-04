@@ -541,13 +541,13 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
 
     def check_quantized_param(self, *args, **kwargs) -> bool:
         """
-        needed for transformers compatibilty, returns self.check_if_quantized_param
+        needed for transformers compatibility, returns self.check_if_quantized_param
         """
         return self.check_if_quantized_param(*args, **kwargs)
 
     def param_needs_quantization(self, model, param_name: str, *args, **kwargs) -> bool:
         """
-        needed for transformers compatibilty, returns self.check_if_quantized_param
+        needed for transformers compatibility, returns self.check_if_quantized_param
         """
         return self.check_if_quantized_param(model, None, param_name, *args, **kwargs)
 
@@ -685,7 +685,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
 
     def get_cuda_warm_up_factor(self):
         """
-        needed for transformers compatibilty, returns self.get_accelerator_warm_up_factor
+        needed for transformers compatibility, returns self.get_accelerator_warm_up_factor
         """
         return self.get_accelerator_warm_up_factor()
 

@@ -191,7 +191,7 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
             submodel = getattr(shared.sd_model, sub, None)
             if submodel is not None:
                 modules = submodel.named_modules()
-                task = progress.add_task(description=f"{sub} exctract", total=len(list(modules)))
+                task = progress.add_task(description=f"{sub} extract", total=len(list(modules)))
                 for _name, module in submodel.named_modules():
                     progress.update(task, advance=1)
                     if not hasattr(module, "svdhandler"):

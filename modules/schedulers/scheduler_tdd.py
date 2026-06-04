@@ -81,7 +81,7 @@ class TDDScheduler(DPMSolverSinglestepScheduler):
 
         if algorithm_type != "dpmsolver++" and final_sigmas_type == "zero":
             raise ValueError(
-                f"`final_sigmas_type` {final_sigmas_type} is not supported for `algorithm_type` {algorithm_type}. Please chooose `sigma_min` instead."
+                f"`final_sigmas_type` {final_sigmas_type} is not supported for `algorithm_type` {algorithm_type}. Please choose `sigma_min` instead."
             )
 
         # setable values
@@ -288,7 +288,7 @@ class TDDScheduler(DPMSolverSinglestepScheduler):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError(" missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -327,7 +327,7 @@ class TDDScheduler(DPMSolverSinglestepScheduler):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing `sample` as a required keyward argument")
+                raise ValueError(" missing `sample` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
@@ -404,12 +404,12 @@ class TDDScheduler(DPMSolverSinglestepScheduler):
             if len(args) > 2:
                 sample = args[2]
             else:
-                raise ValueError(" missing`sample` as a required keyward argument")
+                raise ValueError(" missing`sample` as a required keyword argument")
         if order is None:
             if len(args) > 3:
                 order = args[3]
             else:
-                raise ValueError(" missing `order` as a required keyward argument")
+                raise ValueError(" missing `order` as a required keyword argument")
         if timestep_list is not None:
             deprecate(
                 "timestep_list",
@@ -465,7 +465,7 @@ class TDDScheduler(DPMSolverSinglestepScheduler):
             if len(args) > 1:
                 sample = args[1]
             else:
-                raise ValueError("missing `sample` as a required keyward argument")
+                raise ValueError("missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",

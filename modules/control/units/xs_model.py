@@ -345,7 +345,7 @@ class ControlNetXSModel(ModelMixin, ConfigMixin):
             conditioning_channels=conditioning_channels,
         )
 
-        # In the mininal implementation setting, we only need the control model up to the mid block
+        # In the minimal implementation setting, we only need the control model up to the mid block
         del self.control_model.up_blocks
         del self.control_model.conv_norm_out
         del self.control_model.conv_out
@@ -377,7 +377,7 @@ class ControlNetXSModel(ModelMixin, ConfigMixin):
             controlnet_conditioning_channel_order (`str`, defaults to `"rgb"`):
                 The channel order of conditional image. Will convert to `rgb` if it's `bgr`.
             learn_embedding (`bool`, defaults to `False`):
-                Wether to use time embedding of the control model. If yes, the time embedding is a linear interpolation
+                Whether to use time embedding of the control model. If yes, the time embedding is a linear interpolation
                 of the time embeddings of the control and base model with interpolation parameter
                 `time_embedding_mix**3`.
             time_embedding_mix (`float`, defaults to 1.0):

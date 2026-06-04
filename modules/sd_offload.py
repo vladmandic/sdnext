@@ -458,7 +458,7 @@ def apply_balanced_offload_to_module(module, op="apply", force:bool=False):
         module.balanced_offload_max_memory = max_memory
     module.offload_post = shared.sd_model_type in offload_post and module_name.startswith("text_encoder")
     if shared.opts.layerwise_quantization or getattr(module, 'quantization_method', None) == 'LayerWise':
-        model_quant.apply_layerwise(module, quiet=True) # need to reapply since hooks were removed/readded
+        model_quant.apply_layerwise(module, quiet=True) # need to reapply since hooks were removed/re-added
     devices.torch_gc(fast=True, force=True, reason='offload')
 
 

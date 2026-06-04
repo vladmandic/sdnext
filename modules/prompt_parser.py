@@ -270,7 +270,7 @@ def reconstruct_multicond_batch(c: MulticondLearnedConditioning, current_step):
             conds_for_batch.append((len(tensors), composable_prompt.weight))
             tensors.append(composable_prompt.schedules[target_index].cond)
         conds_list.append(conds_for_batch)
-    # if prompts have wildly different lengths above the limit we'll get tensors fo different shapes and won't be able to torch.stack them. So this fixes that.
+    # if prompts have wildly different lengths above the limit we'll get tensors of different shapes and won't be able to torch.stack them. So this fixes that.
     token_count = max([x.shape[0] for x in tensors])
     for i in range(len(tensors)):
         if tensors[i].shape[0] != token_count:

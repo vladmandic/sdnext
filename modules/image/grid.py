@@ -32,7 +32,7 @@ def check_grid_size(imgs: list[Image.Image] | list[list[Image.Image]] | None):
     mp = round(mp / 1000000)
     ok = mp <= shared.opts.img_max_size_mp
     if not ok:
-        log.warning(f'Maximum image size exceded: size={mp} maximum={shared.opts.img_max_size_mp} MPixels')
+        log.warning(f'Maximum image size exceeded: size={mp} maximum={shared.opts.img_max_size_mp} MPixels')
     return ok
 
 

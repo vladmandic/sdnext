@@ -71,7 +71,7 @@ class Mlp(nn.Module):
         x = self.fc1(x)
         x = self.act(x)
         # x = self.drop(x)
-        # commit this for the orignal BERT implement
+        # commit this for the original BERT implement
         x = self.ffn_ln(x)
 
         x = self.fc2(x)

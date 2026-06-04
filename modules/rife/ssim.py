@@ -139,7 +139,7 @@ def msssim(img1, img2, window_size=11, size_average=True, val_range=None, normal
     return output
 
 
-# Classes to re-use window
+# Classes to reuse window
 class SSIM(torch.nn.Module):
     def __init__(self, window_size=11, size_average=True, val_range=None):
         super().__init__()

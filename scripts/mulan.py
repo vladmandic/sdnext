@@ -3,7 +3,7 @@
 # https://huggingface.co/OpenGVLab/InternVL-14B-224px
 
 """
-- [MuLan](https://github.com/mulanai/MuLan) Multi-langunage prompts - wirte your prompts in ~110 auto-detected languages!
+- [MuLan](https://github.com/mulanai/MuLan) Multi-langunage prompts - write your prompts in ~110 auto-detected languages!
   Compatible with SD15 and SDXL
   Enable in scripts -> MuLan and set encoder to `InternVL-14B-224px` encoder
   (that is currently only supported encoder, but others will be added)

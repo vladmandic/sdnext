@@ -73,7 +73,7 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
             return pipe
     if has_models:
         p.ops.append('control')
-        p.extra_generation_params["Control type"] = unit_type # overriden later with pretty-print
+        p.extra_generation_params["Control type"] = unit_type # overridden later with pretty-print
         p.extra_generation_params["Control model"] = ';'.join([(m.model_id or '') for m in active_model if m.model is not None])
         p.extra_generation_params["Control conditioning"] = control_conditioning if isinstance(control_conditioning, list) else [control_conditioning]
         p.extra_generation_params['Control start'] = control_guidance_start if isinstance(control_guidance_start, list) else [control_guidance_start]

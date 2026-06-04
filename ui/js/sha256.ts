@@ -105,7 +105,7 @@ const Hash = /** @class */ (function () {
     this.reset();
   }
   // Resets hash state making it possible
-  // to re-use this instance to hash other data.
+  // to reuse this instance to hash other data.
   Hash.prototype.reset = function () {
     this.state[0] = 0x6a09e667;
     this.state[1] = 0xbb67ae85;

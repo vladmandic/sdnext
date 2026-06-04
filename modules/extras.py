@@ -173,7 +173,7 @@ def run_modelmerger(id_task, **kwargs):  # pylint: disable=unused-argument
     _, extension = os.path.splitext(output_modelname)
 
     if os.path.exists(output_modelname) and not kwargs.get("overwrite", False):
-        return [*[gr.Dropdown.update(choices=sd_models.checkpoint_titles()) for _ in range(4)], f"Model alredy exists: {output_modelname}"]
+        return [*[gr.Dropdown.update(choices=sd_models.checkpoint_titles()) for _ in range(4)], f"Model already exists: {output_modelname}"]
     if extension.lower() == ".safetensors":
         safetensors.torch.save_file(theta_0, output_modelname, metadata=metadata)
     else:

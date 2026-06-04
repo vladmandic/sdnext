@@ -17,7 +17,7 @@ def install_gguf():
     scripts_dir = os.path.join(os.path.dirname(gguf.__file__), '..', 'scripts')
     if os.path.exists(scripts_dir):
         os.rename(scripts_dir, scripts_dir + str(time.time()))
-    # monkey patch transformers/diffusers so they detect newly installed gguf pacakge correctly
+    # monkey patch transformers/diffusers so they detect newly installed gguf package correctly
     ver = importlib.metadata.version('gguf')
     transformers.utils.import_utils._is_gguf_available = True # pylint: disable=protected-access
     transformers.utils.import_utils._gguf_version = ver # pylint: disable=protected-access

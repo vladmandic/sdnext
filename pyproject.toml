@@ -438,3 +438,10 @@ missing-argument = "ignore"
 unknown-argument = "ignore"
 invalid-attribute-access = "ignore"
 call-top-callable = "ignore"
+
+[tool.codespell]
+skip = "./venv, ./.git, __pycache__, ./tmp, ./extensions-builtin, ./configs, ./models, ./outputs, *.txt, *.json, *.yaml, *.map, *.mjs, *.log"
+ignore-words-list = [
+  "te", "nd", "TE", "padd", "inpt", "thw", "thre", "tipe", "ACI", "Foto", "CNA", "LAMA", "lama", "LaMa", "SOM", "trU", "PatchIn", "AllTime",
+  "youre", "thats", "dont", "whats", "havent", "isnt", "doesnt", "cant", "theres", "receipe", "splitted", "spacial", "patchs",
+]

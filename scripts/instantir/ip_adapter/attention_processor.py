@@ -459,7 +459,7 @@ class split_AttnProcessor2_0(torch.nn.Module):
             hidden_states_0 = hidden_states_0.view(batch_size, channel, height * width).transpose(1, 2)
             hidden_states_1 = hidden_states_1.view(batch_size, channel, height * width).transpose(1, 2)
         else:
-            # directly split sqeuence according to concat dim.
+            # directly split sequence according to concat dim.
             single_dim = original_shape[2] if cat_dim==-2 or cat_dim==2 else original_shape[1]
             hidden_states_0 = hidden_states[:, :single_dim*single_dim,:]
             hidden_states_1 = hidden_states[:, single_dim*(single_dim+1):,:]
@@ -593,7 +593,7 @@ class sep_split_AttnProcessor2_0(torch.nn.Module):
             hidden_states_0 = hidden_states_0.view(batch_size, channel, height * width).transpose(1, 2)
             hidden_states_1 = hidden_states_1.view(batch_size, channel, height * width).transpose(1, 2)
         else:
-            # directly split sqeuence according to concat dim.
+            # directly split sequence according to concat dim.
             single_dim = original_shape[2] if cat_dim==-2 or cat_dim==2 else original_shape[1]
             hidden_states_0 = hidden_states[:, :single_dim*single_dim,:]
             hidden_states_1 = hidden_states[:, single_dim*(single_dim+1):,:]

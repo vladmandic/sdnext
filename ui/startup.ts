@@ -92,7 +92,7 @@ async function initStartup() {
 
   executeCallbacks(uiReadyCallbacks);
 
-  // optinally wait for modern ui
+  // optionally wait for modern ui
   if (window.waitForUiReady) await window.waitForUiReady();
 
   // post startup tasks that may take longer but are not critical

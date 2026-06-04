@@ -17,7 +17,7 @@ def icbi(IM,ZK = 1,SZ = 8,PF = 1,ST = 20,TM = 100,TC = 50,SC = 1,TS = 100,AL = 1
     :param PF: Potential to be minimized (default:1)
     :param ST: Maximum number of iterations (default:20)
     :param TM: Maximum edge step (default:100)
-    :param TC: Edge continuity threshold (deafult:50).
+    :param TC: Edge continuity threshold (default:50).
     :param SC: Stopping criterion: 1 = change under threshold, 0 = ST iterations (default:1).
     :param TS: Threshold on image change for stopping iterations (default:100).
     :param AL: Weight for Curvature Continuity energy (default:1.0).

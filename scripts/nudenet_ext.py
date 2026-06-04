@@ -61,7 +61,7 @@ def process(
         policy=False,
         banned=False,
         metadata=True,
-        copy=False, # pylint: disable=unused-argument # compatability
+        copy=False, # pylint: disable=unused-argument # compatibility
         score=0.2,
         blocks=3,
         censor=[],

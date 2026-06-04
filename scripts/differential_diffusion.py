@@ -940,7 +940,7 @@ class StableDiffusionXLDiffImg2ImgPipeline(DiffusionPipeline, FromSingleFileMixi
             num_inference_steps = len(list(filter(lambda ts: ts >= discrete_timestep_cutoff, timesteps)))
             timesteps = timesteps[:num_inference_steps]
 
-        # prepartions for diff diff
+        # preparations for diff diff
         original_with_noise = self.prepare_latents(
             original_image, timesteps, batch_size, num_images_per_prompt, prompt_embeds.dtype, device, generator
         )
@@ -1764,7 +1764,7 @@ class StableDiffusionDiffImg2ImgPipeline(DiffusionPipeline):
         # 8. Denoising loop
         num_warmup_steps = len(timesteps) - num_inference_steps * self.scheduler.order
 
-        # prepartions
+        # preparations
         original_with_noise = self.prepare_latents(
             image, timesteps, batch_size, num_images_per_prompt, prompt_embeds.dtype, device, generator
         )

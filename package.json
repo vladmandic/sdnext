@@ -44,6 +44,7 @@
     "pylint": ". venv/bin/activate && pylint *.py modules/ pipelines/ scripts/ extensions-builtin/ | grep -v '^*'",
     "pyright": ". venv/bin/activate && pyright --threads 4",
     "ty": ". venv/bin/activate && ty check --force-exclude",
+    "codespell": ". venv/bin/activate && codespell",
     "compile": ". venv/bin/activate && python test/test-compile.py"
   },
   "devDependencies": {

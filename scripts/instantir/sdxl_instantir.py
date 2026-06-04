@@ -932,7 +932,7 @@ class InstantIRPipeline(
         noise = torch.randn(latents.shape, generator=generator[0] if isinstance(generator, list) else generator, device=self.vae.device, dtype=self.vae.dtype, layout=torch.strided)
         bsz = latents.shape[0]
         timestep = torch.tensor([timestep]*bsz, device=self.vae.device)
-        # Note that the latents will be scaled aleady by scheduler.add_noise
+        # Note that the latents will be scaled already by scheduler.add_noise
         latents = self.scheduler.add_noise(latents, noise, timestep)
         return latents
 

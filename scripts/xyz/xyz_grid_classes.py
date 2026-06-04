@@ -144,7 +144,7 @@ class SharedSettingsStackHelper():
         shared.opts.data["disable_apply_params"] = ''
 
     def __exit__(self, exc_type, exc_value, tb):
-        # Restore overriden settings after plot generation
+        # Restore overridden settings after plot generation
         shared.opts.data["disable_apply_metadata"] = self.disable_apply_metadata
         shared.opts.data["disable_apply_params"] = self.disable_apply_params
         shared.opts.data["extra_networks_default_multiplier"] = self.extra_networks_default_multiplier
@@ -278,7 +278,7 @@ axis_options = [
     AxisOption("[Control] End", float, apply_control('control_end')),
     AxisOption("[HiDiffusion] T1", float, apply_override('hidiffusion_t1')),
     AxisOption("[HiDiffusion] T2", float, apply_override('hidiffusion_t2')),
-    AxisOption("[HiDiffusion] Agression step", float, apply_field('hidiffusion_steps')),
+    AxisOption("[HiDiffusion] Aggression step", float, apply_field('hidiffusion_steps')),
     AxisOption("[PAG] Attention scale", float, apply_field('cfg_true')),
     AxisOption("[PAG] Adaptive scaling", float, apply_field('cfg_adaptive')),
     AxisOption("[PAG] Applied layers", str, apply_setting('pag_apply_layers')),

@@ -49,7 +49,7 @@ def estimateleres(img, model, w, h):
     return prediction
 
 def generatemask(size):
-    # Generates a Guassian mask
+    # Generates a Gaussian mask
     mask = np.zeros(size, dtype=np.float32)
     sigma = int(size[0]/16)
     k_size = int(2 * np.ceil(2 * int(size[0]/16)) + 1)
@@ -395,7 +395,7 @@ def estimateboost(img, model, model_type, pix2pixmodel, max_res=512, depthmap_sc
     gc.collect()
     torch_gc()
 
-    # Generate mask used to smoothly blend the local pathc estimations to the base estimate.
+    # Generate mask used to smoothly blend the local patch estimations to the base estimate.
     # It is arbitrarily large to avoid artifacts during rescaling for each crop.
     mask_org = generatemask((3000, 3000))
     mask = mask_org.copy()

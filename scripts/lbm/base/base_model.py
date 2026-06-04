@@ -16,7 +16,7 @@ class BaseModel(nn.Module):
         """Called when the training starts
 
         Args:
-            device (Optional[torch.device], optional): The device to use. Usefull to set
+            device (Optional[torch.device], optional): The device to use. Useful to set
                 relevant parameters on the model and embedder to the right device only
                 once at the start of the training. Defaults to None.
         """

@@ -214,13 +214,13 @@ def get_closest_checkpoint_match(s: str) -> CheckpointInfo | None:
     # direct hf url
     if s.startswith('https://huggingface.co/'):
         model_name = s.replace('https://huggingface.co/', '')
-        checkpoint_info = CheckpointInfo(model_name) # create a virutal model info
+        checkpoint_info = CheckpointInfo(model_name) # create a virtual model info
         checkpoint_info.type = 'huggingface'
         log.debug(f'Seach model: name="{s}" matched="{checkpoint_info.path}" type=huggingface')
         return checkpoint_info
     if s.startswith('huggingface/'):
         model_name = s.replace('huggingface/', '')
-        checkpoint_info = CheckpointInfo(model_name) # create a virutal model info
+        checkpoint_info = CheckpointInfo(model_name) # create a virtual model info
         checkpoint_info.type = 'huggingface'
         return checkpoint_info
 

@@ -21,10 +21,10 @@ class BaseConfig:
 
     @classmethod
     def from_dict(cls, config_dict: Dict[str, Any]) -> "BaseConfig":
-        """Creates a BaseConfig instance from a dictionnary
+        """Creates a BaseConfig instance from a dictionary
 
         Args:
-            config_dict (dict): The Python dictionnary containing all the parameters
+            config_dict (dict): The Python dictionary containing all the parameters
 
         Returns:
             :class:`BaseConfig`: The created instance
@@ -78,10 +78,10 @@ class BaseConfig:
         return cls.from_dict(config_dict)
 
     def to_dict(self) -> dict:
-        """Transforms object into a Python dictionnary
+        """Transforms object into a Python dictionary
 
         Returns:
-            (dict): The dictionnary containing all the parameters"""
+            (dict): The dictionary containing all the parameters"""
         return asdict(self)
 
     def to_json_string(self):

@@ -62,7 +62,7 @@ class ExtraNetwork:
         Called by processing on every run. Whatever the extra network is meant to do should be activated here. Passes arguments related to this extra network in params_list. User passes arguments by specifying this in his prompt:
         <name:arg1:arg2:arg3>
         Where name matches the name of this ExtraNetwork object, and arg1:arg2:arg3 are any natural number of text arguments separated by colon.
-        Even if the user does not mention this ExtraNetwork in his prompt, the call will stil be made, with empty params_list - in this case, all effects of this extra networks should be disabled.
+        Even if the user does not mention this ExtraNetwork in his prompt, the call will still be made, with empty params_list - in this case, all effects of this extra networks should be disabled.
         Can be called multiple times before deactivate() - each new call should override the previous call completely.
         For example, if this ExtraNetwork's name is 'hypernet' and user's prompt is:
         > "1girl, <hypernet:agm:1.1> <extrasupernet:master:12:13:14> <hypernet:ray>"

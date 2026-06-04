@@ -477,7 +477,7 @@ def _convert_kohya_sd3_lora_to_diffusers(state_dict):
 def assign_network_names_to_compvis_modules(sd_model):
     if sd_model is None:
         return
-    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)  # wrapped model compatiblility
+    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)  # wrapped model compatibility
     network_layer_mapping = {}
     if hasattr(sd_model, 'text_encoder') and sd_model.text_encoder is not None:
         for name, module in sd_model.text_encoder.named_modules():

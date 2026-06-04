@@ -474,7 +474,7 @@ def create_ui():
             list_extensions()
             gr.HTML('''<span style="color: var(--body-text-color)">
                         <h2>Extension list</h2>
-                        - Refesh extension list to download latest list with status<br>
+                        - Refresh extension list to download latest list with status<br>
                         - Check status of an extension by looking at status icon before installing it<br>
                         - After any operation such as install/uninstall or enable/disable, please restart the server<br>
                     </span>''')

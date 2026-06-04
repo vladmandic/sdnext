@@ -1058,8 +1058,8 @@ def run_extension_installer(folder):
             env = os.environ.copy()
             env['PYTHONPATH'] = os.path.abspath(".")
             if os.environ.get('PYTHONPATH', None) is not None:
-                seperator = ';' if sys.platform == 'win32' else ':'
-                env['PYTHONPATH'] += seperator + os.environ.get('PYTHONPATH', None)
+                separator = ';' if sys.platform == 'win32' else ':'
+                env['PYTHONPATH'] += separator + os.environ.get('PYTHONPATH', None)
             result, txt = run(sys.executable, path_installer, env=env, cwd=folder)
             debug(f'Extension installer: file="{path_installer}" {result.stdout}')
             if result.returncode != 0:
@@ -1324,7 +1324,7 @@ def install_requirements():
     ts('requirements', t_start)
 
 
-# set environment variables controling the behavior of various libraries
+# set environment variables controlling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
     os.environ.setdefault('ACCELERATE', 'True')
@@ -1878,7 +1878,7 @@ def ensure_base_requirements():
     except ImportError:
         update_setuptools()
 
-    # used by installler itself so must be installed before requirements
+    # used by installer itself so must be installed before requirements
     install('rich==15.0.0', 'rich', quiet=True)
     install('psutil', 'psutil', quiet=True)
     install('requests==2.32.3', 'requests', quiet=True)

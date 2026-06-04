@@ -6,7 +6,7 @@ code from: https://github.com/zacheryvaughn/softfill-pipelines/blob/main/pipelin
 sdnext implementation follows after pipeline-end
 """
 
-pnoise2 = None # dynamically instlled and imported module
+pnoise2 = None # dynamically installed and imported module
 
 ### pipeline start
 

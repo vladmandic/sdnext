@@ -43,7 +43,7 @@ class SanaLinearAttnProcessor2_0:
     ) -> torch.Tensor:
         """Execute the forward pass of the SanaLinearAttnProcessor2_0.
 
-        We need that redifinition because default implementation do not take into account the attention mask.
+        We need that redefinition because default implementation do not take into account the attention mask.
 
         Args:
             attn (Attention): The attention object.

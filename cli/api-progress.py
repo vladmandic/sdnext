@@ -57,7 +57,7 @@ while True:
         sampling_step = state.get('sampling_step', 0)
         sampling_steps = state.get('sampling_steps', 0)
         if job_timestamp is None:
-            log.warning(f'sdnext montoring cannot get last job info: {status}')
+            log.warning(f'sdnext monitoring cannot get last job info: {status}')
         else:
             job_timestamp = datetime.datetime.strptime(job_timestamp, "%Y%m%d%H%M%S") if job_timestamp != '0' else datetime.datetime.now()
             elapsed = datetime.datetime.now() - job_timestamp

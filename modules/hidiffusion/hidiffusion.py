@@ -277,7 +277,7 @@ def make_diffusers_cross_attn_down_block(block_class: Type[torch.nn.Module]) -> 
         T1_ratio = 0
         T1_start = 0
         T1_end = 0
-        T1 = 0 # to avoid confict with sdxl-turbo
+        T1 = 0 # to avoid conflict with sdxl-turbo
         max_timestep = current_steps
 
         def forward(
@@ -323,7 +323,7 @@ def make_diffusers_cross_attn_down_block(block_class: Type[torch.nn.Module]) -> 
             if self.aggressive_raunet:
                 self.T1_start = int(aggressive_step/50 * self.max_timestep)
                 self.T1_end = int(self.max_timestep * self.T1_ratio)
-                self.T1 = 0 # to avoid confict with sdxl-turbo
+                self.T1 = 0 # to avoid conflict with sdxl-turbo
             else:
                 self.T1 = int(self.max_timestep * self.T1_ratio)
 
@@ -410,7 +410,7 @@ def make_diffusers_cross_attn_up_block(block_class: Type[torch.nn.Module]) -> Ty
         T1_ratio = 0
         T1_start = 0
         T1_end = 0
-        T1 = 0 # to avoid confict with sdxl-turbo
+        T1 = 0 # to avoid conflict with sdxl-turbo
         max_timestep = 50
 
         def forward(
@@ -463,7 +463,7 @@ def make_diffusers_cross_attn_up_block(block_class: Type[torch.nn.Module]) -> Ty
             if self.aggressive_raunet:
                 self.T1_start = int(aggressive_step/50 * self.max_timestep)
                 self.T1_end = int(self.max_timestep * self.T1_ratio)
-                self.T1 = 0 # to avoid confict with sdxl-turbo
+                self.T1 = 0 # to avoid conflict with sdxl-turbo
             else:
                 self.T1 = int(self.max_timestep * self.T1_ratio)
 

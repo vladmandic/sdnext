@@ -48,7 +48,7 @@ export function keyupEditAttention(event: KeyboardEvent): void {
   function selectCurrentWord(): boolean {
     if (selectionStart !== selectionEnd) return false;
     const delimiters = `${window.opts.keyedit_delimiters} \r\n\t`;
-    // seek backward until to find beggining
+    // seek backward until to find beginning
     while (!delimiters.includes(text[selectionStart - 1]) && selectionStart > 0) selectionStart--;
     // seek forward to find end
     while (!delimiters.includes(text[selectionEnd]) && selectionEnd < text.length) selectionEnd++;

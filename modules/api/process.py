@@ -23,7 +23,7 @@ class ResPreprocess(BaseModel):
 class ReqMask(BaseModel):
     image: str = Field(title="Image", description="The base64 encoded image")
     type: str = Field(title="Mask type", description="Type of masking image to return")
-    mask: str | None = Field(title="Mask", description="If optional maks image is not provided auto-masking will be performed")
+    mask: str | None = Field(title="Mask", description="If optional mask image is not provided auto-masking will be performed")
     model: str | None = Field(title="Model", description="The model to use for preprocessing")
     params: dict | None = Field(default={}, title="Settings", description="Preprocessor settings")
 

@@ -197,7 +197,7 @@ def set_sage_attention(backend: str, device: torch.device):
                     key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
                     value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
 
-                # Call pre-selected sage attention implementation
+                # Call preselected sage attention implementation
                 return sage_attn_impl(query, key, value, is_causal, scale)
             else:
                 if enable_gqa:

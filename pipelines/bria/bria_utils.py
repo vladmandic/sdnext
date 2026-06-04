@@ -439,5 +439,5 @@ def get_lr_scheduler(
             num_warmup_steps=num_warmup_steps,
             num_training_steps=num_training_steps)
 
-    # Usign custom warmup+cnstant+decay scheduler
+    # Using custom warmup+cnstant+decay scheduler
     return get_cosine_schedule_with_warmup_and_decay(optimizer=optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps, constant_steps=constant_steps)

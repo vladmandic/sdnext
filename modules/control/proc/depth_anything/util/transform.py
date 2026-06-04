@@ -131,7 +131,7 @@ class Resize(object):
                     # fit height
                     scale_width = scale_height
             elif self.__resize_method == "minimal":
-                # scale as least as possbile
+                # scale as least as possible
                 if abs(1 - scale_width) < abs(1 - scale_height):
                     # fit width
                     scale_height = scale_width
@@ -209,7 +209,7 @@ class Resize(object):
 
 
 class NormalizeImage(object):
-    """Normlize image by given mean and std.
+    """Normalize image by given mean and std.
     """
 
     def __init__(self, mean, std):

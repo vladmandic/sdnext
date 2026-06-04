@@ -416,7 +416,7 @@ def sd_oft_kohya_qkv_skipped():
 
 
 def sd_boft_butterfly():
-    """BOFT (butterfly-OFT) — re-uses ``oft_blocks`` key with 4-D shape.
+    """BOFT (butterfly-OFT) — reuses ``oft_blocks`` key with 4-D shape.
 
     Mirrors the LyCORIS upstream save layout (boft.py weight_list:
     ``oft_blocks, rescale, alpha``; tensor shape per __init__:

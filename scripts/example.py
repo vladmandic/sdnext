@@ -118,7 +118,7 @@ class Script(scripts_manager.Script):
         for i in range(len(args)):
             p.task_args[params[i]] = args[i]
 
-        # you can also re-use existing params from `p` object if pipeline wants them, but under a different name
+        # you can also reuse existing params from `p` object if pipeline wants them, but under a different name
         # for example, if pipeline expects 'image' param, but you want to use 'init_images' instead which is what img2img tab uses
         # p.task_args['image'] = p.init_images[0]
 

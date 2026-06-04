@@ -63,7 +63,7 @@ class ZoeDepthNK(DepthModel):
             min_temp (int, optional): Lower bound for temperature of output probability distribution. Defaults to 5.
             max_temp (int, optional): Upper bound for temperature of output probability distribution. Defaults to 50.
 
-            memory_efficient (bool, optional): Whether to use memory efficient version of attractor layers. Memory efficient version is slower but is recommended incase of multiple metric heads in order save GPU memory. Defaults to False.
+            memory_efficient (bool, optional): Whether to use memory efficient version of attractor layers. Memory efficient version is slower but is recommended in case of multiple metric heads in order save GPU memory. Defaults to False.
 
             train_midas (bool, optional): Whether to train "core", the base midas model. Defaults to True.
             is_midas_pretrained (bool, optional): Is "core" pretrained? Defaults to True.

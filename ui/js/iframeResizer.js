@@ -1184,7 +1184,7 @@
         : remoteHost
     }
 
-    function depricate(key) {
+    function deprecate(key) {
       var splitName = key.split('Callback')
 
       if (splitName.length === 2) {
@@ -1213,7 +1213,7 @@
         iframe.src && iframe.src.split('/').slice(0, 3).join('/')
 
       checkOptions(options)
-      Object.keys(options).forEach(depricate, options)
+      Object.keys(options).forEach(deprecate, options)
       copyOptions(options)
 
       if (settings[iframeId]) {
@@ -1242,7 +1242,7 @@
     }
   }
 
-  function debouce(fn, time) {
+  function debounce(fn, time) {
     if (null === timer) {
       timer = setTimeout(function () {
         timer = null
@@ -1302,7 +1302,7 @@
         'window',
         'Mutation observed: ' + mutations[0].target + ' ' + mutations[0].type
       )
-      debouce(checkIFrames, 16)
+      debounce(checkIFrames, 16)
     }
 
     function createMutationObserver() {
@@ -1332,7 +1332,7 @@
     }
 
     log('window', 'Trigger event: ' + event)
-    debouce(resize, 16)
+    debounce(resize, 16)
   }
 
   // Not testable in PhantomJS
@@ -1344,7 +1344,7 @@
 
     if ('hidden' !== document.visibilityState) {
       log('document', 'Trigger event: Visibility change')
-      debouce(resize, 16)
+      debounce(resize, 16)
     }
   }
 

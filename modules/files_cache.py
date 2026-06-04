@@ -64,7 +64,7 @@ class Directory(Directory): # pylint: disable=E0102
         return self
 
     def _update(self, source:Directory) -> None:
-        assert not source.path or source.path == self.path, f'When updating a directory, the paths must match.  Attemped to update Directory `{self.path}` with `{source.path}`'
+        assert not source.path or source.path == self.path, f'When updating a directory, the paths must match.  Attempted to update Directory `{self.path}` with `{source.path}`'
         for dead_path in self.directories:
             if dead_path not in source.directories:
                 delete_cached_directory(dead_path)

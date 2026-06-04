@@ -300,7 +300,7 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
                 sample = args[1]
             else:
                 raise ValueError(
-                    "missing `sample` as a required keyward argument")
+                    "missing `sample` as a required keyword argument")
 
         sigma = self.sigmas[self.step_index]
         _alpha_t, sigma_t = self._sigma_to_alpha_sigma_t(sigma)
@@ -369,13 +369,13 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
                 sample = args[1]
             else:
                 raise ValueError(
-                    " missing `sample` as a required keyward argument")
+                    " missing `sample` as a required keyword argument")
         if order is None:
             if len(args) > 2:
                 order = args[2]
             else:
                 raise ValueError(
-                    " missing `order` as a required keyward argument")
+                    " missing `order` as a required keyword argument")
         model_output_list = self.model_outputs
 
         s0 = self.timestep_list[-1]
@@ -502,19 +502,19 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
                 last_sample = args[1]
             else:
                 raise ValueError(
-                    " missing`last_sample` as a required keyward argument")
+                    " missing`last_sample` as a required keyword argument")
         if this_sample is None:
             if len(args) > 2:
                 this_sample = args[2]
             else:
                 raise ValueError(
-                    " missing`this_sample` as a required keyward argument")
+                    " missing`this_sample` as a required keyword argument")
         if order is None:
             if len(args) > 3:
                 order = args[3]
             else:
                 raise ValueError(
-                    " missing`order` as a required keyward argument")
+                    " missing`order` as a required keyword argument")
 
         model_output_list = self.model_outputs
 

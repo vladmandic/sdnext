@@ -14,7 +14,7 @@ class BaseOptions():
     """
 
     def __init__(self):
-        """Reset the class; indicates the class hasn't been initailized"""
+        """Reset the class; indicates the class hasn't been initialized"""
         self.initialized = False
 
     def initialize(self, parser):

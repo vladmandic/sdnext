@@ -229,7 +229,7 @@ class StableDiffusionXLPuLIDPipeline:
             if len(self.face_helper.cropped_faces) == 0:
                 raise RuntimeError('facexlib align face fail')
             align_face = self.face_helper.cropped_faces[0]
-            # incase insightface didn't detect face
+            # in case insightface didn't detect face
             if id_ante_embedding is None:
                 id_ante_embedding = self.handler_ante.get_feat(align_face)
 
