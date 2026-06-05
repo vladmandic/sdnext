@@ -1,3 +1,4 @@
+import json
 import diffusers
 from transformers import AutoTokenizer
 from transformers.models.qwen3_vl import Qwen3VLModel
@@ -6,18 +7,37 @@ from modules.logger import log
 from pipelines import generic
 
 
+def prompt_to_json(prompt):
+    """Normalize a JSON caption to the compact form Ideogram 4 trained on, or wrap plain text.
+
+    Ideogram 4 expects a structured JSON caption serialized compactly. A valid JSON prompt is
+    re-serialized to that form; a plain-text prompt is wrapped in a minimal caption so it stays
+    in distribution instead of tripping the weight-baked "blocked by safety filter" placeholder.
+    """
+    if isinstance(prompt, list):
+        return [prompt_to_json(p) for p in prompt]
+    if not isinstance(prompt, str) or len(prompt) == 0:
+        return prompt
+    try:
+        return json.dumps(json.loads(prompt), ensure_ascii=False, separators=(',', ':'))
+    except ValueError:
+        caption = {'high_level_description': prompt, 'compositional_deconstruction': {'background': prompt, 'elements': []}}
+        return json.dumps(caption, ensure_ascii=False, separators=(',', ':'))
+
+
 class Ideogram4Pipeline(diffusers.Ideogram4Pipeline):
     """SD.Next integration subclass for the diffusers-native Ideogram 4 pipeline.
 
-    ``encode_prompt`` drives the Qwen3-VL tap by calling ``language_model`` submodules
-    directly, which bypasses the balanced-offload pre-forward hook. Move the encoder
-    on-device for the tap and release it afterward so it does not pin VRAM.
+    ``encode_prompt`` normalizes the prompt into the structured JSON the model expects, then
+    drives the Qwen3-VL tap. The tap calls ``language_model`` submodules directly, bypassing the
+    balanced-offload pre-forward hook, so the encoder is moved on-device for it and released after.
     """
 
-    def encode_prompt(self, *args, **kwargs):
+    def encode_prompt(self, prompt, *args, **kwargs):
+        prompt = prompt_to_json(prompt)
         self.text_encoder.to(self._execution_device)
         try:
-            return super().encode_prompt(*args, **kwargs)
+            return super().encode_prompt(prompt, *args, **kwargs)
         finally:
             if shared.opts.diffusers_offload_mode != 'none':
                 self.text_encoder.to(devices.cpu)
@@ -78,6 +98,8 @@ def load_ideogram4(checkpoint_info, diffusers_load_config=None):
     # The pipeline decodes internally; the CFG scale slider drives guidance_scale, which is
     # mutually exclusive with the pipeline's default per-step guidance_schedule.
     pipe.task_args = {'output_type': 'pil', 'guidance_schedule': None} # pylint: disable=attribute-defined-outside-init
+    # JSON captions must pass through verbatim; skip styles/wildcards that would strip the braces.
+    pipe.keep_prompts = True # pylint: disable=attribute-defined-outside-init
 
     del transformer, unconditional_transformer, text_encoder, vae
     devices.torch_gc(force=True, reason='load')
