@@ -23,6 +23,28 @@ class Ideogram4Pipeline(diffusers.Ideogram4Pipeline):
                 self.text_encoder.to(devices.cpu)
 
 
+def pin_transformers_if_fit(transformer, unconditional_transformer) -> bool:
+    """Keep both transformers resident under balanced offload when they fit the budget.
+
+    Every denoise step runs both transformers, so balanced offload ping-pongs them across
+    PCIe each step. ``offload_never`` makes ``offload_allowed`` skip the per-step pre-sweep so
+    they stay resident, but only when both fit ``gpu_memory * max watermark`` (which leaves the
+    watermark headroom for activations); otherwise the normal offload path is kept.
+    """
+    if shared.opts.diffusers_offload_mode != 'balanced' or shared.gpu_memory <= 0:
+        return False
+    if transformer is None or unconditional_transformer is None:
+        return False
+    size_gb = sum(p.numel() * p.element_size() for m in (transformer, unconditional_transformer) for p in m.parameters()) / (1024 ** 3)
+    budget_gb = shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory
+    fits = size_gb <= budget_gb
+    if fits:
+        transformer.offload_never = True
+        unconditional_transformer.offload_never = True
+    log.info(f'Load model: type=Ideogram4 offload=balanced transformers={size_gb:.1f} budget={budget_gb:.1f} action={"pin-resident" if fits else "offload"}')
+    return fits
+
+
 def load_ideogram4(checkpoint_info, diffusers_load_config=None):
     if diffusers_load_config is None:
         diffusers_load_config = {}
@@ -37,6 +59,7 @@ def load_ideogram4(checkpoint_info, diffusers_load_config=None):
     cls = diffusers.Ideogram4Transformer2DModel
     transformer = generic.load_transformer(repo_id, cls_name=cls, subfolder="transformer", load_config=diffusers_load_config)
     unconditional_transformer = generic.load_transformer(repo_id, cls_name=cls, subfolder="unconditional_transformer", load_config=diffusers_load_config)
+    pin_transformers_if_fit(transformer, unconditional_transformer)
     # shared_te_map redirects to the shared Qwen3-VL repo (deduped with VQA + prompt-enhance);
     # the bundled text_encoder is the fallback when sharing is off.
     text_encoder = generic.load_text_encoder(repo_id, cls_name=Qwen3VLModel, load_config=diffusers_load_config)
