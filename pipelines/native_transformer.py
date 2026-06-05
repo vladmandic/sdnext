@@ -63,13 +63,16 @@ DEFAULT_ACCEPTABLE_MISSING: tuple[str, ...] = (
 class OverrideArchMismatch(Exception):
     """Raised when a user-selected UNET/DiT override cannot be loaded as the
     spec's transformer class: the arch-specific converter rejects its keys, or
-    ``load_state_dict`` reports a structural mismatch (unexpected or missing
-    required keys).
+    ``load_state_dict`` reports unexpected or missing keys.
 
     :func:`pipelines.generic_transformer.load_transformer` catches this to drop
     the override and load the base repo transformer instead, so a stale or
     wrong-arch UNET selection degrades to the base model rather than crashing
     inside a converter.
+
+    A tensor shape mismatch on otherwise-matching keys is not raised as this; it
+    surfaces as the native ``load_state_dict`` error, which already names the
+    conflicting shapes, so it stays a hard load error rather than a fall back.
     """
 
 
