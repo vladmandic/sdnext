@@ -55,6 +55,8 @@ def get_model_type(pipe):
         model_type = 'f1'
     elif "ZImage" in name or "Z-Image" in name:
         model_type = 'zimage'
+    elif "Ideogram4" in name:
+        model_type = 'ideogram4'
     elif "LuminaDiMOO" in name:
         model_type = 'luminadimoo'
     elif "Lumina2" in name:
