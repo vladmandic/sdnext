@@ -97,6 +97,12 @@ def apply_curly_braces_to_prompt(prompt, seed=-1):
     if seed > 0:
         old_state = random.getstate()
         random.seed(seed)
+    prompt = prompt.strip()
+    try:
+        json.loads(prompt)
+        return prompt # this is already a json, do not process
+    except Exception:
+        pass
     try:
         pattern = re.compile(r'\{([^{}]*)\}', re.DOTALL) # innermost braces
         while True:

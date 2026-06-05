@@ -11,7 +11,6 @@ from modules.prompt_parser_xhinker import get_weighted_text_embeddings_sd15, get
 
 debug_enabled = os.environ.get('SD_PROMPT_DEBUG', None)
 debug = log.trace if debug_enabled else lambda *args, **kwargs: None
-debug('Trace: PROMPT')
 orig_encode_token_ids_to_embeddings = EmbeddingsProvider._encode_token_ids_to_embeddings # pylint: disable=protected-access
 token_dict = None # used by helper get_tokens
 token_type = None # used by helper get_tokens

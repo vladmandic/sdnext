@@ -115,6 +115,10 @@ def create_settings(cmd_opts):
         "model_ernie_enable_pe": OptionInfo(False, "Enable prompt-enhance"),
         "model_lens_sep": OptionInfo("<h2>Lens</h2>", "", gr.HTML),
         "model_lens_enable_pe": OptionInfo(False, "Enable prompt-enhance"),
+        "model_ideogram4_sep": OptionInfo("<h2>Ideogram 4</h2>", "", gr.HTML),
+        "model_ideogram4_enable_pe": OptionInfo(True, "Enable prompt-enhance"),
+        "model_ideogram4_enable_cg": OptionInfo(True, "Enable conditioning guidance"),
+        "model_ideogram4_pin": OptionInfo(False, "Pin transformers to VRAM"),
     }))
 
     # --- Model Offloading ---

@@ -160,8 +160,6 @@ def get_pipelines():
             stats_builtin += 1
     if stats_custom > 0:
         log.debug(f'Pipelines init: diffusers={stats_builtin} custom={stats_custom}')
-    else:
-        log.debug(f'Pipelines init: verified={stats_builtin}')
     return pipelines
 
 
