@@ -1,11 +1,11 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-03
+## Update for 2026-06-05
 
-### Highlights for 2026-06-03
+### Highlights for 2026-06-05
 
 *What's New?*
-- **Anima** made it to release version, Microsoft joins the game with **Lens**
+- **Ideogram-4** released, Microsoft joins the game with **Lens** and **Anima** made it to release version
 - **SDNQ** new quantization algorithm with even higher quality
 - New **image analysis** feature and much improved **prompt enhance** capabilities which allow steering the model in real-time
 - New workflows with ability to run **detailing** as post-processing on existing images  
@@ -15,7 +15,7 @@ And we have new [Home](https://vladmandic.github.io/sdnext/) page and new [Contr
 
 Plus continued work on modernization of codebase: UI is now fully TypeScript based and we have a new modular LoRA loader
 
-### Details for 2026-06-03
+### Details for 2026-06-05
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  

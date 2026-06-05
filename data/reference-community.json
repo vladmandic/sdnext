@@ -1,5 +1,5 @@
 {
-    "Tempest-by-Vlad XL": {
+  "Tempest-by-Vlad XL": {
     "path": "tempestByVlad_baseV01.safetensors@https://civitai.com/api/download/models/1301775",
     "preview": "tempestByVlad_baseV01.jpg",
     "desc": "Flexible SDXL model with custom encoder and finetuned for larger landscape resolutions with high details and high contrast.",
@@ -96,27 +96,27 @@
     "desc": "BF16 native Z-Image-Turbo Diffusers Pipeline custom int8 quantization of Moody Real Mix https://civitai.com/models/621441/moody-real-mix by https://civitai.com/user/catlover1937",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 8",
-    "size": 11.1,
+    "size": 11.08,
     "tags": "community, Z-image",
     "date": "2026 March"
   },
-    "Diving Z-Image-Turbo": {
+  "Diving Z-Image-Turbo": {
     "path": "resonantsky/DivingZImageTurbo-SDNQ-int8-svd-r32",
     "preview": "resonantsky--DivingZImageTurbo-SDNQ-int8-svd-r32.jpg",
     "desc": "BF16 native Z-Image-Turbo Diffusers Pipeline custom int8 quantization of Diving-Z-Image Turbo https://civitai.red/models/2276359/diving-z-image-turbo by https://civitai.red/user/DivingSuit",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 8",
-    "size": 11.1,
+    "size": 11.08,
     "tags": "community, Z-image",
     "date": "2026 March"
   },
-    "Unstable Revolution Z-Image-Turbo": {
+  "Unstable Revolution Z-Image-Turbo": {
     "path": "resonantsky/unstableRevolution-ZiT-SDNQ-int8-svd-r32",
     "preview": "resonantsky--unstableRevolution-ZiT-SDNQ-int8-svd-r32.jpg",
     "desc": "BF16 native Z-Image-Turbo Diffusers Pipeline custom int8 quantization of Unstable Revolution Z-Image-Turbo https://civitai.com/models/2193942/unstable-revolution-zit by https://civitai.com/user/Peli86",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 8",
-    "size": 11.1,
+    "size": 11.08,
     "tags": "community, Z-image",
     "date": "2026 March"
   },
@@ -127,7 +127,8 @@
     "desc": "Based Centerfold Flux 5, trying to merge in Chroma and Krea.",
     "extras": "",
     "tags": "community",
-    "date": "2025 September"
+    "date": "2025 September",
+    "size": 33.74
   },
   "purplesmartai Pony 7": {
     "path": "purplesmartai/pony-v7-base",
@@ -136,7 +137,8 @@
     "desc": "Pony V7 is a versatile character generation model based on AuraFlow architecture. It supports a wide range of styles and species types (humanoid, anthro, feral, and more) and handles character interactions through natural language prompts.",
     "extras": "",
     "tags": "community",
-    "date": "2025 October"
+    "date": "2025 October",
+    "size": 35.78
   },
   "ShuttleAI Shuttle 3.0 Diffusion": {
     "path": "shuttleai/shuttle-3-diffusion",
@@ -144,7 +146,8 @@
     "preview": "shuttleai--shuttle-3-diffusion.jpg",
     "tags": "community",
     "date": "2024 November",
-    "skip": true
+    "skip": true,
+    "size": 33.72
   },
   "ShuttleAI Shuttle 3.1 Aesthetic": {
     "path": "shuttleai/shuttle-3.1-aesthetic",
@@ -152,7 +155,8 @@
     "preview": "shuttleai--shuttle-3.1-aesthetic.jpg",
     "tags": "community",
     "date": "2024 November",
-    "skip": true
+    "skip": true,
+    "size": 33.72
   },
   "ShuttleAI Shuttle Jaguar": {
     "path": "shuttleai/shuttle-jaguar",
@@ -160,7 +164,8 @@
     "preview": "shuttleai--shuttle-jaguar.jpg",
     "tags": "community",
     "date": "2025 January",
-    "skip": true
+    "skip": true,
+    "size": 33.72
   },
   "FireRed Image Edit 1.0": {
     "path": "FireRedTeam/FireRed-Image-Edit-1.0",
@@ -168,7 +173,8 @@
     "desc": "FireRed-Image-Edit is a general-purpose image editing model that delivers high-fidelity and consistent editing across a wide range of scenarios. FireRed is a fine-tune of Qwen-Image-Edit.",
     "tags": "community",
     "date": "2026 February",
-    "skip": true
+    "skip": true,
+    "size": 57.7
   },
   "FireRed Image Edit 1.1": {
     "path": "FireRedTeam/FireRed-Image-Edit-1.1",
@@ -176,7 +182,8 @@
     "desc": "FireRed-Image-Edit is a general-purpose image editing model that delivers high-fidelity and consistent editing across a wide range of scenarios. FireRed is a fine-tune of Qwen-Image-Edit.",
     "tags": "community",
     "date": "2026 February",
-    "skip": true
+    "skip": true,
+    "size": 57.7
   },
   "Skywork UniPic3": {
     "path": "Skywork/Unipic3",
@@ -184,7 +191,8 @@
     "desc": "UniPic3 is an image editing and multi-image composition model based. It is a fine-tune of Qwen-Image-Edit.",
     "tags": "community",
     "date": "2026 February",
-    "skip": true
+    "skip": true,
+    "size": 57.7
   },
   "Skywork/Unipic3-DMD": {
     "path": "Skywork/Unipic3-DMD",
@@ -192,6 +200,7 @@
     "desc": "UniPic3-DMD-Model is a few-step image editing and multi-image composition model trained using Distribution Matching Distillation (DMD) and is a fine-tune of Qwen-Image-Edit.",
     "tags": "community",
     "date": "2026 February",
-    "skip": true
+    "skip": true,
+    "size": 57.7
   }
 }
