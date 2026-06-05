@@ -15,6 +15,10 @@ Perform a detailed step-by-step trace of generation workflows from UI definition
 - A new parameter was added to UI or processing classes/functions and needs end-to-end validation
 - You want a pre-PR contract audit for generation flow integrity
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime guidance before proceeding.
+
 ## Required Workflow Coverage
 
 Run workflow coverage in this order to keep checks focused and complete:

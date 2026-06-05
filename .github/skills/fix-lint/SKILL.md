@@ -15,6 +15,10 @@ Run the project lint workflow in the required order, fix findings, and re-run af
 - Multiple files changed and style/static checks may have drifted
 - You need a repeatable full-lint remediation pass
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime guidance before proceeding.
+
 ## Required Environment Step
 
 Always start from repository root and activate virtual environment first:

@@ -15,6 +15,10 @@ Audit all Python scripts in `scripts/*.py` and validate that script class overri
 - A script UI was changed and runtime args no longer match
 - You want a pre-PR quality gate for script API compatibility
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime guidance before proceeding.
+
 ## Scope
 
 Primary audit scope:

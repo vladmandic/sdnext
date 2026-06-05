@@ -15,6 +15,10 @@ Use this skill to audit and update SD.Next model reference catalogs using a phas
 - Verifying category placement across `base/cloud/quant/distilled/nunchaku/community`
 - Syncing catalog entries with thumbnail files in `models/Reference`
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime guidance before proceeding.
+
 ## Catalog Files In Scope
 
 - `data/reference.json` (base)
@@ -40,7 +44,7 @@ Priority 2 - schema and formatting consistency:
 Priority 3 - assets and size backfill:
 
 - Do not overwrite real thumbnails with placeholders.
-- For `size` backfill, use `cli/hf-info.py` as the primary source of truth.
+- For `size` backfill, use `cli/hf-info.py` -> section `info` -> field `size` as the primary source of truth.
 
 ## Validation Checklist
 
@@ -76,7 +80,7 @@ Priority 3 - assets and size backfill:
 7. Size backfill checks (`size: 0`)
 - Enumerate all entries with `"size": 0` across `data/reference*.json`.
 - For each Hugging Face repo-style path (`owner/name`), run `cli/hf-info.py`.
-- Parse `data.size` from tool output when present (format is MB string, e.g. `"23933.4MB"`).
+- Parse `info.data.size` from tool output when present (format is MB string, e.g. `"23933.4MB"`).
 - Convert MB to GB using deterministic rounding: `gb = round(mb / 1024, 2)`.
 - Update only the `size` field for resolvable records; do not modify unrelated fields.
 - If `cli/hf-info.py` returns `ok: false`, missing `data.size`, or non-repo paths, leave `size` unchanged and report as unresolved.

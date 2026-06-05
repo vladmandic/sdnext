@@ -42,7 +42,7 @@ class Ideogram4Pipeline(diffusers.Ideogram4Pipeline):
                 self.text_encoder.to(devices.cpu)
 
 
-def pin_transformers_if_fit(transformer, unconditional_transformer) -> bool:
+def pin_transformers(transformer, unconditional_transformer) -> bool:
     """Keep both transformers resident under balanced offload when they fit the budget.
 
     Every denoise step runs both transformers, so balanced offload ping-pongs them across
@@ -60,7 +60,7 @@ def pin_transformers_if_fit(transformer, unconditional_transformer) -> bool:
     if fits:
         transformer.offload_never = True
         unconditional_transformer.offload_never = True
-    log.info(f'Load model: type=Ideogram4 offload=balanced transformers={size_gb:.1f} budget={budget_gb:.1f} action={"pin-resident" if fits else "offload"}')
+    log.debug(f'Load model: type=Ideogram4 offload=balanced transformers={size_gb:.1f} budget={budget_gb:.1f} action={"pin" if fits else "default"}')
     return fits
 
 
@@ -80,7 +80,7 @@ def load_ideogram4(checkpoint_info, diffusers_load_config=None):
     cls = diffusers.Ideogram4Transformer2DModel
     transformer = generic.load_transformer(repo_id, cls_name=cls, subfolder="transformer", load_config=diffusers_load_config)
     unconditional_transformer = generic.load_transformer(repo_id, cls_name=cls, subfolder="unconditional_transformer", load_config=diffusers_load_config)
-    pin_transformers_if_fit(transformer, unconditional_transformer)
+    pin_transformers(transformer, unconditional_transformer)
     # shared_te_map redirects to the shared Qwen3-VL repo (deduped with VQA + prompt-enhance);
     # the bundled text_encoder is the fallback when sharing is off. The vae, tokenizer, and
     # scheduler load from the repo via from_pretrained.

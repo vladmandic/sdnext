@@ -15,6 +15,10 @@ Audit SD.Next UI integration points where Python uses Gradio `_js=...` bindings 
 - You need to validate UI contract consistency for Gradio-bound JS methods.
 - User adds or updates extension with JavaScript code in `extensions/*/javascript`.
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime guidance before proceeding.
+
 ## Primary Files
 
 - `ui/globals.d.ts`

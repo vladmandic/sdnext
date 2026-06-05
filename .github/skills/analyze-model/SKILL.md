@@ -14,6 +14,10 @@ Given an external model URL, inspect how the model is implemented and estimate h
 - User wants effort estimation before implementation work
 - User wants to classify whether integration should reuse Diffusers, use custom Diffusers code, or require full custom implementation
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime and model integration guidance before proceeding.
+
 ## Accepted Inputs
 
 - Hugging Face model URL (preferred)

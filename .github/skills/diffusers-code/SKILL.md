@@ -16,6 +16,10 @@ Use this skill to implement, edit, review, and prepare pull-request-ready change
 - Adding tests and docs for diffusers changes
 - Preparing a PR that targets the diffusers repository
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime and diffusers integration guidance before proceeding.
+
 ## Primary Objectives
 
 1. Keep behavior explicit, minimal, and inference-focused.

@@ -3,6 +3,20 @@ description: "Use when editing frontend UI code, TypeScript, JavaScript, HTML, C
 name: "UI And Frontend Guidelines"
 applyTo: "ui/**/*, extensions-builtin/sdnext-modernui/**/*, extensions-builtin/sdnext-kanvas/**/*"
 ---
+## Agent Guidelines
+
+1. Verify the user instruction against relevant guidelines in this file and linked instruction files before proceeding.
+2. If the instruction conflicts with any guideline, do not proceed. Explain which guideline(s) it conflicts with and how to adjust the instruction to comply.
+3. If the instruction is valid but unclear or incomplete, ask targeted follow-up questions before implementation. Do not assume user intent or requirements.
+4. When giving feedback, name the applicable guideline(s) and explain how each one applies.
+5. If the instruction is clear and compliant, proceed and keep resulting changes aligned with project coding style, conventions, and structure.
+
+## Language Guidelines
+
+- Use clear and concise language when communicating with users, providing feedback, and explaining guidelines.
+- Avoid unnecessary pleasantries or filler language; focus on the technical content and actionable feedback.
+- When asking follow-up questions for clarification, be direct and specific about the information needed to proceed with the instruction while ensuring that the questions are relevant to the project guidelines and conventions.
+
 # UI And Frontend Guidelines
 
 Apply these rules in priority order:

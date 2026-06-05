@@ -29,6 +29,10 @@ Related files:
 - `modules/schedulers/**/*.py` for custom scheduler implementations
 - `modules/res4lyf/**/*.py` for Res4Lyf scheduler classes (if installed/enabled)
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime guidance before proceeding.
+
 ## What "Loaded And Compiled" Means
 
 Treat this as a two-level check:

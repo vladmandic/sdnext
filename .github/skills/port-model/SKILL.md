@@ -16,6 +16,10 @@ Read the task, identify the model architecture and artifact layout, choose the i
 - A model already exists in Diffusers but is not yet wired into SD.Next
 - A custom architecture needs a repo-local `pipelines/<model>` package and loader
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime and model porting guidance before proceeding.
+
 ## Core Rule
 
 Prefer the smallest correct integration path.

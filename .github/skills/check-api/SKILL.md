@@ -15,6 +15,10 @@ Read modules/api/api.py, enumerate all registered endpoints, and validate that e
 - OpenAPI docs look wrong or clients report schema mismatches
 - You need a pre-PR API contract sanity pass
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime and API guidance before proceeding.
+
 ## Primary File
 
 - `modules/api/api.py`

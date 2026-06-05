@@ -15,6 +15,10 @@ Run a consolidated model-integration audit that combines loader checks, detect/r
 - A custom pipeline was ported and needs contract validation
 - You want a pre-PR integration quality gate for model-related changes
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime and model integration guidance before proceeding.
+
 ## Combined Scope
 
 This skill combines four audit surfaces. Run them in this order unless user scope limits categories:

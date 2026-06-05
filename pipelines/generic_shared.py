@@ -1,6 +1,5 @@
 import os
 import transformers
-from transformers.models.qwen3_vl import Qwen3VLModel
 
 
 shared_te_map = {
@@ -98,7 +97,7 @@ shared_te_map = {
     },
 
     'Qwen3-VL 8B Base': {
-        'cls': Qwen3VLModel,
+        'cls': transformers.Qwen3VLModel,
         'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
     },
 }

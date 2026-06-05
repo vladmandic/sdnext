@@ -17,6 +17,10 @@ This skill targets SD.Next repo-local pipeline ports only.
 - The task requires preserving generation behavior without introducing new dependencies
 - The task requires removing hard-coded runtime assumptions (device or attention backend)
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime and pipeline integration guidance before proceeding.
+
 ## Mandatory Clarification Gate
 
 Before implementation, confirm these required inputs with the user:

@@ -17,6 +17,10 @@ Read the error, identify which integration layer is failing, isolate the smalles
 - Sampling fails due to tensor shape, dtype, device, or scheduler issues
 - The model loads but outputs corrupted images, wrong output type, or obviously incorrect results
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime and model debugging guidance before proceeding.
+
 ## Debugging Order
 
 Always debug from the outside in.
