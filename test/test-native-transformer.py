@@ -710,6 +710,32 @@ def test_build_component_converter_crash_raises_mismatch():
         assert isinstance(e.__cause__, IndexError), 'original error must be chained'
 
 
+def test_build_component_shape_mismatch_is_hard_error():
+    """A tensor shape mismatch on otherwise-matching keys stays a hard
+    RuntimeError (the native size-mismatch message), it is NOT converted to
+    OverrideArchMismatch and so does not silently fall back to base."""
+    # MockMiniTransformer(dim=8) expects (8, 8) projections; feed (4, 4).
+    sd = {
+        'in_proj.weight': torch.randn(4, 4), 'in_proj.bias': torch.zeros(4),
+        'out_proj.weight': torch.randn(4, 4), 'out_proj.bias': torch.zeros(4),
+    }
+    orig_display = nt.errors.display
+    nt.errors.display = lambda *a, **k: None  # silence the expected traceback dump
+    try:
+        nt.build_component(
+            component_name='transformer', state_dict=sd, config={'dim': 8},
+            cls=MockMiniTransformer, converter=None, acceptable_missing=(),
+            quant_args={}, quant_type=None,
+        )
+        raise AssertionError('expected RuntimeError')
+    except nt.OverrideArchMismatch:
+        raise AssertionError('shape mismatch must not be OverrideArchMismatch') from None
+    except RuntimeError as e:
+        assert 'size mismatch' in str(e).lower()
+    finally:
+        nt.errors.display = orig_display
+
+
 def test_load_converter_crash_raises_mismatch():
     """End-to-end: a crashing converter surfaces from load() as
     OverrideArchMismatch so load_transformer can drop the override."""
@@ -834,6 +860,7 @@ def run_all():
         test_load_raises_on_missing_sibling_class,
         test_load_rejects_non_safetensors,
         test_build_component_converter_crash_raises_mismatch,
+        test_build_component_shape_mismatch_is_hard_error,
         test_load_converter_crash_raises_mismatch,
     ]:
         run_test(cat, fn)
