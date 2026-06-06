@@ -162,7 +162,7 @@ def create_settings(cmd_opts):
         "sdnq_hadamard_group_size": OptionInfo(128, "Hadamard group size", gr.Slider, {"minimum": 4, "maximum": 4096, "step": 1}),
         "sdnq_svd_rank": OptionInfo(32, "SVD rank size", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
         "sdnq_svd_steps": OptionInfo(8, "SVD steps", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1}),
-        "sdnq_dynamic_loss_threshold": OptionInfo(-1e-8, "Dynamic loss threshold", gr.Slider, {"minimum": -1e-8, "maximum": 1e-1, "step": 1e-8}),
+        "sdnq_dynamic_loss_threshold": OptionInfo(-1, "Dynamic loss threshold", gr.Slider, {"minimum": -1, "maximum": 0.1, "step": 1e-4}),
         "sdnq_use_svd": OptionInfo(False, "Use SVD quantization", gr.Checkbox),
         "sdnq_use_hadamard": OptionInfo(False, "Use Hadamard rotations", gr.Checkbox),
         "sdnq_use_dynamic_quantization": OptionInfo(False, "Use Dynamic quantization", gr.Checkbox),

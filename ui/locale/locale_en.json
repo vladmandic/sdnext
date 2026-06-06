@@ -392,7 +392,7 @@
     {"id":"","label":"Diffusers load using Run:ai streamer","localized":"","hint":"","ui":"settings_sd"},
     {"id":"","label":"Disable accelerate","localized":"","hint":"","ui":"settings_sd"},
     {"id":"","label":"Disable T5 text encoder","localized":"","hint":"","ui":"settings_model_options"},
-    {"id":"","label":"Dynamic loss threshold","localized":"","hint":"","ui":"settings_quantization"},
+    {"id":"","label":"Dynamic loss threshold","localized":"","hint":"Target per-layer quantization error (normalized MSE) for dynamic quantization. Each layer starts at the base <b><i>Quantization type</i></b> and steps up to higher precision until its error falls at or below this value.<br>Lower values keep more layers at higher precision for a larger, more accurate model; higher values let more layers stay at the base type for a smaller one.<br><br>Only takes effect when <b><i>Use Dynamic quantization</i></b> is enabled.<br><br><b>-1</b> auto-selects a threshold from the base type, about <b>1e-4</b> for 8-bit or <b>1e-2</b> for 4-bit.<br><b>0</b> accepts only layers that quantize losslessly, which on a normal model leaves almost everything at full precision.<br><br>Default is <b>-1</b>.","ui":"settings_quantization"},
     {"id":"","label":"Dequantize using torch.compile","localized":"","hint":"","ui":"settings_quantization"},
     {"id":"","label":"Dequantize using full precision","localized":"","hint":"","ui":"settings_quantization"},
     {"id":"","label":"Disabled","localized":"","hint":"","ui":"settings_cuda"},
