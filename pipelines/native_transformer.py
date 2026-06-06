@@ -60,6 +60,22 @@ DEFAULT_ACCEPTABLE_MISSING: tuple[str, ...] = (
 )
 
 
+class OverrideArchMismatch(Exception):
+    """Raised when a user-selected UNET/DiT override cannot be loaded as the
+    spec's transformer class: the arch-specific converter rejects its keys, or
+    ``load_state_dict`` reports unexpected or missing keys.
+
+    :func:`pipelines.generic_transformer.load_transformer` catches this to drop
+    the override and load the base repo transformer instead, so a stale or
+    wrong-arch UNET selection degrades to the base model rather than crashing
+    inside a converter.
+
+    A tensor shape mismatch on otherwise-matching keys is not raised as this; it
+    surfaces as the native ``load_state_dict`` error, which already names the
+    conflicting shapes, so it stays a hard load error rather than a fall back.
+    """
+
+
 @dataclass(frozen=True)
 class SiblingSpec:
     """Describes a non-transformer component that may ship inline in the same
@@ -507,7 +523,14 @@ def build_component(
     try:
         if converter is not None:
             log.debug(f'Load model: native_transformer {component_name} converter={converter.__name__} keys={len(state_dict)}')
-            sd = converter(state_dict)
+            try:
+                sd = converter(state_dict)
+            except Exception as e:
+                raise OverrideArchMismatch(
+                    f"Load model: type={cls.__name__} native_transformer converter "
+                    f"{converter.__name__} rejected the override ({type(e).__name__}: {e}); "
+                    f"file does not look like a {cls.__name__} checkpoint"
+                ) from e
         else:
             sd = state_dict
 
@@ -535,6 +558,8 @@ def build_component(
         target_dtype = dtype if dtype is not None else devices.dtype
         log.debug(f'Load model: native_transformer {component_name} cast dtype={target_dtype}')
         component = component.to(dtype=target_dtype)
+    except OverrideArchMismatch:
+        raise
     except Exception as e:
         log.error(f"Load model: native_transformer {component_name} load failed: {e}")
         errors.display(e, "Load")
@@ -565,13 +590,14 @@ def validate_state_dict_load(
     unexpected: list[str],
     acceptable_missing: tuple[str, ...],
 ) -> None:
-    """Raise ValueError if load_state_dict produced unexpected keys or
-    non-acceptable missing keys. Buffer-only missing keys matching the
+    """Raise :class:`OverrideArchMismatch` if load_state_dict produced
+    unexpected keys or non-acceptable missing keys, which means the override's
+    weights do not fit the target class. Buffer-only missing keys matching the
     ``acceptable_missing`` prefix list are logged at debug level and ignored.
     """
     if unexpected:
         sample = ", ".join(unexpected[:5])
-        raise ValueError(
+        raise OverrideArchMismatch(
             f"Load model: native_transformer {component_name} has {len(unexpected)} "
             f"unexpected keys (sample: {sample})"
         )
@@ -580,7 +606,7 @@ def validate_state_dict_load(
     ]
     if hard_missing:
         sample = ", ".join(hard_missing[:5])
-        raise ValueError(
+        raise OverrideArchMismatch(
             f"Load model: native_transformer {component_name} missing "
             f"{len(hard_missing)} required keys (sample: {sample})"
         )

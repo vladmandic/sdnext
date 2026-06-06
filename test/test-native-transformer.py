@@ -273,8 +273,8 @@ def test_validate_rejects_unexpected():
             unexpected=['some.junk.weight'],
             acceptable_missing=(),
         )
-        raise AssertionError('expected ValueError')
-    except ValueError as e:
+        raise AssertionError('expected OverrideArchMismatch')
+    except nt.OverrideArchMismatch as e:
         assert 'unexpected' in str(e)
         assert 'some.junk.weight' in str(e)
 
@@ -287,8 +287,8 @@ def test_validate_rejects_hard_missing():
             unexpected=[],
             acceptable_missing=('rope.',),
         )
-        raise AssertionError('expected ValueError')
-    except ValueError as e:
+        raise AssertionError('expected OverrideArchMismatch')
+    except nt.OverrideArchMismatch as e:
         msg = str(e)
         assert 'missing' in msg
         assert 'layers.0.weight' in msg
@@ -684,6 +684,90 @@ def test_load_rejects_non_safetensors():
         assert '.safetensors' in str(e)
 
 
+def crashing_converter(sd):
+    """diffusers-style layer count that blows up when the block family is
+    absent, mirroring convert_chroma_..._to_diffusers on a wrong-arch file."""
+    return list(set(int(k.split('.')[1]) for k in sd if 'double_blocks.' in k))[-1]
+
+
+def test_build_component_converter_crash_raises_mismatch():
+    """A converter that crashes on wrong-arch keys is wrapped as
+    OverrideArchMismatch (chaining the original), not the raw IndexError."""
+    try:
+        nt.build_component(
+            component_name='transformer',
+            state_dict={'blocks.0.self_attn.weight': torch.zeros(2)},
+            config={'dim': 8},
+            cls=MockMiniTransformer,
+            converter=crashing_converter,
+            acceptable_missing=(),
+            quant_args={},
+            quant_type=None,
+        )
+        raise AssertionError('expected OverrideArchMismatch')
+    except nt.OverrideArchMismatch as e:
+        assert 'MockMiniTransformer' in str(e)
+        assert isinstance(e.__cause__, IndexError), 'original error must be chained'
+
+
+def test_build_component_shape_mismatch_is_hard_error():
+    """A tensor shape mismatch on otherwise-matching keys stays a hard
+    RuntimeError (the native size-mismatch message), it is NOT converted to
+    OverrideArchMismatch and so does not silently fall back to base."""
+    # MockMiniTransformer(dim=8) expects (8, 8) projections; feed (4, 4).
+    sd = {
+        'in_proj.weight': torch.randn(4, 4), 'in_proj.bias': torch.zeros(4),
+        'out_proj.weight': torch.randn(4, 4), 'out_proj.bias': torch.zeros(4),
+    }
+    orig_display = nt.errors.display
+    nt.errors.display = lambda *a, **k: None  # silence the expected traceback dump
+    try:
+        nt.build_component(
+            component_name='transformer', state_dict=sd, config={'dim': 8},
+            cls=MockMiniTransformer, converter=None, acceptable_missing=(),
+            quant_args={}, quant_type=None,
+        )
+        raise AssertionError('expected RuntimeError')
+    except nt.OverrideArchMismatch:
+        raise AssertionError('shape mismatch must not be OverrideArchMismatch') from None
+    except RuntimeError as e:
+        assert 'size mismatch' in str(e).lower()
+    finally:
+        nt.errors.display = orig_display
+
+
+def test_load_converter_crash_raises_mismatch():
+    """End-to-end: a crashing converter surfaces from load() as
+    OverrideArchMismatch so load_transformer can drop the override."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        raw = {'model.diffusion_model.blocks.0.self_attn.weight': torch.zeros(8, 8)}
+        write_fixture(raw, fd, path)
+        orig_fetch = nt.fetch_component_config
+        nt.fetch_component_config = lambda repo, sub: {'dim': 8}
+        from modules import model_quant
+        orig_get_dit = model_quant.get_dit_args
+        orig_get_qtype = model_quant.get_quant_type
+        model_quant.get_dit_args = lambda *a, **k: ({}, {})
+        model_quant.get_quant_type = lambda *a, **k: None
+        try:
+            spec = nt.TransformerSpec(cls=MockMiniTransformer, converter=crashing_converter)
+            raised = False
+            try:
+                nt.load(local_file=path, repo_id='fake/repo', spec=spec, diffusers_cfg={})
+            except nt.OverrideArchMismatch as e:
+                raised = True
+                assert 'MockMiniTransformer' in str(e)
+            assert raised, 'expected OverrideArchMismatch'
+        finally:
+            nt.fetch_component_config = orig_fetch
+            model_quant.get_dit_args = orig_get_dit
+            model_quant.get_quant_type = orig_get_qtype
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
 # ============================================================
 # Run
 # ============================================================
@@ -775,6 +859,9 @@ def run_all():
         test_load_end_to_end_with_sibling_partition,
         test_load_raises_on_missing_sibling_class,
         test_load_rejects_non_safetensors,
+        test_build_component_converter_crash_raises_mismatch,
+        test_build_component_shape_mismatch_is_hard_error,
+        test_load_converter_crash_raises_mismatch,
     ]:
         run_test(cat, fn)
 
