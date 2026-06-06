@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-05
+## Update for 2026-06-06
 
-### Highlights for 2026-06-05
+### Highlights for 2026-06-06
 
 *What's New?*
 - **Ideogram-4** released, Microsoft joins the game with **Lens** and **Anima** made it to release version
@@ -10,12 +10,16 @@
 - New **image analysis** feature and much improved **prompt enhance** capabilities which allow steering the model in real-time
 - New workflows with ability to run **detailing** as post-processing on existing images  
 - Improved image metadata options
+- Updates to [SD.Next Launcher](https://vladmandic.github.io/sdnext-docs/Launcher/) and [Enso UI](https://vladmandic.github.io/sdnext-docs/Enso/)!
 
-And we have new [Home](https://vladmandic.github.io/sdnext/) page and new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
+And we have new [Home page](https://vladmandic.github.io/sdnext/) and new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
 
-Plus continued work on modernization of codebase: UI is now fully TypeScript based and we have a new modular LoRA loader
+Plus continued work on modernization of codebase: UI is now fully TypeScript based
+And we have a new modular LoRA loader, new native Transformers loader and improved finetunes support!  
 
-### Details for 2026-06-05
+[ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-06-06
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -32,6 +36,13 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - **SDNQ** new quantization algorithm: *Hadamard Rotations*  
     much higher quality than base SDNQ, but runs slightly slower  
     still faster than SVD and can be combined together with SVD for combined benefits  
+  - **Captioning**
+    new feature: analyze existing images for prompt adherence  
+    *tip*: image analysis requires larger VLM model to produce quality output  
+    new api endpoint: `/sdapi/v1/analyze`  
+    cleanup list of predefined models, new models added and some old removed  
+    improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
+    improved system prompts  
   - **Prompt enhance** tons of features  
     cleanup list of predefined models, new models added and some old removed  
     improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
@@ -44,17 +55,12 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
     *for example*, `child` can match `kid`, `girl`, `boy`  
     and it expands the functionality with customizable semantic matching:
     *for example*, `young ...` will match before next word appears in the prompt and steer away from it towards desired choices  
-  - **Captioning**
-    new feature: analyze existing images for prompt adherence  
-    *tip*: image analysis requires larger VLM model to produce quality output  
-    new api endpoint: `/sdapi/v1/analyze`  
-    cleanup list of predefined models, new models added and some old removed  
-    improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
-    improved system prompts  
   - **Detailer** available as post-processing task for existing images  
   - **Masking** updated interface and capabilities  
     you can now also select mask type instead of focing alpha mask with all models  
   - **Gallery** add clear cache button to folder menu
+  - **Finetunes** improved support for loading model finetunes  
+    this also includes detecting compatibility and falbacks  
   - **UV** much updated `--uv` support for fast installs  
     now also supports global `uv` if present in the system  
   - **Attention Dispatcher** new attention backends dispatcher  
@@ -86,8 +92,13 @@ Plus continued work on modernization of codebase: UI is now fully TypeScript bas
   - Automated fixes using `/check-` skills
   - Automated syntax, spelling and readability improvements to `/wiki` pages
 - **Internal**
-  - massive new codebase/refactor to use native transformers loader!
-  - refactor shared components loader
+  - new native transformers loader!  
+    massive new codebase, but improves modularity and compatibility with different model architectures  
+  - new model finetunes loader!  
+    better compatibility for different finetunes and automatic detection of compatibility with base model  
+  - refactor shared components loader  
+    now takes into effect desired pre-quant precision and allows to share components between different models  
+  - new 
   - update `torch==2.12` for *CUDA, ROCm, IPEX*
   - complete refactor of `core` JavaScript codebase to TypeScript!
   - complete refactor of `modernui` JavaScript codebase to TypeScript!
