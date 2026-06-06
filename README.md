@@ -29,7 +29,7 @@ SD.Next is a state-of-the-art, open-source server application and web interface 
 ## Table of contents
 
 - [Documentation](https://vladmandic.github.io/sdnext-docs/)
-- [Features & Capabilities](#features-and-capabilities)
+- [Why SD.Next?](#why-sdnext)
 - [Screenshots](#screenshots)
 - [Supported Workflows](#supported-workflows)
 - [Supported AI Models](#supported-ai-models)
@@ -53,10 +53,10 @@ In addition to supporting all popular [workflows](#supported-workflows), a wide 
 - **Balanced Offload**: Dynamically balance CPU and GPU memory to run larger models on limited hardware
 - **Caption and Enhance** with 25+ built-in **LLM** and **VLM** models, **OpenCLiP** models, **Tagger** with **WaifuDiffusion** and **DeepDanbooru** models  
 - **Image Processing** with full image correction color-grading suite of tools  
-- [Multi-platform](https://vladmandic.github.io/sdnext-docs/nVidia/)!  
+- [Multi-platform](https://vladmandic.github.io/sdnext-docs/Platforms/)!  
   Platform specific auto-detection and tuning performed on install  
-- Fully **localized** to ~15 languages and with support for many [UI themes](https://vladmandic.github.io/sdnext-docs/Themes/)!
-- [Desktop](#screenshot-desktop-interface) and [Mobile](#screenshot-mobile-interface) support!  
+- Fully **Localized** to ~15 languages and with support for many [UI themes](https://vladmandic.github.io/sdnext-docs/Themes/)!
+- **Desktop** and **mobile** interfaces
 - Built in **installer** with automatic updates and dependency management  
 
 ## Screenshots

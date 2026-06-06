@@ -12,7 +12,7 @@
 - Improved image metadata options
 - Updates to [SD.Next Launcher](https://vladmandic.github.io/sdnext-docs/Launcher/) and [Enso UI](https://vladmandic.github.io/sdnext-docs/Enso/)!
 
-And we have new [Home page](https://vladmandic.github.io/sdnext/) and new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
+And we have new [Home page](https://vladmandic.github.io/sdnext/) with heavily updated [Docs](https://vladmandic.github.io/sdnext-docs/) and new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
 
 Plus continued work on modernization of codebase: UI is now fully TypeScript based
 And we have a new modular LoRA loader, new native Transformers loader and improved finetunes support!  
