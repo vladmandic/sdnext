@@ -61,3 +61,11 @@ def hijack_qwen3vl():
     if _original_qwen3vl_forward is None:
         _original_qwen3vl_forward = Qwen3VLForConditionalGeneration.forward
         Qwen3VLForConditionalGeneration.forward = _qwen3vl_forward
+
+
+def restore_qwen3vl():
+    # restore stock forward after enhance so the patch does not persist for other Qwen3-VL users (e.g. vqa)
+    global _original_qwen3vl_forward # pylint: disable=global-statement
+    if _original_qwen3vl_forward is not None:
+        Qwen3VLForConditionalGeneration.forward = _original_qwen3vl_forward
+        _original_qwen3vl_forward = None

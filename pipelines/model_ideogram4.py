@@ -81,7 +81,4 @@ def load_ideogram4(checkpoint_info, diffusers_load_config=None):
     del transformer, unconditional_transformer, text_encoder, prompt_enhancer_head
     devices.torch_gc(force=True, reason='load')
 
-    from pipelines.ideogram.patch_qwen import hijack_qwen3vl
-    hijack_qwen3vl()
-
     return pipe

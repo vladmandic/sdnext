@@ -232,6 +232,7 @@ class Ideogram4Pipeline(DiffusionPipeline):
         if self.prompt_enhancer_head is None:
             return prompt
         from installer import install
+        from pipelines.ideogram.patch_qwen import hijack_qwen3vl, restore_qwen3vl
         install('outlines')
         if self.prompt_enhancer is None:
             self.prompt_enhancer = build_prompt_enhancer(self.text_encoder, self.prompt_enhancer_head)
@@ -240,19 +241,23 @@ class Ideogram4Pipeline(DiffusionPipeline):
 
         log.debug(f'Encode: enhancer={self.prompt_enhancer.__class__.__name__} processor={self.caption_logits_processor.__class__.__name__} max={max_new_tokens} device={device}')
         self.prompt_enhancer.to(device)
-        caption = generate_captions(
-            self.prompt_enhancer,
-            self.tokenizer,
-            self.caption_logits_processor,
-            prompt,
-            height,
-            width,
-            temperature=temperature,
-            max_new_tokens=max_new_tokens,
-            generator=generator,
-            device=device,
-        )
-        self.prompt_enhancer.to('cpu')
+        hijack_qwen3vl()
+        try:
+            caption = generate_captions(
+                self.prompt_enhancer,
+                self.tokenizer,
+                self.caption_logits_processor,
+                prompt,
+                height,
+                width,
+                temperature=temperature,
+                max_new_tokens=max_new_tokens,
+                generator=generator,
+                device=device,
+            )
+        finally:
+            restore_qwen3vl()
+            self.prompt_enhancer.to('cpu')
         debug_prompt(f'Prompt: input="{prompt}"')
         debug_prompt(f'Prompt: enhanced="{caption}"')
         return caption
