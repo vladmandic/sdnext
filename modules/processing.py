@@ -278,7 +278,7 @@ def process_init(p: StableDiffusionProcessing):
         else:
             p.all_subseeds = [int(subseed) + x for x in range(len(p.all_prompts))]
     if reset_prompts:
-        if not hasattr(p, 'keep_prompts') and not getattr(shared.sd_model, 'keep_prompts', False):
+        if not hasattr(p, 'keep_prompts'):
             p.all_prompts, p.all_negative_prompts = shared.prompt_styles.apply_styles_to_prompts(p.all_prompts, p.all_negative_prompts, p.styles, p.all_seeds, p=p)
             p.prompts = p.all_prompts[(p.iteration * p.batch_size):((p.iteration+1) * p.batch_size)]
             p.negative_prompts = p.all_negative_prompts[(p.iteration * p.batch_size):((p.iteration+1) * p.batch_size)]
