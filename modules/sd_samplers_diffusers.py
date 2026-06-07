@@ -427,20 +427,32 @@ class DiffusionSampler:
         timesteps = [int(x) for x in timesteps if x.isdigit()]
         sched_sigma = get_override('schedulers_sigma')
         if len(timesteps) == 0:
+            sigma_applied = sched_sigma == 'default'  # 'default' is always valid; track whether a chosen method actually applies
             if 'sigma_schedule' in self.config and sched_sigma != 'default':
                 self.config['sigma_schedule'] = sched_sigma
+                sigma_applied = True
             if sched_sigma == 'default' and shared.sd_model_type in flow_models and 'use_flow_sigmas' in self.config:
                 self.config['use_flow_sigmas'] = True
             elif sched_sigma == 'betas' and 'use_beta_sigmas' in self.config:
                 self.config['use_beta_sigmas'] = True
+                sigma_applied = True
             elif sched_sigma == 'karras' and 'use_karras_sigmas' in self.config:
                 self.config['use_karras_sigmas'] = True
+                sigma_applied = True
             elif sched_sigma == 'flowmatch' and 'use_flow_sigmas' in self.config:
                 self.config['use_flow_sigmas'] = True
+                sigma_applied = True
             elif sched_sigma == 'exponential' and 'use_exponential_sigmas' in self.config:
                 self.config['use_exponential_sigmas'] = True
+                sigma_applied = True
             elif sched_sigma == 'lambdas' and 'use_lu_lambdas' in self.config:
                 self.config['use_lu_lambdas'] = True
+                sigma_applied = True
+            if not sigma_applied:
+                if debug or not shared.opts.schedulers_fallback:
+                    raise ValueError(f'Sampler: name="{name}" does not support sigma="{sched_sigma}"')
+                else:
+                    log.warning(f'Sampler: name="{name}" does not support sigma="{sched_sigma}", using default schedule')
         else:
             pass # timesteps are set using set_timesteps in set_pipeline_args
 
