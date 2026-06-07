@@ -156,9 +156,9 @@ config.update({
     'UFOGen': { },
     'BDIA DDIM': { 'clip_sample': False, 'set_alpha_to_one': True, 'steps_offset': 0, 'clip_sample_range': 1.0, 'sample_max_value': 1.0, 'timestep_spacing': 'leading', 'rescale_betas_zero_snr': False, 'thresholding': False, 'gamma': 1.0 },
 
-    'ER-SDE': { 'solver_order': 1, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True },
-    'ER-SDE 2M': { 'solver_order': 2, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True },
-    'ER-SDE 3M': { 'solver_order': 3, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True },
+    'ER-SDE': { 'solver_order': 1, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
+    'ER-SDE 2M': { 'solver_order': 2, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
+    'ER-SDE 3M': { 'solver_order': 3, 'func_type': 7, 'clip_sample': False, 'timestep_spacing': 'linspace', 'rescale_betas_zero_snr': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
     'ER-SDE FlowMatch': { 'solver_order': 1, 'func_type': 7, 'clip_sample': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
     'ER-SDE 2M FlowMatch': { 'solver_order': 2, 'func_type': 7, 'clip_sample': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
     'ER-SDE 3M FlowMatch': { 'solver_order': 3, 'func_type': 7, 'clip_sample': False, 'thresholding': False, 'lower_order_final': True, 'shift': 1, 'use_dynamic_shifting': False, 'base_shift': 0.5, 'max_shift': 1.15 },
