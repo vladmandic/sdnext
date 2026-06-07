@@ -17,9 +17,15 @@ def register_upload_store(getter_fn):
 
 def validate_sampler_name(name):
     config = sd_samplers.all_samplers_map.get(name, None)
-    if config is None:
-        raise HTTPException(status_code=404, detail="Sampler not found")
-    return name
+    if config is not None:
+        return name
+    # accept case-insensitive and alias variants, returning the canonical name so the
+    # exact-match lookup in create_sampler resolves instead of silently using the model default
+    if isinstance(name, str) and name not in ('', 'None'):
+        sampler = sd_samplers.find_sampler(name)
+        if sampler is not None:
+            return sampler.name
+    raise HTTPException(status_code=404, detail="Sampler not found")
 
 
 def decode_base64_to_image(encoding, quiet=False):

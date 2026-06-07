@@ -742,7 +742,7 @@ def create_settings(cmd_opts):
                 "schedulers_solver_order": OptionInfo(0, "Solver order (where", gr.Slider, {"minimum": 0, "maximum": 5, "step": 1, "visible": False}),
                 "schedulers_use_loworder": OptionInfo(True, "Use simplified solvers in final steps", gr.Checkbox, {"visible": False}),
                 "schedulers_prediction_type": OptionInfo("default", "Override model prediction type", gr.Radio, {"choices": ["default", "epsilon", "sample", "v_prediction", "flow_prediction"], "visible": False}),
-                "schedulers_sigma": OptionInfo("default", "Sigma algorithm", gr.Radio, {"choices": ["default", "karras", "exponential", "polyexponential"], "visible": False}),
+                "schedulers_sigma": OptionInfo("default", "Sigma algorithm", gr.Radio, {"choices": ["default", "karras", "betas", "exponential", "lambdas", "flowmatch"], "visible": False}),
                 "schedulers_beta_schedule": OptionInfo("default", "Beta schedule", gr.Dropdown, {"choices": ["default", "linear", "scaled_linear", "squaredcos_cap_v2", "sigmoid"], "visible": False}),
                 "schedulers_use_thresholding": OptionInfo(False, "Use dynamic thresholding", gr.Checkbox, {"visible": False}),
                 "schedulers_timestep_spacing": OptionInfo("default", "Timestep spacing", gr.Dropdown, {"choices": ["default", "linspace", "leading", "trailing"], "visible": False}),

@@ -302,7 +302,7 @@ ReqImg2Img = PydanticModelGenerator(
     StableDiffusionProcessingImg2Img,
     [
         {"key": "sampler_index", "type": Union[int, str], "default": 0},
-        {"key": "sampler_name", "type": str, "default": "UniPC"},
+        {"key": "sampler_name", "type": str, "default": "Default"},
         {"key": "hr_sampler_name", "type": str, "default": "Same as primary"},
         {"key": "init_images", "type": list, "default": None},
         {"key": "denoising_strength", "type": float, "default": 0.5},
