@@ -74,15 +74,14 @@ def apply_svdquant(weight: torch.FloatTensor, rank: int = 32, niter: int = 8, dt
     return weight, svd_up, svd_down
 
 
-HADAMARD_N2_MATRIX = [[1, 1], [1, -1]]
 @devices.inference_context()
 def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
     if n == 1:
         return torch.ones((1, 1), dtype=dtype, device=device)
-    H = torch.tensor(HADAMARD_N2_MATRIX, dtype=dtype, device=device)
     current_size = 2
+    H = H_N2 = torch.tensor([[1, 1], [1, -1]], dtype=dtype, device=device)
     while current_size < n:
-        H = torch.kron(H, torch.tensor(HADAMARD_N2_MATRIX, dtype=dtype, device=device))
+        H = torch.kron(H, H_N2)
         current_size *= 2
     H = H.div_(n**0.5)
     H = prepare_weight_for_matmul(H)
@@ -97,13 +96,12 @@ HADAMARD_MATRIX_CACHE = {}
 def get_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
     global HADAMARD_MATRIX_CACHE # pylint: disable=global-variable-not-assigned
     device = devices.normalize_device(device)
-    if HADAMARD_MATRIX_CACHE.get(n, None) is None:
-        HADAMARD_MATRIX_CACHE[n] = {}
-    if HADAMARD_MATRIX_CACHE[n].get(device, None) is None:
-        HADAMARD_MATRIX_CACHE[n][device] = {}
-    if HADAMARD_MATRIX_CACHE[n][device].get(dtype, None) is None:
-        HADAMARD_MATRIX_CACHE[n][device][dtype] = build_hadamard(n, dtype=dtype, device=device)
-    return HADAMARD_MATRIX_CACHE[n][device][dtype]
+    H_key = (n, device, dtype)
+    H = HADAMARD_MATRIX_CACHE.get(H_key, None)
+    if H is None:
+        H = build_hadamard(n, dtype=dtype, device=device)
+        HADAMARD_MATRIX_CACHE[H_key] = H
+    return H
 
 
 @devices.inference_context()
