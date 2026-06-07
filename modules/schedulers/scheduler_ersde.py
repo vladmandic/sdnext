@@ -219,6 +219,17 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
             sigmas = self._time_shift(mu, 1.0, sigmas)
         else:
             sigmas = self.config.shift * sigmas / (1 + (self.config.shift - 1) * sigmas)
+        # redistribute the shifted flow sigmas via the configured schedule (parity with FlowMatchEuler)
+        if self.config.use_karras_sigmas or self.config.use_exponential_sigmas or self.config.use_beta_sigmas:
+            arr = sigmas.detach().cpu().numpy()
+            n = len(arr)
+            if self.config.use_karras_sigmas:
+                arr = self._convert_to_karras(arr, n)
+            elif self.config.use_exponential_sigmas:
+                arr = self._convert_to_exponential(arr, n)
+            elif self.config.use_beta_sigmas:
+                arr = self._convert_to_beta(arr, n)
+            sigmas = torch.from_numpy(np.asarray(arr, dtype=np.float64)).to(device=sigmas.device, dtype=sigmas.dtype)
         flow_sigmas = sigmas.clamp(min=1e-8, max=1.0 - 1e-8)
         flow_alphas = torch.ones_like(flow_sigmas)
         flow_lambdas = flow_sigmas.clone()
