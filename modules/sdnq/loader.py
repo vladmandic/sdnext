@@ -4,7 +4,7 @@ import torch
 from diffusers.models.modeling_utils import ModelMixin
 
 from .common import dtype_dict, is_fp8_mm_supported, use_tensorwise_fp8_matmul, check_torch_compile, conv_types, linear_types
-from .quantizer import SDNQConfig, sdnq_post_load_quant
+from .quantizer import QuantizationMethod, SDNQConfig, sdnq_post_load_quant
 from .quant_utils import prepare_weight_for_matmul, prepare_svd_for_matmul
 from .utils import get_quant_args_from_config, check_param_name_in
 from .forward import get_forward_func
@@ -116,6 +116,8 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin | None = None, file_n
                 quantization_config = model_config.get("quantization_config", None)
                 if quantization_config is None:
                     raise ValueError(f"Cannot determine quantization_config for {model_path}, please provide quantization_config argument")
+        if not isinstance(quantization_config, SDNQConfig):
+            quantization_config = SDNQConfig.from_dict(quantization_config)
 
         if model_cls is None:
             import transformers
@@ -130,11 +132,23 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin | None = None, file_n
 
         if hasattr(model_cls, "load_config") and hasattr(model_cls, "from_config"):
             config = model_cls.load_config(model_path)
+            if hasattr(config, "quantization_config"):
+                del config.quantization_config
+            if hasattr(config, "pop"):
+                config.pop("quantization_config", None)
             model = model_cls.from_config(config)
         elif hasattr(model_cls, "_from_config"):
             config = transformers.AutoConfig.from_pretrained(model_path)
+            if hasattr(config, "quantization_config"):
+                del config.quantization_config
+            if hasattr(config, "pop"):
+                config.pop("quantization_config", None)
             model = model_cls(config)
         else:
+            if hasattr(model_config, "quantization_config"):
+                del model_config.quantization_config
+            if hasattr(model_config, "pop"):
+                model_config.pop("quantization_config", None)
             model = model_cls(**model_config)
 
         model = sdnq_post_load_quant(model, torch_dtype=dtype, add_skip_keys=False, use_dynamic_quantization=False, **get_quant_args_from_config(quantization_config))
@@ -164,6 +178,18 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin | None = None, file_n
 
     model.load_state_dict(state_dict, assign=True)
     del state_dict
+
+    model.quantization_config = quantization_config
+    model.quantization_method = QuantizationMethod.SDNQ
+    if hasattr(model, "config"):
+        try:
+            model.config.quantization_config = quantization_config
+        except Exception:
+            pass
+        try:
+            model.config["quantization_config"] = quantization_config.to_dict()
+        except Exception:
+            pass
 
     model = post_process_model(model)
     if (dtype is not None) or (dequantize_fp32 is not None) or (use_quantized_matmul is not None):
