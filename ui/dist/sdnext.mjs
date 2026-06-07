@@ -6721,7 +6721,7 @@ var require_iframeResizer = __commonJS({
         function getTargetOrigin(remoteHost) {
           return "" === remoteHost || null !== remoteHost.match(/^(about:blank|javascript:|file:\/\/)/) ? "*" : remoteHost;
         }
-        function depricate(key) {
+        function deprecate(key) {
           var splitName = key.split("Callback");
           if (splitName.length === 2) {
             var name = "on" + splitName[0].charAt(0).toUpperCase() + splitName[0].slice(1);
@@ -6740,7 +6740,7 @@ var require_iframeResizer = __commonJS({
           settings[iframeId].firstRun = true;
           settings[iframeId].remoteHost = iframe.src && iframe.src.split("/").slice(0, 3).join("/");
           checkOptions(options2);
-          Object.keys(options2).forEach(depricate, options2);
+          Object.keys(options2).forEach(deprecate, options2);
           copyOptions(options2);
           if (settings[iframeId]) {
             settings[iframeId].targetOrigin = true === settings[iframeId].checkOrigin ? getTargetOrigin(settings[iframeId].remoteHost) : "*";
@@ -6761,7 +6761,7 @@ var require_iframeResizer = __commonJS({
           setupIFrameObject();
         }
       }
-      function debouce(fn, time) {
+      function debounce(fn, time) {
         if (null === timer2) {
           timer2 = setTimeout(function() {
             timer2 = null;
@@ -6805,7 +6805,7 @@ var require_iframeResizer = __commonJS({
             "window",
             "Mutation observed: " + mutations[0].target + " " + mutations[0].type
           );
-          debouce(checkIFrames, 16);
+          debounce(checkIFrames, 16);
         }
         function createMutationObserver() {
           var target = document.querySelector("body"), config = {
@@ -6828,7 +6828,7 @@ var require_iframeResizer = __commonJS({
           sendTriggerMsg("Window " + event2, "resize");
         }
         log2("window", "Trigger event: " + event2);
-        debouce(resize, 16);
+        debounce(resize, 16);
       }
       function tabVisible() {
         function resize() {
@@ -6836,7 +6836,7 @@ var require_iframeResizer = __commonJS({
         }
         if ("hidden" !== document.visibilityState) {
           log2("document", "Trigger event: Visibility change");
-          debouce(resize, 16);
+          debounce(resize, 16);
         }
       }
       function sendTriggerMsg(eventName, event2) {
@@ -15401,12 +15401,14 @@ async function setHints() {
   let overrideData = [];
   if (localeData.finished) return;
   if (Object.keys(opts).length === 0) return;
-  const elements = [
+  const elements = [.../* @__PURE__ */ new Set([
     ...Array.from(gradioApp().querySelectorAll("button")),
     ...Array.from(gradioApp().querySelectorAll("h2")),
     ...Array.from(gradioApp().querySelectorAll("label > span")),
-    ...Array.from(gradioApp().querySelectorAll(".label-wrap > span"))
-  ];
+    ...Array.from(gradioApp().querySelectorAll(".label-wrap > span")),
+    ...Array.from(gradioApp().querySelectorAll('span[data-testid="block-info"]'))
+    // radio/checkboxgroup titles render as a bare block-info span, not under a label
+  ])];
   if (elements.length === 0) return;
   if (localeData.data.length === 0) {
     json = await getLocaleData(window.opts.ui_locale);
@@ -15447,7 +15449,7 @@ async function setHints() {
 async function applyHintToElement(el2) {
   if (!localeData.data || localeData.data.length === 0) return;
   if (!el2.textContent) return;
-  const isValidElement = el2.tagName === "BUTTON" || el2.tagName === "H2" || el2.tagName === "SPAN" && (el2.parentElement?.tagName === "LABEL" || el2.parentElement?.classList.contains("label-wrap"));
+  const isValidElement = el2.tagName === "BUTTON" || el2.tagName === "H2" || el2.tagName === "SPAN" && (el2.parentElement?.tagName === "LABEL" || el2.parentElement?.classList.contains("label-wrap") || el2.dataset.testid === "block-info");
   if (!isValidElement) return;
   let found;
   if (el2.id) found = localeData.data.find((l) => l.id && (l.id === el2.id || el2.id.endsWith(l.id)));
@@ -15475,9 +15477,10 @@ function initializeDOMObserver() {
               ...Array.from(node.querySelectorAll("button")),
               ...Array.from(node.querySelectorAll("h2")),
               ...Array.from(node.querySelectorAll("label > span")),
-              ...Array.from(node.querySelectorAll(".label-wrap > span"))
+              ...Array.from(node.querySelectorAll(".label-wrap > span")),
+              ...Array.from(node.querySelectorAll('span[data-testid="block-info"]'))
             ];
-            if (node.matches && (node.matches("button") || node.matches("h2") || node.matches("label > span") || node.matches(".label-wrap > span"))) {
+            if (node.matches && (node.matches("button") || node.matches("h2") || node.matches("label > span") || node.matches(".label-wrap > span") || node.matches('span[data-testid="block-info"]'))) {
               elements.push(node);
             }
             elements.forEach((el2) => applyHintToElement(el2));

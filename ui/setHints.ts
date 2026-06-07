@@ -255,14 +255,15 @@ async function setHint(el, entry) {
 function createLocaleJSON() {
   const excludeText = ['▼']; // add any common non-label elements to exclude
   const ecxcludeIds = ['logo_nav']; // add any specific element IDs to exclude
-  const elements = [
+  const elements = [...new Set<any>([
     ...Array.from<any>(gradioApp().querySelectorAll('button')),
     ...Array.from<any>(gradioApp().querySelectorAll('h1')),
     ...Array.from<any>(gradioApp().querySelectorAll('h2')),
     ...Array.from<any>(gradioApp().querySelectorAll('h3')),
     ...Array.from<any>(gradioApp().querySelectorAll('label > span')),
     ...Array.from<any>(gradioApp().querySelectorAll('.label-wrap > span')),
-  ];
+    ...Array.from<any>(gradioApp().querySelectorAll('span[data-testid="block-info"]')),
+  ])];
   const json = {};
   const allSeen = {};
   for (const el of elements) {
@@ -308,12 +309,13 @@ export async function setHints() {
   let overrideData: any[] = [];
   if (localeData.finished) return;
   if (Object.keys(opts).length === 0) return;
-  const elements = [
+  const elements = [...new Set<any>([
     ...Array.from<any>(gradioApp().querySelectorAll('button')),
     ...Array.from<any>(gradioApp().querySelectorAll('h2')),
     ...Array.from<any>(gradioApp().querySelectorAll('label > span')),
     ...Array.from<any>(gradioApp().querySelectorAll('.label-wrap > span')),
-  ];
+    ...Array.from<any>(gradioApp().querySelectorAll('span[data-testid="block-info"]')), // radio/checkboxgroup titles render as a bare block-info span, not under a label
+  ])];
   if (elements.length === 0) return;
   if (localeData.data.length === 0) {
     json = await getLocaleData(window.opts.ui_locale);
@@ -365,7 +367,7 @@ async function applyHintToElement(el) {
   // check if element matches our selector criteria
   const isValidElement = el.tagName === 'BUTTON'
     || el.tagName === 'H2'
-    || (el.tagName === 'SPAN' && (el.parentElement?.tagName === 'LABEL' || el.parentElement?.classList.contains('label-wrap')));
+    || (el.tagName === 'SPAN' && (el.parentElement?.tagName === 'LABEL' || el.parentElement?.classList.contains('label-wrap') || el.dataset.testid === 'block-info'));
   if (!isValidElement) return;
 
   let found; // find matching hint data - prefer id match for disambiguation
@@ -404,6 +406,7 @@ function initializeDOMObserver() {
               ...Array.from<any>(node.querySelectorAll('h2')),
               ...Array.from<any>(node.querySelectorAll('label > span')),
               ...Array.from<any>(node.querySelectorAll('.label-wrap > span')),
+              ...Array.from<any>(node.querySelectorAll('span[data-testid="block-info"]')),
             ];
 
             // Include the node itself if it matches
@@ -412,6 +415,7 @@ function initializeDOMObserver() {
               || node.matches('h2')
               || node.matches('label > span')
               || node.matches('.label-wrap > span')
+              || node.matches('span[data-testid="block-info"]')
             )) {
               elements.push(node);
             }
