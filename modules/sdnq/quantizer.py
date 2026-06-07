@@ -469,7 +469,18 @@ def sdnq_post_load_quant(
     quantization_device: torch.device | None = None,
     return_device: torch.device | None = None,
     torch_dtype: torch.dtype | None = None,
+    pre_quantized: bool = False,
 ):
+    if pre_quantized:
+        add_skip_keys = False
+        use_dynamic_quantization = False
+    elif (
+        hasattr(model, "quantization_config")
+        or (hasattr(model, "config") and hasattr(model.config, "quantization_config"))
+        or (hasattr(model, "config") and isinstance(model.config, dict) and "quantization_config" in model.config)
+    ):
+        raise RuntimeError("Quantizing a pre-quantized model is not supported!")
+
     quantization_config = SDNQConfig(
         weights_dtype=weights_dtype,
         quantized_matmul_dtype=quantized_matmul_dtype,
@@ -669,7 +680,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
             self.quantization_config.add_skip_keys = False
 
             with init_empty_weights():
-                model = sdnq_post_load_quant(model, torch_dtype=self.torch_dtype, add_skip_keys=False, use_dynamic_quantization=False, **get_quant_args_from_config(self.quantization_config))
+                model = sdnq_post_load_quant(model, torch_dtype=self.torch_dtype, pre_quantized=True, **get_quant_args_from_config(self.quantization_config))
 
         if self.quantization_config.add_skip_keys:
             if keep_in_fp32_modules is not None:
