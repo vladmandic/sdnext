@@ -31,7 +31,7 @@ SD.Next is a powerful, open-source WebUI app for AI image and video generation, 
 ### Screenshot: Desktop interface
 
 <div align="center">
-<img src="https://github.com/vladmandic/sdnext/raw/dev/html/screenshot-robot.jpg" alt="SD.Next: AI art generator desktop interface screenshot" width="90%">
+<img src="https://raw.githubusercontent.com/vladmandic/sdnext/dev/ui/assets/screenshot-robot.jpg" alt="SD.Next: AI art generator desktop interface screenshot" width="90%">
 </div>
 
 ### Screenshot: Mobile interface
