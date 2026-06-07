@@ -356,6 +356,14 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     from modules.sdnq import sdnq_post_load_quant
     from modules.sdnq.common import use_torch_compile as sdnq_use_torch_compile
 
+    if (
+        hasattr(model, "quantization_config")
+        or (hasattr(model, "config") and hasattr(model.config, "quantization_config"))
+        or (hasattr(model, "config") and isinstance(model.config, dict) and "quantization_config" in model.config)
+    ):
+        log.warning(f'Quantization: Trying to quantize a pre-quantized model. Skipping quantization of module="{op if op is not None else model.__class__}"')
+        return model
+
     if shared.opts.sdnq_use_quantized_matmul and not sdnq_use_torch_compile:
         log.warning('SDNQ Quantized MatMul requires a working Triton install. Disabling Quantized MatMul.')
         shared.opts.sdnq_use_quantized_matmul = False
