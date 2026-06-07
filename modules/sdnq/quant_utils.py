@@ -24,7 +24,7 @@ def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: int | list[in
 @devices.inference_context()
 def quantize_weight(weight: torch.FloatTensor, reduction_axes: int | list[int], weights_dtype: str, dtype: torch.dtype = None, use_stochastic_rounding: bool = False) -> tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
     if weight.dtype != torch.float64:
-        weight = weight.to(dtype=torch.float32)
+        weight = weight.to(dtype=torch.float32, copy=False)
 
     if dtype_dict[weights_dtype]["is_unsigned"]:
         scale, zero_point = get_scale_asymmetric(weight, reduction_axes, weights_dtype)

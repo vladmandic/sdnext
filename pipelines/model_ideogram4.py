@@ -40,6 +40,7 @@ def load_ideogram4(checkpoint_info, diffusers_load_config=None):
         return None
 
     transformer_cls = diffusers.Ideogram4Transformer2DModel
+
     transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, subfolder="transformer", load_config=diffusers_load_config)
     if shared.opts.model_ideogram4_enable_cg:
         unconditional_transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, subfolder="unconditional_transformer", load_config=diffusers_load_config)

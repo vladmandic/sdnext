@@ -1,7 +1,7 @@
 import os
 import json
 import transformers
-from modules import shared, devices, errors, sd_models, model_quant
+from modules import shared, devices, errors, sd_models, sd_offload, model_quant
 from modules.logger import log
 from pipelines.generic_util import get_loader
 from pipelines.generic_shared import shared_te_map
@@ -141,4 +141,10 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
 
     devices.torch_gc()
     shared.state.end(jobid)
+
+    if text_encoder is not None:
+        module_size, param_num = sd_offload.get_module_size(text_encoder)
+        module_memory = sd_offload.get_module_memory(text_encoder)
+        log.debug(f'Load model: text_encoder="{repo_id}" quant="{quant_type}" size={module_size:.3f} params={param_num:.3f} memory={module_memory}')
+
     return text_encoder

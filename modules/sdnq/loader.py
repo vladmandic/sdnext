@@ -146,7 +146,7 @@ def load_sdnq_model(model_path: str, model_cls: ModelMixin | None = None, file_n
         files.append(os.path.join(model_path, file_name))
     else:
         all_files = os.listdir(model_path)
-        files = sorted([os.path.join(model_path, f) for f in all_files if f.endswith(".safetensors")])
+        files = sorted([os.path.join(model_path, f) for f in all_files if f.endswith(".safetensors")]) # pylint: disable=not-an-iterable
 
     state_dict = load_files(files, key_mapping=key_mapping, device=device, method=load_method)
 

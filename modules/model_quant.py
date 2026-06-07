@@ -492,8 +492,7 @@ def get_dit_args(load_config: dict | None = None, module: str | None = None, dev
     config = {} if load_config is None else load_config.copy()
     if 'torch_dtype' not in config:
         config['torch_dtype'] = devices.dtype
-    if 'low_cpu_mem_usage' in config:
-        del config['low_cpu_mem_usage']
+    low_cpu = config.get('low_cpu_mem_usage', False)
     if 'load_connected_pipeline' in config:
         del config['load_connected_pipeline']
     if 'safety_checker' in config:
@@ -509,6 +508,9 @@ def get_dit_args(load_config: dict | None = None, module: str | None = None, dev
             config['device_map'] = 'cpu'
         elif shared.opts.device_map == 'gpu':
             config['device_map'] = devices.device
+        elif low_cpu and module in {'Model', 'TE', 'LLM'}:
+            # Quantized transformer/text encoder loads should default to cpu device_map when low_cpu_mem_usage is requested to avoid full in-memory checkpoint expansion
+            config['device_map'] = 'cpu'
     if allow_quant:
         quant_args = create_config(module=module, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
     else:

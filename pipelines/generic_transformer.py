@@ -1,5 +1,5 @@
 import os
-from modules import shared, devices, errors, sd_models, model_quant
+from modules import shared, devices, errors, sd_models, sd_offload, model_quant
 from modules.logger import log
 from pipelines.generic_util import get_loader
 
@@ -34,7 +34,7 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
 
         def load_from_repo():
             nonlocal quant_args
-            log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} quant="{quant_type}" loader={get_loader("diffusers")} args={load_args}')
+            log.debug(f'Load model: transformer="{repo_id}" cls={cls_name.__name__} subfolder={subfolder} loader={get_loader("diffusers")} args={load_args}')
             if 'sdnq-' in repo_id.lower():
                 quant_args = {}
             if dtype is not None:
@@ -127,4 +127,10 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
 
     devices.torch_gc()
     shared.state.end(jobid)
+
+    if transformer is not None:
+        module_size, param_num = sd_offload.get_module_size(transformer)
+        module_memory = sd_offload.get_module_memory(transformer)
+        log.debug(f'Load model: transformer="{repo_id}" quant="{quant_type}" size={module_size:.3f} params={param_num:.3f} memory={module_memory}')
+
     return transformer

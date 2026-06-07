@@ -3,6 +3,7 @@ import re
 import sys
 import time
 import inspect
+import itertools
 import torch
 import accelerate.hooks
 import accelerate.utils.modeling
@@ -365,6 +366,43 @@ def get_module_names(pipe=None, exclude=None):
     return modules_names
 
 
+def get_module_memory(module: torch.nn.Module) -> dict[str, float]:
+    tensors = list(itertools.chain(module.parameters(), module.buffers()))
+    logical_gib = sum(tensor.numel() * tensor.element_size() for tensor in tensors) / 1024**3
+    storages = {}
+    for tensor in tensors:
+        try:
+            storage = tensor.untyped_storage()
+        except (AttributeError, RuntimeError):
+            continue
+        storages[(storage.data_ptr(), storage.nbytes())] = storage.nbytes()
+    storage_gib = sum(storages.values()) / 1024**3
+    return {
+        "logical": round(logical_gib, 3),
+        "storage": round(storage_gib, 3),
+        "overhead": round(storage_gib - logical_gib, 3),
+        "tensors": len(tensors),
+        "storages": len(storages),
+    }
+
+
+def get_module_size(module: torch.nn.Module) -> tuple[float, float]:
+    module_size = 0
+    param_num = 0
+    if not isinstance(module, torch.nn.Module):
+        return 0, 0
+    try:
+        # module_size = sum(p.numel() * p.element_size() for p in module.parameters(recurse=True)) / 1024 / 1024 / 1024
+        tensors = set(itertools.chain(module.parameters(recurse=True), module.buffers(recurse=True)))
+        module_size = sum(t.numel() * t.element_size() for t in tensors) / 1024**3
+        param_num = sum(p.numel() for p in module.parameters(recurse=True)) / 1024 / 1024 / 1024
+    except Exception as e:
+        log.error(f'Offload: type=balanced op=calc module={module.__class__.__name__} {e}')
+        module_size = 0
+        param_num = 0
+    return module_size, param_num
+
+
 def get_module_sizes(pipe=None, exclude=None):
     if exclude is None:
         exclude = []
@@ -373,14 +411,7 @@ def get_module_sizes(pipe=None, exclude=None):
         module_size = offload_hook_instance.offload_map.get(module_name, None)
         if module_size is None:
             module = getattr(pipe, module_name, None)
-            if not isinstance(module, torch.nn.Module):
-                continue
-            try:
-                module_size = sum(p.numel() * p.element_size() for p in module.parameters(recurse=True)) / 1024 / 1024 / 1024
-                param_num = sum(p.numel() for p in module.parameters(recurse=True)) / 1024 / 1024 / 1024
-            except Exception as e:
-                log.error(f'Offload: type=balanced op=calc module={module_name} {e}')
-                module_size = 0
+            module_size, param_num = get_module_size(module)
             offload_hook_instance.offload_map[module_name] = module_size
             offload_hook_instance.param_map[module_name] = param_num
         modules[module_name] = module_size
