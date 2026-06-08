@@ -1968,6 +1968,7 @@ class LuminaDiMOOPipeline(DiffusionPipeline):
         torch_dtype: Optional[torch.dtype] = torch.bfloat16,
         device_map: Optional[str] = "auto",
         low_cpu_mem_usage: bool = True,
+        cache_dir: Optional[str] = None,
     ):
         super().__init__()
         self.register_modules(
@@ -1998,6 +1999,7 @@ class LuminaDiMOOPipeline(DiffusionPipeline):
             device_map=device_map,
             low_cpu_mem_usage=low_cpu_mem_usage,
             use_safetensors=True,
+            cache_dir=cache_dir,
         )
 
     @staticmethod

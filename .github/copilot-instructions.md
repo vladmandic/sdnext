@@ -90,6 +90,10 @@ Use these repo-local skills for recurring SD.Next model integration work:
   File: `.github/skills/check-api/SKILL.md`  
   Use when auditing API routes in `modules/api/api.py` and validating endpoint parameters plus request/response signatures.
 
+- `check-paths`  
+  File: `.github/skills/check-paths/SKILL.md`  
+  Use when auditing model-loading calls to verify `cache_dir` routing for `from_pretrained` and `from_single_file`.
+
 - `check-schedulers`  
   File: `.github/skills/check-schedulers/SKILL.md`  
   Use when auditing scheduler registrations in `modules/sd_samplers_diffusers.py` for class loadability, config validity, and `SamplerData` mapping correctness.

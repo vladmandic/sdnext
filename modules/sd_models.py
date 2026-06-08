@@ -321,7 +321,8 @@ def load_diffuser_initial(diffusers_load_config: dict, op='model'):
         model_file = modelloader.download_diffusers_model(hub_id=model_name, variant=diffusers_load_config.get('variant', None))
         try:
             log.debug(f'Load {op}: config={diffusers_load_config}')
-            sd_model = diffusers.DiffusionPipeline.from_pretrained(model_file, **diffusers_load_config)
+            diffusers_load_config.pop('cache_dir', None)
+            sd_model = diffusers.DiffusionPipeline.from_pretrained(model_file, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
         except Exception as e:
             log.error(f'Failed loading model: {model_file} {e}')
             errors.display(e, f'Load {op}: path="{model_file}"')
@@ -674,13 +675,13 @@ def load_diffuser_file(model_type: str, pipeline, checkpoint_info: CheckpointInf
         elif hasattr(pipeline, 'from_single_file'):
             diffusers.loaders.single_file_utils.CHECKPOINT_KEY_NAMES["clip"] = "cond_stage_model.transformer.text_model.embeddings.position_embedding.weight" # patch for diffusers==0.28.0
             diffusers_load_config['use_safetensors'] = True
-            diffusers_load_config['cache_dir'] = shared.opts.hfcache_dir # use hfcache instead of diffusers dir as this is for config only in case of single-file
+            diffusers_load_config.pop('cache_dir', None)
             if shared.opts.stream_load:
                 diffusers_load_config['disable_mmap'] = True
             if shared.opts.disable_accelerate:
                 from diffusers.utils import import_utils
                 import_utils._accelerate_available = False # pylint: disable=protected-access
-            sd_model = pipeline.from_single_file(checkpoint_info.path, **diffusers_load_config)
+            sd_model = pipeline.from_single_file(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
             # sd_model = patch_diffuser_config(sd_model, checkpoint_info.path)
         elif hasattr(pipeline, 'from_ckpt'):
             diffusers_load_config['cache_dir'] = shared.opts.hfcache_dir
@@ -1404,11 +1405,11 @@ def reload_text_encoder(initial=False):
     elif len(t5) > 0:
         from modules.model_te import set_t5
         log.debug(f'Load module: type=t5 path="{shared.opts.sd_text_encoder}" module="{t5[0]}"')
-        set_t5(pipe=shared.sd_model, module=t5[0], t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.diffusers_dir)
+        set_t5(pipe=shared.sd_model, module=t5[0], t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.hfcache_dir)
     elif hasattr(shared.sd_model, 'text_encoder_3'):
         from modules.model_te import set_t5
         log.debug(f'Load module: type=t5 path="{shared.opts.sd_text_encoder}" module="text_encoder_3"')
-        set_t5(pipe=shared.sd_model, module='text_encoder_3', t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.diffusers_dir)
+        set_t5(pipe=shared.sd_model, module='text_encoder_3', t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.hfcache_dir)
     clear_caches(full=True)
     apply_balanced_offload(shared.sd_model)
 

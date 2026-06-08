@@ -15,9 +15,13 @@ def init_quants(kwargs, repo_id, cache_dir):
         kwargs['transformer'] = nunchaku.NunchakuSanaTransformer2DModel.from_pretrained(nunchaku_repo, torch_dtype=devices.dtype, cache_dir=cache_dir)
     elif model_quant.check_quant('Model'):
         load_args, quant_args = model_quant.get_dit_args(kwargs_copy, module='Model')
+        load_args.pop('cache_dir', None)
+        quant_args.pop('cache_dir', None)
         kwargs['transformer'] = diffusers.SanaTransformer2DModel.from_pretrained(repo_id, subfolder="transformer", cache_dir=cache_dir, **load_args, **quant_args)
     if model_quant.check_quant('TE'):
         load_args, quant_args = model_quant.get_dit_args(kwargs_copy, module='TE')
+        load_args.pop('cache_dir', None)
+        quant_args.pop('cache_dir', None)
         kwargs['text_encoder'] = transformers.AutoModel.from_pretrained(repo_id, subfolder="text_encoder", cache_dir=cache_dir, **load_args, **quant_args)
     return kwargs
 
@@ -49,7 +53,7 @@ def load_sana(checkpoint_info, kwargs=None):
     if 'Sana_600M' in repo_id:
         kwargs['variant'] = 'fp16'
 
-    kwargs = init_quants(kwargs, repo_id, cache_dir=shared.opts.diffusers_dir)
+    kwargs = init_quants(kwargs, repo_id, cache_dir=shared.opts.hfcache_dir)
     log.debug(f'Load model: type=Sana repo="{repo_id}" args={list(kwargs)}')
 
     if devices.dtype == torch.bfloat16 or devices.dtype == torch.float32:

@@ -12,6 +12,7 @@ def load_ultraflux(checkpoint_info, diffusers_load_config=None):
     sd_models.hf_auth_check(checkpoint_info)
 
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
+    load_args.pop('cache_dir', None)
     log.debug(f'Load model: type=UltraFlux repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     from pipelines.ultraflux.pipeline_flux import UltraFluxPipeline
@@ -28,7 +29,7 @@ def load_ultraflux(checkpoint_info, diffusers_load_config=None):
     vae = AutoencoderUltraFluxKL.from_pretrained(
         repo_id,
         subfolder='vae',
-        cache_dir=shared.opts.diffusers_dir,
+        cache_dir=shared.opts.hfcache_dir,
         torch_dtype=devices.dtype,
     )
     pipe = UltraFluxPipeline.from_pretrained(

@@ -19,6 +19,7 @@ def init_nunchaku():
     local_path = hf_hub_download(repo_id=repo_id, filename=filename, cache_dir=shared.opts.hfcache_dir)
     transformer = nunchaku.NunchakuZImageTransformer2DModel.from_pretrained( # pylint: disable=no-member
         local_path,
+        cache_dir=shared.opts.hfcache_dir,
         torch_dtype=devices.dtype,
     )
     return transformer

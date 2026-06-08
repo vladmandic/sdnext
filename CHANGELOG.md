@@ -98,7 +98,9 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
     better compatibility for different finetunes and automatic detection of compatibility with base model  
   - refactor shared components loader  
     now takes into effect desired pre-quant precision and allows to share components between different models  
-  - new 
+  - update all model loading code to use consistent paths:  
+    `diffusers_dir` for image pipelines  
+    `hfcache_dir` for model components and auxiliary models  
   - update `torch==2.12` for *CUDA, ROCm, IPEX*
   - complete refactor of `core` JavaScript codebase to TypeScript!
   - complete refactor of `modernui` JavaScript codebase to TypeScript!
@@ -139,6 +141,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
   - `openpose` processor
   - `img2img` api default sampler
   - `sdnq` default dynamic loss value
+  - `sdnq` prequant save/load
   - `samplers` ui sigma methods
 
 ## Update for 2026-05-13

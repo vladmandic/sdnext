@@ -70,9 +70,9 @@ def load_base(override: str | None = None):
     fn = override or recipe.base
     yield msg(f'base={fn}')
     if os.path.isfile(fn):
-        pipeline = diffusers.StableDiffusionXLPipeline.from_single_file(fn, cache_dir=shared.opts.hfcache_dir, torch_dtype=recipe.dtype, add_watermarker=False)
+        pipeline = diffusers.StableDiffusionXLPipeline.from_single_file(fn, cache_dir=shared.opts.diffusers_dir, torch_dtype=recipe.dtype, add_watermarker=False)
     elif os.path.isdir(fn):
-        pipeline = diffusers.StableDiffusionXLPipeline.from_pretrained(fn, cache_dir=shared.opts.hfcache_dir, torch_dtype=recipe.dtype, add_watermarker=False)
+        pipeline = diffusers.StableDiffusionXLPipeline.from_pretrained(fn, cache_dir=shared.opts.diffusers_dir, torch_dtype=recipe.dtype, add_watermarker=False)
     else:
         yield msg('base: not found')
         return

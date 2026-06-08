@@ -19,8 +19,8 @@ model = TransformerMeissonic.from_pretrained(model_path, subfolder="transformer"
 vq_model = VQModel.from_pretrained(model_path, subfolder="vqvae", cache_dir=cache_dir)
 # text_encoder = CLIPTextModelWithProjection.from_pretrained(model_path,subfolder="text_encoder",)
 text_encoder = CLIPTextModelWithProjection.from_pretrained("laion/CLIP-ViT-H-14-laion2B-s32B-b79K", cache_dir=cache_dir)
-tokenizer = CLIPTokenizer.from_pretrained(model_path, subfolder="tokenizer")
-scheduler = MeissonicScheduler.from_pretrained(model_path, subfolder="scheduler")
+tokenizer = CLIPTokenizer.from_pretrained(model_path, subfolder="tokenizer", cache_dir=cache_dir)
+scheduler = MeissonicScheduler.from_pretrained(model_path, subfolder="scheduler", cache_dir=cache_dir)
 pipe = MeissonicPipeline(vq_model, tokenizer=tokenizer, text_encoder=text_encoder, transformer=model, scheduler=scheduler)
 pipe = pipe.to(device)
 

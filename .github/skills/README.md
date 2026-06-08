@@ -36,6 +36,10 @@ This folder contains repo-local Copilot skills for recurring SD.Next tasks.
   File: `check-ui/SKILL.md`
   Use when auditing Python-to-JavaScript UI bindings for Gradio `_js` callbacks, verifying `window` exposure and `ui/globals.d.ts` registration.
 
+- `check-paths`  
+  File: `check-paths/SKILL.md`  
+  Use when auditing model-loading calls to verify `cache_dir` routing for `from_pretrained` and `from_single_file`.
+
 - `check-scripts`
   File: `check-scripts/SKILL.md`
   Use when auditing `scripts/*.py` for correct Script overrides (`__init__`, `title`, `show`) and verifying `ui()` output compatibility with `run()` or `process()` parameters.

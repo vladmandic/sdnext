@@ -30,6 +30,7 @@ class XOmniPipeline(diffusers.DiffusionPipeline):
         log.debug(f'Load model: cls=XOmniPipeline module=tokenizer repo_id="{repo_id}"')
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
             repo_id,
+            cache_dir=shared.opts.hfcache_dir,
             use_fast=True,
         )
         log.debug(f'Load model: cls=XOmniPipeline module=transformer repo_id="{repo_id}" args={load_args}')

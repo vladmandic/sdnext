@@ -75,7 +75,7 @@ def init_prior(path, config_file="default"):
             config_file = "configs/stable-cascade/prior/config.json"
 
     log.info(f'Load UNet: name="{os.path.basename(os.path.splitext(path)[0])}" file="{path}" config="{config_file}"')
-    prior_unet = StableCascadeUNet.from_single_file(path, config=config_file, torch_dtype=devices.dtype_unet, cache_dir=shared.opts.diffusers_dir)
+    prior_unet = StableCascadeUNet.from_single_file(path, config=config_file, torch_dtype=devices.dtype_unet, cache_dir=shared.opts.hfcache_dir)
 
     if os.path.isfile(os.path.splitext(path)[0] + "_text_encoder.safetensors"): # OneTrainer
         prior_text_encoder = init_text_encoder(os.path.splitext(path)[0] + "_text_encoder.safetensors")
@@ -92,6 +92,8 @@ def load_cascade_combined(checkpoint_info, diffusers_load_config=None):
 
     if diffusers_load_config is None:
         diffusers_load_config = {}
+    diffusers_load_config = diffusers_load_config.copy()
+    diffusers_load_config.pop('cache_dir', None)
 
     diffusers_load_config.pop("vae", None)
     if 'cascade' in checkpoint_info.name.lower():
@@ -110,7 +112,7 @@ def load_cascade_combined(checkpoint_info, diffusers_load_config=None):
             decoder_folder = 'decoder'
             prior_folder = 'prior'
         if 'cascade' in checkpoint_info.name.lower():
-            decoder_unet = StableCascadeUNet.from_pretrained("stabilityai/stable-cascade", subfolder=decoder_folder, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+            decoder_unet = StableCascadeUNet.from_pretrained("stabilityai/stable-cascade", subfolder=decoder_folder, cache_dir=shared.opts.hfcache_dir, **diffusers_load_config)
             decoder = StableCascadeDecoderPipeline.from_pretrained("stabilityai/stable-cascade", cache_dir=shared.opts.diffusers_dir, decoder=decoder_unet, text_encoder=None, **diffusers_load_config)
         else:
             decoder = StableCascadeDecoderPipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, text_encoder=None, **diffusers_load_config)
@@ -119,7 +121,7 @@ def load_cascade_combined(checkpoint_info, diffusers_load_config=None):
         if shared.opts.sd_unet != "Default":
             prior_unet, prior_text_encoder = init_prior(unet_dict[shared.opts.sd_unet])
         else:
-            prior_unet = StableCascadeUNet.from_pretrained("stabilityai/stable-cascade-prior", subfolder=prior_folder, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+            prior_unet = StableCascadeUNet.from_pretrained("stabilityai/stable-cascade-prior", subfolder=prior_folder, cache_dir=shared.opts.hfcache_dir, **diffusers_load_config)
         if prior_text_encoder is not None:
             prior = StableCascadePriorPipeline.from_pretrained("stabilityai/stable-cascade-prior", cache_dir=shared.opts.diffusers_dir, prior=prior_unet, text_encoder=prior_text_encoder, image_encoder=None, feature_extractor=None, **diffusers_load_config)
         else:
