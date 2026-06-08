@@ -26,6 +26,7 @@ Primary file:
 Related files:
 
 - `modules/ui_sections.py` for scheduler UI definitions in `create_sampler_and_steps_selection` and `create_sampler_options`
+- `scripts/xyz/xyz_grid_classes.py` for mirrored scheduler UI values used by the XYZ grid scripts
 - `modules/sd_samplers_common.py` for `SamplerData` definition and sampler expectations
 - `modules/sd_samplers.py` for sampler selection flow and runtime wiring
 - `modules/schedulers/**/*.py` for custom scheduler implementations
