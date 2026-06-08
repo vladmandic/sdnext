@@ -511,18 +511,21 @@ def get_generator(p):
     if gen_device_opt == "Unset":
         generator_device = None
         generator = None
-    elif getattr(p, "generator", None) is not None:
-        generator_device = devices.cpu if gen_device_opt == "CPU" else shared.device
-        generator = p.generator
     else:
         generator_device = devices.cpu if gen_device_opt == "CPU" else shared.device
-        try:
-            p.seeds = [seed if seed != -1 else get_fixed_seed(seed) for seed in p.seeds if seed]
-            devices.randn(p.seeds[0])
-            generator = [torch.Generator(generator_device).manual_seed(s) for s in p.seeds]
-        except Exception as e:
-            log.error(f'Torch generator: seeds={p.seeds} device={generator_device} {e}')
-            generator = None
+        # Intel XPU does not support generators directly on xpu for Diffusers noise creation.
+        if generator_device is not None and str(generator_device).startswith("xpu"):
+            generator_device = devices.cpu
+        if getattr(p, "generator", None) is not None:
+            generator = p.generator
+        else:
+            try:
+                p.seeds = [seed if seed != -1 else get_fixed_seed(seed) for seed in p.seeds if seed]
+                devices.randn(p.seeds[0])
+                generator = [torch.Generator(generator_device).manual_seed(s) for s in p.seeds]
+            except Exception as e:
+                log.error(f'Torch generator: seeds={p.seeds} device={generator_device} {e}')
+                generator = None
     return generator
 
 
