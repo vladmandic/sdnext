@@ -74,6 +74,9 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
     def __init__(
             self,
             num_train_timesteps: int = 1000,
+            beta_start: float = 0.00085,
+            beta_end: float = 0.012,
+            beta_schedule: str = "linear",
             solver_order: int = 2,
             prediction_type: str = "flow_prediction",
             shift: Optional[float] = 1.0,
@@ -87,6 +90,10 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             disable_corrector: List[int] = [],
             solver_p: SchedulerMixin = None,
             use_flow_sigmas: bool = True,
+            use_beta_sigmas: Optional[bool] = False,
+            use_exponential_sigmas: Optional[bool] = False,
+            use_karras_sigmas: Optional[bool] = False,
+            rescale_betas_zero_snr: bool = False,
             timestep_spacing: str = "linspace",
             steps_offset: int = 0,
             final_sigmas_type: Optional[str] = "zero",  # "zero", "sigma_min"

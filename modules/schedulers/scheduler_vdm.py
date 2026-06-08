@@ -123,6 +123,8 @@ class VDMScheduler(SchedulerMixin, ConfigMixin):
     def __init__(
         self,
         num_train_timesteps: Optional[int] = None,
+        beta_start: float = 1e-4,
+        beta_end: float = 0.02,
         beta_schedule: str = "linear",
         clip_sample: bool = True,
         clip_sample_range: float = 2.0,
@@ -135,8 +137,8 @@ class VDMScheduler(SchedulerMixin, ConfigMixin):
         order: int = 1,
     ):
         # Hardcoded as continuous schedules in `log_snr` are fitted to these values
-        self.beta_start = 1e-4
-        self.beta_end = 0.02
+        self.beta_start = beta_start
+        self.beta_end = beta_end
         self.init_noise_sigma = 1.0
 
         # For linear beta schedule, equivalent to torch.exp(-1e-4 - 10 * t ** 2)

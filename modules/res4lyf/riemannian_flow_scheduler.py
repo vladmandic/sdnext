@@ -49,6 +49,7 @@ class RiemannianFlowScheduler(SchedulerMixin, ConfigMixin):
         use_beta_sigmas: bool = False,
         use_flow_sigmas: bool = False,
         shift: float = 1.0,
+        steps_offset: int = 0,
         use_dynamic_shifting: bool = False,
         base_shift: float = 0.5,
         max_shift: float = 1.15,
