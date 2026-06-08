@@ -186,6 +186,7 @@
   },
   "Ideogram 4": {
     "path": "CalamitousFelicitousness/Ideogram-4-bf16-Diffusers",
+    "preview": "CalamitousFelicitousness--Ideogram-4-bf16-Diffusers.jpg",
     "desc": "Ideogram 4 is Ideogram's first open-weight text-to-image model: a two 9.3B flow-matching DiTs that uses a Qwen3-VL vision-language model as its text encoder, with strong in-image text rendering. Requires structured JSON-caption prompts; prompt-enhance (on by default) rewrites a plain prompt into one.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 7.0, steps: 20, width: 1024, height: 1024",
