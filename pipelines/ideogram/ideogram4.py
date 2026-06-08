@@ -382,16 +382,17 @@ class Ideogram4Pipeline(DiffusionPipeline):
             attention_mask[b, offset:] = 1
             text_position_ids[b, offset:] = torch.arange(n)
 
-        token_ids = token_ids.to(device)
-        attention_mask = attention_mask.to(device)
-        text_position_ids = text_position_ids.to(device)
+        text_encoder_device = next(self.text_encoder.parameters()).device if len(list(self.text_encoder.parameters())) > 0 else device
+        token_ids = token_ids.to(text_encoder_device)
+        attention_mask = attention_mask.to(text_encoder_device)
+        text_position_ids = text_position_ids.to(text_encoder_device)
 
         # Concatenate the tapped activation-layer hidden states into per-token text features, zeroing padding.
         selected = self._get_text_encoder_hidden_states(
             self.text_encoder, token_ids, attention_mask, text_position_ids
         )
         text_features = torch.stack(selected, dim=0).permute(1, 2, 3, 0).reshape(batch_size, max_sequence_length, -1)
-        text_features = (text_features * attention_mask.to(text_features.dtype).unsqueeze(-1)).to(torch.float32)
+        text_features = (text_features * attention_mask.to(text_features.dtype).unsqueeze(-1)).to(torch.float32).to(device)
 
         position_ids, segment_ids, indicator = self._prepare_ids(
             text_lengths, grid_h, grid_w, max_sequence_length, device
