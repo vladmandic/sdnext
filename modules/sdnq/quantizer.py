@@ -287,7 +287,7 @@ def sdnq_quantize_layer_weight_dynamic(
             svd_up, svd_down = prepare_svd_for_matmul(svd_up, svd_down, False)
             if use_quantized_matmul:
                 svd_up_t, svd_down_t = svd_up.clone().t_(), svd_down.clone().t_()
-                svd_up_t, svd_down_t = prepare_svd_for_matmul(svd_up, svd_down, True)
+                svd_up_t, svd_down_t = prepare_svd_for_matmul(svd_up_t, svd_down_t, True)
             else:
                 svd_up_t, svd_down_t = None, None
         except Exception:

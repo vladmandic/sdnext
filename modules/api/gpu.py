@@ -21,7 +21,7 @@ def get_gpu_smi():
     if device is None:
         try:
             device = torch.cuda.get_device_name(torch.cuda.current_device())
-            log.info(f'GPU monitoring: device={device}')
+            log.info(f'GPU monitoring: device="{device}"')
         except Exception:
             device = ''
     # per vendor modules

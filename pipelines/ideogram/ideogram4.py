@@ -499,7 +499,7 @@ class Ideogram4Pipeline(DiffusionPipeline):
         width: int = 2048,
         num_inference_steps: int = 48,
         guidance_scale: float | None = None,
-        guidance_schedule: list[float] | torch.Tensor | None = (7.0,) * 45 + (3.0,) * 3,
+        guidance_schedule: list[float] | torch.Tensor | None = None,
         mu: float = 0.0,
         std: float = 1.5,
         prompt_upsampling: bool = False,

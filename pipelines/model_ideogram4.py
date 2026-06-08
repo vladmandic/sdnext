@@ -14,7 +14,9 @@ def pin_transformers(transformer, unconditional_transformer) -> bool:
     """
     if shared.opts.diffusers_offload_mode != 'balanced' or shared.gpu_memory <= 0 or not shared.opts.model_ideogram4_pin:
         return False
-    if transformer is None or unconditional_transformer is None:
+    if transformer is None or unconditional_transformer is None: # if cg is disabled we dont need to pin
+        return False
+    if id(transformer) == id(unconditional_transformer): # if we're using the same transformer for both, no need to pin
         return False
     size_gb = sum(p.numel() * p.element_size() for m in (transformer, unconditional_transformer) for p in m.parameters()) / (1024 ** 3)
     budget_gb = shared.gpu_memory * shared.opts.diffusers_offload_max_gpu_memory
@@ -57,12 +59,14 @@ def load_ideogram4(checkpoint_info, diffusers_load_config=None):
     prompt_enhancer_head = None
     if shared.opts.model_ideogram4_enable_pe:
         enhancer_repo_id = "diffusers/qwen3-vl-8b-instruct-lm-head"
+        pe_load_args, pe_quant_args = model_quant.get_dit_args(diffusers_load_config, module='TE', device_map=True)
         enhancer_cls = diffusers.Ideogram4PromptEnhancerHead
         log.debug(f'Load model: enhancer="{enhancer_repo_id}" cls={enhancer_cls.__name__}')
         prompt_enhancer_head = enhancer_cls.from_pretrained(
             enhancer_repo_id,
-            torch_dtype=devices.dtype,
-            cache_dir=shared.opts.hfcache_dir
+            cache_dir=shared.opts.hfcache_dir,
+            **pe_load_args,
+            **pe_quant_args,
         )
         components['prompt_enhancer_head'] = prompt_enhancer_head
 
