@@ -1,6 +1,6 @@
 ---
 name: check-schedulers
-description: "Run a phased scheduler audit from modules/sd_samplers_diffusers.py: verify class loadability first, then config validity against scheduler capabilities, then SamplerData correctness."
+description: "Run a phased scheduler audit from modules/sd_samplers_diffusers.py and scheduler UI definitions: verify class loadability first, then config validity against scheduler capabilities, then SamplerData correctness and UI option alignment."
 argument-hint: "Optionally focus on a scheduler subset, such as flow-matching, res4lyf, or parallel schedulers"
 ---
 
@@ -10,11 +10,12 @@ Use `modules/sd_samplers_diffusers.py` as the starting point and verify that sch
 
 ## Required Guarantees
 
-The audit must explicitly verify all three:
+The audit must explicitly verify all four:
 
 1. All scheduler classes can be loaded and compiled.
 2. All scheduler config entries are valid and match scheduler capabilities in `__init__`.
-3. All scheduler classes have valid associated `SamplerData` entries and mapping correctness.
+3. Scheduler-related UI option values are valid and consistent with the runtime scheduler path.
+4. All scheduler classes have valid associated `SamplerData` entries and mapping correctness.
 
 ## Scope
 
@@ -24,6 +25,7 @@ Primary file:
 
 Related files:
 
+- `modules/ui_sections.py` for scheduler UI definitions in `create_sampler_and_steps_selection` and `create_sampler_options`
 - `modules/sd_samplers_common.py` for `SamplerData` definition and sampler expectations
 - `modules/sd_samplers.py` for sampler selection flow and runtime wiring
 - `modules/schedulers/**/*.py` for custom scheduler implementations
@@ -62,7 +64,14 @@ Create a joined table by sampler name with:
 - config key used
 - custom scheduler category (diffusers, SD.Next custom, Res4Lyf)
 
-### 2. Validate Scheduler Class Resolution
+### 2. Validate Scheduler UI Definitions and Class Resolution
+
+Before validating runtime scheduler classes, inspect `modules/ui_sections.py` and confirm that the UI definitions for scheduler options are consistent with the later scheduler code.
+
+- verify `create_sampler_and_steps_selection` presents sampler names that exist in the sampler registry and are valid for the downstream selection flow
+- verify `create_sampler_options` option lists and values match the scheduler runtime option names and accepted values used later in code
+- verify UI displayed values such as `default`, `karras`, `betas`, `exponential`, `flowmatch`, `linspace`, `leading`, `trailing`, and checkbox option labels are consumed correctly by scheduler configuration handling
+- detect mismatches where a UI option can be selected but would later be rejected, ignored, or misrouted by scheduler code
 
 For each mapped scheduler class:
 
@@ -94,6 +103,7 @@ For each `SamplerData` entry:
 - callable builds `DiffusionSampler` with the expected scheduler class
 - mapping is not accidentally pointing to a different named preset
 - no duplicate names with conflicting class/config behavior
+- if UI sampler names are displayed in multiple contexts, verify the same name resolves to the same scheduler class and behavior across tabs
 
 Flag mismatches such as wrong display name, wrong class wired to name, or stale aliasing.
 

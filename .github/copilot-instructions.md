@@ -67,6 +67,7 @@ This file contains general guidelines for contributing to the SD.Next codebase, 
 ## File Creation
 
 - Any temporary scripts or markdown reports must be stored in `tmp/` folder
+- Any helper scripts, task execution scripts, or output capture that need temporary files should always use the repository-local `tmp/` folder
 - Any reusable test scripts must be stored in `test/` folder
 
 ## Repo-Local Skills

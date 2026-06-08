@@ -37,6 +37,7 @@ applyTo: "launch.py, webui.py, installer.py, modules/**/*.py, pipelines/**/*.py,
 - `pnpm` for managing JavaScript dependencies and scripts, with key commands defined in `package.json`.
 - `ruff` and `pylint` for Python linting, with configurations in `pyproject.toml` and executed via `pnpm ruff` and `pnpm pylint`.
 - `pre-commit` hooks which also check line-endings and other formatting issues, configured in `.pre-commit-config.yaml`.
+- When writing helper scripts or capturing temporary output/files for a task, always use the repository-local `tmp/` folder.
 
 ## Build And Test
 
