@@ -647,6 +647,8 @@ class Ideogram4Pipeline(DiffusionPipeline):
         # use the provided `guidance_schedule`, validated by `check_inputs`) and the tensor of per-step weights `gw`.
         if guidance_scale is not None:
             guidance_schedule = [float(guidance_scale)] * num_inference_steps
+        if guidance_schedule is None:
+            guidance_schedule = [7.0] * int(num_inference_steps * 0.9) + [3.0] * (num_inference_steps - int(num_inference_steps * 0.9)) # 90% of steps with 7.0, last 10% with 3.0
         gw = torch.as_tensor(guidance_schedule, dtype=torch.float32, device=device)
 
         # 6. Prepare latents in the packed (B, num_image_tokens, latent_dim) layout.

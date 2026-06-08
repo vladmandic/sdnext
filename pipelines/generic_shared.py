@@ -101,7 +101,7 @@ shared_te_map = {
     'Qwen3-VL 8B SDNQ-UInt4': {
         'cls': transformers.Qwen3VLModel,
         'identifier': 'uint4',
-        'target_repo': 'vladmandic/Ideogram-4-sdnq-uint4-hadamard',
+        'target_repo': 'Disty0/Ideogram-4-SDNQ-4bit-dynamic-hadamard',
         'target_subfolder': 'text_encoder',
     },
     'Qwen3-VL 8B Base': {

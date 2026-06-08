@@ -73,8 +73,7 @@ def _patch_scheduler_set_timesteps(scheduler_cls):
                 self,
                 timesteps,
             )
-            _assign_custom_schedule(self, num_inference_steps, timesteps_array, sigmas_array, device)
-            return
+            return _assign_custom_schedule(self, num_inference_steps, timesteps_array, sigmas_array, device)
 
         if sigmas is not None:
             if "sigmas" in set(inspect.signature(scheduler_cls.original_set_timesteps).parameters.keys()):
@@ -88,8 +87,9 @@ def _patch_scheduler_set_timesteps(scheduler_cls):
                     **kwargs,
                 )
             num_inference_steps, timesteps_array, sigmas_array = _prepare_custom_schedule_from_sigmas(self, sigmas, mu=mu)
-            _assign_custom_schedule(self, num_inference_steps, timesteps_array, sigmas_array, device)
-            return
+            return _assign_custom_schedule(self, num_inference_steps, timesteps_array, sigmas_array, device)
+
+        return None
 
     scheduler_cls.set_timesteps = set_timesteps
     _patched_schedulers.add(scheduler_cls)
@@ -152,7 +152,7 @@ def _compute_timesteps_from_sigmas(scheduler, sigmas_array: np.ndarray) -> np.nd
     base_sigmas = _get_base_sigmas(scheduler)
     log_sigmas = np.log(base_sigmas)
     if hasattr(scheduler, "_sigma_to_t"):
-        sigma_to_t = scheduler._sigma_to_t
+        sigma_to_t = scheduler._sigma_to_t # pylint: disable=protected-access
         parameters = list(inspect.signature(sigma_to_t).parameters)
         if len(parameters) == 2:
             results = []
@@ -260,8 +260,8 @@ def _assign_custom_schedule(scheduler, num_inference_steps, timesteps, sigmas, d
         scheduler.model_outputs = [None] * scheduler.config.solver_order
         scheduler.lower_order_nums = 0
 
-    scheduler._step_index = None
-    scheduler._begin_index = None
+    scheduler._step_index = None # pylint: disable=protected-access
+    scheduler._begin_index = None # pylint: disable=protected-access
     scheduler.sigmas = scheduler.sigmas.to("cpu")
 
 
