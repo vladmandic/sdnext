@@ -95,6 +95,7 @@ Special attention:
 - flow-matching schedulers: shift/base_shift/max_shift/use_dynamic_shifting
 - DPM families: algorithm_type/solver_order/solver_type/final_sigmas_type
 - compatibility-only keys that are intentionally ignored should be documented, not silently assumed
+- detect false positives from runtime config pruning such as `if 'EDM' in name` or `name in {'IPNDM', 'CMSI', 'VDM Solver'}` in `DiffusionSampler`: verify whether unsupported keys are removed intentionally before constructor invocation
 
 ### 4. Validate SamplerData Mapping Correctness
 

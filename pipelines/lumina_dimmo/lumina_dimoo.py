@@ -370,7 +370,7 @@ class LayerNormBase(nn.Module):
         elif tensor.device.type == "cpu" and torch.is_autocast_cpu_enabled():
             return tensor.to(dtype=dtype if dtype is not None else torch.get_autocast_cpu_dtype())
         else:
-           return tensor
+            return tensor
 
     def reset_parameters(self):
         if self.weight is not None:
@@ -890,7 +890,7 @@ class LLaDASequentialBlock(LLaDABlock):
         if self._activation_checkpoint_fn is not None:
             x = self._activation_checkpoint_fn(self.act, x)  # type: ignore
         else:
-           x = self.act(x)
+            x = self.act(x)
         x = self.ff_out(x)
         x = self.dropout(x)
         x = og_x + x
