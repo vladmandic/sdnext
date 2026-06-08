@@ -2,6 +2,7 @@ import os
 import re
 import sys
 import time
+import math
 import inspect
 import itertools
 import torch
@@ -493,12 +494,26 @@ def apply_balanced_offload_to_module(module, op="apply", force:bool=False):
     devices.torch_gc(fast=True, force=True, reason='offload')
 
 
+def get_logical_param_count(module: torch.nn.Module) -> int:
+    if hasattr(module, "sdnq_dequantizer"):
+        original_shape = module.sdnq_dequantizer.original_shape
+        count = math.prod(original_shape)
+        if getattr(module, "bias", None) is not None:
+            count += module.bias.numel()
+        return int(count)
+    count = sum(p.numel() for p in module.parameters(recurse=False))
+    for child in module.children():
+        count += get_logical_param_count(child)
+    return count
+
+
 def report_model_stats(module_name, module):
     try:
         size = offload_hook_instance.offload_map.get(module_name, 0)
         quant = getattr(module, "quantization_method", None)
         params = sum(p.numel() for p in module.parameters(recurse=True))
-        log.debug(f'Module: name={module_name} cls={module.__class__.__name__} size={size:.3f} params={params} quant={quant}')
+        logical = get_logical_param_count(module)
+        log.debug(f'Module: name={module_name} cls={module.__class__.__name__} size={size:.3f} params={params} logical={logical} quant={quant}')
     except Exception as e:
         log.error(f'Module stats: name={module_name} {e}')
 

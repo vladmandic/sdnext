@@ -1,6 +1,6 @@
 import diffusers
 import transformers
-from modules import shared, devices, sd_models, model_quant
+from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
 from modules.logger import log
 from pipelines import generic
 
@@ -84,6 +84,8 @@ def load_ideogram4(checkpoint_info, diffusers_load_config=None):
     }
 
     del transformer, unconditional_transformer, text_encoder, prompt_enhancer_head
+    sd_hijack_te.init_hijack(pipe)
+    sd_hijack_vae.init_hijack(pipe)
     devices.torch_gc(force=True, reason='load')
 
     return pipe

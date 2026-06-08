@@ -2,6 +2,8 @@ import os
 import transformers
 
 
+# order is first-found, so list more specific models first and more general models later
+# e.g. 9b before 4b and sdnq before base
 shared_te_map = {
     'T5-XXL SDNQ-UInt4': {
         'cls': transformers.T5EncoderModel,

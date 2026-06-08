@@ -596,7 +596,7 @@ class Ideogram4Pipeline(DiffusionPipeline):
                 height=height,
                 width=width,
                 temperature=prompt_upsampling_temperature,
-                max_new_tokens=max_sequence_length,
+                max_new_tokens=max_sequence_length - 64, # leave room for json structure tokens
                 generator=generator,
                 device=device,
             )

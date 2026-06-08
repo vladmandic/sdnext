@@ -566,7 +566,6 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             allow_post_quant = False
     except Exception as e:
         log.error(f'Load {op}: path="{checkpoint_info.path}" {e}')
-        # if debug_load:
         errors.display(e, 'Load')
         return None, True
     if sd_model is not None:
@@ -691,8 +690,6 @@ def load_diffuser_file(model_type: str, pipeline, checkpoint_info: CheckpointInf
             return None
         if shared.opts.diffusers_vae_upcast != 'default' and model_type in ['Stable Diffusion', 'Stable Diffusion XL']:
             diffusers_load_config['force_upcast'] = True if shared.opts.diffusers_vae_upcast == 'true' else False
-        # if debug_load:
-        #    log.debug(f'Model args: {diffusers_load_config}')
         if sd_model is not None:
             diffusers_load_config.pop('vae', None)
             diffusers_load_config.pop('safety_checker', None)
@@ -715,10 +712,17 @@ def load_sdnq_module(fn: str, module_name: str, load_method: str):
     quantization_config = None
     quantization_config_path = os.path.join(fn, module_name, 'quantization_config.json')
     model_config_path = os.path.join(fn, module_name, 'config.json')
+    root_quantization_config_path = os.path.join(fn, 'quantization_config.json')
     if os.path.exists(quantization_config_path):
         quantization_config = shared.readfile(quantization_config_path, silent=True, as_type="dict")
     elif os.path.exists(model_config_path):
         quantization_config = shared.readfile(model_config_path, silent=True, as_type="dict").get("quantization_config", None)
+    elif os.path.exists(root_quantization_config_path):
+        quantization_config = shared.readfile(root_quantization_config_path, silent=True, as_type="dict")
+    if debug_load:
+        log.debug(f'SDNQ: load_sdnq_module fn={fn} module={module_name} quant_path={quantization_config_path} model_config={model_config_path} root_quant={root_quantization_config_path} found={quantization_config is not None}')
+        if isinstance(quantization_config, dict):
+            log.debug(f'SDNQ: quantization_config keys={list(quantization_config.keys())}')
     if quantization_config is None:
         return None, module_name, 0
     model_name = os.path.join(fn, module_name)
@@ -754,25 +758,15 @@ def load_sdnq_model(checkpoint_info: CheckpointInfo, pipeline, diffusers_load_co
     else:
         load_method = 'safetensors'
 
+    if debug_load:
+        log.debug(f'SDNQ: load_sdnq_model path={checkpoint_info.path} method={load_method}')
     for module_name in os.listdir(checkpoint_info.path):
         module, name, t = load_sdnq_module(checkpoint_info.path, module_name, load_method=load_method)
         if module is not None:
             modules[name] = module
+            if debug_load:
+                log.debug(f'SDNQ: loaded module={name} path={os.path.join(checkpoint_info.path, module_name)} time={t:.2f}')
             log.debug(f'Load {op}: module="{checkpoint_info.name}" module="{name}" gpu={shared.opts.diffusers_to_gpu} prequant=sdnq method={load_method} time={t:.2f}')
-
-    """
-    futures = []
-    import concurrent.futures
-    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as executor:
-        for module_name in os.listdir(checkpoint_info.path):
-            future = executor.submit(load_sdnq_module, checkpoint_info.path, module_name)
-            futures.append(future)
-        for future in futures:
-            loaded_module, name, t = future.result()
-            if loaded_module is not None:
-                log.debug(f'Load module: model="{checkpoint_info.name}" module="{name}" direct={shared.opts.diffusers_to_gpu} prequant=sdnq time={t:.2f}')
-                modules[name] = loaded_module
-    """
     t1 = time.time()
     log.debug(f'Load {op}: model="{checkpoint_info.name}" modules={list(modules.keys())} prequant=sdnq time={t1-t0:.2f}')
     sd_model = pipeline.from_pretrained(
@@ -1543,6 +1537,7 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
         shard = "5GB"  # Guard against empty input
     try:
         t0 = time.time()
+        log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} start')
         save_sdnq_model(
             model=shared.sd_model,
             model_path=model_name,
