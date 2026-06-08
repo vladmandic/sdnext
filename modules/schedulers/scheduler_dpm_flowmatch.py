@@ -181,7 +181,7 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         if solver_type not in ["midpoint", "heun"]:
             raise NotImplementedError(f"{solver_type} is not implemented for {self.__class__}")
 
-        if sigma_schedule not in [None, "karras", "exponential", "lambdas", "betas"]:
+        if sigma_schedule not in [None, "karras", "exponential", "lambdas", "betas", "flowmatch"]:
             raise NotImplementedError(f"{sigma_schedule} is not implemented for {self.__class__}")
 
         if beta_schedule not in ["linear", "scaled linear"]:

@@ -5,7 +5,7 @@ import inspect
 import diffusers
 from modules import shared, errors
 from modules.logger import log
-from modules.sd_samplers_hijack import init_samplers_hijack
+from modules.sd_hijack_schedulers import init_hijack, hijack_unipc, attach_scale_noise_if_missing # pylint: disable=unused-import
 from modules.sd_samplers_common import SamplerData, flow_models
 
 
@@ -13,7 +13,8 @@ debug = os.environ.get('SD_SAMPLER_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
 scheduler_overrides = {}  # set by sd_samplers.create_sampler() before constructor call
 flow_exclude = ['PeRFlow']
-init_samplers_hijack()
+hijack_unipc()
+# init_hijack()
 
 # Diffusers schedulers
 try:
@@ -371,16 +372,17 @@ def get_sampler_capability(): # TODO enso-required
     return {}
 
 
-def get_override(key, default=None):
+def get_override(key):
     if key in scheduler_overrides:
         return scheduler_overrides[key]
-    return getattr(shared.opts, key, default)
+    return getattr(shared.opts, key, None)
 
 
 class DiffusionSampler:
     def __init__(self, name, constructor, model, **kwargs):
         if name == 'Default':
             return
+
         self.name = name
         self.config = {}
         self.sampler = None
@@ -508,31 +510,46 @@ class DiffusionSampler:
             self.sampler = None
             return
 
-        if self.config.get('prediction_type') == 'flow_prediction' and 'FlowMatch' not in constructor.__name__:
+        if (self.config.get('prediction_type') == 'flow_prediction') and ('FlowMatch' not in constructor.__name__):
             try:
                 cls_source = inspect.getsource(constructor)
                 if '"flow_prediction"' not in cls_source and "'flow_prediction'" not in cls_source:
-                    log.warning(f'Sampler: "{name}" does not support flow_prediction')
-                    self.sampler = None
-                    return
+                    if debug or not shared.opts.schedulers_fallback:
+                        raise ValueError(f'Sampler: name="{name}" does not appear to support flow_prediction')
+                    else:
+                        log.warning(f'Sampler: name="{name}" does not support flow_prediction')
+                        self.sampler = None
+                        return
             except (TypeError, OSError):
                 pass
 
         if hasattr(sampler, 'set_timesteps'):
+            # if not hasattr(sampler, "scale_noise") and hasattr(sampler, "timesteps") and hasattr(sampler, "sigmas"):
+            #     attach_scale_noise_if_missing(sampler)
+
             accept_sigmas = "sigmas" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
             accepts_timesteps = "timesteps" in set(inspect.signature(sampler.set_timesteps).parameters.keys())
             accept_scale_noise = hasattr(sampler, "scale_noise")
-            debug_log(f'Sampler: "{name}" sigmas={accept_sigmas} timesteps={accepts_timesteps}')
-            default_accept_sigmas = model is not None and hasattr(model.default_scheduler, 'set_timesteps') and "sigmas" in set(inspect.signature(model.default_scheduler.set_timesteps).parameters.keys())
-            default_accept_scale_noise = model is not None and hasattr(model.default_scheduler, "scale_noise")
+            debug_log(f'Sampler: name="{name}" sigmas={accept_sigmas} timesteps={accepts_timesteps} scale_noise={accept_scale_noise}')
+
+            default_accept_sigmas = (model is not None) and hasattr(model.default_scheduler, 'set_timesteps') and "sigmas" in set(inspect.signature(model.default_scheduler.set_timesteps).parameters.keys())
             if default_accept_sigmas and not accept_sigmas:
-                log.warning(f'Sampler: "{name}" does not accept sigmas')
-                self.sampler = None
-                return
+                if debug or not shared.opts.schedulers_fallback:
+                    raise ValueError(f'Sampler: name="{name}" does not accept sigmas')
+                else:
+                    log.warning(f'Sampler: name="{name}" does not accept sigmas')
+                    self.sampler = None
+                    return
+
+            default_accept_scale_noise = (model is not None) and hasattr(model.default_scheduler, "scale_noise")
             if default_accept_scale_noise and not accept_scale_noise:
-                log.warning(f'Sampler: "{name}" does not implement scale noise')
-                self.sampler = None
-                return
+                log.warning(f'Sampler: name="{name}" does not implement scale noise')
+                if debug or not shared.opts.schedulers_fallback:
+                    raise ValueError(f'Sampler: name="{name}" does not implement scale noise')
+                else:
+                    log.warning(f'Sampler: name="{name}" does not implement scale noise')
+                    self.sampler = None
+                    return
 
         # monkey-patch to allow sdxl pipeline to execute flowmatch samplers
         if not hasattr(sampler, 'scale_model_input'):
@@ -541,6 +558,4 @@ class DiffusionSampler:
             sampler.init_noise_sigma = 1.0
 
         self.sampler = sampler
-
-        # log.debug_log(f'Sampler: class="{self.sampler.__class__.__name__}" config={self.sampler.config}')
         self.sampler.name = name

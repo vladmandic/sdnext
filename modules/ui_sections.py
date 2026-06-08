@@ -244,6 +244,11 @@ def create_sampler_options(tabname):
         log.debug(f'Sampler set options: {sampler_options}')
         shared.opts.save(silent=True)
 
+    def set_sampler_fallback(fallback):
+        log.debug(f'Sampler set options: fallback={fallback}')
+        shared.opts.schedulers_fallback = fallback
+        shared.opts.save(silent=True)
+
     def set_sampler_timesteps(timesteps):
         log.debug(f'Sampler set options: timesteps={timesteps}')
         shared.opts.schedulers_timesteps = timesteps
@@ -323,6 +328,8 @@ def create_sampler_options(tabname):
         values += ['dynamic'] if shared.opts.data.get('schedulers_dynamic_shift', False) else []
         values += ['rescale'] if shared.opts.data.get('schedulers_rescale_betas', False) else []
         sampler_options = gr.CheckboxGroup(label='Options', elem_id=f"{tabname}_sampler_options", choices=options, value=values, type='value')
+    with gr.Row(elem_classes=['flex-break']):
+        sampler_fallback = gr.Checkbox(label='Fallback on invalid', value=shared.opts.schedulers_fallback, elem_id=f"{tabname}_sampler_fallback")
 
     sampler_sigma.change(fn=set_sampler_sigma, inputs=[sampler_sigma], outputs=[])
     sampler_spacing.change(fn=set_sampler_spacing, inputs=[sampler_spacing], outputs=[])
@@ -333,6 +340,7 @@ def create_sampler_options(tabname):
     sampler_order.change(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
     sampler_shift.change(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
     sampler_options.change(fn=set_sampler_options, inputs=[sampler_options], outputs=[])
+    sampler_fallback.change(fn=set_sampler_fallback, inputs=[sampler_fallback], outputs=[])
     sampler_sigma_adjust_val.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
     sampler_sigma_adjust_min.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
     sampler_sigma_adjust_max.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])

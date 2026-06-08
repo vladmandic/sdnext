@@ -95,7 +95,7 @@ class RiemannianFlowScheduler(SchedulerMixin, ConfigMixin):
     def set_begin_index(self, begin_index: int = 0) -> None:
         self._begin_index = begin_index
 
-    def set_timesteps(self, num_inference_steps: int, device: str | torch.device = None, mu: float | None = None, dtype: torch.dtype = torch.float32):
+    def set_timesteps(self, num_inference_steps: int | None = None, device: str | torch.device = None, timesteps: list[int] | None = None, sigmas: list[float] | None = None, mu: float | None = None, dtype: torch.dtype = torch.float32):
         from .scheduler_utils import (
             apply_shift,
             get_dynamic_shift,
@@ -103,7 +103,33 @@ class RiemannianFlowScheduler(SchedulerMixin, ConfigMixin):
             get_sigmas_exponential,
             get_sigmas_flow,
             get_sigmas_karras,
+            prepare_res4lyf_timesteps_and_sigmas,
         )
+        if timesteps is not None or sigmas is not None:
+            num_inference_steps, timesteps, sigmas = prepare_res4lyf_timesteps_and_sigmas(
+                self.config,
+                self.alphas_cumprod,
+                num_inference_steps,
+                timesteps=timesteps,
+                sigmas=sigmas,
+                device=device,
+                dtype=dtype,
+            )
+            self.num_inference_steps = num_inference_steps
+            self.timesteps = torch.from_numpy(timesteps).to(device=device, dtype=dtype)
+            self.sigmas = torch.from_numpy(sigmas).to(device=device, dtype=dtype)
+            self.init_noise_sigma = self.sigmas.max().item() if self.sigmas.numel() > 0 else 1.0
+            for attr in ("_step_index", "_begin_index", "model_outputs", "x0_outputs", "prev_sigmas", "lower_order_nums", "sample_at_start_of_step"):
+                if hasattr(self, attr):
+                    if attr in ("_step_index", "_begin_index"):
+                        setattr(self, attr, None)
+                    elif attr == "lower_order_nums":
+                        setattr(self, attr, 0)
+                    elif attr == "sample_at_start_of_step":
+                        setattr(self, attr, None)
+                    else:
+                        setattr(self, attr, [])
+            return
 
         self.num_inference_steps = num_inference_steps
         timestep_spacing = getattr(self.config, "timestep_spacing", "linspace")

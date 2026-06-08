@@ -202,11 +202,17 @@ For full details, see [ChangeLog](https://github.com/vladmandic/automatic/blob/m
   - **Ernie-Image** add native *LoRA* support, *img2img* and *inpaint* workflows
   - **Chroma** add native *LoRA* support
   - **Flux.2** add native *LoRA* support
-  - **Prompt enhance** add info to image metadata  
   - custom **VAE** loader for all pipelines  
     *note*: vae still needs to be compatible with the model  
+  - **Schedulers** new option in ui: *fallback on invalid*  
+    if you choose scheduler that is not compatible with the model and fallback is not enabled, it will raise an error,  
+    if fallback is enabled, it will try to find closest scheduler that is compatible with the model instead of just default scheduler  
+    any change of requested-vs-active is logged as warning  
+    plus add *beta start, beta end, steps offset* params to most schedulers  
+  - **Prompt enhance** add info to image metadata  
   - **CivitAI** downloaded thumbnails now include metadata  
   - **Installer** support for `git+http` style references
+  - **XYZ Grid** add option *continue on error* to allow processing to continue even if one of the grid cells fails
 - **UI**
   - **Networks** using networks to load model or auto-download a reference model will now be reflected in the UI  
   - ability to manually reorient *input/output* panels

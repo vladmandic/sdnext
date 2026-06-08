@@ -73,6 +73,7 @@ class XYZGridScript(scripts_manager.Script):
                     include_subgrids = gr.Checkbox(label='Include sub grids', value=False, elem_id=self.elem_id("include_sub_grids"), container=False)
                     include_images = gr.Checkbox(label='Include images', value=False, elem_id=self.elem_id("include_lone_images"), container=False)
                     create_video = gr.Checkbox(label='Create video', value=False, elem_id=self.elem_id("xyz_create_video"), container=False)
+                    continue_on_error = gr.Checkbox(label='Continue on error', value=False, elem_id=self.elem_id("xyz_continue_on_error"), container=False)
 
             with gr.Row(visible=False) as ui_video:
                 video_type, video_duration, video_loop, video_pad, video_interpolate = create_video_inputs(tab='img2img' if is_img2img else 'txt2img')
@@ -167,6 +168,7 @@ class XYZGridScript(scripts_manager.Script):
             include_grid, include_subgrids, include_images,
             include_time, include_text, margin_size,
             create_video, video_type, video_duration, video_loop, video_pad, video_interpolate,
+            continue_on_error,
         ]
 
     def process(self, p,
@@ -178,6 +180,7 @@ class XYZGridScript(scripts_manager.Script):
                 include_grid, include_subgrids, include_images,
                 include_time, include_text, margin_size,
                 create_video, video_type, video_duration, video_loop, video_pad, video_interpolate,
+                continue_on_error = False,
                ): # pylint: disable=W0221
         global active, xyz_results_cache # pylint: disable=W0603
         xyz_results_cache = None
@@ -337,8 +340,9 @@ class XYZGridScript(scripts_manager.Script):
 
         def cell(x, y, z, ix, iy, iz):
             if shared.state.interrupted:
-                log.warning('XYZ grid: Interrupted')
-                return processing.Processed(p, [], p.seed, ""), 0
+                if not continue_on_error:
+                    log.warning('XYZ grid: Interrupted')
+                    return processing.Processed(p, [], p.seed, ""), 0
             p.xyz = True
             pc = copy(p)
             pc.override_settings_restore_afterwards = False
