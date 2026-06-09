@@ -79,6 +79,9 @@ def ar_change(ar, width, height):
     else:
         return gr.update(), gr.update()
 
+def ar_update(_ar, width, height):
+    return width, height
+
 
 def create_resolution_inputs(tab, default_width=1024, default_height=1024):
     width = gr.Slider(minimum=64, maximum=4096, step=8, label="Width", value=default_width, elem_id=f"{tab}_width")
@@ -403,7 +406,8 @@ def create_resize_inputs(tab, images, accordion=True, latent=False, non_zero=Tru
                                 ar_list = ['AR'] + [x.strip() for x in shared.opts.aspect_ratios.split(',') if x.strip() != '']
                                 ar_dropdown = gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_resize_ar", elem_classes=["ar-dropdown"])
                                 for c in [ar_dropdown, width, height]:
-                                    c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
+                                    # c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
+                                    c.change(fn=ar_update, _js='resolutionChange', inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
                                 res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_resize_size_swap")
                                 res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress='hidden')
                                 detect_image_size_btn = ToolButton(value=ui_symbols.detect, elem_id=f"{tab}_resize_detect_size")
