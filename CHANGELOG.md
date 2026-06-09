@@ -1,16 +1,15 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-08
+## Update for 2026-06-09
 
-### Highlights for 2026-06-08
+### Highlights for 2026-06-09
 
 *What's New?*
 - **Ideogram-4** released, Microsoft joins the game with **Lens** and **Anima** made it to release version
 - **SDNQ** new quantization algorithm with even higher quality
 - New **image analysis** feature and much improved **prompt enhance** capabilities which allow steering the model in real-time
 - New workflows with ability to run **detailing** as post-processing on existing images  
-- Improved image metadata options
-- Updates to [SD.Next Launcher](https://vladmandic.github.io/sdnext-docs/Launcher/) and [Enso UI](https://vladmandic.github.io/sdnext-docs/Enso/)!
+- Updates to [Kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/), [SD.Next Launcher](https://vladmandic.github.io/sdnext-docs/Launcher/) and [Enso UI](https://vladmandic.github.io/sdnext-docs/Enso/)!
 
 And we have new [Home page](https://vladmandic.github.io/sdnext/) with heavily updated [Docs](https://vladmandic.github.io/sdnext-docs/) and new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
 
@@ -19,7 +18,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-06-08
+### Details for 2026-06-09
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -31,7 +30,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
     *note* original Lens implements only text-2-image, SD.Next adds image-2-image and inpaint workflows as well  
   - [Ideogram 4](https://huggingface.co/ideogram-ai/ideogram-4) open-weight 9.3B flow-matching single-stream DiT  
     with dual-transformer architecture (9.5b) and qwen3 (8b) text encoder  
-    too many notes to add here, so check out the dedicated [Ideogram-4 wiki page](wiki/Ideogram.md) for all details!
+    too many notes to add here, check out the dedicated [Ideogram-4 wiki page](wiki/Ideogram.md) for all details!
 - **Features**
   - **SDNQ** new quantization algorithm: *Hadamard Rotations*  
     much higher quality than base SDNQ, but runs slightly slower  
@@ -43,7 +42,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
     cleanup list of predefined models, new models added and some old removed  
     improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
     improved system prompts  
-  - **Prompt enhance** tons of features  
+  - **Prompt Enhance** tons of features  
     cleanup list of predefined models, new models added and some old removed  
     improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
     improved system prompts  
@@ -72,6 +71,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
   - **Image metadata** add *wildcards* (if used) info to image  
     if wildcards or styles modify prompt, add original prompt to image metadata as *template*  
   - **Video metadata** add processing info to video metadata as well, thanks @ryanmeador
+  - **Kanvas** image resize is now two-way, you can resize in kanvas or in main ui
 - **Changes**
   - all **Guidance** params are now set to *-1* by default to allow using model defaults and avoid confusion with different model behaviour  
     log will print default values used by model if not set by user  
