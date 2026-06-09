@@ -584,9 +584,9 @@ def update_sampler(p, sd_model, second_pass=False):
         if sampler_selection == 'None':
             return
         sampler = sd_samplers.find_sampler(sampler_selection)
-        if sampler is None:
-            log.warning(f'Sampler: "{sampler_selection}" not found')
-            sampler = sd_samplers.all_samplers_map.get("UniPC")
+        resolved = sampler is not None
+        if not resolved:
+            log.warning(f'Sampler: name="{sampler_selection}" not found')
         sched_override_keys = [
             'schedulers_prediction_type', 'schedulers_beta_schedule', 'schedulers_timesteps',
             'schedulers_sigma', 'schedulers_use_thresholding', 'schedulers_use_loworder',
@@ -596,8 +596,8 @@ def update_sampler(p, sd_model, second_pass=False):
             'schedulers_timestep_spacing', 'schedulers_timesteps_range',
         ]
         scheduler_overrides = {k: getattr(p, k) for k in sched_override_keys if getattr(p, k, None) is not None}
-        sampler = sd_samplers.create_sampler(sampler.name, sd_model, scheduler_overrides=scheduler_overrides)
-        if sampler is None or sampler_selection == 'Default':
+        sampler = sd_samplers.create_sampler(sampler.name if resolved else sampler_selection, sd_model, scheduler_overrides=scheduler_overrides)
+        if sampler is None or not resolved or sampler_selection == 'Default':
             if second_pass:
                 p.hr_sampler = 'Default'
             else:

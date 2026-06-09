@@ -15,7 +15,7 @@ loaded_config = None
 
 def find_sampler(name:str):
     if name is None or name == 'None':
-        return all_samplers_map.get("UniPC", None)
+        return all_samplers_map.get("Default", None)
     for sampler in all_samplers:
         if sampler.name.lower() == name.lower() or name in sampler.aliases:
             return sampler
@@ -107,6 +107,8 @@ def create_sampler(name, model, scheduler_overrides=None):
         config = find_sampler_config(name)
 
     if config is None or config.constructor is None:
+        if debug or not shared.opts.schedulers_fallback:
+            raise ValueError(f'Sampler: name="{name}" unknown')
         return restore_default(model, name)
 
     from modules import sd_samplers_diffusers
@@ -126,16 +128,16 @@ def create_sampler(name, model, scheduler_overrides=None):
         pass
     elif (model is not None) and (is_flow and not requires_flow):
         log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} type={pred_type} model requires sampler with discrete prediction')
-        if not debug:
-            return restore_default(model, name)
-        else:
+        if debug or not shared.opts.schedulers_fallback:
             raise ValueError(f'Sampler: name="{sampler.name}" cls={sampler.sampler.__class__.__name__} type={pred_type} model requires sampler with discrete prediction')
+        else:
+            return restore_default(model, name)
     elif (model is not None) and (not is_flow and requires_flow):
         log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} type={pred_type} model requires sampler with flow prediction')
-        if not debug:
-            return restore_default(model, name)
-        else:
+        if debug or not shared.opts.schedulers_fallback:
             raise ValueError(f'Sampler: name="{sampler.name}" cls={sampler.sampler.__class__.__name__} type={pred_type} model requires sampler with flow prediction')
+        else:
+            return restore_default(model, name)
 
     # assign sampler
     if model is not None:

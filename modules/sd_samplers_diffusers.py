@@ -519,6 +519,8 @@ class DiffusionSampler:
             log.error(f'Sampler: "{name}" {e}')
             if debug:
                 errors.display(e, 'Samplers')
+            if debug or not shared.opts.schedulers_fallback:
+                raise
             self.sampler = None
             return
 
