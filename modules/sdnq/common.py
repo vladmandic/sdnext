@@ -503,6 +503,11 @@ module_skip_keys_dict = {
         {},
         {},
     ],
+    "Ideogram4Transformer2DModel": [
+        ["layers.0.adaln_modulation.weight", "input_proj", "llm_cond_proj", "llm_cond_norm", "final_layer", "t_embedding", "adaln_proj", "embed_image_indicator"],
+        {},
+        {},
+    ],
     "CosmosTransformer3DModel": [
         ["transformer_blocks.0.norm*", "patch_embed", "time_embed", "norm_out", "proj_out", "crossattn_proj"],
         {},
