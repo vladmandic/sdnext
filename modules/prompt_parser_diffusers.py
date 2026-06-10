@@ -383,6 +383,8 @@ class DiffusersTextualInversionManager(BaseTextualInversionManager):
                 prompt = prompt.replace(token, replacement)
         if hasattr(self.pipe, 'embedding_db'):
             self.pipe.embedding_db.embeddings_used = list(set(self.pipe.embedding_db.embeddings_used))
+            if len(self.pipe.embedding_db.embeddings_used) > 0:
+                log.debug(f'Networks: type=embedding used={self.pipe.embedding_db.embeddings_used}')
         debug(f'Prompt: convert="{prompt}"')
         return prompt
 

@@ -1224,7 +1224,7 @@ def install_gradio():
 def install_compel():
     if installed('compel', quiet=True):
         return
-    install("compel==2.3.1", no_deps=True)
+    install("compel==2.4.0", no_deps=True)
 
 
 def install_pydantic():

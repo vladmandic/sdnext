@@ -74,7 +74,7 @@ declare global {
     recalculate_prompts_img2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     recalculate_prompts_inpaint?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     recalculate_prompts_control?: (...args: unknown[]) => unknown[]; // ui/ui.ts
-    resolutionChange?: (ar: string, width: number, height: number) => [number, number]; // ui/ui.ts
+    resolutionChange?: (ar: string, width: number, height: number) => unknown[]; // ui/ui.ts
     consumeDesiredCheckpointName?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     create_submit_args?: (args: unknown[]) => unknown[]; // ui/ui.ts
     selectCheckpoint?: (name: string) => void; // ui/ui.ts
