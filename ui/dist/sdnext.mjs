@@ -14197,14 +14197,13 @@ async function getExif(el2) {
   }
   let html = "";
   let params;
-  if (exif.parameters) {
-    params = exif.parameters;
-  } else if (exif.userComment) {
-    params = decodeBytes(exif.userComment);
-  } else {
-    params = "";
+  if (!exif) {
+    log("getExif", "exif is none");
+    return html;
   }
-  debug("getExif", params);
+  if (exif.parameters) params = exif.parameters;
+  else if (exif.userComment) params = decodeBytes(exif.userComment);
+  else params = "";
   if (params.length > 0) html += `<b>Prompt</b> ${params || ""}<br>`;
   html = html.replace("Negative prompt:", "<br><b>Negative</b>");
   html = html.replace("Steps:", "<br><b>Params</b> Steps:");
