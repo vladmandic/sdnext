@@ -450,7 +450,7 @@ class DiffusionSampler:
                 sigma_applied = True
             if not sigma_applied:
                 if debug or not shared.opts.schedulers_fallback:
-                    raise ValueError(f'Sampler: name="{name}" does not support sigma="{sched_sigma}"')
+                    raise errors.ValidationError(f'Sampler: name="{name}" does not support sigma="{sched_sigma}"')
                 else:
                     log.warning(f'Sampler: name="{name}" does not support sigma="{sched_sigma}", using default schedule')
         else:
@@ -520,7 +520,7 @@ class DiffusionSampler:
             if debug:
                 errors.display(e, 'Samplers')
             if debug or not shared.opts.schedulers_fallback:
-                raise
+                raise errors.ValidationError(f'Sampler: name="{name}" {e}') from e
             self.sampler = None
             return
 
@@ -529,7 +529,7 @@ class DiffusionSampler:
                 cls_source = inspect.getsource(constructor)
                 if '"flow_prediction"' not in cls_source and "'flow_prediction'" not in cls_source:
                     if debug or not shared.opts.schedulers_fallback:
-                        raise ValueError(f'Sampler: name="{name}" does not appear to support flow_prediction')
+                        raise errors.ValidationError(f'Sampler: name="{name}" does not appear to support flow_prediction')
                     else:
                         log.warning(f'Sampler: name="{name}" does not support flow_prediction')
                         self.sampler = None
@@ -549,7 +549,7 @@ class DiffusionSampler:
             default_accept_sigmas = (model is not None) and hasattr(model.default_scheduler, 'set_timesteps') and "sigmas" in set(inspect.signature(model.default_scheduler.set_timesteps).parameters.keys())
             if default_accept_sigmas and not accept_sigmas:
                 if debug or not shared.opts.schedulers_fallback:
-                    raise ValueError(f'Sampler: name="{name}" does not accept sigmas')
+                    raise errors.ValidationError(f'Sampler: name="{name}" does not accept sigmas')
                 else:
                     log.warning(f'Sampler: name="{name}" does not accept sigmas')
                     self.sampler = None
@@ -559,7 +559,7 @@ class DiffusionSampler:
             if default_accept_scale_noise and not accept_scale_noise:
                 log.warning(f'Sampler: name="{name}" does not implement scale noise')
                 if debug or not shared.opts.schedulers_fallback:
-                    raise ValueError(f'Sampler: name="{name}" does not implement scale noise')
+                    raise errors.ValidationError(f'Sampler: name="{name}" does not implement scale noise')
                 else:
                     log.warning(f'Sampler: name="{name}" does not implement scale noise')
                     self.sampler = None

@@ -1,6 +1,6 @@
 import os
 import copy
-from modules import shared
+from modules import shared, errors
 from modules.logger import log
 
 
@@ -108,7 +108,7 @@ def create_sampler(name, model, scheduler_overrides=None):
 
     if config is None or config.constructor is None:
         if debug or not shared.opts.schedulers_fallback:
-            raise ValueError(f'Sampler: name="{name}" unknown')
+            raise errors.ValidationError(f'Sampler: name="{name}" unknown')
         return restore_default(model, name)
 
     from modules import sd_samplers_diffusers
@@ -129,13 +129,13 @@ def create_sampler(name, model, scheduler_overrides=None):
     elif (model is not None) and (is_flow and not requires_flow):
         log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} type={pred_type} model requires sampler with discrete prediction')
         if debug or not shared.opts.schedulers_fallback:
-            raise ValueError(f'Sampler: name="{sampler.name}" cls={sampler.sampler.__class__.__name__} type={pred_type} model requires sampler with discrete prediction')
+            raise errors.ValidationError(f'Sampler: name="{sampler.name}" cls={sampler.sampler.__class__.__name__} type={pred_type} model requires sampler with discrete prediction')
         else:
             return restore_default(model, name)
     elif (model is not None) and (not is_flow and requires_flow):
         log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} type={pred_type} model requires sampler with flow prediction')
         if debug or not shared.opts.schedulers_fallback:
-            raise ValueError(f'Sampler: name="{sampler.name}" cls={sampler.sampler.__class__.__name__} type={pred_type} model requires sampler with flow prediction')
+            raise errors.ValidationError(f'Sampler: name="{sampler.name}" cls={sampler.sampler.__class__.__name__} type={pred_type} model requires sampler with flow prediction')
         else:
             return restore_default(model, name)
 

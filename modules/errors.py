@@ -10,6 +10,10 @@ install_traceback()
 already_displayed = {}
 
 
+class ValidationError(ValueError):
+    """Expected validation failure: display() reports the message without a traceback."""
+
+
 def install(suppress=None):
     if suppress is None:
         suppress = []
@@ -22,6 +26,9 @@ def display(e: Exception, task: str, suppress=None):
     if suppress is None:
         suppress = []
     if isinstance(e, ErrorLimiterAbort):
+        return
+    if isinstance(e, ValidationError):
+        log.error(f"{task or 'error'}: {e}")
         return
     log.error(f"{task or 'error'}: {type(e).__name__}")
     """
