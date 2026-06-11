@@ -1,24 +1,24 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-10
+## Update for 2026-06-11
 
-### Highlights for 2026-06-10
+### Highlights for 2026-06-11
 
 *What's New?*
 - **Ideogram-4** released, Microsoft joins the game with **Lens** and **Anima** made it to release version
 - **SDNQ** new quantization algorithm with even higher quality
-- New **image analysis** feature and much improved **prompt enhance** capabilities which allow steering the model in real-time
-- New workflows with ability to run **detailing** as post-processing on existing images  
+- New **Image Analysis** feature and much improved **Prompt Enhance** capabilities which allow steering the model in real-time
+- New workflows with ability to run **Detailing** as post-processing on existing images  
 - Updates to [Kanvas](https://vladmandic.github.io/sdnext-docs/Kanvas/), [SD.Next Launcher](https://vladmandic.github.io/sdnext-docs/Launcher/) and [Enso UI](https://vladmandic.github.io/sdnext-docs/Enso/)!
 
 And we have new [Home page](https://vladmandic.github.io/sdnext/) with heavily updated [Docs](https://vladmandic.github.io/sdnext-docs/) and new [Contributing & Development](https://vladmandic.github.io/sdnext-docs/Dev-Home/) section in docs with info on pretty much any type of development or contribution related topics - do check it out!
 
 Plus continued work on modernization of codebase: UI is now fully TypeScript based
-And we have a new modular LoRA loader, new native Transformers loader and improved finetunes support!  
+And we have a new modular LoRA loader, new native Transformers loader and improved 3rd party finetunes support!  
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-06-10
+### Details for 2026-06-11
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -30,7 +30,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
     *note* original Lens implements only text-2-image, SD.Next adds image-2-image and inpaint workflows as well  
   - [Ideogram 4](https://huggingface.co/ideogram-ai/ideogram-4) open-weight 9.3B flow-matching single-stream DiT  
     with dual-transformer architecture (9.5b) and qwen3 (8b) text encoder  
-    too many notes to add here, check out the dedicated [Ideogram-4 wiki page](wiki/Ideogram.md) for all details!
+    too many notes to add here, check out the dedicated [Ideogram-4 wiki page](wiki/Ideogram) for all details!
 - **Features**
   - **SDNQ** new quantization algorithm: *Hadamard Rotations*  
     much higher quality than base SDNQ, but runs slightly slower  
@@ -91,6 +91,8 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
   - Cognitive analysis and improvements to *all* AI prompts
   - Automated fixes using `/check-` skills
   - Automated syntax, spelling and readability improvements to `/wiki` pages
+  - Multiple quality fixes based on *CoPilot* review
+  - Multiple quality fixes based on *Claude* review, thanks @QualiaRain
 - **Internal**
   - new native transformers loader!  
     massive new codebase, but improves modularity and compatibility with different model architectures  
@@ -145,6 +147,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
   - `samplers` ui sigma methods
   - `xpu` generator on non-cpu
   - `compel` compatibility with *transformers==5*
+  - `mixture-tiling` fix for non-square images, thanks @QualiaRain
 
 ## Update for 2026-05-13
 
