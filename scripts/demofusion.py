@@ -347,7 +347,7 @@ class DemoFusionSDXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderM
 
         # DemoFusion specific checks
         if max(height, width) % 1024 != 0:
-            log.error('DemoFusion: resolution={width}x{height} long side must be divisible by 1024')
+            log.error(f'DemoFusion: resolution={width}x{height} long side must be divisible by 1024')
             return None
 
         if num_images_per_prompt != 1:

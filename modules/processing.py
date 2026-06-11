@@ -125,7 +125,7 @@ class Processed:
     def infotext(self, p: StableDiffusionProcessing, index):
         return create_infotext(p, self.all_prompts, self.all_seeds, self.all_subseeds, comments=[], position_in_batch=index % self.batch_size, iteration=index // self.batch_size)
 
-    def __str___(self):
+    def __str__(self):
         return f'{self.__class__.__name__}: {self.__dict__}'
 
 
