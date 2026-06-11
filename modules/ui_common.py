@@ -145,7 +145,7 @@ def save_files(js_data, files, html_info, index):
                 for k, v in d.items():
                     setattr(self, k, v)
             self.prompt = getattr(self, 'prompt', None) or getattr(self, 'Prompt', None) or ''
-            self.negative_prompt = getattr(self, 'negative_prompt', None) or getattr(self, 'Negative_prompt', None) or ''
+            self.negative_prompt = getattr(self, 'negative_prompt', None) or getattr(self, 'Negative prompt', None) or ''
             self.sampler = getattr(self, 'sampler', None) or getattr(self, 'Sampler', None) or ''
             self.sampler_name = self.sampler
             self.seed = getattr(self, 'seed', None) or getattr(self, 'Seed', None) or 0
@@ -156,7 +156,7 @@ def save_files(js_data, files, html_info, index):
             self.clip_skip = getattr(self, 'clip_skip', None) or getattr(self, 'CLiP-skip', None) or 1
             self.denoising_strength = getattr(self, 'denoising_strength', None) or getattr(self, 'Denoising', None) or 0
             self.index_of_first_image = getattr(self, 'index_of_first_image', 0)
-            self.subseed = getattr(self, 'subseed', None) or getattr(self, 'Subseed', None)
+            self.subseed = getattr(self, 'subseed', None) or getattr(self, 'Variation seed', None)
             self.styles = getattr(self, 'styles', None) or getattr(self, 'Styles', None) or []
             self.styles = [s.strip() for s in self.styles.split(',')] if isinstance(self.styles, str) else self.styles
 
