@@ -167,7 +167,7 @@ class Matrix(torch.nn.Module):
         if column_indices.dtype == torch.int16:
             if size[0] > max_dim or size[1] > max_dim:
                 raise ValueError(
-                    "Sparse matrix with shape {size} exceeds representable "
+                    f"Sparse matrix with shape {size} exceeds representable "
                     "size with 16-bit indices.")
 
     def validate(self):

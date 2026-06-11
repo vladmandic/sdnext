@@ -198,7 +198,7 @@ def connect_paste_params_buttons():
     binding: ParamBinding
     for binding in registered_param_bindings:
         if binding.tabname not in paste_fields:
-            debug(f"Not not registered: tab={binding.tabname}")
+            debug(f"Not registered: tab={binding.tabname}")
             continue
         fields: list[tuple[gr.components.Component, str]] = paste_fields[binding.tabname]["fields"]
 
