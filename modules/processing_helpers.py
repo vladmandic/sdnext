@@ -427,7 +427,7 @@ def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler 
                     if not torch.is_tensor(latents[i]):
                         log.warning(f'Hires: input[{i}]={type(latents[i])} not tensor')
                         latents[i] = processing_vae.vae_encode(image=latents[i], model=shared.sd_model, vae_type=p.vae_type)
-                    latents = torch.cat(latents, dim=0)
+                latents = torch.cat(latents, dim=0)
             except Exception as e:
                 log.error(f'Hires: prepare latents: {e}')
                 resized = latents
