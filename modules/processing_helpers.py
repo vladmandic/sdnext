@@ -183,7 +183,7 @@ def slerp(val, lo, hi): # from https://discuss.pytorch.org/t/help-regarding-sler
     dot = (lo_norm * hi_norm).sum(1)
     dot_mean = dot.mean()
     if dot_mean > 0.9999: # simplifies slerp to lerp if vectors are nearly parallel
-        return lo * val + hi * (1 - val)
+        return lo * (1 - val) + hi * val
     if dot_mean < 0.0001: # also simplifies slerp to lerp to avoid division-by-zero later on
         return lo * (1.0 - val) + hi * val
     omega = torch.acos(dot)
