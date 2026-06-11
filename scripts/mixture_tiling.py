@@ -74,10 +74,10 @@ class MixtureTilingScript(scripts_manager.Script):
             y_prompts.append(x_prompts)
         p.task_args['prompt'] = y_prompts
         p.task_args['seed'] = p.seed
-        p.task_args['tile_width'] = p.height
-        p.task_args['tile_height'] = p.width
-        p.task_args['tile_col_overlap'] = int(p.height * x_overlap)
-        p.task_args['tile_row_overlap'] = int(p.width * y_overlap)
+        p.task_args['tile_width'] = p.width
+        p.task_args['tile_height'] = p.height
+        p.task_args['tile_col_overlap'] = int(p.width * x_overlap)
+        p.task_args['tile_row_overlap'] = int(p.height * y_overlap)
         p.task_args['output_type'] = 'np'
         # run pipeline
         log.debug(f'Tiling: args={p.task_args}')
