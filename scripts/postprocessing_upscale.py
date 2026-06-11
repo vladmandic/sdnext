@@ -112,5 +112,6 @@ class ScriptPostprocessingUpscaleSimple(ScriptPostprocessingUpscale):
         upscaler1 = next(iter([x for x in shared.sd_upscalers if x.name == upscaler_name]), None)
         if upscaler1 is None:
             log.debug(f"Upscaler not found: {upscaler_name}")
+            return
         pp.image = self.upscale(pp.image, pp.info, upscaler1, 0, upscale_by, 0, 0, False)
         pp.info["Postprocess upscaler"] = upscaler1.name
