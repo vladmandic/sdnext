@@ -67,7 +67,7 @@ class FreeScaleScript(scripts_manager.Script):
         def scale(x):
             if (p.width == 0 or p.height == 0) and p.init_images is not None:
                 p.width, p.height = p.init_images[0].width, p.init_images[0].height
-            resolution = [int(8 * p.width * x // 8), int(8 * p.height * x // 8)]
+            resolution = [8 * int(p.width * x // 8), 8 * int(p.height * x // 8)]
             return resolution
 
         scales = []
