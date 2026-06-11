@@ -520,7 +520,7 @@ def get_generator(p):
             generator = p.generator
         else:
             try:
-                p.seeds = [seed if seed != -1 else get_fixed_seed(seed) for seed in p.seeds if seed]
+                p.seeds = [seed if seed != -1 else get_fixed_seed(seed) for seed in p.seeds if seed is not None]
                 devices.randn(p.seeds[0])
                 generator = [torch.Generator(generator_device).manual_seed(s) for s in p.seeds]
             except Exception as e:
