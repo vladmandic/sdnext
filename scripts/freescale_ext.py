@@ -90,6 +90,10 @@ class FreeScaleScript(scripts_manager.Script):
             resolutions_list.append(scale(s4_scale))
             restart_steps.append(int(p.steps * s4_restart))
 
+        if p.width < 1024 or p.height < 1024:
+            log.error(f'FreeScale: width={p.width} height={p.height} minimum=1024')
+            return None
+
         p.task_args['resolutions_list'] = resolutions_list
         p.task_args['cosine_scale'] = cosine_scale
         p.task_args['restart_steps'] = [min(max(1, step), p.steps-1) for step in restart_steps]
@@ -100,10 +104,6 @@ class FreeScaleScript(scripts_manager.Script):
             p.init_images = None
         if override_sampler:
             p.sampler_name = 'Euler a'
-
-        if p.width < 1024 or p.height < 1024:
-            log.error(f'FreeScale: width={p.width} height={p.height} minimum=1024')
-            return None
 
         if not self.is_img2img:
             shared.sd_model = sd_models.switch_pipe(StableDiffusionXLFreeScale, shared.sd_model)
