@@ -34,19 +34,19 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if all_subseeds is None:
         all_subseeds = p.all_subseeds or [p.subseed]
     while len(all_prompts) <= index:
-        all_prompts.insert(0, p.prompt)
+        all_prompts.append(p.prompt)
     while len(all_seeds) <= index:
-        all_seeds.insert(0, int(p.seed))
+        all_seeds.append(int(p.seed))
     while len(all_subseeds) <= index:
-        all_subseeds.insert(0, int(p.subseed))
+        all_subseeds.append(int(p.subseed))
     while len(all_negative_prompts) <= index:
-        all_negative_prompts.insert(0, p.negative_prompt)
+        all_negative_prompts.append(p.negative_prompt)
     if p.all_templates is not None:
         while len(p.all_templates) <= index:
-            p.all_templates.insert(0, '')
+            p.all_templates.append('')
     if p.all_negative_templates is not None:
         while len(p.all_negative_templates) <= index:
-            p.all_negative_templates.insert(0, '')
+            p.all_negative_templates.append('')
 
     comment = ', '.join(comments) if comments is not None and type(comments) is list else None
     ops = list(set(p.ops))
