@@ -15,7 +15,10 @@ def probe(src: str):
     cmd = f"ffprobe -hide_banner -loglevel 0 -print_format json -show_format -show_streams \"{src}\""
     result = subprocess.run(cmd, shell = True, capture_output = True, text = True, check = True)
     data = json.loads(result.stdout)
-    stream = [x for x in data['streams'] if x["codec_type"] == "video"][0]
+    video_streams = [x for x in data['streams'] if x["codec_type"] == "video"]
+    if not video_streams:
+        return None
+    stream = video_streams[0]
     fmt = data['format'] if 'format' in data else {}
     res = {**stream, **fmt}
     video = Map({

@@ -21,7 +21,7 @@ all_images_by_type = {}
 
 
 class Result():
-    def __init__(self, typ: str, fn: str, tag: str | None = None, requested: list = []):
+    def __init__(self, typ: str, fn: str, tag: str | None = None, requested: list = None):
         self.type = typ
         self.input = fn
         self.output = ''
@@ -32,7 +32,7 @@ class Result():
         self.tag = tag
         self.tags = []
         self.ops = []
-        self.steps = requested
+        self.steps = requested if requested is not None else []
 
 
 def detect_blur(image: Image.Image):
@@ -163,7 +163,9 @@ def caption_image(res: Result, tag: str | None = None):
                 for t in res.tag.split(',')[::-1]:
                     tags.insert(0, t.strip())
     pos = 0 if len(tags) == 0 else 1
-    tags.insert(pos, caption.split(' ')[1])
+    words = caption.split(' ')
+    if len(words) > 1:
+        tags.insert(pos, words[1])
     tags = [t for t in tags if len(t) > 2]
     if len(tags) > options.process.tag_limit:
         tags = tags[:options.process.tag_limit]

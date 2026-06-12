@@ -34,7 +34,10 @@ def decode_base64_to_image(encoding, quiet=False):
     if isinstance(encoding, str) and encoding.startswith("upload:"):
         return _resolve_upload_ref(encoding, quiet)
     if encoding.startswith("data:image/"):
-        encoding = encoding.split(";")[1].split(",")[1]
+        parts = encoding.split(";", 1)
+        if len(parts) == 2:
+            parts2 = parts[1].split(",", 1)
+            encoding = parts2[1] if len(parts2) == 2 else parts2[0]
     try:
         decoded = base64.b64decode(encoding)
         data = io.BytesIO(decoded)
