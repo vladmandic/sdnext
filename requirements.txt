@@ -23,14 +23,14 @@ ftfy
 # versioned
 fastapi==0.124.4
 rich==15.0.0
-safetensors==0.8.0rc0
+safetensors==0.8.0
 peft==0.19.1
 httpx==0.28.1
 requests==2.32.3
-tqdm==4.67.3
-accelerate==1.13.0
+tqdm==4.68.2
+accelerate==1.14.0
 einops==0.8.1
-huggingface_hub==1.18.0
+huggingface_hub==1.19.0
 hf_xet==1.5.1
 numpy==2.1.2
 pandas==2.3.1
