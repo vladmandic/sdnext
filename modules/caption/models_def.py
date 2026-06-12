@@ -6,6 +6,7 @@ vlm_models = {
     "Google Gemma 4 E4B": "google/gemma-4-E4B-it",
     "Google Gemma 4 E4B Trohrbaugh Heretic": "trohrbaugh/gemma-4-E4B-it-heretic-ara",
     "Google Gemma 4 E2B": "google/gemma-4-E2B-it",
+    "Google Gemma 4 12B QAT": "google/gemma-4-12B-it-qat-w4a16-ct",
     "Google Gemma 3n E4B": "google/gemma-3n-E4B-it",
     "Google Gemma 3n E2B": "google/gemma-3n-E2B-it",
     "Google Gemma 3 4B": "google/gemma-3-4b-it",

@@ -40,12 +40,14 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
     *tip*: image analysis requires larger VLM model to produce quality output  
     new api endpoint: `/sdapi/v1/analyze`  
     cleanup list of predefined models, new models added and some old removed  
+    add support for prequantized models
     improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
     improved system prompts  
   - **Prompt Enhance** tons of features  
     cleanup list of predefined models, new models added and some old removed  
     improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
     improved system prompts  
+    add support for prequantized models
     new processing engine! now you can steer the model as its generating  
     add words to list and model will either steer away from them towards safe choices or you choose specific replacements for them  
     *for example*: `child:person, toy:airplane, dog:cat`  
