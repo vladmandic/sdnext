@@ -345,8 +345,9 @@ class ScriptSummary:
         self.time = {}
 
     def record(self, script):
-        self.update = time.time()
-        self.time[script] = round(time.time() - self.update, 2)
+        now = time.time()
+        self.time[script] = round(now - self.update, 2)
+        self.update = now
 
     def report(self):
         total = sum(self.time.values())
