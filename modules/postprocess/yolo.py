@@ -531,7 +531,7 @@ class YoloRestorer(Detailer):
     def change_mode(self, dropdown, text):
         self.ui_mode = not self.ui_mode
         if self.ui_mode:
-            value = [val.split(':')[0].strip() for val in text.split(',')]
+            value = [val.split(':', 1)[0].strip() for val in text.split(',') if val.strip()]
             return gr.update(visible=True, value=value), gr.update(visible=False), gr.update(visible=True)
         else:
             value = ', '.join(dropdown)

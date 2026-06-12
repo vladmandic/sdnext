@@ -171,8 +171,11 @@ def query(image: Image.Image, question: str, repo: str, stream: bool = False,
         if isinstance(response, dict):
             debug(f'LLM: handler=moondream3 response_type=dict keys={list(response.keys())}')
             if 'reasoning' in response:
-                reasoning_text = response['reasoning'].get('text', '')[:100] + '...' if len(response['reasoning'].get('text', '')) > 100 else response['reasoning'].get('text', '')
-                debug(f'LLM: handler=moondream3 reasoning="{reasoning_text}"')
+                reasoning_data = response.get('reasoning', {})
+                if isinstance(reasoning_data, dict):
+                    text = reasoning_data.get('text', '')
+                    reasoning_text = text[:100] + '...' if len(text) > 100 else text
+                    debug(f'LLM: handler=moondream3 reasoning="{reasoning_text}"')
             if 'answer' in response:
                 debug(f'LLM: handler=moondream3 answer="{response["answer"]}"')
 

@@ -21,9 +21,11 @@ def set_tile(image: Image.Image, x: int, y: int, tiled: Image.Image):
 def run_tiling(p: processing.StableDiffusionProcessing, input_image: Image.Image) -> processing.Processed:
     t0 = time.time()
     # prepare images
-    sx, sy = p.control_tile.split('x')
-    sx = int(sx)
-    sy = int(sy)
+    tile_parts = p.control_tile.split('x')
+    if len(tile_parts) != 2:
+        raise ValueError('Control Tile: invalid format, expected "SxS"')
+    sx = int(tile_parts[0])
+    sy = int(tile_parts[1])
     vae_scale_factor = sd_vae.get_vae_scale_factor()
     if sx <= 0 or sy <= 0:
         raise ValueError('Control Tile: invalid tile size')

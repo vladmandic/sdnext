@@ -73,7 +73,7 @@ def parse_comfy_metadata(data: dict):
 
 
 def parse_invoke_metadata(data: dict):
-    def parse_metadtaa():
+    def parse_metadata():
         res = ''
         try:
             txt = data.get('invokeai_metadata', {})
@@ -86,7 +86,7 @@ def parse_invoke_metadata(data: dict):
             pass
         return res
 
-    metadata = parse_metadtaa()
+    metadata = parse_metadata()
     if len(metadata) > 0:
         parsed = f'App: InvokeAI{metadata}'
         log.info(f'Image metadata: {parsed}')

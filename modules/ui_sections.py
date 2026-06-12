@@ -68,7 +68,10 @@ def ar_change(ar, width, height):
     if ar == 'AR':
         return gr.update(), gr.update()
     try:
-        (w, h) = [float(x) for x in ar.split(':')]
+        parts = [float(x) for x in ar.split(':')]
+        if len(parts) != 2:
+            raise ValueError(f"Expected 2 values, got {len(parts)}")
+        w, h = parts
     except Exception as e:
         log.warning(f"Invalid aspect ratio: {ar} {e}")
         return gr.update(), gr.update()

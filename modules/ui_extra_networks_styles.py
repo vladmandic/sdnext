@@ -14,7 +14,9 @@ class ExtraNetworksPageStyles(ui_extra_networks.ExtraNetworksPage):
         shared.prompt_styles.reload()
 
     def parse_desc(self, desc):
-        lines = desc.strip().split("\n")
+        if not isinstance(desc, str):
+            desc = ''
+        lines = desc.strip().split("\n") if desc else []
         params = { 'name': '', 'description': '', 'prompt': '', 'negative': '', 'extra': '', 'wildcards': ''}
         found = ''
         for line in lines:
