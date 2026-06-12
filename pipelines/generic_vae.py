@@ -6,7 +6,9 @@ from modules.logger import log
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 
-def load_vae_override(pipe, load_config=None, override_cls=None, override_args={}):
+def load_vae_override(pipe, load_config=None, override_cls=None, override_args=None):
+    if override_args is None:
+        override_args = {}
     if shared.state.interrupted:
         return
     if (shared.opts.sd_vae in [None, 'None', 'Default', 'Automatic']):
