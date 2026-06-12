@@ -134,7 +134,7 @@ class ScriptPostprocessingRunner:
             with gr.Blocks(analytics_enabled=False):
                 self.setup_ui()
         scripts = self.scripts_in_preferred_order()
-        args = [None] * max([x.args_to for x in scripts])
+        args = [None] * max([x.args_to for x in scripts], default=0)
         for script in scripts:
             script_args_dict = scripts_args.get(script.name, None)
             if script_args_dict is not None:
