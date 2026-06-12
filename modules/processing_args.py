@@ -159,8 +159,8 @@ def task_specific_kwargs(p, model):
             return task_args
         task_args = {
             'reference_image': p.init_images[0],
-            'source_subject_category': getattr(p, 'negative_prompt', '').split()[-1],
-            'target_subject_category': getattr(p, 'prompt', '').split()[-1],
+            'source_subject_category': (getattr(p, 'negative_prompt', '').split() or [''])[-1],
+            'target_subject_category': (getattr(p, 'prompt', '').split() or [''])[-1],
             'output_type': 'pil',
         }
 
