@@ -240,7 +240,7 @@ def preprocess_image(
             if 'strength' in possible:
                 p.task_args['strength'] = p.denoising_strength
             p.init_images = [init_image] * len(active_model)
-        if hasattr(shared.sd_model, 'controlnet') and hasattr(p.task_args, 'control_image') and len(p.task_args['control_image']) > 1 and (shared.sd_model.__class__.__name__ == 'StableDiffusionXLControlNetUnionPipeline'): # special case for controlnet-union
+        if hasattr(shared.sd_model, 'controlnet') and 'control_image' in p.task_args and len(p.task_args['control_image']) > 1 and (shared.sd_model.__class__.__name__ == 'StableDiffusionXLControlNetUnionPipeline'): # special case for controlnet-union
             p.task_args['control_image'] = [[x] for x in p.task_args['control_image']]
             p.task_args['control_mode'] = [[x] for x in p.task_args['control_mode']]
 

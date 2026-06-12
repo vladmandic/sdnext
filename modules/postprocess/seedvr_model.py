@@ -27,6 +27,7 @@ class UpscalerSeedVR(Upscaler):
         ]
         self.model = None
         self.model_loaded = None
+        self.device = devices.device
 
     def load_model(self, path: str):
         model_name = MODELS_MAP.get(path, None)

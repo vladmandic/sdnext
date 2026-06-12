@@ -633,7 +633,7 @@ class StableDiffusionProcessing:
         self.negative_embeds = []
         self.negative_pooleds = []
         self.prompt_attention_masks = []
-        self.negative_prompt_attention_mask = []
+        self.negative_prompt_attention_masks = []
         self.xyz = xyz
         self.abort = False
 
