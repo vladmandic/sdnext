@@ -378,8 +378,9 @@ def branch(folder=None):
         b = git('branch --show-current', folder, optional=True)
         if b == '':
             branches = git('branch', folder).split('\n')
-        if len(branches) > 0:
-            b = [x for x in branches if x.startswith('*')][0]
+        marked = [x for x in branches if x.startswith('*')]
+        if len(branches) > 0 and len(marked) > 0:
+            b = marked[0]
             if 'detached' in b and len(branches) > 1:
                 b = branches[1].strip()
                 log.debug(f'Git detached head detected: folder="{folder}" reattach={b}')
@@ -417,7 +418,7 @@ def update(folder, keep_branch = False, rebase = True):
         debug(f'Install update: folder={folder} args={arg} {res}')
     else:
         b = branch(folder)
-        if branch is None:
+        if b is None:
             res = git(f'pull {arg}', folder)
             debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
         else:
@@ -537,7 +538,8 @@ def check_diffusers():
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
-    minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
+    parts = pkg.version.split('.') if pkg is not None else []
+    minor = int(parts[1]) if len(parts) > 1 else -1
     current = opts.get('diffusers_version', '') if minor > -1 else ''
     if (minor == -1) or ((current != target_commit) and (not args.experimental)):
         if minor == -1:
@@ -1178,7 +1180,10 @@ def install_submodules(force=True):
     res = []
     for submodule in submodules:
         try:
-            name = submodule.split()[1].strip()
+            parts = submodule.split()
+            if len(parts) < 2:
+                continue
+            name = parts[1].strip()
             if args.upgrade:
                 res.append(update(name))
             else:
