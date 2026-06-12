@@ -445,7 +445,13 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         if quant_last_model_name is not None:
             if "." in quant_last_model_name:
                 last_model_names = quant_last_model_name.split(".")
-                getattr(getattr(sd_model, last_model_names[0]), last_model_names[1]).to(quant_last_model_device)
+                if len(last_model_names) >= 2:
+                    try:
+                        parent = getattr(sd_model, last_model_names[0], None)
+                        if parent is not None:
+                            getattr(parent, last_model_names[1]).to(quant_last_model_device)
+                    except (AttributeError, TypeError):
+                        log.warning(f'Quantization: failed to access {quant_last_model_name}')
             else:
                 getattr(sd_model, quant_last_model_name).to(quant_last_model_device)
             if do_gc:
@@ -479,7 +485,13 @@ def sdnq_quantize_weights(sd_model):
         if quant_last_model_name is not None:
             if "." in quant_last_model_name:
                 last_model_names = quant_last_model_name.split(".")
-                getattr(getattr(sd_model, last_model_names[0]), last_model_names[1]).to(quant_last_model_device)
+                if len(last_model_names) >= 2:
+                    try:
+                        parent = getattr(sd_model, last_model_names[0], None)
+                        if parent is not None:
+                            getattr(parent, last_model_names[1]).to(quant_last_model_device)
+                    except (AttributeError, TypeError):
+                        log.warning(f'Quantization: failed to access {quant_last_model_name}')
             else:
                 getattr(sd_model, quant_last_model_name).to(quant_last_model_device)
             devices.torch_gc(force=True, reason='sdnq')

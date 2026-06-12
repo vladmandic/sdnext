@@ -77,7 +77,7 @@ def load_t5(name=None, cache_dir=None):
     elif '/' in name:
         log.debug(f'Load model: type=T5 repo={name}')
         quant_config = model_quant.create_config(module='TE')
-        if quantization_config is not None:
+        if quant_config is not None:
             t5 = transformers.T5EncoderModel.from_pretrained(name, cache_dir=cache_dir, torch_dtype=devices.dtype, **quant_config)
 
     else:

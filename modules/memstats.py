@@ -54,7 +54,11 @@ def ram_stats():
         res = process.memory_info()
         if 'total' not in ram:
             process = psutil.Process(os.getpid())
-            ram_total = 100 * res.rss / process.memory_percent()
+            mem_percent = process.memory_percent()
+            if mem_percent > 0:
+                ram_total = 100 * res.rss / mem_percent
+            else:
+                ram_total = res.rss
             ram_total = min(ram_total, get_docker_limit(), get_runpod_limit())
             ram['total'] = gb(ram_total)
         ram['rss'] = gb(res.rss)
