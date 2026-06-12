@@ -322,7 +322,7 @@ def parse_prompt_attention(text):
         return res
     elif opts.prompt_attention == 'compel':
         conjunction = Compel.parse_prompt_string(text)
-        if conjunction is None or conjunction.prompts is None or conjunction.prompts is None or len(conjunction.prompts[0].children) == 0:
+        if conjunction is None or conjunction.prompts is None or len(conjunction.prompts) == 0 or len(conjunction.prompts[0].children) == 0:
             return [["", 1.0]]
         res = []
         for frag in conjunction.prompts[0].children:
