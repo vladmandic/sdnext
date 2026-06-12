@@ -29,7 +29,7 @@ class SDUpscaleScript(scripts_manager.Script):
         init_img = None
         if hasattr(p, 'init_images') and p.init_images is not None:
             init_img = p.init_images[0]
-        elif hasattr(p.task_args, 'image') and p.task_args['image'] is not None:
+        elif p.task_args.get('image', None) is not None:
             init_img = p.task_args['image'][0]
 
         if init_img is None:
