@@ -107,9 +107,9 @@ class HunyuanImage3Wrapper(torch.nn.Module):
 
         if height is None and width is None:
             image_size = "auto"
-        if height is None:
+        elif height is None:
             image_size = (width, width)
-        if width is None:
+        elif width is None:
             image_size = (height, height)
         else:
             image_size = (height, width)
