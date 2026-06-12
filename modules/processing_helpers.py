@@ -202,7 +202,7 @@ def slerp_alt(val, lo, hi): # from https://discuss.pytorch.org/t/help-regarding-
     dot = (lo_norm * hi_norm).sum(1)
     dot_mean = dot.mean().abs()
     if dot_mean > 0.9999: # simplifies slerp to lerp if vectors are nearly parallel
-        lerp_val = lo * val + hi * (1 - val)
+        lerp_val = lo * (1 - val) + hi * val
         return lerp_val / torch.linalg.norm(lerp_val) * torch.sqrt(torch.linalg.norm(hi_norm) * torch.linalg.norm(lo_norm))
     if dot_mean < 0.0001: # also simplifies slerp to lerp to avoid division-by-zero later on
         lerp_val = lo * (1.0 - val) + hi * val
