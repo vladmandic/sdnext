@@ -268,6 +268,7 @@ class XYZGridScript(scripts_manager.Script):
             log.error(f"XYZ grid: invalid axis values {e}")
             errors.display(e, 'xyz')
             active = False
+            shared.state.end(jobid)
             return None
 
         Image.MAX_IMAGE_PIXELS = None # disable check in Pillow and rely on check below to allow large custom image sizes
