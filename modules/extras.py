@@ -242,7 +242,7 @@ def run_model_modules(model_type:str, model_name:str, custom_name:str,
     modules_sdxl.recipe.debug = debug
 
     loras = [l.strip() if ':' in l else f'{l.strip()}:1.0' for l in comp_lora.split(',') if len(l.strip()) > 0]
-    for lora, strength in [l.split(':') for l in loras]:
+    for lora, strength in [l.split(':', 1) for l in loras]:
         modules_sdxl.recipe.lora[lora] = float(strength)
     scheduler = sd_samplers.create_sampler(comp_scheduler, None)
     modules_sdxl.recipe.scheduler = scheduler.__class__.__name__ if scheduler is not None else None
