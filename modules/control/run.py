@@ -644,7 +644,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     debug_log(f'Control pipeline: class={pipe.__class__.__name__} args={vars(p)}')
     status = True
     frame = None
-    video = None
     output_filename = None
     index = 0
     frames = 0
@@ -697,7 +696,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     inputs = [Image.fromarray(frame)] # cv2 to pil
                 for i, input_image in enumerate(inputs): # loop per-input, but with early-break
                     if pipe is None: # pipe may have been reset externally
-                        if video is None:
+                        if cap is None:
                             break # non-video: pipeline was consumed, no need to re-process remaining inputs
                         pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, active_units, control_conditioning, control_guidance_start, control_guidance_end, inits)
                         debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
@@ -744,7 +743,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         init_image = inits[i % len(inits)]
                     else:
                         init_image = None
-                    if video is not None and index % (video_skip_frames + 1) != 0:
+                    if cap is not None and index % (video_skip_frames + 1) != 0:
                         index += 1
                         continue
                     index += 1
@@ -806,13 +805,13 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                 if processed_image is not None and isinstance(processed_image, Image.Image):
                                     output_images.append(processed_image)
 
-                            if is_generator and frame is not None and video is not None:
+                            if is_generator and frame is not None and cap is not None:
                                 image_txt = f'{output_image.width}x{output_image.height}' if output_image is not None else 'None'
                                 msg = f'Control output | {index} of {frames} skip {video_skip_frames} | Frame {image_txt}'
                                 yield (output_image, blended_image, msg) # result is control_output, proces_output
 
-                if video is not None and frame is not None:
-                    status, frame = video.read()
+                if cap is not None and frame is not None:
+                    status, frame = cap.read()
                     if status:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     debug_log(f'Control: video frame={index} frames={frames} status={status} skip={index % (video_skip_frames + 1)} progress={index/frames:.2f}')
