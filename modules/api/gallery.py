@@ -3,7 +3,6 @@ import os
 import time
 import base64
 from urllib.parse import quote, unquote
-from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.websockets import WebSocket, WebSocketState
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
@@ -173,7 +172,7 @@ def register_api(api): # register api
                 unique_folders.append(f)
                 if shared.demo is not None and path not in shared.demo.allowed_paths:
                     debug(f'Browser folders allow: {path}')
-                    shared.demo.allowed_paths.append(quote(path))
+                    shared.demo.allowed_paths.append(path)
         debug(f'Browser folders: {unique_folders}')
         return JSONResponse(content=unique_folders)
 
