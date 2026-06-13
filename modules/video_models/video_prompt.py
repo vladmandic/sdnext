@@ -5,6 +5,7 @@ def prepare_prompt(p, init_image, prompt:str, vlm_enhance:bool, vlm_model:str, v
     p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
     p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
     shared.prompt_styles.apply_styles_to_extra(p)
+    p.styles = [] # styles are now folded into the prompt; clear so video_utils.set_prompt() does not apply them a second time
     p.prompts, p.network_data = extra_networks.parse_prompts([p.prompt])
     extra_networks.activate(p)
     prompt = p.prompts[0]
