@@ -37,9 +37,9 @@ def img_to_pixelart(image: PipelineImageInput, sharpen: float = 0, block_size: i
         cr = ycbcr[:,2,:,:].unsqueeze(1)
 
     new_image = torch.zeros_like(new_image)
-    new_image[:,0,:,:] = y
-    new_image[:,block_size_sq,:,:] = cb
-    new_image[:,block_size_sq*2,:,:] = cr
+    new_image[:,0,:,:] = y.squeeze(1)
+    new_image[:,block_size_sq,:,:] = cb.squeeze(1)
+    new_image[:,block_size_sq*2,:,:] = cr.squeeze(1)
     new_image = processor.decode(new_image, return_type=return_type)
     return new_image
 
