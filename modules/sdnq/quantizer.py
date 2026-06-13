@@ -726,6 +726,13 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         devices.torch_gc(force=True, reason="sdnq")
         return model
 
+    def get_state_dict_and_metadata(self, state_dict: dict | torch.nn.Module, **kwargs) -> tuple[dict | None, dict]: # pylint: disable=unused-argument
+        # transformers
+        if isinstance(state_dict, torch.nn.Module):
+            return None, {}
+        # diffusers
+        return state_dict, {}
+
     def get_accelerator_warm_up_factor(self):
         return 32 // dtype_dict[self.quantization_config.weights_dtype]["num_bits"]
 
@@ -738,7 +745,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     def _dequantize(self, model):
         return dequantize_sdnq_model(model)
 
-    def is_serializable(self, *args, **kwargs) -> bool:  # pylint: disable=unused-argument, invalid-overridden-method
+    def is_serializable(self, *args, **kwargs) -> bool: # pylint: disable=unused-argument, invalid-overridden-method
         return not self.quantization_config.is_training
 
     @property
