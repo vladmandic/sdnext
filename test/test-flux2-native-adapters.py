@@ -599,7 +599,7 @@ def test_resolve_targets_qkv_chunking():
     targets = F.resolve_targets('diffusion_model.', 'single_blocks.7.linear1')
     assert targets == [('single_transformer_blocks.7.attn.to_qkv_mlp_proj', None)]
 
-    targets = F.resolve_targets('transformer.', 'transformer_blocks.0.attn.to_q')
+    targets = F.native_adapter.resolve_group_targets(F.resolve_targets, 'transformer.', 'transformer_blocks.0.attn.to_q')
     assert targets == [('transformer_blocks.0.attn.to_q', None)]
 
     targets = F.resolve_targets('weird_prefix.', 'whatever')
@@ -690,8 +690,8 @@ def test_parse_key_bare_diffusers_and_peft_default():
         got = F.parse_key(key, suffixes)
         assert got == expected, f'parse_key({key!r}) = {got}, expected {expected}'
 
-    # resolve_targets passes the bare-diffusers path through verbatim.
-    targets = F.resolve_targets(bd, 'single_transformer_blocks.5.attn.to_out')
+    # the shared resolver passes the bare-diffusers path through verbatim.
+    targets = F.native_adapter.resolve_group_targets(F.resolve_targets, bd, 'single_transformer_blocks.5.attn.to_out')
     assert targets == [('single_transformer_blocks.5.attn.to_out', None)], f'targets={targets}'
     return True
 

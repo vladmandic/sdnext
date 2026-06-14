@@ -160,18 +160,17 @@ def resolve_targets(prefix_used, base):
     """Return ``[(diffusers_path, ChunkSpec | None), ...]`` for a parsed group key.
 
     For ``lora_unet_`` prefix, applies ``KOHYA_SUFFIX_MAP`` then ``F2_*_MAP``.
-    For BFL / bare-BFL, applies ``F2_*_MAP`` directly. For ``transformer.``,
-    ``lycoris_``, and bare-diffusers, returns the base verbatim with no chunking.
-    Unrecognized prefixes return an empty list.
+    For BFL / bare-BFL, applies ``F2_*_MAP`` directly. ``lycoris_`` is an
+    already-underscored diffusers path, returned verbatim. Unrecognized
+    prefixes return an empty list.
+
+    Universal passthrough prefixes are handled upstream by
+    :func:`native_adapter.resolve_group_targets`.
     """
     if prefix_used == "lora_unet_":
         return _kohya_to_diffusers_targets(base)
     if prefix_used in (None, "diffusion_model."):
         return _bfl_to_diffusers_targets(base)
-    if prefix_used == "transformer.":
-        return [(base, None)]
-    if prefix_used == BARE_DIFFUSERS_PREFIX_USED:
-        return [(base, None)]
     if prefix_used == "lycoris_":
         # base is an already-underscored diffusers path (e.g.
         # 'transformer_blocks_0_attn_add_k_proj'). The caller's network_key

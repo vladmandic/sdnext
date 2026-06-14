@@ -103,12 +103,10 @@ def resolve_targets(prefix_used, base):
     - ``lora_unet_``: kohya underscore-flat Flux path; parse block type/index
       and module suffix, rename to diffusers.
     - ``diffusion_model.`` or bare BFL (None): dotted Flux path; same rewrite.
-    - ``transformer.`` or bare-diffusers: already a diffusers path; passthrough.
+
+    Universal passthrough prefixes are handled upstream by
+    :func:`native_adapter.resolve_group_targets`.
     """
-    if prefix_used == "transformer.":
-        return [(base, None)]
-    if prefix_used == BARE_DIFFUSERS_PREFIX_USED:
-        return [(base, None)]
     if prefix_used == "lora_unet_":
         return _kohya_to_diffusers(base)
     if prefix_used in (None, "diffusion_model."):

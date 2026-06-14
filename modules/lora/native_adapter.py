@@ -65,6 +65,13 @@ BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
 NETWORK_PREFIX_DEFAULT = "lora_transformer_"
 
 
+# Prefixes whose parsed ``base`` is already a network-key tail (``arch_prefix +
+# base.replace(".", "_")`` matches the stamped module name), so the loader binds
+# them directly with no per-arch rewrite. Arch-local already-resolved prefixes
+# (e.g. flux2's ``lycoris_``) stay in that arch's ``resolve_targets``.
+PASSTHROUGH_PREFIXES_DEFAULT = ("transformer.", BARE_DIFFUSERS_PREFIX_USED, "lora_transformer_")
+
+
 def _resolve_prefix(network_prefix, prefix_used):
     """Return the network-key prefix for one parsed group.
 
@@ -364,19 +371,11 @@ read_state_dict = sd_models.read_state_dict
 def resolve_group_targets(resolve_targets, prefix_used, base):
     """Map a parsed ``(prefix_used, base)`` group to ``[(diffusers_path, chunk), ...]``.
 
-    Handles the universal ``lora_transformer_`` passthrough before deferring to
-    the arch's ``resolve_targets`` for Flux-layout, kohya, and bare prefixes.
-
-    ``lora_transformer_`` is the namespace
-    ``lora_convert.assign_network_names_to_compvis_modules`` stamps on every
-    arch's transformer modules (``lora_transformer_`` + module path with dots
-    replaced by underscores). A file already saved in that form (e.g.
-    OneTrainer, which trains against the diffusers layout with QKV pre-split)
-    carries the network-key tail verbatim, so its base needs no rename or
-    chunking and binds for any arch whose ``network_prefix`` resolves to
-    ``lora_transformer_``.
+    Passthrough prefixes (:data:`PASSTHROUGH_PREFIXES_DEFAULT`) bind verbatim;
+    everything else defers to the arch's ``resolve_targets``. Centralizing the
+    passthrough keeps each arch's resolver to the prefixes it actually rewrites.
     """
-    if prefix_used == "lora_transformer_":
+    if prefix_used in PASSTHROUGH_PREFIXES_DEFAULT:
         return [(base, None)]
     return resolve_targets(prefix_used, base)
 

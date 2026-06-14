@@ -83,13 +83,12 @@ def resolve_targets(prefix_used, base):
 
     Everything else (modern split-attention paths, MLP, norms, embedders) is
     returned verbatim.
+
+    Universal passthrough prefixes are handled upstream by
+    :func:`native_adapter.resolve_group_targets`.
     """
     if prefix_used == "lora_unet_":
         return _underscore_to_diffusers_targets(base)
-    if prefix_used == "transformer.":
-        return [(base, None)]
-    if prefix_used == BARE_DIFFUSERS_PREFIX_USED:
-        return [(base, None)]
     if prefix_used in (None, "diffusion_model."):
         return _dotted_to_diffusers_targets(base)
     return []
