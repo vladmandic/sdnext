@@ -30,7 +30,7 @@ def process_conv_input(conv_type, input, reversed_padding_repeated_twice, paddin
         L_out = (L_in + 2 * padding[1] - dilation[1] * (K_l - 1) - 1) // stride[1] + 1
         mm_output_shape = (batch_size, L_out, C_out)
         kernel_size = (1, K_l)
-    if conv_type == 2:
+    elif conv_type == 2:
         batch_size, _, H_in, W_in = input.shape
         C_out, _, K_h, K_w = result_shape
         H_out = (H_in + 2 * padding[0] - dilation[0] * (K_h - 1) - 1) // stride[0] + 1
