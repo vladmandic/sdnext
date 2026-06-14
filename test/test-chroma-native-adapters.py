@@ -383,6 +383,36 @@ def sd_lora_peft_to_q():
     }
 
 
+def sd_lora_onetrainer_diffusers_flat():
+    """OneTrainer LoRA: ``lora_transformer_`` + underscore-flat diffusers path.
+
+    QKV is pre-split (no fused chunks) and each key is byte-identical to
+    sdnext's internal network_layer_mapping entry, so resolve_targets passes
+    the base through unchanged. Mirrors a real OneTrainer save.
+    """
+    return {
+        # single-block attention, pre-split q/k/v
+        'lora_transformer_single_transformer_blocks_0_attn_to_q.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_single_transformer_blocks_0_attn_to_q.lora_up.weight': torch.randn(HIDDEN, RANK_LORA),
+        'lora_transformer_single_transformer_blocks_0_attn_to_q.alpha': torch.tensor(float(RANK_LORA)),
+        # double-block attention output projection -> attn.to_out.0
+        'lora_transformer_transformer_blocks_0_attn_to_out_0.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_transformer_blocks_0_attn_to_out_0.lora_up.weight': torch.randn(HIDDEN, RANK_LORA),
+        'lora_transformer_transformer_blocks_0_attn_to_out_0.alpha': torch.tensor(float(RANK_LORA)),
+        # double-block context-side add_k_proj
+        'lora_transformer_transformer_blocks_0_attn_add_k_proj.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_transformer_blocks_0_attn_add_k_proj.lora_up.weight': torch.randn(HIDDEN, RANK_LORA),
+        'lora_transformer_transformer_blocks_0_attn_add_k_proj.alpha': torch.tensor(float(RANK_LORA)),
+        # feed-forward in (ff.net.0.proj) and out (ff.net.2)
+        'lora_transformer_transformer_blocks_0_ff_net_0_proj.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_transformer_blocks_0_ff_net_0_proj.lora_up.weight': torch.randn(MLP_HIDDEN, RANK_LORA),
+        'lora_transformer_transformer_blocks_0_ff_net_0_proj.alpha': torch.tensor(float(RANK_LORA)),
+        'lora_transformer_transformer_blocks_0_ff_net_2.lora_down.weight': torch.randn(RANK_LORA, MLP_HIDDEN),
+        'lora_transformer_transformer_blocks_0_ff_net_2.lora_up.weight': torch.randn(HIDDEN, RANK_LORA),
+        'lora_transformer_transformer_blocks_0_ff_net_2.alpha': torch.tensor(float(RANK_LORA)),
+    }
+
+
 def sd_lora_distilled_guidance():
     """LoRA targeting Chroma's distilled_guidance_layer (passes through unchanged)."""
     return {
@@ -540,6 +570,10 @@ def test_parse_key_all_prefixes():
         ('lora_unet_double_blocks_0_img_attn_qkv.lora_down.weight',
          C.LORA_SUFFIXES,
          ('lora_unet_', 'double_blocks_0_img_attn_qkv', 'lora_down.weight')),
+        # OneTrainer: lora_transformer_ + underscore-flat diffusers path
+        ('lora_transformer_single_transformer_blocks_0_attn_to_q.lora_down.weight',
+         C.LORA_SUFFIXES,
+         ('lora_transformer_', 'single_transformer_blocks_0_attn_to_q', 'lora_down.weight')),
         # Bare BFL path (no prefix)
         ('double_blocks.0.img_attn.proj.lora_A.weight',
          C.LORA_SUFFIXES,
@@ -593,6 +627,30 @@ def test_resolve_targets_static_renames():
         assert len(targets) == 1, f'({prefix}, {base}) -> {targets}'
         path, chunk = targets[0]
         assert path == expected_path and chunk is None, f'({prefix}, {base}) -> {targets}'
+    return True
+
+
+def test_resolve_targets_onetrainer_passthrough():
+    """The ``lora_transformer_`` passthrough lives in the shared resolver.
+
+    ``lora_transformer_`` is sdnext's own internal transformer namespace.
+    ``native_adapter.resolve_group_targets`` resolves it to an identity
+    passthrough for any arch; chroma's ``resolve_targets`` owns the Flux-layout,
+    bare, and kohya prefixes and returns nothing for it.
+    """
+    na = C.native_adapter
+    # chroma's own resolve_targets does not (and need not) know this prefix
+    assert C.resolve_targets('lora_transformer_', 'transformer_blocks_0_attn_to_q') == []
+    # the shared wrapper supplies the identity passthrough
+    for base in [
+        'single_transformer_blocks_0_attn_to_q',
+        'transformer_blocks_0_attn_to_out_0',
+        'transformer_blocks_0_attn_add_k_proj',
+        'transformer_blocks_0_ff_net_0_proj',
+        'transformer_blocks_0_ff_net_2',
+    ]:
+        targets = na.resolve_group_targets(C.resolve_targets, 'lora_transformer_', base)
+        assert targets == [(base, None)], f'{base} -> {targets}'
     return True
 
 
@@ -721,6 +779,21 @@ def test_lora_peft_to_q():
     net = _load_via(C.try_load_lora, sd_lora_peft_to_q())
     assert net is not None and len(net.modules) == 1
     assert 'lora_transformer_transformer_blocks_0_attn_to_q' in net.modules
+    return True
+
+
+def test_lora_onetrainer_diffusers_flat():
+    """OneTrainer lora_transformer_ diffusers-flat keys load via passthrough."""
+    net = _load_via(C.try_load_lora, sd_lora_onetrainer_diffusers_flat())
+    assert net is not None and len(net.modules) == 5, f'got {net.modules if net else None}'
+    expected = {
+        'lora_transformer_single_transformer_blocks_0_attn_to_q',
+        'lora_transformer_transformer_blocks_0_attn_to_out_0',
+        'lora_transformer_transformer_blocks_0_attn_add_k_proj',
+        'lora_transformer_transformer_blocks_0_ff_net_0_proj',
+        'lora_transformer_transformer_blocks_0_ff_net_2',
+    }
+    assert set(net.modules) == expected, f'got {set(net.modules)}'
     return True
 
 
@@ -905,7 +978,8 @@ def run_tests():
     t0 = time.time()
 
     log.warning('=== Parsing primitives ===')
-    for fn in [test_parse_key_all_prefixes, test_marker_disambiguation, test_resolve_targets_static_renames]:
+    for fn in [test_parse_key_all_prefixes, test_marker_disambiguation, test_resolve_targets_static_renames,
+               test_resolve_targets_onetrainer_passthrough]:
         run_test(CAT_PARSE, fn)
 
     log.warning('=== Loaders ===')
@@ -920,6 +994,7 @@ def run_tests():
         test_lora_kohya_img_attn_proj,
         test_lora_kohya_img_attn_qkv_chunked,
         test_lora_peft_to_q,
+        test_lora_onetrainer_diffusers_flat,
         test_lora_distilled_guidance,
         test_lora_dora_threading,
         test_lokr_bfl_img_attn_proj,

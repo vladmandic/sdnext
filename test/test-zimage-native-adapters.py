@@ -504,6 +504,32 @@ def test_lora_kohya_to_q():
     return True
 
 
+def test_lora_onetrainer_diffusers_flat():
+    """OneTrainer lora_transformer_ diffusers-flat keys load via the shared passthrough.
+
+    These keys are sdnext's own internal network_layer_mapping names, so they
+    bind with no rename or chunking."""
+    sd = {
+        'lora_transformer_layers_0_attention_to_q.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_layers_0_attention_to_q.lora_up.weight': torch.randn(HIDDEN, RANK_LORA),
+        'lora_transformer_layers_0_attention_to_q.alpha': torch.tensor(float(RANK_LORA)),
+        'lora_transformer_layers_0_feed_forward_net_0_proj.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_layers_0_feed_forward_net_0_proj.lora_up.weight': torch.randn(MLP_HIDDEN, RANK_LORA),
+        'lora_transformer_layers_0_feed_forward_net_0_proj.alpha': torch.tensor(float(RANK_LORA)),
+        'lora_transformer_layers_0_feed_forward_net_2.lora_down.weight': torch.randn(RANK_LORA, MLP_HIDDEN),
+        'lora_transformer_layers_0_feed_forward_net_2.lora_up.weight': torch.randn(HIDDEN, RANK_LORA),
+        'lora_transformer_layers_0_feed_forward_net_2.alpha': torch.tensor(float(RANK_LORA)),
+    }
+    net = _load_via(Z.try_load_lora, sd)
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    assert set(net.modules) == {
+        'lora_transformer_layers_0_attention_to_q',
+        'lora_transformer_layers_0_feed_forward_net_0_proj',
+        'lora_transformer_layers_0_feed_forward_net_2',
+    }, f'got {set(net.modules)}'
+    return True
+
+
 def test_lora_bfl_adaln():
     """BFL LoRA on adaLN_modulation.0 (the Linear inside Sequential)."""
     net = _load_via(Z.try_load_lora, sd_lora_bfl_adaln())
@@ -696,6 +722,7 @@ def run_tests():
         test_lora_bfl_split_qkv,
         test_lora_peft_to_out,
         test_lora_kohya_to_q,
+        test_lora_onetrainer_diffusers_flat,
         test_lora_bfl_adaln,
         test_lora_legacy_fused_qkv_chunked,
         test_lora_legacy_attention_out_alias,

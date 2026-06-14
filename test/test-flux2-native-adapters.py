@@ -763,6 +763,33 @@ def test_lora_peft_format():
     return True
 
 
+def test_lora_onetrainer_diffusers_flat():
+    """OneTrainer lora_transformer_ diffusers-flat keys load via the shared passthrough.
+
+    These keys are sdnext's own internal network_layer_mapping names, so they
+    bind with no rename or chunking. to_qkv_mlp_proj is a single diffusers
+    module here, so it loads as one passthrough target (not chunked)."""
+    sd = {
+        'lora_transformer_transformer_blocks_0_attn_to_q.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_transformer_blocks_0_attn_to_q.lora_up.weight': torch.randn(QKV_OUT, RANK_LORA),
+        'lora_transformer_transformer_blocks_0_attn_to_q.alpha': torch.tensor(float(RANK_LORA)),
+        'lora_transformer_transformer_blocks_0_ff_linear_in.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_transformer_blocks_0_ff_linear_in.lora_up.weight': torch.randn(MLP_OUT, RANK_LORA),
+        'lora_transformer_transformer_blocks_0_ff_linear_in.alpha': torch.tensor(float(RANK_LORA)),
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj.lora_up.weight': torch.randn(SINGLE_FUSED_OUT, RANK_LORA),
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj.alpha': torch.tensor(float(RANK_LORA)),
+    }
+    net = _load_via(F.try_load_lora, sd)
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    assert set(net.modules) == {
+        'lora_transformer_transformer_blocks_0_attn_to_q',
+        'lora_transformer_transformer_blocks_0_ff_linear_in',
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj',
+    }, f'got {set(net.modules)}'
+    return True
+
+
 def test_lora_bare_bfl_format():
     net = _load_via(F.try_load_lora, sd_lora_bare_bfl_mlp())
     assert net is not None and len(net.modules) == 1
@@ -1210,6 +1237,7 @@ def run_tests():
         test_lora_kohya_fused_qkv_chunked,
         test_lora_bfl_non_fused,
         test_lora_peft_format,
+        test_lora_onetrainer_diffusers_flat,
         test_lora_bare_bfl_format,
         test_lora_peft_saved_fal_style,
         test_lora_peft_saved_dreambooth_style,
