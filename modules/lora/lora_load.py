@@ -27,6 +27,7 @@ _NATIVE_DISPATCH = {
     'ernieimage': 'pipelines.ernie.ernie_lora',
     'f2':         'pipelines.flux.flux2_lora',
     'anima':      'pipelines.anima.anima_lora',
+    'ideogram4':  'pipelines.ideogram.ideogram_lora',
 }
 
 

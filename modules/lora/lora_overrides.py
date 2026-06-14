@@ -31,6 +31,7 @@ allow_native = [
     'zimage',
     'anima',
     'ernieimage',
+    'ideogram4',
 ]
 
 
