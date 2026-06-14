@@ -1,4 +1,5 @@
 import os
+import copy
 import enum
 from collections import namedtuple
 from modules import hashes, shared, sd_checkpoint
@@ -151,8 +152,29 @@ class Network:  # LoraModule
         self.bundle_embeddings = {}
         self.mtime = None
         self.mentioned_name = None
+        self.lora_module = None  # model component(s) this application targets; set per reference by network_load
         self.tags = None
         """the text that was used to add the network to prompt - can be either name or an alias"""
+
+    def clone(self):
+        """Per-application view sharing the file's loaded weights.
+
+        ``lora_cache`` holds one populated Network per file. Config slots
+        (``te_multiplier``/``unet_multiplier``/``dyn_dim``/``lora_module``) are
+        per-application; the modules and their decomposed tensors are read-only at
+        apply time, so the clone shares them and only re-points each module's
+        ``network`` back-reference. Lets one file appear several times in a prompt
+        at different strengths or tower targets without configs clobbering.
+        """
+        net = Network(self.name, self.network_on_disk)
+        net.mtime = self.mtime
+        net.bundle_embeddings = self.bundle_embeddings
+        net.tags = self.tags
+        for key, module in self.modules.items():
+            cloned = copy.copy(module)
+            cloned.network = net
+            net.modules[key] = cloned
+        return net
 
 
 class ModuleType:

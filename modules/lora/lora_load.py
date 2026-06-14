@@ -61,15 +61,16 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
     if l.debug:
         log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" type=lora {"cached" if cached else ""}')
     if cached is not None:
-        return cached
+        return cached.clone()
     native_module = _NATIVE_DISPATCH.get(shared.sd_model_type)
     if native_module is not None:
         import importlib
         mod = importlib.import_module(native_module)
         net = mod.try_load(name, network_on_disk, shared.opts.extra_networks_default_multiplier)
-        if net is not None:
-            lora_cache[name] = net
-        return net
+        if net is None:
+            return None
+        lora_cache[name] = net
+        return net.clone()
     net = network.Network(name, network_on_disk)
     net.mtime = os.path.getmtime(network_on_disk.filename)
     state_dict = sd_models.read_state_dict(network_on_disk.filename, what='network')
@@ -156,7 +157,7 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
         return None
     lora_cache[name] = net
     net.bundle_embeddings = bundle_embeddings
-    return net
+    return net.clone()
 
 
 def maybe_recompile_model(names, te_multipliers):
