@@ -612,7 +612,7 @@ class YoloRestorer(Detailer):
             if tab == 'extras': # fold the standalone sampler settings into the detailer accordion; values applied per-job in make_processing, never global opts
                 from modules import sd_samplers
                 sd_samplers.set_samplers()
-                sampler_choices = [s.name for s in sd_samplers.samplers if s.name != 'Same as primary']
+                sampler_choices = [s.name for s in sd_samplers.visible_samplers() if s.name != 'Same as primary']
                 with gr.Accordion('Sampler', open=False, elem_id=f"{tab}_detailer_sampler_accordion", elem_classes=["small-accordion"]):
                     with gr.Row():
                         d_sampler = gr.Dropdown(label='Sampling method', choices=sampler_choices, value='Default', elem_id=f"{tab}_detailer_sampler")
