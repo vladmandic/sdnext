@@ -64,6 +64,7 @@ from modules.lora import (         # pylint: disable=wrong-import-position
     network, network_lora, network_lokr, network_hada, network_oft,
     lora_apply, lora_convert,
 )
+from modules.lora import lora_common as l_common   # pylint: disable=wrong-import-position
 from pipelines.ideogram import ideogram_lora as I    # pylint: disable=wrong-import-position
 
 
@@ -830,6 +831,62 @@ def test_two_tower_stamping():
 
 
 # ============================================================
+# Tests - per-reference clones (same file, multiple configs)
+# ============================================================
+
+CAT_CLONE = category('clone')
+
+
+def test_clone_shares_weights_independent_config():
+    """A clone shares the heavy decomposition but owns its config slots."""
+    net = _load_via(I.try_load_lora, sd_lora_bfl_o_alias())
+    key = next(iter(net.modules))
+    a = net.clone()
+    b = net.clone()
+    a.te_multiplier = 0.9
+    a.lora_module = ['transformer']
+    b.te_multiplier = 0.4
+    b.lora_module = ['unconditional_transformer']
+    # distinct module wrappers per clone and vs the template
+    assert a.modules[key] is not b.modules[key]
+    assert a.modules[key] is not net.modules[key]
+    # shared underlying decomposition (no tensor duplication)
+    assert a.modules[key].up_model.weight is b.modules[key].up_model.weight
+    # each cloned module reads its own clone's config
+    assert a.modules[key].network is a
+    assert b.modules[key].network is b
+    assert a.modules[key].multiplier() == 0.9
+    assert b.modules[key].multiplier() == 0.4
+    return True
+
+
+def test_per_clone_targeting_in_calc():
+    """Same file as two clones (cond@0.9, uncond@0.4) applies per-tower at per-clone strength."""
+    install_mock_pipe()
+    with TempLora(sd_lora_bfl_o_alias()) as nod:
+        net = I.try_load_lora('test', nod, lora_scale=1.0)
+    key = 'lora_transformer_layers_0_attention_to_out_0'
+    a = net.clone()
+    a.te_multiplier = a.unet_multiplier = 0.9
+    a.lora_module = ['transformer']
+    b = net.clone()
+    b.te_multiplier = b.unet_multiplier = 0.4
+    b.lora_module = ['unconditional_transformer']
+    model_module = shared.sd_model.pipe.transformer.layers[0].attention.to_out[0]
+    saved = l_common.loaded_networks
+    l_common.loaded_networks = [a, b]
+    try:
+        cond_delta, _ = lora_apply.network_calc_weights(model_module, key, component='transformer')
+        uncond_delta, _ = lora_apply.network_calc_weights(model_module, key, component='unconditional_transformer')
+    finally:
+        l_common.loaded_networks = saved
+    assert cond_delta is not None and uncond_delta is not None, 'a clone failed to apply to its tower'
+    ratio = (cond_delta.norm() / uncond_delta.norm()).item()
+    assert abs(ratio - (0.9 / 0.4)) < 1e-3, f'cond/uncond strength ratio {ratio}, expected {0.9 / 0.4}'
+    return True
+
+
+# ============================================================
 # Test runner
 # ============================================================
 
@@ -881,6 +938,13 @@ def run_tests():
         test_two_tower_stamping,
     ]:
         run_test(CAT_DUAL, fn)
+
+    log.warning('=== Per-reference clones ===')
+    for fn in [
+        test_clone_shares_weights_independent_config,
+        test_per_clone_targeting_in_calc,
+    ]:
+        run_test(CAT_CLONE, fn)
 
     elapsed = time.time() - t0
     log.warning('=== Results ===')
