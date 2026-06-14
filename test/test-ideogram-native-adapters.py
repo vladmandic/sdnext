@@ -59,8 +59,10 @@ installer.add_args(modules.cmd_args.parser)
 modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
 from modules.errors import log   # pylint: disable=wrong-import-position
+from modules import shared        # pylint: disable=wrong-import-position
 from modules.lora import (         # pylint: disable=wrong-import-position
     network, network_lora, network_lokr, network_hada, network_oft,
+    lora_apply, lora_convert,
 )
 from pipelines.ideogram import ideogram_lora as I    # pylint: disable=wrong-import-position
 
@@ -755,6 +757,79 @@ def test_oft_calc_updown_shape():
 
 
 # ============================================================
+# Tests - dual-tower targeting (conditional vs unconditional)
+# ============================================================
+
+CAT_DUAL = category('dual-tower')
+
+
+class _FakeNet:
+    """Minimal stand-in carrying just the lora_module attribute the filter reads."""
+
+    def __init__(self, lora_module):
+        self.lora_module = lora_module
+
+
+def test_applies_to_component_default_skips_uncond():
+    """Empty lora_module applies to the conditional tower, skips the unconditional one."""
+    net = _FakeNet([])
+    assert lora_apply.applies_to_component(net, 'transformer')
+    assert lora_apply.applies_to_component(net, 'text_encoder')
+    assert not lora_apply.applies_to_component(net, 'unconditional_transformer')
+    return True
+
+
+def test_applies_to_component_explicit_targets():
+    """Non-empty lora_module restricts to exactly the listed components."""
+    uncond_only = _FakeNet(['unconditional_transformer'])
+    assert lora_apply.applies_to_component(uncond_only, 'unconditional_transformer')
+    assert not lora_apply.applies_to_component(uncond_only, 'transformer')
+
+    both = _FakeNet(['transformer', 'unconditional_transformer'])
+    assert lora_apply.applies_to_component(both, 'transformer')
+    assert lora_apply.applies_to_component(both, 'unconditional_transformer')
+
+    cond_only = _FakeNet(['transformer'])
+    assert lora_apply.applies_to_component(cond_only, 'transformer')
+    assert not lora_apply.applies_to_component(cond_only, 'unconditional_transformer')
+    return True
+
+
+def test_applies_to_component_none_passthrough():
+    """component=None (non-filtering callers) always applies, regardless of lora_module."""
+    assert lora_apply.applies_to_component(_FakeNet(['unconditional_transformer']), None)
+    assert lora_apply.applies_to_component(_FakeNet([]), None)
+    assert lora_apply.applies_to_component(_FakeNet(None), None)
+    return True
+
+
+def install_two_tower_mock():
+    """shared.sd_model with both a conditional and an unconditional Ideogram transformer."""
+    cond = build_mock_transformer()
+    uncond = build_mock_transformer()
+    pipe = _MockIdeogramPipeline(cond)
+    pipe.unconditional_transformer = uncond
+    sd_model = _MockIdeogramSdModel(pipe)
+    from modules.modeldata import model_data
+    model_data.sd_model = sd_model
+    return cond, uncond
+
+
+def test_two_tower_stamping():
+    """assign_network_names stamps both towers with the same network_layer_name.
+
+    The flat mapping dict collides (harmless); what matters is the per-module
+    attribute on each tower so network_activate can reach either one.
+    """
+    cond, uncond = install_two_tower_mock()
+    lora_convert.assign_network_names_to_compvis_modules(shared.sd_model)
+    key = 'lora_transformer_layers_0_attention_to_q'
+    assert getattr(cond.layers[0].attention.to_q, 'network_layer_name', None) == key, 'conditional tower not stamped'
+    assert getattr(uncond.layers[0].attention.to_q, 'network_layer_name', None) == key, 'unconditional tower not stamped'
+    return True
+
+
+# ============================================================
 # Test runner
 # ============================================================
 
@@ -797,6 +872,15 @@ def run_tests():
         test_oft_calc_updown_shape,
     ]:
         run_test(CAT_MATH, fn)
+
+    log.warning('=== Dual-tower targeting ===')
+    for fn in [
+        test_applies_to_component_default_skips_uncond,
+        test_applies_to_component_explicit_targets,
+        test_applies_to_component_none_passthrough,
+        test_two_tower_stamping,
+    ]:
+        run_test(CAT_DUAL, fn)
 
     elapsed = time.time() - t0
     log.warning('=== Results ===')
