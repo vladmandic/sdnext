@@ -162,6 +162,8 @@ def get_sampler_name(sampler_index: int | None = None, img: bool = False) -> str
     else:
         sampler_name = "Default"
         log.warning(f'Sampler not found: index={sampler_index} available={[s.name for s in sd_samplers.samplers]} fallback={sampler_name}')
+    if sd_samplers.is_separator(sampler_name):  # divider row selected, treat as Default
+        sampler_name = "Default"
     if img and sampler_name == "PLMS":
         sampler_name = "Default"
         log.warning(f'Sampler not compatible: name=PLMS fallback={sampler_name}')

@@ -68,7 +68,7 @@ class I2IFolderScript(scripts_manager.Script):
         with gr.Row():
             sampler_override = gr.Dropdown(
                 label="Sampler (empty = use panel)",
-                choices=[""] + [s.name for s in sd_samplers.samplers_for_img2img],
+                choices=[""] + [s.name for s in sd_samplers.visible_samplers(img=True)],
                 value="",
                 elem_id=self.elem_id("sampler_override"),
             )

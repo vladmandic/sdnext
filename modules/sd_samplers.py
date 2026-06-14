@@ -13,6 +13,15 @@ samplers_map = {}
 loaded_config = None
 
 
+def is_separator(name) -> bool:
+    return isinstance(name, str) and name.startswith('─')  # U+2500 box-drawing; dropdown divider rows
+
+
+def visible_samplers(img: bool = False):
+    pool = samplers_for_img2img if img else samplers
+    return [s for s in pool if not is_separator(s.name)]
+
+
 def find_sampler(name:str):
     if name is None or name == 'None':
         return all_samplers_map.get("Default", None)
@@ -66,7 +75,7 @@ def restore_default(model, requested="Default"):
 
 
 def create_sampler(name, model, scheduler_overrides=None):
-    if name is None or name == 'None':
+    if name is None or name == 'None' or is_separator(name):  # separator = dropdown divider, keep current scheduler
         return model.scheduler if model is not None else None
 
     # create default scheduler if it doesnt exist
@@ -172,6 +181,8 @@ def set_samplers():
     samplers_for_img2img = samplers
     samplers_map.clear()
     for sampler in all_samplers:
+        if is_separator(sampler.name):
+            continue
         samplers_map[sampler.name.lower()] = sampler.name
         for alias in sampler.aliases:
             samplers_map[alias.lower()] = sampler.name

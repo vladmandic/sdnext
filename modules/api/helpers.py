@@ -16,6 +16,8 @@ def register_upload_store(getter_fn):
 
 
 def validate_sampler_name(name):
+    if sd_samplers.is_separator(name):  # dropdown divider, not a selectable sampler
+        raise HTTPException(status_code=404, detail="Sampler not found")
     config = sd_samplers.all_samplers_map.get(name, None)
     if config is not None:
         return name
