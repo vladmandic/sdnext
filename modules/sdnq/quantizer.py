@@ -726,7 +726,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         devices.torch_gc(force=True, reason="sdnq")
         return model
 
-    def get_state_dict_and_metadata(self, state_dict: dict | torch.nn.Module, **kwargs) -> tuple[dict | None, dict]: # pylint: disable=unused-argument
+    def get_state_dict_and_metadata(self, state_dict: dict | torch.nn.Module, **kwargs) -> tuple[dict | None, dict]: # pylint: disable=unused-argument, arguments-differ
         # transformers
         if isinstance(state_dict, torch.nn.Module):
             return None, {}
