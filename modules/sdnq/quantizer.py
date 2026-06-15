@@ -749,6 +749,10 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         return not self.quantization_config.is_training
 
     @property
+    def supports_safetensors_serialization(self) -> bool:
+        return self.is_serializable()
+
+    @property
     def is_trainable(self):
         return self.quantization_config.is_training
 
