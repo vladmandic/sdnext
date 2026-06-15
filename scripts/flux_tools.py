@@ -108,7 +108,7 @@ class FluxToolsScript(scripts_manager.Script):
         if tool == 'Canny':
             # pipe = diffusers.FluxControlPipeline.from_pretrained("black-forest-labs/FLUX.1-Canny-dev", torch_dtype=torch.bfloat16, revision="refs/pr/1").to("cuda")
             install('controlnet-aux')
-            install('timm==0.9.16')
+            install('timm==1.0.27')
             if shared.sd_model.__class__.__name__ != 'FluxControlPipeline' or 'Canny' not in shared.opts.sd_model_checkpoint:
                 shared.opts.data["sd_model_checkpoint"] = "black-forest-labs/FLUX.1-Canny-dev"
                 sd_models.reload_model_weights(op='model', revision="refs/pr/1")
