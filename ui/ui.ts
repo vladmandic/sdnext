@@ -25,7 +25,7 @@ function rememberGallerySelection(name) {
   // dummy
 }
 
-function set_theme(theme) {
+export function set_theme(theme) {
   const gradioURL = window.location.href;
   if (!gradioURL.includes('?__theme=')) window.location.replace(`${gradioURL}?__theme=${theme}`);
 }
@@ -859,3 +859,4 @@ window.currentImageResolutionimg2img = currentImageResolutionimg2img;
 window.currentImageResolutioncontrol = currentImageResolutioncontrol;
 window.updateImg2imgResizeToTextAfterChangingImage = updateImg2imgResizeToTextAfterChangingImage;
 window.create_submit_args = create_submit_args;
+window.set_theme = set_theme;

@@ -46,6 +46,7 @@ declare global {
     get_img2img_tab_index?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     modelmerger?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     restartReload?: (initial?: boolean) => void; // ui/ui.ts
+    set_theme?: (theme: string) => void; // ui/ui.ts
     selected_gallery_index?: () => number; // ui/ui.ts
     selected_gallery_files?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     send_to_kanvas?: (gallery: { data?: string }[]) => void; // ui/ui.ts
