@@ -40,7 +40,7 @@ def load_model(selected: models_def.Model):
         # shared.sd_model auto-reloads the default checkpoint when model_data.sd_model is None,
         # which silently swaps the pipe class behind the name-based cache. Pipe-class mismatch
         # is the reliable signal that the cached name no longer maps to the cached object.
-        log.warning(f'Video load: cached model="{selected.name}" pipe class swapped to {type(shared.sd_model).__name__}; forcing reload')
+        log.warning(f'Video load: cached model="{selected.name}" cls={type(shared.sd_model).__name__} mismatch forcing reload')
         loaded_model = None
     if loaded_model == selected.name:
         return ''

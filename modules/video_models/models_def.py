@@ -1,7 +1,6 @@
 from dataclasses import dataclass
 import sys
 import time
-import types
 import diffusers
 import transformers
 from modules import errors
