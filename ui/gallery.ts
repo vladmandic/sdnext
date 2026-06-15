@@ -1187,7 +1187,6 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
   el.files.innerHTML = '';
   updateGalleryStyles();
   if (ws && ws.readyState === WebSocket.OPEN) ws.close(); // abort previous request
-  // eslint-disable-next-line no-useless-assignment
   let wsConnected = false;
   try {
     ws = new WebSocket(`${url}/sdapi/v1/browser/files`);
