@@ -586,8 +586,8 @@ const dropdown = {
 
 // -- Event handlers --
 
-let debounceTimer = null;
-let focusoutHideTimer = null;
+let debounceInput: ReturnType<typeof setTimeout> | undefined;
+let debounceFocus: ReturnType<typeof setTimeout> | undefined;
 
 function onInput(textarea) {
   if (!active) return;
@@ -607,8 +607,8 @@ function onInput(textarea) {
     dropdown.hide();
     return;
   }
-  clearTimeout(debounceTimer);
-  debounceTimer = setTimeout(() => {
+  clearTimeout(debounceInput);
+  debounceInput = setTimeout(() => {
     let results;
     if (info.mode === 'lora') {
       results = xnEngine.searchLoras(info.word);
@@ -679,15 +679,15 @@ function attachAutocomplete(textarea) {
   textarea.addEventListener('focusin', () => {
     if (dropdown.visible && dropdown.textarea && dropdown.textarea !== textarea) dropdown.hide();
     // Cancel any pending hide from a recent blur so refocusing within 200ms doesn't close the dropdown.
-    clearTimeout(focusoutHideTimer);
-    focusoutHideTimer = null;
+    clearTimeout(debounceFocus);
+    debounceFocus = undefined;
     // Re-fire input handling so a partial tag at the cursor reopens the dropdown.
     onInput(textarea);
   });
   textarea.addEventListener('focusout', () => {
     // Cancel any in-flight debounced dropdown.show; otherwise it fires against a stale textarea.
-    clearTimeout(debounceTimer);
-    focusoutHideTimer = setTimeout(() => dropdown.hide(), 200);
+    clearTimeout(debounceInput);
+    debounceFocus = setTimeout(() => dropdown.hide(), 200);
   });
 }
 

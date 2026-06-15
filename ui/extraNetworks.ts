@@ -494,32 +494,32 @@ function setupExtraNetworksForTab(tabName) {
   txtDescription.classList.add('description');
   div.appendChild(txtSearch);
   div.appendChild(txtDescription);
-  let searchTimer = null;
+  let debouceSearch: ReturnType<typeof setTimeout> | undefined;
   txtSearchValue.addEventListener('input', (evt) => {
-    if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = setTimeout(async () => {
+    if (debouceSearch) clearTimeout(debouceSearch);
+    debouceSearch = setTimeout(async () => {
       await filterExtraNetworksForTab(txtSearchValue.value.toLowerCase());
-      searchTimer = null;
+      debouceSearch = undefined;
     }, 100);
   });
 
   // card hover
-  let hoverTimer = null;
-  let previousCard = null;
+  let debounceHover: ReturnType<typeof setTimeout> | undefined;
+  let previousCard: string | null = null;
   if (window.opts.extra_networks_fetch) {
     gradioApp().getElementById(`${tabName}_extra_tabs`).onmouseover = async (e) => {
       const el = e.target.closest('.card'); // bubble-up to card
       if (!el || (el.title === previousCard)) return;
-      if (!hoverTimer) {
-        hoverTimer = setTimeout(() => {
+      if (!debounceHover) {
+        debounceHover = setTimeout(() => {
           readCardDescription(el.dataset.page, el.dataset.name);
           readCardTags(el, el.dataset.tags);
           previousCard = el.title;
         }, 300);
       }
       el.onmouseout = () => {
-        clearTimeout(hoverTimer);
-        hoverTimer = null;
+        clearTimeout(debounceHover);
+        debounceHover = undefined;
       };
     };
   }

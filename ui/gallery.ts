@@ -266,8 +266,8 @@ class SimpleProgressBar {
   #textDiv = document.createElement('div');
   #text = document.createElement('span');
   #visible = false;
-  #hideTimeout = null;
-  #interval = null;
+  #hideTimeout: ReturnType<typeof setTimeout> | undefined;
+  #interval: ReturnType<typeof setTimeout> | undefined;
   #max = 0;
   /** @type {Set} */
   #monitoredSet;
@@ -302,7 +302,7 @@ class SimpleProgressBar {
   clear() {
     this.#stop();
     clearTimeout(this.#hideTimeout);
-    this.#hideTimeout = null;
+    this.#hideTimeout = undefined;
     this.#container.style.display = 'none';
     this.#visible = false;
     this.#progress.style.width = '0';
@@ -311,7 +311,7 @@ class SimpleProgressBar {
 
   #update(loaded, max) {
     if (this.#hideTimeout) {
-      this.#hideTimeout = null;
+      this.#hideTimeout = undefined;
     }
 
     this.#progress.style.width = `${Math.floor((loaded / max) * 100)}%`;
@@ -323,9 +323,7 @@ class SimpleProgressBar {
     }
     if (loaded >= max) {
       this.#stop();
-      this.#hideTimeout = setTimeout(() => {
-        this.clear();
-      }, 1000);
+      this.#hideTimeout = setTimeout(() => this.clear(), 1000);
     }
   }
 

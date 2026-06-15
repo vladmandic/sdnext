@@ -3,7 +3,7 @@ import { get_tab_index } from './ui';
 
 let currentWidth: number | null = null;
 let currentHeight: number | null = null;
-let arFrameTimeout: ReturnType<typeof setTimeout> | null = null;
+let arFrameTimeout: ReturnType<typeof setTimeout> | undefined;
 
 function dimensionChange(e: Event, isWidth: boolean, isHeight: boolean): void {
   const { target } = e;

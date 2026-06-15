@@ -15,10 +15,10 @@ const localeData = {
   type: 2,
   hint: null,
   btn: null,
-  expandTimeout: null, // Property for expansion timeout
+  expandTimeout: undefined, // Property for expansion timeout
   currentElement: null, // Track current element for expansion
 };
-let localeTimeout = null;
+let localeTimeout: ReturnType<typeof setTimeout> | undefined;
 const isTouchDevice = 'ontouchstart' in window;
 
 async function cycleLocale() {
@@ -104,7 +104,7 @@ async function tooltipHideDelegated(e) {
 async function tooltipShow(e) {
   if (localeData.expandTimeout) { // clear any existing expansion timeout
     clearTimeout(localeData.expandTimeout);
-    localeData.expandTimeout = null;
+    localeData.expandTimeout = undefined;
   }
 
   localeData.hint.classList.remove('tooltip-expanded'); // remove expanded class and reset current element
@@ -167,7 +167,7 @@ async function tooltipShow(e) {
 async function tooltipHide(e) {
   if (localeData.expandTimeout) {
     clearTimeout(localeData.expandTimeout);
-    localeData.expandTimeout = null;
+    localeData.expandTimeout = undefined;
   }
   localeData.hint.classList.remove('tooltip-show', 'tooltip-expanded');
   localeData.currentElement = null;

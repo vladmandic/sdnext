@@ -147,7 +147,7 @@ async function onAfterUiUpdateCallback() {
   });
 
   const settingsSearch = gradioApp().querySelectorAll('#settings_search > label > textarea')[0];
-  let settingsTimer;
+  let settingsTimer: ReturnType<typeof setTimeout> | undefined;
   let settingSearchValue = '';
 
   function doSettingsSearch() {
