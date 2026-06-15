@@ -770,7 +770,7 @@ class SDNQConfig(QuantizationConfigMixin):
     Args:
         weights_dtype (`str`, *optional*, defaults to `"int8"`):
             The target dtype for the weights after quantization.
-            Check out `sdnq.common.accepted_weight_dtypes` for all the supported values.
+            See `sdnq.common.accepted_weight_dtypes` for all the supported values.
             These are some of the recommended values to use: ("int8", "int7", "int6", "uint5", "uint4", "uint3", "uint2", "float8_e4m3fn", "float7_e3m3fn", "float6_e3m2fn", "float5_e2m2fn", "float4_e2m1fn", "float3_e1m1fn", "float2_e1m0fn")
         quantized_matmul_dtype (`str`, *optional*, defaults to `None`):
             The target dtype for quantized matmul.
@@ -780,37 +780,50 @@ class SDNQConfig(QuantizationConfigMixin):
             Used to decide how many elements of a tensor will share the same Hadamard rotation group.
         group_size (`int`, *optional*, defaults to `0`):
             Used to decide how many elements of a tensor will share the same quantization group.
-            group_size = 0 will automatically select a group size based on weights_dtype.
+            group_size = `0` will automatically select a group size based on weights_dtype.
+            group_size = `-1` will disable group sizes and use simple row-wise quantization instead.
         svd_rank (`int`, *optional*, defaults to `32`):
             The rank size used for the SVDQuant algorithm.
+        svd_steps (`int`, *optional*, defaults to `8`):
+            The number of iterations to use in svd lowrank estimation.
         dynamic_loss_threshold (`float`, *optional*, defaults to `None`):
             The target quantization mse loss threshold to use for dynamic quantization.
             The value `None` or negative values means auto select a threshold based on the weights_dtype.
-        svd_steps (`int`, *optional*, defaults to `8`):
-            The number of iterations to use in svd lowrank estimation.
         use_svd (`bool`, *optional*, defaults to `False`):
             Enabling this option will use SVDQuant algorithm on top of SDNQ quantization.
         use_hadamard (`bool`, *optional*, defaults to `False`):
             Enabling this option will use Hadamard rotation on top of SDNQ quantization.
+        use_grad_ckpt (`bool`, *optional*, defaults to `True`):
+            This option is only used for training models when `is_training` is enabled or with `sdnq.training.sdnq_training_post_load_quant`.
+            Disabling this option will quantize the tensors needed for the backward pass before saving in the forward pass.
+            Disable this option only if you are not using gradient checkpointing and enable it when you are using gradient checkpointing.
         quant_conv (`bool`, *optional*, defaults to `False`):
-            Enabling this option will quantize the convolutional layers in UNet models too.
+            Enabling this option will quantize the nn.Conv layers in UNet models too.
+            Note: nn.Conv layers doesn't support training.
         quant_embedding (`bool`, *optional*, defaults to `False`):
-            Enabling this option will quantize the embedding layers in text models too.
+            Enabling this option will quantize the nn.Embedding layers in text models too.
+            Note: nn.Embedding layers doesn't support training.
         use_quantized_matmul (`bool`, *optional*, defaults to `False`):
-            Enabling this option will use quantized INT8 or FP8 MatMul instead of BF16 / FP16.
+            Enabling this option will use quantized INT8, FP8 or FP16 MatMul on the forward pass and the backward pass instead of BF16 / FP16.
+            `False` means no quantized matmul and quantized_matmul_dtype will be ignored.
         use_quantized_matmul_conv (`bool`, *optional*, defaults to `False`):
-            Same as use_quantized_matmul_conv but for the convolutional layers with UNets like SDXL.
+            Same as use_quantized_matmul but for the nn.Conv layers with UNets like SDXL.
         use_stochastic_rounding (`bool`, *optional*, defaults to `False`):
             Enabling this option will use stochastic rounding on the quantization step.
+            Recommended for full finetuning / full rank training.
+        use_static_quantization (`bool`, *optional*, defaults to `True`):
+            This option is only used for training models with `sdnq.training.sdnq_training_post_load_quant`.
+            Disabling this option means model weights will be kept unquantized in their original precision and only the use_quantized_matmul (if enabled) will be used.
         use_dynamic_quantization (`bool`, *optional*, defaults to `False`):
             Enabling this option will dynamically select a per layer quantization type based on the dynamic_loss_threshold.
             weights_dtype will be used as the minimum allowed quantization type when this option is enabled.
-        dequantize_fp32 (`bool`, *optional*, defaults to `False`):
-            Enabling this option will use FP32 on the dequantization step.
+        dequantize_fp32 (`bool`, *optional*, defaults to `True`):
+            Enabling this option will keep the quant scales in FP32 and compute the de-quant steps in FP32.
+            This option is highly recommended to be enabled.
         non_blocking (`bool`, *optional*, defaults to `False`):
             Enabling this option will use non blocking ops when moving layers between the quantization device and the return device.
         add_skip_keys (`bool`, *optional*, defaults to `True`):
-            Disabling this option won't add model specific modules_to_not_convert and modules_dtype_dict keys.
+            Disabling this option won't add model specific keys to modules_to_not_convert, modules_to_not_use_matmul and modules_dtype_dict.
         quantization_device (`torch.device`, *optional*, defaults to `None`):
             Used to set which device will be used for the quantization calculation on model load.
         return_device (`torch.device`, *optional*, defaults to `None`):
@@ -818,11 +831,18 @@ class SDNQConfig(QuantizationConfigMixin):
         modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize. Useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
+        modules_to_not_use_matmul (`list`, *optional*, default to `None`):
+            The list of modules to not use quantized matmul. Useful for quantizing models that explicitly require to have some
+            modules left in their original activation precision (e.g. AdaLN layers).
         modules_dtype_dict (`dict`, *optional*, default to `None`):
             The dict of dtypes and list of modules. Useful for quantizing some modules with a different dtype.
         modules_quant_config (`dict`, *optional*, default to `None`):
             The dict of modules and a dict of quantization kwargs to use for that module.
             Useful for quantizing some modules with a different quantization config.
+        is_training (`bool`, *optional*, defaults to `False`):
+            This option is auto enabled when using `sdnq.training.sdnq_training_post_load_quant`.
+            Enabling this option with SDNQQuantizer will convert the model to SDNQ Training format after quantization.
+            Note: Safetensors serialization is not supported with SDNQ training.
     """
 
     def __init__( # pylint: disable=super-init-not-called
