@@ -40,7 +40,6 @@ class State:
     current_image = None
     current_image_sampling_step = 0
     id_live_preview = 0
-    live_preview_b64 = None
     textinfo = None
     prediction_type = "epsilon"
     api = False
@@ -272,18 +271,13 @@ class State:
 
     def do_set_current_image(self):
         from modules import shared, images, sd_samplers_common
-        if self.disable_preview:
-            return False
-
-        # Skip if we already decoded a preview for the current sampling step
-        if self.current_image_sampling_step == self.sampling_step and self.current_image is not None:
+        if self.disable_preview or (self.preview_job == self.job_no):
             return False
 
         if (shared.opts.show_progress_type == "None") and (shared.history.last_image is not None):
-            self.preview_job = self.job_no
             last_image = images.image_grid(shared.history.last_image)
             self.assign_current_image(last_image)
-            self.current_image_sampling_step = self.sampling_step
+            self.preview_job = -1
             return True
 
         if self.current_latent is not None:
@@ -302,25 +296,22 @@ class State:
                     pass # ignore sigma errors
                 image = sd_samplers_common.samples_to_image_grid(sample)
                 self.assign_current_image(image)
+                self.preview_job = -1
                 return True
             except Exception as e:
+                self.preview_job = -1
                 log.error(f'State image: last={self.id_live_preview} step={self.sampling_step} {e}')
                 display(e, 'State image')
                 return False
         elif self.current_image is not None:
             self.preview_job = self.job_no
-            self.current_image_sampling_step = self.sampling_step
             self.assign_current_image(self.current_image)
+            self.preview_job = -1
             return True
         else:
             pass
         return False
 
     def assign_current_image(self, image):
-        import base64
-        import io
         self.current_image = image
         self.id_live_preview += 1
-        buffered = io.BytesIO()
-        image.save(buffered, format='jpeg', quality=60)
-        self.live_preview_b64 = f'data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode("ascii")}'
