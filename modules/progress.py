@@ -2,7 +2,9 @@ import base64
 import os
 import io
 import time
+import asyncio
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
+from starlette.websockets import WebSocket, WebSocketState
 import modules.shared as shared
 from modules.logger import log
 
@@ -14,6 +16,99 @@ recorded_results = []
 recorded_results_limit = 2
 debug = os.environ.get('SD_PREVIEW_DEBUG', None) is not None
 debug_log = log.trace if debug else lambda *args, **kwargs: None
+
+
+class PreviewManager:
+    def __init__(self):
+        self.active: list[WebSocket] = []
+        self._loop = None
+
+    async def connect(self, ws: WebSocket):
+        await ws.accept()
+        self._loop = asyncio.get_running_loop()
+        self.active.append(ws)
+        debug_log(f'Preview WS connect: client={ws.client.host} total={len(self.active)}')
+
+    def disconnect(self, ws: WebSocket):
+        try:
+            self.active.remove(ws)
+        except ValueError:
+            pass
+        debug_log(f'Preview WS disconnect: client={ws.client.host} total={len(self.active)}')
+
+    async def broadcast(self, data: dict):
+        disconnected = []
+        for ws in list(self.active):
+            try:
+                if ws.client_state == WebSocketState.CONNECTED:
+                    await ws.send_json(data)
+                else:
+                    disconnected.append(ws)
+            except Exception:
+                disconnected.append(ws)
+        for ws in disconnected:
+            try:
+                self.active.remove(ws)
+            except ValueError:
+                pass
+
+    def push(self, data: dict):
+        if self._loop is None or not self.active:
+            return
+        try:
+            asyncio.run_coroutine_threadsafe(self.broadcast(data), self._loop)
+        except Exception:
+            pass
+
+
+preview_manager = PreviewManager()
+
+
+def push_progress(step: int, steps: int, progress: float, active: bool = True):
+    try:
+        data = {
+            'type': 'progress',
+            'step': step,
+            'steps': steps,
+            'progress': progress,
+            'active': active,
+            'job': shared.state.job,
+            'paused': shared.state.paused,
+        }
+        preview_manager.push(data)
+    except Exception as e:
+        debug_log(f'Progress push error: {e}')
+
+
+def push_live_preview(image, step: int, steps: int, progress: float):
+    try:
+        buffered = io.BytesIO()
+        image.save(buffered, format='jpeg', quality=60)
+        b64 = base64.b64encode(buffered.getvalue()).decode('ascii')
+        data = {
+            'type': 'preview',
+            'live_preview': f'data:image/jpeg;base64,{b64}',
+            'id_live_preview': shared.state.id_live_preview,
+            'step': step,
+            'steps': steps,
+            'progress': progress,
+            'job': shared.state.job,
+        }
+        preview_manager.push(data)
+    except Exception as e:
+        debug_log(f'Preview push error: {e}')
+
+
+def push_complete():
+    try:
+        data = {
+            'type': 'complete',
+            'active': False,
+            'job': shared.state.job,
+        }
+        preview_manager.push(data)
+    except Exception as e:
+        debug_log(f'Complete push error: {e}')
 
 
 def start_task(id_task):
@@ -35,6 +130,7 @@ def finish_task(id_task):
     finished_tasks.append(id_task)
     if len(finished_tasks) > 16:
         finished_tasks.pop(0)
+    push_complete()
 
 
 def add_task_to_queue(id_job):
@@ -94,15 +190,10 @@ def api_progress(req: ProgressRequest):
 
     debug_log(f'Progress: job="{shared.state.job}" active={active} progress={step}/{steps}/{progress} image={shared.state.current_image_sampling_step} request={id_live_preview} last={shared.state.id_live_preview} job={shared.state.preview_job} elapsed={elapsed:.3f}')
 
-    if active and (req.id_live_preview != -1):
-        have_image = shared.state.set_current_image()
-        if have_image and shared.state.current_image is not None:
-            buffered = io.BytesIO()
-            shared.state.current_image.save(buffered, format='jpeg', quality=60)
-            b64 = base64.b64encode(buffered.getvalue())
-            live_preview = f'data:image/jpeg;base64,{b64.decode("ascii")}'
-        else:
-            live_preview = None
+    if active:
+        shared.state.set_current_image()
+    if shared.state.current_image is not None and req.id_live_preview != shared.state.id_live_preview:
+        live_preview = shared.state.live_preview_b64
 
     id_live_preview = shared.state.id_live_preview
 
@@ -129,3 +220,17 @@ def api_progress(req: ProgressRequest):
 
 def setup_progress_api():
     shared.api.add_api_route("/internal/progress", api_progress, methods=["POST"], response_model=InternalProgressResponse)
+
+    @shared.api.app.websocket("/ws/preview")
+    async def ws_preview(ws: WebSocket):
+        await preview_manager.connect(ws)
+        try:
+            while True:
+                data = await ws.receive_text()
+                if data == 'ping':
+                    await ws.send_text('pong')
+                elif data == 'end':
+                    break
+        except Exception:
+            pass
+        preview_manager.disconnect(ws)

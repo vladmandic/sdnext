@@ -73,6 +73,18 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         shared.state.current_latent = None
         shared.state.step() # increase step
         shared.state.preview_job = -1 # indicate that preview image has changed
+        # Step-based progress and live preview push
+        from modules import progress
+        total = max(shared.state.sampling_steps, 1)
+        prog = round(min(1, shared.state.sampling_step / total), 2)
+        progress.push_progress(shared.state.sampling_step, total, prog)
+        if shared.opts.show_progress_every_n_steps > 0 and step % shared.opts.show_progress_every_n_steps == 0:
+            try:
+                shared.state.current_image_sampling_step = shared.state.sampling_step
+                shared.state.assign_current_image(image)
+                progress.push_live_preview(shared.state.current_image, shared.state.sampling_step, total, prog)
+            except Exception:
+                pass
         debug_callback(f'Callback: step={step} timestep={timestep} image={image if image is not None else None} kwargs={list(kwargs)}')
         return kwargs
 
@@ -229,6 +241,17 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         # errors.display(e, 'Callback')
     if shared.cmd_opts.profile and shared.profiler is not None:
         shared.profiler.step()
+    # Step-based progress and live preview push
+    from modules import progress
+    total = max(shared.state.sampling_steps, 1)
+    prog = round(min(1, shared.state.sampling_step / total), 2)
+    progress.push_progress(shared.state.sampling_step, total, prog)
+    if shared.opts.show_progress_every_n_steps > 0 and step % shared.opts.show_progress_every_n_steps == 0:
+        try:
+            if shared.state.set_current_image() and shared.state.current_image is not None:
+                progress.push_live_preview(shared.state.current_image, shared.state.sampling_step, total, prog)
+        except Exception:
+            pass
     t1 = time.time()
     timer.process.add('callback', t1 - t0)
     return kwargs
