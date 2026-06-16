@@ -20,7 +20,13 @@ model = AutoModelForCausalLM.from_pretrained(
     dtype=torch.bfloat16,
     trust_remote_code=True,
     attn_implementation="sdpa",
+    # attn_implementation="eager",
+    # attn_implementation="flash_attention_2",
 )
+model.config.use_flash_attention = True
+
+logger.log.info("OpenAI: eval model...")
+model.eval()
 tokenizer = AutoTokenizer.from_pretrained(
     "Qwen/Qwen3-0.6B",
     trust_remote_code=True
@@ -42,3 +48,4 @@ while True:
     except KeyboardInterrupt:
         server.stop()
         break
+
