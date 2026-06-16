@@ -187,6 +187,7 @@ def guess_by_diffusers(fn, current_guess):
         cls = index.get('_class_name', None)
         if isinstance(cls, list):
             cls = cls[-1]
+        pipeline = None
         if cls is not None:
             pipeline = getattr(diffusers, cls, None)
             if pipeline is None:
