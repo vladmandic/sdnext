@@ -96,7 +96,7 @@ def create_model_cards(all_models: list[CivitModel]) -> str:
                 if image.url and not image.url.lower().endswith('.mp4'):
                     previews.append(image.url)
         if not previews:
-            previews = ['/sdapi/v1/network/thumb?filename=html/missing.png']
+            previews = ['/sdapi/v1/network/thumb?filename=ui/assets/missing.png']
         all_cards += card.format(id=model.id, name=model.name, type=model.type, preview=previews[0])
     html = details + cards.format(cards=all_cards)
     return html

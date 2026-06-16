@@ -32,6 +32,9 @@ class XYZGridScript(scripts_manager.Script):
     def title(self):
         return "XYZ Grid Script"
 
+    def show(self, is_img2img): # pylint: disable=unused-argument
+        return True
+
     def ui(self, is_img2img):
         self.current_axis_options = [x for x in axis_options if type(x) == AxisOption or x.is_img2img == is_img2img]
         with gr.Row():
@@ -248,6 +251,7 @@ class XYZGridScript(scripts_manager.Script):
         except Exception as e:
             log.error(f"XYZ grid: invalid axis values {e}")
             errors.display(e, 'xyz')
+            shared.state.end(jobid)
             return None
 
         Image.MAX_IMAGE_PIXELS = None # disable check in Pillow and rely on check below to allow large custom image sizes
@@ -389,7 +393,7 @@ class XYZGridScript(scripts_manager.Script):
             return processed # something broke, no further handling needed.
 
         have_grid = 1 if include_grid else 0
-        have_subgrids = len(zs) if len(zs) > 1 and include_subgrids else 0
+        have_subgrids = len(zs) if len(zs) > 1 and (include_grid or include_subgrids) else 0 # sub-grids are created whenever the main grid is, see draw_xyz_grid
         have_images = processed.images[have_grid+have_subgrids:]
         processed.infotexts[:have_grid+have_subgrids] = grid_infotext[:have_grid+have_subgrids] # update infotexts with grid and subgrid info
         log.debug(f'XYZ grid: grid={have_grid} subgrids={have_subgrids} images={len(have_images)} total={len(processed.images)}')

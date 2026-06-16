@@ -98,7 +98,7 @@ def get_text_encoders():
 
 def deref_tokenizers(tokens, tokenizers):
     """
-    Bundled embeddings may have the same name as a seperately loaded embedding, or there may be multiple LoRA with
+    Bundled embeddings may have the same name as a separately loaded embedding, or there may be multiple LoRA with
     differing numbers of vectors. By editing the AddedToken objects, and deleting the dict keys pointing to them,
     we can ensure that a smaller embedding will not get tokenized as itself, plus the remaining vectors of the previous.
     """
@@ -212,7 +212,7 @@ class DirWithTextualInversionEmbeddings:
 def convert_embedding(tensor, text_encoder, text_encoder_2):
     """
     Given a tensor of shape (b, embed_dim) and two text encoders whose tokenizers match, return a tensor with
-    approximately mathcing meaning, or padding if the input tensor is dissimilar to any frozen text embed
+    approximately matching meaning, or padding if the input tensor is dissimilar to any frozen text embed
     """
     with torch.no_grad():
         vectors = []
@@ -256,7 +256,7 @@ class EmbeddingDatabase:
 
     def load_diffusers_embedding(self, filename: str | list[str] | None = None, data: dict | None = None):
         """
-        File names take precidence over bundled embeddings passed as a dict.
+        File names take precedence over bundled embeddings passed as a dict.
         Bundled embeddings are automatically set to overwrite previous embeddings.
         """
         with limit_errors("load_diffusers_embedding") as elimit:

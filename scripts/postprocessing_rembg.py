@@ -98,14 +98,13 @@ class ScriptPostprocessingRembg(scripts_postprocessing.ScriptPostprocessing):
                 log.error(f'RemoveBackground: model={model} {e}')
                 return pp
 
-        if mask_only and pp.image.mode == "RGBA":
-            _r, _g, _b, alpha = pp.image.split()
+        if mask_only and image.mode == "RGBA":
+            _r, _g, _b, alpha = image.split()
             image = alpha
-        if merge_alpha and pp.image.mode == "RGBA":
-            flattened = Image.new("RGBA", pp.image.size, "BLACK")
-            flattened.paste(pp.image, mask=pp.image)
-            flattened.convert("RGB")
-            image = flattened
+        if merge_alpha and image.mode == "RGBA":
+            flattened = Image.new("RGBA", image.size, "BLACK")
+            flattened.paste(image, mask=image)
+            image = flattened.convert("RGB")
 
         if isinstance(pp, Image.Image):
             pp = scripts_postprocessing.PostprocessedImage(image=image, info={**info, "Rembg": model})

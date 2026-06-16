@@ -19,7 +19,6 @@ __pycache__
 /data/installer.json
 /data/rocm.json
 node_modules
-pnpm-lock.yaml
 package-lock.json
 
 # all models and temp files
@@ -60,6 +59,7 @@ tunableop_results*.csv
 !package.json
 !requirements.txt
 !constraints.txt
+!pnpm-lock.yaml
 !/data
 !/models/VAE-approx
 !/models/VAE-approx/model.pt

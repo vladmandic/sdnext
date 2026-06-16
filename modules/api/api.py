@@ -17,12 +17,12 @@ class Api:
         self.credentials = {}
         if shared.cmd_opts.auth:
             for auth in shared.cmd_opts.auth.split(","):
-                user, password = auth.split(":")
+                user, password = auth.split(":", 1)
                 self.credentials[user.replace('"', '').strip()] = password.replace('"', '').strip()
         if shared.cmd_opts.auth_file:
             with open(shared.cmd_opts.auth_file, encoding="utf8") as file:
                 for line in file.readlines():
-                    user, password = line.split(":")
+                    user, password = line.split(":", 1)
                     self.credentials[user.replace('"', '').strip()] = password.replace('"', '').strip()
         self.router = APIRouter()
         if shared.cmd_opts.docs:
@@ -44,7 +44,7 @@ class Api:
         # server api
         self.add_api_route("/sdapi/v1/motd", server.get_motd, methods=["GET"], response_model=str)
         self.add_api_route("/sdapi/v1/log", server.get_log, methods=["GET"], response_model=list[str])
-        self.add_api_route("/sdapi/v1/log", server.post_log, methods=["POST"])
+        self.add_api_route("/sdapi/v1/log", server.post_log, methods=["POST"], status_code=204)
         self.add_api_route("/sdapi/v1/start", self.get_session_start, methods=["GET"])
         self.add_api_route("/sdapi/v1/version", server.get_version, methods=["GET"])
         self.add_api_route("/sdapi/v1/torch", server.get_torch, methods=["GET"])
@@ -52,9 +52,9 @@ class Api:
         self.add_api_route("/sdapi/v1/platform", server.get_platform, methods=["GET"])
         self.add_api_route("/sdapi/v1/progress", server.get_progress, methods=["GET"], response_model=models.ResProgress)
         self.add_api_route("/sdapi/v1/history", server.get_history, methods=["GET"], response_model=list[models.ResHistory])
-        self.add_api_route("/sdapi/v1/interrupt", server.post_interrupt, methods=["POST"])
-        self.add_api_route("/sdapi/v1/skip", server.post_skip, methods=["POST"])
-        self.add_api_route("/sdapi/v1/shutdown", server.post_shutdown, methods=["POST"])
+        self.add_api_route("/sdapi/v1/interrupt", server.post_interrupt, methods=["POST"], status_code=204)
+        self.add_api_route("/sdapi/v1/skip", server.post_skip, methods=["POST"], status_code=204)
+        self.add_api_route("/sdapi/v1/shutdown", server.post_shutdown, methods=["POST"], status_code=204)
         self.add_api_route("/sdapi/v1/memory", server.get_memory, methods=["GET"], response_model=models.ResMemory)
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel)
         self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu, methods=["GET"])
@@ -69,6 +69,7 @@ class Api:
         self.add_api_route("/sdapi/v1/preprocess", self.process.post_preprocess, methods=["POST"], tags=["Processing"])
         self.add_api_route("/sdapi/v1/mask", self.process.post_mask, methods=["POST"], tags=["Processing"])
         self.add_api_route("/sdapi/v1/detect", self.process.post_detect, methods=["POST"], tags=["Processing"])
+        self.add_api_route("/sdapi/v1/detail", self.process.post_detail, methods=["POST"], response_model=models.ResDetail, tags=["Processing"])
         self.add_api_route("/sdapi/v1/prompt-enhance", self.process.post_prompt_enhance, methods=["POST"], response_model=models.ResPromptEnhance, tags=["Generation"])
 
         # api dealing with optional scripts
@@ -100,12 +101,12 @@ class Api:
         self.add_api_route("/sdapi/v1/png-info", endpoints.post_pnginfo, methods=["POST"], response_model=models.ResImageInfo, tags=["Functional"])
         self.add_api_route("/sdapi/v1/checkpoint", endpoints.get_checkpoint, methods=["GET"], tags=["Functional"])
         self.add_api_route("/sdapi/v1/checkpoint", endpoints.set_checkpoint, methods=["POST"], tags=["Functional"])
-        self.add_api_route("/sdapi/v1/refresh-checkpoints", endpoints.post_refresh_checkpoints, methods=["POST"], tags=["Functional"])
-        self.add_api_route("/sdapi/v1/unload-checkpoint", endpoints.post_unload_checkpoint, methods=["POST"], tags=["Functional"])
-        self.add_api_route("/sdapi/v1/reload-checkpoint", endpoints.post_reload_checkpoint, methods=["POST"], tags=["Functional"])
-        self.add_api_route("/sdapi/v1/lock-checkpoint", endpoints.post_lock_checkpoint, methods=["POST"], tags=["Functional"])
-        self.add_api_route("/sdapi/v1/refresh-vae", endpoints.post_refresh_vae, methods=["POST"], tags=["Functional"])
-        self.add_api_route("/sdapi/v1/refresh-unets", endpoints.post_refresh_unets, methods=["POST"], tags=["Functional"])
+        self.add_api_route("/sdapi/v1/refresh-checkpoints", endpoints.post_refresh_checkpoints, methods=["POST"], status_code=204, tags=["Functional"])
+        self.add_api_route("/sdapi/v1/unload-checkpoint", endpoints.post_unload_checkpoint, methods=["POST"], status_code=204, tags=["Functional"])
+        self.add_api_route("/sdapi/v1/reload-checkpoint", endpoints.post_reload_checkpoint, methods=["POST"], status_code=204, tags=["Functional"])
+        self.add_api_route("/sdapi/v1/lock-checkpoint", endpoints.post_lock_checkpoint, methods=["POST"], status_code=204, tags=["Functional"])
+        self.add_api_route("/sdapi/v1/refresh-vae", endpoints.post_refresh_vae, methods=["POST"], status_code=204, tags=["Functional"])
+        self.add_api_route("/sdapi/v1/refresh-unets", endpoints.post_refresh_unets, methods=["POST"], status_code=204, tags=["Functional"])
         self.add_api_route("/sdapi/v1/latents", endpoints.get_latent_history, methods=["GET"], response_model=list[str], tags=["Functional"])
         self.add_api_route("/sdapi/v1/latents", endpoints.post_latent_history, methods=["POST"], response_model=int, tags=["Functional"])
         self.add_api_route("/sdapi/v1/modules", endpoints.get_modules, methods=["GET"], tags=["Functional"])
@@ -130,7 +131,7 @@ class Api:
 
         # gallery api
         from modules.api import gallery
-        gallery.register_api(self.app)
+        gallery.register_api(self)
 
         # nudenet api
         from modules.api import nudenet

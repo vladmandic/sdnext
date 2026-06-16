@@ -217,7 +217,7 @@ class ItemFace(BaseModel):
     mode: str = Field(title="Mode", default="FaceID", description="The mode to use (available values: FaceID, FaceSwap, PhotoMaker, InstantID).")
     source_images: list[str] = Field(title="Source Images", description="Source face images, must be base64 encoded containing the image's data.")
     ip_model: str = Field(title="IPAdapter Model", default="FaceID Base", description="The IPAdapter model to use.")
-    ip_override_sampler: bool = Field(title="IPAdapter Override Sampler", default=True, description="Should the sampler be overriden?")
+    ip_override_sampler: bool = Field(title="IPAdapter Override Sampler", default=True, description="Should the sampler be overridden?")
     ip_cache_model: bool = Field(title="IPAdapter Cache", default=True, description="Should the IPAdapter model be cached?")
     ip_strength: float = Field(title="IPAdapter Strength", default=1, ge=0, le=2, description="IPAdapter strength of the source images, must be between 0.0 and 2.0.")
     ip_structure: float = Field(title="IPAdapter Structure", default=1, ge=0, le=1, description="IPAdapter structure to use, must be between 0.0 and 1.0.")
@@ -302,7 +302,7 @@ ReqImg2Img = PydanticModelGenerator(
     StableDiffusionProcessingImg2Img,
     [
         {"key": "sampler_index", "type": Union[int, str], "default": 0},
-        {"key": "sampler_name", "type": str, "default": "UniPC"},
+        {"key": "sampler_name", "type": str, "default": "Default"},
         {"key": "hr_sampler_name", "type": str, "default": "Same as primary"},
         {"key": "init_images", "type": list, "default": None},
         {"key": "denoising_strength", "type": float, "default": 0.5},
@@ -343,6 +343,7 @@ class ReqProcess(BaseModel):
     upscaler_1: str = Field(default="None", title="Main upscaler", description=f"The name of the main upscaler to use, it has to be one of this list: {' , '.join([x.name for x in shared.sd_upscalers])}")
     upscaler_2: str = Field(default="None", title="Refine upscaler", description=f"The name of the secondary upscaler to use, it has to be one of this list: {' , '.join([x.name for x in shared.sd_upscalers])}")
     extras_upscaler_2_visibility: float = Field(default=0, title="Refine upscaler visibility", ge=0, le=1, allow_inf_nan=False, description="Sets the visibility of secondary upscaler, values should be between 0 and 1.")
+    script_args: dict | None = Field(default=None, title="Script args", description="Per-script arguments keyed by script name, e.g. {\"Detailer\": {\"strength\": 0.5}, \"Remove background\": {\"model\": \"u2net\"}}.")
 
 class ResProcess(BaseModel):
     html_info: str = Field(title="HTML info", description="A series of HTML tags containing the process info.")
@@ -359,6 +360,7 @@ class ReqPromptEnhance(BaseModel):
     prefix: Optional[str] = Field(title="Prefix", default=None, description="Text prepended to enhanced prompt")
     suffix: Optional[str] = Field(title="Suffix", default=None, description="Text appended to enhanced prompt")
     do_sample: Optional[bool] = Field(title="Sample", default=None, description="Enable sampling")
+    min_tokens: Optional[int] = Field(title="Min tokens", default=None, description="Min generation tokens")
     max_tokens: Optional[int] = Field(title="Max tokens", default=None, description="Max generation tokens")
     temperature: Optional[float] = Field(title="Temperature", default=None, description="Controls randomness in token selection (0=deterministic, higher=more creative)")
     repetition_penalty: Optional[float] = Field(title="Repetition penalty", default=None, description="Penalizes repeated tokens to reduce repetition (1.0=no penalty)")
@@ -369,6 +371,10 @@ class ReqPromptEnhance(BaseModel):
     use_vision: bool = Field(title="Use vision", default=True, description="Use vision if model supports it")
     prefill: Optional[str] = Field(title="Prefill", default=None, description="Text to prefill the model response with")
     keep_prefill: bool = Field(title="Keep prefill", default=False, description="Keep prefill text in the output")
+    custom_args: Optional[str] = Field(title="Custom args", default=None, description="Custom arguments for the model")
+    process_words: Optional[str] = Field(title="Banned words", default=None, description="List of words to process")
+    semantic_threshold: Optional[float] = Field(title="Semantic threshold", default=None, description="Semantic similarity threshold for processed words")
+    embedding_similarity: Optional[float] = Field(title="Embedding similarity", default=None, description="Embedding similarity threshold for processed words")
 
 class ResPromptEnhance(BaseModel):
     prompt: str = Field(title="Prompt", description="Enhanced prompt")
@@ -385,6 +391,44 @@ class ReqProcessBatch(ReqProcess):
 
 class ResProcessBatch(ResProcess):
     images: list[str] = Field(title="Images", description="The generated images in base64 format.")
+
+class ReqDetail(BaseModel):
+    image: str = Field(title="Image", description="Base64-encoded input image to detail")
+    seed: int | None = Field(default=-1, title="Seed", description="Seed for inpainting passes (-1 = random)")
+    detailer_models: list[str] | None = Field(default=None, title="Detailer models", description="List of YOLO detailer model names to run; falls back to shared.opts.detailer_models when omitted")
+    detailer_prompt: str | None = Field(default=None, title="Detailer prompt", description="Override prompt for detailer pass; supports [PROMPT]/[prompt] splice tokens")
+    detailer_negative: str | None = Field(default=None, title="Detailer negative", description="Override negative prompt for detailer pass")
+    detailer_steps: int | None = Field(default=None, ge=0, le=99, title="Detailer steps")
+    detailer_strength: float | None = Field(default=None, ge=0.0, le=1.0, title="Detailer strength")
+    detailer_resolution: int | None = Field(default=None, ge=256, le=4096, title="Detailer resolution")
+    detailer_sampler: str | None = Field(default=None, title="Detailer sampler", description="Sampler name for the inpaint pass; a named sampler activates the scheduler overrides below, 'Default' keeps the model scheduler")
+    detailer_prediction: str | None = Field(default=None, title="Detailer prediction", description="Scheduler prediction type override (default/epsilon/sample/v_prediction/flow_prediction)")
+    detailer_shift: float | None = Field(default=None, ge=0.0, le=10.0, title="Detailer flow shift", description="Flow/sampler shift for the inpaint pass; needs a named sampler")
+    detailer_cfg_scale: float | None = Field(default=None, ge=0.0, le=30.0, title="Detailer guidance scale", description="CFG/guidance scale for the inpaint pass")
+    detailer_loworder: bool | None = Field(default=None, title="Detailer low order")
+    detailer_thresholding: bool | None = Field(default=None, title="Detailer thresholding")
+    detailer_dynamic: bool | None = Field(default=None, title="Detailer dynamic shift")
+    detailer_rescale: bool | None = Field(default=None, title="Detailer rescale betas")
+    detailer_classes: str | None = Field(default=None, title="Detailer classes", description="Comma-separated class allowlist (e.g. 'face,eye')")
+    detailer_conf: float | None = Field(default=None, ge=0.0, le=1.0, title="Min confidence")
+    detailer_iou: float | None = Field(default=None, ge=0.0, le=1.0, title="Max overlap (IoU)")
+    detailer_max: int | None = Field(default=None, ge=1, title="Max detections")
+    detailer_min_size: float | None = Field(default=None, ge=0.0, le=1.0, title="Min relative size")
+    detailer_max_size: float | None = Field(default=None, ge=0.0, le=1.0, title="Max relative size")
+    detailer_blur: int | None = Field(default=None, ge=0, le=100, title="Mask blur")
+    detailer_padding: int | None = Field(default=None, ge=0, le=100, title="Mask padding")
+    detailer_segmentation: bool | None = Field(default=None, title="Use segmentation", description="Use seg-mask instead of bbox (requires a -seg model)")
+    detailer_merge: bool | None = Field(default=None, title="Merge detections")
+    detailer_sort: bool | None = Field(default=None, title="Sort detections", description="Sort detections left-to-right for consistency")
+    detailer_sigma_adjust: float | None = Field(default=None, ge=0.5, le=1.5, title="Renoise sigma")
+    detailer_sigma_adjust_max: float | None = Field(default=None, ge=0.0, le=1.0, title="Renoise end")
+    detailer_include_detections: bool | None = Field(default=None, title="Include detections", description="Return annotated debug image alongside the detailed result")
+
+class ResDetail(BaseModel):
+    image: str = Field(title="Image", description="Detailed image (base64)")
+    detections: str | None = Field(default=None, title="Detections", description="Annotated debug image (base64) when detailer_include_detections=True")
+    seed: int = Field(default=-1, title="Seed", description="Effective seed used for the detailer pass")
+    info: str = Field(default='', title="Info", description="Postprocessing info string")
 
 class ReqImageInfo(BaseModel):
     image: str = Field(title="Image", description="The base64 encoded image")

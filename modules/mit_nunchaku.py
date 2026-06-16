@@ -53,7 +53,7 @@ def install_nunchaku(force=False):
         if url is not None:
             cmd = f'install --upgrade {url}'
             log.debug(f'Nunchaku: install="{url}"')
-            result, _output = pip(cmd, uv=False, ignore=not force, quiet=not force)
+            result, _output = pip(cmd, ignore=not force, quiet=not force)
             return result.returncode == 0
         else:
             import torch
@@ -65,13 +65,17 @@ def install_nunchaku(force=False):
                 log.error(f'Nunchaku: torch={torch.__version__} cuda="unknown"')
                 return False
             if cuda_ver.startswith('cu13'):
-                nunchaku_versions = ['1.2.1', '1.2.0', '1.1.0', '1.0.2', '1.0.1']
+                nunchaku_versions = ['1.3.0dev20260306', '1.2.1', '1.2.0', '1.1.0', '1.0.2', '1.0.1']
             else:
                 nunchaku_versions = ['1.2.1', '1.0.2', '1.0.1'] # 1.2.0 and 1.1.0 imply cu13 but do not specify it
             for v in nunchaku_versions:
                 url = f'https://github.com/nunchaku-ai/nunchaku/releases/download/v{v}/'
-                fn = f'nunchaku-{v}+{cuda_ver}torch{torch_ver}-cp{python_ver}-cp{python_ver}-{suffix}.whl'
-                result, _output = pip(f'install --upgrade {url+fn}', uv=False, ignore=True, quiet=True)
+                if 'dev' in v:
+                    v = v.replace('dev', '.dev')
+                    fn = f'nunchaku-{v}+{cuda_ver}torch{torch_ver}-cp{python_ver}-cp{python_ver}-{suffix}.whl'
+                else:
+                    fn = f'nunchaku-{v}+{cuda_ver}torch{torch_ver}-cp{python_ver}-cp{python_ver}-{suffix}.whl'
+                result, _output = pip(f'install --upgrade {url+fn}', ignore=True, quiet=True)
                 if (result is None) or (_output == 'offline'):
                     log.error(f'Nunchaku: install url="{url+fn}" offline mode')
                     return False
@@ -81,7 +85,7 @@ def install_nunchaku(force=False):
                     log.info(f'Nunchaku: install url="{url}"')
                     return True
                 fn = f'nunchaku-{v}+torch{torch_ver}-cp{python_ver}-cp{python_ver}-{suffix}.whl'
-                result, _output = pip(f'install --upgrade {url+fn}', uv=False, ignore=True, quiet=True)
+                result, _output = pip(f'install --upgrade {url+fn}', ignore=True, quiet=True)
                 if (result is None) or (_output == 'offline'):
                     log.error(f'Nunchaku: install url="{url+fn}" offline mode')
                     return False

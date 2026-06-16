@@ -66,26 +66,24 @@ def create_docs(app: FastAPI):
         "dom_id": "#swagger-ui",
     }
 
-    @app.get("/docs", include_in_schema=True)
+    @app.get("/docs", include_in_schema=True) # override for the default fastapi swagger route
     async def custom_swagger_html():
         res = get_swagger_ui_html(
             title=f'{app.title}: Swagger UI',
             openapi_url=app.openapi_url,
-            swagger_favicon_url='/file=html/favicon.svg',
-            swagger_css_url='/file=html/swagger.css',
+            swagger_favicon_url='/file=ui/assets/favicon.svg',
+            swagger_css_url='/file=ui/css/swagger.css',
             swagger_ui_parameters=swagger_ui_parameters,
-            # swagger_extra_css_url='file=html/swagger.css',
         )
-        # res = inject_css(html.content, 'html/swagger.css')
         return res
 
 
 def create_redocs(app: FastAPI):
-    @app.get("/redocs", include_in_schema=True)
+    @app.get("/redocs", include_in_schema=True) # override for the default fastapi redocs route
     async def custom_redoc_html():
         res = get_redoc_html(
             title=f'{app.title}: ReDoc',
             openapi_url=app.openapi_url,
-            redoc_favicon_url='/file=html/favicon.svg',
+            redoc_favicon_url='/file=ui/assets/favicon.svg',
         )
         return res

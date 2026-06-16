@@ -91,7 +91,7 @@ class InputAccordion(gr.Checkbox): # unused
         return "checkbox"
 
 
-class ResizeHandleRow(gr.Row): # unusued
+class ResizeHandleRow(gr.Row): # unused
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.elem_classes.append("resize-handle-row")

@@ -40,7 +40,7 @@ def load_model(selected: models_def.Model):
         # shared.sd_model auto-reloads the default checkpoint when model_data.sd_model is None,
         # which silently swaps the pipe class behind the name-based cache. Pipe-class mismatch
         # is the reliable signal that the cached name no longer maps to the cached object.
-        log.warning(f'Video load: cached model="{selected.name}" pipe class swapped to {type(shared.sd_model).__name__}; forcing reload')
+        log.warning(f'Video load: cached model="{selected.name}" cls={type(shared.sd_model).__name__} mismatch forcing reload')
         loaded_model = None
     if loaded_model == selected.name:
         return ''
@@ -69,26 +69,26 @@ def load_model(selected: models_def.Model):
             load_args, quant_args = model_quant.get_dit_args({}, module='TE', device_map=True)
 
             # loader deduplication of text-encoder models
-            if selected.te_cls.__name__ == 'T5EncoderModel' and shared.opts.te_shared_t5:
+            if selected.te_cls.__name__ == 'T5EncoderModel' and shared.opts.te_shared_te:
                 selected.te = 'Disty0/t5-xxl'
                 selected.te_folder = ''
                 selected.te_revision = None
-            if selected.te_cls.__name__ == 'UMT5EncoderModel' and shared.opts.te_shared_t5:
+            if selected.te_cls.__name__ == 'UMT5EncoderModel' and shared.opts.te_shared_te:
                 if 'SDNQ' in selected.name:
                     selected.te = 'Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32'
                 else:
                     selected.te = 'Wan-AI/Wan2.2-TI2V-5B-Diffusers'
                 selected.te_folder = 'text_encoder'
                 selected.te_revision = None
-            if selected.te_cls.__name__ == 'LlamaModel' and shared.opts.te_shared_t5:
+            if selected.te_cls.__name__ == 'LlamaModel' and shared.opts.te_shared_te:
                 selected.te = 'hunyuanvideo-community/HunyuanVideo'
                 selected.te_folder = 'text_encoder'
                 selected.te_revision = None
-            if selected.te_cls.__name__ == 'Qwen2_5_VLForConditionalGeneration' and shared.opts.te_shared_t5:
+            if selected.te_cls.__name__ == 'Qwen2_5_VLForConditionalGeneration' and shared.opts.te_shared_te:
                 selected.te = 'ai-forever/Kandinsky-5.0-T2V-Lite-sft-5s-Diffusers'
                 selected.te_folder = 'text_encoder'
                 selected.te_revision = None
-            if selected.te_cls.__name__ == 'Gemma3ForConditionalGeneration' and shared.opts.te_shared_t5:
+            if selected.te_cls.__name__ == 'Gemma3ForConditionalGeneration' and shared.opts.te_shared_te:
                 if 'SDNQ' in selected.name:
                     selected.te = 'OzzyGT/LTX-2.3-sdnq-dynamic-int4'
                 else:

@@ -100,10 +100,10 @@ def run_postprocessing(extras_mode, image, image_folder: list[tempfile.NamedTemp
     return outputs, info, params
 
 
-def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_dir, show_extras_results, upscaling_resize, upscaling_resize_w, upscaling_resize_h, upscaling_crop, extras_upscaler_1, extras_upscaler_2, extras_upscaler_2_visibility, save_output: bool = True):
+def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_dir, show_extras_results, upscaling_resize, upscaling_resize_w, upscaling_resize_h, upscaling_crop, extras_upscaler_1, extras_upscaler_2, extras_upscaler_2_visibility, save_output: bool = True, script_args: dict | None = None):
     """old handler for API"""
 
-    args = scripts_manager.scripts_postproc.create_args_for_run({
+    merged = {
         "Upscale": {
             "upscale_mode": resize_mode,
             "upscale_by": upscaling_resize,
@@ -114,6 +114,10 @@ def run_extras(extras_mode, resize_mode, image, image_folder, input_dir, output_
             "upscaler_2_name": extras_upscaler_2,
             "upscaler_2_visibility": extras_upscaler_2_visibility,
         },
-    })
+    }
+    if script_args:
+        for name, kvs in script_args.items():
+            merged.setdefault(name, {}).update(kvs or {})
+    args = scripts_manager.scripts_postproc.create_args_for_run(merged)
 
     return run_postprocessing(extras_mode, image, image_folder, input_dir, output_dir, show_extras_results, *args, save_output=save_output)

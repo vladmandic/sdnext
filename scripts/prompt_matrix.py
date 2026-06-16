@@ -10,6 +10,9 @@ class PromptMatrixScript(scripts_manager.Script):
     def title(self):
         return "Prompt matrix"
 
+    def show(self, is_img2img): # pylint: disable=unused-argument
+        return True
+
     def ui(self, _is_img2img):
         with gr.Row():
             gr.HTML('<span">&nbsp Prompt matrix</span><br>')

@@ -5,6 +5,7 @@ import os
 import sys
 import time
 import shlex
+import shutil
 import subprocess
 
 import installer
@@ -61,7 +62,8 @@ def get_custom_args():
         current = getattr(args, arg)
         if current != default:
             custom[arg] = getattr(args, arg)
-    log.info(f'Command line args: {sys.argv[1:]} {installer.print_dict(custom)}')
+    log.info(f'Command line args: {sys.argv[1:]}')
+    log.info(f'Command line parsed: {installer.print_dict(custom)}')
     if os.environ.get('SD_ENV_DEBUG', None) is not None:
         env = os.environ.copy()
         if 'PATH' in env:
@@ -213,14 +215,11 @@ def start_server(immediate=True, server=None):
 
     uvicorn = None
     if args.test:
-        log.info("Test only")
-        log.critical('Logging: level=critical')
-        log.error('Logging: level=error')
-        log.warning('Logging: level=warning')
-        log.info('Logging: level=info')
-        log.debug('Logging: level=debug')
-        log.trace('Logging: level=trace')
+        from pipelines.generic_test import test_pipelines
+        test_pipelines()
+        log.info("Test only: exiting...")
         server.wants_restart = False
+        uvicorn = server.webui(restart=not immediate, _exit=True)
     else:
         uvicorn = server.webui(restart=not immediate)
     if args.profile:
@@ -255,7 +254,7 @@ def main():
     log.info(f'Args: {sys.argv[1:]}')
     if not args.skip_env and not args.skip_all:
         installer.set_environment()
-    if args.uv:
+    if args.uv and shutil.which('uv') is None:
         installer.install('uv', 'uv')
     installer.install_gradio()
     installer.check_torch()

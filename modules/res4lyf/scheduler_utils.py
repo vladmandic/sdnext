@@ -84,6 +84,27 @@ def get_sigmas_flow(n, sigma_min, sigma_max, device="cpu", dtype: torch.dtype = 
 def apply_shift(sigmas, shift):
     return shift * sigmas / (1 + (shift - 1) * sigmas)
 
+
+def get_base_sigmas(alphas_cumprod: torch.Tensor) -> np.ndarray:
+    """Return the standard diffusion sigmas derived from alphas_cumprod."""
+    return np.array(((1 - alphas_cumprod.cpu().numpy()) / alphas_cumprod.cpu().numpy()) ** 0.5, dtype=np.float32)
+
+
+def sigma_to_t(sigma: np.ndarray, log_sigmas: np.ndarray) -> np.ndarray:
+    """Convert sigma values to corresponding discrete timesteps via interpolation."""
+    sigma = np.array(sigma, dtype=np.float32)
+    log_sigma = np.log(np.maximum(sigma, 1e-10))
+    dists = log_sigma - log_sigmas[:, np.newaxis]
+    low_idx = np.cumsum((dists >= 0), axis=0).argmax(axis=0).clip(max=log_sigmas.shape[0] - 2)
+    high_idx = low_idx + 1
+    low = log_sigmas[low_idx]
+    high = log_sigmas[high_idx]
+    w = (low - log_sigma) / (low - high)
+    w = np.clip(w, 0, 1)
+    t = (1 - w) * low_idx + w * high_idx
+    return t.reshape(sigma.shape).astype(np.float32)
+
+
 def get_dynamic_shift(mu, base_shift, max_shift, base_seq_len, max_seq_len):
     m = (max_shift - base_shift) / (max_seq_len - base_seq_len)
     b = base_shift - m * base_seq_len
@@ -117,3 +138,43 @@ def add_noise_to_sample(
 
     noisy_samples = original_samples + sigma * noise
     return noisy_samples
+
+
+def validate_custom_schedule_args(timesteps, sigmas):
+    if timesteps is not None and sigmas is not None:
+        raise ValueError("Only one of `timesteps` or `sigmas` should be set.")
+    if timesteps is None and sigmas is None:
+        raise ValueError("Must pass exactly one of `timesteps` or `sigmas`.")
+
+
+def prepare_res4lyf_timesteps_and_sigmas(
+    config,
+    alphas_cumprod: torch.Tensor,
+    num_inference_steps: int | None = None,
+    timesteps=None,
+    sigmas=None,
+    device: str | torch.device = None,
+    dtype: torch.dtype = torch.float32,
+):
+    validate_custom_schedule_args(timesteps, sigmas)
+
+    base_sigmas = get_base_sigmas(alphas_cumprod)
+
+    if timesteps is not None:
+        if getattr(config, "use_karras_sigmas", False) or getattr(config, "use_exponential_sigmas", False) or getattr(config, "use_beta_sigmas", False):
+            raise ValueError("Cannot set `timesteps` when karras/exponential/beta sigmas are enabled.")
+        if getattr(config, "use_flow_sigmas", False):
+            raise ValueError("Cannot set `timesteps` when `use_flow_sigmas` is enabled.")
+
+        timesteps_array = np.array(timesteps, dtype=np.float32)
+        sigmas_array = np.interp(timesteps_array, np.arange(len(base_sigmas), dtype=np.float32), base_sigmas)
+        num_inference_steps = len(timesteps_array)
+        sigmas_array = np.concatenate([sigmas_array, [0.0]])
+        return num_inference_steps, timesteps_array, sigmas_array
+
+    sigmas_array = np.array(sigmas, dtype=np.float32)
+    if num_inference_steps is None:
+        num_inference_steps = len(sigmas_array) - 1
+    log_sigmas = np.log(base_sigmas)
+    timesteps_array = np.array([sigma_to_t(sigma, log_sigmas) for sigma in sigmas_array[:-1]], dtype=np.float32)
+    return num_inference_steps, timesteps_array, sigmas_array

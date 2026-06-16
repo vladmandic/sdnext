@@ -198,7 +198,7 @@ def discover_components(model_index: dict[str, Any] | None, files_map: dict[str,
 
     if isinstance(model_index, dict):
         keys = list(model_index.keys())
-        main_keys = sorted([k for k in keys if re.fullmatch(r"(transformer|unet)(_\d+)?", k or "")])
+        main_keys = sorted([k for k in keys if re.search(r"(transformer|unet)", k or "", flags=re.IGNORECASE)])
         components["mains"] = main_keys
 
         text_keys = sorted([k for k in keys if re.fullmatch(r"text_encoder(_\d+)?", k or "")])
@@ -210,7 +210,7 @@ def discover_components(model_index: dict[str, Any] | None, files_map: dict[str,
     top_dirs = {f.split("/", 1)[0] for f in files_map if "/" in f}
 
     if not components["mains"]:
-        components["mains"] = sorted([d for d in top_dirs if re.fullmatch(r"(transformer|unet)(_\d+)?", d or "")])
+        components["mains"] = sorted([d for d in top_dirs if re.search(r"(transformer|unet)", d or "", flags=re.IGNORECASE)])
 
     if not components["text_encoders"]:
         components["text_encoders"] = sorted([d for d in top_dirs if re.fullmatch(r"text_encoder(_\d+)?", d or "")])
@@ -648,9 +648,13 @@ def main() -> int:
         return 1
 
     files_map = get_repo_files_map(model_info)
+    print('files:', json.dumps(files_map, indent=2, sort_keys=False))
+
     model_card_text = load_model_card_text(repo_id, token)
     model_index = get_model_index(repo_id, token)
+    print('index:', json.dumps(model_index, indent=2, sort_keys=False))
     components = discover_components(model_index, files_map)
+    print('components:', json.dumps(components, indent=2, sort_keys=False))
 
     main_components = components["mains"]
     text_components = components["text_encoders"]
@@ -739,7 +743,7 @@ def main() -> int:
         "ok": True,
         "data": data,
     }
-    print(json.dumps(output, indent=2, sort_keys=False))
+    print('info', json.dumps(output, indent=2, sort_keys=False))
     return 0
 
 

@@ -1,0 +1,66 @@
+import { gradioApp } from './script';
+import { log } from './logger';
+import { timer } from './timers';
+
+export function controlInputMode(inputMode: string, ...args: unknown[]): unknown[] {
+  const updateEl = gradioApp().getElementById('control_update');
+  if (updateEl) updateEl.click();
+  const tab = gradioApp().querySelector('#control-tab-input button.selected');
+  if (!tab) return ['Image', ...args];
+  const tabs = Array.from<any>(gradioApp().querySelectorAll('#control-tab-input button'));
+  const tabIdx = tabs.findIndex((btn) => btn.classList.contains('selected'));
+  const tabNames = ['Image', 'Video', 'Batch', 'Folder'];
+  let inputTab = tabNames[tabIdx] || 'Image';
+  log('controlInputMode', { mode: inputMode, tab: inputTab, kanvas: typeof window.Kanvas });
+
+  // if kanvas is available overwrite image inputs with kanvas images
+  if ((inputTab === 'Image') && (typeof window.Kanvas !== 'undefined') && window.kanvas) {
+    inputTab = 'Kanvas';
+    for (let i = 0; i < window.kanvas.stages.maxStages; i++) {
+      args[4 + i] = window.kanvas.getImage(1 + i, false, false);
+    }
+  }
+
+  return [inputTab, ...args];
+}
+
+window.controlInputMode = controlInputMode;
+
+export async function setupControlUI() {
+  const t0 = performance.now();
+  const tabs = ['input', 'output', 'preview'];
+  for (const tab of tabs) {
+    const btn = gradioApp().getElementById(`control-${tab}-button`);
+    if (!btn) continue;
+    btn.style.cursor = 'pointer';
+    btn.onclick = () => {
+      const t = gradioApp().getElementById(`control-tab-${tab}`);
+      if (!t) return;
+      t.style.display = t.style.display === 'none' ? 'block' : 'none';
+      const c = gradioApp().getElementById(`control-${tab}-column`);
+      if (!c) return;
+      c.style.flexGrow = c.style.flexGrow === '0' ? '9' : '0';
+    };
+  }
+
+  const el = gradioApp().getElementById('control-input-column');
+  if (!el) return;
+  const intersectionObserver = new IntersectionObserver((entries) => {
+    if (entries[0].intersectionRatio > 0) {
+      const allTabs = Array.from<any>(gradioApp().querySelectorAll('#control-tabs > .tab-nav > .selected'));
+      for (const tab of allTabs) {
+        if (!(tab instanceof HTMLElement)) continue;
+        const name = tab.innerText.toLowerCase();
+        for (let i = 0; i < 10; i += 1) {
+          const btn = gradioApp().getElementById(`refresh_${name}_models_${i}`);
+          if (btn) btn.click();
+        }
+      }
+    }
+  });
+  intersectionObserver.observe(el); // monitor visibility of tab
+
+  const t1 = performance.now();
+  log('setupControlUI', Math.round(t1 - t0));
+  timer('setupControlUI', t1 - t0);
+}

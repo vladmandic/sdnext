@@ -7,7 +7,7 @@ from rich import print # pylint: disable=redefined-builtin
 
 if __name__ == "__main__":
     sys.argv.pop(0)
-    fn = sys.argv[0] if len(sys.argv) > 0 else 'html/locale_en.json'
+    fn = sys.argv[0] if len(sys.argv) > 0 else 'ui/locale/locale_en.json'
     if not os.path.isfile(fn):
         print(f'File not found: {fn}')
         sys.exit(1)

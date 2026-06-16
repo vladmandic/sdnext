@@ -22,6 +22,7 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         return ''
     if not hasattr(shared.sd_model, 'sd_checkpoint_info'):
         return ''
+
     if index is None:
         index = position_in_batch + iteration * p.batch_size
     if all_prompts is None:
@@ -33,13 +34,20 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if all_subseeds is None:
         all_subseeds = p.all_subseeds or [p.subseed]
     while len(all_prompts) <= index:
-        all_prompts.insert(0, p.prompt)
+        all_prompts.append(p.prompt)
     while len(all_seeds) <= index:
-        all_seeds.insert(0, int(p.seed))
+        all_seeds.append(int(p.seed))
     while len(all_subseeds) <= index:
-        all_subseeds.insert(0, int(p.subseed))
+        all_subseeds.append(int(p.subseed))
     while len(all_negative_prompts) <= index:
-        all_negative_prompts.insert(0, p.negative_prompt)
+        all_negative_prompts.append(p.negative_prompt)
+    if p.all_templates is not None:
+        while len(p.all_templates) <= index:
+            p.all_templates.append('')
+    if p.all_negative_templates is not None:
+        while len(p.all_negative_templates) <= index:
+            p.all_negative_templates.append('')
+
     comment = ', '.join(comments) if comments is not None and type(comments) is list else None
     ops = list(set(p.ops))
     args = {
@@ -50,12 +58,12 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         "Scheduler": shared.sd_model.scheduler.__class__.__name__ if getattr(shared.sd_model, 'scheduler', None) is not None else None,
         "Seed": all_seeds[index],
         "Seed resize from": None if p.seed_resize_from_w <= 0 or p.seed_resize_from_h <= 0 else f"{p.seed_resize_from_w}x{p.seed_resize_from_h}",
-        "CFG scale": p.cfg_scale if p.cfg_scale > 1.0 else 1.0,
-        "CFG rescale": p.diffusers_guidance_rescale if p.diffusers_guidance_rescale > 0 else None,
+        "CFG scale": p.cfg_scale if p.cfg_scale > -1 else None,
+        "CFG rescale": p.cfg_rescale if p.cfg_rescale > -1 else None,
         "CFG end": p.cfg_end if p.cfg_end < 1.0 else None,
-        "CFG true": p.pag_scale if p.pag_scale > 0 else None,
-        "CFG adaptive": p.pag_adaptive if p.pag_adaptive != 0.5 else None,
-        "Clip skip": p.clip_skip if p.clip_skip > 1 else None,
+        "CFG true": p.cfg_true if p.cfg_true > 0 else None,
+        "CFG adaptive": p.cfg_adaptive if p.cfg_adaptive != 0.5 else None,
+        "CLiP-skip": p.clip_skip if p.clip_skip > 1 else None,
         "Batch": f'{p.n_iter}x{p.batch_size}' if p.n_iter > 1 or p.batch_size > 1 else None,
         "Refiner prompt": p.refiner_prompt if len(p.refiner_prompt) > 0 else None,
         "Refiner negative": p.refiner_negative if len(p.refiner_negative) > 0 else None,
@@ -109,20 +117,20 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
             args["Hires force"] = p.hr_force
             args["Hires steps"] = p.hr_second_pass_steps
             args["Hires strength"] = p.hr_denoising_strength
-            args["Hires sampler"] = p.hr_sampler_name
-            args["Hires CFG scale"] = p.image_cfg_scale
+            args["Hires sampler"] = p.hr_sampler_name if p.hr_sampler_name != 'Default' else None
+            args["Hires CFG scale"] = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
     if 'refine' in p.ops:
         args["Refine"] = p.enable_hr
         args["Refiner"] = None if (not shared.opts.add_model_name_to_info) or (not shared.sd_refiner) or (not shared.sd_refiner.sd_checkpoint_info.model_name) else shared.sd_refiner.sd_checkpoint_info.model_name.replace(',', '').replace(':', '')
-        args['Hires CFG scale'] = p.image_cfg_scale
+        args['Hires CFG scale'] = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
         args['Refiner steps'] = p.refiner_steps
         args['Refiner start'] = p.refiner_start
         args["Hires steps"] = p.hr_second_pass_steps
-        args["Hires sampler"] = p.hr_sampler_name
+        args["Hires sampler"] = p.hr_sampler_name if p.hr_sampler_name != 'Default' else None
     if ('img2img' in p.ops or 'inpaint' in p.ops) and ('txt2img' not in p.ops and 'hires' not in p.ops): # real img2img/inpaint
         args["Init image size"] = f"{getattr(p, 'init_img_width', 0)}x{getattr(p, 'init_img_height', 0)}"
         args["Init image hash"] = getattr(p, 'init_img_hash', None)
-        args['Image CFG scale'] = p.image_cfg_scale
+        args['Image CFG scale'] = p.cfg_image if (p.cfg_image is not None and p.cfg_image > -1) else None
         args["Mask weight"] = getattr(p, "inpainting_mask_weight", shared.opts.inpainting_mask_weight) if p.is_using_inpainting_conditioning else None
         args["Denoising strength"] = getattr(p, 'denoising_strength', None)
         if args["Size"] != args["Init image size"]:
@@ -208,7 +216,12 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
         if type(v) is float or type(v) is int:
             if v <= -1:
                 del args[k]
-        if isinstance(v, str):
+        if type(v) is list:
+            if len(v) == 0:
+                del args[k]
+            else:
+                args[k] = ', '.join([str(x) for x in v])
+        if type(v) is str:
             if len(v) == 0 or v == '0x0':
                 del args[k]
     debug(f'Infotext: args={args}')
@@ -219,7 +232,13 @@ def create_infotext(p: StableDiffusionProcessing, all_prompts=None, all_seeds=No
     if hasattr(p, 'original_negative'):
         args['Original negative'] = p.original_negative
 
+    template = p.all_templates[index] if p.all_templates is not None and p.all_templates[index] else None
+    negative_template = p.all_negative_templates[index] if p.all_negative_templates is not None and p.all_negative_templates[index] else None
+    template_text = f"\nTemplate: {template}" if template else ''
+    negative_template_text = f"\nNegative template: {negative_template}" if negative_template else ''
+
     negative_prompt_text = f"\nNegative prompt: {all_negative_prompts[index] if all_negative_prompts[index] else ''}"
-    infotext = f"{all_prompts[index]}{negative_prompt_text}\n{params_text}".strip()
+    infotext = f"{all_prompts[index]}{negative_prompt_text}{template_text}{negative_template_text}\n{params_text}".strip()
+
     debug(f'Infotext: "{infotext}"')
     return infotext

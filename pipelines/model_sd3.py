@@ -22,6 +22,8 @@ def load_sd3(checkpoint_info, diffusers_load_config=None):
     else:
         text_encoder_3 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder_3")
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = diffusers.StableDiffusion3Pipeline.from_pretrained(
         repo_id,
         transformer=transformer,

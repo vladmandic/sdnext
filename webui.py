@@ -339,7 +339,7 @@ def start_ui():
             max_threads=64,
             show_api=False,
             quiet=True,
-            favicon_path='html/favicon.svg',
+            favicon_path='ui/assets/favicon.svg',
             allowed_paths=allowed_paths,
             app_kwargs=fastapi_args,
             _frontend=True and shared.cmd_opts.share,
@@ -391,7 +391,7 @@ def start_ui():
     return app
 
 
-def webui(restart=False):
+def webui(restart=False, _exit=False):
     if restart:
         modules.script_callbacks.app_reload_callback()
         modules.script_callbacks.script_unloaded_callback()
@@ -425,6 +425,9 @@ def webui(restart=False):
         timer.startup.add('installer', timer.launch.get_total())
         log.info(f"Startup time: {timer.startup.summary()}")
     timer.startup.reset()
+
+    if _exit:
+        return None
 
     if not restart:
         # override all loggers to use the same handlers as the main logger

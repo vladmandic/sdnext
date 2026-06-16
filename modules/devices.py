@@ -337,7 +337,7 @@ def test_fp16():
             return fp16_ok
         elif backend == 'rocm':
             # gfx1102 (RX 7600, 7500, 7650 and 7700S) causes segfaults with fp16
-            # agent can be overriden to gfx1100 to get gfx1102 working with ROCm so check the gpu name as well
+            # agent can be overridden to gfx1100 to get gfx1102 working with ROCm so check the gpu name as well
             agent = get_hip_agent()
             agent_name = getattr(torch.cuda.get_device_properties(device), "name", "AMD Radeon RX 0000")
             if agent.gfx_version == 0x1102 or (agent.gfx_version == 0x1100 and any(i in agent_name for i in ("7600", "7500", "7650", "7700S"))):
@@ -536,7 +536,7 @@ def set_sdpa_params():
         log.debug(f'Torch attention installed: flashattn={flash} sageattention={sage}')
 
         from diffusers.models import attention_dispatch as a
-        log.debug(f'Torch attention status: flash={a._CAN_USE_FLASH_ATTN} flash3={a._CAN_USE_FLASH_ATTN_3} aiter={a._CAN_USE_AITER_ATTN} sage={a._CAN_USE_SAGE_ATTN} flex={a._CAN_USE_FLEX_ATTN} npu={a._CAN_USE_NPU_ATTN} xla={a._CAN_USE_XLA_ATTN} xformers={a._CAN_USE_XFORMERS_ATTN}') # pylint: disable=protected-access
+        log.debug(f'Torch attention status: flash={a._CAN_USE_FLASH_ATTN} flash3={a._CAN_USE_FLASH_ATTN_3} aiter={a._CAN_USE_AITER_ATTN} sage={a._CAN_USE_SAGE_ATTN} flex={a._CAN_USE_FLEX_ATTN} npu={a._CAN_USE_NPU_ATTN} xla={a._CAN_USE_XLA_ATTN} xformers={a._CAN_USE_XFORMERS_ATTN} kernels={a.is_kernels_available()}') # pylint: disable=protected-access
 
     except Exception as e:
         log.warning(f'Torch SDPA: {e}')
@@ -615,7 +615,8 @@ def set_cuda_params():
         tunable = [torch.cuda.tunable.is_enabled(), torch.cuda.tunable.tuning_is_enabled()]
     except Exception:
         tunable = [False, False]
-    log.info(f'Torch parameters: backend={backend} device={device_name} config={opts.cuda_dtype} dtype={dtype} context={inference_context.__name__} nohalf={opts.no_half} nohalfvae={opts.no_half_vae} upcast={opts.upcast_sampling} deterministic={opts.cudnn_deterministic} tunable={tunable} fp16={"pass" if fp16_ok else "fail"} bf16={"pass" if bf16_ok else "fail"} triton={"pass" if triton_ok else "fail"} optimization="{opts.cross_attention_optimization}"')
+    log.info(f'Torch parameters: backend={backend} device={device_name} config={opts.cuda_dtype} dtype={dtype} fp16={"pass" if fp16_ok else "fail"} bf16={"pass" if bf16_ok else "fail"} triton={"pass" if triton_ok else "fail"} optimization="{opts.cross_attention_optimization}"')
+    log.info(f'Torch compute: context={inference_context.__name__} nohalf={opts.no_half} nohalfvae={opts.no_half_vae} upcast={opts.upcast_sampling} deterministic={opts.cudnn_deterministic} tunable={tunable}')
 
 
 def randn(seed, shape=None):

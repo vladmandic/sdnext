@@ -1,12 +1,13 @@
 {
-    "StabilityAI StableDiffusion XL Turbo": {
+  "StabilityAI StableDiffusion XL Turbo": {
     "path": "stabilityai/sdxl-turbo",
     "preview": "stabilityai--sdxl-turbo.jpg",
     "desc": "SDXL-Turbo is a fast generative text-to-image model that can synthesize photorealistic images from a text prompt in a 1-4 steps.",
     "skip": true,
     "variant": "fp16",
     "tags": "distilled",
-    "extras": "steps: 4, cfg_scale: 0.0"
+    "extras": "steps: 4, cfg_scale: 0.0",
+    "size": 20.81
   },
   "StabilityAI Stable Cascade Lite": {
     "path": "huggingface/stabilityai/stable-cascade-lite",
@@ -14,7 +15,7 @@
     "variant": "bf16",
     "desc": "Stable Cascade is a diffusion model built upon the Würstchen architecture and its main difference to other models like Stable Diffusion is that it is working at a much smaller latent space. Why is this important? The smaller the latent space, the faster you can run inference and the cheaper the training becomes. How small is the latent space? Stable Diffusion uses a compression factor of 8, resulting in a 1024x1024 image being encoded to 128x128. Stable Cascade achieves a compression factor of 42, meaning that it is possible to encode a 1024x1024 image to 24x24, while maintaining crisp reconstructions. The text-conditional model is then trained in the highly compressed latent space. Previous versions of this architecture, achieved a 16x cost reduction over Stable Diffusion 1.5",
     "preview": "stabilityai--stable-cascade-lite.jpg",
-    "extras": "sampler: Default, cfg_scale: 4.0, image_cfg_scale: 1.0",
+    "extras": "sampler: Default, cfg_scale: 4.0, cfg_image: 1.0",
     "size": 4.97,
     "tags": "distilled",
     "date": "2024 February"
@@ -26,7 +27,17 @@
     "desc": "Stable Diffusion 3.5 Large Turbo is a Multimodal Diffusion Transformer (MMDiT) text-to-image model with Adversarial Diffusion Distillation (ADD) that features improved performance in image quality, typography, complex prompt understanding, and resource-efficiency, with a focus on fewer inference steps.",
     "preview": "stabilityai--stable-diffusion-3_5-large-turbo.jpg",
     "tags": "distilled",
-    "extras": "sampler: Default, cfg_scale: 7.0"
+    "extras": "sampler: Default, cfg_scale: 7.0",
+    "size": 38.78
+  },
+  "Microsoft Lens Turbo": {
+    "path": "microsoft/Lens-Turbo",
+    "preview": "microsoft--Lens-Turbo.jpg",
+    "desc": "Microsoft Lens-Turbo is the distilled Lens variant optimized for faster text-to-image generation with fewer steps.",
+    "skip": true,
+    "tags": "distilled",
+    "size": 30.53,
+    "date": "2026 May"
   },
   "Tencent FLUX.1 Dev SRPO": {
     "path": "vladmandic/flux.1-dev-SRPO",
@@ -34,7 +45,8 @@
     "desc": "FLUX.1 Dev SRPO is Tencent trained with specific technique: Directly Aligning the Full Diffusion Trajectory with Fine-Grained Human Preference",
     "tags": "distilled",
     "skip": true,
-    "extras": "sampler: Default, cfg_scale: 4.5"
+    "extras": "sampler: Default, cfg_scale: 4.5",
+    "size": 33.74
   },
   "HiDream-O1 Image Dev": {
     "path": "HiDream-ai/HiDream-O1-Image-Dev",
@@ -52,7 +64,7 @@
     "desc": "Qwen-Lightning is step-distilled from Qwen-Image to allow for generation in 8 steps.",
     "skip": true,
     "extras": "steps: 8",
-    "size": 56.1,
+    "size": 57.7,
     "tags": "distilled",
     "date": "2025 August"
   },
@@ -72,7 +84,7 @@
     "desc": "ERNIE-Image-Turbo is a distilled ERNIE-Image variant optimized for fast generation with fewer denoising steps.",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 8",
-    "size": 23.37,
+    "size": 23.93,
     "tags": "distilled",
     "date": "2026 April"
   },
@@ -82,7 +94,7 @@
     "desc": "Qwen-Lightning-Edit is step-distilled from Qwen-Image-Edit to allow for generation in 8 steps.",
     "skip": true,
     "extras": "steps: 8",
-    "size": 56.1,
+    "size": 57.7,
     "tags": "distilled",
     "date": "2025 August"
   },
@@ -93,7 +105,8 @@
     "desc": "This open-source project is based on Qwen-Image and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 12B parameters.",
     "skip": true,
     "tags": "distilled",
-    "date": "2025 October"
+    "date": "2025 October",
+    "size": 41.39
   },
   "Qwen-Image-Edit Pruning-13B": {
     "path": "OPPOer/Qwen-Image-Edit-Pruning",
@@ -102,7 +115,8 @@
     "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
     "tags": "distilled",
-    "date": "2025 October"
+    "date": "2025 October",
+    "size": 44.11
   },
   "Qwen-Image-Edit-2509 Pruning-13B": {
     "path": "OPPOer/Qwen-Image-Edit-2509-Pruning",
@@ -111,7 +125,8 @@
     "desc": "This open-source project is based on Qwen-Image-Edit and has attempted model pruning, removing 20 layers while retaining the weights of 40 layers, resulting in a model size of 13.6B parameters.",
     "skip": true,
     "tags": "distilled",
-    "date": "2025 October"
+    "date": "2025 October",
+    "size": 45.47
   },
   "lodestones Chroma1 Flash": {
     "path": "lodestones/Chroma1-Flash",
@@ -119,7 +134,7 @@
     "desc": "Chroma is a 8.9B parameter model based on FLUX.1-schnell. It’s fully Apache 2.0 licensed, ensuring that anyone can use, modify, and build on top of it—no corporate gatekeeping. A fine-tuned version of the Chroma1-Base made to find the best way to make these flow matching models faster.",
     "skip": true,
     "extras": "",
-    "size": 26.84,
+    "size": 27.49,
     "tags": "distilled",
     "date": "2025 July"
   },
@@ -136,7 +151,8 @@
     "desc": "SANA-Sprint is an ultra-efficient diffusion model for text-to-image (T2I) generation, reducing inference steps from 20 to 1-4 while achieving state-of-the-art performance.",
     "preview": "Efficient-Large-Model--Sana15_Sprint_1600M_1024px_diffusers.jpg",
     "tags": "distilled",
-    "skip": true
+    "skip": true,
+    "size": 9.7
   },
   "Segmind SSD-1B": {
     "path": "huggingface/segmind/SSD-1B",
@@ -145,7 +161,7 @@
     "variant": "fp16",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 9.0",
-    "size": 8.72,
+    "size": 13.4,
     "tags": "distilled",
     "date": "2023 October"
   },
@@ -154,7 +170,7 @@
     "preview": "segmind--tiny-sd.jpg",
     "desc": "Segmind's Tiny-SD offers a compact, efficient, and distilled version of Realistic Vision 4.0 and is up to 80% faster than SD1.5",
     "extras": "width: 512, height: 512, sampler: Default, cfg_scale: 9.0",
-    "size": 1.03,
+    "size": 1.06,
     "tags": "distilled",
     "date": "2023 July"
   },
@@ -165,10 +181,9 @@
     "extras": "",
     "tags": "distilled",
     "skip": true,
-    "size": 51.93,
+    "size": 53.18,
     "date": "2025 August"
   },
-
   "Bria Fibo-Lite": {
     "path": "briaai/Fibo-lite",
     "preview": "briaai--Fibo-lite.jpg",
@@ -176,7 +191,7 @@
     "tags": "distilled",
     "skip": true,
     "extras": "sampler: Default, cfg_scale: 3.5",
-    "size": 8.1,
+    "size": 24.13,
     "date": "2025 December"
   },
   "Tencent HunyuanDiT 1.2 Distilled": {
@@ -184,14 +199,16 @@
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
     "preview": "Tencent-Hunyuan--HunyuanDiT-v1.2-Diffusers-Distilled.jpg",
     "tags": "distilled",
-    "extras": "sampler: Default, cfg_scale: 2.0"
+    "extras": "sampler: Default, cfg_scale: 2.0",
+    "size": 14.42
   },
   "Tencent HunyuanDiT 1.1 Distilled": {
     "path": "Tencent-Hunyuan/HunyuanDiT-v1.1-Diffusers-Distilled",
     "desc": "Hunyuan-DiT : A Powerful Multi-Resolution Diffusion Transformer with Fine-Grained Chinese Understanding.",
     "preview": "Tencent-Hunyuan--HunyuanDiT-v1.1-Diffusers-Distilled.jpg",
     "tags": "distilled",
-    "extras": "sampler: Default, cfg_scale: 2.0"
+    "extras": "sampler: Default, cfg_scale: 2.0",
+    "size": 14.49
   },
   "Black Forest Labs FLUX.2 Klein 4B": {
     "path": "black-forest-labs/FLUX.2-klein-4B",
@@ -200,7 +217,7 @@
     "skip": true,
     "tags": "distilled",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
-    "size": 8.5,
+    "size": 15.96,
     "date": "2026 January"
   },
   "Black Forest Labs FLUX.2 Klein 9B": {
@@ -210,18 +227,26 @@
     "skip": true,
     "tags": "distilled",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
-    "size": 18.5,
+    "size": 34.71,
     "date": "2026 January"
   },
-   "Black Forest Labs FLUX.2 Klein 9B KV": {
+  "Black Forest Labs FLUX.2 Klein 9B KV": {
     "path": "black-forest-labs/FLUX.2-klein-9b-kv",
     "preview": "black-forest-labs--FLUX.2-klein-9b-kv.jpg",
     "desc": "FLUX.2 klein 9B KV is an optimized variant of FLUX.2 klein 9B with KV-cache support for accelerated multi-reference editing. This variant caches key-value pairs from reference images during the first denoising step, eliminating redundant computation in subsequent steps for significantly faster multi-image editing workflows.",
     "skip": true,
     "tags": "distilled",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
-    "size": 18.5,
+    "size": 34.71,
     "date": "2026 March"
+  },
+  "Anima 1.0 Turbo": {
+    "path": "vladmandic/Anima-1.0-Turbo",
+    "preview": "vladmandic--Anima-1.0-Turbo.jpg",
+    "desc": "Anima 1.0 Turbo with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
+    "date": "2026 May",
+    "size": 5.36,
+    "skip": true
   },
   "Meituan LongCat Image-Edit Turbo": {
     "path": "meituan-longcat/LongCat-Image-Edit-Turbo",
@@ -230,7 +255,7 @@
     "skip": true,
     "tags": "distilled",
     "extras": "",
-    "size": 27.30,
+    "size": 29.29,
     "date": "2026 February"
   }
 }

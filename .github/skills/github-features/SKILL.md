@@ -1,6 +1,6 @@
 ---
 name: github-features
-description: "Read SD.Next GitHub issues with [Feature] in the title and generate a markdown report with short summary, status, and suggested next steps per issue."
+description: "Read SD.Next GitHub issues with [Feature] in the title and produce a phased markdown report: short summary first, then status, then suggested next steps per issue."
 argument-hint: "Optionally specify state (open/closed/all), max issues, and whether to include labels/assignees"
 ---
 
@@ -89,7 +89,7 @@ If there are many issues, keep summaries short and prioritize clarity.
 
 - Keep each issue summary concise and actionable.
 - Do not invent facts not present in issue data.
-- If issue body is sparse, state assumptions explicitly.
+- If issue body is sparse, explicitly list assumptions about issue intent or context in 1-2 sentences.
 - If no matching issues are found, output a clear "no matches" report.
 
 ## Pass Criteria

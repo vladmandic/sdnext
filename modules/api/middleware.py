@@ -44,7 +44,7 @@ def setup_middleware(app: FastAPI, cmd_opts):
             client = req.scope.get('client', ('0:0.0.0', 0))[0]
             token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
             validate_request(client, endpoint)
-            if (cmd_opts.api_log):
+            if cmd_opts.api_log:
                 if not validate_log(client, endpoint):
                     return res
                 log.info('API user={user} code={code} {prot}/{ver} {method} {endpoint} {client} {duration}'.format( # pylint: disable=consider-using-f-string, logging-format-interpolation
@@ -73,7 +73,7 @@ def setup_middleware(app: FastAPI, cmd_opts):
         }
         if err['code'] == 401 and 'file=' in req.url.path: # dont spam with unauth
             return JSONResponse(status_code=err['code'], content=jsonable_encoder(err))
-        if err['code'] == 404 and 'file=html/' in req.url.path: # dont spam with locales
+        if err['code'] == 404 and 'file=ui/' in req.url.path: # dont spam with locales
             return JSONResponse(status_code=err['code'], content=jsonable_encoder(err))
         if err["code"] == 429:  # dont spam with rate limit errors
             return JSONResponse(status_code=err["code"], content=jsonable_encoder(err))
@@ -103,4 +103,4 @@ def setup_middleware(app: FastAPI, cmd_opts):
             return handle_exception(req, e)
 
     app.build_middleware_stack() # rebuild middleware stack on-the-fly
-    log.debug(f'API middleware: {[m.cls for m in app.user_middleware]}')
+    log.debug(f'API middleware: {[m.cls.__name__ for m in app.user_middleware]}')

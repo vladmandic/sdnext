@@ -4,7 +4,8 @@ import sys
 import uuid
 import time
 import datetime
-from modules.errors import log, display
+from modules.logger import log
+from modules.errors import display
 
 
 debug_output = os.environ.get('SD_STATE_DEBUG', None)

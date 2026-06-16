@@ -27,7 +27,10 @@ class NetworkOnDisk:
         self.name = name
         self.filename = filename
         if filename.startswith(shared.cmd_opts.lora_dir):
-            self.fullname = os.path.splitext(filename[len(shared.cmd_opts.lora_dir):].strip("/"))[0]
+            # strip("/") missed Windows's leading backslash after the slice; normalize separators
+            # so the registry key is one canonical form on every OS.
+            rel = filename[len(shared.cmd_opts.lora_dir):].lstrip('/\\').replace('\\', '/')
+            self.fullname = os.path.splitext(rel)[0] if rel else name
         else:
             self.fullname = name
         self.metadata = {}
@@ -163,6 +166,7 @@ class NetworkModule:
         self.network_key = weights.network_key
         self.sd_key = weights.sd_key
         self.sd_module = weights.sd_module
+        self.shape = None
         if hasattr(self.sd_module, 'weight'):
             if hasattr(self.sd_module, "sdnq_dequantizer"):
                 self.shape = self.sd_module.sdnq_dequantizer.original_shape
@@ -173,7 +177,7 @@ class NetworkModule:
         self.alpha = weights.w["alpha"].item() if "alpha" in weights.w else None
         self.scale = weights.w["scale"].item() if "scale" in weights.w else None
         self.dora_scale = weights.w.get("dora_scale", None)
-        self.dora_norm_dims = len(self.shape) - 1
+        self.dora_norm_dims = (len(self.shape) - 1) if self.shape is not None else None
 
     def multiplier(self):
         unet_multiplier = 3 * [self.network.unet_multiplier] if not isinstance(self.network.unet_multiplier, list) else self.network.unet_multiplier
@@ -202,17 +206,53 @@ class NetworkModule:
         updown = updown.to(orig_weight.device)
 
         merged_scale1 = updown + orig_weight
-        merged_scale1_norm = (
-            merged_scale1.transpose(0, 1)
-            .reshape(merged_scale1.shape[1], -1)
-            .norm(dim=1, keepdim=True)
-            .reshape(merged_scale1.shape[1], *[1] * self.dora_norm_dims)
-            .transpose(0, 1)
-        )
 
-        dora_merged = (
-                merged_scale1 * (dora_scale / merged_scale1_norm)
-        )
+        # DoRA convention detection. Two flavors coexist in the wild:
+        #
+        # - per-input (DoRA paper / kohya): dora_scale stores per-column magnitudes,
+        #   shape ``(1, in, ...)`` or ``(in,)``. ``W' = W * (m / ||W||_col)`` rescales
+        #   each column to magnitude ``m[i]``.
+        # - per-output (LyCORIS / PEFT / diffusers): dora_scale stores per-row
+        #   magnitudes, shape ``(out, 1, ...)`` or ``(out,)``. ``W' = W * (m / ||W||_row)``
+        #   rescales each row to magnitude ``m[o]``.
+        #
+        # PyTorch silently broadcasts ``(out, 1) / (1, in)`` into ``(out, in)``, so
+        # mismatched conventions are not a shape error but a semantic one (the
+        # update gets scrambled). Detection is structural rather than numeric:
+        # a 2-D dora_scale with shape ``(out, 1, ...)`` is unambiguously per-output
+        # even when ``out == in`` (square weights like self-attention q/k/v).
+        # 1-D dora_scale falls back to comparing the length against out / in;
+        # when both match (square weight), default to per-input for legacy compat.
+        out_dim = merged_scale1.shape[0]
+        in_dim = merged_scale1.shape[1] if merged_scale1.ndim >= 2 else None
+        per_output = False
+        if dora_scale.ndim >= 2:
+            # ND form: leading dim equals out_dim and every trailing dim is 1.
+            if dora_scale.shape[0] == out_dim and all(d == 1 for d in dora_scale.shape[1:]):
+                per_output = True
+        elif dora_scale.ndim == 1:
+            # 1D vector: per-output only when length unambiguously matches out_dim.
+            if dora_scale.shape[0] == out_dim and dora_scale.shape[0] != in_dim:
+                per_output = True
+
+        if per_output:
+            # Per-output: norm along all non-output axes; result broadcasts as (out, 1, ...).
+            merged_scale1_norm = (
+                merged_scale1.reshape(out_dim, -1)
+                .norm(dim=1, keepdim=True)
+                .reshape(out_dim, *[1] * self.dora_norm_dims)
+            )
+        else:
+            # Per-input: norm along all non-input axes; result broadcasts as (1, in, ...).
+            merged_scale1_norm = (
+                merged_scale1.transpose(0, 1)
+                .reshape(merged_scale1.shape[1], -1)
+                .norm(dim=1, keepdim=True)
+                .reshape(merged_scale1.shape[1], *[1] * self.dora_norm_dims)
+                .transpose(0, 1)
+            )
+
+        dora_merged = merged_scale1 * (dora_scale / merged_scale1_norm)
         final_updown = dora_merged - orig_weight
         return final_updown
 

@@ -9,14 +9,14 @@ orig_xet_get = None
 
 
 def http_get_hijack(*args, **kwargs):
-    from modules.shared import state
+    from modules.shared import state, opts
     if len(args) > 0 and isinstance(args[0], str) and args[0].endswith(".json"):
         return orig_http_get(*args, **kwargs)
     jobid = state.begin('Download')
     fn = kwargs.get("displayed_filename", None)
     size = kwargs.get("expected_size", None)
     if fn and not fn.endswith(".json") and size is not None and size > 10240:
-        log.debug(f'Download: type=http fn="{fn}" size={size}')
+        log.debug(f'Download: type=http mode="{opts.hf_transfer_mode}" fn="{fn}" size={size}')
     debug(f'Download start: type=http args={args} kwargs={kwargs}')
     t0 = time.time()
     res = orig_http_get(*args, **kwargs)
@@ -27,14 +27,14 @@ def http_get_hijack(*args, **kwargs):
 
 
 def xet_get_hijack(*args, **kwargs):
-    from modules.shared import state
+    from modules.shared import state, opts
     if len(args) > 0 and isinstance(args[0], str) and args[0].endswith(".json"):
         return orig_xet_get(*args, **kwargs)
     jobid = state.begin('Download')
     fn = kwargs.get("displayed_filename", None)
     size = kwargs.get("expected_size", None)
     if fn and not fn.endswith(".json"):
-        log.debug(f'Download: type=xet fn="{fn}" size={size}')
+        log.debug(f'Download: type=xet mode="{opts.hf_transfer_mode}" fn="{fn}" size={size}')
     debug(f'Download start: type=xet args={args} kwargs={kwargs}')
     res = orig_xet_get(*args, **kwargs)
     debug(f'Download end: type=xet res={res}')

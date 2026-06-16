@@ -1,7 +1,7 @@
 import timm
 import torch.nn as nn
 from .utils import activations, forward_default, get_activation
-from ..external.next_vit.classification.nextvit import * # noqa
+from ..external.next_vit.classification.nextvit import *
 
 
 def forward_next_vit(pretrained, x):

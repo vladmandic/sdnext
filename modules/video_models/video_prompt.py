@@ -1,7 +1,7 @@
 from modules import shared, extra_networks, ui_video_vlm
 
 
-def prepare_prompt(p, init_image, prompt:str, vlm_enhance:bool, vlm_model:str, vlm_system_prompt:str):
+def prepare_prompts(p, init_image, prompt:str, vlm_enhance:bool, vlm_model:str, vlm_system_prompt:str):
     p.prompt = shared.prompt_styles.apply_styles_to_prompt(p.prompt, p.styles)
     p.negative_prompt = shared.prompt_styles.apply_negative_styles_to_prompt(p.negative_prompt, p.styles)
     shared.prompt_styles.apply_styles_to_extra(p)
@@ -18,4 +18,7 @@ def prepare_prompt(p, init_image, prompt:str, vlm_enhance:bool, vlm_model:str, v
     )
     if new_prompt is not None and len(new_prompt) > 0:
         prompt = new_prompt
-    return prompt
+
+    p.styles = []
+    p.task_args['prompt'] = p.prompt
+    p.task_args['negative_prompt'] = p.negative_prompt

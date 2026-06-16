@@ -57,17 +57,24 @@ def load_qwen(checkpoint_info, diffusers_load_config=None):
             transformer_subfolder = "transformer"
 
     if transformer is None:
+        from pipelines.qwen import QWEN_SPEC
         transformer = generic.load_transformer(
             repo_transformer,
             subfolder=transformer_subfolder,
             cls_name=diffusers.QwenImageTransformer2DModel,
             load_config=diffusers_load_config,
             modules_to_not_convert=["transformer_blocks.0.img_mod.1.weight"],
+            native_spec=QWEN_SPEC,
         )
 
-    repo_te = 'Qwen/Qwen-Image'
-    text_encoder = generic.load_text_encoder(repo_te, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config)
+    text_encoder = generic.load_text_encoder(
+        repo_id,
+        cls_name=transformers.Qwen2_5_VLForConditionalGeneration,
+        load_config=diffusers_load_config
+    )
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     repo_id, repo_subfolder = qwen.check_qwen_pruning(repo_id, repo_subfolder)
     if repo_subfolder is not None and repo_subfolder.startswith('nunchaku'):
         repo_subfolder = None

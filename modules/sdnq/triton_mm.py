@@ -7,28 +7,32 @@ matmul_configs we use takes AMD and Intel into consideration too.
 SDNQ Triton configs can outperform RocBLAS and OneDNN.
 """
 
+import os
+import math
 import torch
 
 import triton
 import triton.language as tl
 
 
+min_block_size = int(os.environ.get("SDNQ_TRITON_MM_MIN_BLOCK_SIZE", "64"))
 matmul_configs = [
     triton.Config({'BLOCK_SIZE_M': BM, 'BLOCK_SIZE_N': BN, "BLOCK_SIZE_K": BK, "GROUP_SIZE_M": GM}, num_warps=w, num_stages=s)
-    for BM in [64, 128, 256]
-    for BN in [64, 128, 256]
-    for BK in [64, 128]
-    for GM in [2, 4, 8]
-    for w in [2, 4, 8]
-    for s in [2]
+    for BM in [int(BM) for BM in os.environ.get("SDNQ_TRITON_MM_BLOCK_SIZE_M_LIST", "64,128,256").replace(" ","").split(",")]
+    for BN in [int(BN) for BN in os.environ.get("SDNQ_TRITON_MM_BLOCK_SIZE_N_LIST", "64,128,256").replace(" ","").split(",")]
+    for BK in [int(BK) for BK in os.environ.get("SDNQ_TRITON_MM_BLOCK_SIZE_K_LIST", "64,128").replace(" ","").split(",")]
+    for GM in [int(GM) for GM in os.environ.get("SDNQ_TRITON_MM_GROUP_SIZE_M_LIST", "2,4,8").replace(" ","").split(",")]
+    for w in [int(w) for w in os.environ.get("SDNQ_TRITON_MM_NUM_WARPS_LIST", "2,4,8").replace(" ","").split(",")]
+    for s in [int(s) for s in os.environ.get("SDNQ_TRITON_MM_NUM_STAGES_LIST", "2").replace(" ","").split(",")]
 ]
 
 
-@triton.autotune(configs=matmul_configs, key=["M", "N", "K", "stride_bk", "ACCUMULATOR_DTYPE"], cache_results=True)
+@triton.autotune(configs=matmul_configs, key=["M_AT", "N_AT", "K_AT", "stride_bk", "ACCUMULATOR_DTYPE"], cache_results=True)
 @triton.jit
 def triton_mm_kernel(
     a_ptr, b_ptr, c_ptr,
     M: int, N: int, K: int,
+    M_AT: int, N_AT: int, K_AT: int,
     stride_am: int, stride_ak: int,
     stride_bk: int, stride_bn: int,
     stride_cm: int, stride_cn: int,
@@ -37,7 +41,7 @@ def triton_mm_kernel(
     BLOCK_SIZE_N: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     GROUP_SIZE_M: tl.constexpr,
-):
+): # pylint: disable=unused-argument
     pid = tl.program_id(axis=0)
     num_pid_m = tl.cdiv(M, BLOCK_SIZE_M)
     num_pid_n = tl.cdiv(N, BLOCK_SIZE_N)
@@ -79,11 +83,12 @@ def triton_mm_kernel(
 
 
 # Intel requires tensor descriptors to perform good
-@triton.autotune(configs=matmul_configs, key=["M", "N", "K", "stride_bk", "ACCUMULATOR_DTYPE"], cache_results=True)
+@triton.autotune(configs=matmul_configs, key=["M_AT", "N_AT", "K_AT", "stride_bk", "ACCUMULATOR_DTYPE"], cache_results=True)
 @triton.jit
 def triton_mm_td_kernel(
     a_ptr, b_ptr, c_ptr,
     M: int, N: int, K: int,
+    M_AT: int, N_AT: int, K_AT: int,
     stride_am: int, stride_ak: int,
     stride_bk: int, stride_bn: int,
     stride_cm: int, stride_cn: int,
@@ -92,7 +97,7 @@ def triton_mm_td_kernel(
     BLOCK_SIZE_N: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     GROUP_SIZE_M: tl.constexpr,
-):
+): # pylint: disable=unused-argument
     pid = tl.program_id(axis=0)
     num_pid_m = tl.cdiv(M, BLOCK_SIZE_M)
     num_pid_n = tl.cdiv(N, BLOCK_SIZE_N)
@@ -139,6 +144,9 @@ def int_mm(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     mm_kernel_func[grid](
         a, b, c,
         M, N, K,
+        math.ceil(M / min_block_size),
+        math.ceil(N / min_block_size),
+        math.ceil(K / min_block_size),
         a.stride(0), a.stride(1),
         b.stride(0), b.stride(1),
         c.stride(0), c.stride(1),
@@ -159,6 +167,9 @@ def fp_mm(a: torch.FloatTensor, b: torch.FloatTensor) -> torch.FloatTensor:
     mm_kernel_func[grid](
         a, b, c,
         M, N, K,
+        math.ceil(M / min_block_size),
+        math.ceil(N / min_block_size),
+        math.ceil(K / min_block_size),
         a.stride(0), a.stride(1),
         b.stride(0), b.stride(1),
         c.stride(0), c.stride(1),

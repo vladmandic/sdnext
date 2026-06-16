@@ -116,7 +116,7 @@ def make_diffusers_transformer_block(block_class: Type[torch.nn.Module]) -> Type
                 B, _N, C = x.shape
                 x = x.view(B,H,W,C)
                 if H % 2 != 0 or W % 2 != 0:
-                    from modules.errors import log
+                    from modules.logger import log
                     log.warning('HiDiffusion: The feature size is not divisible by 2')
                     x = F.interpolate(x.permute(0,3,1,2).contiguous(), size=(window_size[0]*2, window_size[1]*2), mode='bicubic').permute(0,2,3,1).contiguous()
                 if type(shift_size) == list or type(shift_size) == tuple:
@@ -277,7 +277,7 @@ def make_diffusers_cross_attn_down_block(block_class: Type[torch.nn.Module]) -> 
         T1_ratio = 0
         T1_start = 0
         T1_end = 0
-        T1 = 0 # to avoid confict with sdxl-turbo
+        T1 = 0 # to avoid conflict with sdxl-turbo
         max_timestep = current_steps
 
         def forward(
@@ -323,7 +323,7 @@ def make_diffusers_cross_attn_down_block(block_class: Type[torch.nn.Module]) -> 
             if self.aggressive_raunet:
                 self.T1_start = int(aggressive_step/50 * self.max_timestep)
                 self.T1_end = int(self.max_timestep * self.T1_ratio)
-                self.T1 = 0 # to avoid confict with sdxl-turbo
+                self.T1 = 0 # to avoid conflict with sdxl-turbo
             else:
                 self.T1 = int(self.max_timestep * self.T1_ratio)
 
@@ -410,7 +410,7 @@ def make_diffusers_cross_attn_up_block(block_class: Type[torch.nn.Module]) -> Ty
         T1_ratio = 0
         T1_start = 0
         T1_end = 0
-        T1 = 0 # to avoid confict with sdxl-turbo
+        T1 = 0 # to avoid conflict with sdxl-turbo
         max_timestep = 50
 
         def forward(
@@ -463,7 +463,7 @@ def make_diffusers_cross_attn_up_block(block_class: Type[torch.nn.Module]) -> Ty
             if self.aggressive_raunet:
                 self.T1_start = int(aggressive_step/50 * self.max_timestep)
                 self.T1_end = int(self.max_timestep * self.T1_ratio)
-                self.T1 = 0 # to avoid confict with sdxl-turbo
+                self.T1 = 0 # to avoid conflict with sdxl-turbo
             else:
                 self.T1 = int(self.max_timestep * self.T1_ratio)
 

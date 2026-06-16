@@ -114,7 +114,7 @@ def unload_model():
     yield gr.update(), gr.update(), 'Model unloaded'
 
 
-def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_weight, vision_weight, prompt, system_prompt, optimized_prompt, section_prompt, negative_prompt, styles, seed, resolution, duration, latent_ws, steps, cfg_scale, cfg_distilled, cfg_rescale, shift, use_teacache, use_cfgzero, use_preview, mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_opt, mp4_ext, mp4_interpolate, attention, vae_type, variant, vlm_enhance, vlm_model, vlm_system_prompt):
+def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_weight, vision_weight, prompt, system_prompt, optimized_prompt, section_prompt, negative_prompt, styles, seed, resolution, duration, latent_ws, steps, cfg_scale, cfg_distilled, cfg_rescale, shift, use_teacache, use_cfgzero, use_preview, mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate, attention, vae_type, variant, vlm_enhance, vlm_model, vlm_system_prompt):
     variant = variant or 'bi-directional'
     if init_image is None:
         init_image = np.zeros((resolution, resolution, 3), dtype=np.uint8)
@@ -181,7 +181,7 @@ def run_framepack(task_id, _ui_state, init_image, end_image, start_weight, end_w
             cfg_scale, cfg_distilled, cfg_rescale,
             shift,
             use_teacache, use_cfgzero, use_preview,
-            mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_opt, mp4_ext, mp4_interpolate,
+            mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate,
             vae_type, variant,
         )
 

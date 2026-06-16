@@ -7,7 +7,7 @@ import torch
 # Ensure we can import modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../")))
 
-from modules.errors import log
+from modules.logger import log
 from modules.res4lyf import (
     BASE, SIMPLE, VARIANTS,
     RESUnifiedScheduler, RESMultistepScheduler, RESDEISMultistepScheduler,
@@ -28,6 +28,7 @@ from modules.schedulers.scheduler_flashflow import FlashFlowMatchEulerDiscreteSc
 from modules.schedulers.scheduler_dpm_flowmatch import FlowMatchDPMSolverMultistepScheduler
 from modules.schedulers.scheduler_dc import DCSolverMultistepScheduler
 from modules.schedulers.scheduler_bdia import BDIA_DDIMScheduler
+from modules.schedulers.scheduler_ersde import ERSDEScheduler
 
 def test_scheduler(name, scheduler_class, config):
     try:
@@ -61,7 +62,7 @@ def test_scheduler(name, scheduler_class, config):
             # Re-introduce scaling calculation first
             scaled_sample = scheduler.scale_model_input(sample, t)
 
-            if config.get("prediction_type") == "flow_prediction" or name in ["UFOGenScheduler", "TDDScheduler", "TCDScheduler", "BDIA_DDIMScheduler", "DCSolverMultistepScheduler"]:
+            if config.get("prediction_type") == "flow_prediction" or name in ["UFOGenScheduler", "TDDScheduler", "TCDScheduler", "BDIA_DDIMScheduler", "DCSolverMultistepScheduler", "ERSDEScheduler"]:
                 # Some new schedulers don't use K-diffusion scaling
                 expected_scale = 1.0
             else:
@@ -239,6 +240,7 @@ def run_tests():
         RiemannianFlowScheduler,
         # sdnext schedulers
         FlowUniPCMultistepScheduler, FlashFlowMatchEulerDiscreteScheduler, FlowMatchDPMSolverMultistepScheduler,
+        ERSDEScheduler,
     ]
     for cls in flow_schedulers:
         test_scheduler(cls.__name__, cls, {"prediction_type": "flow_prediction", "use_flow_sigmas": True})
@@ -250,7 +252,8 @@ def run_tests():
         TDDScheduler,
         TCDScheduler,
         DCSolverMultistepScheduler,
-        BDIA_DDIMScheduler
+        BDIA_DDIMScheduler,
+        ERSDEScheduler
     ]
     for prediction_type in ["epsilon", "v_prediction", "sample"]:
         for cls in extended_schedulers:

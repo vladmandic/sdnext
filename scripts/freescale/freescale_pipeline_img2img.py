@@ -1174,7 +1174,7 @@ class StableDiffusionXLFreeScaleImg2Img(DiffusionPipeline, FromSingleFileMixin, 
         """
         return StableDiffusionXLPipelineOutput(images=results_list)
 
-    # Overrride to properly handle the loading and unloading of the additional text encoder.
+    # Override to properly handle the loading and unloading of the additional text encoder.
     def load_lora_weights(self, pretrained_model_name_or_path_or_dict: Union[str, Dict[str, torch.Tensor]], **kwargs):
         # We could have accessed the unet config from `lora_state_dict()` too. We pass
         # it here explicitly to be able to tell that it's coming from an SDXL

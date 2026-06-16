@@ -160,9 +160,37 @@ def run_settings(*args):
         return shared.opts.dumpjson(), f'{len(changed)} Settings changed without save: {", ".join(changed)}'
     return shared.opts.dumpjson(), f'{len(changed)} Settings changed{": " if len(changed) > 0 else ""}{", ".join(changed)}'
 
+model_keys_validated = {'sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_unet', 'sd_text_encoder'}
+
+
+def looks_like_custom_model_value(value):
+    # Cheap, non-network check to decide whether a typed string plausibly identifies a model.
+    # Mirrors the patterns handled in sd_checkpoint.get_closest_checkpoint_match without doing any IO.
+    if not isinstance(value, str) or not value:
+        return False
+    if value.startswith(('https://huggingface.co/', 'huggingface/', 'https://civitai.com/')):
+        return True
+    if value.endswith('.safetensors'):
+        return True
+    if ' ' not in value and value.count('/') in (1, 2):
+        return True
+    return False
+
+
 def run_settings_single(value, key, progress=False, force=False):
     if not shared.opts.same_type(value, shared.opts.data_labels[key].default):
         return gr.update(visible=True), shared.opts.dumpjson()
+    if key in model_keys_validated and not force and isinstance(value, str):
+        # Guard against editable dropdowns committing a partial filter string (e.g. user typed "a")
+        # which would otherwise trigger reload_model_weights -> select_checkpoint -> unload of the
+        # currently loaded model. Accept the value only if it matches a known choice or a recognized
+        # custom pattern (HF URL, user/model path, .safetensors path).
+        info = shared.opts.data_labels[key]
+        comp_args = info.component_args() if callable(info.component_args) else info.component_args or {}
+        choices = comp_args.get('choices', []) if isinstance(comp_args, dict) else []
+        if value not in choices and not looks_like_custom_model_value(value):
+            log.debug(f'Settings: ignored {key}="{value}" not in choices and not a recognized custom value')
+            return gr.update(value=getattr(shared.opts, key)), shared.opts.dumpjson()
     if not shared.opts.set(key, value, force):
         return gr.update(value=getattr(shared.opts, key)), shared.opts.dumpjson()
     if key == "cuda_compile_backend" and value == "olive-ai":
@@ -363,46 +391,69 @@ def create_quicksettings(interfaces):
         if shared.opts.notification_audio_enable and os.path.exists(os.path.join(paths.script_path, shared.opts.notification_audio_path)):
             gr.Audio(interactive=False, value=os.path.join(paths.script_path, shared.opts.notification_audio_path), elem_id="audio_notification", visible=False)
 
+        def sync_checkpoint_unet(value, progress=False, force=False):
+            checkpoint_update, settings_text = run_settings_single(value, key='sd_model_checkpoint', progress=progress, force=force)
+            return checkpoint_update, get_value_for_setting('sd_unet'), settings_text
+
         for k, _item in quicksettings_list:
             component = shared.settings_components[k]
             info = shared.opts.data_labels[k]
             if isinstance(component, gr.components.Textbox):
                 change_handlers = [component.blur, component.submit]
+            elif isinstance(component, gr.components.Dropdown) and getattr(component, 'allow_custom_value', False):
+                # Editable dropdowns (allow_custom_value=True) fire .change on every keystroke because
+                # Gradio binds keyup -> value = typed_text. Using .change here would queue a full model
+                # reload per letter and let in-flight server updates clobber what the user is typing.
+                # .blur fires after typing settles AND when an option is clicked (Gradio calls input.blur()
+                # on selection), so selecting from the list still works.
+                change_handlers = [component.blur]
             else:
                 change_handlers = [component.release if hasattr(component, 'release') else component.change]
+            progress_flag = info.refresh is not None
+            if k == 'sd_model_checkpoint':
+                def fn(value, progress=progress_flag):
+                    return sync_checkpoint_unet(value, progress=progress)
+                outputs = [component, shared.settings_components['sd_unet'], text_settings]
+            else:
+                def fn(value, k=k, progress=progress_flag):
+                    return run_settings_single(value, key=k, progress=progress)
+                outputs = [component, text_settings]
             for change_handler in change_handlers:
                 change_handler(
-                    fn=lambda value, k=k, progress=info.refresh is not None: run_settings_single(value, key=k, progress=progress),
+                    fn=fn,
                     inputs=[component],
-                    outputs=[component, text_settings],
+                    outputs=outputs,
                     show_progress='full' if info.refresh is not None else 'hidden',
                 )
 
+        def sync_checkpoint_unet_forced(value, _dummy):
+            return sync_checkpoint_unet(value, force=True)
+
         button_set_checkpoint = gr.Button('Change model', elem_id='change_checkpoint', visible=False)
         button_set_checkpoint.click(
-            fn=lambda value, _: run_settings_single(value, key='sd_model_checkpoint', force=True),
-            _js="function(v){ var res = desiredCheckpointName; desiredCheckpointName = ''; return [res || v, null]; }",
+            fn=sync_checkpoint_unet_forced,
+            _js="consumeDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_checkpoint'], dummy_component],
-            outputs=[shared.settings_components['sd_model_checkpoint'], text_settings],
+            outputs=[shared.settings_components['sd_model_checkpoint'], shared.settings_components['sd_unet'], text_settings],
         )
         button_set_refiner = gr.Button('Change refiner', elem_id='change_refiner', visible=False)
         button_set_refiner.click(
             fn=lambda value, _: run_settings_single(value, key='sd_model_checkpoint'),
-            _js="function(v){ var res = desiredCheckpointName; desiredCheckpointName = ''; return [res || v, null]; }",
+            _js="consumeDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_refiner'], dummy_component],
             outputs=[shared.settings_components['sd_model_refiner'], text_settings],
         )
         button_set_vae = gr.Button('Change VAE', elem_id='change_vae', visible=False)
         button_set_vae.click(
             fn=lambda value, _: run_settings_single(value, key='sd_vae'),
-            _js="function(v){ var res = desiredVAEName; desiredVAEName = ''; return [res || v, null]; }",
+            _js="consumeDesiredVAEName",
             inputs=[shared.settings_components['sd_vae'], dummy_component],
             outputs=[shared.settings_components['sd_vae'], text_settings],
         )
         button_set_unet = gr.Button("Change UNet", elem_id="change_unet", visible=False)
         button_set_unet.click(
             fn=lambda value, _: run_settings_single(value, key="sd_unet"),
-            _js="function(v){ var res = desiredUNetName; desiredUNetName = ''; return [res || v, null]; }",
+            _js="consumeDesiredUNetName",
             inputs=[shared.settings_components["sd_unet"], dummy_component],
             outputs=[shared.settings_components["sd_unet"], text_settings],
         )
@@ -427,7 +478,7 @@ def create_quicksettings(interfaces):
         button_set_reference = gr.Button('Change reference', elem_id='change_reference', visible=False)
         button_set_reference.click(
             fn=reference_submit,
-            _js="function(v){ return desiredCheckpointName; }",
+            _js="getDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_checkpoint']],
             outputs=[shared.settings_components['sd_model_checkpoint']],
         )

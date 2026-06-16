@@ -16,11 +16,15 @@ Use this skill to implement, edit, review, and prepare pull-request-ready change
 - Adding tests and docs for diffusers changes
 - Preparing a PR that targets the diffusers repository
 
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime and diffusers integration guidance before proceeding.
+
 ## Primary Objectives
 
 1. Keep behavior explicit, minimal, and inference-focused.
 2. Match existing diffusers architecture and code patterns.
-3. Preserve numerical behavior unless a behavior change is explicitly required.
+3. Preserve numerical behavior unless a behavior change is explicitly documented in the task requirements.
 4. Produce change sets that are clean, reviewable, and PR-ready.
 
 ## Hard Rules
@@ -34,6 +38,13 @@ Use this skill to implement, edit, review, and prepare pull-request-ready change
 - Prefer native PyTorch tensor ops over external reshape helpers.
 
 ## Code Structure Rules
+
+Apply these grouped checks in priority order:
+
+1. Model-level structure and forward-path clarity.
+2. Attention and processor integration consistency.
+3. Pipeline runtime behavior and inference API expectations.
+4. Scheduler config and mixin conformance.
 
 ### Models
 

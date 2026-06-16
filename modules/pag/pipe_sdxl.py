@@ -1048,20 +1048,20 @@ class StableDiffusionXLPAGPipeline(
         return self._interrupt
 
     @property
-    def pag_scale(self):
-        return self._pag_scale
+    def cfg_true(self):
+        return self._cfg_true
 
     @property
     def do_adversarial_guidance(self):
-        return self._pag_scale > 0
+        return self._cfg_true > 0
 
     @property
-    def pag_adaptive_scaling(self):
-        return self._pag_adaptive_scaling
+    def cfg_adaptive_scaling(self):
+        return self._cfg_adaptive_scaling
 
     @property
-    def do_pag_adaptive_scaling(self):
-        return self._pag_adaptive_scaling > 0
+    def do_cfg_adaptive_scaling(self):
+        return self._cfg_adaptive_scaling > 0
 
     @property
     def pag_drop_rate(self):
@@ -1087,8 +1087,8 @@ class StableDiffusionXLPAGPipeline(
         timesteps: List[int] | None = None,
         denoising_end: Optional[float] = None,
         guidance_scale: float = 5.0,
-        pag_scale: float = 0.0,
-        pag_adaptive_scaling: float = 0.0,
+        cfg_true: float = 0.0,
+        cfg_adaptive_scaling: float = 0.0,
         pag_drop_rate: float = 0.5,
         pag_applied_layers: List[str] = ['mid'], #['down', 'mid', 'up']
         pag_applied_layers_index: List[str] | None = None, #['d4', 'd5', 'm0']
@@ -1308,8 +1308,8 @@ class StableDiffusionXLPAGPipeline(
         self._denoising_end = denoising_end
         self._interrupt = False
 
-        self._pag_scale = pag_scale
-        self._pag_adaptive_scaling = pag_adaptive_scaling
+        self._cfg_true = cfg_true
+        self._cfg_adaptive_scaling = cfg_adaptive_scaling
         self._pag_drop_rate = pag_drop_rate
         self._pag_applied_layers = pag_applied_layers
         self._pag_applied_layers_index = pag_applied_layers_index
@@ -1556,9 +1556,9 @@ class StableDiffusionXLPAGPipeline(
                 elif not self.do_classifier_free_guidance and self.do_adversarial_guidance:
                     noise_pred_original, noise_pred_perturb = noise_pred.chunk(2)
 
-                    signal_scale = self.pag_scale
-                    if self.do_pag_adaptive_scaling:
-                        signal_scale = self.pag_scale - self.pag_adaptive_scaling * (1000-t)
+                    signal_scale = self.cfg_true
+                    if self.do_cfg_adaptive_scaling:
+                        signal_scale = self.cfg_true - self.cfg_adaptive_scaling * (1000-t)
                         if signal_scale<0:
                             signal_scale = 0
 
@@ -1569,9 +1569,9 @@ class StableDiffusionXLPAGPipeline(
 
                     noise_pred_uncond, noise_pred_text, noise_pred_text_perturb = noise_pred.chunk(3)
 
-                    signal_scale = self.pag_scale
-                    if self.do_pag_adaptive_scaling:
-                        signal_scale = self.pag_scale - self.pag_adaptive_scaling * (1000-t)
+                    signal_scale = self.cfg_true
+                    if self.do_cfg_adaptive_scaling:
+                        signal_scale = self.cfg_true - self.cfg_adaptive_scaling * (1000-t)
                         if signal_scale<0:
                             signal_scale = 0
 

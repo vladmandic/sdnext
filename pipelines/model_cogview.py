@@ -14,8 +14,11 @@ def load_cogview3(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
     log.debug(f'Load model: type=CogView3 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    transformer = generic.load_transformer(repo_id, cls_name=diffusers.CogView3PlusTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer")
+    from pipelines.cogview import COGVIEW3_SPEC
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.CogView3PlusTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer", native_spec=COGVIEW3_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder")
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.CogView3PlusPipeline.from_pretrained(
         repo_id,
@@ -40,8 +43,11 @@ def load_cogview4(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
     log.debug(f'Load model: type=CogView4 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    transformer = generic.load_transformer(repo_id, cls_name=diffusers.CogView4Transformer2DModel, load_config=diffusers_load_config, subfolder="transformer")
+    from pipelines.cogview import COGVIEW4_SPEC
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.CogView4Transformer2DModel, load_config=diffusers_load_config, subfolder="transformer", native_spec=COGVIEW4_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.GlmModel, load_config=diffusers_load_config, subfolder="text_encoder", allow_quant=True)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.CogView4Pipeline.from_pretrained(
         repo_id,

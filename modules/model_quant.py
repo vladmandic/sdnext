@@ -150,11 +150,13 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
         sdnq_config = SDNQConfig(
             weights_dtype=weights_dtype,
             quantized_matmul_dtype=quantized_matmul_dtype,
-            group_size=shared.opts.sdnq_quantize_weights_group_size,
+            hadamard_group_size=shared.opts.sdnq_hadamard_group_size,
+            group_size=shared.opts.sdnq_group_size,
             svd_rank=shared.opts.sdnq_svd_rank,
             svd_steps=shared.opts.sdnq_svd_steps,
             dynamic_loss_threshold=shared.opts.sdnq_dynamic_loss_threshold,
             use_svd=shared.opts.sdnq_use_svd,
+            use_hadamard=shared.opts.sdnq_use_hadamard,
             quant_conv=shared.opts.sdnq_quantize_conv_layers,
             quant_embedding=shared.opts.sdnq_quantize_embedding_layers,
             use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
@@ -170,7 +172,10 @@ def create_sdnq_config(kwargs = None, allow: bool = True, module: str = 'Model',
         if quantized_matmul_dtype is None:
             quantized_matmul_dtype = "auto" # set for logging
         svd = f'{shared.opts.sdnq_use_svd} rank={shared.opts.sdnq_svd_rank} steps={shared.opts.sdnq_svd_steps}' if shared.opts.sdnq_use_svd else f'{shared.opts.sdnq_use_svd}'
-        log.debug(f'Quantization: module="{module}" type=sdnq mode=pre dtype={weights_dtype} svd={svd} dynamic={shared.opts.sdnq_use_dynamic_quantization} group={shared.opts.sdnq_quantize_weights_group_size} loss={shared.opts.sdnq_dynamic_loss_threshold} matmul_dtype={quantized_matmul_dtype} matmul_quant={shared.opts.sdnq_use_quantized_matmul} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quant_conv={shared.opts.sdnq_quantize_conv_layers} quant_embedding={shared.opts.sdnq_quantize_embedding_layers} fp32={shared.opts.sdnq_dequantize_fp32} device={quantization_device} return={return_device} use_gpu={shared.opts.sdnq_quantize_with_gpu} map={shared.opts.device_map} offload={shared.opts.diffusers_offload_mode} non_blocking={shared.opts.diffusers_offload_nonblocking} skip_modules={modules_to_not_convert} dict={modules_dtype_dict}')
+        hadamard = f'{shared.opts.sdnq_use_hadamard} group={shared.opts.sdnq_hadamard_group_size}' if shared.opts.sdnq_use_hadamard else f'{shared.opts.sdnq_use_hadamard}'
+        log.debug(f'Quantization: module="{module}" type=sdnq mode=pre dtype={weights_dtype} svd={svd} hadamard={hadamard} dynamic={shared.opts.sdnq_use_dynamic_quantization} group={shared.opts.sdnq_group_size} loss={shared.opts.sdnq_dynamic_loss_threshold} matmul_dtype={quantized_matmul_dtype} matmul_quant={shared.opts.sdnq_use_quantized_matmul} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quant_conv={shared.opts.sdnq_quantize_conv_layers} quant_embed={shared.opts.sdnq_quantize_embedding_layers} fp32={shared.opts.sdnq_dequantize_fp32} device={quantization_device} return={return_device} gpu={shared.opts.sdnq_quantize_with_gpu} map={shared.opts.device_map}')
+        if len(modules_to_not_convert) > 0 or modules_dtype_dict:
+            log.debug(f'Quantization: module={module} type=sdnq skip_modules={modules_to_not_convert} modules_dtype_dict={modules_dtype_dict}')
         if kwargs is None:
             return sdnq_config
         else:
@@ -204,6 +209,8 @@ def check_nunchaku(module: str = ''):
         if module in nunchaku_modules:
             from modules import mit_nunchaku
             mit_nunchaku.install_nunchaku()
+            import torch._dynamo
+            torch._dynamo.config.recompile_limit = 16 # Set a higher limit # pylint: disable=protected-access
             return mit_nunchaku.ok
     return False
 
@@ -349,6 +356,14 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
     from modules.sdnq import sdnq_post_load_quant
     from modules.sdnq.common import use_torch_compile as sdnq_use_torch_compile
 
+    if (
+        hasattr(model, "quantization_config")
+        or (hasattr(model, "config") and hasattr(model.config, "quantization_config"))
+        or (hasattr(model, "config") and isinstance(model.config, dict) and "quantization_config" in model.config)
+    ):
+        log.warning(f'Quantization: Trying to quantize a pre-quantized model. Skipping quantization of module="{op if op is not None else model.__class__}"')
+        return model
+
     if shared.opts.sdnq_use_quantized_matmul and not sdnq_use_torch_compile:
         log.warning('SDNQ Quantized MatMul requires a working Triton install. Disabling Quantized MatMul.')
         shared.opts.sdnq_use_quantized_matmul = False
@@ -402,12 +417,13 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         model,
         weights_dtype=weights_dtype,
         quantized_matmul_dtype=quantized_matmul_dtype,
-        torch_dtype=devices.dtype,
-        group_size=shared.opts.sdnq_quantize_weights_group_size,
+        hadamard_group_size=shared.opts.sdnq_hadamard_group_size,
+        group_size=shared.opts.sdnq_group_size,
         svd_rank=shared.opts.sdnq_svd_rank,
         svd_steps=shared.opts.sdnq_svd_steps,
         dynamic_loss_threshold=shared.opts.sdnq_dynamic_loss_threshold,
         use_svd=shared.opts.sdnq_use_svd,
+        use_hadamard=shared.opts.sdnq_use_hadamard,
         quant_conv=shared.opts.sdnq_quantize_conv_layers,
         quant_embedding=shared.opts.sdnq_quantize_embedding_layers,
         use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
@@ -419,6 +435,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         return_device=return_device,
         modules_to_not_convert=modules_to_not_convert,
         modules_dtype_dict=modules_dtype_dict.copy(),
+        torch_dtype=devices.dtype,
     )
 
     t1 = time.time()
@@ -428,7 +445,13 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
         if quant_last_model_name is not None:
             if "." in quant_last_model_name:
                 last_model_names = quant_last_model_name.split(".")
-                getattr(getattr(sd_model, last_model_names[0]), last_model_names[1]).to(quant_last_model_device)
+                if len(last_model_names) >= 2:
+                    try:
+                        parent = getattr(sd_model, last_model_names[0], None)
+                        if parent is not None:
+                            getattr(parent, last_model_names[1]).to(quant_last_model_device)
+                    except (AttributeError, TypeError):
+                        log.warning(f'Quantization: failed to access {quant_last_model_name}')
             else:
                 getattr(sd_model, quant_last_model_name).to(quant_last_model_device)
             if do_gc:
@@ -447,7 +470,7 @@ def sdnq_quantize_model(model, op=None, sd_model=None, do_gc: bool = True, weigh
 
     if quantized_matmul_dtype is None:
         quantized_matmul_dtype = "auto" # set for logging
-    log.debug(f'Quantization: module="{op if op is not None else model.__class__}" type=sdnq mode=post dtype={weights_dtype} matmul_dtype={quantized_matmul_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} svd={shared.opts.sdnq_use_svd} dynamic={shared.opts.sdnq_use_dynamic_quantization}:group={shared.opts.sdnq_quantize_weights_group_size}:rank={shared.opts.sdnq_svd_rank}:steps={shared.opts.sdnq_svd_steps}:loss={shared.opts.sdnq_dynamic_loss_threshold} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quant_conv={shared.opts.sdnq_quantize_conv_layers} quant_embedding={shared.opts.sdnq_quantize_embedding_layers} fp32={shared.opts.sdnq_dequantize_fp32} gpu={shared.opts.sdnq_quantize_with_gpu} device={quantization_device} return={return_device} map={shared.opts.device_map} non_blocking={shared.opts.diffusers_offload_nonblocking} modules_skip={modules_to_not_convert} modules_dtype={modules_dtype_dict}')
+    log.debug(f'Quantization: module="{op if op is not None else model.__class__}" type=sdnq mode=post dtype={weights_dtype} matmul_dtype={quantized_matmul_dtype} matmul={shared.opts.sdnq_use_quantized_matmul} svd={shared.opts.sdnq_use_svd} hadamard={shared.opts.sdnq_use_hadamard} dynamic={shared.opts.sdnq_use_dynamic_quantization}:group={shared.opts.sdnq_group_size}:hadamard_group={shared.opts.sdnq_hadamard_group_size}:rank={shared.opts.sdnq_svd_rank}:steps={shared.opts.sdnq_svd_steps}:loss={shared.opts.sdnq_dynamic_loss_threshold} matmul_conv={shared.opts.sdnq_use_quantized_matmul_conv} quant_conv={shared.opts.sdnq_quantize_conv_layers} quant_embedding={shared.opts.sdnq_quantize_embedding_layers} fp32={shared.opts.sdnq_dequantize_fp32} gpu={shared.opts.sdnq_quantize_with_gpu} device={quantization_device} return={return_device} map={shared.opts.device_map} non_blocking={shared.opts.diffusers_offload_nonblocking} modules_skip={modules_to_not_convert} modules_dtype={modules_dtype_dict}')
     return model
 
 
@@ -462,7 +485,13 @@ def sdnq_quantize_weights(sd_model):
         if quant_last_model_name is not None:
             if "." in quant_last_model_name:
                 last_model_names = quant_last_model_name.split(".")
-                getattr(getattr(sd_model, last_model_names[0]), last_model_names[1]).to(quant_last_model_device)
+                if len(last_model_names) >= 2:
+                    try:
+                        parent = getattr(sd_model, last_model_names[0], None)
+                        if parent is not None:
+                            getattr(parent, last_model_names[1]).to(quant_last_model_device)
+                    except (AttributeError, TypeError):
+                        log.warning(f'Quantization: failed to access {quant_last_model_name}')
             else:
                 getattr(sd_model, quant_last_model_name).to(quant_last_model_device)
             devices.torch_gc(force=True, reason='sdnq')
@@ -483,8 +512,7 @@ def get_dit_args(load_config: dict | None = None, module: str | None = None, dev
     config = {} if load_config is None else load_config.copy()
     if 'torch_dtype' not in config:
         config['torch_dtype'] = devices.dtype
-    if 'low_cpu_mem_usage' in config:
-        del config['low_cpu_mem_usage']
+    low_cpu = config.get('low_cpu_mem_usage', False)
     if 'load_connected_pipeline' in config:
         del config['load_connected_pipeline']
     if 'safety_checker' in config:
@@ -500,6 +528,9 @@ def get_dit_args(load_config: dict | None = None, module: str | None = None, dev
             config['device_map'] = 'cpu'
         elif shared.opts.device_map == 'gpu':
             config['device_map'] = devices.device
+        elif low_cpu and module in {'Model', 'TE', 'LLM'}:
+            # Quantized transformer/text encoder loads should default to cpu device_map when low_cpu_mem_usage is requested to avoid full in-memory checkpoint expansion
+            config['device_map'] = 'cpu'
     if allow_quant:
         quant_args = create_config(module=module, modules_to_not_convert=modules_to_not_convert, modules_dtype_dict=modules_dtype_dict)
     else:

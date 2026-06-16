@@ -210,6 +210,36 @@ class GenerationAPITest:
             data, elapsed = self._txt2img({'sampler_name': sampler})
             self._check_generation(data, f'generate_{sampler}', elapsed)
 
+    def test_sampler_name_resolution(self, available_samplers):
+        """Sampler name resolution: a case-insensitive name resolves to the canonical sampler
+        (and is applied, not silently swapped for the model default), while an unknown name is
+        rejected rather than falling back to the default scheduler."""
+        self._category = 'samplers'
+        print("\n--- Sampler Name Resolution ---")
+
+        if self._critical_error:
+            self.skip('sampler_lenient_case', self._critical_error)
+            self.skip('sampler_unknown_rejected', self._critical_error)
+            return
+
+        canonical = next((s for s in ('Euler a', 'DPM++ 2M', 'UniPC') if s in available_samplers), None)
+        if canonical is None:
+            self.skip('sampler_lenient_case', 'no known sampler available')
+        else:
+            data, _ = self._txt2img({'sampler_name': canonical.lower()})
+            if 'error' in data:
+                self.record(False, 'sampler_lenient_case', f"lowercase '{canonical.lower()}' rejected: {data}")
+            else:
+                resolved = canonical in self._get_info(data)
+                self.record(resolved, 'sampler_lenient_case',
+                            f"'{canonical.lower()}' -> '{canonical}'" if resolved
+                            else f"generated but '{canonical}' not in info (model default used?)")
+
+        data, _ = self._txt2img({'sampler_name': 'ThisIsNotARealSampler'})
+        rejected = 'error' in data
+        self.record(rejected, 'sampler_unknown_rejected',
+                    'unknown name rejected' if rejected else 'unknown name was NOT rejected')
+
     # =========================================================================
     # Tests: Color Grading Params
     # =========================================================================
@@ -577,6 +607,7 @@ class GenerationAPITest:
         # Samplers
         available = self.test_samplers_list()
         self.test_samplers_generate(available)
+        self.test_sampler_name_resolution(available)
 
         # Grading
         self.run_grading_tests()

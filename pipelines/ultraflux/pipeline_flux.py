@@ -684,7 +684,7 @@ class UltraFluxPipeline(DiffusionPipeline, FluxLoraLoaderMixin):
 
                 noise_pred = self.transformer(
                     hidden_states=latents,
-                    # YiYi notes: divide it by 1000 for now because we scale it by 1000 in the transforme rmodel (we should not keep it but I want to keep the inputs same for the model for testing)
+                    # YiYi notes: divide it by 1000 for now because we scale it by 1000 in the transformer model (we should not keep it but I want to keep the inputs same for the model for testing)
                     timestep=timestep / 1000,
                     guidance=guidance,
                     pooled_projections=pooled_prompt_embeds,

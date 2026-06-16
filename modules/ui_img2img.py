@@ -15,21 +15,25 @@ def process_caption(mode, ii_input_files, ii_input_dir, ii_output_dir, *ii_singl
         return [caption(ii_singles[mode]["image"]), None]
     if mode == 5:
         if len(ii_input_files) > 0:
-            images = [f.name for f in ii_input_files]
+            image_paths = [f.name for f in ii_input_files]
         else:
             if not os.path.isdir(ii_input_dir):
                 log.error(f"Caption: Input directory not found: {ii_input_dir}")
                 return [gr.update(), None]
-            images = os.listdir(ii_input_dir)
+            image_paths = [os.path.join(ii_input_dir, f) for f in os.listdir(ii_input_dir)]
         if ii_output_dir != "":
             os.makedirs(ii_output_dir, exist_ok=True)
-        else:
+        elif os.path.isdir(ii_input_dir):
             ii_output_dir = ii_input_dir
-        for image in images:
-            img = Image.open(image)
-            filename = os.path.basename(image)
+        else:
+            log.error('Caption: Output directory not provided for uploaded files')
+            return [gr.update(), None]
+        for image_path in image_paths:
+            img = Image.open(image_path)
+            filename = os.path.basename(image_path)
             left, _ = os.path.splitext(filename)
-            print(caption(img), file=open(os.path.join(ii_output_dir, f"{left}.txt"), 'a', encoding='utf-8')) # pylint: disable=consider-using-with
+            with open(os.path.join(ii_output_dir, f"{left}.txt"), 'a', encoding='utf-8') as f:
+                print(caption(img), file=f)
     return [gr.update(), None]
 
 
@@ -133,7 +137,7 @@ def create_ui():
                             denoising_strength = gr.Slider(minimum=0.00, maximum=0.99, step=0.01, label='Denoising strength', value=0.30, elem_id="img2img_denoising_strength")
                             refiner_start = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Denoise start', value=0.0, elem_id="img2img_refiner_start")
 
-                    guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end = ui_guidance.create_guidance_inputs('img2img')
+                    guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop, cfg_scale, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end = ui_guidance.create_guidance_inputs('img2img')
                     vae_type, tiling, hidiffusion, clip_skip = ui_sections.create_advanced_inputs('img2img')
                     grading_brightness, grading_contrast, grading_saturation, grading_hue, grading_gamma, grading_sharpness, grading_color_temp, grading_shadows, grading_midtones, grading_highlights, grading_clahe_clip, grading_clahe_grid, grading_shadows_tint, grading_highlights_tint, grading_split_tone_balance, grading_vignette, grading_grain, grading_lut_file, grading_lut_strength = ui_sections.create_color_inputs('img2img')
                     hdr_mode, hdr_brightness, hdr_color, hdr_sharpen, hdr_clamp, hdr_boundary, hdr_threshold, hdr_maximize, hdr_max_center, hdr_max_boundary, hdr_color_picker, hdr_tint_ratio, hdr_apply_hires = ui_sections.create_latent_inputs('img2img')
@@ -180,7 +184,7 @@ def create_ui():
                 detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution,
                 batch_count, batch_size,
                 guidance_name, guidance_scale, guidance_rescale, guidance_start, guidance_stop,
-                cfg_scale, image_cfg_scale, diffusers_guidance_rescale, pag_scale, pag_adaptive, cfg_end,
+                cfg_scale, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end,
                 refiner_start,
                 clip_skip,
                 denoising_strength,
@@ -243,6 +247,8 @@ def create_ui():
                 # prompt
                 (img2img_prompt, "Prompt"),
                 (img2img_negative_prompt, "Negative prompt"),
+                (img2img_prompt, "Template"), # override prompt with template if available
+                (img2img_negative_prompt, "Negative template"),
                 (img2img_prompt_styles, "Styles"),
                 # sampler
                 (sampler_index, "Sampler"),
@@ -269,10 +275,10 @@ def create_ui():
                 # advanced
                 (cfg_scale, "CFG scale"),
                 (cfg_end, "CFG end"),
-                (image_cfg_scale, "Image CFG scale"),
-                (image_cfg_scale, "Hires CFG scale"),
-                (clip_skip, "Clip skip"),
-                (diffusers_guidance_rescale, "CFG rescale"),
+                (cfg_image, "Image CFG scale"),
+                (cfg_image, "Hires CFG scale"),
+                (clip_skip, "CLiP-skip"),
+                (cfg_rescale, "CFG rescale"),
                 (vae_type, "VAE type"),
                 (tiling, "Tiling"),
                 (hidiffusion, "HiDiffusion"),
@@ -304,8 +310,8 @@ def create_ui():
                 (refiner_prompt, "refiner prompt"),
                 (refiner_negative, "Refiner negative"),
                 # pag
-                (pag_scale, "CFG true"),
-                (pag_adaptive, "CFG adaptive"),
+                (cfg_true, "CFG true"),
+                (cfg_adaptive, "CFG adaptive"),
                 # inpaint
                 (mask_blur, "Mask blur"),
                 (mask_alpha, "Mask alpha"),

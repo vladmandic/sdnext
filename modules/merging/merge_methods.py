@@ -112,7 +112,7 @@ def euclidean_add_difference(a: Tensor, b: Tensor, c: Tensor, alpha: float, **kw
 
 def multiply_difference(a: Tensor, b: Tensor, c: Tensor, alpha: float, beta: float, **kwargs) -> Tensor:  # pylint: disable=unused-argument
     """
-    Similar to Add Difference but with geometric mean instead of arithmatic mean
+    Similar to Add Difference but with geometric mean instead of arithmetic mean
     """
     diff_a = torch.pow(torch.abs(a.float() - c), (1 - alpha))
     diff_b = torch.pow(torch.abs(b.float() - c), alpha)

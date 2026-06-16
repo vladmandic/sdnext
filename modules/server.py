@@ -9,6 +9,7 @@ class UvicornServer(uvicorn.Server):
         self.app: fastapi.FastAPI = app
         self.thread: threading.Thread = None
         self.wants_restart = False
+        self.should_exit = False
         self.config = uvicorn.Config(
             app=self.app,
             host = "0.0.0.0" if listen else "127.0.0.1",

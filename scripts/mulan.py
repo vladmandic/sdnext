@@ -3,7 +3,7 @@
 # https://huggingface.co/OpenGVLab/InternVL-14B-224px
 
 """
-- [MuLan](https://github.com/mulanai/MuLan) Multi-langunage prompts - wirte your prompts in ~110 auto-detected languages!
+- [MuLan](https://github.com/mulanai/MuLan) Multi-langunage prompts - write your prompts in ~110 auto-detected languages!
   Compatible with SD15 and SDXL
   Enable in scripts -> MuLan and set encoder to `InternVL-14B-224px` encoder
   (that is currently only supported encoder, but others will be added)
@@ -93,7 +93,7 @@ class MuLanScript(scripts_manager.Script):
             p.prompt = p.prompt[0]
         p.task_args['prompt'] = p.prompt
         if isinstance(p.negative_prompt, list):
-            p.prompt = p.negative_prompt[0]
+            p.negative_prompt = p.negative_prompt[0]
         p.task_args['negative_prompt'] = p.negative_prompt
 
         if pipe_type != ('sd15' if shared.sd_model_type == 'sd' else 'sdxl'):

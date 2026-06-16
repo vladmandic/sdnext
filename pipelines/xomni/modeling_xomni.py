@@ -4,6 +4,7 @@ from typing import Tuple, List, Optional, Union
 
 import torch
 import torch.nn as nn
+from modules import shared
 
 from huggingface_hub import hf_hub_download
 from transformers import Qwen2ForCausalLM, AutoModel, AutoModelForCausalLM
@@ -132,11 +133,15 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
         self.image_tokenizer = SiglipTokenizer(**vars(self.encoder_config))
         self.image_tokenizer.to(self.device, self.vision_dtype)
 
+        kwargs = kwargs.copy()
+        kwargs.pop('cache_dir', None)
+
         transformer = FluxTransformer2DModelWithSigLIP.from_pretrained(
             self.name_or_path,
             siglip_channels=self.encoder_config.z_channels,
             torch_dtype=self.vision_dtype,
             subfolder=self.decoder_config.model_path,
+            cache_dir=shared.opts.hfcache_dir,
             **kwargs,
         )
 
@@ -144,6 +149,7 @@ class XOmniForCausalLM(Qwen2ForCausalLM):
             flux_pipe_path,
             transformer=transformer,
             torch_dtype=self.vision_dtype,
+            cache_dir=shared.opts.diffusers_dir,
         )
         self.decoder_pipe.set_progress_bar_config(disable=True)
 

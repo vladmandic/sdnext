@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
 import re
 import os
 import csv
@@ -8,6 +9,8 @@ import random
 from modules import files_cache, shared, infotext, sd_models, sd_vae
 from modules.logger import log
 
+if TYPE_CHECKING:
+    from modules.processing_class import StableDiffusionProcessing
 
 debug_enabled = os.environ.get('SD_STYLES_DEBUG', None) is not None
 
@@ -94,6 +97,12 @@ def apply_curly_braces_to_prompt(prompt, seed=-1):
     if seed > 0:
         old_state = random.getstate()
         random.seed(seed)
+    prompt = prompt.strip()
+    try:
+        json.loads(prompt)
+        return prompt # this is already a json, do not process
+    except Exception:
+        pass
     try:
         pattern = re.compile(r'\{([^{}]*)\}', re.DOTALL) # innermost braces
         while True:
@@ -109,7 +118,7 @@ def apply_curly_braces_to_prompt(prompt, seed=-1):
     return prompt
 
 
-def apply_file_wildcards(prompt, replaced = None, not_found = None, recursion=0, seed=-1):
+def apply_file_wildcards(prompt, replaced = None, not_found = None, recursion=0, seed=-1, p: StableDiffusionProcessing | None = None):
     if not_found is None:
         not_found = []
     if replaced is None:
@@ -135,6 +144,8 @@ def apply_file_wildcards(prompt, replaced = None, not_found = None, recursion=0,
                             prompt = prompt.replace(f"__{wildcard}__", choice, 1)
                             log.debug(f'Apply wildcard: select="{wildcard}" choice="{choice}" file="{file}" choices={len(lines)}')
                             replaced.append(wildcard)
+                            if p is not None:
+                                p.extra_generation_params['Wildcards'] = p.extra_generation_params.get('Wildcards', []) + [trimmed]
                             return prompt, True
                 except Exception as e:
                     log.error(f'Wildcards: wildcard={wildcard} file={file} {e}')
@@ -167,7 +178,7 @@ def apply_file_wildcards(prompt, replaced = None, not_found = None, recursion=0,
     return prompt, replaced, not_found
 
 
-def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False):
+def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False, p: StableDiffusionProcessing | None = None):
     if prompt is None or len(prompt) == 0:
         return prompt
     old_state = None
@@ -189,7 +200,7 @@ def apply_wildcards_to_prompt(prompt, all_wildcards, seed=-1, silent=False):
             except Exception as e:
                 log.error(f'Wildcards: wildcard="{wildcard}" error={e}')
     t1 = time.time()
-    prompt, replaced_file, not_found = apply_file_wildcards(prompt, [], [], recursion=0, seed=seed)
+    prompt, replaced_file, not_found = apply_file_wildcards(prompt, [], [], recursion=0, seed=seed, p=p)
     t2 = time.time()
     if replaced and not silent:
         log.debug(f'Apply wildcards: {replaced} path="{shared.opts.wildcards_dir}" type=style time={t1-t0:.2f}')
@@ -231,7 +242,7 @@ def apply_styles_to_extra(p, style: Style):
     ]
     reference_style = get_reference_style()
     extra = infotext.parse(reference_style) if shared.opts.extra_network_reference_values else {}
-    style_extra = apply_wildcards_to_prompt(style.extra, [style.wildcards], silent=True)
+    style_extra = apply_wildcards_to_prompt(style.extra, [style.wildcards], silent=True, p=p)
     style_extra = ' ' + style_extra.lower()
     extra.update(infotext.parse(style_extra))
     extra.pop('Prompt', None)
@@ -300,36 +311,40 @@ class StyleDatabase:
                 pass
 
     def load_style(self, fn, prefix=None):
-        with open(fn, encoding='utf-8') as f:
-            new_style = None
-            try:
+        new_style = None
+        try:
+            with open(fn, encoding='utf-8') as f:
                 all_styles = json.load(f)
-                if type(all_styles) is dict:
-                    all_styles = [all_styles]
-                for style in all_styles:
-                    if type(style) is not dict or "name" not in style:
-                        raise ValueError('cannot parse style')
-                    basename = os.path.splitext(os.path.basename(fn))[0]
-                    name = re.sub(r'[\t\r\n]', '', style.get("name", basename)).strip()
-                    if prefix is not None:
-                        name = os.path.join(prefix, name)
-                    else:
-                        name = os.path.join(os.path.dirname(os.path.relpath(fn, self.path)), name)
-                    new_style = Style(
-                        name=name,
-                        desc=style.get('description', name),
-                        prompt=style.get("prompt", ""),
-                        negative_prompt=style.get("negative", ""),
-                        extra=style.get("extra", ""),
-                        wildcards=style.get("wildcards", ""),
-                        preview=style.get("preview", None),
-                        filename=fn,
-                        mtime=os.path.getmtime(fn),
-                    )
-                    self.styles[style["name"]] = new_style
-            except Exception as e:
-                log.error(f'Failed to load style: file="{fn}" error={e}')
-            return new_style
+            if type(all_styles) is dict:
+                all_styles = [all_styles]
+            for style in all_styles:
+                if type(style) is not dict or "name" not in style:
+                    raise ValueError('cannot parse style')
+                basename = os.path.splitext(os.path.basename(fn))[0]
+                name = re.sub(r'[\t\r\n]', '', style.get("name", basename)).strip()
+                if prefix is not None:
+                    name = os.path.join(prefix, name)
+                else:
+                    name = os.path.join(os.path.dirname(os.path.relpath(fn, self.path)), name)
+                new_style = Style(
+                    name=name,
+                    desc=style.get('description', name),
+                    prompt=style.get("prompt", ""),
+                    negative_prompt=style.get("negative", ""),
+                    extra=style.get("extra", ""),
+                    wildcards=style.get("wildcards", ""),
+                    preview=style.get("preview", None),
+                    filename=fn,
+                    mtime=os.path.getmtime(fn),
+                )
+                # key by the prefixed name so styles with the same base name in different
+                # subfolders do not collide and overwrite each other
+                if name in self.styles:
+                    log.warning(f'Style duplicate name: name="{name}" file="{fn}" existing="{self.styles[name].filename}"')
+                self.styles[name] = new_style
+        except Exception as e:
+            log.error(f'Failed to load style: file="{fn}" error={e}')
+        return new_style
 
     def reload(self):
         t0 = time.time()
@@ -343,7 +358,7 @@ class StyleDatabase:
                 for fn in style_files:
                     future_items[executor.submit(self.load_style, fn, None)] = fn
                 if self.built_in:
-                    fn = os.path.join('html', 'art-styles.json')
+                    fn = os.path.join('data', 'art-styles.json')
                     future_items[executor.submit(self.load_style, fn, 'Reference')] = fn
                 for future in concurrent.futures.as_completed(future_items):
                     future.result()
@@ -374,7 +389,7 @@ class StyleDatabase:
             return []
         return [self.find_style(x).negative_prompt for x in styles]
 
-    def apply_styles_to_prompts(self, prompts, negatives, styles, seeds):
+    def apply_styles_to_prompts(self, prompts, negatives, styles, seeds, p: StableDiffusionProcessing | None = None):
         if styles is None:
             return prompts, negatives
         if not isinstance(styles, list):
@@ -383,9 +398,15 @@ class StyleDatabase:
         if prompts is None or not isinstance(prompts, list):
             log.error(f'Styles invalid prompts: {prompts}')
             return prompts, negatives
-        if seeds is None or not isinstance(prompts, list):
+        if seeds is None or not isinstance(seeds, list):
             log.error(f'Styles invalid seeds: {seeds}')
             return prompts, negatives
+        if p is not None:
+            if p.all_templates is None or len(p.all_templates) < len(prompts):
+                p.all_templates = prompts
+            if p.all_negative_templates is None or len(p.all_negative_templates) < len(negatives):
+                p.all_negative_templates = negatives
+
         jobid = shared.state.begin('Styles')
         parsed_positive = []
         parsed_negative = []
@@ -397,7 +418,7 @@ class StyleDatabase:
             prompt = prompts[i]
             prompt = apply_curly_braces_to_prompt(prompt, seeds[i])
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).prompt for x in styles])
-            prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
+            prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i], p=p)
             parsed_positive.append(prompt)
         for i in range(len(negatives)):
             if seeds[i]> 0:
@@ -405,7 +426,7 @@ class StyleDatabase:
             prompt = negatives[i]
             prompt = apply_curly_braces_to_prompt(prompt, seeds[i])
             prompt = apply_styles_to_prompt(prompt, [self.find_style(x).negative_prompt for x in styles])
-            prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i])
+            prompt = apply_wildcards_to_prompt(prompt, [self.find_style(x).wildcards for x in styles], seeds[i], p=p)
             parsed_negative.append(prompt)
 
         random.setstate(random_state)
@@ -445,6 +466,7 @@ class StyleDatabase:
         if p.styles is None or not isinstance(p.styles, list):
             log.error(f'Styles invalid: {p.styles}')
             return
+
         for style in p.styles:
             if style is None or style == '':
                 continue

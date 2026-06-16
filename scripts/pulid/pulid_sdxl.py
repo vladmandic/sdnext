@@ -23,7 +23,7 @@ from .pulid_utils import img2tensor, tensor2img
 from eva_clip import create_model_and_transforms
 from eva_clip.constants import OPENAI_DATASET_MEAN, OPENAI_DATASET_STD
 from encoders_transformer import IDFormer, IDEncoder
-from modules.errors import log
+from modules.logger import log
 
 
 debug = log.trace if os.environ.get('SD_PULID_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -229,7 +229,7 @@ class StableDiffusionXLPuLIDPipeline:
             if len(self.face_helper.cropped_faces) == 0:
                 raise RuntimeError('facexlib align face fail')
             align_face = self.face_helper.cropped_faces[0]
-            # incase insightface didn't detect face
+            # in case insightface didn't detect face
             if id_ante_embedding is None:
                 id_ante_embedding = self.handler_ante.get_feat(align_face)
 

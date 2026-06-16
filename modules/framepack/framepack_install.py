@@ -37,7 +37,7 @@ def git_clone(git_repo:str, git_dir:str, tmp_dir:str):
         args = {
             'url': git_repo,
             'to_path': tmp_dir,
-            'allow_unsafe_protocols': True,
+            'allow_unsafe_protocols': False,
             'allow_unsafe_options': True,
             'filter': ['blob:none'],
         }

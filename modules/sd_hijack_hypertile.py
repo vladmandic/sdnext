@@ -259,8 +259,8 @@ def set_resolution(p, hr=False):
     if hr:
         x = getattr(p, 'hr_upscale_to_x', 0)
         y = getattr(p, 'hr_upscale_to_y', 0)
-        width = y if y > 0 else p.width
-        height = x if x > 0 else p.height
+        width = x if x > 0 else p.width
+        height = y if y > 0 else p.height
     else:
         width = p.width
         height = p.height

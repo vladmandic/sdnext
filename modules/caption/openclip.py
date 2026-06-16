@@ -11,9 +11,7 @@ from modules.logger import log, console
 
 debug_enabled = os.environ.get('SD_CAPTION_DEBUG', None) is not None
 debug_log = log.trace if debug_enabled else lambda *args, **kwargs: None
-
-# Per-request overrides for API calls
-_clip_overrides = None
+_clip_overrides = None # Per-request overrides for API calls
 
 
 def get_clip_setting(name):
@@ -95,7 +93,6 @@ def update_caption_params():
         ci.config.flavor_intermediate_count = get_clip_setting('flavor_count')
         ci.clip_offload = shared.opts.caption_offload
         ci.caption_offload = shared.opts.caption_offload
-
 
 
 def get_clip_models():
@@ -186,12 +183,12 @@ def load_captioner(clip_model, blip_model):
                 _apply_blip2_fix(ci.caption_model, ci.caption_processor)
         log.debug(f'CLIP load: time={time.time()-t0:.2f}')
     else:
-        debug_log(f'CLIP: models already loaded clip="{clip_model}" blip="{blip_model}"')
+        debug_log(f'CLIP load: clip="{clip_model}" blip="{blip_model}" already loaded')
 
 
 def unload_clip_model():
     if ci is not None and shared.opts.caption_offload:
-        log.debug('CLIP unload: offloading models to CPU')
+        debug_log('CLIP unload: offloading models to CPU')
         # Direct .to() instead of sd_models.move_model — models are from clip_interrogator, not transformers
         if ci.caption_model is not None and hasattr(ci.caption_model, 'to'):
             ci.caption_model.to(devices.cpu)
@@ -233,12 +230,14 @@ def caption(image, mode, base_caption=None):
     return prompt
 
 
-
 def caption_image(image, clip_model, blip_model, mode, overrides=None):
     global _clip_overrides  # pylint: disable=global-statement
+    if image is None:
+        log.error('CLIP: image=None')
+        return 'CLIP error: no image provided'
     jobid = shared.state.begin('Caption CLiP')
     t0 = time.time()
-    log.info(f'CLIP: mode="{mode}" clip="{clip_model}" blip="{blip_model}" image_size={image.size if image else None}')
+    log.info(f'CLIP caption: mode="{mode}" clip="{clip_model}" blip="{blip_model}" image_size={image.size if image else None}')
     if overrides:
         debug_log(f'CLIP: overrides={overrides}')
     try:
@@ -256,9 +255,9 @@ def caption_image(image, clip_model, blip_model, mode, overrides=None):
         if shared.opts.caption_offload:
             unload_clip_model()
         devices.torch_gc()
-        log.debug(f'CLIP: complete time={time.time()-t0:.2f}')
+        log.debug(f'CLIP complete: time={time.time()-t0:.2f}')
     except Exception as e:
-        prompt = f"Exception {type(e)}"
+        prompt = f"CLIP error: {type(e)}"
         log.error(f'CLIP: {e}')
         errors.display(e, 'Caption')
     finally:
@@ -266,7 +265,6 @@ def caption_image(image, clip_model, blip_model, mode, overrides=None):
         _clip_overrides = None
     shared.state.end(jobid)
     return prompt
-
 
 
 def caption_batch(batch_files, batch_folder, batch_str, clip_model, blip_model, mode, write, append, recursive):
@@ -316,7 +314,6 @@ def caption_batch(batch_files, batch_folder, batch_str, clip_model, blip_model, 
     shared.state.end(jobid)
     log.info(f'CLIP batch: complete images={len(prompts)} time={time.time()-t0:.2f}')
     return '\n\n'.join(prompts)
-
 
 
 def analyze_image(image, clip_model, blip_model):

@@ -73,7 +73,7 @@ def set_pipe(p, has_models, unit_type, selected_models, active_model, active_str
             return pipe
     if has_models:
         p.ops.append('control')
-        p.extra_generation_params["Control type"] = unit_type # overriden later with pretty-print
+        p.extra_generation_params["Control type"] = unit_type # overridden later with pretty-print
         p.extra_generation_params["Control model"] = ';'.join([(m.model_id or '') for m in active_model if m.model is not None])
         p.extra_generation_params["Control conditioning"] = control_conditioning if isinstance(control_conditioning, list) else [control_conditioning]
         p.extra_generation_params['Control start'] = control_guidance_start if isinstance(control_guidance_start, list) else [control_guidance_start]
@@ -344,7 +344,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 steps: int = 20, sampler_index: int | None = None,
                 seed: int = -1, subseed: int = -1, subseed_strength: float = 0, seed_resize_from_h: int = -1, seed_resize_from_w: int = -1,
                 guidance_name: str = 'Default', guidance_scale: float = 6.0, guidance_rescale: float = 0.0, guidance_start: float = 0.0, guidance_stop: float = 1.0,
-                cfg_scale: float = 6.0, clip_skip: float = 1.0, image_cfg_scale: float = 6.0, diffusers_guidance_rescale: float = 0.7, pag_scale: float = 0.0, pag_adaptive: float = 0.5, cfg_end: float = 1.0,
+                cfg_scale: float = 6.0, clip_skip: float = 1.0, cfg_image: float = 6.0, cfg_rescale: float = 0.7, cfg_true: float = 0.0, cfg_adaptive: float = 0.5, cfg_end: float = 1.0,
                 vae_type: str = 'Full', tiling: bool = False, hidiffusion: bool = False,
                 detailer_enabled: bool = False, detailer_prompt: str = '', detailer_negative: str = '', detailer_steps: int = 10, detailer_strength: float = 0.3, detailer_resolution: int = 1024,
                 hdr_mode: int = 0, hdr_brightness: float = 0, hdr_color: float = 0, hdr_sharpen: float = 0, hdr_clamp: bool = False, hdr_boundary: float = 4.0, hdr_threshold: float = 0.95,
@@ -382,8 +382,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 save_images_before_highres_fix: bool | None = None, save_images_before_refiner: bool | None = None,
                 save_images_before_detailer: bool | None = None, save_images_before_color_correction: bool | None = None,
                 grid_save: bool | None = None, grid_format: str | None = None, return_grid: bool | None = None,
-                save_mask: bool | None = None, save_mask_composite: bool | None = None,
-                return_mask: bool | None = None, return_mask_composite: bool | None = None,
                 keep_incomplete: bool | None = None, image_metadata: bool | None = None, jpeg_quality: int | None = None,
                 # scheduler/noise overrides
                 schedulers_prediction_type: str | None = None, schedulers_beta_schedule: str | None = None, schedulers_timesteps: str | None = None,
@@ -470,10 +468,10 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         cfg_scale = cfg_scale,
         cfg_end = cfg_end,
         clip_skip = clip_skip,
-        image_cfg_scale = image_cfg_scale,
-        diffusers_guidance_rescale = diffusers_guidance_rescale,
-        pag_scale = pag_scale,
-        pag_adaptive = pag_adaptive,
+        cfg_image = cfg_image,
+        cfg_rescale = cfg_rescale,
+        cfg_true = cfg_true,
+        cfg_adaptive = cfg_adaptive,
         # advanced
         vae_type = vae_type,
         tiling = tiling,
@@ -545,12 +543,10 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         save_images_before_highres_fix=save_images_before_highres_fix, save_images_before_refiner=save_images_before_refiner,
         save_images_before_detailer=save_images_before_detailer, save_images_before_color_correction=save_images_before_color_correction,
         grid_save=grid_save, grid_format=grid_format, return_grid=return_grid,
-        save_mask=save_mask, save_mask_composite=save_mask_composite,
-        return_mask=return_mask, return_mask_composite=return_mask_composite,
         keep_incomplete=keep_incomplete, image_metadata=image_metadata, jpeg_quality=jpeg_quality,
         # inpaint
         inpaint_full_res = masking.opts.mask_only,
-        inpainting_mask_invert = 1 if masking.opts.invert else 0,
+        inpainting_mask_invert = 1 if masking.opts.mask_invert else 0,
         # hdr
         hdr_mode=hdr_mode, hdr_brightness=hdr_brightness, hdr_color=hdr_color, hdr_sharpen=hdr_sharpen, hdr_clamp=hdr_clamp,
         hdr_boundary=hdr_boundary, hdr_threshold=hdr_threshold, hdr_maximize=hdr_maximize, hdr_max_center=hdr_max_center, hdr_max_boundary=hdr_max_boundary, hdr_color_picker=hdr_color_picker, hdr_tint_ratio=hdr_tint_ratio, hdr_apply_hires=hdr_apply_hires,
@@ -561,7 +557,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
         grading_clahe_clip=grading_clahe_clip, grading_clahe_grid=grading_clahe_grid,
         grading_shadows_tint=grading_shadows_tint, grading_highlights_tint=grading_highlights_tint, grading_split_tone_balance=grading_split_tone_balance,
         grading_vignette=grading_vignette, grading_grain=grading_grain,
-        grading_lut_file=grading_lut_file.name if hasattr(grading_lut_file, 'name') else (grading_lut_file or ''), grading_lut_strength=grading_lut_strength,
+        grading_lut_file=getattr(grading_lut_file, 'name', grading_lut_file) if grading_lut_file else '', grading_lut_strength=grading_lut_strength,
         # path
         outpath_samples=resolve_output_path(shared.opts.outdir_samples, shared.opts.outdir_control_samples),
         outpath_grids=resolve_output_path(shared.opts.outdir_grids, shared.opts.outdir_control_grids),
@@ -648,7 +644,6 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
     debug_log(f'Control pipeline: class={pipe.__class__.__name__} args={vars(p)}')
     status = True
     frame = None
-    video = None
     output_filename = None
     index = 0
     frames = 0
@@ -701,7 +696,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                     inputs = [Image.fromarray(frame)] # cv2 to pil
                 for i, input_image in enumerate(inputs): # loop per-input, but with early-break
                     if pipe is None: # pipe may have been reset externally
-                        if video is None:
+                        if cap is None:
                             break # non-video: pipeline was consumed, no need to re-process remaining inputs
                         pipe = set_pipe(p, has_models, unit_type, selected_models, active_model, active_strength, active_units, control_conditioning, control_guidance_start, control_guidance_end, inits)
                         debug_log(f'Control pipeline reinit: class={pipe.__class__.__name__}')
@@ -748,7 +743,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                         init_image = inits[i % len(inits)]
                     else:
                         init_image = None
-                    if video is not None and index % (video_skip_frames + 1) != 0:
+                    if cap is not None and index % (video_skip_frames + 1) != 0:
                         index += 1
                         continue
                     index += 1
@@ -810,13 +805,13 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                                 if processed_image is not None and isinstance(processed_image, Image.Image):
                                     output_images.append(processed_image)
 
-                            if is_generator and frame is not None and video is not None:
+                            if is_generator and frame is not None and cap is not None:
                                 image_txt = f'{output_image.width}x{output_image.height}' if output_image is not None else 'None'
                                 msg = f'Control output | {index} of {frames} skip {video_skip_frames} | Frame {image_txt}'
                                 yield (output_image, blended_image, msg) # result is control_output, proces_output
 
-                if video is not None and frame is not None:
-                    status, frame = video.read()
+                if cap is not None and frame is not None:
+                    status, frame = cap.read()
                     if status:
                         frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                     debug_log(f'Control: video frame={index} frames={frames} status={status} skip={index % (video_skip_frames + 1)} progress={index/frames:.2f}')

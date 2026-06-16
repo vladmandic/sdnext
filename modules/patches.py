@@ -1,5 +1,5 @@
 from collections import defaultdict
-from modules.errors import log
+from modules.logger import log
 
 
 def patch(key, obj, field, replacement, add_if_not_exists:bool = False):

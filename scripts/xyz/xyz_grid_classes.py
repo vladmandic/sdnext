@@ -144,7 +144,7 @@ class SharedSettingsStackHelper():
         shared.opts.data["disable_apply_params"] = ''
 
     def __exit__(self, exc_type, exc_value, tb):
-        # Restore overriden settings after plot generation
+        # Restore overridden settings after plot generation
         shared.opts.data["disable_apply_metadata"] = self.disable_apply_metadata
         shared.opts.data["disable_apply_params"] = self.disable_apply_params
         shared.opts.data["extra_networks_default_multiplier"] = self.extra_networks_default_multiplier
@@ -212,20 +212,20 @@ axis_options = [
     AxisOption("[Param] Steps", int, apply_field("steps")),
     AxisOption("[Param] Variation seed", int, apply_field("subseed")),
     AxisOption("[Param] Variation strength", float, apply_field("subseed_strength")),
-    AxisOption("[Param] Clip skip", float, apply_clip_skip),
+    AxisOption("[Param] CLiP-skip", float, apply_clip_skip),
     AxisOption("[Param] Denoising strength", float, apply_field("denoising_strength")),
     AxisOptionImg2Img("[Param] Mask weight", float, apply_field("inpainting_mask_weight")),
     AxisOption("[Process] Model args", str, apply_task_args),
     AxisOption("[Process] Processing args", str, apply_processing),
     AxisOption("[Process] Server options", str, apply_options),
-    AxisOptionTxt2Img("[Sampler] Name", str, apply_sampler, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.samplers]),
-    AxisOptionImg2Img("[Sampler] Name", str, apply_sampler, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.samplers_for_img2img]),
-    AxisOption("[Sampler] Sigma method", str, apply_setting("schedulers_sigma"), choices=lambda: ['default', 'karras', 'betas', 'exponential', 'lambdas']),
+    AxisOptionTxt2Img("[Sampler] Name", str, apply_sampler, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.visible_samplers()]),
+    AxisOptionImg2Img("[Sampler] Name", str, apply_sampler, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.visible_samplers(img=True)]),
+    AxisOption("[Sampler] Sigma method", str, apply_setting("schedulers_sigma"), choices=lambda: ['default', 'karras', 'betas', 'exponential', 'lambdas', 'flowmatch']),
     AxisOption("[Sampler] Sigma adjust", float, apply_setting("schedulers_sigma_adjust")),
     AxisOption("[Sampler] Timestep spacing", str, apply_setting("schedulers_timestep_spacing"), choices=lambda: ['default', 'linspace', 'leading', 'trailing']),
     AxisOption("[Sampler] Timestep range", int, apply_setting("schedulers_timesteps_range")),
     AxisOption("[Sampler] Solver order", int, apply_setting("schedulers_solver_order")),
-    AxisOption("[Sampler] Beta schedule", str, apply_setting("schedulers_beta_schedule"), choices=lambda: ['default', 'linear', 'scaled', 'cosine', 'sigmoid', 'laplace']),
+    AxisOption("[Sampler] Beta schedule", str, apply_setting("schedulers_beta_schedule"), choices=lambda: ['default', 'linear', 'scaled', 'cosine', 'sigmoid']),
     AxisOption("[Sampler] Beta start", float, apply_setting("schedulers_beta_start")),
     AxisOption("[Sampler] Beta end", float, apply_setting("schedulers_beta_end")),
     AxisOption("[Sampler] Flow shift", float, apply_setting("schedulers_shift")),
@@ -235,11 +235,11 @@ axis_options = [
     AxisOption("[Sampler] ETA multiplier", float, apply_setting("scheduler_eta")),
     AxisOption("[Guidance] Scale", float, apply_field("cfg_scale")),
     AxisOption("[Guidance] End", float, apply_field("cfg_end")),
-    AxisOption("[Guidance] Image scale", float, apply_field("image_cfg_scale")),
-    AxisOption("[Guidance] Rescale", float, apply_field("diffusers_guidance_rescale")),
+    AxisOption("[Guidance] Image scale", float, apply_field("cfg_image")),
+    AxisOption("[Guidance] Rescale", float, apply_field("cfg_rescale")),
     AxisOption("[Guidance] Modular name", str, apply_guidance, choices=lambda: ['Default', 'CFG', 'Auto', 'Zero', 'PAG', 'APG', 'SLG', 'SEG', 'TCFG', 'FDG']),
     AxisOption("[Refine] Upscaler", str, apply_field("hr_upscaler"), cost=0.3, choices=lambda: [x.name for x in shared.sd_upscalers]),
-    AxisOption("[Refine] Sampler", str, apply_hr_sampler_name, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.samplers]),
+    AxisOption("[Refine] Sampler", str, apply_hr_sampler_name, fmt=format_value_add_label, confirm=confirm_samplers, choices=lambda: [x.name for x in sd_samplers.visible_samplers()]),
     AxisOption("[Refine] Denoising strength", float, apply_field("denoising_strength")),
     AxisOption("[Refine] Hires steps", int, apply_field("hr_second_pass_steps")),
     AxisOption("[Refine] Refiner start", float, apply_field("refiner_start")),
@@ -278,9 +278,9 @@ axis_options = [
     AxisOption("[Control] End", float, apply_control('control_end')),
     AxisOption("[HiDiffusion] T1", float, apply_override('hidiffusion_t1')),
     AxisOption("[HiDiffusion] T2", float, apply_override('hidiffusion_t2')),
-    AxisOption("[HiDiffusion] Agression step", float, apply_field('hidiffusion_steps')),
-    AxisOption("[PAG] Attention scale", float, apply_field('pag_scale')),
-    AxisOption("[PAG] Adaptive scaling", float, apply_field('pag_adaptive')),
+    AxisOption("[HiDiffusion] Aggression step", float, apply_field('hidiffusion_steps')),
+    AxisOption("[PAG] Attention scale", float, apply_field('cfg_true')),
+    AxisOption("[PAG] Adaptive scaling", float, apply_field('cfg_adaptive')),
     AxisOption("[PAG] Applied layers", str, apply_setting('pag_apply_layers')),
     AxisOption("[IY] Scale", float, apply_task_arg('infusenet_conditioning_scale')),
     AxisOption("[IY] Start", float, apply_task_arg('infusenet_guidance_start')),

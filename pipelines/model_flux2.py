@@ -16,6 +16,8 @@ def load_flux2(checkpoint_info, diffusers_load_config=None):
 
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.Flux2Transformer2DModel, load_config=diffusers_load_config)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Mistral3ForConditionalGeneration, load_config=diffusers_load_config)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.Flux2Pipeline.from_pretrained(
         repo_id,

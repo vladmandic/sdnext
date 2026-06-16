@@ -14,16 +14,20 @@ def load_nucleus(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=NucleusMoEImage repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
+    from pipelines.nucleus import NUCLEUS_SPEC
     transformer = generic.load_transformer(
         repo_id,
         cls_name=diffusers.NucleusMoEImageTransformer2DModel,
         load_config=diffusers_load_config,
+        native_spec=NUCLEUS_SPEC,
     )
     text_encoder = generic.load_text_encoder(
         repo_id,
         cls_name=transformers.Qwen3VLForConditionalGeneration,
         load_config=diffusers_load_config,
     )
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     processor = transformers.Qwen3VLProcessor.from_pretrained(
         repo_id,
         subfolder='processor',

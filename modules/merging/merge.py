@@ -20,7 +20,7 @@ from modules.merging.merge_PermSpec_SDXL import sdxl_permutation_spec
 ##########################################################
 # Files in modules.merging are heavily modified
 # versions of sd-meh by @s1dxl used with his blessing
-# orginal code can be found @ https://github.com/s1dlx/meh
+# original code can be found @ https://github.com/s1dlx/meh
 ##########################################################
 
 MAX_TOKENS = 77

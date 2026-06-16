@@ -156,9 +156,9 @@ def process_base(p: processing.StableDiffusionProcessing):
         negative_prompts_2=[p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts,
         num_inference_steps=calculate_base_steps(p, use_refiner_start=use_refiner_start, use_denoise_start=use_denoise_start),
         eta=sched_eta,
-        guidance_scale=p.cfg_scale,
-        guidance_rescale=p.diffusers_guidance_rescale,
-        true_cfg_scale=p.pag_scale,
+        guidance_scale=p.cfg_scale if p.cfg_scale is not None and p.cfg_scale > -1 else None,
+        guidance_rescale=p.cfg_rescale if p.cfg_rescale is not None and p.cfg_rescale > -1 else None,
+        true_cfg_scale=p.cfg_true if p.cfg_true is not None and p.cfg_true > -1 else None,
         denoising_start=0 if use_refiner_start else p.refiner_start if use_denoise_start else None,
         denoising_end=p.refiner_start if use_refiner_start else 1 if use_denoise_start else None,
         num_frames=getattr(p, 'frames', 1),
@@ -218,8 +218,7 @@ def process_base(p: processing.StableDiffusionProcessing):
             if isinstance(v, torch.Tensor):
                 err_args[k] = f'{v.device}:{v.dtype}:{v.shape}'
         log.error(f'Processing: args={err_args} {e}')
-        if shared.cmd_opts.debug:
-            errors.display(e, 'Processing')
+        errors.display(e, 'Processing')
     except RuntimeError as e:
         shared.state.interrupted = True
         err_args = base_args.copy()
@@ -297,7 +296,7 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 output.images = processing_vae.vae_decode(latents=output.images, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.width, height=p.height)
             if p.is_control and hasattr(p, 'task_args') and p.task_args.get('image', None) is not None:
                 if hasattr(shared.sd_model, "vae") and output.images is not None and len(output.images) > 0:
-                    output.images = processing_vae.vae_decode(latents=output.images, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.hr_upscale_to_x, height=p.hr_upscale_to_y) # controlnet cannnot deal with latent input
+                    output.images = processing_vae.vae_decode(latents=output.images, model=shared.sd_model, vae_type=p.vae_type, output_type='pil', width=p.hr_upscale_to_x, height=p.hr_upscale_to_y) # controlnet cannot deal with latent input
             update_sampler(p, shared.sd_model, second_pass=True)
             orig_denoise = p.denoising_strength
             p.denoising_strength = strength
@@ -323,8 +322,9 @@ def process_hires(p: processing.StableDiffusionProcessing, output):
                 negative_prompts_2=len(output.images) * [p.refiner_negative] if len(p.refiner_negative) > 0 else p.negative_prompts,
                 num_inference_steps=calculate_hires_steps(p),
                 eta=sched_eta,
-                guidance_scale=p.image_cfg_scale if p.image_cfg_scale is not None else p.cfg_scale,
-                guidance_rescale=p.diffusers_guidance_rescale,
+                guidance_scale=p.cfg_image if p.cfg_image is not None and p.cfg_image > -1 else p.cfg_scale,
+                guidance_rescale=p.cfg_rescale if p.cfg_rescale is not None and p.cfg_rescale > -1 else None,
+                true_cfg_scale=p.cfg_true if p.cfg_true is not None and p.cfg_true > -1 else None,
                 output_type=output_type,
                 clip_skip=p.clip_skip,
                 image=output.images,
@@ -411,8 +411,9 @@ def process_refine(p: processing.StableDiffusionProcessing, output):
                 num_inference_steps=calculate_refiner_steps(p),
                 eta=sched_eta,
                 noise_level=noise_level, # StableDiffusionUpscalePipeline only
-                guidance_scale=p.image_cfg_scale if p.image_cfg_scale is not None else p.cfg_scale,
-                guidance_rescale=p.diffusers_guidance_rescale,
+                guidance_scale=p.cfg_image if p.cfg_image is not None and p.cfg_image > -1 else p.cfg_scale,
+                guidance_rescale=p.cfg_rescale if p.cfg_rescale is not None and p.cfg_rescale > -1 else None,
+                true_cfg_scale=p.cfg_true if p.cfg_true is not None and p.cfg_true > -1 else None,
                 denoising_start=p.refiner_start if p.refiner_start > 0 and p.refiner_start < 1 else None,
                 denoising_end=1 if p.refiner_start > 0 and p.refiner_start < 1 else None,
                 image=image,

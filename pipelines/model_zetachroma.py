@@ -23,15 +23,18 @@ def load_zetachroma(checkpoint_info, diffusers_load_config=None):
     )
 
     from pipelines import generic, zetachroma
-
-    diffusers.ZetaChromaPipeline = zetachroma.ZetaChromaPipeline
+    generic.set_pipeline('ZetaChroma', zetachroma.ZetaChromaPipeline)
     sys.modules["zetachroma"] = zetachroma
+
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     text_encoder = generic.load_text_encoder(
         TEXT_ENCODER_REPO,
         cls_name=transformers.Qwen3ForCausalLM,
         load_config=diffusers_load_config,
     )
+
     tokenizer = transformers.AutoTokenizer.from_pretrained(
         TEXT_ENCODER_REPO,
         subfolder="tokenizer",

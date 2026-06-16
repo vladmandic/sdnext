@@ -47,7 +47,7 @@ def img_to_pixelart(image: PipelineImageInput, sharpen: float = 0, block_size: i
 @devices.inference_context()
 def edge_detect_for_pixelart(image: PipelineImageInput, image_weight: float = 1.0, block_size: int = 8, device: torch.device = "cpu") -> torch.Tensor:
     block_size_sq = block_size * block_size
-    new_image = process_image_input(image).to(device).to(dtype=torch.float32) / 255
+    new_image = process_image_input(image).to(device).to(dtype=torch.float32).div(255)
     new_image = new_image.permute(0,3,1,2)
     batch_size, _channels, height, width = new_image.shape
     block_height = height // block_size
@@ -58,15 +58,16 @@ def edge_detect_for_pixelart(image: PipelineImageInput, image_weight: float = 1.
 
     greyscale = (new_image[:,0,:,:] * 0.299).add_(new_image[:,1,:,:], alpha=0.587).add_(new_image[:,2,:,:], alpha=0.114)
     greyscale = greyscale[:, :(new_image.shape[-2]//block_size)*block_size, :(new_image.shape[-1]//block_size)*block_size] # crop to a multiple of block_size
-    greyscale_reshaped = greyscale.reshape(batch_size, block_size, block_height, block_size, block_width)
-    greyscale_reshaped = greyscale_reshaped.permute(0,1,3,2,4)
-    greyscale_reshaped = greyscale_reshaped.reshape(batch_size, block_size_sq, block_height, block_width)
 
-    greyscale_range = greyscale_reshaped.amax(dim=1, keepdim=True).sub_(greyscale_reshaped.amin(dim=1, keepdim=True))
-    range_weight = sharpfin.resize_tensor(greyscale_range, (height, width), linearize=False)
+    range_weight = greyscale.reshape(batch_size, block_size, block_height, block_size, block_width)
+    range_weight = range_weight.permute(0,1,3,2,4).reshape(batch_size, block_size_sq, block_height, block_width)
+    range_weight = range_weight.amax(dim=1, keepdim=True).sub_(range_weight.amin(dim=1, keepdim=True))
+    range_weight = sharpfin.resize_tensor(range_weight, (height, width), linearize=False)
     range_weight = range_weight.div_(range_weight.max())
-    weight_map = sharpfin.resize_tensor((greyscale > greyscale.median()).to(dtype=torch.float32), (height, width), linearize=False)
-    weight_map = weight_map.unsqueeze(0).add_(range_weight).mul_(image_weight / 2)
+
+    weight_map = (greyscale > greyscale.median()).unsqueeze(1).to(dtype=torch.float32)
+    weight_map = sharpfin.resize_tensor(weight_map, (height, width), linearize=False)
+    weight_map = weight_map.add_(range_weight).mul_(image_weight / 2)
 
     new_image = new_image.mul_(weight_map).addcmul_(min_pool, (1-weight_map))
     new_image = new_image.permute(0,2,3,1).mul_(255).clamp_(0, 255)

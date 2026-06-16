@@ -71,7 +71,7 @@ def get_model(model_cls, variant=None):
     elif model_cls in {'f1', 'h1', 'zimage', 'lumina2', 'chroma', 'longcat', 'omnigen2', 'flite', 'ovis', 'kandinsky5', 'glmimage', 'cogview3', 'cogview4', 'ultraflux'}:
         model_cls = 'f1'
         variant = 'TAE FLUX.1'
-    elif model_cls in {'f2', 'ernieimage'}:
+    elif model_cls in {'f2', 'ernieimage', 'lens', 'ideogram4'}:
         model_cls = 'f2'
         variant = 'TAE FLUX.2'
     elif model_cls in {'sd3'}:
@@ -86,9 +86,11 @@ def get_model(model_cls, variant=None):
     return model_cls, variant
 
 
-def load_model(model_type = 'decoder', variant = None):
+def load_model(model_type = 'decoder', variant = None, vae_file: str | None = None):
     global prev_cls, prev_type, prev_model, prev_warnings # pylint: disable=global-statement
-    model_cls = shared.sd_model_type
+    model_cls = shared.sd_model_type if shared.sd_loaded else None
+    if vae_file is not None and os.path.exists(vae_file):
+        model_cls = 'sdxl'
     if model_cls is None or model_cls == 'none':
         return None, variant
     model_cls, variant = get_model(model_cls, variant)
@@ -131,10 +133,17 @@ def load_model(model_type = 'decoder', variant = None):
             else:
                 from modules.taesd.taesd import TAESD
                 vae = TAESD(decoder_path=fn if model_type=='decoder' else None, encoder_path=fn if model_type=='encoder' else None)
+                """
+                _vae = diffusers.AutoencoderKL()
+                from installer import Dot
+                _config = diffusers.AutoencoderKL().config.copy()
+                vae.config = Dot(_config) # set config for compatibility with standard vae
+                """
             if vae is not None:
                 prev_warnings = False # reset warnings for new model
                 vae = vae.to(devices.device, dtype=dtype)
                 TAESD_MODELS[variant]['model'] = vae
+                vae.config = {}
             return vae, variant
     elif variant.startswith('Hybrid'):
         cfg = CQYAN_MODELS[variant].get(model_cls, None)
@@ -162,6 +171,23 @@ def load_model(model_type = 'decoder', variant = None):
     else:
         warn_once(f'cls={shared.sd_model.__class__.__name__} type={model_cls} unsuppported', variant=variant)
     return None, variant
+
+
+def restore_preview_size(image, vae):
+    # TAESD (image) and TAEHV (video) drop spatial upsample blocks when taesd_layers < 3, shrinking output 2x/4x.
+    # Rescale spatial dims so preview size stays constant. Other taes (TAEM1, Hybrid) ignore taesd_layers, so skip them.
+    from modules.taesd.taesd import TAESD
+    from modules.taesd.taehv import TAEHV
+    layers = shared.opts.taesd_layers
+    if layers >= 3 or not isinstance(vae, (TAESD, TAEHV)) or not isinstance(image, torch.Tensor) or image.ndim < 3 or image.shape[-3] != 3:
+        return image
+    try:
+        frames = image.reshape(-1, *image.shape[-3:]) # flatten any leading dims to a batch of CHW frames
+        frames = torch.nn.functional.interpolate(frames, scale_factor=float(2 ** (3 - layers)), mode='bilinear', align_corners=False)
+        image = frames.reshape(*image.shape[:-2], frames.shape[-2], frames.shape[-1])
+    except Exception:
+        pass
+    return image
 
 
 def decode(latents):
@@ -193,6 +219,7 @@ def decode(latents):
                 else:
                     image = vae.decode(tensor, return_dict=False)[0]
                     image = (image / 2.0 + 0.5).clamp(0, 1).detach()
+                image = restore_preview_size(image, vae)
                 t1 = time.time()
                 if (t1 - t0) > 3.0 and not first_run:
                     log.warning(f'Decode: type="taesd" variant="{variant}" long decode time={t1 - t0:.2f}')

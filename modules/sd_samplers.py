@@ -1,11 +1,10 @@
 import os
 import copy
-from modules import shared
+from modules import shared, errors
 from modules.logger import log
 
 
-debug = log.trace if os.environ.get('SD_SAMPLER_DEBUG', None) is not None else lambda *args, **kwargs: None
-debug('Trace: SAMPLER')
+debug = os.environ.get('SD_SAMPLER_DEBUG', None)
 all_samplers = []
 all_samplers_map = {}
 samplers = all_samplers
@@ -14,14 +13,21 @@ samplers_map = {}
 loaded_config = None
 
 
+def is_separator(name) -> bool:
+    return isinstance(name, str) and name.startswith('─')  # U+2500 box-drawing; dropdown divider rows
+
+
+def visible_samplers(img: bool = False):
+    pool = samplers_for_img2img if img else samplers
+    return [s for s in pool if not is_separator(s.name)]
+
+
 def find_sampler(name:str):
     if name is None or name == 'None':
-        return all_samplers_map.get("UniPC", None)
+        return all_samplers_map.get("Default", None)
     for sampler in all_samplers:
         if sampler.name.lower() == name.lower() or name in sampler.aliases:
-            debug(f'Find sampler: name="{name}" found={sampler.name}')
             return sampler
-    debug(f'Find sampler: name="{name}" found=None')
     return None
 
 
@@ -38,7 +44,6 @@ def list_samplers():
     samplers_for_img2img = all_samplers
     samplers_map = {}
     return all_samplers
-    # log.debug(f'Available samplers: {[x.name for x in all_samplers]}')
 
 
 def find_sampler_config(name):
@@ -49,7 +54,7 @@ def find_sampler_config(name):
     return config
 
 
-def restore_default(model):
+def restore_default(model, requested="Default"):
     if model is None:
         return None
     if getattr(model, "default_scheduler", None) is not None and getattr(model, "scheduler", None) is not None:
@@ -62,12 +67,15 @@ def restore_default(model):
         shared.state.prediction_type = "flow_prediction"
     elif hasattr(model.scheduler, "config") and hasattr(model.scheduler.config, "prediction_type"):
         shared.state.prediction_type = model.scheduler.config.prediction_type
-    log.debug(f'Sampler: "Default" cls={model.scheduler.__class__.__name__} config={config}')
+    if requested != "Default":
+        log.warning(f'Sampler: requested="{requested}" set="Default" cls={model.scheduler.__class__.__name__} config={config}')
+    else:
+        log.debug(f'Sampler: Default cls={model.scheduler.__class__.__name__} config={config}')
     return model.scheduler
 
 
 def create_sampler(name, model, scheduler_overrides=None):
-    if name is None or name == 'None':
+    if name is None or name == 'None' or is_separator(name):  # separator = dropdown divider, keep current scheduler
         return model.scheduler if model is not None else None
 
     # create default scheduler if it doesnt exist
@@ -85,10 +93,33 @@ def create_sampler(name, model, scheduler_overrides=None):
     if name == 'Default' and hasattr(model, 'scheduler'):
         return restore_default(model)
 
+    config = None
+
+    # switch to flow variant when applicable
+    if not is_flexible and config is None and requires_flow and 'Flow' not in name and shared.opts.schedulers_fallback:
+        redirect = f'{name} FlowMatch'
+        config = find_sampler_config(redirect)
+        if config is not None:
+            log.warning(f'Sampler: requested="{name}" redirected="{redirect}"')
+            name = redirect
+
+    # switch to discrete variant when applicable
+    if not is_flexible and config is None and not requires_flow and 'Flow' in name and shared.opts.schedulers_fallback:
+        redirect = name.replace(' FlowMatch', '').strip()
+        config = find_sampler_config(redirect)
+        if config is not None:
+            log.warning(f'Sampler: requested="{name}" redirected="{redirect}"')
+            name = redirect
+
     # create sampler
-    config = find_sampler_config(name)
+    if config is None:
+        config = find_sampler_config(name)
+
     if config is None or config.constructor is None:
-        return restore_default(model)
+        if debug or not shared.opts.schedulers_fallback:
+            raise errors.ValidationError(f'Sampler: name="{name}" unknown')
+        return restore_default(model, name)
+
     from modules import sd_samplers_diffusers
     sd_samplers_diffusers.scheduler_overrides = scheduler_overrides or {}
     try:
@@ -96,18 +127,26 @@ def create_sampler(name, model, scheduler_overrides=None):
     finally:
         sd_samplers_diffusers.scheduler_overrides = {}
     if sampler.sampler is None:
-        return restore_default(model)
-    is_flow = ('FlowMatch' in sampler.sampler.__class__.__name__) or (getattr(sampler.sampler.config, 'prediction_type', None) == 'flow_prediction')
+        return restore_default(model, name)
+
+    pred_type = getattr(sampler.sampler.config, 'prediction_type', None)
+    is_flow = ('FlowMatch' in sampler.sampler.__class__.__name__) or (pred_type == 'flow_prediction')
 
     # validate sampler prediction type
-    if (model is not None) and is_flexible:
+    if (model is None) or is_flexible:
         pass
     elif (model is not None) and (is_flow and not requires_flow):
-        log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} model requires sampler with discrete prediction')
-        return restore_default(model)
+        log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} type={pred_type} model requires sampler with discrete prediction')
+        if debug or not shared.opts.schedulers_fallback:
+            raise errors.ValidationError(f'Sampler: name="{sampler.name}" cls={sampler.sampler.__class__.__name__} type={pred_type} model requires sampler with discrete prediction')
+        else:
+            return restore_default(model, name)
     elif (model is not None) and (not is_flow and requires_flow):
-        log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} model requires sampler with flow prediction')
-        return restore_default(model)
+        log.error(f'Sampler: "{sampler.name}" cls={sampler.sampler.__class__.__name__} pipe={model.__class__.__name__} type={pred_type} model requires sampler with flow prediction')
+        if debug or not shared.opts.schedulers_fallback:
+            raise errors.ValidationError(f'Sampler: name="{sampler.name}" cls={sampler.sampler.__class__.__name__} type={pred_type} model requires sampler with flow prediction')
+        else:
+            return restore_default(model, name)
 
     # assign sampler
     if model is not None:
@@ -142,6 +181,8 @@ def set_samplers():
     samplers_for_img2img = samplers
     samplers_map.clear()
     for sampler in all_samplers:
+        if is_separator(sampler.name):
+            continue
         samplers_map[sampler.name.lower()] = sampler.name
         for alias in sampler.aliases:
             samplers_map[alias.lower()] = sampler.name

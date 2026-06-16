@@ -1,27 +1,23 @@
-# Contributing Guidelines
+# Contributing to SD.Next
 
-Pull requests from everyone are welcome
+Welcome! We’re glad you want to help improve SD.Next.
 
-Procedure for contributing:
+This repository accepts contributions for code, UI, extensions, scripts, themes, documentation, and more.
 
-- Select SD.Next `dev` branch:
-  <https://github.com/vladmandic/sdnext/tree/dev>
-- Create a fork of the repository on github
-  In a top right corner of a GitHub, select "Fork"
-  Its recommended to fork latest version from main branch to avoid any possible conflicting code updates
-- Clone your forked repository to your local system
-  `git clone https://github.com/<your-username>/<your-fork>`
-- Make your changes
-- Test your changes
-- Lint your changes against code guidelines
-  - `ruff check`
-  - `pylint <folder>/<filename>.py`
-- Push changes to your fork
-- Submit a PR (pull request)
-  - Make sure that PR is against `dev` branch
-  - Update your fork before createing PR so that it is based on latest code
-  - Make sure that PR does NOT include any unrelated edits
-  - Make sure that PR does not include changes to submodules
+## How to start
 
-Your pull request will be reviewed and pending review results, merged into `dev` branch
-Dev merges to main are performed regularly and any PRs that are merged to `dev` will be included in the next main release
+- Read `CODE_OF_CONDUCT` first.
+- Visit `wiki/Dev-Home.md` for the project’s conventions and development workflow.
+- Search existing issues and pull requests before creating a new one.
+
+## Keep it simple
+
+- Focus each contribution on one clear change.
+- Link related issues or discussions when you open a PR.
+- Keep your branch small and easy to review.
+- Explain what you changed and why in the PR description.
+
+## When in doubt
+
+- Ask in [Discord Server](https://discord.gg/sd-next-federal-batch-inspectors-1101998836328697867)
+- Ask in [GitHub Discussions](https://github.com/vladmandic/sdnext/discussions)

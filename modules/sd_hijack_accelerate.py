@@ -84,7 +84,7 @@ def torch_conv_forward(self, input, weight, bias): # pylint: disable=redefined-b
     if self.padding_mode != 'zeros':
         return F.conv2d(F.pad(input, self._reversed_padding_repeated_twice, mode=self.padding_mode), weight, bias, self.stride, _pair(0), self.dilation, self.groups) # pylint: disable=protected-access
     if weight.dtype != bias.dtype:
-        bias.to(weight.dtype)
+        bias = bias.to(weight.dtype)
     return F.conv2d(input, weight, bias, self.stride, self.padding, self.dilation, self.groups)
 
 def hijack_torch_conv():

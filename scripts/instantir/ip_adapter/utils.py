@@ -65,7 +65,7 @@ def init_adapter_in_unet(
         image_projection_layers.append(image_proj_model)
         unet.encoder_hid_proj = MultiIPAdapterImageProjection(image_projection_layers)
 
-        # Adjust unet config to handle addtional ip hidden states.
+        # Adjust unet config to handle additional ip hidden states.
         unet.config.encoder_hid_dim_type = "ip_image_proj"
         unet.to(dtype=dtype, device=device)
 
@@ -155,7 +155,7 @@ def load_adapter_to_pipe(
     image_projection_layers.append(image_proj_model)
     unet.encoder_hid_proj = MultiIPAdapterImageProjection(image_projection_layers)
 
-    # Adjust unet config to handle addtional ip hidden states.
+    # Adjust unet config to handle additional ip hidden states.
     unet.config.encoder_hid_dim_type = "ip_image_proj"
     unet.to(dtype=pipe.dtype, device=pipe.device)
 

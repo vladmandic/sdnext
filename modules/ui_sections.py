@@ -68,7 +68,10 @@ def ar_change(ar, width, height):
     if ar == 'AR':
         return gr.update(), gr.update()
     try:
-        (w, h) = [float(x) for x in ar.split(':')]
+        parts = [float(x) for x in ar.split(':')]
+        if len(parts) != 2:
+            raise ValueError(f"Expected 2 values, got {len(parts)}")
+        w, h = parts
     except Exception as e:
         log.warning(f"Invalid aspect ratio: {ar} {e}")
         return gr.update(), gr.update()
@@ -78,6 +81,9 @@ def ar_change(ar, width, height):
         return gr.update(value=int(height * w / h)), gr.update()
     else:
         return gr.update(), gr.update()
+
+def ar_update(_ar, width, height):
+    return width, height
 
 
 def create_resolution_inputs(tab, default_width=1024, default_height=1024):
@@ -244,6 +250,11 @@ def create_sampler_options(tabname):
         log.debug(f'Sampler set options: {sampler_options}')
         shared.opts.save(silent=True)
 
+    def set_sampler_fallback(fallback):
+        log.debug(f'Sampler set options: fallback={fallback}')
+        shared.opts.schedulers_fallback = fallback
+        shared.opts.save(silent=True)
+
     def set_sampler_timesteps(timesteps):
         log.debug(f'Sampler set options: timesteps={timesteps}')
         shared.opts.schedulers_timesteps = timesteps
@@ -300,7 +311,7 @@ def create_sampler_options(tabname):
         sampler_sigma = gr.Dropdown(label='Sigma method', elem_id=f"{tabname}_sampler_sigma", choices=['default', 'karras', 'betas', 'exponential', 'lambdas', 'flowmatch'], value=shared.opts.schedulers_sigma, type='value')
         sampler_spacing = gr.Dropdown(label='Timestep spacing', elem_id=f"{tabname}_sampler_spacing", choices=['default', 'linspace', 'leading', 'trailing'], value=shared.opts.schedulers_timestep_spacing, type='value')
     with gr.Row(elem_classes=['flex-break']):
-        sampler_beta = gr.Dropdown(label='Beta schedule', elem_id=f"{tabname}_sampler_beta", choices=['default', 'linear', 'scaled', 'cosine', 'sigmoid', 'laplace'], value=shared.opts.schedulers_beta_schedule, type='value')
+        sampler_beta = gr.Dropdown(label='Beta schedule', elem_id=f"{tabname}_sampler_beta", choices=['default', 'linear', 'scaled', 'cosine', 'sigmoid'], value=shared.opts.schedulers_beta_schedule, type='value')
         sampler_prediction = gr.Dropdown(label='Prediction method', elem_id=f"{tabname}_sampler_prediction", choices=['default', 'epsilon', 'sample', 'v_prediction', 'flow_prediction'], value=shared.opts.schedulers_prediction_type, type='value')
     with gr.Row(elem_classes=['flex-break']):
         sampler_presets = gr.Dropdown(label='Timesteps presets', elem_id=f"{tabname}_sampler_presets", choices=['None', 'AYS SD15', 'AYS SDXL'], value='None', type='value')
@@ -323,6 +334,8 @@ def create_sampler_options(tabname):
         values += ['dynamic'] if shared.opts.data.get('schedulers_dynamic_shift', False) else []
         values += ['rescale'] if shared.opts.data.get('schedulers_rescale_betas', False) else []
         sampler_options = gr.CheckboxGroup(label='Options', elem_id=f"{tabname}_sampler_options", choices=options, value=values, type='value')
+    with gr.Row(elem_classes=['flex-break']):
+        sampler_fallback = gr.Checkbox(label='Fallback on invalid', value=shared.opts.schedulers_fallback, elem_id=f"{tabname}_sampler_fallback")
 
     sampler_sigma.change(fn=set_sampler_sigma, inputs=[sampler_sigma], outputs=[])
     sampler_spacing.change(fn=set_sampler_spacing, inputs=[sampler_spacing], outputs=[])
@@ -333,6 +346,7 @@ def create_sampler_options(tabname):
     sampler_order.change(fn=set_sampler_order, inputs=[sampler_order], outputs=[])
     sampler_shift.change(fn=set_sampler_shift, inputs=[sampler_shift, sampler_base_shift, sampler_max_shift], outputs=[])
     sampler_options.change(fn=set_sampler_options, inputs=[sampler_options], outputs=[])
+    sampler_fallback.change(fn=set_sampler_fallback, inputs=[sampler_fallback], outputs=[])
     sampler_sigma_adjust_val.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
     sampler_sigma_adjust_min.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
     sampler_sigma_adjust_max.change(fn=set_sigma_adjust, inputs=[sampler_sigma_adjust_val, sampler_sigma_adjust_min, sampler_sigma_adjust_max], outputs=[])
@@ -395,7 +409,8 @@ def create_resize_inputs(tab, images, accordion=True, latent=False, non_zero=Tru
                                 ar_list = ['AR'] + [x.strip() for x in shared.opts.aspect_ratios.split(',') if x.strip() != '']
                                 ar_dropdown = gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_resize_ar", elem_classes=["ar-dropdown"])
                                 for c in [ar_dropdown, width, height]:
-                                    c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
+                                    # c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
+                                    c.change(fn=ar_update, _js='resolutionChange', inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
                                 res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_resize_size_swap")
                                 res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress='hidden')
                                 detect_image_size_btn = ToolButton(value=ui_symbols.detect, elem_id=f"{tab}_resize_detect_size")

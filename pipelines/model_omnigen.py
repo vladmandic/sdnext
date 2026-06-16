@@ -1,6 +1,7 @@
 import diffusers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te
 from modules.logger import log
+from pipelines import generic
 
 
 def load_omnigen(checkpoint_info, diffusers_load_config=None): # pylint: disable=unused-argument
@@ -10,16 +11,22 @@ def load_omnigen(checkpoint_info, diffusers_load_config=None): # pylint: disable
     sd_models.hf_auth_check(checkpoint_info)
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
+    load_config.pop('cache_dir', None)
+    quant_config.pop('cache_dir', None)
     log.debug(f'Load model: type=OmniGen repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     transformer = diffusers.OmniGenTransformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",
-        cache_dir=shared.opts.diffusers_dir,
+        cache_dir=shared.opts.hfcache_dir,
         **load_config,
         **quant_config,
     )
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
+    load_config.pop('cache_dir', None)
+    quant_config.pop('cache_dir', None)
     pipe = diffusers.OmniGenPipeline.from_pretrained(
         repo_id,
         transformer=transformer,
@@ -40,27 +47,33 @@ def load_omnigen2(checkpoint_info, diffusers_load_config=None): # pylint: disabl
     sd_models.hf_auth_check(checkpoint_info)
 
     from pipelines.omnigen2 import OmniGen2Pipeline, OmniGen2Transformer2DModel, Qwen2_5_VLForConditionalGeneration
-    diffusers.OmniGen2Pipeline = OmniGen2Pipeline # monkey-pathch
-    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
-    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
-    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["omnigen2"] = diffusers.OmniGen2Pipeline
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["omnigen2"] = OmniGen2Pipeline
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["omnigen2"] = OmniGen2Pipeline
+    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["omnigen2"] = OmniGen2Pipeline
+    generic.set_pipeline('OmniGen2', OmniGen2Pipeline)
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='Model')
+    load_config.pop('cache_dir', None)
+    quant_config.pop('cache_dir', None)
     log.debug(f'Load model: type=OmniGen2 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={diffusers_load_config}')
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     transformer = OmniGen2Transformer2DModel.from_pretrained(
         repo_id,
         subfolder="transformer",
-        cache_dir=shared.opts.diffusers_dir,
+        cache_dir=shared.opts.hfcache_dir,
         trust_remote_code=True,
         **load_config,
         **quant_config,
     )
 
     load_config, quant_config = model_quant.get_dit_args(diffusers_load_config, module='TE')
+    load_config.pop('cache_dir', None)
+    quant_config.pop('cache_dir', None)
     mllm = Qwen2_5_VLForConditionalGeneration.from_pretrained(
         repo_id,
         subfolder="mllm",
-        cache_dir=shared.opts.diffusers_dir,
+        cache_dir=shared.opts.hfcache_dir,
         trust_remote_code=True,
         **load_config,
         **quant_config,

@@ -3,7 +3,6 @@ import os
 import time
 import base64
 from urllib.parse import quote, unquote
-from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.websockets import WebSocket, WebSocketState
 from pydantic import BaseModel, Field # pylint: disable=no-name-in-module
@@ -71,7 +70,7 @@ class ConnectionManager:
 
 ### api definitions
 
-def register_api(app: FastAPI): # register api
+def register_api(api): # register api
     manager = ConnectionManager()
 
     def get_video_thumbnail(filepath):
@@ -173,7 +172,7 @@ def register_api(app: FastAPI): # register api
                 unique_folders.append(f)
                 if shared.demo is not None and path not in shared.demo.allowed_paths:
                     debug(f'Browser folders allow: {path}')
-                    shared.demo.allowed_paths.append(quote(path))
+                    shared.demo.allowed_paths.append(path)
         debug(f'Browser folders: {unique_folders}')
         return JSONResponse(content=unique_folders)
 
@@ -208,11 +207,11 @@ def register_api(app: FastAPI): # register api
             log.error(f'Gallery: {folder} {e}')
             return []
 
-    shared.api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[str])
-    shared.api.add_api_route("/sdapi/v1/browser/thumb", get_thumb, methods=["GET"], response_model=dict)
-    shared.api.add_api_route("/sdapi/v1/browser/files", ht_files, methods=["GET"], response_model=list)
+    api.add_api_route("/sdapi/v1/browser/folders", get_folders, methods=["GET"], response_model=list[str])
+    api.add_api_route("/sdapi/v1/browser/thumb", get_thumb, methods=["GET"], response_model=dict)
+    api.add_api_route("/sdapi/v1/browser/files", ht_files, methods=["GET"], response_model=list)
 
-    @app.websocket("/sdapi/v1/browser/files")
+    @api.app.websocket("/sdapi/v1/browser/files")
     async def ws_files(ws: WebSocket):
         try:
             await manager.connect(ws)

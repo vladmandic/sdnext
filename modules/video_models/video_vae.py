@@ -50,5 +50,4 @@ def vae_decode_tiny(latents):
     vae = vae.to(device=devices.device, dtype=devices.dtype)
     latents = latents.transpose(1, 2).to(device=devices.device, dtype=devices.dtype)
     images = vae.decode_video(latents, parallel=False).transpose(1, 2).mul_(2).sub_(1)
-    images = images.transpose(1, 2).mul_(2).sub_(1)
     return (images, None)

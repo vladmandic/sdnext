@@ -1,0 +1,79 @@
+name: lint
+
+on:
+  - push
+  - pull_request
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+
+    steps:
+      - name: checkout-code
+        uses: actions/checkout@main
+
+      - name: install-uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh
+
+      - name: setup-python
+        uses: actions/setup-python@main
+        with:
+          python-version: 3.12.3
+
+      - name: install-python-deps
+        run: uv pip install ruff pylint pre-commit --system
+
+      - name: setup-node
+        uses: actions/setup-node@main
+        with:
+          node-version: 24
+
+      - name: install-pnpm
+        run: npm install -g pnpm
+
+      - name: pnpm-ignore-scripts
+        run: pnpm config set ignore-scripts true
+
+      - name: pnpm-store-path
+        id: pnpm-store
+        run: echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+
+      - name: cache-pnpm-store
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-store.outputs.STORE_PATH }}
+          key: pnpm-store-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-
+
+      - name: install-node-deps
+        run: pnpm install --frozen-lockfile --unsafe-perm
+
+      - name: pre-commit
+        uses: pre-commit-ci/lite-action@v1.1.0
+        if: always()
+        with:
+          msg: apply code formatting and linting auto-fixes
+
+      - name: ruff
+        run: uv run --active ruff check --extend-ignore EXE001
+
+      - name: pylint
+        run: uv run --active pylint --disable W0511 *.py modules/ pipelines/ scripts/ extensions-builtin/
+
+      - name: test-run
+        run: ./webui.sh --test --uv
+
+      - name: pre-commit-run
+        run: uv run --active pre-commit run --all-files
+
+      - name: eslint
+        run: pnpm run eslint:core
+
+      - name: tsc
+        run: pnpm run tsc:core

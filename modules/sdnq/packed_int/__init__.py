@@ -1,6 +1,6 @@
 import torch
 
-from ..common import dtype_dict # noqa: TID252
+from ..common import dtype_dict
 
 from .pack import (
     pack_uint15,

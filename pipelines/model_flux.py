@@ -52,6 +52,8 @@ def load_flux(checkpoint_info, diffusers_load_config=None):
     if text_encoder_2 is None:
         text_encoder_2 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config)
 
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = cls_name.from_pretrained(
         repo_id,
         transformer=transformer,

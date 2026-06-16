@@ -63,7 +63,7 @@ class Sampler(ABC):
         f: Callable[[SamplerModelArgs], torch.Tensor],
     ) -> torch.Tensor:
         """
-        Generate a new sample given the the intial sample x and score function f.
+        Generate a new sample given the the initial sample x and score function f.
         """
 
     def get_next_timestep(

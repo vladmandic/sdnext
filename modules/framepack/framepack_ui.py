@@ -12,7 +12,7 @@ def change_sections(duration, mp4_fps, mp4_interpolate, latent_ws, variant):
     return gr.update(value=f'Target video: {num_frames} frames in {num_sections} sections'), gr.update(lines=max(2, 2*num_sections//3))
 
 
-def create_ui(prompt, negative, styles, _overrides, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf):
+def create_ui(prompt, negative, styles, _overrides, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb):
     with gr.Row():
         with gr.Column(variant='compact', elem_id="framepack_settings", elem_classes=['settings-column'], scale=1):
             with gr.Row():
@@ -106,7 +106,7 @@ def create_ui(prompt, negative, styles, _overrides, mp4_fps, mp4_interpolate, mp
         cfg_scale, cfg_distilled, cfg_rescale,
         shift,
         use_teacache, use_cfgzero, use_preview,
-        mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_opt, mp4_ext, mp4_interpolate,
+        mp4_fps, mp4_codec, mp4_sf, mp4_video, mp4_frames, mp4_thumb, mp4_opt, mp4_ext, mp4_interpolate,
         attention, vae_type, variant,
         vlm_enhance, vlm_model, vlm_system_prompt,
     ]

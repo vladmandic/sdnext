@@ -6,7 +6,10 @@ from PIL import Image
 from modules import shared, errors, timer, memstats, progress, processing, sd_models, sd_samplers, devices, extra_networks, call_queue
 from modules.logger import log
 from modules.ltx import ltx_capabilities
+from modules.ltx.ltx_diffusers_patch import apply_patch as apply_ltx_diffusers_patch
 from modules.ltx.ltx_util import get_bucket, get_frames, load_model, load_upsample, load_upsample_2x, get_conditions, get_generator, get_prompts, ltx_scheduler_opts, vae_decode
+
+apply_ltx_diffusers_patch()
 from modules.processing_callbacks import diffusers_callback
 from modules.video_models.video_vae import set_vae_params
 from modules.video_models.video_save import save_video
@@ -23,6 +26,10 @@ upsample_pipe = None
 upsample_pipe_2x = None
 
 STAGE2_DEV_LORA_ADAPTER = 'ltx2_stage2_distilled'
+
+
+def _prompt_tensors_to_device(*tensors):
+    return tuple(t.to(device=devices.device) if torch.is_tensor(t) else t for t in tensors)
 
 
 def _canonical_ltx2_guidance(caps) -> dict:
@@ -63,6 +70,12 @@ def _canonical_stage2_kwargs() -> dict:
 
 
 def _latent_pass(caps, prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask, width, height, frames, steps, guidance_scale, mp4_fps, conditions, image_cond_noise_scale, seed, image=None):
+    prompt_embeds, prompt_attention_mask, negative_prompt_embeds, negative_prompt_attention_mask = _prompt_tensors_to_device(
+        prompt_embeds,
+        prompt_attention_mask,
+        negative_prompt_embeds,
+        negative_prompt_attention_mask,
+    )
     base_args = {
         'prompt_embeds': prompt_embeds,
         'prompt_attention_mask': prompt_attention_mask,
@@ -135,6 +148,7 @@ def run_ltx(task_id,
             mp4_video: bool,
             mp4_frames: bool,
             mp4_sf: bool,
+            mp4_thumb: bool,
             audio_enable: bool,
             _overrides,
            ):
@@ -153,6 +167,9 @@ def run_ltx(task_id,
 
     if model is None or len(model) == 0 or model == 'None':
         yield from abort('Video: no model selected', ok=True)
+        return
+    if model.startswith('─'):
+        yield from abort('Video: dropdown separator selected, pick an actual model below', ok=True)
         return
     check_av()
     progress.add_task_to_queue(task_id)
@@ -467,7 +484,7 @@ def run_ltx(task_id,
                     'callback_on_step_end': diffusers_callback,
                     'output_type': 'pil',
                 }
-                if p.cfg_scale is not None and p.cfg_scale > 0:
+                if p.cfg_scale is not None and p.cfg_scale > -1:
                     refine_args['guidance_scale'] = p.cfg_scale
                 if caps.supports_frame_rate_kwarg:
                     refine_args['frame_rate'] = float(mp4_fps)
@@ -519,6 +536,17 @@ def run_ltx(task_id,
                         refine_args['denoise_strength'] = refine_strength
                     if latents.ndim == 4:
                         latents = latents.unsqueeze(0)
+                    (
+                        refine_args['prompt_embeds'],
+                        refine_args['prompt_attention_mask'],
+                        refine_args['negative_prompt_embeds'],
+                        refine_args['negative_prompt_attention_mask'],
+                    ) = _prompt_tensors_to_device(
+                        refine_args['prompt_embeds'],
+                        refine_args['prompt_attention_mask'],
+                        refine_args['negative_prompt_embeds'],
+                        refine_args['negative_prompt_attention_mask'],
+                    )
                     log.debug(f'Video: op=refine cls={caps.repo_cls_name} latents={latents.shape} canonical_stage2={caps.supports_canonical_stage2}')
                     yield None, 'LTX: Refine in progress...'
                     try:
@@ -616,6 +644,7 @@ def run_ltx(task_id,
                 mp4_sf=mp4_sf,
                 mp4_video=mp4_video,
                 mp4_frames=mp4_frames,
+                mp4_thumb=mp4_thumb,
                 mp4_interpolate=mp4_interpolate,
                 aac_sample_rate=aac_sample_rate,
                 metadata={},

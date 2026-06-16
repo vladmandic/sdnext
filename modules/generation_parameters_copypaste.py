@@ -198,7 +198,7 @@ def connect_paste_params_buttons():
     binding: ParamBinding
     for binding in registered_param_bindings:
         if binding.tabname not in paste_fields:
-            debug(f"Not not registered: tab={binding.tabname}")
+            debug(f"Not registered: tab={binding.tabname}")
             continue
         fields: list[tuple[gr.components.Component, str]] = paste_fields[binding.tabname]["fields"]
 
@@ -232,7 +232,7 @@ def connect_paste_params_buttons():
             if binding.only_prompt:
                 paste_field_names = ['Prompt', 'Negative prompt']
             else:
-                paste_field_names = ['Prompt', 'Negative prompt', 'Steps'] + (["Seed"] if shared.opts.send_seed else []) + binding.paste_field_names
+                paste_field_names = ['Prompt', 'Negative prompt', 'Steps', 'Seed'] + binding.paste_field_names
             if "fields" in paste_fields[binding.source_tabname] and paste_fields[binding.source_tabname]["fields"] is not None:
                 binding.paste_button.click(
                     fn=lambda *x: x,

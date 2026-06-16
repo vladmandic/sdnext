@@ -97,6 +97,9 @@ class PromptsFromFileScript(scripts_manager.Script):
     def title(self):
         return "Prompts from file"
 
+    def show(self, is_img2img): # pylint: disable=unused-argument
+        return True
+
     def ui(self, _is_img2img):
         with gr.Row():
             gr.HTML('<span">&nbsp Prompt from file</span><br>')
@@ -145,8 +148,8 @@ class PromptsFromFileScript(scripts_manager.Script):
             all_seeds += proc.all_seeds
             all_prompts += proc.all_prompts
             all_negative += proc.all_negative_prompts
-            images += proc.images
-            infotexts += proc.infotexts
+            images += proc.images[proc.index_of_first_image:]
+            infotexts += proc.infotexts[proc.index_of_first_image:]
             if state.interrupted:
                 break
         return get_processed(p, images, p.seed, "", all_prompts=all_prompts, all_seeds=all_seeds, all_negative_prompts=all_negative, infotexts=infotexts)

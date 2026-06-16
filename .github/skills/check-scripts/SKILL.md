@@ -1,6 +1,6 @@
 ---
 name: check-scripts
-description: "Audit scripts/*.py and verify Script override contracts (init/title/show) plus ui() output compatibility with run() or process() parameters."
+description: "Run a phased scripts audit in scripts/*.py: validate Script overrides (init/title/show) first, then verify ui() output compatibility with run() or process() parameters."
 argument-hint: "Optionally focus on a subset of scripts or only run-vs-ui or process-vs-ui checks"
 ---
 
@@ -14,6 +14,10 @@ Audit all Python scripts in `scripts/*.py` and validate that script class overri
 - A script crashes when selected or executed from UI
 - A script UI was changed and runtime args no longer match
 - You want a pre-PR quality gate for script API compatibility
+
+## Guidance
+
+- Consult `.github/instructions/core.instructions.md` for relevant core runtime guidance before proceeding.
 
 ## Scope
 
@@ -126,4 +130,4 @@ A full pass requires all of the following across audited `scripts/*.py` classes:
 - `ui()` output contracts are compatible with `run()` or `process()` args
 - no blocking arity/signature mismatch remains
 
-If a class uses highly dynamic argument routing that cannot be proven statically, mark as conditional pass with explicit runtime validation recommendation.
+If a class uses runtime-determined argument mapping or dynamic method dispatch that cannot be proven statically, mark as conditional pass with explicit runtime validation recommendation.

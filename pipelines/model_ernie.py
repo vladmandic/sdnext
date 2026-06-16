@@ -14,10 +14,12 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=ERNIE-Image repo="{repo_id}" offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} pe={shared.opts.model_ernie_enable_pe}')
 
+    from pipelines.ernie import ERNIE_SPEC
     transformer = generic.load_transformer(
         repo_id,
         cls_name=diffusers.ErnieImageTransformer2DModel,
         load_config=diffusers_load_config,
+        native_spec=ERNIE_SPEC,
     )
     text_encoder = generic.load_text_encoder(
         repo_id,
@@ -27,6 +29,8 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
 
     if not shared.opts.model_ernie_enable_pe:
         load_args['pe'] = None
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.ErnieImagePipeline.from_pretrained(
         repo_id,
@@ -44,6 +48,9 @@ def load_ernie_image(checkpoint_info, diffusers_load_config=None):
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["ernieimage"] = diffusers.ErnieImagePipeline
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["ernieimage"] = ErnieImageImg2ImgPipeline
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["ernieimage"] = ErnieImageInpaintPipeline
+
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     generic.load_vae_override(pipe, diffusers_load_config)
 

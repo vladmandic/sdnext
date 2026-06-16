@@ -142,7 +142,7 @@ MODELS = {
     'Rembg ISNet anime': 'isnet-anime',
 }
 COLORMAP = ['autumn', 'bone', 'jet', 'winter', 'rainbow', 'ocean', 'summer', 'spring', 'cool', 'hsv', 'pink', 'hot', 'parula', 'magma', 'inferno', 'plasma', 'viridis', 'cividis', 'twilight', 'shifted', 'turbo', 'deepgreen']
-TYPES = ['None', 'Opaque', 'Binary', 'Masked', 'Grayscale', 'Color', 'Composite']
+TYPES = ['Exact', 'Opaque', 'Binary', 'Masked', 'Grayscale', 'Color', 'Composite']
 cache_dir = 'models/control/segment'
 generator: MaskGenerationPipeline = None
 busy = False
@@ -151,13 +151,16 @@ btn_lama = None
 lama_model = None
 controls = []
 opts = SimpleNamespace(**{
-    'model': None,
-    'auto_mask': 'None',
-    'auto_segment': 'None',
-    'mask_only': False,
     'mask_blur': 0,
     'mask_erode': 0,
     'mask_dilate': 0,
+    'mask_only': False,
+    'mask_invert': False,
+    'mask_return': False,
+    'mask_type': 'Grayscale',
+    'model': None,
+    'auto_mask': 'None',
+    'auto_segment': 'None',
     'seg_iou_thresh': 0.5,
     'seg_score_thresh': 0.8,
     'seg_nms_thresh': 0.5,
@@ -165,12 +168,10 @@ opts = SimpleNamespace(**{
     'seg_points_per_batch': 64,
     'seg_topK': 50,
     'seg_colormap': 'pink',
-    'preview_type': 'Composite',
     'seg_live': True,
     'weight_original': 0.5,
     'weight_mask': 0.5,
-    'kernel_iterations': 1,
-    'invert': False
+    'kernel_iterations': 1
 })
 
 
@@ -408,7 +409,7 @@ def run_mask(input_image: Image.Image, input_mask: Image.Image | None = None, re
     except Exception:
         return input_mask
     if invert is not None:
-        opts.invert = invert
+        opts.mask_invert = invert
 
     # set legacy mask args
     if mask_blur is not None or mask_padding is not None:
@@ -461,12 +462,12 @@ def run_mask(input_image: Image.Image, input_mask: Image.Image | None = None, re
             debug(f'Mask blur={opts.mask_blur:.3f} x={sigmax} y={sigmay} mask={mask.shape}')
         except Exception as e:
             log.error(f'Mask blur: {e}')
-    if opts.invert:
+    if opts.mask_invert:
         mask = np.invert(mask)
 
-    return_type = return_type or opts.preview_type
+    return_type = return_type or opts.mask_type
 
-    if return_type == 'None':
+    if return_type == 'Exact':
         return input_mask
     elif return_type == 'Opaque':
         binary_mask = cv2.threshold(mask, 0, 255, cv2.THRESH_BINARY)[1]
@@ -520,59 +521,41 @@ def run_lama(input_image: gr.Image, input_mask: gr.Image = None):
     return result
 
 
-def run_mask_live(input_image: gr.Image):
-    global busy # pylint: disable=global-statement
-    if opts.seg_live:
-        if not busy:
-            busy = True
-            res = run_mask(input_image)
-            busy = False
-            return res
-    return None
-
-
 def create_segment_ui():
     def update_opts(*args):
-        opts.seg_live = args[0]
-        opts.mask_only = args[1]
-        opts.invert = args[2]
-        opts.mask_dilate = args[3]
-        opts.mask_erode = args[4]
-        opts.mask_blur = args[5]
-        opts.seg_score_thresh = args[6]
-        opts.auto_segment = args[7]
-        opts.auto_mask = args[8]
-        opts.seg_iou_thresh = args[9]
-        opts.seg_nms_thresh = args[10]
-        opts.preview_type = args[11]
-        opts.seg_colormap = args[12]
+        # opts.seg_live
+        opts.mask_dilate, opts.mask_erode, opts.mask_blur, \
+        opts.mask_only, opts.mask_invert, opts.mask_return, \
+        opts.mask_type, opts.mask_colormap, \
+        opts.auto_segment, opts.auto_mask, opts.seg_score_thresh, opts.seg_iou_thresh, opts.seg_nms_thresh = args
+        debug(f'Update mask opts: {args}')
 
     global btn_mask, btn_lama # pylint: disable=global-statement
     with gr.Accordion(open=False, label="Mask", elem_id="control_mask", elem_classes=["small-accordion"]):
         controls.clear()
         with gr.Row():
-            controls.append(gr.Checkbox(label="Live update", value=False, visible=False, elem_id="control_mask_live_update"))
-        with gr.Row():
-            controls.append(gr.Checkbox(label="Inpaint masked only", value=False, elem_id="control_mask_only", ))
-            controls.append(gr.Checkbox(label="Invert mask", value=False, elem_id="control_mask_invert"))
-        with gr.Row():
             controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Dilate', value=0, elem_id="control_mask_dilate"))
             controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Erode', value=0, elem_id="control_mask_erode"))
-        with gr.Row():
             controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Blur', value=0, elem_id="control_mask_blur"))
-            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Auto min score', value=0.8, elem_id="control_mask_score"))
         with gr.Row():
-            controls.append(gr.Dropdown(label="Auto-segment", choices=MODELS.keys(), value='None', elem_id="control_mask_segment"))
-            controls.append(gr.Dropdown(label="Auto-mask", choices=['None', 'Threshold', 'Edge', 'Grayscale'], value='None', elem_id="control_mask_auto"))
+            controls.append(gr.Checkbox(label="Focus mask", value=False, elem_id="control_mask_only", ))
+            controls.append(gr.Checkbox(label="Invert mask", value=False, elem_id="control_mask_invert"))
+            controls.append(gr.Checkbox(label="Include mask", value=False, elem_id="control_mask_return"))
         with gr.Row():
-            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='IOU', value=0.5, visible=False, elem_id="control_mask_iou"))
-            controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='NMS', value=0.5, visible=False, elem_id="control_mask_nms"))
+            controls.append(gr.Dropdown(label="Mask type", choices=TYPES, value='Grayscale', elem_id="control_mask_preview"))
+            controls.append(gr.Dropdown(label="Mask Colormap", choices=COLORMAP, value='pink', elem_id="control_mask_colormap", visible=False))
+        with gr.Accordion(open=False, label="Auto masking",elem_classes=["small-accordion"]):
+            with gr.Row():
+                controls.append(gr.Dropdown(label="Auto-segment", choices=MODELS.keys(), value='None', elem_id="control_mask_segment"))
+                controls.append(gr.Dropdown(label="Auto-mask", choices=['None', 'Threshold', 'Edge', 'Grayscale'], value='None', elem_id="control_mask_auto"))
+                controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='Auto min score', value=0.8, elem_id="control_mask_score"))
+            with gr.Row():
+                btn_lama = gr.Button("LaMa remove", elem_id="control_mask_remove")
+            with gr.Row():
+                controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='IOU', value=0.5, visible=False, elem_id="control_mask_iou"))
+                controls.append(gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='NMS', value=0.5, visible=False, elem_id="control_mask_nms"))
         with gr.Row():
-            controls.append(gr.Dropdown(label="Preview", choices=['None', 'Masked', 'Binary', 'Grayscale', 'Color', 'Composite'], value='Composite', elem_id="control_mask_preview"))
-            controls.append(gr.Dropdown(label="Colormap", choices=COLORMAP, value='pink', elem_id="control_mask_colormap"))
-        with gr.Row():
-            btn_mask = gr.Button("Run Preview", elem_id="control_mask_refresh", )
-            btn_lama = gr.Button("LaMa Remove", elem_id="control_mask_remove")
+            btn_mask = gr.Button("Run preview", elem_id="control_mask_refresh", )
 
         for control in controls:
             control.change(fn=update_opts, inputs=controls, outputs=[])
@@ -583,9 +566,6 @@ def bind_controls(image_controls: list[gr.Image], output_image: gr.Image):
     for image_control in image_controls:
         btn_mask.click(run_mask, inputs=[image_control], outputs=[output_image])
         btn_lama.click(run_lama, inputs=[image_control], outputs=[output_image])
-        image_control.edit(fn=run_mask_live, inputs=[image_control], outputs=[output_image])
-        for control in controls:
-            control.change(fn=run_mask_live, inputs=[image_control], outputs=[output_image])
 
 
 def process_kanvas(kanvas_data):

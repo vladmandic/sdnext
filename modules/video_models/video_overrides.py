@@ -37,9 +37,9 @@ def load_override(selected: Model, **load_args):
         ltx2_connectors_cls = LTX2TextConnectors
     except ImportError as e:
         log.warning(f'Video load: LTX2TextConnectors unavailable ({e}); dedup of LTX-2.3 connectors disabled')
-    if ('LTXVideo 2.3' in selected.name and shared.opts.te_shared_t5 and ltx2_connectors_cls is not None):
+    if ('LTXVideo 2.3' in selected.name and shared.opts.te_shared_te and ltx2_connectors_cls is not None):
         conn_repo = 'OzzyGT/LTX-2.3-sdnq-dynamic-int4' if 'SDNQ' in selected.name else 'OzzyGT/LTX-2.3'
-        log.debug(f'Video load: module=connectors repo="{conn_repo}" cls={ltx2_connectors_cls.__name__} shared={shared.opts.te_shared_t5}')
+        log.debug(f'Video load: module=connectors repo="{conn_repo}" cls={ltx2_connectors_cls.__name__} shared={shared.opts.te_shared_te}')
         kwargs['connectors'] = ltx2_connectors_cls.from_pretrained(
             conn_repo,
             subfolder='connectors',

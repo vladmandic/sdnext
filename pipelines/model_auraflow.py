@@ -16,6 +16,8 @@ def load_auraflow(checkpoint_info, diffusers_load_config=None):
 
     transformer = generic.load_transformer(repo_id, cls_name=diffusers.AuraFlowTransformer2DModel, load_config=diffusers_load_config)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.UMT5EncoderModel, load_config=diffusers_load_config, allow_shared=False) # auraflow uses EleutherAI/pile-t5-xl
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.AuraFlowPipeline.from_pretrained(
         repo_id,

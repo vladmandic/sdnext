@@ -1,7 +1,7 @@
 from functools import wraps
 import torch
-from modules import rocm
-from modules.errors import log
+from modules import rocm, errors
+from modules.logger import log
 from installer import install, installed, torch_info
 
 
@@ -25,7 +25,15 @@ def set_triton_flash_attention(backend: str):
             sdpa_pre_triton_flash_atten = torch.nn.functional.scaled_dot_product_attention
             @wraps(sdpa_pre_triton_flash_atten)
             def sdpa_triton_flash_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
-                if query.shape[-1] <= 128 and attn_mask is None and query.dtype != torch.float32:
+                use_triton = (
+                    query.shape[-1] <= 128
+                    and attn_mask is None
+                    and query.dtype != torch.float32
+                    and query.device.type != "cpu"
+                    and key.device == query.device
+                    and value.device == query.device
+                )
+                if use_triton:
                     if scale is None:
                         scale = query.shape[-1] ** (-0.5)
                     head_size_og = query.size(3)
@@ -101,7 +109,15 @@ def set_ck_flash_attention(backend: str, device: torch.device):
         sdpa_pre_flash_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_flash_atten)
         def sdpa_flash_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
-            if query.shape[-1] <= 128 and attn_mask is None and query.dtype != torch.float32:
+            use_flash = (
+                query.shape[-1] <= 128
+                and attn_mask is None
+                and query.dtype != torch.float32
+                and query.device.type != "cpu"
+                and key.device == query.device
+                and value.device == query.device
+            )
+            if use_flash:
                 is_unsqueezed = False
                 if query.dim() == 3:
                     query = query.unsqueeze(0)
@@ -168,12 +184,20 @@ def set_sage_attention(backend: str, device: torch.device):
         sdpa_pre_sage_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_sage_atten)
         def sdpa_sage_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
-            if (query.shape[-1] in {128, 96, 64}) and (attn_mask is None) and (query.dtype != torch.float32):
+            use_sage = (
+                query.shape[-1] in {128, 96, 64}
+                and attn_mask is None
+                and query.dtype != torch.float32
+                and query.device.type != "cpu"
+                and key.device == query.device
+                and value.device == query.device
+            )
+            if use_sage:
                 if enable_gqa:
                     key = key.repeat_interleave(query.size(-3)//key.size(-3), -3)
                     value = value.repeat_interleave(query.size(-3)//value.size(-3), -3)
 
-                # Call pre-selected sage attention implementation
+                # Call preselected sage attention implementation
                 return sage_attn_impl(query, key, value, is_causal, scale)
             else:
                 if enable_gqa:
@@ -202,16 +226,6 @@ def set_diffusers_attention(pipe, quiet = False):
                     pass
                 else:
                     log.error(f'Torch attention: type="{name}" cls={attention.__class__.__name__} pipe={pipe.__class__.__name__} {e}')
-        """ # each transformer typically has its own attention processor
-        if getattr(pipe, "transformer", None) is not None and hasattr(pipe.transformer, "set_attn_processor"):
-            try:
-                pipe.transformer.set_attn_processor(attention)
-            except Exception as e:
-                if 'Nunchaku' in pipe.transformer.__class__.__name__:
-                    pass
-                else:
-                    log.error(f'Torch attention: type="{name}" cls={attention.__class__.__name__} pipe={pipe.__class__.__name__} {e}')
-        """
 
     log.quiet(quiet, f'Setting model: attention="{shared.opts.cross_attention_optimization}"')
     if shared.opts.cross_attention_optimization == "Disabled":
@@ -241,3 +255,64 @@ def set_diffusers_attention(pipe, quiet = False):
         log.debug(f"Torch attention: slicing={shared.opts.attention_slicing}")
 
     pipe.current_attn_name = shared.opts.cross_attention_optimization
+
+
+orig_get_kernel = None
+def get_kernel_hijack(repo_id, revision=None, version=None, backend=None, user_agent=None, trust_remote_code: bool | list[str] = False): # pylint: disable=unused-argument
+    log.debug(f'Attention dispatcher hub: repo="{repo_id}" revision={revision} version={version} backend={backend}')
+    user_agent = 'kernels/0.14.1'
+    module = None
+    try:
+        module = orig_get_kernel(repo_id, revision=revision, version=version, backend=backend, user_agent=user_agent, trust_remote_code=True)
+    except Exception as e:
+        log.error(f'Attention dispatcher hub: {e}')
+        errors.display(e, 'kernels')
+    return module
+
+
+def get_hf_api_hijack(user_agent = None): # pylint: disable=unused-argument
+    from huggingface_hub import HfApi
+    return HfApi(library_name="kernels", user_agent="donottrack")
+
+
+def set_attention_dispatcher(pipe):
+    global orig_get_kernel # pylint: disable=global-statement
+    from modules import shared
+    attn = shared.opts.hf_attention.strip().lower()
+    if pipe is None or not hasattr(pipe, 'transformer') or not hasattr(pipe.transformer, 'set_attention_backend'):
+        return
+
+    from diffusers.models import attention_dispatch as a
+    backends = [b.value for b in a._AttentionBackendRegistry.list_backends()] # pylint: disable=protected-access
+    # https://huggingface.co/docs/kernels/index
+    # https://huggingface.co/docs/diffusers/optimization/attention_backends#available-backends
+
+    if 'hub' in attn:
+        try:
+            install('kernels==0.14.1')
+            import kernels
+            import kernels.utils
+            log.debug(f'Attention dispatcher: kernels={kernels.__version__}')
+            if orig_get_kernel is None:
+                orig_get_kernel = kernels.get_kernel
+                kernels.get_kernel = get_kernel_hijack
+                kernels.utils._get_hf_api = get_hf_api_hijack # pylint: disable=protected-access
+            from diffusers.utils import import_utils
+            import_utils._kernels_available = True # pylint: disable=protected-access
+            import_utils._kernels_version = kernels.__version__ # pylint: disable=protected-access
+        except Exception as e:
+            log.error(f'Attention dispatcher kernels: {e}')
+            return
+
+    prev = a._AttentionBackendRegistry.get_active_backend() # pylint: disable=protected-access
+    if attn in backends:
+        try:
+            pipe.transformer.set_attention_backend(attn)
+        except Exception as e:
+            log.error(f'Attention dispatcher: target={attn} {e}')
+        current = a._AttentionBackendRegistry.get_active_backend() # pylint: disable=protected-access
+        log.debug(f'Attention dispatcher: target={attn} previous={prev[0].value} active={current[0]} list={backends}')
+    elif len(attn) > 0:
+        log.warning(f'Attention dispatcher: active={prev[0].value} list={backends} target={attn} not found')
+    else:
+        log.debug(f'Attention dispatcher: active={prev[0].value} list={backends}')

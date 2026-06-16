@@ -74,6 +74,9 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
     def __init__(
             self,
             num_train_timesteps: int = 1000,
+            beta_start: float = 0.00085,
+            beta_end: float = 0.012,
+            beta_schedule: str = "linear",
             solver_order: int = 2,
             prediction_type: str = "flow_prediction",
             shift: Optional[float] = 1.0,
@@ -87,6 +90,10 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
             disable_corrector: List[int] = [],
             solver_p: SchedulerMixin = None,
             use_flow_sigmas: bool = True,
+            use_beta_sigmas: Optional[bool] = False,
+            use_exponential_sigmas: Optional[bool] = False,
+            use_karras_sigmas: Optional[bool] = False,
+            rescale_betas_zero_snr: bool = False,
             timestep_spacing: str = "linspace",
             steps_offset: int = 0,
             final_sigmas_type: Optional[str] = "zero",  # "zero", "sigma_min"
@@ -306,7 +313,7 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
                 sample = args[1]
             else:
                 raise ValueError(
-                    "missing `sample` as a required keyward argument")
+                    "missing `sample` as a required keyword argument")
         if timestep is not None:
             deprecate(
                 "timesteps",
@@ -381,13 +388,13 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
                 sample = args[1]
             else:
                 raise ValueError(
-                    " missing `sample` as a required keyward argument")
+                    " missing `sample` as a required keyword argument")
         if order is None:
             if len(args) > 2:
                 order = args[2]
             else:
                 raise ValueError(
-                    " missing `order` as a required keyward argument")
+                    " missing `order` as a required keyword argument")
         if prev_timestep is not None:
             deprecate(
                 "prev_timestep",
@@ -520,19 +527,19 @@ class FlowUniPCMultistepScheduler(SchedulerMixin, ConfigMixin):
                 last_sample = args[1]
             else:
                 raise ValueError(
-                    " missing`last_sample` as a required keyward argument")
+                    " missing`last_sample` as a required keyword argument")
         if this_sample is None:
             if len(args) > 2:
                 this_sample = args[2]
             else:
                 raise ValueError(
-                    " missing`this_sample` as a required keyward argument")
+                    " missing`this_sample` as a required keyword argument")
         if order is None:
             if len(args) > 3:
                 order = args[3]
             else:
                 raise ValueError(
-                    " missing`order` as a required keyward argument")
+                    " missing`order` as a required keyword argument")
         if this_timestep is not None:
             deprecate(
                 "this_timestep",

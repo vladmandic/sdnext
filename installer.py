@@ -208,13 +208,45 @@ def uninstall(package, quiet = False):
     return txt
 
 
+def uv_info():
+    uv_version = None
+    uv_cache_dir = None
+    uv_cache_active = False
+    uv_local = os.path.join(sys.prefix, "bin", "uv") # Prefer uv inside the venv
+    if os.path.exists(uv_local):
+        uv_version = subprocess.check_output([uv_local, "--version"], text=True).strip()
+        uv_cache_dir = subprocess.check_output([uv_local, "cache", "dir"], text=True).strip()
+    uv_global = shutil.which("uv") # Fallback: system uv
+    if uv_global:
+        uv_version = subprocess.check_output([uv_global, "--version"], text=True).strip()
+        uv_cache_dir = subprocess.check_output([uv_global, "cache", "dir"], text=True).strip()
+    uv_cache_disabled = os.environ.get("UV_NO_CACHE") == "1"
+    site = next(p for p in sys.path if p.endswith("site-packages"))
+    if uv_cache_dir and not uv_cache_disabled:
+        for root, _dirs, files in os.walk(site):
+            for f in files:
+                full = os.path.join(root, f)
+                try:
+                    st = os.stat(full)
+                except FileNotFoundError:
+                    continue
+                if st.st_nlink > 1: # Hardlink count > 1 means deduped
+                    uv_cache_active = True
+                cache_path = os.path.join(uv_cache_dir, f) # Or check if inode matches something in cache
+                if os.path.exists(cache_path):
+                    if os.stat(cache_path).st_ino == st.st_ino:
+                        uv_cache_active = True
+    log.debug(f'Package manager: app=uv version="{uv_version}" folder="{uv_cache_dir}" dedup={uv_cache_active}')
+
+
 def run(cmd: str, *nargs: str, **kwargs):
     options = {
         "check": False,
         "env": os.environ,
     }
     options |= kwargs  # Override defaults with passed kwargs
-    result = subprocess.run(f'"{cmd}" {" ".join(nargs)}', **options, shell=True, capture_output=True, text=True)
+    argstr = " ".join(nargs)
+    result = subprocess.run(f'"{cmd}" {argstr}', **options, shell=True, capture_output=True, text=True)
     result.stdout = result.stdout.strip()
     result.stderr = result.stderr.strip()
     txt = result.stdout
@@ -252,7 +284,8 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constr
         log.warning('Offline mode enabled')
         return None, 'offline'
     package = arg.replace("install", "").replace("--upgrade", "").replace("--no-deps", "").replace("--force-reinstall", "").strip()
-    uv = uv and args.uv and not package.startswith('git+')
+    # uv = uv and args.uv and not package.startswith('git+')
+    uv = uv and args.uv
     pipCmd = "uv pip" if uv else "pip"
     if not quiet and '-r ' not in arg:
         log.info(f'Install: package="{package}" mode={"uv" if uv else "pip"}')
@@ -263,12 +296,15 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constr
     all_args.append(arg)
     if env_args:
         all_args.append(env_args)
-    if constraints and "-c " not in env_args:
+    if constraints and "-c " not in env_args and arg.startswith("install"):
         all_args.append("-c constraints.txt")
     if not quiet:
         log.debug(f'Running: {pipCmd}="{" ".join(all_args)}"')
 
-    result, output = run(sys.executable, "-m", pipCmd, *all_args)
+    if uv:
+        result, output = run("uv", "pip", *all_args)
+    else:
+        result, output = run(sys.executable, "-m", pipCmd, *all_args)
 
     if len(result.stderr) > 0:
         if uv and result.returncode != 0:
@@ -276,7 +312,8 @@ def pip(arg: str, ignore: bool = False, quiet: bool = True, *, uv = True, constr
             debug(f'Install: uv pip error: {result.stderr}')
             cleanup_broken_packages()
             return pip(originalArg, ignore, quiet, uv=False)
-    debug(f'Install {pipCmd}: {output}')
+    if os.environ.get('SD_INSTALL_DEBUG', None) is not None:
+        log.debug(f'PIP cmd="{pipCmd}": {output}')
     if result.returncode != 0 and not ignore:
         errors.append(f'pip: {package}')
         log.error(f'Install: {pipCmd}: {arg}')
@@ -293,7 +330,7 @@ def install(package, friendly: str | None = None, ignore: bool = False, reinstal
     if args.reinstall or args.upgrade:
         global quick_allowed # pylint: disable=global-statement
         quick_allowed = False
-    if (args.reinstall) or (reinstall) or (not installed(package, friendly, quiet=quiet)):
+    if args.reinstall or reinstall or not installed(package, friendly, quiet=quiet):
         deps = '' if not no_deps else '--no-deps '
         isolation = '' if not no_build_isolation else '--no-build-isolation '
         cmd = f"install{' --upgrade' if not args.uv else ''}{' --force-reinstall' if force else ''} {deps}{isolation}{package}"
@@ -321,7 +358,7 @@ def git(arg: str, folder: str | None= None, ignore: bool = False, optional: bool
         elif "no submodule mapping found" in txt:
             log.warning(f'Git: folder="{folder}" submodules changed')
         elif 'or stash them' in txt:
-            log.error(f'Git: folder="{folder}" local changes detected')
+            log.warning(f'Git: folder="{folder}" local changes detected')
         else:
             log.error(f'Git: folder="{folder}" arg="{arg}" output={txt}')
         errors.append(f'git: {folder}')
@@ -341,8 +378,9 @@ def branch(folder=None):
         b = git('branch --show-current', folder, optional=True)
         if b == '':
             branches = git('branch', folder).split('\n')
-        if len(branches) > 0:
-            b = [x for x in branches if x.startswith('*')][0]
+        marked = [x for x in branches if x.startswith('*')]
+        if len(branches) > 0 and len(marked) > 0:
+            b = marked[0]
             if 'detached' in b and len(branches) > 1:
                 b = branches[1].strip()
                 log.debug(f'Git detached head detected: folder="{folder}" reattach={b}')
@@ -380,7 +418,7 @@ def update(folder, keep_branch = False, rebase = True):
         debug(f'Install update: folder={folder} args={arg} {res}')
     else:
         b = branch(folder)
-        if branch is None:
+        if b is None:
             res = git(f'pull {arg}', folder)
             debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
         else:
@@ -431,6 +469,8 @@ def get_platform():
             'locale': locale.getlocale(),
             'setuptools': package_version('setuptools'),
             'docker': os.environ.get('SD_DOCKER', None) is not None,
+            'pip': package_version('pip'),
+            'uv': package_version('uv'),
             # 'host': platform.node(),
             # 'version': platform.version(),
         }
@@ -494,11 +534,12 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "015da50b40ee7a082ea8c17a8c43dff717c9653e" # diffusers commit hash == 0.37.1.dev-0427
+    target_commit = "d1f8e55c3b6e3ac42d6303a8805ded1c2a4bdd0e" # diffusers commit hash == 0.39.0.dev0 == 06-15-2026
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
-    minor = int(pkg.version.split('.')[1] if pkg is not None else -1)
+    parts = pkg.version.split('.') if pkg is not None else []
+    minor = int(parts[1]) if len(parts) > 1 else -1
     current = opts.get('diffusers_version', '') if minor > -1 else ''
     if (minor == -1) or ((current != target_commit) and (not args.experimental)):
         if minor == -1:
@@ -522,8 +563,8 @@ def check_transformers():
     pkg_transformers = package_spec('transformers')
     pkg_tokenizers = package_spec('tokenizers')
     # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
-    # target_commit = "aad13b87ed59f2afcfaebc985f403301887a35fc" # transformers commit hash == 5.3.0
-    target_commit = "380e3cc5d59912a48508cb6d4959a31cd460e12e" # transformers commit hash == 5.5.0.dev-0409
+    # target_commit = "380e3cc5d59912a48508cb6d4959a31cd460e12e" # transformers commit hash == 5.5.0.dev-0409
+    target_commit = "d242bb790bcbbe6c9a20e46cf9d70648739a90bf" # transformers commit hash == 5.13.0.dev0 == 06-15-2026
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
@@ -533,25 +574,25 @@ def check_transformers():
         target_tokenizers = '0.23.1'
     if target_transformers is not None:
         # Pinned release version (e.g. DirectML)
-        if (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
+        if args.reinstall or (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" version={target_transformers}')
             else:
                 log.info(f'Update: package="transformers" current={pkg_transformers.version} target={target_transformers}')
-            pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
-            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True, uv=False)
-            pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True, uv=False)
+            pip('uninstall --yes transformers', ignore=True, quiet=True)
+            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+            pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True)
     else:
         # Git commit-pinned version
         current = opts.get('transformers_version', '')
-        if (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
+        if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" commit={target_commit}')
             else:
                 log.info(f'Update: package="transformers" current={pkg_transformers.version} hash={current} target={target_commit}')
-            pip('uninstall --yes transformers', ignore=True, quiet=True, uv=False)
-            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True, uv=False)
-            pip(f'install --upgrade git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True, uv=False)
+            pip('uninstall --yes transformers', ignore=True, quiet=True)
+            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+            pip(f'install --upgrade git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
             global transformers_commit # pylint: disable=global-statement
             transformers_commit = target_commit
     ts('transformers', t_start)
@@ -574,9 +615,9 @@ def install_cuda():
     log.info('CUDA: nVidia toolkit detected')
     ts('cuda', t_start)
     if args.use_nightly:
-        cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu128 --extra-index-url https://download.pytorch.org/whl/nightly/cu130')
+        cmd = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/cu132 --extra-index-url https://download.pytorch.org/whl/nightly/cu130')
     else:
-        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+cu130 torchvision==0.26.0+cu130 --index-url https://download.pytorch.org/whl/cu130')
+        cmd = os.environ.get('TORCH_COMMAND', 'torch==2.12.0+cu130 torchvision==0.27.0+cu130 --index-url https://download.pytorch.org/whl/cu130')
     return cmd
 
 
@@ -667,9 +708,9 @@ def install_rocm_zluda():
                 torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/rocm7.1')
         else:
             if rocm.version is None or float(rocm.version) >= 7.2: # assume the latest if version check fails
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+rocm7.2 torchvision==0.26.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.12.0+rocm7.2 torchvision==0.27.0+rocm7.2 --index-url https://download.pytorch.org/whl/rocm7.2')
             elif rocm.version == "7.1":
-                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+rocm7.1 torchvision==0.26.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
+                torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.12.0+rocm7.1 torchvision==0.27.0+rocm7.1 --index-url https://download.pytorch.org/whl/rocm7.1')
             elif rocm.version == "7.0":
                 torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.10.0+rocm7.0 torchvision==0.25.0+rocm7.0 --index-url https://download.pytorch.org/whl/rocm7.0')
             elif rocm.version == "6.4":
@@ -705,9 +746,9 @@ def install_ipex():
     args.use_ipex = True # pylint: disable=attribute-defined-outside-init
     log.info('IPEX: Intel OneAPI toolkit detected')
     if args.use_nightly:
-        torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --index-url https://download.pytorch.org/whl/nightly/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', '--upgrade --pre torch torchvision --extra-index-url https://download.pytorch.org/whl/nightly/xpu')
     else:
-        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.11.0+xpu torchvision==0.26.0+xpu --index-url https://download.pytorch.org/whl/xpu')
+        torch_command = os.environ.get('TORCH_COMMAND', 'torch==2.12.0+xpu torchvision==0.27.0+xpu --extra-index-url https://download.pytorch.org/whl/xpu')
 
     ts('ipex', t_start)
     return torch_command
@@ -1019,8 +1060,8 @@ def run_extension_installer(folder):
             env = os.environ.copy()
             env['PYTHONPATH'] = os.path.abspath(".")
             if os.environ.get('PYTHONPATH', None) is not None:
-                seperator = ';' if sys.platform == 'win32' else ':'
-                env['PYTHONPATH'] += seperator + os.environ.get('PYTHONPATH', None)
+                separator = ';' if sys.platform == 'win32' else ':'
+                env['PYTHONPATH'] += separator + os.environ.get('PYTHONPATH', None)
             result, txt = run(sys.executable, path_installer, env=env, cwd=folder)
             debug(f'Extension installer: file="{path_installer}" {result.stdout}')
             if result.returncode != 0:
@@ -1139,7 +1180,10 @@ def install_submodules(force=True):
     res = []
     for submodule in submodules:
         try:
-            name = submodule.split()[1].strip()
+            parts = submodule.split()
+            if len(parts) < 2:
+                continue
+            name = parts[1].strip()
             if args.upgrade:
                 res.append(update(name))
             else:
@@ -1185,26 +1229,26 @@ def install_gradio():
 def install_compel():
     if installed('compel', quiet=True):
         return
-    install("compel==2.3.1", no_deps=True)
+    install("compel==2.4.0", no_deps=True)
 
 
 def install_pydantic():
-    install('pydantic==2.12.5', ignore=True, quiet=True)
-    reload('pydantic', '2.12.5')
+    install('pydantic==2.13.4', ignore=True, quiet=True)
+    reload('pydantic', '2.13.4')
 
 
 def install_scipy():
     if args.new or (sys.version_info >= (3, 14)):
-        install('scipy==1.17.0', ignore=True, quiet=True)
+        install('scipy==1.17.1', ignore=True, quiet=True)
     else:
         install('scipy==1.14.1', ignore=True, quiet=True)
 
 
 def install_opencv():
-    install('opencv-python==4.12.0.88', ignore=True, quiet=True)
-    install('opencv-python-headless==4.12.0.88', ignore=True, quiet=True)
-    install('opencv-contrib-python==4.12.0.88', ignore=True, quiet=True)
-    install('opencv-contrib-python-headless==4.12.0.88', ignore=True, quiet=True)
+    install('opencv-python==4.13.0.92', ignore=True, quiet=True)
+    install('opencv-python-headless==4.13.0.92', ignore=True, quiet=True)
+    install('opencv-contrib-python==4.13.0.92', ignore=True, quiet=True)
+    install('opencv-contrib-python-headless==4.13.0.92', ignore=True, quiet=True)
 
 
 def install_insightface():
@@ -1241,7 +1285,7 @@ def install_optional():
     install('hf_xet', ignore=True, quiet=True)
     install('nvidia-ml-py', ignore=True, quiet=True)
     install('pillow-jxl-plugin==1.3.7', ignore=True, quiet=True)
-    install('ultralytics==8.3.40', ignore=True, quiet=True)
+    install('ultralytics==8.4.67', ignore=True, quiet=True)
     install('open-clip-torch', no_deps=True, quiet=True)
     install('git+https://github.com/tencent-ailab/IP-Adapter.git', 'ip_adapter', ignore=True, quiet=True)
     # install('git+https://github.com/openai/CLIP.git', 'clip', quiet=True, no_build_isolation=True)
@@ -1285,7 +1329,7 @@ def install_requirements():
     ts('requirements', t_start)
 
 
-# set environment variables controling the behavior of various libraries
+# set environment variables controlling the behavior of various libraries
 def set_environment():
     log.debug('Setting environment tuning')
     os.environ.setdefault('ACCELERATE', 'True')
@@ -1489,6 +1533,8 @@ def check_venv():
     import site
     pkg_path = [try_relpath(p) for p in site.getsitepackages() if os.path.exists(p)]
     log.debug(f'Packages: prefix={try_relpath(sys.prefix)} site={pkg_path}')
+    if args.uv:
+        uv_info()
     for p in pkg_path:
         invalid = []
         for f in os.listdir(p):
@@ -1790,12 +1836,18 @@ def read_options():
 def ensure_base_requirements():
     t_start = time.time()
     setuptools_version = '69.5.1'
+    if (args.uv or '--uv' in sys.argv) and (shutil.which('uv') is not None): # early enable uv
+        args.uv = True # pylint: disable=attribute-defined-outside-init
+        uv_info()
 
     def update_setuptools():
         local_log = logging.getLogger('sdnext.installer')
         global setuptools, distutils # pylint: disable=global-statement
         # python may ship with incompatible setuptools
-        subprocess.run(f'"{sys.executable}" -m pip install setuptools=={setuptools_version}', shell=True, check=False, env=os.environ, capture_output=True)
+        if args.uv:
+            subprocess.run(f'uv pip install setuptools=={setuptools_version} wheel', shell=True, check=False, env=os.environ, capture_output=True)
+        else:
+            subprocess.run(f'"{sys.executable}" -m pip install setuptools=={setuptools_version} wheel', shell=True, check=False, env=os.environ, capture_output=True)
         # need to delete all references to modules to be able to reload them otherwise python will use cached version
         modules = [m for m in sys.modules if m.startswith('setuptools') or m.startswith('distutils')]
         for m in modules:
@@ -1824,20 +1876,21 @@ def ensure_base_requirements():
 
     try:
         global setuptools # pylint: disable=global-statement
+        import wheel # pylint: disable=unused-import
         import setuptools # pylint: disable=redefined-outer-name
         if setuptools.__version__ != setuptools_version:
             update_setuptools()
     except ImportError:
         update_setuptools()
 
-    # used by installler itself so must be installed before requirements
-    install('rich==14.1.0', 'rich', quiet=True)
+    # used by installer itself so must be installed before requirements
+    install('rich==15.0.0', 'rich', quiet=True)
     install('psutil', 'psutil', quiet=True)
     install('requests==2.32.3', 'requests', quiet=True)
     ts('base', t_start)
 
-# startup
 
+# startup
 ensure_base_requirements()
 from modules.logger import setup_logging # must be loaded after ensure_base_requirements
 from modules.logger import log as log_instance

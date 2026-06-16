@@ -113,6 +113,12 @@ def create_settings(cmd_opts):
         "model_qwen_layers": OptionInfo(2, "Qwen layered number of layers", gr.Slider, {"minimum": 2, "maximum": 9, "step": 1 }),
         "model_ernie_sep": OptionInfo("<h2>ERNIE-Image</h2>", "", gr.HTML),
         "model_ernie_enable_pe": OptionInfo(False, "Enable prompt-enhance"),
+        "model_lens_sep": OptionInfo("<h2>Lens</h2>", "", gr.HTML),
+        "model_lens_enable_pe": OptionInfo(False, "Enable prompt-enhance"),
+        "model_ideogram4_sep": OptionInfo("<h2>Ideogram 4</h2>", "", gr.HTML),
+        "model_ideogram4_enable_pe": OptionInfo(True, "Enable prompt-enhance"),
+        "model_ideogram4_enable_cg": OptionInfo(True, "Enable conditioning guidance"),
+        "model_ideogram4_pin": OptionInfo(False, "Pin transformers to VRAM"),
     }))
 
     # --- Model Offloading ---
@@ -140,6 +146,7 @@ def create_settings(cmd_opts):
 
     # --- Model Quantization ---
     options_templates.update(options_section(("quantization", "Model Quantization"), {
+        "quantize_sep": OptionInfo("<h2>Quantization General</h2>", "", gr.HTML),
         "models_not_to_quant": OptionInfo("", "Model types not to quantize"),
 
         "sdnq_quantize_sep": OptionInfo("<h2>SDNQ: SD.Next Quantization</h2>", "", gr.HTML),
@@ -151,11 +158,13 @@ def create_settings(cmd_opts):
         "sdnq_quantize_matmul_mode_te": OptionInfo("Same as model", "Quantized MatMul type for Text Encoders", gr.Dropdown, {"choices": ['Same as model'] + sdnq_matmul_modes}),
         "sdnq_modules_to_not_convert": OptionInfo("", "Modules to not convert"),
         "sdnq_modules_dtype_dict": OptionInfo("{}", "Modules dtype dict"),
-        "sdnq_quantize_weights_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1}),
+        "sdnq_group_size": OptionInfo(0, "Group size", gr.Slider, {"minimum": -1, "maximum": 4096, "step": 1}),
+        "sdnq_hadamard_group_size": OptionInfo(256, "Hadamard group size", gr.Slider, {"minimum": 4, "maximum": 4096, "step": 1}),
         "sdnq_svd_rank": OptionInfo(32, "SVD rank size", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1}),
         "sdnq_svd_steps": OptionInfo(8, "SVD steps", gr.Slider, {"minimum": 1, "maximum": 128, "step": 1}),
-        "sdnq_dynamic_loss_threshold": OptionInfo(-1e-8, "Dynamic loss threshold", gr.Slider, {"minimum": -1e-8, "maximum": 1e-1, "step": 1e-8}),
+        "sdnq_dynamic_loss_threshold": OptionInfo(-1, "Dynamic loss threshold", gr.Slider, {"minimum": -1, "maximum": 0.1, "step": 1e-4}),
         "sdnq_use_svd": OptionInfo(False, "Use SVD quantization", gr.Checkbox),
+        "sdnq_use_hadamard": OptionInfo(False, "Use Hadamard rotations", gr.Checkbox),
         "sdnq_use_dynamic_quantization": OptionInfo(False, "Use Dynamic quantization", gr.Checkbox),
         "sdnq_quantize_conv_layers": OptionInfo(False, "Quantize convolutional layers", gr.Checkbox),
         "sdnq_quantize_embedding_layers": OptionInfo(False, "Quantize embedding layers", gr.Checkbox),
@@ -200,7 +209,7 @@ def create_settings(cmd_opts):
         "sd_textencder_linebreak": OptionInfo(True, "Use line break as prompt segment marker", gr.Checkbox),
         "diffusers_zeros_prompt_pad": OptionInfo(False, "Use zeros for prompt padding", gr.Checkbox),
         "te_optional_sep": OptionInfo("<h2>Optional</h2>", "", gr.HTML),
-        "te_shared_t5": OptionInfo(True, "T5: Use shared instance of text encoder"),
+        "te_shared_te": OptionInfo(True, "Use shared instance of text encoder"),
         "te_pooled_embeds": OptionInfo(False, "SDXL: Use weighted pooled embeds"),
         "te_complex_human_instruction": OptionInfo(True, "Sana: Use complex human instructions"),
         "te_use_mask": OptionInfo(True, "Lumina: Use mask in transformers"),
@@ -225,6 +234,9 @@ def create_settings(cmd_opts):
         "xformers_options": OptionInfo(['Flash attention'], "xFormers options", gr.CheckboxGroup, {"choices": ['Flash attention'] }),
         "dynamic_attention_slice_rate": OptionInfo(0.5, "Dynamic Attention slicing rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4), "step": 0.01}),
         "dynamic_attention_trigger_rate": OptionInfo(1, "Dynamic Attention trigger rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4)*2, "step": 0.01}),
+
+        "hf_attention_sep": OptionInfo("<h2>Attention Dispatcher</h2>", "", gr.HTML),
+        "hf_attention": OptionInfo('', "Attention dispatcher kernel", gr.Textbox),
     }))
 
     # --- Server Settings ---
@@ -371,7 +383,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('compile', "Model Compile"), {
         "cuda_compile_sep": OptionInfo("<h2>Model Compile</h2>", "", gr.HTML),
         "cuda_compile": OptionInfo([] if not cmd_opts.use_openvino else ["Model", "VAE", "Upscaler", "Control"], "Compile Model", gr.CheckboxGroup, {"choices": ["Model", "TE", "VAE", "LLM", "Control", "Upscaler"]}),
-        "cuda_compile_backend": OptionInfo("inductor" if not cmd_opts.use_openvino else "openvino_fx", "Model compile backend", gr.Radio, {"choices": ['none', 'inductor', 'cudagraphs', 'aot_ts_nvfuser', 'hidet', 'migraphx', 'ipex', 'onediff', 'stable-fast', 'deep-cache', 'olive-ai', 'openvino', 'openvino_fx']}),
+        "cuda_compile_backend": OptionInfo("inductor" if not cmd_opts.use_openvino else "openvino_fx", "Model compile backend", gr.Radio, {"choices": ['none', 'inductor', 'cudagraphs', 'aot_ts_nvfuser', 'hidet', 'migraphx', 'ipex', 'onediff', 'stable-fast', 'deep-cache', 'olive-ai', 'openvino', 'openvino_fx', 'pruna']}),
         "cuda_compile_mode": OptionInfo("default", "Model compile mode", gr.Radio, {"choices": ['default', 'reduce-overhead', 'max-autotune', 'max-autotune-no-cudagraphs']}),
         "cuda_compile_options": OptionInfo(["repeated", "dynamic", "components"] if not cmd_opts.use_openvino else [], "Model compile options", gr.CheckboxGroup, {"choices": ["components", "precompile", "repeated", "fullgraph", "dynamic", "verbose"]}),
         "deep_cache_interval": OptionInfo(3, "DeepCache cache interval", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1}),
@@ -418,7 +430,7 @@ def create_settings(cmd_opts):
         "keep_incomplete": OptionInfo(True, "Save interrupted images"),
         "samples_format": OptionInfo('jpg', 'File format', gr.Dropdown, {"choices": ["jpg", "png", "webp", "tiff", "jp2", "jxl"]}),
         "jpeg_quality": OptionInfo(90, "Image quality", gr.Slider, {"minimum": 1, "maximum": 100, "step": 1}),
-        "img_max_size_mp": OptionInfo(1000, "Maximum image size (MP)", gr.Slider, {"minimum": 100, "maximum": 2000, "step": 1}),
+        "img_max_size_mp": OptionInfo(1000, "Maximum image size (MP)", gr.Slider, {"minimum": 10, "maximum": 2000, "step": 1}),
         "webp_lossless": OptionInfo(False, "WebP lossless compression"),
         "save_selected_only": OptionInfo(True, "UI save only saves selected image"),
         "include_mask": OptionInfo(False, "Include mask in outputs"),
@@ -439,7 +451,7 @@ def create_settings(cmd_opts):
         "browser_folders": OptionInfo("", "Additional image browser folders"),
         "browser_gallery_autoupdate": OptionInfo(True, "Gallery auto-update on tab change", gr.Checkbox, { "visible": False}),
         "browser_fixed_width": OptionInfo(False, "Use fixed width thumbnails", gr.Checkbox, { "visible": False}),
-        "viewer_show_metadata": OptionInfo(True, "Show metadata in full screen image browser"),
+        "viewer_show_metadata": OptionInfo(True, "Show metadata in image viewer"),
 
         "save_sep_options": OptionInfo("<h2>Intermediate Image Saving</h2>", "", gr.HTML),
         "save_init_img": OptionInfo(False, "Save init images"),
@@ -447,8 +459,6 @@ def create_settings(cmd_opts):
         "save_images_before_refiner": OptionInfo(False, "Save image before refiner"),
         "save_images_before_detailer": OptionInfo(False, "Save image before detailer"),
         "save_images_before_color_correction": OptionInfo(False, "Save image before color correction"),
-        "save_mask": OptionInfo(False, "Save inpainting mask"),
-        "save_mask_composite": OptionInfo(False, "Save inpainting masked composite"),
         "gradio_skip_video": OptionInfo(False, "Do not display video output in UI"),
 
         "image_sep_watermark": OptionInfo("<h2>Watermarking</h2>", "", gr.HTML),
@@ -549,8 +559,6 @@ def create_settings(cmd_opts):
 
         "images_sep_ui": OptionInfo("<h2>Outputs & Images</h2>", "", gr.HTML),
         "return_grid": OptionInfo(True, "Show grid in results"),
-        "return_mask": OptionInfo(False, "Inpainting include greyscale mask in results"),
-        "return_mask_composite": OptionInfo(False, "Inpainting include masked composite in results"),
         "send_seed": OptionInfo(True, "Send seed when sending prompt or image to other interface", gr.Checkbox, {"visible": False}),
         "send_size": OptionInfo(False, "Send size when sending prompt or image to another interface", gr.Checkbox, {"visible": False}),
     }))
@@ -565,11 +573,12 @@ def create_settings(cmd_opts):
         "live_preview_downscale": OptionInfo(True, "Downscale high resolution live previews"),
 
         "notification_audio_enable": OptionInfo(False, "Play a notification upon completion"),
-        "notification_audio_path": OptionInfo("html/notification.mp3","Path to notification sound", component_args=hide_dirs, folder=True),
+        "notification_audio_path": OptionInfo("ui/assets/notification.mp3","Path to notification sound", component_args=hide_dirs, folder=True),
     }))
 
     # --- Postprocessing ---
     options_templates.update(options_section(('postprocessing', "Postprocessing"), {
+        "postprocessing_sep": OptionInfo("<h2>Postprocessing Operations</h2>", "", gr.HTML),
         'postprocessing_enable_in_main_ui': OptionInfo([], "Additional postprocessing operations", gr.Dropdown, lambda: {"multiselect":True, "choices": [x.name for x in shared_items.postprocessing_scripts()]}),
         'postprocessing_operation_order': OptionInfo([], "Postprocessing operation order", gr.Dropdown, lambda: {"multiselect":True, "choices": [x.name for x in shared_items.postprocessing_scripts()], "visible": False }),
 
@@ -588,7 +597,6 @@ def create_settings(cmd_opts):
         "postprocessing_sep_seedvr": OptionInfo("<h2>SeedVR</h2>", "", gr.HTML),
         "seedvr_cfg_scale": OptionInfo(3.5, "SeedVR CFG Scale", gr.Slider, {"minimum": 1, "maximum": 15, "step": 1}),
 
-
         "postprocessing_sep_upscalers": OptionInfo("<h2>Upscaling</h2>", "", gr.HTML),
         "upscaler_unload": OptionInfo(False, "Unload upscaler after processing"),
         "upscaler_latent_steps": OptionInfo(20, "Upscaler latent steps", gr.Slider, {"minimum": 4, "maximum": 100, "step": 1}),
@@ -600,13 +608,12 @@ def create_settings(cmd_opts):
         "resize_linearize_srgb": OptionInfo(True, "Apply sRGB linearization"),
     }))
 
-
     # --- Huggingface ---
     options_templates.update(options_section(('huggingface', "Huggingface"), {
         "huggingface_sep": OptionInfo("<h2>Huggingface</h2>", "", gr.HTML),
         "diffuser_cache_config": OptionInfo(True, "Use cached model config when available"),
         "huggingface_token": OptionInfo('', 'HuggingFace token', gr.Textbox, {"lines": 2}, secret=True, env_var='HF_TOKEN'),
-        "hf_transfer_mode": OptionInfo("rust", "HuggingFace download method", gr.Radio, {"choices": ['requests', 'rust', 'xet']}),
+        "hf_transfer_mode": OptionInfo("XET", "HuggingFace download method", gr.Dropdown, {"choices": ['HTTP', 'XET', 'XET HighPerformance', 'XET Sequential']}),
         "huggingface_mirror": OptionInfo('', 'HuggingFace mirror', gr.Textbox),
         "offline_mode": OptionInfo(False, 'Force offline mode', gr.Checkbox),
 
@@ -711,6 +718,7 @@ def create_settings(cmd_opts):
                 "caption_vlm_keep_prefill": OptionInfo(False, "VLM: keep prefill text in output", gr.Checkbox, {"visible": False}),
                 "caption_vlm_keep_thinking": OptionInfo(False, "VLM: keep reasoning trace in output", gr.Checkbox, {"visible": False}),
                 "caption_vlm_thinking_mode": OptionInfo(False, "VLM: enable thinking/reasoning mode", gr.Checkbox, {"visible": False}),
+                "caption_vlm_custom_args": OptionInfo("", "VLM: custom arguments", gr.Textbox, {"visible": False}),
                 "tagger_threshold": OptionInfo(0.50, "Tagger: general tag threshold", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.01, "visible": False}),
                 "tagger_include_rating": OptionInfo(False, "Tagger: include rating tags", gr.Checkbox, {"visible": False}),
                 "tagger_max_tags": OptionInfo(74, "Tagger: max tags", gr.Slider, {"minimum": 1, "maximum": 512, "step": 1, "visible": False}),
@@ -734,7 +742,7 @@ def create_settings(cmd_opts):
                 "schedulers_solver_order": OptionInfo(0, "Solver order (where", gr.Slider, {"minimum": 0, "maximum": 5, "step": 1, "visible": False}),
                 "schedulers_use_loworder": OptionInfo(True, "Use simplified solvers in final steps", gr.Checkbox, {"visible": False}),
                 "schedulers_prediction_type": OptionInfo("default", "Override model prediction type", gr.Radio, {"choices": ["default", "epsilon", "sample", "v_prediction", "flow_prediction"], "visible": False}),
-                "schedulers_sigma": OptionInfo("default", "Sigma algorithm", gr.Radio, {"choices": ["default", "karras", "exponential", "polyexponential"], "visible": False}),
+                "schedulers_sigma": OptionInfo("default", "Sigma algorithm", gr.Radio, {"choices": ["default", "karras", "betas", "exponential", "lambdas", "flowmatch"], "visible": False}),
                 "schedulers_beta_schedule": OptionInfo("default", "Beta schedule", gr.Dropdown, {"choices": ["default", "linear", "scaled_linear", "squaredcos_cap_v2", "sigmoid"], "visible": False}),
                 "schedulers_use_thresholding": OptionInfo(False, "Use dynamic thresholding", gr.Checkbox, {"visible": False}),
                 "schedulers_timestep_spacing": OptionInfo("default", "Timestep spacing", gr.Dropdown, {"choices": ["default", "linspace", "leading", "trailing"], "visible": False}),
@@ -744,6 +752,7 @@ def create_settings(cmd_opts):
                 "schedulers_beta_end": OptionInfo(0, "Beta end", gr.Slider, {"minimum": 0, "maximum": 1, "step": 0.00001}),
                 "schedulers_timesteps_range": OptionInfo(1000, "Timesteps range", gr.Slider, {"minimum": 250, "maximum": 4000, "step": 1}),
                 "schedulers_shift": OptionInfo(3, "Sampler shift", gr.Slider, {"minimum": 0.1, "maximum": 10, "step": 0.1, "visible": False}),
+                "schedulers_fallback": OptionInfo(True, "Sampler fallback on invalid", gr.Checkbox, {"visible": False}),
                 "schedulers_dynamic_shift": OptionInfo(False, "Sampler dynamic shift", gr.Checkbox, {"visible": False}),
                 "schedulers_sigma_adjust": OptionInfo(1.0, "Sigma adjust", gr.Slider, {"minimum": 0.5, "maximum": 1.5, "step": 0.01, "visible": False}),
                 "schedulers_sigma_adjust_min": OptionInfo(0.2, "Sigma adjust start", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.01, "visible": False}),

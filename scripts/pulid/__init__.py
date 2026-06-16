@@ -4,7 +4,7 @@ Credit and original implementation: <https://github.com/ToTheBeginning/PuLID>
 
 import os
 import sys
-from modules.errors import log
+from modules.logger import log
 sys.path.append(os.path.dirname(__file__))
 try:
     from pulid_sdxl import StableDiffusionXLPuLIDPipeline, StableDiffusionXLPuLIDPipelineImage, StableDiffusionXLPuLIDPipelineInpaint

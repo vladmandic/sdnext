@@ -347,7 +347,7 @@ class DemoFusionSDXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderM
 
         # DemoFusion specific checks
         if max(height, width) % 1024 != 0:
-            log.error('DemoFusion: resolution={width}x{height} long side must be divisible by 1024')
+            log.error(f'DemoFusion: resolution={width}x{height} long side must be divisible by 1024')
             return None
 
         if num_images_per_prompt != 1:
@@ -1157,7 +1157,7 @@ class DemoFusionSDXLPipeline(DiffusionPipeline, FromSingleFileMixin, LoraLoaderM
         output = ImagePipelineOutput(images=output_images)
         return output
 
-    # Overrride to properly handle the loading and unloading of the additional text encoder.
+    # Override to properly handle the loading and unloading of the additional text encoder.
     def load_lora_weights(self, pretrained_model_name_or_path_or_dict: Union[str, Dict[str, torch.Tensor]], **kwargs): # pylint: disable=arguments-differ
         # We could have accessed the unet config from `lora_state_dict()` too. We pass
         # it here explicitly to be able to tell that it's coming from an SDXL

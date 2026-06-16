@@ -70,6 +70,7 @@ class APIGenerate:
             p.ip_adapter_starts = []
             p.ip_adapter_ends = []
             p.ip_adapter_images = []
+            p.ip_adapter_masks = []
             for ipadapter in request.ip_adapter:
                 if not ipadapter.images or len(ipadapter.images) == 0:
                     continue
@@ -79,7 +80,6 @@ class APIGenerate:
                 p.ip_adapter_starts.append(ipadapter.start)
                 p.ip_adapter_ends.append(ipadapter.end)
                 p.ip_adapter_images.append([helpers.decode_base64_to_image(x) for x in ipadapter.images])
-                p.ip_adapter_masks = []
                 if ipadapter.masks:
                     p.ip_adapter_masks.append([helpers.decode_base64_to_image(x) for x in ipadapter.masks])
             del request.ip_adapter

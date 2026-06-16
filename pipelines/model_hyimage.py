@@ -16,9 +16,12 @@ def load_hyimage(checkpoint_info, diffusers_load_config=None): # pylint: disable
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config)
     log.debug(f'Load model: type=HunyuanImage21 repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-    transformer = generic.load_transformer(repo_id, cls_name=diffusers.HunyuanImageTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer")
+    from pipelines.hyimage import HUNYUANIMAGE_SPEC
+    transformer = generic.load_transformer(repo_id, cls_name=diffusers.HunyuanImageTransformer2DModel, load_config=diffusers_load_config, subfolder="transformer", native_spec=HUNYUANIMAGE_SPEC)
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen2_5_VLForConditionalGeneration, load_config=diffusers_load_config, subfolder="text_encoder")
     text_encoder_2 = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config, subfolder="text_encoder_2", allow_shared=False)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
 
     pipe = diffusers.HunyuanImagePipeline.from_pretrained(
         repo_id,
@@ -55,6 +58,9 @@ def load_hyimage3(checkpoint_info, diffusers_load_config=None): # pylint: disabl
         allow_quant = False
 
     load_args, quant_args = model_quant.get_dit_args(diffusers_load_config, module='Model', device_map=True, allow_quant=allow_quant)
+    generic.set_pipeline('HunyuanImage3', transformers.AutoModelForCausalLM)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
     pipe = transformers.AutoModelForCausalLM.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,
@@ -101,9 +107,9 @@ class HunyuanImage3Wrapper(torch.nn.Module):
 
         if height is None and width is None:
             image_size = "auto"
-        if height is None:
+        elif height is None:
             image_size = (width, width)
-        if width is None:
+        elif width is None:
             image_size = (height, height)
         else:
             image_size = (height, width)

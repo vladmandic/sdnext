@@ -51,7 +51,7 @@ def resize_image(resize_mode: int, im: Image.Image | torch.Tensor, width: int, h
                 else:
                     im = selected_upscaler.scaler.upscale(im, scale, selected_upscaler.name)
             else:
-                log.warning(f"Resize upscaler: invalid={upscaler_name} fallback={selected_upscaler.name}")
+                log.warning(f"Resize upscaler: invalid={upscaler_name} fallback=resample")
                 log.debug(f"Resize upscaler: available={[u.name for u in shared.sd_upscalers]}")
         if isinstance(im, Image.Image) and (im.width != w or im.height != h): # probably downsample after upscaler created larger image
             im = sharpfin.resize(im, (w, h))

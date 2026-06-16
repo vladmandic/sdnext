@@ -92,3 +92,42 @@ class NetworkModuleLokrChunk(NetworkModuleLokr):
         updown = torch.chunk(updown, self.num_chunks, dim=0)[self.chunk_index]
         output_shape = list(updown.shape)
         return self.finalize_updown(updown, target, output_shape)
+
+
+class NetworkModuleLokrSliceChunk(NetworkModuleLokr):
+    """LoKR module that returns one row-range of the Kronecker product.
+
+    Used when a LoKR adapter targets a fused weight with unequal chunk sizes
+    (e.g. Chroma single ``linear1`` = Q/K/V/proj_mlp at dims
+    [3072, 3072, 3072, 12288]). ``NetworkModuleLokrChunk`` only supports
+    equal-sized chunks via ``torch.chunk``; this variant slices an explicit
+    row range so partitions of any shape are addressable.
+    """
+    def __init__(self, net, weights, start_row, end_row):
+        super().__init__(net, weights)
+        self.start_row = start_row
+        self.end_row = end_row
+
+    def calc_updown(self, target):
+        if self.w1 is not None:
+            w1 = self.w1.to(target.device, dtype=target.dtype)
+        else:
+            w1a = self.w1a.to(target.device, dtype=target.dtype)
+            w1b = self.w1b.to(target.device, dtype=target.dtype)
+            w1 = w1a @ w1b
+        if self.w2 is not None:
+            w2 = self.w2.to(target.device, dtype=target.dtype)
+        elif self.t2 is None:
+            w2a = self.w2a.to(target.device, dtype=target.dtype)
+            w2b = self.w2b.to(target.device, dtype=target.dtype)
+            w2 = w2a @ w2b
+        else:
+            t2 = self.t2.to(target.device, dtype=target.dtype)
+            w2a = self.w2a.to(target.device, dtype=target.dtype)
+            w2b = self.w2b.to(target.device, dtype=target.dtype)
+            w2 = lyco_helpers.make_weight_cp(t2, w2a, w2b)
+        full_shape = [w1.size(0) * w2.size(0), w1.size(1) * w2.size(1)]
+        updown = make_kron(full_shape, w1, w2)
+        updown = updown[self.start_row:self.end_row]
+        output_shape = list(updown.shape)
+        return self.finalize_updown(updown, target, output_shape)

@@ -41,7 +41,7 @@ def get_prompts_tokens_with_weights(clip_tokenizer: CLIPTokenizer, prompt: str |
         text_tokens (list)
             A list contains token ids
         text_weight (list)
-            A list contains the correspodent weight of token ids
+            A list contains the correspondent weight of token ids
 
     Example:
         import torch

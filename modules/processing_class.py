@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import os
 import sys
 import inspect
 import hashlib
-from typing import Any
+from collections import defaultdict
+from typing import Any, TYPE_CHECKING
 from dataclasses import dataclass, field
 import numpy as np
 from PIL import Image, ImageOps
@@ -10,6 +13,9 @@ from modules import shared, images, scripts_manager, masking, sd_models, sd_vae,
 from modules.logger import log
 from modules.paths import resolve_output_path
 from modules.image.util import flatten
+
+if TYPE_CHECKING:
+    from modules.extra_networks import ExtraNetworkParams
 
 
 debug = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -48,9 +54,9 @@ class StableDiffusionProcessing:
                  # legacy guidance
                  cfg_scale: float = 6.0,
                  cfg_end: float = 1,
-                 diffusers_guidance_rescale: float = 0.0,
-                 pag_scale: float = 0.0,
-                 pag_adaptive: float = 0.5,
+                 cfg_rescale: float = 0.0,
+                 cfg_true: float = 0.0,
+                 cfg_adaptive: float = 0.5,
                  # styles
                  styles: list[str] | None = None,
                  # vae
@@ -100,10 +106,6 @@ class StableDiffusionProcessing:
                  grid_save: bool | None = None,
                  grid_format: str | None = None,
                  return_grid: bool | None = None,
-                 save_mask: bool | None = None,
-                 save_mask_composite: bool | None = None,
-                 return_mask: bool | None = None,
-                 return_mask_composite: bool | None = None,
                  keep_incomplete: bool | None = None,
                  image_metadata: bool | None = None,
                  jpeg_quality: int | None = None,
@@ -151,7 +153,7 @@ class StableDiffusionProcessing:
                  denoising_strength: float = 0.3,
                  init_images: list | None = None,
                  init_control: list | None = None,
-                 image_cfg_scale: float | None = None,
+                 cfg_image: float | None = None,
                  initial_noise_multiplier: float | None = None, # pylint: disable=unused-argument # a1111 compatibility
                  # resize
                  scale_by: float = 1,
@@ -323,7 +325,9 @@ class StableDiffusionProcessing:
         self.negative_prompt_attention_masks = []
         self.disable_extra_networks = False
         self.iteration = 0
-        self.network_data = network_data or {}
+        self.network_data: defaultdict[str, list[ExtraNetworkParams]] = defaultdict(list)
+        if network_data is not None:
+            self.network_data |= network_data
 
         # initializers
         self.prompt = prompt
@@ -382,10 +386,6 @@ class StableDiffusionProcessing:
         self.grid_save = grid_save
         self.grid_format = grid_format
         self.return_grid = return_grid
-        self.save_mask = save_mask
-        self.save_mask_composite = save_mask_composite
-        self.return_mask = return_mask
-        self.return_mask_composite = return_mask_composite
         self.keep_incomplete = keep_incomplete
         self.image_metadata = image_metadata
         self.jpeg_quality = jpeg_quality
@@ -400,7 +400,7 @@ class StableDiffusionProcessing:
         self.resize_name = resize_name
         self.resize_context = resize_context
         self.denoising_strength = denoising_strength
-        self.image_cfg_scale = image_cfg_scale
+        self.cfg_image = cfg_image
         self.scale_by = scale_by
         self.mask = mask
         self.image_mask = mask # TODO processing: remove duplicate mask params
@@ -465,9 +465,9 @@ class StableDiffusionProcessing:
         self.guidance_stop = guidance_stop
         self.cfg_scale = cfg_scale
         self.cfg_end = cfg_end
-        self.diffusers_guidance_rescale = diffusers_guidance_rescale
-        self.pag_scale = pag_scale
-        self.pag_adaptive = pag_adaptive
+        self.cfg_rescale = cfg_rescale
+        self.cfg_true = cfg_true
+        self.cfg_adaptive = cfg_adaptive
         self.selected_scale_tab = selected_scale_tab
         self.mask_for_overlay = mask_for_overlay
         self.paste_to = paste_to
@@ -571,6 +571,8 @@ class StableDiffusionProcessing:
         self.negative_prompts = []
         self.all_prompts = []
         self.all_negative_prompts = []
+        self.all_templates = []
+        self.all_negative_templates = []
         self.seeds = []
         self.subseeds = []
         self.all_seeds = []
@@ -631,7 +633,7 @@ class StableDiffusionProcessing:
         self.negative_embeds = []
         self.negative_pooleds = []
         self.prompt_attention_masks = []
-        self.negative_prompt_attention_mask = []
+        self.negative_prompt_attention_masks = []
         self.xyz = xyz
         self.abort = False
 
@@ -768,9 +770,9 @@ class StableDiffusionProcessingImg2Img(StableDiffusionProcessing):
         if type(self.image_mask) == list:
             self.image_mask = self.image_mask[0]
         if 'Control' in self.__class__.__name__:
-            self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1) # blur/padding are handled in masking module
+            self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, invert=self.inpainting_mask_invert==1) # blur/padding are handled in masking module
         elif self.image_mask is not None:
-            self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, return_type='Grayscale', invert=self.inpainting_mask_invert==1, mask_blur=self.mask_blur, mask_padding=self.inpaint_full_res_padding) # old img2img
+            self.image_mask = masking.run_mask(input_image=self.init_images, input_mask=self.image_mask, invert=self.inpainting_mask_invert==1, mask_blur=self.mask_blur, mask_padding=self.inpaint_full_res_padding) # old img2img
         if self.inpaint_full_res and self.image_mask is not None: # mask only inpaint
             self.mask_for_overlay = self.image_mask
             mask = self.image_mask.convert('L')

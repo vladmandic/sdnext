@@ -84,7 +84,7 @@ class Tiler:
     def merge_tiles(
         self, tiles: List[List[torch.Tensor]], tiling_method: str = "gaussian"
     ) -> torch.Tensor:
-        """Merge tiles by averaging the overlaping regions
+        """Merge tiles by averaging the overlapping regions
         Args:
             tiles (Dict[str, Tile]): dictionary of processed tiles
             tiling_method (str): tiling method. Can be "average", "gaussian" or "linear"
@@ -103,7 +103,7 @@ class Tiler:
             )
 
     def _average_merge_tiles(self, tiles: List[List[torch.Tensor]]) -> torch.Tensor:
-        """Merge tiles by averaging the overlaping regions
+        """Merge tiles by averaging the overlapping regions
         Args:
             tiles (Dict[str, Tile]): dictionary of processed tiles
         Returns:
@@ -149,7 +149,7 @@ class Tiler:
                 ] += 1
 
         # outputs is summed up with this multiplicity
-        # so we need to divide by the weights wich is either 1, 2 or 4 depending on the region
+        # so we need to divide by the weights which is either 1, 2 or 4 depending on the region
         output = output / weights
         return output
 
@@ -204,7 +204,7 @@ class Tiler:
         )
 
     def _gaussian_merge_tiles(self, tiles: List[List[torch.Tensor]]) -> torch.Tensor:
-        """Merge tiles by averaging the overlaping regions
+        """Merge tiles by averaging the overlapping regions
         Args:
             List[List[torch.Tensor]]: List of processed tiles
         Returns:
@@ -278,7 +278,7 @@ class Tiler:
         return b
 
     def _linear_merge_tiles(self, tiles: List[List[torch.Tensor]]) -> torch.Tensor:
-        """Merge tiles by blending the overlaping regions
+        """Merge tiles by blending the overlapping regions
         Args:
             tiles (List[List[torch.Tensor]]): List of processed tiles
         Returns:

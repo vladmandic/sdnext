@@ -27,6 +27,7 @@ class UpscalerSeedVR(Upscaler):
         ]
         self.model = None
         self.model_loaded = None
+        self.device = devices.device
 
     def load_model(self, path: str):
         model_name = MODELS_MAP.get(path, None)
@@ -46,7 +47,10 @@ class UpscalerSeedVR(Upscaler):
             self.model.dit.dtype = devices.dtype
             self.model.vae_encode = self.vae_encode
             self.model.vae_decode = self.vae_decode
-            self.model.model_step = generation.generation_step
+            # Patch generation_loop's generation_step() with our wrapper; stash the original once
+            # so reloads don't re-wrap the wrapper itself (infinite recursion).
+            if not hasattr(generation, "generation_step_original"):
+                generation.generation_step_original = generation.generation_step
             generation.generation_step = self.model_step
             self.model._internal_dict = {
                 'dit': self.model.dit,
@@ -118,6 +122,7 @@ class UpscalerSeedVR(Upscaler):
         return samples
 
     def model_step(self, *args, **kwargs):
+        from modules.seedvr.src.core import generation
         from modules.seedvr.src.optimization import memory_manager
         self.model.vae = self.model.vae.to(device="cpu")
         self.model.dit = self.model.dit.to(device=self.device)
@@ -125,7 +130,7 @@ class UpscalerSeedVR(Upscaler):
         log.debug(f'Upscaler inference: args={len(args)} kwargs={list(kwargs.keys())}')
         memory_manager.preinitialize_rope_cache(self.model)
         with devices.inference_context():
-            result = self.model.model_step(*args, **kwargs)
+            result = generation.generation_step_original(*args, **kwargs)
         self.model.dit = self.model.dit.to(device="cpu")
         devices.torch_gc()
         return result

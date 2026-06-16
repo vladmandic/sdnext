@@ -15,8 +15,8 @@ def create_guidance_inputs(tab):
                 guidance_btn = ui_components.ToolButton(value=ui_symbols.book, elem_id=f"{tab}_guider_docs")
                 guidance_btn.click(fn=None, _js='getGuidanceDocs', inputs=[guidance_name], outputs=[])
             with gr.Row(visible=shared.opts.model_modular_enable):
-                guidance_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.1, label='_Guidance scale', value=4.0, elem_id=f"{tab}_guidance_scale")
-                guidance_rescale = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='_Guidance rescale', value=0.0, elem_id=f"{tab}_guidance_rescale")
+                guidance_scale = gr.Slider(minimum=-1.0, maximum=30.0, step=0.1, label='_Guidance scale', value=-1.0, elem_id=f"{tab}_guidance_scale")
+                guidance_rescale = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, label='_Guidance rescale', value=-1.0, elem_id=f"{tab}_guidance_rescale")
             with gr.Row(visible=shared.opts.model_modular_enable):
                 guidance_start = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='_Guidance start', value=0.0, elem_id=f"{tab}_guidance_start")
                 guidance_stop = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, label='_Guidance stop', value=1.0, elem_id=f"{tab}_guidance_stop")
@@ -55,12 +55,12 @@ def create_guidance_inputs(tab):
 
             pag_group = gr.Accordion(open=True, label='Advanced guidance params', elem_classes=["small-accordion"], visible=False)
             with pag_group:
-                guidance_pag_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.05, label='PAG scale', value=2.8)
+                guidance_cfg_true = gr.Slider(minimum=0.0, maximum=30.0, step=0.05, label='PAG scale', value=2.8)
                 guidance_pag_start = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='PAG start', value=0.01)
                 guidance_pag_stop = gr.Slider(minimum=0.0, maximum=1.0, step=0.01, label='PAG stop', value=0.2)
                 guidance_pag_layers = gr.Textbox(label='PAG layers', value='7, 8, 9', placeholder='Comma-separated layer indices, e.g. 7,8,9')
                 guidance_pag_config = gr.Dropdown(choices=[None, 'config1', 'config2'], value=None, label='PAG config')
-                guidance_pag_args = [guidance_pag_scale, guidance_pag_start, guidance_pag_stop, guidance_pag_layers, guidance_pag_config]
+                guidance_pag_args = [guidance_cfg_true, guidance_pag_start, guidance_pag_stop, guidance_pag_layers, guidance_pag_config]
 
             apg_group = gr.Accordion(open=True, label='Advanced guidance params', elem_classes=["small-accordion"], visible=False)
             with apg_group:
@@ -114,15 +114,15 @@ def create_guidance_inputs(tab):
 
             gr.HTML(value='<br><h2>Fallback guidance</h2>', visible=shared.opts.model_modular_enable, elem_id=f"{tab}_guidance_note")
             with gr.Row(elem_id=f"{tab}_cfg_row", elem_classes=['flexbox']):
-                cfg_scale = gr.Slider(minimum=1.0, maximum=30.0, step=0.1, label='Guidance scale', value=6.0, elem_id=f"{tab}_cfg_scale")
+                cfg_scale = gr.Slider(minimum=-1.0, maximum=30.0, step=0.1, label='Guidance scale', value=-1.0, elem_id=f"{tab}_cfg_scale")
                 cfg_end = gr.Slider(minimum=0.0, maximum=1.0, step=0.1, label='Guidance end', value=1.0, elem_id=f"{tab}_cfg_end")
             with gr.Row():
-                diffusers_guidance_rescale = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Guidance rescale', value=0.0, elem_id=f"{tab}_image_cfg_rescale")
-                image_cfg_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.1, label='Refine guidance', value=6.0, elem_id=f"{tab}_image_cfg_scale")
+                cfg_rescale = gr.Slider(minimum=-1.0, maximum=1.0, step=0.05, label='Guidance rescale', value=-1.0, elem_id=f"{tab}_image_cfg_rescale")
+                cfg_image = gr.Slider(minimum=-1.0, maximum=30.0, step=0.1, label='Refine guidance', value=-1.0, elem_id=f"{tab}_cfg_image")
             with gr.Row():
-                diffusers_pag_scale = gr.Slider(minimum=0.0, maximum=30.0, step=0.05, label='Attention guidance', value=0.0, elem_id=f"{tab}_pag_scale")
-                diffusers_pag_adaptive = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Adaptive scaling', value=0.5, elem_id=f"{tab}_pag_adaptive")
+                cfg_true = gr.Slider(minimum=-1.0, maximum=30.0, step=0.05, label='Attention guidance', value=-1.0, elem_id=f"{tab}_cfg_true")
+                cfg_adaptive = gr.Slider(minimum=0.0, maximum=1.0, step=0.05, label='Adaptive scaling', value=0.5, elem_id=f"{tab}_cfg_adaptive")
 
     _modular_args = guidance_args + lsc_args + guidance_auto_args + guidance_zero_args + guidance_pag_args + guidance_apg_args + guidance_slg_args + guidance_seg_args + guidance_fdg_args
-    standard_args = [cfg_scale, image_cfg_scale, diffusers_guidance_rescale, diffusers_pag_scale, diffusers_pag_adaptive, cfg_end]
+    standard_args = [cfg_scale, cfg_image, cfg_rescale, cfg_true, cfg_adaptive, cfg_end]
     return guidance_args + standard_args

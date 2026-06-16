@@ -3,6 +3,7 @@ import transformers
 import diffusers
 from modules import shared, devices, sd_models, model_quant
 from modules.logger import log
+from pipelines import generic
 
 
 class XOmniPipeline(diffusers.DiffusionPipeline):
@@ -29,6 +30,7 @@ class XOmniPipeline(diffusers.DiffusionPipeline):
         log.debug(f'Load model: cls=XOmniPipeline module=tokenizer repo_id="{repo_id}"')
         self.tokenizer = transformers.AutoTokenizer.from_pretrained(
             repo_id,
+            cache_dir=shared.opts.hfcache_dir,
             use_fast=True,
         )
         log.debug(f'Load model: cls=XOmniPipeline module=transformer repo_id="{repo_id}" args={load_args}')
@@ -112,6 +114,10 @@ def load_xomni(checkpoint_info, diffusers_load_config=None):
     sd_models.hf_auth_check(checkpoint_info)
 
     pipe = XOmniPipeline()
+    generic.set_pipeline('XOmni', XOmniPipeline)
+    if repo_id is None or repo_id.lower() == 'none':
+        return None
+
     pipe.load(repo_id, load_config=diffusers_load_config)
     devices.torch_gc(force=True, reason='load')
     return pipe

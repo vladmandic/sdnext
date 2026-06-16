@@ -73,7 +73,7 @@ def parse_comfy_metadata(data: dict):
 
 
 def parse_invoke_metadata(data: dict):
-    def parse_metadtaa():
+    def parse_metadata():
         res = ''
         try:
             txt = data.get('invokeai_metadata', {})
@@ -86,7 +86,7 @@ def parse_invoke_metadata(data: dict):
             pass
         return res
 
-    metadata = parse_metadtaa()
+    metadata = parse_metadata()
     if len(metadata) > 0:
         parsed = f'App: InvokeAI{metadata}'
         log.info(f'Image metadata: {parsed}')
@@ -101,7 +101,7 @@ def parse_novelai_metadata(data: dict):
         try:
             dct = json.loads(data["Comment"])
             sampler = sd_samplers.samplers_map.get(dct["sampler"], "Euler a")
-            geninfo = f'{data["Description"]} Negative prompt: {dct["uc"]} Steps: {dct["steps"]}, Sampler: {sampler}, CFG scale: {dct["scale"]}, Seed: {dct["seed"]}, Clip skip: 2, ENSD: 31337'
+            geninfo = f'{data["Description"]} Negative prompt: {dct["uc"]} Steps: {dct["steps"]}, Sampler: {sampler}, CFG scale: {dct["scale"]}, Seed: {dct["seed"]}, CLiP-skip: 2, ENSD: 31337'
             debug(f'Metadata: novelai="{geninfo}"')
             return geninfo
         except Exception:

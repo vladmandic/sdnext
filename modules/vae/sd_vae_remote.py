@@ -4,7 +4,6 @@ import json
 import torch
 import requests
 from PIL import Image
-from safetensors.torch import _tobytes
 from modules.logger import log
 
 
@@ -47,6 +46,12 @@ dtypes = {
 }
 
 
+def tensor_to_bytes(tensor: torch.Tensor) -> bytes:
+    # Convert tensor to a compact raw byte buffer for remote VAE binary endpoints.
+    tensor = tensor.detach().to(device="cpu").contiguous()
+    return tensor.view(torch.uint8).numpy().tobytes()
+
+
 def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_type: str | None = None):
     from modules import devices, shared, errors, modelloader
     tensors = []
@@ -59,9 +64,9 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
     t0 = time.time()
     modelloader.hf_login()
     latent_copy = latents.detach().clone().to(device=devices.cpu, dtype=devices.dtype)
-    latent_copy = latents.unsqueeze(0) if len(latents.shape) == 3 else latents
+    latent_copy = latent_copy.unsqueeze(0) if len(latent_copy.shape) == 3 else latent_copy
     if model_type == 'hunyuanvideo':
-        latent_copy = latent_copy.unsqueeze(0) if len(latents.shape) == 4 else latents
+        latent_copy = latent_copy.unsqueeze(0) if len(latent_copy.shape) == 4 else latent_copy
 
     for i in range(latent_copy.shape[0]):
         params = {}
@@ -103,17 +108,29 @@ def remote_decode(latents: torch.Tensor, width: int = 0, height: int = 0, model_
                 url=url,
                 headers=headers,
                 params=params,
-                data=_tobytes(latent, "tensor"),
+                data=tensor_to_bytes(latent),
                 timeout=300,
             )
             if not response.ok:
-                log.error(f'Decode: type="remote" model={model_type} code={response.status_code} shape={latent.shape} url="{url}" args={params} headers={response.headers} response={response.json()}')
+                try:
+                    resp_json = response.json()
+                except Exception:
+                    resp_json = response.text
+                log.error(f'Decode: type="remote" model={model_type} code={response.status_code} shape={latent.shape} url="{url}" args={params} headers={response.headers} response={resp_json}')
             else:
                 content += len(response.content)
                 if shared.opts.remote_vae_type == 'raw' or 'video' in model_type:
-                    shape = json.loads(response.headers["shape"])
-                    dtype = response.headers["dtype"]
-                    tensor = torch.frombuffer(bytearray(response.content), dtype=dtypes[dtype]).reshape(shape)
+                    try:
+                        shape = json.loads(response.headers.get("shape", "[]"))
+                        dtype = response.headers.get("dtype", "float32")
+                        if dtype in dtypes:
+                            tensor = torch.frombuffer(bytearray(response.content), dtype=dtypes[dtype]).reshape(shape)
+                        else:
+                            log.warning(f'Decode: unknown dtype {dtype}')
+                            continue
+                    except (json.JSONDecodeError, KeyError, ValueError) as e:
+                        log.warning(f'Decode: shape/dtype parsing error {e}')
+                        continue
                     tensors.append(tensor)
                 elif shared.opts.remote_vae_type == 'jpg' or shared.opts.remote_vae_type == 'png':
                     image = Image.open(io.BytesIO(response.content)).convert("RGB")

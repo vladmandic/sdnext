@@ -36,7 +36,7 @@ def save_params(p, filename: str | None = None):
     if p is None:
         dct = {}
     else:
-        # sampler_index, sampler_shift, dynamic_shift, guidance_scale, guidance_true, init_image, init_strength, last_image, vae_type, vae_tile_frames, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, vlm_enhance, vlm_model, vlm_system_prompt, override_settings = args
+        # sampler_index, sampler_shift, dynamic_shift, guidance_scale, guidance_true, init_image, init_strength, last_image, vae_type, vae_tile_frames, mp4_fps, mp4_interpolate, mp4_codec, mp4_ext, mp4_opt, mp4_video, mp4_frames, mp4_sf, mp4_thumb, vlm_enhance, vlm_model, vlm_system_prompt, override_settings = args
         dct = {
             "Prompt": p.prompt,
             "Negative prompt": p.negative_prompt,
@@ -53,6 +53,29 @@ def save_params(p, filename: str | None = None):
     fn = filename if filename is not None else params_path
     with open(fn, "w", encoding="utf8") as file:
         file.write(params)
+
+
+def create_video_metadata(p: processing.StableDiffusionProcessingVideo | None, metadata: dict | None = None, filename: str | None = None):
+    metadata = metadata.copy() if metadata is not None else {}
+    if not shared.opts.image_metadata:
+        return metadata
+    if p is None:
+        return metadata
+    try:
+        info = processing.create_infotext(p)
+    except Exception as e:
+        log.debug(f'Video metadata: infotext failed: {e}')
+        info = ''
+    if len(info) == 0:
+        info = getattr(p, 'prompt', '') or ''
+    if len(info) == 0:
+        return metadata
+    title = os.path.basename(filename) if filename else 'SD.Next video'
+    metadata.setdefault('title', title)
+    metadata.setdefault('encoder', 'SD.Next')
+    metadata.setdefault('comment', info)
+    metadata.setdefault('description', info)
+    return metadata
 
 
 def images_to_tensor(images):
@@ -227,6 +250,7 @@ def save_video(
     mp4_sf: bool = False,  # save safetensors
     mp4_video: bool = True,  # save video
     mp4_frames: bool = False,  # save frames
+    mp4_thumb: bool = True,  # save thumbnail
     mp4_interpolate: int = 0,  # rife interpolation
     aac_sample_rate: int = 24000,  # audio sample rate
     stream=None,  # async progress reporting stream
@@ -251,7 +275,7 @@ def save_video(
         except Exception as e:
             log.error(f'Video output: file="{output_video}" write error {e}')
             errors.display(e, 'video')
-        thumb = save_thumbnail(output_video)
+        thumb = save_thumbnail(output_video) if mp4_thumb else None
         return 0, output_video, thumb
 
     if pixels is None:
@@ -310,6 +334,7 @@ def save_video(
 
         if mp4_video and (mp4_codec != 'none'):
             output_video = f'{output_filename}.{mp4_ext}'
+            metadata = create_video_metadata(p, metadata, output_filename)
             atomic_save_video(output_video, tensor=x, audio=audio, fps=mp4_fps, codec=mp4_codec, options=mp4_opt, aac=aac_sample_rate, metadata=metadata, pbar=pbar)
             if stream is not None:
                 stream.output_queue.push(('progress', (None, f'Video {os.path.basename(output_video)} | Codec {mp4_codec} | Size {w}x{h}x{t} | FPS {mp4_fps}')))
@@ -322,5 +347,5 @@ def save_video(
         log.error(f'Video save: raw={size} {e}')
         errors.display(e, 'video')
     timer.process.add('save', time.time()-t_save)
-    thumb = save_thumbnail(output_video) if output_video is not None else None
+    thumb = save_thumbnail(output_video) if mp4_thumb and output_video is not None else None
     return t, output_video, thumb

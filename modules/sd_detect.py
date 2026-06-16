@@ -1,8 +1,7 @@
 import os
 import time
-import torch
 import diffusers
-from modules import shared, shared_items, devices, errors, model_tools
+from modules import shared, shared_items, errors, model_tools
 from modules.logger import log
 
 
@@ -54,31 +53,29 @@ def guess_by_name(fn, current_guess):
     elif 'hunyuandit' in fn.lower():
         new_guess = 'HunyuanDiT'
     elif 'pixart-xl' in fn.lower():
-        new_guess = 'PixArt Alpha'
+        new_guess = 'PixArtAlpha'
     elif 'stable-diffusion-3' in fn.lower():
         new_guess = 'Stable Diffusion 3'
     elif 'stable-cascade' in fn.lower() or 'stablecascade' in fn.lower() or 'wuerstchen3' in fn.lower() or ('sotediffusion' in fn.lower() and "v2" in fn.lower()):
-        if devices.dtype == torch.float16:
-            log.warning('Stable Cascade does not support Float16')
         new_guess = 'Stable Cascade'
     elif 'pixart-sigma' in fn.lower():
-        new_guess = 'PixArt Sigma'
+        new_guess = 'PixArtSigma'
     elif 'sana' in fn.lower():
         new_guess = 'Sana'
     elif 'lumina-next' in fn.lower():
-        new_guess = 'Lumina-Next'
+        new_guess = 'LuminaNext'
     elif 'lumina-dimoo' in fn.lower():
-        new_guess = 'Lumina-DiMOO'
+        new_guess = 'LuminaDiMOO'
     elif 'lumina-image-2' in fn.lower():
-        new_guess = 'Lumina 2'
+        new_guess = 'Lumina2'
     elif 'kolors' in fn.lower():
         new_guess = 'Kolors'
     elif 'auraflow' in fn.lower() or 'pony-v7' in fn.lower():
         new_guess = 'AuraFlow'
     elif 'cogview3' in fn.lower():
-        new_guess = 'CogView 3'
+        new_guess = 'CogView3'
     elif 'cogview4' in fn.lower():
-        new_guess = 'CogView 4'
+        new_guess = 'CogView4'
     elif 'meissonic' in fn.lower():
         new_guess = 'Meissonic'
     elif 'omnigen2' in fn.lower():
@@ -91,16 +88,16 @@ def guess_by_name(fn, current_guess):
         new_guess = 'HiDreamO1'
     elif 'hidream' in fn.lower():
         new_guess = 'HiDream'
-    elif 'hidream' in fn.lower():
-        new_guess = 'HiDream'
     elif 'zeta-chroma' in fn.lower() or 'zetachroma' in fn.lower():
         new_guess = 'ZetaChroma'
     elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
         new_guess = 'Chroma'
     elif 'flux.2' in fn.lower() and 'klein' in fn.lower():
-        new_guess = 'FLUX2 Klein'
+        new_guess = 'FLUX2Klein'
     elif 'flux.2' in fn.lower():
         new_guess = 'FLUX2'
+    elif 'lens' in fn.lower():
+        new_guess = 'Lens'
     elif 'ultraflux' in fn.lower():
         new_guess = 'UltraFlux'
     elif 'flux' in fn.lower() or 'flex.1' in fn.lower():
@@ -127,19 +124,19 @@ def guess_by_name(fn, current_guess):
     elif 'nextstep' in fn.lower():
         new_guess = 'NextStep'
     elif 'kandinsky-2-1' in fn.lower():
-        new_guess = 'Kandinsky 2.1'
+        new_guess = 'Kandinsky21'
     elif 'kandinsky-2-2' in fn.lower():
-        new_guess = 'Kandinsky 2.2'
+        new_guess = 'Kandinsky22'
     elif 'kandinsky-3' in fn.lower():
-        new_guess = 'Kandinsky 3.0'
+        new_guess = 'Kandinsky30'
     elif 'kandinsky-5.0' in fn.lower():
-        new_guess = 'Kandinsky 5.0'
+        new_guess = 'Kandinsky50'
     elif 'hunyuanimage3' in fn.lower() or 'hunyuanimage-3' in fn.lower():
         new_guess = 'HunyuanImage3'
     elif 'hunyuanimage' in fn.lower():
         new_guess = 'HunyuanImage'
     elif 'x-omni' in fn.lower():
-        new_guess = 'X-Omni'
+        new_guess = 'XOmni'
     elif 'sdxl-turbo' in fn.lower() or 'stable-diffusion-xl' in fn.lower():
         new_guess = 'Stable Diffusion XL'
     elif 'stable-video-diffusion' in fn.lower():
@@ -149,25 +146,27 @@ def guess_by_name(fn, current_guess):
     elif 'gemini-' in fn.lower() and 'image' in fn.lower():
         new_guess = 'NanoBanana'
     elif 'ernie-image' in fn.lower():
-        new_guess = 'ERNIE-Image'
+        new_guess = 'ERNIEImage'
     elif 'nucleus-image' in fn.lower() or 'nucleusmoe-image' in fn.lower():
-        new_guess = 'Nucleus-Image'
+        new_guess = 'NucleusImage'
     elif 'z-image' in fn.lower() or 'z_image' in fn.lower():
-        new_guess = 'Z-Image'
+        new_guess = 'ZImage'
+    elif 'ideogram' in fn.lower():
+        new_guess = 'Ideogram4'
     elif 'longcat-image' in fn.lower():
         new_guess = 'LongCat'
     elif 'ovis-image' in fn.lower():
-        new_guess = 'Ovis-Image'
+        new_guess = 'OvisImage'
     elif 'glm-image' in fn.lower():
-        new_guess = 'GLM-Image'
+        new_guess = 'GLMImage'
     elif 'sdxs-1b' in fn.lower():
         new_guess = 'SDXS'
     elif 'step1x-edit' in fn.lower():
-        new_guess = 'Step1X-Edit'
+        new_guess = 'Step1XEdit'
     elif 'vibe-image-edit' in fn.lower():
         new_guess = 'VIBE'
     elif 'joyai-image-edit' in fn.lower() or 'joy-image-edit' in fn.lower():
-        new_guess = 'Joy'
+        new_guess = 'JoyEdit'
     if debug_load:
         log.trace(f'Autodetect: method=name file="{fn}" previous="{current_guess}" current="{new_guess}"')
     return new_guess or current_guess
@@ -188,6 +187,7 @@ def guess_by_diffusers(fn, current_guess):
         cls = index.get('_class_name', None)
         if isinstance(cls, list):
             cls = cls[-1]
+        pipeline = None
         if cls is not None:
             pipeline = getattr(diffusers, cls, None)
             if pipeline is None:

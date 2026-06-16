@@ -7,6 +7,7 @@
 cd -- "$(dirname -- "$0")"
 
 can_run_as_root=0
+use_uv=0
 export ERROR_REPORTING=FALSE
 export PIP_IGNORE_INSTALLED=0
 
@@ -34,6 +35,15 @@ then
     venv_dir="venv"
 fi
 
+for arg in "$@"
+do
+    if [[ "$arg" == "--uv" ]]
+    then
+        use_uv=1
+        break
+    fi
+done
+
 # read any command line flags to the webui.sh script
 while getopts "f" flag > /dev/null 2>&1
 do
@@ -59,16 +69,34 @@ do
     fi
 done
 
-if ! "${PYTHON}" -c "import venv" &>/dev/null
+if [[ "${use_uv}" -eq 1 ]]
 then
-    echo "Error: python3-venv is not installed"
-    exit 1
+    if ! hash "uv" &>/dev/null
+    then
+        echo "Warning: uv is not installed globally"
+        use_uv=0
+    fi
+fi
+
+if [[ "${use_uv}" -eq 0 ]]
+then
+    if ! "${PYTHON}" -c "import venv" &>/dev/null
+    then
+        echo "Error: python3-venv is not installed"
+        exit 1
+    fi
 fi
 
 if [[ ! -d "${venv_dir}" ]]
 then
-    echo "Create python venv"
-    "${PYTHON}" -m venv "${venv_dir}"
+    if [[ "${use_uv}" -eq 1 ]]
+    then
+        echo "Create VENV: UV"
+        uv venv "${venv_dir}"
+    else
+        echo "Create VENV: VENV"
+        "${PYTHON}" -m venv "${venv_dir}"
+    fi
     first_launch=1
 fi
 

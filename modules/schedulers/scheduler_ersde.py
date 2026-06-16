@@ -120,6 +120,9 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
         set_alpha_to_one: bool = True,
         lower_order_final: bool = True,
         use_karras_sigmas: bool = False,
+        use_exponential_sigmas: bool = False,
+        use_beta_sigmas: bool = False,
+        use_flow_sigmas: bool = False,
         num_integration_steps: int = 100,
         shift: float = 1.0,
         use_dynamic_shifting: bool = False,
@@ -130,6 +133,8 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
             raise ValueError(f"solver_order must be 1, 2, or 3, got {solver_order}")
         if func_type < 1 or func_type > 7:
             raise ValueError(f"func_type must be 1-7, got {func_type}")
+        if sum([use_karras_sigmas, use_exponential_sigmas, use_beta_sigmas]) > 1:
+            raise ValueError("Only one of use_karras_sigmas, use_exponential_sigmas, use_beta_sigmas can be enabled")
 
         if trained_betas is not None:
             self.betas = torch.tensor(trained_betas, dtype=torch.float32)
@@ -214,6 +219,17 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
             sigmas = self._time_shift(mu, 1.0, sigmas)
         else:
             sigmas = self.config.shift * sigmas / (1 + (self.config.shift - 1) * sigmas)
+        # redistribute the shifted flow sigmas via the configured schedule (parity with FlowMatchEuler)
+        if self.config.use_karras_sigmas or self.config.use_exponential_sigmas or self.config.use_beta_sigmas:
+            arr = sigmas.detach().cpu().numpy()
+            n = len(arr)
+            if self.config.use_karras_sigmas:
+                arr = self._convert_to_karras(arr, n)
+            elif self.config.use_exponential_sigmas:
+                arr = self._convert_to_exponential(arr, n)
+            elif self.config.use_beta_sigmas:
+                arr = self._convert_to_beta(arr, n)
+            sigmas = torch.from_numpy(np.asarray(arr, dtype=np.float64)).to(device=sigmas.device, dtype=sigmas.dtype)
         flow_sigmas = sigmas.clamp(min=1e-8, max=1.0 - 1e-8)
         flow_alphas = torch.ones_like(flow_sigmas)
         flow_lambdas = flow_sigmas.clone()
@@ -234,7 +250,7 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
             self.num_inference_steps = len(sigmas)
             sigmas = torch.from_numpy(sigmas).to(dtype=torch.float64, device=device)
             self._setup_flow(sigmas, device, mu)
-        elif self.config.prediction_type == "flow_prediction":
+        elif self.config.prediction_type == "flow_prediction" or self.config.use_flow_sigmas:
             # Flow-matching path: compute flow schedule internally
             self.num_inference_steps = num_inference_steps
             sigmas = np.linspace(1.0, 1.0 / self.config.num_train_timesteps, num_inference_steps)
@@ -261,25 +277,40 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
             self.num_inference_steps = num_inference_steps
 
             if self.config.timestep_spacing == "linspace":
-                timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps).round()[::-1].copy().astype(np.int64)
+                timesteps = np.linspace(0, self.config.num_train_timesteps - 1, num_inference_steps).round()[::-1].copy().astype(np.float64)
             elif self.config.timestep_spacing == "leading":
                 step_ratio = self.config.num_train_timesteps // num_inference_steps
-                timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy().astype(np.int64)
+                timesteps = (np.arange(0, num_inference_steps) * step_ratio).round()[::-1].copy().astype(np.float64)
                 timesteps += self.config.steps_offset
             elif self.config.timestep_spacing == "trailing":
                 step_ratio = self.config.num_train_timesteps / num_inference_steps
-                timesteps = np.round(np.arange(self.config.num_train_timesteps, 0, -step_ratio)).astype(np.int64)
+                timesteps = np.round(np.arange(self.config.num_train_timesteps, 0, -step_ratio)).astype(np.float64)
                 timesteps -= 1
             else:
                 raise ValueError(f"{self.config.timestep_spacing} is not supported")
 
+            # k-diffusion sigmas across the full training schedule, sampled at the inference timesteps
+            acp = self.alphas_cumprod.cpu().numpy()
+            train_sigmas = ((1 - acp) / np.clip(acp, 1e-8, None)) ** 0.5
+            log_sigmas = np.log(train_sigmas)
+            sigmas = np.interp(timesteps, np.arange(len(train_sigmas)), train_sigmas)
+
+            # optional sigma-schedule transforms (VP models only); back-map to fractional timesteps
+            if self.config.use_karras_sigmas:
+                sigmas = self._convert_to_karras(sigmas, num_inference_steps)
+                timesteps = np.array([self._sigma_to_t(s, log_sigmas) for s in sigmas])
+            elif self.config.use_exponential_sigmas:
+                sigmas = self._convert_to_exponential(sigmas, num_inference_steps)
+                timesteps = np.array([self._sigma_to_t(s, log_sigmas) for s in sigmas])
+            elif self.config.use_beta_sigmas:
+                sigmas = self._convert_to_beta(sigmas, num_inference_steps)
+                timesteps = np.array([self._sigma_to_t(s, log_sigmas) for s in sigmas])
+            else:
+                timesteps = timesteps.astype(np.int64)  # integer timesteps for the default schedule
+
             self.timesteps = torch.from_numpy(timesteps).to(device)
-            sigmas_arr = []
-            for t in timesteps:
-                acp = self.alphas_cumprod[t].item()
-                sigmas_arr.append(((1 - acp) / max(acp, 1e-8)) ** 0.5)
-            sigmas_arr.append(0.0)
-            self.sigmas = torch.tensor(sigmas_arr, dtype=torch.float64, device=device)
+            sigmas = np.concatenate([sigmas, [0.0]]).astype(np.float64)
+            self.sigmas = torch.from_numpy(sigmas).to(dtype=torch.float64, device=device)
             self._flow_alphas = None
             self._flow_sigmas = None
             self._flow_lambdas = None
@@ -290,24 +321,71 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
         return math.exp(mu) / (math.exp(mu) + (1 / t - 1) ** sigma)
 
     def _get_alpha_sigma_lambda(self, step_idx):
-        """Get alpha, sigma, lambda values for a given step index."""
+        """Get alpha, sigma, lambda values for a given step index.
+
+        In VP mode the values are derived from the k-diffusion sigma stored in self.sigmas
+        (sigma = sqrt((1-acp)/acp)) rather than from an integer alphas_cumprod lookup. This
+        keeps the math independent of the timestep index so karras/beta/exponential schedules
+        can use fractional timesteps: alpha = 1/sqrt(1+sigma^2), sigma_vp = sigma*alpha,
+        lambda = sigma. For the default schedule this is algebraically identical to
+        alpha = sqrt(acp), sigma_vp = sqrt(1-acp).
+        """
         if self._is_flow:
             alpha = self._flow_alphas[step_idx]
             sigma = self._flow_sigmas[step_idx]
             lam = self._flow_lambdas[step_idx]
+        elif step_idx >= len(self.sigmas):
+            # Past the last entry: fully denoised
+            alpha = torch.tensor(1.0, dtype=torch.float64)
+            sigma = torch.tensor(0.0, dtype=torch.float64)
+            lam = torch.tensor(0.0, dtype=torch.float64)
         else:
-            t = self.timesteps[step_idx] if step_idx < len(self.timesteps) else 0
-            if step_idx >= len(self.timesteps):
-                # Past the last timestep: fully denoised
-                alpha = torch.tensor(1.0, dtype=torch.float64)
-                sigma = torch.tensor(0.0, dtype=torch.float64)
-                lam = torch.tensor(0.0, dtype=torch.float64)
-            else:
-                acp = self.alphas_cumprod[t].to(torch.float64)
-                alpha = acp.sqrt()
-                sigma = (1.0 - acp).sqrt()
-                lam = sigma / alpha.clamp(min=1e-8)
+            sig = self.sigmas[step_idx].to(torch.float64)
+            alpha = 1.0 / torch.sqrt(1.0 + sig ** 2)
+            sigma = sig * alpha
+            lam = sig
         return alpha, sigma, lam
+
+    @staticmethod
+    def _sigma_to_t(sigma, log_sigmas):
+        """Map a k-diffusion sigma back to a (fractional) training timestep via log-sigma interpolation."""
+        log_sigma = np.log(np.maximum(sigma, 1e-10))
+        dists = log_sigma - log_sigmas[:, np.newaxis]
+        low_idx = np.cumsum((dists >= 0), axis=0).argmax(axis=0).clip(max=log_sigmas.shape[0] - 2)
+        high_idx = low_idx + 1
+        low = log_sigmas[low_idx]
+        high = log_sigmas[high_idx]
+        w = np.clip((low - log_sigma) / (low - high), 0, 1)
+        t = (1 - w) * low_idx + w * high_idx
+        return t.reshape(sigma.shape)
+
+    @staticmethod
+    def _convert_to_karras(in_sigmas, num_inference_steps, rho=7.0):
+        """Karras et al. (2206.00364) noise schedule between sigma_min and sigma_max."""
+        sigma_min = float(in_sigmas[-1])
+        sigma_max = float(in_sigmas[0])
+        ramp = np.linspace(0, 1, num_inference_steps)
+        min_inv_rho = sigma_min ** (1 / rho)
+        max_inv_rho = sigma_max ** (1 / rho)
+        return (max_inv_rho + ramp * (min_inv_rho - max_inv_rho)) ** rho
+
+    @staticmethod
+    def _convert_to_exponential(in_sigmas, num_inference_steps):
+        """Exponential (log-linear) noise schedule between sigma_min and sigma_max."""
+        sigma_min = float(in_sigmas[-1])
+        sigma_max = float(in_sigmas[0])
+        return np.exp(np.linspace(math.log(sigma_max), math.log(sigma_min), num_inference_steps))
+
+    @staticmethod
+    def _convert_to_beta(in_sigmas, num_inference_steps, alpha=0.6, beta=0.6):
+        """Beta noise schedule (2407.12173) between sigma_min and sigma_max."""
+        import scipy.stats
+        sigma_min = float(in_sigmas[-1])
+        sigma_max = float(in_sigmas[0])
+        return np.array([
+            sigma_min + ppf * (sigma_max - sigma_min)
+            for ppf in [scipy.stats.beta.ppf(t, alpha, beta) for t in 1 - np.linspace(0, 1, num_inference_steps)]
+        ])
 
     def _numerical_clip(self, x, eps=1e-6):
         """Clip near-zero values to prevent negative variance from float errors."""
@@ -541,6 +619,8 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
     def add_noise(self, original_samples: torch.Tensor, noise: torch.Tensor, timesteps: torch.Tensor) -> torch.Tensor:
         alphas_cumprod = self.alphas_cumprod.to(device=original_samples.device, dtype=original_samples.dtype)
         timesteps = timesteps.to(original_samples.device)
+        if torch.is_floating_point(timesteps):  # karras/beta/exponential schedules use fractional timesteps
+            timesteps = timesteps.round().long()
         sqrt_alpha_prod = alphas_cumprod[timesteps] ** 0.5
         sqrt_alpha_prod = sqrt_alpha_prod.flatten()
         while len(sqrt_alpha_prod.shape) < len(original_samples.shape):

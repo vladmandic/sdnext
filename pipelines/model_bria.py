@@ -20,11 +20,13 @@ def load_bria(checkpoint_info, diffusers_load_config=None):
         load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
         log.debug(f'Load model: type=BriaFibo repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
+        from pipelines.bria import BRIA_FIBO_SPEC
         transformer = generic.load_transformer(
             repo_id,
             cls_name=diffusers.BriaFiboTransformer2DModel,
             load_config=diffusers_load_config,
             allow_quant=False,
+            native_spec=BRIA_FIBO_SPEC,
         )
         text_encoder = generic.load_text_encoder(
             repo_id,
@@ -42,6 +44,10 @@ def load_bria(checkpoint_info, diffusers_load_config=None):
         else:
             cls = diffusers.BriaFiboPipeline
             diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['bria-fibo'] = cls
+        generic.set_pipeline('Bria', cls)
+
+        if repo_id is None or repo_id.lower() == 'none':
+            return None
 
         pipe = cls.from_pretrained(
             repo_id,
@@ -66,8 +72,13 @@ def load_bria(checkpoint_info, diffusers_load_config=None):
         load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
         log.debug(f'Load model: type=Bria repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
-        transformer = generic.load_transformer(repo_id, cls_name=BriaTransformer2DModel, load_config=diffusers_load_config)
+        from pipelines.bria import BRIA_SPEC
+        transformer = generic.load_transformer(repo_id, cls_name=BriaTransformer2DModel, load_config=diffusers_load_config, native_spec=BRIA_SPEC)
         text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.T5EncoderModel, load_config=diffusers_load_config)
+        generic.set_pipeline('Bria', BriaPipeline)
+
+        if repo_id is None or repo_id.lower() == 'none':
+            return None
 
         pipe = BriaPipeline.from_pretrained(
             repo_id,

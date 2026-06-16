@@ -6,7 +6,14 @@ import torch
 
 from modules import shared, devices
 
-sdnq_version = "0.1.8"
+sdnq_version = "0.2.0"
+sdnq_keys = {"weight", "scale", "zero_point", "svd_up", "svd_down"}
+
+torch_version = torch.__version__[:4]
+if torch_version[-1] not in {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9"}:
+    torch_version = torch_version[:-1]
+torch_version = torch_version.split(".")
+torch_version[0], torch_version[1] = int(torch_version[0]), int(torch_version[1])
 
 dtype_dict = {
     ### Integers
@@ -134,7 +141,7 @@ dtype_dict = {
     "float3_e2m0fn": {"min": -4.0, "max": 4.0, "num_bits": 3, "sign": 1, "exponent": 2, "mantissa": 0, "min_normal": 1.0, "target_dtype": "fp3", "torch_dtype": torch.float32, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": False, "is_packed": True},
     #
     "float2_e1m0fn": {"min": -2.0, "max": 2.0, "num_bits": 2, "sign": 1, "exponent": 1, "mantissa": 0, "min_normal": 2.0, "target_dtype": "fp2", "torch_dtype": torch.float32, "storage_dtype": torch.uint8, "is_unsigned": False, "is_integer": False, "is_packed": True},
-    ### Custom Usigned Floats
+    ### Custom Unsigned Floats
     "float16_e1m15fnu": {"min": 0, "max": 3.99993896484375, "num_bits": 16, "sign": 0, "exponent": 1, "mantissa": 15, "min_normal": 1.000030517578125, "target_dtype": "fp16", "torch_dtype": torch.float32, "storage_dtype": torch.uint16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float16_e2m14fnu": {"min": 0, "max": 7.999755859375, "num_bits": 16, "sign": 0, "exponent": 2, "mantissa": 14, "min_normal": 0.500030517578125, "target_dtype": "fp16", "torch_dtype": torch.float32, "storage_dtype": torch.uint16, "is_unsigned": True, "is_integer": False, "is_packed": True},
     "float16_e3m13fnu": {"min": 0, "max": 31.998046875, "num_bits": 16, "sign": 0, "exponent": 3, "mantissa": 13, "min_normal": 0.1250152587890625, "target_dtype": "fp16", "torch_dtype": torch.float32, "storage_dtype": torch.uint16, "is_unsigned": True, "is_integer": False, "is_packed": True},
@@ -394,13 +401,18 @@ if fp_mm_func is None:
 
 
 if use_torch_compile:
+    torch._dynamo.config.recompile_limit = max(8192, getattr(torch._dynamo.config, "recompile_limit", 0))
     torch._dynamo.config.cache_size_limit = max(8192, getattr(torch._dynamo.config, "cache_size_limit", 0))
     torch._dynamo.config.accumulated_recompile_limit = max(8192, getattr(torch._dynamo.config, "accumulated_recompile_limit", 0))
+    torch._dynamo.config.accumulated_cache_size_limit = max(8192, getattr(torch._dynamo.config, "accumulated_cache_size_limit", 0))
     def compile_func(fn, **kwargs):
         if kwargs.get("fullgraph", None) is None:
             kwargs["fullgraph"] = True
         if kwargs.get("dynamic", None) is None:
             kwargs["dynamic"] = False
+        if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 12):
+            if kwargs.get("recompile_limit", None) is None:
+                kwargs["recompile_limit"] = 8192
         if os.environ.get("SDNQ_COMPILE_KWARGS", None) is not None:
             for key, value in json.loads(os.environ.get("SDNQ_COMPILE_KWARGS")).items():
                 kwargs[key] = value
@@ -437,85 +449,114 @@ common_skip_keys = (
     "wte",
 )
 
+
+# modules_to_not_convert: ["x_embedder", "y_embedder"]
+# modules_dtype_dict: {"minimum_6bit": ["x_embedder", "y_embedder"]}
+# modules_to_not_use_matmul: {"int8": ["x_embedder", "y_embedder"], "float8_e4m3fn": ["x_embedder", "y_embedder"]}
+
 module_skip_keys_dict = {
     "FluxTransformer2DModel": [
         ["single_transformer_blocks.0.norm.linear.weight", "time_text_embed", "time_embed", "context_embedder", "x_embedder", ".proj_out", "norm_out"],
-        {}
+        {},
+        {},
     ],
     "Flux2Transformer2DModel": [
         ["double_stream_modulation_img", "double_stream_modulation_txt", "single_stream_modulation", "time_guidance_embed", "context_embedder", "x_embedder", ".proj_out", "norm_out"],
-        {}
+        {},
+        {},
     ],
     "ChromaTransformer2DModel": [
         ["distilled_guidance_layer", "time_text_embed", "context_embedder", "x_embedder", ".proj_out", "norm_out"],
-        {}
+        {},
+        {},
     ],
     "QwenImageTransformer2DModel": [
         ["transformer_blocks.0.img_mod.1.weight", "time_text_embed", "txt_in", "img_in", "proj_out", "norm_out"],
-        {}
+        {},
+        {},
     ],
     "WanTransformer3DModel": [
         ["scale_shift_table", "patch_embedding", "condition_embedder", "proj_out", "norm_out"],
-        {}
+        {},
+        {},
     ],
     "LongCatVideoTransformer3DModel": [
         ["blocks.0.adaLN_modulation.1.weight", "x_embedder", "t_embedder", "y_embedder", "final_layer"],
-        {}
+        {},
+        {},
     ],
     "LTX2VideoTransformer3DModel": [
         [
             "audio_time_embed", "time_embed", "audio_caption_projection", "caption_projection", "proj_in", "audio_proj_in", "proj_out", "audio_proj_out",
             "av_cross_attn_audio_scale_shift", "av_cross_attn_audio_v2a_gate", "av_cross_attn_video_a2v_gate", "av_cross_attn_video_scale_shift",
         ],
-        {}
+        {},
+        {},
     ],
     "Lumina2Transformer2DModel": [
         ["layers.0.norm1.linear.weight", "time_caption_embed", "x_embedder", "norm_out"],
-        {}
+        {},
+        {},
     ],
     "ZImageTransformer2DModel": [
         ["layers.0.adaLN_modulation.0.weight", "t_embedder", "cap_embedder", "siglip_embedder", "all_x_embedder", "all_final_layer"],
-        {}
+        {},
+        {},
+    ],
+    "Ideogram4Transformer2DModel": [
+        ["layers.0.adaln_modulation.weight", "input_proj", "llm_cond_proj", "llm_cond_norm", "final_layer", "t_embedding", "adaln_proj", "embed_image_indicator"],
+        {},
+        {},
     ],
     "CosmosTransformer3DModel": [
         ["transformer_blocks.0.norm*", "patch_embed", "time_embed", "norm_out", "proj_out", "crossattn_proj"],
-        {}
+        {},
+        {},
     ],
     "GlmImageTransformer2DModel": [
         ["transformer_blocks.0.norm1.linear.weight", "image_projector", "glyph_projector", "prior_projector", "time_condition_embed", "norm_out", "proj_out"],
-        {}
+        {},
+        {},
     ],
     "GlmImageForConditionalGeneration": [
         ["lm_head", "patch_embed", "embeddings", "embed_tokens", "vqmodel"],
-        {}
+        {},
+        {},
     ],
     "HunyuanImage3ForCausalMM": [
         ["lm_head", "patch_embed", "time_embed", "time_embed_2", "final_layer", "wte", "ln_f", "timestep_emb", "vae", "vision_aligner", "head", "post_layernorm", "embeddings"],
-        {}
+        {},
+        {},
     ],
     "Emu3ForCausalLM": [
         ["lm_head", "vq_model", "tokenizer"],
-        {}
+        {},
+        {},
     ],
     "Gemma3nForCausalLM": [
         ["lm_head", "correction_coefs", "prediction_coefs", "embedding_projection"],
-        {}
+        {},
+        {},
     ],
     "Gemma4ForConditionalGeneration": [
         ["lm_head", "embed_audio", "embed_vision", "patch_embedder", "embed_tokens", "subsample_conv_projection", "output_proj"],
-        {}
+        {},
+        {},
     ],
     "MoondreamModel": [
         ["lm_head", "region", "wte", "post_ln", "proj_mlp", "patch_emb", "pos_emb"],
-        {}
+        {},
+        {},
     ],
     "NaDiT": [
         [".emb_in", ".txt_in", ".vid_in", ".emb_scale", ".vid_out", ".vid_out_norm", ".vid_out_ada"],
-        {}
+        {},
+        {},
     ],
     "HiDreamO1Qwen3VLTransformer": [
         ["lm_head", "embed_tokens", "x_embedder", "t_embedder1", "final_layer2", "patch_embed", "pos_embed"],
-        {}
+        {},
+        {},
     ],
 }
 

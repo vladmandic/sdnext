@@ -2,8 +2,8 @@
 """
 Offline unit tests for Flux2/Klein native adapter loaders.
 
-Covers the nine native families (LoRA, LoKR, LoHA, OFT, BOFT, IA3,
-GLoRA, Norm, Full) plus DoRA threading via the universal
+Covers the native families (LoRA, LoKR, LoHA, OFT, BOFT, IA3, GLoRA,
+Norm, Full) plus DoRA threading via the universal
 NetworkModule.finalize_updown hook, and ex_bias accumulation across
 stacked Norm adapters.
 
@@ -50,7 +50,7 @@ finally:
 installer.add_args(modules.cmd_args.parser)
 modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
-from modules.errors import log   # pylint: disable=wrong-import-position
+from modules.logger import log   # pylint: disable=wrong-import-position
 from modules import shared        # pylint: disable=wrong-import-position
 from modules.lora import (         # pylint: disable=wrong-import-position
     network, network_lora, network_lokr, network_hada, network_oft, network_boft,
@@ -416,7 +416,7 @@ def sd_oft_kohya_qkv_skipped():
 
 
 def sd_boft_butterfly():
-    """BOFT (butterfly-OFT) — re-uses ``oft_blocks`` key with 4-D shape.
+    """BOFT (butterfly-OFT) — reuses ``oft_blocks`` key with 4-D shape.
 
     Mirrors the LyCORIS upstream save layout (boft.py weight_list:
     ``oft_blocks, rescale, alpha``; tensor shape per __init__:
@@ -580,26 +580,27 @@ def test_parse_key_all_prefixes():
 
 
 def test_resolve_targets_qkv_chunking():
+    from modules.lora.native_adapter import ChunkSpec
     # Kohya double_blocks fused QKV → three chunks targeting Q/K/V.
     targets = F.resolve_targets('lora_unet_', 'double_blocks_0_img_attn_qkv')
     assert targets == [
-        ('transformer_blocks.0.attn.to_q', 0, 3),
-        ('transformer_blocks.0.attn.to_k', 1, 3),
-        ('transformer_blocks.0.attn.to_v', 2, 3),
+        ('transformer_blocks.0.attn.to_q', ChunkSpec(idx=0, total=3)),
+        ('transformer_blocks.0.attn.to_k', ChunkSpec(idx=1, total=3)),
+        ('transformer_blocks.0.attn.to_v', ChunkSpec(idx=2, total=3)),
     ], f'kohya img_attn.qkv → {targets}'
 
     targets = F.resolve_targets('lora_unet_', 'double_blocks_5_txt_attn_qkv')
     assert targets == [
-        ('transformer_blocks.5.attn.add_q_proj', 0, 3),
-        ('transformer_blocks.5.attn.add_k_proj', 1, 3),
-        ('transformer_blocks.5.attn.add_v_proj', 2, 3),
+        ('transformer_blocks.5.attn.add_q_proj', ChunkSpec(idx=0, total=3)),
+        ('transformer_blocks.5.attn.add_k_proj', ChunkSpec(idx=1, total=3)),
+        ('transformer_blocks.5.attn.add_v_proj', ChunkSpec(idx=2, total=3)),
     ], f'kohya txt_attn.qkv → {targets}'
 
     targets = F.resolve_targets('diffusion_model.', 'single_blocks.7.linear1')
-    assert targets == [('single_transformer_blocks.7.attn.to_qkv_mlp_proj', None, None)]
+    assert targets == [('single_transformer_blocks.7.attn.to_qkv_mlp_proj', None)]
 
-    targets = F.resolve_targets('transformer.', 'transformer_blocks.0.attn.to_q')
-    assert targets == [('transformer_blocks.0.attn.to_q', None, None)]
+    targets = F.native_adapter.resolve_group_targets(F.resolve_targets, 'transformer.', 'transformer_blocks.0.attn.to_q')
+    assert targets == [('transformer_blocks.0.attn.to_q', None)]
 
     targets = F.resolve_targets('weird_prefix.', 'whatever')
     assert targets == []
@@ -654,7 +655,7 @@ def test_parse_key_lycoris_prefix():
 
     # resolve_targets: the underscored path is returned verbatim (no chunk).
     targets = F.resolve_targets('lycoris_', 'transformer_blocks_0_attn_add_k_proj')
-    assert targets == [('transformer_blocks_0_attn_add_k_proj', None, None)], f'targets={targets}'
+    assert targets == [('transformer_blocks_0_attn_add_k_proj', None)], f'targets={targets}'
     return True
 
 
@@ -689,9 +690,9 @@ def test_parse_key_bare_diffusers_and_peft_default():
         got = F.parse_key(key, suffixes)
         assert got == expected, f'parse_key({key!r}) = {got}, expected {expected}'
 
-    # resolve_targets passes the bare-diffusers path through verbatim.
-    targets = F.resolve_targets(bd, 'single_transformer_blocks.5.attn.to_out')
-    assert targets == [('single_transformer_blocks.5.attn.to_out', None, None)], f'targets={targets}'
+    # the shared resolver passes the bare-diffusers path through verbatim.
+    targets = F.native_adapter.resolve_group_targets(F.resolve_targets, bd, 'single_transformer_blocks.5.attn.to_out')
+    assert targets == [('single_transformer_blocks.5.attn.to_out', None)], f'targets={targets}'
     return True
 
 
@@ -759,6 +760,33 @@ def test_lora_peft_format():
     net = _load_via(F.try_load_lora, sd_lora_peft_to_q())
     assert net is not None and len(net.modules) == 1
     assert 'lora_transformer_transformer_blocks_0_attn_to_q' in net.modules
+    return True
+
+
+def test_lora_onetrainer_diffusers_flat():
+    """OneTrainer lora_transformer_ diffusers-flat keys load via the shared passthrough.
+
+    These keys are sdnext's own internal network_layer_mapping names, so they
+    bind with no rename or chunking. to_qkv_mlp_proj is a single diffusers
+    module here, so it loads as one passthrough target (not chunked)."""
+    sd = {
+        'lora_transformer_transformer_blocks_0_attn_to_q.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_transformer_blocks_0_attn_to_q.lora_up.weight': torch.randn(QKV_OUT, RANK_LORA),
+        'lora_transformer_transformer_blocks_0_attn_to_q.alpha': torch.tensor(float(RANK_LORA)),
+        'lora_transformer_transformer_blocks_0_ff_linear_in.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_transformer_blocks_0_ff_linear_in.lora_up.weight': torch.randn(MLP_OUT, RANK_LORA),
+        'lora_transformer_transformer_blocks_0_ff_linear_in.alpha': torch.tensor(float(RANK_LORA)),
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj.lora_up.weight': torch.randn(SINGLE_FUSED_OUT, RANK_LORA),
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj.alpha': torch.tensor(float(RANK_LORA)),
+    }
+    net = _load_via(F.try_load_lora, sd)
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    assert set(net.modules) == {
+        'lora_transformer_transformer_blocks_0_attn_to_q',
+        'lora_transformer_transformer_blocks_0_ff_linear_in',
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj',
+    }, f'got {set(net.modules)}'
     return True
 
 
@@ -1209,6 +1237,7 @@ def run_tests():
         test_lora_kohya_fused_qkv_chunked,
         test_lora_bfl_non_fused,
         test_lora_peft_format,
+        test_lora_onetrainer_diffusers_flat,
         test_lora_bare_bfl_format,
         test_lora_peft_saved_fal_style,
         test_lora_peft_saved_dreambooth_style,

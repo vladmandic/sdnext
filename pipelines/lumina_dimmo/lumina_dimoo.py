@@ -370,7 +370,7 @@ class LayerNormBase(nn.Module):
         elif tensor.device.type == "cpu" and torch.is_autocast_cpu_enabled():
             return tensor.to(dtype=dtype if dtype is not None else torch.get_autocast_cpu_dtype())
         else:
-           return tensor
+            return tensor
 
     def reset_parameters(self):
         if self.weight is not None:
@@ -890,7 +890,7 @@ class LLaDASequentialBlock(LLaDABlock):
         if self._activation_checkpoint_fn is not None:
             x = self._activation_checkpoint_fn(self.act, x)  # type: ignore
         else:
-           x = self.act(x)
+            x = self.act(x)
         x = self.ff_out(x)
         x = self.dropout(x)
         x = og_x + x
@@ -1662,10 +1662,10 @@ def generate_crop_size_list(num_patches, patch_size, max_ratio=4.0):
 
 def center_crop(pil_image, crop_size):
     while pil_image.size[0] >= 2 * crop_size[0] and pil_image.size[1] >= 2 * crop_size[1]:
-        pil_image = pil_image.resize(tuple(x // 2 for x in pil_image.size), resample=Image.BOX)
+        pil_image = pil_image.resize(tuple(x // 2 for x in pil_image.size), resample=Image.Resampling.BOX)
 
     scale = max(crop_size[0] / pil_image.size[0], crop_size[1] / pil_image.size[1])
-    pil_image = pil_image.resize(tuple(round(x * scale) for x in pil_image.size), resample=Image.BICUBIC)
+    pil_image = pil_image.resize(tuple(round(x * scale) for x in pil_image.size), resample=Image.Resampling.BICUBIC)
 
     crop_left = random.randint(0, pil_image.size[0] - crop_size[0])
     crop_upper = random.randint(0, pil_image.size[1] - crop_size[1])
@@ -1687,7 +1687,7 @@ def preprocess_image(image: Image.Image):
     image = image.convert("RGB")
     w, h = image.size
     w, h = (x - x % 32 for x in (w, h))
-    image = image.resize((w, h), resample=Image.LANCZOS)
+    image = image.resize((w, h), resample=Image.Resampling.LANCZOS)
     image = np.array(image).astype(np.float32) / 255.0
     image = image[None].transpose(0, 3, 1, 2)
     image = torch.from_numpy(image)
@@ -1968,6 +1968,7 @@ class LuminaDiMOOPipeline(DiffusionPipeline):
         torch_dtype: Optional[torch.dtype] = torch.bfloat16,
         device_map: Optional[str] = "auto",
         low_cpu_mem_usage: bool = True,
+        cache_dir: Optional[str] = None,
     ):
         super().__init__()
         self.register_modules(
@@ -1998,6 +1999,7 @@ class LuminaDiMOOPipeline(DiffusionPipeline):
             device_map=device_map,
             low_cpu_mem_usage=low_cpu_mem_usage,
             use_safetensors=True,
+            cache_dir=cache_dir,
         )
 
     @staticmethod

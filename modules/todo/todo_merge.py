@@ -245,7 +245,7 @@ def bipartite_soft_matching_random2d(metric: torch.Tensor,
 
 class TokenMergeAttentionProcessor:
     def __init__(self):
-        # priortize torch2's flash attention, if not fall back to xformers then regular attention
+        # prioritize torch2's flash attention, if not fall back to xformers then regular attention
         if torch2_is_available:
             self.attn_method = "torch2"
         elif xformers_is_available:
