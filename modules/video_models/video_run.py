@@ -95,12 +95,11 @@ def generate(*args, **kwargs):
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     devices.torch_gc(force=True, reason='video')
 
-    prompt = video_prompt.prepare_prompt(p, init_image, prompt, vlm_enhance, vlm_model, vlm_system_prompt)
 
     # set args
+    video_prompt.prepare_prompts(p, init_image, prompt, vlm_enhance, vlm_model, vlm_system_prompt)
     processing.fix_seed(p)
     video_vae.set_vae_params(p)
-    video_utils.set_prompt(p)
     p.task_args['num_inference_steps'] = p.steps
     p.task_args['width'] = p.width
     p.task_args['height'] = p.height

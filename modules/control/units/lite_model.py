@@ -171,7 +171,7 @@ class ControlNetLLLite(torch.nn.Module): # pylint: disable=abstract-method
                 mapped_block, mapped_number = map_down_lllite_to_unet[int(block)]
                 b = model.down_blocks[mapped_block].attentions[int(mapped_number)].transformer_blocks[int(block_number)]
             elif root == 'output':
-                pass # not implemented
+                continue # not implemented
             else:
                 b = model.mid_block.attentions[0].transformer_blocks[int(block_number)]
             b = getattr(b, attn_name, None)

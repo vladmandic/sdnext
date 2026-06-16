@@ -8,7 +8,7 @@ def hijack_encode_prompt(*args, **kwargs):
     jobid = shared.state.begin('TE Encode')
     t0 = time.time()
     if 'max_sequence_length' in kwargs and kwargs['max_sequence_length'] is not None:
-        kwargs['max_sequence_length'] = max(kwargs['max_sequence_length'], os.environ.get('MAX_SEQUENCE_LENGTH', 256))
+        kwargs['max_sequence_length'] = max(kwargs['max_sequence_length'], int(os.environ.get('MAX_SEQUENCE_LENGTH', 256)))
     res = None
     try:
         args_copy = list(args)
