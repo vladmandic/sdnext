@@ -567,7 +567,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('live-preview', "Live Previews"), {
         "show_progress_every_n_steps": OptionInfo(1, "Show live preview every N steps", gr.Slider, {"minimum": 1, "maximum": 20, "step": 1}, info="1 = every step, 5 = every 5th step, etc."),
         "show_progress_type": OptionInfo("TAESD", "Live preview method", gr.Dropdown, {"choices": ["None", "Simple", "Approximate", "TAESD", "Full"]}),
-        "live_preview_refresh_period": OptionInfo(500, "Progress status update period", gr.Slider, {"minimum": 100, "maximum": 5000, "step": 25}, info="How often to poll for progress text updates in ms"),
+        "live_preview_refresh_period": OptionInfo(2000, "Status fallback poll interval", gr.Slider, {"minimum": 500, "maximum": 10000, "step": 100}, info="HTTP fallback interval for timeout/completion detection in ms"),
         "taesd_variant": OptionInfo(shared_items.sd_taesd_items()[0], "TAESD variant", gr.Dropdown, {"choices": shared_items.sd_taesd_items()}),
         "taesd_layers": OptionInfo(3, "TAESD decode layers", gr.Slider, {"minimum": 1, "maximum": 3, "step": 1}),
         "live_preview_downscale": OptionInfo(True, "Downscale high resolution live previews"),
