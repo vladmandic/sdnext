@@ -920,7 +920,7 @@ class SDNQConfig(QuantizationConfigMixin):
         Safety checker that arguments are correct
         """
         if self.use_quantized_matmul and not check_torch_compile():
-            raise RuntimeError("SDNQ Quantized MatMul requires a working Triton install.")
+            shared.log.warning("SDNQ: Quantized MatMul requires a working Triton install for best performance.")
         if self.weights_dtype not in accepted_weight_dtypes:
             raise ValueError(f"SDNQ only support weight dtypes in {accepted_weight_dtypes} but found {self.weights_dtype}")
         if self.quantized_matmul_dtype is not None and self.quantized_matmul_dtype not in accepted_matmul_dtypes:
