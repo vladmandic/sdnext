@@ -264,6 +264,8 @@ def save_files(js_data, files, html_info, index):
 
 def open_folder(result_gallery, gallery_index = 0):
     try:
+        if gallery_index >= len(result_gallery):
+            gallery_index = 0
         folder = os.path.dirname(result_gallery[gallery_index]['name'])
     except Exception:
         folder = shared.opts.outdir_samples

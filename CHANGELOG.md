@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-14
+## Update for 2026-06-16
 
-### Highlights for 2026-06-14
+### Highlights for 2026-06-16
 
 *What's New?*
 - **Ideogram-4** released, Microsoft joins the game with **Lens** and **Anima** made it to release version
@@ -16,9 +16,11 @@ And we have new [Home page](https://vladmandic.github.io/sdnext/) with heavily u
 Plus continued work on modernization of codebase: UI is now fully TypeScript based
 And we have a new modular LoRA loader, new native Transformers loader and improved 3rd party finetunes support!  
 
+*Note*: This is a major update due to sheer size of the changes: over 400 commits!
+
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-06-14
+### Details for 2026-06-16
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -150,8 +152,19 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
   - `samplers` ui sigma methods
   - `xpu` generator on non-cpu
   - `compel` compatibility with *transformers==5*
+  - `gallery` open folder
   - `mixture-tiling` fix for non-square images, thanks @QualiaRain
   - `prompts-from-file` fix metadata handling, thanks @QualiaRain
+  - `hypertile` correct width/height assignment, thanks @QualiaRain
+  - custom allowed-paths, thanks @QualiaRain
+  - bias dtype, thanks @QualiaRain
+  - `ipadapter` mask accumulation, thanks @QualiaRain
+  - `lora` no-lora check, thanks @QualiaRain
+  - control `video` processing, thanks @QualiaRain
+  - `freescale` correct width/height assignment, thanks @QualiaRain
+  - noise `lerp` inversion, thanks @QualiaRain
+  - additional safety checks, thanks @QualiaRain
+  - `remote vae` shadowing, thanks @QualiaRain
 
 ## Update for 2026-05-13
 
