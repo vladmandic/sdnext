@@ -231,4 +231,13 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         shared.profiler.step()
     t1 = time.time()
     timer.process.add('callback', t1 - t0)
+    if shared.opts.live_preview_transport == "WebSocket":
+        from modules.api.preview import preview_manager
+        interval = max(1, shared.opts.live_preview_ws_interval)
+        if shared.state.sampling_step % interval == 0:
+            preview_manager.push_step(
+                shared.state.sampling_step,
+                shared.state.sampling_steps,
+                shared.state
+            )
     return kwargs

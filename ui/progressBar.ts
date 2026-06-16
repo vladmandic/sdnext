@@ -146,53 +146,135 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
     if (atEnd) atEnd();
   };
 
-  const startLivePreview = (taskId: string, id_live_preview: number) => {
+  const onProgressHandler = (res) => {
+    if (res?.debug) debug('progress:', { start: dateStart, res });
+    lastState = res;
+    const elapsedFromStart = (Date.now() - dateStart) / 1000;
+    hasStarted = hasStarted || res.active;
+    if (res.completed || (!res.active && (hasStarted || once))) {
+      debug('progress', { end: res, reason: res.completed ? 'completed' : 'inactive' });
+      if (!res.paused) removeLivePreview(true);
+      return;
+    }
+    if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
+      debug('progress', { end: res, reason: 'progressTimeout' });
+      if (!res.paused) removeLivePreview(false);
+      return;
+    }
+    if (elapsedFromStart > startTimeout && !res.queued && !res.active) {
+      debug('progress', { end: res, reason: 'startTimeout' });
+      if (!res.paused) removeLivePreview(false);
+      return;
+    }
+    if (res.progress !== prevProgress) {
+      dateStart = Date.now();
+      prevProgress = res.progress;
+    }
+    setProgress(res);
+    if (res.live_preview && !livePreview) initLivePreview();
+    if (res.live_preview && galleryEl) {
+      if (img.src !== res.live_preview) img.src = res.live_preview;
+    }
+    if (onProgress) onProgress(res);
+  };
+
+  const onProgressErrorHandler = (err) => {
+    error('progress', { error: err });
+    removeLivePreview(false);
+  };
+
+  const startHttpPolling = (taskId: string, id_live_preview: number) => {
     if (window.opts.live_preview_refresh_period === 0) return;
     const request_id = document.hidden ? -1 : id_live_preview;
-
-    const onProgressHandler = (res) => {
-      if (res?.debug) debug('progress:', { start: dateStart, id: request_id, res });
-      lastState = res;
-      const elapsedFromStart = (Date.now() - dateStart) / 1000;
-      hasStarted = hasStarted || res.active;
-      if (res.completed || (!res.active && (hasStarted || once))) {
-        debug('progress', { end: res, reason: res.completed ? 'completed' : 'inactive' });
-        if (!res.paused) removeLivePreview(true); // only abort if not paused
-        return;
+    const wrappedHandler = (res) => {
+      onProgressHandler(res);
+      if (res.completed || (!res.active && (hasStarted || once))) return;
+      if (!res.paused) {
+        setTimeout(() => startHttpPolling(taskId, res.id_live_preview || 0), window.opts.live_preview_refresh_period || 500);
       }
-      if (elapsedFromStart > progressTimeout && !res.queued && res.progress === prevProgress) {
-        debug('progress', { end: res, reason: 'progressSimeout' });
-        if (!res.paused) removeLivePreview(false); // only abort if not paused
-        return;
-      }
-      if (elapsedFromStart > startTimeout && !res.queued && !res.active) {
-        debug('progress', { end: res, reason: 'startTimeout' });
-        if (!res.paused) removeLivePreview(false); // only abort if not paused
-        return;
-      }
-      if (res.progress !== prevProgress) {
-        dateStart = Date.now();
-        prevProgress = res.progress;
-      }
-      setProgress(res);
-      if (res.live_preview && !livePreview) initLivePreview();
-      if (res.live_preview && galleryEl) {
-        if (img.src !== res.live_preview) img.src = res.live_preview;
-        id_live_preview = res.id_live_preview;
-      }
-      if (onProgress) onProgress(res);
-      setTimeout(() => startLivePreview(id_task, id_live_preview), window.opts.live_preview_refresh_period || 500);
     };
-
-    const onProgressErrorHandler = (err) => {
-      error('progress', { error: err });
-      removeLivePreview(false);
-    };
-
-    xhrPost('./internal/progress', { id_task, id_live_preview: request_id }, onProgressHandler, onProgressErrorHandler, false, 30000);
+    xhrPost('./internal/progress', { id_task: taskId, id_live_preview: request_id }, wrappedHandler, onProgressErrorHandler, false, 30000);
   };
+
+  const startLivePreviewWebSocket = () => {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${proto}//${location.host}/sdapi/v1/preview`);
+    let wsFailed = false;
+    let revokeUrl: string | undefined;
+
+    const sendVisibility = () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: 'visibility', visible: !document.hidden }));
+      }
+    };
+
+    const cleanup = (ok: boolean) => {
+      document.removeEventListener('visibilitychange', sendVisibility);
+      if (revokeUrl) { URL.revokeObjectURL(revokeUrl); revokeUrl = undefined; }
+      ws.close();
+      if (!ok && !wsFailed) {
+        wsFailed = true;
+        debug('progress', 'ws fallback to polling');
+        startHttpPolling(id_task, 0);
+      }
+    };
+
+    ws.onopen = () => {
+      sendVisibility();
+      debug('progress', 'ws connected');
+    };
+
+    ws.onmessage = (event) => {
+      if (event.data instanceof Blob) {
+        if (!livePreview) initLivePreview();
+        const url = URL.createObjectURL(event.data);
+        if (revokeUrl) URL.revokeObjectURL(revokeUrl);
+        revokeUrl = url;
+        img.src = url;
+        if (onProgress) onProgress(lastState);
+      } else if (typeof event.data === 'string') {
+        try {
+          const res = JSON.parse(event.data);
+          if (res.completed) {
+            onProgressHandler(res);
+            cleanup(true);
+            removeLivePreview(true);
+            return;
+          }
+          onProgressHandler(res);
+        } catch (e) {
+          error('progress ws', { error: e });
+        }
+      }
+    };
+
+    ws.onerror = () => { cleanup(false); };
+
+    ws.onclose = (event) => {
+      if (event.code !== 1000) cleanup(false);
+    };
+
+    document.addEventListener('visibilitychange', sendVisibility);
+
+    const fallbackTimer = setTimeout(() => {
+      if (ws.readyState !== WebSocket.OPEN) {
+        wsFailed = true;
+        debug('progress', 'ws timeout, fallback to polling');
+        ws.close();
+        startHttpPolling(id_task, 0);
+      }
+    }, 1000);
+
+    ws.addEventListener('open', () => clearTimeout(fallbackTimer));
+  };
+
   debug('progress', { start: dateStart });
-  startLivePreview(id_task, 0);
+  const transport = window.opts.live_preview_transport || 'Polling';
+  if (transport === 'WebSocket') {
+    startLivePreviewWebSocket();
+  } else {
+    startHttpPolling(id_task, 0);
+  }
 }
 
 window.checkPaused = checkPaused;
