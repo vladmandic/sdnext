@@ -17,12 +17,12 @@ class Api:
         self.credentials = {}
         if shared.cmd_opts.auth:
             for auth in shared.cmd_opts.auth.split(","):
-                user, password = auth.split(":")
+                user, password = auth.split(":", 1)
                 self.credentials[user.replace('"', '').strip()] = password.replace('"', '').strip()
         if shared.cmd_opts.auth_file:
             with open(shared.cmd_opts.auth_file, encoding="utf8") as file:
                 for line in file.readlines():
-                    user, password = line.split(":")
+                    user, password = line.split(":", 1)
                     self.credentials[user.replace('"', '').strip()] = password.replace('"', '').strip()
         self.router = APIRouter()
         if shared.cmd_opts.docs:

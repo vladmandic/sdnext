@@ -76,7 +76,7 @@ class APIProcess:
         if processor is None or processor.processor_id != req.model:
             with self.queue_lock:
                 processor = processors.Processor(req.model)
-        for k, v in req.params.items():
+        for k, v in (req.params or {}).items():
             if k not in processors.config[processor.processor_id]['params']:
                 return JSONResponse(status_code=400, content={"error": f"Processor invalid parameter: id={req.model} {k}={v}"})
         jobid = shared.state.begin('API-PRE', api=True)
@@ -102,7 +102,7 @@ class APIProcess:
             return JSONResponse(status_code=400, content={"error": f"Mask type not found: id={req.type}"})
         image = decode_base64_to_image(req.image)
         mask = decode_base64_to_image(req.mask) if req.mask else None
-        for k, v in req.params.items():
+        for k, v in (req.params or {}).items():
             if not hasattr(masking.opts, k):
                 return JSONResponse(status_code=400, content={"error": f"Mask invalid parameter: {k}={v}"})
             else:
