@@ -95,10 +95,10 @@ class ConsiStoryScript(scripts_manager.Script):
             try:
                 freeu_preset = [float(f.strip()) for f in freeu_preset.split(',')]
             except Exception:
-                freeu_preset = []
                 log.warning(f'ConsiStory: freeu="{freeu_preset}" invalid')
-            if len(freeu) == 4:
-                shared.sd_model.enable_freeu(s1=freeu[0], s2=freeu[0], b1=freeu[0], b2=freeu[0])
+                freeu_preset = []
+            if len(freeu_preset) == 4:
+                shared.sd_model.enable_freeu(s1=freeu_preset[0], s2=freeu_preset[1], b1=freeu_preset[2], b2=freeu_preset[3])
         steps = 50 if steps else p.steps
         if injection:
             try:

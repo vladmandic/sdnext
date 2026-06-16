@@ -93,7 +93,7 @@ class MuLanScript(scripts_manager.Script):
             p.prompt = p.prompt[0]
         p.task_args['prompt'] = p.prompt
         if isinstance(p.negative_prompt, list):
-            p.prompt = p.negative_prompt[0]
+            p.negative_prompt = p.negative_prompt[0]
         p.task_args['negative_prompt'] = p.negative_prompt
 
         if pipe_type != ('sd15' if shared.sd_model_type == 'sd' else 'sdxl'):

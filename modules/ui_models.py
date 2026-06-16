@@ -32,8 +32,10 @@ def update_model_hashes():
     yield from sd_models.update_model_hashes(model_type='checkpoint')
 
 
-def create_models_table(rows: list = []):
+def create_models_table(rows: list | None = None):
     from modules import sd_detect
+    if rows is None:
+        rows = []
     rows = sorted(rows, key=lambda row: str(getattr(row, 'model_name', '')).lower())
     html = """
         <table class="simple-table sortable-table" data-sortable="true" data-default-sort-key="name" data-default-sort-order="asc" data-sort-key="name" data-sort-order="asc">

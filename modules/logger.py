@@ -249,9 +249,14 @@ def setup_logging(debug=None, trace=None, filename=None):
     log.quiet = quiet_log
 
     # overrides
-    logging.getLogger("urllib3").setLevel(logging.ERROR)
-    logging.getLogger("httpx").setLevel(logging.ERROR)
-    logging.getLogger("diffusers").setLevel(logging.ERROR)
-    logging.getLogger("torch").setLevel(logging.ERROR)
-    logging.getLogger("ControlNet").handlers = log.handlers
     logging.getLogger("lycoris").handlers = log.handlers
+    logging.getLogger("ControlNet").handlers = log.handlers
+
+    logging.getLogger("asyncio").setLevel(logging.ERROR)
+    logging.getLogger("diffusers").setLevel(logging.ERROR)
+    logging.getLogger("transformers").setLevel(logging.ERROR)
+    logging.getLogger("httpcore").setLevel(logging.ERROR)
+    logging.getLogger("httpx").setLevel(logging.ERROR)
+    logging.getLogger("torch").setLevel(logging.ERROR)
+    logging.getLogger("urllib3").setLevel(logging.ERROR)
+    logging.getLogger("uvicorn.access").setLevel(logging.ERROR)

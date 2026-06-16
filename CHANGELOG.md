@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-11
+## Update for 2026-06-14
 
-### Highlights for 2026-06-11
+### Highlights for 2026-06-14
 
 *What's New?*
 - **Ideogram-4** released, Microsoft joins the game with **Lens** and **Anima** made it to release version
@@ -18,7 +18,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
 
 [ReadMe](https://github.com/vladmandic/automatic/blob/master/README.md) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [WiKi](https://github.com/vladmandic/automatic/wiki) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-06-11
+### Details for 2026-06-14
 
 - **Models**
   - [CircleStone Anima 1.0](https://huggingface.co/circlestone-labs/Anima) in *Base* and *Turbo* (distilled) variants  
@@ -40,12 +40,14 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
     *tip*: image analysis requires larger VLM model to produce quality output  
     new api endpoint: `/sdapi/v1/analyze`  
     cleanup list of predefined models, new models added and some old removed  
+    add support for prequantized models
     improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
     improved system prompts  
   - **Prompt Enhance** tons of features  
     cleanup list of predefined models, new models added and some old removed  
     improved default values plus some new params like min length and `custom args` so you can pass anything to an llm model  
     improved system prompts  
+    add support for prequantized models
     new processing engine! now you can steer the model as its generating  
     add words to list and model will either steer away from them towards safe choices or you choose specific replacements for them  
     *for example*: `child:person, toy:airplane, dog:cat`  
@@ -57,6 +59,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
   - **Detailer** available as post-processing task for existing images  
   - **Masking** updated interface and capabilities  
     you can now also select mask type instead of focing alpha mask with all models  
+  - **Samplers** reorganized into clear sampler categories
   - **Gallery** add clear cache button to folder menu
   - **Finetunes** improved support for loading model finetunes  
     this also includes detecting compatibility and falbacks  
@@ -148,6 +151,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
   - `xpu` generator on non-cpu
   - `compel` compatibility with *transformers==5*
   - `mixture-tiling` fix for non-square images, thanks @QualiaRain
+  - `prompts-from-file` fix metadata handling, thanks @QualiaRain
 
 ## Update for 2026-05-13
 

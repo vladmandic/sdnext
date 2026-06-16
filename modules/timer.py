@@ -59,11 +59,12 @@ class Timer:
         return sum(self.records.values())
 
     def dct(self, min_time=default_min_time):
-        if self.profile:
-            res = {k: round(v, 4) for k, v in self.records.items()}
         self.total = sum(self.records.values())
         self.records['total'] = self.total
-        res = {k: round(v, 2) for k, v in self.records.items() if v >= min_time}
+        if self.profile:
+            res = {k: round(v, 4) for k, v in self.records.items()}
+        else:
+            res = {k: round(v, 2) for k, v in self.records.items() if v >= min_time}
         res = {k: v for k, v in sorted(res.items(), key=lambda x: x[1], reverse=True)} # noqa: C416 # pylint: disable=unnecessary-comprehension
         return res
 

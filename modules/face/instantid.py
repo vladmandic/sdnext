@@ -35,7 +35,7 @@ def instant_id(p: processing.StableDiffusionProcessing, app, source_images, stre
         face = sorted(faces, key=lambda x:(x['bbox'][2]-x['bbox'][0])*x['bbox'][3]-x['bbox'][1])[-1]  # only use the maximum face
         face_embeds.append(torch.from_numpy(face['embedding']))
         face_images.append(draw_kps(source_image, face['kps']))
-        p.extra_generation_params[f"InstantID {i+1}"] = f'{faces[0].det_score:.2f} {"female" if faces[0].gender==0 else "male"} {faces[0].age}y'
+        p.extra_generation_params[f"InstantID {i+1}"] = f'{face.det_score:.2f} {"female" if face.gender==0 else "male"} {face.age}y'
         log.debug(f'InstantID face: score={face.det_score:.2f} gender={"female" if face.gender==0 else "male"} age={face.age} bbox={face.bbox}')
 
     log.debug(f'InstantID loading: model={REPO_ID}')

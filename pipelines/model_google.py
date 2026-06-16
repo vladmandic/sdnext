@@ -110,7 +110,7 @@ class GoogleNanoBananaPipeline():
         log.debug(f'Cloud: model="{self.model}" args={args_log}')
         return args
 
-    def __call__(self, prompt: list[str], width: int, height: int, images: list[Image.Image] = []):
+    def __call__(self, prompt: list[str], width: int, height: int, images: list[Image.Image] | None = None):
         from google import genai # pylint: disable=no-name-in-module
         if self.client is None:
             args = self.get_args()

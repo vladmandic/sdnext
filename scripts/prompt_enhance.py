@@ -114,6 +114,7 @@ class Options:
         'google/gemma-3n-E4B-it',
         'google/gemma-4-E2B-it',
         'google/gemma-4-E4B-it',
+        'google/gemma-4-12B-it-qat-w4a16-ct',
         # Qwen3.5
         'Qwen/Qwen3.5-2B',
         'Qwen/Qwen3.5-4B',
@@ -153,6 +154,7 @@ class Options:
         'google/gemma-3n-E4B-it': {},
         'google/gemma-4-E2B-it': {},
         'google/gemma-4-E4B-it': {},
+        'google/gemma-4-12B-it-qat-w4a16-ct': {}, # compressed-tensor model
         # Qwen3.5
         'Qwen/Qwen3.5-0.8B': {},
         'Qwen/Qwen3.5-2B': {},
@@ -182,6 +184,7 @@ class Options:
         'meta-llama/Llama-3.2-8B-Instruct': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-1B': {},
         'cognitivecomputations/Dolphin3.0-Llama3.2-3B': {},
+        # Gemini
         'google/gemini-3.5-flash': {},
         'google/gemini-3.1-pro-preview': {},
         'google/gemini-3.1-flash-lite': {},
@@ -374,6 +377,13 @@ class PromptEnhanceScript(scripts_manager.Script):
                 if custom_cls:
                     cls_name = custom_cls
 
+            log.info(f'Prompt enhance load: name="{name}" repo="{model_repo}" cls={cls_name.__name__}')
+
+            if '-ct' in model_repo.lower():
+                from installer import install
+                install('compressed-tensors')
+                quant_args = {}
+
             sd_models.set_caption_load_options()
             try:
                 self.llm = cls_name.from_pretrained(
@@ -403,7 +413,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                     debug_log(f'Prompt enhance: {m}')
             self.model = name
             t1 = time.time()
-            log.info(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" processor="{self.processor.__class__.__name__ if self.processor else None}" tokenizer="{self.tokenizer.__class__.__name__ if self.tokenizer else None}" time={t1-t0:.2f} loaded')
+            log.debug(f'Prompt enhance: cls={self.llm.__class__.__name__} name="{name}" repo="{model_repo}" fn="{model_file}" processor="{self.processor.__class__.__name__ if self.processor else None}" tokenizer="{self.tokenizer.__class__.__name__ if self.tokenizer else None}" time={t1-t0:.2f} loaded')
             self.compile()
         except Exception as e:
             log.error(f'Prompt enhance: load {e}')

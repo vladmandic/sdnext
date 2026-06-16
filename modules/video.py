@@ -53,7 +53,8 @@ def save_video_atomic(images, filename, video_type: str = 'none', duration: floa
         frames = interpolate_frames(images, count=interpolate, scale=scale, pad=pad, change=change)
         fourcc = "mp4v"
         h, w, _c = frames[0].shape
-        video_writer = cv2.VideoWriter(filename, fourcc=cv2.VideoWriter_fourcc(*fourcc), fps=len(frames)/duration, frameSize=(w, h))
+        fps = max(1.0, len(frames) / duration) if duration > 0 else 30.0
+        video_writer = cv2.VideoWriter(filename, fourcc=cv2.VideoWriter_fourcc(*fourcc), fps=fps, frameSize=(w, h))
         for i in range(len(frames)):
             img = cv2.cvtColor(frames[i], cv2.COLOR_RGB2BGR)
             video_writer.write(img)

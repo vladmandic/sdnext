@@ -251,7 +251,7 @@ def get_metadata():
         "modelspec.license": recipe.license,
         "modelspec.usage_hint": recipe.hint,
         "modelspec.prediction_type": recipe.prediction,
-        "modelspec.dtype": str(recipe.dtype).split('.')[1],
+        "modelspec.dtype": str(recipe.dtype).split('.')[-1] if '.' in str(recipe.dtype) else str(recipe.dtype),
         "modelspec.hash_sha256": "",
         "modelspec.thumbnail": get_thumbnail(),
         "recipe": json.dumps({

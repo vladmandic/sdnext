@@ -106,7 +106,7 @@ class IPInstructScript(scripts_manager.Script):
         # p.extra_generation_params["IPInstruct"] = f''
         return processed
 
-    def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, **kwargs): # pylint: disable=unused-argument
+    def after(self, p: processing.StableDiffusionProcessing, processed: processing.Processed, *args): # pylint: disable=unused-argument
         if self.orig_pipe is not None:
             shared.sd_model = self.orig_pipe
         return processed

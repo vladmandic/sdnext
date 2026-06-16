@@ -219,6 +219,7 @@ def start_server(immediate=True, server=None):
         test_pipelines()
         log.info("Test only: exiting...")
         server.wants_restart = False
+        uvicorn = server.webui(restart=not immediate, _exit=True)
     else:
         uvicorn = server.webui(restart=not immediate)
     if args.profile:

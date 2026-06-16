@@ -15,6 +15,7 @@ let fontSizeApplyRaf = 0;
 let pendingFontSize: number | null = null;
 let appliedFontSize: number | null = null;
 let cachedGradioRoot: any = null;
+let resizeDebounce: ReturnType<typeof setTimeout> | undefined;
 const wait_time = 800;
 const token_timeouts = {};
 let uiLoaded = false;
@@ -25,7 +26,7 @@ function rememberGallerySelection(name) {
   // dummy
 }
 
-function set_theme(theme) {
+export function set_theme(theme) {
   const gradioURL = window.location.href;
   if (!gradioURL.includes('?__theme=')) window.location.replace(`${gradioURL}?__theme=${theme}`);
 }
@@ -773,7 +774,11 @@ export function resolutionChange(ar: string, width: number, height: number) {
     if (w > h) height = Math.round(width * h / w);
     else if (h > w) width = Math.round(height * w / h);
   } catch { /**/ }
-  if (window.resizeStage) window.resizeStage(width, height); // notify kanvas
+  // min/max size handled in gradio debounce
+  if (window.resizeStage) {
+    clearTimeout(resizeDebounce);
+    resizeDebounce = setTimeout(() => window.resizeStage(width, height), 250); // notify kanvas
+  }
   return [ar, width, height];
 }
 
@@ -859,3 +864,4 @@ window.currentImageResolutionimg2img = currentImageResolutionimg2img;
 window.currentImageResolutioncontrol = currentImageResolutioncontrol;
 window.updateImg2imgResizeToTextAfterChangingImage = updateImg2imgResizeToTextAfterChangingImage;
 window.create_submit_args = create_submit_args;
+window.set_theme = set_theme;

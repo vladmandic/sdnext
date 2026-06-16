@@ -131,7 +131,7 @@ class LBMScript(scripts_manager.Script):
             model.to(device=devices.cpu)
 
         if output_image is not None:
-            output_image.resize((ori_h_bg, ori_w_bg))
+            output_image = output_image.resize((ori_h_bg, ori_w_bg))
             return processing.get_processed(p, [output_image])
         else:
             return processing.Processed(p, [])

@@ -148,8 +148,8 @@ class PromptsFromFileScript(scripts_manager.Script):
             all_seeds += proc.all_seeds
             all_prompts += proc.all_prompts
             all_negative += proc.all_negative_prompts
-            images += proc.images
-            infotexts += proc.infotexts
+            images += proc.images[proc.index_of_first_image:]
+            infotexts += proc.infotexts[proc.index_of_first_image:]
             if state.interrupted:
                 break
         return get_processed(p, images, p.seed, "", all_prompts=all_prompts, all_seeds=all_seeds, all_negative_prompts=all_negative, infotexts=infotexts)

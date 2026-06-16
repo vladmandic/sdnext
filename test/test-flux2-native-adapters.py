@@ -599,7 +599,7 @@ def test_resolve_targets_qkv_chunking():
     targets = F.resolve_targets('diffusion_model.', 'single_blocks.7.linear1')
     assert targets == [('single_transformer_blocks.7.attn.to_qkv_mlp_proj', None)]
 
-    targets = F.resolve_targets('transformer.', 'transformer_blocks.0.attn.to_q')
+    targets = F.native_adapter.resolve_group_targets(F.resolve_targets, 'transformer.', 'transformer_blocks.0.attn.to_q')
     assert targets == [('transformer_blocks.0.attn.to_q', None)]
 
     targets = F.resolve_targets('weird_prefix.', 'whatever')
@@ -690,8 +690,8 @@ def test_parse_key_bare_diffusers_and_peft_default():
         got = F.parse_key(key, suffixes)
         assert got == expected, f'parse_key({key!r}) = {got}, expected {expected}'
 
-    # resolve_targets passes the bare-diffusers path through verbatim.
-    targets = F.resolve_targets(bd, 'single_transformer_blocks.5.attn.to_out')
+    # the shared resolver passes the bare-diffusers path through verbatim.
+    targets = F.native_adapter.resolve_group_targets(F.resolve_targets, bd, 'single_transformer_blocks.5.attn.to_out')
     assert targets == [('single_transformer_blocks.5.attn.to_out', None)], f'targets={targets}'
     return True
 
@@ -760,6 +760,33 @@ def test_lora_peft_format():
     net = _load_via(F.try_load_lora, sd_lora_peft_to_q())
     assert net is not None and len(net.modules) == 1
     assert 'lora_transformer_transformer_blocks_0_attn_to_q' in net.modules
+    return True
+
+
+def test_lora_onetrainer_diffusers_flat():
+    """OneTrainer lora_transformer_ diffusers-flat keys load via the shared passthrough.
+
+    These keys are sdnext's own internal network_layer_mapping names, so they
+    bind with no rename or chunking. to_qkv_mlp_proj is a single diffusers
+    module here, so it loads as one passthrough target (not chunked)."""
+    sd = {
+        'lora_transformer_transformer_blocks_0_attn_to_q.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_transformer_blocks_0_attn_to_q.lora_up.weight': torch.randn(QKV_OUT, RANK_LORA),
+        'lora_transformer_transformer_blocks_0_attn_to_q.alpha': torch.tensor(float(RANK_LORA)),
+        'lora_transformer_transformer_blocks_0_ff_linear_in.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_transformer_blocks_0_ff_linear_in.lora_up.weight': torch.randn(MLP_OUT, RANK_LORA),
+        'lora_transformer_transformer_blocks_0_ff_linear_in.alpha': torch.tensor(float(RANK_LORA)),
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj.lora_up.weight': torch.randn(SINGLE_FUSED_OUT, RANK_LORA),
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj.alpha': torch.tensor(float(RANK_LORA)),
+    }
+    net = _load_via(F.try_load_lora, sd)
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    assert set(net.modules) == {
+        'lora_transformer_transformer_blocks_0_attn_to_q',
+        'lora_transformer_transformer_blocks_0_ff_linear_in',
+        'lora_transformer_single_transformer_blocks_0_attn_to_qkv_mlp_proj',
+    }, f'got {set(net.modules)}'
     return True
 
 
@@ -1210,6 +1237,7 @@ def run_tests():
         test_lora_kohya_fused_qkv_chunked,
         test_lora_bfl_non_fused,
         test_lora_peft_format,
+        test_lora_onetrainer_diffusers_flat,
         test_lora_bare_bfl_format,
         test_lora_peft_saved_fal_style,
         test_lora_peft_saved_dreambooth_style,

@@ -675,13 +675,22 @@ class VQA:
         if self.model is None or self.loaded != repo:
             log.debug(f'LLM load: vlm="{repo}"')
             self._unload_current()
-            if 'gemma-4' in repo.lower():
+
+            if 'gemma-4-12b' in repo.lower():
+                cls = transformers.Gemma4UnifiedForConditionalGeneration
+            elif 'gemma-4' in repo.lower():
                 cls = transformers.Gemma4ForConditionalGeneration
             elif '3n' in repo:
                 cls = transformers.Gemma3nForConditionalGeneration  # pylint: disable=no-member
             else:
                 cls = transformers.Gemma3ForConditionalGeneration
             quant_args = model_quant.create_config(module='LLM')
+
+            if '-ct' in repo.lower():
+                from installer import install
+                install('compressed-tensors')
+                quant_args = {}
+
             self.model = cls.from_pretrained(
                 repo,
                 torch_dtype=devices.dtype,
@@ -1417,7 +1426,7 @@ class VQA:
         prefill: str | None = None,
         thinking_mode: bool | None = None,
         quiet: bool = False,
-        custom_args: str | None = None,
+        custom_args: str | None = None, # TODO vqa: implement handling of custom args # pylint: disable=unused-argument
         generation_kwargs: dict | None = None,
     ) -> str:
         """
@@ -1630,6 +1639,7 @@ class VQA:
             prompt=prompt,
             image=image,
             model_name=model_name,
+            custom_args=custom_args,
             prefill='',
             thinking_mode=thinking_mode,
             quiet=quiet,

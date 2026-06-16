@@ -45,8 +45,10 @@ from modules.lora import lora_common as l
 
 # Universal prefix list shared by every native arch loader. Per-arch loaders
 # extend this with arch-specific entries when their files use additional
-# vendor-specific naming conventions.
-KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_")
+# vendor-specific naming conventions. ``lora_transformer_`` is not a vendor
+# format but sdnext's own internal transformer namespace; files already saved
+# in it (e.g. OneTrainer) pass through verbatim, see :func:`resolve_group_targets`.
+KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_", "lora_transformer_")
 
 
 # Sentinel ``prefix_used`` value emitted by :func:`parse_key` when a bare path
@@ -61,6 +63,13 @@ BARE_DIFFUSERS_PREFIX_USED = "bare_diffusers"
 # components alongside the transformer) pass a callable that picks per
 # ``prefix_used``.
 NETWORK_PREFIX_DEFAULT = "lora_transformer_"
+
+
+# Prefixes whose parsed ``base`` is already a network-key tail (``arch_prefix +
+# base.replace(".", "_")`` matches the stamped module name), so the loader binds
+# them directly with no per-arch rewrite. Arch-local already-resolved prefixes
+# (e.g. flux2's ``lycoris_``) stay in that arch's ``resolve_targets``.
+PASSTHROUGH_PREFIXES_DEFAULT = ("transformer.", BARE_DIFFUSERS_PREFIX_USED, "lora_transformer_")
 
 
 def _resolve_prefix(network_prefix, prefix_used):
@@ -359,6 +368,18 @@ def group_by_suffixes(state_dict, suffixes, *, prefixes=KNOWN_PREFIXES_DEFAULT, 
 read_state_dict = sd_models.read_state_dict
 
 
+def resolve_group_targets(resolve_targets, prefix_used, base):
+    """Map a parsed ``(prefix_used, base)`` group to ``[(diffusers_path, chunk), ...]``.
+
+    Passthrough prefixes (:data:`PASSTHROUGH_PREFIXES_DEFAULT`) bind verbatim;
+    everything else defers to the arch's ``resolve_targets``. Centralizing the
+    passthrough keeps each arch's resolver to the prefixes it actually rewrites.
+    """
+    if prefix_used in PASSTHROUGH_PREFIXES_DEFAULT:
+        return [(base, None)]
+    return resolve_targets(prefix_used, base)
+
+
 # === Generic family loaders ===
 #
 # Each loader takes a per-arch ``resolve_targets`` callable returning a list of
@@ -432,7 +453,7 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
         if "lora_down.weight" not in w or "lora_up.weight" not in w:
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
-        for diffusers_path, chunk in resolve_targets(prefix, base):
+        for diffusers_path, chunk in resolve_group_targets(resolve_targets, prefix, base):
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
@@ -492,7 +513,7 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
         if not (has_1 and has_2):
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
-        for diffusers_path, chunk in resolve_targets(prefix, base):
+        for diffusers_path, chunk in resolve_group_targets(resolve_targets, prefix, base):
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
@@ -542,7 +563,7 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
         if not all(k in w for k in ("hada_w1_a", "hada_w1_b", "hada_w2_a", "hada_w2_b")):
             continue
         is_tucker = "hada_t1" in w or "hada_t2" in w
-        targets = resolve_targets(prefix, base)
+        targets = resolve_group_targets(resolve_targets, prefix, base)
         is_fused = any(t[1] is not None for t in targets)
         if is_fused and is_tucker:
             log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={base} Tucker fused QKV skipped (unsupported)')
@@ -606,7 +627,7 @@ def try_load_oft(name, network_on_disk, lora_scale, *,
         if not ("oft_blocks" in w or "oft_diag" in w):
             continue
         is_boft = "oft_blocks" in w and w["oft_blocks"].ndim == 4
-        targets = resolve_targets(prefix, base)
+        targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
             log.warning(f'Network load: type={"BOFT" if is_boft else "OFT"} name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
             skipped += 1
@@ -664,7 +685,7 @@ def try_load_ia3(name, network_on_disk, lora_scale, *,
     for (prefix, base), w in groups.items():
         if not ("weight" in w and "on_input" in w):
             continue
-        targets = resolve_targets(prefix, base)
+        targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
             log.warning(f'Network load: type=IA3 name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
             skipped += 1
@@ -715,7 +736,7 @@ def try_load_glora(name, network_on_disk, lora_scale, *,
     for (prefix, base), w in groups.items():
         if not all(k in w for k in ("a1.weight", "a2.weight", "b1.weight", "b2.weight")):
             continue
-        targets = resolve_targets(prefix, base)
+        targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
             log.warning(f'Network load: type=GLoRA name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
             skipped += 1
@@ -768,7 +789,7 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
     for (prefix, base), w in groups.items():
         if "w_norm" not in w:
             continue
-        targets = resolve_targets(prefix, base)
+        targets = resolve_group_targets(resolve_targets, prefix, base)
         if not targets:
             unmapped += 1
             continue
@@ -821,7 +842,7 @@ def try_load_full(name, network_on_disk, lora_scale, *,
     for (prefix, base), w in groups.items():
         if "diff" not in w:
             continue
-        targets = resolve_targets(prefix, base)
+        targets = resolve_group_targets(resolve_targets, prefix, base)
         if any(t[1] is not None for t in targets):
             log.warning(f'Network load: type=Full name="{name}" arch={arch_name} key={base} fused QKV skipped (unsupported)')
             skipped += 1

@@ -162,6 +162,8 @@ def get_sampler_name(sampler_index: int | None = None, img: bool = False) -> str
     else:
         sampler_name = "Default"
         log.warning(f'Sampler not found: index={sampler_index} available={[s.name for s in sd_samplers.samplers]} fallback={sampler_name}')
+    if sd_samplers.is_separator(sampler_name):  # divider row selected, treat as Default
+        sampler_name = "Default"
     if img and sampler_name == "PLMS":
         sampler_name = "Default"
         log.warning(f'Sampler not compatible: name=PLMS fallback={sampler_name}')
@@ -183,7 +185,7 @@ def slerp(val, lo, hi): # from https://discuss.pytorch.org/t/help-regarding-sler
     dot = (lo_norm * hi_norm).sum(1)
     dot_mean = dot.mean()
     if dot_mean > 0.9999: # simplifies slerp to lerp if vectors are nearly parallel
-        return lo * val + hi * (1 - val)
+        return lo * (1 - val) + hi * val
     if dot_mean < 0.0001: # also simplifies slerp to lerp to avoid division-by-zero later on
         return lo * (1.0 - val) + hi * val
     omega = torch.acos(dot)
@@ -202,7 +204,7 @@ def slerp_alt(val, lo, hi): # from https://discuss.pytorch.org/t/help-regarding-
     dot = (lo_norm * hi_norm).sum(1)
     dot_mean = dot.mean().abs()
     if dot_mean > 0.9999: # simplifies slerp to lerp if vectors are nearly parallel
-        lerp_val = lo * val + hi * (1 - val)
+        lerp_val = lo * (1 - val) + hi * val
         return lerp_val / torch.linalg.norm(lerp_val) * torch.sqrt(torch.linalg.norm(hi_norm) * torch.linalg.norm(lo_norm))
     if dot_mean < 0.0001: # also simplifies slerp to lerp to avoid division-by-zero later on
         lerp_val = lo * (1.0 - val) + hi * val
@@ -427,7 +429,7 @@ def resize_hires(p, latents): # input=latents output=pil if not latent_upscaler 
                     if not torch.is_tensor(latents[i]):
                         log.warning(f'Hires: input[{i}]={type(latents[i])} not tensor')
                         latents[i] = processing_vae.vae_encode(image=latents[i], model=shared.sd_model, vae_type=p.vae_type)
-                    latents = torch.cat(latents, dim=0)
+                latents = torch.cat(latents, dim=0)
             except Exception as e:
                 log.error(f'Hires: prepare latents: {e}')
                 resized = latents
@@ -520,7 +522,7 @@ def get_generator(p):
             generator = p.generator
         else:
             try:
-                p.seeds = [seed if seed != -1 else get_fixed_seed(seed) for seed in p.seeds if seed]
+                p.seeds = [seed if seed != -1 else get_fixed_seed(seed) for seed in p.seeds if seed is not None]
                 devices.randn(p.seeds[0])
                 generator = [torch.Generator(generator_device).manual_seed(s) for s in p.seeds]
             except Exception as e:

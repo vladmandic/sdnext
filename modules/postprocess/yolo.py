@@ -85,7 +85,7 @@ class YoloRestorer(Detailer):
 
     def dependencies(self):
         from installer import install
-        install('ultralytics==8.3.40', ignore=True, quiet=True)
+        install('ultralytics==8.4.67', ignore=True, quiet=True)
         install('omegaconf')
         install('antlr4-python3-runtime')
 
@@ -531,7 +531,7 @@ class YoloRestorer(Detailer):
     def change_mode(self, dropdown, text):
         self.ui_mode = not self.ui_mode
         if self.ui_mode:
-            value = [val.split(':')[0].strip() for val in text.split(',')]
+            value = [val.split(':', 1)[0].strip() for val in text.split(',') if val.strip()]
             return gr.update(visible=True, value=value), gr.update(visible=False), gr.update(visible=True)
         else:
             value = ', '.join(dropdown)
@@ -612,7 +612,7 @@ class YoloRestorer(Detailer):
             if tab == 'extras': # fold the standalone sampler settings into the detailer accordion; values applied per-job in make_processing, never global opts
                 from modules import sd_samplers
                 sd_samplers.set_samplers()
-                sampler_choices = [s.name for s in sd_samplers.samplers if s.name != 'Same as primary']
+                sampler_choices = [s.name for s in sd_samplers.visible_samplers() if s.name != 'Same as primary']
                 with gr.Accordion('Sampler', open=False, elem_id=f"{tab}_detailer_sampler_accordion", elem_classes=["small-accordion"]):
                     with gr.Row():
                         d_sampler = gr.Dropdown(label='Sampling method', choices=sampler_choices, value='Default', elem_id=f"{tab}_detailer_sampler")

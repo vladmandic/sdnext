@@ -75,9 +75,7 @@ def apply_svdquant(weight: torch.FloatTensor, rank: int = 32, niter: int = 8, dt
 
 
 @devices.inference_context()
-def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
-    if n == 1:
-        return torch.ones((1, 1), dtype=dtype, device=device)
+def build_hadamard_n2(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
     current_size = 2
     H = H_N2 = torch.tensor([[1, 1], [1, -1]], dtype=dtype, device=device)
     while current_size < n:
@@ -88,7 +86,29 @@ def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.devic
     return H
 
 
-# 128x128 Hadamard matrix is just 64 KB at FP32
+@devices.inference_context()
+def build_hadamard_n4(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
+    current_size = 4
+    H = H_N4 = torch.tensor([[ 1,  1,  1, -1], [ 1,  1, -1,  1], [ 1, -1,  1,  1], [-1,  1,  1,  1]], dtype=dtype, device=device)
+    while current_size < n:
+        H = torch.kron(H, H_N4)
+        current_size *= 4
+    H = H.div_(n**0.5)
+    H = prepare_weight_for_matmul(H)
+    return H
+
+
+@devices.inference_context()
+def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
+    if math.log(n, 4).is_integer():
+        return build_hadamard_n4(n, device=device, dtype=dtype)
+    elif math.log(n, 2).is_integer():
+        return build_hadamard_n2(n, device=device, dtype=dtype)
+    else:
+        raise RuntimeError("Hadamard Group Size must be a power of 2.")
+
+
+# 256x256 Hadamard matrix is just 256 KB at FP32
 # And is the exact same matrix on all model layers
 # So we can safely cache a single one
 HADAMARD_MATRIX_CACHE = {}
@@ -105,7 +125,7 @@ def get_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device 
 
 
 @devices.inference_context()
-def rotate_hadamard(weight: torch.Tensor, group_size: int = 128, hadamard: torch.FloatTensor | None = None, is_conv: bool = False) -> torch.Tensor:
+def rotate_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.FloatTensor | None = None, is_conv: bool = False) -> torch.Tensor:
     if hadamard is None:
         hadamard = get_hadamard(group_size, dtype=weight.dtype, device=weight.device)
     else:
@@ -122,7 +142,7 @@ def rotate_hadamard(weight: torch.Tensor, group_size: int = 128, hadamard: torch
 
 
 @devices.inference_context()
-def apply_hadamard(weight: torch.Tensor, group_size: int = 128, hadamard: torch.FloatTensor | None = None, layer_class_name: str | None = None) -> torch.Tensor:
+def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.FloatTensor | None = None, layer_class_name: str | None = None) -> torch.Tensor:
     is_conv = False
     use_hadamard = True
     if layer_class_name in conv_types or layer_class_name in conv_transpose_types:

@@ -23,21 +23,21 @@ def fix_prompt_batch(p, prompts, negative_prompts, prompts_2, negative_prompts_2
     if type(negative_prompts) is str:
         negative_prompts = [negative_prompts]
 
-    if hasattr(p, '[init_images]') and p.init_images is not None and len(p.init_images) > 1:
+    if hasattr(p, 'init_images') and p.init_images is not None and len(p.init_images) > 1:
         while len(prompts) < len(p.init_images):
-            prompts.append(prompts[-1])
+            prompts.append(prompts[-1] if prompts else '')
         while len(negative_prompts) < len(p.init_images):
-            negative_prompts.append(negative_prompts[-1])
+            negative_prompts.append(negative_prompts[-1] if negative_prompts else '')
 
     while len(prompts) < p.batch_size:
-        prompts.append(prompts[-1])
+        prompts.append(prompts[-1] if prompts else '')
     while len(negative_prompts) < p.batch_size:
-        negative_prompts.append(negative_prompts[-1])
+        negative_prompts.append(negative_prompts[-1] if negative_prompts else '')
 
     while len(negative_prompts) < len(prompts):
-        negative_prompts.append(negative_prompts[-1])
+        negative_prompts.append(negative_prompts[-1] if negative_prompts else '')
     while len(prompts) < len(negative_prompts):
-        prompts.append(prompts[-1])
+        prompts.append(prompts[-1] if prompts else '')
 
     if type(prompts_2) is str:
         prompts_2 = [prompts_2]

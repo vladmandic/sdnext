@@ -67,10 +67,14 @@ def group_by_suffixes(state_dict, suffixes):
 
 
 def resolve_targets(prefix_used, base):
-    """Passthrough for every recognized prefix. ERNIE has no fused targets or path
-    renames; the base path is already the diffusers module path."""
-    if prefix_used in ("diffusion_model.", "transformer.", "lora_unet_",
-                       BARE_DIFFUSERS_PREFIX_USED, None):
+    """Passthrough: ERNIE has fully split attention and no path renames, so its
+    ``diffusion_model.`` / ``lora_unet_`` / bare-BFL keys are already diffusers
+    module paths.
+
+    Universal passthrough prefixes are handled upstream by
+    :func:`native_adapter.resolve_group_targets`.
+    """
+    if prefix_used in ("diffusion_model.", "lora_unet_", None):
         return [(base, None)]
     return []
 

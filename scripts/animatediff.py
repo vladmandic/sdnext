@@ -47,12 +47,12 @@ def set_adapter(adapter_name: str = 'None'):
     global motion_adapter, loaded_adapter, orig_pipe # pylint: disable=global-statement
     # adapter_name = name if name is not None and isinstance(name, str) else loaded_adapter
     if adapter_name is None or adapter_name == 'None' or not shared.sd_loaded:
-        motion_adapter = None
-        loaded_adapter = None
         if orig_pipe is not None:
             log.debug(f'AnimateDiff restore pipeline: adapter="{loaded_adapter}"')
             shared.sd_model = orig_pipe
             orig_pipe = None
+        motion_adapter = None
+        loaded_adapter = None
         return
     if shared.sd_model_type != 'sd' and shared.sd_model_type != 'sdxl' and not (shared.sd_model.__class__.__name__ == 'AnimateDiffPipeline' or shared.sd_model.__class__.__name__ == 'AnimateDiffSDXLPipeline'):
         log.warning(f'AnimateDiff: unsupported model type: {shared.sd_model.__class__.__name__}')
@@ -133,7 +133,7 @@ def set_adapter(adapter_name: str = 'None'):
         loaded_adapter = None
         log.error(f'AnimateDiff load error: adapter="{adapter_name}" {e}')
         from modules import errors
-        errors.display('e', 'AnimateDiff')
+        errors.display(e, 'AnimateDiff')
 
 
 def set_scheduler(p, model, override: bool = False):

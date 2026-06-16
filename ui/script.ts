@@ -48,7 +48,7 @@ export const uiTabChangeCallbacks = [];
 export const optionsChangedCallbacks = [];
 
 let uiCurrentTab = null;
-let uiAfterUpdateTimeout = null;
+let uiAfterUpdateTimeout: ReturnType<typeof setTimeout> | undefined;
 
 function registerCallback(queue, callback) {
   if (queue.includes(callback)) return;
@@ -137,7 +137,7 @@ const ignoreElements = ['logMonitorData', 'logWarnings', 'logErrors', 'tooltip-c
 const ignoreElementsSet = new Set(ignoreElements);
 const ignoreClasses = ['wrap'];
 
-let mutationTimer = null;
+let mutationTimer: ReturnType<typeof setTimeout> | undefined;
 let validMutations = [];
 
 async function mutationCallback(mutations) {
@@ -167,7 +167,7 @@ async function mutationCallback(mutations) {
       executeCallbacks(uiTabChangeCallbacks);
     }
     validMutations = [];
-    mutationTimer = null;
+    mutationTimer = undefined;
   }, 100);
 }
 
