@@ -246,13 +246,21 @@ def vae_postprocess(tensor, model, output_type='np'):
             if hasattr(model, 'video_processor'):
                 if tensor.ndim == 6 and tensor.shape[1] == 1:
                     tensor = tensor.squeeze(0)
-                images = model.video_processor.postprocess_video(tensor, output_type='pil')
+                try:
+                    images = model.video_processor.postprocess_video(tensor, output_type='pil')
+                except Exception as e:
+                    log.warning(f'VAE postprocess: type=video {e}')
+                    images = tensor
                 if isinstance(images, list) and len(images) > 0 and isinstance(images[0], list):
                     images = [frame for batch in images for frame in batch]
             elif hasattr(model, 'image_processor'):
                 if tensor.ndim == 5 and tensor.shape[1] == 3: # Qwen Image
                     tensor = tensor[:, :, 0]
-                images = model.image_processor.postprocess(tensor, output_type=output_type)
+                try:
+                    images = model.image_processor.postprocess(tensor, output_type=output_type)
+                except Exception as e:
+                    log.warning(f'VAE postprocess: type=image {e}')
+                    images = tensor
             elif hasattr(model, "vqgan"):
                 images = tensor.permute(0, 2, 3, 1).cpu().float().numpy()
                 if output_type == "pil":
@@ -263,6 +271,12 @@ def vae_postprocess(tensor, model, output_type='np'):
                 if tensor.ndim == 5 and tensor.shape[1] == 3: # Qwen Image
                     tensor = tensor[:, :, 0]
                 images = model.image_processor.postprocess(tensor, output_type=output_type)
+            if torch.is_tensor(images): # failed to postprocess, do naive conversion
+                images = images.permute(0, 2, 3, 1).cpu().float().numpy()
+                if images.min() < 0 or images.max() > 1:
+                    images = (images - images.min()) / (images.max() - images.min()) # naive normalization
+                if output_type == "pil":
+                    images = model.numpy_to_pil(images)
         else:
             images = tensor if isinstance(tensor, list) or isinstance(tensor, np.ndarray) else [tensor]
     except Exception as e:

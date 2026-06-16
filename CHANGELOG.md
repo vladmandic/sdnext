@@ -154,6 +154,7 @@ And we have a new modular LoRA loader, new native Transformers loader and improv
   - `compel` compatibility with *transformers==5*
   - `gallery` open folder
   - `seedvr` unload after upscale
+  - `tinyvae` with anima
   - `mixture-tiling` fix for non-square images, thanks @QualiaRain
   - `prompts-from-file` fix metadata handling, thanks @QualiaRain
   - `hypertile` correct width/height assignment, thanks @QualiaRain
