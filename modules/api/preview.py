@@ -8,7 +8,7 @@ class PreviewManager:
     """Manages WebSocket connections for step-based live preview streaming.
 
     Each denoising step, diffusers_callback calls push_step() from the
-    generation thread.  Image encoding happens there (non‑blocking for
+    generation thread.  Image encoding happens there (non-blocking for
     TAESD, the default preview method) and the binary JPEG + JSON progress
     are dispatched to the event loop via run_coroutine_threadsafe().
     """
@@ -39,7 +39,7 @@ class PreviewManager:
             self._client_hidden = not data.get('visible', True)
 
     # ------------------------------------------------------------------
-    # Push from generation thread (thread‑safe)
+    # Push from generation thread (thread-safe)
     # ------------------------------------------------------------------
 
     def push_step(self, step: int, steps: int, state):
