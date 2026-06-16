@@ -166,6 +166,7 @@ class NetworkModule:
         self.network_key = weights.network_key
         self.sd_key = weights.sd_key
         self.sd_module = weights.sd_module
+        self.shape = None
         if hasattr(self.sd_module, 'weight'):
             if hasattr(self.sd_module, "sdnq_dequantizer"):
                 self.shape = self.sd_module.sdnq_dequantizer.original_shape
@@ -176,7 +177,7 @@ class NetworkModule:
         self.alpha = weights.w["alpha"].item() if "alpha" in weights.w else None
         self.scale = weights.w["scale"].item() if "scale" in weights.w else None
         self.dora_scale = weights.w.get("dora_scale", None)
-        self.dora_norm_dims = len(self.shape) - 1
+        self.dora_norm_dims = (len(self.shape) - 1) if self.shape is not None else None
 
     def multiplier(self):
         unet_multiplier = 3 * [self.network.unet_multiplier] if not isinstance(self.network.unet_multiplier, list) else self.network.unet_multiplier
