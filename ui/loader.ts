@@ -10,7 +10,7 @@ async function preloadImages(): Promise<boolean> {
   const imagePromises: Promise<void>[] = [];
   const num = Math.floor(9.99 * Math.random());
   const imageUrls = [
-    `file=ui/assets/logo-bg-${dark ? 'dark' : 'light'}.png`,
+    `file=ui/assets/logo-bg-${dark ? 'dark' : 'light'}.jpg`,
     `file=ui/assets/logo-bg-${num}.jpg`,
   ];
   for (const url of imageUrls) {
