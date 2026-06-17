@@ -91,7 +91,7 @@ async function createSplash() {
     removeSplash();
     return;
   }
-  const imgEl = `<div id="spash-img" class="splash-img" alt="logo" style="background-image: url(file=ui/assets/logo-bg-${dark ? 'dark' : 'light'}.png), url(file=ui/assets/logo-bg-${num}.jpg); background-blend-mode: ${dark ? 'multiply' : 'lighten'}"></div>`;
+  const imgEl = `<div id="spash-img" class="splash-img" alt="logo" style="background-image: url(file=ui/assets/logo-bg-${dark ? 'dark' : 'light'}.jpg), url(file=ui/assets/logo-bg-${num}.jpg); background-blend-mode: ${dark ? 'multiply' : 'lighten'}"></div>`;
   const splashEl = document.getElementById('splash');
   if (splashEl) splashEl.insertAdjacentHTML('afterbegin', imgEl);
 
