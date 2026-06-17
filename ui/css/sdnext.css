@@ -2034,20 +2034,19 @@ div:has(>#tab-gallery-folders) {
   font-size: 1.2em;
 }
 
+.splash-logo {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
 .splash-img {
-  margin: 10% auto 0 auto;
   width: 512px;
   height: 512px;
   background-repeat: no-repeat;
+  background-size: contain;
   animation: hue 5s infinite alternate;
-}
-
-.loading {
-  color: white;
-  left: 50%;
-  position: absolute;
-  top: 20%;
-  transform: translateX(-50%);
 }
 
 .loader {
@@ -2055,9 +2054,10 @@ div:has(>#tab-gallery-folders) {
   border: var(--spacing-md) solid transparent;
   border-radius: 50%;
   border-top: var(--spacing-md) solid var(--sd-main-accent-color);
-  height: 300px;
+  height: 80px;
+  margin-top: 24px;
   position: relative;
-  width: 300px;
+  width: 80px;
 }
 
 .loader::before, .loader::after {
