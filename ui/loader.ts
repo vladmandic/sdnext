@@ -79,25 +79,21 @@ async function createSplash() {
   const dark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
   log('createSplash', { theme: dark ? 'dark' : 'light' });
   const num = Math.floor(9.99 * Math.random());
-
+  const splash = `
+    <div id="splash" class="splash" style="background: ${dark ? 'black' : 'white'}">
+      <div class="loading"><div class="loader"></div></div>
+      <div id="motd" class="motd""></div>
+      <div id="splashLog" class="splash-log" style="position: fixed; bottom: 0; text-align: left; padding: 8vh 8px 8px 8px; font-size: 12px; width: 100%; background: linear-gradient(0deg, darkslategray, transparent); opacity: 50%;"></div>
+    </div>`;
+  document.body.insertAdjacentHTML('beforeend', splash);
   const ok = await preloadImages();
   if (!ok) {
     removeSplash();
     return;
   }
-
-  const bgBlend = dark ? 'multiply' : 'lighten';
-  const bgImage = `url(file=ui/assets/logo-bg-${dark ? 'dark' : 'light'}.jpg), url(file=ui/assets/logo-bg-${num}.jpg)`;
-  const splash = `
-    <div id="splash" class="splash" style="background: ${dark ? 'black' : 'white'}">
-      <div class="splash-logo">
-        <div id="spash-img" class="splash-img" style="background-image: ${bgImage}; background-blend-mode: ${bgBlend}"></div>
-        <div class="loader"></div>
-      </div>
-      <div id="motd" class="motd"></div>
-      <div id="splashLog" class="splash-log" style="position: fixed; bottom: 0; text-align: left; padding: 8vh 8px 8px 8px; font-size: 12px; width: 100%; background: linear-gradient(0deg, darkslategray, transparent); opacity: 50%;"></div>
-    </div>`;
-  document.body.insertAdjacentHTML('beforeend', splash);
+  const imgEl = `<div id="spash-img" class="splash-img" alt="logo" style="background-image: url(file=ui/assets/logo-bg-${dark ? 'dark' : 'light'}.jpg), url(file=ui/assets/logo-bg-${num}.jpg); background-blend-mode: ${dark ? 'multiply' : 'lighten'}"></div>`;
+  const splashEl = document.getElementById('splash');
+  if (splashEl) splashEl.insertAdjacentHTML('afterbegin', imgEl);
 
   monitorLogActive = true;
   monitorLog();
