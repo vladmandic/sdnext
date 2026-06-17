@@ -9,11 +9,11 @@ LoRAs save attention fused (``attention.qkv`` equal-width + ``attention.o``);
 passes through. Prefixes: ``diffusion_model.``, ``transformer.``, ``lora_unet_``,
 ``lora_transformer_``, bare ``layers.``. Families: LoRA (+DoRA), LoKR, LoHA, OFT.
 
-Patches the conditional tower (``sd_model.transformer``) by default; ``uncond`` /
-``both`` / ``module=unconditional_transformer`` also reach the second
-``unconditional_transformer`` (asymmetric-CFG prior), reusing Wan's per-tower
-targeting. Tower selection and stamping live in the shared apply path
-(``lora_convert``/``networks``/``lora_apply``), not here.
+A bare reference fans out across both towers by default (conditional at full
+strength, ``unconditional_transformer`` at ``model_ideogram4_uncond_lora_scale``;
+see :func:`default_tower_expansion`). ``cond`` restricts to conditional only;
+``uncond`` / ``both`` / ``module=`` select explicitly. Selection, stamping and
+fan-out live in the shared apply path and parse layer, not the loaders.
 """
 
 from modules.lora import native_adapter
@@ -151,3 +151,24 @@ def try_load(name, network_on_disk, lora_scale):
         name, network_on_disk, lora_scale,
         family_loaders=(try_load_lora, try_load_lokr, try_load_loha, try_load_oft),
     )
+
+
+# === Default tower fan-out (asymmetric CFG) ===
+
+
+def default_tower_expansion(sd_model):
+    """Extra ``(component, scale)`` applications a bare reference adds beyond the
+    conditional default.
+
+    Ideogram runs two asymmetric-CFG transformers; conditional-only is washed out,
+    equal strength on both over-cooks. Returns the unconditional tower at
+    ``model_ideogram4_uncond_lora_scale`` when it is a distinct live module, else
+    ``[]`` (guidance off -> uncond reuses the conditional transformer, nothing to add).
+    """
+    from modules import shared
+    cond = getattr(sd_model, 'transformer', None)
+    uncond = getattr(sd_model, 'unconditional_transformer', None)
+    if uncond is None or uncond is cond:
+        return []
+    scale = getattr(shared.opts, 'model_ideogram4_uncond_lora_scale', 0.7)
+    return [('unconditional_transformer', scale)]

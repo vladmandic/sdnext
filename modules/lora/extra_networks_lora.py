@@ -156,6 +156,17 @@ def parse(p, params_list, step=0):
 
         lora_modules.append(lora_module)
 
+        # Asymmetric-CFG default fan-out (e.g. Ideogram 4): a bare reference keeps the
+        # conditional tower and adds the arch's extra towers at their reduced scale.
+        if len(lora_module) == 0 and shared.sd_loaded:
+            sd_model = getattr(shared.sd_model, 'pipe', shared.sd_model)
+            for component, scale in lora_load.bare_tower_expansion(sd_model):
+                names.append(name)
+                te_multipliers.append(te_multiplier * scale)
+                unet_multipliers.append([u * scale for u in unet_multiplier])
+                dyn_dims.append(dyn_dim)
+                lora_modules.append([component])
+
     return names, te_multipliers, unet_multipliers, dyn_dims, lora_modules
 
 

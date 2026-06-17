@@ -118,6 +118,7 @@ def create_settings(cmd_opts):
         "model_ideogram4_sep": OptionInfo("<h2>Ideogram 4</h2>", "", gr.HTML),
         "model_ideogram4_enable_pe": OptionInfo(True, "Enable prompt-enhance"),
         "model_ideogram4_enable_cg": OptionInfo(True, "Enable conditioning guidance"),
+        "model_ideogram4_uncond_lora_scale": OptionInfo(0.7, "Unconditional tower LoRA scale", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05}),
         "model_ideogram4_pin": OptionInfo(False, "Pin transformers to VRAM"),
     }))
 

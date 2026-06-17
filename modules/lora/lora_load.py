@@ -160,6 +160,20 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
     return net.clone()
 
 
+def bare_tower_expansion(sd_model):
+    """Extra ``(component, scale)`` applications a bare reference adds across an
+    arch's asymmetric-CFG towers, from the arch loader's ``default_tower_expansion``.
+    ``[]`` for arches without one, so single-tower archs are unaffected.
+    """
+    native_module = _NATIVE_DISPATCH.get(shared.sd_model_type)
+    if native_module is None:
+        return []
+    import importlib
+    mod = importlib.import_module(native_module)
+    fn = getattr(mod, 'default_tower_expansion', None)
+    return fn(sd_model) if fn is not None else []
+
+
 def maybe_recompile_model(names, te_multipliers):
     sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
     recompile_model = False
