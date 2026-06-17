@@ -10,7 +10,7 @@ from modules.logger import log, console
 
 applied_layers: list[str] = []
 native_active: bool = False
-default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'llm_adapter']
+default_components = ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4', 'unet', 'transformer', 'transformer_2', 'unconditional_transformer', 'llm_adapter']
 
 
 def network_activate(include=None, exclude=None):
@@ -44,7 +44,7 @@ def network_activate(include=None, exclude=None):
         applied_weight = 0
         applied_bias = 0
         with devices.inference_context(), pbar:
-            wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
+            wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim, tuple(getattr(x, 'lora_module', None) or ())) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
             applied_layers.clear()
             backup_size = 0
             for component in modules.keys():
@@ -56,8 +56,8 @@ def network_activate(include=None, exclude=None):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
-                    backup_size += network_backup_weights(module, network_layer_name, wanted_names)
-                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
+                    backup_size += network_backup_weights(module, network_layer_name, wanted_names, component=component)
+                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, component=component, elimit=elimit)
                     if shared.opts.lora_fuse_native:
                         network_apply_direct(module, batch_updown, batch_ex_bias, device=device)
                     else:
@@ -102,7 +102,7 @@ def network_deactivate(include=None, exclude=None):
             sd_models.move_model(sd_model, device=devices.cpu)
         modules = {}
 
-        components = include if len(include) > 0 else ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer', 'llm_adapter']
+        components = include if len(include) > 0 else ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer', 'unconditional_transformer', 'llm_adapter']
         components = [x for x in components if x not in exclude]
         active_components = []
         for name in components:
@@ -127,7 +127,7 @@ def network_deactivate(include=None, exclude=None):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
-                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True, elimit=elimit)
+                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True, component=component, elimit=elimit)
                     if shared.opts.lora_fuse_native:
                         network_apply_direct(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
                     else:

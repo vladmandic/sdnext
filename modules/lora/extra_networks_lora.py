@@ -137,6 +137,14 @@ def parse(p, params_list, step=0):
             lora_module.append('transformer')
         if 'low' in positional_lower or '_low' in name_lower or 'low ' in name_lower:
             lora_module.append('transformer_2')
+        # Asymmetric-CFG towers (e.g. Ideogram 4): cond -> conditional, uncond -> unconditional, both -> both.
+        if 'cond' in positional_lower:
+            lora_module.append('transformer')
+        if 'uncond' in positional_lower:
+            lora_module.append('unconditional_transformer')
+        if 'both' in positional_lower:
+            lora_module.append('transformer')
+            lora_module.append('unconditional_transformer')
         if params.named.get('module', None) is not None:
             lora_module.append(params.named['module'].lower())
 
@@ -237,7 +245,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
 
         else: # native
-            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load
+            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules) # load
             has_changed, reason = self.changed(requested, include, exclude)
             if has_changed:
                 jobid = shared.state.begin('LoRA')

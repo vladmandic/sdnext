@@ -9,7 +9,11 @@ LoRAs save attention fused (``attention.qkv`` equal-width + ``attention.o``);
 passes through. Prefixes: ``diffusion_model.``, ``transformer.``, ``lora_unet_``,
 ``lora_transformer_``, bare ``layers.``. Families: LoRA (+DoRA), LoKR, LoHA, OFT.
 
-Binds the conditional tower (``sd_model.transformer``).
+Patches the conditional tower (``sd_model.transformer``) by default; ``uncond`` /
+``both`` / ``module=unconditional_transformer`` also reach the second
+``unconditional_transformer`` (asymmetric-CFG prior), reusing Wan's per-tower
+targeting. Tower selection and stamping live in the shared apply path
+(``lora_convert``/``networks``/``lora_apply``), not here.
 """
 
 from modules.lora import native_adapter

@@ -310,6 +310,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
         net.te_multiplier = te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier
         net.unet_multiplier = unet_multipliers[i] if unet_multipliers else shared.opts.extra_networks_default_multiplier
         net.dyn_dim = dyn_dims[i] if dyn_dims else shared.opts.extra_networks_default_multiplier
+        net.lora_module = lora_module # which model component(s) the native apply path targets (None/empty = default)
         l.loaded_networks.append(net)
 
     while len(lora_cache) > shared.opts.lora_in_memory_limit:

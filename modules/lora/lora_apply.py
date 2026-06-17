@@ -16,9 +16,29 @@ if TYPE_CHECKING:
 re_network_name = re.compile(r"(.*)\s*\([0-9a-fA-F]+\)")
 
 
-def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, wanted_names: tuple):
+# Patched only when a network's lora_module names them; an empty lora_module skips
+# them, so an asymmetric-CFG second tower (Ideogram unconditional_transformer) is
+# reached only via uncond/both/module=.
+SECONDARY_COMPONENTS = ('unconditional_transformer',)
+
+
+def applies_to_component(net, component):
+    """Whether ``net`` patches ``component``.
+
+    ``component=None`` always applies. Non-empty ``lora_module`` restricts to the
+    listed components; empty applies to all but :data:`SECONDARY_COMPONENTS`.
+    """
+    if component is None:
+        return True
+    lora_module = getattr(net, 'lora_module', None) or []
+    if lora_module:
+        return component in lora_module
+    return component not in SECONDARY_COMPONENTS
+
+
+def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, wanted_names: tuple, component: str | None = None):
     backup_size = 0
-    if len(l.loaded_networks) > 0 and network_layer_name is not None and any([net.modules.get(network_layer_name, None) for net in l.loaded_networks]): # noqa: C419 # pylint: disable=R1729
+    if len(l.loaded_networks) > 0 and network_layer_name is not None and any(applies_to_component(net, component) and net.modules.get(network_layer_name, None) for net in l.loaded_networks):
         t0 = time.time()
 
         weights_backup = getattr(self, "network_weights_backup", None)
@@ -67,7 +87,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
     return backup_size
 
 
-def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, use_previous: bool = False, *, elimit: Callable[[], None] | None = None):
+def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, use_previous: bool = False, *, component: str | None = None, elimit: Callable[[], None] | None = None):
     if shared.opts.diffusers_offload_mode == "none":
         try:
             self.to(devices.device)
@@ -77,6 +97,8 @@ def network_calc_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Grou
     batch_ex_bias = None
     loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
     for net in loaded:
+        if not applies_to_component(net, component):
+            continue
         module = net.modules.get(network_layer_name, None)
         if module is None:
             continue
