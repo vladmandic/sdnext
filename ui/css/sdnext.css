@@ -2044,31 +2044,30 @@ div:has(>#tab-gallery-folders) {
 
 .loading {
   color: white;
-  left: 50%;
-  position: absolute;
-  top: 20%;
-  transform: translateX(-50%);
+  display: flex;
+  justify-content: center;
+  margin-top: -4em;
 }
 
 .loader {
   animation: spin 4s linear infinite, hue 5s infinite alternate;
-  border: var(--spacing-md) solid transparent;
+  border: 3px solid transparent;
   border-radius: 50%;
-  border-top: var(--spacing-md) solid var(--sd-main-accent-color);
-  height: 300px;
+  border-top: 3px solid var(--sd-main-accent-color);
+  height: 60px;
   position: relative;
-  width: 300px;
+  width: 60px;
 }
 
 .loader::before, .loader::after {
-  border: var(--spacing-md) solid transparent;
+  border: 3px solid transparent;
   border-radius: 50%;
-  bottom: 6px;
+  bottom: 3px;
   content: "";
-  left: 6px;
+  left: 3px;
   position: absolute;
-  right: 6px;
-  top: 6px;
+  right: 3px;
+  top: 3px;
 }
 
 .loader::before {

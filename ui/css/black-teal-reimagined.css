@@ -1016,31 +1016,31 @@ svg.feather.feather-image,
 
 .loading {
   color: white;
-  position: absolute;
-  top: 85%;
+  display: flex;
+  justify-content: center;
+  margin-top: 0;
   font-size: 1.5em;
 }
 
 .loader {
-  width: 100px;
-  height: 100px;
-  border: var(--spacing-md) solid transparent;
+  width: 60px;
+  height: 60px;
+  border: 3px solid transparent;
   border-radius: 50%;
-  border-top: var(--spacing-md) solid var(--primary-600);
+  border-top: 3px solid var(--primary-600);
   animation: spin 2s linear infinite, pulse 1.5s ease-in-out infinite;
-  position: absolute;
 }
 
 .loader::before,
 .loader::after {
   content: "";
   position: absolute;
-  top: 6px;
-  bottom: 6px;
-  left: 6px;
-  right: 6px;
+  top: 3px;
+  bottom: 3px;
+  left: 3px;
+  right: 3px;
   border-radius: 50%;
-  border: var(--spacing-md) solid transparent;
+  border: 3px solid transparent;
 }
 
 .loader::before {
