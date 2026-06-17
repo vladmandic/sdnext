@@ -570,7 +570,6 @@ def create_settings(cmd_opts):
         "live_preview_refresh_period": OptionInfo(500, "Progress update period", gr.Slider, {"minimum": 0, "maximum": 5000, "step": 25}),
         "taesd_variant": OptionInfo(shared_items.sd_taesd_items()[0], "TAESD variant", gr.Dropdown, {"choices": shared_items.sd_taesd_items()}),
         "taesd_layers": OptionInfo(3, "TAESD decode layers", gr.Slider, {"minimum": 1, "maximum": 3, "step": 1}),
-        "live_preview_require_focus": OptionInfo(True, "Pause live previews when tab is not focused"),
         "live_preview_downscale": OptionInfo(True, "Downscale high resolution live previews"),
 
         "notification_audio_enable": OptionInfo(False, "Play a notification upon completion"),
