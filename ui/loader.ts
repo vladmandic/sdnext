@@ -10,7 +10,7 @@ async function preloadImages(): Promise<boolean> {
   const imagePromises: Promise<void>[] = [];
   const num = Math.floor(9.99 * Math.random());
   const imageUrls = [
-    `file=ui/assets/logo-bg-${dark ? 'dark' : 'light'}.jpg`,
+    `file=ui/assets/logo-bg-${dark ? 'dark' : 'light'}.png`,
     `file=ui/assets/logo-bg-${num}.jpg`,
   ];
   for (const url of imageUrls) {
@@ -91,7 +91,7 @@ async function createSplash() {
     removeSplash();
     return;
   }
-  const imgEl = `<div id="spash-img" class="splash-img" alt="logo" style="background-image: url(file=ui/assets/logo-bg-${dark ? 'dark' : 'light'}.jpg), url(file=ui/assets/logo-bg-${num}.jpg); background-blend-mode: ${dark ? 'multiply' : 'lighten'}"></div>`;
+  const imgEl = `<div id="spash-img" class="splash-img" alt="logo" style="background-image: url(file=ui/assets/logo-bg-${dark ? 'dark' : 'light'}.png), url(file=ui/assets/logo-bg-${num}.jpg); background-blend-mode: ${dark ? 'multiply' : 'lighten'}"></div>`;
   const splashEl = document.getElementById('splash');
   if (splashEl) splashEl.insertAdjacentHTML('afterbegin', imgEl);
 
