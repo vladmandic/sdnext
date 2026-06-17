@@ -887,6 +887,39 @@ def test_per_clone_targeting_in_calc():
 
 
 # ============================================================
+# Tests - default tower fan-out (bare reference)
+# ============================================================
+
+CAT_DEFAULT = category('default')
+
+
+def test_default_tower_expansion_both_towers():
+    """With both towers live, a bare reference also patches the unconditional tower at the configured scale."""
+    install_two_tower_mock()
+    shared.opts.model_ideogram4_uncond_lora_scale = 0.5
+    assert I.default_tower_expansion(shared.sd_model.pipe) == [('unconditional_transformer', 0.5)]
+    return True
+
+
+def test_default_tower_expansion_cond_only():
+    """No unconditional tower (conditioning guidance off) yields no extra application."""
+    pipe = _MockIdeogramPipeline(build_mock_transformer())
+    pipe.unconditional_transformer = None
+    assert I.default_tower_expansion(pipe) == []
+    return True
+
+
+def test_bare_tower_expansion_dispatch():
+    """lora_load routes a bare Ideogram reference to the arch policy."""
+    from modules.lora import lora_load
+    install_two_tower_mock()
+    shared.opts.model_ideogram4_uncond_lora_scale = 0.7
+    assert shared.sd_model_type == 'ideogram4', f'mock model-type routed to {shared.sd_model_type}'
+    assert lora_load.bare_tower_expansion(shared.sd_model.pipe) == [('unconditional_transformer', 0.7)]
+    return True
+
+
+# ============================================================
 # Test runner
 # ============================================================
 
@@ -945,6 +978,14 @@ def run_tests():
         test_per_clone_targeting_in_calc,
     ]:
         run_test(CAT_CLONE, fn)
+
+    log.warning('=== Default tower fan-out ===')
+    for fn in [
+        test_default_tower_expansion_both_towers,
+        test_default_tower_expansion_cond_only,
+        test_bare_tower_expansion_dispatch,
+    ]:
+        run_test(CAT_DEFAULT, fn)
 
     elapsed = time.time() - t0
     log.warning('=== Results ===')
