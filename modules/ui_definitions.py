@@ -567,9 +567,7 @@ def create_settings(cmd_opts):
     options_templates.update(options_section(('live-preview', "Live Previews"), {
         "show_progress_every_n_steps": OptionInfo(1, "Live preview display period", gr.Slider, {"minimum": 0, "maximum": 20, "step": 1, "visible": False}),
         "show_progress_type": OptionInfo("TAESD", "Live preview method", gr.Dropdown, {"choices": ["None", "Simple", "Approximate", "TAESD", "Full"]}),
-        "live_preview_refresh_period": OptionInfo(500, "Progress update period of polling (ms)", gr.Slider, {"minimum": 0, "maximum": 5000, "step": 25}),
-        "live_preview_transport": OptionInfo("Polling", "Preview transport", gr.Dropdown, {"choices": ["Polling", "WebSocket"]}),
-        "live_preview_ws_interval": OptionInfo(1, "WebSocket preview step interval", gr.Slider, {"minimum": 1, "maximum": 20, "step": 1}),
+        "live_preview_refresh_period": OptionInfo(500, "Progress update period", gr.Slider, {"minimum": 0, "maximum": 5000, "step": 25}),
         "taesd_variant": OptionInfo(shared_items.sd_taesd_items()[0], "TAESD variant", gr.Dropdown, {"choices": shared_items.sd_taesd_items()}),
         "taesd_layers": OptionInfo(3, "TAESD decode layers", gr.Slider, {"minimum": 1, "maximum": 3, "step": 1}),
         "live_preview_downscale": OptionInfo(True, "Downscale high resolution live previews"),

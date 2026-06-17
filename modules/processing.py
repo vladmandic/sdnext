@@ -576,8 +576,5 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
 
     if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:
         devices.torch_gc(force=True, reason='final')
-    if shared.opts.live_preview_transport == "WebSocket":
-        from modules.api.preview import preview_manager
-        preview_manager.push_complete()
     shared.state.end(jobid)
     return results

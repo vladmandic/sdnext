@@ -1,7 +1,7 @@
 import os
 from threading import Lock
 from secrets import compare_digest
-from fastapi import FastAPI, APIRouter, Depends, Request, WebSocket
+from fastapi import FastAPI, APIRouter, Depends, Request
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.exceptions import HTTPException
 from modules import errors, shared, paths
@@ -132,16 +132,6 @@ class Api:
         # gallery api
         from modules.api import gallery
         gallery.register_api(self)
-
-        # preview websocket api
-        from modules.api.preview import ws_preview
-        @self.app.websocket("/sdapi/v1/preview")
-        async def _ws_preview(websocket: WebSocket):
-            await ws_preview(websocket)
-        if shared.opts.subpath is not None and len(shared.opts.subpath) > 0:
-            @self.app.websocket(f"{shared.opts.subpath}/sdapi/v1/preview")
-            async def _ws_preview_subpath(websocket: WebSocket):
-                await ws_preview(websocket)
 
         # nudenet api
         from modules.api import nudenet
