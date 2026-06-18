@@ -29,7 +29,7 @@ class PulIDScript(scripts_manager.Script):
         return True
 
     def dependencies(self):
-        from installer import installed, install, install_insightface
+        from installer import install, install_insightface
         install_insightface()
         install('torchdiffeq', quiet=True)
         install('torchsde==0.2.6', 'torchsde', quiet=True)
