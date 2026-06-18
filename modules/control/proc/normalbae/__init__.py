@@ -2,16 +2,16 @@ import numpy as np
 from PIL import Image
 
 
-class AnylineDetector:
+class NormalBaeDetector:
     def __init__(self, model):
         self.model = model
 
     @classmethod
-    def from_pretrained(cls, pretrained_model_or_path="TheMistoAI/MistoLine", cache_dir=None, local_files_only=False):
+    def from_pretrained(cls, pretrained_model_or_path="fal/teed", cache_dir=None, local_files_only=False): # pylint: disable=unused-argument
         from installer import install
         install('controlnet-aux', quiet=True)
-        from controlnet_aux.anyline import AnylineDetector as _AnylineDetector
-        model = _AnylineDetector.from_pretrained(pretrained_model_or_path, filename="MTEED.pth", subfolder="Anyline", cache_dir=cache_dir)
+        from controlnet_aux.normalbae import NormalBaeDetector as _NormalBaeDetector
+        model = _NormalBaeDetector.from_pretrained(pretrained_model_or_path, filename="5_model.pth")
         return cls(model)
 
     def __call__(self, image, output_type="pil", **kwargs):

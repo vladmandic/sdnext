@@ -97,10 +97,13 @@ def api_progress(req: ProgressRequest):
     if active and (req.id_live_preview != -1):
         have_image = shared.state.set_current_image()
         if have_image and shared.state.current_image is not None:
-            buffered = io.BytesIO()
-            shared.state.current_image.save(buffered, format='jpeg', quality=60)
-            b64 = base64.b64encode(buffered.getvalue())
-            live_preview = f'data:image/jpeg;base64,{b64.decode("ascii")}'
+            try:
+                buffered = io.BytesIO()
+                shared.state.current_image.save(buffered, format='jpeg', quality=60)
+                b64 = base64.b64encode(buffered.getvalue())
+                live_preview = f'data:image/jpeg;base64,{b64.decode("ascii")}'
+            except Exception:
+                live_preview = None
         else:
             live_preview = None
 

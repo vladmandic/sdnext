@@ -29,11 +29,10 @@ class PulIDScript(scripts_manager.Script):
         return True
 
     def dependencies(self):
-        from installer import installed, install, install_insightface
-        if not installed('insightface', quiet=True) and not installed('insightfacex', quiet=True):
-            install_insightface()
-        if not installed('torchdiffeq'):
-            install('torchdiffeq')
+        from installer import install, install_insightface
+        install_insightface()
+        install('torchdiffeq', quiet=True)
+        install('torchsde==0.2.6', 'torchsde', quiet=True)
 
     def register(self): # register xyz grid elements
         global registered # pylint: disable=global-statement

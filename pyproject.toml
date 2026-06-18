@@ -12,9 +12,6 @@ target-version = "py310"
 exclude = [
     "venv",
     ".git",
-    ".ruff_cache",
-    ".vscode",
-    "modules/seedvr/src",
 ]
 
 [tool.ruff.lint]
@@ -106,7 +103,6 @@ main.ignore-paths=[
     ".ruff_cache",
     ".vscode",
     ".*/node_modules/.*",
-    "modules/control/units/xs_pipe.py",
     "modules/control/proc",
     "modules/schedulers/scheduler_*.py",
     "modules/apg",

@@ -1263,8 +1263,9 @@ def install_insightface():
         install('albumentations==1.4.3', ignore=True, quiet=True)
     """
     install('insightfacex==0.7.4', 'insightfacex', ignore=True, quiet=True)
-    uninstall('albumentations')
-    install('albumentationsx')
+    uninstall('albumentations', quiet=True)
+    install('albumentationsx', quiet=True)
+    install('facexlib', no_deps=True)
     install_pydantic()
 
 

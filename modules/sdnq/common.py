@@ -6,7 +6,7 @@ import torch
 
 from modules import shared, devices
 
-sdnq_version = "0.2.0"
+sdnq_version = "0.2.1"
 sdnq_keys = {"weight", "scale", "zero_point", "svd_up", "svd_down"}
 
 torch_version = torch.__version__[:4]
@@ -365,7 +365,7 @@ else:
     use_tensorwise_fp8_matmul = os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"}
 
 if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
-    use_contiguous_mm = bool(is_rdna2_and_older or devices.backend in {"ipex", "mps", "cpu", "openvino", "zluda"})
+    use_contiguous_mm = bool(is_rdna2_and_older or devices.backend in {"ipex", "mps", "openvino", "zluda"})
 else:
     use_contiguous_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
 
