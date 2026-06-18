@@ -1,5 +1,12 @@
 # Change Log for SD.Next
 
+## Update for 2026-06-18
+
+- **Fixes**
+  - `sdnq` warn instead of error for triton
+  - `insightface` missing dependencies
+  - `pulid` import paths
+
 ## Update for 2026-06-16
 
 ### Highlights for 2026-06-16
