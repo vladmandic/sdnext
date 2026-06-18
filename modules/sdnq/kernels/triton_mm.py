@@ -132,7 +132,7 @@ def triton_mm_td_kernel(
     c_desc.store([pid_m * BLOCK_SIZE_M, pid_n * BLOCK_SIZE_N], accumulator)
 
 
-def int_mm(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
+def triton_int_mm(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     assert a.shape[1] == b.shape[0], "Incompatible dimensions"
     assert a.is_contiguous(), "Matrix A must be contiguous"
     M, K = a.shape
@@ -155,7 +155,7 @@ def int_mm(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     return c
 
 
-def fp_mm(a: torch.FloatTensor, b: torch.FloatTensor) -> torch.FloatTensor:
+def triton_fp_mm(a: torch.FloatTensor, b: torch.FloatTensor) -> torch.FloatTensor:
     assert a.shape[1] == b.shape[0], "Incompatible dimensions"
     assert a.is_contiguous(), "Matrix A must be contiguous"
     M, K = a.shape

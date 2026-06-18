@@ -358,6 +358,16 @@ if os.environ.get("SDNQ_ALLOW_FP8_MM", None) is None:
 else:
     is_fp8_mm_supported = os.environ.get("SDNQ_ALLOW_FP8_MM", "0").lower() not in {"0", "false", "no"}
 
+if os.environ.get("SDNQ_USE_OPENVINO_MM", None) is None:
+    use_openvino_mm = bool(devices.backend in {"cpu", "openvino"})
+else:
+    use_openvino_mm = bool(os.environ.get("SDNQ_USE_OPENVINO_MM", "0").lower() not in {"0", "false", "no"})
+
+if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
+    use_triton_mm = bool(is_rdna2_and_older or devices.backend == "zluda")
+else:
+    use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
+
 if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
     # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
     use_tensorwise_fp8_matmul = bool(devices.backend != "cuda" or (devices.backend == "cuda" and torch.cuda.get_device_capability(devices.device) < (9,0)))
@@ -365,38 +375,40 @@ else:
     use_tensorwise_fp8_matmul = os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"}
 
 if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
-    use_contiguous_mm = bool(is_rdna2_and_older or devices.backend in {"ipex", "mps", "openvino", "zluda"})
+    use_contiguous_mm = bool(use_openvino_mm or is_rdna2_and_older or devices.backend in {"ipex", "mps", "openvino", "zluda"})
 else:
     use_contiguous_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
 
-if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
-    use_triton_mm = bool(is_rdna2_and_older or devices.backend == "zluda")
-else:
-    use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
-
-
-if use_triton_mm:
-    try:
-        from .triton_mm import int_mm
-        int_mm_func = int_mm
-    except Exception:
-        int_mm_func = torch._int_mm
-else:
-    int_mm_func = torch._int_mm
-
-
-def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
-    return torch.mm(x,y, out_dtype=torch.float32)
 
 fp_mm_func = None
-if os.environ.get("SDNQ_USE_TRITON_MM", "1").lower() not in {"0", "false", "no"}:
-    try:
-        from .triton_mm import fp_mm
-        fp_mm_func = fp_mm
-    except Exception:
-        fp_mm_func = None
+int_mm_func = None
 
+if use_openvino_mm:
+    try:
+        from .kernels.openvino_mm import openvino_int_mm
+        int_mm_func = openvino_int_mm
+    except Exception:
+        use_openvino_mm = False
+elif use_triton_mm:
+    try:
+        from .kernels.triton_mm import triton_int_mm, triton_fp_mm
+        int_mm_func = triton_int_mm
+        fp_mm_func = triton_fp_mm
+    except Exception:
+        use_triton_mm = False
+
+if fp_mm_func is None and os.environ.get("SDNQ_USE_TRITON_MM", "1").lower() not in {"0", "false", "no"}:
+    try:
+        from .triton_mm import triton_fp_mm
+        fp_mm_func = triton_fp_mm
+    except Exception:
+        use_triton_mm = False
+
+if int_mm_func is None:
+    int_mm_func = torch._int_mm
 if fp_mm_func is None:
+    def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
+        return torch.mm(x,y, out_dtype=torch.float32)
     fp_mm_func = fp_mm_torch
 
 
