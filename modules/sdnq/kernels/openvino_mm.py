@@ -2,11 +2,14 @@ import os
 import torch
 import openvino as ov
 from openvino import opset16 as ov_ops
-
+from openvino.properties import hint as ov_hints
 
 core = ov.Core()
+
+NPU_MUL = 32 # NPU uses FP16 x INT8 -> FP16 instead of INT8 x INT8 -> INT32 and FP16 output overflows
 OV_DEVICE: str = os.environ.get("SDNQ_OPENVINO_DEVICE", "CPU")
 OV_COMPILED_CACHE: dict[tuple[str, tuple[int,int] | None, tuple[int,int] | None], list[ov.InferRequest, str]] = {}
+core.set_property(OV_DEVICE, {ov_hints.execution_mode: ov_hints.ExecutionMode.ACCURACY})
 
 
 def ov_int_mm(A: torch.Tensor, B: torch.Tensor, infer_request: ov.InferRequest, out_name: str) -> torch.Tensor:
@@ -16,12 +19,13 @@ def ov_int_mm(A: torch.Tensor, B: torch.Tensor, infer_request: ov.InferRequest, 
     infer_request.set_tensor(out_name, ov.Tensor(C.numpy(), shared_memory=True))
     infer_request.infer()
     C = C.to(A.device)
+    if OV_DEVICE == "NPU":
+        C.mul_(NPU_MUL**2)
     return C
 
 
 @torch.library.custom_op("sdnq::openvino_int_mm", mutates_args=())
 def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor) -> torch.Tensor:
-    global OV_COMPILED_CACHE, OV_DEVICE # pylint: disable=global-variable-not-assigned
     if OV_DEVICE in {"NPU", "CPU"}:
         cache_key = (OV_DEVICE, Tensor_A.shape, Tensor_B.shape)
     else:
@@ -40,8 +44,12 @@ def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor) -> torch.Ten
     input_b = ov_ops.parameter(shape_b, ov.Type.i8, name="B")
     low  = ov_ops.constant(-128.0, dtype=ov.Type.f32)
     high = ov_ops.constant(127.0,  dtype=ov.Type.f32)
+
     a = ov_ops.fake_quantize(ov_ops.convert(input_a, ov.Type.f32), low, high, low, high, 256)
     b = ov_ops.fake_quantize(ov_ops.convert(input_b, ov.Type.f32), low, high, low, high, 256)
+    if OV_DEVICE == "NPU":
+        a = ov_ops.divide(a, ov_ops.constant(NPU_MUL, dtype=ov.Type.f32))
+        b = ov_ops.divide(b, ov_ops.constant(NPU_MUL, dtype=ov.Type.f32))
 
     ov_model = ov.Model([ov_ops.matmul(a, b, False, False)], [input_a, input_b], "ov_int8_mm")
     ov_model = core.compile_model(ov_model, OV_DEVICE)
