@@ -113,7 +113,7 @@ class FluxToolsScript(scripts_manager.Script):
                 shared.opts.data["sd_model_checkpoint"] = "black-forest-labs/FLUX.1-Canny-dev"
                 sd_models.reload_model_weights(op='model', revision="refs/pr/1")
             if processor_canny is None:
-                from controlnet_aux import CannyDetector
+                from modules.control.proc.canny import CannyDetector
                 processor_canny = CannyDetector()
             if process:
                 control_image = processor_canny(image, low_threshold=50, high_threshold=200, detect_resolution=1024, image_resolution=1024)

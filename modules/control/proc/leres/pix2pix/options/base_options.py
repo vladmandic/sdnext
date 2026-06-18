@@ -1,10 +1,8 @@
 import argparse
 import os
-from ..util import util
-# import torch
-from .. import models
-# import pix2pix.data
 import numpy as np
+from modules.control.proc.leres.pix2pix.util import util
+from modules.control.proc.leres.pix2pix import models
 
 class BaseOptions():
     """This class defines options used during both training and test time.

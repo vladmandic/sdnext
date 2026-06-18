@@ -64,9 +64,13 @@ class LotusDetector:
             # Concatenate along channel dim: [rgb_latents, noise_latents]
             latent_input = torch.cat([rgb_latents, noise_latents], dim=1)
             # UNet forward pass with task embedding as class_labels
+            latent_input = latent_input.to(self.unet.dtype)
+            prompt_embeds = prompt_embeds.to(self.unet.dtype)
+            task_emb = task_emb.to(self.unet.dtype)
             prediction = self.unet(latent_input, timestep, encoder_hidden_states=prompt_embeds, class_labels=task_emb).sample
             # Decode prediction
             prediction = prediction / self.vae.config.scaling_factor
+            prediction = prediction.to(self.vae.dtype)
             decoded = self.vae.decode(prediction).sample
         if opts.control_move_processor:
             self._to("cpu")

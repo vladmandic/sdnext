@@ -9,12 +9,10 @@ checked_ok = False
 
 def check_dependencies():
     global checked_ok # pylint: disable=global-statement
-    from installer import installed, install
+    from installer import install
     from modules.logger import log
-    packages = [('mediapipe', 'mediapipe')]
-    for pkg in packages:
-        if not installed(pkg[1], quiet=True):
-            install(pkg[0], pkg[1], ignore=False)
+    install('mediapipe')
+    # install('protobuf==4.25.6', 'protobuf', no_deps=True, reinstall=True, force=True)
     try:
         import mediapipe as mp # pylint: disable=unused-import
         checked_ok = True

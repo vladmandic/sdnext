@@ -6,6 +6,7 @@
   - `sdnq` warn instead of error for triton
   - `insightface` missing dependencies
   - `pulid` import paths
+  - `processors` init code and multiple fixes
 
 ## Update for 2026-06-16
 

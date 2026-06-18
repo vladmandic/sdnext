@@ -2,14 +2,13 @@
 
 import cv2
 import os
-import torch
 import torch.nn as nn
 from torchvision.transforms import Compose
 
-from .midas.dpt_depth import DPTDepthModel
-from .midas.midas_net import MidasNet
-from .midas.midas_net_custom import MidasNet_small
-from .midas.transforms import Resize, NormalizeImage, PrepareForNet
+from modules.control.proc.midas.midas.dpt_depth import DPTDepthModel
+from modules.control.proc.midas.midas.midas_net import MidasNet
+from modules.control.proc.midas.midas.midas_net_custom import MidasNet_small
+from modules.control.proc.midas.midas.transforms import Resize, NormalizeImage, PrepareForNet
 from modules.control.util import annotator_ckpts_path
 
 
