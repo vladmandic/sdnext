@@ -374,11 +374,6 @@ if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
 else:
     use_tensorwise_fp8_matmul = os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"}
 
-if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
-    use_contiguous_mm = bool(use_openvino_mm or is_rdna2_and_older or devices.backend in {"ipex", "mps", "openvino", "zluda"})
-else:
-    use_contiguous_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
-
 
 fp_mm_func = None
 int_mm_func = None
@@ -410,6 +405,12 @@ if fp_mm_func is None:
     def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
         return torch.mm(x,y, out_dtype=torch.float32)
     fp_mm_func = fp_mm_torch
+
+
+if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
+    use_contiguous_mm = bool(use_openvino_mm or is_rdna2_and_older or devices.backend in {"ipex", "mps", "openvino", "zluda"})
+else:
+    use_contiguous_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
 
 
 if use_torch_compile:
