@@ -19,7 +19,7 @@ Advanced distributed functions for sequence parallel.
 from __future__ import annotations
 
 import logging
-from typing import Optional, List
+from typing import List
 import torch
 
 from .basic import _is_dist, get_global_rank, get_world_size
@@ -37,21 +37,21 @@ _MODEL_SHARD_INTRA_GROUP = None
 _SEQUENCE_PARALLEL_GLOBAL_RANKS = None
 
 
-def get_data_parallel_group() -> Optional[dist.ProcessGroup]:
+def get_data_parallel_group():
     """
     Get data parallel process group.
     """
     return _DATA_PARALLEL_GROUP
 
 
-def get_sequence_parallel_group() -> Optional[dist.ProcessGroup]:
+def get_sequence_parallel_group():
     """
     Get sequence parallel process group.
     """
     return _SEQUENCE_PARALLEL_GROUP
 
 
-def get_sequence_parallel_cpu_group() -> Optional[dist.ProcessGroup]:
+def get_sequence_parallel_cpu_group():
     """
     Get sequence parallel CPU process group.
     """
@@ -102,28 +102,28 @@ def get_sequence_parallel_world_size() -> int:
     return 1
 
 
-def get_model_shard_cpu_intra_group() -> Optional[dist.ProcessGroup]:
+def get_model_shard_cpu_intra_group():
     """
     Get the CPU intra process group of model sharding.
     """
     return _MODEL_SHARD_CPU_INTRA_GROUP
 
 
-def get_model_shard_cpu_inter_group() -> Optional[dist.ProcessGroup]:
+def get_model_shard_cpu_inter_group():
     """
     Get the CPU inter process group of model sharding.
     """
     return _MODEL_SHARD_CPU_INTER_GROUP
 
 
-def get_model_shard_intra_group() -> Optional[dist.ProcessGroup]:
+def get_model_shard_intra_group():
     """
     Get the GPU intra process group of model sharding.
     """
     return _MODEL_SHARD_INTRA_GROUP
 
 
-def get_model_shard_inter_group() -> Optional[dist.ProcessGroup]:
+def get_model_shard_inter_group():
     """
     Get the GPU inter process group of model sharding.
     """

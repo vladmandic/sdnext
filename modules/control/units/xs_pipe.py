@@ -39,14 +39,9 @@ from diffusers.utils import (
     scale_lora_layers,
     unscale_lora_layers,
 )
-from diffusers.utils.import_utils import is_invisible_watermark_available
 from diffusers.utils.torch_utils import is_compiled_module, is_torch_version, randn_tensor
 from diffusers.pipelines.stable_diffusion.safety_checker import StableDiffusionSafetyChecker
 from modules.control.units.xs_model import ControlNetXSModel
-
-
-if is_invisible_watermark_available():
-    from diffusers.pipelines.stable_diffusion_xl.watermark import StableDiffusionXLWatermarker
 
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -110,7 +105,7 @@ class StableDiffusionXLControlNetXSPipeline(
         controlnet: ControlNetXSModel,
         scheduler: KarrasDiffusionSchedulers,
         force_zeros_for_empty_prompt: bool = True,
-        add_watermarker: Optional[bool] = None,
+        add_watermarker: Optional[bool] = None, # pylint: disable=unused-argument
     ):
         super().__init__()
 
@@ -145,12 +140,6 @@ class StableDiffusionXLControlNetXSPipeline(
         self.control_image_processor = VaeImageProcessor(
             vae_scale_factor=self.vae_scale_factor, do_convert_rgb=True, do_normalize=False
         )
-        add_watermarker = add_watermarker if add_watermarker is not None else is_invisible_watermark_available()
-
-        if add_watermarker:
-            self.watermark = StableDiffusionXLWatermarker()
-        else:
-            self.watermark = None
 
         self.register_to_config(force_zeros_for_empty_prompt=force_zeros_for_empty_prompt)
 
@@ -251,7 +240,7 @@ class StableDiffusionXLControlNetXSPipeline(
         # set lora scale so that monkey patched LoRA
         # function of text encoder can correctly access it
         if lora_scale is not None and isinstance(self, StableDiffusionXLLoraLoaderMixin):
-            self._lora_scale = lora_scale
+            self._lora_scale = lora_scale # pylint: disable=attribute-defined-outside-init
 
             # dynamically adjust the LoRA scale
             if self.text_encoder is not None:
@@ -286,7 +275,7 @@ class StableDiffusionXLControlNetXSPipeline(
             # textual inversion: procecss multi-vector tokens if necessary
             prompt_embeds_list = []
             prompts = [prompt, prompt_2]
-            for prompt, tokenizer, text_encoder in zip(prompts, tokenizers, text_encoders):
+            for prompt, tokenizer, text_encoder in zip(prompts, tokenizers, text_encoders): # pylint: disable=redefined-argument-from-local
                 if isinstance(self, TextualInversionLoaderMixin):
                     prompt = self.maybe_convert_prompt(prompt, tokenizer)
 
@@ -325,7 +314,7 @@ class StableDiffusionXLControlNetXSPipeline(
             prompt_embeds = torch.concat(prompt_embeds_list, dim=-1)
 
         # get unconditional embeddings for classifier free guidance
-        zero_out_negative_prompt = negative_prompt is None and self.config.force_zeros_for_empty_prompt
+        zero_out_negative_prompt = negative_prompt is None and self.config.force_zeros_for_empty_prompt # pylint: disable=no-member
         if do_classifier_free_guidance and negative_prompt_embeds is None and zero_out_negative_prompt:
             negative_prompt_embeds = torch.zeros_like(prompt_embeds)
             negative_pooled_prompt_embeds = torch.zeros_like(pooled_prompt_embeds)
@@ -355,7 +344,7 @@ class StableDiffusionXLControlNetXSPipeline(
                 uncond_tokens = [negative_prompt, negative_prompt_2]
 
             negative_prompt_embeds_list = []
-            for negative_prompt, tokenizer, text_encoder in zip(uncond_tokens, tokenizers, text_encoders):
+            for negative_prompt, tokenizer, text_encoder in zip(uncond_tokens, tokenizers, text_encoders): # pylint: disable=redefined-argument-from-local
                 if isinstance(self, TextualInversionLoaderMixin):
                     negative_prompt = self.maybe_convert_prompt(negative_prompt, tokenizer)
 
@@ -514,12 +503,12 @@ class StableDiffusionXLControlNetXSPipeline(
 
         # Check `image`
         is_compiled = hasattr(F, "scaled_dot_product_attention") and isinstance(
-            self.controlnet, torch._dynamo.eval_frame.OptimizedModule
+            self.controlnet, torch._dynamo.eval_frame.OptimizedModule # pylint: disable=protected-access
         )
         if (
             isinstance(self.controlnet, ControlNetXSModel)
             or (is_compiled
-            and isinstance(self.controlnet._orig_mod, ControlNetXSModel))
+            and isinstance(self.controlnet._orig_mod, ControlNetXSModel)) # pylint: disable=protected-access
         ):
             self.check_image(image, prompt, prompt_embeds)
         else:
@@ -529,7 +518,7 @@ class StableDiffusionXLControlNetXSPipeline(
         if (
             isinstance(self.controlnet, ControlNetXSModel)
             or (is_compiled
-            and isinstance(self.controlnet._orig_mod, ControlNetXSModel))
+            and isinstance(self.controlnet._orig_mod, ControlNetXSModel)) # pylint: disable=protected-access
         ):
             if not isinstance(controlnet_conditioning_scale, float):
                 raise TypeError("For single controlnet: `controlnet_conditioning_scale` must be type `float`.")
@@ -547,7 +536,7 @@ class StableDiffusionXLControlNetXSPipeline(
             raise ValueError(f"control guidance end: {end} can't be larger than 1.0.")
 
     # Copied from diffusers.pipelines.controlnet.pipeline_controlnet.StableDiffusionControlNetPipeline.check_image
-    def check_image(self, image, prompt, prompt_embeds):
+    def check_image(self, image, prompt, prompt_embeds): # pylint: disable=unused-argument
         image_is_pil = isinstance(image, Image.Image)
         image_is_tensor = isinstance(image, torch.Tensor)
         image_is_np = isinstance(image, np.ndarray)
@@ -567,22 +556,6 @@ class StableDiffusionXLControlNetXSPipeline(
                 f"image must be passed and be one of PIL image, numpy array, torch tensor, list of PIL images, list of numpy arrays or list of torch tensors, but is {type(image)}"
             )
 
-        if image_is_pil:
-            image_batch_size = 1
-        else:
-            image_batch_size = len(image)
-
-        if prompt is not None and isinstance(prompt, str):
-            prompt_batch_size = 1
-        elif prompt is not None and isinstance(prompt, list):
-            prompt_batch_size = len(prompt)
-        elif prompt_embeds is not None:
-            prompt_batch_size = prompt_embeds.shape[0]
-
-        if image_batch_size != 1 and image_batch_size != prompt_batch_size:
-            raise ValueError(
-                f"If image batch size is not 1, image batch size must be same as prompt batch size. image batch size: {image_batch_size}, prompt batch size: {prompt_batch_size}"
-            )
 
     def prepare_image(
         self,
@@ -884,9 +857,6 @@ class StableDiffusionXLControlNetXSPipeline(
             batch_size = prompt_embeds.shape[0]
 
         device = self._execution_device
-        # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
-        # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
         # 3. Encode input prompt
@@ -1290,7 +1260,7 @@ class StableDiffusionControlNetXSPipeline(
         # set lora scale so that monkey patched LoRA
         # function of text encoder can correctly access it
         if lora_scale is not None and isinstance(self, LoraLoaderMixin):
-            self._lora_scale = lora_scale
+            self._lora_scale = lora_scale # pylint: disable=attribute-defined-outside-init
 
             # dynamically adjust the LoRA scale
             if not USE_PEFT_BACKEND:
@@ -1517,12 +1487,12 @@ class StableDiffusionControlNetXSPipeline(
 
         # Check `image`
         is_compiled = hasattr(F, "scaled_dot_product_attention") and isinstance(
-            self.controlnet, torch._dynamo.eval_frame.OptimizedModule
+            self.controlnet, torch._dynamo.eval_frame.OptimizedModule # pylint: disable=protected-access
         )
         if (
             isinstance(self.controlnet, ControlNetXSModel)
             or (is_compiled
-            and isinstance(self.controlnet._orig_mod, ControlNetXSModel))
+            and isinstance(self.controlnet._orig_mod, ControlNetXSModel)) # pylint: disable=protected-access
         ):
             self.check_image(image, prompt, prompt_embeds)
         else:
@@ -1532,7 +1502,7 @@ class StableDiffusionControlNetXSPipeline(
         if (
             isinstance(self.controlnet, ControlNetXSModel)
             or (is_compiled
-            and isinstance(self.controlnet._orig_mod, ControlNetXSModel))
+            and isinstance(self.controlnet._orig_mod, ControlNetXSModel)) # pylint: disable=protected-access
         ):
             if not isinstance(controlnet_conditioning_scale, float):
                 raise TypeError("For single controlnet: `controlnet_conditioning_scale` must be type `float`.")
@@ -1549,7 +1519,7 @@ class StableDiffusionControlNetXSPipeline(
         if end > 1.0:
             raise ValueError(f"control guidance end: {end} can't be larger than 1.0.")
 
-    def check_image(self, image, prompt, prompt_embeds):
+    def check_image(self, image, prompt, prompt_embeds): # pylint: disable=unused-argument
         image_is_pil = isinstance(image, Image.Image)
         image_is_tensor = isinstance(image, torch.Tensor)
         image_is_np = isinstance(image, np.ndarray)
@@ -1569,22 +1539,6 @@ class StableDiffusionControlNetXSPipeline(
                 f"image must be passed and be one of PIL image, numpy array, torch tensor, list of PIL images, list of numpy arrays or list of torch tensors, but is {type(image)}"
             )
 
-        if image_is_pil:
-            image_batch_size = 1
-        else:
-            image_batch_size = len(image)
-
-        if prompt is not None and isinstance(prompt, str):
-            prompt_batch_size = 1
-        elif prompt is not None and isinstance(prompt, list):
-            prompt_batch_size = len(prompt)
-        elif prompt_embeds is not None:
-            prompt_batch_size = prompt_embeds.shape[0]
-
-        if image_batch_size != 1 and image_batch_size != prompt_batch_size:
-            raise ValueError(
-                f"If image batch size is not 1, image batch size must be same as prompt batch size. image batch size: {image_batch_size}, prompt batch size: {prompt_batch_size}"
-            )
 
     def prepare_image(
         self,
@@ -1791,9 +1745,6 @@ class StableDiffusionControlNetXSPipeline(
             batch_size = prompt_embeds.shape[0]
 
         device = self._execution_device
-        # here `guidance_scale` is defined analog to the guidance weight `w` of equation (2)
-        # of the Imagen paper: https://arxiv.org/pdf/2205.11487.pdf . `guidance_scale = 1`
-        # corresponds to doing no classifier free guidance.
         do_classifier_free_guidance = guidance_scale > 1.0
 
         # 3. Encode input prompt
@@ -1811,9 +1762,6 @@ class StableDiffusionControlNetXSPipeline(
             lora_scale=text_encoder_lora_scale,
             clip_skip=clip_skip,
         )
-        # For classifier free guidance, we need to do two forward passes.
-        # Here we concatenate the unconditional and text embeddings into a single batch
-        # to avoid doing two forward passes
         if do_classifier_free_guidance:
             prompt_embeds = torch.cat([negative_prompt_embeds, prompt_embeds])
 

@@ -1,11 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import Sequence, Union
+from typing import Union
 import torch
 
 from ..types import SamplingDirection
 
 
-class Timesteps(ABC):
+class Timesteps(ABC): # noqa: B024
     """
     Timesteps base class.
     """
