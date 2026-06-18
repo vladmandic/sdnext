@@ -5,8 +5,18 @@ from openvino import opset16 as ov_ops
 
 
 core = ov.Core()
-OV_DEVICE: str = os.environ.get("SDNQ_OPENVINO_DEVICE", "NPU" if "NPU" in core.get_available_devices() else "CPU")
-OV_COMPILED_CACHE: dict[tuple[str, tuple[int,int] | None, tuple[int,int] | None], ov.Model] = {}
+OV_DEVICE: str = os.environ.get("SDNQ_OPENVINO_DEVICE", "CPU")
+OV_COMPILED_CACHE: dict[tuple[str, tuple[int,int] | None, tuple[int,int] | None], list[ov.InferRequest, str]] = {}
+
+
+def ov_int_mm(A: torch.Tensor, B: torch.Tensor, infer_request: ov.InferRequest, out_name: str) -> torch.Tensor:
+    C = torch.empty((A.shape[0], B.shape[-1]), device="cpu", dtype=torch.float32)
+    infer_request.set_tensor("A", ov.Tensor(A.detach().contiguous().to("cpu").numpy(), shared_memory=True))
+    infer_request.set_tensor("B", ov.Tensor(B.detach().contiguous().to("cpu").numpy(), shared_memory=True))
+    infer_request.set_tensor(out_name, ov.Tensor(C.numpy(), shared_memory=True))
+    infer_request.infer()
+    C = C.to(A.device)
+    return C
 
 
 @torch.library.custom_op("sdnq::openvino_int_mm", mutates_args=())
@@ -16,9 +26,9 @@ def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor) -> torch.Ten
         cache_key = (OV_DEVICE, Tensor_A.shape, Tensor_B.shape)
     else:
         cache_key = (OV_DEVICE, None, None)
-    ov_int_mm = OV_COMPILED_CACHE.get(cache_key, None)
-    if ov_int_mm is not None:
-        return ov_int_mm(Tensor_A, Tensor_B)
+    infer_request, out_name = OV_COMPILED_CACHE.get(cache_key, (None, None))
+    if infer_request is not None:
+        return ov_int_mm(Tensor_A, Tensor_B, infer_request, out_name)
 
     if OV_DEVICE in {"NPU", "CPU"}:
         shape_a = ov.Shape(Tensor_A.shape)
@@ -32,21 +42,14 @@ def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor) -> torch.Ten
     high = ov_ops.constant(127.0,  dtype=ov.Type.f32)
     a = ov_ops.fake_quantize(ov_ops.convert(input_a, ov.Type.f32), low, high, low, high, 256)
     b = ov_ops.fake_quantize(ov_ops.convert(input_b, ov.Type.f32), low, high, low, high, 256)
+
     ov_model = ov.Model([ov_ops.matmul(a, b, False, False)], [input_a, input_b], "ov_int8_mm")
     ov_model = core.compile_model(ov_model, OV_DEVICE)
     infer_request = ov_model.create_infer_request()
     out_name = ov_model.outputs[0]
 
-    def ov_int_mm(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
-        C = torch.empty((A.shape[0], B.shape[-1]), device="cpu", dtype=torch.float32)
-        infer_request.set_tensor("A", ov.Tensor(A.detach().contiguous().to("cpu").numpy(), shared_memory=True))
-        infer_request.set_tensor("B", ov.Tensor(B.detach().contiguous().to("cpu").numpy(), shared_memory=True))
-        infer_request.set_tensor(out_name, ov.Tensor(C.numpy(), shared_memory=True))
-        infer_request.infer()
-        return C.to(A.device)
-
-    OV_COMPILED_CACHE[cache_key] = ov_int_mm
-    return ov_int_mm(Tensor_A, Tensor_B)
+    OV_COMPILED_CACHE[cache_key] = (infer_request, out_name)
+    return ov_int_mm(Tensor_A, Tensor_B, infer_request, out_name)
 
 @openvino_int_mm.register_fake
 def openvino_int_mm_fake(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
