@@ -75,7 +75,7 @@ def apply_svdquant(weight: torch.FloatTensor, rank: int = 32, niter: int = 8, dt
 
 
 @devices.inference_context()
-def build_hadamard_n2(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
+def build_hadamard_n2(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None) -> torch.FloatTensor:
     current_size = 2
     H = H_N2 = torch.tensor([[1, 1], [1, -1]], dtype=dtype, device=device)
     while current_size < n:
@@ -87,7 +87,7 @@ def build_hadamard_n2(n: int, dtype: torch.dtype | None = None, device: torch.de
 
 
 @devices.inference_context()
-def build_hadamard_n4(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
+def build_hadamard_n4(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None) -> torch.FloatTensor:
     current_size = 4
     H = H_N4 = torch.tensor([[ 1,  1,  1, -1], [ 1,  1, -1,  1], [ 1, -1,  1,  1], [-1,  1,  1,  1]], dtype=dtype, device=device)
     while current_size < n:
@@ -99,7 +99,7 @@ def build_hadamard_n4(n: int, dtype: torch.dtype | None = None, device: torch.de
 
 
 @devices.inference_context()
-def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
+def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None) -> torch.FloatTensor:
     if math.log(n, 4).is_integer():
         return build_hadamard_n4(n, device=device, dtype=dtype)
     elif math.log(n, 2).is_integer():
@@ -111,9 +111,9 @@ def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.devic
 # 256x256 Hadamard matrix is just 256 KB at FP32
 # And is the exact same matrix on all model layers
 # So we can safely cache a single one
-HADAMARD_MATRIX_CACHE = {}
+HADAMARD_MATRIX_CACHE: dict[tuple[int, torch.device, torch.dtype], torch.FloatTensor] = {}
 @devices.inference_context()
-def get_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None):
+def get_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None) -> torch.FloatTensor:
     device = devices.normalize_device(device)
     H_key = (n, device, dtype)
     H = HADAMARD_MATRIX_CACHE.get(H_key, None)
