@@ -10962,7 +10962,7 @@ function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
   log("refreshInterval", document.visibilityState, refreshInterval);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1e3);
+    if (window.opts.live_preview_require_focus !== false && document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1e3);
     else refreshInterval = window.opts.live_preview_refresh_period || 1e3;
   });
 }
@@ -11078,7 +11078,7 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
   };
   const startLivePreview = (taskId, id_live_preview) => {
     if (window.opts.live_preview_refresh_period === 0) return;
-    const request_id = document.hidden ? -1 : id_live_preview;
+    const request_id = window.opts.live_preview_require_focus !== false && document.hidden ? -1 : id_live_preview;
     const onProgressHandler = (res) => {
       if (res?.debug) debug("progress:", { start: dateStart, id: request_id, res });
       lastState = res;
@@ -15483,9 +15483,7 @@ async function applyHintToElement(el2) {
   if (found?.hint?.length > 0) setHint(el2, found);
 }
 function initializeDOMObserver() {
-  if (hintsObserver) {
-    hintsObserver.disconnect();
-  }
+  if (hintsObserver) hintsObserver.disconnect();
   hintsObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === "childList") {
@@ -15494,12 +15492,14 @@ function initializeDOMObserver() {
             applyHintToElement(node);
             const elements = [
               ...Array.from(node.querySelectorAll("button")),
-              ...Array.from(node.querySelectorAll("h2")),
+              ...Array.from(gradioApp().querySelectorAll("h1")),
+              ...Array.from(gradioApp().querySelectorAll("h2")),
+              ...Array.from(gradioApp().querySelectorAll("h3")),
               ...Array.from(node.querySelectorAll("label > span")),
               ...Array.from(node.querySelectorAll(".label-wrap > span")),
               ...Array.from(node.querySelectorAll('span[data-testid="block-info"]'))
             ];
-            if (node.matches && (node.matches("button") || node.matches("h2") || node.matches("label > span") || node.matches(".label-wrap > span") || node.matches('span[data-testid="block-info"]'))) {
+            if (node.matches && (node.matches("button") || node.matches("h1") || node.matches("h2") || node.matches("h3") || node.matches("label > span") || node.matches(".label-wrap > span") || node.matches('span[data-testid="block-info"]'))) {
               elements.push(node);
             }
             elements.forEach((el2) => applyHintToElement(el2));
@@ -15829,6 +15829,17 @@ async function createSplash() {
 }
 window.onload = createSplash;
 
+// ui/legacy.ts
+function addLegacyNotice() {
+  log("legacyNotice");
+  const notice = document.createElement("div");
+  notice.id = "legacy-notice";
+  notice.className = "legacy-standard";
+  notice.textContent = "Legacy";
+  notice.title = "Standard UI is a legacy interface that is no longer maintained and will be removed in the future. Please switch to ModernUI for best experience.";
+  document.body.appendChild(notice);
+}
+
 // ui/startup.ts
 window.api = "/sdapi/v1";
 window.subpath = "";
@@ -15897,6 +15908,8 @@ async function initStartup() {
   startupPromises.push(Promise.resolve(applyStyles()));
   startupPromises.push(Promise.resolve(initIndexDB()));
   startupPromises.push(Promise.resolve(initTableSorter()));
+  log("HERE", window.opts.theme_type);
+  if (window.opts.theme_type !== "Modern") addLegacyNotice();
   const t1 = performance.now();
   log("initStartup", Math.round(1e3 * (t1 - t0) / 1e6));
   removeSplash();

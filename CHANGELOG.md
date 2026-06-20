@@ -6,6 +6,8 @@
   - **SDNQ** support for NPU during quantization and inference  
   - add option: force dtype on load  
     use to force model components to override loading with desired dtype regardless of component config  
+- **UI**
+  - 
 - **Internal**
   - delay init of video models
 - **Fixes**
@@ -16,6 +18,7 @@
   - `live preview` configurable pause when not in focus, thanks @Artheriax
   - `mps` install `torchsde` as requirement
   - `vae` scale factor improved detection
+  - `ui` networks details scrollbars
 
 ## Update for 2026-06-16
 

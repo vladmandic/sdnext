@@ -2278,6 +2278,18 @@ div:has(>#tab-gallery-folders) {
   pointer-events: none;
 }
 
+.legacy-standard {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  z-index: 1000;
+  background: #AA6688;
+  color: white;
+  cursor: help;
+  padding: var(--block-label-padding);
+  border-radius: var(--block-label-radius);
+}
+
 @keyframes spin {
   from {
     transform: rotate(0deg);
