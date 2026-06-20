@@ -6,6 +6,8 @@
   - **SDNQ** support for NPU during quantization and inference  
   - add option: force dtype on load  
     use to force model components to override loading with desired dtype regardless of component config  
+- **Internal**
+  - delay init of video models
 - **Fixes**
   - `sdnq` warn instead of error for triton
   - `insightface` missing dependencies

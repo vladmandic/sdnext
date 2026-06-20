@@ -2,6 +2,7 @@ import os
 import sys
 import copy
 import time
+import transformers
 import diffusers
 from modules import shared, errors, sd_models, sd_checkpoint, model_quant, devices, sd_hijack_te, sd_hijack_vae
 from modules.logger import log
@@ -33,6 +34,13 @@ def load_model(selected: models_def.Model):
     from modules import sdnq # pylint: disable=unused-import
     if selected is None or selected.repo is None:
         return ''
+    if isinstance(selected.repo_cls, str):
+        selected.repo_cls=models_def.getpipe(diffusers, selected.repo_cls, None)
+    if isinstance(selected.dit_cls, str):
+        selected.dit_cls=models_def.getpipe(diffusers, selected.dit_cls, None)
+    if isinstance(selected.te_cls, str):
+        selected.te_cls=models_def.getpipe(transformers, selected.te_cls, None)
+
     global loaded_model # pylint: disable=global-statement
     if not shared.sd_loaded:
         loaded_model = None
