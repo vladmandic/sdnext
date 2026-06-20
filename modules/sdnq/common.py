@@ -403,8 +403,19 @@ if fp_mm_func is None and os.environ.get("SDNQ_USE_TRITON_MM", "1").lower() not 
 if int_mm_func is None:
     int_mm_func = torch._int_mm
 if fp_mm_func is None:
-    def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
-        return torch.mm(x,y, out_dtype=torch.float32)
+    if devices.backend == "cuda":
+        def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
+            return torch.mm(x,y, out_dtype=torch.float32)
+    else:
+        def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
+            if y.dtype == torch.float16:
+                fp16_scale = 65536 * y.shape[-2]
+            else: # float8_e4m3fn
+                fp16_scale = 4 * y.shape[-2]
+            in_scale = fp16_scale**0.5
+            x = x.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
+            y = y.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
+            return torch.mm(x,y).to(dtype=torch.float32).mul_(fp16_scale)
     fp_mm_func = fp_mm_torch
 
 
