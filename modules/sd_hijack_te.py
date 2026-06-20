@@ -40,6 +40,8 @@ def hijack_encode_prompt(*args, **kwargs):
     timer.process.add('te', t1-t0)
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     shared.state.end(jobid)
+    from modules import memstats
+    log.debug(f'Encode: memory={memstats.memory_stats()}')
     return res
 
 

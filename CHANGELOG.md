@@ -3,7 +3,9 @@
 ## Update for 2026-06-20
 
 - **Features**
-  - **SDNQ** support for NPU during quantization and inference
+  - **SDNQ** support for NPU during quantization and inference  
+  - add option: force dtype on load  
+    use to force model components to override loading with desired dtype regardless of component config  
 - **Fixes**
   - `sdnq` warn instead of error for triton
   - `insightface` missing dependencies

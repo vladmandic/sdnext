@@ -377,7 +377,7 @@ def test_bf16():
             else:
                 from modules.zluda_installer import default_agent
                 agent = default_agent
-            if agent is not None and agent.gfx_version < 0x1100 and agent.arch != rocm.MicroArchitecture.CDNA: # all cards before RDNA 3 except for CDNA cards
+            if (agent is not None) and (agent.gfx_version < 0x1100) and (agent.arch != rocm.MicroArchitecture.CDNA): # all cards before RDNA 3 except for CDNA cards
                 bf16_ok = False
                 return bf16_ok
     try:

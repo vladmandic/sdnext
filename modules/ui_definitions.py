@@ -220,6 +220,7 @@ def create_settings(cmd_opts):
         "math_sep": OptionInfo("<h2>Execution Precision</h2>", "", gr.HTML),
         "precision": OptionInfo("Autocast", "Precision type", gr.Radio, {"choices": ["Autocast", "Full"], "visible": False}),
         "cuda_dtype": OptionInfo("Auto", "Device precision type", gr.Radio, {"choices": ["Auto", "FP32", "FP16", "BF16"]}),
+        "force_dtype": OptionInfo(False, "Force dtype on load", None, None, None),
         "no_half": OptionInfo(False, "Force full precision (--no-half)", None, None, None),
         "upcast_sampling": OptionInfo(False if sys.platform != "darwin" else True, "Upcast sampling", gr.Checkbox, {"visible": False}),
 

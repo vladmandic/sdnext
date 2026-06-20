@@ -1,5 +1,6 @@
 import os
 import json
+import torch
 import transformers
 from modules import shared, devices, errors, sd_models, sd_offload, model_quant
 from modules.logger import log
@@ -146,5 +147,15 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
         module_size, param_num = sd_offload.get_module_size(text_encoder)
         module_memory = sd_offload.get_module_memory(text_encoder)
         log.debug(f'Load model: text_encoder="{repo_id}" quant="{quant_type}" size={module_size:.3f} params={param_num:.3f} memory={module_memory}')
+
+    try:
+        actual_dtype = text_encoder.dtype
+        if isinstance(actual_dtype, torch.dtype) and isinstance(dtype, torch.dtype) and actual_dtype != dtype:
+            force = shared.opts.force_dtype
+            log.warning(f'Load model: text_encoder="{repo_id}" dtype desired={dtype} actual={actual_dtype} force={force}')
+            if force:
+                text_encoder = text_encoder.to(dtype)
+    except Exception:
+        pass
 
     return text_encoder

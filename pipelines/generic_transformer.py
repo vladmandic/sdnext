@@ -1,4 +1,5 @@
 import os
+import torch
 from modules import shared, devices, errors, sd_models, sd_offload, model_quant
 from modules.logger import log
 from pipelines.generic_util import get_loader
@@ -132,5 +133,15 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
         module_size, param_num = sd_offload.get_module_size(transformer)
         module_memory = sd_offload.get_module_memory(transformer)
         log.debug(f'Load model: transformer="{repo_id}" quant="{quant_type}" size={module_size:.3f} params={param_num:.3f} memory={module_memory}')
+
+    try:
+        actual_dtype = transformer.dtype
+        if isinstance(actual_dtype, torch.dtype) and isinstance(dtype, torch.dtype) and actual_dtype != dtype:
+            force = shared.opts.force_dtype
+            log.warning(f'Load model: transformer="{repo_id}" dtype desired={dtype} actual={actual_dtype} force={force}')
+            if force:
+                transformer = transformer.to(dtype)
+    except Exception:
+        pass
 
     return transformer
