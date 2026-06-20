@@ -408,10 +408,10 @@ if fp_mm_func is None:
             return torch.mm(x,y, out_dtype=torch.float32)
     else:
         def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
-            if y.dtype == torch.float16:
-                fp16_scale = 65536 * y.shape[-2]
-            else: # float8_e4m3fn
+            if y.dtype == torch.float8_e4m3fn:
                 fp16_scale = 4 * y.shape[-2]
+            else:
+                fp16_scale = 65536 * y.shape[-2]
             in_scale = fp16_scale**0.5
             x = x.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
             y = y.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
