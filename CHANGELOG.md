@@ -15,6 +15,7 @@
   - `processors` init code and multiple fixes
   - `live preview` configurable pause when not in focus, thanks @Artheriax
   - `mps` install `torchsde` as requirement
+  - `vae` scale factor improved detection
 
 ## Update for 2026-06-16
 
