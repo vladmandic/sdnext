@@ -380,8 +380,9 @@ int_mm_func = None
 
 if use_openvino_mm:
     try:
-        from .kernels.openvino_mm import openvino_int_mm
+        from .kernels.openvino_mm import openvino_int_mm, openvino_fp_mm
         int_mm_func = openvino_int_mm
+        fp_mm_func = openvino_fp_mm
     except Exception:
         use_openvino_mm = False
 elif use_triton_mm:

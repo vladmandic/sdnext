@@ -589,18 +589,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                 self.quantization_config.modules_to_not_convert.append(param_name)
         return False
 
-    def check_quantized_param(self, *args, **kwargs) -> bool:
-        """
-        needed for transformers compatibility, returns self.check_if_quantized_param
-        """
-        return self.check_if_quantized_param(*args, **kwargs)
-
-    def param_needs_quantization(self, model, param_name: str, *args, **kwargs) -> bool:
-        """
-        needed for transformers compatibility, returns self.check_if_quantized_param
-        """
-        return self.check_if_quantized_param(model, None, param_name, *args, **kwargs)
-
     @devices.inference_context()
     def create_quantized_param( # pylint: disable=arguments-differ
         self,
@@ -655,16 +643,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
 
         parent_module, tensor_name = get_module_from_name(model, param_name.removesuffix(tensor_name).removesuffix("."))
         setattr(parent_module, tensor_name, layer)
-
-    def get_quantize_ops(self):
-        return SDNQQuantize(self)
-
-    def adjust_max_memory(self, max_memory: dict[str, int | str]) -> dict[str, int | str]:
-        max_memory = {key: val * 0.80 for key, val in max_memory.items()}
-        return max_memory
-
-    def adjust_target_dtype(self, target_dtype: torch.dtype) -> torch.dtype: # pylint: disable=unused-argument,arguments-renamed
-        return dtype_dict[self.quantization_config.weights_dtype]["target_dtype"]
 
     def _process_model_before_weight_loading( # pylint: disable=arguments-differ
         self,
@@ -726,6 +704,20 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         devices.torch_gc(force=True, reason="sdnq")
         return model
 
+    def get_quantize_ops(self):
+        return SDNQQuantize(self)
+
+    def adjust_max_memory(self, max_memory: dict[str, int | str]) -> dict[str, int | str]:
+        max_memory = {key: val * 0.80 for key, val in max_memory.items()}
+        return max_memory
+
+    def adjust_target_dtype(self, target_dtype: torch.dtype) -> torch.dtype: # pylint: disable=unused-argument,arguments-renamed
+        return dtype_dict[self.quantization_config.weights_dtype]["target_dtype"]
+
+    def update_torch_dtype(self, torch_dtype: torch.dtype) -> torch.dtype:
+        self.torch_dtype = torch_dtype
+        return torch_dtype
+
     def get_state_dict_and_metadata(self, state_dict: dict | torch.nn.Module, **kwargs) -> tuple[dict | None, dict]: # pylint: disable=unused-argument, arguments-differ
         # transformers
         if isinstance(state_dict, torch.nn.Module):
@@ -735,12 +727,6 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
 
     def get_accelerator_warm_up_factor(self):
         return 32 // dtype_dict[self.quantization_config.weights_dtype]["num_bits"]
-
-    def get_cuda_warm_up_factor(self):
-        """
-        needed for transformers compatibility, returns self.get_accelerator_warm_up_factor
-        """
-        return self.get_accelerator_warm_up_factor()
 
     def _dequantize(self, model):
         return dequantize_sdnq_model(model)
@@ -763,6 +749,30 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     @property
     def is_compileable(self):
         return True
+
+    def check_quantized_param(self, *args, **kwargs) -> bool:
+        """
+        needed for transformers compatibility, returns self.check_if_quantized_param
+        """
+        return self.check_if_quantized_param(*args, **kwargs)
+
+    def param_needs_quantization(self, model, param_name: str, *args, **kwargs) -> bool:
+        """
+        needed for transformers compatibility, returns self.check_if_quantized_param
+        """
+        return self.check_if_quantized_param(model, None, param_name, *args, **kwargs)
+
+    def get_cuda_warm_up_factor(self):
+        """
+        needed for transformers compatibility, returns self.get_accelerator_warm_up_factor
+        """
+        return self.get_accelerator_warm_up_factor()
+
+    def update_dtype(self, dtype: torch.dtype) -> torch.dtype:
+        """
+        needed for transformers compatibility, returns self.update_torch_dtype
+        """
+        return self.update_torch_dtype(dtype)
 
 
 @dataclass
