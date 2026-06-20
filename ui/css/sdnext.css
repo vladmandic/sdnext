@@ -1520,10 +1520,10 @@ table.settings-value-table td {
   z-index: 99;
 }
 
-.extra-details-tabs textarea, .extra-details-tabs .gradio-json {
-  max-height: 15vh;
-  overflow-y: scroll !important;
-  scrollbar-width: unset !important;
+.extra-details-tabs {
+  min-height: 10vh;
+  max-height: 35vh;
+  overflow: auto;
 }
 
 .extra-details-text .form {
