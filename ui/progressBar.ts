@@ -11,7 +11,7 @@ export function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
   log('refreshInterval', document.visibilityState, refreshInterval);
   document.addEventListener('visibilitychange', () => {
-    if (document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1000);
+    if (window.opts.live_preview_require_focus !== false && document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1000);
     else refreshInterval = window.opts.live_preview_refresh_period || 1000;
     // log('refreshInterval', document.visibilityState, refreshInterval);
   });
@@ -148,7 +148,7 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
 
   const startLivePreview = (taskId: string, id_live_preview: number) => {
     if (window.opts.live_preview_refresh_period === 0) return;
-    const request_id = document.hidden ? -1 : id_live_preview;
+    const request_id = (window.opts.live_preview_require_focus !== false && document.hidden) ? -1 : id_live_preview;
 
     const onProgressHandler = (res) => {
       if (res?.debug) debug('progress:', { start: dateStart, id: request_id, res });
