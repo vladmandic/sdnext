@@ -1,6 +1,7 @@
 import platform
 from packaging import version
 import torch
+from installer import install
 from modules.sd_hijack_utils import CondFunc
 
 
@@ -15,6 +16,7 @@ def check_for_mps() -> bool:
         return True
     except Exception:
         return False
+
 has_mps = check_for_mps()
 
 
@@ -30,6 +32,8 @@ def cumsum_fix(input, cumsum_func, *args, **kwargs): # pylint: disable=redefined
 
 
 if has_mps:
+    install('torchsde==0.2.6', 'torchsde', quiet=True)
+
     # MPS fix for randn in torchsde
     CondFunc('torchsde._brownian.brownian_interval._randn', lambda _, size, dtype, device, seed: torch.randn(size, dtype=dtype, device=torch.device("cpu"), generator=torch.Generator(torch.device("cpu")).manual_seed(int(seed))).to(device), lambda _, size, dtype, device, seed: device.type == 'mps')
 
@@ -48,6 +52,7 @@ if has_mps:
                                                                                         lambda _, *args, **kwargs: args and isinstance(args[0], torch.Tensor) and args[0].device.type == 'mps')
         # MPS workaround for https://github.com/pytorch/pytorch/issues/90532
         CondFunc('torch.Tensor.numpy', lambda orig_func, self, *args, **kwargs: orig_func(self.detach(), *args, **kwargs), lambda _, self, *args, **kwargs: self.requires_grad)
+
     elif version.parse(torch.__version__) > version.parse("1.13.1"):
         cumsum_needs_int_fix = not torch.Tensor([1,2]).to(torch.device("mps")).equal(torch.ShortTensor([1,1]).to(torch.device("mps")).cumsum(0))
         cumsum_fix_func = lambda orig_func, input, *args, **kwargs: cumsum_fix(input, orig_func, *args, **kwargs) # pylint: disable=unnecessary-lambda-assignment

@@ -1,12 +1,16 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-18
+## Update for 2026-06-20
 
+- **Features**
+  - **SDNQ** support for NPU during quantization and inference
 - **Fixes**
   - `sdnq` warn instead of error for triton
   - `insightface` missing dependencies
   - `pulid` import paths
   - `processors` init code and multiple fixes
+  - `live preview` configurable pause when not in focus, thanks @Artheriax
+  - `mps` install `torchsde` as requirement
 
 ## Update for 2026-06-16
 
