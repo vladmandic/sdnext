@@ -99,7 +99,7 @@ def create_resolution_inputs(tab, default_width=1024, default_height=1024):
 
 
 def create_caption_button(tab: str, inputs: list | None = None, outputs: str | None = None, what: str = ''):
-    button_caption = gr.Button(ui_symbols.caption, elem_id=f"{tab}_caption_{what}", elem_classes=['caption'])
+    button_caption = gr.Button(ui_symbols.caption, elem_id=f"{tab}_caption_{what}", elem_classes=['caption', 'image-fit'])
     if inputs is not None and outputs is not None:
         button_caption.click(fn=caption.caption, inputs=inputs, outputs=[outputs])
     return button_caption

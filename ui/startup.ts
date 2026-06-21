@@ -108,7 +108,6 @@ async function initStartup() {
   startupPromises.push(Promise.resolve(initIndexDB()));
   startupPromises.push(Promise.resolve(initTableSorter()));
 
-  log('HERE', window.opts.theme_type);
   if (window.opts.theme_type !== 'Modern') addLegacyNotice();
 
   const t1 = performance.now();

@@ -702,6 +702,10 @@ function currentImageResolutionimg2img(_a, _b, scaleBy) {
 }
 
 function currentImageResolutioncontrol(_a, _b, scaleBy) {
+  if (window.kanvas) {
+    const active = window.kanvas.stages?.getActiveStage();
+    return [active?.width || 0, active?.height || 0, scaleBy];
+  }
   const img = gradioApp().querySelector('#control-tab-input > div[style="display: block;"] img');
   return img ? [img.naturalWidth, img.naturalHeight, scaleBy] : [0, 0, scaleBy];
 }

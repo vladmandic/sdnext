@@ -74,7 +74,7 @@
   --sd-text-font: 'IBM Plex Mono', monospace;
   --sd-button-font: 'NotoSans', sans-serif;
   --sd-image-fit: scale-down;
-  --sd-panel-min-width: 30em;
+  --sd-panel-min-width: 256px;
   --sd-grid-image-size: 150px;
 }
 
@@ -1594,6 +1594,10 @@ table.settings-value-table td {
 
 .input-accordion-checkbox {
   display: none !important;
+}
+
+.caption {
+  right: 6em;
 }
 
 #modelmerger_interp_description {

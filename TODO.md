@@ -27,6 +27,8 @@
 - Auto handle scheduler `prediction_type`
 - Cache models in memory
 - JSON image metadata
+- Remove `directml`
+- Remove `olive-ai`
 - Integrate natural language image search: [ImageDB](https://github.com/vladmandic/imagedb)
 - Unify *huggingface* and *diffusers* model folders
 

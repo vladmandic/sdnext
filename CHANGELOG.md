@@ -7,6 +7,7 @@
   - add option: force dtype on load  
     use to force model components to override loading with desired dtype regardless of component config  
 - **UI**
+  - improve main panel positioning: portrait/landscape
   - StandardUI: marked as legacy
   - ModernUI: old txt2img and img2img tabs are marked as legacy and hidden by default
 - **Internal**
@@ -22,6 +23,7 @@
   - `ui` networks details scrollbars
   - `onnxruntime` handle invalid version
   - `onnxruntime` mark all import paths as non-critical
+  - `measure` handle current kanvas stage
 
 ## Update for 2026-06-16
 

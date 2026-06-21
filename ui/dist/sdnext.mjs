@@ -11662,6 +11662,10 @@ function currentImageResolutionimg2img(_a, _b, scaleBy) {
   return img ? [img.naturalWidth, img.naturalHeight, scaleBy] : [0, 0, scaleBy];
 }
 function currentImageResolutioncontrol(_a, _b, scaleBy) {
+  if (window.kanvas) {
+    const active2 = window.kanvas.stages?.getActiveStage();
+    return [active2?.width || 0, active2?.height || 0, scaleBy];
+  }
   const img = gradioApp().querySelector('#control-tab-input > div[style="display: block;"] img');
   return img ? [img.naturalWidth, img.naturalHeight, scaleBy] : [0, 0, scaleBy];
 }
@@ -15908,7 +15912,6 @@ async function initStartup() {
   startupPromises.push(Promise.resolve(applyStyles()));
   startupPromises.push(Promise.resolve(initIndexDB()));
   startupPromises.push(Promise.resolve(initTableSorter()));
-  log("HERE", window.opts.theme_type);
   if (window.opts.theme_type !== "Modern") addLegacyNotice();
   const t1 = performance.now();
   log("initStartup", Math.round(1e3 * (t1 - t0) / 1e6));
