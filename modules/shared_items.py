@@ -136,6 +136,7 @@ def list_crossattention():
 
 def get_pipelines():
     from modules.logger import log
+    """
     if hasattr(diffusers, 'OnnxStableDiffusionPipeline') and 'ONNX Stable Diffusion' not in list(pipelines):
         try:
             from modules.onnx_impl import initialize_onnx
@@ -150,6 +151,7 @@ def get_pipelines():
             log.error(f'ONNX initialization error: {e}')
             onnx_pipelines = {}
         pipelines.update(onnx_pipelines)
+    """
     stats_builtin = 0
     stats_custom = 0
     for k, v in pipelines.copy().items():

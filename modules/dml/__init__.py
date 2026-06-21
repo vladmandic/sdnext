@@ -1,5 +1,5 @@
 import platform
-from typing import NamedTuple, Optional
+from typing import NamedTuple
 from collections.abc import Callable
 import torch
 from modules.logger import log

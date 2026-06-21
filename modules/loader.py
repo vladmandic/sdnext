@@ -175,12 +175,15 @@ except Exception as e:
 timer.startup.record("transformers")
 
 try:
-    import onnxruntime # pylint: disable=W0611,C0411
-    onnxruntime.set_default_logger_severity(4)
-    onnxruntime.set_default_logger_verbosity(1)
-    onnxruntime.disable_telemetry_events()
+    import onnxruntime as ort# pylint: disable=W0611,C0411
+    ort.set_default_logger_severity(4)
+    ort.set_default_logger_verbosity(1)
+    ort.disable_telemetry_events()
+    _onnx = True
 except Exception as e:
-    log.warning(f'Torch onnxruntime: {e}')
+    log.warning(f'Init onnxruntime: {e}')
+    ort = None
+    _onnx = False
 timer.startup.record("onnx")
 
 timer.startup.record("fastapi")
@@ -200,7 +203,7 @@ try:
     diffusers.utils.import_utils._k_diffusion_available = True # pylint: disable=protected-access # monkey-patch since we use k-diffusion from git
     diffusers.utils.import_utils._k_diffusion_version = '0.0.12' # pylint: disable=protected-access
     diffusers.utils.import_utils._bitsandbytes_available = _bnb # pylint: disable=protected-access
-
+    diffusers.utils.import_utils._onnx_available = _onnx # pylint: disable=protected-access
     import diffusers # pylint: disable=W0611,C0411
     import diffusers.loaders.single_file # pylint: disable=W0611,C0411
     diffusers.loaders.single_file.logging.tqdm = partial(tqdm, unit='C')
@@ -244,11 +247,15 @@ except Exception:
 def get_packages():
     return {
         "torch": getattr(torch, "__long_version__", torch.__version__),
+        "torchvision": torchvision.__version__,
         "diffusers": diffusers.__version__,
-        "gradio": gradio.__version__,
         "transformers": transformers.__version__,
         "accelerate": accelerate.__version__,
         "hub": huggingface_hub.__version__,
+        "gradio": gradio.__version__,
+        "pydantic": pydantic.__version__,
+        "numpy": np.__version__,
+        "onnxruntime": ort.__version__ if ort is not None else None,
     }
 
 try:
@@ -282,4 +289,4 @@ class VersionString(str): # support both string and tuple for version check
 
 torch.__version__ = VersionString(torch.__version__)
 log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
-log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__} cv2=={cv2.__version__}')
+log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__} cv2=={cv2.__version__} onnxruntime=={ort.__version__ if ort is not None else None}')

@@ -11,6 +11,7 @@ class ExecutionProvider(str, Enum):
     ROCm = "ROCMExecutionProvider"
     MIGraphX = "MIGraphXExecutionProvider"
     OpenVINO = "OpenVINOExecutionProvider"
+    Azure = "AzureExecutionProvider"
 
 
 EP_TO_NAME = {
@@ -20,6 +21,7 @@ EP_TO_NAME = {
     ExecutionProvider.ROCm: "gpu-rocm", # test required
     ExecutionProvider.MIGraphX: "gpu-migraphx", # test required
     ExecutionProvider.OpenVINO: "gpu-openvino", # test required
+    ExecutionProvider.Azure: "gpu-azure", # test required
 }
 TORCH_DEVICE_TO_EP = {
     "cpu": ExecutionProvider.CPU if devices.backend != "openvino" else ExecutionProvider.OpenVINO,
@@ -29,14 +31,11 @@ TORCH_DEVICE_TO_EP = {
     "meta": None,
 }
 
-
-try:
-    import onnxruntime as ort
-    available_execution_providers: list[ExecutionProvider] = ort.get_available_providers()
-except Exception as e:
-    log.error(f'ONNX import error: {e}')
+from modules.onnx_impl import ort
+if ort is not None:
+    available_execution_providers: list[ExecutionProvider] = [ExecutionProvider(ep) for ep in ort.get_available_providers()]
+else:
     available_execution_providers = []
-    ort = None
 
 
 def get_default_execution_provider() -> ExecutionProvider:
@@ -96,7 +95,7 @@ def get_provider() -> tuple:
 
 def install_execution_provider(ep: ExecutionProvider):
     import importlib  # pylint: disable=deprecated-module
-    from installer import installed, install, uninstall
+    from installer import install, uninstall
     res = "<br><pre>"
     res += uninstall(["onnxruntime", "onnxruntime-directml", "onnxruntime-gpu", "onnxruntime-training", "onnxruntime-openvino"], quiet=True)
     packages = ["onnxruntime"] # Failed to load olive: cannot import name '__version__' from 'onnxruntime'

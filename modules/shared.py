@@ -17,7 +17,6 @@ import modules.paths as paths
 from modules.json_helpers import readfile # pylint: disable=W0611
 from modules.shared_helpers import listdir, req # pylint: disable=W0611
 from modules import errors, devices, shared_state, cmd_args, theme, history, files_cache # pylint: disable=unused-import
-from modules.shared_defaults import get_default_modes
 from modules.memstats import memory_stats # pylint: disable=unused-import
 
 log.debug('Initializing: pipelines')
@@ -151,9 +150,6 @@ def list_samplers():
     modules.sd_samplers.set_samplers()
     return modules.sd_samplers.all_samplers
 
-
-log.debug('Initializing: default modes')
-startup_offload_mode, startup_offload_min_gpu, startup_offload_max_gpu, startup_cross_attention, startup_sdp_options, startup_sdp_choices, startup_sdp_override_options, startup_sdp_override_choices, startup_offload_always, startup_offload_never = get_default_modes(cmd_opts=cmd_opts, mem_stat=mem_stat)
 
 log.debug('Initializing: settings')
 from modules import ui_definitions

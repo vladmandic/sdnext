@@ -5,8 +5,6 @@ import gradio as gr
 from modules import paths, shared_items, devices, theme
 from modules.options import OptionInfo, options_section
 from modules.ui_components import DropdownEditable
-from modules.dml import memory_providers, default_memory_provider
-from modules.onnx_impl import execution_providers
 from modules.memstats import memory_stats
 from modules.shared_defaults import get_default_modes
 from modules.shared_items import sdnq_quant_modes, sdnq_matmul_modes
@@ -15,6 +13,24 @@ import modules.caption.vqa
 
 
 options_templates = {}
+
+
+def list_onnx_providers():
+    try:
+        from modules.onnx_impl import execution_providers
+        execution_providers = execution_providers.available_execution_providers
+        default_provider = execution_providers.get_default_execution_provider().value
+        return default_provider, execution_providers
+    except Exception:
+        return "CPU", []
+
+
+def list_dml_providers():
+    try:
+        from modules.dml import memory_providers, default_memory_provider
+        return default_memory_provider, memory_providers
+    except Exception:
+        return "Performance Counter", []
 
 
 def list_checkpoint_titles():
@@ -65,6 +81,9 @@ def create_settings(cmd_opts):
     default_hfcache_dir = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(paths.models_path, 'huggingface')
     default_checkpoint = list_checkpoint_titles()[0] if len(list_checkpoint_titles()) > 0 else "model.safetensors"
     default_xetcache_dir = os.environ.get("HF_XET_CACHE ", None) or os.path.join(paths.models_path, 'xet')
+
+    default_onnx_execution_provider, default_onnx_execution_providers = list_onnx_providers()
+    default_dml_memory_provider, default_dml_memory_providers = list_dml_providers()
 
     hide_dirs = {"visible": not cmd_opts.hide_ui_dir_config}
 
@@ -266,7 +285,7 @@ def create_settings(cmd_opts):
         "torch_malloc": OptionInfo("native", "Memory allocator", gr.Radio, {"choices": ['native', 'cudaMallocAsync'] }),
 
         "onnx_sep": OptionInfo("<h2>ONNX</h2>", "", gr.HTML),
-        "onnx_execution_provider": OptionInfo(execution_providers.get_default_execution_provider().value, 'ONNX Execution Provider', gr.Dropdown, lambda: {"choices": execution_providers.available_execution_providers }),
+        "onnx_execution_provider": OptionInfo(default_onnx_execution_provider, 'ONNX Execution Provider', gr.Dropdown, lambda: {"choices": default_onnx_execution_providers}),
         "onnx_cpu_fallback": OptionInfo(True, 'ONNX allow fallback to CPU'),
         "onnx_cache_converted": OptionInfo(True, 'ONNX cache converted models'),
         "onnx_unload_base": OptionInfo(False, 'ONNX unload base model when processing refiner'),
@@ -288,7 +307,7 @@ def create_settings(cmd_opts):
         "openvino_disable_memory_cleanup": OptionInfo(True, "OpenVINO disable memory cleanup", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
 
         "directml_sep": OptionInfo("<h2>DirectML</h2>", "", gr.HTML, {"visible": devices.backend == "directml"}),
-        "directml_memory_provider": OptionInfo(default_memory_provider, "DirectML memory stats provider", gr.Radio, {"choices": memory_providers, "visible": devices.backend == "directml"}),
+        "directml_memory_provider": OptionInfo(default_dml_memory_provider, "DirectML memory stats provider", gr.Radio, {"choices": default_dml_memory_providers, "visible": devices.backend == "directml"}),
         "directml_catch_nan": OptionInfo(False, "DirectML retry ops for NaN", gr.Checkbox, {"visible": devices.backend == "directml"}),
     }))
 

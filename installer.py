@@ -607,6 +607,12 @@ def check_onnx():
         install('onnx', 'onnx', ignore=True)
     if not installed('onnxruntime', quiet=True) and not (installed('onnxruntime-gpu', quiet=True) or installed('onnxruntime-openvino', quiet=True) or installed('onnxruntime-training', quiet=True)): # allow either
         install(os.environ.get('ONNXRUNTIME_COMMAND', 'onnxruntime'), ignore=True)
+    else:
+        onnx_version = package_version('onnxruntime') or ''
+        if onnx_version.startswith('1.1'):
+            log.warning(f'ONNX: onnxruntime={onnx_version} upgrade required')
+            uninstall('onnxruntime', quiet=True)
+            install(os.environ.get('ONNXRUNTIME_COMMAND', 'onnxruntime'), ignore=True)
     ts('onnx', t_start)
 
 
