@@ -401,8 +401,14 @@ def test_triton(early: bool = False):
         return triton_ok
     t0 = time.time()
     try:
-        from torch.utils._triton import has_triton as torch_has_triton
-        if torch_has_triton():
+        if torch._dynamo.config.disable: # pylint: disable=protected-access
+            triton_is_available = False
+        elif backend == "cpu": # CPUs can use torch.compile / Inductor without Triton
+            triton_is_available = True
+        else:
+            from torch.utils._triton import has_triton as torch_has_triton
+            triton_is_available = torch_has_triton()
+        if triton_is_available:
             if early:
                 return True
             def test_triton_func(a,b,c):
