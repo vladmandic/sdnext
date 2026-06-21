@@ -24,6 +24,7 @@
   - `onnxruntime` handle invalid version
   - `onnxruntime` mark all import paths as non-critical
   - `measure` handle current kanvas stage
+  - `caption` button in standard-ui
 
 ## Update for 2026-06-16
 
