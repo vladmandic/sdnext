@@ -161,10 +161,7 @@ declare global {
       destroy: () => void;
       initialize: (defaultWidth?: number, defaultHeight?: number) => void;
     }; // extensions-builtin/sdnext-kanvas/src/Kanvas.ts
-    kanvas?: {
-      stages: { maxStages: number };
-      getImage: (index: number, includeMask: boolean, includeAlpha: boolean) => { kanvas: true; image: string | null; mask: string | null } | null;
-    }; // extensions-builtin/sdnext-kanvas/src/Kanvas.ts
+    kanvas?: any; // extensions-builtin/sdnext-kanvas/src/Kanvas.ts
     loadFromURL?: (url: string) => unknown; // external
     getKanvasData?: () => { kanvas: true; image: string | null; mask: string | null } | null; // extensions-builtin/sdnext-kanvas/javascript/kanvas.mjs
     resizeStage?: (width: number, height: number) => void; // extensions-builtin/sdnext-kanvas/javascript/kanvas.mjs
