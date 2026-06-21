@@ -6,7 +6,7 @@ from openvino.properties import hint as ov_hints
 
 core = ov.Core()
 
-OV_DEVICE: str = os.environ.get("SDNQ_OPENVINO_DEVICE", "CPU")
+OV_DEVICE: str = os.environ.get("SDNQ_OPENVINO_DEVICE", "HETERO:NPU,CPU" if "NPU" in core.get_available_devices() else "CPU")
 OV_COMPILED_CACHE: dict[tuple[str, tuple[int,int] | None, str, tuple[int,int] | None], tuple[ov.InferRequest, str]] = {}
 
 if OV_DEVICE == "NPU":
