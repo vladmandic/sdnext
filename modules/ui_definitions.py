@@ -18,9 +18,9 @@ options_templates = {}
 def list_onnx_providers():
     try:
         from modules.onnx_impl import execution_providers
-        execution_providers = execution_providers.available_execution_providers
+        providers = execution_providers.available_execution_providers
         default_provider = execution_providers.get_default_execution_provider().value
-        return default_provider, execution_providers
+        return default_provider, providers
     except Exception:
         return "CPU", []
 
