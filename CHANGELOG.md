@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-21
+## Update for 2026-06-22
 
 - **Features**
   - **SDNQ** support for NPU during quantization and inference  
@@ -8,9 +8,10 @@
     use to force model components to override loading with desired dtype regardless of component config  
 - **UI**
   - dynamic visibility of image controls
-  - improve main panel positioning: portrait/landscape
+  - improve main panel positioning: *portrait/landscape*
+  - improved gallery performance
+  - ModernUI: old *txt2img* and *img2img* tabs are marked as legacy and hidden by default
   - StandardUI: marked as legacy
-  - ModernUI: old txt2img and img2img tabs are marked as legacy and hidden by default
 - **Internal**
   - delay init of video models
 - **Fixes**

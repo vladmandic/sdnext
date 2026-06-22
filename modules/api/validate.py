@@ -52,6 +52,7 @@ class Limiter():
         self.summary = {}
         log.info(f'API: limit={self.request_limit} strategy={self.request_strategy.__class__.__name__} backend={self.request_backend.__class__.__name__}')
 
+
     def stats(self):
         for k, v in self.summary.items():
             if v > 1:
@@ -101,6 +102,9 @@ def validate_request(client, endpoint):
     if key not in limiter.summary:
         limiter.summary[key] = 0
     limiter.summary[key] += 1
+    # import anyio
+    # _limiter = anyio.to_thread.current_default_thread_limiter()
+    # log.debug(f'FastAPI: threads={_limiter._total_tokens}')
     return limiter.check_request(client, api)
 
 
