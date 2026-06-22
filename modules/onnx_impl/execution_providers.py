@@ -12,6 +12,7 @@ class ExecutionProvider(str, Enum):
     MIGraphX = "MIGraphXExecutionProvider"
     OpenVINO = "OpenVINOExecutionProvider"
     Azure = "AzureExecutionProvider"
+    TensorRT = "TensorrtExecutionProvider"
 
 
 EP_TO_NAME = {
@@ -32,8 +33,13 @@ TORCH_DEVICE_TO_EP = {
 }
 
 from modules.onnx_impl import ort
+available_execution_providers = []
 if ort is not None:
-    available_execution_providers: list[ExecutionProvider] = [ExecutionProvider(ep) for ep in ort.get_available_providers()]
+    for provider in ort.get_available_providers():
+        try:
+            available_execution_providers.append(ExecutionProvider(provider))
+        except Exception as e:
+            log.warning(f"ONNX: provider{provider} {e}")
 else:
     available_execution_providers = []
 
