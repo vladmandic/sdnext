@@ -502,19 +502,23 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if int(sys.version_info.minor) >= 13:
         # log.warning(f"Python: version={platform.python_version()} not all features are available")
         pass
-    if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
-        if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
-            log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
-            if reason is not None:
-                log.error(reason)
-            if not args.ignore and not args.experimental:
-                sys.exit(1)
-        else:
-            log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
-            if reason is not None:
-                log.error(reason)
-            if not args.ignore and not args.experimental:
-                sys.exit(1)
+
+    if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
+        pass
+    elif (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors) and args.experimental:
+        log.warning(f"Python: version={sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} experimental")
+        if reason is not None:
+            log.warning(f"Python: {reason}")
+    elif args.ignore:
+        log.warning(f"Python: version={sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} ignore version check")
+        if reason is not None:
+            log.warning(f"Python: {reason}")
+    else:
+        log.error(f"Python: version={sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required=3.{supported_minors} incompatible")
+        if reason is not None:
+            log.warning(f"Python: {reason}")
+        sys.exit(1)
+
     if not args.skip_git:
         git_cmd = os.environ.get('GIT', "git")
         if shutil.which(git_cmd) is None:
@@ -663,7 +667,7 @@ def install_rocm_zluda():
                 device = amd_gpus[device_id]
 
     if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
-        check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
+        check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
         install(f"rocm[devel,libraries] --index-url https://rocm.nightlies.amd.com/{device.therock}")
         rocm.refresh()
 
@@ -699,10 +703,10 @@ def install_rocm_zluda():
             if device is None:
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
             if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
-                check_python(supported_minors=[11, 12, 13], reason='ROCm: python==3.11/3.12/3.13 required')
+                check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/{device.therock}')
             else:
-                check_python(supported_minors=[12], reason='ROCm: Windows preview python==3.12 required')
+                check_python(supported_minors=[12], reason='ROCm-Windows: preview python==3.12 required')
                 # torch 2.8.0a0 is the last version with rocm 6.4 support
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
     else:
