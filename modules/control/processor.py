@@ -17,7 +17,6 @@ processors = [
     'None',
     # pose
     'OpenPose',
-    'DWPose',
     'RTMW',
     'RTMO',
     'ViTPose',
