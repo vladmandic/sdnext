@@ -282,10 +282,10 @@ class Processor:
             elif processor_id in ('DWPose (ONNX)', 'RTMW', 'RTMO'):
                 model_type = {'DWPose (ONNX)': 'DWPose', 'RTMW': 'RTMW-l', 'RTMO': 'RTMO-l'}[processor_id]
                 self.model = cls.from_pretrained(model_type, **self.load_config)
-            elif 'SegmentAnything' in processor_id:
-                if 'Base' == config['SegmentAnything']['model']:
+            elif processor_id == 'SegmentAnything 1.0':
+                if 'Base' == config[processor_id]['model']:
                     self.model = cls.from_pretrained(model_path = 'segments-arnaud/sam_vit_b', filename='sam_vit_b_01ec64.pth', model_type='vit_b', **self.load_config)
-                elif 'Large' == config['SegmentAnything']['model']:
+                elif 'Large' == config[processor_id]['model']:
                     self.model = cls.from_pretrained(model_path = 'segments-arnaud/sam_vit_l', filename='sam_vit_l_0b3195.pth', model_type='vit_l', **self.load_config)
                 else:
                     log.error(f'Control Processor load failed: id="{processor_id}" error=unknown model type')
