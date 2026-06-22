@@ -300,16 +300,16 @@ def create_ui_elements(units, result_txt, output_gallery):
                     settings.append(gr.Checkbox(label="Boost", value=False))
                     settings.append(gr.Slider(label="Near threshold", minimum=0.0, maximum=1.0, step=0.01, value=0.0))
                     settings.append(gr.Slider(label="Depth threshold", minimum=0.0, maximum=1.0, step=0.01, value=0.0))
-                with gr.Accordion('MediaPipe Face', open=True, elem_classes=['processor-settings']):
+                with gr.Accordion('MediaPipe Face (Legacy)', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Slider(label="Max faces", minimum=1, maximum=10, step=1, value=1))
                     settings.append(gr.Slider(label="Face confidence", minimum=0.0, maximum=1.0, step=0.01, value=0.5))
                 with gr.Accordion('Canny', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Slider(label="Low threshold", minimum=0, maximum=1000, step=1, value=100))
                     settings.append(gr.Slider(label="High threshold", minimum=0, maximum=1000, step=1, value=200))
-                with gr.Accordion('DWPose', open=True, elem_classes=['processor-settings']):
+                with gr.Accordion('DWPose (Legacy)', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Radio(label="Pose Model", choices=['Tiny', 'Medium', 'Large'], value='Tiny'))
                     settings.append(gr.Slider(label="Pose confidence", minimum=0.0, maximum=1.0, step=0.01, value=0.3))
-                with gr.Accordion('SegmentAnything', open=True, elem_classes=['processor-settings']):
+                with gr.Accordion('SegmentAnything 1.0', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Radio(label="Segment Model", choices=['Base', 'Large'], value='Base'))
                 with gr.Accordion('Edge', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Checkbox(label="Parameter free", value=True))
