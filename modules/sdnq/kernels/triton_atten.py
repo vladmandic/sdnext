@@ -1,4 +1,3 @@
-
 import os
 import math
 import torch
@@ -64,7 +63,7 @@ def quantize_attn(
     q_q, q_scale = quantize_tensor(q, group_size=group_size, matmul_dtype=matmul_dtype)
     k_q, k_scale = quantize_tensor(k, group_size=group_size_kv, matmul_dtype=matmul_dtype)
     v_q, v_scale = quantize_tensor(v, group_size=group_size_kv, matmul_dtype=pv_matmul_dtype)
-    q_scale = q_scale.mul_(q.shape[-1]**-0.5 * 1.4426950408889634)
+    q_scale = q_scale.mul_(scale * 1.4426950408889634)
     return q_q, q_scale, k_q, k_scale, v_q, v_scale
 
 
