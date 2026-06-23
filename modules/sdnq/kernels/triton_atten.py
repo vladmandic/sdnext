@@ -1,7 +1,3 @@
-"""
-Heavily modified from SageAttention Triton kernel to run a lot faster.
-This one also supports Intel and AMD on top of Nvidia.
-"""
 
 import os
 import math
@@ -10,7 +6,7 @@ import triton
 import triton.language as tl
 
 from ..common import compile_func # pylint: disable=relative-beyond-top-level
-from ..quant_utils import quantize_int_mm, quantize_fp_mm# pylint: disable=relative-beyond-top-level
+from ..quant_utils import quantize_int_mm, quantize_fp_mm, get_hadamard, apply_hadamard # pylint: disable=relative-beyond-top-level
 
 
 matmul_configs = [
@@ -41,7 +37,16 @@ def quantize_tensor(tensor: torch.FloatTensor, group_size: int = 128, matmul_dty
     return tensor, scale
 
 
-def quantize_attn(q, k, v, group_size: int = 128, group_size_kv: int = 32, scale: float | None = None, smooth_k: bool = False, matmul_dtype: str = "int8", pv_matmul_dtype: str | None = "float16"):
+def quantize_attn(
+    q, k, v,
+    hadamard: torch.FloatTensor | None = None,
+    group_size: int = 128,
+    group_size_kv: int = 32,
+    scale: float | None = None,
+    smooth_k: bool = False,
+    matmul_dtype: str = "int8",
+    pv_matmul_dtype: str | None = "float16",
+):
     if pv_matmul_dtype is None:
         pv_matmul_dtype = matmul_dtype
     if scale is None:
@@ -52,6 +57,10 @@ def quantize_attn(q, k, v, group_size: int = 128, group_size_kv: int = 32, scale
             k = k.sub_(k.mean(dim=2, keepdim=True))
         else:
             k = k.sub(k.mean(dim=2, keepdim=True))
+    if hadamard is not None:
+        q, use_hadamard, hadamard_group_size = apply_hadamard(q, group_size=group_size, hadamard=hadamard, layer_class_name="Linear")
+        if use_hadamard:
+            k = apply_hadamard(k.to(dtype=hadamard.dtype), group_size=hadamard_group_size, hadamard=hadamard, layer_class_name="Linear")[0]
     q_q, q_scale = quantize_tensor(q, group_size=group_size, matmul_dtype=matmul_dtype)
     k_q, k_scale = quantize_tensor(k, group_size=group_size_kv, matmul_dtype=matmul_dtype)
     v_q, v_scale = quantize_tensor(v, group_size=group_size_kv, matmul_dtype=pv_matmul_dtype)
@@ -157,11 +166,12 @@ def triton_attn_kernel(
     O_desc.store([start_m * BLOCK_M, 0], acc)
 
 
-def sdnq_triton_atten(
+def sdnq_triton_atten_forward(
     query: torch.FloatTensor,
     key: torch.FloatTensor,
     value: torch.FloatTensor,
-    attn_mask: torch.Tensor = None,
+    hadamard: torch.FloatTensor | None = None,
+    attn_mask: torch.Tensor | None = None,
     dropout_p: float = 0.0, # pylint: disable=unused-argument
     is_causal: bool = False,
     scale: float | None = None,
@@ -195,6 +205,7 @@ def sdnq_triton_atten(
 
     query, query_scale, key, key_scale, value, value_scale = quantize_attn(
         query, key, value,
+        hadamard=hadamard,
         group_size=quant_group_size,
         group_size_kv=quant_group_size_kv,
         scale=scale, smooth_k=smooth_k,
@@ -216,4 +227,40 @@ def sdnq_triton_atten(
     return out[..., :qhd]
 
 
-sdnq_triton_atten = compile_func(sdnq_triton_atten)
+def sdnq_triton_atten(
+    query: torch.FloatTensor,
+    key: torch.FloatTensor,
+    value: torch.FloatTensor,
+    attn_mask: torch.Tensor | None = None,
+    dropout_p: float = 0.0, # pylint: disable=unused-argument
+    is_causal: bool = False,
+    scale: float | None = None,
+    enable_gqa: bool = False,
+    smooth_k: bool = False,
+    use_hadamard: bool = False,
+    quant_group_size: int = 128,
+    quant_group_size_kv: int = 32,
+    matmul_dtype: str = "int8",
+    pv_matmul_dtype: str | None = "float16",
+) -> torch.FloatTensor:
+    if use_hadamard:
+        hadamard = get_hadamard(min(quant_group_size, query.shape[-1], key.shape[-1]), dtype=query.dtype, device=query.device)
+    else:
+        hadamard = None
+    return sdnq_triton_atten_forward(
+        query, key, value,
+        hadamard=hadamard,
+        attn_mask=attn_mask,
+        dropout_p=dropout_p,
+        is_causal=is_causal,
+        scale=scale,
+        enable_gqa=enable_gqa,
+        smooth_k=smooth_k,
+        quant_group_size=quant_group_size,
+        quant_group_size_kv=quant_group_size_kv,
+        matmul_dtype=matmul_dtype,
+        pv_matmul_dtype=pv_matmul_dtype,
+    )
+
+
+sdnq_triton_atten_forward = compile_func(sdnq_triton_atten_forward)

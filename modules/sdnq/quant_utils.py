@@ -149,6 +149,8 @@ def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.
         channel_size = weight.shape[1]
     else:
         channel_size = weight.shape[-1]
+    if channel_size < group_size:
+        group_size = channel_size
     if channel_size % group_size != 0:
         hadamard_pow2 = int(math.log2(group_size))
         while channel_size % group_size != 0:
@@ -157,6 +159,8 @@ def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.
     if group_size < 4:
         use_hadamard = False
     if use_hadamard:
+        if hadamard is not None and group_size != hadamard.shape[-1]:
+            hadamard = None
         weight = rotate_hadamard(weight, group_size=group_size, hadamard=hadamard, is_conv=is_conv)
     return weight, use_hadamard, group_size
 
