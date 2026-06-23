@@ -114,7 +114,12 @@ class Agent:
             self.arch = MicroArchitecture.GCN
         self.is_apu = (self.gfx_version & 0xFFF0 == 0x1150) or self.gfx_version in (0x801, 0x902, 0x90c, 0x1013, 0x1033, 0x1035, 0x1036, 0x1103,)
         blaslt_filename = f"TensileLibrary_lazy_{self.name}.dat"
-        self.blaslt_supported = blaslt_tensile_libpath is not None and (os.path.exists(os.path.join(blaslt_tensile_libpath, blaslt_filename)) or os.path.exists(os.path.join(blaslt_tensile_libpath, self.name, blaslt_filename)))
+        if blaslt_tensile_libpath is not None and os.path.exists(os.path.join(blaslt_tensile_libpath, blaslt_filename)):
+            self.blaslt_supported = True
+        elif blaslt_tensile_libpath is not None and os.path.exists(os.path.join(blaslt_tensile_libpath, self.name, blaslt_filename)):
+            self.blaslt_supported = True
+        else:
+            self.blaslt_supported = False
 
     def __str__(self) -> str:
         return self.name

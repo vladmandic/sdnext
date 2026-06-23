@@ -1,8 +1,13 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-22
+## Update for 2026-06-23
 
+- **Models**
+  - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
+    K2 is a 12.9B single-stream flow-matching DiT and using a Qwen3-VL-4B text encoder
 - **Features**
+  - **SDNQ-Attention**  
+    modelled after *sage-attention*, but modified to support AMD and Intel GPUs in addition to nVidia  
   - **SDNQ** support for NPU during quantization and inference  
   - add option: force dtype on load  
     use to force model components to override loading with desired dtype regardless of component config  
@@ -28,6 +33,7 @@
   - `measure` handle current kanvas stage
   - `caption` button in standard-ui
   - `python` experimental/ignore version checks
+  - `hipBLASLt` improved detection, thanks @0xDELUXA
 
 ## Update for 2026-06-16
 
