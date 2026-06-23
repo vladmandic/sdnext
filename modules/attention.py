@@ -17,6 +17,33 @@ def set_dynamic_attention():
         return None
 
 
+def set_sdnq_attention():
+    try:
+        from modules import shared
+        from modules.sdnq.kernels.triton_atten import sdnq_triton_atten
+        sdpa_pre_sdnq_atten = torch.nn.functional.scaled_dot_product_attention
+        @wraps(sdpa_pre_sdnq_atten)
+        def sdpa_sdnq_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
+            if not is_causal and query.shape[-3] > 1: # VAE
+                return sdnq_triton_atten(
+                    query=query, key=key, value=value,
+                    attn_mask=attn_mask, scale=scale, enable_gqa=enable_gqa,
+                    quant_group_size=shared.opts.sdnq_attention_quant_group_size,
+                    quant_group_size_kv=shared.opts.sdnq_attention_quant_group_size_kv,
+                    matmul_dtype = "int8" if shared.opts.sdnq_attention_matmul_type == "auto" else shared.opts.sdnq_attention_matmul_type,
+                    pv_matmul_dtype = None if shared.opts.sdnq_attention_pv_matmul_type == "auto" else shared.opts.sdnq_attention_pv_matmul_type,
+                )
+            else:
+                if enable_gqa:
+                    kwargs["enable_gqa"] = enable_gqa
+                return sdpa_pre_sdnq_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
+        torch.nn.functional.scaled_dot_product_attention = sdpa_sdnq_atten
+        torch_info.set(attention='sdnq')
+        log.debug('Torch attention: type="SDNQ attention"')
+    except Exception as err:
+        log.error(f'Torch attention: type="SDNQ attention" {err}')
+
+
 def set_triton_flash_attention(backend: str):
     try:
         if backend in {"rocm", "zluda"}: # flash_attn_triton_amd only works with AMD

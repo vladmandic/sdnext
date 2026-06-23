@@ -530,6 +530,9 @@ def set_sdpa_params():
         if 'Sage attention' in opts.sdp_overrides:
             attention.set_sage_attention(backend, device)
 
+        if 'SDNQ attention' in opts.sdp_overrides:
+            attention.set_sdnq_attention()
+
         from importlib.metadata import version
         try:
             flash = version('flash-attn')

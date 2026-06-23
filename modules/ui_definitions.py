@@ -254,6 +254,10 @@ def create_settings(cmd_opts):
         "xformers_options": OptionInfo(['Flash attention'], "xFormers options", gr.CheckboxGroup, {"choices": ['Flash attention'] }),
         "dynamic_attention_slice_rate": OptionInfo(0.5, "Dynamic Attention slicing rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4), "step": 0.01}),
         "dynamic_attention_trigger_rate": OptionInfo(1, "Dynamic Attention trigger rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4)*2, "step": 0.01}),
+        "sdnq_attention_matmul_type": OptionInfo("auto", "SDNQ Attention MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
+        "sdnq_attention_pv_matmul_type": OptionInfo("auto", "SDNQ Attention PV MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
+        "sdnq_attention_quant_group_size": OptionInfo(128, "SDNQ Attention Quantization Group Size", gr.Number, {"minimum": 32, "maximum": 1024, "step": 1}),
+        "sdnq_attention_quant_group_size_kv": OptionInfo(32, "SDNQ Attention KV Quantization Group Size", gr.Number, {"minimum": 32, "maximum": 1024, "step": 1}),
 
         "hf_attention_sep": OptionInfo("<h2>Attention Dispatcher</h2>", "", gr.HTML),
         "hf_attention": OptionInfo('', "Attention dispatcher kernel", gr.Textbox),
