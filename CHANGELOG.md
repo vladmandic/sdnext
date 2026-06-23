@@ -4,7 +4,8 @@
 
 - **Models**
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
-    K2 is a 12.9B single-stream flow-matching DiT and using a Qwen3-VL-4B text encoder
+    both *base* and *turbo* are available in both full *bf16* and *sdnq* pre-quantized variants  
+    K2 is a 12.9B single-stream flow-matching DiT and using a Qwen3-VL-4B text encoder  
 - **Features**
   - **SDNQ-Attention**  
     modelled after *sage-attention*, but modified to support AMD and Intel GPUs in addition to nVidia  
