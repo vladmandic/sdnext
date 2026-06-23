@@ -42,7 +42,7 @@ def optimized_channels_to_second(tensor):
         return tensor.permute(*dims)
 
 
-class VideoDiffusionInfer():
+class SeedVRPipeline():
     def __init__(self, config, device: str, dtype: torch.dtype):
         from installer import install
         install('omegaconf')

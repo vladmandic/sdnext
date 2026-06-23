@@ -1,3 +1,4 @@
+import time
 import gradio as gr
 from modules import shared, modelloader, ui_symbols, ui_common, sd_samplers
 from modules.logger import log
@@ -82,8 +83,15 @@ def ar_change(ar, width, height):
     else:
         return gr.update(), gr.update()
 
+last_ar_update = None
 def ar_update(_ar, width, height):
-    return width, height
+    global last_ar_update # pylint: disable=global-statement
+    if _ar == 'AR':
+        return gr.update(), gr.update()
+    if (last_ar_update is not None and time.time()) - (last_ar_update < 0.5):
+        return gr.update(), gr.update()
+    last_ar_update = time.time()
+    return gr.update(value=width), gr.update(value=height)
 
 
 def create_resolution_inputs(tab, default_width=1024, default_height=1024):

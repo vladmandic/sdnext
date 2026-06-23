@@ -4,7 +4,7 @@ from safetensors.torch import load_file as load_safetensors_file
 from huggingface_hub import hf_hub_download
 from modules.seedvr.src.optimization.memory_manager import preinitialize_rope_cache # pylint: disable=unused-import
 from modules.seedvr.src.common.config import load_config, create_object
-from modules.seedvr.src.core.infer import VideoDiffusionInfer
+from modules.seedvr.src.core.infer import SeedVRPipeline
 
 
 def configure_runner(model_name, cache_dir, device:str='cpu', dtype:torch.dtype=None):
@@ -17,7 +17,7 @@ def configure_runner(model_name, cache_dir, device:str='cpu', dtype:torch.dtype=
     config_path = os.path.join(script_directory, './config_7b.yaml') if "7b" in model_name else os.path.join(script_directory, './config_3b.yaml')
     config = load_config(config_path)
 
-    runner = VideoDiffusionInfer(config, device=device, dtype=dtype)
+    runner = SeedVRPipeline(config, device=device, dtype=dtype)
     OmegaConf.set_readonly(runner.config, False)
 
     # load dit
