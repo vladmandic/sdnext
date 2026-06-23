@@ -34,6 +34,7 @@ def set_sdnq_attention():
                     pv_matmul_dtype=None if shared.opts.sdnq_attention_pv_matmul_type == "auto" else shared.opts.sdnq_attention_pv_matmul_type,
                     use_hadamard=shared.opts.sdnq_attention_use_hadamard,
                     smooth_k=shared.opts.sdnq_attention_smooth_k,
+                    do_quantize=shared.opts.sdnq_attention_use_quantized_matmul,
                 )
             else:
                 if enable_gqa:
