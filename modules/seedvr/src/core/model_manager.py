@@ -2,7 +2,7 @@ import os
 import torch
 from safetensors.torch import load_file as load_safetensors_file
 from huggingface_hub import hf_hub_download
-from modules.seedvr.src.optimization.memory_manager import preinitialize_rope_cache
+from modules.seedvr.src.optimization.memory_manager import preinitialize_rope_cache # pylint: disable=unused-import
 from modules.seedvr.src.common.config import load_config, create_object
 from modules.seedvr.src.core.infer import VideoDiffusionInfer
 

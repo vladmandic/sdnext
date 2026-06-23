@@ -1536,6 +1536,10 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
     if not shard.strip():
         shard = "5GB"  # Guard against empty input
     try:
+        torch.cuda.synchronize()
+    except Exception:
+        pass
+    try:
         t0 = time.time()
         log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} start')
         save_sdnq_model(

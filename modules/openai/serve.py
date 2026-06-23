@@ -16,7 +16,7 @@ class OpenAIServer:
         tokenizer,
         processor=None,
         host: str = "127.0.0.1",
-        port: int = 8000,
+        port: int = 8888,
         max_context_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
         stream: Optional[bool] = None,

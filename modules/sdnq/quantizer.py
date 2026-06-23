@@ -563,6 +563,9 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     required_packages = None
     torch_dtype = None
 
+    def __str__(self):
+        return f"SDNQQuantizer(torch_dtype={self.torch_dtype}, requires_parameters_quantization={self.requires_parameters_quantization}, use_keep_in_fp32_modules={self.use_keep_in_fp32_modules}, requires_calibration={self.requires_calibration}, required_packages={self.required_packages})"
+
     def check_if_quantized_param(
         self,
         model: torch.nn.Module,
