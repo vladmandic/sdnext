@@ -97,7 +97,8 @@ SUFFIX_NORMALIZE = {
 LORA_SUFFIXES = (
     ".lora_down.weight", ".lora_up.weight", ".lora_mid.weight",
     ".lora_A.weight",    ".lora_B.weight",
-    ".alpha", ".dora_scale", ".bias", ".scale",
+    # diff_b: bias delta some saves pair with the weight LoRA, applied as ex_bias.
+    ".alpha", ".dora_scale", ".bias", ".diff_b", ".scale",
 )
 LOKR_SUFFIXES = (
     ".lokr_w1", ".lokr_w2",
