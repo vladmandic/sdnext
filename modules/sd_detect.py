@@ -151,6 +151,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'NucleusImage'
     elif 'z-image' in fn.lower() or 'z_image' in fn.lower():
         new_guess = 'ZImage'
+    elif 'krea-2' in fn.lower() or 'krea2' in fn.lower():
+        new_guess = 'Krea2'
     elif 'ideogram' in fn.lower():
         new_guess = 'Ideogram4'
     elif 'longcat-image' in fn.lower():

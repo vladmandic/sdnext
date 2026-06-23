@@ -69,6 +69,7 @@ class ExtraNetworksPageLora(ui_extra_networks.ExtraNetworksPage):
         'f1': 'Flux', 'sd1': 'SD 1.5', 'sd2': 'SD 2', 'xl': 'SDXL',
         'sd3': 'SD3', 'sc': 'Cascade', 'hv': 'HunyuanVideo',
         'chroma': 'Chroma', 'zimage': 'zImage', 'qwen': 'Qwen',
+        'krea2': 'Krea 2',
     }
 
     def cleanup_version(self, dct, lora):

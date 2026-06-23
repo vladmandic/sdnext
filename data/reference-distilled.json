@@ -9,6 +9,16 @@
     "extras": "steps: 4, cfg_scale: 0.0",
     "size": 20.81
   },
+  "Krea 2 Turbo": {
+    "path": "CalamitousFelicitousness/Krea-2-Turbo-Diffusers",
+    "preview": "CalamitousFelicitousness--Krea-2-Turbo-Diffusers.jpg",
+    "desc": "Krea 2 (K2) Turbo is the 8-step distilled inference model of the Krea 2 family, trained from scratch by Krea. A 12.9B-parameter single-stream flow-matching DiT that uses a Qwen3-VL-4B vision-language model as its text encoder and the Qwen-Image VAE. Runs without classifier-free guidance; LoRAs trained on Krea 2 Base apply directly.",
+    "skip": true,
+    "tags": "distilled",
+    "extras": "sampler: Default, cfg_scale: 0.0, steps: 8, width: 1024, height: 1024",
+    "size": 34.0,
+    "date": "2026 June"
+  },
   "StabilityAI Stable Cascade Lite": {
     "path": "huggingface/stabilityai/stable-cascade-lite",
     "skip": true,
