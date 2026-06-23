@@ -98,6 +98,11 @@ shared_te_map = {
         'target_subfolder': 'text_encoder',
     },
 
+    'Qwen3-VL 4B Base': {  # Krea 2 base+turbo share one canonical 4B copy
+        'cls': transformers.Qwen3VLModel,
+        'identifier': 'krea',
+        'target_repo': 'Qwen/Qwen3-VL-4B-Instruct',
+    },
     'Qwen3-VL 8B SDNQ-UInt4': {
         'cls': transformers.Qwen3VLModel,
         'identifier': 'uint4',

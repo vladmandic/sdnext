@@ -70,6 +70,7 @@ pipelines = {
     'HiDreamO1': None,
     'HunyuanImage3': None,
     'Ideogram4': None,
+    'Krea2': None,
     'Lens': None,
     'LuminaDiMOO': None,
     'Meissonic': None,

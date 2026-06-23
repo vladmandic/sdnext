@@ -57,6 +57,8 @@ def get_model_type(pipe):
         model_type = 'zimage'
     elif "Ideogram4" in name:
         model_type = 'ideogram4'
+    elif "Krea2" in name:
+        model_type = 'krea2'
     elif "LuminaDiMOO" in name:
         model_type = 'luminadimoo'
     elif "Lumina2" in name:

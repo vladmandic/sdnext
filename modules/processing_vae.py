@@ -130,8 +130,8 @@ def full_vae_decode(latents, model):
         latents = latents + shift_factor
 
     # check dims
-    if model.vae.__class__.__name__ in ['AutoencoderKLWan'] and latents.ndim == 4:
-        latents = latents.unsqueeze(2) # wan is __nhw
+    if model.vae.__class__.__name__ in ['AutoencoderKLWan', 'AutoencoderKLQwenImage'] and latents.ndim == 4:
+        latents = latents.unsqueeze(2) # video VAEs (wan, qwen-image) expect a frame axis
 
     # handle quants
     if getattr(model.vae, "post_quant_conv", None) is not None:

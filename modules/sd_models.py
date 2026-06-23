@@ -540,6 +540,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_z_image import load_z_image
             sd_model = load_z_image(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['Krea2']:
+            from pipelines.model_krea2 import load_krea2
+            sd_model = load_krea2(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['Ideogram4']:
             from pipelines.model_ideogram4 import load_ideogram4
             sd_model = load_ideogram4(checkpoint_info, diffusers_load_config)
