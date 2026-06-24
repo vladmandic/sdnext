@@ -44,8 +44,7 @@ def quantize_attn(
         quantize_mm_func = quantize_int_mm if matmul_dtype.startswith("int") else quantize_fp_mm
         q_q, q_scale = quantize_mm_func(q.contiguous().to(dtype=torch.float32), dim=-1, matmul_dtype=matmul_dtype)
         k_q, k_scale = quantize_mm_func(k.contiguous().to(dtype=torch.float32), dim=-1, matmul_dtype=matmul_dtype)
-        q_scale = q_scale.mul_(scale * 1.4426950408889634)
-        q_scale = q_scale.squeeze(-1)
+        q_scale = q_scale.squeeze(-1).mul_(scale * 1.4426950408889634)
         k_scale = k_scale.squeeze(-1)
     else:
         q_q = q.contiguous().mul(scale * 1.4426950408889634)
@@ -62,7 +61,7 @@ def quantize_attn(
     return q_q, q_scale, k_q, k_scale, v_q, v_scale
 
 
-@triton.autotune(configs=matmul_configs, key=["BLOCK_M", "BLOCK_N", "qz", "qh", "qn", "qhd", "q_dtype", "v_dtype", "out_dtype"], cache_results=True)
+@triton.autotune(configs=matmul_configs, key=["BLOCK_M", "BLOCK_N", "s_sqz", "s_svz", "qz", "qh", "qn", "qhd", "q_dtype", "v_dtype", "out_dtype"], cache_results=True)
 @triton.jit
 def sdnq_attn_kernel(
     Q, K, V, Q_scale, K_scale, V_scale, out, mask,
@@ -151,11 +150,13 @@ def sdnq_attn_kernel(
                 v_scale = V_scale_desc.load([start_n])[None, :]
                 p *= v_scale
                 if v.dtype == tl.int8:
-                    p_scale = tl.max(tl.abs(p), 1)[:, None] / 127.0
+                    p_scale = tl.max(p, 1)[:, None] / 127.0
+                    p_scale = tl.where(p_scale == 0.0, 1.0, p_scale)
                     p = tl.floor(p / p_scale + 0.5).to(tl.int8)
                     acc += tl.dot(p, v, out_dtype=tl.int32).to(tl.float32) * p_scale
                 else:
-                    p_scale = tl.max(tl.abs(p), 1)[:, None] / (65504.0 if v.dtype == tl.float16 else 448.0)
+                    p_scale = tl.max(p, 1)[:, None] / (65504.0 if v.dtype == tl.float16 else 448.0)
+                    p_scale = tl.where(p_scale == 0.0, 1.0, p_scale)
                     p = (p / p_scale).to(v.dtype)
                     acc += tl.dot(p, v, out_dtype=tl.float32) * p_scale
             else:
