@@ -1679,13 +1679,14 @@
     {"id":"","label":"Zoe Depth","localized":"","hint":"","ui":"control"}
   ],
   "reference": [
-    {"id":"","label":"Local","localized":"","hint":"List of all local models that are immediately available for use","ui":"control"},
-    {"id":"","label":"Diffusers","localized":"","hint":"List of local models in diffusers format that are immediately available for use.","ui":"control"},
-    {"id":"","label":"Base","localized":"","hint":"List of reference base models that can be automatically downloaded.","ui":"control"},
-    {"id":"","label":"Distilled","localized":"","hint":"List of reference distilled models that can be automatically downloaded. Distilled models are typically faster variants of the base models, but they may have reduced quality.","ui":"control"},
-    {"id":"","label":"Quantized","localized":"","hint":"List of reference quantized models that can be automatically downloaded. SDNQ quantized models are size-optimized variants of the base models, but they may have reduced precision.","ui":"control"},
-    {"id":"","label":"Nunchaku","localized":"","hint":"List of reference Nunchaku models that can be automatically downloaded on first use. Nunchaku quantized models are both size and performance optimized, but they require nVidia GPUs.","ui":"control"},
-    {"id":"","label":"Community","localized":"","hint":"List of select community models that can be automatically downloaded on first use. Community models are fine-tunes of existing models, created by the community to enhance or modify specific features.","ui":"control"},
-    {"id":"","label":"Cloud","localized":"","hint":"List of reference cloud models that can be used without downloads. Cloud models typically require an API key from each specific cloud provider.","ui":"control"}
+    {"id":"","label":"All","localized":"","hint":"List all known models, both locally available models or reference models that are available for download"},
+    {"id":"","label":"Local","localized":"","hint":"List all local models that are immediately available for use"},
+    {"id":"","label":"Diffusers","localized":"","hint":"List local models in diffusers format that are immediately available for use."},
+    {"id":"","label":"Base","localized":"","hint":"List reference base models that can be automatically downloaded."},
+    {"id":"","label":"Distilled","localized":"","hint":"List reference distilled models that can be automatically downloaded. Distilled models are typically faster variants of the base models, but they may have reduced quality."},
+    {"id":"","label":"Quantized","localized":"","hint":"List reference quantized models that can be automatically downloaded. SDNQ quantized models are size-optimized variants of the base models, but they may have reduced precision."},
+    {"id":"","label":"Nunchaku","localized":"","hint":"List reference Nunchaku models that can be automatically downloaded on first use. Nunchaku quantized models are both size and performance optimized, but they require nVidia GPUs."},
+    {"id":"","label":"Community","localized":"","hint":"List reference community models that can be automatically downloaded on first use. Community models are fine-tunes of existing models, created by the community to enhance or modify specific features."},
+    {"id":"","label":"Cloud","localized":"","hint":"List reference cloud models that can be used without downloads. Cloud models typically require an API key from each specific cloud provider."}
   ]
 }
