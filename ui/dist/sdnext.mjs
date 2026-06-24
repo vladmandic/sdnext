@@ -10311,6 +10311,7 @@ var activePromptTextarea = {};
 var sortVal = -1;
 var totalCards = -1;
 var lastTab = "control";
+var referenceSearch;
 var getENActiveTab = () => {
   let tabName = "";
   if (gradioApp().getElementById("txt2img_prompt")?.checkVisibility() || gradioApp().getElementById("txt2img_generate")?.checkVisibility()) tabName = "txt2img";
@@ -10423,37 +10424,20 @@ async function filterExtraNetworksForTab(searchTerm) {
   const allPages = Array.from(gradioApp().querySelectorAll(".extra-network-cards"));
   const pages = allPages.filter((el2) => el2.id.toLowerCase().includes(pagename.toLowerCase()));
   for (const pg of pages) {
+    found = 0;
+    items = 0;
     const cards = Array.from(pg.querySelectorAll(".card") || []);
     items += cards.length;
-    if (searchTerm === "" || searchTerm === "all/") {
+    if (referenceSearch) {
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags.toLowerCase().includes(referenceSearch.toLowerCase()) ? "" : "none";
+      });
+    } else if (searchTerm === "" || searchTerm === "all/") {
       cards.forEach((elem) => {
         elem.style.display = "";
       });
-    } else if (searchTerm === "reference/") {
-      cards.forEach((elem) => {
-        elem.style.display = elem.dataset.name.toLowerCase().includes("reference/") && elem.dataset.tags === "" ? "" : "none";
-      });
-    } else if (searchTerm === "distilled/") {
-      cards.forEach((elem) => {
-        elem.style.display = elem.dataset.tags.toLowerCase().includes("distilled") ? "" : "none";
-      });
-    } else if (searchTerm === "community/") {
-      cards.forEach((elem) => {
-        elem.style.display = elem.dataset.tags.toLowerCase().includes("community") ? "" : "none";
-      });
-    } else if (searchTerm === "cloud/") {
-      cards.forEach((elem) => {
-        elem.style.display = elem.dataset.tags.toLowerCase().includes("cloud") ? "" : "none";
-      });
-    } else if (searchTerm === "quantized/") {
-      cards.forEach((elem) => {
-        elem.style.display = elem.dataset.tags.toLowerCase().includes("quantized") ? "" : "none";
-      });
-    } else if (searchTerm === "nunchaku/") {
-      cards.forEach((elem) => {
-        elem.style.display = elem.dataset.tags.toLowerCase().includes("nunchaku") ? "" : "none";
-      });
-    } else if (searchTerm === "local/") {
+    }
+    if (searchTerm === "local/") {
       cards.forEach((elem) => {
         elem.style.display = elem.dataset.name.toLowerCase().includes("reference/") ? "none" : "";
       });
@@ -10467,7 +10451,7 @@ async function filterExtraNetworksForTab(searchTerm) {
       cards.forEach((elem) => {
         elem.style.display = re.test(`filename: ${elem.dataset.filename}|name: ${elem.dataset.name}|tags: ${elem.dataset.tags}`) ? "" : "none";
       });
-    } else {
+    } else if (searchTerm.trim().length > 0) {
       const searchList = searchTerm.split("|").filter((s) => s !== "" && !s.startsWith("-")).map((s) => s.trim());
       const excludeList = searchTerm.split("|").filter((s) => s !== "" && s.trim().startsWith("-")).map((s) => s.trim().substring(1).trim());
       const searchListAll = searchList.map((s) => s.split("&").map((t) => t.trim()));
@@ -10488,7 +10472,7 @@ async function filterExtraNetworksForTab(searchTerm) {
     found += cards.filter((elem) => elem.style.display === "").length;
   }
   const t1 = performance.now();
-  log(`filterExtraNetworks: text="${searchTerm}" items=${items} match=${found} time=${Math.round(t1 - t0)}`);
+  log(`filterExtraNetworks: text="${searchTerm}" reference="${referenceSearch}" items=${items} match=${found} time=${Math.round(t1 - t0)}`);
   timer(`filterExtraNetworks:${searchTerm}`, t1 - t0);
 }
 function sortExtraNetworks(fixed = "no") {
@@ -10565,11 +10549,20 @@ function extraNetworksSearchButton(event2) {
   const tabName = getENActiveTab();
   const searchTextarea = gradioApp().querySelector(`#${tabName}_extra_search textarea`);
   const button = event2.target;
+  let str = `${button.textContent.trim()}/`;
+  if (str === "All/") str = "";
   if (searchTextarea) {
-    searchTextarea.value = `${button.textContent.trim()}/`;
+    const isReference = button.classList.contains("network-reference");
+    if (isReference) {
+      referenceSearch = str.replace("/", "");
+      searchTextarea.value = "";
+    } else {
+      referenceSearch = void 0;
+      searchTextarea.value = str;
+    }
     updateInput(searchTextarea);
   } else {
-    console.error(`Could not find the search textarea for the tab: ${tabName}`);
+    error(`Could not find the search textarea for the tab: ${tabName}`);
   }
 }
 function extraNetworksFilterVersion(event2) {
