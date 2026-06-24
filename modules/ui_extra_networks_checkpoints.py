@@ -22,6 +22,7 @@ version_map = {
     "WanVACE": "Wan",
     "Z": "Z-Image",
     "Glm": "GLM-Image",
+    "AnimaTextTo": "Anima",
 }
 
 class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
@@ -44,19 +45,14 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
             return []
         count = { 'total': 0, 'ready': 0, 'hidden': 0, 'experimental': 0, 'base': 0, 'quantized': 0, 'distilled': 0, 'community': 0, 'cloud': 0, 'nunchaku': 0 }
 
-        reference_base = readfile(os.path.join('data', 'reference.json'), as_type="dict")
-        reference_quant = readfile(os.path.join('data', 'reference-quant.json'), as_type="dict")
-        reference_distilled = readfile(os.path.join('data', 'reference-distilled.json'), as_type="dict")
-        reference_community = readfile(os.path.join('data', 'reference-community.json'), as_type="dict")
-        reference_cloud = readfile(os.path.join('data', 'reference-cloud.json'), as_type="dict")
-        reference_nunchaku = readfile(os.path.join('data', 'reference-nunchaku.json'), as_type="dict")
         shared.reference_models = {}
-        shared.reference_models.update(reference_base)
-        shared.reference_models.update(reference_quant)
-        shared.reference_models.update(reference_community)
-        shared.reference_models.update(reference_distilled)
-        shared.reference_models.update(reference_cloud)
-        shared.reference_models.update(reference_nunchaku)
+        for tag in count.keys():
+            fn = os.path.join('data', f'reference-{tag}.json')
+            dct = readfile(fn, as_type="dict", silent=True)
+            for k, v in dct.items():
+                v['skip'] = 'safetensors' not in v.get('path', '')
+                v['tags'] = tag
+                shared.reference_models[k] = v
 
         for k, v in shared.reference_models.items():
             count['total'] += 1

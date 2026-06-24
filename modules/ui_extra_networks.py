@@ -314,6 +314,7 @@ class ExtraNetworksPage:
         subdirs = OrderedDict(sorted(subdirs.items()))
         if self.name == 'model' and shared.opts.extra_network_reference_enable:
             subdirs['Local'] = 1
+            subdirs['Base'] = 1
             subdirs['Reference'] = 1
             subdirs['Distilled'] = 1
             subdirs['Quantized'] = 1
@@ -331,6 +332,8 @@ class ExtraNetworksPage:
             subdirs.move_to_end('Local', last=True)
         if os.path.basename(shared.opts.diffusers_dir) in subdirs:
             subdirs.move_to_end(os.path.basename(shared.opts.diffusers_dir), last=True)
+        if 'Base' in subdirs:
+            subdirs.move_to_end('Base', last=True)
         if 'Reference' in subdirs:
             subdirs.move_to_end('Reference', last=True)
         if 'Distilled' in subdirs:
@@ -347,7 +350,9 @@ class ExtraNetworksPage:
         for subdir in subdirs:
             if len(subdir) == 0:
                 continue
-            if subdir in ['All', 'Local', 'Diffusers', 'Reference', 'Distilled', 'Quantized', 'Nunchaku', 'Community', 'Cloud']:
+            if subdir in ['All', 'Local', 'Diffusers']:
+                style = 'network-local'
+            elif subdir in ['Base', 'Reference', 'Distilled', 'Quantized', 'Nunchaku', 'Community', 'Cloud']:
                 style = 'network-reference'
             else:
                 style = 'network-folder'

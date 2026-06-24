@@ -1574,6 +1574,15 @@ table.settings-value-table td {
   margin-right: 0.8em;
 }
 
+.network-local {
+  filter: contrast(0.8);
+}
+
+.network-local::before {
+  content: "󰴊 ";
+  margin-right: 0.8em;
+}
+
 .network-reference {
   filter: contrast(0.9);
 }
