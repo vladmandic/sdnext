@@ -4,12 +4,10 @@
     "subfolder": "nunchaku",
     "preview": "black-forest-labs--FLUX.1-dev.jpg",
     "desc": "Nunchaku SVDQuant quantization of FLUX.1-dev transformer with INT4 and SVD rank 32",
-    "skip": true,
     "nunchaku": [
       "Model",
       "TE"
     ],
-    "tags": "nunchaku",
     "size": 33.74,
     "date": "2025 June"
   },
@@ -18,12 +16,10 @@
     "subfolder": "nunchaku",
     "preview": "black-forest-labs--FLUX.1-schnell.jpg",
     "desc": "Nunchaku SVDQuant quantization of FLUX.1-schnell transformer with INT4 and SVD rank 32",
-    "skip": true,
     "nunchaku": [
       "Model",
       "TE"
     ],
-    "tags": "nunchaku",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
     "size": 33.72,
     "date": "2025 June"
@@ -33,12 +29,10 @@
     "subfolder": "nunchaku",
     "preview": "black-forest-labs--FLUX.1-Kontext-dev.jpg",
     "desc": "Nunchaku SVDQuant quantization of FLUX.1-Kontext-dev transformer with INT4 and SVD rank 32",
-    "skip": true,
     "nunchaku": [
       "Model",
       "TE"
     ],
-    "tags": "nunchaku",
     "size": 33.74,
     "date": "2025 June"
   },
@@ -47,12 +41,10 @@
     "subfolder": "nunchaku",
     "preview": "black-forest-labs--FLUX.1-Krea-dev.jpg",
     "desc": "Nunchaku SVDQuant quantization of FLUX.1-Krea-dev transformer with INT4 and SVD rank 32",
-    "skip": true,
     "nunchaku": [
       "Model",
       "TE"
     ],
-    "tags": "nunchaku",
     "size": 33.74,
     "date": "2025 June"
   },
@@ -61,13 +53,11 @@
     "subfolder": "nunchaku",
     "preview": "black-forest-labs--FLUX.1-dev.jpg",
     "desc": "Nunchaku SVDQuant quantization of FLUX.1-Fill-dev transformer for inpainting",
-    "skip": true,
     "hidden": true,
     "nunchaku": [
       "Model",
       "TE"
     ],
-    "tags": "nunchaku",
     "size": 33.91,
     "date": "2025 June"
   },
@@ -76,13 +66,11 @@
     "subfolder": "nunchaku",
     "preview": "black-forest-labs--FLUX.1-dev.jpg",
     "desc": "Nunchaku SVDQuant quantization of FLUX.1-Depth-dev transformer for depth-conditioned generation",
-    "skip": true,
     "hidden": true,
     "nunchaku": [
       "Model",
       "TE"
     ],
-    "tags": "nunchaku",
     "size": 43.68,
     "date": "2025 June"
   },
@@ -91,12 +79,10 @@
     "subfolder": "nunchaku",
     "preview": "shuttleai--shuttle-jaguar.jpg",
     "desc": "Nunchaku SVDQuant quantization of Shuttle Jaguar transformer",
-    "skip": true,
     "nunchaku": [
       "Model",
       "TE"
     ],
-    "tags": "nunchaku",
     "size": 33.72,
     "date": "2025 June"
   },
@@ -105,11 +91,9 @@
     "subfolder": "nunchaku",
     "preview": "Qwen--Qwen-Image.jpg",
     "desc": "Nunchaku SVDQuant quantization of Qwen-Image transformer with INT4 and SVD rank 128",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "size": 57.7,
     "date": "2025 June"
   },
@@ -118,11 +102,9 @@
     "subfolder": "nunchaku",
     "preview": "vladmandic--Qwen-Lightning.jpg",
     "desc": "Nunchaku SVDQuant quantization of Qwen-Lightning (8-step distilled) transformer with INT4 and SVD rank 128",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "extras": "steps: 8",
     "size": 57.7,
     "date": "2025 June"
@@ -132,11 +114,9 @@
     "subfolder": "nunchaku-4step",
     "preview": "vladmandic--Qwen-Lightning.jpg",
     "desc": "Nunchaku SVDQuant quantization of Qwen-Lightning (4-step distilled) transformer with INT4 and SVD rank 128",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "extras": "steps: 4",
     "size": 57.7,
     "date": "2025 June"
@@ -146,11 +126,9 @@
     "subfolder": "nunchaku",
     "preview": "Qwen--Qwen-Image-Edit.jpg",
     "desc": "Nunchaku SVDQuant quantization of Qwen-Image-Edit transformer with INT4 and SVD rank 128",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "size": 57.7,
     "date": "2025 June"
   },
@@ -159,11 +137,9 @@
     "subfolder": "nunchaku",
     "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
     "desc": "Nunchaku SVDQuant quantization of Qwen-Lightning-Edit (8-step distilled editing) transformer with INT4 and SVD rank 128",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "extras": "steps: 8",
     "size": 57.7,
     "date": "2025 June"
@@ -173,11 +149,9 @@
     "subfolder": "nunchaku-4step",
     "preview": "vladmandic--Qwen-Lightning-Edit.jpg",
     "desc": "Nunchaku SVDQuant quantization of Qwen-Lightning-Edit (4-step distilled editing) transformer with INT4 and SVD rank 128",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "extras": "steps: 4",
     "size": 57.7,
     "date": "2025 June"
@@ -187,11 +161,9 @@
     "subfolder": "nunchaku",
     "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
     "desc": "Nunchaku SVDQuant quantization of Qwen-Image-Edit-2509 transformer with INT4 and SVD rank 128",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "size": 57.7,
     "date": "2025 September"
   },
@@ -200,11 +172,9 @@
     "subfolder": "nunchaku",
     "preview": "Efficient-Large-Model--Sana_1600M_1024px_diffusers.jpg",
     "desc": "Nunchaku SVDQuant quantization of Sana 1.6B 1024px transformer with INT4 and SVD rank 32",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "size": 23.86,
     "date": "2025 June"
   },
@@ -213,11 +183,9 @@
     "subfolder": "nunchaku",
     "preview": "Tongyi-MAI--Z-Image-Turbo.jpg",
     "desc": "Nunchaku SVDQuant quantization of Z-Image-Turbo transformer with INT4 and SVD rank 128",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
     "size": 32.83,
     "date": "2025 June"
@@ -227,11 +195,9 @@
     "subfolder": "nunchaku",
     "preview": "stabilityai--stable-diffusion-xl-base-1.0.jpg",
     "desc": "Nunchaku SVDQuant quantization of SDXL Base 1.0 UNet with INT4 and SVD rank 32",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "size": 34.35,
     "date": "2025 June"
   },
@@ -240,11 +206,9 @@
     "subfolder": "nunchaku",
     "preview": "stabilityai--sdxl-turbo.jpg",
     "desc": "Nunchaku SVDQuant quantization of SDXL Turbo UNet with INT4 and SVD rank 32",
-    "skip": true,
     "nunchaku": [
       "Model"
     ],
-    "tags": "nunchaku",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
     "size": 20.81,
     "date": "2025 June"
