@@ -315,7 +315,6 @@ class ExtraNetworksPage:
         if self.name == 'model' and shared.opts.extra_network_reference_enable:
             subdirs['Local'] = 1
             subdirs['Base'] = 1
-            subdirs['Reference'] = 1
             subdirs['Distilled'] = 1
             subdirs['Quantized'] = 1
             subdirs['Nunchaku'] = 1
