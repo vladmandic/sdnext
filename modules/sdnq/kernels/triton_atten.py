@@ -10,7 +10,7 @@ from ..quant_utils import quantize_int_mm, quantize_fp_mm, get_hadamard, apply_h
 
 matmul_configs = [
     triton.Config({}, num_warps=w, num_stages=s)
-    for w in [int(w) for w in os.environ.get("SDNQ_TRITON_ATTEN_NUM_WARPS_LIST", "2,4,8,16").replace(" ","").split(",")]
+    for w in [int(w) for w in os.environ.get("SDNQ_TRITON_ATTEN_NUM_WARPS_LIST", "2,4,8").replace(" ","").split(",")]
     for s in [int(s) for s in os.environ.get("SDNQ_TRITON_ATTEN_NUM_STAGES_LIST", "1,2,4" if torch.version.hip else "2,4,8,16").replace(" ","").split(",")]
 ]
 

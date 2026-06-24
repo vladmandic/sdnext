@@ -144,6 +144,8 @@ def rotate_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch
 def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.FloatTensor | None = None, layer_class_name: str | None = None) -> torch.Tensor:
     is_conv = False
     use_hadamard = True
+    if hadamard is not None:
+        group_size = hadamard.shape[-1]
     if layer_class_name in conv_types or layer_class_name in conv_transpose_types:
         is_conv = True
         channel_size = weight.shape[1]
