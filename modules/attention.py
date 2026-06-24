@@ -28,12 +28,11 @@ def set_sdnq_attention():
                 return sdnq_triton_atten(
                     query=query, key=key, value=value,
                     attn_mask=attn_mask, scale=scale, enable_gqa=enable_gqa,
-                    quant_group_size=shared.opts.sdnq_attention_quant_group_size,
-                    quant_group_size_kv=shared.opts.sdnq_attention_quant_group_size_kv,
-                    matmul_dtype="int8" if shared.opts.sdnq_attention_matmul_type == "auto" else shared.opts.sdnq_attention_matmul_type,
-                    pv_matmul_dtype=None if shared.opts.sdnq_attention_pv_matmul_type == "auto" else shared.opts.sdnq_attention_pv_matmul_type,
-                    use_hadamard=shared.opts.sdnq_attention_use_hadamard,
+                    matmul_dtype=shared.opts.sdnq_attention_matmul_type,
+                    pv_matmul_dtype=shared.opts.sdnq_attention_pv_matmul_type,
                     smooth_k=shared.opts.sdnq_attention_smooth_k,
+                    use_hadamard=shared.opts.sdnq_attention_use_hadamard,
+                    hadamard_group_size=shared.opts.sdnq_attention_hadamard_group_size,
                     do_quantize=shared.opts.sdnq_attention_use_quantized_matmul,
                 )
             else:
