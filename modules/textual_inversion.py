@@ -2,6 +2,7 @@ import os
 import time
 import torch
 import safetensors.torch
+from transformers import AddedToken
 from modules.errorlimiter import limit_errors
 from modules import shared, devices, errors
 from modules.logger import log
@@ -118,13 +119,17 @@ def deref_tokenizers(tokens, tokenizers):
 def insert_tokens(embeddings: list, tokenizers: list):
     """
     Add all tokens to each tokenizer in the list, with one call to each.
+    normalized=False keeps tokens case-sensitive so tokenizer.tokenize surfaces them verbatim;
+    transformers >=5 defaults add_tokens to normalized=True, which lowercases CLIP embedding names
+    and breaks multi-vector expansion (maybe_convert_prompt) in prompt_parser_diffusers.
     """
     tokens = []
     for embedding in embeddings:
         if embedding is not None:
             tokens += embedding.tokens
+    added = [AddedToken(token, normalized=False) for token in tokens]
     for tokenizer in tokenizers:
-        tokenizer.add_tokens(tokens)
+        tokenizer.add_tokens(added)
 
 
 def insert_vectors(embedding, tokenizers, text_encoders, hiddensizes):
