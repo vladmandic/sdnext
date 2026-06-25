@@ -153,11 +153,12 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
     for k, v in p.override_settings.copy().items():
         if shared.opts.data.get(k, None) is None and shared.opts.data_labels.get(k, None) is None:
             continue
-        orig = shared.opts.data.get(k, None) or shared.opts.data_labels[k].default
+        # getattr resolves the value via data then data_labels; compat opts (clip_skip) have no data_labels entry
+        orig = getattr(shared.opts, k, None)
         if orig == v or (type(orig) == str and os.path.splitext(orig)[0] == v):
             p.override_settings.pop(k, None)
     for k in p.override_settings.keys():
-        stored_opts[k] = shared.opts.data.get(k, None) or shared.opts.data_labels[k].default
+        stored_opts[k] = getattr(shared.opts, k, None)
     results = None
     try:
         # if no checkpoint override or the override checkpoint can't be found, remove override entry and load opts checkpoint

@@ -327,7 +327,9 @@ def compel_hijack(self, token_ids: torch.Tensor, attention_mask: torch.Tensor | 
     else:
         hidden_state = text_encoder_output.hidden_states[-clip_skip]
     if normalized:
-        hidden_state = self.text_encoder.text_model.final_layer_norm(hidden_state)
+        # transformers >=5.6 flattened CLIPTextModel; CLIPTextModelWithProjection still nests it under .text_model
+        text_model = getattr(self.text_encoder, 'text_model', self.text_encoder)
+        hidden_state = text_model.final_layer_norm(hidden_state)
     return hidden_state
 
 
