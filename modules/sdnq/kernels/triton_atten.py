@@ -138,11 +138,11 @@ def sdnq_attn_kernel(
             if mask_block is not None:
                 m_ij = tl.where(m_ij == float("-inf"), 0.0, m_ij)
             qk = qk - m_ij[:, None]
-            p = tl.math.exp2(qk)
+            p = tl.exp2(qk)
             l_ij = tl.sum(p, 1)
             if mask_block is not None:
                 l_ij = tl.where(l_ij == 0.0, 1.0, l_ij)
-            alpha = tl.math.exp2(m_i - m_ij)
+            alpha = tl.exp2(m_i - m_ij)
             l_i = l_i * alpha + l_ij
             acc = acc * alpha[:, None]
 
