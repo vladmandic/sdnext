@@ -82,24 +82,25 @@ def sdnq_attn_kernel(
     BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr,
 ): # pylint: disable=unused-argument
     start_m = tl.program_id(0)
-    off_z = tl.program_id(2).to(tl.int64)
-    off_h = tl.program_id(1).to(tl.int64)
+    off_z = tl.program_id(2)
+    off_h = tl.program_id(1)
     num_kv_groups = qh // vh
+    off_h_kv = off_h // num_kv_groups
 
     m_i = tl.zeros([BLOCK_M], dtype=tl.float32) - float("inf")
     l_i = tl.zeros([BLOCK_M], dtype=tl.float32) + 1.0
-    acc = tl.zeros([BLOCK_M, khd], dtype=tl.float32)
+    acc = tl.zeros([BLOCK_M, vhd], dtype=tl.float32)
 
     Q_desc = tl.make_tensor_descriptor(Q + off_z * s_qz + off_h * s_qh, shape=[qn, qhd], strides=[s_qn, s_qhd], block_shape=[BLOCK_M, qhd])
-    K_desc = tl.make_tensor_descriptor(K + off_z * s_kz + (off_h // num_kv_groups) * s_kh, shape=[kn, khd], strides=[s_kn, s_khd], block_shape=[BLOCK_N, khd])
-    V_desc = tl.make_tensor_descriptor(V + off_z * s_vz + (off_h // num_kv_groups) * s_vh, shape=[vn, vhd], strides=[s_vn, s_vhd], block_shape=[BLOCK_N, vhd])
+    K_desc = tl.make_tensor_descriptor(K + off_z * s_kz + off_h_kv * s_kh, shape=[kn, khd], strides=[s_kn, s_khd], block_shape=[BLOCK_N, khd])
+    V_desc = tl.make_tensor_descriptor(V + off_z * s_vz + off_h_kv * s_vh, shape=[vn, vhd], strides=[s_vn, s_vhd], block_shape=[BLOCK_N, vhd])
 
     if Q_scale is not None:
         Q_scale_desc = tl.make_tensor_descriptor(Q_scale + off_z * s_sqz + off_h * s_sqh, shape=[qn], strides=[s_sqn], block_shape=[BLOCK_M])
-        K_scale_desc = tl.make_tensor_descriptor(K_scale + off_z * s_skz + (off_h // num_kv_groups) * s_skh, shape=[kn], strides=[s_skn], block_shape=[BLOCK_N])
+        K_scale_desc = tl.make_tensor_descriptor(K_scale + off_z * s_skz + off_h_kv * s_skh, shape=[kn], strides=[s_skn], block_shape=[BLOCK_N])
         q_scale = Q_scale_desc.load([start_m * BLOCK_M])[:, None]
     if V_scale is not None:
-        V_scale_desc = tl.make_tensor_descriptor(V_scale + off_z * s_svz + (off_h // num_kv_groups) * s_svh, shape=[vn], strides=[s_svn], block_shape=[BLOCK_N])
+        V_scale_desc = tl.make_tensor_descriptor(V_scale + off_z * s_svz + off_h_kv * s_svh, shape=[vn], strides=[s_svn], block_shape=[BLOCK_N])
     if mask is not None:
         mask_desc = tl.make_tensor_descriptor(mask + (off_z * s_mz + off_h * s_mh), shape=[mqn, mkn],  strides=[s_mqn, s_mkn], block_shape=[BLOCK_M, BLOCK_N])
 
@@ -184,9 +185,11 @@ def sdnq_triton_atten_forward(
     matmul_dtype: str = "int8",
     pv_matmul_dtype: str | None = None,
     do_quantize: bool = True,
+    out_dtype: torch.dtype | None = None,
 ) -> torch.FloatTensor:
     assert not is_causal
-    out_dtype = query.dtype
+    if out_dtype is None:
+        out_dtype = query.dtype
     qz, qh, qn, qhd = query.shape
     if not math.log(qhd, 2).is_integer():
         head_dim_pow2 = triton.next_power_of_2(qhd)
@@ -204,7 +207,7 @@ def sdnq_triton_atten_forward(
             attn_mask = attn_mask.to(dtype=torch.int8)
     def grid(META):
         return (triton.cdiv(qn, META["BLOCK_M"]), qh, qz)
-    out = torch.empty(query.shape, dtype=out_dtype, device=query.device)
+    out = torch.empty((qz, qh, qn, value.shape[-1]), dtype=out_dtype, device=query.device)
     query, query_scale, key, key_scale, value, value_scale = quantize_attn(
         query, key, value,
         hadamard=hadamard,
@@ -242,6 +245,7 @@ def sdnq_triton_atten(
     matmul_dtype: str = "int8",
     pv_matmul_dtype: str | None = None,
     do_quantize: bool = True,
+    out_dtype: torch.dtype | None = None,
 ) -> torch.FloatTensor:
     if use_hadamard:
         hadamard = get_hadamard(min(hadamard_group_size, query.shape[-1], key.shape[-1]), dtype=query.dtype, device=query.device)
@@ -260,6 +264,7 @@ def sdnq_triton_atten(
         matmul_dtype=matmul_dtype,
         pv_matmul_dtype=pv_matmul_dtype,
         do_quantize=do_quantize,
+        out_dtype=out_dtype,
     )
 
 
