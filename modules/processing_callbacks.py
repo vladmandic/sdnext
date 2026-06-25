@@ -55,10 +55,14 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
     if kwargs is None:
         kwargs = {}
     t0 = time.time()
-    if devices.backend == "ipex":
-        torch.xpu.synchronize(devices.device)
-    elif devices.backend in {"cuda", "zluda", "rocm"}:
-        torch.cuda.synchronize(devices.device)
+
+    if shared.opts.torch_sync:
+        if devices.backend == "ipex":
+            torch.xpu.synchronize(devices.device)
+        elif devices.backend in {"cuda", "zluda", "rocm"}:
+            torch.cuda.synchronize(devices.device)
+
+    t1 = time.time()
 
     if shared.state.paused:
         log.debug('Sampling paused')
@@ -84,12 +88,9 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
     shared.state.step()
     if shared.state.interrupted or shared.state.skipped:
         raise AssertionError('Interrupted...')
-    if latents is None:
+    if latents is None or p is None:
         return kwargs
-    elif shared.opts.nan_skip:
-        assert not torch.isnan(latents[..., 0, 0]).all(), f'NaN detected at step {step}: Skipping...'
-    if p is None:
-        return kwargs
+
     if len(getattr(p, 'ip_adapter_names', [])) > 0 and p.ip_adapter_names[0] != 'None':
         ip_adapter_scales = list(p.ip_adapter_scales)
         ip_adapter_starts = list(p.ip_adapter_starts)
@@ -220,6 +221,7 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
                     p.extra_generation_params["Sigma adjust"] = _sigma_adjust
             except Exception:
                 pass
+
     except Exception as e:
         global warned # pylint: disable=global-statement
         if not warned:
@@ -229,6 +231,8 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
         # errors.display(e, 'Callback')
     if shared.cmd_opts.profile and shared.profiler is not None:
         shared.profiler.step()
-    t1 = time.time()
-    timer.process.add('callback', t1 - t0)
+
+    t2 = time.time()
+    timer.process.add('sync', t1 - t0)
+    timer.process.add('callback', t2 - t1)
     return kwargs

@@ -10,12 +10,15 @@
   - **SDNQ-Attention**  
     modelled after *sage-attention*, but modified to support AMD and Intel GPUs in addition to nVidia  
   - **SDNQ** support for NPU during quantization and inference  
-  - add option: force dtype on load  
+  - add option: *compute settings -> force dtype on load*  
     use to force model components to override loading with desired dtype regardless of component config  
+  - add option: *backend settings -> force sychronize*  
+    enabled by default, disable to speed up processing but may cause image corruptions, especially during preview
 - **UI**
   - dynamic visibility of image controls
   - improve main panel positioning: *portrait/landscape*
   - improved gallery performance
+  - preview now only runs if output panel is visible  
   - ModernUI: old *txt2img* and *img2img* tabs are marked as legacy and hidden by default
   - StandardUI: marked as legacy
 - **Internal**

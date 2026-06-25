@@ -146,9 +146,23 @@ export function requestProgress(id_task = 'undefined', progressEl = null, galler
     if (atEnd) atEnd();
   };
 
+  const previewVisible = () => {
+    try {
+      return !galleryEl?.closest('.section')?.classList.contains('minimize');
+    } catch {
+      return true;
+    }
+  };
+
   const startLivePreview = (taskId: string, id_live_preview: number) => {
     if (window.opts.live_preview_refresh_period === 0) return;
-    const request_id = (window.opts.live_preview_require_focus !== false && document.hidden) ? -1 : id_live_preview;
+
+    let request_id = -1;
+    if (document.hidden || !previewVisible()) {
+      if (!window.opts.live_preview_require_focus) request_id = id_live_preview;
+    } else {
+      request_id = id_live_preview;
+    }
 
     const onProgressHandler = (res) => {
       if (res?.debug) debug('progress:', { start: dateStart, id: request_id, res });
