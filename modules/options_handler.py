@@ -109,7 +109,8 @@ class Options:
             setattr(self, key, value)
         except RuntimeError:
             return False
-        func = self.data_labels[key].onchange
+        # compatibility_opts (e.g. clip_skip) live in data without a data_labels entry
+        func = self.data_labels[key].onchange if key in self.data_labels else None
         if func is not None:
             try:
                 func()
