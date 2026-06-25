@@ -197,9 +197,13 @@ class ExtraNetworksPage:
         return all_versions[0]
 
     def link_preview(self, filename: str):
+        if not os.path.exists(filename):
+            ref = os.path.join(paths.reference_path, filename)
+            if os.path.exists(ref):
+                filename = ref
+            else:
+                filename = 'ui/assets/missing.png'
         quoted_filename = urllib.parse.quote(filename.replace('\\', '/'))
-        # mtime = os.path.getmtime(filename) if os.path.exists(filename) else 0
-        # preview = f"{shared.opts.subpath}/sdapi/v1/network/thumb?filename={quoted_filename}&mtime={mtime}"
         preview = f"{shared.opts.subpath}/sdapi/v1/network/thumb?filename={quoted_filename}"
         return preview
 
@@ -481,7 +485,7 @@ class ExtraNetworksPage:
         all_previews = list(files_cache.list_files(*possible_paths, ext_filter=exts, recursive=False))
         all_previews_fn = [os.path.basename(x) for x in all_previews]
         for item in items:
-            if item.get('preview', None) is not None:
+            if item.get('preview', None) is not None and 'missing.png' not in item.get('preview', 'missing.png'):
                 continue
             base = os.path.splitext(item['filename'])[0]
             if item.get('local_preview', None) is None:
@@ -506,14 +510,14 @@ class ExtraNetworksPage:
                         self.missing_thumbs.append(all_previews[file_idx])
                     item['preview'] = self.link_preview(all_previews[file_idx])
                     break
-            if item.get('preview', None) is None:
+            if item.get('preview', None) is None or 'missing.png' in item.get('preview', ''):
                 found = preview_map.get(base, None)
                 if found is not None:
                     item['preview'] = self.link_preview(found)
-                    debug(f'EN mapped-preview: {item["name"]}={found}')
+                    debug(f'EN: mapped-preview {item["name"]}={found}')
             if item.get('preview', None) is None:
                 item['preview'] = self.link_preview('ui/assets/missing.png')
-                debug(f'EN missing-preview: {item["name"]}')
+                debug(f'Networks: missing-preview type={item["type"]} name="{item["name"]}"')
         self.preview_time += time.time() - t0
 
     def find_description(self, path: str | None, info=None):

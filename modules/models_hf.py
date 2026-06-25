@@ -36,7 +36,7 @@ def hf_init():
     obfuscated_token = None
     if len(opts.huggingface_token) > 0 and opts.huggingface_token.startswith('hf_'):
         obfuscated_token = 'hf_...' + opts.huggingface_token[-4:]
-    log.info(f'Huggingface: transfer={opts.hf_transfer_mode} parallel={opts.sd_parallel_load} direct={opts.diffusers_to_gpu} token="{obfuscated_token}" cache="{opts.hfcache_dir}" init')
+    log.info(f'Huggingface: transfer={opts.hf_transfer_mode} parallel={opts.sd_parallel_load} direct={opts.diffusers_to_gpu} token="{obfuscated_token}" cache="{opts.hfcache_dir}"')
 
 
 def hf_check_cache():

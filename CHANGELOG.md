@@ -1,6 +1,6 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-23
+## Update for 2026-06-25
 
 - **Models**
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
@@ -35,6 +35,8 @@
   - `caption` button in standard-ui
   - `python` experimental/ignore version checks
   - `hipBLASLt` improved detection, thanks @0xDELUXA
+  - `embeddings` handle textual-inversion with new transformers
+  - `options` handle compatibility options
 
 ## Update for 2026-06-16
 
