@@ -266,6 +266,9 @@ class ItemFolder(BaseModel):
     path: str = Field(title="Path", description="Full path to the folder")
     label: str = Field(title="Label", description="Display label for the folder")
 
+class ItemWildcard(BaseModel):
+    name: str = Field(title="Name", description="Wildcard basename (relative path with .txt stripped)")
+
 class ItemScheduler(BaseModel):
     name: str = Field(title="Name", description="Scheduler name")
     cls: str = Field(title="Class", description="Scheduler class name")
