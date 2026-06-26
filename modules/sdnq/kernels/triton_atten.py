@@ -169,8 +169,8 @@ def sdnq_attn_kernel(
             m_i = m_ij
 
     acc = (acc / l_i[:, None]).to(out_ptr.type.element_ty)
-    O_desc = tl.make_tensor_descriptor(out_ptr + off_z * stride_oz + off_h * stride_oh, shape=[ON, OHD], strides=[stride_on, stride_ohd], block_shape=[BLOCK_SIZE_M, OHD])
-    O_desc.store([start_m * BLOCK_SIZE_M, 0], acc)
+    out_desc = tl.make_tensor_descriptor(out_ptr + off_z * stride_oz + off_h * stride_oh, shape=[ON, OHD], strides=[stride_on, stride_ohd], block_shape=[BLOCK_SIZE_M, OHD])
+    out_desc.store([start_m * BLOCK_SIZE_M, 0], acc)
 
 
 def sdnq_triton_atten_forward(
@@ -194,18 +194,19 @@ def sdnq_triton_atten_forward(
     if out_dtype is None:
         out_dtype = query.dtype
     QZ, QH, QN, QHD = query.shape
+    _, _, KN, KHD = key.shape
+    _, _, _, VHD = value.shape
     if not math.log(QHD, 2).is_integer():
-        head_dim_pow2 = triton.next_power_of_2(QHD)
-        query = torch.nn.functional.pad(query, (0, head_dim_pow2 - QHD))
-        key = torch.nn.functional.pad(key, (0, head_dim_pow2 - QHD))
-        value = torch.nn.functional.pad(value, (0, head_dim_pow2 - QHD))
+        query = torch.nn.functional.pad(query, (0, triton.next_power_of_2(QHD) - QHD))
+        key = torch.nn.functional.pad(key, (0, triton.next_power_of_2(KHD) - KHD))
+        value = torch.nn.functional.pad(value, (0, triton.next_power_of_2(VHD) - VHD))
     if scale is None:
         scale = QHD ** -0.5
     if attn_mask is not None:
-        attn_mask = attn_mask.expand((QZ, QH, QN, key.shape[-2])).contiguous()
-        if not math.log(key.shape[-2], 2).is_integer():
+        attn_mask = attn_mask.expand((QZ, QH, QN, KN)).contiguous()
+        if not math.log(KN, 2).is_integer():
             pad_value = -float('inf') if torch.is_floating_point(attn_mask) else 0
-            attn_mask = torch.nn.functional.pad(attn_mask, (0, triton.next_power_of_2(key.shape[-2]) - key.shape[-2]), value=pad_value)
+            attn_mask = torch.nn.functional.pad(attn_mask, (0, triton.next_power_of_2(KN) - KN), value=pad_value)
         if attn_mask.dtype == torch.bool:
             attn_mask = attn_mask.to(dtype=torch.int8)
     def grid(META):
@@ -233,7 +234,7 @@ def sdnq_triton_atten_forward(
         str(query.dtype), str(value.dtype), str(out.dtype),
         str(attn_mask.dtype if attn_mask is not None else None),
     )
-    return out[..., :QHD]
+    return out[..., :VHD]
 
 
 def sdnq_triton_atten(
