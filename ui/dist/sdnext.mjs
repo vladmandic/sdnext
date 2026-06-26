@@ -12004,7 +12004,10 @@ function htmlEscape(text) {
   return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 function parseLogLine(line) {
-  const parsed = JSON.parse(line.replaceAll("\n", " ").replaceAll("\\", "\\\\"));
+  let str = line.replaceAll("\n", " ").replaceAll("\\", "\\\\");
+  const tracebackIndex = str.indexOf("Traceback");
+  if (tracebackIndex !== -1) str = str.substring(0, tracebackIndex);
+  const parsed = JSON.parse(str);
   return {
     created: Number(parsed.created ?? Date.now()),
     level: String(parsed.level ?? "INFO"),
@@ -12029,8 +12032,10 @@ async function logMonitor() {
       row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}${facility}${module}<td>${htmlEscape(l.msg)}</td>`;
       logMonitorEl.appendChild(row);
     } catch (err) {
-      error(`logMonitor: ${String(err)}
-${line}`);
+      error(`logMonitor: ${String(err)}`);
+      error(`logMonitor: ${line}`);
+      console.error(line);
+      window.eee = line;
     }
   };
   const cleanupLog = (atBottom2) => {

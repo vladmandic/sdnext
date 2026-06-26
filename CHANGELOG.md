@@ -49,6 +49,7 @@ Plus new **Krea 2** model and **SDNQ** improvements: now with NPU support and it
   - `hipBLASLt` improved detection, thanks @0xDELUXA
   - `embeddings` handle textual-inversion with new transformers
   - `options` handle compatibility options
+  - `log` strip ansi sequences from ring buffer and client side logging
 
 ## Update for 2026-06-16
 

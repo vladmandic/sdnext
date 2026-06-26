@@ -34,7 +34,10 @@ function htmlEscape(text: string): string {
 }
 
 function parseLogLine(line: string): LogLine {
-  const parsed = JSON.parse(line.replaceAll('\n', ' ').replaceAll('\\', '\\\\')) as Partial<LogLine>;
+  let str = line.replaceAll('\n', ' ').replaceAll('\\', '\\\\');
+  const tracebackIndex = str.indexOf('Traceback');
+  if (tracebackIndex !== -1) str = str.substring(0, tracebackIndex);
+  const parsed = JSON.parse(str) as Partial<LogLine>;
   return {
     created: Number(parsed.created ?? Date.now()),
     level: String(parsed.level ?? 'INFO'),
@@ -61,7 +64,10 @@ async function logMonitor() {
       row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}${facility}${module}<td>${htmlEscape(l.msg)}</td>`;
       logMonitorEl.appendChild(row);
     } catch (err) {
-      error(`logMonitor: ${String(err)}\n${line}`);
+      error(`logMonitor: ${String(err)}`);
+      error(`logMonitor: ${line}`);
+      console.error(line);
+      window.eee = line;
     }
   };
 

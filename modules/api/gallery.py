@@ -10,11 +10,9 @@ from PIL import Image
 from modules import shared, images, files_cache, modelstats
 from modules.logger import log
 from modules.paths import resolve_output_path
-from modules.api import models
+
 
 debug = log.debug if os.environ.get('SD_BROWSER_DEBUG', None) is not None else lambda *args, **kwargs: None
-
-
 OPTS_FOLDERS = [
     "outdir_samples",
     "outdir_txt2img_samples",
@@ -140,13 +138,13 @@ def register_api(api): # register api
             log.error(f'Gallery image failed: file="{filepath}" | Error: {e}')
             return {}
 
-    # @app.get('/sdapi/v1/browser/folders', response_model=list[models.ItemFolder])
+    # @app.get('/sdapi/v1/browser/folders', response_model=list[dict])
     def get_folders():
         def make_folder(path, label=None):
             """Create folder entry with path and display label."""
             if label is None:
                 label = os.path.basename(path) or path
-            return models.ItemFolder(path=path, label=label)
+            return {"path": path, "label": label}
 
         reference_dir = os.path.join('models', 'Reference')
         base_samples = shared.opts.outdir_samples
