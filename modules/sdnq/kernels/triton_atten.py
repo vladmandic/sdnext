@@ -8,6 +8,7 @@ from ..common import compile_func # pylint: disable=relative-beyond-top-level
 from ..quant_utils import quantize_int_mm, quantize_fp_mm, get_hadamard, apply_hadamard # pylint: disable=relative-beyond-top-level
 
 
+min_block_size = int(os.environ.get("SDNQ_TRITON_ATTEN_MIN_BLOCK_SIZE", "32"))
 matmul_configs = [
     triton.Config({'BLOCK_M': BM, 'BLOCK_N': BN}, num_warps=w, num_stages=s)
     for BM in [int(BM) for BM in os.environ.get("SDNQ_TRITON_ATTEN_BLOCK_SIZE_M_LIST", "64,128").replace(" ","").split(",")]
@@ -61,24 +62,27 @@ def quantize_attn(
     return q_q, q_scale, k_q, k_scale, v_q, v_scale
 
 
-@triton.autotune(configs=matmul_configs, key=["BLOCK_M", "BLOCK_N", "s_sqz", "s_svz", "qz", "qh", "qn", "qhd", "q_dtype", "v_dtype", "out_dtype"], cache_results=True)
+@triton.autotune(configs=matmul_configs, key=["qn_t", "qhd","vn_t", "vhd", "qk_is_quantized", "pv_is_quantized", "q_dtype", "v_dtype", "out_dtype", "mask_dtype"], cache_results=True)
 @triton.jit
 def sdnq_attn_kernel(
-    Q, K, V, Q_scale, K_scale, V_scale, out, mask,
-    s_qz: tl.constexpr, s_qh: tl.constexpr, s_qn: tl.constexpr, s_qhd: tl.constexpr,
-    s_kz: tl.constexpr, s_kh: tl.constexpr, s_kn: tl.constexpr, s_khd: tl.constexpr,
-    s_vz: tl.constexpr, s_vh: tl.constexpr, s_vn: tl.constexpr, s_vhd: tl.constexpr,
-    s_oz: tl.constexpr, s_oh: tl.constexpr, s_on: tl.constexpr, s_ohd: tl.constexpr,
-    s_sqz: tl.constexpr, s_sqh: tl.constexpr, s_sqn: tl.constexpr,
-    s_skz: tl.constexpr, s_skh: tl.constexpr, s_skn: tl.constexpr,
-    s_svz: tl.constexpr, s_svh: tl.constexpr, s_svn: tl.constexpr,
-    s_mz: tl.constexpr, s_mh: tl.constexpr, s_mqn: tl.constexpr, s_mkn: tl.constexpr,
+    q_ptr, k_ptr, v_ptr, q_scale_ptr, k_scale_ptr, v_scale_ptr, out_ptr, mask_ptr,
     qz: tl.constexpr, qh: tl.constexpr, qn: tl.constexpr, qhd: tl.constexpr,
     kz: tl.constexpr, kh: tl.constexpr, kn: tl.constexpr, khd: tl.constexpr,
     vz: tl.constexpr, vh: tl.constexpr, vn: tl.constexpr, vhd: tl.constexpr,
     oz: tl.constexpr, oh: tl.constexpr, on: tl.constexpr, ohd: tl.constexpr,
     mz: tl.constexpr, mh: tl.constexpr, mqn: tl.constexpr, mkn: tl.constexpr,
-    q_dtype: tl.constexpr, v_dtype: tl.constexpr, out_dtype: tl.constexpr,
+    stride_qz: tl.constexpr, stride_qh: tl.constexpr, stride_qn: tl.constexpr, stride_qhd: tl.constexpr,
+    stride_kz: tl.constexpr, stride_kh: tl.constexpr, stride_kn: tl.constexpr, stride_khd: tl.constexpr,
+    stride_vz: tl.constexpr, stride_vh: tl.constexpr, stride_vn: tl.constexpr, stride_vhd: tl.constexpr,
+    stride_oz: tl.constexpr, stride_oh: tl.constexpr, stride_on: tl.constexpr, stride_ohd: tl.constexpr,
+    stride_sqz: tl.constexpr, stride_sqh: tl.constexpr, stride_sqn: tl.constexpr,
+    stride_skz: tl.constexpr, stride_skh: tl.constexpr, stride_skn: tl.constexpr,
+    stride_svz: tl.constexpr, stride_svh: tl.constexpr, stride_svn: tl.constexpr,
+    stride_mz: tl.constexpr, stride_mh: tl.constexpr, stride_mqn: tl.constexpr, stride_mkn: tl.constexpr,
+    qn_t: tl.constexpr, vn_t: tl.constexpr,
+    qk_is_quantized: tl.constexpr, pv_is_quantized: tl.constexpr,
+    q_dtype: tl.constexpr, v_dtype: tl.constexpr,
+    out_dtype: tl.constexpr, mask_dtype: tl.constexpr,
     BLOCK_M: tl.constexpr, BLOCK_N: tl.constexpr,
 ): # pylint: disable=unused-argument
     start_m = tl.program_id(0)
@@ -91,36 +95,35 @@ def sdnq_attn_kernel(
     l_i = tl.zeros([BLOCK_M], dtype=tl.float32) + 1.0
     acc = tl.zeros([BLOCK_M, vhd], dtype=tl.float32)
 
-    Q_desc = tl.make_tensor_descriptor(Q + off_z * s_qz + off_h * s_qh, shape=[qn, qhd], strides=[s_qn, s_qhd], block_shape=[BLOCK_M, qhd])
-    K_desc = tl.make_tensor_descriptor(K + off_z * s_kz + off_h_kv * s_kh, shape=[kn, khd], strides=[s_kn, s_khd], block_shape=[BLOCK_N, khd])
-    V_desc = tl.make_tensor_descriptor(V + off_z * s_vz + off_h_kv * s_vh, shape=[vn, vhd], strides=[s_vn, s_vhd], block_shape=[BLOCK_N, vhd])
+    Q_desc = tl.make_tensor_descriptor(q_ptr + off_z * stride_qz + off_h * stride_qh, shape=[qn, qhd], strides=[stride_qn, stride_qhd], block_shape=[BLOCK_M, qhd])
+    K_desc = tl.make_tensor_descriptor(k_ptr + off_z * stride_kz + off_h_kv * stride_kh, shape=[kn, khd], strides=[stride_kn, stride_khd], block_shape=[BLOCK_N, khd])
+    V_desc = tl.make_tensor_descriptor(v_ptr + off_z * stride_vz + off_h_kv * stride_vh, shape=[vn, vhd], strides=[stride_vn, stride_vhd], block_shape=[BLOCK_N, vhd])
 
-    if Q_scale is not None:
-        Q_scale_desc = tl.make_tensor_descriptor(Q_scale + off_z * s_sqz + off_h * s_sqh, shape=[qn], strides=[s_sqn], block_shape=[BLOCK_M])
-        K_scale_desc = tl.make_tensor_descriptor(K_scale + off_z * s_skz + off_h_kv * s_skh, shape=[kn], strides=[s_skn], block_shape=[BLOCK_N])
-        q_scale = Q_scale_desc.load([start_m * BLOCK_M])[:, None]
-    if V_scale is not None:
-        V_scale_desc = tl.make_tensor_descriptor(V_scale + off_z * s_svz + off_h_kv * s_svh, shape=[vn], strides=[s_svn], block_shape=[BLOCK_N])
-    if mask is not None:
-        mask_desc = tl.make_tensor_descriptor(mask + (off_z * s_mz + off_h * s_mh), shape=[mqn, mkn],  strides=[s_mqn, s_mkn], block_shape=[BLOCK_M, BLOCK_N])
+    if q_scale_ptr is not None:
+        q_scale_desc = tl.make_tensor_descriptor(q_scale_ptr + off_z * stride_sqz + off_h * stride_sqh, shape=[qn], strides=[stride_sqn], block_shape=[BLOCK_M])
+        k_scale_desc = tl.make_tensor_descriptor(k_scale_ptr + off_z * stride_skz + off_h_kv * stride_skh, shape=[kn], strides=[stride_skn], block_shape=[BLOCK_N])
+        q_scale = q_scale_desc.load([start_m * BLOCK_M])[:, None]
+    if v_scale_ptr is not None:
+        v_scale_desc = tl.make_tensor_descriptor(v_scale_ptr + off_z * stride_svz + off_h_kv * stride_svh, shape=[vn], strides=[stride_svn], block_shape=[BLOCK_N])
+    if mask_ptr is not None:
+        mask_desc = tl.make_tensor_descriptor(mask_ptr + (off_z * stride_mz + off_h * stride_mh), shape=[mqn, mkn],  strides=[stride_mqn, stride_mkn], block_shape=[BLOCK_M, BLOCK_N])
 
     q = Q_desc.load([start_m * BLOCK_M, 0])
 
     lo, hi = 0, kn
     for start_n in range(lo, hi, BLOCK_N):
         start_n = tl.multiple_of(start_n, BLOCK_N)
-        mask_block = None
         skip = False
-        if mask is not None:
-            mask_block = mask_desc.load([start_m * BLOCK_M, start_n])
-            if mask_block.dtype == tl.int8:
-                mask_block = mask_block.to(tl.int1)
-            if mask_block.dtype == tl.int1 and tl.max(mask_block) == 0:
+        if mask_ptr is not None:
+            mask = mask_desc.load([start_m * BLOCK_M, start_n])
+            if mask.dtype == tl.int8:
+                mask = mask.to(tl.int1)
+            if mask.dtype == tl.int1 and tl.max(mask) == 0:
                 skip = True
         if not skip:
             k = tl.trans(K_desc.load([start_n, 0]))
-            if Q_scale is not None:
-                k_scale = K_scale_desc.load([start_n])[None, :]
+            if q_scale_ptr is not None:
+                k_scale = k_scale_desc.load([start_n])[None, :]
                 if q.dtype == tl.int8:
                     qk = tl.dot(q, k, out_dtype=tl.int32).to(tl.float32) * q_scale * k_scale
                 else:
@@ -128,27 +131,27 @@ def sdnq_attn_kernel(
             else:
                 qk = tl.dot(q, k, out_dtype=tl.float32)
 
-            if mask_block is not None:
-                if mask_block.dtype == tl.int1:
-                    qk = tl.where(mask_block, qk, -float('inf'))
+            if mask_ptr is not None:
+                if mask.dtype == tl.int1:
+                    qk = tl.where(mask, qk, -float('inf'))
                 else:
-                    qk = qk + mask_block
+                    qk = qk + mask
 
             m_ij = tl.maximum(m_i, tl.max(qk, 1))
-            if mask_block is not None:
+            if mask_ptr is not None:
                 m_ij = tl.where(m_ij == float("-inf"), 0.0, m_ij)
             qk = qk - m_ij[:, None]
             p = tl.exp2(qk)
             l_ij = tl.sum(p, 1)
-            if mask_block is not None:
+            if mask_ptr is not None:
                 l_ij = tl.where(l_ij == 0.0, 1.0, l_ij)
             alpha = tl.exp2(m_i - m_ij)
             l_i = l_i * alpha + l_ij
             acc = acc * alpha[:, None]
 
             v = V_desc.load([start_n, 0])
-            if V_scale is not None:
-                v_scale = V_scale_desc.load([start_n])[None, :]
+            if v_scale_ptr is not None:
+                v_scale = v_scale_desc.load([start_n])[None, :]
                 p *= v_scale
                 if v.dtype == tl.int8:
                     p_scale = tl.max(p, 1)[:, None] / 127.0
@@ -165,8 +168,8 @@ def sdnq_attn_kernel(
                 acc += tl.dot(p, v, out_dtype=tl.float32)
             m_i = m_ij
 
-    acc = (acc / l_i[:, None]).to(out.type.element_ty)
-    O_desc = tl.make_tensor_descriptor(out + off_z * s_oz + off_h * s_oh, shape=[on, ohd], strides=[s_on, s_ohd], block_shape=[BLOCK_M, ohd])
+    acc = (acc / l_i[:, None]).to(out_ptr.type.element_ty)
+    O_desc = tl.make_tensor_descriptor(out_ptr + off_z * stride_oz + off_h * stride_oh, shape=[on, ohd], strides=[stride_on, stride_ohd], block_shape=[BLOCK_M, ohd])
     O_desc.store([start_m * BLOCK_M, 0], acc)
 
 
@@ -218,14 +221,17 @@ def sdnq_triton_atten_forward(
     )
     sdnq_attn_kernel[grid](
         query, key, value, query_scale, key_scale, value_scale, out, attn_mask,
+        *query.shape, *key.shape, *value.shape, *out.shape,
+        *(attn_mask.shape if attn_mask is not None else (0, 0, 0, 0)),
         *query.stride(), *key.stride(), *value.stride(), *out.stride(),
         *(query_scale.stride() if query_scale is not None else (0, 0, 0)),
         *(key_scale.stride() if key_scale is not None else (0, 0, 0)),
         *(value_scale.stride() if value_scale is not None else (0, 0, 0)),
         *(attn_mask.stride() if attn_mask is not None else (0, 0, 0, 0)),
-        *query.shape, *key.shape, *value.shape, *out.shape,
-        *(attn_mask.shape if attn_mask is not None else (0, 0, 0, 0)),
+        math.ceil(qn / min_block_size), math.ceil(value.shape[-2] / min_block_size),
+        bool(query_scale is not None), bool(value_scale is not None),
         str(query.dtype), str(value.dtype), str(out.dtype),
+        str(attn_mask.dtype if attn_mask is not None else None),
     )
     return out[..., :qhd]
 

@@ -27,15 +27,15 @@ matmul_configs = [
 ]
 
 
-@triton.autotune(configs=matmul_configs, key=["M_AT", "N_AT", "K_AT", "stride_bk", "ACCUMULATOR_DTYPE"], cache_results=True)
+@triton.autotune(configs=matmul_configs, key=["M_AT", "N_AT", "K_AT", "ACCUMULATOR_DTYPE"], cache_results=True)
 @triton.jit
 def triton_mm_kernel(
     a_ptr, b_ptr, c_ptr,
-    M: int, N: int, K: int,
-    M_AT: int, N_AT: int, K_AT: int,
-    stride_am: int, stride_ak: int,
-    stride_bk: int, stride_bn: int,
-    stride_cm: int, stride_cn: int,
+    M: tl.constexpr, N: tl.constexpr, K: tl.constexpr,
+    M_AT: tl.constexpr, N_AT: tl.constexpr, K_AT: tl.constexpr,
+    stride_am: tl.constexpr, stride_ak: tl.constexpr,
+    stride_bk: tl.constexpr, stride_bn: tl.constexpr,
+    stride_cm: tl.constexpr, stride_cn: tl.constexpr,
     ACCUMULATOR_DTYPE: tl.constexpr,
     BLOCK_SIZE_M: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
@@ -87,11 +87,11 @@ def triton_mm_kernel(
 @triton.jit
 def triton_mm_td_kernel(
     a_ptr, b_ptr, c_ptr,
-    M: int, N: int, K: int,
-    M_AT: int, N_AT: int, K_AT: int,
-    stride_am: int, stride_ak: int,
-    stride_bk: int, stride_bn: int,
-    stride_cm: int, stride_cn: int,
+    M: tl.constexpr, N: tl.constexpr, K: tl.constexpr,
+    M_AT: tl.constexpr, N_AT: tl.constexpr, K_AT: tl.constexpr,
+    stride_am: tl.constexpr, stride_ak: tl.constexpr,
+    stride_bk: tl.constexpr, stride_bn: tl.constexpr,
+    stride_cm: tl.constexpr, stride_cn: tl.constexpr,
     ACCUMULATOR_DTYPE: tl.constexpr,
     BLOCK_SIZE_M: tl.constexpr,
     BLOCK_SIZE_N: tl.constexpr,
