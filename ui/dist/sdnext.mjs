@@ -12034,8 +12034,6 @@ async function logMonitor() {
     } catch (err) {
       error(`logMonitor: ${String(err)}`);
       error(`logMonitor: ${line}`);
-      console.error(line);
-      window.eee = line;
     }
   };
   const cleanupLog = (atBottom2) => {
