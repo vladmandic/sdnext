@@ -1,6 +1,15 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-25
+## Update for 2026-06-26
+
+### Highlights for 2026-06-26
+
+Service-pack update with several fixes and quality-of-life improvements  
+Plus new **Krea 2** model and **SDNQ** improvements: now with NPU support and its own native attention kernels!  
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-06-26
 
 - **Models**
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  

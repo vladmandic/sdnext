@@ -203,7 +203,7 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
             cfg.get("base_shift", 0.5),
             cfg.get("max_shift", 1.15),
         )
-        self.scheduler.set_timesteps(num_inference_steps, device=device, mu=mu)
+        self.scheduler.set_timesteps(num_inference_steps, device=device, mu=mu) # pylint: disable=unexpected-keyword-arg
         timesteps = self.scheduler.timesteps
 
         if image is not None:
