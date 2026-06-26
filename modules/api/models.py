@@ -1,6 +1,6 @@
 import re
 import inspect
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from collections.abc import Callable
 from pydantic import BaseModel, Field, create_model
 from pydantic import VERSION
@@ -262,6 +262,10 @@ class ItemExtension(BaseModel):
     commit_date: str | int = Field(title="Commit Date", description="Extension Repository Commit Date")
     enabled: bool = Field(title="Enabled", description="Flag specifying whether this extension is enabled")
 
+class ItemFolder(BaseModel):
+    path: str = Field(title="Path", description="Full path to the folder")
+    label: str = Field(title="Label", description="Display label for the folder")
+
 class ItemScheduler(BaseModel):
     name: str = Field(title="Name", description="Scheduler name")
     cls: str = Field(title="Class", description="Scheduler class name")
@@ -273,7 +277,7 @@ ReqTxt2Img = PydanticModelGenerator(
     "StableDiffusionProcessingTxt2Img",
     StableDiffusionProcessingTxt2Img,
     [
-        {"key": "sampler_index", "type": Union[int, str], "default": 0},
+        {"key": "sampler_index", "type": int | str, "default": 0},
         {"key": "sampler_name", "type": str, "default": "Default"},
         {"key": "hr_sampler_name", "type": str, "default": "Same as primary"},
         {"key": "script_name", "type": Optional[str], "default": ""},
@@ -301,7 +305,7 @@ ReqImg2Img = PydanticModelGenerator(
     "StableDiffusionProcessingImg2Img",
     StableDiffusionProcessingImg2Img,
     [
-        {"key": "sampler_index", "type": Union[int, str], "default": 0},
+        {"key": "sampler_index", "type": int | str, "default": 0},
         {"key": "sampler_name", "type": str, "default": "Default"},
         {"key": "hr_sampler_name", "type": str, "default": "Same as primary"},
         {"key": "init_images", "type": list, "default": None},
