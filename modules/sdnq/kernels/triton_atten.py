@@ -169,7 +169,7 @@ def sdnq_attn_kernel(
             m_i = m_ij
 
     acc = (acc / l_i[:, None]).to(out_ptr.type.element_ty)
-    O_desc = tl.make_tensor_descriptor(out_ptr + off_z * stride_oz + off_h * stride_oh, shape=[QN, QHD], strides=[stride_on, stride_ohd], block_shape=[BLOCK_SIZE_M, QHD])
+    O_desc = tl.make_tensor_descriptor(out_ptr + off_z * stride_oz + off_h * stride_oh, shape=[ON, OHD], strides=[stride_on, stride_ohd], block_shape=[BLOCK_SIZE_M, OHD])
     O_desc.store([start_m * BLOCK_SIZE_M, 0], acc)
 
 
