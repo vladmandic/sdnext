@@ -1,8 +1,6 @@
 from dataclasses import dataclass
 import sys
 import time
-import diffusers
-import transformers
 from modules import errors
 from modules.logger import log
 
@@ -656,13 +654,6 @@ try:
         for m in model:
             if m.name == 'None':
                 continue
-            """
-            if (m.repo_cls is None) or (m.dit_cls is None) or (m.te_cls is None):
-                log.error(f'Video: pipeline="{m.name}" not available')
-                errors += 1
-            else:
-                total += 1
-            """
             total += 1
     log.info(f'Networks: type="video" engines={len(models)} models={total} errors={errors} time={t1 - t0:.2f}')
 except Exception as e:
