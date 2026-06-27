@@ -154,7 +154,7 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
         height: int = 1024,
         width: int = 1024,
         num_inference_steps: int = 28,
-        guidance_scale: float = 4.5,
+        guidance_scale: float = 1.0,
         num_images_per_prompt: int = 1,
         generator: torch.Generator | list[torch.Generator] | None = None,
         latents: torch.Tensor | None = None,
@@ -177,7 +177,7 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
         self._interrupt = False
 
         is_distilled = bool(getattr(self.transformer.config, "is_distilled", False))
-        do_cfg = guidance_scale is not None and guidance_scale > 0 and not is_distilled
+        do_cfg = guidance_scale is not None and guidance_scale > 1 and not is_distilled
 
         text, text_mask = self.encode_prompt(prompts, device)
         text = text.to(dtype)
@@ -237,7 +237,7 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
                         hidden_states=img, encoder_hidden_states=uncond, timestep=model_t,
                         position_ids=uncond_pos, attention_mask=uncond_full_mask, return_dict=False,
                     )[0]
-                    velocity = cond + guidance_scale * (cond - neg)
+                    velocity = neg + guidance_scale * (cond - neg)
                 else:
                     velocity = cond
                 img = self.scheduler.step(velocity, t, img, return_dict=False)[0]
