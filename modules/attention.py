@@ -24,7 +24,15 @@ def set_sdnq_attention():
         sdpa_pre_sdnq_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_sdnq_atten)
         def sdpa_sdnq_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
-            if not is_causal and (query.shape[-1] >= 32 and key.shape[-1] >= 32 and value.shape[-1] >= 32) and (query.shape[-2] >= 512 or key.shape[-2] >= 512) and query.shape[-3] > 1:
+            if (
+                not is_causal
+                and query.device.type != "cpu"
+                and key.device == query.device
+                and value.device == query.device
+                and (query.shape[-1] >= 32 and key.shape[-1] >= 32 and value.shape[-1] >= 32) # Dim < 32 is unsupported by Matrix Cores
+                and (query.shape[-2] >= 512 or key.shape[-2] >= 512) # Skip TE
+                and query.shape[-3] > 1 # Skip VAE
+            ):
                 return sdnq_triton_atten(
                     query=query, key=key, value=value,
                     attn_mask=attn_mask, scale=scale, enable_gqa=enable_gqa,
@@ -57,7 +65,6 @@ def set_triton_flash_attention(backend: str):
                 use_triton = (
                     query.shape[-1] <= 128
                     and attn_mask is None
-                    and query.dtype != torch.float32
                     and query.device.type != "cpu"
                     and key.device == query.device
                     and value.device == query.device
@@ -216,7 +223,6 @@ def set_sage_attention(backend: str, device: torch.device):
             use_sage = (
                 query.shape[-1] in {128, 96, 64}
                 and attn_mask is None
-                and query.dtype != torch.float32
                 and query.device.type != "cpu"
                 and key.device == query.device
                 and value.device == query.device

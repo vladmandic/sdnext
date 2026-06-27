@@ -11,8 +11,8 @@ from ..quant_utils import quantize_int_mm, quantize_fp_mm, get_hadamard, apply_h
 min_block_size = int(os.environ.get("SDNQ_TRITON_ATTEN_MIN_BLOCK_SIZE", "32"))
 matmul_configs = [
     triton.Config({'BLOCK_SIZE_M': BM, 'BLOCK_SIZE_N': BN}, num_warps=w, num_stages=s)
-    for BM in [int(BM) for BM in os.environ.get("SDNQ_TRITON_ATTEN_BLOCK_SIZE_M_LIST", "64,128").replace(" ","").split(",")]
-    for BN in [int(BN) for BN in os.environ.get("SDNQ_TRITON_ATTEN_BLOCK_SIZE_N_LIST", "32,64").replace(" ","").split(",")]
+    for BM in [int(BM) for BM in os.environ.get("SDNQ_TRITON_ATTEN_BLOCK_SIZE_M_LIST", "64").replace(" ","").split(",")]
+    for BN in [int(BN) for BN in os.environ.get("SDNQ_TRITON_ATTEN_BLOCK_SIZE_N_LIST", "32").replace(" ","").split(",")]
     for w in [int(w) for w in os.environ.get("SDNQ_TRITON_ATTEN_NUM_WARPS_LIST", "2,4,8").replace(" ","").split(",")]
     for s in [int(s) for s in os.environ.get("SDNQ_TRITON_ATTEN_NUM_STAGES_LIST", "1,2,4").replace(" ","").split(",")]
 ]
@@ -155,12 +155,12 @@ def sdnq_attn_kernel(
                 p *= v_scale
                 if v.dtype == tl.int8:
                     p_scale = tl.max(p, 1)[:, None] / 127.0
-                    p_scale = tl.where(p_scale == 0.0, 1.0, p_scale)
+                    p_scale = tl.where(p_scale <= 2e-38, 1.0, p_scale)
                     p = tl.floor(p / p_scale + 0.5).to(tl.int8)
                     acc += tl.dot(p, v, out_dtype=tl.int32).to(tl.float32) * p_scale
                 else:
                     p_scale = tl.max(p, 1)[:, None] / (65504.0 if v.dtype == tl.float16 else 448.0)
-                    p_scale = tl.where(p_scale == 0.0, 1.0, p_scale)
+                    p_scale = tl.where(p_scale <= 2e-38, 1.0, p_scale)
                     p = (p / p_scale).to(v.dtype)
                     acc += tl.dot(p, v, out_dtype=tl.float32) * p_scale
             else:
