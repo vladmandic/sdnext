@@ -8,6 +8,9 @@ from modules.civitai.models_civitai import CivitModel, CivitVersion, CivitImage,
 options_cache: dict = {}
 options_cache_time: float = 0
 OPTIONS_TTL = 3600  # 1 hour
+# Civitai nsfwLevel bitmask: 1=PG/None 2=PG-13/Soft 4=R/Mature 8=X 16=XXX 32=Blocked
+NSFW_LEVEL_SFW = 3   # None + Soft: Civitai's SFW browsing boundary
+NSFW_LEVEL_ALL = 63  # every level set: disables filtering
 
 
 class CivitaiClient:
@@ -76,10 +79,17 @@ class CivitaiClient:
             except Exception:
                 return CivitSearchResponse()
         try:
-            return CivitSearchResponse.parse_obj(data)
+            response = CivitSearchResponse.parse_obj(data)
         except Exception as e:
             log.error(f'CivitAI search parse error: {e}')
             return CivitSearchResponse()
+        # /models rejects server-side level filtering and its nsfw boolean leaks
+        # Mature+ content, so filter on each model's aggregate nsfwLevel here:
+        # nsfw on keeps every level, nsfw off/unset keeps SFW (None + Soft).
+        level = NSFW_LEVEL_ALL if nsfw else NSFW_LEVEL_SFW
+        if level < NSFW_LEVEL_ALL:
+            response.items = [m for m in response.items if (m.nsfw_level & ~level) == 0]
+        return response
 
     def get_model(self, model_id: int, *, token: str | None = None) -> CivitModel | None:
         r = self._get(f'/models/{model_id}', token=token)
