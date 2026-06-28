@@ -28,6 +28,7 @@ import './setHints';
 import './monitor';
 import './history';
 import './aspectRatioOverlay';
+import './resolutionLock';
 import './authWrap';
 import './autocomplete';
 import './autocomplete_xn';
