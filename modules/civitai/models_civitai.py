@@ -92,12 +92,24 @@ class CivitModel(BaseModel):
     allow_commercial_use: list[str] = Field(default_factory=list, alias="allowCommercialUse")
     allow_derivatives: bool = Field(True, alias="allowDerivatives")
     allow_different_license: bool = Field(True, alias="allowDifferentLicense")
+    supports_generation: bool = Field(False, alias="supportsGeneration")
+    mode: str | None = None
+    poi: bool = False
+    minor: bool = False
+    sfw_only: bool = Field(False, alias="sfwOnly")
+    user_id: int = Field(0, alias="userId")
+    cosmetic: dict | None = None
 
     @validator('allow_commercial_use', pre=True)
     def coerce_commercial_use(cls, v): # pylint: disable=no-self-argument
         if isinstance(v, str):
             return [v] if v else []
         return v
+
+    @validator('poi', 'minor', 'sfw_only', pre=True)
+    def coerce_null_flags(cls, v): # pylint: disable=no-self-argument
+        # These flags serialize as null on some endpoints; treat null as not-set.
+        return False if v is None else v
 
 
 class CivitSearchMetadata(BaseModel):
