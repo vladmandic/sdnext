@@ -73,6 +73,13 @@ class CivitCreator(BaseModel):
     username: str = "Unknown"
     image: str | None = None
 
+    @validator('username', pre=True)
+    def coerce_null_username(cls, v): # pylint: disable=no-self-argument
+        # Deleted/anonymous creators serialize username as null, which failed
+        # str validation and rejected the entire search response. Fall back to
+        # the default name instead of dropping the whole page.
+        return "Unknown" if v in (None, "") else v
+
 
 class CivitModel(BaseModel):
     class Config:
