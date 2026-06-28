@@ -62,10 +62,12 @@ def quantize_attn(
     return q_q, q_scale, k_q, k_scale, v_q, v_scale
 
 
-@triton.autotune(configs=matmul_configs, key=["QN_AT", "QHD", "VN_AT", "VHD", "qk_is_quantized", "pv_is_quantized", "q_dtype", "v_dtype", "out_dtype", "mask_dtype"], cache_results=True)
+@triton.autotune(configs=matmul_configs, key=["QN_AT", "QHD", "VN_AT", "VHD", "qk_is_quantized", "pv_is_quantized", "q_dtype", "v_dtype", "out_dtype", "mask_dtype", "is_causal"], cache_results=True)
 @triton.jit
 def sdnq_attn_kernel(
-    q_ptr, k_ptr, v_ptr, q_scale_ptr, k_scale_ptr, v_scale_ptr, out_ptr, mask_ptr,
+    q_ptr, k_ptr, v_ptr,
+    q_scale_ptr, k_scale_ptr, v_scale_ptr,
+    out_ptr, mask_ptr, is_causal: tl.constexpr,
     QZ: tl.constexpr, QH: tl.constexpr, QN: tl.constexpr, QHD: tl.constexpr,
     KZ: tl.constexpr, KH: tl.constexpr, KN: tl.constexpr, KHD: tl.constexpr,
     VZ: tl.constexpr, VH: tl.constexpr, VN: tl.constexpr, VHD: tl.constexpr,
@@ -88,6 +90,8 @@ def sdnq_attn_kernel(
     start_m = tl.program_id(0)
     off_z = tl.program_id(2)
     off_h = tl.program_id(1)
+    offs_m = start_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
+    offs_n = tl.arange(0, BLOCK_SIZE_N)
     num_kv_groups = QH // VH
     off_h_kv = off_h // num_kv_groups
 
@@ -110,7 +114,12 @@ def sdnq_attn_kernel(
 
     q = Q_desc.load([start_m * BLOCK_SIZE_M, 0])
 
-    lo, hi = 0, KN
+    lo = 0
+    if is_causal:
+        hi = tl.minimum(KN, (start_m + 1) * BLOCK_SIZE_M + KN - QN)
+    else:
+        hi = KN
+
     for start_n in range(lo, hi, BLOCK_SIZE_N):
         start_n = tl.multiple_of(start_n, BLOCK_SIZE_N)
         skip = False
@@ -130,6 +139,10 @@ def sdnq_attn_kernel(
                     qk = tl.dot(q, k, out_dtype=tl.float32) * q_scale * k_scale
             else:
                 qk = tl.dot(q, k, out_dtype=tl.float32)
+
+            if is_causal:
+                causal_mask = (offs_m[:, None] + (KN - QN)) >= (start_n + offs_n[None, :])
+                qk = tl.where(causal_mask, qk, -float('inf'))
 
             if mask_ptr is not None:
                 if mask.dtype == tl.int1:
@@ -190,7 +203,6 @@ def sdnq_triton_atten_forward(
     do_quantize: bool = True,
     out_dtype: torch.dtype | None = None,
 ) -> torch.FloatTensor:
-    assert not is_causal
     if out_dtype is None:
         out_dtype = query.dtype
     QZ, QH, QN, QHD = query.shape
@@ -221,7 +233,9 @@ def sdnq_triton_atten_forward(
         pv_matmul_dtype=pv_matmul_dtype if do_quantize else "no",
     )
     sdnq_attn_kernel[grid](
-        query, key, value, query_scale, key_scale, value_scale, out, attn_mask,
+        query, key, value,
+        query_scale, key_scale, value_scale,
+        out, attn_mask, is_causal,
         *query.shape, *key.shape, *value.shape, *out.shape,
         *(attn_mask.shape if attn_mask is not None else (0, 0, 0, 0)),
         *query.stride(), *key.stride(), *value.stride(), *out.stride(),
