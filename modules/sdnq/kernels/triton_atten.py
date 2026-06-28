@@ -116,7 +116,7 @@ def sdnq_attn_kernel(
 
     lo = 0
     if is_causal:
-        hi = tl.minimum(KN, (start_m + 1) * BLOCK_SIZE_M + KN - QN)
+        hi = tl.minimum(KN, (start_m + 1) * BLOCK_SIZE_M)
     else:
         hi = KN
 
@@ -141,7 +141,7 @@ def sdnq_attn_kernel(
                 qk = tl.dot(q, k, out_dtype=tl.float32)
 
             if is_causal:
-                causal_mask = (offs_m[:, None] + (KN - QN)) >= (start_n + offs_n[None, :])
+                causal_mask = offs_m[:, None] >= (start_n + offs_n[None, :])
                 qk = tl.where(causal_mask, qk, -float('inf'))
 
             if mask_ptr is not None:
