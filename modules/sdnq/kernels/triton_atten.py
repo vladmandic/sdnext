@@ -10,7 +10,7 @@ from ..quant_utils import quantize_int_mm, quantize_fp_mm, get_hadamard, apply_h
 
 min_block_size = int(os.environ.get("SDNQ_TRITON_ATTEN_MIN_BLOCK_SIZE", "32"))
 matmul_configs = [
-    triton.Config({'BLOCK_SIZE_M': BM, 'BLOCK_SIZE_N': BN}, num_warps=w, num_stages=s)
+    triton.Config({"BLOCK_SIZE_M": BM, "BLOCK_SIZE_N": BN}, num_warps=w, num_stages=s)
     for BM in [int(BM) for BM in os.environ.get("SDNQ_TRITON_ATTEN_BLOCK_SIZE_M_LIST", "64").replace(" ","").split(",")]
     for BN in [int(BN) for BN in os.environ.get("SDNQ_TRITON_ATTEN_BLOCK_SIZE_N_LIST", "32").replace(" ","").split(",")]
     for w in [int(w) for w in os.environ.get("SDNQ_TRITON_ATTEN_NUM_WARPS_LIST", "2,4,8").replace(" ","").split(",")]
@@ -142,11 +142,11 @@ def sdnq_attn_kernel(
 
             if is_causal:
                 causal_mask = offs_m[:, None] >= (start_n + offs_n[None, :])
-                qk = tl.where(causal_mask, qk, -float('inf'))
+                qk = tl.where(causal_mask, qk, float("-inf"))
 
             if mask_ptr is not None:
                 if mask.dtype == tl.int1:
-                    qk = tl.where(mask, qk, -float('inf'))
+                    qk = tl.where(mask, qk, float("-inf"))
                 else:
                     qk = qk + mask
 
@@ -217,7 +217,7 @@ def sdnq_triton_atten_forward(
     if attn_mask is not None:
         attn_mask = attn_mask.expand((QZ, QH, QN, KN)).contiguous()
         if not math.log(KN, 2).is_integer():
-            pad_value = -float('inf') if torch.is_floating_point(attn_mask) else 0
+            pad_value = float("-inf") if torch.is_floating_point(attn_mask) else 0
             attn_mask = torch.nn.functional.pad(attn_mask, (0, triton.next_power_of_2(KN) - KN), value=pad_value)
         if attn_mask.dtype == torch.bool:
             attn_mask = attn_mask.to(dtype=torch.int8)
