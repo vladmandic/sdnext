@@ -208,7 +208,7 @@ def run_ltx(task_id,
             final_w = base_w * 2
             final_h = base_h * 2
             if (final_w, final_h) != (target_w, target_h):
-                log.warning(f'LTX: two-stage refine needs resolution divisible by 64; adjusting {target_w}x{target_h} -> {final_w}x{final_h}')
+                log.warning(f'LTX: resolution={target_w}x{target_h} adjusted={final_w}x{final_h} two-stage refine needs resolution divisible by 64')
         elif effective_upsample_enable:
             base_w = target_w
             base_h = target_h
@@ -219,7 +219,7 @@ def run_ltx(task_id,
             base_h = target_h
             final_w = target_w
             final_h = target_h
-        log.debug(f'LTX: resolution planning target={target_w}x{target_h} base={base_w}x{base_h} final={final_w}x{final_h} auto_refine_upsample={auto_refine_upsample}')
+        log.debug(f'LTX: resolution planning target={target_w}x{target_h} base={base_w}x{base_h} final={final_w}x{final_h} upsample={auto_refine_upsample}')
 
         videojob = shared.state.begin('Video', task_id=task_id)
         shared.state.job_count = 1
@@ -518,7 +518,7 @@ def run_ltx(task_id,
                             shift_terminal=None,
                         )
                         if caps.supports_canonical_stage2:
-                            log.info(f'LTX: canonical Stage 2 via distilled LoRA repo={caps.stage2_dev_lora_repo}')
+                            log.debug(f'LTX: stage=2 distilled=LoRA repo={caps.stage2_dev_lora_repo}')
                             offline_args = {'local_files_only': True} if shared.opts.offline_mode else {}
                             shared.sd_model.load_lora_weights(
                                 caps.stage2_dev_lora_repo,
@@ -528,7 +528,7 @@ def run_ltx(task_id,
                             )
                             shared.sd_model.set_adapters([STAGE2_DEV_LORA_ADAPTER], [1.0])
                         else:
-                            log.info('LTX: canonical Stage 2 (Distilled native, no LoRA)')
+                            log.debug('LTX: stage=2 distilled=native')
                         # Identity kwargs override any guidance left from earlier in refine_args.
                         refine_args.update(_canonical_stage2_kwargs())
                         refine_args.pop('num_inference_steps', None)
@@ -572,9 +572,9 @@ def run_ltx(task_id,
                                 from modules.lora.extra_networks_lora import unload_diffusers
                                 unload_diffusers()
                             except Exception as e:
-                                log.warning(f'LTX: canonical Stage 2 LoRA unload failed: {e}')
+                                log.warning(f'LTX: stage=2 distilled=LoRA unload failed: {e}')
                         shared.sd_model.scheduler = saved_scheduler_stage2
-                        log.debug('LTX: canonical Stage 2 cleanup done (scheduler restored)')
+                        # log.debug('LTX: stage=2 cleanup done')
                 t8 = time.time()
                 shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model, silent=True)
                 t9 = time.time()
