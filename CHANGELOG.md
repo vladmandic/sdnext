@@ -34,23 +34,24 @@ Plus new **Krea 2** model and **SDNQ** improvements: now with *NPU* support and 
 - **Internal**
   - delay init of video models
 - **Fixes**
-  - `sdnq` warn instead of error for triton
-  - `insightface` missing dependencies
-  - `pulid` import paths
-  - `processors` init code and multiple fixes
-  - `live preview` configurable pause when not in focus, thanks @Artheriax
-  - `mps` install `torchsde` as requirement
-  - `vae` scale factor improved detection
-  - `ui` networks details scrollbars
-  - `onnxruntime` handle invalid version
-  - `onnxruntime` mark all import paths as non-critical
-  - `measure` handle current kanvas stage
-  - `caption` button in standard-ui
-  - `python` experimental/ignore version checks
-  - `hipBLASLt` improved detection, thanks @0xDELUXA
-  - `embeddings` handle textual-inversion with new transformers
-  - `options` handle compatibility options
-  - `log` strip ansi sequences from ring buffer and client side logging
+  - sdnq: warn instead of error for triton
+  - insightface: missing dependencies
+  - pulid: import paths
+  - processors: init code and multiple fixes
+  - live preview: configurable pause when not in focus, thanks @Artheriax
+  - mps: install `torchsde` as requirement
+  - vae: scale factor improved detection
+  - ui: networks details scrollbars
+  - onnxruntime: handle invalid version
+  - onnxruntime: mark all import paths as non-critical
+  - measure: handle current kanvas stage
+  - caption: button in standard-ui
+  - python: experimental/ignore version checks
+  - hipBLASLt: improved detection, thanks @0xDELUXA
+  - embeddings: handle textual-inversion with new transformers
+  - options: handle compatibility options
+  - log: strip ansi sequences from ring buffer and client side logging
+  - model metadata: handle invalid metadata and strip workflows
 
 ## Update for 2026-06-16
 

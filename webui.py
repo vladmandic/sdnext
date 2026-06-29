@@ -92,8 +92,6 @@ def initialize():
     def _scan_models():
         modules.modelloader.cleanup_models()
         modules.sd_checkpoint.setup_model()
-        from modules.sd_checkpoint import write_metadata
-        write_metadata()
     def _scan_lora():
         from modules.lora import lora_load
         lora_load.list_available_networks()
@@ -109,6 +107,9 @@ def initialize():
                 future.result()
             except Exception as e:
                 log.error(f'Scan error: {name} {e}')
+    from modules.sd_checkpoint import write_metadata
+    write_metadata()
+
     timer.startup.record("scans")
 
     shared.prompt_styles.reload()
