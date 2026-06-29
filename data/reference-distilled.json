@@ -33,7 +33,7 @@
     "size": 38.78
   },
   "Microsoft Lens Turbo": {
-    "path": "microsoft/Lens-Turbo",
+    "path": "Jinstudio/Lens-Turbo",
     "preview": "microsoft--Lens-Turbo.jpg",
     "desc": "Microsoft Lens-Turbo is the distilled Lens variant optimized for faster text-to-image generation with fewer steps.",
     "size": 30.53,

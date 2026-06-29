@@ -1,20 +1,21 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-26
+## Update for 2026-06-29
 
-### Highlights for 2026-06-26
+### Highlights for 2026-06-29
 
 Service-pack update with several fixes and quality-of-life improvements  
-Plus new **Krea 2** model and **SDNQ** improvements: now with NPU support and its own native attention kernels!  
+Plus new **Krea 2** model and **SDNQ** improvements: now with *NPU* support and its own native *attention* kernels!  
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-06-26
+### Details for 2026-06-29
 
 - **Models**
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
     both *base* and *turbo* are available in both full *bf16* and *sdnq* pre-quantized variants  
     K2 is a 12.9B single-stream flow-matching DiT and using a Qwen3-VL-4B text encoder  
+  - **Microsoft Lens** got unpublished, but we still got a mirror
 - **Features**
   - **SDNQ-Attention**  
     modelled after *sage-attention*, but modified to support AMD and Intel GPUs in addition to nVidia  

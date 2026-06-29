@@ -307,8 +307,26 @@ def get_hf_api_hijack(user_agent = None): # pylint: disable=unused-argument
     return HfApi(library_name="kernels", user_agent="donottrack")
 
 
-def set_attention_dispatcher(pipe):
+def hijack_kernels():
     global orig_get_kernel # pylint: disable=global-statement
+    try:
+        install('kernels==0.14.1')
+        import kernels
+        import kernels.utils
+        log.debug(f'Attention dispatcher: kernels={kernels.__version__}')
+        if orig_get_kernel is None:
+            orig_get_kernel = kernels.get_kernel
+            kernels.get_kernel = get_kernel_hijack
+            kernels.utils._get_hf_api = get_hf_api_hijack # pylint: disable=protected-access
+        from diffusers.utils import import_utils
+        import_utils._kernels_available = True # pylint: disable=protected-access
+        import_utils._kernels_version = kernels.__version__ # pylint: disable=protected-access
+    except Exception as e:
+        log.error(f'Attention dispatcher kernels: {e}')
+        return
+
+
+def set_attention_dispatcher(pipe):
     from modules import shared
     attn = shared.opts.hf_attention.strip().lower()
     if pipe is None or not hasattr(pipe, 'transformer') or not hasattr(pipe.transformer, 'set_attention_backend'):
@@ -320,21 +338,7 @@ def set_attention_dispatcher(pipe):
     # https://huggingface.co/docs/diffusers/optimization/attention_backends#available-backends
 
     if 'hub' in attn:
-        try:
-            install('kernels==0.14.1')
-            import kernels
-            import kernels.utils
-            log.debug(f'Attention dispatcher: kernels={kernels.__version__}')
-            if orig_get_kernel is None:
-                orig_get_kernel = kernels.get_kernel
-                kernels.get_kernel = get_kernel_hijack
-                kernels.utils._get_hf_api = get_hf_api_hijack # pylint: disable=protected-access
-            from diffusers.utils import import_utils
-            import_utils._kernels_available = True # pylint: disable=protected-access
-            import_utils._kernels_version = kernels.__version__ # pylint: disable=protected-access
-        except Exception as e:
-            log.error(f'Attention dispatcher kernels: {e}')
-            return
+        hijack_kernels()
 
     prev = a._AttentionBackendRegistry.get_active_backend() # pylint: disable=protected-access
     if attn in backends:

@@ -35,14 +35,14 @@
     "date": "2023 July"
   },
   "Microsoft Lens": {
-    "path": "microsoft/Lens",
+    "path": "Jinstudio/Lens",
     "preview": "microsoft--Lens.jpg",
     "desc": "Microsoft Lens is a text-to-image DiT model using GPT-OSS chat-style prompt encoding and Flux2 VAE decoding.",
     "size": 30.53,
     "date": "2026 May"
   },
   "Microsoft Lens Base": {
-    "path": "microsoft/Lens-Base",
+    "path": "Jinstudio/Lens-Base",
     "preview": "microsoft--Lens-Base.jpg",
     "desc": "Microsoft Lens-Base is the base variant of Lens for text-to-image generation with GPT-OSS prompt features.",
     "size": 30.53,
@@ -730,13 +730,6 @@
     "size": 25.56,
     "date": "2024 October"
   },
-  "Bria 3.2": {
-    "path": "briaai/BRIA-3.2",
-    "desc": "Bria 3.2 is the next-generation commercial-ready text-to-image model. With just 4 billion parameters, it provides exceptional aesthetics and text rendering, evaluated to provide on par results to leading open-source models, and outperforming other licensed models.",
-    "preview": "briaai--BRIA-3.2.jpg",
-    "size": 18.66,
-    "date": "2025 June"
-  },
   "Meissonic": {
     "path": "MeissonFlow/Meissonic",
     "desc": "Meissonic is a non-autoregressive mask image modeling text-to-image synthesis model that can generate high-resolution images. It is designed to run on consumer graphics cards.",
@@ -832,6 +825,13 @@
     "extras": "sampler: Default, cfg_scale: 3.5",
     "size": 24.13,
     "date": "2025 December"
+  },
+  "Bria 3.2": {
+    "path": "SahilCarterr/BRIA-3.2",
+    "desc": "Bria 3.2 is the next-generation commercial-ready text-to-image model. With just 4 billion parameters, it provides exceptional aesthetics and text rendering, evaluated to provide on par results to leading open-source models, and outperforming other licensed models.",
+    "preview": "briaai--BRIA-3.2.jpg",
+    "size": 18.66,
+    "date": "2025 June"
   },
   "StepFun Step1X-Edit v1.1": {
     "path": "stepfun-ai/Step1X-Edit-v1p1-diffusers",

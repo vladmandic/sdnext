@@ -12,6 +12,9 @@ def load_lens(checkpoint_info, diffusers_load_config=None):
     sd_models.hf_auth_check(checkpoint_info)
     from pipelines import lens
 
+    from modules.attention import hijack_kernels
+    hijack_kernels()
+
     load_args, _quant_args = model_quant.get_dit_args(diffusers_load_config, allow_quant=False)
     log.debug(f'Load model: type=Lens repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} reasoner={shared.opts.model_lens_enable_pe} args={load_args}')
 
