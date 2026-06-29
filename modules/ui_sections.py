@@ -13,7 +13,13 @@ def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate
         return [gr.Textbox.update(value=prompt), gr.Textbox.update(value=prompt_neg), gr.Dropdown.update(value=[])]
 
     def parse_style(styles):
-        return styles.split('|') if styles is not None else None
+        if isinstance(styles, str):
+            styles = [x.strip() for x in styles.split('|') if x.strip() != '']
+        elif isinstance(styles, list):
+            styles = [x.strip() for x in styles if x.strip() != '']
+        else:
+            styles = None
+        return styles
 
     if id_part is None:
         id_part = "img2img" if is_img2img else "txt2img"

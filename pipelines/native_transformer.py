@@ -238,7 +238,7 @@ def load(
         )
         quant_type = model_quant.get_quant_type(quant_args)
 
-    log.debug(f'Load model: native_transformer reading state_dict cls={spec.cls.__name__} file="{os.path.basename(local_file)}"')
+    log.debug(f' cls={spec.cls.__name__} file="{os.path.basename(local_file)}" reading state_dict')
     state_dict = sd_models.read_state_dict(local_file, what="transformer")
     state_dict = strip_prefix(state_dict, spec.prefixes, spec.cls.__name__)
     check_forbidden_markers(state_dict, spec.forbidden_markers, spec.cls.__name__, local_file)
@@ -247,7 +247,7 @@ def load(
 
     sibling_counts = {name: len(sd) for name, sd in sibling_sds.items() if sd}
     log.info(
-        f'Load model: type={spec.cls.__name__} custom="{os.path.basename(local_file)}" '
+        f' cls={spec.cls.__name__} custom="{os.path.basename(local_file)}" '
         f"transformer_keys={len(transformer_sd)} siblings={sibling_counts or '{}'}"
     )
 
@@ -385,14 +385,10 @@ def fetch_component_config(repo_id: str, subfolder: str) -> dict:
     """Download and parse ``<subfolder>/config.json`` from the base repo."""
     relative_path = f"{subfolder}/config.json"
     try:
-        local = hf.hf_hub_download(
-            repo_id, filename=relative_path, cache_dir=shared.opts.diffusers_dir,
-        )
+        local = hf.hf_hub_download(repo_id, filename=relative_path, cache_dir=shared.opts.diffusers_dir)
     except Exception as e:
-        raise RuntimeError(
-            f'Load model: native_transformer failed to download {relative_path} '
-            f'from repo="{repo_id}": {e}'
-        ) from e
+        log.error(f' path="{relative_path}" repo="{repo_id}" failed to download: {e}')
+        raise RuntimeError('') from e
     return shared.readfile(local, as_type="dict")
 
 
@@ -435,7 +431,7 @@ def build_component_quantized(
     quantization_config = quant_args.get("quantization_config")
     if quantization_config is None:
         raise ValueError(
-            f"Load model: native_transformer {component_name} "
+            f"Load model: transformer=native {component_name} "
             f"per-tensor quantization requires quant_args['quantization_config']"
         )
 
@@ -522,7 +518,7 @@ def build_component(
     """
     try:
         if converter is not None:
-            log.debug(f'Load model: native_transformer {component_name} converter={converter.__name__} keys={len(state_dict)}')
+            log.debug(f'Load model: transformer=native {component_name} converter={converter.__name__} keys={len(state_dict)}')
             try:
                 sd = converter(state_dict)
             except Exception as e:
@@ -549,19 +545,19 @@ def build_component(
             devices.torch_gc()
             return component
 
-        log.debug(f'Load model: native_transformer {component_name} loading keys={len(sd)} cls={cls.__name__}')
+        log.debug(f'Load model: transformer=native {component_name} loading keys={len(sd)} cls={cls.__name__}')
         component = cls.from_config(config, **kwargs)
         missing, unexpected = component.load_state_dict(sd, strict=False)
         validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
         del sd
         devices.torch_gc()
         target_dtype = dtype if dtype is not None else devices.dtype
-        log.debug(f'Load model: native_transformer {component_name} cast dtype={target_dtype}')
+        log.debug(f'Load model: transformer=native {component_name} cast dtype={target_dtype}')
         component = component.to(dtype=target_dtype)
     except OverrideArchMismatch:
         raise
     except Exception as e:
-        log.error(f"Load model: native_transformer {component_name} load failed: {e}")
+        log.error(f"Load model: transformer=native {component_name} load failed: {e}")
         errors.display(e, "Load")
         raise
 
@@ -598,7 +594,7 @@ def validate_state_dict_load(
     if unexpected:
         sample = ", ".join(unexpected[:5])
         raise OverrideArchMismatch(
-            f"Load model: native_transformer {component_name} has {len(unexpected)} "
+            f"Load model: transformer=native {component_name} has {len(unexpected)} "
             f"unexpected keys (sample: {sample})"
         )
     hard_missing = [
@@ -607,12 +603,12 @@ def validate_state_dict_load(
     if hard_missing:
         sample = ", ".join(hard_missing[:5])
         raise OverrideArchMismatch(
-            f"Load model: native_transformer {component_name} missing "
+            f"Load model: transformer=native {component_name} missing "
             f"{len(hard_missing)} required keys (sample: {sample})"
         )
     if missing:
         log.debug(
-            f"Load model: native_transformer {component_name} ignored "
+            f"Load model: transformer=native {component_name} ignored "
             f"{len(missing)} buffer-only missing keys"
         )
 
@@ -638,7 +634,7 @@ def apply_quant(
     """
     if quant_type == "NVIDIAModelOptConfig":
         log.warning(
-            "Load model: native_transformer quant=TRT not supported on native path, skipping"
+            "Load model: transformer=native quant=TRT not supported on native path, skipping"
         )
     elif quant_type == "SDNQConfig":
         model_quant.sdnq_quantize_model(

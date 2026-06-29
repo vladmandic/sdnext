@@ -149,7 +149,7 @@ def guess_by_name(fn, current_guess):
         new_guess = 'ERNIEImage'
     elif 'nucleus-image' in fn.lower() or 'nucleusmoe-image' in fn.lower():
         new_guess = 'NucleusImage'
-    elif 'z-image' in fn.lower() or 'z_image' in fn.lower():
+    elif 'z-image' in fn.lower() or 'z_image' in fn.lower() or 'zimage' in fn.lower():
         new_guess = 'ZImage'
     elif 'krea-2' in fn.lower() or 'krea2' in fn.lower():
         new_guess = 'Krea2'

@@ -66,7 +66,12 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
         pipeline_file = os.path.join(repo_id, 'pipeline.py')
     else:
         try:
-            pipeline_file = hf.hf_hub_download(repo_id, filename='pipeline.py', cache_dir=shared.opts.hfcache_dir)
+            if os.path.exists(repo_id):
+                from pipelines.generic_map import transformers_map
+                custom_id = transformers_map.get('AnimaTextToImagePipeline', repo_id)
+            else:
+                custom_id = repo_id
+            pipeline_file = hf.hf_hub_download(repo_id=custom_id, filename='pipeline.py', cache_dir=shared.opts.hfcache_dir)
         except Exception as e:
             log.error(f'Load model: type=Anima failed to download custom modules: {e}')
             return None
@@ -74,7 +79,12 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
         adapter_file = os.path.join(repo_id, 'llm_adapter/modeling_llm_adapter.py')
     else:
         try:
-            adapter_file = hf.hf_hub_download(repo_id, filename='llm_adapter/modeling_llm_adapter.py', cache_dir=shared.opts.hfcache_dir)
+            if os.path.exists(repo_id):
+                from pipelines.generic_map import transformers_map
+                custom_id = transformers_map.get('AnimaTextToImagePipeline', repo_id)
+            else:
+                custom_id = repo_id
+            adapter_file = hf.hf_hub_download(repo_id=custom_id, filename='llm_adapter/modeling_llm_adapter.py', cache_dir=shared.opts.hfcache_dir)
         except Exception as e:
             log.error(f'Load model: type=Anima failed to download custom modules: {e}')
             return None

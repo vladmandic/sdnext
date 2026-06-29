@@ -24,6 +24,9 @@ Plus new **Krea 2** model and **SDNQ** improvements: now with *NPU* support and 
     use to force model components to override loading with desired dtype regardless of component config  
   - add option: *backend settings -> force sychronize*  
     enabled by default, disable to speed up processing but may cause image corruptions, especially during preview
+  - add option: *model loading -> attempt to load incomplete model*  
+    disabled by default, attempts to load model by mapping it to known model even if some components are missing  
+    for example: if you place bare unet/dit finetune into stable-diffusion folder  
 - **UI**
   - dynamic visibility of image controls
   - improve main panel positioning: *portrait/landscape*

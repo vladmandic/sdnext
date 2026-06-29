@@ -3,6 +3,7 @@ import torch
 from modules import shared, devices, errors, sd_models, sd_offload, model_quant
 from modules.logger import log
 from pipelines.generic_util import get_loader
+from pipelines.generic_map import transformers_map
 
 
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
@@ -53,12 +54,25 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
             )
 
         local_file = None
+        fallback = True
+
         from modules import sd_unet
         if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
             if shared.opts.sd_unet not in list(sd_unet.unet_dict):
                 log.error(f'Load module: type=transformer file="{shared.opts.sd_unet}" not found')
             elif os.path.exists(sd_unet.unet_dict[shared.opts.sd_unet]):
                 local_file = sd_unet.unet_dict[shared.opts.sd_unet]
+
+        if repo_id.startswith(shared.opts.ckpt_dir) and os.path.exists(repo_id):
+            log.error(f'Load model: transformer="{repo_id}" is incorrectly placed in the checkpoints folder')
+            local_file = repo_id
+            if shared.opts.allow_incomplete_model:
+                log.warning(f'Load model: transformer="{repo_id}" is a local path, attempting to map to a HuggingFace for config fetch')
+                repo_id = transformers_map.get(cls_name.__name__, repo_id)
+                log.warning(f'Load model: transformer="{repo_id}" repo="{repo_id}" attempting to load...')
+            else:
+                return None
+            fallback = False
 
         # 1. load gguf
         if local_file is not None and local_file.lower().endswith('.gguf'):
@@ -86,18 +100,20 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                     **kwargs,
                 )
             except native_transformer.OverrideArchMismatch as e:
-                log.warning(f'Load model: transformer override="{shared.opts.sd_unet}" incompatible with cls={cls_name.__name__} ({e}); ignoring override and loading base transformer')
-                shared.opts.data['sd_unet'] = 'Default'
-                sd_unet.loaded_unet = None
-                transformer = load_from_repo()
+                log.warning(f'Load model: transformer="{local_file}" override incompatible with cls={cls_name.__name__} ({e})')
+                if fallback:
+                    log.warning(f'Load model: transformer="{local_file}" ignoring override and loading base transformer')
+                    shared.opts.data['sd_unet'] = 'Default'
+                    sd_unet.loaded_unet = None
+                    transformer = load_from_repo()
 
         # 3. load safetensors with diffusers loader
         elif local_file is not None and local_file.lower().endswith('.safetensors'):
-            log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("diffusers")} args={load_args}')
             if dtype is not None:
                 load_args['torch_dtype'] = dtype
             load_args.pop('device_map', None) # single-file uses different syntax
             loader = cls_name.from_single_file if hasattr(cls_name, 'from_single_file') else cls_name.from_pretrained
+            log.debug(f'Load model: transformer="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("diffusers")} method={loader.__name__} args={load_args}')
             transformer = loader(
                 local_file,
                 cache_dir=shared.opts.hfcache_dir,

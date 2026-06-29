@@ -105,6 +105,7 @@ def create_settings(cmd_opts):
         "runai_streamer_diffusers": OptionInfo(False, "Diffusers load using Run:ai streamer", gr.Checkbox),
         "runai_streamer_transformers": OptionInfo(False, "Transformers load using Run:ai streamer", gr.Checkbox),
         "diffusers_eval": OptionInfo(False, "Force model eval", gr.Checkbox, {"visible": True }),
+        "allow_incomplete_model": OptionInfo(False, "Attempt to load incomplete model", gr.Checkbox),
         "device_map": OptionInfo('default', "Model load device map", gr.Radio, {"choices": ['default', 'gpu', 'cpu'] }),
         "disable_accelerate": OptionInfo(False, "Disable accelerate", gr.Checkbox, {"visible": False }),
         "sd_checkpoint_cache": OptionInfo(0, "Cached models", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1, "visible": False }),

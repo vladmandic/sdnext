@@ -10693,6 +10693,7 @@ function setupExtraNetworksForTab(tabName) {
   const txtSearch = gradioApp().querySelector(`#${tabName}_extra_search`);
   const txtSearchValue = gradioApp().querySelector(`#${tabName}_extra_search textarea`);
   const txtDescription = gradioApp().getElementById(`${tabName}_description`);
+  if (!txtSearch || !txtSearchValue || !txtDescription) return;
   txtSearch.classList.add("search");
   txtDescription.classList.add("description");
   div.appendChild(txtSearch);
