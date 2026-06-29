@@ -450,7 +450,11 @@ def move_module_to_cpu(module, op='unk', force:bool=False):
             op = f'{op}:always'
             module = do_move(module)
             used_gpu -= module_size
-        elif perc_gpu > shared.opts.diffusers_offload_min_gpu_memory:
+        # only offload under genuine memory pressure: if the whole working set already fits within the
+        # GPU budget (diffusers_offload_max_gpu_memory) then offloading here just forces a costly
+        # re-onload on the module's next forward -- e.g. the UNet evicted to run the text encoder / VAE
+        # then re-dispatched every generation (~2x slowdown on cards with spare VRAM).
+        elif perc_gpu > shared.opts.diffusers_offload_min_gpu_memory and offload_hook_instance.model_size() > offload_hook_instance.gpu / (1024 ** 3):
             op = f'{op}:mem'
             module = do_move(module)
             used_gpu -= module_size
