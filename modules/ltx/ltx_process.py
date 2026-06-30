@@ -234,8 +234,6 @@ def run_ltx(task_id,
         condition_images = []
         if ltx_init_image is not None:
             condition_images.append(ltx_init_image)
-        if condition_last is not None:
-            condition_images.append(condition_last)
         conditions = []
         conditions_stage2 = []
         if caps.supports_multi_condition:
@@ -246,14 +244,14 @@ def run_ltx(task_id,
                 base_w, base_h, condition_strength,
                 condition_images, condition_files, condition_video,
                 condition_video_frames, condition_video_skip,
-                family=caps.family,
+                family=caps.family, num_frames=get_frames(frames), condition_last=condition_last,
             )
             if (final_w, final_h) != (base_w, base_h):
                 conditions_stage2 = get_conditions(
                     final_w, final_h, condition_strength,
                     condition_images, condition_files, condition_video,
                     condition_video_frames, condition_video_skip,
-                    family=caps.family,
+                    family=caps.family, num_frames=get_frames(frames), condition_last=condition_last,
                 )
             else:
                 conditions_stage2 = conditions

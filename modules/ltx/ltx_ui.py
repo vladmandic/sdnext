@@ -16,6 +16,7 @@ def _model_change(model_name: str):
         return (
             gr.update(visible=False),   # input_media_accordion
             gr.update(visible=False),   # multi_condition_group
+            gr.update(visible=False),   # last_image
             gr.update(visible=False),   # upsample_accordion
             gr.update(visible=False),   # refine_accordion
             gr.update(value=False),     # upsample_enable (reset)
@@ -38,6 +39,7 @@ def _model_change(model_name: str):
     return (
         gr.update(visible=caps.supports_input_media),
         gr.update(visible=caps.supports_multi_condition),
+        gr.update(visible=caps.supports_multi_condition),  # last_image
         gr.update(visible=True),
         gr.update(visible=True),
         gr.update(value=False),
@@ -73,7 +75,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
                 ltx_init_image = gr.Image(label='Image', elem_id='ltx_init_image', type='pil', image_mode='RGB', width=256, height=256)
                 ltx_condition_strength = gr.Slider(label='LTX input strength', minimum=0.0, maximum=1.0, step=0.05, value=1.0, elem_id='ltx_condition_strength')
                 with gr.Row():
-                    last_image = gr.Image(label='Last image', elem_id='ltx_last_image', type='pil', image_mode='RGB', width=256, height=256)
+                    last_image = gr.Image(label='Last image', elem_id='ltx_last_image', type='pil', image_mode='RGB', width=256, height=256, visible=False)
                 multi_condition_group = gr.Group(visible=False)
                 with multi_condition_group:
                     gr.Markdown('**Prefix conditioning**: supply a video or gallery to anchor the opening frames', elem_id='ltx_prefix_conditioning_label')
@@ -123,6 +125,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
         outputs=[
             input_media_accordion,
             multi_condition_group,
+            last_image,
             upsample_accordion,
             refine_accordion,
             upsample_enable,
