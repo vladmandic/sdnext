@@ -1375,7 +1375,7 @@
     {"id":"","label":"Search Docs","localized":"","hint":"","ui":"system_tab_docs"},
     {"id":"","label":"Search GitHub Wiki Pages","localized":"","hint":"","ui":"system_tab_wiki"},
     {"id":"","label":"Search Changelog","localized":"","hint":"","ui":"system_tab_changelog"},
-    {"id":"","label":"Stage boundary ratio","localized":"","hint":"","ui":"settings_model_options"},
+    {"id":"","label":"Stage boundary ratio","localized":"","hint":"Timestep fraction at which the Wan 2.2 A14B mixture-of-experts hands off from the high-noise expert (coarse layout and motion) to the low-noise expert (detail and refinement). Lower values keep the high-noise expert running longer; values that are too low leave the result under-refined.<br><br>-1 uses the boundary the checkpoint shipped with and is recommended; 0 to 1 set it explicitly. Affects the combined stage only.<br>Default -1.","ui":"settings_model_options"},
     {"id":"","label":"sequential","localized":"","hint":"","ui":"settings_offload"},
     {"id":"","label":"SVD rank size","localized":"","hint":"Rank of the low-rank correction added by <b><i>Use SVD quantization</i></b>. Higher ranks recover more accuracy but add parameters and compute.<br><br>Applies only when <b><i>Use SVD quantization</i></b> is enabled.<br><br>Default is <b>32</b>.","reload":"model","ui":"settings_quantization"},
     {"id":"","label":"SVD steps","localized":"","hint":"Number of iterations used to estimate the low-rank correction for <b><i>Use SVD quantization</i></b>. More steps refine the estimate at the cost of longer quantization.<br><br>Applies only when <b><i>Use SVD quantization</i></b> is enabled.<br><br>Default is <b>8</b>.","reload":"model","ui":"settings_quantization"},

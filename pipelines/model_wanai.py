@@ -43,7 +43,8 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
         elif shared.opts.model_wan_stage == 'combined' or shared.opts.model_wan_stage == 'both':
             transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer')
             transformer_2 = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer_2')
-            boundary_ratio = shared.opts.model_wan_boundary
+            # load with the checkpoint's boundary; the slider override is applied at runtime in set_pipeline_args
+            boundary_ratio = None
         else:
             log.error(f'Load model: type=WanAI stage="{shared.opts.model_wan_stage}" unsupported')
             return None
@@ -71,15 +72,16 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
         diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["wanai"] = diffusers.WanPipeline
         diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["wanai"] = WanImagePipeline
     log.debug(f'Load model: type=WanAI model="{checkpoint_info.name}" repo="{repo_id}" cls={pipe_cls.__name__} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args} stage="{shared.opts.model_wan_stage}" boundary={boundary_ratio}')
-    pipe = pipe_cls.from_pretrained(
-        repo_id,
-        transformer=transformer,
-        transformer_2=transformer_2,
-        text_encoder=text_encoder,
-        boundary_ratio=boundary_ratio,
-        cache_dir=shared.opts.diffusers_dir,
+    wan_args = {
+        'transformer': transformer,
+        'transformer_2': transformer_2,
+        'text_encoder': text_encoder,
+        'cache_dir': shared.opts.diffusers_dir,
         **load_args,
-    )
+    }
+    if boundary_ratio is not None: # omit so from_pretrained keeps the checkpoint's shipped boundary_ratio
+        wan_args['boundary_ratio'] = boundary_ratio
+    pipe = pipe_cls.from_pretrained(repo_id, **wan_args)
     pipe.task_args = {
         'num_frames': 1,
         'output_type': 'np',
