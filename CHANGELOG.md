@@ -1,15 +1,16 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-29
+## Update for 2026-07-01
 
-### Highlights for 2026-06-29
+### Highlights for 2026-07-01
 
 Service-pack update with several fixes and quality-of-life improvements  
-Plus new **Krea 2** model and **SDNQ** improvements: now with *NPU* support and its own native *attention* kernels!  
+Plus few new models: **Krea 2**  
+And **SDNQ** improvements: now with *NPU* support and its own native *attention* kernels!  
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-06-29
+### Details for 2026-07-01
 
 - **Models**
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
@@ -20,6 +21,7 @@ Plus new **Krea 2** model and **SDNQ** improvements: now with *NPU* support and 
   - **SDNQ-Attention**  
     modelled after *sage-attention*, but modified to support AMD and Intel GPUs in addition to nVidia  
   - **SDNQ** support for NPU during quantization and inference  
+  - **First-Last-Frame** (FLF2V) support for Wan-2.2-I2V and LTX
   - add option: *compute settings -> force dtype on load*  
     use to force model components to override loading with desired dtype regardless of component config  
   - add option: *backend settings -> force sychronize*  
@@ -55,6 +57,7 @@ Plus new **Krea 2** model and **SDNQ** improvements: now with *NPU* support and 
   - options: handle compatibility options
   - log: strip ansi sequences from ring buffer and client side logging
   - model metadata: handle invalid metadata and strip workflows
+  - ui debounce aspect-ratio linked width/height controls
 
 ## Update for 2026-06-16
 

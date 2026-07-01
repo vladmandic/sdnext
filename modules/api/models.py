@@ -153,11 +153,11 @@ class ItemUNet(BaseModel):
 class ItemExtraNetwork(BaseModel):
     name: str = Field(title="Name", description="Network short name")
     type: str = Field(title="Type", description="Network type (lora, checkpoint, embedding, etc.)")
-    title: str | None = Field(title="Title", description="Display title")
-    fullname: str | None = Field(title="Fullname", description="Fully qualified network name")
-    filename: str | None = Field(title="Filename", description="Path to the network file")
-    hash: str | None = Field(title="Hash", description="Short hash identifier")
-    preview: str | None = Field(title="Preview image URL", description="URL to the preview thumbnail")
+    title: str | None = Field(default=None, title="Title", description="Display title")
+    fullname: str | None = Field(default=None, title="Fullname", description="Fully qualified network name")
+    filename: str | None = Field(default=None, title="Filename", description="Path to the network file")
+    hash: str | None = Field(default=None, title="Hash", description="Short hash identifier")
+    preview: str | None = Field(default=None, title="Preview image URL", description="URL to the preview thumbnail")
     version: str | None = Field(default=None, title="Model version or class", description="Model version string or architecture class")
     tags: str | None = Field(default=None, title="Tags", description="Pipe-separated tag list")
 

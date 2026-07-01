@@ -90,8 +90,9 @@ def get_cmd_flags():
     return vars(shared.cmd_opts)
 
 def get_history(req: models.ReqHistory = Depends()):
-    if req.id is not None and len(req.id) > 0:
-        res = [item for item in shared.state.state_history if item['id'] == req.id]
+    if req.id is not None and (isinstance(req.id, str) and len(req.id) > 0 or isinstance(req.id, int)):
+        id = str(req.id) if isinstance(req.id, int) else req.id
+        res = [item for item in shared.state.state_history if item['id'] == id]
     else:
         res = shared.state.state_history
     res = [models.ResHistory(**item) for item in res]
