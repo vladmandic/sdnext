@@ -33,6 +33,7 @@ declare global {
     // global functions
     args_to_array?: typeof Array.from; // ui/ui.ts
     updateInput?: (target: EventTarget) => void; // ui/ui.ts
+    notifyKanvasResize?: (width: number, height: number) => void; // ui/ui.ts
     cycleImageFit?: () => void; // ui/imageViewer.ts
     clip_gallery_urls?: (gallery: { data: string }[]) => void; // ui/ui.ts
     extract_image_from_gallery?: (gallery: { data?: string }[]) => ({ data?: string } | null)[]; // ui/ui.ts
@@ -75,7 +76,6 @@ declare global {
     recalculate_prompts_img2img?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     recalculate_prompts_inpaint?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     recalculate_prompts_control?: (...args: unknown[]) => unknown[]; // ui/ui.ts
-    resolutionChange?: (ar: string, width: number, height: number) => unknown[]; // ui/ui.ts
     consumeDesiredCheckpointName?: (...args: unknown[]) => unknown[]; // ui/ui.ts
     create_submit_args?: (args: unknown[]) => unknown[]; // ui/ui.ts
     selectCheckpoint?: (name: string) => void; // ui/ui.ts
