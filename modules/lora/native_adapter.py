@@ -33,7 +33,7 @@ from dataclasses import dataclass
 
 import torch
 
-from modules import shared, sd_models
+from modules import shared, sd_models, sd_models_utils
 from modules.logger import log
 from modules.lora import (
     lora_convert, network, network_boft, network_full, network_glora,
@@ -483,7 +483,7 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
-                  arch_name="generic"):
+                  arch_name="generic"): # pylint: disable=unused-argument
     """Generic LoKR loader.
 
     Stores only the compact LoKR factors and dispatches to
@@ -759,7 +759,7 @@ def try_load_norm(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
                   network_prefix=NETWORK_PREFIX_DEFAULT,
-                  arch_name="generic"):
+                  arch_name="generic"): # pylint: disable=unused-argument
     """Generic Norm (LayerNorm / RMSNorm weight + bias delta) loader.
 
     Norm targets are never fused, so the chunk dispatch is dropped.
@@ -873,6 +873,7 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
     tuple of partial-applied generic loaders, each already bound to the arch's
     ``resolve_targets`` and prefix tuples.
     """
+    sd_models_utils.state_dict_cache.enable()
     net = None
     for try_fn in family_loaders:
         sub = try_fn(name, network_on_disk, lora_scale)
@@ -882,4 +883,5 @@ def try_load_chain(name, network_on_disk, lora_scale, family_loaders):
             net = sub
         else:
             net.modules.update(sub.modules)
+    sd_models_utils.state_dict_cache.disable()
     return net

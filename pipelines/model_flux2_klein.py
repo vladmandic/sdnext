@@ -20,7 +20,12 @@ def load_flux2_klein(checkpoint_info, diffusers_load_config=None):
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
-    pipe = diffusers.Flux2KleinPipeline.from_pretrained(
+    if '-kv' in repo_id:
+        cls = diffusers.Flux2KleinKVPipeline
+    else:
+        cls = diffusers.Flux2KleinPipeline
+
+    pipe = cls.from_pretrained(
         repo_id,
         transformer=transformer,
         text_encoder=text_encoder,
@@ -30,9 +35,9 @@ def load_flux2_klein(checkpoint_info, diffusers_load_config=None):
     pipe.task_args = {
         'output_type': 'np',
     }
-    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["flux2klein"] = diffusers.Flux2KleinPipeline
-    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["flux2klein"] = diffusers.Flux2KleinPipeline
-    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["flux2klein"] = diffusers.Flux2KleinPipeline
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["flux2klein"] = cls
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["flux2klein"] = cls
+    diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["flux2klein"] = cls
 
     generic.load_vae_override(pipe, diffusers_load_config)
 

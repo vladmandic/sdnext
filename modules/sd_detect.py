@@ -92,7 +92,7 @@ def guess_by_name(fn, current_guess):
         new_guess = 'ZetaChroma'
     elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
         new_guess = 'Chroma'
-    elif 'flux.2' in fn.lower() and 'klein' in fn.lower():
+    elif ('flux.2' in fn.lower() or 'f2' in fn.lower()) and 'klein' in fn.lower():
         new_guess = 'FLUX2Klein'
     elif 'flux.2' in fn.lower():
         new_guess = 'FLUX2'
