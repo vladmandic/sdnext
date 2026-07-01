@@ -49,7 +49,20 @@ def load_local_file(local_file, cls_name, quant_type): # t5-only
     return text_encoder
 
 
-def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encoder", allow_quant=True, allow_shared=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None, **kwargs):
+def load_text_encoder(
+        repo_id,
+        cls_name,
+        load_config=None,
+        subfolder="text_encoder",
+        allow_quant=True,
+        allow_shared=True,
+        variant=None,
+        dtype=None,
+        modules_to_not_convert=None,
+        modules_dtype_dict=None,
+        use_safetensors=True,
+        **kwargs):
+
     if shared.state.interrupted:
         return None
     if repo_id is None or repo_id.lower() == 'none':
@@ -69,6 +82,8 @@ def load_text_encoder(repo_id, cls_name, load_config=None, subfolder="text_encod
         load_args.pop('torch_dtype', None)
         dtype = dtype or devices.dtype
         load_args['dtype'] = dtype
+        if use_safetensors:
+            load_args['use_safetensors'] = True
 
         # 1. load override from local file
         if (shared.opts.sd_text_encoder is not None) and (shared.opts.sd_text_encoder != 'Default') and (text_encoder is None):

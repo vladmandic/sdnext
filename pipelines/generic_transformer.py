@@ -9,7 +9,20 @@ from pipelines.generic_map import transformers_map
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 
-def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer", allow_quant=True, variant=None, dtype=None, modules_to_not_convert=None, modules_dtype_dict=None, native_spec=None, **kwargs):
+def load_transformer(
+        repo_id,
+        cls_name,
+        load_config=None,
+        subfolder="transformer",
+        allow_quant=True,
+        variant=None,
+        dtype=None,
+        modules_to_not_convert=None,
+        modules_dtype_dict=None,
+        use_safetensors=True,
+        native_spec=None,
+        **kwargs):
+
     """Load a DiT transformer from the base repo, or from a user-selected
     single file when the UNET dropdown (``shared.opts.sd_unet``) is set.
 
@@ -45,6 +58,8 @@ def load_transformer(repo_id, cls_name, load_config=None, subfolder="transformer
                 load_args['subfolder'] = subfolder
             if variant is not None:
                 load_args['variant'] = variant
+            if use_safetensors:
+                load_args['use_safetensors'] = True
             return cls_name.from_pretrained(
                 repo_id,
                 cache_dir=shared.opts.hfcache_dir,
