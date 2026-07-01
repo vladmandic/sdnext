@@ -39,27 +39,28 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
 - **Internal**
   - delay init of video models
 - **Fixes**
-  - sdnq: warn instead of error for triton
+  - amd: hipBLASLt improved detection, thanks @0xDELUXA
+  - api: add missing endpoint registration
+  - api: openapi schema exposure
+  - api: stricter api request and response schemas
+  - caption: button in standard-ui
+  - embeddings: handle textual-inversion with new transformers
   - insightface: missing dependencies
-  - pulid: import paths
-  - processors: init code and multiple fixes
   - live preview: configurable pause when not in focus, thanks @Artheriax
+  - log: strip ansi sequences from ring buffer and client side logging
+  - measure: handle current kanvas stage
+  - model metadata: handle invalid metadata and strip workflows
   - mps: install `torchsde` as requirement
-  - vae: scale factor improved detection
-  - ui: networks details scrollbars
   - onnxruntime: handle invalid version
   - onnxruntime: mark all import paths as non-critical
-  - measure: handle current kanvas stage
-  - caption: button in standard-ui
-  - python: experimental/ignore version checks
-  - hipBLASLt: improved detection, thanks @0xDELUXA
-  - embeddings: handle textual-inversion with new transformers
   - options: handle compatibility options
-  - log: strip ansi sequences from ring buffer and client side logging
-  - model metadata: handle invalid metadata and strip workflows
+  - processors: init code and multiple fixes
+  - pulid: import paths
+  - python: experimental/ignore version checks
+  - sdnq: warn instead of error for `triton`
   - ui debounce aspect-ratio linked width/height controls
-  - api: stricter api request and response schemas
-  - api: openapi schema exposure
+  - ui: networks details scrollbars
+  - vae: scale factor improved detection
 
 ## Update for 2026-06-16
 
