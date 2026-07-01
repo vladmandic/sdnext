@@ -3856,12 +3856,12 @@ var require_jquery = __commonJS({
       jQuery3.fx = Tween.prototype.init;
       jQuery3.fx.step = {};
       var fxNow, inProgress, rfxtypes = /^(?:toggle|show|hide)$/, rrun = /queueHooks$/;
-      function schedule() {
+      function schedule2() {
         if (inProgress) {
           if (document$1.hidden === false && window2.requestAnimationFrame) {
-            window2.requestAnimationFrame(schedule);
+            window2.requestAnimationFrame(schedule2);
           } else {
-            window2.setTimeout(schedule, 13);
+            window2.setTimeout(schedule2, 13);
           }
           jQuery3.fx.tick();
         }
@@ -4215,7 +4215,7 @@ var require_jquery = __commonJS({
             this.queue(type || "fx", []);
           }
           return this.each(function() {
-            var dequeue = true, index = type != null && type + "queueHooks", timers = jQuery3.timers, data = dataPriv.get(this);
+            var dequeue = true, index = type != null && type + "queueHooks", timers2 = jQuery3.timers, data = dataPriv.get(this);
             if (index) {
               if (data[index] && data[index].stop) {
                 stopQueue(data[index]);
@@ -4227,11 +4227,11 @@ var require_jquery = __commonJS({
                 }
               }
             }
-            for (index = timers.length; index--; ) {
-              if (timers[index].elem === this && (type == null || timers[index].queue === type)) {
-                timers[index].anim.stop(gotoEnd);
+            for (index = timers2.length; index--; ) {
+              if (timers2[index].elem === this && (type == null || timers2[index].queue === type)) {
+                timers2[index].anim.stop(gotoEnd);
                 dequeue = false;
-                timers.splice(index, 1);
+                timers2.splice(index, 1);
               }
             }
             if (dequeue || !gotoEnd) {
@@ -4244,16 +4244,16 @@ var require_jquery = __commonJS({
             type = type || "fx";
           }
           return this.each(function() {
-            var index, data = dataPriv.get(this), queue = data[type + "queue"], hooks = data[type + "queueHooks"], timers = jQuery3.timers, length = queue ? queue.length : 0;
+            var index, data = dataPriv.get(this), queue = data[type + "queue"], hooks = data[type + "queueHooks"], timers2 = jQuery3.timers, length = queue ? queue.length : 0;
             data.finish = true;
             jQuery3.queue(this, type, []);
             if (hooks && hooks.stop) {
               hooks.stop.call(this, true);
             }
-            for (index = timers.length; index--; ) {
-              if (timers[index].elem === this && timers[index].queue === type) {
-                timers[index].anim.stop(true);
-                timers.splice(index, 1);
+            for (index = timers2.length; index--; ) {
+              if (timers2[index].elem === this && timers2[index].queue === type) {
+                timers2[index].anim.stop(true);
+                timers2.splice(index, 1);
               }
             }
             for (index = 0; index < length; index++) {
@@ -4285,15 +4285,15 @@ var require_jquery = __commonJS({
       });
       jQuery3.timers = [];
       jQuery3.fx.tick = function() {
-        var timer2, i2 = 0, timers = jQuery3.timers;
+        var timer2, i2 = 0, timers2 = jQuery3.timers;
         fxNow = Date.now();
-        for (; i2 < timers.length; i2++) {
-          timer2 = timers[i2];
-          if (!timer2() && timers[i2] === timer2) {
-            timers.splice(i2--, 1);
+        for (; i2 < timers2.length; i2++) {
+          timer2 = timers2[i2];
+          if (!timer2() && timers2[i2] === timer2) {
+            timers2.splice(i2--, 1);
           }
         }
-        if (!timers.length) {
+        if (!timers2.length) {
           jQuery3.fx.stop();
         }
         fxNow = void 0;
@@ -4307,7 +4307,7 @@ var require_jquery = __commonJS({
           return;
         }
         inProgress = true;
-        schedule();
+        schedule2();
       };
       jQuery3.fx.stop = function() {
         inProgress = null;
@@ -11147,7 +11147,6 @@ var fontSizeApplyRaf = 0;
 var pendingFontSize = null;
 var appliedFontSize = null;
 var cachedGradioRoot = null;
-var resizeDebounce;
 var wait_time = 800;
 var token_timeouts = {};
 var uiLoaded = false;
@@ -11702,20 +11701,14 @@ async function toggleCompact(val, old) {
     gradioApp().querySelectorAll(".small-accordion .label-wrap").forEach((el2) => el2.classList.remove("accordion-compact"));
   }
 }
-function resolutionChange(ar, width, height) {
-  let desired = ar;
-  if (desired === "AR") desired = "1:1";
-  try {
-    const [w, h] = desired.split(":").map((x) => parseInt(x));
-    if (w > h) height = Math.round(width * h / w);
-    else if (h > w) width = Math.round(height * w / h);
-  } catch {
-  }
+var kanvasNotifyTimer;
+function notifyKanvasResize(width, height) {
   if (window.resizeStage) {
-    clearTimeout(resizeDebounce);
-    resizeDebounce = setTimeout(() => window.resizeStage(width, height), 250);
+    const w = Number(width);
+    const h = Number(height);
+    clearTimeout(kanvasNotifyTimer);
+    kanvasNotifyTimer = setTimeout(() => window.resizeStage?.(w, h), 250);
   }
-  return [ar, width, height];
 }
 async function reconnectUI() {
   const t0 = performance.now();
@@ -11752,6 +11745,7 @@ async function reconnectUI() {
 }
 window.restartReload = restartReload;
 window.updateInput = updateInput2;
+window.notifyKanvasResize = notifyKanvasResize;
 window.clip_gallery_urls = clip_gallery_urls;
 window.extract_image_from_gallery = extract_image_from_gallery;
 window.getCaptionActiveTab = getCaptionActiveTab;
@@ -11783,7 +11777,6 @@ window.recalculate_prompts_txt2img = recalculate_prompts_txt2img;
 window.recalculate_prompts_img2img = recalculate_prompts_img2img;
 window.recalculate_prompts_inpaint = recalculate_prompts_inpaint;
 window.recalculate_prompts_control = recalculate_prompts_control;
-window.resolutionChange = resolutionChange;
 window.selectCheckpoint = selectCheckpoint;
 window.selectVAE = selectVAE;
 window.selectUNet = selectUNet;
@@ -15690,12 +15683,12 @@ var generateForever = (genbuttonid) => {
     const genbutton = gradioApp().querySelector(genbuttonid);
     if (!(genbutton instanceof HTMLElement)) return;
     const isBusy = () => {
-      let busy = document.getElementById("progressbar")?.style.display === "block";
-      if (!busy) {
+      let busy2 = document.getElementById("progressbar")?.style.display === "block";
+      if (!busy2) {
         const outerButton = genbutton.parentElement.closest("button");
-        busy = outerButton?.classList.contains("generate") && outerButton?.classList.contains("active");
+        busy2 = outerButton?.classList.contains("generate") && outerButton?.classList.contains("active");
       }
-      return busy;
+      return busy2;
     };
     log("generateForever: start");
     if (!isBusy()) genbutton.click();
@@ -16506,6 +16499,102 @@ function aspectRatioCallback() {
   }
 }
 onAfterUiUpdate(aspectRatioCallback);
+
+// ui/resolutionLock.ts
+var RES_DEBOUNCE = 350;
+var AR_DEBOUNCE = 120;
+var timers = /* @__PURE__ */ new WeakMap();
+var busy = /* @__PURE__ */ new WeakSet();
+function parseAR(ar) {
+  if (!ar || ar === "AR") return null;
+  const parts = ar.split(":");
+  if (parts.length !== 2) return null;
+  const w = parseInt(parts[0], 10);
+  const h = parseInt(parts[1], 10);
+  return w > 0 && h > 0 ? [w, h] : null;
+}
+function numberInput(group) {
+  const inp = group.querySelector("input[type=number]") || group.querySelector("input");
+  return inp instanceof HTMLInputElement ? inp : null;
+}
+function readValue(group) {
+  const inp = numberInput(group);
+  return inp ? Number(inp.value) : 0;
+}
+function writeValue(group, raw) {
+  const inp = numberInput(group);
+  if (!inp) return;
+  const step = Number(inp.step) || 8;
+  const min = inp.min !== "" ? Number(inp.min) : 0;
+  const max = inp.max !== "" ? Number(inp.max) : 8192;
+  const value = Math.max(min, Math.min(max, Math.round(raw / step) * step));
+  if (value === Number(inp.value)) return;
+  group.querySelectorAll("input").forEach((el2) => {
+    if (!(el2 instanceof HTMLInputElement)) return;
+    el2.value = String(value);
+    const e = new Event("input", { bubbles: true });
+    Object.defineProperty(e, "target", { value: el2 });
+    el2.dispatchEvent(e);
+  });
+}
+function arValue(arEl) {
+  const inp = arEl.querySelector("input");
+  return inp instanceof HTMLInputElement ? inp.value : "AR";
+}
+function pairOf(arEl) {
+  let container = arEl.parentElement;
+  for (let i = 0; i < 6 && container; i++) {
+    const width = container.querySelector('[id$="_width"]');
+    const height = container.querySelector('[id$="_height"]');
+    if (width && height) return { width, height };
+    container = container.parentElement;
+  }
+  return null;
+}
+function settle(arEl, source) {
+  const ar = parseAR(arValue(arEl));
+  if (!ar) return;
+  const pair = pairOf(arEl);
+  if (!pair) return;
+  const [rw, rh] = ar;
+  busy.add(arEl);
+  if (source === "height") writeValue(pair.width, readValue(pair.height) * rw / rh);
+  else writeValue(pair.height, readValue(pair.width) * rh / rw);
+  busy.delete(arEl);
+}
+function schedule(arEl, source, delay2) {
+  if (busy.has(arEl)) return;
+  clearTimeout(timers.get(arEl));
+  timers.set(arEl, setTimeout(() => settle(arEl, source), delay2));
+}
+function flush(arEl, source) {
+  if (busy.has(arEl)) return;
+  clearTimeout(timers.get(arEl));
+  settle(arEl, source);
+}
+function bind(arEl, group, source) {
+  group.querySelectorAll("input").forEach((el2) => {
+    if (!(el2 instanceof HTMLInputElement) || el2.classList.contains("ar-lock-bound")) return;
+    el2.classList.add("ar-lock-bound");
+    el2.addEventListener("input", () => schedule(arEl, source, RES_DEBOUNCE));
+    el2.addEventListener("change", () => flush(arEl, source));
+  });
+}
+function setupResolutionLock() {
+  gradioApp().querySelectorAll(".ar-dropdown").forEach((arEl) => {
+    const pair = pairOf(arEl);
+    if (!pair) return;
+    bind(arEl, pair.width, "width");
+    bind(arEl, pair.height, "height");
+    arEl.querySelectorAll("input").forEach((el2) => {
+      if (!(el2 instanceof HTMLInputElement) || el2.classList.contains("ar-lock-bound")) return;
+      el2.classList.add("ar-lock-bound");
+      el2.addEventListener("change", () => flush(arEl, "width"));
+      el2.addEventListener("input", () => schedule(arEl, "width", AR_DEBOUNCE));
+    });
+  });
+}
+onAfterUiUpdate(setupResolutionLock);
 
 // ui/editAttention.ts
 function keyupEditAttention(event2) {

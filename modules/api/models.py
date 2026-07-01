@@ -293,7 +293,7 @@ if not hasattr(ReqTxt2Img, "__config__"):
 StableDiffusionTxt2ImgProcessingAPI = ReqTxt2Img
 
 class ResTxt2Img(BaseModel):
-    images: list[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
+    images: list[str] | None = Field(default=None, title="Image", description="The generated images in base64 format.")
     parameters: dict = Field(title="Parameters", description="The request parameters echoed back.")
     info: str = Field(title="Info", description="Generation info string with all parameters used.")
 
@@ -325,7 +325,7 @@ if not hasattr(ReqImg2Img, "__config__"):
 StableDiffusionImg2ImgProcessingAPI = ReqImg2Img
 
 class ResImg2Img(BaseModel):
-    images: list[str] = Field(default=None, title="Image", description="The generated images in base64 format.")
+    images: list[str] | None = Field(default=None, title="Image", description="The generated images in base64 format.")
     parameters: dict = Field(title="Parameters", description="The request parameters echoed back.")
     info: str = Field(title="Info", description="Generation info string with all parameters used.")
 
@@ -456,7 +456,7 @@ class ReqProgress(BaseModel):
     skip_current_image: bool = Field(default=False, title="Skip current image", description="Skip current image serialization")
 
 class ResProgress(BaseModel):
-    id: int | str | None = Field(title="TaskID", description="Task ID")
+    id: int | str | None = Field(default=None, title="TaskID", description="Task ID")
     progress: float = Field(title="Progress", description="The progress with a range of 0 to 1")
     eta_relative: float = Field(title="ETA in secs")
     state: dict = Field(title="State", description="The current state snapshot")
@@ -464,19 +464,19 @@ class ResProgress(BaseModel):
     textinfo: str | None = Field(default=None, title="Info text", description="Info text used by WebUI.")
 
 class ResHistory(BaseModel):
-    id: int | str | None = Field(title="ID", description="Task ID")
+    id: int | str | None = Field(default=None, title="ID", description="Task ID")
     job: str = Field(title="Job", description="Job name")
     op: str = Field(title="Operation", description="Job state")
-    timestamp: float | None = Field(title="Timestamp", description="Job timestamp")
-    duration: float | None = Field(title="Duration", description="Job duration")
+    timestamp: float | None = Field(default=None, title="Timestamp", description="Job timestamp")
+    duration: float | None = Field(default=None, title="Duration", description="Job duration")
     outputs: list[str] = Field(title="Outputs", description="List of filenames")
 
 class ResStatus(BaseModel):
     status: str = Field(title="Status", description="Current status")
     task: str = Field(title="Task", description="Current job")
-    timestamp: str | None = Field(title="Timestamp", description="Timestamp of the current job")
+    timestamp: str | None = Field(default=None, title="Timestamp", description="Timestamp of the current job")
     current: str = Field(title="Task", description="Current job")
-    id: int | str | None = Field(title="ID", description="ID of the current task")
+    id: int | str | None = Field(default=None, title="ID", description="ID of the current task")
     job: int = Field(title="Job", description="Current job")
     jobs: int = Field(title="Jobs", description="Total jobs")
     total: int = Field(title="Total Jobs", description="Total jobs")
