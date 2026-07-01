@@ -1,17 +1,22 @@
 {
-  "Google Gemini 2.5 Flash Nano Banana": {
+  "Nano Banana": {
     "path": "gemini-2.5-flash-image",
-    "desc": "Gemini can generate and process images conversationally. You can prompt Gemini with text, images, or a combination of both allowing you to create, edit, and iterate on visuals with unprecedented control.",
+    "desc": "Our best engine for high-velocity visual creation, offering state-of-the-art speed and efficiency. Gemini 2.5 Flash Image, also known as Nano Banana, is best for high-volume generation, conversational image editing, and low-latency creative workflows that require native multimodal understanding. (Knowledge cutoff June 2025)",
     "preview": "gemini-2.5-flash-image.jpg"
   },
-  "Google Gemini 3.1 Flash Nano Banana": {
-    "path": "gemini-3.1-flash-image-preview",
-    "desc": "Gemini can generate and process images conversationally. You can prompt Gemini with text, images, or a combination of both allowing you to create, edit, and iterate on visuals with unprecedented control.",
-    "preview": "gemini-3.1-flash-image-preview.jpg"
+  "Nano Banana 2": {
+    "path": "gemini-3.1-flash-image",
+    "desc": "Nano Banana 2 provides high-quality image generation and conversational editing at a mainstream price point and low latency. It serves as the high-efficiency counterpart to Gemini 3 Pro Image, optimized for speed and high-volume developer use cases.(Knowledge cutoff January 2025)",
+    "preview": "gemini-3.1-flash-image.jpg"
   },
-  "Google Gemini 3.0 Pro Nano Banana": {
-    "path": "gemini-3-pro-image-preview",
-    "desc": "Built on Gemini 3. Create and edit images with studio-quality levels of precision and control",
-    "preview": "gemini-3-pro-image-preview.jpg"
+  "Nano Banana lite": {
+    "path": "gemini-3.1-flash-lite-image",
+    "desc": "Nano Banana Lite is designed as the efficiency specialist of the image generation family, offering ultra-low latency and cost-effective image generation and editing. By targeting a sub-2 second latency and significantly reduced TPU compute costs, this model enables high-volume interactive developer use cases and real-time consumer applications. (Knowledge cutoff January 2025)",
+    "preview": "gemini-3.1-flash-lite-image.jpg"
+  },
+  "Nano Banana Pro": {
+    "path": "gemini-3-pro-image",
+    "desc": "Nano Banana Pro is a sophisticated reasoning-driven engine for professional-grade image editing and generation, offering studio-quality precision and advanced creative control. Nano Banana Pro is best for complex graphic design, high-fidelity product mockups, and factual data visualizations that require accurate text rendering and real-world grounding via Google Search. (Knowledge cutoff January 2025)",
+    "preview": "gemini-3-pro-image.jpg"
   }
 }

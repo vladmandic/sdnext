@@ -177,6 +177,6 @@ if __name__ == "__main__":
     import sys
     sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
     log.info('test')
-    model = GoogleNanoBananaPipeline('gemini-3-pro-image-preview')
+    model = GoogleNanoBananaPipeline('gemini-3-pro-image')
     img = model(['A beautiful landscape with mountains and a river'], 1024, 1024)
     img.save('test.png')
