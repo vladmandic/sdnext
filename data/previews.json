@@ -35,5 +35,7 @@
   "Jinstudio--Lens": "microsoft--Lens.jpg",
   "Jinstudio--Lens-Base": "microsoft--Lens-Base.jpg",
   "Jinstudio--Lens-Turbo": "microsoft--Lens-Turbo.jpg",
-  "SahilCarterr--BRIA-3.2": "briaai--BRIA-3.2.jpg"
+  "SahilCarterr--BRIA-3.2": "briaai--BRIA-3.2.jpg",
+  "vladmandic--Flux.2-Klein-9B-KV-sdnq-hadamard-uint4": "black-forest-labs--FLUX.2-klein-9b-kv.jpg",
+  "vladmandic--Anima-1.0-Base-Merge-sdnq-hadamard-uint4": "vladmandic--Anima-1.0-Base.jpg"
 }

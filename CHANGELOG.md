@@ -5,7 +5,7 @@
 ### Highlights for 2026-07-01
 
 Service-pack update with several fixes and quality-of-life improvements  
-Plus few new models: **Krea 2**  
+Plus few new models: **Krea 2**, **Photoroom PRXPixel**, **FLUX.2 Klein 9B KV**  
 And **SDNQ** improvements: now with *NPU* support and its own native *attention* kernels!  
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
@@ -18,7 +18,9 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
     K2 is a 12.9B single-stream flow-matching DiT and using a Qwen3-VL-4B text encoder  
   - [Photoroom PRXPixel](https://huggingface.co/Photoroom/prxpixel-t2i) pixel-space PRX variant using a Qwen3-VL text encoder and flow-matching scheduler  
     supports *direct RGB* generation without a VAE and uses a *1024px* default sample size  
-  - **Microsoft Lens** got unpublished, but we still got a mirror
+  - [Microsoft Lens](https://huggingface.co/Jinstudio/Lens) got unpublished, but we still got a mirror
+  - [FLUX.2 Klein 9B KV](https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-kv) a bit late, but finally here in both *bf16* and *sdnq* pre-quantized variants  
+  - plus several new community models...
 - **Features**
   - **SDNQ-Attention**  
     modelled after *sage-attention*, but modified to support AMD and Intel GPUs in addition to nVidia  
@@ -41,6 +43,7 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
 - **Internal**
   - delay init of video models
 - **Fixes**
+  - anima: simplify loader
   - amd: hipBLASLt improved detection, thanks @0xDELUXA
   - api: add missing endpoint registration
   - api: openapi schema exposure
@@ -48,6 +51,7 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
   - caption: button in standard-ui
   - embeddings: handle textual-inversion with new transformers
   - extensions: handle extension without remote
+  - huggingface: strip corrupt headers on download
   - insightface: missing dependencies
   - live preview: configurable pause when not in focus, thanks @Artheriax
   - log: strip ansi sequences from ring buffer and client side logging

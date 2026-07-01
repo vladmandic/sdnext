@@ -1,9 +1,6 @@
-import os
-import sys
 import importlib.util
 import transformers
 import diffusers
-import huggingface_hub as hf
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae, errors
 from modules.logger import log
 from pipelines import generic
@@ -62,6 +59,11 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
         return None
 
     # load-or-download custom pipeline modules from repo
+    """
+    import os
+    import sys
+    import huggingface_hub as hf
+
     if os.path.exists(os.path.join(repo_id, 'pipeline.py')):
         pipeline_file = os.path.join(repo_id, 'pipeline.py')
     else:
@@ -96,7 +98,12 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     sys.modules['pipeline'] = pipeline_mod
     AnimaTextToImagePipeline = pipeline_mod.AnimaTextToImagePipeline
     AnimaLLMAdapter = adapter_mod.AnimaLLMAdapter
+    """
 
+    import sys
+    from pipelines.anima import modeling_llm_adapter
+    sys.modules['modeling_llm_adapter'] = modeling_llm_adapter
+    from pipelines.anima.pipeline import AnimaTextToImagePipeline
     from pipelines.anima.anima_image import build_anima_pipeline_classes
     AnimaImageToImagePipeline, AnimaInpaintPipeline = build_anima_pipeline_classes(AnimaTextToImagePipeline)
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["anima"] = AnimaTextToImagePipeline
@@ -106,7 +113,7 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
 
     # UNET dropdown (shared.opts.sd_unet) may redirect the transformer to a
     # community file that bundles both the transformer and the llm_adapter.
-    transformer, llm_adapter = init_transformer_component(repo_id, diffusers_load_config, AnimaLLMAdapter)
+    transformer, llm_adapter = init_transformer_component(repo_id, diffusers_load_config, modeling_llm_adapter.AnimaLLMAdapter)
     if transformer is None:
         return None
     text_encoder = generic.load_text_encoder(
@@ -120,7 +127,7 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
     if llm_adapter is None:
         shared.state.begin('Load adapter')
         try:
-            llm_adapter = AnimaLLMAdapter.from_pretrained(
+            llm_adapter = modeling_llm_adapter.AnimaLLMAdapter.from_pretrained(
                 repo_id,
                 subfolder="llm_adapter",
                 cache_dir=shared.opts.hfcache_dir,

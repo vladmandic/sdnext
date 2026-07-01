@@ -156,11 +156,18 @@
     "date": "2026 February",
     "size": 57.7
   },
-  "Skywork/Unipic3-DMD": {
+  "Skywork Unipic3-DMD": {
     "path": "Skywork/Unipic3-DMD",
     "preview": "Skywork--Unipic3-DMD.jpg",
     "desc": "UniPic3-DMD-Model is a few-step image editing and multi-image composition model trained using Distribution Matching Distillation (DMD) and is a fine-tune of Qwen-Image-Edit.",
     "date": "2026 February",
     "size": 57.7
+  },
+  "Anima 1.0 Base V-Merge sdnq-hadamard-uint4": {
+    "path": "vladmandic/Anima-1.0-Base-Merge-sdnq-hadamard-uint4",
+    "preview": "vladmandic--Anima-1.0-Base.jpg",
+    "desc": "Anima 1.0 Base pre-merged with several LoRAs and quantized to uint4 using SDNQ with Hadamard. Flexible as it can be used with and without guidance.",
+    "date": "2026 July",
+    "size": 2.22
   }
 }

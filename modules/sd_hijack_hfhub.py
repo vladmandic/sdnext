@@ -6,6 +6,7 @@ from modules.logger import log
 debug = log.trace if os.environ.get('SD_DOWNLOAD_DEBUG', None) is not None else lambda *args, **kwargs: None
 orig_http_get = None
 orig_xet_get = None
+orig_build_hf_headers = None
 
 
 def clean_user_agent(headers):
@@ -59,11 +60,19 @@ def xet_get_hijack(*args, **kwargs):
     return res
 
 
+def build_hf_headers_hijack(*args, **kwargs):
+    headers = orig_build_hf_headers(*args, **kwargs)
+    headers = clean_user_agent(headers)
+    return headers
+
+
 def init_hijack():
     from huggingface_hub import file_download
-    global orig_http_get, orig_xet_get # pylint: disable=global-statement
+    global orig_http_get, orig_xet_get, orig_build_hf_headers # pylint: disable=global-statement
     if orig_http_get is None or orig_xet_get is None:
         orig_http_get = file_download.http_get
         orig_xet_get = file_download.xet_get
+        orig_build_hf_headers = file_download.build_hf_headers # pylint: disable=protected-access
         file_download.http_get = http_get_hijack
         file_download.xet_get = xet_get_hijack
+        file_download.build_hf_headers = build_hf_headers_hijack # pylint: disable=protected-access
