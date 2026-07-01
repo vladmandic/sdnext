@@ -58,6 +58,8 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
   - log: strip ansi sequences from ring buffer and client side logging
   - model metadata: handle invalid metadata and strip workflows
   - ui debounce aspect-ratio linked width/height controls
+  - api: stricter api request and response schemas
+  - api: openapi schema exposure
 
 ## Update for 2026-06-16
 

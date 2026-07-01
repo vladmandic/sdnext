@@ -67,8 +67,7 @@ fastapi_args = {
     "description": "SD.Next",
     "docs_url": None,
     "redoc_url": None,
-    # "docs_url": "/docs" if cmd_opts.docs else None, # custom handler in api.py
-    # "redoc_url": "/redocs" if cmd_opts.docs else None,
+    "openapi_url": "/openapi.json" if shared.cmd_opts.docs else None,  # only expose OpenAPI schema if docs are enabled
 }
 
 
