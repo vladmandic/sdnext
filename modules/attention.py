@@ -24,15 +24,10 @@ def set_sdnq_attention():
         sdpa_pre_sdnq_atten = torch.nn.functional.scaled_dot_product_attention
         @wraps(sdpa_pre_sdnq_atten)
         def sdpa_sdnq_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
-            if (
-                query.device.type != "cpu"
-                and (query.shape[-1] >= 32 and key.shape[-1] >= 32 and value.shape[-1] >= 32) # Dim < 32 is unsupported by Matrix Cores
-                and (query.shape[-2] >= 512 or key.shape[-2] >= 512) # Skip TE
-                and query.shape[-3] > 1 # Skip VAE
-            ):
+            if query.device.type != "cpu" and query.shape[-3] > 1: # Skip VAE
                 return sdnq_triton_atten(
-                    query=query, key=key, value=value,
-                    attn_mask=attn_mask, scale=scale, enable_gqa=enable_gqa,
+                    query=query, key=key, value=value, attn_mask=attn_mask,
+                    is_causal=is_causal, scale=scale, enable_gqa=enable_gqa,
                     matmul_dtype=shared.opts.sdnq_attention_matmul_type,
                     pv_matmul_dtype=shared.opts.sdnq_attention_pv_matmul_type,
                     smooth_k=shared.opts.sdnq_attention_smooth_k,
