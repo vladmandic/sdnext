@@ -138,15 +138,15 @@ def _condition_cls(family: str):
     return LTXVideoCondition
 
 
-def make_condition(condition_cls, family: str, frames, strength: float, is_video: bool):
+def make_condition(condition_cls, family: str, frames, strength: float, is_video: bool, index: int = 0):
     if family == '2.x':
-        return condition_cls(frames=frames, index=0, strength=strength)
+        return condition_cls(frames=frames, index=index, strength=strength)
     if is_video:
-        return condition_cls(video=frames, frame_index=0, strength=strength)
-    return condition_cls(image=frames, frame_index=0, strength=strength)
+        return condition_cls(video=frames, frame_index=index, strength=strength)
+    return condition_cls(image=frames, frame_index=index, strength=strength)
 
 
-def get_conditions(width, height, condition_strength, condition_images, condition_files, condition_video, condition_video_frames, condition_video_skip, family: str = '0.9'):
+def get_conditions(width, height, condition_strength, condition_images, condition_files, condition_video, condition_video_frames, condition_video_skip, family: str = '0.9', num_frames=None, condition_last=None):
     condition_cls = _condition_cls(family)
     if condition_cls is None:
         return []
@@ -186,6 +186,18 @@ def get_conditions(width, height, condition_strength, condition_images, conditio
                 log.debug(f'Video condition: family={family} frames={len(condition_frames)} size={condition_frames[0].size} strength={condition_strength}')
         except Exception as e:
             log.error(f'LTX condition video: {e}')
+    if condition_last is not None:
+        try:
+            if isinstance(condition_last, str):
+                from modules.api.api import decode_base64_to_image
+                condition_last = decode_base64_to_image(condition_last)
+            condition_last = condition_last.convert('RGB').resize((width, height), resample=Image.Resampling.LANCZOS)
+            # 2.x reads index as a latent index and accepts -1 for the final frame; 0.9 uses a pixel index.
+            last_index = -1 if family == '2.x' else max((num_frames or 1) - 1, 0)
+            conditions.append(make_condition(condition_cls, family, condition_last, condition_strength, is_video=False, index=last_index))
+            log.debug(f'Video condition: family={family} last={condition_last.size} index={last_index} strength={condition_strength}')
+        except Exception as e:
+            log.error(f'LTX condition last image: {e}')
     return conditions
 
 
