@@ -32,9 +32,6 @@ def load_flux2_klein(checkpoint_info, diffusers_load_config=None):
         cache_dir=shared.opts.diffusers_dir,
         **load_args,
     )
-    pipe.task_args = {
-        'output_type': 'np',
-    }
     diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING["flux2klein"] = cls
     diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING["flux2klein"] = cls
     diffusers.pipelines.auto_pipeline.AUTO_INPAINT_PIPELINES_MAPPING["flux2klein"] = cls

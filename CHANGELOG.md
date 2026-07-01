@@ -47,9 +47,11 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
   - api: stricter api request and response schemas
   - caption: button in standard-ui
   - embeddings: handle textual-inversion with new transformers
+  - extensions: handle extension without remote
   - insightface: missing dependencies
   - live preview: configurable pause when not in focus, thanks @Artheriax
   - log: strip ansi sequences from ring buffer and client side logging
+  - lora: cache state_dict between load attempts
   - measure: handle current kanvas stage
   - model metadata: handle invalid metadata and strip workflows
   - mps: install `torchsde` as requirement
