@@ -36,7 +36,7 @@ class FLitePipelineOutput(BaseOutput):
             num_channels)`. PIL images or numpy array present the denoised images of the diffusion pipeline.
     """
 
-    images: Union[List[Image.Image], np.ndarray]
+    images: Union[List[Image.Image], np.ndarray, torch.Tensor]
 
 
 class FLitePipeline(DiffusionPipeline):
@@ -147,6 +147,7 @@ class FLitePipeline(DiffusionPipeline):
 
     def to(self, torch_device=None, torch_dtype=None, silence_dtype_warnings=False):
         """Move pipeline components to specified device and dtype."""
+        _ = silence_dtype_warnings
         if hasattr(self, "vae"):
             self.vae.to(device=torch_device, dtype=torch_dtype)
         if hasattr(self, "text_encoder"):
@@ -169,6 +170,8 @@ class FLitePipeline(DiffusionPipeline):
         dtype: Optional[torch.dtype] = None,
         alpha: Optional[float] = None,
         apg_config: Optional[APGConfig] = None,
+        output_type: str = "pil",
+        return_dict: bool = True,
         **kwargs,
     ):
         """Generate images from text prompt."""
@@ -293,10 +296,22 @@ class FLitePipeline(DiffusionPipeline):
                 raise
 
         # 8. Post-process images
-        from modules.image import convert
         images = (decoded_images / 2 + 0.5).clamp(0, 1)
-        pil_images = [convert.to_pil(img) for img in images]
+        if output_type == "latent":
+            output = latents
+        elif output_type == "pt":
+            output = images
+        elif output_type == "np":
+            output = images.permute(0, 2, 3, 1).to(device="cpu", dtype=torch.float32).numpy()
+        elif output_type == "pil":
+            from modules.image import convert
+            output = [convert.to_pil(img) for img in images]
+        else:
+            raise ValueError(f"Unsupported output_type: {output_type}")
+
+        if not return_dict:
+            return (output,)
 
         return FLitePipelineOutput(
-            images=pil_images,
+            images=output,
         )

@@ -34,9 +34,9 @@ This skill combines four audit surfaces. Run them in this order unless user scop
 - `modules/sd_detect.py`
 - `modules/sd_models.py`
 - `modules/modeldata.py`
-- `data/reference.json`
+- `data/reference-base.json`
 - `data/reference-cloud.json`
-- `data/reference-quant.json`
+- `data/reference-quantized.json`
 - `data/reference-distilled.json`
 - `data/reference-nunchaku.json`
 - `data/reference-community.json`
@@ -83,9 +83,9 @@ Verify references for model families intended to appear in model references.
 Checks:
 
 - Correct category file placement by type:
-  - base -> `data/reference.json`
+  - base -> `data/reference-base.json`
   - cloud -> `data/reference-cloud.json`
-  - quant -> `data/reference-quant.json`
+  - quant -> `data/reference-quantized.json`
   - distilled -> `data/reference-distilled.json`
   - nunchaku -> `data/reference-nunchaku.json`
   - community -> `data/reference-community.json`

@@ -445,7 +445,7 @@ def create_ui():
     # Load/Unload model buttons
     vlm_load_btn.click(fn=vqa.load_model, inputs=[vlm_model], outputs=[])
     vlm_unload_btn.click(fn=vqa.unload_model, inputs=[], outputs=[])
-    analyze_load_btn.click(fn=vqa.load_model, inputs=[vlm_model], outputs=[])
+    analyze_load_btn.click(fn=vqa.load_model, inputs=[analyze_model], outputs=[])
     analyze_unload_btn.click(fn=vqa.unload_model, inputs=[], outputs=[])
 
     def tagger_load_wrapper(model_name):
