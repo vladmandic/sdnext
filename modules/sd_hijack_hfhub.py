@@ -8,6 +8,19 @@ orig_http_get = None
 orig_xet_get = None
 
 
+def clean_user_agent(headers):
+    ua = headers.get('user-agent', None)
+    if ua is None:
+        return headers
+    ua = ua.replace('unknown/None;', 'sdnext/0.0.0;')
+    if 'quant_config' in ua:
+        ua = ua.split('quant_config')[0]
+    ua = ua.rstrip(' ;')
+    # ua += '; telemetry/off'
+    headers['user-agent'] = ua
+    return headers
+
+
 def http_get_hijack(*args, **kwargs):
     from modules.shared import state, opts
     if len(args) > 0 and isinstance(args[0], str) and args[0].endswith(".json"):
@@ -15,6 +28,8 @@ def http_get_hijack(*args, **kwargs):
     jobid = state.begin('Download')
     fn = kwargs.get("displayed_filename", None)
     size = kwargs.get("expected_size", None)
+    if 'headers' in kwargs:
+        kwargs['headers'] = clean_user_agent(kwargs['headers'])
     if fn and not fn.endswith(".json") and size is not None and size > 10240:
         log.debug(f'Download: type=http mode="{opts.hf_transfer_mode}" fn="{fn}" size={size}')
     debug(f'Download start: type=http args={args} kwargs={kwargs}')
@@ -33,6 +48,8 @@ def xet_get_hijack(*args, **kwargs):
     jobid = state.begin('Download')
     fn = kwargs.get("displayed_filename", None)
     size = kwargs.get("expected_size", None)
+    if 'headers' in kwargs:
+        kwargs['headers'] = clean_user_agent(kwargs['headers'])
     if fn and not fn.endswith(".json"):
         log.debug(f'Download: type=xet mode="{opts.hf_transfer_mode}" fn="{fn}" size={size}')
     debug(f'Download start: type=xet args={args} kwargs={kwargs}')

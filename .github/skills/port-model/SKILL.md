@@ -179,9 +179,9 @@ Add only what the model actually needs.
 
 Reference catalog touchpoints are also required for model ports intended to appear in SD.Next model references.
 
-- `data/reference.json` for `base`
+- `data/reference-base.json` for `base`
 - `data/reference-cloud.json` for `cloud`
-- `data/reference-quant.json` for `quant`
+- `data/reference-quantized.json` for `quant`
 - `data/reference-distilled.json` for `distilled`
 - `data/reference-nunchaku.json` for `nunchaku`
 - `data/reference-community.json` for `community`

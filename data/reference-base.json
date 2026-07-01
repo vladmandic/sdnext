@@ -794,6 +794,12 @@
     "preview": "Photoroom--prx-1024-t2i-beta.jpg",
     "size": 20.7
   },
+  "Photoroom PRXPixel": {
+    "path": "Photoroom/prxpixel-t2i",
+    "desc": "PRXPixel is a 7-billion-parameter pixel-space text-to-image model that denoises RGB images directly using a Qwen3-VL text encoder and flow-matching scheduler.",
+    "preview": "Photoroom--prxpixel-t2i.jpg",
+    "size": 25.0
+  },
   "ZAI GLM-Image": {
     "path": "zai-org/GLM-Image",
     "preview": "zai-org--GLM-Image.jpg",

@@ -21,9 +21,9 @@ Use this skill to audit and update SD.Next model reference catalogs using a phas
 
 ## Catalog Files In Scope
 
-- `data/reference.json` (base)
+- `data/reference-base.json` (base)
 - `data/reference-cloud.json`
-- `data/reference-quant.json`
+- `data/reference-quantized.json`
 - `data/reference-distilled.json`
 - `data/reference-nunchaku.json`
 - `data/reference-community.json`

@@ -141,6 +141,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'Stable Diffusion XL'
     elif 'stable-video-diffusion' in fn.lower():
         new_guess = 'StableVideoDiffusion'
+    elif 'prx-pixel' in fn.lower() or 'prxpixel' in fn.lower():
+        new_guess = 'PRXPixel'
     elif 'prx-' in fn.lower():
         new_guess = 'PRX'
     elif 'gemini-' in fn.lower() and 'image' in fn.lower():

@@ -111,6 +111,8 @@ def get_model_type(pipe):
         model_type = 'nextstep'
     elif 'XOmni' in name or 'X-Omni' in name:
         model_type = 'x-omni'
+    elif 'PRXPixel' in name or 'PRXPixelPipeline' in name:
+        model_type = 'prxpixel'
     elif 'Photoroom' in name:
         model_type = 'prx'
     elif 'LongCat' in name:

@@ -18,6 +18,8 @@
 
 ### Unassigned
 
+- Implement [nvvfx](https://pypi.org/project/nvidia-vfx/)
+- Implement [pruna](https://github.com/PrunaAI/pruna)
 - Processing -> Video capabilities
   - `RIFE` in processing
   - `SeedVR2` in processing
@@ -36,7 +38,6 @@
 
 ### OnHold
 
-- Implement [pruna](https://github.com/PrunaAI/pruna), @vladmandic, pending support for transformers 5.5
 - LoRA add OMI format support for SD35/FLUX.1, on-hold
 - Remote Text-Encoder support, sidelined for the moment
 - Multi-user support

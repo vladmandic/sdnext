@@ -16,6 +16,8 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
     both *base* and *turbo* are available in both full *bf16* and *sdnq* pre-quantized variants  
     K2 is a 12.9B single-stream flow-matching DiT and using a Qwen3-VL-4B text encoder  
+  - [Photoroom PRXPixel](https://huggingface.co/Photoroom/prxpixel-t2i) pixel-space PRX variant using a Qwen3-VL text encoder and flow-matching scheduler  
+    supports *direct RGB* generation without a VAE and uses a *1024px* default sample size  
   - **Microsoft Lens** got unpublished, but we still got a mirror
 - **Features**
   - **SDNQ-Attention**  
