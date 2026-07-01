@@ -45,7 +45,7 @@ def return_stats(t: float | None = None):
     if ram['used'] > 0:
         cpu += f"| RAM {ram['used']} GB"
         cpu += f" {round(100.0 * ram['used'] / ram['total'])}%" if ram['total'] > 0 else ''
-    return f"<div class='performance'><p>{elapsed_text} {summary} {gpu} {cpu}</p></div>"
+    return f"<div class='performance' title='{timer.perf_legend}'><p>{elapsed_text} {summary} {gpu} {cpu}</p></div>"
 
 
 def return_controls(res, t: float | None = None):
