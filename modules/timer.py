@@ -76,3 +76,19 @@ process = Timer()
 launch = Timer()
 init = Timer()
 load = Timer()
+# hover legend for the .performance timing line on the image-generation tabs (used as its title= tooltip):
+# names each field the image summary() emits and hints what can be tuned
+perf_legend = (
+    'total: total generate time&#10;'
+    'onload: moving modules from RAM to GPU&#10;'
+    'prompt: parse and text-encode&#10;'
+    'pipeline: model denoise (UNet / transformer)&#10;'
+    'preview: TAESD live preview&#10;'
+    'move: moving modules between GPU and RAM&#10;'
+    'decode: VAE decode&#10;'
+    'GPU / RAM: peak VRAM and system memory used&#10;&#10;'
+    'tip: high move / onload means the model is re-offloaded to CPU each run; '
+    'pinning it resident (Model types not to offload / Modules to never offload, '
+    'or a higher Offload low watermark) trades VRAM for speed; leave it offloaded '
+    'if you need the VRAM for hires decode'
+)

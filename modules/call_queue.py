@@ -92,6 +92,6 @@ def wrap_gradio_call(func, extra_outputs=None, add_stats=False, name=None):
         summary = timer.process.summary(min_time=0.25, total=False).replace('=', ' ')
         memory = shared.mem_mon.summary()
         if isinstance(res, list) and isinstance(res[-1], str):
-            res[-1] += f"<div class='performance'><p>Time: {elapsed_text} | {summary} {memory}</p></div>"
+            res[-1] += f"<div class='performance' title='{timer.perf_legend}'><p>Time: {elapsed_text} | {summary} {memory}</p></div>"
         return tuple(res)
     return f
