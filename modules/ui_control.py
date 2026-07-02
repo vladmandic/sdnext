@@ -26,7 +26,7 @@ def return_stats(t: float | None = None):
         elapsed = time.perf_counter() - t
         elapsed_m = int(elapsed // 60)
         elapsed_s = elapsed % 60
-        elapsed_text = f"Time: {elapsed_m}m {elapsed_s:.2f}s |" if elapsed_m > 0 else f"Time: {elapsed_s:.2f}s |"
+        elapsed_text = f"⏱ {elapsed_m}m {elapsed_s:.2f}s |" if elapsed_m > 0 else f"⏱ {elapsed_s:.2f}s |"
     summary = timer.process.summary(total=False).replace('=', ' ')
     gpu = ''
     cpu = ''
@@ -34,18 +34,18 @@ def return_stats(t: float | None = None):
         mem_mon_read = shared.mem_mon.read()
         ooms = mem_mon_read.pop("oom")
         retries = mem_mon_read.pop("retries")
-        vram = {k: v//1048576 for k, v in mem_mon_read.items()}
+        vram = {k: v // 1048576 for k, v in mem_mon_read.items()}
         peak = max(vram['active_peak'], vram['reserved_peak'], vram['used'])
         used = round(100.0 * peak / vram['total']) if vram['total'] > 0 else 0
         if peak > 0:
-            gpu += f"| GPU {peak} MB"
+            gpu += f"| 🕮 GPU {peak} MB"
             gpu += f" {used}%" if used > 0 else ''
             gpu += f" | retries {retries} oom {ooms}" if retries > 0 or ooms > 0 else ''
     ram = ram_stats()
     if ram['used'] > 0:
-        cpu += f"| RAM {ram['used']} GB"
+        cpu += f" RAM {ram['used']} GB"
         cpu += f" {round(100.0 * ram['used'] / ram['total'])}%" if ram['total'] > 0 else ''
-    return f"<div class='performance'><p>{elapsed_text} {summary} {gpu} {cpu}</p></div>"
+    return f"<div class='performance hint' id='control-performance'><p>{elapsed_text} {summary} {gpu} {cpu}</p></div>"
 
 
 def return_controls(res, t: float | None = None):

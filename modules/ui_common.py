@@ -342,7 +342,7 @@ def create_output_panel(tabname, preview=True, prompt=None, height=None, transfe
                 html_info = gr.HTML(elem_id=f'html_info_{tabname}', elem_classes="infotext", visible=False) # contains raw infotext as returned by wrapped call
                 html_info_formatted = gr.HTML(elem_id=f'html_info_formatted_{tabname}', elem_classes="infotext", visible=True) # contains html formatted infotext
                 html_info.change(fn=infotext_to_html, inputs=[html_info], outputs=[html_info_formatted], show_progress='hidden')
-                html_log = gr.HTML(elem_id=f'html_log_{tabname}')
+                html_log = gr.HTML(elem_id=f'html_log_{tabname}', elem_classes=["hint"])
                 generation_info = gr.Textbox(visible=False, elem_id=f'generation_info_{tabname}')
                 generation_info_button = gr.Button(visible=False, elem_id=f"{tabname}_generation_info_button")
 

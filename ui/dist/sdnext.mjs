@@ -15515,8 +15515,7 @@ async function setHints() {
 }
 async function applyHintToElement(el2) {
   if (!localeData.data || localeData.data.length === 0) return;
-  if (!el2.textContent) return;
-  const isValidElement = el2.tagName === "BUTTON" || el2.tagName === "H2" || el2.tagName === "SPAN" && (el2.parentElement?.tagName === "LABEL" || el2.parentElement?.classList.contains("label-wrap") || el2.dataset.testid === "block-info");
+  const isValidElement = el2.tagName === "BUTTON" || el2.tagName === "H2" || el2.classList.contains("hint") || el2.tagName === "SPAN" && (el2.parentElement?.tagName === "LABEL" || el2.parentElement?.classList.contains("label-wrap") || el2.dataset.testid === "block-info");
   if (!isValidElement) return;
   let found;
   if (el2.id) found = localeData.data.find((l) => l.id && (l.id === el2.id || el2.id.endsWith(l.id)));
@@ -15524,7 +15523,7 @@ async function applyHintToElement(el2) {
     if (el2.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el2.dataset.original.toLowerCase().trim());
     else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el2.textContent.toLowerCase().trim());
   }
-  if (found?.localized?.length > 0) {
+  if (el2.textContent && el2.textContent.length > 0 && found?.localized?.length > 0) {
     if (!el2.dataset.original) el2.dataset.original = el2.textContent;
     replaceTextContent(el2, found.localized);
   }
@@ -15543,11 +15542,12 @@ function initializeDOMObserver() {
               ...Array.from(gradioApp().querySelectorAll("h1")),
               ...Array.from(gradioApp().querySelectorAll("h2")),
               ...Array.from(gradioApp().querySelectorAll("h3")),
+              ...Array.from(gradioApp().querySelectorAll(".hint")),
               ...Array.from(node.querySelectorAll("label > span")),
               ...Array.from(node.querySelectorAll(".label-wrap > span")),
               ...Array.from(node.querySelectorAll('span[data-testid="block-info"]'))
             ];
-            if (node.matches && (node.matches("button") || node.matches("h1") || node.matches("h2") || node.matches("h3") || node.matches("label > span") || node.matches(".label-wrap > span") || node.matches('span[data-testid="block-info"]'))) {
+            if (node.matches && (node.matches("button") || node.matches("h1") || node.matches("h2") || node.matches("h3") || node.matches("label > span") || node.matches(".hint") || node.matches(".label-wrap > span") || node.matches('span[data-testid="block-info"]'))) {
               elements.push(node);
             }
             elements.forEach((el2) => applyHintToElement(el2));
