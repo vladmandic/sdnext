@@ -414,9 +414,17 @@ def create_settings(cmd_opts):
         "cuda_compile_sep": OptionInfo("<h2>Model Compile</h2>", "", gr.HTML),
         "cuda_compile": OptionInfo([] if not cmd_opts.use_openvino else ["Model", "VAE", "Upscaler", "Control"], "Compile Model", gr.CheckboxGroup, {"choices": ["Model", "TE", "VAE", "LLM", "Control", "Upscaler"]}),
         "cuda_compile_backend": OptionInfo("inductor" if not cmd_opts.use_openvino else "openvino_fx", "Model compile backend", gr.Radio, {"choices": ['none', 'inductor', 'cudagraphs', 'aot_ts_nvfuser', 'hidet', 'migraphx', 'ipex', 'onediff', 'stable-fast', 'deep-cache', 'olive-ai', 'openvino', 'openvino_fx', 'pruna']}),
+        "torch_compile_sep": OptionInfo("<h2>Torch Compile</h2>", "", gr.HTML),
         "cuda_compile_mode": OptionInfo("default", "Model compile mode", gr.Radio, {"choices": ['default', 'reduce-overhead', 'max-autotune', 'max-autotune-no-cudagraphs']}),
-        "cuda_compile_options": OptionInfo(["repeated", "dynamic", "components"] if not cmd_opts.use_openvino else [], "Model compile options", gr.CheckboxGroup, {"choices": ["components", "precompile", "repeated", "fullgraph", "dynamic", "verbose"]}),
+        "cuda_compile_options": OptionInfo(["repeated", "dynamic", "components"] if not cmd_opts.use_openvino else [], "Torch compile options", gr.CheckboxGroup, {"choices": ["components", "precompile", "repeated", "fullgraph", "dynamic", "verbose"]}),
+        "deepcache_compile_sep": OptionInfo("<h2>DeepCache</h2>", "", gr.HTML),
         "deep_cache_interval": OptionInfo(3, "DeepCache cache interval", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1}),
+        "pruna_compile_sep": OptionInfo("<h2>Pruna</h2>", "", gr.HTML),
+        "pruna_experimental": OptionInfo(False, "Pruna experimental features", gr.Checkbox),
+        "pruna_cachers": OptionInfo([], "Pruna cachers", gr.CheckboxGroup, {"choices": ["fastercache", "deepcache", "fora", "pab"]}),
+        "pruna_compilers": OptionInfo([], "Pruna compilers", gr.CheckboxGroup, {"choices": ["stable_fast", "x_fast", "torch_compile"]}),
+        "pruna_factorizers": OptionInfo([], "Pruna factorizers", gr.CheckboxGroup, {"choices": ["qkv_diffusers"]}),
+        "pruna_pruners": OptionInfo([], "Pruna pruners", gr.CheckboxGroup, {"choices": ["kvpress", "padding_pruning", "token_merging", "torch_structured", "torch_unstructured"]}),
     }))
 
     # --- System Paths ---

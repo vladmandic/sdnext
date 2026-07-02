@@ -163,7 +163,7 @@
     "date": "2026 February",
     "size": 57.7
   },
-  "Anima 1.0 Base V-Merge sdnq-hadamard-uint4": {
+  "Anima 1.0 Base Merge sdnq-hadamard-uint4": {
     "path": "vladmandic/Anima-1.0-Base-Merge-sdnq-hadamard-uint4",
     "preview": "vladmandic--Anima-1.0-Base.jpg",
     "desc": "Anima 1.0 Base pre-merged with several LoRAs and quantized to uint4 using SDNQ with Hadamard. Flexible as it can be used with and without guidance.",

@@ -12,20 +12,16 @@
 - Control tab verify overrides handling, @vladmandic
 - [nVidia LocateAnything](https://huggingface.co/nvidia/LocateAnything-3B) detection for Detailer, @vladmandic
 - [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas, @vladmandic
-
 - Cloud providers, @CalamitousFelicitousness
 - Video processing add full API support, @CalamitousFelicitousness
 
 ### Unassigned
 
-- Implement [nvvfx](https://pypi.org/project/nvidia-vfx/)
-- Implement [pruna](https://github.com/PrunaAI/pruna)
 - Processing -> Video capabilities
   - `RIFE` in processing
   - `SeedVR2` in processing
 - Video model loader: Add video models to Reference
 - UI Lite vs Expert mode
-- TensorRT acceleration
 - Auto handle scheduler `prediction_type`
 - Cache models in memory
 - JSON image metadata
@@ -38,10 +34,12 @@
 
 ### OnHold
 
-- LoRA add OMI format support for SD35/FLUX.1, on-hold
+- Implement [nvvfx](https://pypi.org/project/nvidia-vfx/): not compatible with latest nVidia drivers
+- LoRA add OMI format support for SD35/FLUX.1
 - Remote Text-Encoder support, sidelined for the moment
 - Multi-user support
 - Settings profile manager
+- TensorRT acceleration
 
 ### Modular
 

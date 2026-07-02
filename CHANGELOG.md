@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-01
+## Update for 2026-07-02
 
-### Highlights for 2026-07-01
+### Highlights for 2026-07-02
 
 Service-pack update with several fixes and quality-of-life improvements  
 Plus few new models: **Krea 2**, **Photoroom PRXPixel**, **FLUX.2 Klein 9B KV**  
@@ -10,7 +10,7 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-07-01
+### Details for 2026-07-02
 
 - **Models**
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
@@ -20,6 +20,7 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
     supports *direct RGB* generation without a VAE and uses a *1024px* default sample size  
   - [Microsoft Lens](https://huggingface.co/Jinstudio/Lens) got unpublished, but we still got a mirror
   - [FLUX.2 Klein 9B KV](https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-kv) a bit late, but finally here in both *bf16* and *sdnq* pre-quantized variants  
+  - updates to [Google Nano Banana](https://aistudio.google.com/models/nano-banana) cloud image images
   - plus several new community models...
 - **Features**
   - **SDNQ-Attention**  
@@ -42,6 +43,11 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
   - StandardUI: marked as legacy
 - **Internal**
   - delay init of video models
+- **Experimental**
+  - support for [pruna](https://docs.pruna.ai/en/stable/compression.html) swiss-army-knife of model compression, caching and optimization  
+    see *settings -> model compile* for options  
+    *note*: pruna options compatibility varies greatly depending on platform, gpu, torch and model used  
+    *note*: some pruna options may require additional packages to be installed  
 - **Fixes**
   - anima: simplify loader
   - amd: hipBLASLt improved detection, thanks @0xDELUXA
