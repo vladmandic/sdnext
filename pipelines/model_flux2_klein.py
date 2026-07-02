@@ -20,7 +20,7 @@ def load_flux2_klein(checkpoint_info, diffusers_load_config=None):
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
-    if '-kv' in repo_id:
+    if '-kv' in repo_id.lower():
         cls = diffusers.Flux2KleinKVPipeline
     else:
         cls = diffusers.Flux2KleinPipeline

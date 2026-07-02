@@ -247,6 +247,7 @@ class APIProcess:
                 process_words=req.process_words,
                 semantic_threshold=req.semantic_threshold,
                 embedding_similarity=req.embedding_similarity,
+                use_openai=req.use_openai
             )
         elif req.type == 'video':
             from modules.ui_video_vlm import enhance_prompt

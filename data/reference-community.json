@@ -169,5 +169,19 @@
     "desc": "Anima 1.0 Base pre-merged with several LoRAs and quantized to uint4 using SDNQ with Hadamard. Flexible as it can be used with and without guidance.",
     "date": "2026 July",
     "size": 2.22
+  },
+  "FLUX.2 Klein 9B KV Merge sdnq-hadamard-svd": {
+    "path": "vladmandic/Flux.2-Klein-9B-KV-Merge-sdnq-hadamard-uint4",
+    "preview": "black-forest-labs--FLUX.2-klein-9b-kv.jpg",
+    "desc": "FLUX.2 Klein 9B KV pre-merged with several LoRAs and quantized to uint4 using SDNQ with Hadamard.",
+    "size": 11.67,
+    "date": "2026 July"
+  },
+  "Krea 2 Turbo Merge sdnq-hadamard-uint4": {
+    "path": "vladmandic/Krea-2-Turbo-Merge-sdnq-hadamard-uint4",
+    "preview": "CalamitousFelicitousness--Krea-2-Turbo-Diffusers.jpg",
+    "desc": "Krea 2 Turbo pre-merged with several LoRAs and quantized to uint4 using SDNQ with Hadamard.",
+    "size": 10.55,
+    "date": "2026 July"
   }
 }

@@ -31,6 +31,7 @@
 - Integrate natural language image search
   - [ImageDB](https://github.com/vladmandic/imagedb)
 - Unify *huggingface* and *diffusers* model folders
+- [QuantFunc](https://huggingface.co/QuantFunc/Klein-9B-Series)
 
 ### OnHold
 

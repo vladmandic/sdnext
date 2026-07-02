@@ -15,7 +15,7 @@ from collections import OrderedDict
 import gradio as gr
 from PIL import Image
 from starlette.responses import FileResponse, JSONResponse
-from modules import paths, shared, files_cache, errors, infotext, ui_symbols, ui_components, modelstats
+from modules import paths, shared, devices, files_cache, errors, infotext, ui_symbols, ui_components, modelstats
 from modules.logger import log
 from modules.json_helpers import writefile
 
@@ -321,7 +321,8 @@ class ExtraNetworksPage:
             subdirs['Base'] = 1
             subdirs['Distilled'] = 1
             subdirs['Quantized'] = 1
-            subdirs['Nunchaku'] = 1
+            if devices.backend == 'cuda':
+                subdirs['Nunchaku'] = 1
             subdirs['Community'] = 1
             subdirs['Cloud'] = 1
             subdirs[diffusers_base] = 1
@@ -355,7 +356,9 @@ class ExtraNetworksPage:
                 continue
             if subdir in ['All', 'Local', 'Diffusers']:
                 style = 'network-local'
-            elif subdir in ['Base', 'Reference', 'Distilled', 'Quantized', 'Nunchaku', 'Community', 'Cloud']:
+            elif subdir in ['Base', 'Reference', 'Distilled', 'Quantized', 'Community', 'Cloud']:
+                style = 'network-reference'
+            elif subdir in ['Nunchaku'] and devices.backend == 'cuda':
                 style = 'network-reference'
             else:
                 style = 'network-folder'

@@ -375,6 +375,7 @@ class ReqPromptEnhance(BaseModel):
     process_words: Optional[str] = Field(title="Banned words", default=None, description="List of words to process")
     semantic_threshold: Optional[float] = Field(title="Semantic threshold", default=None, description="Semantic similarity threshold for processed words")
     embedding_similarity: Optional[float] = Field(title="Embedding similarity", default=None, description="Embedding similarity threshold for processed words")
+    use_openai: Optional[bool] = Field(title="Use OpenAI", default=False, description="Use OpenAI API for model access")
 
 class ResPromptEnhance(BaseModel):
     prompt: str = Field(title="Prompt", description="Enhanced prompt")

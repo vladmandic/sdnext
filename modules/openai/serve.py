@@ -17,6 +17,7 @@ class OpenAIServer:
         processor=None,
         host: str = "127.0.0.1",
         port: int = 8888,
+        server: Optional[uvicorn.Server] = None,
         max_context_tokens: Optional[int] = None,
         max_new_tokens: Optional[int] = None,
         stream: Optional[bool] = None,
@@ -24,7 +25,7 @@ class OpenAIServer:
         top_p: Optional[float] = None,
         top_k: Optional[int] = None,
         repetition_penalty: Optional[float] = None,
-        api_key: Optional[str] = None
+        api_key: Optional[str] = None,
     ):
         self.model = model
         self.tokenizer = tokenizer
@@ -50,52 +51,63 @@ class OpenAIServer:
         log.info(f"OpenAI: {self.model_info}")
         attention = get_attention_config(self)
         log.debug(f'OpenAI: {attention}')
-        self.api_key = api_key
-        self._security = HTTPBearer(auto_error=False)
-        self._is_running = False
-        self._lock = threading.Lock()
+
+        if server:
+            self.use_server = True
+            self.app = server
+            self.server = server
+            self._is_running = True
+        else:
+            self.use_server = False
+            self.app = FastAPI(title="SD.Next OpenAI-compatible LLM Server", version="1.0")
+            self.server: Optional[uvicorn.Server] = None
+            self._is_running = False
         self._startup_event = threading.Event()
-        self.server: Optional[uvicorn.Server] = None
+        self.api_key = api_key
+        self._lock = threading.Lock()
+        self._security = HTTPBearer(auto_error=False)
         self.thread: Optional[threading.Thread] = None
-        self.app = FastAPI(title="SD.Next OpenAI-compatible LLM Server", version="1.0")
         setup_routes(self)
 
     def start(self, timeout_seconds: float = 10.0):
         """Spawns the serving interface safely using an active background thread worker."""
+        if self._is_running:
+            # log.warning("OpenAI: Server('already running')")
+            return
         with self._lock:
-            if self._is_running:
-                log.warning("OpenAI: Server('already running')")
-                return
-            self._startup_event.clear()
-            config = uvicorn.Config(
-                app=self.app, host=self.host, port=self.port, log_level="info", loop="asyncio", workers=1
-            )
-            self.server = uvicorn.Server(config)
-            self.server.install_signal_handlers = lambda *args, **kwargs: None
-            original_startup = self.server.startup
+            if self.server is None:
+                self._startup_event.clear()
+                config = uvicorn.Config(app=self.app, host=self.host, port=self.port, log_level="info", loop="asyncio", workers=1)
+                self.server = uvicorn.Server(config)
+                self.server.install_signal_handlers = lambda *args, **kwargs: None
+                original_startup = self.server.startup
 
-            async def patched_startup(*args, **kwargs):
-                await original_startup(*args, **kwargs)
-                self._startup_event.set()
+                async def patched_startup(*args, **kwargs):
+                    await original_startup(*args, **kwargs)
+                    self._startup_event.set()
 
-            self.server.startup = patched_startup
-            self.thread = threading.Thread(target=self.server.run, name="TransformersServeWorkerThread", daemon=True)
-            self.thread.start()
-        if not self._startup_event.wait(timeout=timeout_seconds):
-            self.stop()
-            raise TimeoutError("OpenAI: init timeout")
+                self.server.startup = patched_startup
+                self.thread = threading.Thread(target=self.server.run, name="TransformersServeWorkerThread", daemon=True)
+                self.thread.start()
+            if not self._startup_event.wait(timeout=timeout_seconds):
+                self.stop()
+                raise TimeoutError("OpenAI: init timeout")
         self._is_running = True
         url = f"http://{self.host}:{self.port}/v1"
         log.info(f"OpenAI: Server(url={url})")
 
     def stop(self, timeout_seconds: float = 5.0):
         """Safely winds down network sockets and detached worker threads."""
+        if self.use_server:
+            return
         with self._lock:
             if not self._is_running or not self.server:
                 return
             self.server.should_exit = True
             if self.thread and self.thread.is_alive():
                 self.thread.join(timeout=timeout_seconds)
+            self.server = None
+            self.thread = None
             self.server = None
             self.thread = None
             self._is_running = False

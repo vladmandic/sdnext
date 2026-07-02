@@ -4,9 +4,10 @@
 
 ### Highlights for 2026-07-02
 
-Service-pack update with several fixes and quality-of-life improvements  
-Plus few new models: **Krea 2**, **Photoroom PRXPixel**, **FLUX.2 Klein 9B KV**  
+Service-pack update with number of fixes and quality-of-life improvements  
+Plus few new models: **Krea 2**, **Photoroom PRXPixel**, **FLUX.2 Klein 9B KV** and some new community models  
 And **SDNQ** improvements: now with *NPU* support and its own native *attention* kernels!  
+Also couple of *experimental* features: see below for details...  
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
@@ -34,6 +35,7 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
   - add option: *model loading -> attempt to load incomplete model*  
     disabled by default, attempts to load model by mapping it to known model even if some components are missing  
     for example: if you place bare unet/dit finetune into stable-diffusion folder  
+  - prompt encode caching for pass-through text-encoders
 - **UI**
   - dynamic visibility of image controls
   - improve main panel positioning: *portrait/landscape*
@@ -44,6 +46,9 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
 - **Internal**
   - delay init of video models
 - **Experimental**
+  - support for **openai interface** for llm  
+    in *prompt enhance* enable openai interface and when llm is loaded,  
+    sdnext will start a local openai-compatible server on usual endpoints (e.g. `/v1/completions`, `/v1/chat/completions`, etc.)  
   - support for [pruna](https://docs.pruna.ai/en/stable/compression.html) swiss-army-knife of model compression, caching and optimization  
     see *settings -> model compile* for options  
     *note*: pruna options compatibility varies greatly depending on platform, gpu, torch and model used  
@@ -65,6 +70,7 @@ And **SDNQ** improvements: now with *NPU* support and its own native *attention*
   - measure: handle current kanvas stage
   - model metadata: handle invalid metadata and strip workflows
   - mps: install `torchsde` as requirement
+  - nunchaku: gate for `cuda` only
   - onnxruntime: handle invalid version
   - onnxruntime: mark all import paths as non-critical
   - options: handle compatibility options
