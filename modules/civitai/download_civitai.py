@@ -178,6 +178,16 @@ class DownloadManager:
                 item.completed_at = datetime.now()
                 return
 
+            # A text/* response is an error or login page served with HTTP 200,
+            # not a model. Reject before writing.
+            content_type = r.headers.get('content-type', '').lower()
+            if content_type.startswith('text/'):
+                item.status = "failed"
+                item.error = f'invalid content-type: {content_type}'
+                item.completed_at = datetime.now()
+                log.warning(f'CivitAI download invalid content-type: id={item.id} content-type="{content_type}"')
+                return
+
             total_size = int(r.headers.get('content-length', 0))
             item.bytes_total = starting_pos + total_size
 
@@ -216,8 +226,18 @@ class DownloadManager:
                             item.progress = written / item.bytes_total
                         pbar.update(task, completed=written)
 
-            # Validate minimum size
-            if written < 1024:
+            # Complete = received bytes match Content-Length, at any size. Some
+            # safetensors are legitimately tiny (~160 bytes), so no size floor;
+            # the floor is only a fallback for when Content-Length is missing.
+            expected = starting_pos + total_size
+            if total_size > 0:
+                if written != expected:
+                    item.status = "failed"
+                    item.error = f'incomplete: expected={expected} got={written}'
+                    item.completed_at = datetime.now()
+                    log.warning(f'CivitAI download incomplete: id={item.id} expected={expected} got={written}')
+                    return
+            elif written < 1024:
                 try:
                     os.remove(temp_file)
                 except OSError:
@@ -225,13 +245,7 @@ class DownloadManager:
                 item.status = "failed"
                 item.error = f'download too small: {written} bytes'
                 item.completed_at = datetime.now()
-                return
-
-            # Check for incomplete download
-            if starting_pos + total_size != written:
-                item.status = "failed"
-                item.error = f'incomplete: expected={starting_pos + total_size} got={written}'
-                item.completed_at = datetime.now()
+                log.warning(f'CivitAI download too small: id={item.id} file="{item.filename}" bytes={written}')
                 return
 
         except Exception as e:
