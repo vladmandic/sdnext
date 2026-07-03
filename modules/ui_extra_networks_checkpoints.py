@@ -86,9 +86,9 @@ class ExtraNetworksPageCheckpoints(ui_extra_networks.ExtraNetworksPage):
                 mtime = _mtime
             else:
                 try:
-                    mtime = datetime.strptime(_mtime, '%Y %B') # 2025 January
+                    mtime = datetime.strptime(mtime, '%Y %B') # 2025 January
                 except Exception:
-                    pass
+                    mtime = _mtime
             if size == 0:
                 size = _size
             if len(v.get("subfolder", "")) > 0:
