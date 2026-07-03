@@ -1,8 +1,10 @@
+from collections.abc import Callable
+
 import torch
 
 
 class SDNQLayer(torch.nn.Module):
-    def __init__(self, original_layer, forward_func):
+    def __init__(self, original_layer: torch.nn.Module, forward_func: Callable):
         torch.nn.Module.__init__(self)
         for key, value in original_layer.__dict__.items():
             if key not in {"forward", "forward_func", "original_class", "state_dict", "load_state_dict"}:
@@ -11,7 +13,7 @@ class SDNQLayer(torch.nn.Module):
         self.forward_func = forward_func
 
     @property
-    def dtype(self: torch.nn.Module):
+    def dtype(self: torch.nn.Module) -> torch.dtype:
         return self.sdnq_dequantizer.result_dtype if hasattr(self, "sdnq_dequantizer") else self.weight.dtype
 
     def dequantize(self: torch.nn.Module):
@@ -27,7 +29,7 @@ class SDNQLayer(torch.nn.Module):
     def forward(self, *args, **kwargs) -> torch.Tensor:
         return self.forward_func(self, *args, **kwargs)
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{self.__class__.__name__}(original_class={self.original_class} forward_func={self.forward_func} sdnq_dequantizer={repr(getattr(self, 'sdnq_dequantizer', None))})"
 
 
@@ -67,7 +69,7 @@ torch.serialization.add_safe_globals([SDNQConvTranspose2d])
 torch.serialization.add_safe_globals([SDNQConvTranspose3d])
 
 
-def get_sdnq_wrapper_class(original_layer, forward_func):
+def get_sdnq_wrapper_class(original_layer: torch.nn.Module, forward_func: Callable) -> SDNQLayer:
     match original_layer.__class__.__name__:
         case "Linear":
             return SDNQLinear(original_layer, forward_func)

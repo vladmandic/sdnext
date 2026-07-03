@@ -337,7 +337,7 @@ weights_dtype_order = [
 
 use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
 
-def check_torch_compile(): # dynamo can be disabled after startup
+def check_torch_compile() -> bool: # dynamo can be disabled after startup
     return use_torch_compile and not torch._dynamo.config.disable # pylint: disable=protected-access
 
 

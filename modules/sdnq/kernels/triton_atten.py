@@ -46,7 +46,7 @@ def sdnq_attn_kernel(
     q_dtype: tl.constexpr, v_dtype: tl.constexpr,
     out_dtype: tl.constexpr, mask_dtype: tl.constexpr,
     BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr,
-): # pylint: disable=unused-argument
+) -> None: # pylint: disable=unused-argument
     start_m = tl.program_id(0)
     off_h = tl.program_id(1)
     off_z = tl.program_id(2)
@@ -190,7 +190,7 @@ def quantize_attn(
     hadamard_group_size: int = 256,
     matmul_dtype: str = "int8",
     pv_matmul_dtype: str | None = None,
-):
+) -> tuple[torch.Tensor]:
     if matmul_dtype == "auto":
         matmul_dtype = "int8"
     if scale is None:
@@ -242,7 +242,7 @@ def get_attn_inputs(
     pv_matmul_dtype: str | None = None,
     do_quantize: bool = True,
     out_dtype: torch.dtype | None = None,
-) -> torch.FloatTensor:
+) -> tuple[torch.Tensor, float, torch.dtype]:
     QZ, QH, QN, QHD = query.shape
     _, _, KN, KHD = key.shape
     _, _, _, VHD = value.shape

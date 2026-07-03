@@ -46,7 +46,7 @@ def triton_mm_kernel(
     BLOCK_SIZE_N: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     GROUP_SIZE_M: tl.constexpr,
-): # pylint: disable=unused-argument
+) -> None: # pylint: disable=unused-argument
     pid = tl.program_id(axis=0)
     num_pid_m: tl.constexpr = tl.cdiv(M, BLOCK_SIZE_M)
     num_pid_n: tl.constexpr = tl.cdiv(N, BLOCK_SIZE_N)
@@ -113,7 +113,7 @@ def triton_mm_td_kernel(
     BLOCK_SIZE_N: tl.constexpr,
     BLOCK_SIZE_K: tl.constexpr,
     GROUP_SIZE_M: tl.constexpr,
-): # pylint: disable=unused-argument
+) -> None: # pylint: disable=unused-argument
     pid = tl.program_id(axis=0)
     num_pid_m: tl.constexpr = tl.cdiv(M, BLOCK_SIZE_M)
     num_pid_n: tl.constexpr = tl.cdiv(N, BLOCK_SIZE_N)
