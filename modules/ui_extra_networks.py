@@ -417,6 +417,13 @@ class ExtraNetworksPage:
 
         try:
             onclick = f'cardClicked({item.get("prompt", None)})'
+            tags = item.get("tags", {})
+            if isinstance(tags, list):
+                tags = '|'.join(tags)
+            elif isinstance(tags, dict):
+                tags = '|'.join(list(tags.keys()))
+            else:
+                tags = str(tags)
             args = {
                 # "tabname": tabname,
                 "page": self.name,
@@ -424,7 +431,7 @@ class ExtraNetworksPage:
                 "title": os.path.basename(item["name"].replace('_', ' ')),
                 "filename": html.escape(item.get('filename', ''), quote=True),
                 "short": os.path.splitext(os.path.basename(item.get('filename', '')))[0],
-                "tags": '|'.join([item.get('tags')] if isinstance(item.get('tags', {}), str) else list(item.get('tags', {}).keys())),
+                "tags": tags,
                 "preview": html.escape(item.get('preview', None) or self.link_preview('ui/assets/missing.png')),
                 "width": 'var(--card-size)',
                 "height": 'var(--card-size)' if shared.opts.extra_networks_card_square else 'auto',
@@ -959,6 +966,7 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
                         <tr><td>Title</td><td>{meta.get('modelspec.title', 'N/A')}</td></tr>
                         <tr><td>Resolution</td><td>{meta.get('modelspec.resolution', 'N/A')}</td></tr>
                     '''
+            tags = None
             if page.title == 'Lora':
                 try:
                     tags = getattr(item, 'tags', {})
@@ -989,6 +997,9 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
                     <tr><td>Description</td><td>{item.description}</td></tr>
                     <tr><td>Preview Embedded</td><td>{item.preview.startswith('data:')}</td></tr>
                 '''
+            if tags is None:
+                tags = getattr(item, 'tags', [])
+                tags = ' '.join(tags) if isinstance(tags, list) else tags
             if item.name.startswith('Diffusers'):
                 url = item.name.replace('Diffusers/', '')
                 url = f'<a href="https://huggingface.co/{url}" target="_blank">https://huggingface.co/models/{url}</a>'
@@ -1007,6 +1018,7 @@ def create_ui(container, button_parent: gr.Button, tabname: str, skip_indexing =
                     <tr><td>Size</td><td>{round(stat_size/1024/1024, 2)} MB</td></tr>
                     <tr><td>Last modified</td><td>{stat_mtime}</td></tr>
                     <tr><td>Source URL</td><td>{url}</td></tr>
+                    <tr><td>Tags</td><td>{tags}</td></tr>
                     <tr><td style="border-top: 1px solid var(--button-primary-border-color);"></td><td></td></tr>
                     {lora}
                     {model}

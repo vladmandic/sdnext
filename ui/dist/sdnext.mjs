@@ -10433,6 +10433,10 @@ async function filterExtraNetworksForTab(searchTerm) {
       cards.forEach((elem) => {
         elem.style.display = elem.dataset.name.toLowerCase().includes("reference/") && elem.dataset.tags === "" ? "" : "none";
       });
+    } else if (searchTerm === "base/") {
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags.toLowerCase().includes("base") ? "" : "none";
+      });
     } else if (searchTerm === "distilled/") {
       cards.forEach((elem) => {
         elem.style.display = elem.dataset.tags.toLowerCase().includes("distilled") ? "" : "none";

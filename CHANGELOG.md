@@ -36,7 +36,8 @@ Also couple of *experimental* features: see below for details...
     disabled by default, attempts to load model by mapping it to known model even if some components are missing  
     for example: if you place bare unet/dit finetune into stable-diffusion folder  
   - prompt encode caching for pass-through text-encoders
-  - reference models: validate and update info for all reference models
+  - reference models: validate and update info for all reference models  
+    add size preview before download for all reference models  
 - **UI**
   - dynamic visibility of image controls
   - improve main panel positioning: *portrait/landscape*
