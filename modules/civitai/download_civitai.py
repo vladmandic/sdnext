@@ -752,7 +752,7 @@ def download_civit_model(model_url: str, model_name: str = '', model_path: str =
             from modules.civitai.filemanage_civitai import resolve_save_path
             folder = str(resolve_save_path(model_type or 'Checkpoint', model_name=model_name, base_model=base_model))
         else:
-            folder = str(get_type_folder(model_type or 'Checkpoint'))
+            folder = str(get_type_folder(model_type or 'Checkpoint', base_model=base_model))
     elif os.path.isabs(model_path):
         folder = model_path
     else:

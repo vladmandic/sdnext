@@ -23,8 +23,19 @@ TYPE_MAP = {
     'Other': ('ckpt_dir', 'Stable-diffusion'),
 }
 
+# CivitAI has no type for a standalone transformer, so DiT finetunes ship as
+# 'Checkpoint' like full models. Bases listed here are full checkpoints and stay
+# in Stable-diffusion; any other base is transformer-only in practice and routes
+# to UNET. Exact names: 'Pony' is SDXL but 'Pony V7' is AuraFlow.
+FULL_CHECKPOINT_BASES = {'Pony', 'Illustrious', 'NoobAI', 'SVD', 'SVD XT', 'Kolors', 'Stable Cascade'}
+FULL_CHECKPOINT_PREFIXES = ('SD 1', 'SD 2', 'SDXL')
 
-def get_type_folder(model_type: str) -> Path:
+
+def is_full_checkpoint_base(base_model: str) -> bool:
+    return base_model in FULL_CHECKPOINT_BASES or base_model.startswith(FULL_CHECKPOINT_PREFIXES)
+
+
+def get_type_folder(model_type: str, base_model: str = '') -> Path:
     from modules import shared, paths
     # Check for user-configured type folder overrides
     custom_json = getattr(shared.opts, 'civitai_save_type_folders', '') or ''
@@ -40,6 +51,8 @@ def get_type_folder(model_type: str) -> Path:
         except Exception as e:
             log.warning(f'CivitAI type folder override parse error: {e}')
     opt_attr, fallback_dir = TYPE_MAP.get(model_type, ('ckpt_dir', 'Stable-diffusion'))
+    if model_type == 'Checkpoint' and base_model and not is_full_checkpoint_base(base_model):
+        opt_attr, fallback_dir = 'unet_dir', 'UNET'
     if opt_attr:
         configured = getattr(shared.opts, opt_attr, '') or ''
         if configured:
@@ -51,7 +64,7 @@ def resolve_save_path(model_type: str, model_name: str = "", base_model: str = "
                       nsfw: bool = False, creator: str = "", model_id: int = 0,
                       version_id: int = 0, version_name: str = "") -> Path:
     from modules import shared
-    base_folder = get_type_folder(model_type)
+    base_folder = get_type_folder(model_type, base_model=base_model)
     if not getattr(shared.opts, 'civitai_save_subfolder_enabled', False):
         return base_folder
     template = getattr(shared.opts, 'civitai_save_subfolder', '{{BASEMODEL}}') or ''
