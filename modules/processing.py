@@ -3,15 +3,15 @@ import json
 import time
 import numpy as np
 from PIL import Image, ImageOps
-from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer, masking
+from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer, masking
 from modules.logger import log
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
-from modules.processing_class import ( # pylint: disable=unused-import
+from modules.processing_class import (
     StableDiffusionProcessing,
-    StableDiffusionProcessingTxt2Img,
-    StableDiffusionProcessingImg2Img,
-    StableDiffusionProcessingVideo,
-    StableDiffusionProcessingControl,
+    StableDiffusionProcessingTxt2Img, # pylint: disable=unused-import
+    StableDiffusionProcessingImg2Img, # pylint: disable=unused-import
+    StableDiffusionProcessingVideo, # pylint: disable=unused-import
+    StableDiffusionProcessingControl, # pylint: disable=unused-import
 )
 from modules.processing_info import create_infotext
 
@@ -62,7 +62,7 @@ class Processed:
         self.audio = audio
 
         self.detailer = p.detailer_enabled or False
-        self.detailer_model = shared.opts.detailer_model if p.detailer_enabled else None
+        self.detailer_model = 'Detailer' if p.detailer_enabled else None
         self.seed_resize_from_w = p.seed_resize_from_w
         self.seed_resize_from_h = p.seed_resize_from_h
         self.extra_generation_params = p.extra_generation_params
@@ -317,7 +317,7 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 if not p.do_not_save_samples and get_opt(p, 'save_images_before_detailer'):
                     info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
                     images.save_image(image, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=get_opt(p, 'samples_format'), info=info, p=p, suffix="-before-detailer")
-                sample = detailer.detail(sample, p)
+                sample = shared.detailer.restore(sample, p)
                 if isinstance(sample, list):
                     if len(sample) > 0:
                         image = Image.fromarray(sample[0])

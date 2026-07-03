@@ -800,7 +800,7 @@ def create_settings(cmd_opts):
                 "uni_pc_variant": OptionInfo("bh2", "UniPC variant", gr.Radio, {"choices": ["bh1", "bh2", "vary_coeff"], "visible": False}),
                 "uni_pc_skip_type": OptionInfo("time_uniform", "UniPC skip type", gr.Radio, {"choices": ["time_uniform", "time_quadratic", "logSNR"], "visible": False}),
                 # detailer settings are handled separately
-                "detailer_model": OptionInfo("Detailer", "Detailer model", gr.Radio, lambda: {"choices": [x.name() for x in shared.detailers], "visible": False}),
+                # "detailer_model": OptionInfo("Detailer", "Detailer model", gr.Radio, lambda: {"choices": [x.name() for x in shared.detailers], "visible": False}),
                 "detailer_classes": OptionInfo("", "Detailer classes", gr.Textbox, {"visible": False}),
                 "detailer_conf": OptionInfo(0.6, "Min confidence", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05, "visible": False}),
                 "detailer_max": OptionInfo(2, "Max detected", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1, "visible": False}),
@@ -811,7 +811,7 @@ def create_settings(cmd_opts):
                 "detailer_max_size": OptionInfo(1.0, "Max object size", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05, "visible": False}),
                 "detailer_padding": OptionInfo(20, "Item padding", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1, "visible": False}),
                 "detailer_blur": OptionInfo(10, "Item edge blur", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1, "visible": False}),
-                "detailer_models": OptionInfo(["face-yolo8n"], "Detailer models", gr.Dropdown, lambda: {"multiselect": True, "choices": list(shared.yolo.list) if shared.yolo else [], "visible": False}),
+                "detailer_models": OptionInfo(["face-yolo8n"], "Detailer models", gr.Dropdown, lambda: {"multiselect": True, "choices": list(shared.detailer.list) if shared.detailer else [], "visible": False}),
                 "detailer_args": OptionInfo("", "Detailer args", gr.Textbox, {"visible": False}),
                 "detailer_merge": OptionInfo(False, "Merge multiple results from each detailer model", gr.Checkbox, {"visible": False}),
                 "detailer_sort": OptionInfo(False, "Sort detailer output by location", gr.Checkbox, {"visible": False}),

@@ -206,7 +206,7 @@ def create_ui(_blocks: gr.Blocks=None):
                         video_type, video_duration, video_loop, video_pad, video_interpolate = create_video_inputs(tab='control')
 
                 enable_hr, hr_sampler_index, hr_denoising_strength, hr_resize_mode, hr_resize_context, hr_upscaler, hr_force, hr_second_pass_steps, hr_scale, hr_resize_x, hr_resize_y, refiner_steps, refiner_start, refiner_prompt, refiner_negative = ui_sections.create_hires_inputs('control')
-                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution = shared.yolo.ui('control')
+                detailer_enabled, detailer_prompt, detailer_negative, detailer_steps, detailer_strength, detailer_resolution = shared.detailer.ui('control')
 
             with gr.Row():
                 override_script_name = gr.State(value='', visible=False, elem_id='control_override_script_name')

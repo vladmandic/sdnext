@@ -60,8 +60,8 @@ def get_controlnets(model_type: str | None = None):
 
 def get_detailers():
     """List available detailer (YOLO) models for face/object detection and inpainting."""
-    shared.yolo.enumerate()
-    return [{"name": k, "path": v} for k, v in shared.yolo.list.items()]
+    shared.detailer.enumerate()
+    return [{"name": k, "path": v} for k, v in shared.detailer.list.items()]
 
 get_restorers = get_detailers  # legacy alias for /sdapi/v1/face-restorers
 

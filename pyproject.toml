@@ -94,6 +94,7 @@ main.prefer-stubs=true
 main.extension-pkg-whitelist=""
 main.fail-on=""
 main.fail-under=10
+main.recursive=true
 main.ignore="CVS"
 main.ignore-paths=[
     "venv",
@@ -170,7 +171,6 @@ main.jobs=4
 main.limit-inference-results=100
 main.load-plugins=""
 main.persistent=false
-main.recursive=false
 main.source-roots=""
 main.unsafe-load-any-extension=false
 basic.argument-naming-style="snake_case"

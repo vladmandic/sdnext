@@ -36,6 +36,7 @@ import modules.progress
 import modules.ui
 import modules.txt2img
 import modules.img2img
+import modules.detailer
 import modules.upscaler
 import modules.upscaler_simple
 import modules.upscaler_vae
@@ -114,8 +115,7 @@ def initialize():
     shared.prompt_styles.reload()
     timer.startup.record("styles")
 
-    import modules.postprocess.yolo as yolo
-    yolo.initialize()
+    modules.detailer.initialize()
     timer.startup.record("detailer")
 
     modules.extensions.list_extensions()

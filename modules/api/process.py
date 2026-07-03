@@ -118,7 +118,6 @@ class APIProcess:
 
     def post_detect(self, req: ReqFace):
         """Detect faces/objects in an image using YOLO. Returns bounding boxes, labels, scores, and cropped images."""
-        from modules.shared import yolo # pylint: disable=no-name-in-module
         image = decode_base64_to_image(req.image)
         jobid = shared.state.begin('API-FACE', api=True)
         images = []
@@ -127,7 +126,7 @@ class APIProcess:
         boxes = []
         labels = []
         with self.queue_lock:
-            items = yolo.predict(req.model, image)
+            items = shared.detailer.predict(req.model, image)
             for item in items:
                 images.append(encode_pil_to_base64(item.item))
                 scores.append(item.score)
@@ -145,7 +144,6 @@ class APIProcess:
         """
         import numpy as np
         from PIL import Image
-        from modules.shared import yolo # pylint: disable=no-name-in-module
 
         if shared.sd_model is None or not hasattr(shared.sd_model, 'sd_checkpoint_info'):
             return JSONResponse(status_code=400, content={"error": "no base model selected"})
@@ -182,7 +180,7 @@ class APIProcess:
 
         jobid = shared.state.begin('API-DETAIL', api=True)
         try:
-            p = yolo.make_processing(
+            p = shared.detailer.make_processing(
                 image,
                 prompt=req.detailer_prompt or '',
                 negative=req.detailer_negative or '',
@@ -194,7 +192,7 @@ class APIProcess:
             )
 
             with self.queue_lock:
-                result = yolo.restore(np.array(image), p)
+                result = shared.detailer.restore(np.array(image), p)
 
             annotated_b64 = None
             if isinstance(result, list) and len(result) > 0:
