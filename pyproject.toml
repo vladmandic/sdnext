@@ -104,6 +104,9 @@ main.ignore-paths=[
     ".ruff_cache",
     ".vscode",
     ".*/node_modules/.*",
+    "cli",
+    "tmp",
+    "test",
     "modules/control/proc",
     "modules/schedulers/scheduler_*.py",
     "modules/apg",
@@ -325,6 +328,8 @@ typecheck.generated-members=[
     "logging.*",
     "torch.*",
     "cv2.*",
+    "av.*",
+    "PIL.*",
 ]
 typecheck.ignore-none=true
 typecheck.ignore-on-opaque-inference=true

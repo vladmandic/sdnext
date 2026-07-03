@@ -202,7 +202,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status="same"')
         return False, "none"
 
-    def activate(self, p, params_list, step=0, include=None, exclude=None):
+    def activate(self, p, params_list, step=0, include=None, exclude=None): # pylint: disable=arguments-differ
         if exclude is None:
             exclude = []
         if include is None:

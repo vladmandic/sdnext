@@ -18,8 +18,6 @@ import inspect
 import torch
 import torch.nn.functional as F
 
-from modules.logger import log
-
 
 _PATCH_APPLIED = False
 _BROKEN_MARKER = 'torch.flip(hidden_states, dims=[1])'

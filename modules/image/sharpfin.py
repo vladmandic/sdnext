@@ -184,14 +184,14 @@ def resize_tensor(tensor: torch.Tensor, target_size: tuple[int, int], *, kernel=
         mode = 'bilinear' if (target_size[0] * target_size[1]) > (tensor.shape[-2] * tensor.shape[-1]) else 'area'
         log.debug(f'Resize tensor: method=torch mode={mode} shape={tensor.shape} target={target_size} fn={fn}')
         inp = tensor if tensor.dim() == 4 else tensor.unsqueeze(0)
-        result = torch.nn.functional.interpolate(inp, size=target_size, mode=mode, antialias=(mode != 'area'))
+        result = torch.nn.functional.interpolate(inp, size=target_size, mode=mode, antialias=mode != 'area')
         return result.squeeze(0) if tensor.dim() == 3 else result
     rk = get_kernel(kernel)
     if rk is None:
         mode = 'bilinear' if (target_size[0] * target_size[1]) > (tensor.shape[-2] * tensor.shape[-1]) else 'area'
         log.debug(f'Resize tensor: method=torch mode={mode} shape={tensor.shape} target={target_size} kernel=None fn={fn}')
         inp = tensor if tensor.dim() == 4 else tensor.unsqueeze(0)
-        result = torch.nn.functional.interpolate(inp, size=target_size, mode=mode, antialias=(mode != 'area'))
+        result = torch.nn.functional.interpolate(inp, size=target_size, mode=mode, antialias=mode != 'area')
         return result.squeeze(0) if tensor.dim() == 3 else result
 
     from modules.sharpfin.functional import scale

@@ -6,12 +6,12 @@ from PIL import Image, ImageOps
 from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer, masking
 from modules.logger import log
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
-from modules.processing_class import (
+from modules.processing_class import ( # pylint: disable=unused-import
     StableDiffusionProcessing,
-    StableDiffusionProcessingTxt2Img, # pylint: disable=unused-import
-    StableDiffusionProcessingImg2Img, # pylint: disable=unused-import
-    StableDiffusionProcessingVideo, # pylint: disable=unused-import
-    StableDiffusionProcessingControl, # pylint: disable=unused-import
+    StableDiffusionProcessingTxt2Img,
+    StableDiffusionProcessingImg2Img,
+    StableDiffusionProcessingControl,
+    StableDiffusionProcessingVideo,
 )
 from modules.processing_info import create_infotext
 
