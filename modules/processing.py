@@ -320,13 +320,13 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 sample = shared.detailer.restore(sample, p)
                 if isinstance(sample, list):
                     if len(sample) > 0:
-                        image = Image.fromarray(sample[0])
+                        image = sample[0] if isinstance(sample[0], Image.Image) else Image.fromarray(sample[0])
                     if len(sample) > 1:
                         annotated = sample[1] if isinstance(sample[1], Image.Image) else Image.fromarray(sample[1])
                         out_images.append(annotated)
                         out_infotexts.append("Detailer annotations")
                 elif sample is not None:
-                    image = Image.fromarray(sample)
+                    image = sample if isinstance(sample, Image.Image) else Image.fromarray(sample)
 
             if p.color_corrections is not None and i < len(p.color_corrections):
                 p.ops.append('color')

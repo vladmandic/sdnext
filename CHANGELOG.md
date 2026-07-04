@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-03
+## Update for 2026-07-04
 
-### Highlights for 2026-07-03
+### Highlights for 2026-07-04
 
 Service-pack update with number of fixes and quality-of-life improvements  
 Plus few new models: **Krea 2**, **Photoroom PRXPixel**, **FLUX.2 Klein 9B KV** and some new community models  
@@ -11,7 +11,7 @@ Also couple of *experimental* features: see below for details...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-07-03
+### Details for 2026-07-04
 
 - **Models**
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
@@ -38,6 +38,10 @@ Also couple of *experimental* features: see below for details...
   - prompt encode caching for pass-through text-encoders
   - reference models: validate and update info for all reference models  
     add size preview before download for all reference models  
+  - **CivitAI** download improvements  
+    auto-select download path  
+    improved search  
+    validate downloads  
 - **UI**
   - dynamic visibility of image controls
   - improve main panel positioning: *portrait/landscape*

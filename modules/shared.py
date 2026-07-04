@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from diffusers import DiffusionPipeline
     from modules.shared_legacy import LegacyOption
     from modules.ui_extra_networks import ExtraNetworksPage
+    from modules.detailer import Detailer
 
 
 class Backend(Enum):
@@ -48,8 +49,7 @@ listfiles = listdir
 xformers_available = False
 compiled_model_state = None
 sd_upscalers = []
-detailers = []
-detailer = None
+detailer: Detailer | None = None
 tab_names = []
 extra_networks: list[ExtraNetworksPage] = []
 hypernetworks = {}
