@@ -314,8 +314,8 @@ def sdnq_quantize_layer_weight_dynamic(
                 and dtype_dict[current_quantized_matmul_dtype]["num_bits"] < dtype_dict[current_weights_dtype]["num_bits"]
             )
         ):
-                current_use_quantized_matmul = False
-                add_param_to_not_use_matmul = True
+            current_use_quantized_matmul = False
+            add_param_to_not_use_matmul = True
 
         sdnq_dequantizer, weight_data = sdnq_quantize_layer_weight(
             weight,
