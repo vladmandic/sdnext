@@ -127,6 +127,8 @@ def get_model_type(pipe):
         model_type = 'ovis'
     elif 'Wan' in name:
         model_type = 'wanai'
+    elif 'BooguImage' in name or 'Boogu' in name:
+        model_type = 'boogu'
     elif 'ChronoEdit' in name:
         model_type = 'chrono'
     elif 'HunyuanImage3' in name:

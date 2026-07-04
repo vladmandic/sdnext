@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from rich import print # pylint: disable=redefine-builtin
+from rich import print # pylint: disable=redefined-builtin
 
 
 def load_hf_info_module(module_path: Path):

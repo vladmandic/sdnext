@@ -40,6 +40,7 @@ def hf_init():
 
 
 def hf_check_cache():
+    t0 = time.time()
     from modules.modelstats import stat
     prev_default = os.environ.get("SD_HFCACHEDIR", None) or os.path.join(os.path.expanduser('~'), '.cache', 'huggingface', 'hub')
     if opts.hfcache_dir != prev_default:
@@ -52,9 +53,14 @@ def hf_check_cache():
         if size // 1024 // 1024 > 99:
             log.warning(f'Huggingface cache changed: type=xet unused="{prev_default}" size={size//1024//1024} MB')
 
-    hf_size, _mtime = stat(opts.hfcache_dir)
-    xet_size, _mtime = stat(opts.xetcache_dir)
-    log.debug(f'Huggingface: cache="{opts.hfcache_dir}" size={hf_size//1024//1024} MB xet="{opts.xetcache_dir}" size={xet_size//1024//1024} MB')
+    def check_thread():
+        hf_size, _mtime = stat(opts.hfcache_dir)
+        xet_size, _mtime = stat(opts.xetcache_dir)
+        t1 = time.time()
+        log.debug(f'Huggingface: cache="{opts.hfcache_dir}" size={hf_size//1024//1024} MB xet="{opts.xetcache_dir}" size={xet_size//1024//1024} MB time={t1-t0:.2f}')
+
+    from threading import Thread
+    Thread(target=check_thread, daemon=True).start()
 
 
 def hf_search(keyword):

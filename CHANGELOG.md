@@ -5,7 +5,7 @@
 ### Highlights for 2026-07-04
 
 Service-pack update with number of fixes and quality-of-life improvements  
-Plus few new models: **Krea 2**, **Photoroom PRXPixel**, **FLUX.2 Klein 9B KV** and some new community models  
+Plus few new models: **Krea 2**, **Boogu**, **Photoroom PRXPixel**, **FLUX.2 Klein KV** and some new community models  
 And **SDNQ** improvements: now with *NPU* support and its own native *attention* kernels!  
 Also couple of *experimental* features: see below for details...  
 
@@ -17,6 +17,8 @@ Also couple of *experimental* features: see below for details...
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
     both *base* and *turbo* are available in both full *bf16* and *sdnq* pre-quantized variants  
     K2 is a 12.9B single-stream flow-matching DiT and using a Qwen3-VL-4B text encoder  
+  - [Boogu Image](https://huggingface.co/Boogu/Boogu-Image-0.1-Base) in *base*, *edit*, *turbo*, and *edit-turbo* variants  
+    Boogu is a 10B flow-matching DiT model using a Qwen3-VL-9B text encoder
   - [Photoroom PRXPixel](https://huggingface.co/Photoroom/prxpixel-t2i) pixel-space PRX variant using a Qwen3-VL text encoder and flow-matching scheduler  
     supports *direct RGB* generation without a VAE and uses a *1024px* default sample size  
   - [Microsoft Lens](https://huggingface.co/Jinstudio/Lens) got unpublished, but we still got a mirror
@@ -87,6 +89,9 @@ Also couple of *experimental* features: see below for details...
   - ui debounce aspect-ratio linked width/height controls
   - ui: networks details scrollbars
   - vae: scale factor improved detection
+  - text-encode: restore hijack on pipeline switch
+  - vae: restore hijack on pipeline switch
+  - startup: faster model storage checks
 
 ## Update for 2026-06-16
 

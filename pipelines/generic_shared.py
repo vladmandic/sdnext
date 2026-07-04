@@ -113,4 +113,10 @@ shared_te_map = {
         'cls': transformers.Qwen3VLModel,
         'target_repo': 'Qwen/Qwen3-VL-8B-Instruct',
     },
+
+    'Qwen3-VL 8B Conditional': {
+        'cls': transformers.Qwen3VLForConditionalGeneration,
+        'target_repo': 'Boogu/Boogu-Image-0.1-Base',
+        'target_subfolder': 'mllm',
+    },
 }

@@ -1,4 +1,18 @@
 {
+  "Boogu Image 0.1 Turbo": {
+    "path": "Boogu/Boogu-Image-0.1-Turbo",
+    "preview": "Boogu--Boogu-Image-0.1-Turbo.jpg",
+    "desc": "Boogu Image 0.1 Turbo is the distilled fast inference variant of Boogu Image with the same Qwen3-VL instruction encoder and Boogu transformer architecture.",
+    "size": 35.81,
+    "date": "2026 June"
+  },
+  "Boogu Image 0.1 Edit Turbo": {
+    "path": "Boogu/Boogu-Image-0.1-Edit-Turbo",
+    "preview": "Boogu--Boogu-Image-0.1-Edit-Turbo.jpg",
+    "desc": "Boogu Image 0.1 Edit Turbo is the distilled editing variant of Boogu Image with motion-aware instruction encoding and fast flow-match inference.",
+    "size": 35.81,
+    "date": "2026 June"
+  },
   "StabilityAI StableDiffusion XL Turbo": {
     "path": "stabilityai/sdxl-turbo",
     "preview": "stabilityai--sdxl-turbo.jpg",

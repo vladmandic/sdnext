@@ -83,6 +83,7 @@ pipelines = {
     'VIBE': None,
     'XOmni': None,
     'ZetaChroma': None,
+    'Boogu': None,
 }
 
 

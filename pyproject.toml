@@ -72,8 +72,6 @@ unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.per-file-ignores]
-"modules/seedvr/**/*.py" = ["TID252"] # Vendored code: relative imports required for package structure
-"pipelines/omnigen2/**/*.py" = ["TID252"] # Vendored code: relative imports required for package structure
 
 [tool.ruff.format]
 quote-style = "double"
@@ -146,6 +144,7 @@ main.ignore-paths=[
     "pipelines/vibe",
     "pipelines/ultraflux",
     "pipelines/lumina_dimmo",
+    "pipelines/boogu",
     "scripts/consistory",
     "scripts/ctrlx",
     "scripts/daam",
@@ -418,6 +417,7 @@ exclude = [
     "pipelines/flex2",
     "pipelines/anima",
     "pipelines/meissonic",
+    "pipelines/boogu",
     "extensions-builtin/sd-extension-chainner/nodes",
 ]
 

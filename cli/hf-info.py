@@ -219,7 +219,7 @@ def discover_components(model_index: dict[str, Any] | None, files_map: dict[str,
         components["mains"] = sorted([d for d in top_dirs if re.search(r"(transformer|unet)", d or "", flags=re.IGNORECASE)])
 
     if not components["text_encoders"]:
-        components["text_encoders"] = sorted([d for d in top_dirs if re.fullmatch(r"text_encoder(_\d+)?", d or "")])
+        components["text_encoders"] = sorted([d for d in top_dirs if re.fullmatch(r"text_encoder|mllm(_\d+)?", d or "")])
 
     if components["ae"] is None and "vae" in top_dirs:
         components["ae"] = "vae"

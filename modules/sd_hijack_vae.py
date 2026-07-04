@@ -71,9 +71,9 @@ def hijack_vae_encode(*args, **kwargs):
 
 
 def init_hijack(pipe):
-    if pipe is not None and hasattr(pipe, 'vae') and hasattr(pipe.vae, 'decode') and not hasattr(pipe.vae, 'orig_decode'):
+    if (pipe is not None) and hasattr(pipe, 'vae') and hasattr(pipe.vae, 'decode') and not hasattr(pipe.vae, 'orig_decode'):
         pipe.vae.orig_decode = pipe.vae.decode
         pipe.vae.decode = hijack_vae_decode
-    if pipe is not None and hasattr(pipe, 'vae') and hasattr(pipe.vae, 'encode') and not hasattr(pipe.vae, 'orig_encode'):
+    if (pipe is not None) and hasattr(pipe, 'vae') and hasattr(pipe.vae, 'encode') and not hasattr(pipe.vae, 'orig_encode'):
         pipe.vae.orig_encode = pipe.vae.encode
         pipe.vae.encode = hijack_vae_encode

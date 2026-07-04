@@ -41,6 +41,20 @@
     "size": 28.43,
     "date": "2026 May"
   },
+  "Boogu Image 0.1 Base": {
+    "path": "Boogu/Boogu-Image-0.1-Base",
+    "preview": "Boogu--Boogu-Image-0.1-Base.jpg",
+    "desc": "Boogu Image 0.1 Base is the core Boogu text-to-image model with Qwen3-VL instruction encoding and a mixed single/double-stream diffusion transformer.",
+    "size": 35.81,
+    "date": "2026 June"
+  },
+  "Boogu Image 0.1 Edit": {
+    "path": "Boogu/Boogu-Image-0.1-Edit",
+    "preview": "Boogu--Boogu-Image-0.1-Edit.jpg",
+    "desc": "Boogu Image 0.1 Edit is optimized for image editing with the same instruction-aware Boogu transformer and flow-match scheduler.",
+    "size": 35.81,
+    "date": "2026 June"
+  },
   "Microsoft Lens Base": {
     "path": "Jinstudio/Lens-Base",
     "preview": "microsoft--Lens-Base.jpg",

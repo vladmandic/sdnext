@@ -88,6 +88,6 @@ def hijack_encode_prompt(*args, **kwargs):
 
 
 def init_hijack(pipe):
-    if pipe is not None and not hasattr(pipe, 'orig_encode_prompt') and hasattr(pipe, 'encode_prompt'):
+    if (pipe is not None) and not hasattr(pipe, 'orig_encode_prompt') and hasattr(pipe, 'encode_prompt'):
         pipe.orig_encode_prompt = pipe.encode_prompt
         pipe.encode_prompt = hijack_encode_prompt

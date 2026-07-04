@@ -137,7 +137,7 @@ def initialize():
     from modules.models_hf import hf_init, hf_check_cache
     hf_init()
     hf_check_cache()
-
+    timer.startup.record("huggingface")
 
     if shared.cmd_opts.tls_keyfile is not None and shared.cmd_opts.tls_certfile is not None:
         try:
@@ -422,7 +422,7 @@ def webui(restart=False, _exit=False):
         log.info(f"Startup time: {timer.startup.summary(min_time=0)}")
     else:
         timer.startup.add('launch', timer.launch.get_total())
-        timer.startup.add('installer', timer.launch.get_total())
+        timer.startup.add('installer', timer.init.get_total())
         log.info(f"Startup time: {timer.startup.summary()}")
     timer.startup.reset()
 
