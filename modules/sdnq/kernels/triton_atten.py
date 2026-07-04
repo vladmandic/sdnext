@@ -34,19 +34,28 @@ matmul_configs = [
 )
 @triton.jit
 def sdnq_attn_kernel(
-    q_ptr, k_ptr, v_ptr, q_scale_ptr, k_scale_ptr, v_scale_ptr,
-    out_ptr, mask_ptr, is_causal: tl.constexpr, do_mask: tl.constexpr,
+    q_ptr, k_ptr, v_ptr,
+    q_scale_ptr, k_scale_ptr, v_scale_ptr,
+    out_ptr, mask_ptr,
+    is_causal: tl.constexpr,
+    do_mask: tl.constexpr,
     QZ: tl.constexpr, QH: tl.constexpr, QN: tl.constexpr, QHD: tl.constexpr,
     KZ: tl.constexpr, KH: tl.constexpr, KN: tl.constexpr, KHD: tl.constexpr,
     VZ: tl.constexpr, VH: tl.constexpr, VN: tl.constexpr, VHD: tl.constexpr,
     OZ: tl.constexpr, OH: tl.constexpr, ON: tl.constexpr, OHD: tl.constexpr,
     MZ: tl.constexpr, MH: tl.constexpr, MQN: tl.constexpr, MKN: tl.constexpr,
-    QN_AT: tl.constexpr, KN_AT: tl.constexpr, VN_AT: tl.constexpr,
-    qk_is_quantized: tl.constexpr, pv_is_quantized: tl.constexpr,
-    q_dtype: tl.constexpr, v_dtype: tl.constexpr,
-    out_dtype: tl.constexpr, mask_dtype: tl.constexpr,
-    BLOCK_SIZE_M: tl.constexpr, BLOCK_SIZE_N: tl.constexpr,
-) -> None: # pylint: disable=unused-argument
+    QN_AT: tl.constexpr, # pylint: disable=unused-argument
+    KN_AT: tl.constexpr, # pylint: disable=unused-argument
+    VN_AT: tl.constexpr, # pylint: disable=unused-argument
+    qk_is_quantized: tl.constexpr,
+    pv_is_quantized: tl.constexpr,
+    q_dtype: tl.constexpr, # pylint: disable=unused-argument
+    v_dtype: tl.constexpr, # pylint: disable=unused-argument
+    out_dtype: tl.constexpr, # pylint: disable=unused-argument
+    mask_dtype: tl.constexpr, # pylint: disable=unused-argument
+    BLOCK_SIZE_M: tl.constexpr,
+    BLOCK_SIZE_N: tl.constexpr,
+) -> None:
     start_m = tl.program_id(0)
     off_h = tl.program_id(1)
     off_z = tl.program_id(2)
@@ -76,10 +85,10 @@ def sdnq_attn_kernel(
     tl.assume(start_m >= 0)
     tl.assume(BLOCK_SIZE_M > 0)
     tl.assume(BLOCK_SIZE_N > 0)
-    tl.assume(do_mask == 0 or do_mask == 1)
-    tl.assume(is_causal == 0 or is_causal == 1)
-    tl.assume(qk_is_quantized == 0 or qk_is_quantized == 1)
-    tl.assume(pv_is_quantized == 0 or pv_is_quantized == 1)
+    tl.assume(do_mask == 0 or do_mask == 1) # pylint: disable=consider-using-in
+    tl.assume(is_causal == 0 or is_causal == 1) # pylint: disable=consider-using-in
+    tl.assume(qk_is_quantized == 0 or qk_is_quantized == 1) # pylint: disable=consider-using-in
+    tl.assume(pv_is_quantized == 0 or pv_is_quantized == 1) # pylint: disable=consider-using-in
 
     do_k_mask: tl.constexpr = KN % BLOCK_SIZE_N != 0
     start_m_block = start_m * BLOCK_SIZE_M

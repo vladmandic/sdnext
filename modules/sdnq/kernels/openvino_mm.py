@@ -15,7 +15,7 @@ for ov_device in core.get_available_devices():
     core.set_property(ov_device, {ov_hints.execution_mode: ov_hints.ExecutionMode.ACCURACY})
 
 
-def ov_mm(A: torch.CharTensor, B: torch.CharTensor, infer_request: ov.InferRequest, out_name: str) -> torch.FloatTensor:
+def ov_mm(A: torch.Tensor, B: torch.Tensor, infer_request: ov.InferRequest, out_name: str) -> torch.FloatTensor:
     C = torch.empty((A.shape[0], B.shape[-1]), device="cpu", dtype=torch.float32)
     infer_request.set_tensor("A", ov.Tensor(A.detach().contiguous().to("cpu").numpy(), shared_memory=True))
     infer_request.set_tensor("B", ov.Tensor(B.detach().contiguous().to("cpu").numpy(), shared_memory=True))

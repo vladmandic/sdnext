@@ -10,7 +10,7 @@ from ...packed_int import unpack_int
 from .forward import check_mats
 
 
-def quantize_uint_mm_input(input: torch.FloatTensor, dtype: torch.dtype | None = None) -> tuple[torch.CharTensor, torch.FloatTensor]:
+def quantize_uint_mm_input(input: torch.FloatTensor, dtype: torch.dtype | None = None) -> tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
     input = input.flatten(0,-2)
     if dtype is not None:
         input = input.to(dtype=dtype)

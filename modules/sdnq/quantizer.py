@@ -555,13 +555,13 @@ class SDNQQuantize:
     def __init__(self, hf_quantizer: "SDNQQuantizer"):
         self.hf_quantizer = hf_quantizer
 
-    def convert(
+    def convert( # pylint: disable=unused-argument
         self,
         input_dict: dict[str, list[torch.Tensor]],
         model: torch.nn.Module | None = None,
         full_layer_name: str | None = None,
-        missing_keys: list[str] | None = None, # pylint: disable=unused-argument
-        **kwargs, # pylint: disable=unused-argument
+        missing_keys: list[str] | None = None,
+        **kwargs,
     ) -> dict[str, torch.Tensor]:
         _module_name, value = tuple(input_dict.items())[0]
         value = value[0]
@@ -589,12 +589,12 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
     def __str__(self) -> str:
         return f"SDNQQuantizer(torch_dtype={self.torch_dtype}, requires_parameters_quantization={self.requires_parameters_quantization}, use_keep_in_fp32_modules={self.use_keep_in_fp32_modules}, requires_calibration={self.requires_calibration}, required_packages={self.required_packages})"
 
-    def check_if_quantized_param(
+    def check_if_quantized_param( # pylint: disable=unused-argument
         self,
         model: torch.nn.Module,
-        param_value: torch.Tensor, # pylint: disable=unused-argument
+        param_value: torch.Tensor,
         param_name: str,
-        *args, **kwargs, # pylint: disable=unused-argument
+        *args, **kwargs,
     ) -> bool:
         if self.pre_quantized:
             layer, _tensor_name = get_module_from_name(model, param_name)
@@ -616,13 +616,14 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         return False
 
     @devices.inference_context()
-    def create_quantized_param( # pylint: disable=arguments-differ
+    def create_quantized_param( # pylint: disable=unused-argument
         self,
         model: torch.nn.Module,
         param_value: torch.FloatTensor,
         param_name: str,
         target_device: torch.device,
-        *args, **kwargs, # pylint: disable=unused-argument
+        *args,
+        **kwargs,
     ) -> None:
         layer, tensor_name = get_module_from_name(model, param_name)
 
@@ -631,7 +632,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                 if tensor_name == "weight":
                     return_dtype = param_value.dtype
                 elif self.quantization_config.dequantize_fp32 and tensor_name in sdnq_keys:
-                    if param_value.dtype != torch.float64 and self.torch_dtype != torch.float64:
+                    if torch.float64 not in {param_value.dtype, self.torch_dtype}:
                         return_dtype = torch.float32
                     else:
                         return_dtype = torch.float64
@@ -670,12 +671,12 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         parent_module, tensor_name = get_module_from_name(model, param_name.removesuffix(tensor_name).removesuffix("."))
         setattr(parent_module, tensor_name, layer)
 
-    def _process_model_before_weight_loading( # pylint: disable=arguments-differ
+    def _process_model_before_weight_loading( # pylint: disable=unused-argument
         self,
         model: torch.nn.Module,
-        device_map, # pylint: disable=unused-argument
+        device_map,
         keep_in_fp32_modules: list[str] | None = None,
-        **kwargs, # pylint: disable=unused-argument
+        **kwargs,
     ) -> None:
         if self.pre_quantized:
             self.quantization_config.quantization_device = None
@@ -885,7 +886,7 @@ class SDNQConfig(QuantizationConfigMixin):
             Note: Safetensors serialization is not supported with SDNQ training.
     """
 
-    def __init__( # pylint: disable=super-init-not-called
+    def __init__( # pylint: disable=super-init-not-called,unused-argument
         self,
         weights_dtype: str = "int8",
         quantized_matmul_dtype: str | None = None,
@@ -914,7 +915,7 @@ class SDNQConfig(QuantizationConfigMixin):
         modules_dtype_dict: dict[str, list[str]] | None = None,
         modules_quant_config: dict[str, dict] | None = None,
         is_training: bool = False,
-        **kwargs, # pylint: disable=unused-argument
+        **kwargs,
     ):
         self.weights_dtype = weights_dtype
         self.quantized_matmul_dtype = quantized_matmul_dtype
@@ -1020,14 +1021,14 @@ class SDNQConfig(QuantizationConfigMixin):
         return f"SDNQConfig(weights_dtype={self.weights_dtype} quantization_device={self.quantization_device} return_device={self.return_device} group_size={self.group_size} use_quantized_matmul={self.use_quantized_matmul} quantized_matmul_dtype={self.quantized_matmul_dtype} quant_conv={self.quant_conv} quant_embedding={self.quant_embedding} use_quantized_matmul_conv={self.use_quantized_matmul_conv} use_static_quantization={self.use_static_quantization} use_dynamic_quantization={self.use_dynamic_quantization} dynamic_loss_threshold={self.dynamic_loss_threshold} use_stochastic_rounding={self.use_stochastic_rounding} use_hadamard={self.use_hadamard} hadamard_group_size={self.hadamard_group_size} use_svd={self.use_svd} svd_rank={self.svd_rank} svd_steps={self.svd_steps} dequantize_fp32={self.dequantize_fp32} non_blocking={self.non_blocking} add_skip_keys={self.add_skip_keys} modules_to_not_convert={self.modules_to_not_convert} modules_to_not_use_matmul={self.modules_to_not_use_matmul} modules_dtype_dict={self.modules_dtype_dict} modules_quant_config={self.modules_quant_config} )"
 
 
-import diffusers.quantizers.auto # noqa: E402,RUF100 # pylint: disable=wrong-import-order
+import diffusers.quantizers.auto # noqa: E402,RUF100 # pylint: disable=wrong-import-order,wrong-import-position
 diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
 diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
 
 diffusers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq_training"] = SDNQQuantizer
 diffusers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq_training"] = SDNQConfig
 
-import transformers.quantizers.auto # noqa: E402,RUF100 # pylint: disable=wrong-import-order
+import transformers.quantizers.auto # noqa: E402,RUF100 # pylint: disable=wrong-import-order,wrong-import-position
 transformers.quantizers.auto.AUTO_QUANTIZER_MAPPING["sdnq"] = SDNQQuantizer
 transformers.quantizers.auto.AUTO_QUANTIZATION_CONFIG_MAPPING["sdnq"] = SDNQConfig
 

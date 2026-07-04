@@ -151,8 +151,7 @@ def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.
         channel_size = weight.shape[1]
     else:
         channel_size = weight.shape[-1]
-    if channel_size < group_size:
-        group_size = channel_size
+    group_size = min(group_size, channel_size)
     if channel_size % group_size != 0:
         hadamard_pow2 = int(math.log2(group_size))
         while channel_size % group_size != 0:
