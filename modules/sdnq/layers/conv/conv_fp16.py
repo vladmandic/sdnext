@@ -8,7 +8,7 @@ from ...quant_utils import rotate_hadamard, get_hadamard
 from ...packed_float import unpack_float
 
 from .forward import get_conv_args, process_conv_input
-from ..linear.linear_fp8_tensorwise import quantize_fp_mm_input_tensorwise
+from ..linear.linear_fp8 import quantize_fp_mm_input
 from ..linear.forward import check_mats
 
 
@@ -44,7 +44,7 @@ def conv_fp16_matmul(
         scale = scale.t()
     elif weight.dtype != torch.float16:
         weight = weight.to(dtype=torch.float16) # fp8 weights
-    input, input_scale = quantize_fp_mm_input_tensorwise(input, dtype=scale.dtype, matmul_dtype="float16")
+    input, input_scale = quantize_fp_mm_input(input, dtype=scale.dtype, matmul_dtype="float16")
     input, weight = check_mats(input, weight)
 
     if groups == 1:

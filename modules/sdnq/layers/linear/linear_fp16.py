@@ -8,7 +8,7 @@ from ...quant_utils import rotate_hadamard, get_hadamard
 from ...packed_float import unpack_float
 
 from .forward import check_mats
-from .linear_fp8_tensorwise import quantize_fp_mm_input_tensorwise
+from .linear_fp8 import quantize_fp_mm_input
 
 
 def fp16_matmul(
@@ -37,7 +37,7 @@ def fp16_matmul(
             bias = torch.addmm(bias.to(dtype=svd_down.dtype), torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
         else:
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
-    input, input_scale = quantize_fp_mm_input_tensorwise(input, dtype=scale.dtype, matmul_dtype="float16")
+    input, input_scale = quantize_fp_mm_input(input, dtype=scale.dtype, matmul_dtype="float16")
     input, weight = check_mats(input, weight)
     if bias is not None:
         return dequantize_symmetric_with_bias(fp_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale), scale, bias, dtype=return_dtype, result_shape=output_shape)
