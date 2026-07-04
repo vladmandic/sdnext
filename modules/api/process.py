@@ -126,7 +126,7 @@ class APIProcess:
         boxes = []
         labels = []
         with self.queue_lock:
-            items = shared.detailer.predict(req.model, image)
+            items = shared.detailer.predict(req.model, req.model, image)
             for item in items:
                 images.append(encode_pil_to_base64(item.item))
                 scores.append(item.score)

@@ -50,7 +50,7 @@ def stat(path: str):
                         latest_mtime = entry_stat.st_mtime
                     if entry.is_symlink():
                         continue
-                    elif entry.is_file():
+                    if entry.is_file():
                         total_size += entry_stat.st_size
                     elif entry.is_dir():
                         sub_size, sub_mtime = stat(entry.path) # Recursively scan subfolders
