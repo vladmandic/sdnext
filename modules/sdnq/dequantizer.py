@@ -86,19 +86,6 @@ def dequantize_symmetric(
 
 
 @devices.inference_context()
-def dequantize_symmetric_with_bias(weight: torch.Tensor, scale: torch.FloatTensor, bias: torch.FloatTensor, hadamard: torch.FloatTensor | None = None, dtype: torch.dtype = None, result_shape: torch.Size = None) -> torch.FloatTensor:
-    if hadamard is not None:
-        result = rotate_hadamard(weight.to(dtype=scale.dtype).mul_(scale), hadamard=hadamard).add_(bias)
-    else:
-        result = torch.addcmul(bias, weight.to(dtype=scale.dtype), scale)
-    if dtype is not None:
-        result = result.to(dtype=dtype)
-    if result_shape is not None:
-        result = result.view(result_shape)
-    return result
-
-
-@devices.inference_context()
 def dequantize_packed_int_asymmetric(weight: torch.Tensor, scale: torch.FloatTensor, zero_point: torch.FloatTensor, shape: torch.Size, weights_dtype: str, svd_up: torch.FloatTensor | None = None, svd_down: torch.FloatTensor | None = None, hadamard: torch.FloatTensor | None = None, dtype: torch.dtype = None, result_shape: torch.Size = None, skip_quantized_matmul: bool = False, re_quantize_for_matmul: bool = False) -> torch.FloatTensor:
     return dequantize_asymmetric(unpack_int(weight, weights_dtype, shape), scale, zero_point, svd_up=svd_up, svd_down=svd_down, hadamard=hadamard, dtype=dtype, result_shape=result_shape, skip_quantized_matmul=skip_quantized_matmul, re_quantize_for_matmul=re_quantize_for_matmul)
 

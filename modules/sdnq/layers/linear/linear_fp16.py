@@ -3,7 +3,7 @@
 import torch
 
 from ...common import compile_func, fp_mm_func
-from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias
+from ...dequantizer import dequantize_symmetric, dequantize_asymmetric
 from ...quant_utils import rotate_hadamard, get_hadamard
 from ...packed_float import unpack_float
 
@@ -40,7 +40,7 @@ def fp16_matmul(
     input, input_scale = quantize_fp_mm_input(input, dtype=scale.dtype, matmul_dtype="float16")
     input, weight = check_mats(input, weight)
     if bias is not None:
-        return dequantize_symmetric_with_bias(fp_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale), scale, bias, dtype=return_dtype, result_shape=output_shape)
+        return dequantize_asymmetric(fp_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale), scale, bias, dtype=return_dtype, result_shape=output_shape)
     else:
         return dequantize_symmetric(fp_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale), scale, dtype=return_dtype, result_shape=output_shape)
 

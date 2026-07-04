@@ -3,7 +3,7 @@
 import torch
 
 from ...common import compile_func
-from ...dequantizer import dequantize_symmetric, dequantize_symmetric_with_bias
+from ...dequantizer import dequantize_symmetric, dequantize_asymmetric
 from ...quant_utils import rotate_hadamard, get_hadamard
 from ...packed_float import unpack_float
 
@@ -58,7 +58,7 @@ def conv_fp8_matmul(
             result.append(torch._scaled_mm(input[:, i], weight[:, i], scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=input_scale.dtype))
         result = torch.cat(result, dim=-1).mul_(input_scale)
     if bias is not None:
-        dequantize_symmetric_with_bias(result, scale, bias, dtype=return_dtype, result_shape=mm_output_shape)
+        dequantize_asymmetric(result, scale, bias, dtype=return_dtype, result_shape=mm_output_shape)
     else:
         dequantize_symmetric(result, scale, dtype=return_dtype, result_shape=mm_output_shape)
 
