@@ -207,6 +207,32 @@ def quantize_int_mm_sr(input: torch.FloatTensor, dim: int = -1, hadamard: torch.
 
 
 @devices.inference_context()
+def quantize_uint_mm(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "uint8") -> tuple[torch.FloatTensor, torch.FloatTensor]:
+    if hadamard is not None:
+        input = rotate_hadamard(input, hadamard=hadamard)
+    matmul_dtype = matmul_dtype.removeprefix("u")
+    zero_point = torch.amin(input, dim=dim, keepdims=True)
+    scale = torch.amax(input, dim=dim, keepdims=True).sub_(zero_point).div_(dtype_dict[matmul_dtype]["max"] - dtype_dict[matmul_dtype]["min"])
+    if dtype_dict[matmul_dtype]["min"] != 0:
+        zero_point.sub_(scale, alpha=dtype_dict[matmul_dtype]["min"])
+    input = torch.sub(input, zero_point).div_(scale).round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
+    return input, scale, zero_point
+
+
+@devices.inference_context()
+def quantize_uint_mm_sr(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "uint8") -> tuple[torch.FloatTensor, torch.FloatTensor]:
+    if hadamard is not None:
+        input = rotate_hadamard(input, hadamard=hadamard)
+    matmul_dtype = matmul_dtype.removeprefix("u")
+    zero_point = torch.amin(input, dim=dim, keepdims=True)
+    scale = torch.amax(input, dim=dim, keepdims=True).sub_(zero_point).div_(dtype_dict[matmul_dtype]["max"] - dtype_dict[matmul_dtype]["min"])
+    if dtype_dict[matmul_dtype]["min"] != 0:
+        zero_point.sub_(scale, alpha=dtype_dict[matmul_dtype]["min"])
+    input = torch.sub(input, zero_point).div_(scale).add_(torch.randn_like(input), alpha=0.1).round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
+    return input, scale, zero_point
+
+
+@devices.inference_context()
 def quantize_fp_mm(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "float8_e4m3fn") -> tuple[torch.Tensor, torch.FloatTensor]:
     if hadamard is not None:
         input = rotate_hadamard(input, hadamard=hadamard)

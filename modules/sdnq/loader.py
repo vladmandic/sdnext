@@ -288,6 +288,8 @@ def apply_sdnq_options_to_module(
                     if not module.sdnq_dequantizer.re_quantize_for_matmul and not dtype_dict[module.sdnq_dequantizer.weights_dtype]["is_packed"]:
                         module.scale.t_()
                         module.weight.t_()
+                        if module.zero_point is not None:
+                            module.zero_point.t_()
                         if current_use_quantized_matmul:
                             module.weight.data = prepare_weight_for_matmul(module.weight)
                         else:

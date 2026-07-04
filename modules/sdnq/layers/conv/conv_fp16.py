@@ -30,6 +30,13 @@ def conv_fp16_matmul(
 ) -> torch.FloatTensor:
     return_dtype = input.dtype
     input, mm_output_shape = process_conv_input(conv_type, input, reversed_padding_repeated_twice, padding_mode, result_shape, stride, padding, dilation)
+
+    if quantized_weight_shape is not None:
+        weight = unpack_float(weight, weights_dtype, quantized_weight_shape).to(dtype=torch.float16).t_()
+        scale = scale.t()
+    elif weight.dtype != torch.float16:
+        weight = weight.to(dtype=torch.float16) # fp8 weights
+
     if hadamard is not None:
         input = rotate_hadamard(input, hadamard=hadamard)
     if svd_up is not None:
@@ -39,11 +46,6 @@ def conv_fp16_matmul(
         else:
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
-    if quantized_weight_shape is not None:
-        weight = unpack_float(weight, weights_dtype, quantized_weight_shape).to(dtype=torch.float16).t_()
-        scale = scale.t()
-    elif weight.dtype != torch.float16:
-        weight = weight.to(dtype=torch.float16) # fp8 weights
     input, input_scale = quantize_fp_mm_input(input, dtype=scale.dtype, matmul_dtype="float16")
     input, weight = check_mats(input, weight)
 

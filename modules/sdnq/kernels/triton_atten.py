@@ -191,8 +191,10 @@ def quantize_attn(
     matmul_dtype: str = "int8",
     pv_matmul_dtype: str | None = None,
 ) -> tuple[torch.Tensor]:
-    if matmul_dtype == "auto":
+    if matmul_dtype in {"auto", "uint8"}:
         matmul_dtype = "int8"
+    if pv_matmul_dtype == "uint8":
+        pv_matmul_dtype = "int8"
     if scale is None:
         scale = q.shape[-1] ** -0.5
     if smooth_k:

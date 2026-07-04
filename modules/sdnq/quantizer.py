@@ -83,9 +83,9 @@ def sdnq_quantize_layer_weight(
     quantized_matmul_dtype = get_quantized_matmul_dtype(weights_dtype, quantized_matmul_dtype)
 
     re_quantize_for_matmul = bool(
-        dtype_dict[weights_dtype]["is_unsigned"]
+        dtype_dict[weights_dtype]["num_bits"] > dtype_dict[quantized_matmul_dtype]["num_bits"]
         or dtype_dict[weights_dtype]["is_integer"] != dtype_dict[quantized_matmul_dtype]["is_integer"]
-        or dtype_dict[weights_dtype]["num_bits"] > dtype_dict[quantized_matmul_dtype]["num_bits"]
+        or (dtype_dict[weights_dtype]["is_unsigned"] and not dtype_dict[quantized_matmul_dtype]["is_integer"])
         or (
             dtype_dict[weights_dtype]["is_packed"]
             and not dtype_dict[weights_dtype]["is_integer"]
@@ -208,6 +208,8 @@ def sdnq_quantize_layer_weight(
     if transpose_weights:
         scale.t_()
         weight.t_()
+        if zero_point is not None:
+            zero_point.t_()
         weight = prepare_weight_for_matmul(weight)
 
     quantized_weight_shape = weight.shape
