@@ -308,12 +308,12 @@ def sdnq_quantize_layer_weight_dynamic(
         if (
             (dtype_dict[current_quantized_matmul_dtype]["is_integer"] and not dtype_dict[current_weights_dtype]["is_integer"])
             or (
-                dtype_dict[current_weights_dtype]["is_unsigned"] and not dtype_dict[current_quantized_matmul_dtype]["is_unsigned"]
-                and dtype_dict[current_quantized_matmul_dtype]["num_bits"] == dtype_dict[current_weights_dtype]["num_bits"]
+                dtype_dict[current_weights_dtype]["num_bits"] == dtype_dict[current_quantized_matmul_dtype]["num_bits"]
+                and dtype_dict[current_weights_dtype]["is_unsigned"] and not dtype_dict[current_quantized_matmul_dtype]["is_integer"]
                 )
             or (
                 dtype_dict[weights_dtype]["num_bits"] <= dtype_dict[current_quantized_matmul_dtype]["num_bits"]
-                and dtype_dict[current_quantized_matmul_dtype]["num_bits"] < dtype_dict[current_weights_dtype]["num_bits"]
+                and dtype_dict[current_weights_dtype]["num_bits"] > dtype_dict[current_quantized_matmul_dtype]["num_bits"]
             )
         ):
             current_use_quantized_matmul = False
