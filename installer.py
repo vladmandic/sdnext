@@ -151,6 +151,14 @@ def package_spec(package):
                 return None
 
 
+def package_commit(spec):
+    try:
+        direct_url = json.loads(spec.read_text('direct_url.json'))
+        return direct_url.get('vcs_info', {}).get('commit_id', '')
+    except Exception:
+        return ''
+
+
 # check if package is installed
 def installed(package, friendly: str | None = None, quiet = False): # pylint: disable=redefined-outer-name
     t_start = time.time()
@@ -544,7 +552,7 @@ def check_diffusers():
     pkg = package_spec('diffusers')
     parts = pkg.version.split('.') if pkg is not None else []
     minor = int(parts[1]) if len(parts) > 1 else -1
-    current = opts.get('diffusers_version', '') if minor > -1 else ''
+    current = package_commit(pkg) if minor > -1 else ''
     if (minor == -1) or ((current != target_commit) and (not args.experimental)):
         if minor == -1:
             log.info(f'Install: package="diffusers" commit={target_commit}')
@@ -553,7 +561,7 @@ def check_diffusers():
             pip('uninstall --yes diffusers', ignore=True, quiet=True, uv=False)
         if args.skip_git:
             log.warning('Git: marked as not available but required for diffusers installation')
-        pip(f'install --upgrade git+https://github.com/huggingface/diffusers@{target_commit}', ignore=False, quiet=True, uv=False)
+        pip(f'install git+https://github.com/huggingface/diffusers@{target_commit}', ignore=False, quiet=True, uv=False)
         global diffusers_commit # pylint: disable=global-statement
         diffusers_commit = target_commit
     ts('diffusers', t_start)
@@ -584,19 +592,19 @@ def check_transformers():
             else:
                 log.info(f'Update: package="transformers" current={pkg_transformers.version} target={target_transformers}')
             pip('uninstall --yes transformers', ignore=True, quiet=True)
-            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True)
-            pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True)
+            pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+            pip(f'install transformers=={target_transformers}', ignore=False, quiet=True)
     else:
         # Git commit-pinned version
-        current = opts.get('transformers_version', '')
+        current = package_commit(pkg_transformers)
         if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" commit={target_commit}')
             else:
                 log.info(f'Update: package="transformers" current={pkg_transformers.version} hash={current} target={target_commit}')
             pip('uninstall --yes transformers', ignore=True, quiet=True)
-            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True)
-            pip(f'install --upgrade git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
+            pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+            pip(f'install git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
             global transformers_commit # pylint: disable=global-statement
             transformers_commit = target_commit
     ts('transformers', t_start)
@@ -1623,7 +1631,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         if len(latest) != 40:
             log.error(f'Repository error: commit={latest} invalid')
         elif latest != commit and args.upgrade:
-            global quick_allowed # pylint: disable=global-statement
+            global quick_allowed, restart_required # pylint: disable=global-statement
             quick_allowed = False
             log.info('Updating main repository')
             try:
@@ -1632,10 +1640,12 @@ def check_version(reset=True): # pylint: disable=unused-argument
                 update('.', keep_branch=True)
                 # git('git stash pop')
                 ver = git('log -1 --pretty=format:"%h %ad"')
-                log.info(f'Repository upgraded: {ver}')
-                log.warning('Server restart is recommended to apply changes')
-                if ver == latest: # double check
-                    restart()
+                if git('rev-parse HEAD') != commit:
+                    log.info(f'Repository upgraded: {ver}')
+                    log.warning('Server restart is recommended to apply changes')
+                    restart_required = True
+                else:
+                    log.info(f'Repository unchanged: {ver}')
             except Exception:
                 if not reset:
                     log.error('Repository error upgrading')
