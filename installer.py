@@ -1640,7 +1640,10 @@ def check_version(reset=True): # pylint: disable=unused-argument
                 update('.', keep_branch=True)
                 # git('git stash pop')
                 ver = git('log -1 --pretty=format:"%h %ad"')
-                if git('rev-parse HEAD') != commit:
+                head = git('rev-parse HEAD')
+                if len(head) != 40:
+                    log.error(f'Repository error: could not verify HEAD after update output="{head}"')
+                elif head != commit:
                     log.info(f'Repository upgraded: {ver}')
                     log.warning('Server restart is recommended to apply changes')
                     restart_required = True
