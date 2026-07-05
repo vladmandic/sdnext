@@ -30,23 +30,45 @@ def get_shared(cls, repo_id, subfolder=None, variant=None):
     return repo_id, args
 
 
-def load_local_file(local_file, cls_name, quant_type): # t5-only
+def load_local_file(local_file, cls_name, quant_type, repo_id=None, dtype=None):
     from modules import model_te
-    text_encoder = None
+    is_gguf = local_file.lower().endswith('.gguf')
+    is_safetensors = local_file.lower().endswith('.safetensors')
+    if not (is_gguf or is_safetensors):
+        return None
 
-    # 1. load from local file gguf
-    if local_file.lower().endswith('.gguf'):
-        log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("transformers")} file=gguf')
+    # T5 keeps its bundled-config loader (handles both gguf and safetensors)
+    if cls_name is transformers.T5EncoderModel:
+        log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("transformers")} file={"gguf" if is_gguf else "safetensors"}')
         text_encoder = model_te.load_t5(local_file)
-        text_encoder = model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
+        return model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
 
-    # 2. t5 - load from local file safetensors
-    elif local_file.lower().endswith('.safetensors'):
-        log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} quant="{quant_type}" loader={get_loader("transformers")} file=safetensors')
-        text_encoder = model_te.load_t5(local_file)
-        text_encoder = model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
-
-    return text_encoder
+    # Any other text-encoder architecture: load the single file as the class the pipeline
+    # requested, using that arch's canonical config. transformers reconciles per-architecture
+    # key prefixes (base_model_prefix), so this is not tied to a single model family. On failure
+    # return None so the caller falls back to the base text encoder rather than loading a
+    # mismatched one, which would only surface later as a CUDA gather assert at encode time.
+    if is_gguf:
+        log.error(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} single-file gguf override is only supported for T5, ignoring override')
+        return None
+    try:
+        from safetensors.torch import load_file
+        config_repo, extra = get_shared(cls_name, repo_id or '', subfolder='text_encoder')
+        cfg_args = {'cache_dir': shared.opts.hfcache_dir}
+        if extra.get('subfolder') is not None:
+            cfg_args['subfolder'] = extra['subfolder']
+        log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} config="{config_repo}" quant="{quant_type}" loader={get_loader("transformers")} file=safetensors')
+        config = transformers.AutoConfig.from_pretrained(config_repo, **cfg_args)
+        state_dict = load_file(local_file)
+        text_encoder, info = cls_name.from_pretrained(None, state_dict=state_dict, config=config, cache_dir=shared.opts.hfcache_dir, torch_dtype=dtype or devices.dtype, output_loading_info=True)
+        del state_dict
+        missing, unexpected = info.get('missing_keys') or [], info.get('unexpected_keys') or []
+        if missing or unexpected:
+            log.warning(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} key mismatch missing={len(missing)} unexpected={len(unexpected)}, file may not be a {cls_name.__name__}')
+        return model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
+    except Exception as e:
+        log.error(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} single-file override failed: {e}, falling back to base text encoder')
+        return None
 
 
 def load_text_encoder(
@@ -86,18 +108,18 @@ def load_text_encoder(
             load_args['use_safetensors'] = True
 
         # 1. load override from local file
+        local_file = None
         if (shared.opts.sd_text_encoder is not None) and (shared.opts.sd_text_encoder != 'Default') and (text_encoder is None):
-            local_file = None
             from modules import model_te
             if shared.opts.sd_text_encoder not in list(model_te.te_dict):
                 log.error(f'Load module: type=te file="{shared.opts.sd_text_encoder}" not found')
             elif os.path.exists(model_te.te_dict[shared.opts.sd_text_encoder]):
                 local_file = model_te.te_dict[shared.opts.sd_text_encoder]
             if local_file is not None:
-                text_encoder = load_local_file(local_file, cls_name, quant_type)
+                text_encoder = load_local_file(local_file, cls_name, quant_type, repo_id=repo_id, dtype=dtype)
 
-        # 2. load override from repo
-        if (shared.opts.sd_text_encoder is not None) and (shared.opts.sd_text_encoder != 'Default') and (text_encoder is None):
+        # 2. load override from repo (skipped when the override resolved to a local file)
+        if (shared.opts.sd_text_encoder is not None) and (shared.opts.sd_text_encoder != 'Default') and (text_encoder is None) and (local_file is None):
             repo_id = shared.opts.sd_text_encoder
             if '/' in repo_id: # shared.opts.sd_text_encoder can be in format org/repo or org/repo/subfolder
                 parts = repo_id.split('/')
