@@ -426,10 +426,14 @@ else:
 
 
 if use_torch_compile:
-    torch._dynamo.config.recompile_limit = max(8192, getattr(torch._dynamo.config, "recompile_limit", 0))
-    torch._dynamo.config.cache_size_limit = max(8192, getattr(torch._dynamo.config, "cache_size_limit", 0))
-    torch._dynamo.config.accumulated_recompile_limit = max(8192, getattr(torch._dynamo.config, "accumulated_recompile_limit", 0))
-    torch._dynamo.config.accumulated_cache_size_limit = max(8192, getattr(torch._dynamo.config, "accumulated_cache_size_limit", 0))
+    if hasattr(torch._dynamo.config, "recompile_limit"):
+        torch._dynamo.config.recompile_limit = max(8192, getattr(torch._dynamo.config, "recompile_limit", 0))
+    if hasattr(torch._dynamo.config, "cache_size_limit"):
+        torch._dynamo.config.cache_size_limit = max(8192, getattr(torch._dynamo.config, "cache_size_limit", 0))
+    if hasattr(torch._dynamo.config, "accumulated_recompile_limit"):
+        torch._dynamo.config.accumulated_recompile_limit = max(8192, getattr(torch._dynamo.config, "accumulated_recompile_limit", 0))
+    if hasattr(torch._dynamo.config, "accumulated_cache_size_limit"):
+        torch._dynamo.config.accumulated_cache_size_limit = max(8192, getattr(torch._dynamo.config, "accumulated_cache_size_limit", 0))
     def compile_func(fn, **kwargs):
         if kwargs.get("fullgraph", None) is None:
             kwargs["fullgraph"] = True
@@ -437,7 +441,7 @@ if use_torch_compile:
             kwargs["dynamic"] = False
         if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 12):
             if kwargs.get("recompile_limit", None) is None:
-                kwargs["recompile_limit"] = 8192
+                kwargs["recompile_limit"] = max(8192, getattr(torch._dynamo.config, "recompile_limit", 0))
         if os.environ.get("SDNQ_COMPILE_KWARGS", None) is not None:
             for key, value in json.loads(os.environ.get("SDNQ_COMPILE_KWARGS")).items():
                 kwargs[key] = value
