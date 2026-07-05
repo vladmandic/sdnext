@@ -100,6 +100,12 @@ class TransformerSpec:
     prefixes, no converter, no siblings). Arches with bundled-sibling
     components (Anima) or unusual key conventions (custom converters,
     Cosmos-style structural markers) override the relevant fields.
+
+    ``zero_init_missing`` lists key prefixes for a zero-initialized residual
+    branch the class defines but some checkpoints omit. Unlike
+    ``acceptable_missing`` (buffer-only keys left at their init), these are
+    zero-filled on load so the branch stays a no-op, matching a base model
+    that ships the branch dormant (output projection all-zeros).
     """
 
     cls: type
@@ -108,6 +114,7 @@ class TransformerSpec:
     converter: Callable[[dict], dict] | None = None
     siblings: dict[str, SiblingSpec] = field(default_factory=dict)
     acceptable_missing: tuple[str, ...] = DEFAULT_ACCEPTABLE_MISSING
+    zero_init_missing: tuple[str, ...] = ()
     forbidden_markers: tuple[tuple[str, str], ...] = ()
 
 
@@ -260,6 +267,7 @@ def load(
         cls=spec.cls,
         converter=spec.converter,
         acceptable_missing=spec.acceptable_missing,
+        zero_init_missing=spec.zero_init_missing,
         quant_args=quant_args,
         quant_type=quant_type,
         dtype=effective_dtype,
@@ -401,6 +409,7 @@ def build_component_quantized(
     quant_args: dict,
     dtype,
     acceptable_missing: tuple[str, ...],
+    zero_init_missing: tuple[str, ...] = (),
     **kwargs,
 ) -> object:
     """Build a component with per-tensor SDNQ quantization during load.
@@ -480,6 +489,9 @@ def build_component_quantized(
             pbar.update(task, advance=1)
 
     missing = sorted(expected_keys - loaded_keys)
+    missing = materialize_zero_init(
+        component, missing, zero_init_missing, device=target_device, dtype=target_dtype
+    )
     validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
 
     component = quantizer._process_model_after_weight_loading(component)  # pylint: disable=protected-access
@@ -494,6 +506,7 @@ def build_component(
     cls: type,
     converter: Callable[[dict], dict] | None,
     acceptable_missing: tuple[str, ...],
+    zero_init_missing: tuple[str, ...] = (),
     quant_args: dict,
     quant_type: str | None,
     dtype=None,
@@ -539,6 +552,7 @@ def build_component(
                 quant_args=quant_args,
                 dtype=dtype,
                 acceptable_missing=acceptable_missing,
+                zero_init_missing=zero_init_missing,
                 **kwargs,
             )
             del sd
@@ -548,6 +562,7 @@ def build_component(
         log.debug(f'Load model: transformer=native {component_name} loading keys={len(sd)} cls={cls.__name__}')
         component = cls.from_config(config, **kwargs)
         missing, unexpected = component.load_state_dict(sd, strict=False)
+        missing = materialize_zero_init(component, missing, zero_init_missing)
         validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
         del sd
         devices.torch_gc()
@@ -611,6 +626,57 @@ def validate_state_dict_load(
             f"Load model: transformer=native {component_name} ignored "
             f"{len(missing)} buffer-only missing keys"
         )
+
+
+def materialize_zero_init(
+    component: object,
+    missing: list[str],
+    zero_init_missing: tuple[str, ...],
+    *,
+    device=None,
+    dtype=None,
+) -> list[str]:
+    """Zero-fill missing weights that belong to a zero-initialized residual
+    branch the class defines but the override file predates.
+
+    A base model may ship a residual branch dormant: its output projection is
+    all-zeros, so ``out + up(down(x))`` reduces to ``out`` and the branch is a
+    no-op. A checkpoint made before the branch existed omits those keys. Left
+    unmaterialized they keep random ``from_config`` init (non-quant path) or
+    stay on the meta device (per-tensor quant path); either injects garbage
+    into the output. Zero-filling reproduces the base's dormant behavior.
+
+    Returns ``missing`` with the handled keys removed, so
+    :func:`validate_state_dict_load` does not treat them as a hard mismatch.
+    ``device``/``dtype`` override the target placement (the quant path passes
+    the real device since its params are on meta); when omitted each key's own
+    parameter device/dtype is used. Keys matching a prefix but absent from the
+    component's parameters are left in ``missing`` untouched.
+    """
+    if not zero_init_missing:
+        return missing
+    from accelerate.utils import set_module_tensor_to_device
+    params = dict(component.named_parameters())
+    handled: list[str] = []
+    remaining: list[str] = []
+    for key in missing:
+        param = params.get(key)
+        if param is not None and any(key.startswith(p) for p in zero_init_missing):
+            tgt_device = device if device is not None else param.device
+            tgt_dtype = dtype if dtype is not None else param.dtype
+            set_module_tensor_to_device(
+                component, key, tgt_device,
+                value=torch.zeros(param.shape, dtype=tgt_dtype), dtype=tgt_dtype,
+            )
+            handled.append(key)
+        else:
+            remaining.append(key)
+    if handled:
+        log.debug(
+            f"Load model: transformer=native zero-init {len(handled)} dormant "
+            f"residual key(s): {', '.join(handled)}"
+        )
+    return remaining
 
 
 def apply_quant(
