@@ -200,6 +200,8 @@ def run_settings_single(value, key, progress=False, force=False):
         from modules.dml import directml_override_opts
         directml_override_opts()
     shared.opts.save(silent=True)
+    if key == 'sd_text_encoder':
+        sd_models.reload_text_encoder() # apply the change now; reloads the model for encoders with no in-place swap
     if key not in ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_te', 'sd_unet'] or force:
         log.debug(f'Setting changed: {key}="{value}" progress={progress} force={force}')
     return get_value_for_setting(key), shared.opts.dumpjson()

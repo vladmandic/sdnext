@@ -25,6 +25,7 @@ model_path = os.path.abspath(os.path.join(paths.models_path, model_dir))
 sd_metadata = None
 sd_metadata_pending = 0
 sd_metadata_timer = 0
+loaded_te = None  # tracks the text-encoder selection currently loaded, to detect sd_text_encoder changes
 debug_move = log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug_load = os.environ.get('SD_LOAD_DEBUG', None)
 debug_process = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -1405,21 +1406,38 @@ def get_native(pipe: diffusers.DiffusionPipeline):
 
 
 def reload_text_encoder(initial=False):
-    if initial and (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default'):
+    global loaded_te # pylint: disable=global-statement
+    te = shared.opts.sd_text_encoder
+    if initial and (te is None or te == 'Default'):
+        loaded_te = te
         return # dont unload
+    if not initial and te == loaded_te:
+        return # selection unchanged since it was loaded
+    if shared.sd_model is None:
+        loaded_te = te
+        return
     signature = get_signature(shared.sd_model)
     t5 = [k for k, v in signature.items() if 'T5EncoderModel' in str(v)]
-    if hasattr(shared.sd_model, 'text_encoder') and 'vit' in shared.opts.sd_text_encoder.lower():
+    if hasattr(shared.sd_model, 'text_encoder') and te is not None and 'vit' in te.lower():
         from modules.model_te import set_clip
         set_clip(pipe=shared.sd_model)
     elif len(t5) > 0:
         from modules.model_te import set_t5
-        log.debug(f'Load module: type=t5 path="{shared.opts.sd_text_encoder}" module="{t5[0]}"')
-        set_t5(pipe=shared.sd_model, module=t5[0], t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.hfcache_dir)
+        log.debug(f'Load module: type=t5 path="{te}" module="{t5[0]}"')
+        set_t5(pipe=shared.sd_model, module=t5[0], t5=te, cache_dir=shared.opts.hfcache_dir)
     elif hasattr(shared.sd_model, 'text_encoder_3'):
         from modules.model_te import set_t5
-        log.debug(f'Load module: type=t5 path="{shared.opts.sd_text_encoder}" module="text_encoder_3"')
-        set_t5(pipe=shared.sd_model, module='text_encoder_3', t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.hfcache_dir)
+        log.debug(f'Load module: type=t5 path="{te}" module="text_encoder_3"')
+        set_t5(pipe=shared.sd_model, module='text_encoder_3', t5=te, cache_dir=shared.opts.hfcache_dir)
+    elif not initial:
+        # generic text encoder with no in-place swap path (e.g. Qwen3-VL): reload the model so the
+        # newly selected encoder is read at load time. loaded_te is set first so the reload's own
+        # initial=True call is a no-op rather than recursing.
+        log.info(f'Load module: type=te name="{te}" reloading model to apply')
+        loaded_te = te
+        reload_model_weights(force=True)
+        return
+    loaded_te = te
     clear_caches(full=True)
     apply_balanced_offload(shared.sd_model)
 
