@@ -1631,7 +1631,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         if len(latest) != 40:
             log.error(f'Repository error: commit={latest} invalid')
         elif latest != commit and args.upgrade:
-            global quick_allowed # pylint: disable=global-statement
+            global quick_allowed, restart_required # pylint: disable=global-statement
             quick_allowed = False
             log.info('Updating main repository')
             try:
@@ -1640,10 +1640,12 @@ def check_version(reset=True): # pylint: disable=unused-argument
                 update('.', keep_branch=True)
                 # git('git stash pop')
                 ver = git('log -1 --pretty=format:"%h %ad"')
-                log.info(f'Repository upgraded: {ver}')
-                log.warning('Server restart is recommended to apply changes')
-                if ver == latest: # double check
-                    restart()
+                if git('rev-parse HEAD') != commit:
+                    log.info(f'Repository upgraded: {ver}')
+                    log.warning('Server restart is recommended to apply changes')
+                    restart_required = True
+                else:
+                    log.info(f'Repository unchanged: {ver}')
             except Exception:
                 if not reset:
                     log.error('Repository error upgrading')
