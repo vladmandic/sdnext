@@ -151,6 +151,14 @@ def package_spec(package):
                 return None
 
 
+def package_commit(spec):
+    try:
+        direct_url = json.loads(spec.read_text('direct_url.json'))
+        return direct_url.get('vcs_info', {}).get('commit_id', '')
+    except Exception:
+        return ''
+
+
 # check if package is installed
 def installed(package, friendly: str | None = None, quiet = False): # pylint: disable=redefined-outer-name
     t_start = time.time()
@@ -544,7 +552,7 @@ def check_diffusers():
     pkg = package_spec('diffusers')
     parts = pkg.version.split('.') if pkg is not None else []
     minor = int(parts[1]) if len(parts) > 1 else -1
-    current = opts.get('diffusers_version', '') if minor > -1 else ''
+    current = package_commit(pkg) if minor > -1 else ''
     if (minor == -1) or ((current != target_commit) and (not args.experimental)):
         if minor == -1:
             log.info(f'Install: package="diffusers" commit={target_commit}')
@@ -588,7 +596,7 @@ def check_transformers():
             pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True)
     else:
         # Git commit-pinned version
-        current = opts.get('transformers_version', '')
+        current = package_commit(pkg_transformers)
         if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" commit={target_commit}')
