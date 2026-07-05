@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-04
+## Update for 2026-07-05
 
-### Highlights for 2026-07-04
+### Highlights for 2026-07-05
 
 Service-pack update with number of fixes and quality-of-life improvements  
 Plus few new models: **Krea 2**, **Boogu**, **Photoroom PRXPixel**, **FLUX.2 Klein KV** and some new community models  
@@ -11,7 +11,7 @@ Also couple of *experimental* features: see below for details...
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-07-04
+### Details for 2026-07-05
 
 - **Models**
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
@@ -51,6 +51,9 @@ Also couple of *experimental* features: see below for details...
   - preview now only runs if output panel is visible  
   - ModernUI: old *txt2img* and *img2img* tabs are marked as legacy and hidden by default
   - StandardUI: marked as legacy
+- **Wiki**
+  - new [Performance Timers](wiki/Performance-Timers) page with detailed explanation of all timers and what to tune for performance
+  - new [Model Loading](wiki/Model-Loading) page with detailed explanation of model loading
 - **Internal**
   - delay init of video models
 - **Experimental**
@@ -92,6 +95,7 @@ Also couple of *experimental* features: see below for details...
   - text-encode: restore hijack on pipeline switch
   - vae: restore hijack on pipeline switch
   - startup: faster model storage checks
+  - installer: double-restart on diffusers/transformers upgrade
 
 ## Update for 2026-06-16
 
