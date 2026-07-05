@@ -245,17 +245,18 @@ def load(
         )
         quant_type = model_quant.get_quant_type(quant_args)
 
-    log.debug(f' cls={spec.cls.__name__} file="{os.path.basename(local_file)}" reading state_dict')
     state_dict = sd_models.read_state_dict(local_file, what="transformer")
-    state_dict = strip_prefix(state_dict, spec.prefixes, spec.cls.__name__)
+    state_dict, detected_prefix = strip_prefix(state_dict, spec.prefixes, spec.cls.__name__)
     check_forbidden_markers(state_dict, spec.forbidden_markers, spec.cls.__name__, local_file)
     transformer_sd, sibling_sds = partition_siblings(state_dict, spec.siblings)
     del state_dict
 
     sibling_counts = {name: len(sd) for name, sd in sibling_sds.items() if sd}
+    prefix_disp = f'"{detected_prefix}"' if detected_prefix else "bare"
     log.info(
-        f' cls={spec.cls.__name__} custom="{os.path.basename(local_file)}" '
-        f"transformer_keys={len(transformer_sd)} siblings={sibling_counts or '{}'}"
+        f'cls={spec.cls.__name__} custom="{os.path.basename(local_file)}" '
+        f"prefix={prefix_disp} transformer_keys={len(transformer_sd)} "
+        f"siblings={sibling_counts or '{}'}"
     )
 
     effective_dtype = dtype if dtype is not None else devices.dtype
@@ -308,7 +309,7 @@ def load(
     return transformer, loaded_siblings
 
 
-def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) -> dict:
+def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) -> tuple[dict, str]:
     """Detect and uniformly strip the most common known prefix from every key.
 
     Order matters: longer prefixes win over shorter ones with the same suffix
@@ -316,6 +317,9 @@ def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) ->
     match the dominant prefix and others do not, raises ValueError because
     mixed prefixes indicate a malformed file rather than a recoverable export
     quirk.
+
+    Returns the stripped state dict and the detected prefix (empty string when
+    the keys are already bare) so the caller can report it in one line.
     """
     sorted_prefixes = sorted(prefixes, key=len, reverse=True)
     counts: dict[str, int] = {}
@@ -328,17 +332,15 @@ def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) ->
                 break
     total = len(state_dict)
     if seen == 0:
-        log.debug(f"Load model: type={type_name} native_transformer prefix=bare")
-        return state_dict
+        return state_dict, ""
     dominant = max(counts, key=counts.get)
     if counts[dominant] != total:
         raise ValueError(
             f"Load model: type={type_name} native_transformer has mixed prefixes "
             f"(total={total} {dominant}={counts[dominant]})"
         )
-    log.debug(f'Load model: type={type_name} native_transformer prefix="{dominant}"')
     offset = len(dominant)
-    return {key[offset:]: value for key, value in state_dict.items()}
+    return {key[offset:]: value for key, value in state_dict.items()}, dominant
 
 
 def check_forbidden_markers(
