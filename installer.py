@@ -561,7 +561,7 @@ def check_diffusers():
             pip('uninstall --yes diffusers', ignore=True, quiet=True, uv=False)
         if args.skip_git:
             log.warning('Git: marked as not available but required for diffusers installation')
-        pip(f'install --upgrade git+https://github.com/huggingface/diffusers@{target_commit}', ignore=False, quiet=True, uv=False)
+        pip(f'install git+https://github.com/huggingface/diffusers@{target_commit}', ignore=False, quiet=True, uv=False)
         global diffusers_commit # pylint: disable=global-statement
         diffusers_commit = target_commit
     ts('diffusers', t_start)
@@ -592,8 +592,8 @@ def check_transformers():
             else:
                 log.info(f'Update: package="transformers" current={pkg_transformers.version} target={target_transformers}')
             pip('uninstall --yes transformers', ignore=True, quiet=True)
-            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True)
-            pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True)
+            pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+            pip(f'install transformers=={target_transformers}', ignore=False, quiet=True)
     else:
         # Git commit-pinned version
         current = package_commit(pkg_transformers)
@@ -603,8 +603,8 @@ def check_transformers():
             else:
                 log.info(f'Update: package="transformers" current={pkg_transformers.version} hash={current} target={target_commit}')
             pip('uninstall --yes transformers', ignore=True, quiet=True)
-            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True)
-            pip(f'install --upgrade git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
+            pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+            pip(f'install git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
             global transformers_commit # pylint: disable=global-statement
             transformers_commit = target_commit
     ts('transformers', t_start)
