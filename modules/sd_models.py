@@ -1443,6 +1443,7 @@ def reload_text_encoder(initial=False):
 
 
 def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='model', force=False, revision=None):
+    global loaded_te # pylint: disable=global-statement
     checkpoint_info = info or select_checkpoint(op=op) # are we selecting model or dictionary
     if checkpoint_info is None:
         unload_model_weights(op=op)
@@ -1452,17 +1453,26 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
     loaded_ckpt = getattr(sd_model, 'sd_checkpoint_info', None) if sd_model is not None else None
     changed_checkpoint = loaded_ckpt is None or checkpoint_info is None or loaded_ckpt.filename != checkpoint_info.filename
-    if op == 'model' and sd_model is not None and changed_checkpoint and shared.opts.sd_unet not in (None, 'Default', 'None'):
-        old_class = type(sd_model).__name__
+    reset_unet = shared.opts.sd_unet not in (None, 'Default', 'None')
+    reset_te = shared.opts.sd_text_encoder not in (None, 'Default', 'None')
+    if op == 'model' and sd_model is not None and changed_checkpoint and (reset_unet or reset_te):
+        # compare detected model type, not pipeline class: custom-loader arches (e.g. Krea2) load as a
+        # concrete class but detect as generic DiffusionPipeline, so a class compare would falsely reset
+        # across same-arch checkpoints (Base vs Turbo). detect both sides so the comparison is symmetric.
         try:
-            new_pipeline, _ = sd_detect.detect_pipeline(checkpoint_info.path, op)
+            _, new_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
+            _, old_type = sd_detect.detect_pipeline(loaded_ckpt.path, op) if loaded_ckpt is not None else (None, None)
         except Exception:
-            new_pipeline = None
-        new_class = getattr(new_pipeline, '__name__', None)
-        if new_class is not None and new_class != old_class:
-            log.info(f'Load model: pipeline cls={old_class} changed={new_class} unet="{shared.opts.sd_unet}" set to default')
-            shared.opts.data["sd_unet"] = 'Default'
-            sd_unet.loaded_unet = None
+            new_type = old_type = None
+        if new_type is not None and old_type is not None and new_type != old_type: # architecture changed: custom components no longer fit
+            if reset_unet:
+                log.info(f'Load model: type="{old_type}" changed="{new_type}" unet="{shared.opts.sd_unet}" set to default')
+                shared.opts.data["sd_unet"] = 'Default'
+                sd_unet.loaded_unet = None
+            if reset_te:
+                log.info(f'Load model: type="{old_type}" changed="{new_type}" te="{shared.opts.sd_text_encoder}" set to default')
+                shared.opts.data["sd_text_encoder"] = 'Default'
+                loaded_te = None
     if sd_model is None:  # previous model load failed
         current_checkpoint_info = None
     else:

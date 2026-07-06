@@ -393,9 +393,11 @@ def create_quicksettings(interfaces):
         if shared.opts.notification_audio_enable and os.path.exists(os.path.join(paths.script_path, shared.opts.notification_audio_path)):
             gr.Audio(interactive=False, value=os.path.join(paths.script_path, shared.opts.notification_audio_path), elem_id="audio_notification", visible=False)
 
-        def sync_checkpoint_unet(value, progress=False, force=False):
+        def sync_checkpoint_components(value, progress=False, force=False):
+            # a checkpoint change can reset sd_unet / sd_text_encoder to Default (arch changed);
+            # push both back so the dropdowns reflect it, not just the stored option
             checkpoint_update, settings_text = run_settings_single(value, key='sd_model_checkpoint', progress=progress, force=force)
-            return checkpoint_update, get_value_for_setting('sd_unet'), settings_text
+            return checkpoint_update, get_value_for_setting('sd_unet'), get_value_for_setting('sd_text_encoder'), settings_text
 
         for k, _item in quicksettings_list:
             component = shared.settings_components[k]
@@ -414,8 +416,8 @@ def create_quicksettings(interfaces):
             progress_flag = info.refresh is not None
             if k == 'sd_model_checkpoint':
                 def fn(value, progress=progress_flag):
-                    return sync_checkpoint_unet(value, progress=progress)
-                outputs = [component, shared.settings_components['sd_unet'], text_settings]
+                    return sync_checkpoint_components(value, progress=progress)
+                outputs = [component, shared.settings_components['sd_unet'], shared.settings_components['sd_text_encoder'], text_settings]
             else:
                 def fn(value, k=k, progress=progress_flag):
                     return run_settings_single(value, key=k, progress=progress)
@@ -428,15 +430,15 @@ def create_quicksettings(interfaces):
                     show_progress='full' if info.refresh is not None else 'hidden',
                 )
 
-        def sync_checkpoint_unet_forced(value, _dummy):
-            return sync_checkpoint_unet(value, force=True)
+        def sync_checkpoint_components_forced(value, _dummy):
+            return sync_checkpoint_components(value, force=True)
 
         button_set_checkpoint = gr.Button('Change model', elem_id='change_checkpoint', visible=False)
         button_set_checkpoint.click(
-            fn=sync_checkpoint_unet_forced,
+            fn=sync_checkpoint_components_forced,
             _js="consumeDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_checkpoint'], dummy_component],
-            outputs=[shared.settings_components['sd_model_checkpoint'], shared.settings_components['sd_unet'], text_settings],
+            outputs=[shared.settings_components['sd_model_checkpoint'], shared.settings_components['sd_unet'], shared.settings_components['sd_text_encoder'], text_settings],
         )
         button_set_refiner = gr.Button('Change refiner', elem_id='change_refiner', visible=False)
         button_set_refiner.click(
