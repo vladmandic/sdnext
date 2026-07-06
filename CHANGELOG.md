@@ -96,6 +96,10 @@ Also couple of *experimental* features: see below for details...
   - vae: restore hijack on pipeline switch
   - startup: faster model storage checks
   - installer: double-restart on diffusers/transformers upgrade
+  - krea2: load custom transformers that omit the dormant residual layers
+  - krea2: base defaults to guidance 4.5 instead of 1.0
+  - text encoder: load non-t5 single-file overrides as their actual class and quantize under sdnq
+  - text encoder: reload on override change, reset when base model is incompatible
 
 ## Update for 2026-06-16
 
