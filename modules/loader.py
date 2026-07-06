@@ -157,6 +157,7 @@ except Exception as e:
     report(f'pydantic=={pydantic.__version__ if "pydantic" in sys.modules else None}', e)
 timer.startup.record("pydantic")
 
+import tokenizers # pylint: disable=W0611,C0411
 try:
     # transformers==5.x has different dependency stack so switching between v4 and v5 becomes very painful
     # this temporarily disables dependency version checks so we can use either v4 or v5 until we drop support for v4
@@ -250,6 +251,7 @@ def get_packages():
         "torchvision": torchvision.__version__,
         "diffusers": diffusers.__version__,
         "transformers": transformers.__version__,
+        "tokenizers": tokenizers.__version__,
         "accelerate": accelerate.__version__,
         "hub": huggingface_hub.__version__,
         "gradio": gradio.__version__,
@@ -288,5 +290,5 @@ class VersionString(str): # support both string and tuple for version check
 
 
 torch.__version__ = VersionString(torch.__version__)
-log.info(f'Torch: torch=={torch.__version__} torchvision=={torchvision.__version__}')
-log.info(f'Packages: diffusers=={diffusers.__version__} transformers=={transformers.__version__} accelerate=={accelerate.__version__} gradio=={gradio.__version__} pydantic=={pydantic.__version__} numpy=={np.__version__} cv2=={cv2.__version__} onnxruntime=={ort.__version__ if ort is not None else None}')
+packages_lst = [f'{pkg}=={ver}' for pkg, ver in get_packages().items()]
+log.info(f'Packages: {" ".join(packages_lst)}')

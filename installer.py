@@ -583,7 +583,7 @@ def check_transformers():
     else:
         # target_transformers = '4.57.6'
         target_transformers = None
-        target_tokenizers = '0.23.1'
+        target_tokenizers = '0.22.2'
     if target_transformers is not None:
         # Pinned release version (e.g. DirectML)
         if args.reinstall or (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
