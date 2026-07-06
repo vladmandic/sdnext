@@ -249,24 +249,28 @@ def vae_postprocess(tensor, model, output_type='np'):
                 if tensor.ndim == 4 and tensor.shape[1] == 3:
                     tensor = tensor.unsqueeze(2)
                 try:
-                    images = model.video_processor.postprocess_video(tensor, output_type='pil')
-                except Exception as e:
-                    log.warning(f'VAE postprocess: type=video tensor={tensor.shape}:{tensor.device}:{tensor.dtype} error={e}')
+                    with np.errstate(all='raise'):
+                        images = model.video_processor.postprocess_video(tensor, output_type='pil')
+                except (Exception, FloatingPointError) as e:
+                    amin, amax = tensor.min().item(), tensor.max().item()
+                    log.warning(f'VAE postprocess: type=video tensor={tensor.shape}:{tensor.device}:{tensor.dtype} min={amin} max={amax} error="{e}"')
                     images = tensor
                     if debug:
-                        errors.display(e, 'VAE postprocess video')
+                        errors.display(e, 'VAE postprocess: type=video')
                 if isinstance(images, list) and len(images) > 0 and isinstance(images[0], list):
                     images = [frame for batch in images for frame in batch]
             elif hasattr(model, 'image_processor'):
                 if tensor.ndim == 5 and tensor.shape[1] == 3: # Qwen Image
                     tensor = tensor[:, :, 0]
                 try:
-                    images = model.image_processor.postprocess(tensor, output_type=output_type)
-                except Exception as e:
-                    log.warning(f'VAE postprocess: type=image tensor={tensor.shape}:{tensor.device}:{tensor.dtype} error={e}')
+                    with np.errstate(all='raise'):
+                        images = model.image_processor.postprocess(tensor, output_type=output_type)
+                except (Exception, FloatingPointError) as e:
+                    amin, amax = tensor.min().item(), tensor.max().item()
+                    log.warning(f'VAE postprocess: type=image tensor={tensor.shape}:{tensor.device}:{tensor.dtype} min={amin} max={amax} error="{e}"')
                     images = tensor
                     if debug:
-                        errors.display(e, 'VAE postprocess image')
+                        errors.display(e, 'VAE postprocess: type=image')
             elif hasattr(model, "vqgan"):
                 images = tensor.permute(0, 2, 3, 1).cpu().float().numpy()
                 if output_type == "pil":
@@ -277,12 +281,27 @@ def vae_postprocess(tensor, model, output_type='np'):
                 if tensor.ndim == 5 and tensor.shape[1] == 3: # Qwen Image
                     tensor = tensor[:, :, 0]
                 images = model.image_processor.postprocess(tensor, output_type=output_type)
+
             if torch.is_tensor(images): # failed to postprocess, do naive conversion
-                images = images.permute(0, 2, 3, 1).cpu().float().numpy()
-                if images.min() < 0 or images.max() > 1:
-                    images = (images - images.min()) / (images.max() - images.min()) # naive normalization
-                if output_type == "pil":
-                    images = model.numpy_to_pil(images)
+                try:
+                    if torch.isnan(images).any().item():
+                        log.error(f'VAE postprocess: type=fallback tensor={images.shape}:{images.device}:{images.dtype} error="image contains invalid NaN values"')
+                        images.nan_to_num_(nan=0.0)
+                    while images.ndim > 4:
+                        images = images.squeeze(0)
+                    if images.shape[0] == 3:
+                        images = images.permute(1, 2, 3, 0).cpu().float().numpy()
+                    else:
+                        images = images.permute(0, 2, 3, 1).cpu().float().numpy()
+                    if images.min() < 0 or images.max() > 1:
+                        images = (images - images.min()) / (images.max() - images.min()) # naive normalization
+                    if output_type == "pil":
+                        images = model.numpy_to_pil(images)
+                except (Exception, FloatingPointError) as e:
+                    amin, amax = images.min().item(), images.max().item()
+                    log.warning(f'VAE postprocess: type=fallback tensor={images.shape}:{images.device}:{images.dtype} min={amin} max={amax} error="{e}"')
+                    if debug:
+                        errors.display(e, 'VAE postprocess unknown')
         else:
             images = tensor if isinstance(tensor, list) or isinstance(tensor, np.ndarray) else [tensor]
     except Exception as e:

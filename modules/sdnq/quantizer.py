@@ -616,7 +616,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         return False
 
     @devices.inference_context()
-    def create_quantized_param( # pylint: disable=unused-argument
+    def create_quantized_param( # pylint: disable=unused-argument,arguments-differ
         self,
         model: torch.nn.Module,
         param_value: torch.FloatTensor,
@@ -671,7 +671,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
         parent_module, tensor_name = get_module_from_name(model, param_name.removesuffix(tensor_name).removesuffix("."))
         setattr(parent_module, tensor_name, layer)
 
-    def _process_model_before_weight_loading( # pylint: disable=unused-argument
+    def _process_model_before_weight_loading( # pylint: disable=unused-argument,arguments-differ
         self,
         model: torch.nn.Module,
         device_map,

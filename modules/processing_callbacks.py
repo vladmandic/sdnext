@@ -91,6 +91,14 @@ def diffusers_callback(pipe, step: int = 0, timestep: int = 0, kwargs: dict | No
     if latents is None or p is None:
         return kwargs
 
+    """
+    if torch.isnan(latents).any().item():
+        log.error(f'Callback: step={step} timestep={timestep} latents={latents.shape}:{latents.device}:{latents.dtype} error="contains NaN values"')
+        if (shared.state.current_latent is not None) and (shared.state.current_latent.shape == latents.shape):
+            log.error(f'Callback: step={step} timestep={timestep} latents={latents.shape}:{latents.device}:{latents.dtype} error="replacing with previous latent"')
+            latents = shared.state.current_latent
+    """
+
     if len(getattr(p, 'ip_adapter_names', [])) > 0 and p.ip_adapter_names[0] != 'None':
         ip_adapter_scales = list(p.ip_adapter_scales)
         ip_adapter_starts = list(p.ip_adapter_starts)

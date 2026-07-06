@@ -93,6 +93,7 @@ Also couple of *experimental* features: see below for details...
   - processors: init code and multiple fixes
   - pulid: import paths
   - python: experimental/ignore version checks
+  - scheduler: handle zero-sigma for i2i/inpaint flowmatch workflows
   - sdnq: warn instead of error for `triton`
   - startup: faster model storage checks
   - text encoder: load non-t5 single-file overrides as their actual class and quantize under sdnq
@@ -102,6 +103,7 @@ Also couple of *experimental* features: see below for details...
   - ui: networks details scrollbars
   - vae: restore hijack on pipeline switch
   - vae: scale factor improved detection
+  - vae: better detection of invalid/nan values
 
 ## Update for 2026-06-16
 
