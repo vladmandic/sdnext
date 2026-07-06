@@ -8,32 +8,32 @@ from .common import dtype_dict, use_contiguous_mm, conv_types, conv_transpose_ty
 
 
 @devices.inference_context()
-def get_scale_asymmetric(weight: torch.FloatTensor, reduction_axes: int | list[int], weights_dtype: str) -> tuple[torch.FloatTensor, torch.FloatTensor]:
-    zero_point = torch.amin(weight, dim=reduction_axes, keepdims=True)
-    scale = torch.amax(weight, dim=reduction_axes, keepdims=True).sub_(zero_point).div_(dtype_dict[weights_dtype]["max"] - dtype_dict[weights_dtype]["min"])
+def get_scale_asymmetric(weight: torch.FloatTensor, dim: int | list[int], weights_dtype: str) -> tuple[torch.FloatTensor, torch.FloatTensor]:
+    zero_point, scale = torch.aminmax(weight, dim=dim, keepdims=True)
+    scale = scale.sub_(zero_point).div_(dtype_dict[weights_dtype]["max"] - dtype_dict[weights_dtype]["min"])
     if dtype_dict[weights_dtype]["min"] != 0:
-        zero_point.sub_(torch.mul(scale, dtype_dict[weights_dtype]["min"]))
+        zero_point.sub_(scale, alpha=dtype_dict[weights_dtype]["min"])
     return scale, zero_point
 
 
 @devices.inference_context()
-def get_scale_symmetric(weight: torch.FloatTensor, reduction_axes: int | list[int], weights_dtype: str) -> torch.FloatTensor:
-    return torch.amax(weight.abs(), dim=reduction_axes, keepdims=True).div_(dtype_dict[weights_dtype]["max"])
+def get_scale_symmetric(weight: torch.FloatTensor, dim: int | list[int], weights_dtype: str) -> torch.FloatTensor:
+    return torch.amax(weight.abs(), dim=dim, keepdims=True).div_(dtype_dict[weights_dtype]["max"])
 
 
 @devices.inference_context()
-def quantize_weight(weight: torch.FloatTensor, reduction_axes: int | list[int], weights_dtype: str, dtype: torch.dtype = None, use_stochastic_rounding: bool = False) -> tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
+def quantize_weight(weight: torch.FloatTensor, dim: int | list[int], weights_dtype: str, dtype: torch.dtype = None, use_stochastic_rounding: bool = False) -> tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
     if weight.dtype != torch.float64:
         weight = weight.to(dtype=torch.float32, copy=False)
 
     if dtype_dict[weights_dtype]["is_unsigned"]:
-        scale, zero_point = get_scale_asymmetric(weight, reduction_axes, weights_dtype)
+        scale, zero_point = get_scale_asymmetric(weight, dim, weights_dtype)
         if dtype is not None:
             scale = scale.to(dtype=dtype)
             zero_point = zero_point.to(dtype=dtype)
         quantized_weight = torch.sub(weight, zero_point).div_(scale)
     else:
-        scale = get_scale_symmetric(weight, reduction_axes, weights_dtype)
+        scale = get_scale_symmetric(weight, dim, weights_dtype)
         zero_point = None
         if dtype is not None:
             scale = scale.to(dtype=dtype)
@@ -188,65 +188,38 @@ def prepare_svd_for_matmul(svd_up: torch.FloatTensor, svd_down: torch.FloatTenso
 
 
 @devices.inference_context()
-def quantize_int_mm(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "int8") -> tuple[torch.Tensor, torch.FloatTensor]:
+def quantize_int_mm(weight: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "int8", use_sr: bool = False) -> tuple[torch.Tensor, torch.FloatTensor]:
     if hadamard is not None:
-        input = rotate_hadamard(input, hadamard=hadamard)
-    scale = torch.amax(input.abs(), dim=dim, keepdims=True).div_(dtype_dict[matmul_dtype]["max"])
-    input = torch.div(input, scale).round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
-    return input, scale
+        weight = rotate_hadamard(weight, hadamard=hadamard)
+    scale = get_scale_symmetric(weight, dim, matmul_dtype)
+    weight = torch.div(weight, scale)
+    if use_sr:
+        weight = weight.add_(torch.randn_like(weight), alpha=0.1)
+    weight = weight.round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
+    return weight, scale
 
 
 @devices.inference_context()
-def quantize_int_mm_sr(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "int8") -> tuple[torch.Tensor, torch.FloatTensor]:
+def quantize_uint_mm(weight: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "uint8", use_sr: bool = False) -> tuple[torch.FloatTensor, torch.FloatTensor]:
     if hadamard is not None:
-        input = rotate_hadamard(input, hadamard=hadamard)
-    scale = torch.amax(input.abs(), dim=dim, keepdims=True).div_(dtype_dict[matmul_dtype]["max"])
-    input = torch.div(input, scale).add_(torch.randn_like(input), alpha=0.1).round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
-    return input, scale
-
-
-@devices.inference_context()
-def quantize_uint_mm(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "uint8") -> tuple[torch.FloatTensor, torch.FloatTensor]:
-    if hadamard is not None:
-        input = rotate_hadamard(input, hadamard=hadamard)
+        weight = rotate_hadamard(weight, hadamard=hadamard)
     matmul_dtype = matmul_dtype.removeprefix("u")
-    zero_point = torch.amin(input, dim=dim, keepdims=True)
-    scale = torch.amax(input, dim=dim, keepdims=True).sub_(zero_point).div_(dtype_dict[matmul_dtype]["max"] - dtype_dict[matmul_dtype]["min"])
-    if dtype_dict[matmul_dtype]["min"] != 0:
-        zero_point.sub_(scale, alpha=dtype_dict[matmul_dtype]["min"])
-    input = torch.sub(input, zero_point).div_(scale).round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
-    return input, scale, zero_point
+    scale, zero_point = get_scale_asymmetric(weight, dim, matmul_dtype)
+    weight = torch.sub(weight, zero_point).div_(scale)
+    if use_sr:
+        weight = weight.add_(torch.randn_like(weight), alpha=0.1)
+    weight = weight.round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
+    return weight, scale, zero_point
 
 
 @devices.inference_context()
-def quantize_uint_mm_sr(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "uint8") -> tuple[torch.FloatTensor, torch.FloatTensor]:
+def quantize_fp_mm(weight: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "float8_e4m3fn", use_sr: bool = False) -> tuple[torch.Tensor, torch.FloatTensor]:
     if hadamard is not None:
-        input = rotate_hadamard(input, hadamard=hadamard)
-    matmul_dtype = matmul_dtype.removeprefix("u")
-    zero_point = torch.amin(input, dim=dim, keepdims=True)
-    scale = torch.amax(input, dim=dim, keepdims=True).sub_(zero_point).div_(dtype_dict[matmul_dtype]["max"] - dtype_dict[matmul_dtype]["min"])
-    if dtype_dict[matmul_dtype]["min"] != 0:
-        zero_point.sub_(scale, alpha=dtype_dict[matmul_dtype]["min"])
-    input = torch.sub(input, zero_point).div_(scale).add_(torch.randn_like(input), alpha=0.1).round_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
-    return input, scale, zero_point
-
-
-@devices.inference_context()
-def quantize_fp_mm(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "float8_e4m3fn") -> tuple[torch.Tensor, torch.FloatTensor]:
-    if hadamard is not None:
-        input = rotate_hadamard(input, hadamard=hadamard)
-    scale = torch.amax(input.abs(), dim=dim, keepdims=True).div_(dtype_dict[matmul_dtype]["max"])
-    input = torch.div(input, scale).nan_to_num_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
-    return input, scale
-
-
-@devices.inference_context()
-def quantize_fp_mm_sr(input: torch.FloatTensor, dim: int = -1, hadamard: torch.FloatTensor | None = None, matmul_dtype: str = "float8_e4m3fn") -> tuple[torch.Tensor, torch.FloatTensor]:
-    if hadamard is not None:
-        input = rotate_hadamard(input, hadamard=hadamard)
-    mantissa_difference = 1 << (23 - dtype_dict[matmul_dtype]["mantissa"])
-    scale = torch.amax(input.abs(), dim=dim, keepdims=True).div_(dtype_dict[matmul_dtype]["max"])
-    input = torch.div(input, scale).to(dtype=torch.float32).view(dtype=torch.int32)
-    input = input.add_(torch.randint_like(input, low=0, high=mantissa_difference, dtype=torch.int32)).bitwise_and_(-mantissa_difference).view(dtype=torch.float32)
-    input = input.nan_to_num_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
-    return input, scale
+        weight = rotate_hadamard(weight, hadamard=hadamard)
+    scale = get_scale_symmetric(weight, dim, matmul_dtype)
+    if use_sr:
+        mantissa_difference = 1 << (23 - dtype_dict[matmul_dtype]["mantissa"])
+        weight = weight.to(dtype=torch.float32).view(dtype=torch.int32)
+        weight = weight.add_(torch.randint_like(weight, low=0, high=mantissa_difference, dtype=torch.int32)).bitwise_and_(-mantissa_difference).view(dtype=torch.float32)
+    weight = torch.div(weight, scale).nan_to_num_().clamp_(dtype_dict[matmul_dtype]["min"], dtype_dict[matmul_dtype]["max"]).to(dtype=dtype_dict[matmul_dtype]["torch_dtype"])
+    return weight, scale
