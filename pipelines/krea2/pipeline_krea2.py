@@ -154,7 +154,7 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
         height: int = 1024,
         width: int = 1024,
         num_inference_steps: int = 28,
-        guidance_scale: float = 1.0,
+        guidance_scale: float | None = None,
         num_images_per_prompt: int = 1,
         generator: torch.Generator | list[torch.Generator] | None = None,
         latents: torch.Tensor | None = None,
@@ -173,11 +173,15 @@ class Krea2Pipeline(DiffusionPipeline, FromSingleFileMixin):
         prompts = [prompt] if isinstance(prompt, str) else list(prompt)
         device = self._execution_device
         dtype = self.transformer.dtype
-        self._guidance_scale = guidance_scale
         self._interrupt = False
 
         is_distilled = bool(getattr(self.transformer.config, "is_distilled", False))
-        do_cfg = guidance_scale is not None and guidance_scale > 1 and not is_distilled
+        # guidance_scale=None is the "use default" path (cfg=-1): Base needs real guidance
+        # (Krea recommends 4.5), the distilled Turbo runs guidance-free
+        if guidance_scale is None:
+            guidance_scale = 1.0 if is_distilled else 4.5
+        self._guidance_scale = guidance_scale
+        do_cfg = guidance_scale > 1 and not is_distilled
 
         text, text_mask = self.encode_prompt(prompts, device)
         text = text.to(dtype)
