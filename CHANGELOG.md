@@ -6,7 +6,7 @@
 
 Service-pack update with number of fixes and quality-of-life improvements  
 Plus few new models: **Krea 2**, **Boogu**, **Photoroom PRXPixel**, **FLUX.2 Klein KV** and some new community models  
-And **SDNQ** improvements: now with *NPU* support and its own native *attention* kernels!  
+And **SDNQ** improvements: now with *NPU* support and its own native *attention* kernels (try it, you may get a nice free performance boost)!  
 Also couple of *experimental* features: see below for details...  
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
@@ -66,8 +66,9 @@ Also couple of *experimental* features: see below for details...
     *note*: pruna options compatibility varies greatly depending on platform, gpu, torch and model used  
     *note*: some pruna options may require additional packages to be installed  
 - **Fixes**
-  - anima: simplify loader
   - amd: hipBLASLt improved detection, thanks @0xDELUXA
+  - anima: simplify loader
+  - anima: vae postprocessing with batch size
   - api: add missing endpoint registration
   - api: openapi schema exposure
   - api: stricter api request and response schemas
@@ -76,6 +77,9 @@ Also couple of *experimental* features: see below for details...
   - extensions: handle extension without remote
   - huggingface: strip corrupt headers on download
   - insightface: missing dependencies
+  - installer: double-restart on diffusers/transformers upgrade
+  - krea2: base defaults to guidance 4.5 instead of 1.0
+  - krea2: load custom transformers that omit the dormant residual layers
   - live preview: configurable pause when not in focus, thanks @Artheriax
   - log: strip ansi sequences from ring buffer and client side logging
   - lora: cache state_dict between load attempts
@@ -90,17 +94,14 @@ Also couple of *experimental* features: see below for details...
   - pulid: import paths
   - python: experimental/ignore version checks
   - sdnq: warn instead of error for `triton`
-  - ui debounce aspect-ratio linked width/height controls
-  - ui: networks details scrollbars
-  - vae: scale factor improved detection
-  - text-encode: restore hijack on pipeline switch
-  - vae: restore hijack on pipeline switch
   - startup: faster model storage checks
-  - installer: double-restart on diffusers/transformers upgrade
-  - krea2: load custom transformers that omit the dormant residual layers
-  - krea2: base defaults to guidance 4.5 instead of 1.0
   - text encoder: load non-t5 single-file overrides as their actual class and quantize under sdnq
   - text encoder: reload on override change, reset when base model is incompatible
+  - text-encode: restore hijack on pipeline switch
+  - ui debounce aspect-ratio linked width/height controls
+  - ui: networks details scrollbars
+  - vae: restore hijack on pipeline switch
+  - vae: scale factor improved detection
 
 ## Update for 2026-06-16
 

@@ -246,11 +246,15 @@ def vae_postprocess(tensor, model, output_type='np'):
             if hasattr(model, 'video_processor'):
                 if tensor.ndim == 6 and tensor.shape[1] == 1:
                     tensor = tensor.squeeze(0)
+                if tensor.ndim == 4 and tensor.shape[1] == 3:
+                    tensor = tensor.unsqueeze(2)
                 try:
                     images = model.video_processor.postprocess_video(tensor, output_type='pil')
                 except Exception as e:
-                    log.warning(f'VAE postprocess: type=video {e}')
+                    log.warning(f'VAE postprocess: type=video tensor={tensor.shape}:{tensor.device}:{tensor.dtype} error={e}')
                     images = tensor
+                    if debug:
+                        errors.display(e, 'VAE postprocess video')
                 if isinstance(images, list) and len(images) > 0 and isinstance(images[0], list):
                     images = [frame for batch in images for frame in batch]
             elif hasattr(model, 'image_processor'):
@@ -259,8 +263,10 @@ def vae_postprocess(tensor, model, output_type='np'):
                 try:
                     images = model.image_processor.postprocess(tensor, output_type=output_type)
                 except Exception as e:
-                    log.warning(f'VAE postprocess: type=image {e}')
+                    log.warning(f'VAE postprocess: type=image tensor={tensor.shape}:{tensor.device}:{tensor.dtype} error={e}')
                     images = tensor
+                    if debug:
+                        errors.display(e, 'VAE postprocess image')
             elif hasattr(model, "vqgan"):
                 images = tensor.permute(0, 2, 3, 1).cpu().float().numpy()
                 if output_type == "pil":
