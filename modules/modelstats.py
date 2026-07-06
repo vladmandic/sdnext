@@ -13,7 +13,7 @@ def walk(folder: str):
     return files
 
 
-def _stat(fn: str):
+def stat(fn: str):
     if fn is None or len(fn) == 0 or not os.path.exists(fn):
         return 0, datetime.fromtimestamp(0)
     fs_stat = os.stat(fn, follow_symlinks=False)
@@ -23,12 +23,13 @@ def _stat(fn: str):
     elif os.path.isfile(fn):
         size = round(fs_stat.st_size)
     elif os.path.isdir(fn):
-        size = round(sum(_stat(fn)[0] for fn in walk(fn)))
+        size = round(sum(stat(fn)[0] for fn in walk(fn)))
     else:
         size = 0
     return size, mtime
 
 
+"""
 def stat(path: str):
     try: # 1. Base Case: Check if path exists safely
         root_stat = os.stat(path, follow_symlinks=False) # We fetch the stat of the root path once
@@ -62,6 +63,7 @@ def stat(path: str):
     except (FileNotFoundError, PermissionError):
         pass
     return total_size, datetime.fromtimestamp(latest_mtime).replace(microsecond=0)
+"""
 
 
 class Module:
