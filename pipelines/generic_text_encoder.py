@@ -30,7 +30,7 @@ def get_shared(cls, repo_id, subfolder=None, variant=None):
     return repo_id, args
 
 
-def load_local_file(local_file, cls_name, quant_type, repo_id=None, dtype=None):
+def load_local_file(local_file, cls_name, quant_type, repo_id=None, dtype=None, quant_args=None):
     from modules import model_te
     is_gguf = local_file.lower().endswith('.gguf')
     is_safetensors = local_file.lower().endswith('.safetensors')
@@ -60,12 +60,14 @@ def load_local_file(local_file, cls_name, quant_type, repo_id=None, dtype=None):
         log.debug(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} config="{config_repo}" quant="{quant_type}" loader={get_loader("transformers")} file=safetensors')
         config = transformers.AutoConfig.from_pretrained(config_repo, **cfg_args)
         state_dict = load_file(local_file)
-        text_encoder, info = cls_name.from_pretrained(None, state_dict=state_dict, config=config, cache_dir=shared.opts.hfcache_dir, torch_dtype=dtype or devices.dtype, output_loading_info=True)
+        # pass quant_args so SDNQ quantizes during load, same as the repo/default path; a bare
+        # module cannot be post-load quantized (do_post_load_quant operates on a pipeline)
+        text_encoder, info = cls_name.from_pretrained(None, state_dict=state_dict, config=config, cache_dir=shared.opts.hfcache_dir, torch_dtype=dtype or devices.dtype, output_loading_info=True, **(quant_args or {}))
         del state_dict
         missing, unexpected = info.get('missing_keys') or [], info.get('unexpected_keys') or []
         if missing or unexpected:
             log.warning(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} key mismatch missing={len(missing)} unexpected={len(unexpected)}, file may not be a {cls_name.__name__}')
-        return model_quant.do_post_load_quant(text_encoder, allow=quant_type is not None)
+        return text_encoder
     except Exception as e:
         log.error(f'Load model: text_encoder="{local_file}" cls={cls_name.__name__} single-file override failed: {e}, falling back to base text encoder')
         return None
@@ -116,7 +118,7 @@ def load_text_encoder(
             elif os.path.exists(model_te.te_dict[shared.opts.sd_text_encoder]):
                 local_file = model_te.te_dict[shared.opts.sd_text_encoder]
             if local_file is not None:
-                text_encoder = load_local_file(local_file, cls_name, quant_type, repo_id=repo_id, dtype=dtype)
+                text_encoder = load_local_file(local_file, cls_name, quant_type, repo_id=repo_id, dtype=dtype, quant_args=quant_args)
 
         # 2. load override from repo (skipped when the override resolved to a local file)
         if (shared.opts.sd_text_encoder is not None) and (shared.opts.sd_text_encoder != 'Default') and (text_encoder is None) and (local_file is None):
