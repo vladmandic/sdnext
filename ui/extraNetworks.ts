@@ -153,6 +153,12 @@ async function filterExtraNetworksForTab(searchTerm) {
           .toLowerCase()
           .includes('reference/') && elem.dataset.tags === '' ? '' : 'none';
       });
+    } else if (searchTerm === 'base/') {
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags
+          .toLowerCase()
+          .includes('base') ? '' : 'none';
+      });
     } else if (searchTerm === 'distilled/') {
       cards.forEach((elem) => {
         elem.style.display = elem.dataset.tags
@@ -490,6 +496,7 @@ function setupExtraNetworksForTab(tabName) {
   const txtSearch = gradioApp().querySelector(`#${tabName}_extra_search`);
   const txtSearchValue = gradioApp().querySelector(`#${tabName}_extra_search textarea`);
   const txtDescription = gradioApp().getElementById(`${tabName}_description`);
+  if (!txtSearch || !txtSearchValue || !txtDescription) return;
   txtSearch.classList.add('search');
   txtDescription.classList.add('description');
   div.appendChild(txtSearch);

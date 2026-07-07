@@ -49,6 +49,8 @@ class Timer:
         additions = [x for x in self.records.items() if x[1] >= min_time]
         if max_time > 0:
             additions = [x for x in additions if x[1] <= max_time]
+        if not total:
+            additions = [x for x in additions if x[0] != 'total']
         additions = sorted(additions, key=lambda x: x[1], reverse=True)
         if not additions:
             return res

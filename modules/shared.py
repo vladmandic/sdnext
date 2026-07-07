@@ -17,7 +17,6 @@ import modules.paths as paths
 from modules.json_helpers import readfile # pylint: disable=W0611
 from modules.shared_helpers import listdir, req # pylint: disable=W0611
 from modules import errors, devices, shared_state, cmd_args, theme, history, files_cache # pylint: disable=unused-import
-from modules.shared_defaults import get_default_modes
 from modules.memstats import memory_stats # pylint: disable=unused-import
 
 log.debug('Initializing: pipelines')
@@ -31,6 +30,7 @@ if TYPE_CHECKING:
     from diffusers import DiffusionPipeline
     from modules.shared_legacy import LegacyOption
     from modules.ui_extra_networks import ExtraNetworksPage
+    from modules.detailer import Detailer
 
 
 class Backend(Enum):
@@ -49,8 +49,7 @@ listfiles = listdir
 xformers_available = False
 compiled_model_state = None
 sd_upscalers = []
-detailers = []
-yolo = None
+detailer: Detailer | None = None
 tab_names = []
 extra_networks: list[ExtraNetworksPage] = []
 hypernetworks = {}
@@ -152,9 +151,6 @@ def list_samplers():
     return modules.sd_samplers.all_samplers
 
 
-log.debug('Initializing: default modes')
-startup_offload_mode, startup_offload_min_gpu, startup_offload_max_gpu, startup_cross_attention, startup_sdp_options, startup_sdp_choices, startup_sdp_override_options, startup_sdp_override_choices, startup_offload_always, startup_offload_never = get_default_modes(cmd_opts=cmd_opts, mem_stat=mem_stat)
-
 log.debug('Initializing: settings')
 from modules import ui_definitions
 from modules.ui_definitions import OptionInfo, options_section # pylint: disable=unused-import
@@ -181,7 +177,7 @@ log.info(f'Engine: backend={backend} compute={devices.backend} device={devices.g
 profiler = None
 import modules.styles
 prompt_styles = modules.styles.StyleDatabase(opts)
-reference_models = readfile(os.path.join('data', 'reference.json'), as_type="dict") if opts.extra_network_reference_enable else {}
+reference_models = {}
 cmd_opts.disable_extension_access = (cmd_opts.share or cmd_opts.listen or (cmd_opts.server_name or False)) and not cmd_opts.insecure
 
 log.debug('Initializing: devices')

@@ -74,7 +74,7 @@
   --sd-text-font: 'IBM Plex Mono', monospace;
   --sd-button-font: 'NotoSans', sans-serif;
   --sd-image-fit: scale-down;
-  --sd-panel-min-width: 30em;
+  --sd-panel-min-width: 256px;
   --sd-grid-image-size: 150px;
 }
 
@@ -1520,10 +1520,10 @@ table.settings-value-table td {
   z-index: 99;
 }
 
-.extra-details-tabs textarea, .extra-details-tabs .gradio-json {
-  max-height: 15vh;
-  overflow-y: scroll !important;
-  scrollbar-width: unset !important;
+.extra-details-tabs {
+  min-height: 10vh;
+  max-height: 35vh;
+  overflow: auto;
 }
 
 .extra-details-text .form {
@@ -1574,6 +1574,15 @@ table.settings-value-table td {
   margin-right: 0.8em;
 }
 
+.network-local {
+  filter: contrast(0.8);
+}
+
+.network-local::before {
+  content: "󰴊 ";
+  margin-right: 0.8em;
+}
+
 .network-reference {
   filter: contrast(0.9);
 }
@@ -1594,6 +1603,10 @@ table.settings-value-table td {
 
 .input-accordion-checkbox {
   display: none !important;
+}
+
+.caption {
+  right: 6em;
 }
 
 #modelmerger_interp_description {
@@ -2276,6 +2289,18 @@ div:has(>#tab-gallery-folders) {
 .disabled-look textarea {
   opacity: 0.4;
   pointer-events: none;
+}
+
+.legacy-standard {
+  position: fixed;
+  bottom: 10px;
+  right: 10px;
+  z-index: 1000;
+  background: #AA6688;
+  color: white;
+  cursor: help;
+  padding: var(--block-label-padding);
+  border-radius: var(--block-label-radius);
 }
 
 @keyframes spin {

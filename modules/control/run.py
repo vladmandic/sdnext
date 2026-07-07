@@ -356,7 +356,7 @@ def control_run(state: str = '', # pylint: disable=keyword-arg-before-vararg
                 grading_shadows_tint: str = "#000000", grading_highlights_tint: str = "#ffffff", grading_split_tone_balance: float = 0.5,
                 grading_vignette: float = 0.0, grading_grain: float = 0.0,
                 grading_lut_file: str = "", grading_lut_strength: float = 1.0,
-                resize_mode_before: int = 0, resize_name_before: str = 'None', resize_context_before: str = 'None', width_before: int = 512, height_before: int = 512, scale_by_before: float = 1.0, selected_scale_tab_before: int = 0,
+                resize_mode_before: int = 0, resize_name_before: str = 'None', resize_context_before: str = 'None', width_before: int = 1024, height_before: int = 1024, scale_by_before: float = 1.0, selected_scale_tab_before: int = 0,
                 resize_mode_after: int = 0, resize_name_after: str = 'None', resize_context_after: str = 'None', width_after: int = 0, height_after: int = 0, scale_by_after: float = 1.0, selected_scale_tab_after: int = 0,
                 resize_mode_mask: int = 0, resize_name_mask: str = 'None', resize_context_mask: str = 'None', width_mask: int = 0, height_mask: int = 0, scale_by_mask: float = 1.0, selected_scale_tab_mask: int = 0,
                 denoising_strength: float = 0.3,

@@ -18,5 +18,7 @@ def load_instaflow(checkpoint_info, diffusers_load_config=None):
 
     pipeline = diffusers.utils.get_class_from_dynamic_module('instaflow_one_step', module_file='pipeline.py')
     generic.set_pipeline('InstaFlow', pipeline)
-    sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **diffusers_load_config)
+    load_config = {**diffusers_load_config, **load_args}
+    sd_model = pipeline.from_pretrained(checkpoint_info.path, cache_dir=shared.opts.diffusers_dir, **load_config)
+    devices.torch_gc(force=True, reason='load')
     return sd_model

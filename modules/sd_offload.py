@@ -280,12 +280,12 @@ class OffloadHook(accelerate.hooks.ModelHook):
                 skip_keys = getattr(module, "_skip_keys", None)
                 try:
                     module = accelerate.dispatch_model(module,
-                                                    main_device=torch.device(devices.device),
-                                                    device_map=device_map,
-                                                    offload_dir=offload_dir,
-                                                    skip_keys=skip_keys,
-                                                    force_hooks=True,
-                                                    )
+                                                       main_device=torch.device(devices.device),
+                                                       device_map=device_map,
+                                                       offload_dir=offload_dir,
+                                                       skip_keys=skip_keys,
+                                                       force_hooks=True,
+                                                      )
                 except Exception as e: # reapply hook
                     log.warning(f'Offload: type=balanced op=dispatch module={module.__class__.__name__} {e}')
                     module = accelerate.hooks.remove_hook_from_module(module, recurse=True)

@@ -216,9 +216,11 @@ def get_weighted_text_embeddings_sd15(
             , generator = torch.Generator(text2img_pipe.device).manual_seed(2)
         ).images[0]
     """
-    original_clip_layers = pipe.text_encoder.text_model.encoder.layers
+    # transformers >=5.6 flattened CLIPTextModel; CLIPTextModelWithProjection still nests it under .text_model
+    clip_text_model = getattr(pipe.text_encoder, 'text_model', pipe.text_encoder)
+    original_clip_layers = clip_text_model.encoder.layers
     if clip_skip > 0:
-        pipe.text_encoder.text_model.encoder.layers = original_clip_layers[:-clip_skip]
+        clip_text_model.encoder.layers = original_clip_layers[:-clip_skip]
 
     eos = pipe.tokenizer.eos_token_id
     prompt_tokens, prompt_weights = get_prompts_tokens_with_weights(
@@ -310,7 +312,7 @@ def get_weighted_text_embeddings_sd15(
 
     # recover clip layers
     if clip_skip > 0:
-        pipe.text_encoder.text_model.encoder.layers = original_clip_layers
+        clip_text_model.encoder.layers = original_clip_layers
 
     return prompt_embeds, neg_prompt_embeds
 

@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import logging
 import socket
@@ -102,6 +103,10 @@ def setup_logging(debug=None, trace=None, filename=None):
             self.buffer = []
             self.formatter = logging.Formatter('{ "asctime":"%(asctime)s", "created":%(created)f, "facility":"%(name)s", "pid":%(process)d, "tid":%(thread)d, "level":"%(levelname)s", "module":"%(module)s", "func":"%(funcName)s", "msg":"%(message)s" }')
 
+        def strip(self, line):
+            ansi_escape = re.compile(r'(\x9B|\x1B\[)[0-?]*[ -/]*[@-~]')
+            return ansi_escape.sub('', str(line))
+
         def emit(self, record):
             if record.msg is not None and not isinstance(record.msg, str):
                 record.msg = str(record.msg)
@@ -109,8 +114,9 @@ def setup_logging(debug=None, trace=None, filename=None):
                 record.msg = record.msg.replace('"', "'")
             except Exception:
                 pass
-            msg = self.format(record)
-            self.buffer.append(msg)
+            line = self.format(record)
+            line = self.strip(line)
+            self.buffer.append(line[:1024])
             if len(self.buffer) > self.capacity:
                 self.buffer.pop(0)
 

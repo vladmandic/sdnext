@@ -148,6 +148,9 @@ class Extension:
         self.mtime = "2000-01-01T00:00Z"
         self.ctime = "2000-01-01T00:00Z"
 
+    def __str__(self):
+        return f'Extension(name="{self.name}", path="{self.path}", enabled={self.enabled}, is_builtin={self.is_builtin}, status="{self.status}", can_update={self.can_update}, commit_hash="{self.commit_hash}", commit_date={self.commit_date}, version="{self.version}", description="{self.description}", branch="{self.branch}", remote="{self.remote}", mtime="{self.mtime}", ctime="{self.ctime}")'
+
     def read_info(self, force=False):
         if self.have_info_from_repo and not force:
             return

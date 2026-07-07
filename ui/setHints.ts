@@ -260,6 +260,7 @@ function createLocaleJSON() {
     ...Array.from<any>(gradioApp().querySelectorAll('h1')),
     ...Array.from<any>(gradioApp().querySelectorAll('h2')),
     ...Array.from<any>(gradioApp().querySelectorAll('h3')),
+    ...Array.from<any>(gradioApp().querySelectorAll('.hint')),
     ...Array.from<any>(gradioApp().querySelectorAll('label > span')),
     ...Array.from<any>(gradioApp().querySelectorAll('.label-wrap > span')),
     ...Array.from<any>(gradioApp().querySelectorAll('span[data-testid="block-info"]')),
@@ -362,11 +363,12 @@ export async function setHints() {
 // Apply hints to a single element immediately
 async function applyHintToElement(el) {
   if (!localeData.data || localeData.data.length === 0) return;
-  if (!el.textContent) return;
+  // if (!el.textContent) return;
 
   // check if element matches our selector criteria
   const isValidElement = el.tagName === 'BUTTON'
     || el.tagName === 'H2'
+    || el.classList.contains('hint')
     || (el.tagName === 'SPAN' && (el.parentElement?.tagName === 'LABEL' || el.parentElement?.classList.contains('label-wrap') || el.dataset.testid === 'block-info'));
   if (!isValidElement) return;
 
@@ -377,7 +379,7 @@ async function applyHintToElement(el) {
     else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el.textContent.toLowerCase().trim());
   }
 
-  if (found?.localized?.length > 0) { // apply localization if found
+  if (el.textContent && el.textContent.length > 0 && found?.localized?.length > 0) { // apply localization if found
     if (!el.dataset.original) el.dataset.original = el.textContent;
     replaceTextContent(el, found.localized);
   }
@@ -387,9 +389,7 @@ async function applyHintToElement(el) {
 
 // Initialize MutationObserver for immediate hint application
 function initializeDOMObserver() {
-  if (hintsObserver) {
-    hintsObserver.disconnect();
-  }
+  if (hintsObserver) hintsObserver.disconnect();
 
   hintsObserver = new MutationObserver((mutations) => {
     // Process added nodes immediately
@@ -403,7 +403,10 @@ function initializeDOMObserver() {
             // Apply hints to all relevant children
             const elements = [
               ...Array.from<any>(node.querySelectorAll('button')),
-              ...Array.from<any>(node.querySelectorAll('h2')),
+              ...Array.from<any>(gradioApp().querySelectorAll('h1')),
+              ...Array.from<any>(gradioApp().querySelectorAll('h2')),
+              ...Array.from<any>(gradioApp().querySelectorAll('h3')),
+              ...Array.from<any>(gradioApp().querySelectorAll('.hint')),
               ...Array.from<any>(node.querySelectorAll('label > span')),
               ...Array.from<any>(node.querySelectorAll('.label-wrap > span')),
               ...Array.from<any>(node.querySelectorAll('span[data-testid="block-info"]')),
@@ -412,8 +415,11 @@ function initializeDOMObserver() {
             // Include the node itself if it matches
             if (node.matches && (
               node.matches('button')
+              || node.matches('h1')
               || node.matches('h2')
+              || node.matches('h3')
               || node.matches('label > span')
+              || node.matches('.hint')
               || node.matches('.label-wrap > span')
               || node.matches('span[data-testid="block-info"]')
             )) {

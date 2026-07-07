@@ -3,19 +3,15 @@
     "path": "tempestByVlad_baseV01.safetensors@https://civitai.com/api/download/models/1301775",
     "preview": "tempestByVlad_baseV01.jpg",
     "desc": "Flexible SDXL model with custom encoder and finetuned for larger landscape resolutions with high details and high contrast.",
-    "tags": "community",
     "size": 6.94,
-    "date": "2025 January",
-    "extras": ""
+    "date": "2025 January"
   },
   "Tempest-by-Vlad XL Hyper": {
     "path": "tempestByVlad_hyperV01.safetensors@https://civitai.com/api/download/models/1343512",
     "preview": "tempestByVlad_hyperV01.jpg",
     "desc": "Custom distilled variant with goal to get as-normal-as-possible model that works with low steps and guidance-free",
-    "tags": "community",
     "size": 6.94,
-    "date": "2025 January",
-    "extras": ""
+    "date": "2025 January"
   },
   "Juggernaut XL XI": {
     "path": "juggernautXL_juggXIByRundiffusion.safetensors@https://civitai.com/api/download/models/782002",
@@ -23,7 +19,6 @@
     "desc": "Showcase finetuned model based on Stable diffusion XL",
     "date": "2024 August",
     "size": 6.94,
-    "tags": "community",
     "extras": "sampler: DEIS, steps: 20, cfg_scale: 6.0"
   },
   "Juggernaut XL XI Lightning": {
@@ -32,7 +27,6 @@
     "desc": "Showcase finetuned model based on Stable diffusion XL",
     "date": "2024 August",
     "size": 6.94,
-    "tags": "community",
     "extras": "sampler: DPM SDE, steps: 6, cfg_scale: 2.0"
   },
   "Juggernaut SD Reborn": {
@@ -42,165 +36,152 @@
     "desc": "Showcase finetuned model based on Stable diffusion 1.5",
     "date": "2023 December",
     "size": 2.28,
-    "tags": "community",
     "extras": "width: 512, height: 512, sampler: DEIS, steps: 20, cfg_scale: 6.0"
   },
   "WAI Illustrious XL v15": {
     "path": "waiIllustriousSDXL_v150.safetensors@https://civitai.com/api/download/models/2167369",
     "preview": "waiIllustriousSDXL_v150.jpg",
     "desc": "",
-    "tags": "community",
     "size": 6.94,
-    "date": "2025 August",
-    "extras": ""
+    "date": "2025 August"
   },
   "Pony Realism XL v2.3": {
     "path": "ponyRealism_V23.safetensors@https://civitai.com/api/download/models/1763661",
     "preview": "ponyRealism_V23.jpg",
     "desc": "",
-    "tags": "community",
     "size": 6.94,
-    "date": "2025 May",
-    "extras": ""
+    "date": "2025 May"
   },
   "NoobAI XL 1.0 V-Pred": {
     "path": "noobaiXLNAIXL_vPred10Version.safetensors@https://huggingface.co/Laxhar/noobai-XL-Vpred-1.0/resolve/main/NoobAI-XL-Vpred-v1.0.safetensors",
     "preview": "noobaiXLNAIXL_vPred10Version.jpg",
     "desc": "",
-    "tags": "community",
     "size": 6.94,
-    "date": "2024 December",
-    "extras": ""
+    "date": "2024 December"
   },
   "NoobAI XL 1.1 Epsilon": {
     "path": "noobaiXLNAIXL_epsilonPred11Version.safetensors@https://huggingface.co/Laxhar/noobai-XL-1.1/resolve/main/NoobAI-XL-v1.1.safetensors",
     "preview": "noobaiXLNAIXL_epsilonPred11Version.jpg",
     "desc": "",
-    "tags": "community",
     "size": 6.94,
-    "date": "2024 November",
-    "extras": ""
+    "date": "2024 November"
   },
   "WAI-Ani-Pony XL v14": {
     "path": "waiANIPONYXL_v140.safetensors@https://civitai.com/api/download/models/1767402",
     "preview": "waiANIPONYXL_v140.jpg",
     "desc": "",
-    "tags": "community",
     "size": 6.94,
-    "date": "2025 May",
-    "extras": ""
+    "date": "2025 May"
   },
   "Z-Image-Turbo MoodyRealMix": {
     "path": "resonantsky/MoodyRealMix-SDNQ-int8-svd-r32",
     "preview": "resonantsky--MoodyRealMix-SDNQ-int8-svd-r32.jpg",
     "desc": "BF16 native Z-Image-Turbo Diffusers Pipeline custom int8 quantization of Moody Real Mix https://civitai.com/models/621441/moody-real-mix by https://civitai.com/user/catlover1937",
-    "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 8",
-    "size": 11.08,
+    "size": 10.32,
     "tags": "community, Z-image",
-    "date": "2026 March"
+    "date": "2026 May"
   },
   "Diving Z-Image-Turbo": {
     "path": "resonantsky/DivingZImageTurbo-SDNQ-int8-svd-r32",
     "preview": "resonantsky--DivingZImageTurbo-SDNQ-int8-svd-r32.jpg",
     "desc": "BF16 native Z-Image-Turbo Diffusers Pipeline custom int8 quantization of Diving-Z-Image Turbo https://civitai.red/models/2276359/diving-z-image-turbo by https://civitai.red/user/DivingSuit",
-    "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 8",
-    "size": 11.08,
+    "size": 10.32,
     "tags": "community, Z-image",
-    "date": "2026 March"
+    "date": "2026 May"
   },
   "Unstable Revolution Z-Image-Turbo": {
     "path": "resonantsky/unstableRevolution-ZiT-SDNQ-int8-svd-r32",
     "preview": "resonantsky--unstableRevolution-ZiT-SDNQ-int8-svd-r32.jpg",
     "desc": "BF16 native Z-Image-Turbo Diffusers Pipeline custom int8 quantization of Unstable Revolution Z-Image-Turbo https://civitai.com/models/2193942/unstable-revolution-zit by https://civitai.com/user/Peli86",
-    "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 8",
-    "size": 11.08,
+    "size": 10.32,
     "tags": "community, Z-image",
-    "date": "2026 March"
+    "date": "2026 May"
   },
   "Tiwaz CenKreChro": {
     "path": "Tiwaz/CenKreChro",
     "preview": "Tiwaz--CenKreChro.jpg",
-    "skip": true,
     "desc": "Based Centerfold Flux 5, trying to merge in Chroma and Krea.",
-    "extras": "",
-    "tags": "community",
     "date": "2025 September",
-    "size": 33.74
+    "size": 31.42
   },
   "purplesmartai Pony 7": {
     "path": "purplesmartai/pony-v7-base",
     "preview": "purplesmartai--pony-v7-base.jpg",
-    "skip": true,
     "desc": "Pony V7 is a versatile character generation model based on AuraFlow architecture. It supports a wide range of styles and species types (humanoid, anthro, feral, and more) and handles character interactions through natural language prompts.",
-    "extras": "",
-    "tags": "community",
     "date": "2025 October",
-    "size": 35.78
+    "size": 33.32
   },
   "ShuttleAI Shuttle 3.0 Diffusion": {
     "path": "shuttleai/shuttle-3-diffusion",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
     "preview": "shuttleai--shuttle-3-diffusion.jpg",
-    "tags": "community",
     "date": "2024 November",
-    "skip": true,
-    "size": 33.72
+    "size": 31.41
   },
   "ShuttleAI Shuttle 3.1 Aesthetic": {
     "path": "shuttleai/shuttle-3.1-aesthetic",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
     "preview": "shuttleai--shuttle-3.1-aesthetic.jpg",
-    "tags": "community",
     "date": "2024 November",
-    "skip": true,
-    "size": 33.72
+    "size": 31.41
   },
   "ShuttleAI Shuttle Jaguar": {
     "path": "shuttleai/shuttle-jaguar",
     "desc": "Shuttle uses Flux.1 Schnell as its base. It can produce images similar to Flux Dev or Pro in just 4 steps, and it is licensed under Apache 2. The model was partially de-distilled during training. When used beyond 10 steps, it enters refiner mode enhancing image details without altering the composition",
     "preview": "shuttleai--shuttle-jaguar.jpg",
-    "tags": "community",
     "date": "2025 January",
-    "skip": true,
-    "size": 33.72
+    "size": 31.41
   },
   "FireRed Image Edit 1.0": {
     "path": "FireRedTeam/FireRed-Image-Edit-1.0",
     "preview": "FireRedTeam--FireRed-Image-Edit-1.0.jpg",
     "desc": "FireRed-Image-Edit is a general-purpose image editing model that delivers high-fidelity and consistent editing across a wide range of scenarios. FireRed is a fine-tune of Qwen-Image-Edit.",
-    "tags": "community",
     "date": "2026 February",
-    "skip": true,
-    "size": 57.7
+    "size": 53.74
   },
   "FireRed Image Edit 1.1": {
     "path": "FireRedTeam/FireRed-Image-Edit-1.1",
     "preview": "FireRedTeam--FireRed-Image-Edit-1.1.jpg",
     "desc": "FireRed-Image-Edit is a general-purpose image editing model that delivers high-fidelity and consistent editing across a wide range of scenarios. FireRed is a fine-tune of Qwen-Image-Edit.",
-    "tags": "community",
-    "date": "2026 February",
-    "skip": true,
-    "size": 57.7
+    "date": "2026 March",
+    "size": 53.74
   },
   "Skywork UniPic3": {
     "path": "Skywork/Unipic3",
     "preview": "Skywork--Unipic3.jpg",
     "desc": "UniPic3 is an image editing and multi-image composition model based. It is a fine-tune of Qwen-Image-Edit.",
-    "tags": "community",
-    "date": "2026 February",
-    "skip": true,
-    "size": 57.7
+    "date": "2026 January",
+    "size": 53.74
   },
-  "Skywork/Unipic3-DMD": {
+  "Skywork Unipic3-DMD": {
     "path": "Skywork/Unipic3-DMD",
     "preview": "Skywork--Unipic3-DMD.jpg",
     "desc": "UniPic3-DMD-Model is a few-step image editing and multi-image composition model trained using Distribution Matching Distillation (DMD) and is a fine-tune of Qwen-Image-Edit.",
-    "tags": "community",
-    "date": "2026 February",
-    "skip": true,
-    "size": 57.7
+    "date": "2026 January",
+    "size": 53.74
+  },
+  "Anima 1.0 Base Merge sdnq-hadamard-uint4": {
+    "path": "vladmandic/Anima-1.0-Base-Merge-sdnq-hadamard-uint4",
+    "preview": "vladmandic--Anima-1.0-Base.jpg",
+    "desc": "Anima 1.0 Base pre-merged with several LoRAs and quantized to uint4 using SDNQ with Hadamard. Flexible as it can be used with and without guidance.",
+    "date": "2026 July",
+    "size": 1.95
+  },
+  "FLUX.2 Klein 9B KV Merge sdnq-hadamard-svd": {
+    "path": "vladmandic/Flux.2-Klein-9B-KV-Merge-sdnq-hadamard-uint4",
+    "preview": "black-forest-labs--FLUX.2-klein-9b-kv.jpg",
+    "desc": "FLUX.2 Klein 9B KV pre-merged with several LoRAs and quantized to uint4 using SDNQ with Hadamard.",
+    "size": 12.26,
+    "date": "2026 July"
+  },
+  "Krea 2 Turbo Merge sdnq-hadamard-uint4": {
+    "path": "vladmandic/Krea-2-Turbo-Merge-sdnq-hadamard-uint4",
+    "preview": "CalamitousFelicitousness--Krea-2-Turbo-Diffusers.jpg",
+    "desc": "Krea 2 Turbo pre-merged with several LoRAs and quantized to uint4 using SDNQ with Hadamard.",
+    "size": 10.54,
+    "date": "2026 July"
   }
 }

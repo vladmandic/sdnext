@@ -67,7 +67,13 @@ def generate(*args, **kwargs):
         if init_image is None:
             return video_utils.queue_err('No input image provided. Please upload or select an image.')
         p.task_args['image'] = images.resize_image(resize_mode=2, im=init_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
-        log.debug(f'Video: op=I2V init={init_image} resized={p.task_args["image"]}')
+        if last_image is not None and video_utils.supports_last_frame(shared.sd_model):
+            p.task_args['last_image'] = images.resize_image(resize_mode=2, im=last_image, width=p.width, height=p.height, upscaler_name=None, output_type='pil')
+            log.debug(f'Video: op=FLF2V init={init_image} last={last_image} resized={p.task_args["image"]}')
+        elif last_image is not None:
+            log.warning(f'Video: op=I2V model="{model}" last frame not supported, ignoring')
+        else:
+            log.debug(f'Video: op=I2V init={init_image} resized={p.task_args["image"]}')
     elif 'FLF2V' in model:
         if init_image is None:
             return video_utils.queue_err('No input image provided. Please upload or select an image.')

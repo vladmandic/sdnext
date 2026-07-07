@@ -1,5 +1,5 @@
 from fastapi.exceptions import HTTPException
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import Response
 from modules import shared
 from modules.logger import log
 from modules.api import models, helpers
@@ -60,8 +60,8 @@ def get_controlnets(model_type: str | None = None):
 
 def get_detailers():
     """List available detailer (YOLO) models for face/object detection and inpainting."""
-    shared.yolo.enumerate()
-    return [{"name": k, "path": v} for k, v in shared.yolo.list.items()]
+    shared.detailer.enumerate()
+    return [{"name": k, "path": v} for k, v in shared.detailer.list.items()]
 
 get_restorers = get_detailers  # legacy alias for /sdapi/v1/face-restorers
 
@@ -210,7 +210,14 @@ def get_schedulers():
     """List all available schedulers with their class names and options."""
     from modules.sd_samplers import list_samplers
     all_schedulers = list_samplers()
-    return all_schedulers
+    return [
+        {
+            'name': scheduler.name,
+            'cls': scheduler.constructor.__name__ if scheduler.constructor is not None else None,
+            'options': scheduler.options,
+        }
+        for scheduler in all_schedulers
+    ]
 
 def post_unload_checkpoint():
     """Unload the current model and refiner from memory to free VRAM."""
@@ -331,6 +338,8 @@ def get_file(file: str):
     import os
     from pathlib import Path
     from starlette.responses import FileResponse
+    if shared.demo is None:
+        raise HTTPException(status_code=503, detail="server not ready")
     allowed_dirs = shared.demo.allowed_paths
     if not file.strip():
         raise HTTPException(status_code=400, detail="file path is required")
@@ -345,6 +354,8 @@ def get_file(file: str):
 def get_deletefile(file: str):
     import os
     from pathlib import Path
+    if shared.demo is None:
+        raise HTTPException(status_code=503, detail="server not ready")
     allowed_dirs = shared.demo.allowed_paths
     if file is None or len(file.strip()) == 0:
         raise HTTPException(status_code=400, detail="file path is required")
@@ -368,6 +379,8 @@ def get_deletefile(file: str):
 def get_deleteimage(file: str):
     import os
     from pathlib import Path
+    if shared.demo is None:
+        raise HTTPException(status_code=503, detail="server not ready")
     allowed_dirs = shared.demo.allowed_paths
     if file is None or len(file.strip()) == 0:
         raise HTTPException(status_code=400, detail="file path is required")

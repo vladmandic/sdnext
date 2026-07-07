@@ -54,6 +54,7 @@ pipelines = {
     'OmniGen': getattr(diffusers, 'OmniGenPipeline', None),
     'PixArtAlpha': getattr(diffusers, 'PixArtAlphaPipeline', None),
     'PixArtSigma': getattr(diffusers, 'PixArtSigmaPipeline', None),
+    'PRXPixel': getattr(diffusers, 'PRXPixelPipeline', None),
     'Qwen': getattr(diffusers, 'QwenImagePipeline', None),
     'Sana': getattr(diffusers, 'SanaPipeline', None),
     'WanAI': getattr(diffusers, 'WanPipeline', None),
@@ -70,6 +71,7 @@ pipelines = {
     'HiDreamO1': None,
     'HunyuanImage3': None,
     'Ideogram4': None,
+    'Krea2': None,
     'Lens': None,
     'LuminaDiMOO': None,
     'Meissonic': None,
@@ -81,6 +83,7 @@ pipelines = {
     'VIBE': None,
     'XOmni': None,
     'ZetaChroma': None,
+    'Boogu': None,
 }
 
 
@@ -136,6 +139,7 @@ def list_crossattention():
 
 def get_pipelines():
     from modules.logger import log
+    """
     if hasattr(diffusers, 'OnnxStableDiffusionPipeline') and 'ONNX Stable Diffusion' not in list(pipelines):
         try:
             from modules.onnx_impl import initialize_onnx
@@ -150,6 +154,7 @@ def get_pipelines():
             log.error(f'ONNX initialization error: {e}')
             onnx_pipelines = {}
         pipelines.update(onnx_pipelines)
+    """
     stats_builtin = 0
     stats_custom = 0
     for k, v in pipelines.copy().items():
@@ -174,5 +179,5 @@ def get_repo(model):
         return None
 
 
-sdnq_quant_modes = ["int8", "int7", "int6", "uint5", "uint4", "uint3", "uint2", "float8_e4m3fn", "float8_e3m4fn", "float7_e3m3fn", "float6_e3m2fn", "float5_e2m2fn", "float4_e2m1fn", "float3_e1m1fn", "float2_e1m0fn"]
-sdnq_matmul_modes = ["auto", "int8", "float8_e4m3fn", "float16"]
+sdnq_quant_modes = ["int8", "uint8", "int6", "uint6", "uint5", "uint4", "uint3", "uint2", "float8_e4m3fn", "float8_e3m4fn", "float6_e3m2fn", "float5_e2m2fn", "float4_e2m1fn", "float3_e1m1fn", "float2_e1m0fn"]
+sdnq_matmul_modes = ["auto", "int8", "uint8", "float8_e4m3fn", "float16"]

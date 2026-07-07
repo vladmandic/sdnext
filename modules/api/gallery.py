@@ -13,8 +13,6 @@ from modules.paths import resolve_output_path
 
 
 debug = log.debug if os.environ.get('SD_BROWSER_DEBUG', None) is not None else lambda *args, **kwargs: None
-
-
 OPTS_FOLDERS = [
     "outdir_samples",
     "outdir_txt2img_samples",
@@ -99,36 +97,48 @@ def register_api(api): # register api
             log.error(f'Gallery video: file="{filepath}" {e}')
             return {}
 
-    def get_image_thumbnail(filepath):
+    def get_image_thumbnail(filepath, exif: bool = True):
         try:
             stat_size, stat_mtime = modelstats.stat(filepath)
             if stat_size < 1024:
                 return {}
-            image = Image.open(filepath)
-            geninfo, _items = images.read_info_from_image(image)
-            h = shared.opts.extra_networks_card_size
-            w = shared.opts.extra_networks_card_size if shared.opts.browser_fixed_width else image.width * h // image.height
-            width, height = image.width, image.height
-            image = image.convert('RGB')
-            image.thumbnail((w, h), Image.Resampling.HAMMING)
-            buffered = io.BytesIO()
-            image.save(buffered, format='jpeg')
-            data_url = f'data:image/jpeg;base64,{base64.b64encode(buffered.getvalue()).decode("ascii")}'
-            image.close()
+            with Image.open(filepath) as image:
+                # 1. Grab original dimensions BEFORE draft mode alters them
+                width, height = image.width, image.height
+                if height == 0 or width == 0:
+                    log.error(f"Image: file={filepath} {image} invalid")
+                    return {}
+                # 2. Extract EXIF data early
+                geninfo = images.read_info_from_image(image)[0] if exif else None
+                # 3. Calculate intended thumbnail size
+                h = shared.opts.extra_networks_card_size
+                w = shared.opts.extra_networks_card_size if shared.opts.browser_fixed_width else max(1, (width * h) // height)
+                # 4. Apply JPEG Draft Mode which downsamples during load
+                if image.format == "JPEG":
+                    image.draft("RGB", (w, h))
+                elif image.mode != 'RGB':
+                    image = image.convert('RGB')
+                # 5. Perform final precision thumbnail scale down
+                image.thumbnail((w, h), Image.Resampling.HAMMING)
+                # 6. Compress and encode to Base64
+                buffered = io.BytesIO()
+                image.save(buffered, format='JPEG', quality=85, optimize=True)
+                b64_str = base64.b64encode(buffered.getbuffer()).decode("ascii")
+                data_url = f'data:image/jpeg;base64,{b64_str}'
             content = {
                 'exif': geninfo,
                 'data': data_url,
-                'width': width,
-                'height': height,
+                'width': width,   # Original width sent to client
+                'height': height, # Original height sent to client
                 'size': stat_size,
-                'mtime': stat_mtime.timestamp() * 1000, # JS timestamps use milliseconds
+                'mtime': stat_mtime.timestamp() * 1000,
             }
             return content
         except Exception as e:
-            log.error(f'Gallery image: file="{filepath}" {e}')
+            log.error(f'Gallery image failed: file="{filepath}" | Error: {e}')
             return {}
 
-    # @app.get('/sdapi/v1/browser/folders', response_model=List[str])
+    # @app.get('/sdapi/v1/browser/folders', response_model=list[dict])
     def get_folders():
         def make_folder(path, label=None):
             """Create folder entry with path and display label."""
@@ -177,13 +187,13 @@ def register_api(api): # register api
         return JSONResponse(content=unique_folders)
 
     # @app.get("/sdapi/v1/browser/thumb", response_model=dict)
-    async def get_thumb(file: str):
+    async def get_thumb(file: str, exif: bool = False):
         try:
             decoded = unquote(file).replace('%3A', ':')
             if decoded.lower().endswith('.mp4'):
                 return JSONResponse(content=get_video_thumbnail(decoded))
             else:
-                return JSONResponse(content=get_image_thumbnail(decoded))
+                return JSONResponse(content=get_image_thumbnail(decoded, exif))
         except Exception as e:
             log.error(f'Gallery: {file} {e}')
             content = { 'error': str(e) }

@@ -12,16 +12,20 @@ def get_forward_func(layer_class_name: str, quantized_matmul_dtype: str, use_qua
     elif layer_class_name in conv_types:
         if use_quantized_matmul:
             if dtype_dict[quantized_matmul_dtype]["is_integer"]:
-                from .layers.conv.conv_int8 import quantized_conv_forward_int8_matmul
-                return quantized_conv_forward_int8_matmul
+                if dtype_dict[quantized_matmul_dtype]["is_unsigned"]:
+                    from .layers.conv.conv_uint8 import quantized_conv_forward_uint8_matmul
+                    return quantized_conv_forward_uint8_matmul
+                else:
+                    from .layers.conv.conv_int8 import quantized_conv_forward_int8_matmul
+                    return quantized_conv_forward_int8_matmul
             else:
                 if dtype_dict[quantized_matmul_dtype]["num_bits"] == 8:
                     if use_tensorwise_fp8_matmul:
-                        from .layers.conv.conv_fp8_tensorwise import quantized_conv_forward_fp8_matmul_tensorwise
-                        return quantized_conv_forward_fp8_matmul_tensorwise
-                    else:
                         from .layers.conv.conv_fp8 import quantized_conv_forward_fp8_matmul
                         return quantized_conv_forward_fp8_matmul
+                    else:
+                        from .layers.conv.conv_fp8_scaled import quantized_conv_forward_fp8_scaled_matmul
+                        return quantized_conv_forward_fp8_scaled_matmul
                 else:
                     from .layers.conv.conv_fp16 import quantized_conv_forward_fp16_matmul
                     return quantized_conv_forward_fp16_matmul
@@ -41,16 +45,20 @@ def get_forward_func(layer_class_name: str, quantized_matmul_dtype: str, use_qua
     else:
         if use_quantized_matmul:
             if dtype_dict[quantized_matmul_dtype]["is_integer"]:
-                from .layers.linear.linear_int8 import quantized_linear_forward_int8_matmul
-                return quantized_linear_forward_int8_matmul
+                if dtype_dict[quantized_matmul_dtype]["is_unsigned"]:
+                    from .layers.linear.linear_uint8 import quantized_linear_forward_uint8_matmul
+                    return quantized_linear_forward_uint8_matmul
+                else:
+                    from .layers.linear.linear_int8 import quantized_linear_forward_int8_matmul
+                    return quantized_linear_forward_int8_matmul
             else:
                 if dtype_dict[quantized_matmul_dtype]["num_bits"] == 8:
                     if use_tensorwise_fp8_matmul:
-                        from .layers.linear.linear_fp8_tensorwise import quantized_linear_forward_fp8_matmul_tensorwise
-                        return quantized_linear_forward_fp8_matmul_tensorwise
-                    else:
                         from .layers.linear.linear_fp8 import quantized_linear_forward_fp8_matmul
                         return quantized_linear_forward_fp8_matmul
+                    else:
+                        from .layers.linear.linear_fp8_scaled import quantized_linear_forward_fp8_scaled_matmul
+                        return quantized_linear_forward_fp8_scaled_matmul
                 else:
                     from .layers.linear.linear_fp16 import quantized_linear_forward_fp16_matmul
                     return quantized_linear_forward_fp16_matmul

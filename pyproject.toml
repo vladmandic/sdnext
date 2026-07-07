@@ -72,8 +72,6 @@ unfixable = []
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
 [tool.ruff.lint.per-file-ignores]
-"modules/seedvr/**/*.py" = ["TID252"] # Vendored code: relative imports required for package structure
-"pipelines/omnigen2/**/*.py" = ["TID252"] # Vendored code: relative imports required for package structure
 
 [tool.ruff.format]
 quote-style = "double"
@@ -94,6 +92,7 @@ main.prefer-stubs=true
 main.extension-pkg-whitelist=""
 main.fail-on=""
 main.fail-under=10
+main.recursive=true
 main.ignore="CVS"
 main.ignore-paths=[
     "venv",
@@ -103,6 +102,9 @@ main.ignore-paths=[
     ".ruff_cache",
     ".vscode",
     ".*/node_modules/.*",
+    "cli",
+    "tmp",
+    "test",
     "modules/control/proc",
     "modules/schedulers/scheduler_*.py",
     "modules/apg",
@@ -142,6 +144,7 @@ main.ignore-paths=[
     "pipelines/vibe",
     "pipelines/ultraflux",
     "pipelines/lumina_dimmo",
+    "pipelines/boogu",
     "scripts/consistory",
     "scripts/ctrlx",
     "scripts/daam",
@@ -170,7 +173,6 @@ main.jobs=4
 main.limit-inference-results=100
 main.load-plugins=""
 main.persistent=false
-main.recursive=false
 main.source-roots=""
 main.unsafe-load-any-extension=false
 basic.argument-naming-style="snake_case"
@@ -325,6 +327,8 @@ typecheck.generated-members=[
     "logging.*",
     "torch.*",
     "cv2.*",
+    "av.*",
+    "PIL.*",
 ]
 typecheck.ignore-none=true
 typecheck.ignore-on-opaque-inference=true
@@ -413,6 +417,7 @@ exclude = [
     "pipelines/flex2",
     "pipelines/anima",
     "pipelines/meissonic",
+    "pipelines/boogu",
     "extensions-builtin/sd-extension-chainner/nodes",
 ]
 

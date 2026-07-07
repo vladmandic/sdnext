@@ -331,9 +331,14 @@ class ERSDEScheduler(SchedulerMixin, ConfigMixin):
         alpha = sqrt(acp), sigma_vp = sqrt(1-acp).
         """
         if self._is_flow:
-            alpha = self._flow_alphas[step_idx]
-            sigma = self._flow_sigmas[step_idx]
-            lam = self._flow_lambdas[step_idx]
+            if step_idx >= len(self._flow_alphas):
+                alpha = torch.tensor(1.0, dtype=torch.float64)
+                sigma = torch.tensor(0.0, dtype=torch.float64)
+                lam = torch.tensor(0.0, dtype=torch.float64)
+            else:
+                alpha = self._flow_alphas[step_idx]
+                sigma = self._flow_sigmas[step_idx]
+                lam = self._flow_lambdas[step_idx]
         elif step_idx >= len(self.sigmas):
             # Past the last entry: fully denoised
             alpha = torch.tensor(1.0, dtype=torch.float64)

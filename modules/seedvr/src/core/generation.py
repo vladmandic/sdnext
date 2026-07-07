@@ -13,7 +13,7 @@ def generation_step(runner, text_embeds_dict, cond_latents, temporal_overlap, de
     Execute a single generation step with adaptive dtype handling
 
     Args:
-        runner: VideoDiffusionInfer instance
+        runner: SeedVRPipeline instance
         text_embeds_dict (dict): Text embeddings for positive and negative prompts
         cond_latents (list): Conditional latents for generation
         temporal_overlap (int): Number of frames for temporal overlap
@@ -111,7 +111,7 @@ def generation_loop(runner, images, cfg_scale=1.0, seed=666, res_w=720, batch_si
     Main generation loop with context-aware temporal processing
 
     Args:
-        runner: VideoDiffusionInfer instance
+        runner: SeedVRPipeline instance
         images (torch.Tensor): Input images for upscaling
         cfg_scale (float): Classifier-free guidance scale
         seed (int): Random seed for reproducibility

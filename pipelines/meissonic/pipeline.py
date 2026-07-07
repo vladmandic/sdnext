@@ -18,11 +18,10 @@ from transformers import CLIPTextModelWithProjection, CLIPTokenizer
 
 from diffusers.image_processor import VaeImageProcessor
 from diffusers.models import VQModel
-
-from .scheduler import Scheduler
 from diffusers.utils import replace_example_docstring
 from diffusers.pipelines.pipeline_utils import DiffusionPipeline, ImagePipelineOutput
 
+from .scheduler import Scheduler
 from .transformer import Transformer2DModel
 
 
@@ -34,7 +33,7 @@ EXAMPLE_DOC_STRING = """
 """
 
 
-def _prepare_latent_image_ids(batch_size, height, width, device, dtype):
+def _prepare_latent_image_ids(batch_size, height, width, device, dtype): # pylint: disable=unused-argument
     latent_image_ids = torch.zeros(height // 2, width // 2, 3)
     latent_image_ids[..., 1] = latent_image_ids[..., 1] + torch.arange(height // 2)[:, None]
     latent_image_ids[..., 2] = latent_image_ids[..., 2] + torch.arange(width // 2)[None, :]

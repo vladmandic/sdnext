@@ -57,6 +57,8 @@ def get_model_type(pipe):
         model_type = 'zimage'
     elif "Ideogram4" in name:
         model_type = 'ideogram4'
+    elif "Krea2" in name:
+        model_type = 'krea2'
     elif "LuminaDiMOO" in name:
         model_type = 'luminadimoo'
     elif "Lumina2" in name:
@@ -109,6 +111,8 @@ def get_model_type(pipe):
         model_type = 'nextstep'
     elif 'XOmni' in name or 'X-Omni' in name:
         model_type = 'x-omni'
+    elif 'PRXPixel' in name or 'PRXPixelPipeline' in name:
+        model_type = 'prxpixel'
     elif 'Photoroom' in name:
         model_type = 'prx'
     elif 'LongCat' in name:
@@ -123,6 +127,8 @@ def get_model_type(pipe):
         model_type = 'ovis'
     elif 'Wan' in name:
         model_type = 'wanai'
+    elif 'BooguImage' in name or 'Boogu' in name:
+        model_type = 'boogu'
     elif 'ChronoEdit' in name:
         model_type = 'chrono'
     elif 'HunyuanImage3' in name:

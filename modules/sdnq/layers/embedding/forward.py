@@ -60,7 +60,7 @@ def quantized_embedding(
 
 def quantized_embedding_forward(self: torch.nn.Module, input: torch.Tensor) -> torch.FloatTensor:
     if self.sdnq_dequantizer.use_hadamard:
-        hadamard = get_hadamard(self.sdnq_dequantizer.hadamard_group_size, dtype=input.dtype, device=input.device)
+        hadamard = get_hadamard(self.sdnq_dequantizer.hadamard_group_size, dtype=self.sdnq_dequantizer.result_dtype, device=input.device)
     else:
         hadamard = None
 

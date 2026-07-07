@@ -117,9 +117,23 @@ async function get(hash: string): Promise<ThumbRecord | null> {
   if (!db) return null;
   return new Promise((resolve, reject) => {
     const request = db
-      .transaction(['thumbs'], 'readwrite')
+      .transaction(['thumbs'], 'readonly')
       .objectStore('thumbs')
+      .index('hash')
       .get(hash);
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = (evt) => reject(evt);
+  });
+}
+
+async function getKeys(hash: string): Promise<ThumbRecord | null> {
+  if (!db) return null;
+  return new Promise((resolve, reject) => {
+    const request = db
+      .transaction(['thumbs'], 'readonly')
+      .objectStore('thumbs')
+      .index('hash')
+      .getAllKeys();
     request.onsuccess = () => resolve(request.result);
     request.onerror = (evt) => reject(evt);
   });
@@ -144,13 +158,9 @@ export async function idbGetAllKeys(index: string | null = null, query: IDBValid
       let request;
       const transaction = db.transaction('thumbs', 'readonly');
       transaction.onabort = (e) => reject(e);
-
       const store = transaction.objectStore('thumbs');
-      if (index) {
-        request = store.index(index).getAllKeys(query);
-      } else {
-        request = store.getAllKeys(query);
-      }
+      if (index) request = store.index(index).getAllKeys(query);
+      else request = store.getAllKeys(query);
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e);
     } catch (err) {
@@ -172,13 +182,9 @@ export async function idbCount(folder?: IDBValidKey | IDBKeyRange): Promise<numb
       let request;
       const transaction = db.transaction('thumbs', 'readonly');
       transaction.onabort = (e) => reject(e);
-
       const store = transaction.objectStore('thumbs');
-      if (folder) {
-        request = store.index('folder').count(folder);
-      } else {
-        request = store.count();
-      }
+      if (folder) request = store.index('folder').count(folder);
+      else request = store.count();
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e);
     } catch (err) {
@@ -225,3 +231,4 @@ export const idbAdd = add;
 export const idbDel = del;
 export const idbGet = get;
 export const idbPut = put;
+export const idbKeys = getKeys;

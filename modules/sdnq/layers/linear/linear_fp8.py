@@ -3,15 +3,20 @@
 import torch
 
 from ...common import compile_func
+from ...dequantizer import dequantize_symmetric, dequantize_asymmetric
 from ...quant_utils import quantize_fp_mm, rotate_hadamard, get_hadamard
 from ...packed_float import unpack_float
 
 from .forward import check_mats
 
 
-def quantize_fp_mm_input(input: torch.FloatTensor, matmul_dtype: str = "float8_e4m3fn") -> tuple[torch.Tensor, torch.FloatTensor]:
-    input = input.flatten(0,-2).to(dtype=torch.float32)
+def quantize_fp_mm_input(input: torch.FloatTensor, dtype: torch.dtype | None = None, matmul_dtype: str = "float8_e4m3fn") -> tuple[torch.Tensor, torch.FloatTensor]:
+    input = input.flatten(0,-2)
+    if dtype is not None:
+        input = input.to(dtype=dtype)
     input, input_scale = quantize_fp_mm(input, dim=-1, matmul_dtype=matmul_dtype)
+    if input_scale.dtype == torch.float16: # fp16 will overflow
+        input_scale = input_scale.to(dtype=torch.float32)
     return input, input_scale
 
 
@@ -35,16 +40,17 @@ def fp8_matmul(
         input = rotate_hadamard(input, hadamard=hadamard)
     if svd_up is not None:
         input = input.flatten(0,-2)
-        svd_bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
-    input, input_scale = quantize_fp_mm_input(input)
+        if bias is not None:
+            bias = torch.addmm(bias.to(dtype=svd_down.dtype), torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
+        else:
+            bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
+    dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
+    input, input_scale = quantize_fp_mm_input(input, dtype=scale.dtype)
     input, weight = check_mats(input, weight, allow_contiguous_mm=False)
-    if bias is not None and bias.dtype != torch.bfloat16:
-        bias = bias.to(dtype=torch.bfloat16)
-    result = torch._scaled_mm(input, weight, scale_a=input_scale, scale_b=scale, bias=bias, out_dtype=torch.bfloat16)
-    if svd_up is not None:
-        result.add_(svd_bias)
-    result = result.view(output_shape).to(return_dtype)
-    return result
+    if bias is not None:
+        return dequantize_asymmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=input_scale.dtype).mul_(input_scale), scale, bias, dtype=return_dtype, result_shape=output_shape)
+    else:
+        return dequantize_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=input_scale.dtype).mul_(input_scale), scale, dtype=return_dtype, result_shape=output_shape)
 
 
 def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:

@@ -1,8 +1,12 @@
-from typing import List, Optional, Tuple, Union
+from __future__ import annotations
+from typing import List, Optional, Tuple, Union, TYPE_CHECKING
 import torch
 from einops import rearrange
 from modules.seedvr.src.common.diffusion import classifier_free_guidance_dispatcher, create_sampler_from_config, create_sampling_timesteps_from_config, create_schedule_from_config
 from modules.seedvr.src.models.dit_v2 import na
+
+if TYPE_CHECKING:
+    from modules.seedvr.src.models.dit_v2.nadit import NaDiT
 
 
 def optimized_channels_to_last(tensor: torch.Tensor) -> torch.Tensor:
@@ -38,7 +42,7 @@ def optimized_channels_to_second(tensor):
         return tensor.permute(*dims)
 
 
-class VideoDiffusionInfer():
+class SeedVRPipeline():
     def __init__(self, config, device: str, dtype: torch.dtype):
         from installer import install
         install('omegaconf')
@@ -46,7 +50,7 @@ class VideoDiffusionInfer():
         self.device = device
         self.dtype = dtype
         self.vae = None
-        self.dit = None
+        self.dit: NaDiT = None
         self.sampler = None
         self.schedule = None
 

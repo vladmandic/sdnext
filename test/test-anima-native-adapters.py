@@ -149,6 +149,7 @@ TE_MLP_HIDDEN = 128
 ADAPTER_DIM = 64
 ADAPTER_HEAD_DIM = 16
 ADAPTER_MLP = ADAPTER_DIM * 4
+ADAPTER_VOCAB = 50     # AnimaLLMAdapter.embed num_embeddings (upstream 32128)
 N_BLOCKS = 2
 N_TE_LAYERS = 2
 N_ADAPTER_BLOCKS = 2   # AnimaLLMAdapter num_layers (upstream default 6)
@@ -274,12 +275,15 @@ def _build_adapter_block():
 def build_mock_llm_adapter():
     """Mirror AnimaLLMAdapter (modeling_llm_adapter.py).
 
-    Top-level: in_proj (Linear or Identity), blocks[N] (TransformerBlock),
-    out_proj (Linear), norm (RMSNorm). Embedding is omitted - no observed
-    LoRAs target it and including ``nn.Embedding`` would generate spurious
-    network_name entries for every vocab row.
+    Top-level: embed (nn.Embedding), in_proj (Linear or Identity), blocks[N]
+    (TransformerBlock), out_proj (Linear), norm (RMSNorm). The embed table is a
+    real LoRA target (e.g. Anima_colorfix_v1): its LoRA decomposes the
+    [vocab, dim] weight as up@down, identical in shape to a Linear delta, so the
+    merge path applies it unchanged. named_modules() yields embed as a single
+    leaf, so it adds exactly one network_name entry (not one per vocab row).
     """
     adapter = _Holder()
+    adapter.embed = torch.nn.Embedding(ADAPTER_VOCAB, ADAPTER_DIM)
     adapter.in_proj = torch.nn.Linear(ADAPTER_DIM, ADAPTER_DIM, bias=True)
     adapter.blocks = torch.nn.ModuleList([_build_adapter_block() for _ in range(N_ADAPTER_BLOCKS)])
     adapter.out_proj = torch.nn.Linear(ADAPTER_DIM, ADAPTER_DIM, bias=True)
@@ -568,6 +572,38 @@ def sd_lora_bfl_llm_adapter_out_proj():
     return {
         'diffusion_model.llm_adapter.out_proj.lora_A.weight': torch.randn(RANK, ADAPTER_DIM),
         'diffusion_model.llm_adapter.out_proj.lora_B.weight': torch.randn(ADAPTER_DIM, RANK),
+    }
+
+
+def sd_lora_bfl_llm_adapter_embed():
+    """BFL llm_adapter LoRA on the top-level token-embedding table.
+
+    The embed weight is an nn.Embedding [vocab, dim]; the LoRA decomposes that
+    table as up@down (up [vocab, rank], down [rank, dim]). Mirrors the on-disk
+    layout of Anima_colorfix_v1, which stamps lora_down/lora_up directly under
+    the BFL diffusion_model.llm_adapter. prefix.
+
+    On-disk: diffusion_model.llm_adapter.embed
+    Network key -> lora_llm_adapter_embed
+    """
+    return {
+        'diffusion_model.llm_adapter.embed.lora_down.weight': torch.randn(RANK, ADAPTER_DIM),
+        'diffusion_model.llm_adapter.embed.lora_up.weight': torch.randn(ADAPTER_VOCAB, RANK),
+    }
+
+
+def sd_lora_bfl_llm_adapter_mlp_in_bias():
+    """BFL llm_adapter LoRA on mlp.0 carrying a companion diff_b bias delta.
+
+    Mirrors Anima_colorfix_v1, where the mlp Linears pair a weight LoRA with a bias delta.
+
+    On-disk: diffusion_model.llm_adapter.blocks.0.mlp.0 (lora_down/up + diff_b)
+    Network key -> lora_llm_adapter_blocks_0_mlp_0
+    """
+    return {
+        'diffusion_model.llm_adapter.blocks.0.mlp.0.lora_down.weight': torch.randn(RANK, ADAPTER_DIM),
+        'diffusion_model.llm_adapter.blocks.0.mlp.0.lora_up.weight': torch.randn(ADAPTER_MLP, RANK),
+        'diffusion_model.llm_adapter.blocks.0.mlp.0.diff_b': torch.randn(ADAPTER_MLP),
     }
 
 
@@ -993,6 +1029,34 @@ def test_lora_bfl_llm_adapter_out_proj():
     return True
 
 
+def test_lora_bfl_llm_adapter_embed():
+    """BFL llm_adapter LoRA on the embedding table binds to lora_llm_adapter_embed.
+
+    Regression: nn.Embedding is a valid LoRA target (Anima_colorfix_v1).
+    """
+    net = _load_via(A.try_load_lora, sd_lora_bfl_llm_adapter_embed())
+    assert net is not None and len(net.modules) == 1, f'got {net.modules if net else None}'
+    assert 'lora_llm_adapter_embed' in net.modules
+    mod = next(iter(net.modules.values()))
+    assert isinstance(mod, network_lora.NetworkModuleLora)
+    return True
+
+
+def test_lora_llm_adapter_mlp_bias_delta():
+    """mlp.0 LoRA + diff_b binds one module carrying both weight and bias deltas.
+
+    Through the umbrella try_load: diff_b folds into the LoRA module as ex_bias;
+    try_load_full must not spawn a second module on the same network key.
+    """
+    net = _load_via(A.try_load, sd_lora_bfl_llm_adapter_mlp_in_bias())
+    assert net is not None and len(net.modules) == 1, f'got {net.modules if net else None}'
+    assert 'lora_llm_adapter_blocks_0_mlp_0' in net.modules
+    mod = next(iter(net.modules.values()))
+    assert isinstance(mod, network_lora.NetworkModuleLora)
+    assert mod.ex_bias is not None, 'diff_b not folded into the LoRA module as ex_bias'
+    return True
+
+
 def test_lora_bfl_te_q():
     """BFL TE LoRA via the ``text_encoders.qwen3_06b.transformer.model.`` prefix.
 
@@ -1112,6 +1176,36 @@ def test_lora_calc_updown_llm_adapter():
     target = torch.randn(ADAPTER_DIM, ADAPTER_DIM)
     updown, _ = mod.calc_updown(target)
     assert_shape(updown, target.shape, label='LoRA llm_adapter calc_updown')
+    return True
+
+
+def test_lora_calc_updown_llm_adapter_embed():
+    """LoRA calc_updown against the embedding table yields a [vocab, dim] delta.
+
+    up@down (up [vocab, rank] @ down [rank, dim]) reconstructs the nn.Embedding
+    weight shape so network_add_weights can sum it into the table.
+    """
+    net = _load_via(A.try_load_lora, sd_lora_bfl_llm_adapter_embed())
+    mod = make_network_for_module(next(iter(net.modules.values())))
+    target = torch.randn(ADAPTER_VOCAB, ADAPTER_DIM)
+    updown, _ = mod.calc_updown(target)
+    assert_shape(updown, target.shape, label='LoRA llm_adapter embed calc_updown')
+    return True
+
+
+def test_lora_calc_updown_with_bias_delta():
+    """calc_updown on a LoRA+diff_b module returns a weight updown and a bias ex_bias.
+
+    The bias delta rides the second tuple element (ex_bias), which network_calc_weights
+    accumulates into batch_ex_bias for application to the module's bias.
+    """
+    net = _load_via(A.try_load, sd_lora_bfl_llm_adapter_mlp_in_bias())
+    mod = make_network_for_module(next(iter(net.modules.values())))
+    target = torch.randn(ADAPTER_MLP, ADAPTER_DIM)  # mlp.0 weight shape [out, in]
+    updown, ex_bias = mod.calc_updown(target)
+    assert_shape(updown, target.shape, label='LoRA+bias updown')
+    assert ex_bias is not None, 'ex_bias missing for diff_b module'
+    assert_shape(ex_bias, (ADAPTER_MLP,), label='LoRA+bias ex_bias')
     return True
 
 
@@ -1281,6 +1375,8 @@ def run_tests():
         test_lora_bfl_llm_adapter_cross_attn_v,
         test_lora_bfl_llm_adapter_mlp_in,
         test_lora_bfl_llm_adapter_out_proj,
+        test_lora_bfl_llm_adapter_embed,
+        test_lora_llm_adapter_mlp_bias_delta,
         # BFL text-encoder
         test_lora_bfl_te_q,
         # Combined transformer + TE
@@ -1303,6 +1399,8 @@ def run_tests():
         test_lora_calc_updown_transformer,
         test_lora_calc_updown_cross_attn_asymmetric,
         test_lora_calc_updown_llm_adapter,
+        test_lora_calc_updown_llm_adapter_embed,
+        test_lora_calc_updown_with_bias_delta,
         test_lora_calc_updown_text_encoder,
         test_loha_calc_updown_transformer,
         # DoRA convention (apply_weight_decompose dual-path)

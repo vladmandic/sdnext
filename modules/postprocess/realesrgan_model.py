@@ -6,6 +6,7 @@ from modules.upscaler import Upscaler
 from modules.shared import opts, device, log
 from modules import devices
 
+
 class UpscalerRealESRGAN(Upscaler):
     def __init__(self, dirname):
         from installer import install

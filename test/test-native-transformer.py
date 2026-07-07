@@ -100,15 +100,17 @@ def run_test(cat: str, fn):
 
 def test_strip_prefix_bare_keys_pass_through():
     sd = {'layers.0.weight': 1, 'layers.0.bias': 2}
-    out = nt.strip_prefix(sd, nt.DEFAULT_PREFIXES, 'Test')
+    out, prefix = nt.strip_prefix(sd, nt.DEFAULT_PREFIXES, 'Test')
     assert out == sd, 'bare keys must pass through unchanged'
+    assert prefix == '', 'bare keys must report an empty prefix'
 
 
 def test_strip_prefix_dominant_single_variant():
     sd = {f'model.diffusion_model.layers.{i}.weight': i for i in range(10)}
-    out = nt.strip_prefix(sd, nt.DEFAULT_PREFIXES, 'Test')
+    out, prefix = nt.strip_prefix(sd, nt.DEFAULT_PREFIXES, 'Test')
     assert all(k.startswith('layers.') for k in out)
     assert len(out) == 10
+    assert prefix == 'model.diffusion_model.'
 
 
 def test_strip_prefix_picks_longest_match_first():
@@ -117,11 +119,12 @@ def test_strip_prefix_picks_longest_match_first():
         'model.diffusion_model.layers.0.weight': 1,
         'model.diffusion_model.layers.1.weight': 2,
     }
-    out = nt.strip_prefix(sd, nt.DEFAULT_PREFIXES, 'Test')
+    out, prefix = nt.strip_prefix(sd, nt.DEFAULT_PREFIXES, 'Test')
     # If shorter prefix matched, keys would start with 'model.'
     assert 'layers.0.weight' in out
     assert 'layers.1.weight' in out
     assert not any(k.startswith('model.') for k in out)
+    assert prefix == 'model.diffusion_model.'
 
 
 def test_strip_prefix_mixed_prefixes_raises():
@@ -138,20 +141,23 @@ def test_strip_prefix_mixed_prefixes_raises():
 
 def test_strip_prefix_net_variant():
     sd = {'net.layers.0.weight': 1, 'net.layers.1.bias': 2}
-    out = nt.strip_prefix(sd, nt.DEFAULT_PREFIXES, 'Test')
+    out, prefix = nt.strip_prefix(sd, nt.DEFAULT_PREFIXES, 'Test')
     assert set(out.keys()) == {'layers.0.weight', 'layers.1.bias'}
+    assert prefix == 'net.'
 
 
 def test_strip_prefix_diffusion_model_variant():
     sd = {'diffusion_model.layers.0.weight': 1, 'diffusion_model.layers.1.bias': 2}
-    out = nt.strip_prefix(sd, nt.DEFAULT_PREFIXES, 'Test')
+    out, prefix = nt.strip_prefix(sd, nt.DEFAULT_PREFIXES, 'Test')
     assert set(out.keys()) == {'layers.0.weight', 'layers.1.bias'}
+    assert prefix == 'diffusion_model.'
 
 
 def test_strip_prefix_custom_prefix_set():
     sd = {'lora_unet_blocks_0.weight': 1, 'lora_unet_blocks_1.weight': 2}
-    out = nt.strip_prefix(sd, ('lora_unet_',), 'Test')
+    out, prefix = nt.strip_prefix(sd, ('lora_unet_',), 'Test')
     assert set(out.keys()) == {'blocks_0.weight', 'blocks_1.weight'}
+    assert prefix == 'lora_unet_'
 
 
 # ============================================================

@@ -160,7 +160,7 @@ def install_extension_from_url(dirname, url, branch_name, search_text, sort_colu
     if os.path.exists(target_dir):
         log.error(f'Extension: path="{target_dir}" directory already exists')
         return ['', '']
-    if any(normalize_git_url(x.remote) == url for x in extensions.extensions):
+    if any(normalize_git_url(x.remote) == url for x in extensions.extensions if x.remote is not None):
         return ['', "Extension with this URL is already installed"]
     tmpdir = os.path.join(paths.data_path, "tmp", dirname)
     try:

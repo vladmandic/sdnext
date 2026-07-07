@@ -23,6 +23,7 @@ unspecified = object()
 vae_scale_override = {
     'WanPipeline': 16,
     'ChronoEditPipeline': 16,
+    'AutoencoderKLWan': 16,
 }
 
 
@@ -37,6 +38,8 @@ def get_vae_scale_factor(model: DiffusionPipeline | None = None):
         vae_scale_factor = 8
     elif model.__class__.__name__ in vae_scale_override:
         vae_scale_factor = vae_scale_override[model.__class__.__name__]
+    elif hasattr(model, 'vae') and model.vae.__class__.__name__ in vae_scale_override:
+        vae_scale_factor = vae_scale_override[model.vae.__class__.__name__]
     elif hasattr(model, 'vae_scale_factor_spatial'):
         vae_scale_factor = model.vae_scale_factor_spatial
     elif hasattr(model, 'vae_scale_factor'):

@@ -230,6 +230,8 @@ def img2img(id_task: str, state: str, mode: int,
     elif mode == 4: # inpaint upload mask
         if init_img_inpaint is None:
             return [], '', '', 'Error: inpaint image not provided'
+        if init_mask_inpaint is None:
+            return [], '', '', 'Error: inpaint mask not provided'
         image = init_img_inpaint
         mask = init_mask_inpaint
     elif mode == 5: # process batch

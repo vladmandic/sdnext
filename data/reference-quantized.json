@@ -3,256 +3,189 @@
     "path": "Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32",
     "preview": "Disty0--FLUX.1-dev-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.1-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "size": 13.53,
-    "date": "2025 October",
-    "extras": ""
+    "size": 12.6,
+    "date": "2025 October"
   },
   "FLUX.1-Schnell sdnq-svd-uint4": {
     "path": "Disty0/FLUX.1-schnell-SDNQ-uint4-svd-r32",
     "preview": "Disty0--FLUX.1-schnell-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.1-schnell using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "size": 13.51,
-    "date": "2025 October",
-    "extras": ""
+    "size": 12.58,
+    "date": "2025 October"
   },
   "FLUX.1-Dev Krea sdnq-svd-uint4": {
     "path": "Disty0/FLUX.1-Krea-dev-SDNQ-uint4-svd-r32",
     "preview": "Disty0--FLUX.1-Krea-dev-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.1-Krea-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "size": 13.53,
-    "date": "2025 October",
-    "extras": ""
+    "size": 12.6,
+    "date": "2025 October"
   },
   "FLUX.1-Dev Kontext sdnq-svd-uint4": {
     "path": "Disty0/FLUX.1-Kontext-dev-SDNQ-uint4-svd-r32",
     "preview": "Disty0--FLUX.1-Kontext-dev-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.1-Kontext-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "size": 13.53,
-    "date": "2025 October",
-    "extras": ""
+    "size": 12.6,
+    "date": "2025 October"
   },
   "FLUX.2 Dev sdnq-svd-uint4": {
     "path": "Disty0/FLUX.2-dev-SDNQ-uint4-svd-r32",
     "preview": "Disty0--FLUX.2-dev-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.2-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "extras": "",
-    "size": 34.24,
+    "size": 31.89,
     "date": "2025 November"
   },
   "Black Forest Labs FLUX.2 Klein 4B sdnq-uint4-dynamic": {
     "path": "Disty0/FLUX.2-klein-4B-SDNQ-4bit-dynamic",
     "preview": "Disty0--FLUX.2-klein-4B-SDNQ-4bit-dynamic.jpg",
     "desc": "Dynamic 4-bit quantization of black-forest-labs/FLUX.2-klein-4B using SDNQ.",
-    "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
-    "tags": "quantized",
-    "size": 5.46,
+    "size": 5.09,
     "date": "2026 January"
   },
   "Black Forest Labs FLUX.2 Klein 9B sdnq-uint4-dynamic-svd": {
     "path": "Disty0/FLUX.2-klein-9B-SDNQ-4bit-dynamic-svd-r32",
     "preview": "Disty0--FLUX.2-klein-9B-SDNQ-4bit-dynamic-svd-r32.jpg",
     "desc": "Dynamic 4-bit quantization of black-forest-labs/FLUX.2-klein-9B using SDNQ with SVD rank 32.",
-    "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
-    "tags": "quantized",
-    "size": 12.59,
+    "size": 11.73,
     "date": "2026 January"
+  },
+  "Black Forest Labs FLUX.2 Klein 9B KV sdnq-uint4-dynamic-svd": {
+    "path": "vladmandic/Flux.2-Klein-9B-KV-sdnq-hadamard-uint4",
+    "preview": "black-forest-labs--FLUX.2-klein-9b-kv.jpg",
+    "desc": "Dynamic 4-bit quantization of black-forest-labs/FLUX.2-klein-9B-KV using SDNQ with Hadamard.",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 4",
+    "size": 12.26,
+    "date": "2026 July"
   },
   "Chroma1-HD sdnq-svd-uint4": {
     "path": "Disty0/Chroma1-HD-SDNQ-uint4-svd-r32",
     "preview": "Disty0--Chroma1-HD-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of lodestones/Chroma1-HD using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "size": 11.9,
-    "date": "2025 October",
-    "extras": ""
+    "size": 11.08,
+    "date": "2025 October"
   },
   "Wan-AI Wan2.2 A14B T2I sdnq-svd-uint4": {
     "path": "Disty0/Wan2.2-T2V-A14B-SDNQ-uint4-svd-r32",
     "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
     "desc": "Quantization of black-forest-labs/FLUX.1-dev using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
     "date": "2025 October",
-    "size": 25.26,
-    "extras": ""
+    "size": 23.53
   },
   "Wan-AI Wan2.2 A14B I2I sdnq-svd-uint4": {
     "path": "Disty0/Wan2.2-I2V-A14B-SDNQ-uint4-svd-r32",
     "preview": "Wan-AI--Wan2.2-T2V-A14B-Diffusers.jpg",
     "desc": "Quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
-    "skip": true,
-    "tags": "quantized",
     "date": "2025 October",
-    "size": 25.27,
-    "extras": ""
+    "size": 23.53
   },
   "Z-Image-Turbo sdnq-svd-uint4": {
     "path": "Disty0/Z-Image-Turbo-SDNQ-uint4-svd-r32",
     "preview": "Disty0--Z-Image-Turbo-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of Tongyi-MAI/Z-Image-Turbo using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 9",
-    "size": 6.49,
+    "size": 6.05,
     "date": "2025 November"
   },
   "Qwen-Image sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-SDNQ-uint4-svd-r32",
     "preview": "Qwen--Qwen-Image.jpg",
     "desc": "Quantization of Qwen/Qwen-Image using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
     "date": "2025 October",
-    "size": 17.27,
-    "extras": ""
+    "size": 16.09
   },
   "Qwen-Image-2512 sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-2512-SDNQ-uint4-svd-r32",
     "preview": "Disty0--Qwen-Image-2512-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of Qwen/Qwen-Image-2512 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
-    "extras": "",
-    "size": 17.27,
-    "date": "2025 December"
-  },
-  "Qwen-Image-2512 sdnq-dynamic-uint4": {
-    "path": "Disty0/Qwen-Image-2512-SDNQ-4bit-dynamic",
-    "preview": "Disty0--Qwen-Image-2512-SDNQ-uint4-svd-r32.jpg",
-    "desc": "Quantization of Qwen/Qwen-Image-2512 using SDNQ: sdnq-dynamic 4-bit uint",
-    "skip": true,
-    "tags": "quantized",
-    "extras": "",
-    "size": 18.51,
+    "size": 16.09,
     "date": "2026 January"
   },
   "Qwen-Image-Edit sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-Edit-SDNQ-uint4-svd-r32",
     "preview": "Qwen--Qwen-Image-Edit.jpg",
     "desc": "Quantization of Qwen/Qwen-Image-Edit using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
     "date": "2025 October",
-    "size": 17.27,
-    "extras": ""
+    "size": 16.09
   },
   "Qwen-Image-Edit-2509 sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-Edit-2509-SDNQ-uint4-svd-r32",
     "preview": "Qwen--Qwen-Image-Edit-2509.jpg",
     "desc": "Quantization of Qwen/Qwen-Image-Edit-2509 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
     "date": "2025 October",
-    "size": 17.27,
-    "extras": ""
+    "size": 16.09
   },
   "Qwen-Image-Edit-2511 sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-Edit-2511-SDNQ-uint4-svd-r32",
     "preview": "Disty0--Qwen-Image-Edit-2511-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of Qwen/Qwen-Image-Edit-2511 using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
     "date": "2025 December",
-    "size": 17.27,
-    "extras": ""
+    "size": 16.09
   },
   "Qwen-Image-Layered sdnq-svd-uint4": {
     "path": "Disty0/Qwen-Image-Layered-SDNQ-uint4-svd-r32",
     "preview": "Disty0--Qwen-Image-Layered-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of Qwen/Qwen-Image-Layered using SDNQ: sdnq-svd 4-bit uint with svd rank 32",
-    "skip": true,
-    "tags": "quantized",
     "date": "2025 December",
-    "size": 17.27,
-    "extras": ""
+    "size": 16.09
   },
   "nVidia ChronoEdit sdnq-svd-uint4": {
     "path": "Disty0/ChronoEdit-14B-SDNQ-uint4-svd-r32",
     "preview": "Disty0--ChronoEdit-14B-SDNQ-uint4-svd-r32.jpg",
     "desc": "Quantization of nvidia/ChronoEdit-14B-Diffusers using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
-    "skip": true,
-    "tags": "quantized",
     "date": "2025 October",
-    "size": 18.14,
-    "extras": ""
+    "size": 16.9
   },
   "Tencent HunyuanImage 3.0 sdnq-svd-uint4": {
     "path": "Disty0/HunyuanImage3-SDNQ-uint4-svd-r32",
     "desc": "Quantization of tencent/HunyuanImage-3.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 32.",
     "preview": "Disty0--HunyuanImage3-SDNQ-uint4-svd-r32.jpg",
-    "extras": "",
-    "skip": true,
-    "tags": "quantized",
     "size": 57.06,
-    "date": "2025 September"
+    "date": "2025 October"
   },
   "Tempest-by-Vlad XL sdnq-svd-uint4": {
     "path": "vladmandic/tempestByVlad_baseV01-SDNQ-uint4-svd",
     "preview": "vladmandic--tempestByVlad_baseV01-SDNQ-uint4-svd.jpg",
     "desc": "Quantization of vladmandic/tempestByVlad_baseV01 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
-    "tags": "quantized",
-    "size": 2.84,
-    "date": "2025 October",
-    "extras": ""
+    "size": 2.64,
+    "date": "2025 October"
   },
   "NoobAI-XL v1.1 epsilon sdnq-svd-uint4": {
     "path": "Disty0/NoobAI-XL-v1.1-SDNQ-uint4-svd-r128",
     "preview": "Disty0--NoobAI-XL-v1.1-SDNQ-uint4-svd-r128.jpg",
     "desc": "Quantization of Laxhar/noobai-XL-1.1 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
-    "tags": "quantized",
-    "size": 3.62,
-    "date": "2025 October",
-    "extras": ""
+    "size": 3.37,
+    "date": "2025 October"
   },
   "NoobAI-XL v1.0 v-pred sdnq-svd-uint4": {
     "path": "Disty0/NoobAI-XL-Vpred-v1.0-SDNQ-uint4-svd-r128",
     "preview": "Disty0--NoobAI-XL-Vpred-v1.0-SDNQ-uint4-svd-r128.jpg",
     "desc": "Quantization of Laxhar/noobai-XL-Vpred-1.0 using SDNQ: sdnq-svd 4-bit uint with svd rank 128",
-    "tags": "quantized",
-    "size": 3.62,
-    "date": "2025 October",
-    "extras": ""
+    "size": 3.37,
+    "date": "2025 October"
   },
   "ZAI GLM-Image sdnq-dynamic-uint4": {
     "path": "Disty0/GLM-Image-SDNQ-4bit-dynamic",
     "preview": "zai-org--GLM-Image.jpg",
     "desc": "Quantization of ZAI GLM-Image using SDNQ: sdnq-dynamic 4-bit uint",
-    "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.5, steps: 50",
-    "size": 5.57,
-    "tags": "quantized",
+    "size": 5.19,
     "date": "2026 January"
   },
   "Baidu ERNIE-Image sdnq-dynamic-int4": {
     "path": "OzzyGT/ERNIE_Image_sdnq_dynamic_int4",
     "preview": "OzzyGT--ERNIE_Image_sdnq_dynamic_int4.jpg",
     "desc": "ERNIE-Image is a text-to-image diffusion transformer model that combines a Mistral3 text encoder with a FlowMatch transformer and Flux2-style VAE for 1024px image generation.",
-    "skip": true,
     "extras": "sampler: Default, cfg_scale: 4.0, steps: 50",
-    "size": 7.52,
+    "size": 7.01,
     "date": "2026 April"
   },
   "Baidu ERNIE-Image-Turbo sdnq-dynamic-int4": {
     "path": "OzzyGT/ERNIE_Image_Turbo_sdnq_dynamic_int4",
     "preview": "OzzyGT--ERNIE_Image_Turbo_sdnq_dynamic_int4.jpg",
     "desc": "ERNIE-Image-Turbo is a distilled ERNIE-Image variant optimized for fast generation with fewer denoising steps.",
-    "skip": true,
     "extras": "sampler: Default, cfg_scale: 1.0, steps: 8",
-    "size": 7.52,
-    "tags": "distilled",
+    "size": 7.01,
     "date": "2026 April"
   },
   "Anima 1.0 Base sdnq-svd-dynamic-uint4": {
@@ -260,42 +193,53 @@
     "preview": "vladmandic--Anima-1.0-Base.jpg",
     "desc": "Anima 1.0 Base with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
     "date": "2026 May",
-    "size": 2.18,
-    "skip": true
+    "size": 2.03
   },
   "Anima 1.0 Turbo sdnq-svd-dynamic-uint4": {
     "path": "vladmandic/Anima-1.0-Turbo-sdnq-svd-dynamic-uint4",
     "preview": "vladmandic--Anima-1.0-Turbo.jpg",
     "desc": "Anima 1.0 Turbo with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
     "date": "2026 May",
-    "size": 2.19,
-    "skip": true
+    "size": 2.03
   },
   "HiDream-O1 Image sdnq-dynamic-int8": {
     "path": "vladmandic/HiDream-O1-Image-SDNQ-8bit-dynamic",
     "desc": "HiDream-O1-Image is an 8B pixel-level unified transformer model for text-to-image generation, instruction editing, and multi-reference personalization up to 2048x2048.",
     "preview": "HiDream-ai--HiDream-O1-Image.jpg",
-    "skip": true,
     "extras": "sampler: Default",
-    "size": 10.34,
+    "size": 9.63,
     "date": "2026 May"
   },
   "HiDream-O1 Image Dev sdnq-dynamic-int8": {
     "path": "vladmandic/HiDream-O1-Image-Dev-SDNQ-8bit-dynamic",
     "desc": "HiDream-O1-Image is an 8B pixel-level unified transformer model for text-to-image generation, instruction editing, and multi-reference personalization up to 2048x2048.",
     "preview": "HiDream-ai--HiDream-O1-Image.jpg",
-    "skip": true,
     "extras": "sampler: Default",
-    "size": 10.34,
+    "size": 9.63,
     "date": "2026 May"
   },
   "Ideogram 4 sdnq-hadamard-uint4": {
     "path": "Disty0/Ideogram-4-SDNQ-4bit-dynamic-hadamard",
     "desc": "Ideogram 4 is Ideogram's first open-weight text-to-image model: a two 9.3B flow-matching DiTs that uses a Qwen3-VL vision-language model as its text encoder, with strong in-image text rendering. Requires structured JSON-caption prompts; prompt-enhance (on by default) rewrites a plain prompt into one.",
     "preview": "Disty0--Ideogram-4-SDNQ-4bit-dynamic-hadamard.jpg",
-    "skip": true,
     "extras": "sampler: Default, cfg_scale: 7.0, steps: 20, width: 1024, height: 1024",
-    "size": 16.29,
+    "size": 17.3,
+    "date": "2026 June"
+  },
+  "Krea 2 Turbo sdnq-hadamard-uint4": {
+    "path": "vladmandic/Krea-2-Turbo-sdnq-hadamard-uint4",
+    "preview": "CalamitousFelicitousness--Krea-2-Turbo-Diffusers.jpg",
+    "desc": "Krea 2 (K2) Turbo is the 8-step distilled inference model of the Krea 2 family, trained from scratch by Krea. A 12.9B-parameter single-stream flow-matching DiT that uses a Qwen3-VL-4B vision-language model as its text encoder and the Qwen-Image VAE. Runs without classifier-free guidance; LoRAs trained on Krea 2 Base apply directly.",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 8, width: 1024, height: 1024",
+    "size": 10.54,
+    "date": "2026 July"
+  },
+  "Krea 2 Base sdnq-hadamard-uint4": {
+    "path": "vladmandic/Krea-2-Base-sdnq-hadamard-uint4",
+    "preview": "CalamitousFelicitousness--Krea-2-Base-Diffusers.jpg",
+    "desc": "Krea 2 (K2) Base is the undistilled foundation model of the Krea 2 family, trained from scratch by Krea. A 12.9B-parameter single-stream flow-matching DiT that uses a Qwen3-VL-4B vision-language model as its text encoder and the Qwen-Image VAE. The base checkpoint is intended for fine-tuning and LoRA training; LoRAs trained on it apply to Krea 2 Turbo.",
+    "extras": "sampler: Default, cfg_scale: 4.5, steps: 52, width: 1024, height: 1024",
+    "size": 10.3,
     "date": "2026 June"
   }
 }

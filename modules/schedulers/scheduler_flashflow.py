@@ -244,7 +244,10 @@ class FlashFlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
             timesteps = sigmas * self.config.num_train_timesteps
             sigmas = torch.cat([sigmas, torch.ones(1, device=sigmas.device)])
         else:
-            sigmas = torch.cat([sigmas, torch.zeros(1, device=sigmas.device)])
+            if sigmas[-1].abs() < 1e-8:
+                sigmas = sigmas
+            else:
+                sigmas = torch.cat([sigmas, torch.zeros(1, device=sigmas.device)])
 
         self.timesteps = timesteps.to(device=device)
         self.sigmas = sigmas
@@ -357,15 +360,19 @@ class FlashFlowMatchEulerDiscreteScheduler(SchedulerMixin, ConfigMixin):
 
         if self.step_index < self.num_inference_steps - 1:
             sigma_next = self.sigmas[self.step_index + 1]
-            noise = randn_tensor(
-                model_output.shape,
-                generator=generator,
-                device=model_output.device,
-                dtype=denoised.dtype,
-            )
-            if noise_clip_std > 0.0:
-                noise = noise.clamp(-noise_clip_std, noise_clip_std)
-            sample = sigma_next * s_noise * noise + (1.0 - sigma_next) * denoised
+            at_final_sigma = sigma_next.abs() < 1e-8
+            if at_final_sigma:
+                sample = denoised
+            else:
+                noise = randn_tensor(
+                    model_output.shape,
+                    generator=generator,
+                    device=model_output.device,
+                    dtype=denoised.dtype,
+                )
+                if noise_clip_std > 0.0:
+                    noise = noise.clamp(-noise_clip_std, noise_clip_std)
+                sample = sigma_next * s_noise * noise + (1.0 - sigma_next) * denoised
 
         self._step_index += 1
         sample = sample.to(model_output.dtype)

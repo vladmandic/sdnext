@@ -383,7 +383,8 @@ def read_metadata_from_safetensors(filename: str):
                 return res
             json_data = json_start + file.read(metadata_len-2)
             json_obj = json.loads(json_data)
-            for k, v in json_obj.get("__metadata__", {}).items():
+            json_dct = json_obj.get("__metadata__", {})
+            for k, v in json_dct.items():
                 if k == 'modelspec.thumbnail' and v.startswith("data:"):
                     extract_thumbnail(filename, v)
                 if v.startswith("data:"):
@@ -391,7 +392,12 @@ def read_metadata_from_safetensors(filename: str):
                 if k == 'format' and v == 'pt':
                     continue
                 large = True if len(v) > 2048 else False
-                if large and k in ['ss_datasets', 'workflow', 'prompt', 'ss_bucket_info', 'sd_metadata_file']:
+                if large and k in ['ss_datasets', 'prompt', 'ss_bucket_info', 'sd_metadata_file']:
+                    continue
+                if k in ['workflow']:
+                    res[k] = 'workflow'
+                    continue
+                if str(v) == 'NaN':
                     continue
                 if v[0:1] == '{':
                     try:
@@ -402,7 +408,14 @@ def read_metadata_from_safetensors(filename: str):
                             scrub_dict(v, ['sd_merge_recipe'])
                     except Exception:
                         pass
-                res[k] = v
+                if isinstance(v, dict):
+                    try:
+                        _tmp = json.dumps(v, indent=2, default=str, allow_nan=False, ensure_ascii=False)
+                    except Exception:
+                        # log.warning(f'Model metadata: file="{filename}" key="{k}" value="{v}" not serializable')
+                        continue
+                if v is not None:
+                    res[k] = v
     except Exception as e:
         log.error(f'Model metadata: file="{filename}" {e}')
         from modules import errors
@@ -434,6 +447,6 @@ def write_metadata():
     if sd_metadata_pending == 0:
         log.debug(f'Model metadata: file="{sd_metadata_file}" no changes')
         return
-    writefile(sd_metadata, sd_metadata_file)
-    log.info(f'Model metadata saved: file="{sd_metadata_file}" items={sd_metadata_pending} time={sd_metadata_timer:.2f}')
+    writefile(sd_metadata, sd_metadata_file, silent=True)
+    log.info(f'Model metadata: file="{sd_metadata_file}" added={sd_metadata_pending} time={sd_metadata_timer:.2f}')
     sd_metadata_pending = 0

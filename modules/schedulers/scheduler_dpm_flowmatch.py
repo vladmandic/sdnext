@@ -490,11 +490,22 @@ class FlowMatchDPMSolverMultistepScheduler(SchedulerMixin, ConfigMixin):
         if self.step_index is None:
             self._init_step_index(timestep)
 
+        sigma = self.sigmas[self.step_index]
+        if sigma == 0 or torch.isclose(sigma, torch.tensor(0.0, device=sigma.device, dtype=sigma.dtype)):
+            prev_sample = sample.to(model_output.dtype)
+            self._step_index += 1
+            torch.cuda.empty_cache()
+            if not return_dict:
+                return (prev_sample,)
+            return FlowMatchDPMSolverMultistepSchedulerOutput(prev_sample=prev_sample)
+
+        def _is_zero(value: torch.Tensor) -> bool:
+            return bool(value == 0 or torch.isclose(value, torch.tensor(0.0, device=value.device, dtype=value.dtype)))
+
         if self.config.algorithm_type in ["dpmsolver2", "dpmsolver2A"]:
             pass
         else:
             # Flow Match needs to solve an integral of the data prediction model.
-            sigma = self.sigmas[self.step_index]
             model_output = sample - sigma * model_output
             for i in range(self.config.solver_order - 1):
                 self.model_outputs[i] = self.model_outputs[i + 1]

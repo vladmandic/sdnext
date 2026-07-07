@@ -100,6 +100,12 @@ class TransformerSpec:
     prefixes, no converter, no siblings). Arches with bundled-sibling
     components (Anima) or unusual key conventions (custom converters,
     Cosmos-style structural markers) override the relevant fields.
+
+    ``zero_init_missing`` lists key prefixes for a zero-initialized residual
+    branch the class defines but some checkpoints omit. Unlike
+    ``acceptable_missing`` (buffer-only keys left at their init), these are
+    zero-filled on load so the branch stays a no-op, matching a base model
+    that ships the branch dormant (output projection all-zeros).
     """
 
     cls: type
@@ -108,6 +114,7 @@ class TransformerSpec:
     converter: Callable[[dict], dict] | None = None
     siblings: dict[str, SiblingSpec] = field(default_factory=dict)
     acceptable_missing: tuple[str, ...] = DEFAULT_ACCEPTABLE_MISSING
+    zero_init_missing: tuple[str, ...] = ()
     forbidden_markers: tuple[tuple[str, str], ...] = ()
 
 
@@ -238,17 +245,18 @@ def load(
         )
         quant_type = model_quant.get_quant_type(quant_args)
 
-    log.debug(f'Load model: native_transformer reading state_dict cls={spec.cls.__name__} file="{os.path.basename(local_file)}"')
     state_dict = sd_models.read_state_dict(local_file, what="transformer")
-    state_dict = strip_prefix(state_dict, spec.prefixes, spec.cls.__name__)
+    state_dict, detected_prefix = strip_prefix(state_dict, spec.prefixes, spec.cls.__name__)
     check_forbidden_markers(state_dict, spec.forbidden_markers, spec.cls.__name__, local_file)
     transformer_sd, sibling_sds = partition_siblings(state_dict, spec.siblings)
     del state_dict
 
     sibling_counts = {name: len(sd) for name, sd in sibling_sds.items() if sd}
+    prefix_disp = f'"{detected_prefix}"' if detected_prefix else "bare"
     log.info(
-        f'Load model: type={spec.cls.__name__} custom="{os.path.basename(local_file)}" '
-        f"transformer_keys={len(transformer_sd)} siblings={sibling_counts or '{}'}"
+        f'cls={spec.cls.__name__} custom="{os.path.basename(local_file)}" '
+        f"prefix={prefix_disp} transformer_keys={len(transformer_sd)} "
+        f"siblings={sibling_counts or '{}'}"
     )
 
     effective_dtype = dtype if dtype is not None else devices.dtype
@@ -260,6 +268,7 @@ def load(
         cls=spec.cls,
         converter=spec.converter,
         acceptable_missing=spec.acceptable_missing,
+        zero_init_missing=spec.zero_init_missing,
         quant_args=quant_args,
         quant_type=quant_type,
         dtype=effective_dtype,
@@ -300,7 +309,7 @@ def load(
     return transformer, loaded_siblings
 
 
-def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) -> dict:
+def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) -> tuple[dict, str]:
     """Detect and uniformly strip the most common known prefix from every key.
 
     Order matters: longer prefixes win over shorter ones with the same suffix
@@ -308,6 +317,9 @@ def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) ->
     match the dominant prefix and others do not, raises ValueError because
     mixed prefixes indicate a malformed file rather than a recoverable export
     quirk.
+
+    Returns the stripped state dict and the detected prefix (empty string when
+    the keys are already bare) so the caller can report it in one line.
     """
     sorted_prefixes = sorted(prefixes, key=len, reverse=True)
     counts: dict[str, int] = {}
@@ -320,17 +332,15 @@ def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) ->
                 break
     total = len(state_dict)
     if seen == 0:
-        log.debug(f"Load model: type={type_name} native_transformer prefix=bare")
-        return state_dict
+        return state_dict, ""
     dominant = max(counts, key=counts.get)
     if counts[dominant] != total:
         raise ValueError(
             f"Load model: type={type_name} native_transformer has mixed prefixes "
             f"(total={total} {dominant}={counts[dominant]})"
         )
-    log.debug(f'Load model: type={type_name} native_transformer prefix="{dominant}"')
     offset = len(dominant)
-    return {key[offset:]: value for key, value in state_dict.items()}
+    return {key[offset:]: value for key, value in state_dict.items()}, dominant
 
 
 def check_forbidden_markers(
@@ -385,14 +395,10 @@ def fetch_component_config(repo_id: str, subfolder: str) -> dict:
     """Download and parse ``<subfolder>/config.json`` from the base repo."""
     relative_path = f"{subfolder}/config.json"
     try:
-        local = hf.hf_hub_download(
-            repo_id, filename=relative_path, cache_dir=shared.opts.diffusers_dir,
-        )
+        local = hf.hf_hub_download(repo_id, filename=relative_path, cache_dir=shared.opts.diffusers_dir)
     except Exception as e:
-        raise RuntimeError(
-            f'Load model: native_transformer failed to download {relative_path} '
-            f'from repo="{repo_id}": {e}'
-        ) from e
+        log.error(f' path="{relative_path}" repo="{repo_id}" failed to download: {e}')
+        raise RuntimeError('') from e
     return shared.readfile(local, as_type="dict")
 
 
@@ -405,6 +411,7 @@ def build_component_quantized(
     quant_args: dict,
     dtype,
     acceptable_missing: tuple[str, ...],
+    zero_init_missing: tuple[str, ...] = (),
     **kwargs,
 ) -> object:
     """Build a component with per-tensor SDNQ quantization during load.
@@ -435,7 +442,7 @@ def build_component_quantized(
     quantization_config = quant_args.get("quantization_config")
     if quantization_config is None:
         raise ValueError(
-            f"Load model: native_transformer {component_name} "
+            f"Load model: transformer=native {component_name} "
             f"per-tensor quantization requires quant_args['quantization_config']"
         )
 
@@ -484,6 +491,9 @@ def build_component_quantized(
             pbar.update(task, advance=1)
 
     missing = sorted(expected_keys - loaded_keys)
+    missing = materialize_zero_init(
+        component, missing, zero_init_missing, device=target_device, dtype=target_dtype
+    )
     validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
 
     component = quantizer._process_model_after_weight_loading(component)  # pylint: disable=protected-access
@@ -498,6 +508,7 @@ def build_component(
     cls: type,
     converter: Callable[[dict], dict] | None,
     acceptable_missing: tuple[str, ...],
+    zero_init_missing: tuple[str, ...] = (),
     quant_args: dict,
     quant_type: str | None,
     dtype=None,
@@ -522,7 +533,7 @@ def build_component(
     """
     try:
         if converter is not None:
-            log.debug(f'Load model: native_transformer {component_name} converter={converter.__name__} keys={len(state_dict)}')
+            log.debug(f'Load model: transformer=native {component_name} converter={converter.__name__} keys={len(state_dict)}')
             try:
                 sd = converter(state_dict)
             except Exception as e:
@@ -543,25 +554,27 @@ def build_component(
                 quant_args=quant_args,
                 dtype=dtype,
                 acceptable_missing=acceptable_missing,
+                zero_init_missing=zero_init_missing,
                 **kwargs,
             )
             del sd
             devices.torch_gc()
             return component
 
-        log.debug(f'Load model: native_transformer {component_name} loading keys={len(sd)} cls={cls.__name__}')
+        log.debug(f'Load model: transformer=native {component_name} loading keys={len(sd)} cls={cls.__name__}')
         component = cls.from_config(config, **kwargs)
         missing, unexpected = component.load_state_dict(sd, strict=False)
+        missing = materialize_zero_init(component, missing, zero_init_missing)
         validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
         del sd
         devices.torch_gc()
         target_dtype = dtype if dtype is not None else devices.dtype
-        log.debug(f'Load model: native_transformer {component_name} cast dtype={target_dtype}')
+        log.debug(f'Load model: transformer=native {component_name} cast dtype={target_dtype}')
         component = component.to(dtype=target_dtype)
     except OverrideArchMismatch:
         raise
     except Exception as e:
-        log.error(f"Load model: native_transformer {component_name} load failed: {e}")
+        log.error(f"Load model: transformer=native {component_name} load failed: {e}")
         errors.display(e, "Load")
         raise
 
@@ -598,7 +611,7 @@ def validate_state_dict_load(
     if unexpected:
         sample = ", ".join(unexpected[:5])
         raise OverrideArchMismatch(
-            f"Load model: native_transformer {component_name} has {len(unexpected)} "
+            f"Load model: transformer=native {component_name} has {len(unexpected)} "
             f"unexpected keys (sample: {sample})"
         )
     hard_missing = [
@@ -607,14 +620,65 @@ def validate_state_dict_load(
     if hard_missing:
         sample = ", ".join(hard_missing[:5])
         raise OverrideArchMismatch(
-            f"Load model: native_transformer {component_name} missing "
+            f"Load model: transformer=native {component_name} missing "
             f"{len(hard_missing)} required keys (sample: {sample})"
         )
     if missing:
         log.debug(
-            f"Load model: native_transformer {component_name} ignored "
+            f"Load model: transformer=native {component_name} ignored "
             f"{len(missing)} buffer-only missing keys"
         )
+
+
+def materialize_zero_init(
+    component: object,
+    missing: list[str],
+    zero_init_missing: tuple[str, ...],
+    *,
+    device=None,
+    dtype=None,
+) -> list[str]:
+    """Zero-fill missing weights that belong to a zero-initialized residual
+    branch the class defines but the override file predates.
+
+    A base model may ship a residual branch dormant: its output projection is
+    all-zeros, so ``out + up(down(x))`` reduces to ``out`` and the branch is a
+    no-op. A checkpoint made before the branch existed omits those keys. Left
+    unmaterialized they keep random ``from_config`` init (non-quant path) or
+    stay on the meta device (per-tensor quant path); either injects garbage
+    into the output. Zero-filling reproduces the base's dormant behavior.
+
+    Returns ``missing`` with the handled keys removed, so
+    :func:`validate_state_dict_load` does not treat them as a hard mismatch.
+    ``device``/``dtype`` override the target placement (the quant path passes
+    the real device since its params are on meta); when omitted each key's own
+    parameter device/dtype is used. Keys matching a prefix but absent from the
+    component's parameters are left in ``missing`` untouched.
+    """
+    if not zero_init_missing:
+        return missing
+    from accelerate.utils import set_module_tensor_to_device
+    params = dict(component.named_parameters())
+    handled: list[str] = []
+    remaining: list[str] = []
+    for key in missing:
+        param = params.get(key)
+        if param is not None and any(key.startswith(p) for p in zero_init_missing):
+            tgt_device = device if device is not None else param.device
+            tgt_dtype = dtype if dtype is not None else param.dtype
+            set_module_tensor_to_device(
+                component, key, tgt_device,
+                value=torch.zeros(param.shape, dtype=tgt_dtype), dtype=tgt_dtype,
+            )
+            handled.append(key)
+        else:
+            remaining.append(key)
+    if handled:
+        log.debug(
+            f"Load model: transformer=native zero-init {len(handled)} dormant "
+            f"residual key(s): {', '.join(handled)}"
+        )
+    return remaining
 
 
 def apply_quant(
@@ -638,7 +702,7 @@ def apply_quant(
     """
     if quant_type == "NVIDIAModelOptConfig":
         log.warning(
-            "Load model: native_transformer quant=TRT not supported on native path, skipping"
+            "Load model: transformer=native quant=TRT not supported on native path, skipping"
         )
     elif quant_type == "SDNQConfig":
         model_quant.sdnq_quantize_model(

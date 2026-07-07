@@ -7,6 +7,7 @@ from modules import devices
 from modules.shared import opts, log
 from modules.upscaler import Upscaler, UpscalerData
 from modules.image import convert
+from modules.model_quant import do_post_load_quant
 
 
 MODELS_MAP = {
@@ -42,6 +43,7 @@ class UpscalerSeedVR(Upscaler):
                 device=devices.device,
                 dtype=devices.dtype,
             )
+
             self.model_loaded = model_name
             self.model.dit.device = devices.device
             self.model.dit.dtype = devices.dtype
@@ -60,10 +62,9 @@ class UpscalerSeedVR(Upscaler):
             self.model.dit.config = self.model.config.dit
             self.model.vae.tile_sample_min_size = 1024
             self.model.vae.tile_latent_min_size = 128
-            from modules.model_quant import do_post_load_quant
+
             self.model = do_post_load_quant(self.model, allow=True)
-            # from modules.sd_offload import set_diffuser_offload
-            # set_diffuser_offload(self.model)
+
             log.info(f'Upscaler loaded: name="{self.name}" model="{model_name}" time={t1 - t0:.2f}')
 
     def vae_encode(self, samples):

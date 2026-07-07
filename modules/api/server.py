@@ -1,5 +1,6 @@
 import os
 import time
+from pathlib import Path
 from fastapi import Request, Depends, BackgroundTasks, Response
 from fastapi.exceptions import HTTPException
 from fastapi.responses import FileResponse
@@ -13,6 +14,12 @@ def get_js(request: Request):
     file = request.query_params.get("file", None)
     if (file is None) or (len(file) == 0):
         raise HTTPException(status_code=400, detail="file parameter is required")
+    # Security: validate path is within allowed directories
+    if shared.demo is None:
+        raise HTTPException(status_code=503, detail="server not ready")
+    allowed_dirs = shared.demo.allowed_paths
+    if not any(Path(folder).absolute() in Path(file).absolute().parents for folder in allowed_dirs):
+        raise HTTPException(status_code=403, detail=f"file {file}: must be in one of allowed directories")
     ext = file.split('.')[-1]
     if ext not in ['js', 'css', 'map', 'html', 'wasm', 'ttf', 'mjs', 'json']:
         raise HTTPException(status_code=400, detail=f"invalid file extension: {ext}")
@@ -90,8 +97,9 @@ def get_cmd_flags():
     return vars(shared.cmd_opts)
 
 def get_history(req: models.ReqHistory = Depends()):
-    if req.id is not None and len(req.id) > 0:
-        res = [item for item in shared.state.state_history if item['id'] == req.id]
+    if req.id is not None and ((isinstance(req.id, str) and len(req.id) > 0) or isinstance(req.id, int)):
+        _id = str(req.id) if isinstance(req.id, int) else req.id
+        res = [item for item in shared.state.state_history if item['id'] == _id]
     else:
         res = shared.state.state_history
     res = [models.ResHistory(**item) for item in res]

@@ -39,6 +39,8 @@ def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool 
         t0 = time.time()
         with open(filename, "rb") as file:
             b = file.read()
+            if len(b) == 0:
+                return {} if as_type == "dict" else []
             data = orjson.loads(b)  # pylint: disable=no-member
         # if type(data) is str:
         #    data = json.loads(data)
@@ -78,9 +80,10 @@ def readfile(filename: str | os.PathLike[str], silent: bool = False, lock: bool 
 
 
 def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", silent=False, atomic=False):
+    import copy
     import tempfile
 
-    global locking_available  # pylint: disable=global-statement
+    global locking_available # pylint: disable=global-statement
     lock_file = None
     locked = False
 
@@ -90,7 +93,14 @@ def writefile(obj: dict | list, filename: str | os.PathLike[str], mode="w", sile
 
     try:
         t0 = time.time()
-        data = obj.copy()  # Ensure keys/items aren't added/deleted during json.dumps
+        data = copy.deepcopy(obj) # ensure keys/items aren't added/deleted during json.dumps
+        for k, v in obj.items() if isinstance(obj, dict) else []: # validate each key-by-key to avoid global exceptions
+            try:
+                _tmp = json.dumps(v, indent=2, default=default, allow_nan=False, ensure_ascii=False)
+            except Exception as err:
+                if not silent:
+                    log.error(f'Save: file="{filename}" key="{k}" value="{v}" {err}')
+                del data[k]
         output = json.dumps(data, indent=2, default=default)
     except Exception as err:
         log.error(f'Save failed: file="{filename}" {err}')

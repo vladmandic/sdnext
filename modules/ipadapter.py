@@ -125,12 +125,12 @@ def crop_images(images, crops):
     try:
         for i in range(len(images)):
             if crops[i]:
-                from modules.shared import yolo # pylint: disable=no-name-in-module
                 cropped = []
                 for image in images[i]:
-                    faces = yolo.predict('face-yolo8n', image)
+                    faces = shared.detailer.predict('face-yolo8n', 'face-yolo8n', image)
                     if len(faces) > 0:
                         cropped.append(faces[0].item)
+                        log.debug(f'IP adapter crop: {faces[0]}')
                 if len(cropped) == len(images[i]):
                     images[i] = cropped
                 else:

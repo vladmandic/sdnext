@@ -302,6 +302,7 @@ class PromptEnhanceScript(scripts_manager.Script):
     processor: transformers.AutoProcessor = None
     tokenizer: transformers.AutoTokenizer = None
     busy: bool = False
+    server = None
     options = Options()
 
     def title(self):
@@ -316,7 +317,7 @@ class PromptEnhanceScript(scripts_manager.Script):
         from modules.sd_models_compile import compile_torch
         self.llm = compile_torch(self.llm, apply_to_components=False, op="LLM")
 
-    def load(self, name:str | None=None, model_repo:str | None=None, model_gguf:str | None=None, model_type:str | None=None, model_file:str | None=None):
+    def load(self, name:str | None=None, use_openai:bool=False, model_repo:str | None=None, model_gguf:str | None=None, model_type:str | None=None, model_file:str | None=None):
         # Strip symbols from display name if present
         name = get_model_repo_from_display(name) if name else self.options.default
         if self.busy:
@@ -419,7 +420,9 @@ class PromptEnhanceScript(scripts_manager.Script):
             log.error(f'Prompt enhance: load {e}')
             if debug_enabled:
                 errors.display(e, 'Prompt enhance')
+
         devices.torch_gc()
+        self.set_openai(enable=use_openai)
         self.busy = False
         return model_repo
 
@@ -430,6 +433,7 @@ class PromptEnhanceScript(scripts_manager.Script):
     def unload(self):
         if self.llm is not None:
             model_name = self.model
+            self.set_openai(enable=False)
             log.debug(f'Prompt enhance: unloading model="{model_name}"')
             deregister_aux('prompt_enhance')
             sd_models.move_model(self.llm, devices.cpu, force=True)
@@ -441,6 +445,21 @@ class PromptEnhanceScript(scripts_manager.Script):
             log.debug(f'Prompt enhance: model="{model_name}" unloaded')
         else:
             log.debug('Prompt enhance: no model loaded')
+
+    def set_openai(self, enable: bool):
+        from modules.openai.serve import OpenAIServer
+        if enable and self.llm is not None and self.tokenizer is not None:
+            self.server = OpenAIServer(
+                model=self.llm,
+                tokenizer=self.tokenizer,
+                host="127.0.0.1",
+                port=8000,
+                server=shared.api.app,
+            )
+            self.server.start()
+        elif self.server is not None:
+            self.server.stop()
+            self.server = None
 
     def clean(self, response, keep_thinking=False, prefill_text='', keep_prefill=False):
         # Handle thinking tags FIRST (before generic tag removal)
@@ -573,6 +592,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                 process_words:str='',
                 semantic_threshold:float=0.0,
                 embedding_similarity:float=0.0,
+                use_openai:bool=False,
                ):
         # Strip symbols from model name if present
         model = get_model_repo_from_display(model) if model else self.options.default
@@ -599,7 +619,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             time.sleep(0.1)
 
         if not is_cloud_model(model):
-            self.load(model)
+            self.load(model, use_openai=use_openai)
 
         if seed is None or seed == -1:
             random.seed()
@@ -859,7 +879,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             return prompt # Return original full prompt on censorship
         return response
 
-    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity):
+    def apply(self, prompt, image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai):
         response = self.enhance(
             prompt=prompt,
             image=image,
@@ -884,6 +904,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             process_words=process_words,
             semantic_threshold=semantic_threshold,
             embedding_similarity=embedding_similarity,
+            use_openai=use_openai,
         )
         if apply_prompt:
             return [response, response]
@@ -918,13 +939,14 @@ class PromptEnhanceScript(scripts_manager.Script):
                 # Set initial state based on whether default model supports vision
                 default_is_vl = is_vision_model(Options.default)
                 use_vision = gr.Checkbox(label='Use vision', value=False, interactive=default_is_vl, elem_id='prompt_enhance_use_vision')
+                use_openai = gr.Checkbox(label='OpenAI interface', value=False, elem_id='prompt_enhance_openai')
             gr.HTML('<br>')
             with gr.Group():
                 with gr.Row():
                     llm_model = gr.Dropdown(label='LLM model', choices=Options.get_model_choices(), value=Options.get_default_display(), interactive=True, allow_custom_value=True, elem_id='prompt_enhance_model')
                 with gr.Row():
                     load_btn = gr.Button(value='Load model', elem_id='prompt_enhance_load', variant='secondary')
-                    load_btn.click(fn=self.load, inputs=[llm_model], outputs=[])
+                    load_btn.click(fn=self.load, inputs=[llm_model, use_openai], outputs=[])
                     unload_btn = gr.Button(value='Unload model', elem_id='prompt_enhance_unload', variant='secondary')
                     unload_btn.click(fn=self.unload, inputs=[], outputs=[])
                 with gr.Accordion('Custom model', open=False, elem_id='prompt_enhance_custom'):
@@ -938,7 +960,7 @@ class PromptEnhanceScript(scripts_manager.Script):
                         model_file = gr.Textbox(label='Model file', value=None, interactive=True, elem_id='prompt_enhance_model_file', placeholder='Optional GGUF model file inside GGUF model repo')
                     with gr.Row():
                         custom_btn = gr.Button(value='Load custom model', elem_id='prompt_enhance_custom_load', variant='secondary')
-                        custom_btn.click(fn=self.load, inputs=[model_repo, model_repo, model_gguf, model_type, model_file], outputs=[llm_model])
+                        custom_btn.click(fn=self.load, inputs=[model_repo, use_openai, model_repo, model_gguf, model_type, model_file], outputs=[llm_model])
                         llm_model.change(fn=self.get_custom, inputs=[llm_model], outputs=[model_repo, model_gguf, model_type, model_file])
                         gr.HTML('<br>')
                 with gr.Accordion('Options', open=False, elem_id='prompt_enhance_options'):
@@ -990,8 +1012,8 @@ class PromptEnhanceScript(scripts_manager.Script):
             # Update vision toggle interactivity when model changes
             llm_model.change(fn=self.update_vision_toggle, inputs=[llm_model], outputs=[use_vision], show_progress=False)
             if self.prompt:
-                apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity], outputs=[prompt_output, self.prompt])
-        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity]
+                apply_btn.click(fn=self.apply, inputs=[self.prompt, self.image, apply_prompt, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai], outputs=[prompt_output, self.prompt])
+        return [self.prompt, self.image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai]
 
     def after_component(self, component, **_kwargs): # searching for actual ui prompt components
         if getattr(component, 'elem_id', '') in ['txt2img_prompt', 'img2img_prompt', 'control_prompt', 'video_prompt']:
@@ -1002,7 +1024,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             self.image.use_original = True
 
     def before_process(self, p: processing.StableDiffusionProcessing, *args, **kwargs): # pylint: disable=unused-argument
-        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity = args
+        _self_prompt, self_image, apply_auto, llm_model, prompt_system, prompt_prefix, prompt_suffix, min_tokens, max_tokens, do_sample, temperature, repetition_penalty, top_k, top_p, thinking_mode, nsfw_mode, use_vision, prefill_text, keep_prefill, keep_thinking, custom_args, process_words, semantic_threshold, embedding_similarity, use_openai = args
         if not apply_auto and not p.enhance_prompt:
             return
         if shared.state.skipped or shared.state.interrupted:
@@ -1039,6 +1061,7 @@ class PromptEnhanceScript(scripts_manager.Script):
             process_words=process_words,
             semantic_threshold=semantic_threshold,
             embedding_similarity=embedding_similarity,
+            use_openai=use_openai,
         )
         timer.process.record('prompt')
         shared.state.end(jobid)

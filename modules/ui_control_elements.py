@@ -307,9 +307,8 @@ def create_ui_elements(units, result_txt, output_gallery):
                     settings.append(gr.Slider(label="Low threshold", minimum=0, maximum=1000, step=1, value=100))
                     settings.append(gr.Slider(label="High threshold", minimum=0, maximum=1000, step=1, value=200))
                 with gr.Accordion('DWPose', open=True, elem_classes=['processor-settings']):
-                    settings.append(gr.Radio(label="Pose Model", choices=['Tiny', 'Medium', 'Large'], value='Tiny'))
                     settings.append(gr.Slider(label="Pose confidence", minimum=0.0, maximum=1.0, step=0.01, value=0.3))
-                with gr.Accordion('SegmentAnything', open=True, elem_classes=['processor-settings']):
+                with gr.Accordion('SegmentAnything 1.0', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Radio(label="Segment Model", choices=['Base', 'Large'], value='Base'))
                 with gr.Accordion('Edge', open=True, elem_classes=['processor-settings']):
                     settings.append(gr.Checkbox(label="Parameter free", value=True))

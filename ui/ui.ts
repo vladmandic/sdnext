@@ -15,7 +15,6 @@ let fontSizeApplyRaf = 0;
 let pendingFontSize: number | null = null;
 let appliedFontSize: number | null = null;
 let cachedGradioRoot: any = null;
-let resizeDebounce: ReturnType<typeof setTimeout> | undefined;
 const wait_time = 800;
 const token_timeouts = {};
 let uiLoaded = false;
@@ -702,6 +701,10 @@ function currentImageResolutionimg2img(_a, _b, scaleBy) {
 }
 
 function currentImageResolutioncontrol(_a, _b, scaleBy) {
+  if (window.kanvas) {
+    const active = window.kanvas.stages?.getActiveStage();
+    return [active?.width || 0, active?.height || 0, scaleBy];
+  }
   const img = gradioApp().querySelector('#control-tab-input > div[style="display: block;"] img');
   return img ? [img.naturalWidth, img.naturalHeight, scaleBy] : [0, 0, scaleBy];
 }
@@ -766,20 +769,17 @@ async function browseFolder() {
   return null;
 }
 
-export function resolutionChange(ar: string, width: number, height: number) {
-  let desired = ar;
-  if (desired === 'AR') desired = '1:1';
-  try {
-    const [w, h] = desired.split(':').map((x) => parseInt(x));
-    if (w > h) height = Math.round(width * h / w);
-    else if (h > w) width = Math.round(height * w / h);
-  } catch { /**/ }
-  // min/max size handled in gradio debounce
+let kanvasNotifyTimer: ReturnType<typeof setTimeout> | undefined;
+// Notify kanvas to resize its stage when the resize-panel width/height change. Wired through gradio's
+// .change so it also fires on programmatic updates (detect-size, paste params, swap, send-to) that the
+// client-side resolutionLock input listeners never see. Writes nothing back, so it cannot loop.
+export function notifyKanvasResize(width: number, height: number) {
   if (window.resizeStage) {
-    clearTimeout(resizeDebounce);
-    resizeDebounce = setTimeout(() => window.resizeStage(width, height), 250); // notify kanvas
+    const w = Number(width);
+    const h = Number(height);
+    clearTimeout(kanvasNotifyTimer);
+    kanvasNotifyTimer = setTimeout(() => window.resizeStage?.(w, h), 250);
   }
-  return [ar, width, height];
 }
 
 export async function reconnectUI() {
@@ -820,6 +820,7 @@ export async function reconnectUI() {
 
 window.restartReload = restartReload;
 window.updateInput = updateInput;
+window.notifyKanvasResize = notifyKanvasResize;
 window.clip_gallery_urls = clip_gallery_urls;
 window.extract_image_from_gallery = extract_image_from_gallery;
 window.getCaptionActiveTab = getCaptionActiveTab;
@@ -851,7 +852,6 @@ window.recalculate_prompts_txt2img = recalculate_prompts_txt2img;
 window.recalculate_prompts_img2img = recalculate_prompts_img2img;
 window.recalculate_prompts_inpaint = recalculate_prompts_inpaint;
 window.recalculate_prompts_control = recalculate_prompts_control;
-window.resolutionChange = resolutionChange;
 window.selectCheckpoint = selectCheckpoint;
 window.selectVAE = selectVAE;
 window.selectUNet = selectUNet;

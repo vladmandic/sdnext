@@ -52,9 +52,9 @@ def load_override(selected: Model, **load_args):
     if 'WAN 2.1 14B' in selected.name:
         kwargs['vae'] = diffusers.AutoencoderKLWan.from_pretrained(selected.repo, subfolder="vae", torch_dtype=torch.float32, cache_dir=shared.opts.hfcache_dir, **load_args)
     if ('A14B' in selected.name) or ('14B VACE' in selected.name):
-        if shared.opts.model_wan_stage == 'combined':
-            kwargs['boundary_ratio'] = shared.opts.model_wan_boundary
-        elif shared.opts.model_wan_stage == 'high noise':
+        # combined keeps both experts loaded and tunes boundary_ratio at runtime (set_pipeline_args), so
+        # it is not set here; only the single-expert stages need load time because they drop a transformer.
+        if shared.opts.model_wan_stage == 'high noise':
             kwargs['transformer_2'] = None
             kwargs['boundary_ratio'] = 0.0
         elif shared.opts.model_wan_stage == 'low noise':

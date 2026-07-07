@@ -8,6 +8,9 @@ from modules.civitai.models_civitai import CivitModel, CivitVersion, CivitImage,
 options_cache: dict = {}
 options_cache_time: float = 0
 OPTIONS_TTL = 3600  # 1 hour
+# Civitai nsfwLevel bitmask: 1=PG/None 2=PG-13/Soft 4=R/Mature 8=X 16=XXX 32=Blocked
+NSFW_LEVEL_SFW = 3   # None + Soft: Civitai's SFW browsing boundary
+NSFW_LEVEL_ALL = 63  # every level set: disables filtering
 
 
 class CivitaiClient:
@@ -76,10 +79,17 @@ class CivitaiClient:
             except Exception:
                 return CivitSearchResponse()
         try:
-            return CivitSearchResponse.parse_obj(data)
+            response = CivitSearchResponse.parse_obj(data)
         except Exception as e:
             log.error(f'CivitAI search parse error: {e}')
             return CivitSearchResponse()
+        # /models rejects server-side level filtering and its nsfw boolean leaks
+        # Mature+ content, so filter on each model's aggregate nsfwLevel here:
+        # nsfw on keeps every level, nsfw off/unset keeps SFW (None + Soft).
+        level = NSFW_LEVEL_ALL if nsfw else NSFW_LEVEL_SFW
+        if level < NSFW_LEVEL_ALL:
+            response.items = [m for m in response.items if (m.nsfw_level & ~level) == 0]
+        return response
 
     def get_model(self, model_id: int, *, token: str | None = None) -> CivitModel | None:
         r = self._get(f'/models/{model_id}', token=token)
@@ -197,6 +207,18 @@ class CivitaiClient:
             return None
         return {"username": profile.username, "id": profile.id}
 
+    def get_enums(self) -> dict:
+        """Civitai enum lists (ModelType, ModelFileType, BaseModel, ActiveBaseModel, BaseModelType). Public endpoint."""
+        r = self._get('/enums')
+        if r.status_code != 200:
+            log.debug(f'CivitAI enums: code={r.status_code}')
+            return {}
+        try:
+            return r.json()
+        except Exception as e:
+            log.debug(f'CivitAI enums parse error: {e}')
+            return {}
+
     def discover_options(self) -> dict:
         global options_cache, options_cache_time # pylint: disable=global-statement
         now = time.time()
@@ -204,13 +226,22 @@ class CivitaiClient:
             return options_cache
         from modules import shared
         result: dict = {'types': [], 'sort': [], 'period': [], 'base_models': [], 'base_models_info': []}
-        # Send invalid params to trigger 400 with valid enum values in error response
+        # Authoritative model-type and base-model lists from the documented /enums
+        # endpoint. /enums carries no sort/period, so those are probed below.
+        enums = self.get_enums()
+        result['types'] = enums.get('ModelType', []) or []
+        result['base_models'] = enums.get('BaseModel', []) or []
+        # sort/period: /models still validates these, so recover the valid values
+        # from its 400 (ZodError) response. types/base_models are only probed when
+        # /enums was unavailable.
         probes = [
-            ('types', '/models', {'types': '__invalid__'}),
             ('sort', '/models', {'sort': '__invalid__'}),
             ('period', '/models', {'period': '__invalid__'}),
-            ('base_models', '/images', {'baseModels': '__invalid__'}),  # /models no longer validates baseModels; /images still does
         ]
+        if not result['types']:
+            probes.append(('types', '/models', {'types': '__invalid__'}))
+        if not result['base_models']:
+            probes.append(('base_models', '/images', {'baseModels': '__invalid__'}))  # /models no longer validates baseModels; /images still does
         for key, path, params in probes:
             try:
                 url = f"{self.BASE_URL}{path}"
@@ -256,18 +287,16 @@ class CivitaiClient:
                             break
             except Exception as e:
                 log.debug(f'CivitAI discover options: key={key} {e}')
-        # Merge live probe names with github metadata. The probe is the source
-        # of truth for which names exist; github provides per-entry metadata and
-        # doubles as a fallback name list if the probe returned empty.
+        # Enrich base-model names with github metadata (group/hidden/ecosystem).
+        # github also serves as the name-list fallback when both /enums and the
+        # probe came back empty.
         github_entries = fetch_github_base_models()
         github_index: dict = {entry['name']: entry for entry in github_entries}
-        probe_names: list = result['base_models']
-        if not probe_names and github_entries:
-            probe_names = [entry['name'] for entry in github_entries]
-            result['base_models'] = probe_names
+        if not result['base_models'] and github_entries:
+            result['base_models'] = [entry['name'] for entry in github_entries]
         result['base_models_info'] = [
             github_index.get(name, {'name': name, 'type': 'image', 'group': '', 'hidden': False})
-            for name in probe_names
+            for name in result['base_models']
         ]
         options_cache = result
         options_cache_time = now

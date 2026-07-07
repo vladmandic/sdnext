@@ -17,6 +17,35 @@ def set_dynamic_attention():
         return None
 
 
+def set_sdnq_attention():
+    try:
+        from modules import shared
+        from modules.sdnq.kernels.triton_atten import sdnq_triton_atten
+        sdpa_pre_sdnq_atten = torch.nn.functional.scaled_dot_product_attention
+        @wraps(sdpa_pre_sdnq_atten)
+        def sdpa_sdnq_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
+            if query.device.type != "cpu" and query.shape[-3] > 1: # Skip VAE
+                return sdnq_triton_atten(
+                    query=query, key=key, value=value, attn_mask=attn_mask,
+                    is_causal=is_causal, scale=scale, enable_gqa=enable_gqa,
+                    matmul_dtype=shared.opts.sdnq_attention_matmul_type,
+                    pv_matmul_dtype=shared.opts.sdnq_attention_pv_matmul_type,
+                    smooth_k=shared.opts.sdnq_attention_smooth_k,
+                    use_hadamard=shared.opts.sdnq_attention_use_hadamard,
+                    hadamard_group_size=shared.opts.sdnq_attention_hadamard_group_size,
+                    do_quantize=shared.opts.sdnq_attention_use_quantized_matmul,
+                )
+            else:
+                if enable_gqa:
+                    kwargs["enable_gqa"] = enable_gqa
+                return sdpa_pre_sdnq_atten(query=query, key=key, value=value, attn_mask=attn_mask, dropout_p=dropout_p, is_causal=is_causal, scale=scale, **kwargs)
+        torch.nn.functional.scaled_dot_product_attention = sdpa_sdnq_atten
+        torch_info.set(attention='sdnq')
+        log.debug('Torch attention: type="SDNQ attention"')
+    except Exception as err:
+        log.error(f'Torch attention: type="SDNQ attention" {err}')
+
+
 def set_triton_flash_attention(backend: str):
     try:
         if backend in {"rocm", "zluda"}: # flash_attn_triton_amd only works with AMD
@@ -28,7 +57,6 @@ def set_triton_flash_attention(backend: str):
                 use_triton = (
                     query.shape[-1] <= 128
                     and attn_mask is None
-                    and query.dtype != torch.float32
                     and query.device.type != "cpu"
                     and key.device == query.device
                     and value.device == query.device
@@ -187,7 +215,6 @@ def set_sage_attention(backend: str, device: torch.device):
             use_sage = (
                 query.shape[-1] in {128, 96, 64}
                 and attn_mask is None
-                and query.dtype != torch.float32
                 and query.device.type != "cpu"
                 and key.device == query.device
                 and value.device == query.device
@@ -275,8 +302,26 @@ def get_hf_api_hijack(user_agent = None): # pylint: disable=unused-argument
     return HfApi(library_name="kernels", user_agent="donottrack")
 
 
-def set_attention_dispatcher(pipe):
+def hijack_kernels():
     global orig_get_kernel # pylint: disable=global-statement
+    try:
+        install('kernels==0.14.1')
+        import kernels
+        import kernels.utils
+        log.debug(f'Attention dispatcher: kernels={kernels.__version__}')
+        if orig_get_kernel is None:
+            orig_get_kernel = kernels.get_kernel
+            kernels.get_kernel = get_kernel_hijack
+            kernels.utils._get_hf_api = get_hf_api_hijack # pylint: disable=protected-access
+        from diffusers.utils import import_utils
+        import_utils._kernels_available = True # pylint: disable=protected-access
+        import_utils._kernels_version = kernels.__version__ # pylint: disable=protected-access
+    except Exception as e:
+        log.error(f'Attention dispatcher kernels: {e}')
+        return
+
+
+def set_attention_dispatcher(pipe):
     from modules import shared
     attn = shared.opts.hf_attention.strip().lower()
     if pipe is None or not hasattr(pipe, 'transformer') or not hasattr(pipe.transformer, 'set_attention_backend'):
@@ -288,21 +333,7 @@ def set_attention_dispatcher(pipe):
     # https://huggingface.co/docs/diffusers/optimization/attention_backends#available-backends
 
     if 'hub' in attn:
-        try:
-            install('kernels==0.14.1')
-            import kernels
-            import kernels.utils
-            log.debug(f'Attention dispatcher: kernels={kernels.__version__}')
-            if orig_get_kernel is None:
-                orig_get_kernel = kernels.get_kernel
-                kernels.get_kernel = get_kernel_hijack
-                kernels.utils._get_hf_api = get_hf_api_hijack # pylint: disable=protected-access
-            from diffusers.utils import import_utils
-            import_utils._kernels_available = True # pylint: disable=protected-access
-            import_utils._kernels_version = kernels.__version__ # pylint: disable=protected-access
-        except Exception as e:
-            log.error(f'Attention dispatcher kernels: {e}')
-            return
+        hijack_kernels()
 
     prev = a._AttentionBackendRegistry.get_active_backend() # pylint: disable=protected-access
     if attn in backends:

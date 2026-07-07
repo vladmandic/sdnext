@@ -533,9 +533,9 @@ def do_post_load_quant(sd_model, allow=True):
     if dont_quant():
         return sd_model
     if shared.opts.sdnq_quantize_weights and (shared.opts.sdnq_quantize_mode == 'post' or (allow and shared.opts.sdnq_quantize_mode == 'auto')):
-        log.debug('Load model: post_quant=sdnq')
+        log.debug(f'Load model: cls={sd_model.__class__.__name__} quant=sdnq post_load=True')
         sd_model = sdnq_quantize_weights(sd_model)
     if shared.opts.layerwise_quantization:
-        log.debug('Load model: post_quant=layerwise')
+        log.debug(f'Load model: cls={sd_model.__class__.__name__} quant=layerwise post_load=True')
         apply_layerwise(sd_model)
     return sd_model

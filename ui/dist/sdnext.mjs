@@ -3856,12 +3856,12 @@ var require_jquery = __commonJS({
       jQuery3.fx = Tween.prototype.init;
       jQuery3.fx.step = {};
       var fxNow, inProgress, rfxtypes = /^(?:toggle|show|hide)$/, rrun = /queueHooks$/;
-      function schedule() {
+      function schedule2() {
         if (inProgress) {
           if (document$1.hidden === false && window2.requestAnimationFrame) {
-            window2.requestAnimationFrame(schedule);
+            window2.requestAnimationFrame(schedule2);
           } else {
-            window2.setTimeout(schedule, 13);
+            window2.setTimeout(schedule2, 13);
           }
           jQuery3.fx.tick();
         }
@@ -4215,7 +4215,7 @@ var require_jquery = __commonJS({
             this.queue(type || "fx", []);
           }
           return this.each(function() {
-            var dequeue = true, index = type != null && type + "queueHooks", timers = jQuery3.timers, data = dataPriv.get(this);
+            var dequeue = true, index = type != null && type + "queueHooks", timers2 = jQuery3.timers, data = dataPriv.get(this);
             if (index) {
               if (data[index] && data[index].stop) {
                 stopQueue(data[index]);
@@ -4227,11 +4227,11 @@ var require_jquery = __commonJS({
                 }
               }
             }
-            for (index = timers.length; index--; ) {
-              if (timers[index].elem === this && (type == null || timers[index].queue === type)) {
-                timers[index].anim.stop(gotoEnd);
+            for (index = timers2.length; index--; ) {
+              if (timers2[index].elem === this && (type == null || timers2[index].queue === type)) {
+                timers2[index].anim.stop(gotoEnd);
                 dequeue = false;
-                timers.splice(index, 1);
+                timers2.splice(index, 1);
               }
             }
             if (dequeue || !gotoEnd) {
@@ -4244,16 +4244,16 @@ var require_jquery = __commonJS({
             type = type || "fx";
           }
           return this.each(function() {
-            var index, data = dataPriv.get(this), queue = data[type + "queue"], hooks = data[type + "queueHooks"], timers = jQuery3.timers, length = queue ? queue.length : 0;
+            var index, data = dataPriv.get(this), queue = data[type + "queue"], hooks = data[type + "queueHooks"], timers2 = jQuery3.timers, length = queue ? queue.length : 0;
             data.finish = true;
             jQuery3.queue(this, type, []);
             if (hooks && hooks.stop) {
               hooks.stop.call(this, true);
             }
-            for (index = timers.length; index--; ) {
-              if (timers[index].elem === this && timers[index].queue === type) {
-                timers[index].anim.stop(true);
-                timers.splice(index, 1);
+            for (index = timers2.length; index--; ) {
+              if (timers2[index].elem === this && timers2[index].queue === type) {
+                timers2[index].anim.stop(true);
+                timers2.splice(index, 1);
               }
             }
             for (index = 0; index < length; index++) {
@@ -4285,15 +4285,15 @@ var require_jquery = __commonJS({
       });
       jQuery3.timers = [];
       jQuery3.fx.tick = function() {
-        var timer2, i2 = 0, timers = jQuery3.timers;
+        var timer2, i2 = 0, timers2 = jQuery3.timers;
         fxNow = Date.now();
-        for (; i2 < timers.length; i2++) {
-          timer2 = timers[i2];
-          if (!timer2() && timers[i2] === timer2) {
-            timers.splice(i2--, 1);
+        for (; i2 < timers2.length; i2++) {
+          timer2 = timers2[i2];
+          if (!timer2() && timers2[i2] === timer2) {
+            timers2.splice(i2--, 1);
           }
         }
-        if (!timers.length) {
+        if (!timers2.length) {
           jQuery3.fx.stop();
         }
         fxNow = void 0;
@@ -4307,7 +4307,7 @@ var require_jquery = __commonJS({
           return;
         }
         inProgress = true;
-        schedule();
+        schedule2();
       };
       jQuery3.fx.stop = function() {
         inProgress = null;
@@ -10433,6 +10433,10 @@ async function filterExtraNetworksForTab(searchTerm) {
       cards.forEach((elem) => {
         elem.style.display = elem.dataset.name.toLowerCase().includes("reference/") && elem.dataset.tags === "" ? "" : "none";
       });
+    } else if (searchTerm === "base/") {
+      cards.forEach((elem) => {
+        elem.style.display = elem.dataset.tags.toLowerCase().includes("base") ? "" : "none";
+      });
     } else if (searchTerm === "distilled/") {
       cards.forEach((elem) => {
         elem.style.display = elem.dataset.tags.toLowerCase().includes("distilled") ? "" : "none";
@@ -10693,6 +10697,7 @@ function setupExtraNetworksForTab(tabName) {
   const txtSearch = gradioApp().querySelector(`#${tabName}_extra_search`);
   const txtSearchValue = gradioApp().querySelector(`#${tabName}_extra_search textarea`);
   const txtDescription = gradioApp().getElementById(`${tabName}_description`);
+  if (!txtSearch || !txtSearchValue || !txtDescription) return;
   txtSearch.classList.add("search");
   txtDescription.classList.add("description");
   div.appendChild(txtSearch);
@@ -10962,7 +10967,7 @@ function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
   log("refreshInterval", document.visibilityState, refreshInterval);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1e3);
+    if (window.opts.live_preview_require_focus !== false && document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1e3);
     else refreshInterval = window.opts.live_preview_refresh_period || 1e3;
   });
 }
@@ -11076,9 +11081,21 @@ function requestProgress(id_task = "undefined", progressEl = null, galleryEl = n
     sendNotification();
     if (atEnd) atEnd();
   };
+  const previewVisible = () => {
+    try {
+      return !galleryEl?.closest(".section")?.classList.contains("minimize");
+    } catch {
+      return true;
+    }
+  };
   const startLivePreview = (taskId, id_live_preview) => {
     if (window.opts.live_preview_refresh_period === 0) return;
-    const request_id = document.hidden ? -1 : id_live_preview;
+    let request_id = -1;
+    if (document.hidden || !previewVisible()) {
+      if (!window.opts.live_preview_require_focus) request_id = id_live_preview;
+    } else {
+      request_id = id_live_preview;
+    }
     const onProgressHandler = (res) => {
       if (res?.debug) debug("progress:", { start: dateStart, id: request_id, res });
       lastState = res;
@@ -11134,7 +11151,6 @@ var fontSizeApplyRaf = 0;
 var pendingFontSize = null;
 var appliedFontSize = null;
 var cachedGradioRoot = null;
-var resizeDebounce;
 var wait_time = 800;
 var token_timeouts = {};
 var uiLoaded = false;
@@ -11662,6 +11678,10 @@ function currentImageResolutionimg2img(_a, _b, scaleBy) {
   return img ? [img.naturalWidth, img.naturalHeight, scaleBy] : [0, 0, scaleBy];
 }
 function currentImageResolutioncontrol(_a, _b, scaleBy) {
+  if (window.kanvas) {
+    const active2 = window.kanvas.stages?.getActiveStage();
+    return [active2?.width || 0, active2?.height || 0, scaleBy];
+  }
   const img = gradioApp().querySelector('#control-tab-input > div[style="display: block;"] img');
   return img ? [img.naturalWidth, img.naturalHeight, scaleBy] : [0, 0, scaleBy];
 }
@@ -11685,20 +11705,14 @@ async function toggleCompact(val, old) {
     gradioApp().querySelectorAll(".small-accordion .label-wrap").forEach((el2) => el2.classList.remove("accordion-compact"));
   }
 }
-function resolutionChange(ar, width, height) {
-  let desired = ar;
-  if (desired === "AR") desired = "1:1";
-  try {
-    const [w, h] = desired.split(":").map((x) => parseInt(x));
-    if (w > h) height = Math.round(width * h / w);
-    else if (h > w) width = Math.round(height * w / h);
-  } catch {
-  }
+var kanvasNotifyTimer;
+function notifyKanvasResize(width, height) {
   if (window.resizeStage) {
-    clearTimeout(resizeDebounce);
-    resizeDebounce = setTimeout(() => window.resizeStage(width, height), 250);
+    const w = Number(width);
+    const h = Number(height);
+    clearTimeout(kanvasNotifyTimer);
+    kanvasNotifyTimer = setTimeout(() => window.resizeStage?.(w, h), 250);
   }
-  return [ar, width, height];
 }
 async function reconnectUI() {
   const t0 = performance.now();
@@ -11735,6 +11749,7 @@ async function reconnectUI() {
 }
 window.restartReload = restartReload;
 window.updateInput = updateInput2;
+window.notifyKanvasResize = notifyKanvasResize;
 window.clip_gallery_urls = clip_gallery_urls;
 window.extract_image_from_gallery = extract_image_from_gallery;
 window.getCaptionActiveTab = getCaptionActiveTab;
@@ -11766,7 +11781,6 @@ window.recalculate_prompts_txt2img = recalculate_prompts_txt2img;
 window.recalculate_prompts_img2img = recalculate_prompts_img2img;
 window.recalculate_prompts_inpaint = recalculate_prompts_inpaint;
 window.recalculate_prompts_control = recalculate_prompts_control;
-window.resolutionChange = resolutionChange;
 window.selectCheckpoint = selectCheckpoint;
 window.selectVAE = selectVAE;
 window.selectUNet = selectUNet;
@@ -11906,7 +11920,7 @@ async function add(record) {
 async function get(hash3) {
   if (!db) return null;
   return new Promise((resolve, reject) => {
-    const request = db.transaction(["thumbs"], "readwrite").objectStore("thumbs").get(hash3);
+    const request = db.transaction(["thumbs"], "readonly").objectStore("thumbs").index("hash").get(hash3);
     request.onsuccess = () => resolve(request.result);
     request.onerror = (evt) => reject(evt);
   });
@@ -11919,11 +11933,8 @@ async function idbGetAllKeys(index = null, query = null) {
       const transaction = db.transaction("thumbs", "readonly");
       transaction.onabort = (e) => reject(e);
       const store = transaction.objectStore("thumbs");
-      if (index) {
-        request = store.index(index).getAllKeys(query);
-      } else {
-        request = store.getAllKeys(query);
-      }
+      if (index) request = store.index(index).getAllKeys(query);
+      else request = store.getAllKeys(query);
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e);
     } catch (err) {
@@ -11939,11 +11950,8 @@ async function idbCount(folder) {
       const transaction = db.transaction("thumbs", "readonly");
       transaction.onabort = (e) => reject(e);
       const store = transaction.objectStore("thumbs");
-      if (folder) {
-        request = store.index("folder").count(folder);
-      } else {
-        request = store.count();
-      }
+      if (folder) request = store.index("folder").count(folder);
+      else request = store.count();
       request.onsuccess = () => resolve(request.result);
       request.onerror = (e) => reject(e);
     } catch (err) {
@@ -11994,7 +12002,10 @@ function htmlEscape(text) {
   return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 }
 function parseLogLine(line) {
-  const parsed = JSON.parse(line.replaceAll("\n", " ").replaceAll("\\", "\\\\"));
+  let str = line.replaceAll("\n", " ").replaceAll("\\", "\\\\");
+  const tracebackIndex = str.indexOf("Traceback");
+  if (tracebackIndex !== -1) str = str.substring(0, tracebackIndex);
+  const parsed = JSON.parse(str);
   return {
     created: Number(parsed.created ?? Date.now()),
     level: String(parsed.level ?? "INFO"),
@@ -12019,8 +12030,8 @@ async function logMonitor() {
       row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}${facility}${module}<td>${htmlEscape(l.msg)}</td>`;
       logMonitorEl.appendChild(row);
     } catch (err) {
-      error(`logMonitor: ${String(err)}
-${line}`);
+      error(`logMonitor: ${String(err)}`);
+      error(`logMonitor: ${line}`);
     }
   };
   const cleanupLog = (atBottom2) => {
@@ -12909,6 +12920,10 @@ var currentGalleryFolder = null;
 var outstanding = 0;
 var gallerySelection = { files: [], index: -1 };
 var maintenanceController = new AbortController();
+var maxFetchRequests = 32;
+var fragmentSize = 100;
+var minCleanupCount = 1e3;
+var minCleanupTime = 1e3 * 60 * 60;
 var folderStylesheet = new CSSStyleSheet();
 var fileStylesheet = new CSSStyleSheet();
 var iconStopwatch = String.fromCodePoint(9201);
@@ -12922,6 +12937,9 @@ var el = {
   overlay: void 0,
   size: void 0
 };
+var cleanupTimers = {};
+var maintenanceTimers = {};
+var fetchQueue = [];
 var SUPPORTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "tiff", "jp2", "jxl", "gif", "mp4", "mkv", "avi", "mjpeg", "mpg", "avr"];
 var gallerySorter = {
   nameA: { name: "Name Ascending", func: (a, b) => a.name.localeCompare(b.name) },
@@ -13003,12 +13021,6 @@ function buildGalleryFileUrl(path) {
 window.getGallerySelection = () => ({ index: gallerySelection.index, files: gallerySelection.files });
 window.setGallerySelection = (index, options) => applyGallerySelection(index, options);
 window.getGallerySelectedUrl = () => currentImage ? buildGalleryFileUrl(currentImage) : null;
-async function awaitForOutstanding(num, signal) {
-  while (outstanding > num && !signal.aborted) await new Promise((resolve) => {
-    setTimeout(resolve, 50);
-  });
-  signal.throwIfAborted();
-}
 async function awaitForGallery(expectedSize, signal) {
   while (Math.max(galleryHashes.size, galleryHashes.fallback) < expectedSize && !signal.aborted) await new Promise((resolve) => {
     setTimeout(resolve, 500);
@@ -13119,64 +13131,58 @@ var SimpleProgressBar = class {
   #textDiv = document.createElement("div");
   #text = document.createElement("span");
   #visible = false;
-  #hideTimeout;
   #interval;
   #max = 0;
+  defaultStats = { queue: 0, fetch: 0, hash: 0, db: 0, cached: 0, fetched: 0, failed: 0, error: 0, callback: 0, elapsed: 0, count: 0 };
+  stats = { ...this.defaultStats };
   /** @type {Set} */
   #monitoredSet;
   constructor(monitoredSet) {
     this.#monitoredSet = monitoredSet;
-    this.#container.style.cssText = "position:relative;overflow:hidden;border-radius:var(--sd-border-radius);width:100%;background-color:hsla(0,0%,36%,0.3);height:1.2rem;margin:0;padding:0;display:none;";
-    this.#progress.style.cssText = "position:absolute;left:0;height:100%;width:0;transition:width 200ms;";
-    this.#progress.style.backgroundColor = "hsla(110, 32%, 35%, 0.80)";
-    this.#textDiv.style.cssText = "position:relative;margin:auto;width:max-content;height:100%;";
-    this.#text.style.cssText = "user-select:none;color:white;";
+    this.#container.style.cssText = "position:relative; overflow:hidden; border-radius:var(--sd-border-radius); width:100%; background-color:hsla(0,0%,36%,0.3); height:1.2rem; margin:0; padding:0; display:none;";
+    this.#progress.style.cssText = "position:absolute; left:0; height:100%; width:0; transition:width 200ms;";
+    this.#progress.style.backgroundColor = "var(--sd-main-accent-color)";
+    this.#textDiv.style.cssText = "position:relative; margin:auto; width:max-content; height:100%;";
+    this.#text.style.cssText = "user-select:none; color:white;";
     this.#textDiv.append(this.#text);
     this.#container.append(this.#progress, this.#textDiv);
   }
   start(total) {
-    this.clear();
+    if (total <= 0) return;
+    this.hide();
     this.#max = total;
-    this.#interval = setInterval(() => {
-      this.#update(this.#monitoredSet.size, this.#max);
-    }, 250);
+    this.#interval = setInterval(() => this.update(this.#monitoredSet.size, this.#max), 100);
   }
   attachTo(element) {
-    if (element.hasChildNodes) {
-      element.innerHTML = "";
-    }
+    if (element.hasChildNodes) element.innerHTML = "";
     element.appendChild(this.#container);
   }
-  clear() {
-    this.#stop();
-    clearTimeout(this.#hideTimeout);
-    this.#hideTimeout = void 0;
+  hide() {
     this.#container.style.display = "none";
     this.#visible = false;
     this.#progress.style.width = "0";
     this.#text.textContent = "";
   }
-  #update(loaded, max) {
-    if (this.#hideTimeout) {
-      this.#hideTimeout = void 0;
-    }
+  update(loaded, max) {
     this.#progress.style.width = `${Math.floor(loaded / max * 100)}%`;
     this.#text.textContent = `${loaded}/${max}`;
     if (!this.#visible) {
       this.#container.style.display = "block";
       this.#visible = true;
     }
-    if (loaded >= max) {
-      this.#stop();
-      this.#hideTimeout = setTimeout(() => this.clear(), 1e3);
-    }
+    if (loaded >= max) this.stop();
   }
-  #stop() {
+  stop() {
     clearInterval(this.#interval);
-    this.#interval = null;
+    this.#interval = void 0;
+    if (this.stats.count) {
+      debug("gallery: thumbnail stats", this.stats);
+      this.stats = { ...this.defaultStats };
+    }
+    setTimeout(() => this.hide(), 100);
   }
 };
-var galleryProgressBar = new SimpleProgressBar(galleryHashes);
+var pb = new SimpleProgressBar(galleryHashes);
 var SimpleFunctionQueue = class {
   #id;
   #running;
@@ -13281,12 +13287,37 @@ var GalleryFolder = class _GalleryFolder extends HTMLElement {
     }
   }
 };
+async function awaitForOutstanding(signal) {
+  if (signal?.aborted) throw new DOMException("Aborted", "AbortError");
+  if (outstanding < maxFetchRequests) return;
+  await new Promise((resolve, reject) => {
+    const onResolve = () => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve(true);
+    };
+    const onAbort = () => {
+      const idx = fetchQueue.findIndex((item) => item.resolve === onResolve);
+      if (idx !== -1) fetchQueue.splice(idx, 1);
+      reject(new DOMException("Aborted", "AbortError"));
+    };
+    fetchQueue.push({ resolve: onResolve });
+    signal?.addEventListener("abort", onAbort);
+  });
+}
 async function delayFetchThumb(fn, signal) {
-  await awaitForOutstanding(16, signal);
+  const t0 = performance.now();
+  try {
+    await awaitForOutstanding(signal);
+  } catch (err) {
+    if (err.name === "AbortError") return void 0;
+    throw err;
+  }
+  pb.stats.queue = (pb.stats.queue || 0) + Math.round(performance.now() - t0);
+  const t1 = performance.now();
   try {
     outstanding++;
-    const ts = Date.now().toString();
-    const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}`, { priority: "low" });
+    const ts = t0.toString();
+    const res = await authFetch(`${window.api}/browser/thumb?file=${encodeURI(fn)}&ts=${ts}&exif=false`, { priority: "low" });
     if (!res.ok) {
       error(`fetchThumb: ${res.statusText}`);
       return void 0;
@@ -13299,6 +13330,11 @@ async function delayFetchThumb(fn, signal) {
     return json;
   } finally {
     outstanding--;
+    pb.stats.fetch = (pb.stats.fetch || 0) + Math.round(performance.now() - t1);
+    if (fetchQueue.length > 0 && outstanding < maxFetchRequests) {
+      const nextRequest = fetchQueue.shift();
+      nextRequest.resolve();
+    }
   }
 }
 var GalleryFile = class extends HTMLElement {
@@ -13324,6 +13360,8 @@ var GalleryFile = class extends HTMLElement {
   async connectedCallback() {
     if (!this.firstRun) return;
     this.firstRun = false;
+    const t0 = performance.now();
+    pb.stats.count = (pb.stats.count || 0) + 1;
     const dir = this.name.match(/(.*)[/\\]/);
     if (dir && dir[1]) {
       const dirPath = dir[1];
@@ -13334,7 +13372,13 @@ var GalleryFile = class extends HTMLElement {
       error("getHash:", err);
       return null;
     });
-    const cachedData = this.hash && opts.browser_cache ? await idbGet(this.hash).catch(() => void 0) : void 0;
+    pb.stats.hash = (pb.stats.hash || 0) + Math.round(performance.now() - t0);
+    let cachedData;
+    if (opts.browser_cache) {
+      const t1 = performance.now();
+      cachedData = await idbGet(this.hash).catch(() => void 0);
+      pb.stats.db = (pb.stats.db || 0) + Math.round(performance.now() - t1);
+    }
     const img = document.createElement("img");
     img.className = "gallery-file";
     img.loading = "lazy";
@@ -13357,11 +13401,13 @@ Resolution: ${this.width} x ${this.height}`;
       this.height = cachedData.height;
       this.size = cachedData.size;
       this.mtime = new Date(cachedData.mtime);
+      pb.stats.cached = (pb.stats.cached || 0) + 1;
     } else {
       try {
         const json = await delayFetchThumb(this.src, this.#signal);
         if (!json) {
           ok2 = false;
+          pb.stats.failed = (pb.stats.failed || 0) + 1;
         } else {
           img.src = json.data;
           this.exif = json.exif;
@@ -13369,6 +13415,7 @@ Resolution: ${this.width} x ${this.height}`;
           this.height = json.height;
           this.size = json.size;
           this.mtime = new Date(json.mtime);
+          pb.stats.fetched = (pb.stats.fetched || 0) + 1;
           if (opts.browser_cache && this.hash) {
             idbAdd({
               hash: this.hash,
@@ -13388,8 +13435,10 @@ Resolution: ${this.width} x ${this.height}`;
         }
       } catch (err) {
         img.src = `file=${this.src}`;
+        pb.stats.error = (pb.stats.error || 0) + 1;
       }
     }
+    pb.stats.callback = (pb.stats.callback || 0) + Math.round(performance.now() - t0);
     if (this.#signal.aborted) return;
     galleryHashes.add(this.hash);
     if (!ok2) return;
@@ -13412,10 +13461,9 @@ Size: ${this.size.toLocaleString()} bytes
 Modified: ${this.mtime.toLocaleString()}`;
     this.title = img.title;
     const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase());
-    if (this.style.display !== "none") {
-      this.style.display = shouldDisplayBasedOnSearch ? "flex" : "none";
-    }
+    if (this.style.display !== "none") this.style.display = shouldDisplayBasedOnSearch ? "flex" : "none";
     this.shadow.appendChild(img);
+    pb.stats.elapsed = (pb.stats.elapsed || 0) + Math.round(performance.now() - t0);
   }
 };
 async function handleSeparator(separator) {
@@ -13727,11 +13775,14 @@ function showCleaningMsg(count, all = false) {
 var maintenanceQueue = new SimpleFunctionQueue("Gallery Maintenance");
 async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
   if (!opts.browser_cache && !force) return;
+  if (!folder || !imgCount) return;
+  if (Date.now() - cleanupTimers[folder] < minCleanupTime) return;
+  cleanupTimers[folder] = Date.now();
   try {
     if (typeof folder !== "string" || typeof imgCount !== "number") {
       throw new Error("Function called with invalid arguments");
     }
-    debug("thumbCacheCleanup: wait");
+    debug("thumbCacheCleanup", { folder, imgCount });
     await awaitForGallery(imgCount, controller.signal);
   } catch (err) {
     error("thumbCacheCleanup", { folder, error: err });
@@ -13740,19 +13791,20 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
   maintenanceQueue.enqueue({
     signal: controller.signal,
     callback: async () => {
-      log("maintenanceQueue", { folder });
+      if (Date.now() - maintenanceTimers[folder] < minCleanupTime) return;
+      maintenanceTimers[folder] = Date.now();
       const t0 = performance.now();
       const keptGalleryHashes = force ? /* @__PURE__ */ new Set() : new Set(galleryHashes.values());
       const folderNormalized = folder.replace(/\/+/g, "/").replace(/\/$/, "");
       const recursiveFolder = IDBKeyRange.bound(folderNormalized, `${folderNormalized}\uFFFF`, false, true);
+      if (keptGalleryHashes.size < minCleanupCount && !force) return;
       const cachedHashesCount = await idbCount(recursiveFolder).catch((e) => {
         error("maintenanceQueue", { folder, error: e });
         return Infinity;
       });
       const cleanupCount = cachedHashesCount - keptGalleryHashes.size;
-      if (!force && (cleanupCount < 500 || !Number.isFinite(cleanupCount))) {
-        return;
-      }
+      if (!force && (cleanupCount < minCleanupCount || !Number.isFinite(cleanupCount))) return;
+      log("galleryMaintenance", { folder });
       if (controller.signal.aborted) {
         debug("maintenanceQueue", { folder, reason: controller.signal.reason });
         return;
@@ -13760,7 +13812,7 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
       const cb_clearMsg = showCleaningMsg(cleanupCount);
       await idbFolderCleanup(keptGalleryHashes, recursiveFolder, controller.signal).then((delcount) => {
         const t1 = performance.now();
-        log("maintenanceQueue", { folder, kept: keptGalleryHashes.size, deleted: delcount, time: Math.round(t1 - t0) });
+        log("galleryMaintenance", { folder, kept: keptGalleryHashes.size, deleted: delcount, time: Math.round(t1 - t0) });
         timer(`thumbnailDBCleanup:${folder}`, t1 - t0);
         currentGalleryFolder = null;
         updateStatusWithSort("Thumbnail cache cleared");
@@ -13780,7 +13832,7 @@ function resetGalleryState(reason) {
   const controller = new AbortController();
   maintenanceController = controller;
   galleryHashes.clear();
-  galleryProgressBar.clear();
+  pb.hide();
   resetGallerySelection();
   return controller;
 }
@@ -13816,10 +13868,10 @@ async function fetchFilesHT(evt, controller) {
   if (controller.signal.aborted) return;
   el.files.appendChild(fragment);
   const t1 = performance.now();
-  log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
+  log(`gallery: folder=${evt.target.name} num=${numFiles} method=http time=${Math.floor(t1 - t0)}ms`);
   timer(`galleryFetch:${evt.target.name}`, t1 - t0);
   updateStatusWithSort(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
-  galleryProgressBar.start(numFiles);
+  pb.start(numFiles);
   addSeparators();
   refreshGallerySelection();
   thumbCacheCleanup(evt.target.name, numFiles, controller);
@@ -13861,7 +13913,7 @@ async function fetchFilesWS(evt) {
         const file = new GalleryFile(data[0], fileName, controller.signal);
         numFiles++;
         fragment.appendChild(file);
-        if (numFiles % 100 === 0) {
+        if (numFiles % fragmentSize === 0) {
           updateStatusWithSort(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], "in-progress", `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
           el.files.appendChild(fragment);
           fragment = document.createDocumentFragment();
@@ -13872,9 +13924,9 @@ async function fetchFilesWS(evt) {
   ws.onclose = (event2) => {
     if (controller.signal.aborted) return;
     el.files.appendChild(fragment);
-    log(`gallery: folder=${evt.target.name} num=${numFiles} time=${Math.floor(t1 - t0)}ms`);
+    log(`gallery: folder=${evt.target.name} num=${numFiles} method=ws time=${Math.floor(t1 - t0)}ms`);
     updateStatusWithSort(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
-    galleryProgressBar.start(numFiles);
+    pb.start(numFiles);
     addSeparators();
     refreshGallerySelection();
     thumbCacheCleanup(evt.target.name, numFiles, controller);
@@ -14066,7 +14118,7 @@ async function initGallery() {
   injectGalleryStatusCSS();
   setOverlayAnimation();
   const progress = gradioApp().getElementById("tab-gallery-progress");
-  if (progress) galleryProgressBar.attachTo(progress);
+  if (progress) pb.attachTo(progress);
   else log("initGallery", "Failed to attach loading progress bar");
   el.search.addEventListener("input", gallerySearch);
   el.btnSend = gradioApp().getElementById("tab-gallery-send-image");
@@ -15467,8 +15519,7 @@ async function setHints() {
 }
 async function applyHintToElement(el2) {
   if (!localeData.data || localeData.data.length === 0) return;
-  if (!el2.textContent) return;
-  const isValidElement = el2.tagName === "BUTTON" || el2.tagName === "H2" || el2.tagName === "SPAN" && (el2.parentElement?.tagName === "LABEL" || el2.parentElement?.classList.contains("label-wrap") || el2.dataset.testid === "block-info");
+  const isValidElement = el2.tagName === "BUTTON" || el2.tagName === "H2" || el2.classList.contains("hint") || el2.tagName === "SPAN" && (el2.parentElement?.tagName === "LABEL" || el2.parentElement?.classList.contains("label-wrap") || el2.dataset.testid === "block-info");
   if (!isValidElement) return;
   let found;
   if (el2.id) found = localeData.data.find((l) => l.id && (l.id === el2.id || el2.id.endsWith(l.id)));
@@ -15476,16 +15527,14 @@ async function applyHintToElement(el2) {
     if (el2.dataset.original) found = localeData.data.find((l) => l.label.toLowerCase().trim() === el2.dataset.original.toLowerCase().trim());
     else found = localeData.data.find((l) => l.label.toLowerCase().trim() === el2.textContent.toLowerCase().trim());
   }
-  if (found?.localized?.length > 0) {
+  if (el2.textContent && el2.textContent.length > 0 && found?.localized?.length > 0) {
     if (!el2.dataset.original) el2.dataset.original = el2.textContent;
     replaceTextContent(el2, found.localized);
   }
   if (found?.hint?.length > 0) setHint(el2, found);
 }
 function initializeDOMObserver() {
-  if (hintsObserver) {
-    hintsObserver.disconnect();
-  }
+  if (hintsObserver) hintsObserver.disconnect();
   hintsObserver = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       if (mutation.type === "childList") {
@@ -15494,12 +15543,15 @@ function initializeDOMObserver() {
             applyHintToElement(node);
             const elements = [
               ...Array.from(node.querySelectorAll("button")),
-              ...Array.from(node.querySelectorAll("h2")),
+              ...Array.from(gradioApp().querySelectorAll("h1")),
+              ...Array.from(gradioApp().querySelectorAll("h2")),
+              ...Array.from(gradioApp().querySelectorAll("h3")),
+              ...Array.from(gradioApp().querySelectorAll(".hint")),
               ...Array.from(node.querySelectorAll("label > span")),
               ...Array.from(node.querySelectorAll(".label-wrap > span")),
               ...Array.from(node.querySelectorAll('span[data-testid="block-info"]'))
             ];
-            if (node.matches && (node.matches("button") || node.matches("h2") || node.matches("label > span") || node.matches(".label-wrap > span") || node.matches('span[data-testid="block-info"]'))) {
+            if (node.matches && (node.matches("button") || node.matches("h1") || node.matches("h2") || node.matches("h3") || node.matches("label > span") || node.matches(".hint") || node.matches(".label-wrap > span") || node.matches('span[data-testid="block-info"]'))) {
               elements.push(node);
             }
             elements.forEach((el2) => applyHintToElement(el2));
@@ -15635,12 +15687,12 @@ var generateForever = (genbuttonid) => {
     const genbutton = gradioApp().querySelector(genbuttonid);
     if (!(genbutton instanceof HTMLElement)) return;
     const isBusy = () => {
-      let busy = document.getElementById("progressbar")?.style.display === "block";
-      if (!busy) {
+      let busy2 = document.getElementById("progressbar")?.style.display === "block";
+      if (!busy2) {
         const outerButton = genbutton.parentElement.closest("button");
-        busy = outerButton?.classList.contains("generate") && outerButton?.classList.contains("active");
+        busy2 = outerButton?.classList.contains("generate") && outerButton?.classList.contains("active");
       }
-      return busy;
+      return busy2;
     };
     log("generateForever: start");
     if (!isBusy()) genbutton.click();
@@ -15829,6 +15881,17 @@ async function createSplash() {
 }
 window.onload = createSplash;
 
+// ui/legacy.ts
+function addLegacyNotice() {
+  log("legacyNotice");
+  const notice = document.createElement("div");
+  notice.id = "legacy-notice";
+  notice.className = "legacy-standard";
+  notice.textContent = "Legacy";
+  notice.title = "Standard UI is a legacy interface that is no longer maintained and will be removed in the future. Please switch to ModernUI for best experience.";
+  document.body.appendChild(notice);
+}
+
 // ui/startup.ts
 window.api = "/sdapi/v1";
 window.subpath = "";
@@ -15897,6 +15960,7 @@ async function initStartup() {
   startupPromises.push(Promise.resolve(applyStyles()));
   startupPromises.push(Promise.resolve(initIndexDB()));
   startupPromises.push(Promise.resolve(initTableSorter()));
+  if (window.opts.theme_type !== "Modern") addLegacyNotice();
   const t1 = performance.now();
   log("initStartup", Math.round(1e3 * (t1 - t0) / 1e6));
   removeSplash();
@@ -16439,6 +16503,102 @@ function aspectRatioCallback() {
   }
 }
 onAfterUiUpdate(aspectRatioCallback);
+
+// ui/resolutionLock.ts
+var RES_DEBOUNCE = 350;
+var AR_DEBOUNCE = 120;
+var timers = /* @__PURE__ */ new WeakMap();
+var busy = /* @__PURE__ */ new WeakSet();
+function parseAR(ar) {
+  if (!ar || ar === "AR") return null;
+  const parts = ar.split(":");
+  if (parts.length !== 2) return null;
+  const w = parseInt(parts[0], 10);
+  const h = parseInt(parts[1], 10);
+  return w > 0 && h > 0 ? [w, h] : null;
+}
+function numberInput(group) {
+  const inp = group.querySelector("input[type=number]") || group.querySelector("input");
+  return inp instanceof HTMLInputElement ? inp : null;
+}
+function readValue(group) {
+  const inp = numberInput(group);
+  return inp ? Number(inp.value) : 0;
+}
+function writeValue(group, raw) {
+  const inp = numberInput(group);
+  if (!inp) return;
+  const step = Number(inp.step) || 8;
+  const min = inp.min !== "" ? Number(inp.min) : 0;
+  const max = inp.max !== "" ? Number(inp.max) : 8192;
+  const value = Math.max(min, Math.min(max, Math.round(raw / step) * step));
+  if (value === Number(inp.value)) return;
+  group.querySelectorAll("input").forEach((el2) => {
+    if (!(el2 instanceof HTMLInputElement)) return;
+    el2.value = String(value);
+    const e = new Event("input", { bubbles: true });
+    Object.defineProperty(e, "target", { value: el2 });
+    el2.dispatchEvent(e);
+  });
+}
+function arValue(arEl) {
+  const inp = arEl.querySelector("input");
+  return inp instanceof HTMLInputElement ? inp.value : "AR";
+}
+function pairOf(arEl) {
+  let container = arEl.parentElement;
+  for (let i = 0; i < 6 && container; i++) {
+    const width = container.querySelector('[id$="_width"]');
+    const height = container.querySelector('[id$="_height"]');
+    if (width && height) return { width, height };
+    container = container.parentElement;
+  }
+  return null;
+}
+function settle(arEl, source) {
+  const ar = parseAR(arValue(arEl));
+  if (!ar) return;
+  const pair = pairOf(arEl);
+  if (!pair) return;
+  const [rw, rh] = ar;
+  busy.add(arEl);
+  if (source === "height") writeValue(pair.width, readValue(pair.height) * rw / rh);
+  else writeValue(pair.height, readValue(pair.width) * rh / rw);
+  busy.delete(arEl);
+}
+function schedule(arEl, source, delay2) {
+  if (busy.has(arEl)) return;
+  clearTimeout(timers.get(arEl));
+  timers.set(arEl, setTimeout(() => settle(arEl, source), delay2));
+}
+function flush(arEl, source) {
+  if (busy.has(arEl)) return;
+  clearTimeout(timers.get(arEl));
+  settle(arEl, source);
+}
+function bind(arEl, group, source) {
+  group.querySelectorAll("input").forEach((el2) => {
+    if (!(el2 instanceof HTMLInputElement) || el2.classList.contains("ar-lock-bound")) return;
+    el2.classList.add("ar-lock-bound");
+    el2.addEventListener("input", () => schedule(arEl, source, RES_DEBOUNCE));
+    el2.addEventListener("change", () => flush(arEl, source));
+  });
+}
+function setupResolutionLock() {
+  gradioApp().querySelectorAll(".ar-dropdown").forEach((arEl) => {
+    const pair = pairOf(arEl);
+    if (!pair) return;
+    bind(arEl, pair.width, "width");
+    bind(arEl, pair.height, "height");
+    arEl.querySelectorAll("input").forEach((el2) => {
+      if (!(el2 instanceof HTMLInputElement) || el2.classList.contains("ar-lock-bound")) return;
+      el2.classList.add("ar-lock-bound");
+      el2.addEventListener("change", () => flush(arEl, "width"));
+      el2.addEventListener("input", () => schedule(arEl, "width", AR_DEBOUNCE));
+    });
+  });
+}
+onAfterUiUpdate(setupResolutionLock);
 
 // ui/editAttention.ts
 function keyupEditAttention(event2) {

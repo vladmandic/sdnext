@@ -1,12 +1,109 @@
 # Change Log for SD.Next
 
-## Update for 2026-06-18
+## Update for 2026-07-07
 
+### Highlights for 2026-07-07
+
+Originating as a service-pack update with a handful of fixes and quality-of-life improvements, this release also includes several larger updates  
+- Adds new models: **Krea 2**, **Boogu**, **Photoroom PRXPixel**, **FLUX.2 Klein KV** and some new community models  
+- Expands **SDNQ**: with *NPU* support and its own native *attention* kernels (try it, you may get a nice free performance boost)!  
+- Introduces couple of experimental features worth trying  
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-07-07
+
+- **Models**
+  - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
+    both *base* and *turbo* are available in both full *bf16* and *sdnq* pre-quantized variants  
+    K2 is a 12.9B single-stream flow-matching DiT and using a Qwen3-VL-4B text encoder  
+  - [Boogu Image](https://huggingface.co/Boogu/Boogu-Image-0.1-Base) in *base*, *edit*, *turbo*, and *edit-turbo* variants  
+    Boogu is a 10B flow-matching DiT model using a Qwen3-VL-9B text encoder
+  - [Photoroom PRXPixel](https://huggingface.co/Photoroom/prxpixel-t2i) pixel-space PRX variant using a Qwen3-VL text encoder and flow-matching scheduler  
+    supports *direct RGB* generation without a VAE and uses a *1024px* default sample size  
+  - [Microsoft Lens](https://huggingface.co/Jinstudio/Lens) got unpublished, but we still got a mirror
+  - [FLUX.2 Klein 9B KV](https://huggingface.co/black-forest-labs/FLUX.2-klein-9b-kv) a bit late, but finally here in both *bf16* and *sdnq* pre-quantized variants  
+  - updates to [Google Nano Banana](https://aistudio.google.com/models/nano-banana) cloud image images
+  - plus several new community models...
+- **Features**
+  - **SDNQ-Attention**  
+    modelled after *sage-attention*, but modified to support AMD and Intel GPUs in addition to nVidia  
+  - **SDNQ** support for NPU during quantization and inference  
+  - **First-Last-Frame** (FLF2V) support for Wan-2.2-I2V and LTX
+  - add option: *compute settings -> force dtype on load*  
+    use to force model components to override loading with desired dtype regardless of component config  
+  - add option: *backend settings -> force sychronize*  
+    enabled by default, disable to speed up processing but may cause image corruptions, especially during preview
+  - add option: *model loading -> attempt to load incomplete model*  
+    disabled by default, attempts to load model by mapping it to known model even if some components are missing  
+    for example: if you place bare unet/dit finetune into stable-diffusion folder  
+  - prompt encode caching for pass-through text-encoders
+  - reference models: validate and update info for all reference models  
+    add size preview before download for all reference models  
+  - **CivitAI** download improvements  
+    auto-select download path  
+    improved search  
+    validate downloads  
+  - improved custom **Text Encoder** loader  
+- **UI**
+  - dynamic visibility of image controls
+  - improve main panel positioning: *portrait/landscape*
+  - improved gallery performance
+  - preview now only runs if output panel is visible  
+  - ModernUI: old *txt2img* and *img2img* tabs are marked as legacy and hidden by default
+  - StandardUI: marked as legacy
+- **Wiki**
+  - new [Performance Timers](wiki/Performance-Timers) page with detailed explanation of all timers and what to tune for performance
+  - new [Model Loading](wiki/Model-Loading) page with detailed explanation of model loading
+- **Internal**
+  - delay init of video models
+- **Experimental**
+  - support for **openai interface** for llm  
+    in *prompt enhance* enable openai interface and when llm is loaded,  
+    sdnext will start a local openai-compatible server on usual endpoints (e.g. `/v1/completions`, `/v1/chat/completions`, etc.)  
+  - support for [pruna](https://docs.pruna.ai/en/stable/compression.html) swiss-army-knife of model compression, caching and optimization  
+    see *settings -> model compile* for options  
+    *note*: pruna options compatibility varies greatly depending on platform, gpu, torch and model used  
+    *note*: some pruna options may require additional packages to be installed  
 - **Fixes**
-  - `sdnq` warn instead of error for triton
-  - `insightface` missing dependencies
-  - `pulid` import paths
-  - `processors` init code and multiple fixes
+  - amd: hipBLASLt improved detection, thanks @0xDELUXA
+  - anima: simplify loader
+  - anima: vae postprocessing with batch size
+  - api: add missing endpoint registration
+  - api: openapi schema exposure
+  - api: stricter api request and response schemas
+  - caption: button in standard-ui
+  - embeddings: handle textual-inversion with new transformers
+  - extensions: handle extension without remote
+  - huggingface: strip corrupt headers on download
+  - insightface: missing dependencies
+  - installer: double-restart on diffusers/transformers upgrade
+  - krea2: base defaults to guidance 4.5 instead of 1.0
+  - krea2: load custom transformers that omit the dormant residual layers
+  - live preview: configurable pause when not in focus, thanks @Artheriax
+  - log: strip ansi sequences from ring buffer and client side logging
+  - lora: cache state_dict between load attempts
+  - measure: handle current kanvas stage
+  - model metadata: handle invalid metadata and strip workflows
+  - mps: install `torchsde` as requirement
+  - nunchaku: gate for `cuda` only
+  - onnxruntime: handle invalid version
+  - onnxruntime: mark all import paths as non-critical
+  - options: handle compatibility options
+  - processors: init code and multiple fixes
+  - pulid: import paths
+  - python: experimental/ignore version checks
+  - scheduler: handle zero-sigma for i2i/inpaint flowmatch workflows
+  - sdnq: warn instead of error for `triton`
+  - startup: faster model storage checks
+  - text encoder: load non-t5 single-file overrides as their actual class and quantize under sdnq
+  - text encoder: reload on override change, reset when base model is incompatible
+  - text-encode: restore hijack on pipeline switch
+  - ui debounce aspect-ratio linked width/height controls
+  - ui: networks details scrollbars
+  - vae: restore hijack on pipeline switch
+  - vae: scale factor improved detection
+  - vae: better detection of invalid/nan values
 
 ## Update for 2026-06-16
 

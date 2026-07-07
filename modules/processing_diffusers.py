@@ -555,7 +555,10 @@ def validate_pipeline(p: processing.StableDiffusionProcessing):
     for family in video_models:
         for m in video_models[family]:
             if m.repo_cls is not None:
-                models_cls.append(m.repo_cls.__name__)
+                if isinstance(m.repo_cls, str):
+                    models_cls.append(m.repo_cls)
+                else:
+                    models_cls.append(m.repo_cls.__name__)
             if m.custom is not None:
                 models_cls.append(m.custom)
     is_video_model = shared.sd_model.__class__.__name__ in models_cls

@@ -151,6 +151,14 @@ def package_spec(package):
                 return None
 
 
+def package_commit(spec):
+    try:
+        direct_url = json.loads(spec.read_text('direct_url.json'))
+        return direct_url.get('vcs_info', {}).get('commit_id', '')
+    except Exception:
+        return ''
+
+
 # check if package is installed
 def installed(package, friendly: str | None = None, quiet = False): # pylint: disable=redefined-outer-name
     t_start = time.time()
@@ -502,19 +510,23 @@ def check_python(supported_minors=None, experimental_minors=None, reason=None):
     if int(sys.version_info.minor) >= 13:
         # log.warning(f"Python: version={platform.python_version()} not all features are available")
         pass
-    if not (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
-        if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors):
-            log.warning(f"Python experimental: {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}")
-            if reason is not None:
-                log.error(reason)
-            if not args.ignore and not args.experimental:
-                sys.exit(1)
-        else:
-            log.error(f"Python incompatible: current {sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required 3.{supported_minors}")
-            if reason is not None:
-                log.error(reason)
-            if not args.ignore and not args.experimental:
-                sys.exit(1)
+
+    if (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in supported_minors):
+        pass
+    elif (int(sys.version_info.major) == 3 and int(sys.version_info.minor) in experimental_minors) and args.experimental:
+        log.warning(f"Python: version={sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} experimental")
+        if reason is not None:
+            log.warning(f"Python: {reason}")
+    elif args.ignore:
+        log.warning(f"Python: version={sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} ignore version check")
+        if reason is not None:
+            log.warning(f"Python: {reason}")
+    else:
+        log.error(f"Python: version={sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro} required=3.{supported_minors} incompatible")
+        if reason is not None:
+            log.warning(f"Python: {reason}")
+        sys.exit(1)
+
     if not args.skip_git:
         git_cmd = os.environ.get('GIT', "git")
         if shutil.which(git_cmd) is None:
@@ -534,13 +546,13 @@ def check_diffusers():
     t_start = time.time()
     if args.skip_all:
         return
-    target_commit = "d1f8e55c3b6e3ac42d6303a8805ded1c2a4bdd0e" # diffusers commit hash == 0.39.0.dev0 == 06-15-2026
+    target_commit = "ea802951f5fb235b6af8fe9247f56187d49748b2" # diffusers commit hash == 0.39.0.dev0 == 06-29-2026
     # if args.use_rocm or args.use_zluda or args.use_directml:
     #     sha = '043ab2520f6a19fce78e6e060a68dbc947edb9f9' # lock diffusers versions for now
     pkg = package_spec('diffusers')
     parts = pkg.version.split('.') if pkg is not None else []
     minor = int(parts[1]) if len(parts) > 1 else -1
-    current = opts.get('diffusers_version', '') if minor > -1 else ''
+    current = package_commit(pkg) if minor > -1 else ''
     if (minor == -1) or ((current != target_commit) and (not args.experimental)):
         if minor == -1:
             log.info(f'Install: package="diffusers" commit={target_commit}')
@@ -549,7 +561,7 @@ def check_diffusers():
             pip('uninstall --yes diffusers', ignore=True, quiet=True, uv=False)
         if args.skip_git:
             log.warning('Git: marked as not available but required for diffusers installation')
-        pip(f'install --upgrade git+https://github.com/huggingface/diffusers@{target_commit}', ignore=False, quiet=True, uv=False)
+        pip(f'install git+https://github.com/huggingface/diffusers@{target_commit}', ignore=False, quiet=True, uv=False)
         global diffusers_commit # pylint: disable=global-statement
         diffusers_commit = target_commit
     ts('diffusers', t_start)
@@ -564,14 +576,14 @@ def check_transformers():
     pkg_tokenizers = package_spec('tokenizers')
     # target_commit = '753d61104116eefc8ffc977327b441ee0c8d599f' # transformers commit hash == 4.57.6
     # target_commit = "380e3cc5d59912a48508cb6d4959a31cd460e12e" # transformers commit hash == 5.5.0.dev-0409
-    target_commit = "d242bb790bcbbe6c9a20e46cf9d70648739a90bf" # transformers commit hash == 5.13.0.dev0 == 06-15-2026
+    target_commit = "b70d02fc724d04c916832ca4ead03ff05e8fb1ee" # transformers commit hash == 5.13.0.dev0 == 07-03-2026
     if args.use_directml:
         target_transformers = '4.52.4'
         target_tokenizers = '0.21.4'
     else:
         # target_transformers = '4.57.6'
         target_transformers = None
-        target_tokenizers = '0.23.1'
+        target_tokenizers = '0.22.2'
     if target_transformers is not None:
         # Pinned release version (e.g. DirectML)
         if args.reinstall or (pkg_transformers is None) or ((pkg_transformers.version != target_transformers) or (pkg_tokenizers is None) or ((pkg_tokenizers.version != target_tokenizers) and (not args.experimental))):
@@ -580,19 +592,19 @@ def check_transformers():
             else:
                 log.info(f'Update: package="transformers" current={pkg_transformers.version} target={target_transformers}')
             pip('uninstall --yes transformers', ignore=True, quiet=True)
-            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True)
-            pip(f'install --upgrade transformers=={target_transformers}', ignore=False, quiet=True)
+            pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+            pip(f'install transformers=={target_transformers}', ignore=False, quiet=True)
     else:
         # Git commit-pinned version
-        current = opts.get('transformers_version', '')
+        current = package_commit(pkg_transformers)
         if args.reinstall or (pkg_transformers is None) or (pkg_transformers.version.startswith('4')) or (current != target_commit):
             if pkg_transformers is None:
                 log.info(f'Install: package="transformers" commit={target_commit}')
             else:
                 log.info(f'Update: package="transformers" current={pkg_transformers.version} hash={current} target={target_commit}')
             pip('uninstall --yes transformers', ignore=True, quiet=True)
-            pip(f'install --upgrade tokenizers=={target_tokenizers}', ignore=False, quiet=True)
-            pip(f'install --upgrade git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
+            pip(f'install tokenizers=={target_tokenizers}', ignore=False, quiet=True)
+            pip(f'install git+https://github.com/huggingface/transformers@{target_commit}', ignore=False, quiet=True)
             global transformers_commit # pylint: disable=global-statement
             transformers_commit = target_commit
     ts('transformers', t_start)
@@ -607,6 +619,12 @@ def check_onnx():
         install('onnx', 'onnx', ignore=True)
     if not installed('onnxruntime', quiet=True) and not (installed('onnxruntime-gpu', quiet=True) or installed('onnxruntime-openvino', quiet=True) or installed('onnxruntime-training', quiet=True)): # allow either
         install(os.environ.get('ONNXRUNTIME_COMMAND', 'onnxruntime'), ignore=True)
+    else:
+        onnx_version = package_version('onnxruntime') or ''
+        if onnx_version.startswith('1.1'):
+            log.warning(f'ONNX: onnxruntime={onnx_version} upgrade required')
+            uninstall('onnxruntime', quiet=True)
+            install(os.environ.get('ONNXRUNTIME_COMMAND', 'onnxruntime'), ignore=True)
     ts('onnx', t_start)
 
 
@@ -657,7 +675,7 @@ def install_rocm_zluda():
                 device = amd_gpus[device_id]
 
     if sys.platform == "win32" and (not args.use_zluda) and (device is not None) and (device.therock is not None) and not installed("rocm"):
-        check_python(supported_minors=[11, 12, 13], reason='ROCm backend requires a Python version between 3.11 and 3.13')
+        check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
         install(f"rocm[devel,libraries] --index-url https://rocm.nightlies.amd.com/{device.therock}")
         rocm.refresh()
 
@@ -693,10 +711,10 @@ def install_rocm_zluda():
             if device is None:
                 log.error('ROCm: no agent found - make sure that graphics driver is installed and up to date')
             if isinstance(rocm.environment, rocm.PythonPackageEnvironment):
-                check_python(supported_minors=[11, 12, 13], reason='ROCm: python==3.11/3.12/3.13 required')
+                check_python(supported_minors=[11, 12, 13], reason='ROCm-Windows: python==3.11/3.12/3.13 required')
                 torch_command = os.environ.get('TORCH_COMMAND', f'torch torchvision --index-url https://rocm.nightlies.amd.com/{device.therock}')
             else:
-                check_python(supported_minors=[12], reason='ROCm: Windows preview python==3.12 required')
+                check_python(supported_minors=[12], reason='ROCm-Windows: preview python==3.12 required')
                 # torch 2.8.0a0 is the last version with rocm 6.4 support
                 torch_command = os.environ.get('TORCH_COMMAND', '--no-cache-dir https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torch-2.8.0a0%2Bgitfc14c65-cp312-cp312-win_amd64.whl https://repo.radeon.com/rocm/windows/rocm-rel-6.4.4/torchvision-0.24.0a0%2Bc85f008-cp312-cp312-win_amd64.whl')
     else:
@@ -1613,7 +1631,7 @@ def check_version(reset=True): # pylint: disable=unused-argument
         if len(latest) != 40:
             log.error(f'Repository error: commit={latest} invalid')
         elif latest != commit and args.upgrade:
-            global quick_allowed # pylint: disable=global-statement
+            global quick_allowed, restart_required # pylint: disable=global-statement
             quick_allowed = False
             log.info('Updating main repository')
             try:
@@ -1622,10 +1640,15 @@ def check_version(reset=True): # pylint: disable=unused-argument
                 update('.', keep_branch=True)
                 # git('git stash pop')
                 ver = git('log -1 --pretty=format:"%h %ad"')
-                log.info(f'Repository upgraded: {ver}')
-                log.warning('Server restart is recommended to apply changes')
-                if ver == latest: # double check
-                    restart()
+                head = git('rev-parse HEAD')
+                if len(head) != 40:
+                    log.error(f'Repository error: could not verify HEAD after update output="{head}"')
+                elif head != commit:
+                    log.info(f'Repository upgraded: {ver}')
+                    log.warning('Server restart is recommended to apply changes')
+                    restart_required = True
+                else:
+                    log.info(f'Repository unchanged: {ver}')
             except Exception:
                 if not reset:
                     log.error('Repository error upgrading')

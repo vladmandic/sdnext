@@ -7,11 +7,12 @@ from fastapi.exceptions import HTTPException
 from modules import shared, sd_samplers
 from modules.logger import log
 
+
 _upload_store_getter = None
 
 
 def register_upload_store(getter_fn):
-    global _upload_store_getter
+    global _upload_store_getter # pylint: disable=global-statement
     _upload_store_getter = getter_fn
 
 

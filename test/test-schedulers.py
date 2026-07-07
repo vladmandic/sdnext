@@ -245,6 +245,26 @@ def run_tests():
     for cls in flow_schedulers:
         test_scheduler(cls.__name__, cls, {"prediction_type": "flow_prediction", "use_flow_sigmas": True})
 
+    log.warning('type="flow-custom-sigmas"')
+    custom_sigmas = torch.linspace(0.8, 0.0, 10)
+    for cls, name in [
+        (FlowMatchDPMSolverMultistepScheduler, "FlowMatchDPMSolverMultistepScheduler"),
+        (ERSDEScheduler, "ERSDEScheduler"),
+        (FlashFlowMatchEulerDiscreteScheduler, "FlashFlowMatchEulerDiscreteScheduler"),
+    ]:
+        try:
+            scheduler = cls()
+            scheduler.set_timesteps(sigmas=custom_sigmas, device='cpu')
+            sample = torch.randn((1, 4, 64, 64), dtype=torch.float32)
+            for t in scheduler.timesteps:
+                model_output = torch.randn_like(sample)
+                sample = scheduler.step(model_output, t, sample).prev_sample
+                if torch.isnan(sample).any() or torch.isinf(sample).any():
+                    log.error(f'scheduler="{name}" error="custom sigmas produced NaN/Inf"')
+                    break
+        except Exception as e:
+            log.error(f'scheduler="{name}" error="custom sigmas test exception: {e}"')
+
     log.warning('type="sdnext"')
     extended_schedulers = [
         VDMScheduler,

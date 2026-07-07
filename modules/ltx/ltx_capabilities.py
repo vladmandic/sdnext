@@ -62,7 +62,10 @@ def _repo_cls_name(model_name: str) -> Optional[str]:
         if m.name == model_name:
             if m.repo_cls is None:
                 return None
-            return m.repo_cls.__name__
+            elif isinstance(m.repo_cls, str):
+                return m.repo_cls
+            else:
+                return m.repo_cls.__name__
     return None
 
 

@@ -377,7 +377,7 @@ def test_bf16():
             else:
                 from modules.zluda_installer import default_agent
                 agent = default_agent
-            if agent is not None and agent.gfx_version < 0x1100 and agent.arch != rocm.MicroArchitecture.CDNA: # all cards before RDNA 3 except for CDNA cards
+            if (agent is not None) and (agent.gfx_version < 0x1100) and (agent.arch != rocm.MicroArchitecture.CDNA): # all cards before RDNA 3 except for CDNA cards
                 bf16_ok = False
                 return bf16_ok
     try:
@@ -401,8 +401,14 @@ def test_triton(early: bool = False):
         return triton_ok
     t0 = time.time()
     try:
-        from torch.utils._triton import has_triton as torch_has_triton
-        if torch_has_triton():
+        if torch._dynamo.config.disable: # pylint: disable=protected-access
+            triton_is_available = False
+        elif backend == "cpu": # CPUs can use torch.compile / Inductor without Triton
+            triton_is_available = True
+        else:
+            from torch.utils._triton import has_triton as torch_has_triton
+            triton_is_available = torch_has_triton()
+        if triton_is_available:
             if early:
                 return True
             def test_triton_func(a,b,c):
@@ -523,6 +529,9 @@ def set_sdpa_params():
 
         if 'Sage attention' in opts.sdp_overrides:
             attention.set_sage_attention(backend, device)
+
+        if 'SDNQ attention' in opts.sdp_overrides:
+            attention.set_sdnq_attention()
 
         from importlib.metadata import version
         try:

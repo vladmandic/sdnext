@@ -80,6 +80,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'Meissonic'
     elif 'omnigen2' in fn.lower():
         new_guess = 'OmniGen2'
+    elif 'boogu' in fn.lower():
+        new_guess = 'Boogu'
     elif 'omnigen' in fn.lower():
         new_guess = 'OmniGen'
     elif 'sd3' in fn.lower():
@@ -92,7 +94,7 @@ def guess_by_name(fn, current_guess):
         new_guess = 'ZetaChroma'
     elif 'chroma' in fn.lower() and 'xl' not in fn.lower():
         new_guess = 'Chroma'
-    elif 'flux.2' in fn.lower() and 'klein' in fn.lower():
+    elif ('flux.2' in fn.lower() or 'f2' in fn.lower()) and 'klein' in fn.lower():
         new_guess = 'FLUX2Klein'
     elif 'flux.2' in fn.lower():
         new_guess = 'FLUX2'
@@ -141,6 +143,8 @@ def guess_by_name(fn, current_guess):
         new_guess = 'Stable Diffusion XL'
     elif 'stable-video-diffusion' in fn.lower():
         new_guess = 'StableVideoDiffusion'
+    elif 'prx-pixel' in fn.lower() or 'prxpixel' in fn.lower():
+        new_guess = 'PRXPixel'
     elif 'prx-' in fn.lower():
         new_guess = 'PRX'
     elif 'gemini-' in fn.lower() and 'image' in fn.lower():
@@ -149,8 +153,10 @@ def guess_by_name(fn, current_guess):
         new_guess = 'ERNIEImage'
     elif 'nucleus-image' in fn.lower() or 'nucleusmoe-image' in fn.lower():
         new_guess = 'NucleusImage'
-    elif 'z-image' in fn.lower() or 'z_image' in fn.lower():
+    elif 'z-image' in fn.lower() or 'z_image' in fn.lower() or 'zimage' in fn.lower():
         new_guess = 'ZImage'
+    elif 'krea-2' in fn.lower() or 'krea2' in fn.lower():
+        new_guess = 'Krea2'
     elif 'ideogram' in fn.lower():
         new_guess = 'Ideogram4'
     elif 'longcat-image' in fn.lower():

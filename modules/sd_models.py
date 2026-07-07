@@ -11,7 +11,7 @@ import diffusers.loaders.single_file_utils
 import torch
 import huggingface_hub as hf
 from modules.logger import log
-from modules import timer, paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_accelerate, sd_hijack_safetensors, sd_hijack_transformers, sd_hijack_hfhub, attention
+from modules import timer, paths, shared, modelloader, devices, script_callbacks, sd_vae, sd_unet, errors, sd_models_compile, sd_detect, model_quant, sd_hijack_te, sd_hijack_vae, sd_hijack_accelerate, sd_hijack_safetensors, sd_hijack_transformers, sd_hijack_hfhub, attention
 from modules.memstats import memory_stats
 from modules.shared_helpers import walk_files
 from modules.modeldata import model_data
@@ -25,6 +25,7 @@ model_path = os.path.abspath(os.path.join(paths.models_path, model_dir))
 sd_metadata = None
 sd_metadata_pending = 0
 sd_metadata_timer = 0
+loaded_te = None  # tracks the text-encoder selection currently loaded, to detect sd_text_encoder changes
 debug_move = log.trace if os.environ.get('SD_MOVE_DEBUG', None) is not None else lambda *args, **kwargs: None
 debug_load = os.environ.get('SD_LOAD_DEBUG', None)
 debug_process = log.trace if os.environ.get('SD_PROCESS_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -54,6 +55,8 @@ pipe_switch_task_exclude = [
     'Kandinsky5I2IPipeline',
     'GoogleNanoBananaPipeline',
     'Step1XEditPipeline',
+    'BooguImagePipeline',
+    'BooguImageTurboPipeline',
 ]
 i2i_pipes = [
     'LEditsPPPipelineStableDiffusion', 'LEditsPPPipelineStableDiffusionXL',
@@ -480,6 +483,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_qwen import load_qwen
             sd_model = load_qwen(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
+        elif model_type in ['Boogu']:
+            from pipelines.model_boogu import load_boogu
+            sd_model = load_boogu(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
         elif model_type in ['HunyuanDiT']:
             from pipelines.model_hunyuandit import load_hunyuandit
             sd_model = load_hunyuandit(checkpoint_info, diffusers_load_config)
@@ -524,7 +531,11 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             from pipelines.model_google import load_nanobanana
             sd_model = load_nanobanana(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
-        elif model_type in ['PRX']:
+        elif model_type == 'PRXPixel':
+            from pipelines.model_prx_pixel import load_prx_pixel
+            sd_model = load_prx_pixel(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type == 'PRX':
             from pipelines.model_prx import load_prx
             sd_model = load_prx(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
@@ -539,6 +550,10 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
         elif model_type in ['ZImage']:
             from pipelines.model_z_image import load_z_image
             sd_model = load_z_image(checkpoint_info, diffusers_load_config)
+            allow_post_quant = False
+        elif model_type in ['Krea2']:
+            from pipelines.model_krea2 import load_krea2
+            sd_model = load_krea2(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Ideogram4']:
             from pipelines.model_ideogram4 import load_ideogram4
@@ -1217,6 +1232,8 @@ def backup_pipe_components(pipe):
         'mask_processor': getattr(pipe, "mask_processor", None),
         'restore_pipeline': getattr(pipe, "restore_pipeline", None),
         'task_args': getattr(pipe, "task_args", None),
+        'hijack_prompt': hasattr(pipe, "orig_encode_prompt"),
+        'hijack_vae': hasattr(pipe, "vae") and hasattr(pipe.vae, "orig_decode")
     }
 
 
@@ -1242,6 +1259,10 @@ def restore_pipe_components(pipe, components):
         pipe.restore_pipeline = components['restore_pipeline']
     if components['task_args'] is not None:
         pipe.task_args = components['task_args']
+    if components['hijack_prompt']:
+        sd_hijack_te.init_hijack(pipe)
+    if components['hijack_vae']:
+        sd_hijack_vae.init_hijack(pipe)
 
     if pipe.__class__.__name__ in ['FluxPipeline', 'StableDiffusion3Pipeline']:
         pipe.register_modules(image_encoder = components['image_encoder'])
@@ -1385,26 +1406,44 @@ def get_native(pipe: diffusers.DiffusionPipeline):
 
 
 def reload_text_encoder(initial=False):
-    if initial and (shared.opts.sd_text_encoder is None or shared.opts.sd_text_encoder == 'Default'):
+    global loaded_te # pylint: disable=global-statement
+    te = shared.opts.sd_text_encoder
+    if initial and (te is None or te == 'Default'):
+        loaded_te = te
         return # dont unload
+    if not initial and te == loaded_te:
+        return # selection unchanged since it was loaded
+    if shared.sd_model is None:
+        loaded_te = te
+        return
     signature = get_signature(shared.sd_model)
     t5 = [k for k, v in signature.items() if 'T5EncoderModel' in str(v)]
-    if hasattr(shared.sd_model, 'text_encoder') and 'vit' in shared.opts.sd_text_encoder.lower():
+    if hasattr(shared.sd_model, 'text_encoder') and te is not None and 'vit' in te.lower():
         from modules.model_te import set_clip
         set_clip(pipe=shared.sd_model)
     elif len(t5) > 0:
         from modules.model_te import set_t5
-        log.debug(f'Load module: type=t5 path="{shared.opts.sd_text_encoder}" module="{t5[0]}"')
-        set_t5(pipe=shared.sd_model, module=t5[0], t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.hfcache_dir)
+        log.debug(f'Load module: type=t5 path="{te}" module="{t5[0]}"')
+        set_t5(pipe=shared.sd_model, module=t5[0], t5=te, cache_dir=shared.opts.hfcache_dir)
     elif hasattr(shared.sd_model, 'text_encoder_3'):
         from modules.model_te import set_t5
-        log.debug(f'Load module: type=t5 path="{shared.opts.sd_text_encoder}" module="text_encoder_3"')
-        set_t5(pipe=shared.sd_model, module='text_encoder_3', t5=shared.opts.sd_text_encoder, cache_dir=shared.opts.hfcache_dir)
+        log.debug(f'Load module: type=t5 path="{te}" module="text_encoder_3"')
+        set_t5(pipe=shared.sd_model, module='text_encoder_3', t5=te, cache_dir=shared.opts.hfcache_dir)
+    elif not initial:
+        # generic text encoder with no in-place swap path (e.g. Qwen3-VL): reload the model so the
+        # newly selected encoder is read at load time. loaded_te is set first so the reload's own
+        # initial=True call is a no-op rather than recursing.
+        log.info(f'Load module: type=te name="{te}" reloading model to apply')
+        loaded_te = te
+        reload_model_weights(force=True)
+        return
+    loaded_te = te
     clear_caches(full=True)
     apply_balanced_offload(shared.sd_model)
 
 
 def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='model', force=False, revision=None):
+    global loaded_te # pylint: disable=global-statement
     checkpoint_info = info or select_checkpoint(op=op) # are we selecting model or dictionary
     if checkpoint_info is None:
         unload_model_weights(op=op)
@@ -1414,17 +1453,26 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
         sd_model = model_data.sd_model if op == 'model' or op == 'dict' else model_data.sd_refiner
     loaded_ckpt = getattr(sd_model, 'sd_checkpoint_info', None) if sd_model is not None else None
     changed_checkpoint = loaded_ckpt is None or checkpoint_info is None or loaded_ckpt.filename != checkpoint_info.filename
-    if op == 'model' and sd_model is not None and changed_checkpoint and shared.opts.sd_unet not in (None, 'Default', 'None'):
-        old_class = type(sd_model).__name__
+    reset_unet = shared.opts.sd_unet not in (None, 'Default', 'None')
+    reset_te = shared.opts.sd_text_encoder not in (None, 'Default', 'None')
+    if op == 'model' and sd_model is not None and changed_checkpoint and (reset_unet or reset_te):
+        # compare detected model type, not pipeline class: custom-loader arches (e.g. Krea2) load as a
+        # concrete class but detect as generic DiffusionPipeline, so a class compare would falsely reset
+        # across same-arch checkpoints (Base vs Turbo). detect both sides so the comparison is symmetric.
         try:
-            new_pipeline, _ = sd_detect.detect_pipeline(checkpoint_info.path, op)
+            _, new_type = sd_detect.detect_pipeline(checkpoint_info.path, op)
+            _, old_type = sd_detect.detect_pipeline(loaded_ckpt.path, op) if loaded_ckpt is not None else (None, None)
         except Exception:
-            new_pipeline = None
-        new_class = getattr(new_pipeline, '__name__', None)
-        if new_class is not None and new_class != old_class:
-            log.info(f'Load model: pipeline cls={old_class} changed={new_class} unet="{shared.opts.sd_unet}" set to default')
-            shared.opts.data["sd_unet"] = 'Default'
-            sd_unet.loaded_unet = None
+            new_type = old_type = None
+        if new_type is not None and old_type is not None and new_type != old_type: # architecture changed: custom components no longer fit
+            if reset_unet:
+                log.info(f'Load model: type="{old_type}" changed="{new_type}" unet="{shared.opts.sd_unet}" set to default')
+                shared.opts.data["sd_unet"] = 'Default'
+                sd_unet.loaded_unet = None
+            if reset_te:
+                log.info(f'Load model: type="{old_type}" changed="{new_type}" te="{shared.opts.sd_text_encoder}" set to default')
+                shared.opts.data["sd_text_encoder"] = 'Default'
+                loaded_te = None
     if sd_model is None:  # previous model load failed
         current_checkpoint_info = None
     else:
@@ -1531,6 +1579,10 @@ def save_model(name: str, path: str | None = None, shard: str = "5GB", overwrite
         return f'Path exists: {model_name}'
     if not shard.strip():
         shard = "5GB"  # Guard against empty input
+    try:
+        torch.cuda.synchronize()
+    except Exception:
+        pass
     try:
         t0 = time.time()
         log.info(f'Save model: path="{model_name}" cls={shared.sd_model.__class__.__name__} start')

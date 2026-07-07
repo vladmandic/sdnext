@@ -12,7 +12,13 @@ def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate
         return [gr.Textbox.update(value=prompt), gr.Textbox.update(value=prompt_neg), gr.Dropdown.update(value=[])]
 
     def parse_style(styles):
-        return styles.split('|') if styles is not None else None
+        if isinstance(styles, str):
+            styles = [x.strip() for x in styles.split('|') if x.strip() != '']
+        elif isinstance(styles, list):
+            styles = [x.strip() for x in styles if x.strip() != '']
+        else:
+            styles = None
+        return styles
 
     if id_part is None:
         id_part = "img2img" if is_img2img else "txt2img"
@@ -64,42 +70,18 @@ def create_toprow(is_img2img: bool = False, id_part: str | None = None, generate
     return prompt, styles, negative_prompt, submit, reprocess, button_paste, button_extra, token_counter, token_button, negative_token_counter, negative_token_button
 
 
-def ar_change(ar, width, height):
-    if ar == 'AR':
-        return gr.update(), gr.update()
-    try:
-        parts = [float(x) for x in ar.split(':')]
-        if len(parts) != 2:
-            raise ValueError(f"Expected 2 values, got {len(parts)}")
-        w, h = parts
-    except Exception as e:
-        log.warning(f"Invalid aspect ratio: {ar} {e}")
-        return gr.update(), gr.update()
-    if w > h:
-        return gr.update(), gr.update(value=int(width * h / w))
-    elif w < h:
-        return gr.update(value=int(height * w / h)), gr.update()
-    else:
-        return gr.update(), gr.update()
-
-def ar_update(_ar, width, height):
-    return width, height
-
-
 def create_resolution_inputs(tab, default_width=1024, default_height=1024):
     width = gr.Slider(minimum=64, maximum=4096, step=8, label="Width", value=default_width, elem_id=f"{tab}_width")
     height = gr.Slider(minimum=64, maximum=4096, step=8, label="Height", value=default_height, elem_id=f"{tab}_height")
     ar_list = ['AR'] + [x.strip() for x in shared.opts.aspect_ratios.split(',') if x.strip() != '']
-    ar_dropdown = gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_ar", elem_classes=["ar-dropdown"])
-    for c in [ar_dropdown, width, height]:
-        c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
+    gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_ar", elem_classes=["ar-dropdown"])  # aspect-ratio linking wired client-side in ui/resolutionLock.ts
     res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_res_btn_swap")
     res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress='hidden')
     return width, height
 
 
 def create_caption_button(tab: str, inputs: list | None = None, outputs: str | None = None, what: str = ''):
-    button_caption = gr.Button(ui_symbols.caption, elem_id=f"{tab}_caption_{what}", elem_classes=['caption'])
+    button_caption = gr.Button(ui_symbols.caption, elem_id=f"{tab}_caption_{what}", elem_classes=['caption', 'image-fit'])
     if inputs is not None and outputs is not None:
         button_caption.click(fn=caption.caption, inputs=inputs, outputs=[outputs])
     return button_caption
@@ -407,15 +389,15 @@ def create_resize_inputs(tab, images, accordion=True, latent=False, non_zero=Tru
                                 height = gr.Slider(minimum=64 if non_zero else 0, maximum=8192, step=8, label=f"Height{prefix}" if non_zero else "Resize height", value=1024 if non_zero else 0, elem_id=f"{tab}{suffix}_height")
                             with gr.Column(elem_id=f"{tab}_column_fixed2", scale=1):
                                 ar_list = ['AR'] + [x.strip() for x in shared.opts.aspect_ratios.split(',') if x.strip() != '']
-                                ar_dropdown = gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_resize_ar", elem_classes=["ar-dropdown"])
-                                for c in [ar_dropdown, width, height]:
-                                    # c.change(fn=ar_change, inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
-                                    c.change(fn=ar_update, _js='resolutionChange', inputs=[ar_dropdown, width, height], outputs=[width, height], show_progress='hidden')
+                                gr.Dropdown(show_label=False, interactive=True, choices=ar_list, value=ar_list[0], elem_id=f"{tab}_resize_ar", elem_classes=["ar-dropdown"])  # aspect-ratio linking wired client-side in ui/resolutionLock.ts
                                 res_switch_btn = ToolButton(value=ui_symbols.switch, elem_id=f"{tab}_resize_size_swap")
                                 res_switch_btn.click(lambda w, h: (h, w), inputs=[width, height], outputs=[width, height], show_progress='hidden')
                                 detect_image_size_btn = ToolButton(value=ui_symbols.detect, elem_id=f"{tab}_resize_detect_size")
                                 el = tab.split('_')[0]
                                 detect_image_size_btn.click(fn=lambda w, h, _: (w or gr.update(), h or gr.update()), _js=f'currentImageResolution{el}', inputs=[dummy_component, dummy_component, dummy_component], outputs=[width, height], show_progress='hidden')
+                                # keep the kanvas stage synced to the resize sliders; .change fires on user and programmatic updates (detect, paste, swap) and writes nothing back
+                                width.change(fn=None, _js='notifyKanvasResize', inputs=[width, height], outputs=[], show_progress='hidden')
+                                height.change(fn=None, _js='notifyKanvasResize', inputs=[width, height], outputs=[], show_progress='hidden')
                     with gr.Tab(label="Scale", id=1, elem_id=f"{tab}_scale_tab_scale") as tab_scale_by:
                         scale_by = gr.Slider(minimum=0.05, maximum=8.0, step=0.05, label=f"Scale{prefix}" if non_zero else "Resize scale", value=1.0, elem_id=f"{tab}_scale")
                     if images is not None:

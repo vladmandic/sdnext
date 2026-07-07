@@ -179,21 +179,20 @@ def update_settings(*settings):
     update(['Leres Depth', 'params', 'boost'], settings[11])
     update(['Leres Depth', 'params', 'thr_a'], settings[12])
     update(['Leres Depth', 'params', 'thr_b'], settings[13])
-    update(['MediaPipe Face', 'params', 'max_faces'], settings[14])
-    update(['MediaPipe Face', 'params', 'min_confidence'], settings[15])
+    update(['MediaPipe Face (Legacy)', 'params', 'max_faces'], settings[14])
+    update(['MediaPipe Face (Legacy)', 'params', 'min_confidence'], settings[15])
     update(['Canny', 'params', 'low_threshold'], settings[16])
     update(['Canny', 'params', 'high_threshold'], settings[17])
-    update(['DWPose', 'model'], settings[18])
-    update(['DWPose', 'params', 'min_confidence'], settings[19])
-    update(['SegmentAnything', 'model'], settings[20])
-    update(['Edge', 'params', 'pf'], settings[21])
-    update(['Edge', 'params', 'mode'], settings[22])
-    update(['Zoe Depth', 'params', 'gamma_corrected'], settings[23])
-    update(['Marigold Depth', 'params', 'color_map'], settings[24])
-    update(['Marigold Depth', 'params', 'denoising_steps'], settings[25])
-    update(['Marigold Depth', 'params', 'ensemble_size'], settings[26])
-    update(['Depth Anything', 'params', 'color_map'], settings[27])
-    update(['Depth Pro', 'params', 'color_map'], settings[28])
+    update(['DWPose (Legacy)', 'params', 'min_confidence'], settings[18])
+    update(['SegmentAnything 1.0', 'model'], settings[19])
+    update(['Edge', 'params', 'pf'], settings[20])
+    update(['Edge', 'params', 'mode'], settings[21])
+    update(['Zoe Depth', 'params', 'gamma_corrected'], settings[22])
+    update(['Marigold Depth', 'params', 'color_map'], settings[23])
+    update(['Marigold Depth', 'params', 'denoising_steps'], settings[24])
+    update(['Marigold Depth', 'params', 'ensemble_size'], settings[25])
+    update(['Depth Anything', 'params', 'color_map'], settings[26])
+    update(['Depth Pro', 'params', 'color_map'], settings[27])
 
 
 class Processor:
@@ -264,28 +263,13 @@ class Processor:
             # log.debug(f'Control Processor loading: id="{processor_id}" class={cls.__name__}')
             debug(f'Control Processor config={self.load_config}')
             jobid = state.begin('Load processor')
-            if processor_id == 'DWPose':
-                det_ckpt = 'https://download.openmmlab.com/mmdetection/v2.0/yolox/yolox_l_8x8_300e_coco/yolox_l_8x8_300e_coco_20211126_140236-d3bd2b23.pth'
-                if 'Tiny' == config['DWPose']['model']:
-                    pose_config = 'config/rtmpose-t_8xb64-270e_coco-ubody-wholebody-256x192.py'
-                    pose_ckpt = 'https://huggingface.co/yzd-v/DWPose/resolve/main/dw-tt_ucoco.pth'
-                elif 'Medium' == config['DWPose']['model']:
-                    pose_config = 'config/rtmpose-m_8xb64-270e_coco-ubody-wholebody-256x192.py'
-                    pose_ckpt = 'https://huggingface.co/yzd-v/DWPose/resolve/main/dw-mm_ucoco.pth'
-                elif 'Large' == config['DWPose']['model']:
-                    pose_config = 'config/rtmpose-l_8xb32-270e_coco-ubody-wholebody-384x288.py'
-                    pose_ckpt = 'https://huggingface.co/yzd-v/DWPose/resolve/main/dw-ll_ucoco_384.pth'
-                else:
-                    log.error(f'Control Processor load failed: id="{processor_id}" error=unknown model type')
-                    return f'Processor failed to load: {processor_id}'
-                self.model = cls(det_ckpt=det_ckpt, pose_config=pose_config, pose_ckpt=pose_ckpt, device="cpu")
-            elif processor_id in ('DWPose (ONNX)', 'RTMW', 'RTMO'):
-                model_type = {'DWPose (ONNX)': 'DWPose', 'RTMW': 'RTMW-l', 'RTMO': 'RTMO-l'}[processor_id]
+            if processor_id in ('DWPose (Legacy)', 'RTMW', 'RTMO'):
+                model_type = {'DWPose (Legacy)': 'DWPose', 'RTMW': 'RTMW-l', 'RTMO': 'RTMO-l'}[processor_id]
                 self.model = cls.from_pretrained(model_type, **self.load_config)
-            elif 'SegmentAnything' in processor_id:
-                if 'Base' == config['SegmentAnything']['model']:
+            elif processor_id == 'SegmentAnything 1.0':
+                if 'Base' == config[processor_id]['model']:
                     self.model = cls.from_pretrained(model_path = 'segments-arnaud/sam_vit_b', filename='sam_vit_b_01ec64.pth', model_type='vit_b', **self.load_config)
-                elif 'Large' == config['SegmentAnything']['model']:
+                elif 'Large' == config[processor_id]['model']:
                     self.model = cls.from_pretrained(model_path = 'segments-arnaud/sam_vit_l', filename='sam_vit_l_0b3195.pth', model_type='vit_l', **self.load_config)
                 else:
                     log.error(f'Control Processor load failed: id="{processor_id}" error=unknown model type')

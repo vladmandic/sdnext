@@ -29,6 +29,43 @@ def stat(fn: str):
     return size, mtime
 
 
+"""
+def stat(path: str):
+    try: # 1. Base Case: Check if path exists safely
+        root_stat = os.stat(path, follow_symlinks=False) # We fetch the stat of the root path once
+    except (FileNotFoundError, PermissionError):
+        return 0, datetime.fromtimestamp(0)
+    if os.path.stat.S_ISLNK(root_stat.st_mode): # 2. Handle Symlinks (Checking st_mode is faster than os.path.islink)
+        return 0, datetime.fromtimestamp(root_stat.st_mtime).replace(microsecond=0)
+    if os.path.stat.S_ISREG(root_stat.st_mode): # 3. Handle Single Files
+        return root_stat.st_size, datetime.fromtimestamp(root_stat.st_mtime).replace(microsecond=0)
+    # 4. Handle Directories
+    total_size = 0
+    latest_mtime = root_stat.st_mtime
+    try:
+        with os.scandir(path) as entries:
+            for entry in entries:
+                try:
+                    entry_stat = entry.stat(follow_symlinks=False) # Fetch cached stat object from the entry
+                    if entry_stat.st_mtime > latest_mtime: # Track the latest modification time across everything
+                        latest_mtime = entry_stat.st_mtime
+                    if entry.is_symlink():
+                        continue
+                    if entry.is_file():
+                        total_size += entry_stat.st_size
+                    elif entry.is_dir():
+                        sub_size, sub_mtime = stat(entry.path) # Recursively scan subfolders
+                        total_size += sub_size
+                        if sub_mtime.timestamp() > latest_mtime:
+                            latest_mtime = sub_mtime.timestamp()
+                except (FileNotFoundError, PermissionError): # Skip files that disappear or lack permissions during runtime
+                    continue
+    except (FileNotFoundError, PermissionError):
+        pass
+    return total_size, datetime.fromtimestamp(latest_mtime).replace(microsecond=0)
+"""
+
+
 class Module:
     name: str = ''
     cls: str = None

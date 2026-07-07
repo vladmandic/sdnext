@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+import inspect
 from PIL import Image
 from installer import install
 from modules import shared, sd_models, timer, errors, devices
@@ -17,6 +18,18 @@ def queue_err(msg):
 
 def get_url(url):
     return f'<a href="{url}" target="_blank" rel="noopener noreferrer" class="video-model-link">{url}</a><br><br>' if url else '<br><br>'
+
+
+def supports_last_frame(model):
+    # last-frame (FLF2V) conditioning needs a pipeline whose __call__ accepts `last_image`.
+    # wan 2.2 5b accepts the arg but masks timesteps from the first frame only, so it drops the last frame.
+    try:
+        params = list(inspect.signature(type(model).__call__, follow_wrapped=True).parameters)
+    except (ValueError, TypeError):
+        return False
+    if 'last_image' not in params:
+        return False
+    return not getattr(getattr(model, 'config', None), 'expand_timesteps', False)
 
 
 def check_av():

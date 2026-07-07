@@ -3,15 +3,15 @@ import json
 import time
 import numpy as np
 from PIL import Image, ImageOps
-from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, detailer, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer, masking
+from modules import shared, devices, errors, images, scripts_manager, memstats, script_callbacks, extra_networks, sd_models, sd_checkpoint, sd_vae, processing_helpers, processing_grading, timer, masking
 from modules.logger import log
 from modules.sd_hijack_hypertile import context_hypertile_vae, context_hypertile_unet
 from modules.processing_class import ( # pylint: disable=unused-import
     StableDiffusionProcessing,
     StableDiffusionProcessingTxt2Img,
     StableDiffusionProcessingImg2Img,
-    StableDiffusionProcessingVideo,
     StableDiffusionProcessingControl,
+    StableDiffusionProcessingVideo,
 )
 from modules.processing_info import create_infotext
 
@@ -62,7 +62,7 @@ class Processed:
         self.audio = audio
 
         self.detailer = p.detailer_enabled or False
-        self.detailer_model = shared.opts.detailer_model if p.detailer_enabled else None
+        self.detailer_model = 'Detailer' if p.detailer_enabled else None
         self.seed_resize_from_w = p.seed_resize_from_w
         self.seed_resize_from_h = p.seed_resize_from_h
         self.extra_generation_params = p.extra_generation_params
@@ -153,11 +153,12 @@ def process_images(p: StableDiffusionProcessing) -> Processed | None:
     for k, v in p.override_settings.copy().items():
         if shared.opts.data.get(k, None) is None and shared.opts.data_labels.get(k, None) is None:
             continue
-        orig = shared.opts.data.get(k, None) or shared.opts.data_labels[k].default
+        # getattr resolves the value via data then data_labels; compat opts (clip_skip) have no data_labels entry
+        orig = getattr(shared.opts, k, None)
         if orig == v or (type(orig) == str and os.path.splitext(orig)[0] == v):
             p.override_settings.pop(k, None)
     for k in p.override_settings.keys():
-        stored_opts[k] = shared.opts.data.get(k, None) or shared.opts.data_labels[k].default
+        stored_opts[k] = getattr(shared.opts, k, None)
     results = None
     try:
         # if no checkpoint override or the override checkpoint can't be found, remove override entry and load opts checkpoint
@@ -316,16 +317,16 @@ def process_samples(p: StableDiffusionProcessing, samples):
                 if not p.do_not_save_samples and get_opt(p, 'save_images_before_detailer'):
                     info = create_infotext(p, p.prompts, p.seeds, p.subseeds, index=i)
                     images.save_image(image, path=p.outpath_samples, basename="", seed=p.seeds[i], prompt=p.prompts[i], extension=get_opt(p, 'samples_format'), info=info, p=p, suffix="-before-detailer")
-                sample = detailer.detail(sample, p)
+                sample = shared.detailer.restore(sample, p)
                 if isinstance(sample, list):
                     if len(sample) > 0:
-                        image = Image.fromarray(sample[0])
+                        image = sample[0] if isinstance(sample[0], Image.Image) else Image.fromarray(sample[0])
                     if len(sample) > 1:
                         annotated = sample[1] if isinstance(sample[1], Image.Image) else Image.fromarray(sample[1])
                         out_images.append(annotated)
                         out_infotexts.append("Detailer annotations")
                 elif sample is not None:
-                    image = Image.fromarray(sample)
+                    image = sample if isinstance(sample, Image.Image) else Image.fromarray(sample)
 
             if p.color_corrections is not None and i < len(p.color_corrections):
                 p.ops.append('color')

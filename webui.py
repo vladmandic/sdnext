@@ -36,6 +36,7 @@ import modules.progress
 import modules.ui
 import modules.txt2img
 import modules.img2img
+import modules.detailer
 import modules.upscaler
 import modules.upscaler_simple
 import modules.upscaler_vae
@@ -67,8 +68,7 @@ fastapi_args = {
     "description": "SD.Next",
     "docs_url": None,
     "redoc_url": None,
-    # "docs_url": "/docs" if cmd_opts.docs else None, # custom handler in api.py
-    # "redoc_url": "/redocs" if cmd_opts.docs else None,
+    "openapi_url": "/openapi.json" if shared.cmd_opts.docs else None,  # only expose OpenAPI schema if docs are enabled
 }
 
 
@@ -92,8 +92,6 @@ def initialize():
     def _scan_models():
         modules.modelloader.cleanup_models()
         modules.sd_checkpoint.setup_model()
-        from modules.sd_checkpoint import write_metadata
-        write_metadata()
     def _scan_lora():
         from modules.lora import lora_load
         lora_load.list_available_networks()
@@ -109,13 +107,15 @@ def initialize():
                 future.result()
             except Exception as e:
                 log.error(f'Scan error: {name} {e}')
+    from modules.sd_checkpoint import write_metadata
+    write_metadata()
+
     timer.startup.record("scans")
 
     shared.prompt_styles.reload()
     timer.startup.record("styles")
 
-    import modules.postprocess.yolo as yolo
-    yolo.initialize()
+    modules.detailer.initialize()
     timer.startup.record("detailer")
 
     modules.extensions.list_extensions()
@@ -137,7 +137,7 @@ def initialize():
     from modules.models_hf import hf_init, hf_check_cache
     hf_init()
     hf_check_cache()
-
+    timer.startup.record("huggingface")
 
     if shared.cmd_opts.tls_keyfile is not None and shared.cmd_opts.tls_certfile is not None:
         try:
@@ -422,7 +422,7 @@ def webui(restart=False, _exit=False):
         log.info(f"Startup time: {timer.startup.summary(min_time=0)}")
     else:
         timer.startup.add('launch', timer.launch.get_total())
-        timer.startup.add('installer', timer.launch.get_total())
+        timer.startup.add('installer', timer.init.get_total())
         log.info(f"Startup time: {timer.startup.summary()}")
     timer.startup.reset()
 

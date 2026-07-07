@@ -6,7 +6,7 @@ import torch
 
 from modules import shared, devices
 
-sdnq_version = "0.2.1"
+sdnq_version = "0.2.2"
 sdnq_keys = {"weight", "scale", "zero_point", "svd_up", "svd_down"}
 
 torch_version = torch.__version__[:4]
@@ -299,7 +299,7 @@ conv_transpose_types = {"ConvTranspose1d", "ConvTranspose2d", "ConvTranspose3d",
 allowed_types = set.union(linear_types, embedding_types, conv_types, conv_transpose_types)
 
 accepted_weight_dtypes = set(dtype_dict.keys())
-accepted_matmul_dtypes = {"int8", "fp8", "fp16", "float8_e4m3fn", "float16"}
+accepted_matmul_dtypes = {"int8", "uint8", "fp8", "fp16", "float8_e4m3fn", "float16"}
 
 weights_dtype_order = [
     "uint1", "float1_e1m0fnu",
@@ -337,7 +337,7 @@ weights_dtype_order = [
 
 use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
 
-def check_torch_compile(): # dynamo can be disabled after startup
+def check_torch_compile() -> bool: # dynamo can be disabled after startup
     return use_torch_compile and not torch._dynamo.config.disable # pylint: disable=protected-access
 
 
@@ -358,53 +358,84 @@ if os.environ.get("SDNQ_ALLOW_FP8_MM", None) is None:
 else:
     is_fp8_mm_supported = os.environ.get("SDNQ_ALLOW_FP8_MM", "0").lower() not in {"0", "false", "no"}
 
-if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
-    # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
-    use_tensorwise_fp8_matmul = bool(devices.backend != "cuda" or (devices.backend == "cuda" and torch.cuda.get_device_capability(devices.device) < (9,0)))
+if os.environ.get("SDNQ_USE_OPENVINO_MM", None) is None:
+    use_openvino_mm = bool(devices.backend in {"cpu", "openvino"})
 else:
-    use_tensorwise_fp8_matmul = os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"}
-
-if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
-    use_contiguous_mm = bool(is_rdna2_and_older or devices.backend in {"ipex", "mps", "openvino", "zluda"})
-else:
-    use_contiguous_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
+    use_openvino_mm = bool(os.environ.get("SDNQ_USE_OPENVINO_MM", "0").lower() not in {"0", "false", "no"})
 
 if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
     use_triton_mm = bool(is_rdna2_and_older or devices.backend == "zluda")
 else:
     use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
 
-
-if use_triton_mm:
-    try:
-        from .triton_mm import int_mm
-        int_mm_func = int_mm
-    except Exception:
-        int_mm_func = torch._int_mm
+if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
+    # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
+    use_tensorwise_fp8_matmul = bool(devices.backend != "cuda" or (devices.backend == "cuda" and torch.cuda.get_device_capability(devices.device) < (9,0)))
 else:
-    int_mm_func = torch._int_mm
+    use_tensorwise_fp8_matmul = os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"}
 
-
-def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
-    return torch.mm(x,y, out_dtype=torch.float32)
 
 fp_mm_func = None
-if os.environ.get("SDNQ_USE_TRITON_MM", "1").lower() not in {"0", "false", "no"}:
-    try:
-        from .triton_mm import fp_mm
-        fp_mm_func = fp_mm
-    except Exception:
-        fp_mm_func = None
+int_mm_func = None
 
+if use_openvino_mm:
+    try:
+        from .kernels.openvino_mm import openvino_int_mm, openvino_fp_mm
+        int_mm_func = openvino_int_mm
+        fp_mm_func = openvino_fp_mm
+    except Exception:
+        use_openvino_mm = False
+elif use_triton_mm:
+    try:
+        from .kernels.triton_mm import triton_int_mm, triton_fp_mm
+        int_mm_func = triton_int_mm
+        fp_mm_func = triton_fp_mm
+    except Exception:
+        use_triton_mm = False
+
+if fp_mm_func is None and os.environ.get("SDNQ_USE_TRITON_MM", "1").lower() not in {"0", "false", "no"}:
+    try:
+        from .triton_mm import triton_fp_mm
+        fp_mm_func = triton_fp_mm
+    except Exception:
+        use_triton_mm = False
+
+if int_mm_func is None:
+    int_mm_func = torch._int_mm
 if fp_mm_func is None:
+    if devices.backend == "cuda":
+        def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
+            return torch.mm(x,y, out_dtype=torch.float32)
+    else:
+        def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
+            if y.dtype == torch.float8_e4m3fn:
+                fp16_scale = 4 * y.shape[-2]
+            else:
+                fp16_scale = 65536 * y.shape[-2]
+            in_scale = fp16_scale**0.5
+            x = x.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
+            y = y.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
+            return torch.mm(x,y).to(dtype=torch.float32).mul_(fp16_scale)
     fp_mm_func = fp_mm_torch
 
 
+if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
+    use_contiguous_int8_mm = bool(use_openvino_mm or is_rdna2_and_older or devices.backend in {"ipex", "mps", "openvino", "zluda"})
+    use_contiguous_fp16_mm = bool(use_contiguous_int8_mm or devices.backend == "rocm")
+else:
+    use_contiguous_int8_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
+    use_contiguous_fp16_mm = use_contiguous_int8_mm
+
+
 if use_torch_compile:
-    torch._dynamo.config.recompile_limit = max(8192, getattr(torch._dynamo.config, "recompile_limit", 0))
-    torch._dynamo.config.cache_size_limit = max(8192, getattr(torch._dynamo.config, "cache_size_limit", 0))
-    torch._dynamo.config.accumulated_recompile_limit = max(8192, getattr(torch._dynamo.config, "accumulated_recompile_limit", 0))
-    torch._dynamo.config.accumulated_cache_size_limit = max(8192, getattr(torch._dynamo.config, "accumulated_cache_size_limit", 0))
+    if hasattr(torch._dynamo.config, "recompile_limit"):
+        torch._dynamo.config.recompile_limit = max(8192, getattr(torch._dynamo.config, "recompile_limit", 0))
+    if hasattr(torch._dynamo.config, "cache_size_limit"):
+        torch._dynamo.config.cache_size_limit = max(8192, getattr(torch._dynamo.config, "cache_size_limit", 0))
+    if hasattr(torch._dynamo.config, "accumulated_recompile_limit"):
+        torch._dynamo.config.accumulated_recompile_limit = max(8192, getattr(torch._dynamo.config, "accumulated_recompile_limit", 0))
+    if hasattr(torch._dynamo.config, "accumulated_cache_size_limit"):
+        torch._dynamo.config.accumulated_cache_size_limit = max(8192, getattr(torch._dynamo.config, "accumulated_cache_size_limit", 0))
     def compile_func(fn, **kwargs):
         if kwargs.get("fullgraph", None) is None:
             kwargs["fullgraph"] = True
@@ -412,7 +443,7 @@ if use_torch_compile:
             kwargs["dynamic"] = False
         if torch_version[0] > 2 or (torch_version[0] == 2 and torch_version[1] >= 12):
             if kwargs.get("recompile_limit", None) is None:
-                kwargs["recompile_limit"] = 8192
+                kwargs["recompile_limit"] = max(8192, getattr(torch._dynamo.config, "recompile_limit", 0))
         if os.environ.get("SDNQ_COMPILE_KWARGS", None) is not None:
             for key, value in json.loads(os.environ.get("SDNQ_COMPILE_KWARGS")).items():
                 kwargs[key] = value

@@ -5,8 +5,6 @@ import gradio as gr
 from modules import paths, shared_items, devices, theme
 from modules.options import OptionInfo, options_section
 from modules.ui_components import DropdownEditable
-from modules.dml import memory_providers, default_memory_provider
-from modules.onnx_impl import execution_providers
 from modules.memstats import memory_stats
 from modules.shared_defaults import get_default_modes
 from modules.shared_items import sdnq_quant_modes, sdnq_matmul_modes
@@ -15,6 +13,24 @@ import modules.caption.vqa
 
 
 options_templates = {}
+
+
+def list_onnx_providers():
+    try:
+        from modules.onnx_impl import execution_providers
+        providers = execution_providers.available_execution_providers
+        default_provider = execution_providers.get_default_execution_provider().value
+        return default_provider, providers
+    except Exception:
+        return "CPU", []
+
+
+def list_dml_providers():
+    try:
+        from modules.dml import memory_providers, default_memory_provider
+        return default_memory_provider, memory_providers
+    except Exception:
+        return "Performance Counter", []
 
 
 def list_checkpoint_titles():
@@ -66,6 +82,9 @@ def create_settings(cmd_opts):
     default_checkpoint = list_checkpoint_titles()[0] if len(list_checkpoint_titles()) > 0 else "model.safetensors"
     default_xetcache_dir = os.environ.get("HF_XET_CACHE ", None) or os.path.join(paths.models_path, 'xet')
 
+    default_onnx_execution_provider, default_onnx_execution_providers = list_onnx_providers()
+    default_dml_memory_provider, default_dml_memory_providers = list_dml_providers()
+
     hide_dirs = {"visible": not cmd_opts.hide_ui_dir_config}
 
     # --- SD Model Loading ---
@@ -86,6 +105,7 @@ def create_settings(cmd_opts):
         "runai_streamer_diffusers": OptionInfo(False, "Diffusers load using Run:ai streamer", gr.Checkbox),
         "runai_streamer_transformers": OptionInfo(False, "Transformers load using Run:ai streamer", gr.Checkbox),
         "diffusers_eval": OptionInfo(False, "Force model eval", gr.Checkbox, {"visible": True }),
+        "allow_incomplete_model": OptionInfo(False, "Attempt to load incomplete model", gr.Checkbox),
         "device_map": OptionInfo('default', "Model load device map", gr.Radio, {"choices": ['default', 'gpu', 'cpu'] }),
         "disable_accelerate": OptionInfo(False, "Disable accelerate", gr.Checkbox, {"visible": False }),
         "sd_checkpoint_cache": OptionInfo(0, "Cached models", gr.Slider, {"minimum": 0, "maximum": 10, "step": 1, "visible": False }),
@@ -106,7 +126,7 @@ def create_settings(cmd_opts):
         "model_h1_llama_repo": OptionInfo("Default", "LLama repo", gr.Textbox),
         "model_wan_sep": OptionInfo("<h2>WanAI</h2>", "", gr.HTML),
         "model_wan_stage": OptionInfo("low noise", "Processing stage", gr.Radio, {"choices": ['high noise', 'low noise', 'combined'] }),
-        "model_wan_boundary": OptionInfo(0.85, "Stage boundary ratio", gr.Slider, {"minimum": 0, "maximum": 1.0, "step": 0.05 }),
+        "model_wan_boundary": OptionInfo(-1, "Stage boundary ratio", gr.Slider, {"minimum": -1, "maximum": 1.0, "step": 0.05 }),
         "model_chrono_sep": OptionInfo("<h2>ChronoEdit</h2>", "", gr.HTML),
         "model_chrono_temporal_steps": OptionInfo(0, "Temporal steps", gr.Slider, {"minimum": 0, "maximum": 50, "step": 1 }),
         "model_qwen_layer_sep": OptionInfo("<h2>Qwen layered</h2>", "", gr.HTML),
@@ -220,6 +240,7 @@ def create_settings(cmd_opts):
         "math_sep": OptionInfo("<h2>Execution Precision</h2>", "", gr.HTML),
         "precision": OptionInfo("Autocast", "Precision type", gr.Radio, {"choices": ["Autocast", "Full"], "visible": False}),
         "cuda_dtype": OptionInfo("Auto", "Device precision type", gr.Radio, {"choices": ["Auto", "FP32", "FP16", "BF16"]}),
+        "force_dtype": OptionInfo(False, "Force dtype on load", None, None, None),
         "no_half": OptionInfo(False, "Force full precision (--no-half)", None, None, None),
         "upcast_sampling": OptionInfo(False if sys.platform != "darwin" else True, "Upcast sampling", gr.Checkbox, {"visible": False}),
 
@@ -234,6 +255,14 @@ def create_settings(cmd_opts):
         "xformers_options": OptionInfo(['Flash attention'], "xFormers options", gr.CheckboxGroup, {"choices": ['Flash attention'] }),
         "dynamic_attention_slice_rate": OptionInfo(0.5, "Dynamic Attention slicing rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4), "step": 0.01}),
         "dynamic_attention_trigger_rate": OptionInfo(1, "Dynamic Attention trigger rate", gr.Slider, {"minimum": 0.01, "maximum": max(gpu_memory,4)*2, "step": 0.01}),
+
+        "sdnq_attention_sep": OptionInfo("<h2>SDNQ Attention</h2>", "", gr.HTML),
+        "sdnq_attention_smooth_k": OptionInfo(False, "SDNQ Attention use Smooth K", gr.Checkbox),
+        "sdnq_attention_use_hadamard": OptionInfo(False, "SDNQ Attention use Hadamard", gr.Checkbox),
+        "sdnq_attention_use_quantized_matmul": OptionInfo(True, "SDNQ Attention use Quantized MatMul", gr.Checkbox),
+        "sdnq_attention_matmul_type": OptionInfo("auto", "SDNQ Attention MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
+        "sdnq_attention_pv_matmul_type": OptionInfo("auto", "SDNQ Attention PV MatMul type", gr.Radio, {"choices": sdnq_matmul_modes}),
+        "sdnq_attention_hadamard_group_size": OptionInfo(256, "SDNQ Attention Hadamard Group Size", gr.Slider, {"minimum": 4, "maximum": 1024, "step": 1}),
 
         "hf_attention_sep": OptionInfo("<h2>Attention Dispatcher</h2>", "", gr.HTML),
         "hf_attention": OptionInfo('', "Attention dispatcher kernel", gr.Textbox),
@@ -254,6 +283,7 @@ def create_settings(cmd_opts):
         "cudnn_deterministic": OptionInfo(False, "Deterministic mode"),
         "diffusers_fuse_projections": OptionInfo(False, "Fused projections"),
         "torch_expandable_segments": OptionInfo(False, "Expandable segments"),
+        "torch_sync": OptionInfo(True, "Force synchronize"),
         "cudnn_enabled": OptionInfo("default", "cuDNN enabled", gr.Radio, {"choices": ["default", "true", "false"]}),
         "cudnn_benchmark": OptionInfo(devices.backend != "rocm", "cuDNN full-depth benchmark"),
         "cudnn_benchmark_limit": OptionInfo(10, "cuDNN benchmark limit", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
@@ -265,7 +295,7 @@ def create_settings(cmd_opts):
         "torch_malloc": OptionInfo("native", "Memory allocator", gr.Radio, {"choices": ['native', 'cudaMallocAsync'] }),
 
         "onnx_sep": OptionInfo("<h2>ONNX</h2>", "", gr.HTML),
-        "onnx_execution_provider": OptionInfo(execution_providers.get_default_execution_provider().value, 'ONNX Execution Provider', gr.Dropdown, lambda: {"choices": execution_providers.available_execution_providers }),
+        "onnx_execution_provider": OptionInfo(default_onnx_execution_provider, 'ONNX Execution Provider', gr.Dropdown, lambda: {"choices": default_onnx_execution_providers}),
         "onnx_cpu_fallback": OptionInfo(True, 'ONNX allow fallback to CPU'),
         "onnx_cache_converted": OptionInfo(True, 'ONNX cache converted models'),
         "onnx_unload_base": OptionInfo(False, 'ONNX unload base model when processing refiner'),
@@ -287,7 +317,7 @@ def create_settings(cmd_opts):
         "openvino_disable_memory_cleanup": OptionInfo(True, "OpenVINO disable memory cleanup", gr.Checkbox, {"visible": cmd_opts.use_openvino}),
 
         "directml_sep": OptionInfo("<h2>DirectML</h2>", "", gr.HTML, {"visible": devices.backend == "directml"}),
-        "directml_memory_provider": OptionInfo(default_memory_provider, "DirectML memory stats provider", gr.Radio, {"choices": memory_providers, "visible": devices.backend == "directml"}),
+        "directml_memory_provider": OptionInfo(default_dml_memory_provider, "DirectML memory stats provider", gr.Radio, {"choices": default_dml_memory_providers, "visible": devices.backend == "directml"}),
         "directml_catch_nan": OptionInfo(False, "DirectML retry ops for NaN", gr.Checkbox, {"visible": devices.backend == "directml"}),
     }))
 
@@ -384,9 +414,17 @@ def create_settings(cmd_opts):
         "cuda_compile_sep": OptionInfo("<h2>Model Compile</h2>", "", gr.HTML),
         "cuda_compile": OptionInfo([] if not cmd_opts.use_openvino else ["Model", "VAE", "Upscaler", "Control"], "Compile Model", gr.CheckboxGroup, {"choices": ["Model", "TE", "VAE", "LLM", "Control", "Upscaler"]}),
         "cuda_compile_backend": OptionInfo("inductor" if not cmd_opts.use_openvino else "openvino_fx", "Model compile backend", gr.Radio, {"choices": ['none', 'inductor', 'cudagraphs', 'aot_ts_nvfuser', 'hidet', 'migraphx', 'ipex', 'onediff', 'stable-fast', 'deep-cache', 'olive-ai', 'openvino', 'openvino_fx', 'pruna']}),
+        "torch_compile_sep": OptionInfo("<h2>Torch Compile</h2>", "", gr.HTML),
         "cuda_compile_mode": OptionInfo("default", "Model compile mode", gr.Radio, {"choices": ['default', 'reduce-overhead', 'max-autotune', 'max-autotune-no-cudagraphs']}),
-        "cuda_compile_options": OptionInfo(["repeated", "dynamic", "components"] if not cmd_opts.use_openvino else [], "Model compile options", gr.CheckboxGroup, {"choices": ["components", "precompile", "repeated", "fullgraph", "dynamic", "verbose"]}),
+        "cuda_compile_options": OptionInfo(["repeated", "dynamic", "components"] if not cmd_opts.use_openvino else [], "Torch compile options", gr.CheckboxGroup, {"choices": ["components", "precompile", "repeated", "fullgraph", "dynamic", "verbose"]}),
+        "deepcache_compile_sep": OptionInfo("<h2>DeepCache</h2>", "", gr.HTML),
         "deep_cache_interval": OptionInfo(3, "DeepCache cache interval", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1}),
+        "pruna_compile_sep": OptionInfo("<h2>Pruna</h2>", "", gr.HTML),
+        "pruna_experimental": OptionInfo(False, "Pruna experimental features", gr.Checkbox),
+        "pruna_cachers": OptionInfo([], "Pruna cachers", gr.CheckboxGroup, {"choices": ["fastercache", "deepcache", "fora", "pab"]}),
+        "pruna_compilers": OptionInfo([], "Pruna compilers", gr.CheckboxGroup, {"choices": ["stable_fast", "x_fast", "torch_compile"]}),
+        "pruna_factorizers": OptionInfo([], "Pruna factorizers", gr.CheckboxGroup, {"choices": ["qkv_diffusers"]}),
+        "pruna_pruners": OptionInfo([], "Pruna pruners", gr.CheckboxGroup, {"choices": ["kvpress", "padding_pruning", "token_merging", "torch_structured", "torch_unstructured"]}),
     }))
 
     # --- System Paths ---
@@ -538,7 +576,6 @@ def create_settings(cmd_opts):
 
         'uiux_separator_appearance': OptionInfo("<h2>Appearance</h2>", "", gr.HTML),
         "uiux_grid_image_size": OptionInfo(150, "Grid image size", gr.Slider, {"minimum": 64, "maximum": 1024, "step": 1}),
-        "uiux_panel_min_width": OptionInfo(35, "Panel minimum width", gr.Number),
         "uiux_hide_legacy": OptionInfo(True, "Hide legacy tabs"),
         "uiux_persist_layout": OptionInfo(True, "Persist UI layout"),
         "uiux_no_slider_layout": OptionInfo(False, "Hide input range sliders"),
@@ -570,6 +607,7 @@ def create_settings(cmd_opts):
         "live_preview_refresh_period": OptionInfo(500, "Progress update period", gr.Slider, {"minimum": 0, "maximum": 5000, "step": 25}),
         "taesd_variant": OptionInfo(shared_items.sd_taesd_items()[0], "TAESD variant", gr.Dropdown, {"choices": shared_items.sd_taesd_items()}),
         "taesd_layers": OptionInfo(3, "TAESD decode layers", gr.Slider, {"minimum": 1, "maximum": 3, "step": 1}),
+        "live_preview_require_focus": OptionInfo(True, "Pause live previews when tab is not focused"),
         "live_preview_downscale": OptionInfo(True, "Downscale high resolution live previews"),
 
         "notification_audio_enable": OptionInfo(False, "Play a notification upon completion"),
@@ -762,7 +800,6 @@ def create_settings(cmd_opts):
                 "uni_pc_variant": OptionInfo("bh2", "UniPC variant", gr.Radio, {"choices": ["bh1", "bh2", "vary_coeff"], "visible": False}),
                 "uni_pc_skip_type": OptionInfo("time_uniform", "UniPC skip type", gr.Radio, {"choices": ["time_uniform", "time_quadratic", "logSNR"], "visible": False}),
                 # detailer settings are handled separately
-                "detailer_model": OptionInfo("Detailer", "Detailer model", gr.Radio, lambda: {"choices": [x.name() for x in shared.detailers], "visible": False}),
                 "detailer_classes": OptionInfo("", "Detailer classes", gr.Textbox, {"visible": False}),
                 "detailer_conf": OptionInfo(0.6, "Min confidence", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05, "visible": False}),
                 "detailer_max": OptionInfo(2, "Max detected", gr.Slider, {"minimum": 1, "maximum": 10, "step": 1, "visible": False}),
@@ -773,7 +810,7 @@ def create_settings(cmd_opts):
                 "detailer_max_size": OptionInfo(1.0, "Max object size", gr.Slider, {"minimum": 0.0, "maximum": 1.0, "step": 0.05, "visible": False}),
                 "detailer_padding": OptionInfo(20, "Item padding", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1, "visible": False}),
                 "detailer_blur": OptionInfo(10, "Item edge blur", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1, "visible": False}),
-                "detailer_models": OptionInfo(["face-yolo8n"], "Detailer models", gr.Dropdown, lambda: {"multiselect": True, "choices": list(shared.yolo.list) if shared.yolo else [], "visible": False}),
+                "detailer_models": OptionInfo(["face-yolo8n"], "Detailer models", gr.Dropdown, lambda: {"multiselect": True, "choices": list(shared.detailer.list) if shared.detailer else [], "visible": False}),
                 "detailer_args": OptionInfo("", "Detailer args", gr.Textbox, {"visible": False}),
                 "detailer_merge": OptionInfo(False, "Merge multiple results from each detailer model", gr.Checkbox, {"visible": False}),
                 "detailer_sort": OptionInfo(False, "Sort detailer output by location", gr.Checkbox, {"visible": False}),

@@ -259,7 +259,7 @@ def network_apply_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gro
         return
     t0 = time.time()
 
-    if weights_backup is not None:
+    if weights_backup is not None and not isinstance(weights_backup, bool):
         self.weight = None
         if updown is not None and len(weights_backup.shape) == 4 and weights_backup.shape[1] == 9: # inpainting model. zero pad updown to make channel[1]  4 to 9
             updown = torch.nn.functional.pad(updown, (0, 0, 0, 0, 0, 5)) # pylint: disable=not-callable
@@ -281,7 +281,7 @@ def network_apply_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gro
                     self.svd_up, self.svd_down = None, None
                 # del self.sdnq_dequantizer_backup, self.sdnq_scale_backup, self.sdnq_zero_point_backup, self.sdnq_svd_up_backup, self.sdnq_svd_down_backup
 
-    if bias_backup is not None:
+    if bias_backup is not None and not isinstance(bias_backup, bool):
         self.bias = None
         if ex_bias is not None:
             network_add_weights(self, model_weights=bias_backup, lora_weights=ex_bias, deactivate=deactivate, device=device, bias=True)

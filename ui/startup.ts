@@ -21,6 +21,7 @@ import { timer, logTimers } from './timers';
 import { getUIDefaults } from './uiConfig';
 import { log } from './logger';
 import { appStartTime, removeSplash } from './loader';
+import { addLegacyNotice } from './legacy';
 
 window.api = '/sdapi/v1';
 window.subpath = '';
@@ -106,6 +107,8 @@ async function initStartup() {
   startupPromises.push(Promise.resolve(applyStyles()));
   startupPromises.push(Promise.resolve(initIndexDB()));
   startupPromises.push(Promise.resolve(initTableSorter()));
+
+  if (window.opts.theme_type !== 'Modern') addLegacyNotice();
 
   const t1 = performance.now();
   log('initStartup', Math.round(1000 * (t1 - t0) / 1000000));

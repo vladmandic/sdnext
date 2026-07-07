@@ -24,7 +24,7 @@ from .generation import (
     calculate_optimal_batch_params
 )
 
-from .infer import VideoDiffusionInfer
+from .infer import SeedVRPipeline
 
 __all__ = [
     # Model management
@@ -42,6 +42,6 @@ __all__ = [
     'calculate_optimal_batch_params',
 
     # Infer
-    'VideoDiffusionInfer'
+    'SeedVRPipeline'
 ]
 '''

@@ -1,22 +1,28 @@
-from modules.logger import log
-from typing import Any, Dict, Optional
+from typing import Any
 import numpy as np
 import torch
 import diffusers
 from installer import installed, install
+from modules.logger import log
+from modules.loader import _onnx
 
 
 initialized = False
 
 
-try:
-    import onnxruntime as ort
-except Exception as e:
-    log.error(f'ONNX import error: {e}')
+if _onnx:
+    try:
+        import onnxruntime as ort
+    except Exception as e:
+        log.error(f'ONNX import error: {e}')
+        ort = None
+        initialized = True
+else:
     ort = None
+    initialized = True
 
 
-class DynamicSessionOptions(ort.SessionOptions):
+class DynamicSessionOptions(ort.SessionOptions if ort is not None else object):
     config: dict | None = None
 
     def __init__(self):
@@ -24,7 +30,7 @@ class DynamicSessionOptions(ort.SessionOptions):
         self.enable_mem_pattern = False
 
     @classmethod
-    def from_sess_options(cls, sess_options: ort.SessionOptions):
+    def from_sess_options(cls, sess_options):
         if isinstance(sess_options, DynamicSessionOptions):
             return sess_options.copy()
         return DynamicSessionOptions()
@@ -71,9 +77,9 @@ class TemporalModule(TorchCompatibleModule):
     """
     provider: Any
     path: str
-    sess_options: ort.SessionOptions
+    sess_options: ort.SessionOptions if ort is not None else object
 
-    def __init__(self, provider: Any, path: str, sess_options: ort.SessionOptions):
+    def __init__(self, provider: Any, path: str, sess_options):
         self.provider = provider
         self.path = path
         self.sess_options = sess_options
@@ -89,7 +95,7 @@ class TemporalModule(TorchCompatibleModule):
         return self
 
 
-class OnnxRuntimeModel(TorchCompatibleModule, diffusers.OnnxRuntimeModel):
+class OnnxRuntimeModel(TorchCompatibleModule, diffusers.OnnxRuntimeModel if ort is not None else object):
     config = {} # dummy
 
     def to(self, *args, **kwargs):
