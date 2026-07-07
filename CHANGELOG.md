@@ -1,17 +1,17 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-06
+## Update for 2026-07-07
 
-### Highlights for 2026-07-06
+### Highlights for 2026-07-07
 
-Service-pack update with number of fixes and quality-of-life improvements  
-Plus few new models: **Krea 2**, **Boogu**, **Photoroom PRXPixel**, **FLUX.2 Klein KV** and some new community models  
-And **SDNQ** improvements: now with *NPU* support and its own native *attention* kernels (try it, you may get a nice free performance boost)!  
-Also couple of *experimental* features: see below for details...  
+Originating as a service-pack update with a handful of fixes and quality-of-life improvements, this release also includes several larger updates  
+- Adds new models: **Krea 2**, **Boogu**, **Photoroom PRXPixel**, **FLUX.2 Klein KV** and some new community models  
+- Expands **SDNQ**: with *NPU* support and its own native *attention* kernels (try it, you may get a nice free performance boost)!  
+- Introduces couple of experimental features worth trying  
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-07-06
+### Details for 2026-07-07
 
 - **Models**
   - [Krea 2](https://www.krea.ai/blog/krea-2-image-model) in *base* and *turbo* (distilled) variants  
