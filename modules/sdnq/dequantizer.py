@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import torch
 
 from modules import devices
-from .common import dtype_dict, compile_func, use_contiguous_mm, use_tensorwise_fp8_matmul
+from .common import dtype_dict, compile_func, use_contiguous_int8_mm, use_contiguous_fp16_mm, use_tensorwise_fp8_matmul
 from .quant_utils import quantize_int_mm, quantize_uint_mm, quantize_fp_mm, rotate_hadamard, get_hadamard
 from .packed_int import unpack_int
 from .packed_float import unpack_float
@@ -34,7 +34,7 @@ def dequantize_asymmetric(
     if svd_up is not None:
         if skip_quantized_matmul:
             svd_up = svd_up.t().contiguous()
-            if use_contiguous_mm:
+            if use_contiguous_fp16_mm:
                 svd_down = svd_down.t().contiguous()
             else:
                 svd_down = svd_down.contiguous().t()
@@ -70,7 +70,7 @@ def dequantize_symmetric(
     if svd_up is not None:
         if skip_quantized_matmul:
             svd_up = svd_up.t().contiguous()
-            if use_contiguous_mm:
+            if use_contiguous_fp16_mm:
                 svd_down = svd_down.t().contiguous()
             else:
                 svd_down = svd_down.contiguous().t()
@@ -114,7 +114,7 @@ def dequantize_weight(
 def re_quantize_int_mm(weight: torch.FloatTensor, matmul_dtype: str = "int8") -> tuple[torch.Tensor, torch.FloatTensor]:
     if weight.ndim > 2: # convs
         weight = weight.flatten(1,-1)
-    if use_contiguous_mm:
+    if use_contiguous_int8_mm:
         weight, scale = quantize_int_mm(weight.t().contiguous(), dim=0, matmul_dtype=matmul_dtype)
     else:
         weight, scale = quantize_int_mm(weight.contiguous(), dim=-1, matmul_dtype=matmul_dtype)
@@ -126,7 +126,7 @@ def re_quantize_int_mm(weight: torch.FloatTensor, matmul_dtype: str = "int8") ->
 def re_quantize_uint_mm(weight: torch.FloatTensor, matmul_dtype: str = "uint8") -> tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
     if weight.ndim > 2: # convs
         weight = weight.flatten(1,-1)
-    if use_contiguous_mm:
+    if use_contiguous_int8_mm:
         weight, scale, zero_point = quantize_uint_mm(weight.t().contiguous(), dim=0, matmul_dtype=matmul_dtype)
     else:
         weight, scale, zero_point = quantize_uint_mm(weight.contiguous(), dim=-1, matmul_dtype=matmul_dtype)
@@ -138,7 +138,7 @@ def re_quantize_uint_mm(weight: torch.FloatTensor, matmul_dtype: str = "uint8") 
 def re_quantize_fp_mm(weight: torch.FloatTensor, matmul_dtype: str = "float8_e4m3fn") -> tuple[torch.Tensor, torch.FloatTensor]:
     if weight.ndim > 2: # convs
         weight = weight.flatten(1,-1)
-    if use_contiguous_mm and matmul_dtype in {"fp16", "float16"}:
+    if use_contiguous_fp16_mm and matmul_dtype in {"fp16", "float16"}:
         weight, scale = quantize_fp_mm(weight.t().contiguous(), dim=0, matmul_dtype=matmul_dtype)
     else:
         weight, scale = quantize_fp_mm(weight.contiguous(), dim=-1, matmul_dtype=matmul_dtype)

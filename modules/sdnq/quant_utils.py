@@ -4,7 +4,7 @@ import math
 import torch
 
 from modules import devices
-from .common import dtype_dict, use_contiguous_mm, conv_types, conv_transpose_types
+from .common import dtype_dict, use_contiguous_int8_mm, use_contiguous_fp16_mm, conv_types, conv_transpose_types
 
 
 @devices.inference_context()
@@ -82,7 +82,7 @@ def build_hadamard_n2(n: int, dtype: torch.dtype | None = None, device: torch.de
         H = torch.kron(H, H_N2)
         current_size *= 2
     H = H.div_(n**0.5)
-    H = prepare_weight_for_matmul(H)
+    H = prepare_weight_for_matmul(H, matmul_dtype="float16")
     return H
 
 
@@ -94,7 +94,7 @@ def build_hadamard_n4(n: int, dtype: torch.dtype | None = None, device: torch.de
         H = torch.kron(H, H_N4)
         current_size *= 4
     H = H.div_(n**0.5)
-    H = prepare_weight_for_matmul(H)
+    H = prepare_weight_for_matmul(H, matmul_dtype="float16")
     return H
 
 
@@ -167,8 +167,8 @@ def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.
 
 
 @devices.inference_context()
-def prepare_weight_for_matmul(weight: torch.Tensor) -> torch.Tensor:
-    if use_contiguous_mm:
+def prepare_weight_for_matmul(weight: torch.Tensor, matmul_dtype: str | None = "int8") -> torch.Tensor:
+    if (use_contiguous_int8_mm and matmul_dtype in {"int8", "uint8"}) or (use_contiguous_fp16_mm and matmul_dtype == "float16"):
         weight = weight.contiguous()
     elif weight.is_contiguous():
         weight = weight.t_().contiguous().t_()
@@ -179,11 +179,11 @@ def prepare_weight_for_matmul(weight: torch.Tensor) -> torch.Tensor:
 def prepare_svd_for_matmul(svd_up: torch.FloatTensor, svd_down: torch.FloatTensor, use_quantized_matmul: bool) -> tuple[torch.FloatTensor, torch.FloatTensor]:
     if svd_up is not None:
         if use_quantized_matmul:
-            svd_up = prepare_weight_for_matmul(svd_up)
+            svd_up = prepare_weight_for_matmul(svd_up, matmul_dtype="float16")
         else:
             svd_up = svd_up.contiguous()
     if svd_down is not None:
-        svd_down = prepare_weight_for_matmul(svd_down)
+        svd_down = prepare_weight_for_matmul(svd_down, matmul_dtype="float16")
     return svd_up, svd_down
 
 

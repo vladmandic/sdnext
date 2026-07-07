@@ -210,7 +210,7 @@ def sdnq_quantize_layer_weight(
         weight.t_()
         if zero_point is not None:
             zero_point.t_()
-        weight = prepare_weight_for_matmul(weight)
+        weight = prepare_weight_for_matmul(weight, matmul_dtype=quantized_matmul_dtype)
 
     quantized_weight_shape = weight.shape
     if dtype_dict[weights_dtype]["is_packed"]:
@@ -643,7 +643,7 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                 param_value = param_value.to(target_device, dtype=return_dtype, copy=False)
 
                 if tensor_name == "weight" and layer.sdnq_dequantizer.use_quantized_matmul and not layer.sdnq_dequantizer.re_quantize_for_matmul:
-                    param_value = prepare_weight_for_matmul(param_value)
+                    param_value = prepare_weight_for_matmul(param_value, matmul_dtype=layer.sdnq_dequantizer.quantized_matmul_dtype)
                 elif tensor_name == "svd_up":
                     param_value, _ = prepare_svd_for_matmul(param_value, None, layer.sdnq_dequantizer.use_quantized_matmul)
                 elif tensor_name == "svd_down":

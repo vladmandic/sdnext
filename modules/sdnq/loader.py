@@ -207,7 +207,7 @@ def post_process_model(model: torch.nn.Module) -> torch.nn.Module:
             if module.zero_point is not None:
                 module.zero_point.requires_grad_(False)
             if module.sdnq_dequantizer.use_quantized_matmul and not module.sdnq_dequantizer.re_quantize_for_matmul:
-                module.weight.data = prepare_weight_for_matmul(module.weight)
+                module.weight.data = prepare_weight_for_matmul(module.weight, matmul_dtype=module.sdnq_dequantizer.quantized_matmul_dtype)
             if module.svd_up is not None:
                 module.svd_up.requires_grad_(False)
                 module.svd_down.requires_grad_(False)
@@ -291,7 +291,7 @@ def apply_sdnq_options_to_module(
                         if module.zero_point is not None:
                             module.zero_point.t_()
                         if current_use_quantized_matmul:
-                            module.weight.data = prepare_weight_for_matmul(module.weight)
+                            module.weight.data = prepare_weight_for_matmul(module.weight, matmul_dtype=module.sdnq_dequantizer.quantized_matmul_dtype)
                         else:
                             module.scale.data = module.scale.contiguous()
                             module.weight.data = module.weight.contiguous()
