@@ -19,15 +19,19 @@ from diffusers' ``SINGLE_FILE_LOADABLE_CLASSES`` table.
 Algorithm:
 
 1. Read the safetensors state dict (.gguf and .pth are rejected up front).
-2. Detect and strip one of the spec's known prefixes (raises on mixed prefixes).
-3. Check forbidden markers (catches structural mismatches like Cosmos 1.0 keys
+2. Drop keys belonging to known companion component families (all-in-one
+   exports bundle the text encoder and VAE under prefixes like
+   ``cond_stage_model.`` / ``first_stage_model.``; sdnext sources those
+   components elsewhere).
+3. Detect and strip one of the spec's known prefixes (raises on mixed prefixes).
+4. Check forbidden markers (catches structural mismatches like Cosmos 1.0 keys
    in a Cosmos 2.0 loader).
-4. Partition off sibling component keys (e.g. Anima's bundled ``llm_adapter.*``).
-5. Run the spec's converter if present (else pass through unchanged).
-6. Fetch ``<subfolder>/config.json`` from the base repo, instantiate via
+5. Partition off sibling component keys (e.g. Anima's bundled ``llm_adapter.*``).
+6. Run the spec's converter if present (else pass through unchanged).
+7. Fetch ``<subfolder>/config.json`` from the base repo, instantiate via
    ``cls.from_config``, ``load_state_dict(strict=False)``, validate, dtype-cast,
    quantize, and offload-place.
-7. Repeat the build for each populated sibling (no converter, no quant by
+8. Repeat the build for each populated sibling (no converter, no quant by
    default; sibling weights are read raw from the bundled file).
 
 Returns ``(transformer, sibling_components_dict)``. The dict is empty for
@@ -57,6 +61,13 @@ DEFAULT_ACCEPTABLE_MISSING: tuple[str, ...] = (
     "rope.",
     "pos_embedder.",
     "learnable_pos_embed.",
+)
+DEFAULT_IGNORED_PREFIXES: tuple[str, ...] = (
+    "cond_stage_model.",
+    "conditioner.",
+    "first_stage_model.",
+    "text_encoders.",
+    "vae.",
 )
 
 
@@ -106,11 +117,17 @@ class TransformerSpec:
     ``acceptable_missing`` (buffer-only keys left at their init), these are
     zero-filled on load so the branch stays a no-op, matching a base model
     that ships the branch dormant (output projection all-zeros).
+
+    ``ignored_prefixes`` names companion component families (text encoder,
+    VAE) that all-in-one exports bundle alongside the transformer; their keys
+    are dropped before prefix detection rather than treated as a malformed
+    file.
     """
 
     cls: type
     subfolder: str = "transformer"
     prefixes: tuple[str, ...] = DEFAULT_PREFIXES
+    ignored_prefixes: tuple[str, ...] = DEFAULT_IGNORED_PREFIXES
     converter: Callable[[dict], dict] | None = None
     siblings: dict[str, SiblingSpec] = field(default_factory=dict)
     acceptable_missing: tuple[str, ...] = DEFAULT_ACCEPTABLE_MISSING
@@ -246,6 +263,7 @@ def load(
         quant_type = model_quant.get_quant_type(quant_args)
 
     state_dict = sd_models.read_state_dict(local_file, what="transformer")
+    state_dict = drop_companion_keys(state_dict, spec.ignored_prefixes, spec.cls.__name__)
     state_dict, detected_prefix = strip_prefix(state_dict, spec.prefixes, spec.cls.__name__)
     check_forbidden_markers(state_dict, spec.forbidden_markers, spec.cls.__name__, local_file)
     transformer_sd, sibling_sds = partition_siblings(state_dict, spec.siblings)
@@ -307,6 +325,40 @@ def load(
     devices.torch_gc()
     log.debug(f"Load model: type={spec.cls.__name__} native_transformer time={time.time() - t0:.2f}")
     return transformer, loaded_siblings
+
+
+def drop_companion_keys(state_dict: dict, ignored_prefixes: tuple[str, ...], type_name: str) -> dict:
+    """Remove keys belonging to known non-transformer component families.
+
+    All-in-one exports bundle the text encoder and VAE alongside the
+    transformer under LDM/ComfyUI-style family prefixes (``cond_stage_model.``,
+    ``first_stage_model.``, ``text_encoders.``, ``vae.``). Only the transformer
+    (plus any spec-declared inline siblings) is wanted here; sdnext sources the
+    other components from the base repo or their own override dropdowns.
+    Dropped families are logged so the skip is visible in the load log.
+
+    Raises ValueError when nothing remains after filtering, meaning the
+    selected file holds no transformer at all.
+    """
+    if not ignored_prefixes:
+        return state_dict
+    dropped: dict[str, int] = {}
+    kept: dict = {}
+    for key, value in state_dict.items():
+        prefix = next((p for p in ignored_prefixes if key.startswith(p)), None)
+        if prefix is None:
+            kept[key] = value
+        else:
+            dropped[prefix] = dropped.get(prefix, 0) + 1
+    if not dropped:
+        return state_dict
+    counts = " ".join(f"{prefix.rstrip('.')}={count}" for prefix, count in dropped.items())
+    if not kept:
+        raise ValueError(
+            f"Load model: type={type_name} native_transformer has no transformer keys ({counts})"
+        )
+    log.info(f"Load model: type={type_name} native_transformer skipping bundled components: {counts}")
+    return kept
 
 
 def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) -> tuple[dict, str]:

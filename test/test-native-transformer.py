@@ -4,6 +4,7 @@ Offline unit tests for pipelines.native_transformer.
 
 Covers the pure helpers that own per-arch knob handling:
 
+- ``drop_companion_keys`` for filtering bundled TE/VAE families out of all-in-one files
 - ``strip_prefix`` for single/multi prefix detection and mixed-prefix rejection
 - ``partition_siblings`` for inline-sibling key partitioning
 - ``check_forbidden_markers`` for structural-mismatch rejection
@@ -92,6 +93,61 @@ def run_test(cat: str, fn):
         record(cat, False, name, f'exception: {e}')
         import traceback
         traceback.print_exc()
+
+
+# ============================================================
+# drop_companion_keys
+# ============================================================
+
+def test_drop_companion_keys_no_companions_pass_through():
+    sd = {'net.blocks.0.weight': 1, 'net.blocks.1.weight': 2}
+    out = nt.drop_companion_keys(sd, nt.DEFAULT_IGNORED_PREFIXES, 'Test')
+    assert out == sd, 'files without companion keys must pass through unchanged'
+
+
+def test_drop_companion_keys_filters_all_in_one_layout():
+    sd = {
+        'net.blocks.0.weight': 1,
+        'net.llm_adapter.proj.weight': 2,
+        'cond_stage_model.qwen3_06b.transformer.model.embed_tokens.weight': 3,
+        'first_stage_model.decoder.conv1.weight': 4,
+        'vae.decoder.conv_in.weight': 5,
+        'text_encoders.clip_l.weight': 6,
+    }
+    out = nt.drop_companion_keys(sd, nt.DEFAULT_IGNORED_PREFIXES, 'Test')
+    assert set(out.keys()) == {'net.blocks.0.weight', 'net.llm_adapter.proj.weight'}
+
+
+def test_drop_companion_keys_raises_when_nothing_left():
+    sd = {
+        'cond_stage_model.te.weight': 1,
+        'first_stage_model.decoder.weight': 2,
+    }
+    try:
+        nt.drop_companion_keys(sd, nt.DEFAULT_IGNORED_PREFIXES, 'Test')
+        raise AssertionError('expected ValueError')
+    except ValueError as e:
+        assert 'no transformer keys' in str(e)
+
+
+def test_drop_companion_keys_empty_prefix_tuple_no_op():
+    sd = {'cond_stage_model.te.weight': 1}
+    out = nt.drop_companion_keys(sd, (), 'Test')
+    assert out == sd, 'empty ignored_prefixes must disable filtering'
+
+
+def test_drop_then_strip_all_in_one_layout():
+    """Companion filtering must clear the way for normal prefix detection."""
+    sd = {
+        'net.blocks.0.weight': 1,
+        'net.final_layer.weight': 2,
+        'cond_stage_model.te.weight': 3,
+        'first_stage_model.decoder.weight': 4,
+    }
+    out = nt.drop_companion_keys(sd, nt.DEFAULT_IGNORED_PREFIXES, 'Test')
+    out, prefix = nt.strip_prefix(out, nt.DEFAULT_PREFIXES, 'Test')
+    assert prefix == 'net.'
+    assert set(out.keys()) == {'blocks.0.weight', 'final_layer.weight'}
 
 
 # ============================================================
@@ -380,6 +436,7 @@ def test_transformer_spec_defaults():
     assert spec.converter is None
     assert spec.siblings == {}
     assert spec.acceptable_missing == ('rope.', 'pos_embedder.', 'learnable_pos_embed.')
+    assert spec.ignored_prefixes == ('cond_stage_model.', 'conditioner.', 'first_stage_model.', 'text_encoders.', 'vae.')
     assert spec.forbidden_markers == ()
 
 
@@ -779,6 +836,17 @@ def test_load_converter_crash_raises_mismatch():
 # ============================================================
 
 def run_all():
+    log.warning('=== drop_companion_keys ===')
+    cat = category('companion')
+    for fn in [
+        test_drop_companion_keys_no_companions_pass_through,
+        test_drop_companion_keys_filters_all_in_one_layout,
+        test_drop_companion_keys_raises_when_nothing_left,
+        test_drop_companion_keys_empty_prefix_tuple_no_op,
+        test_drop_then_strip_all_in_one_layout,
+    ]:
+        run_test(cat, fn)
+
     log.warning('=== strip_prefix ===')
     cat = category('strip')
     for fn in [
