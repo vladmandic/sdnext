@@ -288,6 +288,14 @@
     "date": "2026 May",
     "size": 4.99
   },
+  "Anima 1.0 Aesthetic": {
+    "path": "CalamitousFelicitousness/Anima-1.0-Aesthetic-Diffusers",
+    "preview": "CalamitousFelicitousness--Anima-1.0-Aesthetic-Diffusers.jpg",
+    "desc": "Anima 1.0 Aesthetic, fine-tuned for better consistency and a higher quality default art style. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
+    "extras": "sampler: Default, cfg_scale: 4.5, steps: 30",
+    "date": "2026 July",
+    "size": 4.99
+  },
   "Meituan LongCat Image": {
     "path": "meituan-longcat/LongCat-Image",
     "preview": "meituan-longcat--LongCat-Image.jpg",
