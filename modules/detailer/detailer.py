@@ -247,7 +247,7 @@ class Detailer():
                 pc.disable_extra_networks = True # disable processing_diffusers from handling network activation since its handled here
                 network_same = len(p.network_data.values()) == len(pc.network_data.values()) and all(x == y for x, y in zip(p.network_data.values(), pc.network_data.values()))
                 if not network_same:
-                    extra_networks.activate(pc, pc.network_data)
+                    extra_networks.activate_filtered(pc, pc.network_data)
                 log.debug(f'Detail: model="{i+1}:{name}" item={j+1}/{len(items)} box={item.box} label="{item.label}" score={item.score:.2f} seg={detailer_opt(p, "detailer_segmentation")} network={network_same} prompt="{pc.prompt}"')
                 pc.init_images = [image]
                 pc.image_mask = [item.mask]

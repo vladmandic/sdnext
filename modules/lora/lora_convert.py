@@ -130,6 +130,12 @@ class KeyConvert:
         sd_module = shared.sd_model.network_layer_mapping.get(key, None)
         if sd_module is None:
             sd_module = shared.sd_model.network_layer_mapping.get(key.replace("guidance", "timestep"), None)  # FLUX1 fix
+        if sd_module is None and key.startswith("lora_te"):
+            # transformers >=5.6 flattened CLIPTextModel; kohya te keys still carry the text_model wrapper
+            flat_key = key.replace("_text_model_", "_", 1)
+            sd_module = shared.sd_model.network_layer_mapping.get(flat_key, None)
+            if sd_module is not None:
+                key = flat_key
         if debug and sd_module is None:
             raise RuntimeError(f"LoRA key not found in network_layer_mapping: key={key} mapping={shared.sd_model.network_layer_mapping.keys()}")
         return key, sd_module
