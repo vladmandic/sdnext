@@ -1,5 +1,17 @@
 # Change Log for SD.Next
 
+## Update for 2026-07-08
+
+- **Features**
+  - api add `/sdapi/v1/restart` endpoint
+- **Fixes**
+  - huggingface: fix model access on windows
+  - lora: fix lora text-encoder loader
+  - amd: hipBLASLt improved detection, thanks @0xDELUXA
+  - api: validate swagger schema
+  - installer: handle detached branch on non-english setups
+  - fs: faster stat
+
 ## Update for 2026-07-07
 
 ### Highlights for 2026-07-07

@@ -13,16 +13,6 @@ from modules.shared import opts, log
 extra_ui = []
 
 
-def get_folder_size(folder):
-    total_size = 0
-    for dirpath, _dirnames, filenames in os.walk(folder, followlinks=False):
-        for f in filenames:
-            fp = os.path.join(dirpath, f)
-            if not os.path.islink(fp) and os.path.isfile(fp):
-                total_size += os.path.getsize(fp)
-    return round(total_size / 1024 / 1024 / 1024, 3)
-
-
 def update_model_hashes():
     from modules import sd_unet, sd_checkpoint
     unets = {}
@@ -60,16 +50,14 @@ def create_models_table(rows: list | None = None):
     for row in rows:
         try:
             f = row.filename
-            stat_size, stat_mtime = modelstats.stat(f)
+            size, mtime = modelstats.stat(f)
+            size = round(size / 1024 / 1024 / 1024, 3)
             if os.path.isfile(f):
                 typ = os.path.splitext(f)[1][1:]
-                size = round(stat_size / 1024 / 1024 / 1024, 3)
             elif os.path.isdir(f):
                 typ = 'diffusers'
-                size = get_folder_size(f)
             else:
                 typ = 'unknown'
-                size = 0
             guess = 'Stable Diffusion' # set default guess
             guess = sd_detect.guess_by_size(f, guess)
             guess = sd_detect.guess_by_name(f, guess)
@@ -81,7 +69,7 @@ def create_models_table(rows: list | None = None):
             typ_name = escape(str(typ))
             guess_name = escape(str(guess))
             hash_name = escape(str(row.shorthash))
-            mtime_sort = stat_mtime.timestamp() if hasattr(stat_mtime, 'timestamp') else 0
+            mtime_sort = mtime.timestamp() if hasattr(mtime, 'timestamp') else 0
             tbody += f"""
                 <tr>
                     <td data-sort-value="{model_name.lower()}">{model_name}</td>
@@ -89,7 +77,7 @@ def create_models_table(rows: list | None = None):
                     <td data-sort-value="{guess_name.lower()}">{guess_name}</td>
                     <td data-sort-value="{pipeline_name.lower()}">{pipeline_name}</td>
                     <td data-sort-value="{size}">{size:.3f} GB</td>
-                    <td data-sort-value="{mtime_sort}">{stat_mtime}</td>
+                    <td data-sort-value="{mtime_sort}">{mtime}</td>
                     <td data-sort-value="{hash_name.lower()}">{hash_name}</td>
                     <td style="cursor:pointer;" onclick="deleteFile('{escape(str(row.path))}')">\uf530</td>
                 </tr>

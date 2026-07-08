@@ -181,7 +181,7 @@ class NetworkModule:
 
     def multiplier(self):
         unet_multiplier = 3 * [self.network.unet_multiplier] if not isinstance(self.network.unet_multiplier, list) else self.network.unet_multiplier
-        if 'transformer' in self.sd_key[:20]:
+        if self.sd_key.startswith('lora_te') or 'transformer' in self.sd_key[:20]:
             return self.network.te_multiplier
         if "down_blocks" in self.sd_key:
             return unet_multiplier[0]

@@ -37,7 +37,7 @@ class ExtraNetworksPageUNets(ui_extra_networks.ExtraNetworksPage):
                 }
                 yield record
             except Exception as e:
-                log.debug(f'Networks error: type=vae file="{filename}" {e}')
+                log.debug(f'Networks error: type=unet file="{filename}" {e}')
 
     def allowed_directories_for_previews(self):
         return [v for v in [shared.opts.unet_dir] if v is not None]

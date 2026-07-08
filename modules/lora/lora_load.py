@@ -263,7 +263,7 @@ def gather_networks(names):
     return networks_on_disk
 
 
-def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=None, lora_modules=None):
+def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=None, lora_modules=None, activate=True):
     networks_on_disk = gather_networks(names)
     failed_to_load_networks = []
     recompile_model, skip_lora_load = maybe_recompile_model(names, te_multipliers)
@@ -324,6 +324,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 log.trace(f'Network load: type=LoRA list={sd_model.get_list_adapters()}')
                 log.trace(f'Network load: type=LoRA active={sd_model.get_active_adapters()}')
             sd_model.set_adapters(adapter_names=lora_diffusers.diffuser_loaded, adapter_weights=lora_diffusers.diffuser_scales)
+            sd_model.enable_lora() # set_adapters does not clear the disabled flag left by a prior removal
         except Exception as e:
             if str(e) not in exclude_errors:
                 log.error(f'Network load: type=LoRA action=strength {str(e)}')
@@ -342,9 +343,10 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
 
     # Activate native modules loaded via diffusers path (e.g., LoKR on Flux2)
     # Also restore backed-up weights when previously active native modules are removed
+    # Callers that run their own deactivate/activate sequence pass activate=False
     from modules.lora import networks
     native_nets = [net for net in l.loaded_networks if len(net.modules) > 0]
-    if native_nets or networks.native_active:
+    if activate and (native_nets or networks.native_active):
         networks.network_activate()
 
     if len(l.loaded_networks) > 0 and l.debug:

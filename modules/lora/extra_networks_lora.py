@@ -191,11 +191,13 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         key = f'include={",".join(include)}:exclude={",".join(exclude)}'
         loaded = sd_model.loaded_loras.get(key, [])
         if len(requested) != len(loaded):
+            sd_model.loaded_loras.clear() # single-entry cache: any activation invalidates state recorded under other filter keys
             sd_model.loaded_loras[key] = requested
             debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status="num changed"')
             return True, "num changed"
         for req, load in zip(requested, loaded, strict=False):
             if req != load:
+                sd_model.loaded_loras.clear()
                 sd_model.loaded_loras[key] = requested
                 debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status="content changed"')
                 return True, "content changed"
@@ -229,6 +231,14 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             if has_changed:
                 jobid = shared.state.begin('LoRA')
                 lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, lora_modules) # load only on first call
+                if len(names) == 0: # removal disables adapters in place, unload_lora_weights would unwrap modules and detach offload hooks
+                    sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
+                    if hasattr(sd_model, 'disable_lora'):
+                        try:
+                            sd_model.disable_lora()
+                            log.info('Network unload: type=LoRA mode=diffusers')
+                        except Exception as e:
+                            log.error(f'Network unload: type=LoRA {e}')
                 sd_models.set_diffuser_offload(shared.sd_model, op="model")
                 shared.state.end(jobid)
 
@@ -237,7 +247,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
 
         else: # native
-            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load
+            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, activate=False) # load only, activation below honors include/exclude
             has_changed, reason = self.changed(requested, include, exclude)
             if has_changed:
                 jobid = shared.state.begin('LoRA')

@@ -28,11 +28,13 @@ def network_activate(include=None, exclude=None):
         modules = {}
         components = include if len(include) > 0 else default_components
         components = [x for x in components if x not in exclude]
+        filtered_components = [x for x in default_components if x not in components] # filtered components restore to backup so a filter means detached, not frozen with stale weights
         active_components = []
-        for name in components:
+        for name in components + filtered_components:
             component = getattr(sd_model, name, None)
             if component is not None and hasattr(component, 'named_modules'):
-                active_components.append(name)
+                if name in components:
+                    active_components.append(name)
                 modules[name] = list(component.named_modules())
         total = sum(len(x) for x in modules.values())
         if len(l.loaded_networks) > 0:
@@ -48,16 +50,25 @@ def network_activate(include=None, exclude=None):
             applied_layers.clear()
             backup_size = 0
             for component in modules.keys():
+                component_wanted = wanted_names if component in components else ()
                 device = getattr(sd_model, component, None).device
                 for _, module in modules[component]:
                     network_layer_name = getattr(module, 'network_layer_name', None)
                     current_names = getattr(module, "network_current_names", ())
-                    if getattr(module, 'weight', None) is None or shared.state.interrupted or (network_layer_name is None) or (current_names == wanted_names):
+                    if getattr(module, 'weight', None) is None or shared.state.interrupted or (network_layer_name is None) or (current_names == component_wanted):
                         if task is not None:
                             pbar.update(task, advance=1)
                         continue
-                    backup_size += network_backup_weights(module, network_layer_name, wanted_names)
-                    batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
+                    backup_size += network_backup_weights(module, network_layer_name, component_wanted)
+                    if not component_wanted:
+                        weights_backup = getattr(module, "network_weights_backup", None)
+                        if weights_backup is None or isinstance(weights_backup, bool): # fuse mode has no tensor backup, restore stays with network_deactivate
+                            if task is not None:
+                                pbar.update(task, advance=1)
+                            continue
+                        batch_updown, batch_ex_bias = None, None # restore-only pass, apply with no weights reverts to backup
+                    else:
+                        batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
                     if shared.opts.lora_fuse_native:
                         network_apply_direct(module, batch_updown, batch_ex_bias, device=device)
                     else:
@@ -68,7 +79,7 @@ def network_activate(include=None, exclude=None):
                         applied_bias += 1 if batch_ex_bias is not None else 0
                     batch_updown, batch_ex_bias = None, None
                     del batch_updown, batch_ex_bias
-                    module.network_current_names = wanted_names
+                    module.network_current_names = component_wanted
                     if task is not None:
                         bs = round(backup_size/1024/1024/1024, 2) if backup_size > 0 else None
                         pbar.update(task, advance=1, description=f'networks={len(l.loaded_networks)} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} backup={bs} device={device}')

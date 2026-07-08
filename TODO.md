@@ -25,6 +25,7 @@
 - Auto handle scheduler `prediction_type`
 - Cache models in memory
 - JSON image metadata
+- Expand custom VAE support
 - Refactor: remove obsolete code:
   - Remove `directml`
   - Remove `olive-ai`
