@@ -102,7 +102,7 @@ def build_hadamard_n4(n: int, dtype: torch.dtype | None = None, device: torch.de
 def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None) -> torch.FloatTensor:
     if math.log(n, 4).is_integer():
         return build_hadamard_n4(n, device=device, dtype=dtype)
-    elif math.log(n, 2).is_integer():
+    elif math.log2(n).is_integer():
         return build_hadamard_n2(n, device=device, dtype=dtype)
     else:
         raise RuntimeError("Hadamard Group Size must be a power of 2.")
@@ -151,7 +151,7 @@ def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.
         channel_size = weight.shape[1]
     else:
         channel_size = weight.shape[-1]
-    group_size = min(group_size, channel_size)
+    group_size = min(group_size, 2 ** int(math.log2(group_size)))
     if channel_size % group_size != 0:
         hadamard_pow2 = int(math.log2(group_size))
         while channel_size % group_size != 0:
