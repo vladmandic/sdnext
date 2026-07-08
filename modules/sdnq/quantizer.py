@@ -867,10 +867,8 @@ class SDNQConfig(QuantizationConfigMixin):
             Enabling this option will use non blocking ops when moving layers between the quantization device and the return device.
         add_skip_keys (`bool`, *optional*, defaults to `True`):
             Disabling this option won't add model specific keys to modules_to_not_convert, modules_to_not_use_matmul and modules_dtype_dict.
-        quantization_device (`torch.device`, *optional*, defaults to `None`):
-            Used to set which device will be used for the quantization calculation on model load.
-        return_device (`torch.device`, *optional*, defaults to `None`):
-            Used to set which device will the quantized weights be sent back to.
+        minimum_allowed_numel (`int`, *optional*, defaults to `16384`):
+            Layers that have less than `minimum_allowed_numel` elements in them will be skipped and added to `modules_to_not_convert`.
         modules_to_not_convert (`list`, *optional*, default to `None`):
             The list of modules to not quantize. Useful for quantizing models that explicitly require to have some
             modules left in their original precision (e.g. Whisper encoder, Llava encoder, Mixtral gate layers).
@@ -882,6 +880,10 @@ class SDNQConfig(QuantizationConfigMixin):
         modules_quant_config (`dict`, *optional*, default to `None`):
             The dict of modules and a dict of quantization kwargs to use for that module.
             Useful for quantizing some modules with a different quantization config.
+        quantization_device (`torch.device`, *optional*, defaults to `None`):
+            Used to set which device will be used for the quantization calculation on model load.
+        return_device (`torch.device`, *optional*, defaults to `None`):
+            Used to set which device will the quantized weights be sent back to.
         is_training (`bool`, *optional*, defaults to `False`):
             This option is auto enabled when using `sdnq.training.sdnq_training_post_load_quant`.
             Enabling this option with SDNQQuantizer will convert the model to SDNQ Training format after quantization.
