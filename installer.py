@@ -389,7 +389,7 @@ def branch(folder=None):
         marked = [x for x in branches if x.startswith('*')]
         if len(branches) > 0 and len(marked) > 0:
             b = marked[0]
-            if 'detached' in b and len(branches) > 1:
+            if ('detached' in b or 'HEAD' in b) and len(branches) > 1:
                 b = branches[1].strip()
                 log.debug(f'Git detached head detected: folder="{folder}" reattach={b}')
     except Exception:
@@ -429,6 +429,9 @@ def update(folder, keep_branch = False, rebase = True):
         if b is None:
             res = git(f'pull {arg}', folder)
             debug(f'Install update: folder={folder} branch={b} args={arg} {res}')
+        elif ' ' in b or '(' in b or ')' in b:
+            res = f'Install update: folder="{folder}" branch="{b}" branch name invalid'
+            log.error(res)
         else:
             res = git(f'pull origin {b} {arg}', folder)
             debug(f'Install update: folder={folder} branch={b} args={arg} {res}')

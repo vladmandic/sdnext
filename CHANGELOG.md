@@ -8,6 +8,8 @@
   - lora: fix lora text-encoder loader
   - amd: hipBLASLt improved detection, thanks @0xDELUXA
   - api: validate swagger schema
+  - installer: handle detached branch on non-english setups
+  - fs: faster stat
 
 ## Update for 2026-07-07
 
