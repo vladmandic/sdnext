@@ -324,6 +324,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
                 log.trace(f'Network load: type=LoRA list={sd_model.get_list_adapters()}')
                 log.trace(f'Network load: type=LoRA active={sd_model.get_active_adapters()}')
             sd_model.set_adapters(adapter_names=lora_diffusers.diffuser_loaded, adapter_weights=lora_diffusers.diffuser_scales)
+            sd_model.enable_lora() # set_adapters does not clear the disabled flag left by a prior removal
         except Exception as e:
             if str(e) not in exclude_errors:
                 log.error(f'Network load: type=LoRA action=strength {str(e)}')
