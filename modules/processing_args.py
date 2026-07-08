@@ -6,7 +6,7 @@ import inspect
 import torch
 import numpy as np
 from PIL import Image
-from modules import shared, sd_models, processing, processing_vae, processing_helpers, sd_hijack_hypertile, extra_networks, sd_vae
+from modules import shared, sd_models, processing, processing_vae, processing_helpers, sd_hijack_hypertile, sd_vae
 from modules.logger import log
 from modules.processing_callbacks import diffusers_callback_legacy, diffusers_callback, set_callbacks_p
 from modules.processing_helpers import get_generator, apply_circular # pylint: disable=unused-import
@@ -240,9 +240,6 @@ def set_pipeline_args(p, model, prompts:list, negative_prompts:list, prompts_2:l
             pass # clip_skip = None
         else:
             args['clip_skip'] = clip_skip - 1
-
-    if shared.opts.lora_apply_te:
-        extra_networks.activate(p, include=['text_encoder', 'text_encoder_2', 'text_encoder_3'])
 
     if 'complex_human_instruction' in possible:
         chi = shared.opts.te_complex_human_instruction

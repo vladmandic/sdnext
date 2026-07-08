@@ -191,11 +191,13 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
         key = f'include={",".join(include)}:exclude={",".join(exclude)}'
         loaded = sd_model.loaded_loras.get(key, [])
         if len(requested) != len(loaded):
+            sd_model.loaded_loras.clear() # single-entry cache: any activation invalidates state recorded under other filter keys
             sd_model.loaded_loras[key] = requested
             debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status="num changed"')
             return True, "num changed"
         for req, load in zip(requested, loaded, strict=False):
             if req != load:
+                sd_model.loaded_loras.clear()
                 sd_model.loaded_loras[key] = requested
                 debug_log(f'Network check: type=LoRA key="{key}" requested={requested} loaded={loaded} status="content changed"')
                 return True, "content changed"
@@ -237,7 +239,7 @@ class ExtraNetworkLora(extra_networks.ExtraNetwork):
             has_changed = lora_nunchaku.load_nunchaku(names, unet_multipliers)
 
         else: # native
-            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims) # load
+            lora_load.network_load(names, te_multipliers, unet_multipliers, dyn_dims, activate=False) # load only, activation below honors include/exclude
             has_changed, reason = self.changed(requested, include, exclude)
             if has_changed:
                 jobid = shared.state.begin('LoRA')

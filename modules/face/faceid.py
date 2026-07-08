@@ -216,7 +216,7 @@ def face_id(
                 p.subseeds = p.all_subseeds[n * p.batch_size:(n+1) * p.batch_size]
                 p.prompts, p.network_data = extra_networks.parse_prompts(p.prompts, p.network_data)
 
-                extra_networks.activate(p, p.network_data)
+                extra_networks.activate_filtered(p, p.network_data)
                 ip_model_dict.update({
                         "prompt": p.prompts[0],
                         "negative_prompt": p.negative_prompts[0],
