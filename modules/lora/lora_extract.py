@@ -142,14 +142,17 @@ def make_lora(fn, maxrank, auto_rank, rank_ratio, modules, overwrite):
 
         if 'te' in modules and getattr(shared.sd_model, 'text_encoder', None) is not None:
             task = progress.add_task(description="te1 decompose", total=len(list(shared.sd_model.text_encoder.named_modules())))
+            # transformers >=5.6 flattened CLIPTextModel; kohya naming keeps the text_model wrapper
+            flattened_clip = 'CLIPTextModel' in shared.sd_model.text_encoder.__class__.__name__ and not hasattr(shared.sd_model.text_encoder, 'text_model')
             for name, module in shared.sd_model.text_encoder.named_modules():
                 progress.update(task, advance=1)
                 weights_backup = getattr(module, "network_weights_backup", None)
                 if weights_backup is None or getattr(module, "network_current_names", None) is None:
                     continue
                 prefix = "lora_te1_" if hasattr(shared.sd_model, 'text_encoder_2') else "lora_te_"
+                key_name = f'text_model.{name}' if flattened_clip else name
                 module.svdhandler = SVDHandler(maxrank, rank_ratio)
-                module.svdhandler.network_name = prefix + name.replace(".", "_")
+                module.svdhandler.network_name = prefix + key_name.replace(".", "_")
                 with devices.inference_context():
                     module.svdhandler.decompose(module.weight, weights_backup)
             progress.remove_task(task)
