@@ -60,7 +60,7 @@ def network_activate(include=None, exclude=None):
                             pbar.update(task, advance=1)
                         continue
                     backup_size += network_backup_weights(module, network_layer_name, component_wanted)
-                    if component_wanted == ():
+                    if not component_wanted:
                         weights_backup = getattr(module, "network_weights_backup", None)
                         if weights_backup is None or isinstance(weights_backup, bool): # fuse mode has no tensor backup, restore stays with network_deactivate
                             if task is not None:

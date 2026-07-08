@@ -1,5 +1,11 @@
 # Change Log for SD.Next
 
+## Update for 2026-07-08
+
+- **Fixes**
+  - lora: fix lora text-encoder loader
+  - amd: hipBLASLt improved detection, thanks @0xDELUXA
+
 ## Update for 2026-07-07
 
 ### Highlights for 2026-07-07
