@@ -2,9 +2,12 @@
 
 ## Update for 2026-07-08
 
+- **Features**
+  - api add `/sdapi/v1/restart` endpoint
 - **Fixes**
   - lora: fix lora text-encoder loader
   - amd: hipBLASLt improved detection, thanks @0xDELUXA
+  - api: validate swagger schema
 
 ## Update for 2026-07-07
 

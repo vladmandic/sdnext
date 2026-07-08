@@ -89,8 +89,14 @@ def post_log(req: models.ReqPostLog):
     return Response(status_code=204)
 
 def post_shutdown(background_tasks: BackgroundTasks):
-    log.info("Shutdown request received")
+    log.info("Server shutdown request received")
     background_tasks.add_task(os._exit, 0)
+    return Response(status_code=204)
+
+def post_restart(background_tasks: BackgroundTasks):
+    log.info("Server restart request received")
+    from installer import restart
+    background_tasks.add_task(restart)
     return Response(status_code=204)
 
 def get_cmd_flags():

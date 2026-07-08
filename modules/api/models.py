@@ -382,7 +382,7 @@ class ResPromptEnhance(BaseModel):
     seed: int = Field(title="Seed", description="Seed used to generate the prompt")
 
 class ReqProcessImage(ReqProcess):
-    image: str = Field(default="", title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
+    image: str = Field(..., title="Image", description="Image to work on, must be a Base64 string containing the image's data.")
 
 class ResProcessImage(ResProcess):
     image: str = Field(default=None, title="Image", description="The generated image in base64 format.")
