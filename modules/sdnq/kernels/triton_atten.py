@@ -5,7 +5,7 @@ import triton
 import triton.language as tl
 
 from ..common import compile_func # pylint: disable=relative-beyond-top-level
-from ..quant_utils import quantize_int_mm, quantize_fp_mm, get_hadamard, apply_hadamard # pylint: disable=relative-beyond-top-level
+from ..quant_utils import quantize_int_mm, quantize_fp_mm, get_hadamard, get_hadamard_group_size, apply_hadamard # pylint: disable=relative-beyond-top-level
 
 
 min_block_size = int(os.environ.get("SDNQ_TRITON_ATTEN_MIN_BLOCK_SIZE", "256"))
@@ -261,13 +261,13 @@ def get_attn_inputs(
         out_dtype = query.dtype
     if scale is None:
         scale = QHD ** -0.5
-    if not math.log(QHD, 2).is_integer():
+    if not math.log2(QHD).is_integer():
         query = torch.nn.functional.pad(query, (0, triton.next_power_of_2(QHD) - QHD))
         key = torch.nn.functional.pad(key, (0, triton.next_power_of_2(KHD) - KHD))
         value = torch.nn.functional.pad(value, (0, triton.next_power_of_2(VHD) - VHD))
     if attn_mask is not None:
         attn_mask = attn_mask.expand((QZ, QH, QN, KN))
-        if not math.log(KN, 2).is_integer():
+        if not math.log2(KN).is_integer():
             pad_value = float("-inf") if torch.is_floating_point(attn_mask) else 0
             attn_mask = torch.nn.functional.pad(attn_mask, (0, triton.next_power_of_2(KN) - KN), value=pad_value)
         if attn_mask.dtype == torch.bool:
@@ -302,14 +302,18 @@ def sdnq_triton_atten(
     do_quantize: bool = True,
     out_dtype: torch.dtype | None = None,
 ) -> torch.FloatTensor:
-    QZ, QH, QN, _ = query.shape
-    _, _, KN, _ = key.shape
+    QZ, QH, QN, QHD = query.shape
+    _, _, KN, KHD = key.shape
     _, _, VN, VHD = value.shape
 
-    if use_hadamard and matmul_dtype not in {None, "none", "no"}:
-        hadamard = get_hadamard(min(hadamard_group_size, query.shape[-1], key.shape[-1]), dtype=query.dtype, device=query.device)
-    else:
-        hadamard = None
+    hadamard = None
+    if use_hadamard and do_quantize and matmul_dtype not in {None, "none", "no"}:
+        hadamard_channel_size = min(triton.next_power_of_2(QHD), triton.next_power_of_2(KHD))
+        hadamard_group_size = min(hadamard_group_size, hadamard_channel_size)
+        use_hadamard, hadamard_group_size = get_hadamard_group_size(hadamard_channel_size, hadamard_group_size)
+        if use_hadamard:
+            hadamard = get_hadamard(hadamard_group_size, dtype=query.dtype, device=query.device)
+
     (
         query, query_scale,
         key, key_scale,
@@ -324,6 +328,7 @@ def sdnq_triton_atten(
         matmul_dtype=matmul_dtype, pv_matmul_dtype=pv_matmul_dtype,
         do_quantize=do_quantize, out_dtype=out_dtype,
     )
+
     def grid(META):
         return (triton.cdiv(QN, META["BLOCK_SIZE_M"]), QH, QZ)
     out = torch.empty((QZ, QH, QN, value.shape[-1]), dtype=out_dtype, device=query.device)

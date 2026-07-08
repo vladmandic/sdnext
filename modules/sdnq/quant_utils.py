@@ -105,7 +105,7 @@ def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.devic
     elif math.log2(n).is_integer():
         return build_hadamard_n2(n, device=device, dtype=dtype)
     else:
-        raise RuntimeError("Hadamard Group Size must be a power of 2.")
+        raise RuntimeError(f"Hadamard Group Size must be a power of 2 but got {n}.")
 
 
 # 256x256 Hadamard matrix is just 256 KB at FP32
@@ -140,10 +140,20 @@ def rotate_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch
     return result
 
 
+def get_hadamard_group_size(channel_size: int, group_size: int) -> tuple[bool, int]:
+    group_size = 2 ** int(math.log2(min(channel_size, group_size)))
+    if channel_size % group_size != 0:
+        hadamard_pow2 = int(math.log2(group_size))
+        while channel_size % group_size != 0:
+            hadamard_pow2 -= 1
+            group_size = 2 ** hadamard_pow2
+    use_hadamard = group_size >= 4
+    return use_hadamard, group_size
+
+
 @devices.inference_context()
-def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.FloatTensor | None = None, layer_class_name: str | None = None) -> torch.Tensor:
+def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.FloatTensor | None = None, layer_class_name: str | None = None) -> tuple[torch.Tensor, bool, int]:
     is_conv = False
-    use_hadamard = True
     if hadamard is not None:
         group_size = hadamard.shape[-1]
     if layer_class_name in conv_types or layer_class_name in conv_transpose_types:
@@ -151,14 +161,7 @@ def apply_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch.
         channel_size = weight.shape[1]
     else:
         channel_size = weight.shape[-1]
-    group_size = min(group_size, 2 ** int(math.log2(group_size)))
-    if channel_size % group_size != 0:
-        hadamard_pow2 = int(math.log2(group_size))
-        while channel_size % group_size != 0:
-            hadamard_pow2 -= 1
-            group_size = 2 ** hadamard_pow2
-    if group_size < 4:
-        use_hadamard = False
+    use_hadamard, group_size = get_hadamard_group_size(channel_size, group_size)
     if use_hadamard:
         if hadamard is not None and group_size != hadamard.shape[-1]:
             hadamard = None
