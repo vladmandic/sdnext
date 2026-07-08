@@ -14,12 +14,10 @@ from accelerate import init_empty_weights
 
 from modules import devices, shared
 from .common import (
-    sdnq_version,
     sdnq_keys,
     dtype_dict,
     accepted_weight_dtypes,
     accepted_matmul_dtypes,
-    allowed_types,
     linear_types,
     embedding_types,
     conv_types,
@@ -30,14 +28,30 @@ from .common import (
     check_torch_compile,
     compile_func,
 )
+
+from .quant_utils import (
+    quantize_weight,
+    apply_svdquant,
+    apply_hadamard,
+    prepare_weight_for_matmul,
+    prepare_svd_for_matmul,
+)
+from .utils import (
+    check_param_name_in,
+    check_quant_is_allowed,
+    check_quantized_matmul_is_allowed,
+    get_quant_args_from_config,
+    get_quant_kwargs,
+    get_quantized_matmul_dtype,
+    add_module_skip_keys,
+)
+
 from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int
 from .packed_float import pack_float
 from .forward import get_forward_func
 from .layers import get_sdnq_wrapper_class
-
-from .quant_utils import quantize_weight, apply_svdquant, apply_hadamard, prepare_weight_for_matmul, prepare_svd_for_matmul
-from .utils import check_param_name_in, get_quant_args_from_config, get_quant_kwargs, get_quantized_matmul_dtype, add_module_skip_keys
+from .common import sdnq_version as current_sdnq_version
 
 
 class QuantizationMethod(str, Enum):
@@ -101,7 +115,7 @@ def sdnq_quantize_layer_weight(
         is_conv_type = True
         reduction_axes = 1
         output_channel_size, channel_size = weight.shape[:2]
-        use_quantized_matmul = use_quantized_matmul and channel_size >= 32 and output_channel_size >= 32 and output_channel_size % 16 == 0 and channel_size % 16 == 0
+        use_quantized_matmul = check_quantized_matmul_is_allowed(use_quantized_matmul, output_channel_size, channel_size)
         if use_quantized_matmul and not re_quantize_for_matmul and not dtype_dict[weights_dtype]["is_packed"]:
             result_shape = weight.shape
             weight = weight.flatten(1,-1)
@@ -115,7 +129,7 @@ def sdnq_quantize_layer_weight(
         is_linear_type = True
         reduction_axes = -1
         output_channel_size, channel_size = weight.shape
-        use_quantized_matmul = use_quantized_matmul and channel_size >= 32 and output_channel_size >= 32 and output_channel_size % 16 == 0 and channel_size % 16 == 0
+        use_quantized_matmul = check_quantized_matmul_is_allowed(use_quantized_matmul, output_channel_size, channel_size)
     else:
         if weight.ndim > 1:
             output_channel_size, channel_size = weight.shape[-2:]
@@ -435,7 +449,7 @@ def sdnq_quantize_layer(layer: torch.nn.Module, quantization_config: "SDNQConfig
 
 
 @devices.inference_context()
-def apply_sdnq_to_module(model: torch.nn.Module, quantization_config: "SDNQConfig", torch_dtype: torch.dtype | None = None, full_param_name: str = "") -> tuple[torch.nn.Module, "SDNQConfig"]: # pylint: disable=unused-argument
+def apply_sdnq_to_module(model: torch.nn.Module, quantization_config: "SDNQConfig", torch_dtype: torch.dtype | None = None, pre_quantized: bool = False, full_param_name: str = "") -> tuple[torch.nn.Module, "SDNQConfig"]: # pylint: disable=unused-argument
     if not list(model.children()):
         return model, quantization_config
     for module_name, module in model.named_children():
@@ -445,21 +459,13 @@ def apply_sdnq_to_module(model: torch.nn.Module, quantization_config: "SDNQConfi
             param_name = module_name
         if hasattr(module, "weight") and module.weight is not None:
             param_name = param_name + ".weight"
-            layer_class_name = module.__class__.__name__
-            param_in_modules_to_not_convert = check_param_name_in(param_name, quantization_config.modules_to_not_convert)
-            if (
-                layer_class_name in allowed_types
-                and module.weight.dtype in {torch.float64, torch.float32, torch.float16, torch.bfloat16}
-                and param_in_modules_to_not_convert is None
-                and not (layer_class_name in embedding_types and not quantization_config.quant_embedding)
-                and not ((layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quantization_config.quant_conv)
-            ):
-                module, quantization_config = sdnq_quantize_layer(module, quantization_config, torch_dtype=torch_dtype, param_name=param_name)
-                setattr(model, module_name, module)
-            elif param_in_modules_to_not_convert is None:
-                quantization_config.modules_to_not_convert.append(param_name)
-
-        module, quantization_config = apply_sdnq_to_module(module, quantization_config, torch_dtype=torch_dtype, full_param_name=param_name)
+            if check_param_name_in(param_name, quantization_config.modules_to_not_convert) is None:
+                if check_quant_is_allowed(module.__class__.__name__, module.weight, quantization_config, pre_quantized=pre_quantized):
+                    module, quantization_config = sdnq_quantize_layer(module, quantization_config, torch_dtype=torch_dtype, param_name=param_name)
+                    setattr(model, module_name, module)
+                else:
+                    quantization_config.modules_to_not_convert.append(param_name)
+        module, quantization_config = apply_sdnq_to_module(module, quantization_config, torch_dtype=torch_dtype, pre_quantized=pre_quantized, full_param_name=param_name)
         setattr(model, module_name, module)
     return model, quantization_config
 
@@ -485,6 +491,7 @@ def sdnq_post_load_quant(
     dequantize_fp32: bool = True,
     non_blocking: bool = False,
     add_skip_keys:bool = True,
+    minimum_allowed_numel: int = 16384,
     modules_to_not_convert: list[str] | None = None,
     modules_to_not_use_matmul: list[str] | None = None,
     modules_dtype_dict: dict[str, list[str]] | None = None,
@@ -523,6 +530,7 @@ def sdnq_post_load_quant(
         dequantize_fp32=dequantize_fp32,
         non_blocking=non_blocking,
         add_skip_keys=add_skip_keys,
+        minimum_allowed_numel=minimum_allowed_numel,
         modules_to_not_convert=modules_to_not_convert,
         modules_to_not_use_matmul=modules_to_not_use_matmul,
         modules_dtype_dict=modules_dtype_dict,
@@ -534,7 +542,7 @@ def sdnq_post_load_quant(
         model, quantization_config = add_module_skip_keys(model, quantization_config)
 
     model.eval()
-    model, quantization_config = apply_sdnq_to_module(model, quantization_config, torch_dtype=torch_dtype)
+    model, quantization_config = apply_sdnq_to_module(model, quantization_config, torch_dtype=torch_dtype, pre_quantized=pre_quantized)
 
     model.quantization_config = quantization_config
     if hasattr(model, "config"):
@@ -602,17 +610,11 @@ class SDNQQuantizer(DiffusersQuantizer, HfQuantizer):
                 return True
         elif param_name.endswith(".weight"):
             if check_param_name_in(param_name, self.quantization_config.modules_to_not_convert) is None:
-                layer_class_name = get_module_from_name(model, param_name)[0].__class__.__name__
-                if layer_class_name in allowed_types:
-                    if layer_class_name in embedding_types:
-                        if self.quantization_config.quant_embedding:
-                            return True
-                    elif layer_class_name in conv_types or layer_class_name in conv_transpose_types:
-                        if self.quantization_config.quant_conv:
-                            return True
-                    else:
-                        return True
-                self.quantization_config.modules_to_not_convert.append(param_name)
+                layer = get_module_from_name(model, param_name)[0]
+                if check_quant_is_allowed(layer.__class__.__name__, layer.weight, self.quantization_config, pre_quantized=self.pre_quantized):
+                    return True
+                else:
+                    self.quantization_config.modules_to_not_convert.append(param_name)
         return False
 
     @devices.inference_context()
@@ -908,22 +910,20 @@ class SDNQConfig(QuantizationConfigMixin):
         dequantize_fp32: bool = True,
         non_blocking: bool = False,
         add_skip_keys: bool = True,
-        quantization_device: torch.device | None = None,
-        return_device: torch.device | None = None,
+        minimum_allowed_numel: int = 16384,
         modules_to_not_convert: list[str] | None = None,
         modules_to_not_use_matmul: list[str] | None = None,
         modules_dtype_dict: dict[str, list[str]] | None = None,
         modules_quant_config: dict[str, dict] | None = None,
+        quantization_device: torch.device | None = None,
+        return_device: torch.device | None = None,
+        sdnq_version: str | None = None,
         is_training: bool = False,
         **kwargs,
     ):
         self.weights_dtype = weights_dtype
         self.quantized_matmul_dtype = quantized_matmul_dtype
         self.is_training = is_training
-        if self.is_training:
-            self.quant_method = QuantizationMethod.SDNQ_TRAINING
-        else:
-            self.quant_method = QuantizationMethod.SDNQ
         self.hadamard_group_size = hadamard_group_size
         self.group_size = group_size
         self.svd_rank = svd_rank
@@ -942,14 +942,19 @@ class SDNQConfig(QuantizationConfigMixin):
         self.dequantize_fp32 = dequantize_fp32
         self.non_blocking = non_blocking
         self.add_skip_keys = add_skip_keys
-        self.quantization_device = quantization_device
-        self.return_device = return_device
+        self.minimum_allowed_numel = minimum_allowed_numel
         self.modules_to_not_convert = modules_to_not_convert
         self.modules_to_not_use_matmul = modules_to_not_use_matmul
         self.modules_dtype_dict = modules_dtype_dict
         self.modules_quant_config = modules_quant_config
+        self.quantization_device = quantization_device
+        self.return_device = return_device
+        self.sdnq_version = current_sdnq_version if sdnq_version is None else sdnq_version
         self.is_integer = dtype_dict[self.weights_dtype]["is_integer"]
-        self.sdnq_version = sdnq_version
+        if self.is_training:
+            self.quant_method = QuantizationMethod.SDNQ_TRAINING
+        else:
+            self.quant_method = QuantizationMethod.SDNQ
         self.post_init()
 
     def post_init(self) -> None:

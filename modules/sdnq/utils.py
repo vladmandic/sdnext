@@ -1,7 +1,15 @@
 import re
 import torch
 
-from .common import dtype_dict, common_skip_keys, module_skip_keys_dict, conv_types, conv_transpose_types
+from .common import (
+    dtype_dict,
+    common_skip_keys,
+    module_skip_keys_dict,
+    allowed_types,
+    embedding_types,
+    conv_types,
+    conv_transpose_types,
+)
 
 
 def check_param_name_in(param_name: str, param_list: list[str]) -> str:
@@ -19,6 +27,24 @@ def check_param_name_in(param_name: str, param_list: list[str]) -> str:
         ):
             return param
     return None
+
+
+def check_quant_is_allowed(layer_class_name: str, weight: torch.Tensor, quantization_config, pre_quantized: bool = False) -> bool:
+    return bool(
+        layer_class_name in allowed_types
+        and weight.dtype in {torch.float64, torch.float32, torch.float16, torch.bfloat16}
+        and not (layer_class_name in embedding_types and not quantization_config.quant_embedding)
+        and not ((layer_class_name in conv_types or layer_class_name in conv_transpose_types) and not quantization_config.quant_conv)
+        and (pre_quantized or weight.numel() >= quantization_config.minimum_allowed_numel)
+    )
+
+
+def check_quantized_matmul_is_allowed(use_quantized_matmul: bool, output_channel_size: int, channel_size: int) -> bool:
+    return bool(
+        use_quantized_matmul
+        and output_channel_size >= 32 and channel_size >= 32
+        and output_channel_size % 16 == 0 and channel_size % 16 == 0
+    )
 
 
 def get_quant_args_from_config(quantization_config: dict) -> dict:
