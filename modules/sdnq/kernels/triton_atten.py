@@ -6,6 +6,7 @@ import triton.language as tl
 
 from ..common import compile_func # pylint: disable=relative-beyond-top-level
 from ..quant_utils import quantize_int_mm, quantize_fp_mm, get_hadamard, get_hadamard_group_size, apply_hadamard # pylint: disable=relative-beyond-top-level
+from ..utils import is_pow2, next_power_of_2 # pylint: disable=relative-beyond-top-level
 
 
 min_block_size = int(os.environ.get("SDNQ_TRITON_ATTEN_MIN_BLOCK_SIZE", "256"))
@@ -261,15 +262,15 @@ def get_attn_inputs(
         out_dtype = query.dtype
     if scale is None:
         scale = QHD ** -0.5
-    if not math.log2(QHD).is_integer():
-        query = torch.nn.functional.pad(query, (0, triton.next_power_of_2(QHD) - QHD))
-        key = torch.nn.functional.pad(key, (0, triton.next_power_of_2(KHD) - KHD))
-        value = torch.nn.functional.pad(value, (0, triton.next_power_of_2(VHD) - VHD))
+    if not is_pow2(QHD):
+        query = torch.nn.functional.pad(query, (0, next_power_of_2(QHD) - QHD))
+        key = torch.nn.functional.pad(key, (0, next_power_of_2(KHD) - KHD))
+        value = torch.nn.functional.pad(value, (0, next_power_of_2(VHD) - VHD))
     if attn_mask is not None:
         attn_mask = attn_mask.expand((QZ, QH, QN, KN))
-        if not math.log2(KN).is_integer():
+        if not is_pow2(KN):
             pad_value = float("-inf") if torch.is_floating_point(attn_mask) else 0
-            attn_mask = torch.nn.functional.pad(attn_mask, (0, triton.next_power_of_2(KN) - KN), value=pad_value)
+            attn_mask = torch.nn.functional.pad(attn_mask, (0, next_power_of_2(KN) - KN), value=pad_value)
         if attn_mask.dtype == torch.bool:
             attn_mask = attn_mask.to(dtype=torch.int8)
         attn_mask = attn_mask.contiguous()
@@ -308,7 +309,7 @@ def sdnq_triton_atten(
 
     hadamard = None
     if use_hadamard and do_quantize and matmul_dtype not in {None, "none", "no"}:
-        hadamard_channel_size = min(triton.next_power_of_2(QHD), triton.next_power_of_2(KHD))
+        hadamard_channel_size = next_power_of_2(min(QHD, KHD))
         hadamard_group_size = min(hadamard_group_size, hadamard_channel_size)
         use_hadamard, hadamard_group_size = get_hadamard_group_size(hadamard_channel_size, hadamard_group_size)
         if use_hadamard:

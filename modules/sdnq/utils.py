@@ -12,6 +12,20 @@ from .common import (
 )
 
 
+def is_pow2(n: int) -> bool:
+    return (n & (n - 1)) == 0
+
+
+def is_pow4(n: int) -> bool:
+    return is_pow2(n) and (n.bit_length() & 1 == 1)
+
+
+def next_power_of_2(n: int) -> int:
+    if is_pow2(n):
+        return n
+    return 2 ** n.bit_length()
+
+
 def check_param_name_in(param_name: str, param_list: list[str]) -> str:
     split_param_name = param_name.split(".")
     for param in param_list:

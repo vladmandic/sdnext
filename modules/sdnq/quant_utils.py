@@ -5,6 +5,7 @@ import torch
 
 from modules import devices
 from .common import dtype_dict, use_contiguous_int8_mm, use_contiguous_fp16_mm, conv_types, conv_transpose_types
+from .utils import is_pow2, is_pow4, next_power_of_2
 
 
 @devices.inference_context()
@@ -100,9 +101,9 @@ def build_hadamard_n4(n: int, dtype: torch.dtype | None = None, device: torch.de
 
 @devices.inference_context()
 def build_hadamard(n: int, dtype: torch.dtype | None = None, device: torch.device | None = None) -> torch.FloatTensor:
-    if math.log(n, 4).is_integer():
+    if is_pow4(n):
         return build_hadamard_n4(n, device=device, dtype=dtype)
-    elif math.log2(n).is_integer():
+    elif is_pow2(n):
         return build_hadamard_n2(n, device=device, dtype=dtype)
     else:
         raise RuntimeError(f"Hadamard Group Size must be a power of 2 but got {n}.")
@@ -141,12 +142,10 @@ def rotate_hadamard(weight: torch.Tensor, group_size: int = 256, hadamard: torch
 
 
 def get_hadamard_group_size(channel_size: int, group_size: int) -> tuple[bool, int]:
-    group_size = 2 ** int(math.log2(min(channel_size, group_size)))
+    group_size = next_power_of_2(min(channel_size, group_size))
     if channel_size % group_size != 0:
-        hadamard_pow2 = int(math.log2(group_size))
         while channel_size % group_size != 0:
-            hadamard_pow2 -= 1
-            group_size = 2 ** hadamard_pow2
+            group_size = group_size // 2
     use_hadamard = group_size >= 4
     return use_hadamard, group_size
 
