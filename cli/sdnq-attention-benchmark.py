@@ -70,7 +70,8 @@ shape_presets = {
 full_run = ["sd15", "sdxl", "anima", "flux2", "wan22", "ltx2"]
 default_shapes = "sdxl,flux2"
 
-# benchmark configs: id, label, kwargs for sdnq_triton_atten (None = external baseline)
+# benchmark configs: id, label, kwargs for sdnq_triton_atten (None = external baseline);
+# fp8 configs run only on gpus where the float8 probe passes
 bench_configs = [
     ("base", "torch sdpa (bf16)", None),
     ("sage", "sageattention", None),
@@ -81,12 +82,14 @@ bench_configs = [
     ("smooth_hadamard", "sdnq int8 qk + smooth + hadamard", dict(matmul_dtype="auto", pv_matmul_dtype="auto", smooth_k=True, use_hadamard=True)),
     ("fp16pv", "sdnq int8 qk + fp16 pv", dict(matmul_dtype="auto", pv_matmul_dtype="float16")),
     ("int8pv", "sdnq int8 qk + int8 pv", dict(matmul_dtype="auto", pv_matmul_dtype="int8")),
+    ("fp8pv", "sdnq int8 qk + fp8 pv", dict(matmul_dtype="auto", pv_matmul_dtype="float8_e4m3fn")),
     ("fp16qk", "sdnq fp16 qk", dict(matmul_dtype="float16", pv_matmul_dtype="auto")),
+    ("fp8qk", "sdnq fp8 qk", dict(matmul_dtype="float8_e4m3fn", pv_matmul_dtype="auto")),
 ]
-video_config_ids = ["base", "sage", "noquant", "int8", "smooth", "hadamard", "fp16pv"]
+video_config_ids = ["base", "sage", "noquant", "int8", "smooth", "hadamard", "fp16pv", "fp8pv"]
 masked_config_ids = ["base", "noquant", "int8"]
 # hadamard configs excluded: compiling hadamard with a non pow2 head dim currently hangs torch inductor
-sd15_config_ids = ["base", "noquant", "int8", "smooth", "fp16pv", "int8pv", "fp16qk"]
+sd15_config_ids = ["base", "noquant", "int8", "smooth", "fp16pv", "int8pv", "fp8pv", "fp16qk", "fp8qk"]
 
 atten_settings = [
     ("sdnq_attention_use_quantized_matmul", "Use Quantized MatMul"),
@@ -451,7 +454,7 @@ def run_correctness():
     return failed
 
 
-def bench_shape(preset, iters, warmup, position=None, config_timeout=300):
+def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_result=None):
     batch, heads, tokens, head_dim, description = shape_presets[preset]
     config_ids = {"wan22": video_config_ids, "ltx2": video_config_ids, "masked": masked_config_ids, "sd15": sd15_config_ids}.get(preset)
     if preset == "sd15":
@@ -466,6 +469,10 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300):
         if config_ids is not None and config_id not in config_ids:
             continue
         if config_id == "sage" and (sage is None or attn_mask is not None or head_dim not in {64, 96, 128}):
+            continue
+        if config_id == "fp8qk" and not (fp8_result and fp8_result["qk"][0]):
+            continue
+        if config_id == "fp8pv" and not (fp8_result and fp8_result["pv"][0]):
             continue
         selected_configs.append((config_id, label, kwargs))
 
@@ -572,17 +579,22 @@ def build_recommendations(all_results, fp8_result, prep_status):
         rows.append(("Use Quantized MatMul", current("sdnq_attention_use_quantized_matmul"), "False", f"int8 qk gain is marginal on this gpu (x{int8_speedup:.2f})" if int8_speedup else "int8 qk failed to run"))
 
     qk_reason = "resolves to int8; uint8 remaps to int8"
-    if fp8_result["qk"][0]:
+    fp8qk_ms, _fp8qk_err = measured(results, "fp8qk")
+    if fp8qk_ms and int8_ms:
+        qk_reason += f"; float8 qk measured x{int8_ms / fp8qk_ms:.2f} vs int8, per-token int8 keeps finer granularity"
+    elif fp8_result["qk"][0]:
         qk_reason += "; float8 compiles here but per-token int8 keeps finer granularity"
     rows.append(("MatMul type", current("sdnq_attention_matmul_type"), "auto", qk_reason))
 
     int8pv_ms, _int8pv_err = measured(results, "int8pv")
-    if fp8_result["pv"][0]:
-        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "float8_e4m3fn", "hardware float8 available for the pv stage"))
-    elif int8pv_ms and int8_ms and int8pv_ms < int8_ms * 0.95:
-        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "int8", f"int8 pv measured x{int8_ms / int8pv_ms:.2f} over int8 qk alone; slightly higher error"))
+    fp8pv_ms, _fp8pv_err = measured(results, "fp8pv")
+    pv_measured = [(dtype, name, ms) for dtype, name, ms in [("float8_e4m3fn", "fp8", fp8pv_ms), ("int8", "int8", int8pv_ms)] if ms]
+    best_pv = min(pv_measured, key=lambda item: item[2]) if pv_measured else None
+    if best_pv and int8_ms and best_pv[2] < int8_ms * 0.95:
+        pv_dtype, pv_name, pv_ms = best_pv
+        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), pv_dtype, f"{pv_name} pv measured x{int8_ms / pv_ms:.2f} over int8 qk alone; slightly higher error"))
     else:
-        pv_note = "auto keeps pv unquantized; int8 pv measured no gain here" if int8pv_ms else "auto keeps pv unquantized"
+        pv_note = f"auto keeps pv unquantized; {' and '.join(name for _dtype, name, _ms in pv_measured)} pv measured no gain here" if pv_measured else "auto keeps pv unquantized"
         rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "auto", pv_note))
 
     smooth_ms, smooth_err = measured(results, "smooth")
@@ -663,7 +675,7 @@ def main():
         if free_vram_gb() < needed:
             emit(f"[yellow]skipping {preset}: needs about {needed:.0f} gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
             continue
-        all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.config_timeout)
+        all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.config_timeout, fp8_result=fp8_result)
     build_recommendations(all_results, fp8_result, prep_status)
     if args.save:
         save_transcript(args.save)
