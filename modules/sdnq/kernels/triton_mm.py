@@ -56,12 +56,16 @@ def triton_mm_kernel(
     group_size_m = min(num_pid_m - first_pid_m, GROUP_SIZE_M)
     pid_m = first_pid_m + ((pid % num_pid_in_group) % group_size_m)
     pid_n = (pid % num_pid_in_group) // group_size_m
+    off_m = pid_m * BLOCK_SIZE_M
+    off_n = pid_n * BLOCK_SIZE_N
 
     tl.assume(M > 0)
     tl.assume(N > 0)
     tl.assume(K > 0)
     tl.assume(pid_m >= 0)
     tl.assume(pid_n >= 0)
+    tl.assume(off_m >= 0)
+    tl.assume(off_n >= 0)
     tl.assume(stride_am > 0)
     tl.assume(stride_ak > 0)
     tl.assume(stride_bn > 0)
@@ -73,24 +77,26 @@ def triton_mm_kernel(
     tl.assume(BLOCK_SIZE_K > 0)
     tl.assume(GROUP_SIZE_M > 0)
 
-    offs_am = (pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)) % M
-    offs_bn = (pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)) % N
+    offs_am = (off_m + tl.arange(0, BLOCK_SIZE_M)) % M
+    offs_bn = (off_n + tl.arange(0, BLOCK_SIZE_N)) % N
     offs_k = tl.arange(0, BLOCK_SIZE_K)
     a_ptrs = a_ptr + (offs_am[:, None] * stride_am + offs_k[None, :] * stride_ak)
     b_ptrs = b_ptr + (offs_k[:, None] * stride_bk + offs_bn[None, :] * stride_bn)
 
+    off_k = 0
     accumulator_dtype = tl.int32 if a_ptr.type.element_ty == tl.int8 else tl.float32
     accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=accumulator_dtype)
-    for k in tl.range(0, tl.cdiv(K, BLOCK_SIZE_K)):
-        a = tl.load(a_ptrs, mask=offs_k[None, :] < K - k * BLOCK_SIZE_K, other=0.0)
-        b = tl.load(b_ptrs, mask=offs_k[:, None] < K - k * BLOCK_SIZE_K, other=0.0)
+    for _ in tl.range(0, tl.cdiv(K, BLOCK_SIZE_K)):
+        a = tl.load(a_ptrs, mask=offs_k[None, :] < K - off_k, other=0.0)
+        b = tl.load(b_ptrs, mask=offs_k[:, None] < K - off_k, other=0.0)
         accumulator = tl.dot(a, b, accumulator, out_dtype=accumulator_dtype)
         a_ptrs += BLOCK_SIZE_K * stride_ak
         b_ptrs += BLOCK_SIZE_K * stride_bk
+        off_k += BLOCK_SIZE_K
 
     accumulator = accumulator.to(c_ptr.type.element_ty)
-    offs_cm = pid_m * BLOCK_SIZE_M + tl.arange(0, BLOCK_SIZE_M)
-    offs_cn = pid_n * BLOCK_SIZE_N + tl.arange(0, BLOCK_SIZE_N)
+    offs_cm = off_m + tl.arange(0, BLOCK_SIZE_M)
+    offs_cn = off_n + tl.arange(0, BLOCK_SIZE_N)
     c_ptrs = c_ptr + stride_cm * offs_cm[:, None] + stride_cn * offs_cn[None, :]
     c_mask = (offs_cm[:, None] < M) & (offs_cn[None, :] < N)
     tl.store(c_ptrs, accumulator, mask=c_mask)
@@ -123,12 +129,16 @@ def triton_mm_td_kernel(
     group_size_m = min(num_pid_m - first_pid_m, GROUP_SIZE_M)
     pid_m = first_pid_m + ((pid % num_pid_in_group) % group_size_m)
     pid_n = (pid % num_pid_in_group) // group_size_m
+    off_m = pid_m * BLOCK_SIZE_M
+    off_n = pid_n * BLOCK_SIZE_N
 
     tl.assume(M > 0)
     tl.assume(N > 0)
     tl.assume(K > 0)
     tl.assume(pid_m >= 0)
     tl.assume(pid_n >= 0)
+    tl.assume(off_m >= 0)
+    tl.assume(off_n >= 0)
     tl.assume(BLOCK_SIZE_M > 0)
     tl.assume(BLOCK_SIZE_N > 0)
     tl.assume(BLOCK_SIZE_K > 0)
@@ -141,14 +151,14 @@ def triton_mm_td_kernel(
     accumulator_dtype = tl.int32 if a_ptr.type.element_ty == tl.int8 else tl.float32
     accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=accumulator_dtype)
     for _ in tl.range(0, tl.cdiv(K, BLOCK_SIZE_K)):
-        a = a_desc.load([pid_m * BLOCK_SIZE_M, off_k])
-        b = b_desc.load([off_k, pid_n * BLOCK_SIZE_N])
+        a = a_desc.load([off_m, off_k])
+        b = b_desc.load([off_k, off_n])
         accumulator = tl.dot(a, b, accumulator, out_dtype=accumulator_dtype)
         off_k += BLOCK_SIZE_K
 
     accumulator = accumulator.to(c_ptr.type.element_ty)
     c_desc = tl.make_tensor_descriptor(base=c_ptr, shape=(M, N), strides=(N, 1), block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N))
-    c_desc.store([pid_m * BLOCK_SIZE_M, pid_n * BLOCK_SIZE_N], accumulator)
+    c_desc.store([off_m, off_n], accumulator)
 
 
 def triton_int_mm(a: torch.Tensor, b: torch.Tensor, out_dtype: torch.dtype = torch.int32) -> torch.Tensor:
