@@ -103,10 +103,31 @@ def get_search(
         base_models=bm_list, nsfw=nsfw, limit=limit, cursor=cursor,
         username=username, favorites=favorites, token=token,
     )
+    history_params = {k: v for k, v in {
+        'types': types,
+        'sort': sort,
+        'period': period,
+        'base_models': base_models,
+        'nsfw': nsfw,
+        'username': username,
+        'favorites': favorites,
+    }.items() if v}
     if query:
-        search_history.add('query', query)
+        search_history.add('query', query, history_params)
     elif tag:
-        search_history.add('tag', tag)
+        search_history.add('tag', tag, history_params)
+    elif history_params:
+        # Filter-only browse: label the entry with the filters themselves.
+        parts = [
+            types,
+            base_models,
+            'favorites' if favorites else (f'by {username}' if username else ''),
+            period,
+            sort,
+            'nsfw' if nsfw else '',
+        ]
+        label = ' · '.join(p for p in parts if p)
+        search_history.add('filter', label, history_params)
     return response.dict(by_alias=True)
 
 
