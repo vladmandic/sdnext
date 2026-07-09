@@ -202,6 +202,19 @@ def make_qkv(batch, heads, tokens, head_dim, structured=True, kv_heads=None):
     return q, k, v
 
 
+def fp32_reference(q, k, v, **kwargs):
+    # sdnext enables tf32 globally; a math-backend dispatch fallback would degrade the reference to tf32 precision
+    tf32_matmul = torch.backends.cuda.matmul.allow_tf32
+    tf32_cudnn = torch.backends.cudnn.allow_tf32
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
+    try:
+        return torch.nn.functional.scaled_dot_product_attention(q.to(torch.float32), k.to(torch.float32), v.to(torch.float32), **kwargs)
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = tf32_matmul
+        torch.backends.cudnn.allow_tf32 = tf32_cudnn
+
+
 def rel_err(out, ref):
     out = out.to(torch.float32)
     return ((out - ref).norm() / ref.norm()).item()
@@ -435,7 +448,7 @@ def run_correctness():
             ref_kwargs = dict(kwargs)
             if ref_kwargs.get("attn_mask", None) is not None and torch.is_floating_point(ref_kwargs["attn_mask"]):
                 ref_kwargs["attn_mask"] = ref_kwargs["attn_mask"].to(torch.float32) # stock sdpa requires the additive mask dtype to match query
-            ref = torch.nn.functional.scaled_dot_product_attention(cq.to(torch.float32), ck.to(torch.float32), cv.to(torch.float32), **ref_kwargs)
+            ref = fp32_reference(cq, ck, cv, **ref_kwargs)
             try:
                 plain = sdnq_triton_atten(cq, ck, cv, do_quantize=False, **kwargs)
                 quant = sdnq_triton_atten(cq, ck, cv, matmul_dtype="auto", pv_matmul_dtype="auto", **kwargs, **sdnq_kwargs)
@@ -534,7 +547,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
         progress.update(task, description=f"{prefix}{preset}: preparing inputs and fp32 reference")
         q, k, v = make_qkv(batch, heads, tokens, head_dim)
         scale = head_dim ** -0.5
-        ref = torch.nn.functional.scaled_dot_product_attention(q.to(torch.float32), k.to(torch.float32), v.to(torch.float32), attn_mask=attn_mask)
+        ref = fp32_reference(q, k, v, attn_mask=attn_mask)
         for index, (config_id, label, kwargs) in enumerate(selected_configs, start=1):
             def phase(step, current_label=label, current_index=index):
                 progress.update(task, description=f"{prefix}config {current_index}/{len(selected_configs)}  {current_label}: {step}")
