@@ -478,15 +478,15 @@ def run_correctness():
 
 def make_prep_fn(q, k, v, attn_mask, kwargs):
     # mirror sdnq_triton_atten's prep call so the prep column measures the same code path
-    import triton
     from modules.sdnq.kernels import triton_atten as atten_module
     from modules.sdnq.quant_utils import get_hadamard, get_hadamard_group_size
+    from modules.sdnq.utils import next_power_of_2
     matmul_dtype = kwargs.get("matmul_dtype", "int8")
     do_quantize = kwargs.get("do_quantize", True)
     hadamard_group_size = kwargs.get("hadamard_group_size", 256)
     hadamard = None
     if kwargs.get("use_hadamard", False) and do_quantize and matmul_dtype not in {None, "none", "no"}:
-        channel_size = min(triton.next_power_of_2(q.shape[-1]), triton.next_power_of_2(k.shape[-1]))
+        channel_size = next_power_of_2(min(q.shape[-1], k.shape[-1]))
         hadamard_group_size = min(hadamard_group_size, channel_size)
         enabled, hadamard_group_size = get_hadamard_group_size(channel_size, hadamard_group_size)
         if enabled:
