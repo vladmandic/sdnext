@@ -188,6 +188,15 @@ class DownloadManager:
                 log.warning(f'CivitAI download invalid content-type: id={item.id} content-type="{content_type}"')
                 return
 
+            # A 200 reply to a Range request means the server ignored the range
+            # and is sending the whole file; appending it to the partial would
+            # corrupt it. Truncate and restart from byte 0.
+            if starting_pos > 0 and r.status_code == 200:
+                log.warning(f'CivitAI download resume not supported: id={item.id} file="{item.filename}" restarting')
+                starting_pos = 0
+                item.bytes_downloaded = 0
+                os.truncate(temp_file, 0)
+
             total_size = int(r.headers.get('content-length', 0))
             item.bytes_total = starting_pos + total_size
 
