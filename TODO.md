@@ -20,7 +20,8 @@
 - Processing -> Video capabilities
   - `RIFE` in processing
   - `SeedVR2` in processing
-- Video model loader: Add video models to Reference
+- Video models: add to Reference
+- Video models: support custom entries
 - UI Lite vs Expert mode
 - Auto handle scheduler `prediction_type`
 - Cache models in memory

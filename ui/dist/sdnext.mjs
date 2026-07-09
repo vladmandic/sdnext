@@ -9883,6 +9883,7 @@ window.xhrPost = xhrPost;
 // ui/authWrap.ts
 var user;
 var token;
+var baseURL;
 async function getToken() {
   if (token === void 0 || user === void 0) {
     const res = await fetch(`${window.subpath}/token`);
@@ -9911,6 +9912,10 @@ async function authFetch(url2, options = {}) {
     if (navigator.onLine) {
       error("fetch", { status: res?.status || 503, url: url2, user, token, error: err });
     }
+  }
+  if (!baseURL) {
+    baseURL = window.location.origin;
+    log("origin", baseURL);
   }
   return res;
 }
@@ -15947,6 +15952,7 @@ async function initStartup() {
     window.subpath = window.opts.subpath;
     window.api = `${window.subpath}/sdapi/v1`;
   }
+  log("API", window.api);
   startupPromises.push(initLogMonitor());
   executeCallbacks(uiReadyCallbacks);
   if (window.waitForUiReady) await window.waitForUiReady();
@@ -19127,12 +19133,12 @@ async function updateGPU() {
     }
     const gpuTbody = gpuTable.querySelector("tbody");
     if (!gpuTbody) return;
-    for (const gpu of data) {
-      let rows = `<tr><td>GPU</td><td>${gpu.name}</td></tr>`;
-      for (const item of Object.entries(gpu.data)) rows += `<tr><td>${item[0]}</td><td>${item[1]}</td></tr>`;
-      gpuTbody.innerHTML = rows;
-      if (gpu.chart && gpu.chart.length === 2) updateGPUChart(gpu.chart[0], gpu.chart[1]);
-    }
+    let gpu = { data: {} };
+    if (Array.isArray(data) && data.length >= 2) gpu = data[0];
+    let rows = `<tr><td>GPU</td><td>${gpu.name || "unknown"}</td></tr>`;
+    for (const item of Object.entries(gpu.data)) rows += `<tr><td>${item[0]}</td><td>${item[1]}</td></tr>`;
+    gpuTbody.innerHTML = rows;
+    if (gpu.chart && gpu.chart.length === 2) updateGPUChart(gpu.chart[0], gpu.chart[1]);
     gpuEl.style.display = "block";
   } catch (e) {
     error("updateGPU", e);

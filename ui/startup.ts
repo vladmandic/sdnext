@@ -88,6 +88,7 @@ async function initStartup() {
     window.subpath = window.opts.subpath;
     window.api = `${window.subpath}/sdapi/v1`;
   }
+  log('API', window.api);
 
   startupPromises.push(initLogMonitor());
 

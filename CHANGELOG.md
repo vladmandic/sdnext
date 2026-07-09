@@ -1,9 +1,12 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-08
+## Update for 2026-07-09
 
 - **Features**
+  - log view copy server log and copy client log buttons  
+    this copies current log to clipboard for easy sharing  
   - api add `/sdapi/v1/restart` endpoint
+  - load transformers from all-in-one safetensors  
 - **Fixes**
   - huggingface: fix model access on windows
   - lora: fix lora text-encoder loader
@@ -11,6 +14,7 @@
   - api: validate swagger schema
   - installer: handle detached branch on non-english setups
   - fs: faster stat
+  - server-info: handle multiple gpus
 
 ## Update for 2026-07-07
 

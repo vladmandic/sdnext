@@ -58,7 +58,7 @@ class Api:
         self.add_api_route("/sdapi/v1/restart", server.post_restart, methods=["POST"], status_code=204, tags=["Server"])
         self.add_api_route("/sdapi/v1/memory", server.get_memory, methods=["GET"], response_model=models.ResMemory, tags=["Server"])
         self.add_api_route("/sdapi/v1/cmd-flags", server.get_cmd_flags, methods=["GET"], response_model=models.FlagsModel, tags=["Server"])
-        self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu, methods=["GET"], tags=["Server"])
+        self.add_api_route("/sdapi/v1/gpu", gpu.get_gpu, methods=["GET"], tags=["Server"], response_model=list[dict])
         self.add_api_route("/sdapi/v1/gpu-smi", gpu.get_gpu_smi, methods=["GET"], response_model=list[models.ResGPU], tags=["Server"])
 
         # core api using locking
