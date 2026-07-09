@@ -1,6 +1,5 @@
 # pylint: disable=redefined-builtin
 
-import math
 import torch
 
 from modules import devices
