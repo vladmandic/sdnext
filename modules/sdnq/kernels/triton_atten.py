@@ -352,4 +352,4 @@ def sdnq_triton_atten(
     return out[..., :VHD]
 
 
-get_attn_inputs = compile_func(get_attn_inputs, dynamic=True)
+get_attn_inputs = compile_func(get_attn_inputs)
