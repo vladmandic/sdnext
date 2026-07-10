@@ -25,6 +25,14 @@ class CivitFileHashes(BaseModel):
     blake3: str | None = Field(None, alias="BLAKE3")
 
 
+class CivitFileMetadata(BaseModel):
+    class Config:
+        allow_population_by_field_name = True
+    format: str | None = None
+    size: str | None = None
+    fp: str | None = None
+
+
 class CivitFile(BaseModel):
     class Config:
         allow_population_by_field_name = True
@@ -35,6 +43,10 @@ class CivitFile(BaseModel):
     hashes: CivitFileHashes = Field(default_factory=CivitFileHashes)
     download_url: str = Field("", alias="downloadUrl")
     primary: bool | None = None
+    metadata: CivitFileMetadata = Field(default_factory=CivitFileMetadata)
+    pickle_scan_result: str | None = Field(None, alias="pickleScanResult")
+    virus_scan_result: str | None = Field(None, alias="virusScanResult")
+    scanned_at: str | None = Field(None, alias="scannedAt")
 
 
 class CivitStats(BaseModel):
