@@ -1202,6 +1202,42 @@ def test_load_comfy_marker_for_unknown_module_raises_mismatch():
             os.unlink(path)
 
 
+def test_load_transformer_syncs_loaded_unet():
+    """A full model load that consumes the UNET dropdown override must mark it
+    as loaded, so the queued sd_unet onchange callback does not trigger a
+    second, redundant full model reload."""
+    from modules import sd_unet, shared
+    from pipelines import generic_transformer as gt
+
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    dim = 8
+    raw = {
+        'model.diffusion_model.in_proj.weight': torch.randn(dim, dim),
+        'model.diffusion_model.in_proj.bias': torch.zeros(dim),
+        'model.diffusion_model.out_proj.weight': torch.randn(dim, dim),
+        'model.diffusion_model.out_proj.bias': torch.zeros(dim),
+    }
+    write_fixture(raw, fd, path)
+
+    orig_unet_opt = shared.opts.sd_unet
+    orig_loaded = sd_unet.loaded_unet
+    sd_unet.unet_dict['mock-unet'] = path
+    shared.opts.data['sd_unet'] = 'mock-unet'
+    sd_unet.loaded_unet = None
+    try:
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer = gt.load_transformer('fake/repo', cls_name=MockMiniTransformer, native_spec=spec)
+        assert transformer is not None
+        assert sd_unet.loaded_unet == 'mock-unet', f'override consumed but loaded_unet={sd_unet.loaded_unet}'
+    finally:
+        sd_unet.unet_dict.pop('mock-unet', None)
+        shared.opts.data['sd_unet'] = orig_unet_opt
+        sd_unet.loaded_unet = orig_loaded
+        if os.path.exists(path):
+            os.unlink(path)
+
+
 def test_build_component_comfy_preempts_sdnq_fresh_quant():
     """When SDNQ on-load quant settings are active (quant_type=SDNQConfig), a
     comfy_quant file must still take the pre-quantized path: fresh quant of
@@ -1358,6 +1394,7 @@ def run_all():
         test_load_comfy_marker_dtype_mismatch_raises,
         test_load_comfy_unsupported_format_raises_mismatch,
         test_load_comfy_marker_for_unknown_module_raises_mismatch,
+        test_load_transformer_syncs_loaded_unet,
         test_build_component_comfy_preempts_sdnq_fresh_quant,
     ]:
         run_test(cat, fn)

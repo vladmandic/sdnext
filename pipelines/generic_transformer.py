@@ -69,6 +69,7 @@ def load_transformer(
             )
 
         local_file = None
+        override_name = None
         fallback = True
 
         from modules import sd_unet
@@ -77,6 +78,7 @@ def load_transformer(
                 log.error(f'Load module: type=transformer file="{shared.opts.sd_unet}" not found')
             elif os.path.exists(sd_unet.unet_dict[shared.opts.sd_unet]):
                 local_file = sd_unet.unet_dict[shared.opts.sd_unet]
+                override_name = shared.opts.sd_unet
 
         if repo_id.startswith(shared.opts.ckpt_dir) and os.path.exists(repo_id):
             log.error(f'Load model: transformer="{repo_id}" is incorrectly placed in the checkpoints folder')
@@ -141,6 +143,11 @@ def load_transformer(
         # incompatible override is dropped above)
         else:
             transformer = load_from_repo()
+
+        # mark the dropdown selection as loaded so the sd_unet onchange callback
+        # does not force a redundant full reload for an already-consumed override
+        if transformer is not None and override_name is not None and shared.opts.sd_unet == override_name:
+            sd_unet.loaded_unet = override_name
 
         sd_models.allow_post_quant = False # we already handled it
         if shared.opts.diffusers_offload_mode != 'none' and transformer is not None:
