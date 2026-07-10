@@ -351,6 +351,22 @@ def test_detect_comfy_malformed_marker_raises():
         assert 'malformed' in str(e)
 
 
+def test_detect_comfy_convrot_flag_raises():
+    """Markers carrying convrot=true may need runtime inverse rotation; adopting
+    them as plain tensors would corrupt outputs, so they must be rejected."""
+    import json
+    payload = json.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': 256})
+    sd = {
+        'blocks.0.attn.wq.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.attn.wq.comfy_quant': torch.tensor(list(payload.encode()), dtype=torch.uint8),
+    }
+    try:
+        nt.detect_comfy_quant(sd, 'Test')
+        raise AssertionError('expected OverrideArchMismatch')
+    except nt.OverrideArchMismatch as e:
+        assert 'convrot' in str(e)
+
+
 def test_detect_comfy_marker_missing_format_field_raises():
     import json
     sd = {
@@ -945,13 +961,17 @@ def test_load_converter_crash_raises_mismatch():
 # builder's settings reads are deterministic. dtype=float32 makes the dequant
 # math bit-exact against a manual int8 * scale reference.
 
-def comfy_fixture(dim: int) -> dict:
-    """comfy_quant int8_tensorwise export shape: in_proj carries int8 weight +
-    scalar fp32 scale + marker; out_proj and biases stay plain f16."""
+def comfy_fixture(dim: int, fmt: str = 'int8_tensorwise') -> dict:
+    """comfy_quant export shape: in_proj carries a quantized weight + scalar
+    fp32 scale + marker; out_proj and biases stay plain f16."""
+    if fmt == 'float8_e4m3fn':
+        weight = torch.randn(dim, dim).to(torch.float8_e4m3fn)
+    else:
+        weight = torch.randint(-128, 127, (dim, dim), dtype=torch.int8)
     return {
-        'model.diffusion_model.in_proj.weight': torch.randint(-128, 127, (dim, dim), dtype=torch.int8),
+        'model.diffusion_model.in_proj.weight': weight,
         'model.diffusion_model.in_proj.weight_scale': torch.tensor(0.03125, dtype=torch.float32),
-        'model.diffusion_model.in_proj.comfy_quant': comfy_marker('int8_tensorwise'),
+        'model.diffusion_model.in_proj.comfy_quant': comfy_marker(fmt),
         'model.diffusion_model.in_proj.bias': torch.randn(dim, dtype=torch.float16),
         'model.diffusion_model.out_proj.weight': torch.randn(dim, dim, dtype=torch.float16),
         'model.diffusion_model.out_proj.bias': torch.zeros(dim, dtype=torch.float16),
@@ -1055,6 +1075,78 @@ def test_load_comfy_int8_end_to_end():
 
         # Marked as SDNQ-quantized so downstream never re-quantizes.
         assert getattr(transformer, 'quantization_config', None) is not None
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_comfy_fp8_end_to_end():
+    """float8_e4m3fn variant: same container, fp8 storage. The marked linear
+    must keep fp8 codes and dequantize as weight.float() * scale."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = comfy_fixture(dim, fmt='float8_e4m3fn')
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer, _ = nt.load(
+                local_file=path,
+                repo_id='fake/repo',
+                spec=spec,
+                diffusers_cfg={},
+                dtype=torch.float32,
+            )
+
+        in_proj = transformer.in_proj
+        assert in_proj.__class__.__name__ == 'SDNQLinear'
+        assert in_proj.sdnq_dequantizer.weights_dtype == 'float8_e4m3fn'
+        assert in_proj.weight.dtype == torch.float8_e4m3fn
+        assert in_proj.scale.dtype == torch.float32
+
+        expected = raw['model.diffusion_model.in_proj.weight'].float() * raw['model.diffusion_model.in_proj.weight_scale']
+        dequantized = in_proj.sdnq_dequantizer(in_proj.weight, in_proj.scale, zero_point=None, svd_up=None, svd_down=None)
+        assert torch.equal(dequantized.detach().cpu(), expected)
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_detect_comfy_mixed_formats_raises():
+    """One file mixing int8 and fp8 layers has no single SDNQ mapping; reject."""
+    sd = {
+        'a.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'a.comfy_quant': comfy_marker('int8_tensorwise'),
+        'b.weight': torch.zeros((4, 4), dtype=torch.float8_e4m3fn),
+        'b.comfy_quant': comfy_marker('float8_e4m3fn'),
+    }
+    try:
+        nt.detect_comfy_quant(sd, 'Test')
+        raise AssertionError('expected OverrideArchMismatch')
+    except nt.OverrideArchMismatch as e:
+        assert 'mixes formats' in str(e)
+
+
+def test_load_comfy_marker_dtype_mismatch_raises():
+    """A marker whose declared format does not match the stored weight dtype
+    (mislabeled container) must be rejected, not silently misinterpreted."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = comfy_fixture(dim)
+        raw['model.diffusion_model.in_proj.weight'] = torch.randn(dim, dim, dtype=torch.float16)  # marker says int8
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            raised = False
+            try:
+                nt.load(local_file=path, repo_id='fake/repo', spec=spec, diffusers_cfg={})
+            except nt.OverrideArchMismatch as e:
+                raised = True
+                assert 'torch.int8' in str(e) and 'torch.float16' in str(e)
+            assert raised, 'expected OverrideArchMismatch'
     finally:
         if os.path.exists(path):
             os.unlink(path)
@@ -1189,6 +1281,7 @@ def run_all():
         test_detect_comfy_valid_markers,
         test_detect_comfy_unsupported_format_raises,
         test_detect_comfy_malformed_marker_raises,
+        test_detect_comfy_convrot_flag_raises,
         test_detect_comfy_marker_missing_format_field_raises,
         test_remap_comfy_renames_and_reshapes_scale,
         test_remap_comfy_passes_unmarked_keys_verbatim,
@@ -1260,6 +1353,9 @@ def run_all():
     cat = category('comfy_load')
     for fn in [
         test_load_comfy_int8_end_to_end,
+        test_load_comfy_fp8_end_to_end,
+        test_detect_comfy_mixed_formats_raises,
+        test_load_comfy_marker_dtype_mismatch_raises,
         test_load_comfy_unsupported_format_raises_mismatch,
         test_load_comfy_marker_for_unknown_module_raises_mismatch,
         test_build_component_comfy_preempts_sdnq_fresh_quant,

@@ -187,9 +187,11 @@ def run_comfy_quant_real_file():
     assert siblings == {}
 
     sdnq_layers = [m for m in transformer.modules() if m.__class__.__name__ == "SDNQLinear"]
-    print(f"comfy_quant real file: {len(sdnq_layers)} SDNQ layers")
+    storage_dtypes = {m.weight.dtype for m in sdnq_layers}
+    print(f"comfy_quant real file: {len(sdnq_layers)} SDNQ layers, storage {storage_dtypes}")
     assert len(sdnq_layers) == expected_layers, f"expected {expected_layers} SDNQ layers, got {len(sdnq_layers)}"
-    assert all(m.weight.dtype == torch.int8 for m in sdnq_layers), "all adopted weights must stay int8"
+    assert storage_dtypes <= {torch.int8, torch.float8_e4m3fn}, f"unexpected storage dtypes: {storage_dtypes}"
+    assert len(storage_dtypes) == 1, "adopted weights must share one storage dtype"
     assert transformer.blocks[0].attn.wq.__class__.__name__ == "SDNQLinear"
     assert getattr(transformer, "quantization_config", None) is not None
 

@@ -71,7 +71,10 @@ DEFAULT_IGNORED_PREFIXES: tuple[str, ...] = (
     "vae.",
 )
 COMFY_QUANT_MARKER = ".comfy_quant"
-COMFY_SUPPORTED_FORMATS: tuple[str, ...] = ("int8_tensorwise",)
+COMFY_QUANT_FORMATS: dict[str, str] = {  # comfy_quant format string -> SDNQ weights_dtype
+    "int8_tensorwise": "int8",
+    "float8_e4m3fn": "float8_e4m3fn",
+}
 
 
 class OverrideArchMismatch(Exception):
@@ -426,7 +429,8 @@ def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[set[str], str]
     the storage format, alongside a ``<name>.weight_scale`` tensor. Returns
     the set of marked module names and the format string, or ``None`` when no
     markers are present. Raises :class:`OverrideArchMismatch` for malformed
-    markers or unsupported formats so the caller's base-repo fallback engages.
+    markers, unsupported formats, or a file mixing formats across layers, so
+    the caller's base-repo fallback engages.
     """
     marker_keys = [key for key in state_dict if key.endswith(COMFY_QUANT_MARKER)]
     if not marker_keys:
@@ -443,17 +447,30 @@ def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[set[str], str]
                 f"Load model: type={type_name} native_transformer comfy_quant marker "
                 f"for {name!r} is malformed ({type(e).__name__}: {e})"
             ) from e
+        if meta.get("convrot"):
+            # ConvRot-flagged layers may require an inverse rotation at
+            # runtime; adopting them as plain tensors would corrupt outputs.
+            log.error(f'Load model: type={type_name} quant=comfy format={fmt} convrot=true not supported')
+            raise OverrideArchMismatch(
+                f"Load model: type={type_name} native_transformer comfy_quant layer "
+                f"{name!r} carries a convrot rotation flag, not supported"
+            )
         marked.add(name)
         formats.add(fmt)
-    unsupported = sorted(formats - set(COMFY_SUPPORTED_FORMATS))
+    unsupported = sorted(formats - set(COMFY_QUANT_FORMATS))
     if unsupported:
         log.error(
             f'Load model: type={type_name} quant=comfy format={",".join(unsupported)} not supported '
-            f'(supported: {",".join(COMFY_SUPPORTED_FORMATS)})'
+            f'(supported: {",".join(COMFY_QUANT_FORMATS)})'
         )
         raise OverrideArchMismatch(
             f"Load model: type={type_name} native_transformer comfy_quant format "
             f"{', '.join(unsupported)} not supported"
+        )
+    if len(formats) > 1:
+        raise OverrideArchMismatch(
+            f"Load model: type={type_name} native_transformer comfy_quant mixes formats "
+            f"across layers ({', '.join(sorted(formats))})"
         )
     return marked, next(iter(formats))
 
@@ -622,24 +639,27 @@ def build_component_prequantized(
     config: dict,
     cls: type,
     marked_names: set[str],
+    comfy_format: str,
     dtype,
     acceptable_missing: tuple[str, ...],
     zero_init_missing: tuple[str, ...] = (),
     **kwargs,
 ) -> object:
     """Build a component from a comfy_quant pre-quantized state dict, mapping
-    the marked layers onto SDNQ int8 layers without dequantizing.
+    the marked layers onto SDNQ quantized layers without dequantizing.
 
-    ComfyUI ``int8_tensorwise`` is a strict subset of SDNQ symmetric int8:
-    same storage layout (unpacked int8 ``[out, in]``), same dequant math
-    (``weight * scale``, no zero point), so the file's tensors are adopted
-    bit-exact. The model is built under ``init_empty_weights`` and each marked
-    Linear is swapped for an SDNQ wrapper with per-tensor dequant geometry
-    (``group_size=-1``, scalar scale); the file dictates which layers are
-    quantized, independent of the user's quantization settings. Weights load
-    through ``SDNQQuantizer``'s pre-quantized path, which preserves the int8
-    weight dtype and the fp32 scale (unlike :func:`build_component_quantized`,
-    floating-point SDNQ params are deliberately not cast to the target dtype).
+    The supported comfy formats (``int8_tensorwise``, ``float8_e4m3fn``) are
+    strict subsets of SDNQ's symmetric quantization for the corresponding
+    weights dtype: same storage layout (unpacked 8-bit ``[out, in]``), same
+    dequant math (``weight * scale``, no zero point), so the file's tensors
+    are adopted bit-exact. The model is built under ``init_empty_weights``
+    and each marked Linear is swapped for an SDNQ wrapper with per-tensor
+    dequant geometry (``group_size=-1``, scalar scale); the file dictates
+    which layers are quantized, independent of the user's quantization
+    settings. Weights load through ``SDNQQuantizer``'s pre-quantized path,
+    which preserves the quantized weight dtype and the fp32 scale (unlike
+    :func:`build_component_quantized`, floating-point SDNQ params are
+    deliberately not cast to the target dtype).
 
     Layers are assembled in canonical dequant layout first;
     ``apply_sdnq_options_to_model`` then enables quantized matmul per the
@@ -653,18 +673,33 @@ def build_component_prequantized(
     from accelerate import init_empty_weights
     from accelerate.utils import set_module_tensor_to_device
     from diffusers.utils import get_module_from_name
+    from modules.sdnq.common import dtype_dict
     from modules.sdnq.quantizer import SDNQConfig, SDNQQuantizer
     from modules.sdnq.dequantizer import SDNQDequantizer
     from modules.sdnq.layers import get_sdnq_wrapper_class
     from modules.sdnq.forward import get_forward_func
     from modules.sdnq.loader import apply_sdnq_options_to_model
 
+    weights_dtype = COMFY_QUANT_FORMATS[comfy_format]
+    matmul_dtype = "int8" if dtype_dict[weights_dtype]["is_integer"] else "float8_e4m3fn"
+    storage_dtype = dtype_dict[weights_dtype]["storage_dtype"]
     target_dtype = dtype if dtype is not None else devices.dtype
     sd = remap_comfy_quant(state_dict, marked_names)
 
+    # Civitai relabels these containers freely; trust the marker only as far
+    # as the stored tensors actually match it.
+    for name in marked_names:
+        weight = sd.get(f"{name}.weight")
+        if weight is None or weight.dtype != storage_dtype:
+            found = weight.dtype if weight is not None else "missing"
+            raise OverrideArchMismatch(
+                f"Load model: transformer=native {component_name} comfy_quant format "
+                f"{comfy_format} expects {storage_dtype} weights but {name!r} has {found}"
+            )
+
     quantization_config = SDNQConfig(
-        weights_dtype="int8",
-        quantized_matmul_dtype="int8",
+        weights_dtype=weights_dtype,
+        quantized_matmul_dtype=matmul_dtype,
         group_size=-1,
         use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
         dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
@@ -677,7 +712,7 @@ def build_component_prequantized(
     with init_empty_weights(include_buffers=False):
         component = cls.from_config(config, **kwargs)
 
-    dequant_forward = get_forward_func("Linear", "int8", False)
+    dequant_forward = get_forward_func("Linear", matmul_dtype, False)
     for name in sorted(marked_names):
         try:
             parent, child = get_module_from_name(component, name)
@@ -698,8 +733,8 @@ def build_component_prequantized(
             original_shape=torch.Size((linear.out_features, linear.in_features)),
             original_stride=(linear.in_features, 1),
             quantized_weight_shape=torch.Size((linear.out_features, linear.in_features)),
-            weights_dtype="int8",
-            quantized_matmul_dtype="int8",
+            weights_dtype=weights_dtype,
+            quantized_matmul_dtype=matmul_dtype,
             hadamard_group_size=256,
             group_size=-1,
             svd_rank=32,
@@ -818,6 +853,7 @@ def build_component(
                 config=config,
                 cls=cls,
                 marked_names=marked_names,
+                comfy_format=comfy_format,
                 dtype=dtype,
                 acceptable_missing=acceptable_missing,
                 zero_init_missing=zero_init_missing,
