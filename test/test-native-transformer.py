@@ -8,6 +8,8 @@ Covers the pure helpers that own per-arch knob handling:
 - ``strip_prefix`` for single/multi prefix detection and mixed-prefix rejection
 - ``partition_siblings`` for inline-sibling key partitioning
 - ``check_forbidden_markers`` for structural-mismatch rejection
+- ``detect_comfy_quant`` for ComfyUI comfy_quant marker detection and format gating
+- ``remap_comfy_quant`` for comfy_quant -> SDNQ key translation
 - ``is_noop_converter`` for diffusers no-op lambda detection
 - ``validate_state_dict_load`` for unexpected / missing key handling
 - ``make_default_spec`` default-spec synthesis with diffusers converter pickup
@@ -292,6 +294,111 @@ def test_forbidden_markers_raises_when_present():
 def test_forbidden_markers_empty_tuple_no_op():
     sd = {'layers.0.weight': 1}
     nt.check_forbidden_markers(sd, (), 'Test', '/tmp/x.safetensors')
+
+
+# ============================================================
+# detect_comfy_quant / remap_comfy_quant
+# ============================================================
+
+def comfy_marker(fmt: str) -> torch.Tensor:
+    import json
+    return torch.tensor(list(json.dumps({'format': fmt}).encode()), dtype=torch.uint8)
+
+
+def test_detect_comfy_no_markers_returns_none():
+    sd = {'blocks.0.attn.wq.weight': torch.zeros(2), 'blocks.0.attn.wq.bias': torch.zeros(2)}
+    assert nt.detect_comfy_quant(sd, 'Test') is None
+
+
+def test_detect_comfy_valid_markers():
+    sd = {
+        'blocks.0.attn.wq.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.attn.wq.weight_scale': torch.tensor(0.5),
+        'blocks.0.attn.wq.comfy_quant': comfy_marker('int8_tensorwise'),
+        'blocks.0.mlp.up.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.mlp.up.weight_scale': torch.tensor(0.25),
+        'blocks.0.mlp.up.comfy_quant': comfy_marker('int8_tensorwise'),
+        'norm.weight': torch.zeros(4),
+    }
+    detected = nt.detect_comfy_quant(sd, 'Test')
+    assert detected is not None
+    marked, fmt = detected
+    assert marked == {'blocks.0.attn.wq', 'blocks.0.mlp.up'}
+    assert fmt == 'int8_tensorwise'
+
+
+def test_detect_comfy_unsupported_format_raises():
+    sd = {
+        'blocks.0.attn.wq.weight': torch.zeros((4, 4)),
+        'blocks.0.attn.wq.comfy_quant': comfy_marker('float8_e4m3fn_scaled'),
+    }
+    try:
+        nt.detect_comfy_quant(sd, 'Test')
+        raise AssertionError('expected OverrideArchMismatch')
+    except nt.OverrideArchMismatch as e:
+        assert 'float8_e4m3fn_scaled' in str(e)
+
+
+def test_detect_comfy_malformed_marker_raises():
+    sd = {
+        'blocks.0.attn.wq.weight': torch.zeros((4, 4)),
+        'blocks.0.attn.wq.comfy_quant': torch.tensor(list(b'not json'), dtype=torch.uint8),
+    }
+    try:
+        nt.detect_comfy_quant(sd, 'Test')
+        raise AssertionError('expected OverrideArchMismatch')
+    except nt.OverrideArchMismatch as e:
+        assert 'malformed' in str(e)
+
+
+def test_detect_comfy_marker_missing_format_field_raises():
+    import json
+    sd = {
+        'blocks.0.attn.wq.comfy_quant': torch.tensor(list(json.dumps({'fmt': 'x'}).encode()), dtype=torch.uint8),
+    }
+    try:
+        nt.detect_comfy_quant(sd, 'Test')
+        raise AssertionError('expected OverrideArchMismatch')
+    except nt.OverrideArchMismatch as e:
+        assert 'malformed' in str(e)
+
+
+def test_remap_comfy_renames_and_reshapes_scale():
+    sd = {
+        'blocks.0.attn.wq.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.attn.wq.weight_scale': torch.tensor(0.5),
+        'blocks.0.attn.wq.comfy_quant': comfy_marker('int8_tensorwise'),
+    }
+    out = nt.remap_comfy_quant(sd, {'blocks.0.attn.wq'})
+    assert set(out.keys()) == {'blocks.0.attn.wq.weight', 'blocks.0.attn.wq.scale'}
+    assert out['blocks.0.attn.wq.scale'].shape == (1, 1)
+    assert out['blocks.0.attn.wq.scale'].item() == 0.5
+    assert out['blocks.0.attn.wq.weight'].dtype == torch.int8
+
+
+def test_remap_comfy_passes_unmarked_keys_verbatim():
+    unrelated_scale = torch.tensor(2.0)
+    sd = {
+        'blocks.0.attn.wq.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.attn.wq.weight_scale': torch.tensor(0.5),
+        'blocks.0.attn.wq.comfy_quant': comfy_marker('int8_tensorwise'),
+        'norm.weight': torch.ones(4),
+        'other.weight_scale': unrelated_scale,
+    }
+    out = nt.remap_comfy_quant(sd, {'blocks.0.attn.wq'})
+    assert 'norm.weight' in out
+    assert out['other.weight_scale'] is unrelated_scale, 'weight_scale outside marked names must pass through untouched'
+
+
+def test_remap_comfy_does_not_mutate_input():
+    sd = {
+        'blocks.0.attn.wq.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.attn.wq.weight_scale': torch.tensor(0.5),
+        'blocks.0.attn.wq.comfy_quant': comfy_marker('int8_tensorwise'),
+    }
+    keys_before = set(sd.keys())
+    nt.remap_comfy_quant(sd, {'blocks.0.attn.wq'})
+    assert set(sd.keys()) == keys_before, 'input dict must not be mutated (read_state_dict caches it)'
 
 
 # ============================================================
@@ -832,6 +939,202 @@ def test_load_converter_crash_raises_mismatch():
 
 
 # ============================================================
+# Integration: comfy_quant pre-quantized load
+# ============================================================
+# Same patching strategy as the plain load tests, plus pinned SDNQ opts so the
+# builder's settings reads are deterministic. dtype=float32 makes the dequant
+# math bit-exact against a manual int8 * scale reference.
+
+def comfy_fixture(dim: int) -> dict:
+    """comfy_quant int8_tensorwise export shape: in_proj carries int8 weight +
+    scalar fp32 scale + marker; out_proj and biases stay plain f16."""
+    return {
+        'model.diffusion_model.in_proj.weight': torch.randint(-128, 127, (dim, dim), dtype=torch.int8),
+        'model.diffusion_model.in_proj.weight_scale': torch.tensor(0.03125, dtype=torch.float32),
+        'model.diffusion_model.in_proj.comfy_quant': comfy_marker('int8_tensorwise'),
+        'model.diffusion_model.in_proj.bias': torch.randn(dim, dtype=torch.float16),
+        'model.diffusion_model.out_proj.weight': torch.randn(dim, dim, dtype=torch.float16),
+        'model.diffusion_model.out_proj.bias': torch.zeros(dim, dtype=torch.float16),
+    }
+
+
+class ComfyTestEnv:
+    """Patches quant helpers + config fetch and pins the SDNQ opts the
+    prequantized builder reads, restoring everything on exit."""
+
+    def __init__(self, dim: int):
+        self.dim = dim
+
+    def __enter__(self):
+        from modules import model_quant, shared
+        self.shared = shared
+        self.orig_fetch = nt.fetch_component_config
+        self.orig_get_dit = model_quant.get_dit_args
+        self.orig_get_qtype = model_quant.get_quant_type
+        self.orig_do_post = model_quant.do_post_load_quant
+        self.model_quant = model_quant
+        nt.fetch_component_config = lambda repo, sub: {'dim': self.dim}
+        model_quant.get_dit_args = lambda *a, **k: ({}, {})
+        model_quant.get_quant_type = lambda *a, **k: None
+        model_quant.do_post_load_quant = lambda *a, **k: None
+        self.orig_opts = {
+            'sdnq_use_quantized_matmul': shared.opts.sdnq_use_quantized_matmul,
+            'sdnq_dequantize_fp32': shared.opts.sdnq_dequantize_fp32,
+            'diffusers_offload_mode': shared.opts.diffusers_offload_mode,
+        }
+        shared.opts.data['sdnq_use_quantized_matmul'] = False
+        shared.opts.data['sdnq_dequantize_fp32'] = True
+        shared.opts.data['diffusers_offload_mode'] = 'model'  # force CPU placement
+        return self
+
+    def __exit__(self, *exc):
+        nt.fetch_component_config = self.orig_fetch
+        self.model_quant.get_dit_args = self.orig_get_dit
+        self.model_quant.get_quant_type = self.orig_get_qtype
+        self.model_quant.do_post_load_quant = self.orig_do_post
+        for key, value in self.orig_opts.items():
+            self.shared.opts.data[key] = value
+        return False
+
+
+def test_load_comfy_int8_end_to_end():
+    """Full pipeline on a comfy_quant fixture: the marked linear becomes an
+    SDNQ int8 layer holding the file's exact tensors, the unmarked linear
+    loads plain, and the forward pass matches a dequantized reference."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = comfy_fixture(dim)
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer, siblings = nt.load(
+                local_file=path,
+                repo_id='fake/repo',
+                spec=spec,
+                diffusers_cfg={},
+                dtype=torch.float32,
+            )
+
+        assert siblings == {}
+        in_proj = transformer.in_proj
+        assert in_proj.__class__.__name__ == 'SDNQLinear', f'marked layer is {in_proj.__class__.__name__}'
+        dq = in_proj.sdnq_dequantizer
+        assert dq.weights_dtype == 'int8'
+        assert dq.group_size == -1
+        assert dq.use_quantized_matmul is False
+        assert dq.original_shape == (dim, dim)
+
+        # File tensors adopted bit-exact: int8 codes and fp32 scalar scale.
+        assert in_proj.weight.dtype == torch.int8
+        assert torch.equal(in_proj.weight.detach().cpu(), raw['model.diffusion_model.in_proj.weight'])
+        assert in_proj.scale.dtype == torch.float32
+        assert tuple(in_proj.scale.shape) == (1, 1)
+        assert in_proj.scale.item() == raw['model.diffusion_model.in_proj.weight_scale'].item()
+        assert in_proj.zero_point is None
+
+        # Dequant matches comfy semantics exactly: fp = int8.float() * scale.
+        expected = raw['model.diffusion_model.in_proj.weight'].float() * raw['model.diffusion_model.in_proj.weight_scale']
+        dequantized = dq(in_proj.weight, in_proj.scale, zero_point=None, svd_up=None, svd_down=None)
+        assert torch.equal(dequantized.detach().cpu(), expected)
+
+        # Forward parity against a reference built from the dequantized weight.
+        x = torch.randn(2, dim)
+        out = in_proj(x)
+        ref = torch.nn.functional.linear(x, expected, in_proj.bias.detach().cpu())
+        assert torch.allclose(out.detach().cpu(), ref, atol=1e-6)
+
+        # Unmarked layer loads as a plain Linear cast to the target dtype.
+        assert transformer.out_proj.__class__ is torch.nn.Linear
+        assert transformer.out_proj.weight.dtype == torch.float32
+        assert torch.allclose(
+            transformer.out_proj.weight.detach().cpu(),
+            raw['model.diffusion_model.out_proj.weight'].float(),
+        )
+
+        # Marked as SDNQ-quantized so downstream never re-quantizes.
+        assert getattr(transformer, 'quantization_config', None) is not None
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_comfy_unsupported_format_raises_mismatch():
+    """A comfy_quant file in a format sdnext cannot adopt must surface as
+    OverrideArchMismatch so load_transformer falls back to the base repo."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = comfy_fixture(dim)
+        raw['model.diffusion_model.in_proj.comfy_quant'] = comfy_marker('float8_e4m3fn_scaled')
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            raised = False
+            try:
+                nt.load(local_file=path, repo_id='fake/repo', spec=spec, diffusers_cfg={})
+            except nt.OverrideArchMismatch as e:
+                raised = True
+                assert 'float8_e4m3fn_scaled' in str(e)
+            assert raised, 'expected OverrideArchMismatch'
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_comfy_marker_for_unknown_module_raises_mismatch():
+    """A marker naming a module the target class does not have means the file
+    belongs to a different arch; must fall back, not crash."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = comfy_fixture(dim)
+        raw['model.diffusion_model.ghost.weight'] = torch.zeros((dim, dim), dtype=torch.int8)
+        raw['model.diffusion_model.ghost.weight_scale'] = torch.tensor(1.0)
+        raw['model.diffusion_model.ghost.comfy_quant'] = comfy_marker('int8_tensorwise')
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            raised = False
+            try:
+                nt.load(local_file=path, repo_id='fake/repo', spec=spec, diffusers_cfg={})
+            except nt.OverrideArchMismatch as e:
+                raised = True
+                assert 'ghost' in str(e)
+            assert raised, 'expected OverrideArchMismatch'
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_build_component_comfy_preempts_sdnq_fresh_quant():
+    """When SDNQ on-load quant settings are active (quant_type=SDNQConfig), a
+    comfy_quant file must still take the pre-quantized path: fresh quant of
+    int8 data would corrupt it. quant_args={} proves the comfy branch never
+    reaches build_component_quantized (which requires a quantization_config)."""
+    dim = 8
+    raw = comfy_fixture(dim)
+    sd = {k[len('model.diffusion_model.'):]: v for k, v in raw.items()}
+    with ComfyTestEnv(dim):
+        component = nt.build_component(
+            component_name='transformer',
+            state_dict=sd,
+            config={'dim': dim},
+            cls=MockMiniTransformer,
+            converter=None,
+            acceptable_missing=('rope.',),
+            quant_args={},
+            quant_type='SDNQConfig',
+            dtype=torch.float32,
+        )
+    assert component.in_proj.__class__.__name__ == 'SDNQLinear'
+    assert component.in_proj.weight.dtype == torch.int8
+
+
+# ============================================================
 # Run
 # ============================================================
 
@@ -876,6 +1179,20 @@ def run_all():
         test_forbidden_markers_passes_when_absent,
         test_forbidden_markers_raises_when_present,
         test_forbidden_markers_empty_tuple_no_op,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== comfy_quant detection / remap ===')
+    cat = category('comfy')
+    for fn in [
+        test_detect_comfy_no_markers_returns_none,
+        test_detect_comfy_valid_markers,
+        test_detect_comfy_unsupported_format_raises,
+        test_detect_comfy_malformed_marker_raises,
+        test_detect_comfy_marker_missing_format_field_raises,
+        test_remap_comfy_renames_and_reshapes_scale,
+        test_remap_comfy_passes_unmarked_keys_verbatim,
+        test_remap_comfy_does_not_mutate_input,
     ]:
         run_test(cat, fn)
 
@@ -936,6 +1253,16 @@ def run_all():
         test_build_component_converter_crash_raises_mismatch,
         test_build_component_shape_mismatch_is_hard_error,
         test_load_converter_crash_raises_mismatch,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== comfy_quant load ===')
+    cat = category('comfy_load')
+    for fn in [
+        test_load_comfy_int8_end_to_end,
+        test_load_comfy_unsupported_format_raises_mismatch,
+        test_load_comfy_marker_for_unknown_module_raises_mismatch,
+        test_build_component_comfy_preempts_sdnq_fresh_quant,
     ]:
         run_test(cat, fn)
 

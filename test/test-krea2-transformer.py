@@ -8,8 +8,12 @@
 - Zero-init regression: a checkpoint that omits the dormant last.up/last.down residual branch,
   after materialize_zero_init, produces the same output as the base whose up is zeroed. Port
   only, so it runs without the reference.
+- comfy_quant real-file (opt-in): loads an actual ComfyUI int8_tensorwise Krea2 single file
+  through the native loader and verifies SDNQ adoption plus a finite tiny forward. Enabled by
+  setting $KREA2_COMFY_FILE to the .safetensors path; needs network for the base repo config
+  ($KREA2_COMFY_REPO, default CalamitousFelicitousness/Krea-2-Base-Diffusers).
 
-No server, no checkpoint.
+No server, no checkpoint (except the opt-in comfy_quant test).
 """
 
 import importlib.util
@@ -89,8 +93,8 @@ def run_parity(mmdit, port):
     print("PARITY OK")
 
 
-def load_materialize_zero_init():
-    """Import the real loader helper. native_transformer pulls in modules.shared, which needs
+def bootstrap_repo():
+    """Make repo modules importable. native_transformer pulls in modules.shared, which needs
     cmd_args parsed first, so bootstrap it the same way the native-transformer suite does."""
     repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if repo not in sys.path:
@@ -106,6 +110,10 @@ def load_materialize_zero_init():
         sys.argv = orig_argv
     installer.add_args(modules.cmd_args.parser)
     modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
+
+
+def load_materialize_zero_init():
+    bootstrap_repo()
     from pipelines.native_transformer import materialize_zero_init
     return materialize_zero_init
 
@@ -159,12 +167,59 @@ def run_zero_init_regression(port):
     print("ZERO-INIT OK")
 
 
+def run_comfy_quant_real_file():
+    """Opt-in end-to-end check against a real ComfyUI int8_tensorwise Krea2 file: the native
+    loader must adopt every marked linear as an SDNQ int8 layer and produce a finite output on
+    a tiny forward. $KREA2_COMFY_LAYERS overrides the expected layer count (default 224)."""
+    path = os.environ.get("KREA2_COMFY_FILE")
+    if not path:
+        print("COMFY REAL-FILE SKIPPED (set KREA2_COMFY_FILE to enable)")
+        return
+    assert os.path.exists(path), f"KREA2_COMFY_FILE not found: {path}"
+    expected_layers = int(os.environ.get("KREA2_COMFY_LAYERS", "224"))
+    repo_id = os.environ.get("KREA2_COMFY_REPO", "CalamitousFelicitousness/Krea-2-Base-Diffusers")
+
+    bootstrap_repo()
+    from pipelines import native_transformer as nt
+    from pipelines.krea2 import KREA2_SPEC
+
+    transformer, siblings = nt.load(local_file=path, repo_id=repo_id, spec=KREA2_SPEC, diffusers_cfg={})
+    assert siblings == {}
+
+    sdnq_layers = [m for m in transformer.modules() if m.__class__.__name__ == "SDNQLinear"]
+    print(f"comfy_quant real file: {len(sdnq_layers)} SDNQ layers")
+    assert len(sdnq_layers) == expected_layers, f"expected {expected_layers} SDNQ layers, got {len(sdnq_layers)}"
+    assert all(m.weight.dtype == torch.int8 for m in sdnq_layers), "all adopted weights must stay int8"
+    assert transformer.blocks[0].attn.wq.__class__.__name__ == "SDNQLinear"
+    assert getattr(transformer, "quantization_config", None) is not None
+
+    cfg = transformer.config
+    param = next(p for p in transformer.parameters() if p.is_floating_point())
+    device, dtype = param.device, param.dtype
+    batch, txtlen, imglen = 1, 3, 4
+    seq = txtlen + imglen
+    gen = torch.Generator().manual_seed(1)
+    img = torch.randn(batch, imglen, cfg.channels * cfg.patch ** 2, generator=gen).to(device=device, dtype=dtype)
+    context = torch.randn(batch, txtlen, cfg.txtlayers, cfg.txtdim, generator=gen).to(device=device, dtype=dtype)
+    timestep = torch.rand(batch, generator=gen).to(device=device, dtype=dtype)
+    pos = torch.randint(0, 16, (batch, seq, 3), generator=gen).float().to(device=device)
+    mask = torch.ones(batch, seq, dtype=torch.bool, device=device)
+    with torch.no_grad():
+        out = transformer(
+            hidden_states=img, encoder_hidden_states=context, timestep=timestep,
+            position_ids=pos, attention_mask=mask, return_dict=False,
+        )[0]
+    assert torch.isfinite(out).all(), "forward produced non-finite values"
+    print("COMFY REAL-FILE OK")
+
+
 def main():
     port = load_port()
     # Parity runs first in pristine torch state; the regression imports modules afterwards.
     mmdit = load_reference()
     run_parity(mmdit, port)
     run_zero_init_regression(port)
+    run_comfy_quant_real_file()
 
 
 if __name__ == "__main__":

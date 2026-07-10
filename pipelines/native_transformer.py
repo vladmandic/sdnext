@@ -41,6 +41,7 @@ loading the adapter from the base repo.
 """
 
 import os
+import json
 import time
 from dataclasses import dataclass, field
 from typing import Callable
@@ -69,6 +70,8 @@ DEFAULT_IGNORED_PREFIXES: tuple[str, ...] = (
     "text_encoders.",
     "vae.",
 )
+COMFY_QUANT_MARKER = ".comfy_quant"
+COMFY_SUPPORTED_FORMATS: tuple[str, ...] = ("int8_tensorwise",)
 
 
 class OverrideArchMismatch(Exception):
@@ -415,6 +418,66 @@ def check_forbidden_markers(
             )
 
 
+def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[set[str], str] | None:
+    """Detect ComfyUI ``comfy_quant`` pre-quantized layers in a state dict.
+
+    ComfyUI's quantized checkpoints mark each quantized layer with a
+    ``<name>.comfy_quant`` uint8 tensor whose bytes are a JSON object naming
+    the storage format, alongside a ``<name>.weight_scale`` tensor. Returns
+    the set of marked module names and the format string, or ``None`` when no
+    markers are present. Raises :class:`OverrideArchMismatch` for malformed
+    markers or unsupported formats so the caller's base-repo fallback engages.
+    """
+    marker_keys = [key for key in state_dict if key.endswith(COMFY_QUANT_MARKER)]
+    if not marker_keys:
+        return None
+    marked: set[str] = set()
+    formats: set[str] = set()
+    for key in marker_keys:
+        name = key[: -len(COMFY_QUANT_MARKER)]
+        try:
+            meta = json.loads(state_dict[key].cpu().numpy().tobytes())
+            fmt = meta["format"]
+        except Exception as e:
+            raise OverrideArchMismatch(
+                f"Load model: type={type_name} native_transformer comfy_quant marker "
+                f"for {name!r} is malformed ({type(e).__name__}: {e})"
+            ) from e
+        marked.add(name)
+        formats.add(fmt)
+    unsupported = sorted(formats - set(COMFY_SUPPORTED_FORMATS))
+    if unsupported:
+        log.error(
+            f'Load model: type={type_name} quant=comfy format={",".join(unsupported)} not supported '
+            f'(supported: {",".join(COMFY_SUPPORTED_FORMATS)})'
+        )
+        raise OverrideArchMismatch(
+            f"Load model: type={type_name} native_transformer comfy_quant format "
+            f"{', '.join(unsupported)} not supported"
+        )
+    return marked, next(iter(formats))
+
+
+def remap_comfy_quant(state_dict: dict, marked_names: set[str]) -> dict:
+    """Translate comfy_quant tensor naming to SDNQ naming.
+
+    Renames ``<name>.weight_scale`` to ``<name>.scale`` (reshaped to 2-D,
+    ``[]`` becomes ``[1, 1]``, since SDNQ transposes scales in place) and
+    drops the ``<name>.comfy_quant`` markers. Returns a new dict; the input
+    (which may be the cached state dict) is not mutated.
+    """
+    scale_suffix = ".weight_scale"
+    remapped: dict = {}
+    for key, value in state_dict.items():
+        if key.endswith(COMFY_QUANT_MARKER) and key[: -len(COMFY_QUANT_MARKER)] in marked_names:
+            continue
+        if key.endswith(scale_suffix) and key[: -len(scale_suffix)] in marked_names:
+            remapped[f"{key[: -len(scale_suffix)]}.scale"] = value.reshape(-1, 1)
+            continue
+        remapped[key] = value
+    return remapped
+
+
 def partition_siblings(
     state_dict: dict,
     siblings: dict[str, SiblingSpec],
@@ -552,6 +615,159 @@ def build_component_quantized(
     return component
 
 
+def build_component_prequantized(
+    *,
+    component_name: str,
+    state_dict: dict,
+    config: dict,
+    cls: type,
+    marked_names: set[str],
+    dtype,
+    acceptable_missing: tuple[str, ...],
+    zero_init_missing: tuple[str, ...] = (),
+    **kwargs,
+) -> object:
+    """Build a component from a comfy_quant pre-quantized state dict, mapping
+    the marked layers onto SDNQ int8 layers without dequantizing.
+
+    ComfyUI ``int8_tensorwise`` is a strict subset of SDNQ symmetric int8:
+    same storage layout (unpacked int8 ``[out, in]``), same dequant math
+    (``weight * scale``, no zero point), so the file's tensors are adopted
+    bit-exact. The model is built under ``init_empty_weights`` and each marked
+    Linear is swapped for an SDNQ wrapper with per-tensor dequant geometry
+    (``group_size=-1``, scalar scale); the file dictates which layers are
+    quantized, independent of the user's quantization settings. Weights load
+    through ``SDNQQuantizer``'s pre-quantized path, which preserves the int8
+    weight dtype and the fp32 scale (unlike :func:`build_component_quantized`,
+    floating-point SDNQ params are deliberately not cast to the target dtype).
+
+    Layers are assembled in canonical dequant layout first;
+    ``apply_sdnq_options_to_model`` then enables quantized matmul per the
+    user's settings (transposing eligible layers), matching the order used by
+    ``modules.sdnq.loader.load_sdnq_model``.
+
+    Caller is responsible for prefix stripping; the state dict arrives with
+    its comfy marker keys intact and is remapped here.
+    """
+    import rich.progress as rp
+    from accelerate import init_empty_weights
+    from accelerate.utils import set_module_tensor_to_device
+    from diffusers.utils import get_module_from_name
+    from modules.sdnq.quantizer import SDNQConfig, SDNQQuantizer
+    from modules.sdnq.dequantizer import SDNQDequantizer
+    from modules.sdnq.layers import get_sdnq_wrapper_class
+    from modules.sdnq.forward import get_forward_func
+    from modules.sdnq.loader import apply_sdnq_options_to_model
+
+    target_dtype = dtype if dtype is not None else devices.dtype
+    sd = remap_comfy_quant(state_dict, marked_names)
+
+    quantization_config = SDNQConfig(
+        weights_dtype="int8",
+        quantized_matmul_dtype="int8",
+        group_size=-1,
+        use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+        dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
+        add_skip_keys=False,
+        modules_to_not_convert=[],
+    )
+    quantizer = SDNQQuantizer(quantization_config, pre_quantized=True)
+    quantizer.torch_dtype = target_dtype
+
+    with init_empty_weights(include_buffers=False):
+        component = cls.from_config(config, **kwargs)
+
+    dequant_forward = get_forward_func("Linear", "int8", False)
+    for name in sorted(marked_names):
+        try:
+            parent, child = get_module_from_name(component, name)
+            linear = getattr(parent, child)
+        except (AttributeError, ValueError) as e:
+            raise OverrideArchMismatch(
+                f"Load model: transformer=native {component_name} comfy_quant marked "
+                f"module {name!r} not found in {cls.__name__}"
+            ) from e
+        if not isinstance(linear, torch.nn.Linear):
+            raise OverrideArchMismatch(
+                f"Load model: transformer=native {component_name} comfy_quant marked "
+                f"module {name!r} is {linear.__class__.__name__}, expected Linear"
+            )
+        linear.sdnq_dequantizer = SDNQDequantizer(
+            result_dtype=target_dtype,
+            result_shape=None,
+            original_shape=torch.Size((linear.out_features, linear.in_features)),
+            original_stride=(linear.in_features, 1),
+            quantized_weight_shape=torch.Size((linear.out_features, linear.in_features)),
+            weights_dtype="int8",
+            quantized_matmul_dtype="int8",
+            hadamard_group_size=256,
+            group_size=-1,
+            svd_rank=32,
+            svd_steps=8,
+            use_quantized_matmul=False,
+            re_quantize_for_matmul=False,
+            use_stochastic_rounding=False,
+            use_hadamard=False,
+            layer_class_name="Linear",
+        )
+        wrapped = get_sdnq_wrapper_class(linear, dequant_forward)
+        wrapped.scale = torch.nn.Parameter(torch.empty((1, 1), dtype=torch.float32, device="meta"), requires_grad=False)
+        wrapped.zero_point = None
+        wrapped.svd_up = None
+        wrapped.svd_down = None
+        setattr(parent, child, wrapped)
+
+    target_device = (
+        devices.cpu if shared.opts.diffusers_offload_mode != "none"
+        else devices.device
+    )
+
+    expected_keys = set(component.state_dict().keys())
+    loaded_keys: set[str] = set()
+    unexpected: list[str] = []
+    total = len(sd)
+
+    pbar = rp.Progress(
+        rp.TextColumn(f'[cyan]Load {component_name}:'),
+        rp.BarColumn(),
+        rp.MofNCompleteColumn(),
+        rp.TaskProgressColumn(),
+        rp.TimeRemainingColumn(),
+        rp.TimeElapsedColumn(),
+        rp.TextColumn('[cyan]{task.description}'),
+        console=console,
+    )
+    with pbar:
+        task = pbar.add_task(total=total, description=cls.__name__)
+        for name, value in sd.items():
+            if name in expected_keys:
+                if quantizer.check_if_quantized_param(component, value, name):
+                    quantizer.create_quantized_param(component, value, name, target_device, dtype=target_dtype)
+                else:
+                    if torch.is_floating_point(value):
+                        value = value.to(target_dtype)
+                    set_module_tensor_to_device(component, name, target_device, value=value, dtype=target_dtype)
+                loaded_keys.add(name)
+            else:
+                unexpected.append(name)
+            pbar.update(task, advance=1)
+
+    missing = sorted(expected_keys - loaded_keys)
+    missing = materialize_zero_init(
+        component, missing, zero_init_missing, device=target_device, dtype=target_dtype
+    )
+    validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
+
+    component = quantizer._process_model_after_weight_loading(component)  # pylint: disable=protected-access
+    component = apply_sdnq_options_to_model(
+        component,
+        dtype=target_dtype,
+        dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
+        use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+    )
+    return component
+
+
 def build_component(
     *,
     component_name: str,
@@ -571,11 +787,16 @@ def build_component(
     """Convert (if needed), instantiate, load weights, dtype-cast, quantize,
     and offload-place a single component. Raises on any hard failure.
 
-    For the transformer component under SDNQ, the per-tensor pre-mode path
-    in :func:`build_component_quantized` is used so quantization is applied
-    in flight (one layer's worth of bf16 in memory at a time). All other
-    cases (siblings, non-quantized loads, NVIDIAModelOptConfig, layerwise
-    quant) go through the standard load_state_dict + post-quantize path.
+    Transformer state dicts carrying ComfyUI ``comfy_quant`` markers are
+    dispatched to :func:`build_component_prequantized`, which adopts the
+    file's int8 tensors as SDNQ layers regardless of quantization settings
+    (the converter and ``quant_args`` are bypassed: the file is already
+    quantized). For the transformer component under SDNQ, the per-tensor
+    pre-mode path in :func:`build_component_quantized` is used so
+    quantization is applied in flight (one layer's worth of bf16 in memory
+    at a time). All other cases (siblings, non-quantized loads,
+    NVIDIAModelOptConfig, layerwise quant) go through the standard
+    load_state_dict + post-quantize path.
 
     ``dtype`` overrides ``devices.dtype`` when supplied; otherwise the global
     default is used. ``modules_to_not_convert`` and ``modules_dtype_dict``
@@ -584,6 +805,27 @@ def build_component(
     reach ``cls.from_config`` for both construction paths.
     """
     try:
+        comfy_quant = detect_comfy_quant(state_dict, cls.__name__) if component_name == "transformer" else None
+        if comfy_quant is not None:
+            marked_names, comfy_format = comfy_quant
+            log.info(
+                f'Load model: transformer=native {component_name} quant=comfy '
+                f'format={comfy_format} layers={len(marked_names)} keys={len(state_dict)} cls={cls.__name__}'
+            )
+            component = build_component_prequantized(
+                component_name=component_name,
+                state_dict=state_dict,
+                config=config,
+                cls=cls,
+                marked_names=marked_names,
+                dtype=dtype,
+                acceptable_missing=acceptable_missing,
+                zero_init_missing=zero_init_missing,
+                **kwargs,
+            )
+            devices.torch_gc()
+            return component
+
         if converter is not None:
             log.debug(f'Load model: transformer=native {component_name} converter={converter.__name__} keys={len(state_dict)}')
             try:
