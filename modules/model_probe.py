@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from modules.logger import log
 
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 MAX_HEADER_BYTES = 16 * 1024 * 1024
 STRIP_PREFIXES = ('model.diffusion_model.', 'diffusion_model.', 'net.')
 # companion families bundled alongside the diffusion core in full checkpoints
@@ -306,12 +306,61 @@ def read_safetensors_header(path: str) -> dict:
         return json.loads(f.read(header_len).decode('utf-8'))
 
 
+def comfy_marker_format(path: str) -> str | None:
+    """Exact comfy_quant format string from the first marker tensor's bytes;
+    only possible for local files, remote peeks stay dtype-inferred."""
+    try:
+        with open(path, 'rb') as f:
+            header_len = int.from_bytes(f.read(8), 'little')
+            if header_len <= 0 or header_len > MAX_HEADER_BYTES:
+                return None
+            header = json.loads(f.read(header_len).decode('utf-8'))
+            for k, v in header.items():
+                if k == '__metadata__' or not k.endswith('.comfy_quant') or not isinstance(v, dict):
+                    continue
+                start, end = v.get('data_offsets', (0, 0))
+                if end <= start or end - start > 4096:
+                    return None
+                f.seek(8 + header_len + start)
+                fmt = json.loads(f.read(end - start).decode('utf-8')).get('format')
+                return str(fmt) if fmt else None
+    except Exception:
+        return None
+    return None
+
+
+# quant format / dtype to the short precision token used in filenames
+QUANT_PRECISION_TOKENS = {'int8_tensorwise': 'int8', 'float8_e4m3fn': 'fp8', 'float8_e5m2': 'fp8', 'nvfp4': 'nvfp4', 'mxfp8': 'mxfp8'}
+DTYPE_PRECISION_TOKENS = {'F32': 'fp32', 'F16': 'fp16', 'BF16': 'bf16', 'F8_E4M3': 'fp8', 'F8_E5M2': 'fp8'}
+
+
+def precision_token(probe: dict) -> str | None:
+    """Short filename token for a probe's true precision; None when the
+    container encodes it already (gguf) or nothing is known."""
+    quant = probe.get('quant') or {}
+    scheme = quant.get('scheme')
+    if scheme == 'gguf':
+        return None
+    if scheme == 'comfy_quant':
+        fmt = quant.get('format') or ''
+        return QUANT_PRECISION_TOKENS.get(fmt, re.sub(r'[^a-z0-9]', '', fmt.lower()) or None)
+    if scheme == 'scaled_fp8':
+        return 'fp8'
+    return DTYPE_PRECISION_TOKENS.get(probe.get('dominant_dtype') or '')
+
+
 def probe_safetensors_file(path: str) -> dict:
     try:
         header = read_safetensors_header(path)
     except Exception as e:
         return error_result('safetensors', str(e), 'corrupt_header')
-    return analyze_header(header)
+    result = analyze_header(header)
+    if result['quant']['scheme'] == 'comfy_quant':
+        fmt = comfy_marker_format(path)
+        if fmt:
+            result['quant']['format'] = fmt
+            result['quant']['source'] = 'marker'
+    return result
 
 
 def probe_gguf_file(path: str) -> dict:
