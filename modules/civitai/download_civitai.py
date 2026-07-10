@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 import hashlib
 import threading
@@ -10,6 +11,10 @@ import rich.progress as p
 from installer import log
 from modules import shared, paths
 from modules.logger import console
+
+
+STALE_PARTIAL_DAYS = 7
+TEMP_FILE_RE = re.compile(r'^[0-9a-f]{8}\.tmp$')
 
 
 @dataclass
@@ -57,6 +62,27 @@ class DownloadManager:
         self._lock = threading.Lock()
         self._max_workers = max_workers
         self._worker_count = 0
+        threading.Thread(target=self._sweep_stale_partials, daemon=True).start()
+
+    def _sweep_stale_partials(self):
+        # Partials double as resume state, but mtime stops moving the moment a
+        # download stops, so an untouched week-old .tmp is abandoned.
+        try:
+            from modules.civitai.filemanage_civitai import iter_type_roots
+            cutoff = time.time() - STALE_PARTIAL_DAYS * 86400
+            for root in iter_type_roots():
+                for path in root.rglob('*.tmp'):
+                    if not TEMP_FILE_RE.match(path.name):
+                        continue
+                    try:
+                        stat = path.stat()
+                        if stat.st_mtime < cutoff:
+                            path.unlink()
+                            log.info(f'CivitAI stale partial removed: file="{path}" size={stat.st_size/1024/1024:.0f}MB age>{STALE_PARTIAL_DAYS}d')
+                    except OSError as e:
+                        log.warning(f'CivitAI stale partial sweep: file="{path}" {e}')
+        except Exception as e:
+            log.warning(f'CivitAI stale partial sweep error: {e}')
 
     def enqueue(self, url: str, folder: str, filename: str, model_type: str = "",
                 expected_hash: str = "", token: str | None = None,
