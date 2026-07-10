@@ -174,15 +174,15 @@ def sdnq_attn_kernel(
                     p_scale = tl.max(p, 1)[:, None] * (1 / 127.0)
                     p_scale = tl.where(p_scale <= 2e-38, 1.0, p_scale)
                     p = tl.floor(p * (1 / p_scale) + 0.5).to(tl.int8)
-                    acc += tl.dot(p, v, out_dtype=tl.int32).to(tl.float32) * p_scale
+                    acc = tl.fma(tl.dot(p, v, out_dtype=tl.int32).to(tl.float32), p_scale, acc)
                 else:
                     p_scale = tl.max(p, 1)[:, None] * (1 / (65504.0 if v.dtype == tl.float16 else 448.0))
                     p_scale = tl.where(p_scale <= 2e-38, 1.0, p_scale)
                     p = (p * (1 / p_scale)).to(v.dtype)
-                    acc += tl.dot(p, v, out_dtype=tl.float32) * p_scale
+                    acc = tl.fma(tl.dot(p, v, out_dtype=tl.float32), p_scale, acc)
             else:
                 p = p.to(v.dtype)
-                acc += tl.dot(p, v, out_dtype=tl.float32)
+                acc = tl.dot(p, v, acc, out_dtype=tl.float32)
             m_i = m_ij
 
     l_i = 1 / l_i[:, None]
