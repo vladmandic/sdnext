@@ -2286,6 +2286,16 @@ div:has(>#tab-gallery-folders) {
   filter: blur(0);
 }
 
+#logMonitor {
+  width: stretch;
+}
+
+#logMonitorData {
+  height: 12vh;
+  overflow-y: scroll;
+  overflow-x: auto;
+}
+
 .disabled-look textarea {
   opacity: 0.4;
   pointer-events: none;

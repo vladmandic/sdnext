@@ -777,7 +777,6 @@ def download_civit_model(model_url: str, model_name: str = '', model_path: str =
         log.error('Model download: no url provided')
         return None
     if not version_id:
-        import re
         match = re.search(r'/api/download/models/(\d+)', model_url)
         if match:
             version_id = int(match.group(1))

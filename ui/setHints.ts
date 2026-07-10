@@ -207,7 +207,7 @@ async function getLocaleData(desiredLocale = null) {
     localeData.locale = desiredLocale || 'en';
     localeData.prev = localeData.locale;
   }
-  log('getLocale', desiredLocale, localeData.locale);
+  log('getLocale', { lang: desiredLocale, locale: localeData.locale });
   // primary
   let json: any = {};
   try {

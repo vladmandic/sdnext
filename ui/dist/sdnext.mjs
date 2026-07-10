@@ -10970,7 +10970,7 @@ var progressTimeout = 180;
 var startTimeout = 5;
 function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
-  log("refreshInterval", document.visibilityState, refreshInterval);
+  log("refreshInterval", { visibile: document.visibilityState, interval: refreshInterval });
   document.addEventListener("visibilitychange", () => {
     if (window.opts.live_preview_require_focus !== false && document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1e3);
     else refreshInterval = window.opts.live_preview_refresh_period || 1e3;
@@ -11292,14 +11292,13 @@ function setFontSize(val, old) {
     rootStyle.setProperty("--text-xxl", `${nextSize + 3}px`);
     appliedFontSize = nextSize;
     const t1 = performance.now();
-    log("setFontSize", nextSize, `time=${Math.round(t1 - t0)}`);
-    timer("setFontSize", t1 - t0);
+    log("setFontSize", { size: nextSize, time: Math.round(t1 - t0) });
   });
 }
 function switchToTab(tab) {
   const tabs = Array.from(gradioApp().querySelectorAll("#tabs > .tab-nav > button"));
   const btn = tabs?.find((t) => t.innerText === tab);
-  log("switchToTab", tab);
+  log("switchToTab", { tab });
   if (btn) btn.click();
 }
 function switch_to_txt2img(...args) {
@@ -11993,14 +11992,11 @@ var logErrors = 0;
 var logConnected = false;
 function dateToStr(ts) {
   const dt = new Date(1e3 * ts);
-  const year = dt.getFullYear();
-  const mo = String(dt.getMonth() + 1).padStart(2, "0");
-  const day = String(dt.getDate()).padStart(2, "0");
   const hour = String(dt.getHours()).padStart(2, "0");
   const min = String(dt.getMinutes()).padStart(2, "0");
   const sec = String(dt.getSeconds()).padStart(2, "0");
   const ms = String(dt.getMilliseconds()).padStart(3, "0");
-  const s = `${year}-${mo}-${day} ${hour}:${min}:${sec}.${ms}`;
+  const s = `${hour}:${min}:${sec}.${ms}`;
   return s;
 }
 function htmlEscape(text) {
@@ -12019,6 +12015,21 @@ function parseLogLine(line) {
     msg: String(parsed.msg ?? "")
   };
 }
+async function clearErrors() {
+  logWarnings = 0;
+  logErrors = 0;
+  log("clearErrors");
+}
+async function initClearErrorsButton() {
+  const btnServerClear = document.getElementById("btn_console_log_server_clear");
+  if (btnServerClear) {
+    btnServerClear.onclick = async (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      clearErrors();
+    };
+  }
+}
 async function logMonitor() {
   const addLogLine = (line) => {
     if (!logMonitorEl) logMonitorEl = document.getElementById("logMonitorData");
@@ -12029,14 +12040,13 @@ async function logMonitor() {
       const level = `<td style="color: var(--color-${l.level.toLowerCase()})">${l.level}</td>`;
       if (l.level === "WARNING") logWarnings++;
       if (l.level === "ERROR") logErrors++;
-      const module = `<td style="color: var(--neutral-400)">${l.module}</td>`;
+      const module = `<td style="color: #ffca68">${l.module}</td>`;
       const facilityText = l.facility.length > 20 ? `${l.facility.substring(0, 20)}...` : l.facility;
-      const facility = l.facility !== "sd" ? `<td>${facilityText}</td>` : "<td></td>";
+      const facility = l.facility !== "sd" ? `<td style="color: #ffca68">${facilityText}</td>` : "<td></td>";
       row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}${facility}${module}<td>${htmlEscape(l.msg)}</td>`;
       logMonitorEl.appendChild(row);
     } catch (err) {
-      error(`logMonitor: ${String(err)}`);
-      error(`logMonitor: ${line}`);
+      error("logMonitor", { error: String(err), line });
     }
   };
   const cleanupLog = (atBottom2) => {
@@ -12051,7 +12061,13 @@ async function logMonitor() {
     const modenUIBtn = document.getElementById("btn_console");
     if (elWarn) elWarn.innerText = String(logWarnings);
     if (elErr) elErr.innerText = String(logErrors);
-    if (modenUIBtn) modenUIBtn.setAttribute("error-count", logErrors > 0 ? String(logErrors) : "");
+    if (modenUIBtn) {
+      modenUIBtn.setAttribute("error-count", logErrors > 0 ? String(logErrors) : "");
+      modenUIBtn.style.backgroundColor = logErrors > 0 ? "var(--color-error)" : "";
+      modenUIBtn.title = `Log
+Errors ${logErrors}
+Warnings ${logWarnings}`;
+    }
   };
   const txtGallery = document.getElementById("txt2img_gallery");
   if (txtGallery) txtGallery.style.height = window.opts.logmonitor_show ? "50vh" : "55vh";
@@ -12085,51 +12101,66 @@ async function logMonitor() {
       if (logMonitorEl && lines?.length > 0 && logMonitorEl.parentElement?.parentElement instanceof HTMLElement) {
         logMonitorEl.parentElement.parentElement.style.display = window.opts.logmonitor_show ? "block" : "none";
       }
-      for (const line of lines) addLogLine(line);
       if (!logConnected) {
         logConnected = true;
         xhrPost(`${window.api}/log`, { debug: "connected" });
+        logErrors = 0;
       }
+      for (const line of lines) addLogLine(line);
     } else {
       logConnected = false;
       logErrors++;
-      addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Failed to fetch log: ${res?.status} ${res?.statusText}" }`);
+      if (res) addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Failed to fetch log: ${res?.status} ${res?.statusText}" }`);
+      else addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Server unreachable" }`);
     }
     cleanupLog(atBottom);
   } catch {
     logConnected = false;
     logErrors++;
-    addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Failed to fetch log: server unreachable" }`);
+    addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Server unreachable" }`);
     cleanupLog(atBottom);
   }
 }
 async function initLogMonitor() {
-  const el2 = document.getElementsByTagName("footer")[0];
+  let el2 = document.getElementById("logMonitorPlaceholder");
+  const modernUi = Boolean(el2);
+  if (!el2) el2 = document.getElementsByTagName("footer")[0];
   if (!el2) return;
   const t0 = performance.now();
   el2.classList.add("log-monitor");
   const uiDisabled = Array.isArray(window.opts.ui_disabled) ? window.opts.ui_disabled : [];
   if (uiDisabled.includes("logs")) return;
-  el2.innerHTML = `
-    <table id="logMonitor" style="width: 100%;">
-      <thead style="display: block; text-align: left; border-bottom: solid 1px var(--button-primary-border-color)">
-        <tr>
-          <th style="width: 144px">Time</th>
-          <th>Level</th>
-          <th style="width: 0"></th>
-          <th style="width: 154px">Module</th>
-          <th>Message</th>
-          <th style="position: absolute; right: 7em">Warnings <span id="logWarnings">0</span></th>
-          <th style="position: absolute; right: 1em">Errors <span id="logErrors">0</span></th>
-        </tr>
-      </thead>
-      <tbody id="logMonitorData" style="white-space: nowrap; height: 10vh; width: 100vw; display: block; overflow-x: hidden; overflow-y: scroll; color: var(--neutral-400)">
-      </tbody>
-    </table>
-  `;
+  if (modernUi) {
+    el2.style.overflow = "auto";
+    el2.innerHTML = `
+      <table id="logMonitor" style="width: 100%;">
+        <tbody id="logMonitorData" style="white-space: nowrap; display: block">
+        </tbody>
+      </table>
+    `;
+  } else {
+    el2.innerHTML = `
+      <table id="logMonitor" style="width: 100%;">
+        <thead style="display: block; text-align: left; border-bottom: solid 1px var(--button-primary-border-color)">
+          <tr>
+            <th style="width: 144px">Time</th>
+            <th>Level</th>
+            <th style="width: 0"></th>
+            <th style="width: 154px">Module</th>
+            <th>Message</th>
+            <th style="position: absolute; right: 7em">Warnings <span id="logWarnings">0</span></th>
+            <th style="position: absolute; right: 1em">Errors <span id="logErrors">0</span></th>
+          </tr>
+        </thead>
+        <tbody id="logMonitorData" style="white-space: nowrap; display: block; color: var(--neutral-400)">
+        </tbody>
+      </table>
+    `;
+  }
   el2.style.display = "none";
   authFetch(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
   logMonitor();
+  initClearErrorsButton();
   const t1 = performance.now();
   log("initLogMonitor", { show: window.opts.logmonitor_show, time: Math.round(t1 - t0) });
   timer("initLogMonitor", t1 - t0);
@@ -12188,7 +12219,7 @@ async function updateOpts(json_string) {
     else opts_tabs[meta.tab_name].saved_keys.add(opt);
   });
   const t2 = performance.now();
-  log("updateOpts", `settings=${Object.keys(new_opts).length} callbacks=${Math.round(t2 - t1)} apply=${Math.round(t1 - t0)}`);
+  log("updateOpts", { settings: Object.keys(new_opts).length, callbacks: Math.round(t2 - t1), apply: Math.round(t1 - t0) });
   timer("updateOpts", t2 - t0);
 }
 function showAllSettings() {
@@ -15432,7 +15463,7 @@ async function getLocaleData(desiredLocale = null) {
     localeData.locale = desiredLocale || "en";
     localeData.prev = localeData.locale;
   }
-  log("getLocale", desiredLocale, localeData.locale);
+  log("getLocale", { lang: desiredLocale, locale: localeData.locale });
   let json = {};
   try {
     let res = await fetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
@@ -15878,7 +15909,10 @@ async function createSplash() {
   monitorLog();
   await authFetch(`${window.api}/motd`).then((res) => res.text()).then((text) => {
     const clean = text.replace(/["]+/g, "");
-    log("getMOTD", clean);
+    const boldMatch = clean.match(/<b>(.*?)<\/b>/);
+    const boldText = boldMatch ? boldMatch[1] : clean;
+    if (boldMatch) log("getMOTD", { version: boldText });
+    else log("getMOTD", { text: clean });
     const motdEl = document.getElementById("motd");
     if (motdEl) motdEl.innerHTML = clean;
   }).catch((err) => error(`getMOTD: ${err}`));
@@ -15952,10 +15986,10 @@ async function initStartup() {
     window.subpath = window.opts.subpath;
     window.api = `${window.subpath}/sdapi/v1`;
   }
-  log("API", window.api);
-  startupPromises.push(initLogMonitor());
+  log("API", { url: window.api });
   executeCallbacks(uiReadyCallbacks);
   if (window.waitForUiReady) await window.waitForUiReady();
+  startupPromises.push(Promise.resolve(initLogMonitor()));
   startupPromises.push(Promise.resolve(initGallery()));
   startupPromises.push(Promise.resolve(setRefreshInterval()));
   startupPromises.push(Promise.resolve(setupExtraNetworks()));
@@ -19134,9 +19168,9 @@ async function updateGPU() {
     const gpuTbody = gpuTable.querySelector("tbody");
     if (!gpuTbody) return;
     let gpu = { data: {} };
-    if (Array.isArray(data) && data.length >= 2) gpu = data[0];
-    let rows = `<tr><td>GPU</td><td>${gpu.name || "unknown"}</td></tr>`;
-    for (const item of Object.entries(gpu.data)) rows += `<tr><td>${item[0]}</td><td>${item[1]}</td></tr>`;
+    if (Array.isArray(data) && data.length >= 1) gpu = data[0];
+    let rows = `<tr><td style="color: var(--color-info)">GPU</td><td>${gpu.name || "unknown"}</td></tr>`;
+    for (const item of Object.entries(gpu.data)) rows += `<tr><td style="color: var(--color-info)">${item[0]}</td><td>${item[1]}</td></tr>`;
     gpuTbody.innerHTML = rows;
     if (gpu.chart && gpu.chart.length === 2) updateGPUChart(gpu.chart[0], gpu.chart[1]);
     gpuEl.style.display = "block";
@@ -19152,7 +19186,7 @@ async function startGPU() {
   gpuEl.style.display = "block";
   if (gpuInterval) clearInterval(gpuInterval);
   const interval = window.opts?.gpu_monitor || 3e3;
-  log("startGPU", interval);
+  log("startGPUmonitor", interval);
   gpuInterval = setInterval(updateGPU, interval);
   updateGPU();
 }

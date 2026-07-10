@@ -64,7 +64,7 @@ async function updateOpts(json_string) {
     else opts_tabs[meta.tab_name].saved_keys.add(opt);
   });
   const t2 = performance.now();
-  log('updateOpts', `settings=${Object.keys(new_opts).length} callbacks=${Math.round(t2 - t1)} apply=${Math.round(t1 - t0)}`);
+  log('updateOpts', { settings: Object.keys(new_opts).length, callbacks: Math.round(t2 - t1), apply: Math.round(t1 - t0) });
   timer('updateOpts', t2 - t0);
 }
 

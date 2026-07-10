@@ -165,15 +165,14 @@ export function setFontSize(val, old) {
     rootStyle.setProperty('--text-xxl', `${nextSize + 3}px`);
     appliedFontSize = nextSize;
     const t1 = performance.now();
-    log('setFontSize', nextSize, `time=${Math.round(t1 - t0)}`);
-    timer('setFontSize', t1 - t0);
+    log('setFontSize', { size: nextSize, time: Math.round(t1 - t0) });
   });
 }
 
 function switchToTab(tab) {
   const tabs = Array.from<any>(gradioApp().querySelectorAll('#tabs > .tab-nav > button'));
   const btn = tabs?.find((t) => t.innerText === tab);
-  log('switchToTab', tab);
+  log('switchToTab', { tab });
   if (btn) btn.click();
 }
 

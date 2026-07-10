@@ -57,9 +57,9 @@ async function updateGPU(): Promise<void> {
     const gpuTbody = gpuTable.querySelector('tbody');
     if (!gpuTbody) return;
     let gpu = { data: {} } as GpuInfo;
-    if (Array.isArray(data) && data.length >= 2) gpu = data[0];
-    let rows = `<tr><td>GPU</td><td>${gpu.name || 'unknown'}</td></tr>`;
-    for (const item of Object.entries(gpu.data)) rows += `<tr><td>${item[0]}</td><td>${item[1]}</td></tr>`;
+    if (Array.isArray(data) && data.length >= 1) gpu = data[0];
+    let rows = `<tr><td style="color: var(--color-info)">GPU</td><td>${gpu.name || 'unknown'}</td></tr>`;
+    for (const item of Object.entries(gpu.data)) rows += `<tr><td style="color: var(--color-info)">${item[0]}</td><td>${item[1]}</td></tr>`;
     gpuTbody.innerHTML = rows;
     if (gpu.chart && gpu.chart.length === 2) updateGPUChart(gpu.chart[0], gpu.chart[1]);
     gpuEl.style.display = 'block';
@@ -76,7 +76,7 @@ export async function startGPU(): Promise<void> {
   gpuEl.style.display = 'block';
   if (gpuInterval) clearInterval(gpuInterval);
   const interval = window.opts?.gpu_monitor || 3000;
-  log('startGPU', interval);
+  log('startGPUmonitor', interval);
   gpuInterval = setInterval(updateGPU, interval);
   updateGPU();
 }

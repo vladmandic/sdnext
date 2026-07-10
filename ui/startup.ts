@@ -88,9 +88,7 @@ async function initStartup() {
     window.subpath = window.opts.subpath;
     window.api = `${window.subpath}/sdapi/v1`;
   }
-  log('API', window.api);
-
-  startupPromises.push(initLogMonitor());
+  log('API', { url: window.api });
 
   executeCallbacks(uiReadyCallbacks);
 
@@ -98,6 +96,7 @@ async function initStartup() {
   if (window.waitForUiReady) await window.waitForUiReady();
 
   // post startup tasks that may take longer but are not critical
+  startupPromises.push(Promise.resolve(initLogMonitor()));
   startupPromises.push(Promise.resolve(initGallery()));
   startupPromises.push(Promise.resolve(setRefreshInterval()));
   startupPromises.push(Promise.resolve(setupExtraNetworks()));

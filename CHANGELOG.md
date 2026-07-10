@@ -5,14 +5,16 @@
 - **Models**
   - [Anima 1.0](https://civitai.com/models/2458426/anima?modelVersionId=3108569) new *Aesthetic* and *Turbo* variants  
 - **Features**
-  - log view copy server log and copy client log buttons  
+  - ui: improved log viewer for both server and client logs
+  - ui: expose server errors
+  - ui: log view copy server log and copy client log buttons  
     this copies current log to clipboard for easy sharing  
-  - api add `/sdapi/v1/restart` endpoint
-  - load transformers from all-in-one safetensors  
-  - improve `fp8` model support
+  - api: add `/sdapi/v1/restart` endpoint
+  - loader: support transformers from all-in-one safetensors  
+  - loader: improve `fp8` model support
   - civitai: improve search
   - civitai: restart download
-  - improve `sdnq` attention
+  - sdnq: improve attention
 - **Experimental**
   - support for `comfy_quant` models  
 - **Fixes**

@@ -9,7 +9,7 @@ const startTimeout = 5;
 
 export function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
-  log('refreshInterval', document.visibilityState, refreshInterval);
+  log('refreshInterval', { visibile: document.visibilityState, interval: refreshInterval });
   document.addEventListener('visibilitychange', () => {
     if (window.opts.live_preview_require_focus !== false && document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1000);
     else refreshInterval = window.opts.live_preview_refresh_period || 1000;
