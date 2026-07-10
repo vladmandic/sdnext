@@ -2,6 +2,18 @@
 
 ## Update for 2026-07-10
 
+### Highlights for 2026-07-10
+
+*What's New?* Full 3 days(!) since there release, we're bringing a service pack update:
+**Anima** has new *Aesthetic* and *Turbo* variants, UI log viewer now allows monitoring and easy sharing of server and client logs
+There are quite a few SDNQ improvements and we're continuing with enhanced support for 3rd party finetunes
+
+*Note*: As long as there are no major items in #dev branch, we will continue with weekly service updates, so stay tuned for more!
+
+[Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
+
+### Details for 2026-07-10
+
 - **Models**
   - [Anima 1.0](https://civitai.com/models/2458426/anima?modelVersionId=3108569) new *Aesthetic* and *Turbo* variants  
 - **Features**
@@ -26,7 +38,7 @@
   - fs: faster stat
   - server-info: handle multiple gpus
   - load: skip redundant model reload 
-  - sdnq: fix hadamard on sdnq atten with sd 1.5
+  - sdnq: fix hadamard on sdnq atten with sd15
 
 ## Update for 2026-07-07
 
