@@ -255,6 +255,52 @@ def get_download_status():
     return download_manager.status()
 
 
+def get_peek_header(url: str):
+    """Read a remote safetensors JSON header via ranged requests and return its
+    __metadata__ block. Lets clients resolve traits the CivitAI API does not
+    carry (e.g. which expert of a dual-transformer pair a file is) without
+    downloading the file."""
+    import json
+    import struct
+    from modules import shared
+    if not url.startswith('https://civitai.com/'):
+        return JSONResponse(content={"error": "only civitai.com urls are allowed"}, status_code=400)
+    base_headers = {}
+    token = getattr(shared.opts, 'civitai_token', '') or ''
+    if token:
+        base_headers['Authorization'] = f'Bearer {token}'
+
+    def read_range(start: int, end: int) -> bytes:
+        r = shared.req(url, headers={**base_headers, 'Range': f'bytes={start}-{end}'}, stream=True)
+        status = getattr(r, 'status_code', 500)
+        if status not in (200, 206):
+            raise RuntimeError(f'HTTP {status}')
+        want = end - start + 1
+        # A 200 reply means the server ignored the range and sends from byte 0.
+        need = end + 1 if status == 200 else want
+        buf = b''
+        try:
+            for chunk in r.iter_content(chunk_size=65536):
+                buf += chunk
+                if len(buf) >= need:
+                    break
+        finally:
+            r.close()
+        return buf[start:start + want] if status == 200 else buf[:want]
+
+    try:
+        prefix = read_range(0, 7)
+        if len(prefix) < 8:
+            return {"metadata": None, "error": "short read"}
+        header_len = struct.unpack('<Q', prefix)[0]
+        if header_len <= 0 or header_len > 16 * 1024 * 1024:
+            return {"metadata": None, "error": f"implausible header length: {header_len}"}
+        header = json.loads(read_range(8, 7 + header_len).decode('utf-8'))
+    except Exception as e:
+        return {"metadata": None, "error": str(e)}
+    return {"metadata": header.get('__metadata__'), "tensors": len([k for k in header if k != '__metadata__'])}
+
+
 # ---------------------------------------------------------------------------
 # Settings
 # ---------------------------------------------------------------------------
@@ -606,6 +652,7 @@ def register_api(api):
     api.add_api_route("/sdapi/v2/civitai/download", post_download, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/download/{download_id}/cancel", post_download_cancel, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/download/status", get_download_status, methods=["GET"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/peek-header", get_peek_header, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/settings", get_settings, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/settings", post_settings, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/resolve-path", get_resolve_path, methods=["GET"], tags=["CivitAI"])
