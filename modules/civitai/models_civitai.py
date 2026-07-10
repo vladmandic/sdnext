@@ -31,6 +31,7 @@ class CivitFileMetadata(BaseModel):
     format: str | None = None
     size: str | None = None
     fp: str | None = None
+    quant_type: str | None = Field(None, alias="quantType")
 
 
 class CivitFile(BaseModel):
