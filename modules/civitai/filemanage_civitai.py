@@ -4,9 +4,12 @@ from pathlib import Path
 from modules.logger import log
 
 
-# Map CivitAI model types to shared.opts directory settings and fallback subfolder names
+# Map CivitAI model types to shared.opts directory settings and fallback subfolder
+# names. 'Text Encoder' is a file type, not a model type: versions bundle companion
+# files, and clients route those by the file's own type.
 TYPE_MAP = {
     'Checkpoint': ('ckpt_dir', 'Stable-diffusion'),
+    'Text Encoder': ('te_dir', 'Text-encoder'),
     'TextualInversion': ('embeddings_dir', 'embeddings'),
     'Hypernetwork': ('hypernetwork_dir', 'hypernetworks'),
     'AestheticGradient': ('ckpt_dir', 'Stable-diffusion'),
