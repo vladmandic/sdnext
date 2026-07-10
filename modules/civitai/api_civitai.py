@@ -255,16 +255,58 @@ def get_download_status():
     return download_manager.status()
 
 
-def get_peek_header(url: str):
-    """Read a remote safetensors JSON header via ranged requests and return its
-    __metadata__ block. Lets clients resolve traits the CivitAI API does not
-    carry (e.g. which expert of a dual-transformer pair a file is) without
-    downloading the file."""
+peek_cache = None
+peek_cache_lock = None
+
+
+def peek_cache_get(file_id: int, url: str):
+    """Persistent probe cache keyed by civitai file id; content per id is
+    immutable, so entries never expire. A url hash guards against id reuse."""
+    global peek_cache, peek_cache_lock  # pylint: disable=global-statement
+    import hashlib
+    import threading
+    from modules import paths
+    from modules.json_helpers import readfile
+    if peek_cache_lock is None:
+        peek_cache_lock = threading.Lock()
+    with peek_cache_lock:
+        if peek_cache is None:
+            fn = os.path.join(paths.data_path, 'data', 'civitai_probe.json')
+            peek_cache = readfile(fn, silent=True, lock=True, as_type='dict') if os.path.isfile(fn) else {}
+        entry = peek_cache.get(str(file_id))
+    if entry and entry.get('url_hash') == hashlib.sha256(url.encode('utf-8')).hexdigest()[:16]:
+        return entry.get('response')
+    return None
+
+
+def peek_cache_put(file_id: int, url: str, response: dict):
+    import hashlib
+    from modules import paths
+    from modules.json_helpers import writefile
+    with peek_cache_lock:
+        peek_cache[str(file_id)] = {
+            'url_hash': hashlib.sha256(url.encode('utf-8')).hexdigest()[:16],
+            'response': response,
+        }
+        try:
+            writefile(peek_cache, os.path.join(paths.data_path, 'data', 'civitai_probe.json'), silent=True, atomic=True)
+        except Exception as e:
+            log.warning(f'CivitAI probe cache save error: {e}')
+
+
+def get_peek_header(url: str, file_id: int = 0):
+    """Read a remote safetensors JSON header via ranged requests. Returns the
+    __metadata__ block plus a full model_probe analysis (architecture,
+    dtypes, quant scheme) without downloading the file."""
     import json
     import struct
     from modules import shared
     if not url.startswith('https://civitai.com/'):
         return JSONResponse(content={"error": "only civitai.com urls are allowed"}, status_code=400)
+    if file_id:
+        cached = peek_cache_get(file_id, url)
+        if cached is not None:
+            return cached
     base_headers = {}
     token = getattr(shared.opts, 'civitai_token', '') or ''
     if token:
@@ -298,7 +340,15 @@ def get_peek_header(url: str):
         header = json.loads(read_range(8, 7 + header_len).decode('utf-8'))
     except Exception as e:
         return {"metadata": None, "error": str(e)}
-    return {"metadata": header.get('__metadata__'), "tensors": len([k for k in header if k != '__metadata__'])}
+    from modules import model_probe
+    response = {
+        "metadata": header.get('__metadata__'),
+        "tensors": len([k for k in header if k != '__metadata__']),
+        "probe": model_probe.analyze_header(header),
+    }
+    if file_id:
+        peek_cache_put(file_id, url, response)
+    return response
 
 
 # ---------------------------------------------------------------------------
