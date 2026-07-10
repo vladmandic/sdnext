@@ -1,12 +1,20 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-09
+## Update for 2026-07-10
 
+- **Models**
+  - [Anima 1.0](https://civitai.com/models/2458426/anima?modelVersionId=3108569) new *Aesthetic* and *Turbo* variants  
 - **Features**
   - log view copy server log and copy client log buttons  
     this copies current log to clipboard for easy sharing  
   - api add `/sdapi/v1/restart` endpoint
   - load transformers from all-in-one safetensors  
+  - improve `fp8` model support
+  - civitai: improve search
+  - civitai: restart download
+  - improve `sdnq` attention
+- **Experimental**
+  - support for `comfy_quant` models  
 - **Fixes**
   - huggingface: fix model access on windows
   - lora: fix lora text-encoder loader
@@ -15,6 +23,8 @@
   - installer: handle detached branch on non-english setups
   - fs: faster stat
   - server-info: handle multiple gpus
+  - load: skip redundant model reload 
+  - sdnq: fix hadamard on sdnq atten with sd 1.5
 
 ## Update for 2026-07-07
 

@@ -8,7 +8,6 @@
 
 ### Assigned
 
-- [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas, @vladmandic
 - Chat-based interface, @vladmandic
 - Control tab verify overrides handling, @vladmandic
 - Cloud providers, @CalamitousFelicitousness
@@ -20,6 +19,7 @@
 - Processing -> Video capabilities
   - `RIFE` in processing
   - `SeedVR2` in processing
+- [Object clear](https://huggingface.co/jixin0101/ObjectClear) remover for Kanvas
 - Video models: add to Reference
 - Video models: support custom entries
 - UI Lite vs Expert mode
