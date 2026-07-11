@@ -435,6 +435,121 @@ def test_remap_comfy_does_not_mutate_input():
     assert set(sd.keys()) == keys_before, 'input dict must not be mutated (read_state_dict caches it)'
 
 
+def test_remap_comfy_drops_input_scale():
+    """Optional activation-calibration sidecars are dropped for marked layers
+    (SDNQ derives activation scales dynamically); unmarked ones pass through."""
+    unrelated = torch.tensor(1.0)
+    sd = {
+        'blocks.0.attn.wq.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.attn.wq.weight_scale': torch.tensor(0.5),
+        'blocks.0.attn.wq.input_scale': torch.tensor(0.125),
+        'blocks.0.attn.wq.comfy_quant': comfy_marker('int8_tensorwise'),
+        'other.input_scale': unrelated,
+    }
+    out = nt.remap_comfy_quant(sd, {'blocks.0.attn.wq'})
+    assert 'blocks.0.attn.wq.input_scale' not in out
+    assert out['other.input_scale'] is unrelated
+
+
+# ============================================================
+# header _quantization_metadata
+# ============================================================
+
+def quant_metadata(layers: dict) -> dict:
+    import json
+    return {'_quantization_metadata': json.dumps({'format_version': '1.0', 'layers': layers})}
+
+
+def test_read_quant_metadata_absent_returns_none():
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        write_fixture({'a.weight': torch.zeros(2)}, fd, path)
+        assert nt.read_quantization_metadata(path) is None
+    finally:
+        os.unlink(path)
+
+
+def test_read_quant_metadata_parses_layers():
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        layers = {'blocks.0.attn.wq': {'format': 'int8_tensorwise'}}
+        write_fixture({'blocks.0.attn.wq.weight': torch.zeros(2)}, fd, path, metadata=quant_metadata(layers))
+        assert nt.read_quantization_metadata(path) == layers
+    finally:
+        os.unlink(path)
+
+
+def test_read_quant_metadata_malformed_raises():
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        write_fixture({'a.weight': torch.zeros(2)}, fd, path, metadata={'_quantization_metadata': 'not json'})
+        try:
+            nt.read_quantization_metadata(path)
+            raise AssertionError('expected OverrideArchMismatch')
+        except nt.OverrideArchMismatch as e:
+            assert 'malformed' in str(e)
+    finally:
+        os.unlink(path)
+
+
+def test_read_quant_metadata_non_dict_layers_raises():
+    import json
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        payload = json.dumps({'layers': {'blocks.0.attn.wq': 'int8_tensorwise'}})
+        write_fixture({'a.weight': torch.zeros(2)}, fd, path, metadata={'_quantization_metadata': payload})
+        try:
+            nt.read_quantization_metadata(path)
+            raise AssertionError('expected OverrideArchMismatch')
+        except nt.OverrideArchMismatch as e:
+            assert 'malformed' in str(e)
+    finally:
+        os.unlink(path)
+
+
+def test_transcode_quant_metadata_synthesizes_markers():
+    """Header entries become marker tensors for layers whose weight is present;
+    entries without a matching weight (companion components) are skipped."""
+    sd = {
+        'blocks.0.attn.wq.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.attn.wq.weight_scale': torch.tensor(0.5),
+    }
+    layers = {
+        'blocks.0.attn.wq': {'format': 'int8_tensorwise'},
+        'text_encoder.mlp.up': {'format': 'int8_tensorwise'},
+    }
+    out, source = nt.transcode_quant_metadata(sd, layers)
+    assert source == 'header'
+    assert 'blocks.0.attn.wq.comfy_quant' in out
+    assert 'text_encoder.mlp.up.comfy_quant' not in out
+    assert 'blocks.0.attn.wq.comfy_quant' not in sd, 'input dict must not be mutated'
+    marked, fmt = nt.detect_comfy_quant(out, 'Test')
+    assert fmt == 'int8_tensorwise'
+    assert marked['blocks.0.attn.wq'] == {'format': 'int8_tensorwise'}
+
+
+def test_transcode_quant_metadata_header_wins():
+    """When both forms are present the header entry overwrites the marker,
+    matching the reference loader's precedence."""
+    sd = {
+        'blocks.0.attn.wq.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.attn.wq.comfy_quant': comfy_marker('float8_e4m3fn'),
+    }
+    layers = {'blocks.0.attn.wq': {'format': 'int8_tensorwise', 'full_precision_matrix_mult': True}}
+    out, source = nt.transcode_quant_metadata(sd, layers)
+    assert source == 'both'
+    marked, fmt = nt.detect_comfy_quant(out, 'Test')
+    assert fmt == 'int8_tensorwise'
+    assert marked['blocks.0.attn.wq'].get('full_precision_matrix_mult') is True
+
+
+def test_transcode_quant_metadata_no_matches_is_noop():
+    sd = {'blocks.0.attn.wq.weight': torch.zeros((4, 4), dtype=torch.int8)}
+    out, source = nt.transcode_quant_metadata(sd, {'unrelated.layer': {'format': 'int8_tensorwise'}})
+    assert source == 'markers'
+    assert out is sd
+
+
 # ============================================================
 # is_noop_converter
 # ============================================================
@@ -639,9 +754,9 @@ class MockKwargsTransformer(MockMiniTransformer):
         return cls(dim=config['dim'])
 
 
-def write_fixture(state_dict_keys: dict, fd: int, path: str) -> str:
+def write_fixture(state_dict_keys: dict, fd: int, path: str, metadata: dict | None = None) -> str:
     os.close(fd)
-    safetensors.torch.save_file(state_dict_keys, path)
+    safetensors.torch.save_file(state_dict_keys, path, metadata=metadata)
     return path
 
 
@@ -1229,6 +1344,98 @@ def test_load_comfy_fp8_end_to_end():
             os.unlink(path)
 
 
+def test_load_comfy_metadata_end_to_end():
+    """Marker-less container: quant info only in the header
+    _quantization_metadata, layer names carrying the file's tensor prefix.
+    The load path must re-key through the prefix strip and land on the same
+    prequantized build as the marker form."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = comfy_fixture(dim)
+        del raw['model.diffusion_model.in_proj.comfy_quant']
+        layers = {'model.diffusion_model.in_proj': {'format': 'int8_tensorwise'}}
+        write_fixture(raw, fd, path, metadata=quant_metadata(layers))
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer, _ = nt.load(
+                local_file=path,
+                repo_id='fake/repo',
+                spec=spec,
+                diffusers_cfg={},
+                dtype=torch.float32,
+            )
+
+        in_proj = transformer.in_proj
+        assert in_proj.__class__.__name__ == 'SDNQLinear'
+        assert in_proj.weight.dtype == torch.int8
+        assert torch.equal(in_proj.weight.detach().cpu(), raw['model.diffusion_model.in_proj.weight'])
+        assert transformer.out_proj.__class__ is torch.nn.Linear
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_comfy_metadata_bare_names_end_to_end():
+    """Marker-less container without a tensor prefix (official Comfy-Org
+    exports): metadata names match the bare keys and need no re-keying."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = {key[len('model.diffusion_model.'):]: value for key, value in comfy_fixture(dim).items()}
+        del raw['in_proj.comfy_quant']
+        raw['in_proj.input_scale'] = torch.tensor(0.125, dtype=torch.float32)
+        layers = {'in_proj': {'format': 'int8_tensorwise'}}
+        write_fixture(raw, fd, path, metadata=quant_metadata(layers))
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer, _ = nt.load(
+                local_file=path,
+                repo_id='fake/repo',
+                spec=spec,
+                diffusers_cfg={},
+                dtype=torch.float32,
+            )
+
+        assert transformer.in_proj.__class__.__name__ == 'SDNQLinear'
+        assert torch.equal(transformer.in_proj.weight.detach().cpu(), raw['in_proj.weight'])
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_comfy_full_precision_mm_excluded_from_matmul():
+    """Layers flagged full_precision_matrix_mult land on the config's
+    per-layer matmul exclusion list, which apply_sdnq_options_to_model
+    honors when the user enables quantized matmul."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        import json
+        raw = comfy_fixture(dim)
+        payload = {'format': 'int8_tensorwise', 'full_precision_matrix_mult': True}
+        raw['model.diffusion_model.in_proj.comfy_quant'] = torch.tensor(list(json.dumps(payload).encode()), dtype=torch.uint8)
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer, _ = nt.load(
+                local_file=path,
+                repo_id='fake/repo',
+                spec=spec,
+                diffusers_cfg={},
+                dtype=torch.float32,
+            )
+
+        assert 'in_proj.weight' in transformer.quantization_config.modules_to_not_use_matmul
+        assert transformer.in_proj.sdnq_dequantizer.use_quantized_matmul is False
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
 def test_detect_comfy_mixed_formats_raises():
     """One file mixing int8 and fp8 layers has no single SDNQ mapping; reject."""
     sd = {
@@ -1735,6 +1942,14 @@ def run_all():
         test_remap_comfy_renames_and_reshapes_scale,
         test_remap_comfy_passes_unmarked_keys_verbatim,
         test_remap_comfy_does_not_mutate_input,
+        test_remap_comfy_drops_input_scale,
+        test_read_quant_metadata_absent_returns_none,
+        test_read_quant_metadata_parses_layers,
+        test_read_quant_metadata_malformed_raises,
+        test_read_quant_metadata_non_dict_layers_raises,
+        test_transcode_quant_metadata_synthesizes_markers,
+        test_transcode_quant_metadata_header_wins,
+        test_transcode_quant_metadata_no_matches_is_noop,
     ]:
         run_test(cat, fn)
 
@@ -1803,6 +2018,9 @@ def run_all():
     for fn in [
         test_load_comfy_int8_end_to_end,
         test_load_comfy_fp8_end_to_end,
+        test_load_comfy_metadata_end_to_end,
+        test_load_comfy_metadata_bare_names_end_to_end,
+        test_load_comfy_full_precision_mm_excluded_from_matmul,
         test_detect_comfy_mixed_formats_raises,
         test_load_comfy_marker_dtype_mismatch_raises,
         test_load_comfy_unsupported_format_raises_mismatch,

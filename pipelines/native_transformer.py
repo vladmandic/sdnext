@@ -274,8 +274,12 @@ def load(
         quant_type = model_quant.get_quant_type(quant_args)
 
     state_dict = sd_models.read_state_dict(local_file, what="transformer")
+    metadata_layers = read_quantization_metadata(local_file)
     state_dict = drop_companion_keys(state_dict, spec.ignored_prefixes, spec.cls.__name__)
     state_dict, detected_prefix = strip_prefix(state_dict, spec.prefixes, spec.cls.__name__)
+    if metadata_layers and detected_prefix:
+        # header metadata names mirror the file's tensor naming, so they carry the same prefix
+        metadata_layers = {name[len(detected_prefix):] if name.startswith(detected_prefix) else name: meta for name, meta in metadata_layers.items()}
     check_forbidden_markers(state_dict, spec.forbidden_markers, spec.cls.__name__, local_file)
     transformer_sd, sibling_sds = partition_siblings(state_dict, spec.siblings)
     del state_dict
@@ -304,6 +308,7 @@ def load(
         modules_to_not_convert=modules_to_not_convert,
         modules_dtype_dict=modules_dtype_dict,
         converter_handles_quant=spec.converter_handles_quant,
+        metadata_layers=metadata_layers,
         **kwargs,
     )
     del transformer_sd
@@ -427,6 +432,64 @@ def check_forbidden_markers(
             )
 
 
+def read_quantization_metadata(local_file: str) -> dict[str, dict] | None:
+    """Read per-layer quantization info from the safetensors header metadata.
+
+    Newer comfy_quant checkpoints record layer formats in the header
+    ``__metadata__`` under ``_quantization_metadata`` (a JSON string with a
+    ``layers`` map keyed by tensor naming) instead of per-layer marker
+    tensors. Returns the layers map, or ``None`` when the header carries no
+    such entry. Raises :class:`OverrideArchMismatch` when the entry is
+    present but malformed, so the caller's base-repo fallback engages.
+    """
+    from modules.model_probe import read_safetensors_header
+    try:
+        header = read_safetensors_header(local_file)
+    except Exception as e:
+        log.debug(f'Load model: file="{local_file}" header metadata unreadable ({e})')
+        return None
+    meta = (header.get("__metadata__") or {}).get("_quantization_metadata")
+    if meta is None:
+        return None
+    try:
+        parsed = json.loads(meta) if isinstance(meta, str) else meta
+        layers = parsed["layers"]
+    except Exception as e:
+        raise OverrideArchMismatch(
+            f'Load model: file="{local_file}" native_transformer _quantization_metadata '
+            f"is malformed ({type(e).__name__}: {e})"
+        ) from e
+    if not isinstance(layers, dict) or not all(isinstance(entry, dict) for entry in layers.values()):
+        raise OverrideArchMismatch(
+            f'Load model: file="{local_file}" native_transformer _quantization_metadata '
+            f"layers map is malformed"
+        )
+    return layers
+
+
+def transcode_quant_metadata(state_dict: dict, metadata_layers: dict[str, dict]) -> tuple[dict, str]:
+    """Synthesize per-layer marker tensors from header quantization metadata.
+
+    Header metadata and marker tensors describe the same per-layer format
+    dicts; converging on markers lets detection, converters, and remapping
+    handle both forms identically. Entries without a matching ``.weight``
+    (companion components filtered earlier) are skipped; existing markers
+    are overwritten by their header entry. Returns a new dict plus the
+    detection source (``header`` or ``both``) for logging.
+    """
+    sd = dict(state_dict)
+    had_markers = any(key.endswith(COMFY_QUANT_MARKER) for key in sd)
+    count = 0
+    for name, meta in metadata_layers.items():
+        if f"{name}.weight" not in sd:
+            continue
+        sd[f"{name}{COMFY_QUANT_MARKER}"] = torch.tensor(list(json.dumps(meta).encode("utf-8")), dtype=torch.uint8)
+        count += 1
+    if count == 0:
+        return state_dict, "markers"
+    return sd, "both" if had_markers else "header"
+
+
 def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[dict[str, dict], str] | None:
     """Detect ``comfy_quant`` pre-quantized layers in a state dict.
 
@@ -490,13 +553,18 @@ def remap_comfy_quant(state_dict: dict, marked_names: set[str]) -> dict:
 
     Renames ``<name>.weight_scale`` to ``<name>.scale`` (reshaped to 2-D,
     ``[]`` becomes ``[1, 1]``, since SDNQ transposes scales in place) and
-    drops the ``<name>.comfy_quant`` markers. Returns a new dict; the input
-    (which may be the cached state dict) is not mutated.
+    drops the ``<name>.comfy_quant`` markers plus optional
+    ``<name>.input_scale`` activation-calibration sidecars (SDNQ re-derives
+    activation scales dynamically). Returns a new dict; the input (which may
+    be the cached state dict) is not mutated.
     """
     scale_suffix = ".weight_scale"
+    input_scale_suffix = ".input_scale"
     remapped: dict = {}
     for key, value in state_dict.items():
         if key.endswith(COMFY_QUANT_MARKER) and key[: -len(COMFY_QUANT_MARKER)] in marked_names:
+            continue
+        if key.endswith(input_scale_suffix) and key[: -len(input_scale_suffix)] in marked_names:
             continue
         if key.endswith(scale_suffix) and key[: -len(scale_suffix)] in marked_names:
             remapped[f"{key[: -len(scale_suffix)]}.scale"] = value.reshape(-1, 1)
@@ -699,6 +767,9 @@ def build_component_prequantized(
                 f"{comfy_format} expects {storage_dtype} weights but {name!r} has {found}"
             )
 
+    # layers flagged full_precision_matrix_mult stay on the dequant path even
+    # when the user enables quantized matmul (exact-name match on the config list)
+    full_precision_mm = [f"{name}.weight" for name in sorted(marked_names) if marker_meta[name].get("full_precision_matrix_mult")]
     quantization_config = SDNQConfig(
         weights_dtype=weights_dtype,
         quantized_matmul_dtype=matmul_dtype,
@@ -707,6 +778,7 @@ def build_component_prequantized(
         dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
         add_skip_keys=False,
         modules_to_not_convert=[],
+        modules_to_not_use_matmul=full_precision_mm,
     )
     quantizer = SDNQQuantizer(quantization_config, pre_quantized=True)
     quantizer.torch_dtype = target_dtype
@@ -844,6 +916,7 @@ def build_component(
     modules_to_not_convert: list | None = None,
     modules_dtype_dict: dict | None = None,
     converter_handles_quant: bool = False,
+    metadata_layers: dict[str, dict] | None = None,
     **kwargs,
 ) -> object:
     """Convert (if needed), instantiate, load weights, dtype-cast, quantize,
@@ -851,7 +924,9 @@ def build_component(
 
     Transformer state dicts carrying ``comfy_quant`` markers dispatch
     to :func:`build_component_prequantized` (``quant_args`` are bypassed: the
-    file is already quantized); a ``converter_handles_quant`` converter runs
+    file is already quantized). ``metadata_layers`` (header-metadata quant
+    info) is transcoded into markers first, so both container forms share
+    one path; a ``converter_handles_quant`` converter runs
     before that detection, float-oriented converters after it. Under SDNQ the
     transformer uses the per-tensor pre-mode path in
     :func:`build_component_quantized` so quantization is applied in flight.
@@ -866,6 +941,10 @@ def build_component(
     reach ``cls.from_config`` for both construction paths.
     """
     try:
+        quant_source = "markers"
+        if component_name == "transformer" and metadata_layers:
+            state_dict, quant_source = transcode_quant_metadata(state_dict, metadata_layers)
+
         if converter is not None and converter_handles_quant and component_name == "transformer":
             state_dict = apply_converter(converter, state_dict, cls, component_name)
             converter = None  # consumed; must not run again on the non-comfy path below
@@ -876,7 +955,7 @@ def build_component(
             convrot_count = sum(1 for meta in marker_meta.values() if meta.get("convrot"))
             log.info(
                 f'Load model: transformer=native {component_name} quant=comfy '
-                f'format={comfy_format} layers={len(marker_meta)} convrot={convrot_count} keys={len(state_dict)} cls={cls.__name__}'
+                f'format={comfy_format} layers={len(marker_meta)} convrot={convrot_count} source={quant_source} keys={len(state_dict)} cls={cls.__name__}'
             )
             component = build_component_prequantized(
                 component_name=component_name,
