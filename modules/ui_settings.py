@@ -468,7 +468,7 @@ def create_quicksettings(interfaces):
         )
         button_set_refiner = gr.Button('Change refiner', elem_id='change_refiner', visible=False)
         button_set_refiner.click(
-            fn=lambda value, _: run_settings_single(value, key='sd_model_checkpoint'),
+            fn=lambda value, _: run_settings_single(value, key='sd_model_refiner'),
             _js="consumeDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_refiner'], dummy_component],
             outputs=[shared.settings_components['sd_model_refiner'], text_settings],
