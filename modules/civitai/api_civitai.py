@@ -301,8 +301,11 @@ def get_peek_header(url: str, file_id: int = 0):
     import json
     import struct
     from modules import shared
+    # civitai.red serves the same download service and rewrites downloadUrl to
+    # its own host; normalize so the guard, cache hash and fetch host agree.
+    url = url.replace('https://civitai.red/', 'https://civitai.com/', 1)
     if not url.startswith('https://civitai.com/'):
-        return JSONResponse(content={"error": "only civitai.com urls are allowed"}, status_code=400)
+        return JSONResponse(content={"error": "only civitai urls are allowed"}, status_code=400)
     if file_id:
         cached = peek_cache_get(file_id, url)
         if cached is not None:
