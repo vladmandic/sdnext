@@ -74,7 +74,9 @@ COMFY_QUANT_MARKER = ".comfy_quant"
 COMFY_QUANT_FORMATS: dict[str, str] = {  # comfy_quant format string -> SDNQ weights_dtype
     "int8_tensorwise": "int8",
     "float8_e4m3fn": "float8_e4m3fn",
+    "nvfp4": "float4_e2m1fn",
 }
+NVFP4_GROUP_SIZE = 16  # fixed by the format definition; markers restate it
 
 
 class OverrideArchMismatch(Exception):
@@ -521,6 +523,11 @@ def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[dict[str, dict
                 f"for {name!r} is malformed ({type(e).__name__}: {e})"
             ) from e
         if meta.get("convrot"):
+            if fmt == "nvfp4":
+                raise OverrideArchMismatch(
+                    f"Load model: type={type_name} native_transformer comfy_quant layer "
+                    f"{name!r} combines nvfp4 with convrot, which the format does not define"
+                )
             group_size = int(meta.get("convrot_groupsize", 256))
             is_pow4 = group_size >= 4 and (group_size & (group_size - 1)) == 0 and (group_size.bit_length() & 1) == 1
             if not is_pow4:
@@ -528,6 +535,11 @@ def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[dict[str, dict
                     f"Load model: type={type_name} native_transformer comfy_quant layer "
                     f"{name!r} convrot_groupsize={group_size} is not a power of 4"
                 )
+        if fmt == "nvfp4" and int(meta.get("group_size", NVFP4_GROUP_SIZE)) != NVFP4_GROUP_SIZE:
+            raise OverrideArchMismatch(
+                f"Load model: type={type_name} native_transformer comfy_quant layer "
+                f"{name!r} nvfp4 group_size={meta.get('group_size')} is not {NVFP4_GROUP_SIZE}"
+            )
         marked[name] = meta
         formats.add(fmt)
     unsupported = sorted(formats - set(COMFY_QUANT_FORMATS))
@@ -548,15 +560,18 @@ def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[dict[str, dict
     return marked, next(iter(formats))
 
 
-def remap_comfy_quant(state_dict: dict, marked_names: set[str]) -> dict:
+def remap_comfy_quant(state_dict: dict, marked_names: set[str], defer_scales: bool = False) -> dict:
     """Translate comfy_quant tensor naming to SDNQ naming.
 
     Renames ``<name>.weight_scale`` to ``<name>.scale`` (reshaped to 2-D,
     ``[]`` becomes ``[1, 1]``, since SDNQ transposes scales in place) and
     drops the ``<name>.comfy_quant`` markers plus optional
     ``<name>.input_scale`` activation-calibration sidecars (SDNQ re-derives
-    activation scales dynamically). Returns a new dict; the input (which may
-    be the cached state dict) is not mutated.
+    activation scales dynamically). With ``defer_scales`` the scale rename is
+    skipped: block-scaled formats (nvfp4) carry swizzled scale tensors whose
+    transform needs the layer dimensions, so the prequantized builder handles
+    them per layer. Returns a new dict; the input (which may be the cached
+    state dict) is not mutated.
     """
     scale_suffix = ".weight_scale"
     input_scale_suffix = ".input_scale"
@@ -566,11 +581,76 @@ def remap_comfy_quant(state_dict: dict, marked_names: set[str]) -> dict:
             continue
         if key.endswith(input_scale_suffix) and key[: -len(input_scale_suffix)] in marked_names:
             continue
-        if key.endswith(scale_suffix) and key[: -len(scale_suffix)] in marked_names:
+        if not defer_scales and key.endswith(scale_suffix) and key[: -len(scale_suffix)] in marked_names:
             remapped[f"{key[: -len(scale_suffix)]}.scale"] = value.reshape(-1, 1)
             continue
         remapped[key] = value
     return remapped
+
+
+def unswizzle_block_scales(scales: torch.Tensor, rows: int, groups: int) -> torch.Tensor:
+    """Invert the cuBLAS 2D block-scaling factor layout back to row-major
+    ``[rows, groups]``, dropping the tile alignment padding.
+
+    Block-scaled comfy_quant checkpoints store per-group scales pre-tiled for
+    the hardware kernels: the ``[roundup(rows, 128), roundup(groups, 4)]``
+    grid is rearranged into 32x16 tiles as described in
+    https://docs.nvidia.com/cuda/cublas/index.html#d-block-scaling-factors-layout
+    """
+    row_blocks = -(rows // -128)
+    col_blocks = -(groups // -4)
+    tiles = scales.reshape(-1, 32, 4, 4).transpose(1, 2)
+    tiles = tiles.reshape(row_blocks, col_blocks, 4, 32, 4).reshape(row_blocks, col_blocks, 128, 4)
+    return tiles.permute(0, 2, 1, 3).reshape(row_blocks * 128, col_blocks * 4)[:rows, :groups]
+
+
+def adopt_nvfp4_layer(sd: dict, name: str, linear: torch.nn.Linear, component_name: str, meta: dict) -> None:
+    """Rewrite one nvfp4 layer's tensors in place into SDNQ layout.
+
+    Slices tile-alignment padding off the packed weight, swaps the nibble
+    order (the container packs the even element into the high nibble, SDNQ
+    unpacks low-first), unswizzles the e4m3 block scales, and folds the fp32
+    global scale into them as ``[out, groups, 1]`` fp32 grouped scales.
+    """
+    out_features, in_features = linear.out_features, linear.in_features
+    if in_features % NVFP4_GROUP_SIZE != 0:
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} nvfp4 group size {NVFP4_GROUP_SIZE} does not divide in_features={in_features}"
+        )
+    orig_shape = meta.get("orig_shape")
+    if orig_shape is not None and tuple(orig_shape) != (out_features, in_features):
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} stores orig_shape={tuple(orig_shape)} but the model expects {(out_features, in_features)}"
+        )
+    weight = sd.get(f"{name}.weight")
+    scales = sd.pop(f"{name}.weight_scale", None)
+    global_scale = sd.pop(f"{name}.weight_scale_2", None)
+    if scales is None or global_scale is None:
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} is missing nvfp4 weight_scale/weight_scale_2 tensors"
+        )
+    packed_columns = in_features // 2
+    if weight is None or weight.ndim != 2 or weight.shape[0] < out_features or weight.shape[1] < packed_columns:
+        found = tuple(weight.shape) if weight is not None else "missing"
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} packed weight {found} cannot hold {(out_features, packed_columns)}"
+        )
+    groups = in_features // NVFP4_GROUP_SIZE
+    expected_scales = -(out_features // -128) * 128 * -(groups // -4) * 4
+    if scales.numel() != expected_scales:
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} block scales hold {scales.numel()} values, expected {expected_scales}"
+        )
+    weight = weight[:out_features, :packed_columns]
+    weight = torch.bitwise_or(torch.bitwise_left_shift(torch.bitwise_and(weight, 15), 4), torch.bitwise_right_shift(weight, 4))
+    scales = unswizzle_block_scales(scales, out_features, groups)
+    sd[f"{name}.weight"] = weight
+    sd[f"{name}.scale"] = scales.to(torch.float32).mul_(global_scale.to(torch.float32)).unsqueeze(-1)
 
 
 def partition_siblings(
@@ -727,10 +807,13 @@ def build_component_prequantized(
     the marked layers onto SDNQ layers without dequantizing.
 
     The supported formats are subsets of SDNQ's symmetric quantization: same
-    storage layout (unpacked 8-bit ``[out, in]``), same dequant math
-    (``weight * scale``, no zero point), so tensors are adopted bit-exact;
-    convrot layers map onto SDNQ's Hadamard support, whose identical regular
-    Hadamard construction lets the dequantizer undo the stored rotation.
+    dequant math (``weight * scale``, no zero point), so tensors are adopted
+    bit-exact. The 8-bit formats share the storage layout directly (unpacked
+    ``[out, in]``); convrot layers map onto SDNQ's Hadamard support, whose
+    identical regular Hadamard construction lets the dequantizer undo the
+    stored rotation; nvfp4 layers keep their packed 4-bit codes (nibble order
+    swapped once) and land on SDNQ's grouped quantization with the block and
+    global scales folded into fp32 per-group scales.
     The file dictates which layers are quantized, independent of the user's
     quantization settings, and floating-point SDNQ params are not cast to the
     target dtype (the fp32 scales must survive). Layers are assembled in
@@ -753,8 +836,9 @@ def build_component_prequantized(
     matmul_dtype = "int8" if dtype_dict[weights_dtype]["is_integer"] else "float8_e4m3fn"
     storage_dtype = dtype_dict[weights_dtype]["storage_dtype"]
     target_dtype = dtype if dtype is not None else devices.dtype
+    is_nvfp4 = comfy_format == "nvfp4"
     marked_names = set(marker_meta)
-    sd = remap_comfy_quant(state_dict, marked_names)
+    sd = remap_comfy_quant(state_dict, marked_names, defer_scales=is_nvfp4)
 
     # Civitai relabels these containers freely; trust the marker only as far
     # as the stored tensors actually match it.
@@ -773,7 +857,7 @@ def build_component_prequantized(
     quantization_config = SDNQConfig(
         weights_dtype=weights_dtype,
         quantized_matmul_dtype=matmul_dtype,
-        group_size=-1,
+        group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
         use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
         dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
         add_skip_keys=False,
@@ -809,20 +893,23 @@ def build_component_prequantized(
                 f"Load model: transformer=native {component_name} comfy_quant marked "
                 f"module {name!r} convrot_groupsize={hadamard_group_size} does not divide in_features={linear.in_features}"
             )
+        if is_nvfp4:
+            adopt_nvfp4_layer(sd, name, linear, component_name, marker_meta[name])
+        layer_shape = torch.Size((linear.out_features, linear.in_features))
         linear.sdnq_dequantizer = SDNQDequantizer(
             result_dtype=target_dtype,
-            result_shape=None,
-            original_shape=torch.Size((linear.out_features, linear.in_features)),
+            result_shape=layer_shape if is_nvfp4 else None,
+            original_shape=layer_shape,
             original_stride=(linear.in_features, 1),
-            quantized_weight_shape=torch.Size((linear.out_features, linear.in_features)),
+            quantized_weight_shape=torch.Size((linear.out_features, linear.in_features // NVFP4_GROUP_SIZE, NVFP4_GROUP_SIZE)) if is_nvfp4 else layer_shape,
             weights_dtype=weights_dtype,
             quantized_matmul_dtype=matmul_dtype,
             hadamard_group_size=hadamard_group_size,
-            group_size=-1,
+            group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
             svd_rank=32,
             svd_steps=8,
             use_quantized_matmul=False,
-            re_quantize_for_matmul=False,
+            re_quantize_for_matmul=is_nvfp4,
             use_stochastic_rounding=False,
             use_hadamard=use_hadamard,
             layer_class_name="Linear",

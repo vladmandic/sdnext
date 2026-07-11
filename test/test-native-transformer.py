@@ -551,6 +551,93 @@ def test_transcode_quant_metadata_no_matches_is_noop():
 
 
 # ============================================================
+# nvfp4: sdnq codec, scale unswizzle, detection
+# ============================================================
+
+E2M1_VALUES = (0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, -0.0, -0.5, -1.0, -1.5, -2.0, -3.0, -4.0, -6.0)
+
+
+def to_blocked_reference(matrix: torch.Tensor) -> torch.Tensor:
+    """cuBLAS block-scaling tile layout as written into nvfp4 containers;
+    the loader's unswizzle must invert this exactly."""
+    rows, cols = matrix.shape
+    row_blocks = -(rows // -128)
+    col_blocks = -(cols // -4)
+    padded = torch.zeros((row_blocks * 128, col_blocks * 4), dtype=matrix.dtype)
+    padded[:rows, :cols] = matrix
+    blocks = padded.view(row_blocks, 128, col_blocks, 4).permute(0, 2, 1, 3)
+    rearranged = blocks.reshape(-1, 4, 32, 4).transpose(1, 2).reshape(-1, 32, 16)
+    return rearranged.reshape(row_blocks * 128, col_blocks * 4)
+
+
+def test_unswizzle_block_scales_roundtrip():
+    for rows, groups in ((128, 4), (8, 3), (200, 10)):
+        mat = torch.arange(rows * groups, dtype=torch.float32).reshape(rows, groups)
+        back = nt.unswizzle_block_scales(to_blocked_reference(mat), rows, groups)
+        assert torch.equal(back, mat), f'unswizzle mismatch for {(rows, groups)}'
+
+
+def test_nvfp4_codec_ocp_table():
+    """SDNQ's float4_e2m1fn decodes OCP FP4 E2M1 exactly, including the
+    subnormal codes 1/9 as +/-0.5; nvfp4 containers adopt it directly."""
+    from modules.sdnq.packed_float import unpack_float
+    packed = torch.tensor([(2 * j) | (((2 * j) + 1) << 4) for j in range(8)], dtype=torch.uint8)
+    dec = unpack_float(packed, 'float4_e2m1fn', torch.Size([16]))
+    for code in range(16):
+        assert float(dec[code]) == E2M1_VALUES[code], f'code {code}: {float(dec[code])} != {E2M1_VALUES[code]}'
+
+
+def test_nvfp4_pack_ocp_grid_roundtrip():
+    """Every OCP grid value survives a pack/unpack round trip exactly
+    (subnormals included), and off-grid values land inside the value set.
+    Exact nearest-rounding near the grid midpoints is not asserted: the
+    packer's staged rounding may resolve boundary values to either side."""
+    from modules.sdnq.packed_float import pack_float, unpack_float
+    grid = [0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0, -0.5, -1.0, -1.5, -2.0, -3.0, -4.0, -6.0, 0.0]
+    vals = torch.tensor(grid, dtype=torch.float32)
+    out = unpack_float(pack_float(vals, 'float4_e2m1fn'), 'float4_e2m1fn', vals.shape)
+    assert torch.equal(out, vals), f'grid values must roundtrip exactly: {out.tolist()}'
+    off_grid = torch.tensor([0.2, 0.6, 0.9, 1.2, 2.4, 5.5, -0.4, -0.9, -1.7, -3.4, -5.9, 0.05, 0.99, -0.99], dtype=torch.float32)
+    out = unpack_float(pack_float(off_grid, 'float4_e2m1fn'), 'float4_e2m1fn', off_grid.shape)
+    for v, o in zip(off_grid.tolist(), out.tolist()):
+        assert abs(o) in {0.0, 0.5, 1.0, 1.5, 2.0, 3.0, 4.0, 6.0}, f'{v} -> {o} outside the OCP set'
+
+
+def test_detect_comfy_nvfp4_marker_accepted():
+    import json
+    payload = json.dumps({'format': 'nvfp4', 'group_size': 16, 'orig_dtype': 'torch.float16', 'orig_shape': [32, 32]})
+    sd = {
+        'in_proj.weight': torch.zeros((32, 16), dtype=torch.uint8),
+        'in_proj.comfy_quant': torch.tensor(list(payload.encode()), dtype=torch.uint8),
+    }
+    marked, fmt = nt.detect_comfy_quant(sd, 'Test')
+    assert fmt == 'nvfp4'
+    assert marked['in_proj']['orig_shape'] == [32, 32]
+
+
+def test_detect_comfy_nvfp4_bad_group_size_raises():
+    import json
+    payload = json.dumps({'format': 'nvfp4', 'group_size': 32})
+    sd = {'a.comfy_quant': torch.tensor(list(payload.encode()), dtype=torch.uint8)}
+    try:
+        nt.detect_comfy_quant(sd, 'Test')
+        raise AssertionError('expected OverrideArchMismatch')
+    except nt.OverrideArchMismatch as e:
+        assert 'group_size' in str(e)
+
+
+def test_detect_comfy_nvfp4_convrot_raises():
+    import json
+    payload = json.dumps({'format': 'nvfp4', 'convrot': True, 'convrot_groupsize': 16})
+    sd = {'a.comfy_quant': torch.tensor(list(payload.encode()), dtype=torch.uint8)}
+    try:
+        nt.detect_comfy_quant(sd, 'Test')
+        raise AssertionError('expected OverrideArchMismatch')
+    except nt.OverrideArchMismatch as e:
+        assert 'convrot' in str(e)
+
+
+# ============================================================
 # is_noop_converter
 # ============================================================
 
@@ -1436,6 +1523,135 @@ def test_load_comfy_full_precision_mm_excluded_from_matmul():
             os.unlink(path)
 
 
+def nvfp4_fixture(dim: int, with_marker: bool = True) -> tuple[dict, torch.Tensor]:
+    """A valid nvfp4 container for one marked linear, plus the reference
+    dequantized weight per the format definition: E2M1 decode * unswizzled
+    e4m3 block scale * fp32 global scale."""
+    import json
+    groups = dim // 16
+    gen = torch.Generator().manual_seed(7)
+    codes = torch.randint(0, 16, (dim, dim), generator=gen, dtype=torch.uint8)
+    block_scales = (torch.rand(dim, groups, generator=gen) * 2 + 0.5).to(torch.float8_e4m3fn)
+    global_scale = torch.tensor(0.0125, dtype=torch.float32)
+    lut = torch.tensor(E2M1_VALUES, dtype=torch.float32)
+    reference = lut[codes.long()].reshape(dim, groups, 16) * (block_scales.float() * global_scale).unsqueeze(-1)
+    reference = reference.reshape(dim, dim)
+    packed = torch.bitwise_or(torch.bitwise_left_shift(codes[:, 0::2], 4), codes[:, 1::2])  # even element in the high nibble
+    sd = {
+        'model.diffusion_model.in_proj.weight': packed,
+        'model.diffusion_model.in_proj.weight_scale': to_blocked_reference(block_scales),
+        'model.diffusion_model.in_proj.weight_scale_2': global_scale,
+        'model.diffusion_model.in_proj.bias': torch.randn(dim, generator=gen).to(torch.float16),
+        'model.diffusion_model.out_proj.weight': torch.randn(dim, dim, generator=gen).to(torch.float16),
+        'model.diffusion_model.out_proj.bias': torch.zeros(dim, dtype=torch.float16),
+    }
+    if with_marker:
+        marker = json.dumps({'format': 'nvfp4', 'group_size': 16, 'orig_dtype': 'torch.float16', 'orig_shape': [dim, dim]})
+        sd['model.diffusion_model.in_proj.comfy_quant'] = torch.tensor(list(marker.encode()), dtype=torch.uint8)
+    return sd, reference
+
+
+def test_load_comfy_nvfp4_end_to_end():
+    """Full pipeline on an nvfp4 container: packed uint8 weights survive with
+    swapped nibble order, block scales unswizzle and fold with the global
+    scale into fp32 grouped scales, and the dequantized weight matches the
+    format reference exactly."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 32
+        raw, reference = nvfp4_fixture(dim)
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer, _ = nt.load(
+                local_file=path,
+                repo_id='fake/repo',
+                spec=spec,
+                diffusers_cfg={},
+                dtype=torch.float32,
+            )
+
+        in_proj = transformer.in_proj
+        assert in_proj.__class__.__name__ == 'SDNQLinear'
+        dq = in_proj.sdnq_dequantizer
+        assert dq.weights_dtype == 'float4_e2m1fn'
+        assert dq.group_size == 16
+        assert tuple(dq.quantized_weight_shape) == (dim, dim // 16, 16)
+        assert dq.re_quantize_for_matmul is True
+        assert in_proj.weight.dtype == torch.uint8
+        assert tuple(in_proj.weight.shape) == (dim, dim // 2)
+        assert in_proj.scale.dtype == torch.float32
+        assert tuple(in_proj.scale.shape) == (dim, dim // 16, 1)
+
+        dequantized = dq(in_proj.weight, in_proj.scale, zero_point=None, svd_up=None, svd_down=None)
+        assert torch.equal(dequantized.detach().cpu(), reference)
+
+        x = torch.randn(2, dim)
+        out = in_proj(x)
+        ref = torch.nn.functional.linear(x, reference, in_proj.bias.detach().cpu())
+        assert torch.allclose(out.detach().cpu(), ref, atol=1e-5)
+
+        assert transformer.out_proj.__class__ is torch.nn.Linear
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_comfy_nvfp4_metadata_form():
+    """Marker-less nvfp4 (header metadata only, no orig_shape/group_size):
+    the format constant and module dimensions fill the gaps."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 32
+        raw, reference = nvfp4_fixture(dim, with_marker=False)
+        layers = {'model.diffusion_model.in_proj': {'format': 'nvfp4'}}
+        write_fixture(raw, fd, path, metadata=quant_metadata(layers))
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer, _ = nt.load(
+                local_file=path,
+                repo_id='fake/repo',
+                spec=spec,
+                diffusers_cfg={},
+                dtype=torch.float32,
+            )
+
+        in_proj = transformer.in_proj
+        assert in_proj.__class__.__name__ == 'SDNQLinear'
+        assert in_proj.sdnq_dequantizer.weights_dtype == 'float4_e2m1fn'
+        dequantized = in_proj.sdnq_dequantizer(in_proj.weight, in_proj.scale, zero_point=None, svd_up=None, svd_down=None)
+        assert torch.equal(dequantized.detach().cpu(), reference)
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_comfy_nvfp4_orig_shape_mismatch_raises():
+    """A marker whose orig_shape disagrees with the model config is a wrong
+    file for the class; reject so the base-repo fallback engages."""
+    import json
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 32
+        raw, _ = nvfp4_fixture(dim)
+        marker = json.dumps({'format': 'nvfp4', 'group_size': 16, 'orig_shape': [dim, dim * 2]})
+        raw['model.diffusion_model.in_proj.comfy_quant'] = torch.tensor(list(marker.encode()), dtype=torch.uint8)
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            try:
+                nt.load(local_file=path, repo_id='fake/repo', spec=spec, diffusers_cfg={}, dtype=torch.float32)
+                raise AssertionError('expected OverrideArchMismatch')
+            except nt.OverrideArchMismatch as e:
+                assert 'orig_shape' in str(e)
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
 def test_detect_comfy_mixed_formats_raises():
     """One file mixing int8 and fp8 layers has no single SDNQ mapping; reject."""
     sd = {
@@ -1950,6 +2166,21 @@ def run_all():
         test_transcode_quant_metadata_synthesizes_markers,
         test_transcode_quant_metadata_header_wins,
         test_transcode_quant_metadata_no_matches_is_noop,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== nvfp4 codec / unswizzle / load ===')
+    cat = category('nvfp4')
+    for fn in [
+        test_unswizzle_block_scales_roundtrip,
+        test_nvfp4_codec_ocp_table,
+        test_nvfp4_pack_ocp_grid_roundtrip,
+        test_detect_comfy_nvfp4_marker_accepted,
+        test_detect_comfy_nvfp4_bad_group_size_raises,
+        test_detect_comfy_nvfp4_convrot_raises,
+        test_load_comfy_nvfp4_end_to_end,
+        test_load_comfy_nvfp4_metadata_form,
+        test_load_comfy_nvfp4_orig_shape_mismatch_raises,
     ]:
         run_test(cat, fn)
 
