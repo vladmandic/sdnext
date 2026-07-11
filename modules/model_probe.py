@@ -6,11 +6,8 @@ local model audit; analyze_header is pure so both paths share one analyzer.
 import os
 import re
 import json
-import threading
 from collections import Counter
 from dataclasses import dataclass
-
-from modules.logger import log
 
 
 SCHEMA_VERSION = 4
@@ -385,12 +382,6 @@ def probe_gguf_file(path: str) -> dict:
 
 
 probe_cache = None
-probe_cache_lock = threading.Lock()
-
-
-def probe_cache_file() -> str:
-    from modules import paths
-    return os.path.join(paths.data_path, 'data', 'model_probe.json')
 
 
 def probe_file(path: str, use_cache: bool = True) -> dict:
@@ -403,27 +394,22 @@ def probe_file(path: str, use_cache: bool = True) -> dict:
         stat = os.stat(path)
     except OSError as e:
         return error_result('unknown', str(e))
-    with probe_cache_lock:
-        if probe_cache is None:
-            from modules.json_helpers import readfile
-            fn = probe_cache_file()
-            probe_cache = readfile(fn, silent=True, lock=True, as_type='dict') if os.path.isfile(fn) else {}
-        entry = probe_cache.get(path) if use_cache else None
+    if probe_cache is None:
+        from modules import paths
+        from modules.json_helpers import readfile
+        probe_cache = readfile(paths.probe_cache_file, silent=True, lock=True, as_type='dict')
+    entry = probe_cache.get(path) if use_cache else None
     if entry and entry.get('mtime') == stat.st_mtime and entry.get('size') == stat.st_size and entry.get('schema') == SCHEMA_VERSION:
         return entry['probe']
     probe = probe_safetensors_file(path) if ext == '.safetensors' else probe_gguf_file(path)
-    with probe_cache_lock:
-        probe_cache[path] = {'mtime': stat.st_mtime, 'size': stat.st_size, 'schema': SCHEMA_VERSION, 'probe': probe}
+    probe_cache[path] = {'mtime': stat.st_mtime, 'size': stat.st_size, 'schema': SCHEMA_VERSION, 'probe': probe}
     return probe
 
 
 def save_probe_cache():
     """Flush the probe cache to disk; call once per scan, not per file."""
-    with probe_cache_lock:
-        if probe_cache is None:
-            return
-        from modules.json_helpers import writefile
-        try:
-            writefile(probe_cache, probe_cache_file(), silent=True, atomic=True)
-        except Exception as e:
-            log.warning(f'Model probe cache save error: {e}')
+    if probe_cache is None:
+        return
+    from modules import paths
+    from modules.json_helpers import writefile
+    writefile(probe_cache, paths.probe_cache_file, silent=True, atomic=True)

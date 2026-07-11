@@ -256,24 +256,18 @@ def get_download_status():
 
 
 peek_cache = None
-peek_cache_lock = None
 
 
 def peek_cache_get(file_id: int, url: str):
     """Persistent probe cache keyed by civitai file id; content per id is
     immutable, so entries never expire. A url hash guards against id reuse."""
-    global peek_cache, peek_cache_lock  # pylint: disable=global-statement
+    global peek_cache  # pylint: disable=global-statement
     import hashlib
-    import threading
     from modules import paths
     from modules.json_helpers import readfile
-    if peek_cache_lock is None:
-        peek_cache_lock = threading.Lock()
-    with peek_cache_lock:
-        if peek_cache is None:
-            fn = os.path.join(paths.data_path, 'data', 'civitai_probe.json')
-            peek_cache = readfile(fn, silent=True, lock=True, as_type='dict') if os.path.isfile(fn) else {}
-        entry = peek_cache.get(str(file_id))
+    if peek_cache is None:
+        peek_cache = readfile(paths.civitai_probe_file, silent=True, lock=True, as_type='dict')
+    entry = peek_cache.get(str(file_id))
     if entry and entry.get('url_hash') == hashlib.sha256(url.encode('utf-8')).hexdigest()[:16]:
         return entry.get('response')
     return None
@@ -283,15 +277,11 @@ def peek_cache_put(file_id: int, url: str, response: dict):
     import hashlib
     from modules import paths
     from modules.json_helpers import writefile
-    with peek_cache_lock:
-        peek_cache[str(file_id)] = {
-            'url_hash': hashlib.sha256(url.encode('utf-8')).hexdigest()[:16],
-            'response': response,
-        }
-        try:
-            writefile(peek_cache, os.path.join(paths.data_path, 'data', 'civitai_probe.json'), silent=True, atomic=True)
-        except Exception as e:
-            log.warning(f'CivitAI probe cache save error: {e}')
+    peek_cache[str(file_id)] = {
+        'url_hash': hashlib.sha256(url.encode('utf-8')).hexdigest()[:16],
+        'response': response,
+    }
+    writefile(peek_cache, paths.civitai_probe_file, silent=True, atomic=True)
 
 
 def get_peek_header(url: str, file_id: int = 0):
