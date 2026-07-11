@@ -1,30 +1,49 @@
 #!/usr/bin/env python
 """
-Benchmark and validate SDNQ attention on the local GPU.
+Benchmark and validate SDNQ attention and weight dequantization on the local GPU.
 
-Runs the kernel from modules/sdnq/kernels/triton_atten.py directly and compares speed and
-numerical error against torch scaled_dot_product_attention and sageattention when installed.
-Verifies mask, causal, GQA and padding code paths, probes float8 hardware support and the
-torch.compile input prep, and prints recommended values for the Compute Settings -> SDNQ
-Attention section.
+The attention section runs the kernel from modules/sdnq/kernels/triton_atten.py directly and
+compares speed and numerical error against torch scaled_dot_product_attention and
+sageattention when installed. Verifies mask, causal, GQA, cross-attention and padding code
+paths, probes float8 hardware support and the torch.compile input prep, and prints
+recommended values for the Compute Settings -> SDNQ Attention section.
+
+The dequant section builds real SDNQ linear layers per storage dtype (int8, uint4,
+float8_e4m3fn, float8_e4m3fn_sdnq, float4_e2m1fn) at Krea 2 and Qwen3 TE layer geometry and
+measures eager vs compiled weight dequantization plus the full linear forward with and
+without quantized matmul, against a bf16 nn.Linear baseline. For float storage dtypes it
+also measures quantized matmul with the MatMul type set explicitly (int8, float16), since
+auto routes them to fp8 matmul, which not every gpu can run. Setting sweeps
+(--dequant-sweeps) cover group size, svd rank, weight-side hadamard group size, dequantize
+full precision off, dynamic quantization, cpu quantize time and conv2d quantization. Probes
+whether compiled dequant of fp8 storage works on this GPU (triton before sm_89 lacks e4m3
+conversions) and prints recommended values for the Compute Settings -> SDNQ section.
+
+The block section measures complete configurations (weights dtype x matmul path x attention)
+end to end through a dit-style transformer block, with output error at depth one and four
+against an fp32 reference block, because component speedups and errors do not compose
+multiplicatively.
 
 Benchmarks run in the webui's configured dtype (--dtype overrides). The prep column is the
 q/k/v quantization cost outside the kernel, included in the median. Recommendations come
 from measured comparisons only.
 
-Shape presets follow real model geometries: sd15, sdxl, anima, flux2 (Klein), wan22 (A14B),
-ltx2 (LTX 2.3), plus a masked joint-attention preset. Run from the sdnext root with the venv
-active:
+Shape presets follow real model geometries: sd15, sdxl, sdxl-cross, qwen3-te (Anima TE),
+anima, flux2 (Klein), wan22 (A14B), ltx2 (LTX 2.3), plus masked and wan22-cfg presets. Run
+from the sdnext root with the venv active:
     python cli/sdnq-attention-benchmark.py
-    python cli/sdnq-attention-benchmark.py --shapes all
+    python cli/sdnq-attention-benchmark.py --shapes all --json results.json
+    python cli/sdnq-attention-benchmark.py --sections dequant
     python cli/sdnq-attention-benchmark.py --shapes wan22,ltx2 --iters 20
 
-The first run of each shape includes triton autotune time; tuning results are cached on disk
-and reused by the webui for matching shapes.
+The first run of each shape includes triton autotune and torch.compile time; results are
+cached on disk and reused by the webui for matching shapes.
 """
 
 import os
 import sys
+import json
+import math
 import time
 import signal
 import logging
@@ -49,6 +68,8 @@ devices = None
 sdnq_triton_atten = None
 bench_dtype = torch.bfloat16 # resolved to the webui's configured dtype in main
 transcript = [] # final tables and panels, written out by --save
+report = {} # structured results mirroring the tables, written out by --json
+compiled_dequantize_weight = None # tool-owned compiled variant, built on first use
 
 
 def dtype_label():
@@ -68,23 +89,69 @@ def save_transcript(path):
     console.print(f"results saved to {path}")
 
 shape_presets = {
-    # name: (batch, heads, tokens, head_dim, description); geometry from the model transformer configs
-    "sd15": (2, 8, 4096, 40, "SD 1.5 unet self-attention at 512px, batched cfg, head dim padded 40 to 64"),
-    "sdxl": (2, 10, 4096, 64, "SDXL unet self-attention at 1024px, batched cfg"),
-    "anima": (1, 16, 4096, 128, "Anima 1.0 self-attention at 1024px, one cfg pass"),
-    "flux2": (1, 32, 4608, 128, "FLUX.2 Klein 9B joint attention at 1024px, 4096 image plus 512 text tokens"),
-    "wan22": (1, 40, 32760, 128, "Wan 2.2 A14B self-attention, 832x480 81 frames, one cfg pass"),
-    "ltx2": (1, 32, 13376, 128, "LTX 2.3 self-attention, 1216x704 121 frames, one cfg pass"),
-    "masked": (1, 32, 4608, 128, "FLUX.2 Klein shape with boolean key-padding mask, 25% of keys masked"),
+    # geometry from the model transformer and text-encoder configs;
+    # optional keys: kv_tokens (cross-attention), kv_heads (gqa), causal
+    "sd15": dict(batch=2, heads=8, tokens=4096, head_dim=40, desc="SD 1.5 unet self-attention at 512px, batched cfg, head dim padded 40 to 64"),
+    "sdxl": dict(batch=2, heads=10, tokens=4096, head_dim=64, desc="SDXL unet self-attention at 1024px, batched cfg"),
+    "sdxl-cross": dict(batch=2, heads=10, tokens=4096, kv_tokens=77, head_dim=64, desc="SDXL unet cross-attention at 1024px, 77 text tokens"),
+    "qwen3-te": dict(batch=2, heads=16, kv_heads=8, tokens=512, head_dim=128, causal=True, desc="Qwen3 text encoder (Anima), causal gqa 16:8 heads, 512 token prompt"),
+    "anima": dict(batch=1, heads=16, tokens=4096, head_dim=128, desc="Anima 1.0 self-attention at 1024px, one cfg pass"),
+    "flux2": dict(batch=1, heads=32, tokens=4608, head_dim=128, desc="FLUX.2 Klein 9B joint attention at 1024px, 4096 image plus 512 text tokens"),
+    "wan22": dict(batch=1, heads=40, tokens=32760, head_dim=128, desc="Wan 2.2 A14B self-attention, 832x480 81 frames, one cfg pass"),
+    "wan22-cfg": dict(batch=2, heads=40, tokens=32760, head_dim=128, desc="Wan 2.2 A14B self-attention, 832x480 81 frames, batched cfg"),
+    "ltx2": dict(batch=1, heads=32, tokens=13376, head_dim=128, desc="LTX 2.3 self-attention, 1216x704 121 frames, one cfg pass"),
+    "masked": dict(batch=1, heads=32, tokens=4608, head_dim=128, desc="FLUX.2 Klein shape with boolean key-padding mask, 25% of keys masked"),
 }
-full_run = ["sd15", "sdxl", "anima", "flux2", "wan22", "ltx2"]
+full_run = ["sd15", "sdxl", "sdxl-cross", "qwen3-te", "anima", "flux2", "wan22", "ltx2"]
+# settings advice comes from a self-attention shape with the full config set; cross-attention
+# and text-encoder shapes measure the hijack's cost there but would mislead as global advice
+recommendation_presets = ["flux2", "anima", "sdxl", "wan22", "ltx2", "sd15"]
 default_shapes = "sdxl,flux2"
+all_sections = ["attention", "dequant", "block"]
+
+# combined block benchmark: a dit-style transformer block at krea 2 class geometry, so each row
+# measures a complete configuration of weights dtype x matmul path x attention end to end
+block_geometry = dict(hidden=3072, heads=24, mlp_dim=16384, tokens=4096)
+block_attention_specs = {
+    "sdpa": None, # stock torch sdpa
+    "atten int8": dict(matmul_dtype="auto", pv_matmul_dtype="auto"),
+    "atten int8 smooth": dict(matmul_dtype="auto", pv_matmul_dtype="auto", smooth_k=True),
+    "atten int8 hadamard": dict(matmul_dtype="auto", pv_matmul_dtype="auto", use_hadamard=True),
+    "atten full": dict(matmul_dtype="auto", pv_matmul_dtype="int8", smooth_k=True, use_hadamard=True),
+    "sage": "sage", # external baselines, resolved to the sage wrappers in build_bench_block
+    "sage fp16 accum": "sagefp16",
+}
+# id, weights config (None = bf16), use quantized matmul, attention spec; fp8/fp4 rows use the
+# dequant path: quantized matmul auto-selects fp8 for float dtypes, unsupported before sm_89
+block_configs = [
+    ("bf16", None, False, "sdpa"),
+    ("bf16-atten", None, False, "atten int8"),
+    ("bf16-sage", None, False, "sage"),
+    ("bf16-sagefp16", None, False, "sage fp16 accum"),
+    ("int8", dict(weights_dtype="int8"), False, "sdpa"),
+    ("int8-mm", dict(weights_dtype="int8"), True, "sdpa"),
+    ("int8-mm-atten", dict(weights_dtype="int8"), True, "atten int8"),
+    ("int8-mm-smooth", dict(weights_dtype="int8"), True, "atten int8 smooth"),
+    ("int8-mm-hadamard", dict(weights_dtype="int8"), True, "atten int8 hadamard"),
+    ("int8-mm-atten-full", dict(weights_dtype="int8"), True, "atten full"),
+    ("int8-mm-sage", dict(weights_dtype="int8"), True, "sage"),
+    ("int8-mm-sagefp16", dict(weights_dtype="int8"), True, "sage fp16 accum"),
+    ("int6", dict(weights_dtype="int6"), False, "sdpa"),
+    ("uint4-mm", dict(weights_dtype="uint4"), True, "sdpa"),
+    ("uint4-mm-atten", dict(weights_dtype="uint4"), True, "atten int8"),
+    ("fp8sdnq", dict(weights_dtype="float8_e4m3fn_sdnq"), False, "sdpa"),
+    ("fp8sdnq-atten", dict(weights_dtype="float8_e4m3fn_sdnq"), False, "atten int8"),
+    ("nvfp4", dict(weights_dtype="float4_e2m1fn", group_size=16), False, "sdpa"),
+    ("nvfp4-atten", dict(weights_dtype="float4_e2m1fn", group_size=16), False, "atten int8"),
+]
 
 # benchmark configs: id, label, kwargs for sdnq_triton_atten (None = external baseline);
 # fp8 configs run only on gpus where the float8 probe passes
 bench_configs = [
     ("base", "torch sdpa", None),
     ("sage", "sageattention", None),
+    ("sagefp16", "sage fp16 accum", None),
+    ("amdflash", "triton flash (amd)", None),
     ("noquant", "sdnq, quantized matmul off", dict(do_quantize=False)),
     ("int8", "sdnq int8 qk", dict(matmul_dtype="auto", pv_matmul_dtype="auto")),
     ("smooth", "sdnq int8 qk + smooth k", dict(matmul_dtype="auto", pv_matmul_dtype="auto", smooth_k=True)),
@@ -93,13 +160,75 @@ bench_configs = [
     ("fp16pv", "sdnq int8 qk + fp16 pv", dict(matmul_dtype="auto", pv_matmul_dtype="float16")),
     ("int8pv", "sdnq int8 qk + int8 pv", dict(matmul_dtype="auto", pv_matmul_dtype="int8")),
     ("fp8pv", "sdnq int8 qk + fp8 pv", dict(matmul_dtype="auto", pv_matmul_dtype="float8_e4m3fn")),
+    ("full", "sdnq int8 qk + smooth + hadamard + int8 pv", dict(matmul_dtype="auto", pv_matmul_dtype="int8", smooth_k=True, use_hadamard=True)),
     ("fp16qk", "sdnq fp16 qk", dict(matmul_dtype="float16", pv_matmul_dtype="auto")),
     ("fp8qk", "sdnq fp8 qk", dict(matmul_dtype="float8_e4m3fn", pv_matmul_dtype="auto")),
+    ("fp8full", "sdnq fp8 qk + fp8 pv", dict(matmul_dtype="float8_e4m3fn", pv_matmul_dtype="float8_e4m3fn")),
 ]
-video_config_ids = ["base", "sage", "noquant", "int8", "smooth", "hadamard", "fp16pv", "fp8pv"]
+# external baselines are compared against but never starred or recommended as sdnq configs
+external_config_ids = ("base", "sage", "sagefp16", "amdflash")
+video_config_ids = ["base", "sage", "sagefp16", "amdflash", "noquant", "int8", "smooth", "hadamard", "fp16pv", "int8pv", "fp8pv", "full"]
 masked_config_ids = ["base", "noquant", "int8"]
 # hadamard configs excluded: compiling hadamard with a non pow2 head dim currently hangs torch inductor
-sd15_config_ids = ["base", "noquant", "int8", "smooth", "fp16pv", "int8pv", "fp8pv", "fp16qk", "fp8qk"]
+sd15_config_ids = ["base", "amdflash", "noquant", "int8", "smooth", "fp16pv", "int8pv", "fp8pv", "fp16qk", "fp8qk"]
+
+# weight dequant benchmark geometry: krea 2 12b linear layers plus the qwen3 1.7b (anima te)
+# gate/up projection, so the te override settings get numbers at text-encoder geometry
+dequant_shapes = [
+    ("qkv 6144x3072", 6144, 3072),
+    ("mlp 16384x3072", 16384, 3072),
+    ("te mlp 6144x2048", 6144, 2048),
+]
+dequant_forward_tokens = 4096 # rows of the forward-bench input, one 1024px image worth of tokens
+# id, label, sdnq config kwargs; int8 first: the ui default and the dominant pre-quantized format
+dequant_dtype_configs = [
+    ("int8", "int8", dict(weights_dtype="int8")),
+    ("uint8", "uint8", dict(weights_dtype="uint8")),
+    ("int6", "int6", dict(weights_dtype="int6")),
+    ("uint6", "uint6", dict(weights_dtype="uint6")),
+    ("int4", "int4", dict(weights_dtype="int4")),
+    ("uint4", "uint4", dict(weights_dtype="uint4")),
+    ("int2", "int2", dict(weights_dtype="int2")),
+    ("uint2", "uint2", dict(weights_dtype="uint2")),
+    ("fp8", "float8_e4m3fn", dict(weights_dtype="float8_e4m3fn")),
+    ("fp8sdnq", "float8_e4m3fn_sdnq", dict(weights_dtype="float8_e4m3fn_sdnq")),
+    ("nvfp4", "float4_e2m1fn g16", dict(weights_dtype="float4_e2m1fn", group_size=16)),
+]
+# svd/hadamard variants measured on top of these dtypes at the first dequant shape; low bits are
+# where rotation is expected to pay, int8 is the control
+dequant_variant_dtypes = ["int8", "uint4", "uint2"]
+dequant_variant_configs = [
+    ("hadamard", dict(use_hadamard=True)),
+    ("svd", dict(use_svd=True)),
+    ("svd+hadamard", dict(use_svd=True, use_hadamard=True)),
+]
+# float storage dtypes route quantized matmul to fp8 under auto; measure the explicit MatMul
+# type alternatives so advice on gpus without fp8 matmul cites numbers instead of escape hatches
+float_mm_dtypes = ["fp8", "fp8sdnq", "nvfp4"]
+float_mm_alternative_dtypes = ["int8", "float16"]
+# setting sweeps for the remaining measurable SDNQ options, each at the first dequant shape:
+# group size 0 = auto, -1 = row-wise; explicit values snap down to a divisor of in_features
+# and grouped weights force a per-forward re-quantize when quantized matmul is on
+group_sweep_dtypes = ["int8", "uint4"]
+group_sweep_values = [0, -1, 32, 64, 128, 256]
+svd_rank_sweep_dtypes = ["int8", "uint4"]
+svd_rank_sweep_values = [16, 32, 64, 128]
+hadamard_group_values = [32, 64, 128, 256] # weight-side rotation group, swept on int8
+toggle_dtypes = ["int8", "uint4"] # dequantize using full precision off is measured on these
+dynamic_quant_requests = ["uint2", "uint4", "int6"] # dynamic quantization escalates until loss passes
+# conv geometry: sdxl unet mid-block and vae decoder convs, the two conv-heavy model classes
+conv_shapes = [
+    ("unet 1280x1280 3x3 @32px", 1280, 1280, 3, 32),
+    ("vae 512x512 3x3 @256px", 512, 512, 3, 256),
+]
+conv_configs = [ # id, weights config (None = bf16 baseline), use conv quantized matmul
+    ("bf16", None, False),
+    ("int8", dict(weights_dtype="int8"), False),
+    ("int8-mm", dict(weights_dtype="int8"), True),
+    ("uint8-mm", dict(weights_dtype="uint8"), True),
+]
+all_dequant_sweeps = ["groups", "svd", "hgroups", "toggles", "conv"]
+recommend_error_cap = 2.0 # a faster config is not recommended when it multiplies measured output error beyond this
 
 atten_settings = [
     ("sdnq_attention_use_quantized_matmul", "Use Quantized MatMul"),
@@ -112,8 +241,13 @@ atten_settings = [
 
 
 def parse_cli():
-    parser = argparse.ArgumentParser(description="benchmark and validate sdnq attention on the local gpu")
-    parser.add_argument("--shapes", type=str, default=default_shapes, help=f"comma-separated shape presets: {', '.join(shape_presets)}; 'all' runs {', '.join(full_run)} (default: %(default)s)")
+    parser = argparse.ArgumentParser(description="benchmark and validate sdnq attention and weight dequantization on the local gpu")
+    parser.add_argument("--sections", type=str, default=",".join(all_sections), help=f"comma-separated benchmark sections: {', '.join(all_sections)} (default: %(default)s)")
+    parser.add_argument("--dequant-dtypes", type=str, default="all", help=f"comma-separated dequant dtype configs: {', '.join(dtype_id for dtype_id, _label, _cfg in dequant_dtype_configs)}; 'all' runs every one (default: %(default)s)")
+    parser.add_argument("--dequant-variants", type=str, default="all", help=f"comma-separated svd/hadamard variants benched on {', '.join(dequant_variant_dtypes)}: {', '.join(variant_id for variant_id, _cfg in dequant_variant_configs)}; 'all' or 'none' (default: %(default)s)")
+    parser.add_argument("--dequant-sweeps", type=str, default="all", help=f"comma-separated setting sweeps in the dequant section: {', '.join(all_dequant_sweeps)}; 'all' or 'none' (default: %(default)s)")
+    parser.add_argument("--block-configs", type=str, default="all", help=f"comma-separated combined block configs: {', '.join(config_id for config_id, _w, _mm, _a in block_configs)}; 'all' runs every one (default: %(default)s)")
+    parser.add_argument("--shapes", type=str, default=default_shapes, help=f"comma-separated attention shape presets: {', '.join(shape_presets)}; 'all' runs {', '.join(full_run)} (default: %(default)s)")
     parser.add_argument("--iters", type=int, default=12, help="minimum timed iterations per config, scaled up for fast kernels (default: %(default)s)")
     parser.add_argument("--warmup", type=int, default=4, help="minimum warmup iterations per config, scaled up for fast kernels (default: %(default)s)")
     parser.add_argument("--skip-checks", action="store_true", help="skip kernel correctness checks")
@@ -121,6 +255,7 @@ def parse_cli():
     parser.add_argument("--dtype", type=str, default="auto", choices=["auto", "bf16", "fp16"], help="tensor dtype for benchmarks; auto uses the dtype the webui selected for this gpu (default: %(default)s)")
     parser.add_argument("--config-timeout", type=int, default=300, help="best effort: abort a config whose compile plus first call exceeds this many seconds, 0 disables; cannot interrupt native-level hangs (default: %(default)s)")
     parser.add_argument("--save", type=str, default=None, help="write a plain-text copy of all tables and notes to this file; keeps colors and live progress on the terminal, unlike piping through tee")
+    parser.add_argument("--json", type=str, default=None, help="write structured results (environment, probes, per-shape and dequant timings, recommendations) to this file")
     args = parser.parse_args()
     sys.argv = sys.argv[:1] # sdnext parses argv again on import and rejects unknown arguments
     return args
@@ -187,15 +322,54 @@ def sage_attention():
         return None
 
 
-def make_qkv(batch, heads, tokens, head_dim, structured=True, kv_heads=None):
+def amd_triton_flash():
+    # sdnext's vendored flash attention for rocm/zluda (modules/flash_attn_triton_amd): the
+    # relevant baseline on amd, where stock sdpa has no flash kernel and sage is unavailable
+    try:
+        if getattr(devices, "backend", None) not in {"rocm", "zluda"}:
+            return None
+        from modules.flash_attn_triton_amd import interface_fa
+        def flash_fn(q, k, v, scale, is_causal=False):
+            head_size = q.size(3)
+            if head_size % 8 != 0:
+                pad = 8 - head_size % 8
+                q = torch.nn.functional.pad(q, [0, pad])
+                k = torch.nn.functional.pad(k, [0, pad])
+                v = torch.nn.functional.pad(v, [0, pad])
+            q, k, v = q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2)
+            out = torch.zeros_like(q)
+            interface_fa.fwd(q, k, v, out, 0.0, scale, is_causal)
+            return out[..., :head_size].transpose(1, 2)
+        return flash_fn
+    except Exception:
+        return None
+
+
+def sage_attention_fp16_accum():
+    # sage's fast sm86 mode: fp16 pv accumulation, which sdnext deliberately does not ship
+    # (accumulator overflow risk on extreme activations); benched to quantify what that
+    # choice costs in speed and buys in error
+    try:
+        if torch.cuda.get_device_capability(torch.device("cuda")) != (8, 6):
+            return None
+        from sageattention import sageattn_qk_int8_pv_fp16_cuda
+        def sage_fn(q, k, v, scale):
+            return sageattn_qk_int8_pv_fp16_cuda(q=q, k=k, v=v, tensor_layout="HND", is_causal=False, sm_scale=scale, return_lse=False, pv_accum_dtype="fp16")
+        return sage_fn
+    except Exception:
+        return None
+
+
+def make_qkv(batch, heads, tokens, head_dim, structured=True, kv_heads=None, kv_tokens=None):
     # structured keys carry a shared per-channel bias plus a few outlier channels, mimicking the
     # key statistics that motivate smoothing and rotation; absolute error varies by model
     # architecture while the relative ordering of configs holds
     generator = torch.Generator(device="cuda").manual_seed(1234)
     kv_heads = kv_heads or heads
+    kv_tokens = kv_tokens or tokens
     q = torch.randn(batch, heads, tokens, head_dim, device="cuda", dtype=bench_dtype, generator=generator)
-    k = torch.randn(batch, kv_heads, tokens, head_dim, device="cuda", dtype=bench_dtype, generator=generator)
-    v = torch.randn(batch, kv_heads, tokens, head_dim, device="cuda", dtype=bench_dtype, generator=generator)
+    k = torch.randn(batch, kv_heads, kv_tokens, head_dim, device="cuda", dtype=bench_dtype, generator=generator)
+    v = torch.randn(batch, kv_heads, kv_tokens, head_dim, device="cuda", dtype=bench_dtype, generator=generator)
     if structured:
         k = k + torch.randn(1, kv_heads, 1, head_dim, device="cuda", dtype=bench_dtype, generator=generator) * 3.0
         k[..., [3, head_dim // 2, head_dim - 5]] *= 4.0
@@ -218,6 +392,34 @@ def fp32_reference(q, k, v, **kwargs):
 def rel_err(out, ref):
     out = out.to(torch.float32)
     return ((out - ref).norm() / ref.norm()).item()
+
+
+def max_token_err(out, ref, eps=1e-6):
+    # worst single-token relative error over the feature axis: catches localized corruption
+    # (one garbage image region, one dead token) that a global norm averages away
+    out = out.to(torch.float32)
+    numerator = (out - ref).norm(dim=-1)
+    denominator = ref.norm(dim=-1).clamp_min(eps)
+    return (numerator / denominator).max().item()
+
+
+def err_cell(value, fmt="{:.5f}"):
+    # non-finite outputs are the black-image failure class; label them instead of printing nan
+    if value is None:
+        return "-"
+    if not math.isfinite(value):
+        return "[red]non-finite[/red]"
+    return fmt.format(value)
+
+
+def fp32_linear_reference(x, weight_fp32):
+    # sdnext enables tf32 globally; compute the linear reference in true fp32, matching fp32_reference
+    tf32_matmul = torch.backends.cuda.matmul.allow_tf32
+    torch.backends.cuda.matmul.allow_tf32 = False
+    try:
+        return torch.nn.functional.linear(x.to(torch.float32), weight_fp32)
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = tf32_matmul
 
 
 def error_summary(e, limit=60):
@@ -309,20 +511,30 @@ def free_vram_gb():
     return free / 1024**3
 
 
-def print_environment(fp8_result, prep_status, prep_detail):
+def fp8_compile_gate_flag():
+    # present and False on sdnq builds that gate fp8 storage weights to eager dequant on
+    # gpus where triton cannot compile e4m3; absent on builds without the gate
+    try:
+        from modules.sdnq import common as sdnq_common
+        return getattr(sdnq_common, "is_fp8_compile_supported", None)
+    except Exception:
+        return None
+
+
+def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_result=None):
     device = torch.device("cuda")
     capability = torch.cuda.get_device_capability(device)
-    if fp8_result["qk"][0]:
-        fp8_line = "float8_e4m3fn matmul: [green]supported[/green]"
-    else:
-        fp8_line = f"float8_e4m3fn matmul: [red]not supported on this gpu, selecting it fails generation[/red] [dim]({escape(fp8_result['qk'][1])})[/dim]"
     lines = [
         f"device: [cyan]{torch.cuda.get_device_name(device)}[/cyan] capability={capability[0]}.{capability[1]}",
         f"torch: {torch.__version__}  triton: {triton_version() or 'not installed'}  sageattention: {package_version('sageattention') or 'not installed'}  flash-attn: {package_version('flash-attn') or 'not installed'}",
         f"benchmark dtype: {dtype_label()}",
-        fp8_line,
-        f"sdnq attention enabled in current config: {'[green]yes[/green]' if 'SDNQ attention' in shared.opts.sdp_overrides else '[yellow]no, enable via Compute Settings -> SDP overrides (requires restart)[/yellow]'}",
     ]
+    if fp8_result is not None:
+        if fp8_result["qk"][0]:
+            lines.append("float8_e4m3fn matmul: [green]supported[/green]")
+        else:
+            lines.append(f"float8_e4m3fn matmul: [red]not supported on this gpu, selecting it fails generation[/red] [dim]({escape(fp8_result['qk'][1])})[/dim]")
+    lines.append(f"sdnq attention enabled in current config: {'[green]yes[/green]' if 'SDNQ attention' in shared.opts.sdp_overrides else '[yellow]no, enable via Compute Settings -> SDP overrides (requires restart)[/yellow]'}")
     if prep_status == "disabled":
         lines.append("compiled input prep: torch.compile disabled in config, input prep runs eager")
     elif prep_status == "working":
@@ -333,24 +545,53 @@ def print_environment(fp8_result, prep_status, prep_detail):
             lines.append("  fix, verified on this machine: set SDNQ_COMPILE_KWARGS='{\"dynamic\": false}' (recompiles per shape); or install msvc build tools; or disable Compute Settings -> SDNQ -> Dequantize using torch.compile")
         else:
             lines.append("  fix: install a host c++ compiler (msvc build tools on windows), or disable Compute Settings -> SDNQ -> Dequantize using torch.compile")
-    overrides = [f"{key}={value}" for key, value in os.environ.items() if key.startswith("SDNQ_TRITON_ATTEN")]
+    if weight_dequant_result is not None:
+        gate_flag = fp8_compile_gate_flag()
+        e4m3_ok, e4m3_detail = weight_dequant_result["float8_e4m3fn"]
+        e5m2_ok, e5m2_detail = weight_dequant_result["float8_e5m2"]
+        if e4m3_ok:
+            lines.append("compiled weight dequant, float8_e4m3fn storage: [green]supported[/green]")
+        else:
+            lines.append(f"compiled weight dequant, float8_e4m3fn storage: [red]fails on this gpu[/red] [dim]({escape(e4m3_detail)})[/dim]")
+            if gate_flag is False:
+                lines.append("  this sdnq build gates fp8 storage weights to eager dequant, generation is safe (SDNQ_ALLOW_FP8_COMPILE overrides)")
+            elif gate_flag is None:
+                lines.append("  [red]this sdnq build has no fp8 compile gate: loading fp8 storage weights with Dequantize using torch.compile enabled fails at generation[/red]")
+        e5m2_verdict = "[green]supported[/green]" if e5m2_ok else f"[red]fails[/red] [dim]({escape(e5m2_detail)})[/dim]"
+        lines.append(f"compiled weight dequant, float8_e5m2 storage: {e5m2_verdict}")
+    overrides = [f"{key}={value}" for key, value in os.environ.items() if key.startswith("SDNQ_TRITON_ATTEN") or key.startswith("SDNQ_ALLOW_FP8") or key.startswith("SDNQ_COMPILE")]
     if overrides:
         lines.append(f"env overrides: {' '.join(overrides)}")
     emit(Panel("\n".join(lines), title="environment", box=ROUNDED_BOX))
+    report["environment"] = dict(
+        device=torch.cuda.get_device_name(device),
+        capability=f"{capability[0]}.{capability[1]}",
+        torch=str(torch.__version__),
+        triton=triton_version(),
+        sageattention=package_version("sageattention"),
+        dtype=dtype_label(),
+        fp8_attention_matmul=fp8_result["qk"][0] if fp8_result is not None else None,
+        compiled_input_prep=prep_status,
+        fp8_compile_gate=fp8_compile_gate_flag(),
+        weight_dequant_compile={name: dict(ok=ok, detail=detail) for name, (ok, detail) in (weight_dequant_result or {}).items()},
+    )
 
 
-def print_banner(selected, args):
+def print_banner(selected, sections, args):
     lines = [
-        "measures sdnq attention speed and accuracy on this gpu and recommends values for [cyan]Compute Settings -> SDNQ Attention[/cyan]",
+        "measures sdnq attention and weight dequantization speed and accuracy on this gpu and recommends values for [cyan]Compute Settings -> SDNQ / SDNQ Attention[/cyan]",
+        f"sections: [cyan]{', '.join(sections)}[/cyan]",
     ]
     if args.skip_bench:
         lines.append("running correctness checks and the float8 and compile probes only (--skip-bench)")
-    else:
-        lines.append(f"shapes: [cyan]{', '.join(selected)}[/cyan]  (available: {', '.join(shape_presets)}; pass --shapes to match the models you use)")
+    elif "attention" in sections:
+        lines.append(f"attention shapes: [cyan]{', '.join(selected)}[/cyan]  (available: {', '.join(shape_presets)}; pass --shapes to match the models you use)")
         lines.append("first run compiles triton kernels per shape and can take several minutes; repeat runs are much faster")
     if args.save:
         lines.append(f"a plain-text copy of the results will be saved to [cyan]{args.save}[/cyan]")
-    console.print(Panel("\n".join(lines), title="sdnq attention benchmark", box=ROUNDED_BOX))
+    if args.json:
+        lines.append(f"structured results will be saved to [cyan]{args.json}[/cyan]")
+    console.print(Panel("\n".join(lines), title="sdnq benchmark", box=ROUNDED_BOX))
 
 
 def probe_fp8():
@@ -412,6 +653,196 @@ def probe_compiled_prep():
     return ("failing_dynamic" if static_ok else "failing"), detail
 
 
+def make_source_weight(out_features, in_features, seed=1234):
+    # structured weights with a few high-magnitude input channels, mimicking the outlier
+    # statistics of real dit linears; keeps quantization error columns in a realistic range
+    generator = torch.Generator(device="cuda").manual_seed(seed)
+    weight = torch.randn(out_features, in_features, device="cuda", dtype=bench_dtype, generator=generator) * 0.02
+    weight[:, [3, in_features // 2, in_features - 5]] *= 8.0
+    return weight
+
+
+class BenchBlock(torch.nn.Module):
+    # dit-style block: fused qkv self-attention plus a gelu mlp, both with residuals; the
+    # attention_fn attribute is set per benchmark config (stock sdpa or sdnq attention)
+    def __init__(self, hidden, heads, mlp_dim, device=None, dtype=None):
+        super().__init__()
+        self.heads = heads
+        self.norm1 = torch.nn.LayerNorm(hidden, elementwise_affine=False, device=device, dtype=dtype)
+        self.norm2 = torch.nn.LayerNorm(hidden, elementwise_affine=False, device=device, dtype=dtype)
+        self.qkv = torch.nn.Linear(hidden, hidden * 3, bias=False, device=device, dtype=dtype)
+        self.proj = torch.nn.Linear(hidden, hidden, bias=False, device=device, dtype=dtype)
+        self.up = torch.nn.Linear(hidden, mlp_dim, bias=False, device=device, dtype=dtype)
+        self.down = torch.nn.Linear(mlp_dim, hidden, bias=False, device=device, dtype=dtype)
+        self.attention_fn = None
+
+    def forward(self, x):
+        batch, tokens, channels = x.shape
+        h = self.norm1(x)
+        qkv = self.qkv(h).view(batch, tokens, 3, self.heads, channels // self.heads).permute(2, 0, 3, 1, 4)
+        attn = self.attention_fn(qkv[0], qkv[1], qkv[2]).transpose(1, 2).reshape(batch, tokens, channels)
+        x = x + self.proj(attn)
+        h = self.norm2(x)
+        return x + self.down(torch.nn.functional.gelu(self.up(h)))
+
+
+def make_block_master():
+    # one master weight set shared by every block config, so all rows quantize identical weights
+    hidden, heads, mlp_dim = block_geometry["hidden"], block_geometry["heads"], block_geometry["mlp_dim"]
+    block = BenchBlock(hidden, heads, mlp_dim, device="cuda", dtype=bench_dtype)
+    with torch.no_grad():
+        for seed, linear in enumerate((block.qkv, block.proj, block.up, block.down), start=1):
+            linear.weight.copy_(make_source_weight(linear.out_features, linear.in_features, seed=seed))
+    return {key: value.clone() for key, value in block.state_dict().items()}
+
+
+def build_bench_block(master_sd, weights_cfg, use_mm, attention_spec):
+    from modules.sdnq import SDNQConfig
+    from modules.sdnq.quantizer import apply_sdnq_to_module
+    hidden, heads, mlp_dim = block_geometry["hidden"], block_geometry["heads"], block_geometry["mlp_dim"]
+    block = BenchBlock(hidden, heads, mlp_dim, device="cuda", dtype=bench_dtype)
+    block.load_state_dict(master_sd)
+    block.eval()
+    for param in block.parameters():
+        param.requires_grad_(False)
+    if weights_cfg is not None:
+        config = SDNQConfig(use_quantized_matmul=use_mm, add_skip_keys=False, **weights_cfg)
+        block, _config = apply_sdnq_to_module(block, config, torch_dtype=bench_dtype)
+    atten_kwargs = block_attention_specs[attention_spec]
+    if atten_kwargs is None:
+        def attention_fn(q, k, v):
+            return torch.nn.functional.scaled_dot_product_attention(q, k, v)
+    elif isinstance(atten_kwargs, str):
+        sage_fn = sage_attention() if atten_kwargs == "sage" else sage_attention_fp16_accum()
+        if sage_fn is None:
+            raise RuntimeError("sageattention unavailable")
+        def attention_fn(q, k, v, fn=sage_fn):
+            return fn(q, k, v, q.shape[-1] ** -0.5)
+    else:
+        def attention_fn(q, k, v, kw=atten_kwargs):
+            return sdnq_triton_atten(q, k, v, **kw)
+    block.attention_fn = attention_fn
+    return block
+
+
+def block_storage_bytes(block):
+    total = 0
+    for module in block.modules():
+        if hasattr(module, "sdnq_dequantizer"):
+            total += layer_storage_bytes(module)
+        elif isinstance(module, torch.nn.Linear):
+            total += module.weight.numel() * module.weight.element_size()
+    return total
+
+
+def make_quantized_linear(weight, weights_dtype, group_size=0, use_quantized_matmul=False, use_svd=False, use_hadamard=False, quantized_matmul_dtype=None, device="cuda", **config_kwargs):
+    # quantize through the same entry point model loading uses, so forward benches measure
+    # the production wrapper classes and dequantizer configuration; returns the quantize wall
+    # time, a one-shot measurement of what on-the-fly quantization pays per layer at load
+    from modules.sdnq import SDNQConfig
+    from modules.sdnq.quantizer import sdnq_quantize_layer
+    out_features, in_features = weight.shape
+    linear = torch.nn.Linear(in_features, out_features, bias=False, device=device, dtype=bench_dtype)
+    with torch.no_grad():
+        linear.weight.copy_(weight)
+    config = SDNQConfig(weights_dtype=weights_dtype, group_size=group_size, use_quantized_matmul=use_quantized_matmul, use_svd=use_svd, use_hadamard=use_hadamard, quantized_matmul_dtype=quantized_matmul_dtype, add_skip_keys=False, **config_kwargs)
+    torch.cuda.synchronize()
+    started = time.perf_counter()
+    layer, _config = sdnq_quantize_layer(linear, config, torch_dtype=bench_dtype, param_name="bench.weight")
+    torch.cuda.synchronize()
+    quant_seconds = time.perf_counter() - started
+    if not hasattr(layer, "sdnq_dequantizer"):
+        raise RuntimeError(f"sdnq did not quantize the layer to {weights_dtype}")
+    return layer, quant_seconds
+
+
+def layer_storage_bytes(layer):
+    # measured storage of everything the quantized layer keeps: packed weights, scales,
+    # zero points and svd factors; sizes on disk and in vram follow this, not the nominal bits
+    total = 0
+    for name in ("weight", "scale", "zero_point", "svd_up", "svd_down"):
+        tensor = getattr(layer, name, None)
+        if isinstance(tensor, (torch.Tensor, torch.nn.Parameter)):
+            total += tensor.numel() * tensor.element_size()
+    return total
+
+
+def size_cell(size_bytes):
+    return f"{size_bytes / 1024**2:6.1f}mb"
+
+
+def quant_cell(quant_seconds):
+    return f"{quant_seconds * 1000.0:5.0f}ms" if quant_seconds is not None else "-"
+
+
+def dequant_args(layer):
+    # mirror SDNQDequantizer.__call__'s marshaling so the direct compiled call below measures
+    # the same graph the instance would compile
+    deq = layer.sdnq_dequantizer
+    kwargs = dict(
+        zero_point=getattr(layer, "zero_point", None),
+        svd_up=getattr(layer, "svd_up", None),
+        svd_down=getattr(layer, "svd_down", None),
+        dtype=deq.result_dtype,
+        result_shape=deq.result_shape,
+        quantized_weight_shape=deq.quantized_weight_shape,
+        re_quantize_for_matmul=deq.re_quantize_for_matmul or deq.is_packed,
+    )
+    return (deq.weights_dtype, layer.weight, layer.scale), kwargs
+
+
+def get_compiled_dequantize_weight():
+    # sdnq's own dequantize_weight_compiled is a passthrough when the config has Dequantize
+    # using torch.compile off; compile a tool-owned variant with the same kwargs so compiled
+    # rows always measure what the webui runs with the option on. sdnq only raises the dynamo
+    # recompile limits when the option is on; raise them here too or the per-dtype-per-shape
+    # specializations exceed the default limit of 8 and silently fall back to eager
+    global compiled_dequantize_weight # pylint: disable=global-statement
+    if compiled_dequantize_weight is None:
+        for limit_name in ("recompile_limit", "cache_size_limit", "accumulated_recompile_limit", "accumulated_cache_size_limit"):
+            if hasattr(torch._dynamo.config, limit_name): # pylint: disable=protected-access
+                setattr(torch._dynamo.config, limit_name, max(8192, getattr(torch._dynamo.config, limit_name) or 0)) # pylint: disable=protected-access
+        from modules.sdnq.dequantizer import dequantize_weight
+        compiled_dequantize_weight = torch.compile(dequantize_weight, fullgraph=True, dynamic=False)
+    return compiled_dequantize_weight
+
+
+def dequant_gated_to_eager(weights_dtype):
+    # sdnq builds with the fp8 compile gate route e4m3 storage to eager dequant on gpus
+    # where triton cannot compile it; report instead of measuring a silently-eager row
+    try:
+        from modules.sdnq import dequantizer as dequantizer_module
+        gate = getattr(dequantizer_module, "skip_fp8_compile", None)
+        return bool(gate(weights_dtype)) if gate is not None else False
+    except Exception:
+        return False
+
+
+def probe_weight_dequant_compile():
+    # compiled weight dequantization per fp8 storage dtype: triton before sm_89 lacks e4m3
+    # conversions, so compiled dequant of float8_e4m3fn storage crashes on ampere while e5m2
+    # is expected to compile; the verdicts show whether this build needs the fp8 compile gate
+    result = {}
+    for name in ("float8_e4m3fn", "float8_e5m2"):
+        with console.status(f"probing compiled weight dequant: {name} storage (a compile failure here is expected for e4m3 on pre-ada nvidia)"):
+            try:
+                layer, _quant_seconds = make_quantized_linear(make_source_weight(256, 256), name)
+                args, kwargs = dequant_args(layer)
+                out = get_compiled_dequantize_weight()(*args, **kwargs)
+                torch.cuda.synchronize()
+                result[name] = (bool(torch.isfinite(out).all().item()), "compiles and runs")
+            except Exception as e:
+                result[name] = (False, f"{type(e).__name__}: {error_summary(e, 120)}")
+                reset_compiled_dequant() # drop failed compile state so later rows compile fresh
+    return result
+
+
+def reset_compiled_dequant():
+    global compiled_dequantize_weight # pylint: disable=global-statement
+    compiled_dequantize_weight = None
+    torch._dynamo.reset() # pylint: disable=protected-access
+
+
 def run_correctness():
     checks = []
     q, k, v = make_qkv(2, 8, 512, 64, structured=False)
@@ -426,18 +857,31 @@ def run_correctness():
     float_mask[..., 384:] = float("-inf")
     checks.append(("float additive mask", (q, k, v), dict(attn_mask=float_mask), {}))
     checks.append(("smooth k + hadamard", (q, k, v), {}, dict(smooth_k=True, use_hadamard=True)))
+    checks.append(("smooth + hadamard + int8 pv", (q, k, v), {}, dict(smooth_k=True, use_hadamard=True, pv_matmul_dtype="int8")))
     qp, kp, vp = make_qkv(2, 8, 512, 40, structured=False)
     checks.append(("head dim 40 (padded)", (qp, kp, vp), {}, {}))
     checks.append(("head dim 40 + hadamard", (qp, kp, vp), {}, dict(use_hadamard=True)))
     qn, kn, vn = make_qkv(2, 8, 1000, 64, structured=False)
     checks.append(("non-pow2 sequence 1000", (qn, kn, vn), {}, {}))
+    qx, kx, vx = make_qkv(2, 8, 512, 64, structured=False, kv_tokens=77)
+    checks.append(("cross-attention 512q 77kv", (qx, kx, vx), {}, {}))
+    # stress rows model the extreme-activation class (qwen-image, z-image base) where quantized
+    # attention paths have produced non-finite outputs in the wild; they pass on finite output,
+    # errors are informational since saturated softmax legitimately degrades accuracy
+    qs, ks, vs = make_qkv(2, 8, 512, 64, structured=False)
+    checks.append(("stress: 100x activations", (qs * 100.0, ks * 100.0, vs * 100.0), {}, {}))
+    ko = ks.clone()
+    ko[:, :, :2, :] *= 1000.0
+    checks.append(("stress: 1000x outlier keys", (qs, ko, vs), {}, {}))
+    checks.append(("stress: fp16 100x activations", ((qs * 100.0).to(torch.float16), (ks * 100.0).to(torch.float16), (vs * 100.0).to(torch.float16)), {}, {}))
 
     table = Table(box=box.SIMPLE_HEAVY)
     table.add_column("code path")
     table.add_column("kernel error", justify="right")
     table.add_column("int8 error", justify="right")
+    table.add_column("int8 max token", justify="right")
     table.add_column("result", justify="center")
-    panel = Panel(table, title="kernel correctness", subtitle="[dim]small shapes, vs fp32 sdpa reference[/dim]", box=ROUNDED_BOX, expand=False)
+    panel = Panel(table, title="kernel correctness", subtitle="[dim]small shapes, vs fp32 sdpa reference; stress rows pass on finite output[/dim]", box=ROUNDED_BOX, expand=False)
     failed = []
     dynamo_disable = getattr(torch._dynamo.config, "disable", False) # pylint: disable=protected-access
     torch._dynamo.config.disable = True # pylint: disable=protected-access # checks target kernel behavior, run the input prep eager
@@ -451,20 +895,26 @@ def run_correctness():
             ref = fp32_reference(cq, ck, cv, **ref_kwargs)
             try:
                 plain = sdnq_triton_atten(cq, ck, cv, do_quantize=False, **kwargs)
-                quant = sdnq_triton_atten(cq, ck, cv, matmul_dtype="auto", pv_matmul_dtype="auto", **kwargs, **sdnq_kwargs)
+                quant_kwargs = dict(matmul_dtype="auto", pv_matmul_dtype="auto", **kwargs)
+                quant_kwargs.update(sdnq_kwargs)
+                quant = sdnq_triton_atten(cq, ck, cv, **quant_kwargs)
                 err_plain = rel_err(plain, ref)
                 err_quant = rel_err(quant, ref)
-                has_nan = bool(torch.isnan(quant).any().item())
-                ok = err_plain < 0.01 and err_quant < 0.2 and not has_nan
+                max_err = max_token_err(quant, ref)
+                finite = bool(torch.isfinite(plain).all().item() and torch.isfinite(quant).all().item())
+                if name.startswith("stress:"):
+                    ok = finite
+                else:
+                    ok = finite and err_plain < 0.01 and err_quant < 0.2
                 if not ok:
                     failed.append(name)
                 verdict = "[green]pass[/green]" if ok else "[red]fail[/red]"
-                if has_nan:
-                    verdict = "[red]nan[/red]"
-                table.add_row(name, f"{err_plain:.5f}", f"{err_quant:.5f}", verdict)
+                if not finite:
+                    verdict = "[red]non-finite[/red]"
+                table.add_row(name, err_cell(err_plain), err_cell(err_quant), err_cell(max_err), verdict)
             except Exception as e:
                 failed.append(name)
-                table.add_row(name, "-", "-", failure_text(e))
+                table.add_row(name, "-", "-", "-", failure_text(e))
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
@@ -473,10 +923,11 @@ def run_correctness():
         emit(f"[red]failed checks: {', '.join(failed)}[/red]")
     if "head dim 40 + hadamard" in failed and shared.opts.sdnq_attention_use_hadamard:
         emit("[yellow]current config has Use Hadamard enabled: models with non power-of-2 head dims (SD 1.5) fail at generation with it[/yellow]")
+    report["correctness"] = dict(failed=failed, total=len(checks))
     return failed
 
 
-def make_prep_fn(q, k, v, attn_mask, kwargs):
+def make_prep_fn(q, k, v, attn_mask, kwargs, is_causal=False, enable_gqa=False):
     # mirror sdnq_triton_atten's prep call so the prep column measures the same code path
     from modules.sdnq.kernels import triton_atten as atten_module
     from modules.sdnq.quant_utils import get_hadamard, get_hadamard_group_size
@@ -494,7 +945,7 @@ def make_prep_fn(q, k, v, attn_mask, kwargs):
     def prep():
         return atten_module.get_attn_inputs( # module lookup so the static-compile patch applies
             query=q, key=k, value=v, hadamard=hadamard, attn_mask=attn_mask,
-            dropout_p=0.0, is_causal=False, scale=None, enable_gqa=False,
+            dropout_p=0.0, is_causal=is_causal, scale=None, enable_gqa=enable_gqa,
             smooth_k=kwargs.get("smooth_k", False), hadamard_group_size=hadamard_group_size,
             matmul_dtype=matmul_dtype, pv_matmul_dtype=kwargs.get("pv_matmul_dtype", None),
             do_quantize=do_quantize, out_dtype=None,
@@ -503,8 +954,14 @@ def make_prep_fn(q, k, v, attn_mask, kwargs):
 
 
 def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_result=None):
-    batch, heads, tokens, head_dim, description = shape_presets[preset]
-    config_ids = {"wan22": video_config_ids, "ltx2": video_config_ids, "masked": masked_config_ids, "sd15": sd15_config_ids}.get(preset)
+    preset_cfg = shape_presets[preset]
+    batch, heads, tokens, head_dim = preset_cfg["batch"], preset_cfg["heads"], preset_cfg["tokens"], preset_cfg["head_dim"]
+    kv_tokens = preset_cfg.get("kv_tokens", tokens)
+    kv_heads = preset_cfg.get("kv_heads", heads)
+    causal = preset_cfg.get("causal", False)
+    gqa = kv_heads != heads
+    description = preset_cfg["desc"]
+    config_ids = {"wan22": video_config_ids, "wan22-cfg": video_config_ids, "ltx2": video_config_ids, "masked": masked_config_ids, "sd15": sd15_config_ids}.get(preset)
     if preset == "sd15":
         emit("[yellow]sd15: hadamard configs skipped, compiling hadamard with a non pow2 head dim currently hangs torch inductor[/yellow]")
     attn_mask = None
@@ -512,15 +969,23 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
         attn_mask = torch.zeros(batch, 1, 1, tokens, device="cuda", dtype=torch.bool)
         attn_mask[..., :int(tokens * 0.75)] = True
     sage = sage_attention()
+    sage_fp16 = sage_attention_fp16_accum()
+    amd_flash = amd_triton_flash()
     selected_configs = []
     for config_id, label, kwargs in bench_configs:
         if config_ids is not None and config_id not in config_ids:
             continue
-        if config_id == "sage" and (sage is None or attn_mask is not None or head_dim not in {64, 96, 128}):
+        if config_id == "sage" and (sage is None or attn_mask is not None or head_dim not in {64, 96, 128} or kv_tokens != tokens or gqa or causal):
+            continue
+        if config_id == "sagefp16" and (sage_fp16 is None or attn_mask is not None or head_dim not in {64, 96, 128} or kv_tokens != tokens or gqa or causal):
+            continue
+        if config_id == "amdflash" and (amd_flash is None or attn_mask is not None or head_dim > 128 or gqa):
             continue
         if config_id == "fp8qk" and not (fp8_result and fp8_result["qk"][0]):
             continue
         if config_id == "fp8pv" and not (fp8_result and fp8_result["pv"][0]):
+            continue
+        if config_id == "fp8full" and not (fp8_result and fp8_result["qk"][0] and fp8_result["pv"][0]):
             continue
         selected_configs.append((config_id, label, kwargs))
 
@@ -533,8 +998,16 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
         shape_table.add_column("error", justify="right")
         return shape_table
 
+    geometry = f"batch={batch} heads={heads} tokens={tokens} head_dim={head_dim}"
+    if kv_tokens != tokens:
+        geometry += f" kv_tokens={kv_tokens}"
+    if gqa:
+        geometry += f" kv_heads={kv_heads}"
+    if causal:
+        geometry += " causal"
+
     def make_panel(content):
-        return Panel(content, title=f"{preset}: batch={batch} heads={heads} tokens={tokens} head_dim={head_dim} {dtype_label()}", subtitle=f"[dim]{description}[/dim]", box=ROUNDED_BOX, expand=False)
+        return Panel(content, title=f"{preset}: {geometry} {dtype_label()}", subtitle=f"[dim]{description}[/dim]", box=ROUNDED_BOX, expand=False)
 
     table = make_table()
     panel = make_panel(table)
@@ -545,21 +1018,27 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
     progress, task = live_progress()
     with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
         progress.update(task, description=f"{prefix}{preset}: preparing inputs and fp32 reference")
-        q, k, v = make_qkv(batch, heads, tokens, head_dim)
+        q, k, v = make_qkv(batch, heads, tokens, head_dim, kv_heads=kv_heads, kv_tokens=kv_tokens)
         scale = head_dim ** -0.5
-        ref = fp32_reference(q, k, v, attn_mask=attn_mask)
+        ref = fp32_reference(q, k, v, attn_mask=attn_mask, is_causal=causal, enable_gqa=gqa)
         for index, (config_id, label, kwargs) in enumerate(selected_configs, start=1):
             def phase(step, current_label=label, current_index=index):
                 progress.update(task, description=f"{prefix}config {current_index}/{len(selected_configs)}  {current_label}: {step}")
             if config_id == "base":
                 def fn(mask=attn_mask):
-                    return torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask)
+                    return torch.nn.functional.scaled_dot_product_attention(q, k, v, attn_mask=mask, is_causal=causal, enable_gqa=gqa)
             elif config_id == "sage":
                 def fn(sm=scale):
                     return sage(q, k, v, sm)
+            elif config_id == "sagefp16":
+                def fn(sm=scale):
+                    return sage_fp16(q, k, v, sm)
+            elif config_id == "amdflash":
+                def fn(sm=scale):
+                    return amd_flash(q, k, v, sm, is_causal=causal)
             else:
                 def fn(kw=kwargs, mask=attn_mask):
-                    return sdnq_triton_atten(q, k, v, attn_mask=mask, **kw)
+                    return sdnq_triton_atten(q, k, v, attn_mask=mask, is_causal=causal, enable_gqa=gqa, **kw)
             try:
                 torch._dynamo.reset() # pylint: disable=protected-access # one compiled input-prep specialization per config, matching how the webui runs a fixed config
                 progress.reset(task) # restart the elapsed clock so it times the current config
@@ -568,27 +1047,28 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
                     err = rel_err(fn(), ref)
                 ms = bench(fn, warmup, iters, on_phase=phase)
                 prep_cell = "-"
+                prep_ms = None
                 if kwargs is not None: # time the input prep alone; included in the median
                     try:
                         phase("timing input prep")
-                        prep_ms = bench(make_prep_fn(q, k, v, attn_mask, kwargs), warmup, iters)
+                        prep_ms = bench(make_prep_fn(q, k, v, attn_mask, kwargs, is_causal=causal, enable_gqa=gqa), warmup, iters)
                         prep_cell = f"[dim]{prep_ms:8.3f} ms[/dim]"
                     except Exception:
                         pass
                 if base_ms is None:
                     base_ms = ms
-                results[config_id] = (ms, err)
+                results[config_id] = dict(ms=ms, err=err, prep_ms=prep_ms)
                 row = (label, f"{ms:8.3f} ms", prep_cell, speedup_cell(base_ms, ms), f"{err:.5f}")
                 rows.append((config_id, ms, row))
                 table.add_row(*row)
             except Exception as e:
-                results[config_id] = (None, None)
+                results[config_id] = dict(ms=None, err=None, prep_ms=None, error=error_summary(e, 200))
                 row = (label, "-", "-", "-", failure_text(e))
                 rows.append((config_id, None, row))
                 table.add_row(*row)
         # rebuild the table to star the best sdnq config when it beats the baseline
         best_id = best_config(results)
-        if base_ms and best_id is not None and results[best_id][0] < base_ms:
+        if base_ms and best_id is not None and results[best_id]["ms"] < base_ms:
             table = make_table()
             for config_id, _ms, row in rows:
                 if config_id == best_id:
@@ -599,17 +1079,984 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
+    report.setdefault("attention", {})[preset] = dict(geometry=geometry, results=results)
+    return results
+
+
+def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, position=None, config_timeout=300, selected_dtypes=None):
+    from modules.sdnq.common import check_torch_compile
+    compile_on = check_torch_compile()
+    dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if selected_dtypes is None or dtype_id in selected_dtypes]
+
+    def make_table():
+        shape_table = Table(box=box.SIMPLE_HEAVY)
+        shape_table.add_column("config")
+        shape_table.add_column("quant", justify="right")
+        shape_table.add_column("size", justify="right")
+        shape_table.add_column("deq eager", justify="right")
+        shape_table.add_column("deq compiled", justify="right")
+        shape_table.add_column("weight err", justify="right")
+        shape_table.add_column("fwd eager", justify="right")
+        shape_table.add_column("fwd compiled", justify="right")
+        shape_table.add_column("quantized mm", justify="right")
+        shape_table.add_column("mm err", justify="right")
+        shape_table.add_column("speedup", justify="right")
+        return shape_table
+
+    def make_panel(content):
+        subtitle = f"[dim]{dequant_forward_tokens} token input, bias-free linears, errors vs fp32; quantized mm and speedup follow the current config (compile {'on' if compile_on else 'off'})[/dim]"
+        return Panel(content, title=f"weight dequant: {shape_label} {dtype_label()}", subtitle=subtitle, box=ROUNDED_BOX, expand=False)
+
+    table = make_table()
+    panel = make_panel(table)
+    results = {}
+    notes = []
+    prefix = f"shape {position[0]}/{position[1]}  " if position else ""
+    progress, task = live_progress()
+    with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+        progress.update(task, description=f"{prefix}{shape_label}: preparing weights and bf16 baseline")
+        weight = make_source_weight(out_features, in_features)
+        weight_fp32 = weight.to(torch.float32)
+        generator = torch.Generator(device="cuda").manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        baseline = torch.nn.Linear(in_features, out_features, bias=False, device="cuda", dtype=bench_dtype)
+        with torch.no_grad():
+            baseline.weight.copy_(weight)
+
+        def baseline_fn():
+            return baseline(x)
+
+        ref_out = fp32_linear_reference(x, weight_fp32)
+        base_ms = bench(baseline_fn, warmup, iters)
+        base_err = rel_err(baseline_fn(), ref_out)
+        base_bytes = baseline.weight.numel() * baseline.weight.element_size()
+        results["bf16"] = dict(fwd_ms=base_ms, fwd_err=base_err, size_bytes=base_bytes)
+        table.add_row(f"{dtype_label()} nn.Linear", "-", size_cell(base_bytes), "-", "-", "-", f"{base_ms:8.3f} ms", "-", "-", "-", "x1.00")
+
+        for index, (dtype_id, label, cfg) in enumerate(dtype_configs, start=1):
+            def phase(step, current_label=label, current_index=index):
+                progress.update(task, description=f"{prefix}config {current_index}/{len(dtype_configs)}  {current_label}: {step}")
+            entry = dict(eager_ms=None, compiled_ms=None, fwd_eager_ms=None, fwd_compiled_ms=None, fwd_err=None, mm_ms=None, mm_err=None, mm_dtype=None, weight_err=None, quant_s=None, size_bytes=None)
+            results[dtype_id] = entry
+            progress.reset(task)
+            phase("quantizing")
+            try:
+                layer, entry["quant_s"] = make_quantized_linear(weight, **cfg)
+                entry["size_bytes"] = layer_storage_bytes(layer)
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(label, "-", "-", "-", "-", "-", "-", "-", "-", "-", failure_text(e))
+                continue
+
+            def eager_fn(current=layer):
+                return current.sdnq_dequantizer(
+                    current.weight, current.scale,
+                    zero_point=getattr(current, "zero_point", None),
+                    svd_up=getattr(current, "svd_up", None), svd_down=getattr(current, "svd_down", None),
+                    skip_compile=True,
+                )
+
+            try:
+                phase("timing eager dequant")
+                eager_out = eager_fn().to(torch.float32)
+                entry["eager_ms"] = bench(eager_fn, warmup, iters)
+                entry["weight_err"] = rel_err(eager_out, weight_fp32)
+                eager_cell = f"{entry['eager_ms']:8.3f} ms"
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), failure_text(e), "-", "-", "-", "-", "-", "-", "-")
+                del layer
+                continue
+
+            if dequant_gated_to_eager(cfg["weights_dtype"]):
+                compiled_cell = "[yellow]gated to eager[/yellow]"
+                entry["compiled_gated"] = True
+            else:
+                try:
+                    args, kwargs = dequant_args(layer)
+                    def compiled_fn(current_args=args, current_kwargs=kwargs):
+                        return get_compiled_dequantize_weight()(*current_args, **current_kwargs)
+                    phase("compiling dequant")
+                    with time_limit(config_timeout, label):
+                        compiled_out = compiled_fn()
+                        torch.cuda.synchronize()
+                    entry["compiled_ms"] = bench(compiled_fn, warmup, iters, on_phase=phase)
+                    compiled_cell = f"{entry['compiled_ms']:8.3f} ms"
+                    drift = rel_err(compiled_out, eager_out)
+                    if drift > 1e-3:
+                        notes.append(f"[yellow]{label}: compiled dequant differs from eager by {drift:.2e} relative[/yellow]")
+                        entry["compiled_drift"] = drift
+                    del compiled_out
+                except Exception as e:
+                    entry["compiled_error"] = error_summary(e, 200)
+                    compiled_cell = failure_text(e)
+                    reset_compiled_dequant()
+            del eager_out
+
+            def fwd_fn(current=layer):
+                return current(x)
+
+            # eager-mode forward: the dequantizer's __call__ resolves dequantize_weight_compiled
+            # as a module global at call time, so pointing it at the eager function for the
+            # bench matches the webui with Dequantize using torch.compile off. do not toggle
+            # torch._dynamo.config.disable instead: code objects called during a disable window
+            # keep their skip marking and never compile again in this process
+            from modules.sdnq import dequantizer as dequantizer_module
+            saved_compiled_fn = dequantizer_module.dequantize_weight_compiled
+            try:
+                phase("timing linear forward, eager dequant")
+                dequantizer_module.dequantize_weight_compiled = dequantizer_module.dequantize_weight
+                fwd_fn()
+                torch.cuda.synchronize()
+                entry["fwd_eager_ms"] = bench(fwd_fn, warmup, iters)
+                entry["fwd_err"] = rel_err(fwd_fn(), ref_out)
+                fwd_eager_cell = f"{entry['fwd_eager_ms']:8.3f} ms"
+            except Exception as e:
+                entry["fwd_eager_error"] = error_summary(e, 200)
+                fwd_eager_cell = failure_text(e)
+            finally:
+                dequantizer_module.dequantize_weight_compiled = saved_compiled_fn
+
+            try:
+                phase("compiling linear forward")
+                with time_limit(config_timeout, label):
+                    fwd_fn()
+                    torch.cuda.synchronize()
+                phase("timing linear forward, compiled dequant")
+                entry["fwd_compiled_ms"] = bench(fwd_fn, warmup, iters)
+                fwd_compiled_cell = f"{entry['fwd_compiled_ms']:8.3f} ms"
+            except Exception as e:
+                entry["fwd_compiled_error"] = error_summary(e, 200)
+                fwd_compiled_cell = failure_text(e)
+                torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+            del layer
+
+            fwd_ms = entry["fwd_compiled_ms"] if compile_on else entry["fwd_eager_ms"]
+            entry["fwd_ms"] = fwd_ms # the mode the current config runs; recommendations and speedup key off it
+            speedup = speedup_cell(base_ms, fwd_ms) if fwd_ms else "-"
+
+            try:
+                phase("quantizing for quantized matmul")
+                mm_layer, _mm_quant_seconds = make_quantized_linear(weight, use_quantized_matmul=True, **cfg)
+                entry["mm_dtype"] = mm_layer.sdnq_dequantizer.quantized_matmul_dtype
+                def mm_fn(current=mm_layer):
+                    return current(x)
+                phase("timing quantized matmul forward")
+                with time_limit(config_timeout, label):
+                    mm_fn()
+                    torch.cuda.synchronize()
+                entry["mm_ms"] = bench(mm_fn, warmup, iters)
+                entry["mm_err"] = rel_err(mm_fn(), ref_out)
+                mm_cell = f"{entry['mm_ms']:8.3f} ms [dim]{entry['mm_dtype']}[/dim]"
+                del mm_layer
+            except Exception as e:
+                entry["mm_error"] = error_summary(e, 200)
+                mm_cell = failure_text(e)
+
+            if entry["fwd_err"] and entry["weight_err"] and abs(entry["fwd_err"] - entry["weight_err"]) > 0.2 * entry["weight_err"]:
+                notes.append(f"[yellow]{label}: forward output error {entry['fwd_err']:.5f} diverges from weight error {entry['weight_err']:.5f}[/yellow]")
+            table.add_row(label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), eager_cell, compiled_cell, err_cell(entry["weight_err"]), fwd_eager_cell, fwd_compiled_cell, mm_cell, err_cell(entry["mm_err"]), speedup)
+        live.update(panel)
+    console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+    transcript.append(panel)
+    for note in notes:
+        emit(note)
+    report.setdefault("dequant", {})[shape_label] = dict(out_features=out_features, in_features=in_features, base_ms=base_ms, results=results)
+    return results
+
+
+def bench_dequant_variants(shape_label, out_features, in_features, plain_results, selected_dtypes, selected_variants, iters, warmup, config_timeout=300):
+    # svd and hadamard on top of the base dtypes: the quantize-time, size and error cost of
+    # each option, benched through the production dequantizer path at one layer shape
+    variant_configs = [(variant_id, cfg) for variant_id, cfg in dequant_variant_configs if variant_id in selected_variants]
+    dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if dtype_id in dequant_variant_dtypes and (selected_dtypes is None or dtype_id in selected_dtypes)]
+    if not variant_configs or not dtype_configs:
+        return {}
+
+    table = Table(box=box.SIMPLE_HEAVY)
+    table.add_column("config")
+    table.add_column("quant", justify="right")
+    table.add_column("size", justify="right")
+    table.add_column("deq compiled", justify="right")
+    table.add_column("weight err", justify="right")
+    table.add_column("err vs plain", justify="right")
+    table.add_column("fwd compiled", justify="right")
+    table.add_column("speedup", justify="right")
+    panel = Panel(table, title=f"svd / hadamard variants: {shape_label} {dtype_label()}", subtitle="[dim]plain rows repeated dimmed for comparison; err vs plain below x1.00 = better reconstruction[/dim]", box=ROUNDED_BOX, expand=False)
+
+    results = {}
+    base_ms = plain_results.get("bf16", {}).get("fwd_ms")
+    runs = [(dtype_id, label, cfg, variant_id, variant_cfg) for dtype_id, label, cfg in dtype_configs for variant_id, variant_cfg in variant_configs]
+    progress, task = live_progress()
+    with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+        weight = make_source_weight(out_features, in_features)
+        weight_fp32 = weight.to(torch.float32)
+        generator = torch.Generator(device="cuda").manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        added_plain = set()
+        for index, (dtype_id, label, cfg, variant_id, variant_cfg) in enumerate(runs, start=1):
+            row_label = f"{label} + {variant_id}"
+            def phase(step, current_label=row_label, current_index=index):
+                progress.update(task, description=f"variant {current_index}/{len(runs)}  {current_label}: {step}")
+            if dtype_id not in added_plain:
+                added_plain.add(dtype_id)
+                plain = plain_results.get(dtype_id) or {}
+                if plain.get("weight_err") is not None:
+                    plain_fwd = plain.get("fwd_compiled_ms")
+                    table.add_row(
+                        f"[dim]{label}[/dim]", f"[dim]{quant_cell(plain.get('quant_s'))}[/dim]", f"[dim]{size_cell(plain['size_bytes'])}[/dim]",
+                        f"[dim]{plain['compiled_ms']:8.3f} ms[/dim]" if plain.get("compiled_ms") else "-",
+                        f"[dim]{plain['weight_err']:.5f}[/dim]", "[dim]x1.00[/dim]",
+                        f"[dim]{plain_fwd:8.3f} ms[/dim]" if plain_fwd else "-",
+                        f"[dim]{speedup_cell(base_ms, plain_fwd)}[/dim]" if base_ms and plain_fwd else "-",
+                    )
+            entry = dict(quant_s=None, size_bytes=None, compiled_ms=None, weight_err=None, err_ratio=None, fwd_ms=None)
+            results[f"{dtype_id}+{variant_id}"] = entry
+            progress.reset(task)
+            phase("quantizing")
+            try:
+                layer, entry["quant_s"] = make_quantized_linear(weight, **cfg, **variant_cfg)
+                entry["size_bytes"] = layer_storage_bytes(layer)
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(row_label, "-", "-", "-", "-", "-", "-", failure_text(e))
+                continue
+
+            def deq_fn(current=layer):
+                return current.sdnq_dequantizer(
+                    current.weight, current.scale,
+                    zero_point=getattr(current, "zero_point", None),
+                    svd_up=getattr(current, "svd_up", None), svd_down=getattr(current, "svd_down", None),
+                )
+
+            def fwd_fn(current=layer):
+                return current(x)
+
+            try:
+                phase("compiling dequant")
+                with time_limit(config_timeout, row_label):
+                    deq_out = deq_fn().to(torch.float32)
+                    torch.cuda.synchronize()
+                entry["compiled_ms"] = bench(deq_fn, warmup, iters, on_phase=phase)
+                entry["weight_err"] = rel_err(deq_out, weight_fp32)
+                plain_err = (plain_results.get(dtype_id) or {}).get("weight_err")
+                entry["err_ratio"] = entry["weight_err"] / plain_err if plain_err else None
+                del deq_out
+                phase("timing linear forward")
+                with time_limit(config_timeout, row_label):
+                    fwd_fn()
+                    torch.cuda.synchronize()
+                entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
+                table.add_row(
+                    row_label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]),
+                    f"{entry['compiled_ms']:8.3f} ms", err_cell(entry["weight_err"]),
+                    f"x{entry['err_ratio']:.2f}" if entry["err_ratio"] else "-",
+                    f"{entry['fwd_ms']:8.3f} ms",
+                    speedup_cell(base_ms, entry["fwd_ms"]) if base_ms else "-",
+                )
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(row_label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), "-", "-", "-", "-", failure_text(e))
+                torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+            del layer
+        live.update(panel)
+    console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+    transcript.append(panel)
+    torch.cuda.empty_cache()
+    report["dequant_variants"] = dict(shape=shape_label, results=results)
+    return results
+
+
+def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300):
+    # explicit MatMul type for float storage dtypes: under auto these route quantized matmul to
+    # fp8, which not every gpu can run; measure what setting int8 or float16 costs instead
+    dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if dtype_id in float_mm_dtypes and (selected_dtypes is None or dtype_id in selected_dtypes)]
+    if not dtype_configs:
+        return {}
+
+    table = Table(box=box.SIMPLE_HEAVY)
+    table.add_column("config")
+    table.add_column("quant", justify="right")
+    table.add_column("mm fwd", justify="right")
+    table.add_column("out err", justify="right")
+    table.add_column("vs dequant", justify="right")
+    panel = Panel(table, title=f"float weights, explicit MatMul type: {shape_label} {dtype_label()}", subtitle="[dim]quantized matmul with the MatMul type set explicitly; dequant path and auto rows repeated dimmed; vs dequant above x1.00 = faster than the dequant-path forward[/dim]", box=ROUNDED_BOX, expand=False)
+
+    results = {}
+    runs = [(dtype_id, label, cfg, mm_dtype) for dtype_id, label, cfg in dtype_configs for mm_dtype in float_mm_alternative_dtypes]
+    progress, task = live_progress()
+    with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+        weight = make_source_weight(out_features, in_features)
+        weight_fp32 = weight.to(torch.float32)
+        generator = torch.Generator(device="cuda").manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        ref_out = fp32_linear_reference(x, weight_fp32)
+        added_plain = set()
+        for index, (dtype_id, label, cfg, mm_dtype) in enumerate(runs, start=1):
+            row_label = f"{label} + {mm_dtype} mm"
+            def phase(step, current_label=row_label, current_index=index):
+                progress.update(task, description=f"float mm {current_index}/{len(runs)}  {current_label}: {step}")
+            plain = plain_results.get(dtype_id) or {}
+            fwd_ms = plain.get("fwd_ms")
+            if dtype_id not in added_plain:
+                added_plain.add(dtype_id)
+                if fwd_ms:
+                    table.add_row(f"[dim]{label} dequant path[/dim]", "-", f"[dim]{fwd_ms:8.3f} ms[/dim]", f"[dim]{plain['fwd_err']:.5f}[/dim]" if plain.get("fwd_err") else "-", "[dim]x1.00[/dim]")
+                if plain.get("mm_ms"):
+                    table.add_row(f"[dim]{label} + auto ({plain.get('mm_dtype')})[/dim]", "-", f"[dim]{plain['mm_ms']:8.3f} ms[/dim]", f"[dim]{plain['mm_err']:.5f}[/dim]" if plain.get("mm_err") else "-", f"[dim]{speedup_cell(fwd_ms, plain['mm_ms'])}[/dim]" if fwd_ms else "-")
+                elif plain.get("mm_error"):
+                    table.add_row(f"[dim]{label} + auto ({plain.get('mm_dtype') or 'float8_e4m3fn'})[/dim]", "-", failure_text(RuntimeError(plain["mm_error"])), "-", "-")
+            entry = dict(quant_s=None, mm_ms=None, mm_err=None, mm_dtype=None)
+            results[f"{dtype_id}+{mm_dtype}"] = entry
+            progress.reset(task)
+            phase("quantizing")
+            try:
+                layer, entry["quant_s"] = make_quantized_linear(weight, use_quantized_matmul=True, quantized_matmul_dtype=mm_dtype, **cfg)
+                entry["mm_dtype"] = layer.sdnq_dequantizer.quantized_matmul_dtype
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(row_label, "-", failure_text(e), "-", "-")
+                continue
+
+            def mm_fn(current=layer):
+                return current(x)
+
+            try:
+                phase("compiling quantized matmul forward")
+                with time_limit(config_timeout, row_label):
+                    mm_fn()
+                    torch.cuda.synchronize()
+                phase("timing quantized matmul forward")
+                entry["mm_ms"] = bench(mm_fn, warmup, iters)
+                entry["mm_err"] = rel_err(mm_fn(), ref_out)
+                table.add_row(row_label, quant_cell(entry["quant_s"]), f"{entry['mm_ms']:8.3f} ms", err_cell(entry["mm_err"]), speedup_cell(fwd_ms, entry["mm_ms"]) if fwd_ms else "-")
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(row_label, quant_cell(entry["quant_s"]), failure_text(e), "-", "-")
+                torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+            del layer
+        live.update(panel)
+    console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+    transcript.append(panel)
+    torch.cuda.empty_cache()
+    report["dequant_float_mm"] = dict(shape=shape_label, results=results)
+    return results
+
+
+def resolved_group_label(layer, in_features):
+    # infer the group size sdnq actually used from the stored scale shape: grouped scales are
+    # [out, groups, 1], row-wise scales collapse the group axis
+    scale = getattr(layer, "scale", None)
+    if scale is None:
+        return "-"
+    if scale.ndim >= 3 and scale.shape[1] > 1:
+        return f"g{in_features // scale.shape[1]}"
+    return "row"
+
+
+def bench_group_sizes(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300):
+    # the Group size setting: 0 = auto, -1 = row-wise, explicit values snap to a divisor of
+    # in_features; grouping forces a per-forward re-quantize when quantized matmul is on, so
+    # the mm cells price that cost alongside the accuracy gain
+    dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if dtype_id in group_sweep_dtypes and (selected_dtypes is None or dtype_id in selected_dtypes)]
+    if not dtype_configs:
+        return {}
+
+    table = Table(box=box.SIMPLE_HEAVY)
+    table.add_column("config")
+    table.add_column("quant", justify="right")
+    table.add_column("size", justify="right")
+    table.add_column("weight err", justify="right")
+    table.add_column("fwd", justify="right")
+    table.add_column("quantized mm", justify="right")
+    table.add_column("mm err", justify="right")
+    panel = Panel(table, title=f"group size sweep: {shape_label} {dtype_label()}", subtitle="[dim]Group size setting; auto and the mm path can resolve to different groups, resolved size shown per cell[/dim]", box=ROUNDED_BOX, expand=False)
+
+    results = {}
+    runs = [(dtype_id, label, cfg, group) for dtype_id, label, cfg in dtype_configs for group in group_sweep_values]
+    progress, task = live_progress()
+    with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+        weight = make_source_weight(out_features, in_features)
+        weight_fp32 = weight.to(torch.float32)
+        generator = torch.Generator(device="cuda").manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        ref_out = fp32_linear_reference(x, weight_fp32)
+        for index, (dtype_id, label, cfg, group) in enumerate(runs, start=1):
+            group_label = {0: "auto", -1: "row"}.get(group, str(group))
+            row_label = f"{label} group {group_label}"
+            def phase(step, current_label=row_label, current_index=index):
+                progress.update(task, description=f"group {current_index}/{len(runs)}  {current_label}: {step}")
+            entry = dict(quant_s=None, size_bytes=None, weight_err=None, fwd_ms=None, mm_ms=None, mm_err=None, group=group, resolved=None, mm_resolved=None)
+            results[f"{dtype_id}@{group}"] = entry
+            progress.reset(task)
+            phase("quantizing")
+            base_cfg = {key: value for key, value in cfg.items() if key != "group_size"}
+            try:
+                layer, entry["quant_s"] = make_quantized_linear(weight, group_size=group, **base_cfg)
+                entry["size_bytes"] = layer_storage_bytes(layer)
+                entry["resolved"] = resolved_group_label(layer, in_features)
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(row_label, "-", "-", failure_text(e), "-", "-", "-")
+                continue
+
+            def fwd_fn(current=layer):
+                return current(x)
+
+            try:
+                phase("timing dequant and forward")
+                with time_limit(config_timeout, row_label):
+                    deq_out = layer.sdnq_dequantizer(
+                        layer.weight, layer.scale,
+                        zero_point=getattr(layer, "zero_point", None),
+                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                    ).to(torch.float32)
+                    fwd_fn()
+                    torch.cuda.synchronize()
+                entry["weight_err"] = rel_err(deq_out, weight_fp32)
+                del deq_out
+                entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(row_label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), "-", failure_text(e), "-", "-")
+                torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+                del layer
+                continue
+            del layer
+
+            mm_cell, mm_err_cell = "-", "-"
+            try:
+                phase("quantizing for quantized matmul")
+                mm_layer, _mm_quant_seconds = make_quantized_linear(weight, group_size=group, use_quantized_matmul=True, **base_cfg)
+                entry["mm_resolved"] = resolved_group_label(mm_layer, in_features)
+                def mm_fn(current=mm_layer):
+                    return current(x)
+                phase("timing quantized matmul forward")
+                with time_limit(config_timeout, row_label):
+                    mm_fn()
+                    torch.cuda.synchronize()
+                entry["mm_ms"] = bench(mm_fn, warmup, iters)
+                entry["mm_err"] = rel_err(mm_fn(), ref_out)
+                mm_suffix = f" [dim]{entry['mm_resolved']}[/dim]" if entry["mm_resolved"] != entry["resolved"] else ""
+                mm_cell = f"{entry['mm_ms']:8.3f} ms{mm_suffix}"
+                mm_err_cell = err_cell(entry["mm_err"])
+                del mm_layer
+            except Exception as e:
+                entry["mm_error"] = error_summary(e, 200)
+                mm_cell = failure_text(e)
+                torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+
+            shown_label = f"{row_label} [dim]({entry['resolved']})[/dim]" if group == 0 else row_label
+            table.add_row(shown_label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), err_cell(entry["weight_err"]), f"{entry['fwd_ms']:8.3f} ms", mm_cell, mm_err_cell)
+        live.update(panel)
+    console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+    transcript.append(panel)
+    torch.cuda.empty_cache()
+    report["dequant_group_sizes"] = dict(shape=shape_label, results=results)
+    return results
+
+
+def bench_svd_ranks(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300):
+    # the SVD rank size setting: rank drives both outlier absorption and the rank x (in + out)
+    # fp16 size overhead; plain no-svd rows repeated dimmed for comparison
+    dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if dtype_id in svd_rank_sweep_dtypes and (selected_dtypes is None or dtype_id in selected_dtypes)]
+    if not dtype_configs:
+        return {}
+
+    table = Table(box=box.SIMPLE_HEAVY)
+    table.add_column("config")
+    table.add_column("quant", justify="right")
+    table.add_column("size", justify="right")
+    table.add_column("weight err", justify="right")
+    table.add_column("err vs plain", justify="right")
+    table.add_column("fwd", justify="right")
+    panel = Panel(table, title=f"svd rank sweep: {shape_label} {dtype_label()}", subtitle="[dim]SVD rank size setting at svd steps 8; err vs plain below x1.00 = better reconstruction[/dim]", box=ROUNDED_BOX, expand=False)
+
+    results = {}
+    runs = [(dtype_id, label, cfg, rank) for dtype_id, label, cfg in dtype_configs for rank in svd_rank_sweep_values]
+    progress, task = live_progress()
+    with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+        weight = make_source_weight(out_features, in_features)
+        weight_fp32 = weight.to(torch.float32)
+        generator = torch.Generator(device="cuda").manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        added_plain = set()
+        for index, (dtype_id, label, cfg, rank) in enumerate(runs, start=1):
+            row_label = f"{label} + svd rank {rank}"
+            def phase(step, current_label=row_label, current_index=index):
+                progress.update(task, description=f"svd {current_index}/{len(runs)}  {current_label}: {step}")
+            plain = plain_results.get(dtype_id) or {}
+            if dtype_id not in added_plain:
+                added_plain.add(dtype_id)
+                if plain.get("weight_err") is not None:
+                    plain_fwd = plain.get("fwd_ms")
+                    table.add_row(f"[dim]{label}[/dim]", f"[dim]{quant_cell(plain.get('quant_s'))}[/dim]", f"[dim]{size_cell(plain['size_bytes'])}[/dim]", f"[dim]{plain['weight_err']:.5f}[/dim]", "[dim]x1.00[/dim]", f"[dim]{plain_fwd:8.3f} ms[/dim]" if plain_fwd else "-")
+            entry = dict(quant_s=None, size_bytes=None, weight_err=None, err_ratio=None, fwd_ms=None, rank=rank)
+            results[f"{dtype_id}@{rank}"] = entry
+            progress.reset(task)
+            phase("quantizing (svd)")
+            try:
+                layer, entry["quant_s"] = make_quantized_linear(weight, use_svd=True, svd_rank=rank, **cfg)
+                entry["size_bytes"] = layer_storage_bytes(layer)
+                def fwd_fn(current=layer):
+                    return current(x)
+                phase("timing dequant and forward")
+                with time_limit(config_timeout, row_label):
+                    deq_out = layer.sdnq_dequantizer(
+                        layer.weight, layer.scale,
+                        zero_point=getattr(layer, "zero_point", None),
+                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                    ).to(torch.float32)
+                    fwd_fn()
+                    torch.cuda.synchronize()
+                entry["weight_err"] = rel_err(deq_out, weight_fp32)
+                del deq_out
+                plain_err = plain.get("weight_err")
+                entry["err_ratio"] = entry["weight_err"] / plain_err if plain_err else None
+                entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
+                table.add_row(row_label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), err_cell(entry["weight_err"]), f"x{entry['err_ratio']:.2f}" if entry["err_ratio"] else "-", f"{entry['fwd_ms']:8.3f} ms")
+                del layer
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(row_label, quant_cell(entry["quant_s"]), "-", "-", "-", failure_text(e))
+                torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+        live.update(panel)
+    console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+    transcript.append(panel)
+    torch.cuda.empty_cache()
+    report["dequant_svd_ranks"] = dict(shape=shape_label, results=results)
+    return results
+
+
+def bench_hadamard_groups(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300):
+    # the weight-side Hadamard group size setting, swept on int8 where rotation measured the
+    # largest gain; unlike the attention slider it is not clamped to head dim
+    if selected_dtypes is not None and "int8" not in selected_dtypes:
+        return {}
+
+    table = Table(box=box.SIMPLE_HEAVY)
+    table.add_column("config")
+    table.add_column("quant", justify="right")
+    table.add_column("size", justify="right")
+    table.add_column("weight err", justify="right")
+    table.add_column("err vs plain", justify="right")
+    table.add_column("fwd", justify="right")
+    panel = Panel(table, title=f"hadamard group size sweep: int8 {shape_label} {dtype_label()}", subtitle="[dim]weight-side Hadamard group size setting; err vs plain below x1.00 = better reconstruction[/dim]", box=ROUNDED_BOX, expand=False)
+
+    results = {}
+    plain = plain_results.get("int8") or {}
+    progress, task = live_progress()
+    with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+        weight = make_source_weight(out_features, in_features)
+        weight_fp32 = weight.to(torch.float32)
+        generator = torch.Generator(device="cuda").manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        if plain.get("weight_err") is not None:
+            plain_fwd = plain.get("fwd_ms")
+            table.add_row("[dim]int8[/dim]", f"[dim]{quant_cell(plain.get('quant_s'))}[/dim]", f"[dim]{size_cell(plain['size_bytes'])}[/dim]", f"[dim]{plain['weight_err']:.5f}[/dim]", "[dim]x1.00[/dim]", f"[dim]{plain_fwd:8.3f} ms[/dim]" if plain_fwd else "-")
+        for index, hgroup in enumerate(hadamard_group_values, start=1):
+            row_label = f"int8 + hadamard group {hgroup}"
+            def phase(step, current_label=row_label, current_index=index):
+                progress.update(task, description=f"hadamard group {current_index}/{len(hadamard_group_values)}  {current_label}: {step}")
+            entry = dict(quant_s=None, size_bytes=None, weight_err=None, err_ratio=None, fwd_ms=None, hgroup=hgroup)
+            results[str(hgroup)] = entry
+            progress.reset(task)
+            phase("quantizing (hadamard)")
+            try:
+                layer, entry["quant_s"] = make_quantized_linear(weight, "int8", use_hadamard=True, hadamard_group_size=hgroup)
+                entry["size_bytes"] = layer_storage_bytes(layer)
+                def fwd_fn(current=layer):
+                    return current(x)
+                phase("timing dequant and forward")
+                with time_limit(config_timeout, row_label):
+                    deq_out = layer.sdnq_dequantizer(
+                        layer.weight, layer.scale,
+                        zero_point=getattr(layer, "zero_point", None),
+                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                    ).to(torch.float32)
+                    fwd_fn()
+                    torch.cuda.synchronize()
+                entry["weight_err"] = rel_err(deq_out, weight_fp32)
+                del deq_out
+                plain_err = plain.get("weight_err")
+                entry["err_ratio"] = entry["weight_err"] / plain_err if plain_err else None
+                entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
+                table.add_row(row_label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), err_cell(entry["weight_err"]), f"x{entry['err_ratio']:.2f}" if entry["err_ratio"] else "-", f"{entry['fwd_ms']:8.3f} ms")
+                del layer
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(row_label, quant_cell(entry["quant_s"]), "-", "-", "-", failure_text(e))
+                torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+        live.update(panel)
+    console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+    transcript.append(panel)
+    torch.cuda.empty_cache()
+    report["dequant_hadamard_groups"] = dict(shape=shape_label, results=results)
+    return results
+
+
+def bench_quant_toggles(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300):
+    # remaining checkbox-level settings: Dequantize using full precision off (scales kept in
+    # the model dtype instead of fp32), Dynamic quantization (per-layer dtype escalation until
+    # the loss threshold passes), and Quantize using GPU (quantization wall time on cpu)
+    fp32_dtypes = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if dtype_id in toggle_dtypes and (selected_dtypes is None or dtype_id in selected_dtypes)]
+    results = dict(fp32_off={}, dynamic={}, cpu_quant_s=None, gpu_quant_s=None)
+
+    table = Table(box=box.SIMPLE_HEAVY)
+    table.add_column("config")
+    table.add_column("quant", justify="right")
+    table.add_column("size", justify="right")
+    table.add_column("weight err", justify="right")
+    table.add_column("fwd", justify="right")
+    panel = Panel(table, title=f"dequantize full precision off: {shape_label} {dtype_label()}", subtitle="[dim]Dequantize using full precision unchecked; full-precision rows repeated dimmed[/dim]", box=ROUNDED_BOX, expand=False)
+    progress, task = live_progress()
+    with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+        weight = make_source_weight(out_features, in_features)
+        weight_fp32 = weight.to(torch.float32)
+        generator = torch.Generator(device="cuda").manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        for index, (dtype_id, label, cfg) in enumerate(fp32_dtypes, start=1):
+            row_label = f"{label} + fp32 dequant off"
+            def phase(step, current_label=row_label, current_index=index):
+                progress.update(task, description=f"toggle {current_index}/{len(fp32_dtypes)}  {current_label}: {step}")
+            plain = plain_results.get(dtype_id) or {}
+            if plain.get("weight_err") is not None:
+                plain_fwd = plain.get("fwd_ms")
+                table.add_row(f"[dim]{label}[/dim]", f"[dim]{quant_cell(plain.get('quant_s'))}[/dim]", f"[dim]{size_cell(plain['size_bytes'])}[/dim]", f"[dim]{plain['weight_err']:.5f}[/dim]", f"[dim]{plain_fwd:8.3f} ms[/dim]" if plain_fwd else "-")
+            entry = dict(quant_s=None, size_bytes=None, weight_err=None, fwd_ms=None)
+            results["fp32_off"][dtype_id] = entry
+            progress.reset(task)
+            phase("quantizing")
+            try:
+                layer, entry["quant_s"] = make_quantized_linear(weight, dequantize_fp32=False, **cfg)
+                entry["size_bytes"] = layer_storage_bytes(layer)
+                def fwd_fn(current=layer):
+                    return current(x)
+                phase("timing dequant and forward")
+                with time_limit(config_timeout, row_label):
+                    deq_out = layer.sdnq_dequantizer(
+                        layer.weight, layer.scale,
+                        zero_point=getattr(layer, "zero_point", None),
+                        svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                    ).to(torch.float32)
+                    fwd_fn()
+                    torch.cuda.synchronize()
+                entry["weight_err"] = rel_err(deq_out, weight_fp32)
+                del deq_out
+                entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
+                table.add_row(row_label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), err_cell(entry["weight_err"]), f"{entry['fwd_ms']:8.3f} ms")
+                del layer
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(row_label, quant_cell(entry["quant_s"]), "-", "-", failure_text(e))
+                torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+        live.update(panel)
+    console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+    transcript.append(panel)
+
+    dyn_table = Table(box=box.SIMPLE_HEAVY)
+    dyn_table.add_column("requested")
+    dyn_table.add_column("chosen", justify="center")
+    dyn_table.add_column("quant", justify="right")
+    dyn_table.add_column("size", justify="right")
+    dyn_table.add_column("weight err", justify="right")
+    dyn_panel = Panel(dyn_table, title=f"dynamic quantization: {shape_label} {dtype_label()}", subtitle="[dim]Use Dynamic quantization: escalates to wider dtypes until normalized mse passes the loss threshold (default 10^-(bits/2))[/dim]", box=ROUNDED_BOX, expand=False)
+    progress, task = live_progress()
+    with Live(Group(dyn_panel, progress), console=console, refresh_per_second=4) as live:
+        weight = make_source_weight(out_features, in_features)
+        weight_fp32 = weight.to(torch.float32)
+        for index, requested in enumerate(dynamic_quant_requests, start=1):
+            progress.reset(task)
+            progress.update(task, description=f"dynamic {index}/{len(dynamic_quant_requests)}  requested {requested}")
+            entry = dict(quant_s=None, chosen=None, size_bytes=None, weight_err=None)
+            results["dynamic"][requested] = entry
+            try:
+                layer, entry["quant_s"] = make_quantized_linear(weight, requested, use_dynamic_quantization=True)
+                entry["chosen"] = layer.sdnq_dequantizer.weights_dtype
+                entry["size_bytes"] = layer_storage_bytes(layer)
+                deq_out = layer.sdnq_dequantizer(
+                    layer.weight, layer.scale,
+                    zero_point=getattr(layer, "zero_point", None),
+                    svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                    skip_compile=True,
+                ).to(torch.float32)
+                entry["weight_err"] = rel_err(deq_out, weight_fp32)
+                del deq_out, layer
+                chosen_cell = entry["chosen"] if entry["chosen"] == requested else f"[yellow]{entry['chosen']}[/yellow]"
+                dyn_table.add_row(requested, chosen_cell, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), err_cell(entry["weight_err"]))
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                dyn_table.add_row(requested, "[red]unquantized[/red]", "-", "-", failure_text(e))
+        live.update(dyn_panel)
+    console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+    transcript.append(dyn_panel)
+
+    # Quantize using GPU: one int8 layer quantized on cpu for the wall-time comparison
+    try:
+        weight_cpu = make_source_weight(out_features, in_features).cpu()
+        _cpu_layer, results["cpu_quant_s"] = make_quantized_linear(weight_cpu, "int8", device="cpu")
+        del _cpu_layer, weight_cpu
+        results["gpu_quant_s"] = (plain_results.get("int8") or {}).get("quant_s")
+    except Exception as e:
+        results["cpu_quant_error"] = error_summary(e, 200)
+    torch.cuda.empty_cache()
+    report["dequant_toggles"] = dict(shape=shape_label, results=results)
+    return results
+
+
+def make_source_conv_weight(out_channels, in_channels, kernel, seed=1234):
+    # conv analogue of make_source_weight: a few high-magnitude input channels
+    generator = torch.Generator(device="cuda").manual_seed(seed)
+    weight = torch.randn(out_channels, in_channels, kernel, kernel, device="cuda", dtype=bench_dtype, generator=generator) * 0.02
+    weight[:, [1, in_channels // 2, in_channels - 2]] *= 8.0
+    return weight
+
+
+def fp32_conv_reference(x, weight_fp32, padding):
+    # convs route through cudnn, which has its own tf32 switch on top of the matmul one
+    tf32_matmul = torch.backends.cuda.matmul.allow_tf32
+    tf32_cudnn = torch.backends.cudnn.allow_tf32
+    torch.backends.cuda.matmul.allow_tf32 = False
+    torch.backends.cudnn.allow_tf32 = False
+    try:
+        return torch.nn.functional.conv2d(x.to(torch.float32), weight_fp32, padding=padding)
+    finally:
+        torch.backends.cuda.matmul.allow_tf32 = tf32_matmul
+        torch.backends.cudnn.allow_tf32 = tf32_cudnn
+
+
+def make_quantized_conv(weight, weights_dtype, use_quantized_matmul=False):
+    from modules.sdnq import SDNQConfig
+    from modules.sdnq.quantizer import sdnq_quantize_layer
+    out_channels, in_channels, kh, kw = weight.shape
+    conv = torch.nn.Conv2d(in_channels, out_channels, (kh, kw), padding=(kh // 2, kw // 2), bias=False, device="cuda", dtype=bench_dtype)
+    with torch.no_grad():
+        conv.weight.copy_(weight)
+    config = SDNQConfig(weights_dtype=weights_dtype, quant_conv=True, use_quantized_matmul_conv=use_quantized_matmul, add_skip_keys=False)
+    torch.cuda.synchronize()
+    started = time.perf_counter()
+    layer, _config = sdnq_quantize_layer(conv, config, torch_dtype=bench_dtype, param_name="bench.weight")
+    torch.cuda.synchronize()
+    quant_seconds = time.perf_counter() - started
+    if not hasattr(layer, "sdnq_dequantizer"):
+        raise RuntimeError(f"sdnq did not quantize the conv layer to {weights_dtype}")
+    return layer, quant_seconds
+
+
+def bench_conv_section(iters, warmup, config_timeout=300):
+    # the Quantize convolutional layers and Use quantized MatMul with conv settings, measured
+    # on real Conv2d layers; dit models have no convs, this is for unet and vae model classes
+    all_results = {}
+    for shape_label, out_channels, in_channels, kernel, px in conv_shapes:
+        table = Table(box=box.SIMPLE_HEAVY)
+        table.add_column("config")
+        table.add_column("quant", justify="right")
+        table.add_column("size", justify="right")
+        table.add_column("weight err", justify="right")
+        table.add_column("fwd", justify="right")
+        table.add_column("out err", justify="right")
+        table.add_column("speedup", justify="right")
+        panel = Panel(table, title=f"conv quantization: {shape_label} {dtype_label()}", subtitle="[dim]bias-free conv2d, batch 1, errors vs true fp32 (tf32 off); mm rows use the conv quantized matmul path[/dim]", box=ROUNDED_BOX, expand=False)
+        results = {}
+        base_ms = None
+        progress, task = live_progress()
+        with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+            progress.update(task, description=f"{shape_label}: preparing weights and fp32 reference")
+            weight = make_source_conv_weight(out_channels, in_channels, kernel)
+            weight_fp32 = weight.to(torch.float32)
+            generator = torch.Generator(device="cuda").manual_seed(42)
+            x = torch.randn(1, in_channels, px, px, device="cuda", dtype=bench_dtype, generator=generator)
+            ref_out = fp32_conv_reference(x, weight_fp32, kernel // 2)
+            for index, (config_id, weights_cfg, use_mm) in enumerate(conv_configs, start=1):
+                label = f"{dtype_label()} conv2d" if weights_cfg is None else f"{weights_cfg['weights_dtype']}{' + conv mm' if use_mm else ''}"
+                def phase(step, current_label=label, current_index=index, current_progress=progress, current_task=task, current_shape=shape_label):
+                    current_progress.update(current_task, description=f"conv {current_index}/{len(conv_configs)}  {current_shape} {current_label}: {step}")
+                entry = dict(quant_s=None, size_bytes=None, weight_err=None, fwd_ms=None, out_err=None)
+                results[config_id] = entry
+                progress.reset(task)
+                try:
+                    if weights_cfg is None:
+                        layer = torch.nn.Conv2d(in_channels, out_channels, (kernel, kernel), padding=(kernel // 2, kernel // 2), bias=False, device="cuda", dtype=bench_dtype)
+                        with torch.no_grad():
+                            layer.weight.copy_(weight)
+                        entry["size_bytes"] = layer.weight.numel() * layer.weight.element_size()
+                        weight_err_cell = "-"
+                    else:
+                        phase("quantizing")
+                        layer, entry["quant_s"] = make_quantized_conv(weight, use_quantized_matmul=use_mm, **weights_cfg)
+                        entry["size_bytes"] = layer_storage_bytes(layer)
+                        deq_out = layer.sdnq_dequantizer(
+                            layer.weight, layer.scale,
+                            zero_point=getattr(layer, "zero_point", None),
+                            svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
+                            skip_quantized_matmul=use_mm, skip_compile=True,
+                        ).to(torch.float32)
+                        entry["weight_err"] = rel_err(deq_out, weight_fp32)
+                        weight_err_cell = err_cell(entry["weight_err"])
+                        del deq_out
+                    def fwd_fn(current=layer, current_x=x):
+                        return current(current_x)
+                    phase("timing conv forward")
+                    with time_limit(config_timeout, label):
+                        fwd_fn()
+                        torch.cuda.synchronize()
+                    entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
+                    entry["out_err"] = rel_err(fwd_fn(), ref_out)
+                    if base_ms is None:
+                        base_ms = entry["fwd_ms"]
+                    table.add_row(label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), weight_err_cell, f"{entry['fwd_ms']:8.3f} ms", err_cell(entry["out_err"]), speedup_cell(base_ms, entry["fwd_ms"]))
+                    del layer
+                except Exception as e:
+                    entry["error"] = error_summary(e, 200)
+                    table.add_row(label, quant_cell(entry["quant_s"]), "-", "-", failure_text(e), "-", "-")
+                    torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+            live.update(panel)
+        console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+        transcript.append(panel)
+        torch.cuda.empty_cache()
+        all_results[shape_label] = results
+    report["dequant_conv"] = all_results
+    return all_results
+
+
+def block_label(weights_cfg, use_mm, attention_spec):
+    if weights_cfg is None:
+        weights_part = dtype_label()
+    else:
+        weights_part = weights_cfg["weights_dtype"] + (" g16" if weights_cfg.get("group_size") == 16 else "")
+        if use_mm:
+            weights_part += " mm"
+    return f"{weights_part} + {attention_spec}"
+
+
+def bench_block_section(iters, warmup, config_timeout=300, selected=None):
+    # each row is a complete configuration measured end to end through a dit block, because
+    # component speedups and errors do not compose multiplicatively
+    configs = [c for c in block_configs if selected is None or c[0] in selected]
+    sage_missing = {"sage": sage_attention() is None, "sage fp16 accum": sage_attention_fp16_accum() is None}
+    skipped = [config_id for config_id, _w, _mm, spec in configs if sage_missing.get(spec, False)]
+    if skipped:
+        configs = [c for c in configs if c[0] not in skipped]
+        emit(f"[dim]block: skipping {', '.join(skipped)}, sageattention (or this accumulation mode) is unavailable here[/dim]")
+    if not configs:
+        return {}
+    hidden, heads, mlp_dim, tokens = block_geometry["hidden"], block_geometry["heads"], block_geometry["mlp_dim"], block_geometry["tokens"]
+
+    table = Table(box=box.SIMPLE_HEAVY)
+    table.add_column("config")
+    table.add_column("size", justify="right")
+    table.add_column("block ms", justify="right")
+    table.add_column("speedup", justify="right")
+    table.add_column("out err", justify="right")
+    table.add_column("max tok err", justify="right")
+    table.add_column("err x4 blocks", justify="right")
+    panel = Panel(table, title=f"combined block: hidden={hidden} heads={heads} mlp={mlp_dim} tokens={tokens} {dtype_label()}", subtitle="[dim]dit block, fused qkv + gelu mlp with residuals; err vs an fp32 reference block, max tok = worst single token, x4 = four stacked blocks[/dim]", box=ROUNDED_BOX, expand=False)
+
+    def run_depth(block, x0, depth):
+        h = x0
+        for _ in range(depth):
+            h = block(h)
+        return h
+
+    results = {}
+    base_ms = None
+    progress, task = live_progress()
+    with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+        progress.update(task, description="block: building master weights and the fp32 reference")
+        master = make_block_master()
+        generator = torch.Generator(device="cuda").manual_seed(7)
+        x = torch.randn(1, tokens, hidden, device="cuda", dtype=bench_dtype, generator=generator)
+        ref_block = BenchBlock(hidden, heads, mlp_dim, device="cuda", dtype=torch.float32)
+        ref_block.load_state_dict(master)
+        ref_block.eval()
+        def ref_attention(q, k, v):
+            return torch.nn.functional.scaled_dot_product_attention(q, k, v)
+        ref_block.attention_fn = ref_attention
+        tf32_matmul = torch.backends.cuda.matmul.allow_tf32
+        tf32_cudnn = torch.backends.cudnn.allow_tf32
+        torch.backends.cuda.matmul.allow_tf32 = False
+        torch.backends.cudnn.allow_tf32 = False
+        try:
+            with torch.no_grad():
+                x_fp32 = x.to(torch.float32)
+                ref_out = ref_block(x_fp32)
+                ref_out4 = run_depth(ref_block, x_fp32, 4)
+        finally:
+            torch.backends.cuda.matmul.allow_tf32 = tf32_matmul
+            torch.backends.cudnn.allow_tf32 = tf32_cudnn
+        del ref_block, x_fp32
+        torch.cuda.empty_cache()
+
+        for index, (config_id, weights_cfg, use_mm, attention_spec) in enumerate(configs, start=1):
+            label = block_label(weights_cfg, use_mm, attention_spec)
+            def phase(step, current_label=label, current_index=index):
+                progress.update(task, description=f"block config {current_index}/{len(configs)}  {current_label}: {step}")
+            entry = dict(ms=None, err=None, max_err=None, err4=None, size_bytes=None, label=label)
+            results[config_id] = entry
+            progress.reset(task)
+            phase("quantizing block")
+            try:
+                block = build_bench_block(master, weights_cfg, use_mm, attention_spec)
+                entry["size_bytes"] = block_storage_bytes(block)
+
+                def fn(current=block):
+                    with torch.no_grad():
+                        return current(x)
+
+                phase("compiling")
+                with time_limit(config_timeout, label):
+                    out = fn()
+                    torch.cuda.synchronize()
+                entry["ms"] = bench(fn, warmup, iters, on_phase=phase)
+                entry["err"] = rel_err(out, ref_out)
+                entry["max_err"] = max_token_err(out, ref_out)
+                phase("measuring depth-4 error")
+                with torch.no_grad():
+                    entry["err4"] = rel_err(run_depth(block, x, 4), ref_out4)
+                del block, out
+                if base_ms is None:
+                    base_ms = entry["ms"]
+                table.add_row(label, size_cell(entry["size_bytes"]), f"{entry['ms']:8.3f} ms", speedup_cell(base_ms, entry["ms"]), err_cell(entry["err"]), err_cell(entry["max_err"]), err_cell(entry["err4"]))
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(label, size_cell(entry["size_bytes"]) if entry["size_bytes"] else "-", "-", "-", "-", "-", failure_text(e))
+                torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+        live.update(panel)
+    console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+    transcript.append(panel)
+    torch.cuda.empty_cache()
+
+    notes = []
+    sized = [(entry["label"], entry["ms"], entry["err"]) for entry in results.values() if entry.get("ms") and entry.get("err") is not None and math.isfinite(entry["err"])]
+    frontier = sorted((c for c in sized if not any(o is not c and o[1] <= c[1] and o[2] <= c[2] for o in sized)), key=lambda c: c[1])
+    if len(frontier) > 1:
+        notes.append("speed/error frontier: " + ", ".join(f"{label} {ms:.2f}ms err {err:.4f}" for label, ms, err in frontier))
+    growth = [entry["err4"] / entry["err"] for entry in results.values() if entry.get("err") and entry.get("err4") and math.isfinite(entry["err4"] / entry["err"])]
+    if growth:
+        notes.append(f"output error grows x{sum(growth) / len(growth):.2f} on average over four stacked blocks; residual connections dampen compounding")
+    weights_mode = str(getattr(shared.opts, "sdnq_quantize_weights_mode", ""))
+    current_id = None
+    if weights_mode == "int8" and getattr(shared.opts, "sdnq_use_quantized_matmul", False):
+        current_id = "int8-mm-atten" if "SDNQ attention" in shared.opts.sdp_overrides else "int8-mm"
+    if current_id and results.get(current_id, {}).get("ms"):
+        notes.append(f"the {results[current_id]['label']} row is what the current config runs for int8-quantized models")
+    if any(entry.get("ms") for config_id, entry in results.items() if config_id.endswith("sagefp16")):
+        notes.append("sage fp16 accum is a benchmark-only baseline: no sdnext setting reaches it (sage is pinned to fp32 accumulation on sm86 and sage's own dispatch never selects fp16 accum elsewhere)")
+    if notes:
+        emit(Panel("\n".join(notes), title="block notes", box=ROUNDED_BOX))
+    report["block"] = dict(geometry=dict(block_geometry), results=results)
     return results
 
 
 def measured(results, config_id):
-    ms, err = results.get(config_id, (None, None))
-    return (ms, err) if ms is not None else (None, None)
+    entry = results.get(config_id) or {}
+    ms = entry.get("ms")
+    return (ms, entry.get("err")) if ms is not None else (None, None)
 
 
 def best_config(results):
     # lowest error among rows within 5% of the fastest sdnq time
-    candidates = [(config_id, ms, err) for config_id, (ms, err) in results.items() if ms is not None and config_id not in ("base", "sage")]
+    candidates = [(config_id, entry["ms"], entry["err"]) for config_id, entry in results.items() if entry.get("ms") is not None and config_id not in external_config_ids]
     if not candidates:
         return None
     fastest = min(ms for _config_id, ms, _err in candidates)
@@ -620,16 +2067,16 @@ def best_config(results):
 def build_recommendations(all_results, fp8_result, prep_status):
     # prefer an image dit shape with the full config set as reference, then the video shapes
     reference = None
-    for preset in ["flux2", "anima", "sdxl", "wan22", "ltx2", "sd15"]:
-        if preset in all_results and all_results[preset].get("int8", (None, None))[0] is not None:
+    for preset in recommendation_presets:
+        if preset in all_results and measured(all_results[preset], "int8")[0] is not None:
             reference = preset
             break
     if reference is None:
-        emit("[yellow]no successful int8 benchmark, recommendations unavailable[/yellow]")
+        emit(f"[yellow]attention recommendations need a successful int8 run at a self-attention reference shape ({', '.join(recommendation_presets)}); none was benchmarked[/yellow]")
         return
     results = all_results[reference]
     base_ms, _base_err = measured(results, "base")
-    noquant_ms, _noquant_err = measured(results, "noquant")
+    noquant_ms, noquant_err = measured(results, "noquant")
     int8_ms, int8_err = measured(results, "int8")
 
     table = Table(title=f"recommended settings (Compute Settings -> SDNQ Attention), measured at the {reference} shape", box=ROUNDED_BOX)
@@ -647,6 +2094,8 @@ def build_recommendations(all_results, fp8_result, prep_status):
     if int8_ms and noquant_ms:
         if use_quantized:
             quant_reason = f"int8 qk measured x{noquant_ms / int8_ms:.2f} vs unquantized sdnq attention"
+            if int8_err and noquant_err:
+                quant_reason += f", error {int8_err:.5f} vs {noquant_err:.5f}; smooth k and hadamard below buy error back"
         else:
             quant_reason = f"unquantized sdnq measured x{int8_ms / noquant_ms:.2f} vs int8 qk with lower error; quantization prep outweighs the kernel gain on this gpu"
         rows.append(("Use Quantized MatMul", current("sdnq_attention_use_quantized_matmul"), str(use_quantized), quant_reason))
@@ -656,23 +2105,37 @@ def build_recommendations(all_results, fp8_result, prep_status):
     else:
         rows.append(("Use Quantized MatMul", current("sdnq_attention_use_quantized_matmul"), "False", "int8 qk failed to run"))
 
+    qk_choice = "auto"
     qk_reason = "resolves to int8; uint8 remaps to int8"
-    fp8qk_ms, _fp8qk_err = measured(results, "fp8qk")
+    fp8qk_ms, fp8qk_err = measured(results, "fp8qk")
     if fp8qk_ms and int8_ms:
-        qk_reason += f"; float8 qk measured x{int8_ms / fp8qk_ms:.2f} vs int8, per-token int8 keeps finer granularity"
+        qk_compare = f"float8 qk measured x{int8_ms / fp8qk_ms:.2f} vs int8"
+        if fp8qk_err and int8_err:
+            qk_compare += f", error {fp8qk_err:.5f} vs {int8_err:.5f}"
+        if fp8qk_ms < int8_ms * 0.95 and not (fp8qk_err and int8_err and fp8qk_err > int8_err * recommend_error_cap):
+            qk_choice = "float8_e4m3fn"
+            qk_reason = qk_compare
+        else:
+            qk_reason += f"; {qk_compare}"
     elif fp8_result["qk"][0]:
-        qk_reason += "; float8 compiles here but per-token int8 keeps finer granularity"
-    rows.append(("MatMul type", current("sdnq_attention_matmul_type"), "auto", qk_reason))
+        qk_reason += "; float8 compiles here but was not benchmarked at this shape"
+    rows.append(("MatMul type", current("sdnq_attention_matmul_type"), qk_choice, qk_reason))
 
-    int8pv_ms, _int8pv_err = measured(results, "int8pv")
-    fp8pv_ms, _fp8pv_err = measured(results, "fp8pv")
-    pv_measured = [(dtype, name, ms) for dtype, name, ms in [("float8_e4m3fn", "fp8", fp8pv_ms), ("int8", "int8", int8pv_ms)] if ms]
+    int8pv_ms, int8pv_err = measured(results, "int8pv")
+    fp8pv_ms, fp8pv_err = measured(results, "fp8pv")
+    pv_measured = [(dtype, name, ms, err) for dtype, name, ms, err in [("float8_e4m3fn", "fp8", fp8pv_ms, fp8pv_err), ("int8", "int8", int8pv_ms, int8pv_err)] if ms]
     best_pv = min(pv_measured, key=lambda item: item[2]) if pv_measured else None
     if best_pv and int8_ms and best_pv[2] < int8_ms * 0.95:
-        pv_dtype, pv_name, pv_ms = best_pv
-        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), pv_dtype, f"{pv_name} pv measured x{int8_ms / pv_ms:.2f} over int8 qk alone; slightly higher error"))
+        pv_dtype, pv_name, pv_ms, pv_err = best_pv
+        if pv_err and int8_err and pv_err > int8_err * recommend_error_cap:
+            rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "auto", f"{pv_name} pv is x{int8_ms / pv_ms:.2f} faster but multiplies error x{pv_err / int8_err:.1f}; auto keeps pv unquantized"))
+        else:
+            pv_reason = f"{pv_name} pv measured x{int8_ms / pv_ms:.2f} over int8 qk alone"
+            if pv_err and int8_err:
+                pv_reason += f", error {pv_err:.5f} vs {int8_err:.5f}"
+            rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), pv_dtype, pv_reason))
     else:
-        pv_note = f"auto keeps pv unquantized; {' and '.join(name for _dtype, name, _ms in pv_measured)} pv measured no gain here" if pv_measured else "auto keeps pv unquantized"
+        pv_note = f"auto keeps pv unquantized; {' and '.join(name for _dtype, name, _ms, _err in pv_measured)} pv measured no gain here" if pv_measured else "auto keeps pv unquantized"
         rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "auto", pv_note))
 
     smooth_ms, smooth_err = measured(results, "smooth")
@@ -714,11 +2177,20 @@ def build_recommendations(all_results, fp8_result, prep_status):
     labels = {config_id: label for config_id, label, _kwargs in bench_configs}
     best_id = best_config(results)
     if base_ms and best_id is not None:
-        best_ms = results[best_id][0]
+        best_ms = results[best_id]["ms"]
         if best_ms < base_ms * 0.95:
             notes.append(f"sdnq attention is worth enabling on this gpu: {labels[best_id]} measured x{base_ms / best_ms:.2f} vs torch sdpa at {reference}")
         else:
             notes.append(f"[yellow]sdnq attention measured no speedup over torch sdpa on this gpu (best: {labels[best_id]} at x{base_ms / best_ms:.2f}); the sdp override costs performance here[/yellow]")
+    # the individual setting rows above compose into one config; cite it as actually measured
+    full_ms, full_err = measured(results, "full")
+    if full_ms and base_ms and int8_ms:
+        stack_note = f"all options on together (smooth k + hadamard + int8 pv over int8 qk) measured x{base_ms / full_ms:.2f} vs torch sdpa"
+        if full_err is not None:
+            stack_note += f", error {full_err:.5f}"
+        if int8_err is not None:
+            stack_note += f"; int8 qk alone x{base_ms / int8_ms:.2f}, error {int8_err:.5f}"
+        notes.append(stack_note)
     if prep_status == "failing_dynamic":
         notes.append("[red]the current environment fails at generation: torch compile cannot build the dynamic-shape input prep; numbers above were measured with the SDNQ_COMPILE_KWARGS='{\"dynamic\": false}' workaround applied, set it (verified working here) or install msvc build tools[/red]")
     elif prep_status == "failing":
@@ -728,6 +2200,30 @@ def build_recommendations(all_results, fp8_result, prep_status):
     sage_ms, _sage_err = measured(results, "sage")
     if sage_ms and int8_ms:
         notes.append(f"sageattention comparison at {reference}: sdnq int8 {int8_ms:.2f} ms vs sage {sage_ms:.2f} ms; sdnq additionally covers masks, gqa and causal attention")
+    sagefp16_ms, _sagefp16_err = measured(results, "sagefp16")
+    if sagefp16_ms:
+        notes.append("sage fp16 accum is a benchmark-only baseline: no sdnext setting reaches it (sage is pinned to fp32 accumulation on sm86 and sage's own dispatch never selects fp16 accum elsewhere)")
+    amdflash_ms, _amdflash_err = measured(results, "amdflash")
+    if amdflash_ms and int8_ms:
+        notes.append(f"triton flash comparison at {reference}: sdnq int8 {int8_ms:.2f} ms vs triton flash {amdflash_ms:.2f} ms; sdnq additionally covers masks and its gain depends on this gpu's int8 throughput")
+    # cross-reference the combined block section when it ran in this invocation: kernel-scope
+    # error buybacks can vanish at block output, and per-call costs differ inside a real block
+    block_results = report.get("block", {}).get("results", {})
+    block_base = block_results.get("int8-mm-atten") or {}
+    if block_base.get("err") and block_base.get("ms"):
+        cross_parts = []
+        buyback_seen = False
+        for variant_key, setting_name in (("int8-mm-smooth", "smooth k"), ("int8-mm-hadamard", "hadamard"), ("int8-mm-atten-full", "full stack (smooth + hadamard + int8 pv)")):
+            variant_entry = block_results.get(variant_key) or {}
+            if variant_entry.get("err") and variant_entry.get("ms"):
+                cross_parts.append(f"{setting_name} output error {variant_entry['err']:.5f} vs {block_base['err']:.5f} at {variant_entry['ms'] - block_base['ms']:+.2f} ms per block")
+                if variant_entry["err"] < block_base["err"] * 0.98:
+                    buyback_seen = True
+        if cross_parts:
+            cross_note = f"block-level cross-check vs plain int8 attention: {'; '.join(cross_parts)}"
+            if not buyback_seen:
+                cross_note += "; the kernel-scope error buybacks above did not change block output error at this image shape"
+            notes.append(cross_note)
     notes.append("* marks the best config per shape: lowest error among rows within 5% of the fastest sdnq time")
     notes.append("the int8 qk row is what default settings run: MatMul type auto resolves to int8 and pv stays unquantized")
     notes.append("the prep column is time spent quantizing q/k/v before the attention kernel, included in median time; it shrinks where torch compile can fuse it")
@@ -735,11 +2231,378 @@ def build_recommendations(all_results, fp8_result, prep_status):
     notes.append("the six settings above apply on the next generation; toggling the 'SDNQ attention' SDP override requires a restart")
     notes.append("errors are measured on synthetic tensors with outlier-heavy keys; real models, especially qk-normed dits, sit lower")
     emit(Panel("\n".join(notes), title="notes", box=ROUNDED_BOX))
+    report["recommendations_attention"] = dict(reference=reference, rows=[list(row) for row in rows], notes=notes)
+
+
+def ratio_text(numerator_ms, denominator_ms):
+    if not numerator_ms or not denominator_ms:
+        return None
+    return f"x{numerator_ms / denominator_ms:.2f}"
+
+
+def build_dequant_recommendations(dequant_results, weight_dequant_result, variant_results=None, float_mm_results=None, sweep_results=None):
+    reference = None
+    for shape_label, _out_features, _in_features in dequant_shapes:
+        results = dequant_results.get(shape_label)
+        if results and results.get("int8", {}).get("eager_ms") is not None:
+            reference = shape_label
+            break
+    if reference is None:
+        emit("[yellow]no successful dequant benchmark, sdnq recommendations unavailable[/yellow]")
+        return
+    results = dequant_results[reference]
+    base_ms = results.get("bf16", {}).get("fwd_ms")
+
+    def entry(dtype_id):
+        return results.get(dtype_id) or {}
+
+    def current(key):
+        return str(getattr(shared.opts, key))
+
+    table = Table(title=f"recommended settings (Compute Settings -> SDNQ), measured at the {reference} layer", box=ROUNDED_BOX)
+    table.add_column("setting")
+    table.add_column("current", justify="center")
+    table.add_column("recommended", justify="center")
+    table.add_column("reason")
+
+    rows = []
+    int8_eager, int8_compiled = entry("int8").get("eager_ms"), entry("int8").get("compiled_ms")
+    if int8_eager and int8_compiled:
+        recommend_compile = int8_compiled <= int8_eager * 0.90
+        compile_reason = f"int8 dequant measured {ratio_text(int8_eager, int8_compiled)} compiled vs eager"
+        fwd_eager, fwd_compiled = entry("int8").get("fwd_eager_ms"), entry("int8").get("fwd_compiled_ms")
+        if fwd_eager and fwd_compiled:
+            compile_reason += f"; layer forward {fwd_compiled:.3f} vs {fwd_eager:.3f} ms"
+        rows.append(("Dequantize using torch.compile", current("sdnq_dequantize_compile"), str(recommend_compile), compile_reason))
+    elif int8_eager:
+        rows.append(("Dequantize using torch.compile", current("sdnq_dequantize_compile"), current("sdnq_dequantize_compile"), "compiled int8 dequant unavailable, keeping the current value"))
+
+    # judge quantized matmul on the dtype the current config would quantize with, falling back to int8;
+    # speed never wins alone: the faster path must also hold output error within recommend_error_cap
+    weights_mode = str(getattr(shared.opts, "sdnq_quantize_weights_mode", "int8"))
+    mode_ids = {cfg["weights_dtype"]: dtype_id for dtype_id, _label, cfg in dequant_dtype_configs}
+    mm_id = mode_ids.get(weights_mode, "int8")
+    mm_entry = entry(mm_id)
+    # explicit MatMul type rows are measured at the first dequant shape only; ignore them when
+    # the recommendation reference fell back to another shape
+    float_mm = float_mm_results if (float_mm_results and reference == dequant_shapes[0][0]) else {}
+
+    def float_mm_entry(dtype_id, mm_dtype):
+        return float_mm.get(f"{dtype_id}+{mm_dtype}") or {}
+
+    # candidate MatMul types for the current dtype: auto plus any measured explicit alternative
+    mm_candidates = []
+    if mm_entry.get("mm_ms"):
+        mm_candidates.append(("auto", mm_entry.get("mm_dtype"), mm_entry["mm_ms"], mm_entry.get("mm_err")))
+    if mm_id in float_mm_dtypes:
+        for alt_dtype in float_mm_alternative_dtypes:
+            alt = float_mm_entry(mm_id, alt_dtype)
+            if alt.get("mm_ms"):
+                mm_candidates.append((alt_dtype, alt.get("mm_dtype"), alt["mm_ms"], alt.get("mm_err")))
+    if mm_candidates and mm_entry.get("fwd_ms"):
+        fastest_mm = min(ms for _sel, _res, ms, _err in mm_candidates)
+        near_fastest = [c for c in mm_candidates if c[2] <= fastest_mm * 1.05]
+        best_sel, best_resolved, best_ms, best_err = min(near_fastest, key=lambda c: c[3] if c[3] is not None else float("inf"))
+        fwd_err = mm_entry.get("fwd_err")
+        err_ok = not (fwd_err and best_err) or best_err <= fwd_err * recommend_error_cap
+        faster = best_ms <= mm_entry["fwd_ms"] * 0.90
+        recommend_mm = faster and err_ok
+        mm_reason = f"{mm_id} quantized matmul ({best_resolved}) measured {ratio_text(mm_entry['fwd_ms'], best_ms)} vs the dequant path"
+        if fwd_err and best_err:
+            mm_reason += f", output error {best_err:.5f} vs {fwd_err:.5f}"
+        if faster and not err_ok:
+            mm_reason += f"; not recommended, the speedup multiplies output error beyond x{recommend_error_cap:.0f}"
+        if best_sel != "auto":
+            mm_reason += f"; measured with MatMul type {best_sel}" if mm_entry.get("mm_ms") else f"; needs MatMul type {best_sel}, auto (float8_e4m3fn) failed on this gpu"
+        if weights_mode not in mode_ids:
+            mm_reason += f"; current quantization type {weights_mode} was not benchmarked, judged on int8"
+        rows.append(("Use quantized MatMul", current("sdnq_use_quantized_matmul"), str(recommend_mm), mm_reason))
+
+        type_parts = []
+        for sel, resolved, ms, err in mm_candidates:
+            sel_label = f"auto ({resolved})" if sel == "auto" else sel
+            type_parts.append(f"{sel_label} {ms:.3f} ms err {err:.5f}" if err is not None else f"{sel_label} {ms:.3f} ms")
+        if len(mm_candidates) > 1:
+            type_reason = f"lowest error within 5% of the fastest for {mm_id} weights: {', '.join(type_parts)}"
+        elif best_sel == "auto":
+            type_reason = f"auto resolves to {best_resolved} for {mm_id} weights"
+        else:
+            type_reason = f"auto (float8_e4m3fn) failed on this gpu for {mm_id} weights; {', '.join(type_parts)}"
+        rows.append(("Quantized MatMul type", current("sdnq_quantize_matmul_mode"), best_sel, type_reason))
+
+    sweeps = sweep_results or {}
+    sweeps_at_reference = reference == dequant_shapes[0][0]
+    mm_on = str(getattr(shared.opts, "sdnq_use_quantized_matmul", False)) == "True"
+
+    # Group size: judged on the path the current config runs (mm cells when quantized matmul
+    # is on); an explicit size must cut error meaningfully without real speed or size cost
+    groups = sweeps.get("groups") or {}
+    group_id = mm_id if mm_id in group_sweep_dtypes else "int8"
+    auto_group = groups.get(f"{group_id}@0") or {}
+    if sweeps_at_reference and auto_group:
+        def group_metrics(g_entry):
+            ms = g_entry.get("mm_ms") if mm_on else g_entry.get("fwd_ms")
+            err = g_entry.get("mm_err") if mm_on else g_entry.get("weight_err")
+            return ms, err
+        auto_ms, auto_err = group_metrics(auto_group)
+        candidates = []
+        for group in group_sweep_values:
+            if group == 0:
+                continue
+            g_entry = groups.get(f"{group_id}@{group}") or {}
+            g_ms, g_err = group_metrics(g_entry)
+            if g_ms and g_err and g_entry.get("size_bytes"):
+                candidates.append((group, g_ms, g_err, g_entry["size_bytes"]))
+        if auto_ms and auto_err and auto_group.get("size_bytes"):
+            qualifying = [c for c in candidates if c[2] < auto_err * 0.80 and c[1] <= auto_ms * 1.05 and c[3] <= auto_group["size_bytes"] * 1.10]
+            resolved = auto_group.get("mm_resolved") if mm_on else auto_group.get("resolved")
+            if qualifying:
+                best_group, best_gms, best_gerr, best_gsize = min(qualifying, key=lambda c: c[2])
+                group_reason = f"{group_id} error {best_gerr:.5f} vs {auto_err:.5f} at auto ({resolved}), {best_gms:.3f} vs {auto_ms:.3f} ms, {size_cell(best_gsize).strip()} vs {size_cell(auto_group['size_bytes']).strip()}"
+                rows.append(("Group size", current("sdnq_group_size"), str(best_group), group_reason))
+            else:
+                explicit_best = min(candidates, key=lambda c: c[2]) if candidates else None
+                group_reason = f"auto resolves to {resolved} for {group_id} weights"
+                if mm_on and explicit_best and auto_err and abs(explicit_best[2] - auto_err) <= auto_err * 0.10:
+                    group_reason += f"; grouped storage is re-quantized per forward for quantized matmul, so no swept group changed mm error (best {explicit_best[2]:.5f} vs {auto_err:.5f})"
+                elif explicit_best:
+                    group_reason += f"; best explicit ({explicit_best[0]}) measured error {explicit_best[2]:.5f} vs {auto_err:.5f} at {explicit_best[1]:.3f} vs {auto_ms:.3f} ms and {size_cell(explicit_best[3]).strip()} vs {size_cell(auto_group['size_bytes']).strip()}"
+                rows.append(("Group size", current("sdnq_group_size"), "0", group_reason))
+
+    # Dequantize using full precision: off keeps scales in the model dtype; the speed gain
+    # must hold error within the cap to be recommended
+    toggles = sweeps.get("toggles") or {}
+    fp32_off = toggles.get("fp32_off") or {}
+    toggle_id = mm_id if mm_id in toggle_dtypes else "int8"
+    off_entry = fp32_off.get(toggle_id) or {}
+    on_entry = entry(toggle_id)
+    if sweeps_at_reference and off_entry.get("fwd_ms") and on_entry.get("fwd_ms") and off_entry.get("weight_err") and on_entry.get("weight_err"):
+        off_faster = off_entry["fwd_ms"] <= on_entry["fwd_ms"] * 0.95
+        off_err_ok = off_entry["weight_err"] <= on_entry["weight_err"] * recommend_error_cap
+        recommend_fp32 = not (off_faster and off_err_ok)
+        fp32_reason = f"{toggle_id} with full precision off: {off_entry['fwd_ms']:.3f} vs {on_entry['fwd_ms']:.3f} ms, weight error {off_entry['weight_err']:.5f} vs {on_entry['weight_err']:.5f}"
+        rows.append(("Dequantize using full precision", current("sdnq_dequantize_fp32"), str(recommend_fp32), fp32_reason))
+
+    # conv settings: the conv matmul verdict is spatial-size dependent, so every measured conv
+    # shape weighs in; the recommended value follows the first (unet-class) shape, with the
+    # other shape's number in the reason so vae-quantizing sessions can differ
+    conv_all = sweeps.get("conv") or {}
+    conv_per_shape = {}
+    for conv_shape_label, _oc, _ic, _k, _px in conv_shapes:
+        shape_conv = conv_all.get(conv_shape_label) or {}
+        mm_rows_here = [(config_id, shape_conv.get(config_id) or {}) for config_id in ("int8-mm", "uint8-mm")]
+        conv_per_shape[conv_shape_label] = (shape_conv.get("bf16") or {}, shape_conv.get("int8") or {}, [(config_id, row) for config_id, row in mm_rows_here if row.get("fwd_ms")])
+    conv_base, conv_int8, conv_mm_rows = conv_per_shape.get(conv_shapes[0][0], ({}, {}, []))
+    if conv_base.get("fwd_ms"):
+        quant_rows = [(config_id, row) for config_id, row in [("int8", conv_int8)] + conv_mm_rows if row.get("fwd_ms")]
+        if quant_rows:
+            best_conv_id, best_conv = min(quant_rows, key=lambda item: item[1]["fwd_ms"])
+            conv_free = best_conv["fwd_ms"] <= conv_base["fwd_ms"] * 1.05
+            conv_reason = f"{best_conv_id} conv measured {best_conv['fwd_ms']:.3f} vs {conv_base['fwd_ms']:.3f} ms {dtype_label()} at {conv_shapes[0][0]}, output error {best_conv.get('out_err', 0):.5f} vs {conv_base.get('out_err', 0):.5f}, size {size_cell(best_conv.get('size_bytes', 0)).strip()} vs {size_cell(conv_base.get('size_bytes', 0)).strip()}"
+            if not conv_free:
+                conv_reason += "; enable for the size saving, not speed"
+            rows.append(("Quantize convolutional layers", current("sdnq_quantize_conv_layers"), str(conv_free), conv_reason))
+        if conv_int8.get("fwd_ms") and conv_mm_rows:
+            best_mm_id, best_mm = min(conv_mm_rows, key=lambda item: item[1]["fwd_ms"])
+            mm_faster = best_mm["fwd_ms"] <= conv_int8["fwd_ms"] * 0.90
+            mm_err_ok = not (best_mm.get("out_err") and conv_int8.get("out_err")) or best_mm["out_err"] <= conv_int8["out_err"] * recommend_error_cap
+            conv_mm_reason = f"{best_mm_id} measured {best_mm['fwd_ms']:.3f} vs {conv_int8['fwd_ms']:.3f} ms for the int8 conv dequant path at {conv_shapes[0][0]}, output error {best_mm.get('out_err', 0):.5f} vs {conv_int8.get('out_err', 0):.5f}"
+            other_base, _other_int8, other_mm_rows = conv_per_shape.get(conv_shapes[1][0], ({}, {}, [])) if len(conv_shapes) > 1 else ({}, {}, [])
+            if other_base.get("fwd_ms") and other_mm_rows:
+                other_best_id, other_best = min(other_mm_rows, key=lambda item: item[1]["fwd_ms"])
+                conv_mm_reason += f"; at {conv_shapes[1][0]} {other_best_id} measured {ratio_text(other_base['fwd_ms'], other_best['fwd_ms'])} vs the {dtype_label()} conv"
+                if other_best["fwd_ms"] > other_base["fwd_ms"] * 1.05:
+                    conv_mm_reason += ", a slowdown; disable when quantizing vae-class convs"
+            rows.append(("Use quantized MatMul with conv", current("sdnq_use_quantized_matmul_conv"), str(mm_faster and mm_err_ok), conv_mm_reason))
+
+    differing = 0
+    for setting, current_value, recommended, reason in rows:
+        if current_value == recommended:
+            table.add_row(setting, f"[green]{current_value}[/green]", recommended, reason)
+        else:
+            differing += 1
+            table.add_row(setting, f"[yellow]{current_value}[/yellow]", recommended, reason)
+    emit(table)
+    if differing:
+        emit(f"[yellow]{differing} setting{'s' if differing > 1 else ''} differ{'' if differing > 1 else 's'} from the recommended value, change in Compute Settings -> SDNQ[/yellow]")
+    elif rows:
+        emit("[green]current settings already match the recommendations[/green]")
+
+    notes = []
+    speedups = []
+    for dtype_id, label, _cfg in dequant_dtype_configs:
+        text = ratio_text(entry(dtype_id).get("eager_ms"), entry(dtype_id).get("compiled_ms"))
+        if text:
+            speedups.append(f"{label} {text}")
+    if speedups:
+        notes.append(f"compiled dequant speedup vs eager at {reference}: {', '.join(speedups)}")
+    fp8_entry, fp8sdnq_entry = entry("fp8"), entry("fp8sdnq")
+    if fp8_entry.get("compiled_ms") and fp8sdnq_entry.get("compiled_ms"):
+        notes.append(f"fp8 storage: native float8_e4m3fn compiled measured {ratio_text(fp8sdnq_entry['compiled_ms'], fp8_entry['compiled_ms'])} vs the float8_e4m3fn_sdnq uint8 view")
+    elif fp8sdnq_entry.get("compiled_ms") and fp8_entry.get("eager_ms"):
+        notes.append(f"fp8 storage on this gpu: float8_e4m3fn_sdnq (uint8 view) compiled measured {ratio_text(fp8_entry['eager_ms'], fp8sdnq_entry['compiled_ms'])} vs eager float8_e4m3fn dequant, the fallback when e4m3 cannot compile")
+    if weight_dequant_result is not None:
+        e5m2_ok = weight_dequant_result["float8_e5m2"][0]
+        e4m3_ok = weight_dequant_result["float8_e4m3fn"][0]
+        if not e4m3_ok and e5m2_ok:
+            notes.append("float8_e5m2 storage compiles on this gpu while float8_e4m3fn does not; a compile gate only needs to cover e4m3")
+        elif not e4m3_ok and not e5m2_ok:
+            notes.append("[yellow]neither fp8 storage dtype compiles on this gpu; both need the compile gate[/yellow]")
+    fp8_mm_failed = [dtype_id for dtype_id, _label, _cfg in dequant_dtype_configs if entry(dtype_id).get("mm_error") and entry(dtype_id).get("mm_dtype") == "float8_e4m3fn"]
+    if fp8_mm_failed:
+        notes.append(f"[yellow]quantized matmul auto-selected float8_e4m3fn for {', '.join(fp8_mm_failed)} and failed on this gpu; set MatMul type explicitly to use quantized matmul with float weight dtypes[/yellow]")
+        for dtype_id in fp8_mm_failed:
+            alt_parts = []
+            for alt_dtype in float_mm_alternative_dtypes:
+                alt = float_mm_entry(dtype_id, alt_dtype)
+                if alt.get("mm_ms"):
+                    part = f"{alt_dtype} mm {alt['mm_ms']:.3f} ms"
+                    if alt.get("mm_err") is not None:
+                        part += f" err {alt['mm_err']:.5f}"
+                    alt_parts.append(part)
+            dequant_fwd, dequant_err = entry(dtype_id).get("fwd_ms"), entry(dtype_id).get("fwd_err")
+            if alt_parts and dequant_fwd:
+                base_part = f"dequant path {dequant_fwd:.3f} ms"
+                if dequant_err is not None:
+                    base_part += f" err {dequant_err:.5f}"
+                notes.append(f"{dtype_id} with MatMul type set explicitly: {', '.join(alt_parts)}; {base_part}")
+    if base_ms and entry(mm_id).get("fwd_ms"):
+        notes.append(f"current quantization type {weights_mode}: the dequant-path forward costs {ratio_text(entry(mm_id)['fwd_ms'], base_ms)} vs a {dtype_label()} nn.Linear at {reference}")
+    # size/error frontier: the dtypes no other measured dtype beats on both axes at once
+    sized = [(dtype_id, e["size_bytes"], e["weight_err"]) for dtype_id, _label, _cfg in dequant_dtype_configs for e in [entry(dtype_id)] if e.get("size_bytes") and e.get("weight_err")]
+    frontier = sorted((c for c in sized if not any(o is not c and o[1] <= c[1] and o[2] <= c[2] for o in sized)), key=lambda c: c[1])
+    if len(frontier) > 1:
+        notes.append(f"size/error frontier at {reference}: " + ", ".join(f"{dtype_id} {size_cell(size).strip()} err {err:.3f}" for dtype_id, size, err in frontier))
+    if variant_results:
+        for variant_id, _cfg in dequant_variant_configs:
+            parts = []
+            for dtype_id in dequant_variant_dtypes:
+                variant_entry = variant_results.get(f"{dtype_id}+{variant_id}") or {}
+                if variant_entry.get("err_ratio"):
+                    parts.append(f"{dtype_id} err x{variant_entry['err_ratio']:.2f} for {quant_cell(variant_entry['quant_s']).strip()} quant")
+            if parts:
+                notes.append(f"{variant_id} vs plain quantization: {', '.join(parts)}")
+    groups_sweep = sweeps.get("groups") or {}
+    if groups_sweep and sweeps_at_reference:
+        group_parts = []
+        mm_flat = True
+        for dtype_id in group_sweep_dtypes:
+            auto_g = groups_sweep.get(f"{dtype_id}@0") or {}
+            swept = [(group, groups_sweep.get(f"{dtype_id}@{group}") or {}) for group in group_sweep_values if group != 0]
+            swept = [(group, g_entry) for group, g_entry in swept if g_entry.get("weight_err")]
+            if auto_g.get("weight_err") and swept:
+                best_group, best_entry = min(swept, key=lambda item: item[1]["weight_err"])
+                if best_entry.get("size_bytes") and auto_g.get("size_bytes"):
+                    group_parts.append(f"{dtype_id} group {best_group} weight err x{best_entry['weight_err'] / auto_g['weight_err']:.2f} of auto for {size_cell(best_entry['size_bytes']).strip()} vs {size_cell(auto_g['size_bytes']).strip()}")
+                mm_errs = [g_entry["mm_err"] for _group, g_entry in swept if g_entry.get("mm_err")] + ([auto_g["mm_err"]] if auto_g.get("mm_err") else [])
+                if len(mm_errs) > 1 and max(mm_errs) > min(mm_errs) * 1.10:
+                    mm_flat = False
+        if group_parts:
+            groups_note = "group size storage tradeoff (dequant path): " + ", ".join(group_parts)
+            if mm_flat:
+                groups_note += "; grouped storage is re-quantized per forward for quantized matmul, no swept group changed mm error"
+            notes.append(groups_note)
+    conv_note_all = sweeps.get("conv") or {}
+    conv_note_parts = []
+    for conv_shape_label, _oc, _ic, _k, _px in conv_shapes:
+        shape_conv = conv_note_all.get(conv_shape_label) or {}
+        base_row = shape_conv.get("bf16") or {}
+        mm_here = [row for config_id in ("int8-mm", "uint8-mm") for row in [shape_conv.get(config_id) or {}] if row.get("fwd_ms")]
+        if base_row.get("fwd_ms") and mm_here:
+            best_here = min(mm_here, key=lambda row: row["fwd_ms"])
+            conv_note_parts.append(f"{conv_shape_label} best conv mm {ratio_text(base_row['fwd_ms'], best_here['fwd_ms'])}")
+    if len(conv_note_parts) > 1:
+        notes.append(f"conv quantized matmul vs the {dtype_label()} conv by shape: " + "; ".join(conv_note_parts))
+    te_shape = dequant_shapes[2][0] if len(dequant_shapes) > 2 else None
+    te_results = dequant_results.get(te_shape) or {} if te_shape else {}
+    te_int8 = te_results.get("int8") or {}
+    if te_int8.get("fwd_ms") and te_int8.get("mm_ms") and entry("int8").get("fwd_ms") and entry("int8").get("mm_ms"):
+        notes.append(f"text-encoder geometry ({te_shape}): int8 quantized mm {ratio_text(te_int8['fwd_ms'], te_int8['mm_ms'])} vs the dequant path, {ratio_text(entry('int8')['fwd_ms'], entry('int8')['mm_ms'])} at {reference}; the TE override dropdowns follow these numbers")
+    svd_sweep = sweeps.get("svd") or {}
+    if svd_sweep and sweeps_at_reference:
+        for dtype_id in svd_rank_sweep_dtypes:
+            parts = []
+            for rank in svd_rank_sweep_values:
+                rank_entry = svd_sweep.get(f"{dtype_id}@{rank}") or {}
+                if rank_entry.get("err_ratio"):
+                    parts.append(f"rank {rank} err x{rank_entry['err_ratio']:.2f} ({size_cell(rank_entry['size_bytes']).strip()})")
+            if parts:
+                notes.append(f"svd rank on {dtype_id}: {', '.join(parts)}")
+    hgroup_sweep = sweeps.get("hgroups") or {}
+    hgroup_parts = [f"group {hgroup} err x{hentry['err_ratio']:.2f}" for hgroup in hadamard_group_values for hentry in [hgroup_sweep.get(str(hgroup)) or {}] if hentry.get("err_ratio")]
+    if hgroup_parts and sweeps_at_reference:
+        notes.append(f"weight-side hadamard group size on int8: {', '.join(hgroup_parts)}")
+    dynamic_sweep = (sweeps.get("toggles") or {}).get("dynamic") or {}
+    dynamic_parts = []
+    for requested in dynamic_quant_requests:
+        dyn_entry = dynamic_sweep.get(requested) or {}
+        if dyn_entry.get("chosen"):
+            dynamic_parts.append(f"{requested} -> {dyn_entry['chosen']}" + (f" err {dyn_entry['weight_err']:.3f}" if dyn_entry.get("weight_err") else ""))
+    if dynamic_parts:
+        notes.append(f"dynamic quantization on these synthetic weights (default loss thresholds): {', '.join(dynamic_parts)}")
+    cpu_quant_s = (sweeps.get("toggles") or {}).get("cpu_quant_s")
+    gpu_quant_s = (sweeps.get("toggles") or {}).get("gpu_quant_s")
+    if cpu_quant_s and gpu_quant_s:
+        notes.append(f"Quantize using GPU: one int8 layer at {dequant_shapes[0][0]} quantized in {quant_cell(gpu_quant_s).strip()} on gpu vs {quant_cell(cpu_quant_s).strip()} on cpu; scales linearly with layer count at load")
+    notes.append("weight err is the relative quantization error of the dequantized weight vs the fp32 original; forward outputs inherit it")
+    notes.append("errors are measured on synthetic weights with exaggerated outlier channels; rotation and svd gains are outlier-driven, so real models sit closer to plain quantization")
+    if notes:
+        emit(Panel("\n".join(notes), title="dequant notes", box=ROUNDED_BOX))
+    report["recommendations_dequant"] = dict(reference=reference, rows=[list(row) for row in rows], notes=notes)
+
+
+def save_report(path, args, sections, selected):
+    report["run"] = dict(timestamp=time.strftime("%Y-%m-%dT%H:%M:%S"), sections=sections, shapes=selected, iters=args.iters, warmup=args.warmup, dtype=dtype_label())
+    with open(path, "w", encoding="utf-8") as fh:
+        json.dump(report, fh, indent=2, default=str)
+    console.print(f"structured results saved to {path}")
 
 
 def main():
     global bench_dtype # pylint: disable=global-statement
     args = parse_cli()
+    sections = [s.strip().lower() for s in args.sections.split(",") if s.strip()]
+    unknown_sections = [s for s in sections if s not in all_sections]
+    if unknown_sections:
+        console.print(f"[red]unknown section(s): {', '.join(unknown_sections)}; available: {', '.join(all_sections)}[/red]")
+        sys.exit(1)
+    known_dtypes = [dtype_id for dtype_id, _label, _cfg in dequant_dtype_configs]
+    selected_dtypes = None if args.dequant_dtypes.strip().lower() == "all" else [s.strip() for s in args.dequant_dtypes.split(",") if s.strip()]
+    if selected_dtypes is not None:
+        unknown_dtypes = [s for s in selected_dtypes if s not in known_dtypes]
+        if unknown_dtypes:
+            console.print(f"[red]unknown dequant dtype(s): {', '.join(unknown_dtypes)}; available: {', '.join(known_dtypes)}[/red]")
+            sys.exit(1)
+    known_blocks = [config_id for config_id, _w, _mm, _a in block_configs]
+    selected_blocks = None if args.block_configs.strip().lower() == "all" else [s.strip() for s in args.block_configs.split(",") if s.strip()]
+    if selected_blocks is not None:
+        unknown_blocks = [s for s in selected_blocks if s not in known_blocks]
+        if unknown_blocks:
+            console.print(f"[red]unknown block config(s): {', '.join(unknown_blocks)}; available: {', '.join(known_blocks)}[/red]")
+            sys.exit(1)
+    known_variants = [variant_id for variant_id, _cfg in dequant_variant_configs]
+    variants_arg = args.dequant_variants.strip().lower()
+    if variants_arg == "all":
+        selected_variants = list(known_variants)
+    elif variants_arg == "none":
+        selected_variants = []
+    else:
+        selected_variants = [s.strip() for s in args.dequant_variants.split(",") if s.strip()]
+        unknown_variants = [s for s in selected_variants if s not in known_variants]
+        if unknown_variants:
+            console.print(f"[red]unknown dequant variant(s): {', '.join(unknown_variants)}; available: {', '.join(known_variants)}, all, none[/red]")
+            sys.exit(1)
+    sweeps_arg = args.dequant_sweeps.strip().lower()
+    if sweeps_arg == "all":
+        selected_sweeps = list(all_dequant_sweeps)
+    elif sweeps_arg == "none":
+        selected_sweeps = []
+    else:
+        selected_sweeps = [s.strip() for s in args.dequant_sweeps.split(",") if s.strip()]
+        unknown_sweeps = [s for s in selected_sweeps if s not in all_dequant_sweeps]
+        if unknown_sweeps:
+            console.print(f"[red]unknown dequant sweep(s): {', '.join(unknown_sweeps)}; available: {', '.join(all_dequant_sweeps)}, all, none[/red]")
+            sys.exit(1)
     if not load_sdnext():
         sys.exit(1)
     if args.dtype == "auto":
@@ -753,36 +2616,87 @@ def main():
     if unknown:
         console.print(f"[red]unknown shape preset(s): {', '.join(unknown)}; available: {', '.join(shape_presets)}[/red]")
         sys.exit(1)
-    print_banner(selected, args)
+    print_banner(selected, sections, args)
     prep_status, prep_detail = probe_compiled_prep() # must run first: see the cold-start note in probe_compiled_prep
-    fp8_result = probe_fp8()
-    print_environment(fp8_result, prep_status, prep_detail)
-    if not args.skip_checks:
+    fp8_result = probe_fp8() if "attention" in sections else None
+    weight_dequant_result = probe_weight_dequant_compile() if "dequant" in sections else None
+    print_environment(fp8_result, prep_status, prep_detail, weight_dequant_result=weight_dequant_result)
+    if not args.skip_checks and "attention" in sections:
         run_correctness()
     if args.skip_bench:
         if args.save:
             save_transcript(args.save)
+        if args.json:
+            save_report(args.json, args, sections, selected)
         return
-    # bench the prep mode the advice points to: compiled, static workaround, or eager
-    if prep_status == "failing_dynamic":
-        from modules.sdnq.kernels import triton_atten as atten_module
-        inner = getattr(atten_module.get_attn_inputs, "_torchdynamo_orig_callable", None)
-        atten_module.get_attn_inputs = torch.compile(inner, fullgraph=True, dynamic=False)
-        emit("[yellow]dynamic-shape compile is broken here: benchmarking with the dynamic=false workaround applied, numbers match the webui after setting SDNQ_COMPILE_KWARGS='{\"dynamic\": false}'[/yellow]")
-    elif prep_status == "failing":
-        emit("[yellow]torch compile is broken here: benchmarking with eager input prep, numbers match the webui after disabling Dequantize using torch.compile[/yellow]")
-        torch._dynamo.config.disable = True # pylint: disable=protected-access
-    all_results = {}
-    minimum_vram = {"wan22": 6.0, "ltx2": 3.0, "masked": 6.0}
-    for index, preset in enumerate(selected, start=1):
-        needed = minimum_vram.get(preset, 2.0)
-        if free_vram_gb() < needed:
-            emit(f"[yellow]skipping {preset}: needs about {needed:.0f} gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
-            continue
-        all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.config_timeout, fp8_result=fp8_result)
-    build_recommendations(all_results, fp8_result, prep_status)
+
+    dequant_results = {}
+    if "dequant" in sections:
+        if free_vram_gb() < 2.0:
+            emit(f"[yellow]skipping dequant benchmarks: needs about 2 gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
+        else:
+            from modules.sdnq.common import check_torch_compile
+            if not check_torch_compile():
+                # the module-level compiled dequant is a passthrough with the option off; swap in
+                # a real compiled variant so the compiled fwd rows measure what enabling it gives
+                from modules.sdnq import dequantizer as dequantizer_module
+                dequantizer_module.dequantize_weight_compiled = get_compiled_dequantize_weight()
+                emit("[yellow]Dequantize using torch.compile is off in the current config: compiled fwd rows are measured with a tool-compiled dequant, matching the webui after enabling it[/yellow]")
+            for index, (shape_label, out_features, in_features) in enumerate(dequant_shapes, start=1):
+                dequant_results[shape_label] = bench_dequant_shape(shape_label, out_features, in_features, args.iters, args.warmup, position=(index, len(dequant_shapes)), config_timeout=args.config_timeout, selected_dtypes=selected_dtypes)
+                torch.cuda.empty_cache()
+            variant_results = {}
+            if selected_variants:
+                first_label, first_out, first_in = dequant_shapes[0]
+                variant_results = bench_dequant_variants(first_label, first_out, first_in, dequant_results.get(first_label, {}), selected_dtypes, selected_variants, args.iters, args.warmup, config_timeout=args.config_timeout)
+            first_label, first_out, first_in = dequant_shapes[0]
+            first_results = dequant_results.get(first_label, {})
+            float_mm_results = bench_float_mm_alternatives(first_label, first_out, first_in, first_results, selected_dtypes, args.iters, args.warmup, config_timeout=args.config_timeout)
+            sweep_results = {}
+            if "groups" in selected_sweeps:
+                sweep_results["groups"] = bench_group_sizes(first_label, first_out, first_in, first_results, selected_dtypes, args.iters, args.warmup, config_timeout=args.config_timeout)
+            if "svd" in selected_sweeps:
+                sweep_results["svd"] = bench_svd_ranks(first_label, first_out, first_in, first_results, selected_dtypes, args.iters, args.warmup, config_timeout=args.config_timeout)
+            if "hgroups" in selected_sweeps:
+                sweep_results["hgroups"] = bench_hadamard_groups(first_label, first_out, first_in, first_results, selected_dtypes, args.iters, args.warmup, config_timeout=args.config_timeout)
+            if "toggles" in selected_sweeps:
+                sweep_results["toggles"] = bench_quant_toggles(first_label, first_out, first_in, first_results, selected_dtypes, args.iters, args.warmup, config_timeout=args.config_timeout)
+            if "conv" in selected_sweeps:
+                sweep_results["conv"] = bench_conv_section(args.iters, args.warmup, config_timeout=args.config_timeout)
+            build_dequant_recommendations(dequant_results, weight_dequant_result, variant_results, float_mm_results, sweep_results)
+
+    # the block section runs before the attention section: a broken-compile attention
+    # environment disables dynamo globally, which would poison the block compiles
+    if "block" in sections:
+        if free_vram_gb() < 3.0:
+            emit(f"[yellow]skipping block benchmarks: needs about 3 gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
+        else:
+            bench_block_section(args.iters, args.warmup, config_timeout=args.config_timeout, selected=selected_blocks)
+
+    if "attention" in sections:
+        # bench the prep mode the advice points to: compiled, static workaround, or eager
+        if prep_status == "failing_dynamic":
+            from modules.sdnq.kernels import triton_atten as atten_module
+            inner = getattr(atten_module.get_attn_inputs, "_torchdynamo_orig_callable", None)
+            atten_module.get_attn_inputs = torch.compile(inner, fullgraph=True, dynamic=False)
+            emit("[yellow]dynamic-shape compile is broken here: benchmarking with the dynamic=false workaround applied, numbers match the webui after setting SDNQ_COMPILE_KWARGS='{\"dynamic\": false}'[/yellow]")
+        elif prep_status == "failing":
+            emit("[yellow]torch compile is broken here: benchmarking with eager input prep, numbers match the webui after disabling Dequantize using torch.compile[/yellow]")
+            torch._dynamo.config.disable = True # pylint: disable=protected-access
+        all_results = {}
+        minimum_vram = {"wan22": 6.0, "wan22-cfg": 12.0, "ltx2": 3.0, "masked": 6.0}
+        for index, preset in enumerate(selected, start=1):
+            needed = minimum_vram.get(preset, 2.0)
+            if free_vram_gb() < needed:
+                emit(f"[yellow]skipping {preset}: needs about {needed:.0f} gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
+                continue
+            all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.config_timeout, fp8_result=fp8_result)
+        build_recommendations(all_results, fp8_result, prep_status)
+
     if args.save:
         save_transcript(args.save)
+    if args.json:
+        save_report(args.json, args, sections, selected)
 
 
 if __name__ == "__main__":
