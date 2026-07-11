@@ -10,11 +10,11 @@ from ...packed_int import unpack_int
 from .forward import check_mats
 
 
-def quantize_uint_mm_input(input: torch.FloatTensor, dtype: torch.dtype | None = None) -> tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
+def quantize_uint_mm_input(input: torch.FloatTensor, dtype: torch.dtype | None = None, matmul_dtype: str = "uint8") -> tuple[torch.Tensor, torch.FloatTensor, torch.FloatTensor]:
     input = input.flatten(0,-2)
     if dtype is not None:
         input = input.to(dtype=dtype)
-    input, input_scale, input_zero_point = quantize_uint_mm(input, dim=-1)
+    input, input_scale, input_zero_point = quantize_uint_mm(input, dim=-1, matmul_dtype=matmul_dtype)
     if input_scale.dtype == torch.float16: # fp16 will overflow
         input_scale = input_scale.to(dtype=torch.float32)
         input_zero_point = input_zero_point.to(dtype=torch.float32)

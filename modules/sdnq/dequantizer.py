@@ -118,7 +118,7 @@ def re_quantize_int_mm(weight: torch.FloatTensor, matmul_dtype: str = "int8") ->
         weight, scale = quantize_int_mm(weight.t().contiguous(), dim=0, matmul_dtype=matmul_dtype)
     else:
         weight, scale = quantize_int_mm(weight.contiguous(), dim=-1, matmul_dtype=matmul_dtype)
-        weight, scale = weight.t_(), scale.t_()
+        weight, scale = weight.t_(), scale.t_().contiguous()
     return weight, scale
 
 
@@ -130,7 +130,7 @@ def re_quantize_uint_mm(weight: torch.FloatTensor, matmul_dtype: str = "uint8") 
         weight, scale, zero_point = quantize_uint_mm(weight.t().contiguous(), dim=0, matmul_dtype=matmul_dtype)
     else:
         weight, scale, zero_point = quantize_uint_mm(weight.contiguous(), dim=-1, matmul_dtype=matmul_dtype)
-        weight, scale, zero_point = weight.t_(), scale.t_(), zero_point.t_()
+        weight, scale, zero_point = weight.t_(), scale.t_().contiguous(), zero_point.t_().contiguous()
     return weight, scale, zero_point
 
 
@@ -142,7 +142,7 @@ def re_quantize_fp_mm(weight: torch.FloatTensor, matmul_dtype: str = "float8_e4m
         weight, scale = quantize_fp_mm(weight.t().contiguous(), dim=0, matmul_dtype=matmul_dtype)
     else:
         weight, scale = quantize_fp_mm(weight.contiguous(), dim=-1, matmul_dtype=matmul_dtype)
-        weight, scale = weight.t_(), scale.t_()
+        weight, scale = weight.t_(), scale.t_().contiguous()
     if not use_tensorwise_fp8_matmul and dtype_dict[matmul_dtype]["num_bits"] == 8:
         scale = scale.to(dtype=torch.float32)
     return weight, scale

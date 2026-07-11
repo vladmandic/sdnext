@@ -220,10 +220,10 @@ def sdnq_quantize_layer_weight(
     weight, scale, zero_point = quantize_weight(weight, reduction_axes, weights_dtype, dtype=(scale_dtype if cast_scale else None), use_stochastic_rounding=(use_stochastic_rounding and not skip_sr))
 
     if transpose_weights:
-        scale.t_()
-        weight.t_()
+        scale = scale.t_().contiguous()
+        weight = weight.t_()
         if zero_point is not None:
-            zero_point.t_()
+            zero_point = zero_point.t_().contiguous()
         weight = prepare_weight_for_matmul(weight, matmul_dtype=quantized_matmul_dtype)
 
     quantized_weight_shape = weight.shape
