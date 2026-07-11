@@ -6,7 +6,6 @@ __pycache__
 .idea/
 **/.DS_Store
 /*.json
-/*.yaml
 /params.txt
 /styles.csv
 /user.css
@@ -62,6 +61,7 @@ tunableop_results*.csv
 !requirements.txt
 !constraints.txt
 !pnpm-lock.yaml
+!pnpm-workspace.yaml
 !/data
 !/models/VAE-approx
 !/models/VAE-approx/model.pt
