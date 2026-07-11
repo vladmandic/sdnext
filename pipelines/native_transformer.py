@@ -825,7 +825,7 @@ def build_component_prequantized(
     from accelerate import init_empty_weights
     from accelerate.utils import set_module_tensor_to_device
     from diffusers.utils import get_module_from_name
-    from modules.sdnq.common import dtype_dict
+    from modules.sdnq.common import dtype_dict, check_torch_compile, is_fp8_compile_supported
     from modules.sdnq.quantizer import SDNQConfig, SDNQQuantizer
     from modules.sdnq.dequantizer import SDNQDequantizer
     from modules.sdnq.layers import get_sdnq_wrapper_class
@@ -837,6 +837,12 @@ def build_component_prequantized(
     storage_dtype = dtype_dict[weights_dtype]["storage_dtype"]
     target_dtype = dtype if dtype is not None else devices.dtype
     is_nvfp4 = comfy_format == "nvfp4"
+    # on hardware where compiled graphs cannot touch e4m3 tensors, adopt fp8 weights
+    # through the uint8-backed codec: same values (NaN codes decode as +/-480), and
+    # compiled dequant beats the eager native-fp8 fallback by ~6x
+    remap_fp8_storage = weights_dtype == "float8_e4m3fn" and check_torch_compile() and not is_fp8_compile_supported
+    if remap_fp8_storage:
+        weights_dtype = "float8_e4m3fn_sdnq"
     marked_names = set(marker_meta)
     sd = remap_comfy_quant(state_dict, marked_names, defer_scales=is_nvfp4)
 
@@ -850,6 +856,8 @@ def build_component_prequantized(
                 f"Load model: transformer=native {component_name} comfy_quant format "
                 f"{comfy_format} expects {storage_dtype} weights but {name!r} has {found}"
             )
+        if remap_fp8_storage:
+            sd[f"{name}.weight"] = weight.view(torch.uint8)
 
     # layers flagged full_precision_matrix_mult stay on the dequant path even
     # when the user enables quantized matmul (exact-name match on the config list)

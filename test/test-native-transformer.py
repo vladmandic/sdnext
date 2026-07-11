@@ -1360,23 +1360,32 @@ def comfy_fixture(dim: int, fmt: str = 'int8_tensorwise') -> dict:
 
 class ComfyTestEnv:
     """Patches quant helpers + config fetch and pins the SDNQ opts the
-    prequantized builder reads, restoring everything on exit."""
+    prequantized builder reads, restoring everything on exit.
+    ``fp8_compile_supported`` pins the fp8 storage-remap decision so tests
+    behave identically regardless of the host GPU and compile settings."""
 
-    def __init__(self, dim: int):
+    def __init__(self, dim: int, fp8_compile_supported: bool = True):
         self.dim = dim
+        self.fp8_compile_supported = fp8_compile_supported
 
     def __enter__(self):
         from modules import model_quant, shared
+        from modules.sdnq import common as sdnq_common
         self.shared = shared
+        self.sdnq_common = sdnq_common
         self.orig_fetch = nt.fetch_component_config
         self.orig_get_dit = model_quant.get_dit_args
         self.orig_get_qtype = model_quant.get_quant_type
         self.orig_do_post = model_quant.do_post_load_quant
+        self.orig_fp8_supported = sdnq_common.is_fp8_compile_supported
+        self.orig_check_compile = sdnq_common.check_torch_compile
         self.model_quant = model_quant
         nt.fetch_component_config = lambda repo, sub: {'dim': self.dim}
         model_quant.get_dit_args = lambda *a, **k: ({}, {})
         model_quant.get_quant_type = lambda *a, **k: None
         model_quant.do_post_load_quant = lambda *a, **k: None
+        sdnq_common.is_fp8_compile_supported = self.fp8_compile_supported
+        sdnq_common.check_torch_compile = lambda: not self.fp8_compile_supported
         self.orig_opts = {
             'sdnq_use_quantized_matmul': shared.opts.sdnq_use_quantized_matmul,
             'sdnq_dequantize_fp32': shared.opts.sdnq_dequantize_fp32,
@@ -1392,6 +1401,8 @@ class ComfyTestEnv:
         self.model_quant.get_dit_args = self.orig_get_dit
         self.model_quant.get_quant_type = self.orig_get_qtype
         self.model_quant.do_post_load_quant = self.orig_do_post
+        self.sdnq_common.is_fp8_compile_supported = self.orig_fp8_supported
+        self.sdnq_common.check_torch_compile = self.orig_check_compile
         for key, value in self.orig_opts.items():
             self.shared.opts.data[key] = value
         return False
@@ -1485,6 +1496,38 @@ def test_load_comfy_fp8_end_to_end():
         assert in_proj.weight.dtype == torch.float8_e4m3fn
         assert in_proj.scale.dtype == torch.float32
 
+        expected = raw['model.diffusion_model.in_proj.weight'].float() * raw['model.diffusion_model.in_proj.weight_scale']
+        dequantized = in_proj.sdnq_dequantizer(in_proj.weight, in_proj.scale, zero_point=None, svd_up=None, svd_down=None)
+        assert torch.equal(dequantized.detach().cpu(), expected)
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_comfy_fp8_remaps_storage_when_compile_unsupported():
+    """When compiled dequant is on but the hardware cannot compile e4m3,
+    fp8 weights are adopted through the uint8-backed codec: identical
+    decoded values from storage the compiler can always touch."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = comfy_fixture(dim, fmt='float8_e4m3fn')
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim, fp8_compile_supported=False):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer, _ = nt.load(
+                local_file=path,
+                repo_id='fake/repo',
+                spec=spec,
+                diffusers_cfg={},
+                dtype=torch.float32,
+            )
+
+        in_proj = transformer.in_proj
+        assert in_proj.__class__.__name__ == 'SDNQLinear'
+        assert in_proj.sdnq_dequantizer.weights_dtype == 'float8_e4m3fn_sdnq'
+        assert in_proj.weight.dtype == torch.uint8
         expected = raw['model.diffusion_model.in_proj.weight'].float() * raw['model.diffusion_model.in_proj.weight_scale']
         dequantized = in_proj.sdnq_dequantizer(in_proj.weight, in_proj.scale, zero_point=None, svd_up=None, svd_down=None)
         assert torch.equal(dequantized.detach().cpu(), expected)
@@ -2322,6 +2365,7 @@ def run_all():
     for fn in [
         test_load_comfy_int8_end_to_end,
         test_load_comfy_fp8_end_to_end,
+        test_load_comfy_fp8_remaps_storage_when_compile_unsupported,
         test_load_comfy_metadata_end_to_end,
         test_load_comfy_metadata_bare_names_end_to_end,
         test_load_comfy_full_precision_mm_excluded_from_matmul,
