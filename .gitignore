@@ -18,6 +18,8 @@ __pycache__
 /data/themes.json
 /data/installer.json
 /data/rocm.json
+/data/model_probe.json
+/data/civitai_probe.json
 node_modules
 package-lock.json
 
