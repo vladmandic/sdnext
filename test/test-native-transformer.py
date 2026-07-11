@@ -323,7 +323,8 @@ def test_detect_comfy_valid_markers():
     detected = nt.detect_comfy_quant(sd, 'Test')
     assert detected is not None
     marked, fmt = detected
-    assert marked == {'blocks.0.attn.wq', 'blocks.0.mlp.up'}
+    assert set(marked) == {'blocks.0.attn.wq', 'blocks.0.mlp.up'}
+    assert marked['blocks.0.attn.wq'] == {'format': 'int8_tensorwise'}
     assert fmt == 'int8_tensorwise'
 
 
@@ -351,20 +352,37 @@ def test_detect_comfy_malformed_marker_raises():
         assert 'malformed' in str(e)
 
 
-def test_detect_comfy_convrot_flag_raises():
-    """Markers carrying convrot=true may need runtime inverse rotation; adopting
-    them as plain tensors would corrupt outputs, so they must be rejected."""
+def test_detect_comfy_convrot_accepted():
+    """ConvRot markers map onto SDNQ's Hadamard support; detection carries the
+    per-layer fields through instead of rejecting."""
     import json
-    payload = json.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': 256})
+    payload = json.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': 256, 'per_row': True})
     sd = {
         'blocks.0.attn.wq.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.attn.wq.comfy_quant': torch.tensor(list(payload.encode()), dtype=torch.uint8),
+        'blocks.0.mlp.up.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'blocks.0.mlp.up.comfy_quant': comfy_marker('int8_tensorwise'),
+    }
+    marked, fmt = nt.detect_comfy_quant(sd, 'Test')
+    assert fmt == 'int8_tensorwise'
+    assert marked['blocks.0.attn.wq'].get('convrot') is True
+    assert marked['blocks.0.attn.wq'].get('convrot_groupsize') == 256
+    assert not marked['blocks.0.mlp.up'].get('convrot')
+
+
+def test_detect_comfy_convrot_bad_groupsize_raises():
+    """Regular Hadamards only exist for power-of-4 sizes; any other convrot
+    group size cannot be a compatible rotation."""
+    import json
+    payload = json.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': 8})
+    sd = {
         'blocks.0.attn.wq.comfy_quant': torch.tensor(list(payload.encode()), dtype=torch.uint8),
     }
     try:
         nt.detect_comfy_quant(sd, 'Test')
         raise AssertionError('expected OverrideArchMismatch')
     except nt.OverrideArchMismatch as e:
-        assert 'convrot' in str(e)
+        assert 'power of 4' in str(e)
 
 
 def test_detect_comfy_marker_missing_format_field_raises():
@@ -1446,25 +1464,26 @@ def test_load_fused_bf16_end_to_end():
             os.unlink(path)
 
 
-def test_load_fused_convrot_falls_back():
-    """The one real Ideogram 4 civitai file is convrot-flagged: conversion
-    succeeds, then detection rejects it into the base-repo fallback."""
+def test_load_fused_convrot_end_to_end():
+    """Fused qkv with a convrot marker: the converter duplicates the marker to
+    the three split layers, each of which loads with hadamard geometry. Row
+    slicing commutes with the in-features rotation, so slices stay lossless."""
     import json as json_mod
     fd, path = tempfile.mkstemp(suffix='.safetensors')
     try:
-        dim = 8
+        dim, group_size = 8, 4
         raw = fused_fixture(dim, quantized=True)
-        payload = json_mod.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': 256, 'per_row': True})
+        payload = json_mod.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': group_size, 'per_row': True})
         raw['model.diffusion_model.layers.0.attention.qkv.comfy_quant'] = torch.tensor(list(payload.encode()), dtype=torch.uint8)
+        raw['model.diffusion_model.layers.0.attention.qkv.weight_scale'] = torch.rand(3 * dim, 1, dtype=torch.float32)
         write_fixture(raw, fd, path)
         with ComfyTestEnv(dim):
-            raised = False
-            try:
-                nt.load(local_file=path, repo_id='fake/repo', spec=fused_spec(), diffusers_cfg={})
-            except nt.OverrideArchMismatch as e:
-                raised = True
-                assert 'convrot' in str(e)
-            assert raised, 'expected OverrideArchMismatch'
+            transformer, _ = nt.load(local_file=path, repo_id='fake/repo', spec=fused_spec(), diffusers_cfg={}, dtype=torch.float32)
+        attn = transformer.layers[0].attention
+        for name in ('to_q', 'to_k', 'to_v'):
+            dq = getattr(attn, name).sdnq_dequantizer
+            assert dq.use_hadamard is True, f'{name} lost the convrot flag'
+            assert dq.hadamard_group_size == group_size
     finally:
         if os.path.exists(path):
             os.unlink(path)
@@ -1530,6 +1549,103 @@ def test_load_transformer_secondary_slot_syncs_tracker():
         shared.opts.data['sd_unet_secondary'] = orig_secondary_opt
         sd_unet.loaded_unet = orig_primary
         sd_unet.loaded_unet_secondary = orig_secondary
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def regular_hadamard(n: int) -> torch.Tensor:
+    """Regular Hadamard construction the ConvRot format and SDNQ share:
+    4x4 base, Kronecker recursion, 1/sqrt(n) normalization. Symmetric and
+    involutory, so rotation and inverse are the same matrix."""
+    h4 = torch.tensor([[1., 1., 1., -1.], [1., 1., -1., 1.], [1., -1., 1., 1.], [-1., 1., 1., 1.]])
+    h = h4
+    size = 4
+    while size < n:
+        h = torch.kron(h, h4)
+        size *= 4
+    return h / (n ** 0.5)
+
+
+def comfy_convrot_quantize(weight: torch.Tensor, group_size: int):
+    """Reference ConvRot int8 quantizer (mirrors the ComfyUI runtime): rotate
+    grouped in-features by the regular Hadamard, then row-wise symmetric int8."""
+    h = regular_hadamard(group_size)
+    out_f, in_f = weight.shape
+    rotated = (weight.reshape(out_f, -1, group_size) @ h.T).reshape(out_f, in_f)
+    scale = rotated.abs().amax(dim=-1, keepdim=True) / 127
+    q = rotated.div(scale).round().clamp(-128, 127).to(torch.int8)
+    return q, scale
+
+
+def test_load_comfy_convrot_end_to_end():
+    """ConvRot parity: a layer quantized with the reference ConvRot math
+    loads as an SDNQ hadamard layer whose dequant matches the reference dequant
+    and recovers the original weight within int8 quantization error. The plain
+    second layer proves per-layer mixing within one file."""
+    import json as json_mod
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim, group_size = 8, 4
+        original = torch.randn(dim, dim)
+        q, scale = comfy_convrot_quantize(original, group_size)
+        marker = json_mod.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': group_size, 'per_row': True})
+        raw = {
+            'model.diffusion_model.in_proj.weight': q,
+            'model.diffusion_model.in_proj.weight_scale': scale,
+            'model.diffusion_model.in_proj.comfy_quant': torch.tensor(list(marker.encode()), dtype=torch.uint8),
+            'model.diffusion_model.in_proj.bias': torch.zeros(dim, dtype=torch.float16),
+            'model.diffusion_model.out_proj.weight': torch.randint(-128, 127, (dim, dim), dtype=torch.int8),
+            'model.diffusion_model.out_proj.weight_scale': torch.tensor(0.03125, dtype=torch.float32),
+            'model.diffusion_model.out_proj.comfy_quant': comfy_marker('int8_tensorwise'),
+            'model.diffusion_model.out_proj.bias': torch.zeros(dim, dtype=torch.float16),
+        }
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer, _ = nt.load(local_file=path, repo_id='fake/repo', spec=spec, diffusers_cfg={}, dtype=torch.float32)
+
+        in_proj = transformer.in_proj
+        dq = in_proj.sdnq_dequantizer
+        assert dq.use_hadamard is True
+        assert dq.hadamard_group_size == group_size
+        assert tuple(in_proj.scale.shape) == (dim, 1)
+
+        dequantized = dq(in_proj.weight, in_proj.scale, zero_point=None, svd_up=None, svd_down=None).detach().cpu()
+        h = regular_hadamard(group_size)
+        reference = ((q.float() * scale).reshape(dim, -1, group_size) @ h.T).reshape(dim, dim)
+        assert torch.allclose(dequantized, reference, atol=1e-5), 'SDNQ hadamard dequant diverges from the ConvRot reference'
+        assert torch.allclose(dequantized, original, atol=0.15), 'dequant does not recover the original weight'
+
+        # plain layer in the same file stays rotation-free
+        assert transformer.out_proj.sdnq_dequantizer.use_hadamard is False
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_comfy_convrot_nondivisible_falls_back():
+    """A convrot group size that does not divide in_features cannot be undone;
+    the file must fall back to the base repo."""
+    import json as json_mod
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = comfy_fixture(dim)
+        marker = json_mod.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': 16})
+        raw['model.diffusion_model.in_proj.comfy_quant'] = torch.tensor(list(marker.encode()), dtype=torch.uint8)
+        write_fixture(raw, fd, path)
+
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            raised = False
+            try:
+                nt.load(local_file=path, repo_id='fake/repo', spec=spec, diffusers_cfg={})
+            except nt.OverrideArchMismatch as e:
+                raised = True
+                assert 'does not divide' in str(e)
+            assert raised, 'expected OverrideArchMismatch'
+    finally:
         if os.path.exists(path):
             os.unlink(path)
 
@@ -1613,7 +1729,8 @@ def run_all():
         test_detect_comfy_valid_markers,
         test_detect_comfy_unsupported_format_raises,
         test_detect_comfy_malformed_marker_raises,
-        test_detect_comfy_convrot_flag_raises,
+        test_detect_comfy_convrot_accepted,
+        test_detect_comfy_convrot_bad_groupsize_raises,
         test_detect_comfy_marker_missing_format_field_raises,
         test_remap_comfy_renames_and_reshapes_scale,
         test_remap_comfy_passes_unmarked_keys_verbatim,
@@ -1690,6 +1807,8 @@ def run_all():
         test_load_comfy_marker_dtype_mismatch_raises,
         test_load_comfy_unsupported_format_raises_mismatch,
         test_load_comfy_marker_for_unknown_module_raises_mismatch,
+        test_load_comfy_convrot_end_to_end,
+        test_load_comfy_convrot_nondivisible_falls_back,
         test_load_transformer_syncs_loaded_unet,
         test_load_transformer_secondary_slot_syncs_tracker,
         test_build_component_comfy_preempts_sdnq_fresh_quant,
@@ -1710,7 +1829,7 @@ def run_all():
         test_ideogram4_converter_does_not_mutate_input,
         test_load_fused_comfy_end_to_end,
         test_load_fused_bf16_end_to_end,
-        test_load_fused_convrot_falls_back,
+        test_load_fused_convrot_end_to_end,
     ]:
         run_test(cat, fn)
 

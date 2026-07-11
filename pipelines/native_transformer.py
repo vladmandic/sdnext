@@ -427,21 +427,25 @@ def check_forbidden_markers(
             )
 
 
-def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[set[str], str] | None:
+def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[dict[str, dict], str] | None:
     """Detect ``comfy_quant`` pre-quantized layers in a state dict.
 
     ComfyUI-format quantized checkpoints mark each quantized layer with a
     ``<name>.comfy_quant`` uint8 tensor whose bytes are a JSON object naming
     the storage format, alongside a ``<name>.weight_scale`` tensor. Returns
-    the set of marked module names and the format string, or ``None`` when no
-    markers are present. Raises :class:`OverrideArchMismatch` for malformed
-    markers, unsupported formats, or a file mixing formats across layers, so
-    the caller's base-repo fallback engages.
+    a mapping of marked module names to their parsed marker JSON plus the
+    file's format string, or ``None`` when no markers are present. ConvRot
+    markers (``convrot``/``convrot_groupsize``) are accepted per layer: the
+    rotation is the same regular Hadamard SDNQ implements, so flagged layers
+    map onto ``use_hadamard`` (regular Hadamards only exist for power-of-4
+    group sizes). Raises :class:`OverrideArchMismatch` for
+    malformed markers, unsupported formats or group sizes, or a file mixing
+    formats across layers, so the caller's base-repo fallback engages.
     """
     marker_keys = [key for key in state_dict if key.endswith(COMFY_QUANT_MARKER)]
     if not marker_keys:
         return None
-    marked: set[str] = set()
+    marked: dict[str, dict] = {}
     formats: set[str] = set()
     for key in marker_keys:
         name = key[: -len(COMFY_QUANT_MARKER)]
@@ -454,14 +458,14 @@ def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[set[str], str]
                 f"for {name!r} is malformed ({type(e).__name__}: {e})"
             ) from e
         if meta.get("convrot"):
-            # ConvRot-flagged layers may require an inverse rotation at
-            # runtime; adopting them as plain tensors would corrupt outputs.
-            log.error(f'Load model: type={type_name} quant=comfy format={fmt} convrot=true not supported')
-            raise OverrideArchMismatch(
-                f"Load model: type={type_name} native_transformer comfy_quant layer "
-                f"{name!r} carries a convrot rotation flag, not supported"
-            )
-        marked.add(name)
+            group_size = int(meta.get("convrot_groupsize", 256))
+            is_pow4 = group_size >= 4 and (group_size & (group_size - 1)) == 0 and (group_size.bit_length() & 1) == 1
+            if not is_pow4:
+                raise OverrideArchMismatch(
+                    f"Load model: type={type_name} native_transformer comfy_quant layer "
+                    f"{name!r} convrot_groupsize={group_size} is not a power of 4"
+                )
+        marked[name] = meta
         formats.add(fmt)
     unsupported = sorted(formats - set(COMFY_QUANT_FORMATS))
     if unsupported:
@@ -644,7 +648,7 @@ def build_component_prequantized(
     state_dict: dict,
     config: dict,
     cls: type,
-    marked_names: set[str],
+    marker_meta: dict[str, dict],
     comfy_format: str,
     dtype,
     acceptable_missing: tuple[str, ...],
@@ -656,7 +660,9 @@ def build_component_prequantized(
 
     The supported formats are subsets of SDNQ's symmetric quantization: same
     storage layout (unpacked 8-bit ``[out, in]``), same dequant math
-    (``weight * scale``, no zero point), so tensors are adopted bit-exact.
+    (``weight * scale``, no zero point), so tensors are adopted bit-exact;
+    convrot layers map onto SDNQ's Hadamard support, whose identical regular
+    Hadamard construction lets the dequantizer undo the stored rotation.
     The file dictates which layers are quantized, independent of the user's
     quantization settings, and floating-point SDNQ params are not cast to the
     target dtype (the fp32 scales must survive). Layers are assembled in
@@ -679,6 +685,7 @@ def build_component_prequantized(
     matmul_dtype = "int8" if dtype_dict[weights_dtype]["is_integer"] else "float8_e4m3fn"
     storage_dtype = dtype_dict[weights_dtype]["storage_dtype"]
     target_dtype = dtype if dtype is not None else devices.dtype
+    marked_names = set(marker_meta)
     sd = remap_comfy_quant(state_dict, marked_names)
 
     # Civitai relabels these containers freely; trust the marker only as far
@@ -722,6 +729,14 @@ def build_component_prequantized(
                 f"Load model: transformer=native {component_name} comfy_quant marked "
                 f"module {name!r} is {linear.__class__.__name__}, expected Linear"
             )
+        # convrot weights are stored rotated by SDNQ's regular Hadamard; the dequantizer undoes it
+        use_hadamard = bool(marker_meta[name].get("convrot"))
+        hadamard_group_size = int(marker_meta[name].get("convrot_groupsize", 256)) if use_hadamard else 256
+        if use_hadamard and linear.in_features % hadamard_group_size != 0:
+            raise OverrideArchMismatch(
+                f"Load model: transformer=native {component_name} comfy_quant marked "
+                f"module {name!r} convrot_groupsize={hadamard_group_size} does not divide in_features={linear.in_features}"
+            )
         linear.sdnq_dequantizer = SDNQDequantizer(
             result_dtype=target_dtype,
             result_shape=None,
@@ -730,14 +745,14 @@ def build_component_prequantized(
             quantized_weight_shape=torch.Size((linear.out_features, linear.in_features)),
             weights_dtype=weights_dtype,
             quantized_matmul_dtype=matmul_dtype,
-            hadamard_group_size=256,
+            hadamard_group_size=hadamard_group_size,
             group_size=-1,
             svd_rank=32,
             svd_steps=8,
             use_quantized_matmul=False,
             re_quantize_for_matmul=False,
             use_stochastic_rounding=False,
-            use_hadamard=False,
+            use_hadamard=use_hadamard,
             layer_class_name="Linear",
         )
         wrapped = get_sdnq_wrapper_class(linear, dequant_forward)
@@ -857,17 +872,18 @@ def build_component(
 
         comfy_quant = detect_comfy_quant(state_dict, cls.__name__) if component_name == "transformer" else None
         if comfy_quant is not None:
-            marked_names, comfy_format = comfy_quant
+            marker_meta, comfy_format = comfy_quant
+            convrot_count = sum(1 for meta in marker_meta.values() if meta.get("convrot"))
             log.info(
                 f'Load model: transformer=native {component_name} quant=comfy '
-                f'format={comfy_format} layers={len(marked_names)} keys={len(state_dict)} cls={cls.__name__}'
+                f'format={comfy_format} layers={len(marker_meta)} convrot={convrot_count} keys={len(state_dict)} cls={cls.__name__}'
             )
             component = build_component_prequantized(
                 component_name=component_name,
                 state_dict=state_dict,
                 config=config,
                 cls=cls,
-                marked_names=marked_names,
+                marker_meta=marker_meta,
                 comfy_format=comfy_format,
                 dtype=dtype,
                 acceptable_missing=acceptable_missing,
