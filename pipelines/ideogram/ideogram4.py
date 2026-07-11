@@ -161,6 +161,20 @@ def _expand_tensor_to_effective_batch(
     return torch.repeat_interleave(tensor, repeats=repeat_by, dim=0, output_size=tensor.shape[0] * repeat_by)
 
 
+def transformer_compute_dtype(module: torch.nn.Module) -> torch.dtype:
+    """Activation dtype of a possibly-quantized transformer: sub-16-bit
+    floating params (e.g. fp8) surface through `module.dtype` but are a
+    storage format; the dequantizer's result dtype is the compute dtype."""
+    dtype = module.dtype
+    if not dtype.is_floating_point or torch.finfo(dtype).bits >= 16:
+        return dtype
+    for m in module.modules():
+        dequantizer = getattr(m, 'sdnq_dequantizer', None)
+        if dequantizer is not None:
+            return dequantizer.result_dtype
+    return dtype
+
+
 class Ideogram4Pipeline(DiffusionPipeline):
     r"""
     Text-to-image pipeline for Ideogram4.
@@ -675,8 +689,10 @@ class Ideogram4Pipeline(DiffusionPipeline):
 
         # The transformers run in their loaded compute dtype; cast the (otherwise float32) text features to match.
         # `latents` stay float32 for scheduler precision and are cast per-step at the transformer call below.
-        llm_features = llm_features.to(self.transformer.dtype)
-        neg_llm_features = neg_llm_features.to(self.unconditional_transformer.dtype if self.unconditional_transformer else self.transformer.dtype)
+        cond_dtype = transformer_compute_dtype(self.transformer)
+        uncond_dtype = transformer_compute_dtype(self.unconditional_transformer) if self.unconditional_transformer is not None else cond_dtype
+        llm_features = llm_features.to(cond_dtype)
+        neg_llm_features = neg_llm_features.to(uncond_dtype)
 
         # 8. Denoising loop. The scheduler stores `num_train_timesteps`-scaled timesteps; convert back to model time.
         num_train_timesteps = self.scheduler.config.num_train_timesteps # pylint: disable=no-member
@@ -687,10 +703,10 @@ class Ideogram4Pipeline(DiffusionPipeline):
 
                 # Map sigma-domain timestep to model time `t` in [0, 1] (0 = noise, 1 = clean data).
                 t_model = 1.0 - (t.float() / num_train_timesteps)
-                t_model = t_model.expand(batch_size * num_images_per_prompt).to(self.transformer.dtype)
+                t_model = t_model.expand(batch_size * num_images_per_prompt).to(cond_dtype)
 
                 # Conditional pass operates on the full packed sequence.
-                pos_z = torch.cat([text_z_padding, latents], dim=1).to(self.transformer.dtype)
+                pos_z = torch.cat([text_z_padding, latents], dim=1).to(cond_dtype)
                 pos_out = self.transformer(
                     hidden_states=pos_z,
                     timestep=t_model,
@@ -710,7 +726,7 @@ class Ideogram4Pipeline(DiffusionPipeline):
                 if gw[i] > 1.0:
                     uncond_transformer = self.unconditional_transformer if self.unconditional_transformer is not None else self.transformer
                     neg_v = uncond_transformer(
-                        hidden_states=latents.to(uncond_transformer.dtype),
+                        hidden_states=latents.to(uncond_dtype),
                         timestep=t_model,
                         encoder_hidden_states=neg_llm_features,
                         position_ids=neg_position_ids,
