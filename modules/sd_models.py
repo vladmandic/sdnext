@@ -1475,8 +1475,9 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
     loaded_ckpt = getattr(sd_model, 'sd_checkpoint_info', None) if sd_model is not None else None
     changed_checkpoint = loaded_ckpt is None or checkpoint_info is None or loaded_ckpt.filename != checkpoint_info.filename
     reset_unet = shared.opts.sd_unet not in (None, 'Default', 'None')
+    reset_unet_secondary = shared.opts.sd_unet_secondary not in (None, 'Default', 'None')
     reset_te = shared.opts.sd_text_encoder not in (None, 'Default', 'None')
-    if op == 'model' and sd_model is not None and changed_checkpoint and (reset_unet or reset_te):
+    if op == 'model' and sd_model is not None and changed_checkpoint and (reset_unet or reset_unet_secondary or reset_te):
         # compare detected model type, not pipeline class: custom-loader arches (e.g. Krea2) load as a
         # concrete class but detect as generic DiffusionPipeline, so a class compare would falsely reset
         # across same-arch checkpoints (Base vs Turbo). detect both sides so the comparison is symmetric.
@@ -1490,6 +1491,10 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
                 log.info(f'Load model: type="{old_type}" changed="{new_type}" unet="{shared.opts.sd_unet}" set to default')
                 shared.opts.data["sd_unet"] = 'Default'
                 sd_unet.loaded_unet = None
+            if reset_unet_secondary:
+                log.info(f'Load model: type="{old_type}" changed="{new_type}" unet_secondary="{shared.opts.sd_unet_secondary}" set to default')
+                shared.opts.data["sd_unet_secondary"] = 'Default'
+                sd_unet.loaded_unet_secondary = None
             if reset_te:
                 log.info(f'Load model: type="{old_type}" changed="{new_type}" te="{shared.opts.sd_text_encoder}" set to default')
                 shared.opts.data["sd_text_encoder"] = 'Default'

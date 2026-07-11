@@ -128,6 +128,10 @@ class TransformerSpec:
     VAE) that all-in-one exports bundle alongside the transformer; their keys
     are dropped before prefix detection rather than treated as a malformed
     file.
+
+    ``converter_handles_quant`` runs the converter before comfy_quant
+    detection; such converters must translate marker/scale sidecar keys along
+    with the weights. Float-oriented converters keep the default.
     """
 
     cls: type
@@ -135,6 +139,7 @@ class TransformerSpec:
     prefixes: tuple[str, ...] = DEFAULT_PREFIXES
     ignored_prefixes: tuple[str, ...] = DEFAULT_IGNORED_PREFIXES
     converter: Callable[[dict], dict] | None = None
+    converter_handles_quant: bool = False
     siblings: dict[str, SiblingSpec] = field(default_factory=dict)
     acceptable_missing: tuple[str, ...] = DEFAULT_ACCEPTABLE_MISSING
     zero_init_missing: tuple[str, ...] = ()
@@ -298,6 +303,7 @@ def load(
         dtype=effective_dtype,
         modules_to_not_convert=modules_to_not_convert,
         modules_dtype_dict=modules_dtype_dict,
+        converter_handles_quant=spec.converter_handles_quant,
         **kwargs,
     )
     del transformer_sd
@@ -422,9 +428,9 @@ def check_forbidden_markers(
 
 
 def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[set[str], str] | None:
-    """Detect ComfyUI ``comfy_quant`` pre-quantized layers in a state dict.
+    """Detect ``comfy_quant`` pre-quantized layers in a state dict.
 
-    ComfyUI's quantized checkpoints mark each quantized layer with a
+    ComfyUI-format quantized checkpoints mark each quantized layer with a
     ``<name>.comfy_quant`` uint8 tensor whose bytes are a JSON object naming
     the storage format, alongside a ``<name>.weight_scale`` tensor. Returns
     the set of marked module names and the format string, or ``None`` when no
@@ -646,28 +652,17 @@ def build_component_prequantized(
     **kwargs,
 ) -> object:
     """Build a component from a comfy_quant pre-quantized state dict, mapping
-    the marked layers onto SDNQ quantized layers without dequantizing.
+    the marked layers onto SDNQ layers without dequantizing.
 
-    The supported comfy formats (``int8_tensorwise``, ``float8_e4m3fn``) are
-    strict subsets of SDNQ's symmetric quantization for the corresponding
-    weights dtype: same storage layout (unpacked 8-bit ``[out, in]``), same
-    dequant math (``weight * scale``, no zero point), so the file's tensors
-    are adopted bit-exact. The model is built under ``init_empty_weights``
-    and each marked Linear is swapped for an SDNQ wrapper with per-tensor
-    dequant geometry (``group_size=-1``, scalar scale); the file dictates
-    which layers are quantized, independent of the user's quantization
-    settings. Weights load through ``SDNQQuantizer``'s pre-quantized path,
-    which preserves the quantized weight dtype and the fp32 scale (unlike
-    :func:`build_component_quantized`, floating-point SDNQ params are
-    deliberately not cast to the target dtype).
-
-    Layers are assembled in canonical dequant layout first;
-    ``apply_sdnq_options_to_model`` then enables quantized matmul per the
-    user's settings (transposing eligible layers), matching the order used by
+    The supported formats are subsets of SDNQ's symmetric quantization: same
+    storage layout (unpacked 8-bit ``[out, in]``), same dequant math
+    (``weight * scale``, no zero point), so tensors are adopted bit-exact.
+    The file dictates which layers are quantized, independent of the user's
+    quantization settings, and floating-point SDNQ params are not cast to the
+    target dtype (the fp32 scales must survive). Layers are assembled in
+    canonical dequant layout; ``apply_sdnq_options_to_model`` then applies
+    the user's quantized-matmul settings, matching
     ``modules.sdnq.loader.load_sdnq_model``.
-
-    Caller is responsible for prefix stripping; the state dict arrives with
-    its comfy marker keys intact and is remapped here.
     """
     import rich.progress as rp
     from accelerate import init_empty_weights
@@ -803,6 +798,22 @@ def build_component_prequantized(
     return component
 
 
+def apply_converter(converter: Callable[[dict], dict], state_dict: dict, cls: type, component_name: str) -> dict:
+    """Run a spec converter, wrapping any failure as
+    :class:`OverrideArchMismatch` (with the original chained) so a wrong-arch
+    file degrades to the base-repo fallback instead of a raw converter crash.
+    """
+    log.debug(f'Load model: transformer=native {component_name} converter={converter.__name__} keys={len(state_dict)}')
+    try:
+        return converter(state_dict)
+    except Exception as e:
+        raise OverrideArchMismatch(
+            f"Load model: type={cls.__name__} native_transformer converter "
+            f"{converter.__name__} rejected the override ({type(e).__name__}: {e}); "
+            f"file does not look like a {cls.__name__} checkpoint"
+        ) from e
+
+
 def build_component(
     *,
     component_name: str,
@@ -817,21 +828,21 @@ def build_component(
     dtype=None,
     modules_to_not_convert: list | None = None,
     modules_dtype_dict: dict | None = None,
+    converter_handles_quant: bool = False,
     **kwargs,
 ) -> object:
     """Convert (if needed), instantiate, load weights, dtype-cast, quantize,
     and offload-place a single component. Raises on any hard failure.
 
-    Transformer state dicts carrying ComfyUI ``comfy_quant`` markers are
-    dispatched to :func:`build_component_prequantized`, which adopts the
-    file's int8 tensors as SDNQ layers regardless of quantization settings
-    (the converter and ``quant_args`` are bypassed: the file is already
-    quantized). For the transformer component under SDNQ, the per-tensor
-    pre-mode path in :func:`build_component_quantized` is used so
-    quantization is applied in flight (one layer's worth of bf16 in memory
-    at a time). All other cases (siblings, non-quantized loads,
-    NVIDIAModelOptConfig, layerwise quant) go through the standard
-    load_state_dict + post-quantize path.
+    Transformer state dicts carrying ``comfy_quant`` markers dispatch
+    to :func:`build_component_prequantized` (``quant_args`` are bypassed: the
+    file is already quantized); a ``converter_handles_quant`` converter runs
+    before that detection, float-oriented converters after it. Under SDNQ the
+    transformer uses the per-tensor pre-mode path in
+    :func:`build_component_quantized` so quantization is applied in flight.
+    All other cases (siblings, non-quantized loads, NVIDIAModelOptConfig,
+    layerwise quant) go through the standard load_state_dict + post-quantize
+    path.
 
     ``dtype`` overrides ``devices.dtype`` when supplied; otherwise the global
     default is used. ``modules_to_not_convert`` and ``modules_dtype_dict``
@@ -840,6 +851,10 @@ def build_component(
     reach ``cls.from_config`` for both construction paths.
     """
     try:
+        if converter is not None and converter_handles_quant and component_name == "transformer":
+            state_dict = apply_converter(converter, state_dict, cls, component_name)
+            converter = None  # consumed; must not run again on the non-comfy path below
+
         comfy_quant = detect_comfy_quant(state_dict, cls.__name__) if component_name == "transformer" else None
         if comfy_quant is not None:
             marked_names, comfy_format = comfy_quant
@@ -863,15 +878,7 @@ def build_component(
             return component
 
         if converter is not None:
-            log.debug(f'Load model: transformer=native {component_name} converter={converter.__name__} keys={len(state_dict)}')
-            try:
-                sd = converter(state_dict)
-            except Exception as e:
-                raise OverrideArchMismatch(
-                    f"Load model: type={cls.__name__} native_transformer converter "
-                    f"{converter.__name__} rejected the override ({type(e).__name__}: {e}); "
-                    f"file does not look like a {cls.__name__} checkpoint"
-                ) from e
+            sd = apply_converter(converter, state_dict, cls, component_name)
         else:
             sd = state_dict
 

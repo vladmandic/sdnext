@@ -116,6 +116,12 @@ def refresh_unet_list():
     modules.sd_unet.refresh_unet_list()
 
 
+def sd_unet_secondary_visible():
+    import modules.sd_unet
+    from modules import shared
+    return shared.sd_model_type in modules.sd_unet.DUAL_TRANSFORMER_TYPES
+
+
 def sd_te_items():
     import modules.model_te
     predefined = ['Default']

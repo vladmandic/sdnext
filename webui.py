@@ -184,6 +184,7 @@ def load_model():
     shared.opts.onchange("sd_model_refiner", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='refiner')), call=False)
     shared.opts.onchange("sd_vae", wrap_queued_call(lambda: modules.sd_vae.reload_vae_weights()), call=False)
     shared.opts.onchange("sd_unet", wrap_queued_call(lambda: modules.sd_unet.load_unet(shared.sd_model)), call=False)
+    shared.opts.onchange("sd_unet_secondary", wrap_queued_call(lambda: modules.sd_unet.load_unet_secondary(shared.sd_model)), call=False)
     shared.opts.onchange("sd_text_encoder", wrap_queued_call(lambda: modules.sd_models.reload_text_encoder()), call=False)
     shared.opts.onchange("temp_dir", modules.gr_tempdir.on_tmpdir_changed)
     timer.startup.record("onchange")

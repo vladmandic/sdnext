@@ -94,6 +94,7 @@ def create_settings(cmd_opts):
         "sd_model_checkpoint": OptionInfo(default_checkpoint, "Base model", DropdownEditable, lambda: {"choices": list_checkpoint_titles()}, refresh=refresh_checkpoints),
         "sd_model_refiner": OptionInfo('None', "Refiner model", gr.Dropdown, lambda: {"choices": ['None'] + list_checkpoint_titles()}, refresh=refresh_checkpoints),
         "sd_unet": OptionInfo("Default", "UNET model", gr.Dropdown, lambda: {"choices": shared_items.sd_unet_items()}, refresh=shared_items.refresh_unet_list),
+        "sd_unet_secondary": OptionInfo("Default", "UNET model secondary", gr.Dropdown, lambda: {"choices": shared_items.sd_unet_items(), "visible": shared_items.sd_unet_secondary_visible()}, refresh=shared_items.refresh_unet_list),
         "latent_history": OptionInfo(20, "Latent history size", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
 
         "advanced_sep": OptionInfo("<h2>Advanced Options</h2>", "", gr.HTML),

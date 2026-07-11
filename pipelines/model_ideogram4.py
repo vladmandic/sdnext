@@ -1,3 +1,5 @@
+import dataclasses
+
 import diffusers
 import transformers
 from modules import shared, devices, sd_models, model_quant, sd_hijack_te, sd_hijack_vae
@@ -41,11 +43,16 @@ def load_ideogram4(checkpoint_info, diffusers_load_config=None):
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
+    from pipelines.ideogram import IDEOGRAM4_SPEC
     transformer_cls = diffusers.Ideogram4Transformer2DModel
 
-    transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, subfolder="transformer", load_config=diffusers_load_config)
+    transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, subfolder="transformer", load_config=diffusers_load_config, native_spec=IDEOGRAM4_SPEC)
     if shared.opts.model_ideogram4_enable_cg:
-        unconditional_transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, subfolder="unconditional_transformer", load_config=diffusers_load_config)
+        # the spec subfolder swap makes an unconditional override fetch its config from the matching subfolder
+        unconditional_transformer = generic.load_transformer(
+            repo_id, cls_name=transformer_cls, subfolder="unconditional_transformer", load_config=diffusers_load_config,
+            native_spec=dataclasses.replace(IDEOGRAM4_SPEC, subfolder="unconditional_transformer"), override_slot='secondary',
+        )
     else:
         unconditional_transformer = None
     text_encoder = generic.load_text_encoder(repo_id, cls_name=transformers.Qwen3VLModel, load_config=diffusers_load_config)

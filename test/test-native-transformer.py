@@ -8,7 +8,7 @@ Covers the pure helpers that own per-arch knob handling:
 - ``strip_prefix`` for single/multi prefix detection and mixed-prefix rejection
 - ``partition_siblings`` for inline-sibling key partitioning
 - ``check_forbidden_markers`` for structural-mismatch rejection
-- ``detect_comfy_quant`` for ComfyUI comfy_quant marker detection and format gating
+- ``detect_comfy_quant`` for comfy_quant marker detection and format gating
 - ``remap_comfy_quant`` for comfy_quant -> SDNQ key translation
 - ``is_noop_converter`` for diffusers no-op lambda detection
 - ``validate_state_dict_load`` for unexpected / missing key handling
@@ -955,6 +955,104 @@ def test_load_converter_crash_raises_mismatch():
 
 
 # ============================================================
+# Ideogram 4 converter (fused community layout -> diffusers layout)
+# ============================================================
+
+def ideogram_converter():
+    from pipelines.ideogram import convert_ideogram4_transformer_checkpoint
+    return convert_ideogram4_transformer_checkpoint
+
+
+def test_ideogram4_converter_splits_fused_qkv_weight():
+    convert = ideogram_converter()
+    fused = torch.arange(48, dtype=torch.float32).reshape(12, 4)
+    out = convert({'layers.0.attention.qkv.weight': fused})
+    assert set(out.keys()) == {f'layers.0.attention.{n}.weight' for n in ('to_q', 'to_k', 'to_v')}
+    assert torch.equal(out['layers.0.attention.to_q.weight'], fused[0:4])
+    assert torch.equal(out['layers.0.attention.to_k.weight'], fused[4:8])
+    assert torch.equal(out['layers.0.attention.to_v.weight'], fused[8:12])
+
+
+def test_ideogram4_converter_splits_rowwise_scale():
+    convert = ideogram_converter()
+    fused = torch.zeros((12, 4), dtype=torch.int8)
+    scale = torch.arange(12, dtype=torch.float32).reshape(12, 1)
+    out = convert({'layers.3.attention.qkv.weight': fused, 'layers.3.attention.qkv.weight_scale': scale})
+    assert torch.equal(out['layers.3.attention.to_q.weight_scale'], scale[0:4])
+    assert torch.equal(out['layers.3.attention.to_v.weight_scale'], scale[8:12])
+    assert out['layers.3.attention.to_k.weight_scale'].shape == (4, 1)
+
+
+def test_ideogram4_converter_scalar_scale_copied_not_sliced():
+    convert = ideogram_converter()
+    fused = torch.zeros((12, 4), dtype=torch.int8)
+    scale = torch.tensor(0.5)
+    out = convert({'layers.0.attention.qkv.weight': fused, 'layers.0.attention.qkv.weight_scale': scale})
+    for name in ('to_q', 'to_k', 'to_v'):
+        assert out[f'layers.0.attention.{name}.weight_scale'] is scale
+
+
+def test_ideogram4_converter_duplicates_marker():
+    convert = ideogram_converter()
+    fused = torch.zeros((12, 4), dtype=torch.int8)
+    marker = comfy_marker('int8_tensorwise')
+    out = convert({'layers.0.attention.qkv.weight': fused, 'layers.0.attention.qkv.comfy_quant': marker})
+    for name in ('to_q', 'to_k', 'to_v'):
+        assert out[f'layers.0.attention.{name}.comfy_quant'] is marker
+
+
+def test_ideogram4_converter_renames_o_with_sidecars():
+    convert = ideogram_converter()
+    sd = {
+        'layers.5.attention.o.weight': torch.zeros((4, 4), dtype=torch.int8),
+        'layers.5.attention.o.weight_scale': torch.tensor(1.0),
+        'layers.5.attention.o.comfy_quant': comfy_marker('int8_tensorwise'),
+    }
+    out = convert(sd)
+    assert set(out.keys()) == {
+        'layers.5.attention.to_out.0.weight',
+        'layers.5.attention.to_out.0.weight_scale',
+        'layers.5.attention.to_out.0.comfy_quant',
+    }
+
+
+def test_ideogram4_converter_passthrough():
+    convert = ideogram_converter()
+    sd = {
+        'input_proj.weight': torch.zeros(4),
+        'llm_cond_proj.weight': torch.zeros(4),
+        'layers.0.feed_forward.w1.weight': torch.zeros(4),
+        'layers.0.attention.norm_q.weight': torch.zeros(4),
+        'layers.0.adaln_modulation.bias': torch.zeros(4),
+        'final_layer.linear.weight': torch.zeros(4),
+    }
+    out = convert(sd)
+    assert set(out.keys()) == set(sd.keys())
+    for k, v in sd.items():
+        assert out[k] is v
+
+
+def test_ideogram4_converter_defensive_bias_split():
+    convert = ideogram_converter()
+    fused = torch.zeros((12, 4), dtype=torch.float32)
+    bias = torch.arange(12, dtype=torch.float32)
+    out = convert({'layers.0.attention.qkv.weight': fused, 'layers.0.attention.qkv.bias': bias})
+    assert torch.equal(out['layers.0.attention.to_k.bias'], bias[4:8])
+
+
+def test_ideogram4_converter_does_not_mutate_input():
+    convert = ideogram_converter()
+    sd = {
+        'layers.0.attention.qkv.weight': torch.zeros((12, 4)),
+        'layers.0.attention.o.weight': torch.zeros((4, 4)),
+        'input_proj.weight': torch.zeros(4),
+    }
+    keys_before = set(sd.keys())
+    convert(sd)
+    assert set(sd.keys()) == keys_before
+
+
+# ============================================================
 # Integration: comfy_quant pre-quantized load
 # ============================================================
 # Same patching strategy as the plain load tests, plus pinned SDNQ opts so the
@@ -1238,6 +1336,204 @@ def test_load_transformer_syncs_loaded_unet():
             os.unlink(path)
 
 
+class MockFusedAttention(torch.nn.Module):
+    """Split-attention module tree matching Ideogram4Transformer2DModel's
+    naming (to_q/to_k/to_v + to_out ModuleList), fed by fused checkpoints."""
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.to_q = torch.nn.Linear(dim, dim, bias=False)
+        self.to_k = torch.nn.Linear(dim, dim, bias=False)
+        self.to_v = torch.nn.Linear(dim, dim, bias=False)
+        self.to_out = torch.nn.ModuleList([torch.nn.Linear(dim, dim, bias=False), torch.nn.Dropout(0.0)])
+
+
+class MockFusedBlock(torch.nn.Module):
+    def __init__(self, dim: int):
+        super().__init__()
+        self.attention = MockFusedAttention(dim)
+
+
+class MockFusedTransformer(torch.nn.Module):
+    @classmethod
+    def from_config(cls, config: dict, **kwargs) -> 'MockFusedTransformer':
+        return cls(dim=config['dim'])
+
+    def __init__(self, dim: int):
+        super().__init__()
+        self.layers = torch.nn.ModuleList([MockFusedBlock(dim)])
+        self.input_proj = torch.nn.Linear(dim, dim)
+
+
+def fused_spec():
+    from pipelines.ideogram import convert_ideogram4_transformer_checkpoint
+    return nt.TransformerSpec(
+        cls=MockFusedTransformer,
+        converter=convert_ideogram4_transformer_checkpoint,
+        converter_handles_quant=True,
+    )
+
+
+def fused_fixture(dim: int, quantized: bool = True) -> dict:
+    if quantized:
+        qkv = torch.randint(-128, 127, (3 * dim, dim), dtype=torch.int8)
+    else:
+        qkv = torch.randn(3 * dim, dim, dtype=torch.float16)
+    raw = {
+        'model.diffusion_model.layers.0.attention.qkv.weight': qkv,
+        'model.diffusion_model.layers.0.attention.o.weight': torch.randn(dim, dim, dtype=torch.float16),
+        'model.diffusion_model.input_proj.weight': torch.randn(dim, dim, dtype=torch.float16),
+        'model.diffusion_model.input_proj.bias': torch.zeros(dim, dtype=torch.float16),
+    }
+    if quantized:
+        raw['model.diffusion_model.layers.0.attention.qkv.weight_scale'] = torch.rand(3 * dim, 1, dtype=torch.float32)
+        raw['model.diffusion_model.layers.0.attention.qkv.comfy_quant'] = comfy_marker('int8_tensorwise')
+    return raw
+
+
+def test_load_fused_comfy_end_to_end():
+    """Quant-aware converter + comfy adoption: fused int8 qkv with row-wise
+    scales lands as three SDNQ linears holding the exact row slices."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = fused_fixture(dim, quantized=True)
+        write_fixture(raw, fd, path)
+        with ComfyTestEnv(dim):
+            transformer, _ = nt.load(local_file=path, repo_id='fake/repo', spec=fused_spec(), diffusers_cfg={}, dtype=torch.float32)
+
+        attn = transformer.layers[0].attention
+        fused_w = raw['model.diffusion_model.layers.0.attention.qkv.weight']
+        fused_s = raw['model.diffusion_model.layers.0.attention.qkv.weight_scale']
+        for i, name in enumerate(('to_q', 'to_k', 'to_v')):
+            layer = getattr(attn, name)
+            assert layer.__class__.__name__ == 'SDNQLinear', f'{name} is {layer.__class__.__name__}'
+            assert layer.weight.dtype == torch.int8
+            assert torch.equal(layer.weight.detach().cpu(), fused_w[i * dim:(i + 1) * dim])
+            assert tuple(layer.scale.shape) == (dim, 1), f'{name} scale shape {layer.scale.shape}'
+            assert torch.equal(layer.scale.detach().cpu(), fused_s[i * dim:(i + 1) * dim])
+            expected = fused_w[i * dim:(i + 1) * dim].float() * fused_s[i * dim:(i + 1) * dim]
+            dequantized = layer.sdnq_dequantizer(layer.weight, layer.scale, zero_point=None, svd_up=None, svd_down=None)
+            assert torch.equal(dequantized.detach().cpu(), expected)
+        # unmarked o.weight passes through the rename as a plain Linear
+        assert attn.to_out[0].__class__ is torch.nn.Linear
+        assert torch.allclose(attn.to_out[0].weight.detach().cpu(), raw['model.diffusion_model.layers.0.attention.o.weight'].float())
+        assert transformer.input_proj.__class__ is torch.nn.Linear
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_fused_bf16_end_to_end():
+    """Converter-first on a plain float fused file: no markers, standard load
+    path, split weights land on the class-native linears."""
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = fused_fixture(dim, quantized=False)
+        write_fixture(raw, fd, path)
+        with ComfyTestEnv(dim):
+            transformer, _ = nt.load(local_file=path, repo_id='fake/repo', spec=fused_spec(), diffusers_cfg={}, dtype=torch.float32)
+
+        attn = transformer.layers[0].attention
+        fused_w = raw['model.diffusion_model.layers.0.attention.qkv.weight']
+        for i, name in enumerate(('to_q', 'to_k', 'to_v')):
+            layer = getattr(attn, name)
+            assert layer.__class__ is torch.nn.Linear
+            assert torch.allclose(layer.weight.detach().cpu(), fused_w[i * dim:(i + 1) * dim].float())
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_load_fused_convrot_falls_back():
+    """The one real Ideogram 4 civitai file is convrot-flagged: conversion
+    succeeds, then detection rejects it into the base-repo fallback."""
+    import json as json_mod
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    try:
+        dim = 8
+        raw = fused_fixture(dim, quantized=True)
+        payload = json_mod.dumps({'format': 'int8_tensorwise', 'convrot': True, 'convrot_groupsize': 256, 'per_row': True})
+        raw['model.diffusion_model.layers.0.attention.qkv.comfy_quant'] = torch.tensor(list(payload.encode()), dtype=torch.uint8)
+        write_fixture(raw, fd, path)
+        with ComfyTestEnv(dim):
+            raised = False
+            try:
+                nt.load(local_file=path, repo_id='fake/repo', spec=fused_spec(), diffusers_cfg={})
+            except nt.OverrideArchMismatch as e:
+                raised = True
+                assert 'convrot' in str(e)
+            assert raised, 'expected OverrideArchMismatch'
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
+def test_build_component_comfy_skips_converter_when_not_quant_aware():
+    """With converter_handles_quant=False (the default for every other arch),
+    a comfy state dict must reach the prequantized path without the converter
+    ever running; a crashing converter proves it was not invoked."""
+    dim = 8
+    raw = comfy_fixture(dim)
+    sd = {k[len('model.diffusion_model.'):]: v for k, v in raw.items()}
+    with ComfyTestEnv(dim):
+        component = nt.build_component(
+            component_name='transformer',
+            state_dict=sd,
+            config={'dim': dim},
+            cls=MockMiniTransformer,
+            converter=crashing_converter,
+            acceptable_missing=('rope.',),
+            quant_args={},
+            quant_type='SDNQConfig',
+            dtype=torch.float32,
+        )
+    assert component.in_proj.__class__.__name__ == 'SDNQLinear'
+
+
+def test_load_transformer_secondary_slot_syncs_tracker():
+    """The secondary slot consumes sd_unet_secondary and syncs its own
+    tracker without touching the primary slot."""
+    from modules import sd_unet, shared
+    from pipelines import generic_transformer as gt
+
+    fd, path = tempfile.mkstemp(suffix='.safetensors')
+    dim = 8
+    raw = {
+        'model.diffusion_model.in_proj.weight': torch.randn(dim, dim),
+        'model.diffusion_model.in_proj.bias': torch.zeros(dim),
+        'model.diffusion_model.out_proj.weight': torch.randn(dim, dim),
+        'model.diffusion_model.out_proj.bias': torch.zeros(dim),
+    }
+    write_fixture(raw, fd, path)
+
+    orig_primary_opt = shared.opts.sd_unet
+    orig_secondary_opt = shared.opts.sd_unet_secondary
+    orig_primary = sd_unet.loaded_unet
+    orig_secondary = sd_unet.loaded_unet_secondary
+    sd_unet.unet_dict['mock-unet-2'] = path
+    shared.opts.data['sd_unet'] = 'Default'
+    shared.opts.data['sd_unet_secondary'] = 'mock-unet-2'
+    sd_unet.loaded_unet = None
+    sd_unet.loaded_unet_secondary = None
+    try:
+        with ComfyTestEnv(dim):
+            spec = nt.TransformerSpec(cls=MockMiniTransformer)
+            transformer = gt.load_transformer('fake/repo', cls_name=MockMiniTransformer, native_spec=spec, override_slot='secondary')
+        assert transformer is not None
+        assert sd_unet.loaded_unet_secondary == 'mock-unet-2'
+        assert sd_unet.loaded_unet is None, 'primary tracker must stay untouched'
+    finally:
+        sd_unet.unet_dict.pop('mock-unet-2', None)
+        shared.opts.data['sd_unet'] = orig_primary_opt
+        shared.opts.data['sd_unet_secondary'] = orig_secondary_opt
+        sd_unet.loaded_unet = orig_primary
+        sd_unet.loaded_unet_secondary = orig_secondary
+        if os.path.exists(path):
+            os.unlink(path)
+
+
 def test_build_component_comfy_preempts_sdnq_fresh_quant():
     """When SDNQ on-load quant settings are active (quant_type=SDNQConfig), a
     comfy_quant file must still take the pre-quantized path: fresh quant of
@@ -1395,7 +1691,26 @@ def run_all():
         test_load_comfy_unsupported_format_raises_mismatch,
         test_load_comfy_marker_for_unknown_module_raises_mismatch,
         test_load_transformer_syncs_loaded_unet,
+        test_load_transformer_secondary_slot_syncs_tracker,
         test_build_component_comfy_preempts_sdnq_fresh_quant,
+        test_build_component_comfy_skips_converter_when_not_quant_aware,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== ideogram4 converter / fused load ===')
+    cat = category('ideogram4')
+    for fn in [
+        test_ideogram4_converter_splits_fused_qkv_weight,
+        test_ideogram4_converter_splits_rowwise_scale,
+        test_ideogram4_converter_scalar_scale_copied_not_sliced,
+        test_ideogram4_converter_duplicates_marker,
+        test_ideogram4_converter_renames_o_with_sidecars,
+        test_ideogram4_converter_passthrough,
+        test_ideogram4_converter_defensive_bias_split,
+        test_ideogram4_converter_does_not_mutate_input,
+        test_load_fused_comfy_end_to_end,
+        test_load_fused_bf16_end_to_end,
+        test_load_fused_convrot_falls_back,
     ]:
         run_test(cat, fn)
 

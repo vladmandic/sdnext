@@ -5,11 +5,14 @@ from modules.logger import log
 
 unet_dict = {}
 loaded_unet = None
+loaded_unet_secondary = None
 failed_unet = []
 debug = os.environ.get('SD_LOAD_DEBUG', None) is not None
 
 
 dit_models = ['Flux', 'StableDiffusion3', 'HiDream', 'Lumina2', 'Chroma', 'Wan', 'Qwen', 'Anima']
+# model types (shared.sd_model_type keyspace) the secondary UNET override applies to
+DUAL_TRANSFORMER_TYPES = ('ideogram4', 'wanai')
 
 
 def load_unet_sdxl_nunchaku(repo_id):
@@ -98,6 +101,35 @@ def load_unet(model, repo_id: str | None = None):
             from modules import errors
             errors.display(e, 'UNet load:')
         return
+    devices.torch_gc()
+
+
+def load_unet_secondary(model): # pylint: disable=unused-argument
+    """Onchange handler for the secondary UNET override: a change means a
+    full reload; for single-transformer models the selection is stored and
+    applies on the next dual-transformer load.
+    """
+    global loaded_unet_secondary  # pylint: disable=global-statement
+    selected = shared.opts.sd_unet_secondary
+
+    if selected is None or selected in ('Default', 'None'):
+        if loaded_unet_secondary in (None, 'Default', 'None'):
+            return
+        log.info(f'Load module: type=UNet slot=secondary name="Default" (was="{loaded_unet_secondary}") reverting to base transformer')
+        loaded_unet_secondary = selected
+        sd_models.reload_model_weights(force=True)
+        return
+
+    if selected not in list(unet_dict):
+        log.error(f'Load module: type=UNet slot=secondary not found: {selected}')
+        return
+    if selected == loaded_unet_secondary or selected in failed_unet:
+        return
+    if shared.sd_model_type not in DUAL_TRANSFORMER_TYPES:
+        log.warning(f'Load module: type=UNet slot=secondary name="{selected}" stored: model type={shared.sd_model_type} has a single transformer, applies on next dual-transformer load')
+        return
+    loaded_unet_secondary = selected
+    sd_models.reload_model_weights(force=True)
     devices.torch_gc()
 
 
