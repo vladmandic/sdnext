@@ -461,6 +461,13 @@ def create_quicksettings(interfaces):
             inputs=[shared.settings_components["sd_unet"], dummy_component],
             outputs=[shared.settings_components["sd_unet"], text_settings],
         )
+        button_set_unet_secondary = gr.Button("Change UNet secondary", elem_id="change_unet_secondary", visible=False)
+        button_set_unet_secondary.click(
+            fn=lambda value, _: run_settings_single(value, key="sd_unet_secondary"),
+            _js="consumeDesiredUNetName",
+            inputs=[shared.settings_components["sd_unet_secondary"], dummy_component],
+            outputs=[shared.settings_components["sd_unet_secondary"], text_settings],
+        )
 
         def reference_submit(model):
             if '@' not in model: # diffusers
