@@ -10,20 +10,9 @@ ui_system_tabs = None # required for system-info
 dummy_component = gr.Textbox(visible=False, value='dummy')
 loadsave = ui_loadsave.UiLoadsave(shared.cmd_opts.ui_config)
 quicksettings_names = {x: i for i, x in enumerate(shared.opts.quicksettings_list) if x != 'quicksettings'}
-# companion settings render beside their parent wherever it lives:
-# quicksettings the parent and the companion follows, keeping its own visibility
-companion_settings = (('sd_unet', 'sd_unet_secondary'),)
-for parent_key, companion_key in companion_settings:
-    if parent_key in quicksettings_names and companion_key not in quicksettings_names:
-        quicksettings_names[companion_key] = quicksettings_names[parent_key] + 0.5
 quicksettings_list = []
 hidden_list = []
 components = []
-# settings with model-dependent visibility: their wrapper group (settings page) or
-# refresh button (quicksettings) is registered here so visibility pushes toggle the
-# whole control, not just the inner dropdown
-dynamic_visibility_keys = ('sd_unet_secondary',)
-dynamic_visibility: dict = {}
 
 
 def apply_setting(key, value):
@@ -87,15 +76,11 @@ def create_setting_component(key, is_quicksettings=False):
         dirtyable_setting = gr.Group(elem_classes="dirtyable", visible=args.get("visible", True))
         dirtyable_setting.__enter__()
         dirty_indicator = gr.Button("", elem_classes="modification-indicator", elem_id=f"modification_indicator_{key}")
-        if key in dynamic_visibility_keys:
-            dynamic_visibility.setdefault(key, []).append(dirtyable_setting)
 
     if info.refresh is not None:
         if is_quicksettings:
             res = comp(label=info.label, value=fun(), elem_id=elem_id, **args)
-            refresh_button = ui_common.create_refresh_button(res, info.refresh, info.component_args, f"settings_{key}_refresh", visible=args.get("visible", True))
-            if key in dynamic_visibility_keys:
-                dynamic_visibility.setdefault(key, []).append(refresh_button)
+            ui_common.create_refresh_button(res, info.refresh, info.component_args, f"settings_{key}_refresh")
         else:
             with gr.Row():
                 res = comp(label=info.label, value=fun(), elem_id=elem_id, **args)
@@ -282,7 +267,6 @@ def create_ui(disabled_tabs=None):
 
             with gr.Tabs(elem_id="settings"):
                 quicksettings_list.clear()
-                dynamic_visibility.clear()
                 for (section_id, section_text) in sections:
                     items = [item for item in shared.opts.data_labels.items() if item[1].section[0] == section_id] # find all items in this section
                     hidden = section_id is None or 'hidden' in section_id.lower() or 'hidden' in section_text.lower()
@@ -380,7 +364,7 @@ def create_quicksettings(interfaces):
         with gr.Row(elem_id="quicksettings", variant="compact"):
             quicksetting_components = []
             quicksetting_keys = []
-            for k, _item in sorted(quicksettings_list, key=lambda x: quicksettings_names.get(x[0], 0)):
+            for k, _item in sorted(quicksettings_list, key=lambda x: quicksettings_names.get(x[1], x[0])):
                 component = create_setting_component(k, is_quicksettings=True)
                 quicksetting_components.append(component)
                 quicksetting_keys.append(k)
@@ -410,20 +394,10 @@ def create_quicksettings(interfaces):
             gr.Audio(interactive=False, value=os.path.join(paths.script_path, shared.opts.notification_audio_path), elem_id="audio_notification", visible=False)
 
         def sync_checkpoint_components(value, progress=False, force=False):
-            # a checkpoint change can reset sd_unet / sd_unet_secondary / sd_text_encoder
-            # (arch changed); push the current values back to the dropdowns. The secondary
-            # dropdown and its dynamic_visibility companions also toggle visibility here,
-            # since get_value_for_setting strips 'visible'.
-            from modules import sd_unet, shared_items
+            # a checkpoint change can reset sd_unet / sd_text_encoder to Default (arch changed);
+            # push both back so the dropdowns reflect it, not just the stored option
             checkpoint_update, settings_text = run_settings_single(value, key='sd_model_checkpoint', progress=progress, force=force)
-            secondary_visible = shared.sd_model_type in sd_unet.DUAL_TRANSFORMER_TYPES
-            secondary_update = gr.update(
-                value=shared.opts.sd_unet_secondary,
-                choices=shared_items.sd_unet_items(),
-                visible=secondary_visible,
-            )
-            companion_updates = [gr.update(visible=secondary_visible) for _ in dynamic_visibility.get('sd_unet_secondary', [])]
-            return checkpoint_update, get_value_for_setting('sd_unet'), secondary_update, *companion_updates, get_value_for_setting('sd_text_encoder'), settings_text
+            return checkpoint_update, get_value_for_setting('sd_unet'), get_value_for_setting('sd_text_encoder'), settings_text
 
         for k, _item in quicksettings_list:
             component = shared.settings_components[k]
@@ -443,7 +417,7 @@ def create_quicksettings(interfaces):
             if k == 'sd_model_checkpoint':
                 def fn(value, progress=progress_flag):
                     return sync_checkpoint_components(value, progress=progress)
-                outputs = [component, shared.settings_components['sd_unet'], shared.settings_components['sd_unet_secondary'], *dynamic_visibility.get('sd_unet_secondary', []), shared.settings_components['sd_text_encoder'], text_settings]
+                outputs = [component, shared.settings_components['sd_unet'], shared.settings_components['sd_text_encoder'], text_settings]
             else:
                 def fn(value, k=k, progress=progress_flag):
                     return run_settings_single(value, key=k, progress=progress)
@@ -464,7 +438,7 @@ def create_quicksettings(interfaces):
             fn=sync_checkpoint_components_forced,
             _js="consumeDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_checkpoint'], dummy_component],
-            outputs=[shared.settings_components['sd_model_checkpoint'], shared.settings_components['sd_unet'], shared.settings_components['sd_unet_secondary'], *dynamic_visibility.get('sd_unet_secondary', []), shared.settings_components['sd_text_encoder'], text_settings],
+            outputs=[shared.settings_components['sd_model_checkpoint'], shared.settings_components['sd_unet'], shared.settings_components['sd_text_encoder'], text_settings],
         )
         button_set_refiner = gr.Button('Change refiner', elem_id='change_refiner', visible=False)
         button_set_refiner.click(
