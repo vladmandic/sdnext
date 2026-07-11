@@ -5,11 +5,15 @@ from dataclasses import dataclass
 import torch
 
 from modules import devices
-from .common import dtype_dict, compile_func, use_contiguous_int8_mm, use_contiguous_fp16_mm, use_tensorwise_fp8_matmul
+from .common import dtype_dict, compile_func, use_contiguous_int8_mm, use_contiguous_fp16_mm, use_tensorwise_fp8_matmul, is_fp8_compile_supported
 from .quant_utils import quantize_int_mm, quantize_uint_mm, quantize_fp_mm, rotate_hadamard, get_hadamard
 from .packed_int import unpack_int
 from .packed_float import unpack_float
 from .layers import SDNQLayer
+
+
+def skip_fp8_compile(weights_dtype: str) -> bool: # triton has no e4m3 conversions before sm_89, compiled dequant would crash
+    return not is_fp8_compile_supported and dtype_dict[weights_dtype]["storage_dtype"] == torch.float8_e4m3fn
 
 
 @devices.inference_context()
@@ -290,7 +294,8 @@ class SDNQDequantizer:
     ) -> tuple[torch.Tensor, torch.FloatTensor]: # pylint: disable=unused-argument
         if hadamard is None and self.use_hadamard and not non_hadamard:
             hadamard = get_hadamard(self.hadamard_group_size, dtype=self.result_dtype, device=weight.device)
-        return re_quantize_matmul_compiled(
+        re_quantize_matmul_func = re_quantize_matmul if skip_fp8_compile(self.weights_dtype) else re_quantize_matmul_compiled
+        return re_quantize_matmul_func(
             self.weights_dtype,
             weight,
             scale,
@@ -322,7 +327,7 @@ class SDNQDequantizer:
         if hadamard is None and self.use_hadamard and not non_hadamard:
             hadamard = get_hadamard(self.hadamard_group_size, dtype=dtype, device=weight.device)
         re_quantize_for_matmul = self.re_quantize_for_matmul or self.is_packed
-        dequantize_weight_func = dequantize_weight if skip_compile else dequantize_weight_compiled
+        dequantize_weight_func = dequantize_weight if skip_compile or skip_fp8_compile(self.weights_dtype) else dequantize_weight_compiled
         return dequantize_weight_func(
             self.weights_dtype,
             weight,

@@ -358,6 +358,14 @@ if os.environ.get("SDNQ_ALLOW_FP8_MM", None) is None:
 else:
     is_fp8_mm_supported = os.environ.get("SDNQ_ALLOW_FP8_MM", "0").lower() not in {"0", "false", "no"}
 
+if os.environ.get("SDNQ_ALLOW_FP8_COMPILE", None) is None:
+    if devices.backend == "cuda":
+        is_fp8_compile_supported = bool(torch.cuda.get_device_capability(devices.device) >= (8,9)) # triton has no e4m3 conversions before sm_89
+    else:
+        is_fp8_compile_supported = True
+else:
+    is_fp8_compile_supported = os.environ.get("SDNQ_ALLOW_FP8_COMPILE", "0").lower() not in {"0", "false", "no"}
+
 if os.environ.get("SDNQ_USE_OPENVINO_MM", None) is None:
     use_openvino_mm = bool(devices.backend in {"cpu", "openvino"})
 else:
