@@ -638,6 +638,68 @@ def test_detect_comfy_nvfp4_convrot_raises():
 
 
 # ============================================================
+# model_probe quant detection (header-only, mirrors the loader's coverage)
+# ============================================================
+
+def test_probe_detects_header_quant_metadata():
+    import json
+    from modules import model_probe
+    header = {
+        '__metadata__': {'_quantization_metadata': json.dumps({'layers': {'blocks.0.wq': {'format': 'float8_e4m3fn'}}})},
+        'blocks.0.wq.weight': {'dtype': 'F8_E4M3', 'shape': [4, 4]},
+        'blocks.0.wq.weight_scale': {'dtype': 'F32', 'shape': []},
+    }
+    quant = model_probe.analyze_header(header)['quant']
+    assert quant == {'scheme': 'comfy_quant', 'format': 'float8_e4m3fn', 'marked_layers': 1, 'source': 'header'}
+
+
+def test_probe_resolves_nvfp4_from_weight_dtype():
+    from modules import model_probe
+    header = {
+        'model.diffusion_model.blocks.0.wq.weight': {'dtype': 'U8', 'shape': [32, 16]},
+        'model.diffusion_model.blocks.0.wq.weight_scale': {'dtype': 'F8_E4M3', 'shape': [128, 4]},
+        'model.diffusion_model.blocks.0.wq.weight_scale_2': {'dtype': 'F32', 'shape': []},
+        'model.diffusion_model.blocks.0.wq.comfy_quant': {'dtype': 'U8', 'shape': [60]},
+    }
+    quant = model_probe.analyze_header(header)['quant']
+    assert quant['format'] == 'nvfp4'
+    assert quant['source'] == 'weight-dtype'
+
+
+def test_probe_fp8_markers_despite_u8_noise():
+    """The marked layer's own weight dtype decides the format; unrelated U8
+    tensors must not outvote it."""
+    from modules import model_probe
+    header = {
+        'blocks.0.wq.weight': {'dtype': 'F8_E4M3', 'shape': [8, 8]},
+        'blocks.0.wq.weight_scale': {'dtype': 'F32', 'shape': []},
+        'blocks.0.wq.comfy_quant': {'dtype': 'U8', 'shape': [27]},
+        'extra.blob1': {'dtype': 'U8', 'shape': [64]},
+        'extra.blob2': {'dtype': 'U8', 'shape': [64]},
+    }
+    quant = model_probe.analyze_header(header)['quant']
+    assert quant['format'] == 'float8_e4m3fn'
+
+
+def test_probe_int8_markers():
+    from modules import model_probe
+    header = {
+        'blocks.0.wq.weight': {'dtype': 'I8', 'shape': [8, 8]},
+        'blocks.0.wq.weight_scale': {'dtype': 'F32', 'shape': []},
+        'blocks.0.wq.comfy_quant': {'dtype': 'U8', 'shape': [29]},
+    }
+    quant = model_probe.analyze_header(header)['quant']
+    assert quant['format'] == 'int8_tensorwise'
+    assert quant['marked_layers'] == 1
+
+
+def test_probe_plain_file_no_quant():
+    from modules import model_probe
+    header = {'blocks.0.wq.weight': {'dtype': 'BF16', 'shape': [8, 8]}}
+    assert model_probe.analyze_header(header)['quant']['scheme'] is None
+
+
+# ============================================================
 # is_noop_converter
 # ============================================================
 
@@ -2181,6 +2243,17 @@ def run_all():
         test_load_comfy_nvfp4_end_to_end,
         test_load_comfy_nvfp4_metadata_form,
         test_load_comfy_nvfp4_orig_shape_mismatch_raises,
+    ]:
+        run_test(cat, fn)
+
+    log.warning('=== model_probe quant detection ===')
+    cat = category('probe')
+    for fn in [
+        test_probe_detects_header_quant_metadata,
+        test_probe_resolves_nvfp4_from_weight_dtype,
+        test_probe_fp8_markers_despite_u8_noise,
+        test_probe_int8_markers,
+        test_probe_plain_file_no_quant,
     ]:
         run_test(cat, fn)
 
