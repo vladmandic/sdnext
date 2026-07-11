@@ -329,23 +329,22 @@ def comfy_marker_format(path: str) -> str | None:
     return None
 
 
-# quant format / dtype to the short precision token used in filenames
-QUANT_PRECISION_TOKENS = {'int8_tensorwise': 'int8', 'float8_e4m3fn': 'fp8', 'float8_e5m2': 'fp8', 'nvfp4': 'nvfp4', 'mxfp8': 'mxfp8'}
-DTYPE_PRECISION_TOKENS = {'F32': 'fp32', 'F16': 'fp16', 'BF16': 'bf16', 'F8_E4M3': 'fp8', 'F8_E5M2': 'fp8'}
+# quant format / dtype to the precision token used in filenames; fp8 stays
+# variant-specific because e4m3fn and e5m2 differ in kernel support
+QUANT_PRECISION_TOKENS = {'int8_tensorwise': 'int8', 'float8_e4m3fn': 'fp8_e4m3fn', 'float8_e5m2': 'fp8_e5m2', 'nvfp4': 'nvfp4', 'mxfp8': 'mxfp8'}
+DTYPE_PRECISION_TOKENS = {'F32': 'fp32', 'F16': 'fp16', 'BF16': 'bf16', 'F8_E4M3': 'fp8_e4m3fn', 'F8_E5M2': 'fp8_e5m2'}
 
 
 def precision_token(probe: dict) -> str | None:
-    """Short filename token for a probe's true precision; None when the
-    container encodes it already (gguf) or nothing is known."""
+    """Filename token for a probe's true precision; None when the container
+    encodes it already (gguf) or nothing is known."""
     quant = probe.get('quant') or {}
     scheme = quant.get('scheme')
     if scheme == 'gguf':
         return None
-    if scheme == 'comfy_quant':
+    if scheme in ('comfy_quant', 'scaled_fp8'):
         fmt = quant.get('format') or ''
         return QUANT_PRECISION_TOKENS.get(fmt, re.sub(r'[^a-z0-9]', '', fmt.lower()) or None)
-    if scheme == 'scaled_fp8':
-        return 'fp8'
     return DTYPE_PRECISION_TOKENS.get(probe.get('dominant_dtype') or '')
 
 
