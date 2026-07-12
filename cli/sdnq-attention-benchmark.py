@@ -280,6 +280,28 @@ def triton_version():
         return None
 
 
+@contextmanager
+def suppress_console_output():
+    # gate stdout and stderr at the fd level: covers python loggers regardless of their
+    # handler plumbing plus native-code writes (onnxruntime device discovery on wsl)
+    saved_stdout, saved_stderr = os.dup(1), os.dup(2)
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    try:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os.dup2(devnull, 1)
+        os.dup2(devnull, 2)
+        yield
+    finally:
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os.dup2(saved_stdout, 1)
+        os.dup2(saved_stderr, 2)
+        os.close(devnull)
+        os.close(saved_stdout)
+        os.close(saved_stderr)
+
+
 def load_sdnext():
     global shared, devices, sdnq_triton_atten # pylint: disable=global-statement
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -289,14 +311,29 @@ def load_sdnext():
         console.print("[red]no cuda, rocm or xpu device available: sdnq attention requires a gpu with triton[/red]")
         return False
     stock_sdpa = torch.nn.functional.scaled_dot_product_attention
+    # the webui startup log (device detect, packages, settings validation) is noise here: the
+    # environment panel reports the stack. the bootstrap reconfigures its loggers during
+    # import and onnxruntime's device discovery warns from c++, so gate the os-level fds for
+    # the import window; failures still surface as exceptions printed after the gate lifts
+    os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
     try:
-        from modules import shared as shared_module
-        from modules import devices as devices_module
-        from modules.sdnq.kernels.triton_atten import sdnq_triton_atten as atten
+        with suppress_console_output():
+            from modules import shared as shared_module
+            from modules import devices as devices_module
+            from modules.sdnq.kernels.triton_atten import sdnq_triton_atten as atten
     except Exception as e:
         console.print(f"[red]failed to import the sdnq attention kernel: {e}[/red]")
         console.print("run from the sdnext root with the venv active; triton is required")
         return False
+    # keep the sdnext loggers quiet after the bootstrap too, so stray log lines cannot tear
+    # the live tables mid-bench
+    try:
+        import installer
+        installer.log.setLevel(logging.CRITICAL)
+        from modules.logger import log as sdnext_log
+        sdnext_log.setLevel(logging.CRITICAL)
+    except Exception:
+        pass
     # importing modules.shared installs the configured sdp override hijacks in this process;
     # restore stock sdpa so baselines and references measure torch itself
     torch.nn.functional.scaled_dot_product_attention = stock_sdpa
@@ -545,9 +582,20 @@ def fp8_failure_is_capability(detail):
 def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_result=None):
     device = torch.device(torch_device)
     capability = torch_device_module.get_device_capability(device)
+    # backend runtime versions (cuda/cudnn/driver, hip, ipex, openvino, directml) so a shared
+    # report identifies the stack without inferring it from the torch version string
+    try:
+        gpu_info = devices.get_gpu_info() or {}
+    except Exception:
+        gpu_info = {}
+    runtime_versions = {key: gpu_info[key] for key in ("cuda", "hip", "cudnn", "driver", "ipex", "openvino", "directml") if gpu_info.get(key)}
+    runtime_line = f"python: {sys.version.split()[0]} ({sys.platform})  backend: {getattr(devices, 'backend', 'unknown')}"
+    if runtime_versions:
+        runtime_line += "  " + "  ".join(f"{key}: {value}" for key, value in runtime_versions.items())
     lines = [
         f"device: [cyan]{torch_device_module.get_device_name(device)}[/cyan] capability={capability}",
         f"torch: {torch.__version__}  triton: {triton_version() or 'not installed'}  sageattention: {package_version('sageattention') or 'not installed'}  flash-attn: {package_version('flash-attn') or 'not installed'}",
+        runtime_line,
         f"benchmark dtype: {dtype_label()}",
     ]
     if fp8_result is not None:
@@ -588,11 +636,15 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
     emit(Panel("\n".join(lines), title="environment", box=ROUNDED_BOX))
     report["environment"] = dict(
         device=torch_device_module.get_device_name(device),
-        capability=capability,
+        capability=f"{capability[0]}.{capability[1]}",
+        python=sys.version.split()[0],
+        platform=sys.platform,
+        backend=str(getattr(devices, "backend", None)),
         torch=str(torch.__version__),
         triton=triton_version(),
         sageattention=package_version("sageattention"),
         dtype=dtype_label(),
+        **runtime_versions,
         fp8_attention_matmul=fp8_result["qk"][0] if fp8_result is not None else None,
         compiled_input_prep=prep_status,
         fp8_compile_gate=fp8_compile_gate_flag(),
