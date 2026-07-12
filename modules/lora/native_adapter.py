@@ -292,6 +292,63 @@ def shapes_match(sd_module, down_w: torch.Tensor, up_w: torch.Tensor) -> bool:
     return down_w.shape[1] == mod_shape[1] and up_w.shape[0] == mod_shape[0]
 
 
+def lokr_kron_shape(w):
+    """Return the ``(out, in_flat)`` shape of ``kron(w1, w2)`` from stored factors.
+
+    Each factor is either full (``lokr_w1``/``lokr_w2``) or rank-decomposed
+    (``lokr_w1_a @ lokr_w1_b``); a Tucker-rebuilt w2 (conv-only) stores its
+    parts as ``(rank, part)`` with the kernel dims carried by ``lokr_t2``.
+    Kernel dims are folded into ``in_flat``, matching how the delta reshapes
+    onto a conv weight.
+    """
+    w1 = w.get("lokr_w1")
+    r1 = w1.shape[0] if w1 is not None else w["lokr_w1_a"].shape[0]
+    c1 = w1.shape[1] if w1 is not None else w["lokr_w1_b"].shape[1]
+    w2 = w.get("lokr_w2")
+    t2 = w.get("lokr_t2")
+    if w2 is not None:
+        r2 = w2.shape[0]
+        c2_flat = w2.numel() // r2
+    elif t2 is not None:
+        r2 = w["lokr_w2_a"].shape[1]
+        c2_flat = w["lokr_w2_b"].shape[1]
+        for d in t2.shape[2:]:
+            c2_flat *= d
+    else:
+        r2 = w["lokr_w2_a"].shape[0]
+        w2b = w["lokr_w2_b"]
+        c2_flat = w2b.numel() // w2b.shape[0]
+    return r1 * r2, c1 * c2_flat
+
+
+def lokr_shapes_match(sd_module, kron_shape, chunk: ChunkSpec | None) -> bool:
+    """Kron-vs-module dim check, honoring SDNQ original shapes and chunk rows.
+
+    The input dim is never chunked; the output dim must cover the full fused
+    weight for chunked targets (``total * out`` for equal chunks, ``end <=
+    kron_out`` with an exact row-range for slices).
+    """
+    if not hasattr(sd_module, "weight"):
+        return False
+    if hasattr(sd_module, "sdnq_dequantizer"):
+        mod_shape = sd_module.sdnq_dequantizer.original_shape
+    else:
+        mod_shape = sd_module.weight.shape
+    if len(mod_shape) < 2:
+        return False
+    mod_in_flat = 1
+    for d in mod_shape[1:]:
+        mod_in_flat *= d
+    kron_out, kron_in_flat = kron_shape
+    if kron_in_flat != mod_in_flat:
+        return False
+    if chunk is None:
+        return kron_out == mod_shape[0]
+    if chunk.is_equal_chunks:
+        return kron_out == mod_shape[0] * chunk.total
+    return (chunk.end - chunk.start) == mod_shape[0] and kron_out >= chunk.end
+
+
 # === Parsing primitives ===
 
 
@@ -548,6 +605,7 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
     )
 
     unmapped = 0
+    mismatch = 0
     skipped = 0
     for (prefix, base), w in groups.items():
         has_1 = "lokr_w1" in w or ("lokr_w1_a" in w and "lokr_w1_b" in w)
@@ -555,11 +613,21 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
         if not (has_1 and has_2):
             continue
         arch_prefix = _resolve_prefix(network_prefix, prefix)
+        kron_shape = lokr_kron_shape(w)
         for diffusers_path, chunk in resolve_group_targets(resolve_targets, prefix, base):
             network_key = arch_prefix + diffusers_path.replace(".", "_")
             sd_module = mapping.get(network_key)
             if sd_module is None:
                 unmapped += 1
+                continue
+            if not lokr_shapes_match(sd_module, kron_shape, chunk):
+                log.warning(
+                    f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key}'
+                    f' kron={kron_shape[0]}x{kron_shape[1]}'
+                    f' module={getattr(sd_module, "weight", None).shape if hasattr(sd_module, "weight") else "?"}'
+                    f' shape mismatch'
+                )
+                mismatch += 1
                 continue
             target_w = w
             if chunk is not None:
@@ -582,7 +650,7 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
             else:
                 net.modules[network_key] = network_lokr.NetworkModuleLokrSliceChunk(net, nw, chunk.start, chunk.end)
 
-    return finalize_network(net, name, "LoKR", lora_scale, t0, unmapped=unmapped, skipped=skipped)
+    return finalize_network(net, name, "LoKR", lora_scale, t0, unmapped=unmapped, mismatch=mismatch, skipped=skipped)
 
 
 def try_load_loha(name, network_on_disk, lora_scale, *,

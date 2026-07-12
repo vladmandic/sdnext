@@ -971,6 +971,28 @@ def test_dora_per_input_fused_skipped():
     return True
 
 
+def test_lokr_shape_mismatch_rejected():
+    """Kron dims that disagree with the module are rejected at load, not at apply."""
+    sd = sd_lokr_bfl_proj()
+    # Double the w2 in-dim: kron becomes (QKV_OUT, 2*HIDDEN) vs module (HIDDEN, QKV_OUT).
+    sd['diffusion_model.double_blocks.1.img_attn.proj.lokr_w2'] = \
+        torch.randn(QKV_OUT // LOKR_W1_DIM, 2 * (HIDDEN // LOKR_W1_DIM))
+    net = _load_via(F.try_load_lokr, sd)
+    assert net is None, f'expected mismatch rejection, got {net.modules if net else None}'
+    return True
+
+
+def test_lokr_fused_shape_mismatch_rejected():
+    """Fused kron rows must cover total*out; a 2-of-3 sized fused delta is rejected."""
+    sd = dict(sd_lokr_kohya_qkv())
+    # Kron rows 2*QKV_OUT instead of 3*QKV_OUT: no valid 3-way equal chunk.
+    sd['lora_unet_double_blocks_0_img_attn_qkv.lokr_w2'] = \
+        torch.randn((2 * QKV_OUT) // 8, HIDDEN // 4)
+    net = _load_via(F.try_load_lokr, sd)
+    assert net is None, f'expected mismatch rejection, got {net.modules if net else None}'
+    return True
+
+
 def test_lokr_bfl_non_fused():
     net = _load_via(F.try_load_lokr, sd_lokr_bfl_proj())
     assert net is not None and len(net.modules) == 1
@@ -1394,6 +1416,8 @@ def run_tests():
         test_lora_dora_fused_qkv_sliced,
         test_lokr_dora_fused_qkv_sliced,
         test_dora_per_input_fused_skipped,
+        test_lokr_shape_mismatch_rejected,
+        test_lokr_fused_shape_mismatch_rejected,
         test_lokr_bfl_non_fused,
         test_lokr_kohya_fused_qkv_chunked,
         test_lokr_simpletuner_lycoris_format,
