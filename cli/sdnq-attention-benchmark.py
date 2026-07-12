@@ -422,6 +422,17 @@ def fp32_linear_reference(x, weight_fp32):
         torch.backends.cuda.matmul.allow_tf32 = tf32_matmul
 
 
+def cuda_context_alive():
+    # a kernel fault (misaligned address, illegal memory access) is sticky: every later cuda
+    # call in the process fails; detect it so sections abort cleanly instead of cascading
+    try:
+        torch.zeros(1, device="cuda")
+        torch.cuda.synchronize()
+        return True
+    except Exception:
+        return False
+
+
 def error_summary(e, limit=60):
     # dynamo appends advice lines ("Set TORCHDYNAMO_VERBOSE=1 ...") after the real error;
     # keep the last substantive line so table rows show the actual failure
@@ -902,16 +913,17 @@ def run_correctness():
     inner_prep = getattr(compiled_prep, "_torchdynamo_orig_callable", None)
     if inner_prep is not None:
         atten_module.get_attn_inputs = inner_prep
+    aborted_after = None
     progress, task = live_progress()
     try:
         with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
             for index, (name, (cq, ck, cv), kwargs, sdnq_kwargs) in enumerate(checks, start=1):
                 progress.reset(task, description=f"check {index}/{len(checks)}  {name}")
-                ref_kwargs = dict(kwargs)
-                if ref_kwargs.get("attn_mask", None) is not None and torch.is_floating_point(ref_kwargs["attn_mask"]):
-                    ref_kwargs["attn_mask"] = ref_kwargs["attn_mask"].to(torch.float32) # stock sdpa requires the additive mask dtype to match query
-                ref = fp32_reference(cq, ck, cv, **ref_kwargs)
                 try:
+                    ref_kwargs = dict(kwargs)
+                    if ref_kwargs.get("attn_mask", None) is not None and torch.is_floating_point(ref_kwargs["attn_mask"]):
+                        ref_kwargs["attn_mask"] = ref_kwargs["attn_mask"].to(torch.float32) # stock sdpa requires the additive mask dtype to match query
+                    ref = fp32_reference(cq, ck, cv, **ref_kwargs)
                     plain = sdnq_triton_atten(cq, ck, cv, do_quantize=False, **kwargs)
                     quant_kwargs = dict(matmul_dtype="auto", pv_matmul_dtype="auto", **kwargs)
                     quant_kwargs.update(sdnq_kwargs)
@@ -935,11 +947,17 @@ def run_correctness():
                     failed.append(name)
                     details[name] = dict(error=error_summary(e, 200))
                     table.add_row(name, "-", "-", "-", failure_text(e))
+                    if not cuda_context_alive():
+                        aborted_after = name
+                        break
             live.update(panel)
     finally:
         atten_module.get_attn_inputs = compiled_prep
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
+    if aborted_after is not None:
+        emit(f"[red]the {aborted_after!r} check faulted the gpu and cuda errors are sticky: remaining checks and benchmarks cannot run in this process. rerun with --skip-checks and shapes that avoid the faulting geometry to collect the rest[/red]")
+        report["correctness_aborted_after"] = aborted_after
     if failed:
         emit(f"[red]failed checks: {', '.join(failed)}[/red]")
     if "head dim 40 + hadamard" in failed and shared.opts.sdnq_attention_use_hadamard:
@@ -2582,6 +2600,23 @@ def save_report(path, args, sections, selected):
     console.print(f"structured results saved to {path}")
 
 
+pending_outputs = None # set by main once arguments are validated, so a crash can still flush
+outputs_written = False
+
+
+def flush_outputs():
+    # write --save/--json exactly once, from the normal path or the crash handler; partial
+    # results beat losing an hour-long run to a kernel fault in one config
+    global outputs_written # pylint: disable=global-statement
+    if outputs_written or pending_outputs is None:
+        return
+    outputs_written = True
+    if pending_outputs["save"]:
+        save_transcript(pending_outputs["save"])
+    if pending_outputs["json"]:
+        save_report(pending_outputs["json"], pending_outputs["args"], pending_outputs["sections"], pending_outputs["selected"])
+
+
 def main():
     global bench_dtype # pylint: disable=global-statement
     args = parse_cli()
@@ -2640,6 +2675,8 @@ def main():
     if unknown:
         console.print(f"[red]unknown shape preset(s): {', '.join(unknown)}; available: {', '.join(shape_presets)}[/red]")
         sys.exit(1)
+    global pending_outputs # pylint: disable=global-statement
+    pending_outputs = dict(save=args.save, json=args.json, args=args, sections=sections, selected=selected)
     print_banner(selected, sections, args)
     prep_status, prep_detail = probe_compiled_prep() # must run first: see the cold-start note in probe_compiled_prep
     fp8_result = probe_fp8() if "attention" in sections else None
@@ -2648,10 +2685,7 @@ def main():
     if not args.skip_checks and "attention" in sections:
         run_correctness()
     if args.skip_bench:
-        if args.save:
-            save_transcript(args.save)
-        if args.json:
-            save_report(args.json, args, sections, selected)
+        flush_outputs()
         return
 
     dequant_results = {}
@@ -2717,11 +2751,19 @@ def main():
             all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.config_timeout, fp8_result=fp8_result)
         build_recommendations(all_results, fp8_result, prep_status)
 
-    if args.save:
-        save_transcript(args.save)
-    if args.json:
-        save_report(args.json, args, sections, selected)
+    flush_outputs()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        console.print("[yellow]interrupted, saving partial results[/yellow]")
+        flush_outputs()
+        sys.exit(130)
+    except Exception as main_error: # pylint: disable=broad-exception-caught
+        console.print(f"[red]benchmark aborted: {error_summary(main_error, 200)}[/red]")
+        if not cuda_context_alive():
+            console.print("[red]the cuda context is corrupted (kernel faults are sticky); partial results saved, a rerun is required to continue[/red]")
+        flush_outputs()
+        raise
