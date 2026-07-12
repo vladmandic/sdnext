@@ -329,6 +329,31 @@ def sd_lora_with_dora_scale():
     }
 
 
+def sd_lora_dora_fused_qkv():
+    """Kohya LoRA on fused img_attn.qkv with per-output dora_scale (LyCORIS wd_on_out=True)."""
+    return {
+        'lora_unet_double_blocks_0_img_attn_qkv.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_unet_double_blocks_0_img_attn_qkv.lora_up.weight':   torch.randn(3 * QKV_OUT, RANK_LORA),
+        'lora_unet_double_blocks_0_img_attn_qkv.alpha':            torch.tensor(float(RANK_LORA)),
+        'lora_unet_double_blocks_0_img_attn_qkv.dora_scale':       torch.rand(3 * QKV_OUT, 1) + 0.5,
+    }
+
+
+def sd_lokr_dora_fused_qkv(per_input=False):
+    """Kohya LoKR on fused img_attn.qkv with a dora_scale companion.
+
+    ``per_input=True`` stores the wd_on_out=False orientation ``(1, in)``,
+    which has no exact per-chunk split and must be skipped by the loader.
+    """
+    sd = dict(sd_lokr_kohya_qkv())
+    if per_input:
+        ds = torch.rand(1, HIDDEN) + 0.5
+    else:
+        ds = torch.rand(3 * QKV_OUT, 1) + 0.5
+    sd['lora_unet_double_blocks_0_img_attn_qkv.dora_scale'] = ds
+    return sd
+
+
 def sd_lokr_bfl_proj():
     """BFL-format LoKR on a non-fused proj target."""
     return {
@@ -912,6 +937,40 @@ def test_lora_dora_threading():
     return True
 
 
+def test_lora_dora_fused_qkv_sliced():
+    """Per-output dora_scale is sliced with the up-weight chunk and applies cleanly."""
+    net = _load_via(F.try_load_lora, sd_lora_dora_fused_qkv())
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    for nk, mod in net.modules.items():
+        assert mod.dora_scale is not None and mod.dora_scale.shape[0] == QKV_OUT, \
+            f'{nk}: dora_scale shape {tuple(mod.dora_scale.shape) if mod.dora_scale is not None else None}'
+        updown, _ex_bias = mod.calc_updown(mod.sd_module.weight)
+        assert_shape(updown, mod.sd_module.weight.shape, label=nk)
+        assert_finite(updown, label=nk)
+    return True
+
+
+def test_lokr_dora_fused_qkv_sliced():
+    """Per-output dora_scale rides the kron chunk; each module sees its own rows."""
+    net = _load_via(F.try_load_lokr, sd_lokr_dora_fused_qkv())
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    for nk, mod in net.modules.items():
+        assert isinstance(mod, network_lokr.NetworkModuleLokrChunk), f'{nk}: type={type(mod).__name__}'
+        assert mod.dora_scale is not None and mod.dora_scale.shape[0] == QKV_OUT, \
+            f'{nk}: dora_scale shape {tuple(mod.dora_scale.shape) if mod.dora_scale is not None else None}'
+        updown, _ex_bias = mod.calc_updown(mod.sd_module.weight)
+        assert_shape(updown, mod.sd_module.weight.shape, label=nk)
+        assert_finite(updown, label=nk)
+    return True
+
+
+def test_dora_per_input_fused_skipped():
+    """wd_on_out=False dora_scale on a fused target cannot be split; the group is skipped."""
+    net = _load_via(F.try_load_lokr, sd_lokr_dora_fused_qkv(per_input=True))
+    assert net is None, f'expected no modules, got {net.modules if net else None}'
+    return True
+
+
 def test_lokr_bfl_non_fused():
     net = _load_via(F.try_load_lokr, sd_lokr_bfl_proj())
     assert net is not None and len(net.modules) == 1
@@ -1332,6 +1391,9 @@ def run_tests():
         test_lora_peft_saved_dreambooth_style,
         test_lora_peft_saved_diffusers_style,
         test_lora_dora_threading,
+        test_lora_dora_fused_qkv_sliced,
+        test_lokr_dora_fused_qkv_sliced,
+        test_dora_per_input_fused_skipped,
         test_lokr_bfl_non_fused,
         test_lokr_kohya_fused_qkv_chunked,
         test_lokr_simpletuner_lycoris_format,
