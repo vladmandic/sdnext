@@ -4,7 +4,9 @@ Runs when :func:`modules.lora.lora_overrides.get_method` returns ``'native'``
 (``lora_force_diffusers`` off and ``chroma`` in ``allow_native``).
 
 Entry points, one per family: :func:`try_load_lora` (plus DoRA),
-:func:`try_load_lokr`, :func:`try_load_loha`, :func:`try_load_oft`.
+:func:`try_load_lokr`, :func:`try_load_loha`, :func:`try_load_oft`,
+:func:`try_load_ia3`, :func:`try_load_glora`, :func:`try_load_norm`,
+:func:`try_load_full`.
 
 Recognized key prefixes: ``diffusion_model.``, ``transformer.``,
 ``lora_unet_``, ``lycoris_``, plus bare BFL paths (``double_blocks.`` /
@@ -71,11 +73,19 @@ LORA_SUFFIXES = native_adapter.LORA_SUFFIXES
 LOKR_SUFFIXES = native_adapter.LOKR_SUFFIXES
 LOHA_SUFFIXES = native_adapter.LOHA_SUFFIXES
 OFT_SUFFIXES = native_adapter.OFT_SUFFIXES
+IA3_SUFFIXES = native_adapter.IA3_SUFFIXES
+GLORA_SUFFIXES = native_adapter.GLORA_SUFFIXES
+NORM_SUFFIXES = native_adapter.NORM_SUFFIXES
+FULL_SUFFIXES = native_adapter.FULL_SUFFIXES
 
 LORA_MARKERS = native_adapter.LORA_MARKERS
 LOKR_MARKERS = native_adapter.LOKR_MARKERS
 LOHA_MARKERS = native_adapter.LOHA_MARKERS
 OFT_MARKERS = native_adapter.OFT_MARKERS
+IA3_MARKERS = native_adapter.IA3_MARKERS
+GLORA_MARKERS = native_adapter.GLORA_MARKERS
+NORM_MARKERS = native_adapter.NORM_MARKERS
+FULL_MARKERS = native_adapter.FULL_MARKERS
 
 SUFFIX_NORMALIZE = native_adapter.SUFFIX_NORMALIZE
 BARE_DIFFUSERS_PREFIX_USED = native_adapter.BARE_DIFFUSERS_PREFIX_USED
@@ -274,9 +284,28 @@ def try_load_oft(name, network_on_disk, lora_scale):
     return native_adapter.try_load_oft(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
+def try_load_ia3(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_ia3(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_glora(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_glora(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_norm(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_norm(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_full(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_full(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
 def try_load(name, network_on_disk, lora_scale):
     """Run every Chroma family loader, merge any that match."""
     return native_adapter.try_load_chain(
         name, network_on_disk, lora_scale,
-        family_loaders=(try_load_lora, try_load_lokr, try_load_loha, try_load_oft),
+        family_loaders=(
+            try_load_lora, try_load_lokr, try_load_loha, try_load_oft,
+            try_load_ia3, try_load_glora, try_load_norm, try_load_full,
+        ),
     )

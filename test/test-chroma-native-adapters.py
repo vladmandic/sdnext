@@ -882,6 +882,23 @@ def test_lokr_bfl_extra_and_guidance():
     return True
 
 
+def test_full_diff_chain():
+    """Full-diff extraction loads through the chain; fused qkv diff skips."""
+    sd = {
+        'diffusion_model.double_blocks.0.img_attn.proj.diff': torch.randn(HIDDEN, HIDDEN),
+        'diffusion_model.double_blocks.0.img_attn.proj.diff_b': torch.randn(HIDDEN),
+        'diffusion_model.double_blocks.0.img_attn.qkv.diff': torch.randn(3 * HIDDEN, HIDDEN),
+    }
+    net = _load_via(C.try_load, sd)
+    assert net is not None and len(net.modules) == 1, f'got {net.modules if net else None}'
+    assert 'lora_transformer_transformer_blocks_0_attn_to_out_0' in net.modules, f'got {set(net.modules)}'
+    mod = next(iter(net.modules.values()))
+    updown, ex_bias = mod.calc_updown(mod.sd_module.weight)
+    assert tuple(updown.shape) == (HIDDEN, HIDDEN) and torch.isfinite(updown).all()
+    assert ex_bias is not None and tuple(ex_bias.shape) == (HIDDEN,)
+    return True
+
+
 def test_lora_dora_threading():
     """dora_scale flows into NetworkModuleLora."""
     net = _load_via(C.try_load_lora, sd_lora_with_dora_scale())
@@ -1079,6 +1096,7 @@ def run_tests():
         test_lokr_bfl_img_attn_qkv_chunked,
         test_lokr_bfl_single_linear1_unequal_chunks,
         test_lokr_bfl_extra_and_guidance,
+        test_full_diff_chain,
         test_loha_bfl_img_attn_proj,
         test_loha_bfl_img_attn_qkv_chunked,
         test_oft_bfl_img_attn_proj,
