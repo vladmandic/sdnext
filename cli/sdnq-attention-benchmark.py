@@ -670,8 +670,11 @@ def print_banner(selected, sections, args):
 
 
 def probe_fp8():
-    # hardware probe, prep runs eager: fp8 kernel compile fails on pre-ada nvidia and
-    # pre-rdna4/cdna3 amd; prep failures are dtype-independent and probed separately
+    # hardware probe, prep runs eager via the module-global swap so the verdict isolates the
+    # attention kernel: fp8 kernel compile fails on pre-ada nvidia and pre-rdna4/cdna3 amd;
+    # prep failures are dtype-independent and probed separately. do not force eager by
+    # toggling torch._dynamo.config.disable: torch 2.13+ raises "found no compiled frames"
+    # for fullgraph-compiled functions called inside a disable window
     try:
         from modules.sdnq import kernel_wrappers as sdnq_kernel_wrappers
         is_fp8_mm_supported = getattr(sdnq_kernel_wrappers, "is_fp8_mm_supported", True)
@@ -679,10 +682,13 @@ def probe_fp8():
         is_fp8_mm_supported = True
     if not is_fp8_mm_supported:
         return dict(qk=(False, "FP8 matmul is not supported in this architecture"), pv=(False, "FP8 matmul is not supported in this architecture"))
+    from modules.sdnq.kernels import triton_atten as atten_module
     q, k, v = make_qkv(1, 2, 256, 64, structured=False)
     result = {}
-    dynamo_disable = getattr(torch._dynamo.config, "disable", False) # pylint: disable=protected-access
-    torch._dynamo.config.disable = True # pylint: disable=protected-access
+    compiled_prep = atten_module.get_attn_inputs
+    inner_prep = getattr(compiled_prep, "_torchdynamo_orig_callable", None)
+    if inner_prep is not None:
+        atten_module.get_attn_inputs = inner_prep
     try:
         with console.status("probing float8 support") as status:
             for name, kwargs in [("qk", dict(matmul_dtype="float8_e4m3fn", pv_matmul_dtype="auto")), ("pv", dict(matmul_dtype="auto", pv_matmul_dtype="float8_e4m3fn"))]:
@@ -694,7 +700,7 @@ def probe_fp8():
                 except Exception as e:
                     result[name] = (False, f"{type(e).__name__}: {error_summary(e, 120)}")
     finally:
-        torch._dynamo.config.disable = dynamo_disable # pylint: disable=protected-access
+        atten_module.get_attn_inputs = compiled_prep
     return result
 
 
@@ -2805,7 +2811,10 @@ def main():
             emit("[yellow]dynamic-shape compile is broken here: benchmarking with the dynamic=false workaround applied, numbers match the webui after setting SDNQ_COMPILE_KWARGS='{\"dynamic\": false}'[/yellow]")
         elif prep_status == "failing":
             emit("[yellow]torch compile is broken here: benchmarking with eager input prep, numbers match the webui after disabling Dequantize using torch.compile[/yellow]")
-            torch._dynamo.config.disable = True # pylint: disable=protected-access
+            from modules.sdnq.kernels import triton_atten as atten_module
+            inner = getattr(atten_module.get_attn_inputs, "_torchdynamo_orig_callable", None)
+            if inner is not None: # swap in the eager prep; a disable toggle raises on torch 2.13+
+                atten_module.get_attn_inputs = inner
         all_results = {}
         minimum_vram = {"wan22": 6.0, "wan22-cfg": 12.0, "ltx2": 3.0, "masked": 6.0}
         for index, preset in enumerate(selected, start=1):
