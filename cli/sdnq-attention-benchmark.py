@@ -521,6 +521,13 @@ def fp8_compile_gate_flag():
         return None
 
 
+def fp8_failure_is_capability(detail):
+    # the triton pre-sm_89 signature; anything else is an environment failure where a torch
+    # or triton issue is more likely than a missing hardware capability
+    detail = detail or ""
+    return "fp8e4nv" in detail or "not supported in this architecture" in detail
+
+
 def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_result=None):
     device = torch.device("cuda")
     capability = torch.cuda.get_device_capability(device)
@@ -532,8 +539,10 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
     if fp8_result is not None:
         if fp8_result["qk"][0]:
             lines.append("float8_e4m3fn matmul: [green]supported[/green]")
-        else:
+        elif fp8_failure_is_capability(fp8_result["qk"][1]):
             lines.append(f"float8_e4m3fn matmul: [red]not supported on this gpu, selecting it fails generation[/red] [dim]({escape(fp8_result['qk'][1])})[/dim]")
+        else:
+            lines.append(f"float8_e4m3fn matmul: [red]failed to compile in this environment, selecting it fails generation[/red]; the error is not the hardware-capability signature, a torch or triton issue is more likely than the gpu [dim]({escape(fp8_result['qk'][1])})[/dim]")
     lines.append(f"sdnq attention enabled in current config: {'[green]yes[/green]' if 'SDNQ attention' in shared.opts.sdp_overrides else '[yellow]no, enable via Compute Settings -> SDP overrides (requires restart)[/yellow]'}")
     if prep_status == "disabled":
         lines.append("compiled input prep: torch.compile disabled in config, input prep runs eager")
@@ -2208,7 +2217,10 @@ def build_recommendations(all_results, fp8_result, prep_status):
     elif prep_status == "failing":
         notes.append("[red]the current environment fails at generation: torch compile is broken; numbers above were measured with eager input prep, matching what you get after disabling Dequantize using torch.compile; alternatively install msvc build tools[/red]")
     if not fp8_result["qk"][0]:
-        notes.append("[red]float8_e4m3fn is unsupported on this gpu: selecting it in either dropdown fails generation with a compile error[/red]")
+        if fp8_failure_is_capability(fp8_result["qk"][1]):
+            notes.append("[red]float8_e4m3fn is unsupported on this gpu: selecting it in either dropdown fails generation with a compile error[/red]")
+        else:
+            notes.append("[red]float8_e4m3fn failed to compile in this environment: selecting it in either dropdown fails generation[/red]; the error is not the hardware-capability signature, so the fp8 rows above are missing for a torch or triton reason, not a gpu one")
     sage_ms, _sage_err = measured(results, "sage")
     if sage_ms and int8_ms:
         notes.append(f"sageattention comparison at {reference}: sdnq int8 {int8_ms:.2f} ms vs sage {sage_ms:.2f} ms; sdnq additionally covers masks, gqa and causal attention")
