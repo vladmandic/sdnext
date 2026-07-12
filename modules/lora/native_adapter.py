@@ -102,7 +102,10 @@ LORA_SUFFIXES = (
     ".lora_down.weight", ".lora_up.weight", ".lora_mid.weight",
     ".lora_A.weight",    ".lora_B.weight",
     # diff_b: bias delta some saves pair with the weight LoRA, applied as ex_bias.
-    ".alpha", ".dora_scale", ".bias", ".diff_b", ".scale",
+    # magnitude / lora_magnitude_vector: DoRA row norms (ai-toolkit / PEFT key
+    # names); converted onto the dora_scale path by try_load_lora.
+    ".alpha", ".dora_scale", ".magnitude", ".lora_magnitude_vector",
+    ".bias", ".diff_b", ".scale",
 )
 LOKR_SUFFIXES = (
     ".lokr_w1", ".lokr_w2",
@@ -563,6 +566,16 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
     for (prefix, base), w in groups.items():
         if "lora_down.weight" not in w or "lora_up.weight" not in w:
             continue
+        # DoRA magnitude vectors: ai-toolkit saves `magnitude`, PEFT/diffusers
+        # `lora_magnitude_vector`. Both are 1-D per-output row norms with
+        # dora_scale semantics; reshape to (out, 1) so the apply-time
+        # orientation detection cannot misread square layers as per-input.
+        for mag_key in ("magnitude", "lora_magnitude_vector"):
+            mag = w.get(mag_key)
+            if mag is not None and "dora_scale" not in w:
+                w = dict(w)
+                w.pop(mag_key)
+                w["dora_scale"] = mag.reshape(-1, 1) if mag.ndim == 1 else mag
         arch_prefix = _resolve_prefix(network_prefix, prefix)
         for diffusers_path, chunk in resolve_group_targets(resolve_targets, prefix, base):
             network_key = arch_prefix + diffusers_path.replace(".", "_")
