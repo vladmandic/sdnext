@@ -104,8 +104,10 @@ LORA_SUFFIXES = (
     # diff_b: bias delta some saves pair with the weight LoRA, applied as ex_bias.
     # magnitude / lora_magnitude_vector: DoRA row norms (ai-toolkit / PEFT key
     # names); converted onto the dora_scale path by try_load_lora.
+    # bias_indices/values/size: LyCORIS extraction sparse residual triplet,
+    # reconstructed into the dense-bias path by network.NetworkModule.
     ".alpha", ".dora_scale", ".magnitude", ".lora_magnitude_vector",
-    ".bias", ".diff_b", ".scale",
+    ".bias", ".bias_indices", ".bias_values", ".bias_size", ".diff_b", ".scale",
 )
 LOKR_SUFFIXES = (
     ".lokr_w1", ".lokr_w2",
@@ -586,9 +588,9 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
 
             target_w = w
             if chunk is not None:
-                if "bias" in w:
-                    # Legacy weight-shaped bias (LyCORIS sparse-residual heritage)
-                    # has no defined partition on a fused target.
+                if "bias" in w or "bias_indices" in w:
+                    # Weight-shaped bias residuals (dense or LyCORIS sparse
+                    # triplet) are not partitioned onto fused targets.
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
                     skipped += 1
                     continue

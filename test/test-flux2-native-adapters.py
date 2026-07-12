@@ -1071,6 +1071,54 @@ def test_lora_peft_magnitude_vector():
     return True
 
 
+def test_lora_sparse_bias_residual():
+    """LyCORIS use_bias extraction triplet reconstructs into the dense-bias path.
+
+    Mirrors the extraction save exactly: residual sparsified COO with int16
+    indices, values from the weight-shaped remainder, alpha == rank (scale 1).
+    Reference: total delta = up @ down + residual.
+    """
+    torch.manual_seed(0)
+    down = torch.randn(RANK_LORA, QKV_OUT)
+    up = torch.randn(HIDDEN, RANK_LORA)
+    residual = torch.randn(HIDDEN, QKV_OUT)
+    residual[torch.rand_like(residual) < 0.98] = 0.0  # extraction sparsity default
+    sparse = residual.to_sparse().coalesce()
+    sd = {
+        'diffusion_model.double_blocks.1.img_attn.proj.lora_A.weight': down,
+        'diffusion_model.double_blocks.1.img_attn.proj.lora_B.weight': up,
+        'diffusion_model.double_blocks.1.img_attn.proj.alpha': torch.tensor(float(RANK_LORA)),
+        'diffusion_model.double_blocks.1.img_attn.proj.bias_indices': sparse.indices().to(torch.int16),
+        'diffusion_model.double_blocks.1.img_attn.proj.bias_values': sparse.values(),
+        'diffusion_model.double_blocks.1.img_attn.proj.bias_size': torch.tensor(residual.shape).to(torch.int16),
+    }
+    net = _load_via(F.try_load_lora, sd)
+    assert net is not None and len(net.modules) == 1, f'got {net.modules if net else None}'
+    mod = next(iter(net.modules.values()))
+    assert mod.bias is not None and mod.bias.is_sparse, f'bias={type(mod.bias)}'
+    w_base = torch.randn(HIDDEN, QKV_OUT)
+    updown, _ex_bias = mod.calc_updown(w_base)
+    ref = up @ down + residual
+    rel = ((updown - ref).norm() / (ref.norm() + 1e-12)).item()
+    assert torch.allclose(updown, ref, rtol=1e-4, atol=1e-5), f'rel err {rel:.4f}'
+    return True
+
+
+def test_lora_sparse_bias_fused_skipped():
+    """The sparse residual triplet on a fused target is skipped like dense bias."""
+    sd = dict(sd_lora_kohya_qkv())
+    residual = torch.zeros(3 * QKV_OUT, HIDDEN)
+    residual[0, 0] = 1.0
+    sparse = residual.to_sparse().coalesce()
+    base = 'lora_unet_double_blocks_0_img_attn_qkv'
+    sd[f'{base}.bias_indices'] = sparse.indices().to(torch.int16)
+    sd[f'{base}.bias_values'] = sparse.values()
+    sd[f'{base}.bias_size'] = torch.tensor(residual.shape).to(torch.int16)
+    net = _load_via(F.try_load_lora, sd)
+    assert net is None, f'expected skip, got {net.modules if net else None}'
+    return True
+
+
 def test_lokr_shape_mismatch_rejected():
     """Kron dims that disagree with the module are rejected at load, not at apply."""
     sd = sd_lokr_bfl_proj()
@@ -1560,6 +1608,8 @@ def run_tests():
         test_lora_aitk_magnitude_dora,
         test_lora_magnitude_fused_qkv_sliced,
         test_lora_peft_magnitude_vector,
+        test_lora_sparse_bias_residual,
+        test_lora_sparse_bias_fused_skipped,
         test_lokr_shape_mismatch_rejected,
         test_lokr_fused_shape_mismatch_rejected,
         test_lokr_bfl_non_fused,
