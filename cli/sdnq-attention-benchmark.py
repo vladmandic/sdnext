@@ -883,47 +883,59 @@ def run_correctness():
     table.add_column("result", justify="center")
     panel = Panel(table, title="kernel correctness", subtitle="[dim]small shapes, vs fp32 sdpa reference; stress rows pass on finite output[/dim]", box=ROUNDED_BOX, expand=False)
     failed = []
-    dynamo_disable = getattr(torch._dynamo.config, "disable", False) # pylint: disable=protected-access
-    torch._dynamo.config.disable = True # pylint: disable=protected-access # checks target kernel behavior, run the input prep eager
+    details = {}
+    # checks target kernel behavior, so the input prep runs eager via a module-global swap.
+    # do not toggle torch._dynamo.config.disable for this: newer torch raises "found no
+    # compiled frames" when a fullgraph-compiled function is called inside a disable window,
+    # failing every check and poisoning the first compiled call afterwards
+    from modules.sdnq.kernels import triton_atten as atten_module
+    compiled_prep = atten_module.get_attn_inputs
+    inner_prep = getattr(compiled_prep, "_torchdynamo_orig_callable", None)
+    if inner_prep is not None:
+        atten_module.get_attn_inputs = inner_prep
     progress, task = live_progress()
-    with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
-        for index, (name, (cq, ck, cv), kwargs, sdnq_kwargs) in enumerate(checks, start=1):
-            progress.reset(task, description=f"check {index}/{len(checks)}  {name}")
-            ref_kwargs = dict(kwargs)
-            if ref_kwargs.get("attn_mask", None) is not None and torch.is_floating_point(ref_kwargs["attn_mask"]):
-                ref_kwargs["attn_mask"] = ref_kwargs["attn_mask"].to(torch.float32) # stock sdpa requires the additive mask dtype to match query
-            ref = fp32_reference(cq, ck, cv, **ref_kwargs)
-            try:
-                plain = sdnq_triton_atten(cq, ck, cv, do_quantize=False, **kwargs)
-                quant_kwargs = dict(matmul_dtype="auto", pv_matmul_dtype="auto", **kwargs)
-                quant_kwargs.update(sdnq_kwargs)
-                quant = sdnq_triton_atten(cq, ck, cv, **quant_kwargs)
-                err_plain = rel_err(plain, ref)
-                err_quant = rel_err(quant, ref)
-                max_err = max_token_err(quant, ref)
-                finite = bool(torch.isfinite(plain).all().item() and torch.isfinite(quant).all().item())
-                if name.startswith("stress:"):
-                    ok = finite
-                else:
-                    ok = finite and err_plain < 0.01 and err_quant < 0.2
-                if not ok:
+    try:
+        with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+            for index, (name, (cq, ck, cv), kwargs, sdnq_kwargs) in enumerate(checks, start=1):
+                progress.reset(task, description=f"check {index}/{len(checks)}  {name}")
+                ref_kwargs = dict(kwargs)
+                if ref_kwargs.get("attn_mask", None) is not None and torch.is_floating_point(ref_kwargs["attn_mask"]):
+                    ref_kwargs["attn_mask"] = ref_kwargs["attn_mask"].to(torch.float32) # stock sdpa requires the additive mask dtype to match query
+                ref = fp32_reference(cq, ck, cv, **ref_kwargs)
+                try:
+                    plain = sdnq_triton_atten(cq, ck, cv, do_quantize=False, **kwargs)
+                    quant_kwargs = dict(matmul_dtype="auto", pv_matmul_dtype="auto", **kwargs)
+                    quant_kwargs.update(sdnq_kwargs)
+                    quant = sdnq_triton_atten(cq, ck, cv, **quant_kwargs)
+                    err_plain = rel_err(plain, ref)
+                    err_quant = rel_err(quant, ref)
+                    max_err = max_token_err(quant, ref)
+                    finite = bool(torch.isfinite(plain).all().item() and torch.isfinite(quant).all().item())
+                    if name.startswith("stress:"):
+                        ok = finite
+                    else:
+                        ok = finite and err_plain < 0.01 and err_quant < 0.2
+                    if not ok:
+                        failed.append(name)
+                    details[name] = dict(kernel_err=err_plain, int8_err=err_quant, max_token_err=max_err, finite=finite, ok=ok)
+                    verdict = "[green]pass[/green]" if ok else "[red]fail[/red]"
+                    if not finite:
+                        verdict = "[red]non-finite[/red]"
+                    table.add_row(name, err_cell(err_plain), err_cell(err_quant), err_cell(max_err), verdict)
+                except Exception as e:
                     failed.append(name)
-                verdict = "[green]pass[/green]" if ok else "[red]fail[/red]"
-                if not finite:
-                    verdict = "[red]non-finite[/red]"
-                table.add_row(name, err_cell(err_plain), err_cell(err_quant), err_cell(max_err), verdict)
-            except Exception as e:
-                failed.append(name)
-                table.add_row(name, "-", "-", "-", failure_text(e))
-        live.update(panel)
+                    details[name] = dict(error=error_summary(e, 200))
+                    table.add_row(name, "-", "-", "-", failure_text(e))
+            live.update(panel)
+    finally:
+        atten_module.get_attn_inputs = compiled_prep
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
-    torch._dynamo.config.disable = dynamo_disable # pylint: disable=protected-access
     if failed:
         emit(f"[red]failed checks: {', '.join(failed)}[/red]")
     if "head dim 40 + hadamard" in failed and shared.opts.sdnq_attention_use_hadamard:
         emit("[yellow]current config has Use Hadamard enabled: models with non power-of-2 head dims (SD 1.5) fail at generation with it[/yellow]")
-    report["correctness"] = dict(failed=failed, total=len(checks))
+    report["correctness"] = dict(failed=failed, total=len(checks), checks=details)
     return failed
 
 
