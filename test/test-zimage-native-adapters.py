@@ -313,6 +313,24 @@ def sd_lokr_legacy_fused_qkv():
     }
 
 
+def sd_lokr_lycoris_style():
+    """LyCORIS-standalone LoKR (``lycoris_`` + underscored diffusers path).
+
+    The prefix is resolved by the universal passthrough in native_adapter, not
+    by anything zimage-specific. ``to_out.0`` exercises the verbatim
+    round-trip where a naive underscore-to-dot expansion would corrupt the
+    ModuleList index.
+    """
+    return {
+        'lycoris_layers_0_attention_to_q.lokr_w1': torch.randn(LOKR_W1_DIM, LOKR_W1_DIM),
+        'lycoris_layers_0_attention_to_q.lokr_w2': torch.randn(HIDDEN // LOKR_W1_DIM, HIDDEN // LOKR_W1_DIM),
+        'lycoris_layers_0_attention_to_q.alpha': torch.tensor(float(LOKR_W1_DIM)),
+        'lycoris_layers_1_attention_to_out_0.lokr_w1': torch.randn(LOKR_W1_DIM, LOKR_W1_DIM),
+        'lycoris_layers_1_attention_to_out_0.lokr_w2': torch.randn(HIDDEN // LOKR_W1_DIM, HIDDEN // LOKR_W1_DIM),
+        'lycoris_layers_1_attention_to_out_0.alpha': torch.tensor(float(LOKR_W1_DIM)),
+    }
+
+
 def sd_loha_bfl_proj():
     """LoHA on attention.to_out.0 (non-fused; LoHA on fused qkv is skipped by the loader)."""
     return {
@@ -599,6 +617,20 @@ def test_lokr_legacy_fused_qkv_chunked():
     return True
 
 
+def test_lokr_lycoris_prefix_passthrough():
+    """lycoris_ keys load via the universal passthrough (hoisted, not zimage-specific)."""
+    net = _load_via(Z.try_load_lokr, sd_lokr_lycoris_style())
+    assert net is not None and len(net.modules) == 2, f'got {net.modules if net else None}'
+    expected = {
+        'lora_transformer_layers_0_attention_to_q',
+        'lora_transformer_layers_1_attention_to_out_0',
+    }
+    assert set(net.modules) == expected, f'got {set(net.modules)}'
+    for mod in net.modules.values():
+        assert isinstance(mod, network_lokr.NetworkModuleLokr)
+    return True
+
+
 def test_loha_bfl_proj():
     """BFL LoHA on a non-fused proj target binds via NetworkModuleHada."""
     net = _load_via(Z.try_load_loha, sd_loha_bfl_proj())
@@ -729,6 +761,7 @@ def run_tests():
         test_lora_dora_threading,
         test_lokr_bfl_adaln,
         test_lokr_legacy_fused_qkv_chunked,
+        test_lokr_lycoris_prefix_passthrough,
         test_loha_bfl_proj,
         test_loha_legacy_fused_qkv_chunked,
         test_oft_lycoris_no_npe,

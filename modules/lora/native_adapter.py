@@ -48,7 +48,11 @@ from modules.lora import lora_common as l
 # vendor-specific naming conventions. ``lora_transformer_`` is not a vendor
 # format but sdnext's own internal transformer namespace; files already saved
 # in it (e.g. OneTrainer) pass through verbatim, see :func:`resolve_group_targets`.
-KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_", "lora_transformer_")
+# ``lycoris_`` is the LyCORIS-standalone save format: the wrapped diffusers
+# module path with dots rendered as underscores. It is arch-independent by
+# construction (the wrapped layout equals the target layout), so it lives here
+# rather than in any arch's prefix list.
+KNOWN_PREFIXES_DEFAULT = ("diffusion_model.", "transformer.", "lora_unet_", "lora_transformer_", "lycoris_")
 
 
 # Sentinel ``prefix_used`` value emitted by :func:`parse_key` when a bare path
@@ -67,9 +71,9 @@ NETWORK_PREFIX_DEFAULT = "lora_transformer_"
 
 # Prefixes whose parsed ``base`` is already a network-key tail (``arch_prefix +
 # base.replace(".", "_")`` matches the stamped module name), so the loader binds
-# them directly with no per-arch rewrite. Arch-local already-resolved prefixes
-# (e.g. flux2's ``lycoris_``) stay in that arch's ``resolve_targets``.
-PASSTHROUGH_PREFIXES_DEFAULT = ("transformer.", BARE_DIFFUSERS_PREFIX_USED, "lora_transformer_")
+# them directly with no per-arch rewrite. ``lycoris_`` bases are already
+# underscored, so the loader's ``.replace(".", "_")`` is a no-op on them.
+PASSTHROUGH_PREFIXES_DEFAULT = ("transformer.", BARE_DIFFUSERS_PREFIX_USED, "lora_transformer_", "lycoris_")
 
 
 def _resolve_prefix(network_prefix, prefix_used):

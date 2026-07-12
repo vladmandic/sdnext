@@ -718,8 +718,9 @@ def test_parse_key_lycoris_prefix():
         got = F.parse_key(key, suffixes)
         assert got == expected, f'parse_key({key!r}) = {got}, expected {expected}'
 
-    # resolve_targets: the underscored path is returned verbatim (no chunk).
-    targets = F.resolve_targets('lycoris_', 'transformer_blocks_0_attn_add_k_proj')
+    # Resolution: lycoris_ is a universal passthrough handled upstream of the
+    # arch resolver, so the underscored path is returned verbatim (no chunk).
+    targets = F.native_adapter.resolve_group_targets(F.resolve_targets, 'lycoris_', 'transformer_blocks_0_attn_add_k_proj')
     assert targets == [('transformer_blocks_0_attn_add_k_proj', None)], f'targets={targets}'
     return True
 
