@@ -128,9 +128,10 @@ class _Holder(torch.nn.Module):
 def build_mock_transformer():
     """Build a torch.nn.Module mimicking Flux2's diffusers-side module tree.
 
-    Mirrors the paths in F2_SINGLE_MAP / F2_DOUBLE_MAP / F2_QKV_MAP plus the
-    RMSNorm targets inside attention so that try_load_norm has something to
-    bind. Sizes are scaled-down but proportional so chunking math is realistic.
+    Mirrors the paths in F2_SINGLE_MAP / F2_DOUBLE_MAP / F2_QKV_MAP /
+    F2_EXTRA_MAP plus the RMSNorm targets inside attention so that
+    try_load_norm has something to bind. Sizes are scaled-down but
+    proportional so chunking math is realistic.
     """
     transformer = _Holder()
     transformer.transformer_blocks = torch.nn.ModuleList()
@@ -163,6 +164,26 @@ def build_mock_transformer():
         sblock.attn.to_qkv_mlp_proj = torch.nn.Linear(HIDDEN, SINGLE_FUSED_OUT, bias=False)
         sblock.attn.to_out = torch.nn.Linear(SINGLE_OUT_IN, HIDDEN, bias=False)
         transformer.single_transformer_blocks.append(sblock)
+    # Non-block F2_EXTRA_MAP targets. Modulation/norm_out out-dims follow the
+    # real modules' expansion ratios (3x/6x per mod_param_sets, 2x for AdaLN).
+    transformer.x_embedder = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.context_embedder = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.time_guidance_embed = _Holder()
+    transformer.time_guidance_embed.timestep_embedder = _Holder()
+    transformer.time_guidance_embed.timestep_embedder.linear_1 = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.time_guidance_embed.timestep_embedder.linear_2 = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.time_guidance_embed.guidance_embedder = _Holder()
+    transformer.time_guidance_embed.guidance_embedder.linear_1 = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.time_guidance_embed.guidance_embedder.linear_2 = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.norm_out = _Holder()
+    transformer.norm_out.linear = torch.nn.Linear(HIDDEN, 2 * HIDDEN, bias=False)
+    transformer.proj_out = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.single_stream_modulation = _Holder()
+    transformer.single_stream_modulation.linear = torch.nn.Linear(HIDDEN, 3 * HIDDEN, bias=False)
+    transformer.double_stream_modulation_img = _Holder()
+    transformer.double_stream_modulation_img.linear = torch.nn.Linear(HIDDEN, 6 * HIDDEN, bias=False)
+    transformer.double_stream_modulation_txt = _Holder()
+    transformer.double_stream_modulation_txt.linear = torch.nn.Linear(HIDDEN, 6 * HIDDEN, bias=False)
     return transformer
 
 
@@ -359,6 +380,35 @@ def sd_lokr_simpletuner_lycoris_style():
         'lycoris_transformer_blocks_0_attn_add_k_proj.lokr_w2': torch.randn(QKV_OUT // LOKR_W1_DIM, HIDDEN // LOKR_W1_DIM),
         'lycoris_transformer_blocks_0_attn_add_k_proj.alpha':   torch.tensor(float(LOKR_W1_DIM)),
     }
+
+
+def sd_lokr_bfl_extra_modules():
+    """BFL-format LoKR spanning every non-block target in F2_EXTRA_MAP.
+
+    Mirrors the ai-toolkit full-matrix layout (klein_snofs_v1_1): both factors
+    stored whole (lokr_w1/lokr_w2, no a/b decomposition) with the ~1e10
+    placeholder alpha. With no rank-decomposed factor the loader must leave
+    dim=None so the placeholder never scales the delta.
+    """
+    dims = {
+        'img_in': (HIDDEN, HIDDEN),
+        'txt_in': (HIDDEN, HIDDEN),
+        'time_in.in_layer': (HIDDEN, HIDDEN),
+        'time_in.out_layer': (HIDDEN, HIDDEN),
+        'guidance_in.in_layer': (HIDDEN, HIDDEN),
+        'guidance_in.out_layer': (HIDDEN, HIDDEN),
+        'final_layer.linear': (HIDDEN, HIDDEN),
+        'final_layer.adaLN_modulation.1': (2 * HIDDEN, HIDDEN),
+        'single_stream_modulation.lin': (3 * HIDDEN, HIDDEN),
+        'double_stream_modulation_img.lin': (6 * HIDDEN, HIDDEN),
+        'double_stream_modulation_txt.lin': (6 * HIDDEN, HIDDEN),
+    }
+    sd = {}
+    for base, (out_dim, in_dim) in dims.items():
+        sd[f'diffusion_model.{base}.lokr_w1'] = torch.randn(LOKR_W1_DIM, LOKR_W1_DIM)
+        sd[f'diffusion_model.{base}.lokr_w2'] = torch.randn(out_dim // LOKR_W1_DIM, in_dim // LOKR_W1_DIM)
+        sd[f'diffusion_model.{base}.alpha'] = torch.tensor(9999220736.0)
+    return sd
 
 
 def sd_loha_bfl_proj():
@@ -604,6 +654,21 @@ def test_resolve_targets_qkv_chunking():
 
     targets = F.resolve_targets('weird_prefix.', 'whatever')
     assert targets == []
+    return True
+
+
+def test_resolve_targets_extra_modules():
+    """Every non-block F2_EXTRA_MAP target maps 1:1 (no chunk) in all three key forms."""
+    for bfl_base, diffusers_path in F.F2_EXTRA_MAP.items():
+        targets = F.resolve_targets('diffusion_model.', bfl_base)
+        assert targets == [(diffusers_path, None)], f'{bfl_base} -> {targets}'
+        targets = F.resolve_targets(None, bfl_base)
+        assert targets == [(diffusers_path, None)], f'bare {bfl_base} -> {targets}'
+        targets = F.resolve_targets('lora_unet_', bfl_base.replace('.', '_'))
+        assert targets == [(diffusers_path, None)], f'kohya {bfl_base} -> {targets}'
+    # guidance_in is a bare BFL prefix in its own right.
+    got = F.parse_key('guidance_in.in_layer.lora_A.weight', F.LORA_SUFFIXES)
+    assert got == (None, 'guidance_in.in_layer', 'lora_down.weight'), f'bare guidance_in parse -> {got}'
     return True
 
 
@@ -881,6 +946,28 @@ def test_lokr_simpletuner_lycoris_format():
     assert set(net.modules) == expected, f'got {set(net.modules)}'
     for mod in net.modules.values():
         assert isinstance(mod, network_lokr.NetworkModuleLokr)
+    return True
+
+
+def test_lokr_bfl_extra_modules_full_matrix():
+    """All non-block F2_EXTRA_MAP targets bind; placeholder alpha never scales.
+
+    Regression for the gap where resolve_targets only knew single_blocks /
+    double_blocks and silently dropped embedder / modulation / final-layer
+    groups as unmapped.
+    """
+    net = _load_via(F.try_load_lokr, sd_lokr_bfl_extra_modules())
+    bound = len(net.modules) if net else 0
+    assert net is not None and bound == len(F.F2_EXTRA_MAP), \
+        f'bound {bound}/{len(F.F2_EXTRA_MAP)}: {sorted(net.modules) if net else []}'
+    for nk, mod in net.modules.items():
+        assert isinstance(mod, network_lokr.NetworkModuleLokr) and not isinstance(mod, network_lokr.NetworkModuleLokrChunk), \
+            f'{nk}: type={type(mod).__name__}'
+        # Full-matrix factors leave dim unset; the ~1e10 placeholder alpha must be ignored.
+        assert mod.dim is None and mod.calc_scale() == 1.0, f'{nk}: dim={mod.dim} scale={mod.calc_scale()}'
+        updown, _ex_bias = mod.calc_updown(mod.sd_module.weight)
+        assert_shape(updown, mod.sd_module.weight.shape, label=nk)
+        assert_finite(updown, label=nk)
     return True
 
 
@@ -1227,6 +1314,7 @@ def run_tests():
 
     log.warning('=== Parsing primitives ===')
     for fn in [test_parse_key_all_prefixes, test_resolve_targets_qkv_chunking,
+               test_resolve_targets_extra_modules,
                test_parse_key_peft_wrapper_unwrap, test_parse_key_lycoris_prefix,
                test_parse_key_bare_diffusers_and_peft_default,
                test_marker_disambiguation]:
@@ -1246,6 +1334,7 @@ def run_tests():
         test_lokr_bfl_non_fused,
         test_lokr_kohya_fused_qkv_chunked,
         test_lokr_simpletuner_lycoris_format,
+        test_lokr_bfl_extra_modules_full_matrix,
         test_loha_bfl_non_fused,
         test_loha_kohya_fused_qkv_chunked,
         test_oft_kohya_non_fused,
