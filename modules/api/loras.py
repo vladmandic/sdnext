@@ -26,6 +26,12 @@ def post_refresh_loras():
     return result
 
 
+def get_loaded():
+    """Return a list of currently loaded LoRA networks with name, alias, path, and metadata."""
+    from modules.lora import lora_common
+    return [obj.name for obj in lora_common.loaded_networks]
+
+
 def _invalidate_extra_networks():
     """Reset extra-networks page caches so the v2 API picks up changes."""
     from modules import shared
@@ -38,3 +44,4 @@ def register_api(api):
     api.add_api_route("/sdapi/v1/lora", get_lora, methods=["GET"], response_model=dict, tags=["Enumerators"])
     api.add_api_route("/sdapi/v1/loras", get_loras, methods=["GET"], response_model=list[dict], tags=["Enumerators"])
     api.add_api_route("/sdapi/v1/refresh-loras", post_refresh_loras, methods=["POST"], tags=["Functional"])
+    api.add_api_route("/sdapi/v1/loaded-loras", get_loaded, methods=["GET"], response_model=list[str], tags=["Enumerators"])

@@ -10313,9 +10313,13 @@ async function setupControlUI() {
 
 // ui/extraNetworks.ts
 var activePromptTextarea = {};
+var selectedNetworks = {};
 var sortVal = -1;
 var totalCards = -1;
 var lastTab = "control";
+function getSelectedNetworks() {
+  return selectedNetworks;
+}
 var getENActiveTab = () => {
   let tabName = "";
   if (gradioApp().getElementById("txt2img_prompt")?.checkVisibility() || gradioApp().getElementById("txt2img_generate")?.checkVisibility()) tabName = "txt2img";
@@ -10544,6 +10548,7 @@ function sortExtraNetworks(fixed = "no") {
 }
 async function markSelectedCards(selected, page = "") {
   log("markSelectedCards", selected, page);
+  selectedNetworks[page] = selected;
   gradioApp().querySelectorAll(".extra-network-cards .card").forEach((el2) => {
     if (page.length > 0 && el2.dataset.page !== page) return;
     if (selected.includes(el2.dataset.name) || selected.includes(el2.dataset.short)) el2.classList.add("card-selected");
@@ -10856,6 +10861,7 @@ window.applyStyles = applyStyles;
 window.closeDetailsEN = closeDetailsEN;
 window.getENActivePage = getENActivePage;
 window.getCardDetails = getCardDetails;
+window.getSelectedNetworks = getSelectedNetworks;
 window.sortExtraNetworks = sortExtraNetworks;
 window.refeshDetailsEN = refeshDetailsEN;
 window.extraNetworksSearchButton = extraNetworksSearchButton;

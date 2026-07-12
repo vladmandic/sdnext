@@ -102,6 +102,7 @@ declare global {
     closeDetailsEN?: (...args: unknown[]) => unknown[]; // ui/extraNetworks.ts
     extraNetworksFilterVersion?: (event: Event) => void; // ui/extraNetworks.ts
     extraNetworksSearchButton?: (event: Event) => void; // ui/extraNetworks.ts
+    getSelectedNetworks?: () => Record<string, string[]>; // ui/extraNetworks.ts
     getCardDetails?: (...args: unknown[]) => unknown[]; // ui/extraNetworks.ts
     quickSaveStyle?: () => void; // ui/extraNetworks.ts
     getENActivePage?: () => string; // ui/extraNetworks.ts

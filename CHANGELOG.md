@@ -4,11 +4,14 @@
 
 ### Highlights for 2026-07-12
 
-*What's New?* Full 3 days(!) since there release, we're bringing a service pack update:
-**Anima** has new *Aesthetic* and *Turbo* variants, UI log viewer now allows monitoring and easy sharing of server and client logs
-There are quite a few SDNQ improvements and we're continuing with enhanced support for 3rd party finetunes
+*What's New?* Full week(!) since there release, we're bringing a service pack update:  
+**Anima** has new *Aesthetic* and *Turbo* variants  
+But also:  
+- UI updates to Server info and Log viewers, more informative and allows easier sharing of info
+- Quite a few SDNQ improvements, both to quantization and attention
+- Continuing with enhanced support for 3rd party finetunes
 
-*Note*: As long as there are no major items in #dev branch, we will continue with weekly service updates, so stay tuned for more!
+*Note*: As long as there are no major items in `#dev` branch, we will continue with weekly service updates, so stay tuned for more!  
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
@@ -28,6 +31,8 @@ There are quite a few SDNQ improvements and we're continuing with enhanced suppo
   - sdnq: improve attention
   - api: add `/sdapi/v1/restart` endpoint
 - **UI**
+  - improved server info panel  
+    now shows loaded components, networks, etc.  
   - improved log viewer for both server and client logs
   - expose server errors
   - log view copy server log and copy client log buttons  
