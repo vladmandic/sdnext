@@ -276,10 +276,14 @@ class SDNQDequantizer:
         self.use_stochastic_rounding = use_stochastic_rounding
         self.use_hadamard = use_hadamard
         self.layer_class_name = layer_class_name
+        self.num_bits = dtype_dict[weights_dtype]["num_bits"]
         self.is_packed = dtype_dict[weights_dtype]["is_packed"]
-        self.is_unsigned = dtype_dict[weights_dtype]["is_unsigned"]
         self.is_integer = dtype_dict[weights_dtype]["is_integer"]
+        self.is_unsigned = dtype_dict[weights_dtype]["is_unsigned"]
+        self.num_bits_matmul = dtype_dict[quantized_matmul_dtype]["num_bits"]
+        self.is_packed_matmul = dtype_dict[quantized_matmul_dtype]["is_packed"]
         self.is_integer_matmul = dtype_dict[quantized_matmul_dtype]["is_integer"]
+        self.is_unsigned_matmul = dtype_dict[quantized_matmul_dtype]["is_unsigned"]
 
     @devices.inference_context()
     def re_quantize_matmul(
@@ -291,10 +295,11 @@ class SDNQDequantizer:
         svd_down: torch.FloatTensor | None = None,
         hadamard: torch.FloatTensor | None = None,
         non_hadamard: bool = True,
+        skip_compile: bool = False,
     ) -> tuple[torch.Tensor, torch.FloatTensor]: # pylint: disable=unused-argument
         if hadamard is None and self.use_hadamard and not non_hadamard:
             hadamard = get_hadamard(self.hadamard_group_size, dtype=self.result_dtype, device=weight.device)
-        re_quantize_matmul_func = re_quantize_matmul if skip_fp8_compile(self.weights_dtype) else re_quantize_matmul_compiled
+        re_quantize_matmul_func = re_quantize_matmul if skip_compile or skip_fp8_compile(self.weights_dtype) else re_quantize_matmul_compiled
         return re_quantize_matmul_func(
             self.weights_dtype,
             weight,
