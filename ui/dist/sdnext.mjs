@@ -11666,8 +11666,12 @@ function getDesiredCheckpointName() {
 }
 function selectUNet(name) {
   desiredUNetName = name;
-  gradioApp().getElementById("change_unet").click();
-  log(`selectUNet: ${desiredUNetName}`);
+  const tabName = getENActiveTab();
+  const btnModel = gradioApp().getElementById(`${tabName}_extra_model`);
+  const isSecondary = btnModel && btnModel.classList.contains("toolbutton-selected");
+  if (isSecondary) gradioApp().getElementById("change_unet_secondary").click();
+  else gradioApp().getElementById("change_unet").click();
+  log(`selectUNet ${isSecondary ? "secondary" : "primary"}: ${desiredUNetName}`);
   markSelectedCards([desiredUNetName], "unet");
 }
 function selectReference(name) {

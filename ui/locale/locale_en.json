@@ -47,7 +47,7 @@
     {"id":"quicksettings_clear","label":"⊗","localized":"","hint":"Reset values"},
     {"id":"docs_btn_search","label":"🔍","localized":"","hint":"Search","ui":"system_tab_docs"},
     {"id":"component-5667","label":"⇨","localized":"","hint":"Apply preset","ui":"component-5660"},
-    {"id":"txt2img_extra_model","label":"※","localized":"","hint":"Load model as refiner model when selected, otherwise load as base model"},
+    {"id":"txt2img_extra_model","label":"※","localized":"","hint":"Load model as secondary model when selected, otherwise load as base model"},
     {"id":"txt2img_extra_scan","label":"🔎︎","localized":"","hint":"Scan CivitAI for missing metadata and previews"},
     {"id":"txt2img_extra_sort","label":"⇕","localized":"","hint":"Sort by: Name asc/desc, Size largest/smallest, Time newest/oldest"},
     {"id":"txt2img_extra_close","label":"✕","localized":"","hint":"Close"},

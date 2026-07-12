@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-10
+## Update for 2026-07-12
 
-### Highlights for 2026-07-10
+### Highlights for 2026-07-12
 
 *What's New?* Full 3 days(!) since there release, we're bringing a service pack update:
 **Anima** has new *Aesthetic* and *Turbo* variants, UI log viewer now allows monitoring and easy sharing of server and client logs
@@ -12,7 +12,7 @@ There are quite a few SDNQ improvements and we're continuing with enhanced suppo
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-07-10
+### Details for 2026-07-12
 
 - **Models**
   - [Anima 1.0](https://civitai.com/models/2458426/anima?modelVersionId=3108569) new *Aesthetic* and *Turbo* variants  
@@ -21,12 +21,16 @@ There are quite a few SDNQ improvements and we're continuing with enhanced suppo
   - ui: expose server errors
   - ui: log view copy server log and copy client log buttons  
     this copies current log to clipboard for easy sharing  
-  - api: add `/sdapi/v1/restart` endpoint
+  - loader: support loading secondary unet for models that have multiple unets  
+    *networks panel -> toggle: load model as secondary model*  
+    *settings -> model loading -> unet model secondary*  
   - loader: support transformers from all-in-one safetensors  
   - loader: improve `fp8` model support
+  - loader: improve `nvfp4` model support
   - civitai: improve search
   - civitai: restart download
   - sdnq: improve attention
+  - api: add `/sdapi/v1/restart` endpoint
 - **Experimental**
   - support for `comfy_quant` models  
 - **Fixes**
