@@ -218,10 +218,24 @@ def build_mock_transformer():
     transformer = _Holder()
     transformer.transformer_blocks = torch.nn.ModuleList([build_double_block() for _ in range(N_DOUBLE)])
     transformer.single_transformer_blocks = torch.nn.ModuleList([build_single_block() for _ in range(N_SINGLE)])
-    # distilled_guidance_layer - Chroma's central modulation approximator
-    # Minimal stand-in: just one linear submodule the tests can target
+    # distilled_guidance_layer - Chroma's central modulation approximator.
+    # Mirrors ChromaApproximator: in_proj / out_proj Linears, PixArt-shaped
+    # MLP layers (linear_1 / linear_2) and RMSNorms.
     transformer.distilled_guidance_layer = _Holder()
     transformer.distilled_guidance_layer.in_proj = torch.nn.Linear(HIDDEN, HIDDEN, bias=True)
+    transformer.distilled_guidance_layer.out_proj = torch.nn.Linear(HIDDEN, HIDDEN, bias=True)
+    transformer.distilled_guidance_layer.layers = torch.nn.ModuleList()
+    transformer.distilled_guidance_layer.norms = torch.nn.ModuleList()
+    for _ in range(2):
+        mlp = _Holder()
+        mlp.linear_1 = torch.nn.Linear(HIDDEN, HIDDEN, bias=True)
+        mlp.linear_2 = torch.nn.Linear(HIDDEN, HIDDEN, bias=True)
+        transformer.distilled_guidance_layer.layers.append(mlp)
+        transformer.distilled_guidance_layer.norms.append(torch.nn.RMSNorm(HIDDEN))
+    # Non-block CHROMA_EXTRA_MAP targets.
+    transformer.x_embedder = torch.nn.Linear(HIDDEN, HIDDEN)
+    transformer.context_embedder = torch.nn.Linear(HIDDEN, HIDDEN)
+    transformer.proj_out = torch.nn.Linear(HIDDEN, HIDDEN, bias=True)
     return transformer
 
 
@@ -630,6 +644,32 @@ def test_resolve_targets_static_renames():
     return True
 
 
+def test_resolve_targets_extra_and_guidance():
+    """Non-block extra-map renames and guidance-layer MLP leaf renames, all key forms."""
+    for bfl_base, diffusers_path in C.CHROMA_EXTRA_MAP.items():
+        for prefix, base in [
+            ('diffusion_model.', bfl_base),
+            (None, bfl_base),
+            ('lora_unet_', bfl_base.replace('.', '_')),
+        ]:
+            targets = C.resolve_targets(prefix, base)
+            assert targets == [(diffusers_path, None)], f'({prefix}, {base}) -> {targets}'
+    cases = [
+        # BFL MLP leaves rename to the PixArt projection names.
+        (('diffusion_model.', 'distilled_guidance_layer.layers.0.in_layer'), 'distilled_guidance_layer.layers.0.linear_1'),
+        ((None, 'distilled_guidance_layer.layers.1.out_layer'), 'distilled_guidance_layer.layers.1.linear_2'),
+        (('lora_unet_', 'distilled_guidance_layer_layers_0_in_layer'), 'distilled_guidance_layer_layers_0_linear_1'),
+        (('lora_unet_', 'distilled_guidance_layer_layers_1_out_layer'), 'distilled_guidance_layer_layers_1_linear_2'),
+        # Verbatim leaves are untouched in either naming.
+        (('diffusion_model.', 'distilled_guidance_layer.in_proj'), 'distilled_guidance_layer.in_proj'),
+        ((None, 'distilled_guidance_layer.layers.0.linear_1'), 'distilled_guidance_layer.layers.0.linear_1'),
+    ]
+    for (prefix, base), expected in cases:
+        targets = C.resolve_targets(prefix, base)
+        assert targets == [(expected, None)], f'({prefix}, {base}) -> {targets}'
+    return True
+
+
 def test_resolve_targets_onetrainer_passthrough():
     """The ``lora_transformer_`` passthrough lives in the shared resolver.
 
@@ -802,6 +842,43 @@ def test_lora_distilled_guidance():
     net = _load_via(C.try_load_lora, sd_lora_distilled_guidance())
     assert net is not None and len(net.modules) == 1
     assert 'lora_transformer_distilled_guidance_layer_in_proj' in net.modules
+    return True
+
+
+def sd_lokr_bfl_extra_modules():
+    """BFL LoKR spanning the non-block extra targets and guidance MLP leaves.
+
+    Full-matrix factors with the ai-toolkit placeholder alpha, mirroring the
+    layout of real full-preset checkpoints.
+    """
+    bases = [
+        'img_in', 'txt_in', 'final_layer.linear',
+        'distilled_guidance_layer.layers.0.in_layer',
+        'distilled_guidance_layer.layers.1.out_layer',
+    ]
+    sd = {}
+    for base in bases:
+        sd[f'diffusion_model.{base}.lokr_w1'] = torch.randn(LOKR_W1_DIM, LOKR_W1_DIM)
+        sd[f'diffusion_model.{base}.lokr_w2'] = torch.randn(HIDDEN // LOKR_W1_DIM, HIDDEN // LOKR_W1_DIM)
+        sd[f'diffusion_model.{base}.alpha'] = torch.tensor(9999220736.0)
+    return sd
+
+
+def test_lokr_bfl_extra_and_guidance():
+    """Embedder/final-layer renames and guidance MLP leaf renames all bind."""
+    net = _load_via(C.try_load_lokr, sd_lokr_bfl_extra_modules())
+    assert net is not None and len(net.modules) == 5, f'got {sorted(net.modules) if net else None}'
+    expected = {
+        'lora_transformer_x_embedder',
+        'lora_transformer_context_embedder',
+        'lora_transformer_proj_out',
+        'lora_transformer_distilled_guidance_layer_layers_0_linear_1',
+        'lora_transformer_distilled_guidance_layer_layers_1_linear_2',
+    }
+    assert set(net.modules) == expected, f'got {set(net.modules)}'
+    # Full-matrix factors: the placeholder alpha must not scale.
+    for nk, mod in net.modules.items():
+        assert mod.dim is None and mod.calc_scale() == 1.0, f'{nk}: dim={mod.dim} scale={mod.calc_scale()}'
     return True
 
 
@@ -979,6 +1056,7 @@ def run_tests():
 
     log.warning('=== Parsing primitives ===')
     for fn in [test_parse_key_all_prefixes, test_marker_disambiguation, test_resolve_targets_static_renames,
+               test_resolve_targets_extra_and_guidance,
                test_resolve_targets_onetrainer_passthrough]:
         run_test(CAT_PARSE, fn)
 
@@ -1000,6 +1078,7 @@ def run_tests():
         test_lokr_bfl_img_attn_proj,
         test_lokr_bfl_img_attn_qkv_chunked,
         test_lokr_bfl_single_linear1_unequal_chunks,
+        test_lokr_bfl_extra_and_guidance,
         test_loha_bfl_img_attn_proj,
         test_loha_bfl_img_attn_qkv_chunked,
         test_oft_bfl_img_attn_proj,
