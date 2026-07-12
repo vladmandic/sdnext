@@ -12966,7 +12966,6 @@ var minCleanupCount = 1e3;
 var minCleanupTime = 1e3 * 60 * 60;
 var folderStylesheet = new CSSStyleSheet();
 var fileStylesheet = new CSSStyleSheet();
-var iconStopwatch = String.fromCodePoint(9201);
 var separatorStates = /* @__PURE__ */ new Map();
 var el = {
   folders: void 0,
@@ -12980,6 +12979,13 @@ var el = {
 var cleanupTimers = {};
 var maintenanceTimers = {};
 var fetchQueue = [];
+var icons = {
+  Time: String.fromCodePoint(9201),
+  Folder: String.fromCodePoint(128448),
+  // or 128449;
+  Sort: String.fromCodePoint(8645),
+  Images: String.fromCodePoint(128461)
+};
 var SUPPORTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "tiff", "jp2", "jxl", "gif", "mp4", "mkv", "avi", "mjpeg", "mpg", "avr"];
 var gallerySorter = {
   nameA: { name: "Name Ascending", func: (a, b) => a.name.localeCompare(b.name) },
@@ -13587,24 +13593,22 @@ async function addSeparators() {
 }
 var gallerySendImage = (_images) => [currentImage];
 window.gallerySendImage = gallerySendImage;
-function updateStatusWithSort(...messages) {
+function updateStatusLine(...messages) {
   if (!el.status) return;
   messages.unshift(["Sort", sortMode.name]);
   const fragment = document.createDocumentFragment();
   for (let i = 0; i < messages.length; i++) {
     const div = document.createElement("div");
     if (Array.isArray(messages[i])) {
-      const [text1, text2] = messages[i];
-      const tDiv1 = document.createElement("div");
-      tDiv1.innerText = `${text1}:`;
-      const tDiv2 = document.createElement("div");
-      tDiv2.innerText = text2;
-      tDiv2.title = text2;
-      div.append(tDiv1, tDiv2);
+      const [k, v] = messages[i];
+      const tDiv = document.createElement("div");
+      const ico = icons[k] || `${k}:`;
+      tDiv.innerText = `${ico} ${v}`;
+      div.append(tDiv);
     } else {
-      const tDiv1 = document.createElement("div");
-      tDiv1.innerText = messages[i];
-      div.append(tDiv1);
+      const tDiv = document.createElement("div");
+      tDiv.innerText = messages[i];
+      div.append(tDiv);
     }
     fragment.append(div);
   }
@@ -13683,7 +13687,7 @@ async function gallerySearch() {
         const isOpen = separatorStates.get(dirPath);
         f.style.display = !dirPath || isOpen ? "unset" : "none";
       });
-      updateStatusWithSort("Filter", "Cleared", ["Images", allFiles.length.toLocaleString()]);
+      updateStatusLine("Filter", "Cleared", ["Images", allFiles.length.toLocaleString()]);
       return;
     }
     let totalFound = 0;
@@ -13728,7 +13732,7 @@ async function gallerySearch() {
       f.style.display = fileMatches.has(f) ? "unset" : "none";
     }
     const t1 = performance.now();
-    updateStatusWithSort("Filter", ["Images", `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], `${iconStopwatch} ${Math.round(t1 - t0).toLocaleString()}ms`);
+    updateStatusLine("Filter", ["Images", `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], ["Time", `${Math.round(t1 - t0).toLocaleString()}ms`]);
     timer(`galleryFilter:${str}`, t1 - t0);
     refreshGallerySelection();
   }, 250);
@@ -13785,7 +13789,7 @@ async function gallerySort(key) {
   }
   const t1 = performance.now();
   log(`gallerySort: sort=${sortMode.name} len=${arr.length} time=${Math.floor(t1 - t0)}`);
-  updateStatusWithSort(["Images", arr.length.toLocaleString()], `${iconStopwatch} ${Math.round(t1 - t0).toLocaleString()}ms`);
+  updateStatusLine(["Images", arr.length.toLocaleString()], ["Time", `${Math.round(t1 - t0).toLocaleString()}ms`]);
   timer(`gallerySort:${sortMode.name}`, t1 - t0);
   refreshGallerySelection();
 }
@@ -13855,7 +13859,7 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
         log("galleryMaintenance", { folder, kept: keptGalleryHashes.size, deleted: delcount, time: Math.round(t1 - t0) });
         timer(`thumbnailDBCleanup:${folder}`, t1 - t0);
         currentGalleryFolder = null;
-        updateStatusWithSort("Thumbnail cache cleared");
+        updateStatusLine("Thumbnail cache cleared");
       }).catch((reason) => {
         SimpleFunctionQueue.abortLogger("thumbCacheCleanup", reason);
       }).finally(async () => {
@@ -13887,11 +13891,11 @@ window.clearCache = clearCache;
 async function fetchFilesHT(evt, controller) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
-  updateStatusWithSort(["Folder", evt.target.name], "in-progress");
+  updateStatusLine(["Folder", evt.target.name], "in-progress");
   let numFiles = 0;
   const res = await authFetch(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
   if (!res || res.status !== 200) {
-    updateStatusWithSort(["Folder", evt.target.name], ["Failed", res?.statusText || "No response"]);
+    updateStatusLine(["Folder", evt.target.name], ["Failed", res?.statusText || "No response"]);
     return;
   }
   const jsonData = await res.json();
@@ -13910,7 +13914,7 @@ async function fetchFilesHT(evt, controller) {
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} method=http time=${Math.floor(t1 - t0)}ms`);
   timer(`galleryFetch:${evt.target.name}`, t1 - t0);
-  updateStatusWithSort(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  updateStatusLine(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], ["Time", `${Math.floor(t1 - t0).toLocaleString()}ms`]);
   pb.start(numFiles);
   addSeparators();
   refreshGallerySelection();
@@ -13936,7 +13940,7 @@ async function fetchFilesWS(evt) {
     await fetchFilesHT(evt, controller);
     return;
   }
-  updateStatusWithSort(["Folder", evt.target.name]);
+  updateStatusLine(["Folder", evt.target.name]);
   const t0 = performance.now();
   let numFiles = 0;
   let t1 = performance.now();
@@ -13954,7 +13958,7 @@ async function fetchFilesWS(evt) {
         numFiles++;
         fragment.appendChild(file);
         if (numFiles % fragmentSize === 0) {
-          updateStatusWithSort(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], "in-progress", `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+          updateStatusLine(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], ["Status", "in-progress"], ["Time", `${Math.floor(t1 - t0).toLocaleString()}ms`]);
           el.files.appendChild(fragment);
           fragment = document.createDocumentFragment();
         }
@@ -13965,7 +13969,7 @@ async function fetchFilesWS(evt) {
     if (controller.signal.aborted) return;
     el.files.appendChild(fragment);
     log(`gallery: folder=${evt.target.name} num=${numFiles} method=ws time=${Math.floor(t1 - t0)}ms`);
-    updateStatusWithSort(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    updateStatusLine(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], ["Time", `${Math.floor(t1 - t0).toLocaleString()}ms`]);
     pb.start(numFiles);
     addSeparators();
     refreshGallerySelection();

@@ -17,10 +17,6 @@ There are quite a few SDNQ improvements and we're continuing with enhanced suppo
 - **Models**
   - [Anima 1.0](https://civitai.com/models/2458426/anima?modelVersionId=3108569) new *Aesthetic* and *Turbo* variants  
 - **Features**
-  - ui: improved log viewer for both server and client logs
-  - ui: expose server errors
-  - ui: log view copy server log and copy client log buttons  
-    this copies current log to clipboard for easy sharing  
   - loader: support loading secondary unet for models that have multiple unets  
     *networks panel -> toggle: load model as secondary model*  
     *settings -> model loading -> unet model secondary*  
@@ -31,6 +27,12 @@ There are quite a few SDNQ improvements and we're continuing with enhanced suppo
   - civitai: restart download
   - sdnq: improve attention
   - api: add `/sdapi/v1/restart` endpoint
+- **UI**
+  - improved log viewer for both server and client logs
+  - expose server errors
+  - log view copy server log and copy client log buttons  
+    copies current log to clipboard for easy sharing  
+  - collapsible input & output panels for *video*, *caption*, *process* tabs
 - **Experimental**
   - support for `comfy_quant` models  
 - **Fixes**
