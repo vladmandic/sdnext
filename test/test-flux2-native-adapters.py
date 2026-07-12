@@ -1355,6 +1355,45 @@ def test_full_calc_updown_shape():
     return True
 
 
+def test_dora_ordering_matches_lycoris():
+    """DoRA merge equals the LyCORIS forward reference at multiplier 1 and
+    lerps the full merged delta at other multipliers (ComfyUI semantics).
+
+    Reference mirrors lycoris locon forward + apply_weight_decompose with
+    wd_on_out=True: alpha/rank scales the diff BEFORE the row norms. Uses
+    alpha != rank (the kohya-style case the old decompose-before-scale
+    ordering got ~64% wrong).
+    """
+    torch.manual_seed(0)
+    alpha = 1.0
+    w_base = torch.randn(QKV_OUT, HIDDEN)
+    down = torch.randn(RANK_LORA, HIDDEN)
+    up = torch.randn(QKV_OUT, RANK_LORA)
+    dora = w_base.reshape(QKV_OUT, -1).norm(dim=1, keepdim=True)
+
+    def reference_delta(mult):
+        diff = (up @ down) * (alpha / RANK_LORA)
+        merged = w_base + diff
+        norm = merged.reshape(QKV_OUT, -1).norm(dim=1).reshape(QKV_OUT, 1) + torch.finfo(w_base.dtype).eps
+        return (merged * (dora / norm) - w_base) * mult
+
+    sd = {
+        'transformer.transformer_blocks.0.attn.to_q.lora_A.weight': down,
+        'transformer.transformer_blocks.0.attn.to_q.lora_B.weight': up,
+        'transformer.transformer_blocks.0.attn.to_q.alpha': torch.tensor(alpha),
+        'transformer.transformer_blocks.0.attn.to_q.dora_scale': dora,
+    }
+    for mult in (1.0, 0.5):
+        net = _load_via(F.try_load_lora, sd)
+        assert net is not None and len(net.modules) == 1
+        mod = make_network_for_module(next(iter(net.modules.values())), te_mul=mult, unet_mul=mult)
+        updown, _ex_bias = mod.calc_updown(w_base.clone())
+        ref = reference_delta(mult)
+        rel = ((updown - ref).norm() / (ref.norm() + 1e-12)).item()
+        assert torch.allclose(updown, ref, rtol=1e-4, atol=1e-5), f'mult={mult}: rel err {rel:.4f}'
+    return True
+
+
 # ============================================================
 # Tests — apply path / regressions in shared infra
 # ============================================================
@@ -1479,6 +1518,7 @@ def run_tests():
         test_ia3_calc_updown_shape,
         test_glora_calc_updown_shape,
         test_full_calc_updown_shape,
+        test_dora_ordering_matches_lycoris,
     ]:
         run_test(CAT_MATH, fn)
 

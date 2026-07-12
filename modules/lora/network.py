@@ -268,7 +268,13 @@ class NetworkModule:
         if ex_bias is not None:
             ex_bias = ex_bias * self.multiplier()
         if self.dora_scale is not None:
-            updown = self.apply_weight_decompose(updown, orig_weight)
+            # LyCORIS/ComfyUI convention: alpha/rank is baked into the diff
+            # before the decompose norm. The multiplier then lerps the full
+            # merged delta (ComfyUI semantics: 0 disables, 1 equals the
+            # trainer's output; LyCORIS weight-mode ratio interpolation is
+            # not used since it leaves the diff applied at multiplier 0).
+            updown = self.apply_weight_decompose(updown * self.calc_scale(), orig_weight)
+            return updown * self.multiplier(), ex_bias
         return updown * self.calc_scale() * self.multiplier(), ex_bias
 
     def calc_updown(self, target):
