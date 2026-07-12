@@ -2694,6 +2694,9 @@ def main():
     print_environment(fp8_result, prep_status, prep_detail, weight_dequant_result=weight_dequant_result)
     if not args.skip_checks and "attention" in sections:
         run_correctness()
+        if report.get("correctness_aborted_after") and not cuda_context_alive():
+            flush_outputs()
+            sys.exit(1)
     if args.skip_bench:
         flush_outputs()
         return
