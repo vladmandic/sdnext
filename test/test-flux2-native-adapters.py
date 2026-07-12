@@ -339,6 +339,14 @@ def sd_lora_dora_fused_qkv():
     }
 
 
+def sd_lora_diff_b_fused_qkv():
+    """Kohya LoRA on fused img_attn.qkv with a per-output diff_b bias delta."""
+    sd = dict(sd_lora_dora_fused_qkv())
+    del sd['lora_unet_double_blocks_0_img_attn_qkv.dora_scale']
+    sd['lora_unet_double_blocks_0_img_attn_qkv.diff_b'] = torch.randn(3 * QKV_OUT)
+    return sd
+
+
 def sd_lokr_dora_fused_qkv(per_input=False):
     """Kohya LoKR on fused img_attn.qkv with a dora_scale companion.
 
@@ -971,6 +979,28 @@ def test_dora_per_input_fused_skipped():
     return True
 
 
+def test_lora_diff_b_fused_qkv_sliced():
+    """Per-output diff_b slices with the chunk and flows out as ex_bias."""
+    net = _load_via(F.try_load_lora, sd_lora_diff_b_fused_qkv())
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    for nk, mod in net.modules.items():
+        assert mod.ex_bias is not None and mod.ex_bias.shape[0] == QKV_OUT, \
+            f'{nk}: ex_bias shape {tuple(mod.ex_bias.shape) if mod.ex_bias is not None else None}'
+        _updown, ex_bias = mod.calc_updown(mod.sd_module.weight)
+        assert ex_bias is not None and ex_bias.shape[0] == QKV_OUT, f'{nk}: applied ex_bias {ex_bias.shape if ex_bias is not None else None}'
+    return True
+
+
+def test_legacy_bias_fused_skipped():
+    """The legacy weight-shaped bias key has no partition on fused targets; group skipped."""
+    sd = dict(sd_lora_dora_fused_qkv())
+    del sd['lora_unet_double_blocks_0_img_attn_qkv.dora_scale']
+    sd['lora_unet_double_blocks_0_img_attn_qkv.bias'] = torch.randn(3 * QKV_OUT, HIDDEN)
+    net = _load_via(F.try_load_lora, sd)
+    assert net is None, f'expected skip, got {net.modules if net else None}'
+    return True
+
+
 def test_lokr_shape_mismatch_rejected():
     """Kron dims that disagree with the module are rejected at load, not at apply."""
     sd = sd_lokr_bfl_proj()
@@ -1416,6 +1446,8 @@ def run_tests():
         test_lora_dora_fused_qkv_sliced,
         test_lokr_dora_fused_qkv_sliced,
         test_dora_per_input_fused_skipped,
+        test_lora_diff_b_fused_qkv_sliced,
+        test_legacy_bias_fused_skipped,
         test_lokr_shape_mismatch_rejected,
         test_lokr_fused_shape_mismatch_rejected,
         test_lokr_bfl_non_fused,

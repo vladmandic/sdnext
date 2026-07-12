@@ -469,6 +469,10 @@ def resolve_group_targets(resolve_targets, prefix_used, base):
 # sliced with the chunk via slice_dora_scale (exact, row norms are
 # independent); per-input dora_scale couples the chunks through shared
 # column norms and the group is skipped with a warning.
+#
+# Bias companions on fused targets: per-output diff_b deltas slice with the
+# chunk (LoRA only; no other family's save format pairs them). The legacy
+# weight-shaped "bias" key has no defined partition and skips the group.
 # - OFT/BOFT: no chunk variant exists; fused targets are skipped with a
 #   warning. Discrimination is by ``oft_blocks.ndim`` (3-D OFT, 4-D BOFT),
 #   mirroring upstream LyCORIS ``algo_check``.
@@ -513,6 +517,22 @@ def slice_dora_scale(w, chunk: ChunkSpec, fused_out):
     return None
 
 
+def slice_bias_delta(w, chunk: ChunkSpec, fused_out):
+    """Slice a per-output ``diff_b`` bias delta to the chunk rows; ``None`` if unsliceable.
+
+    ``diff_b`` stores one bias value per output feature, so it partitions with
+    the fused rows exactly like the up-weight.
+    """
+    db = w.get("diff_b")
+    if db is None:
+        return w
+    if db.ndim >= 1 and db.shape[0] == fused_out:
+        out = dict(w)
+        out["diff_b"] = slice_chunk_rows(db, chunk)
+        return out
+    return None
+
+
 def try_load_lora(name, network_on_disk, lora_scale, *,
                   resolve_targets, prefixes=KNOWN_PREFIXES_DEFAULT,
                   bare_prefixes=(), bare_diffusers_prefixes=(),
@@ -553,10 +573,22 @@ def try_load_lora(name, network_on_disk, lora_scale, *,
 
             target_w = w
             if chunk is not None:
+                if "bias" in w:
+                    # Legacy weight-shaped bias (LyCORIS sparse-residual heritage)
+                    # has no defined partition on a fused target.
+                    log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
+                    skipped += 1
+                    continue
+                fused_out = w["lora_up.weight"].shape[0]
                 target_w = _slice_lora_chunk(w, chunk)
-                target_w = slice_dora_scale(target_w, chunk, fused_out=w["lora_up.weight"].shape[0])
+                target_w = slice_dora_scale(target_w, chunk, fused_out)
                 if target_w is None:
                     log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
+                    skipped += 1
+                    continue
+                target_w = slice_bias_delta(target_w, chunk, fused_out)
+                if target_w is None:
+                    log.warning(f'Network load: type=LoRA name="{name}" arch={arch_name} key={network_key} non-per-output diff_b on fused target skipped (unsupported)')
                     skipped += 1
                     continue
 
@@ -631,6 +663,10 @@ def try_load_lokr(name, network_on_disk, lora_scale, *,
                 continue
             target_w = w
             if chunk is not None:
+                if "bias" in w:
+                    log.warning(f'Network load: type=LoKR name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
+                    skipped += 1
+                    continue
                 # Kron rows = w1 rows * w2 rows; the tucker w2_a orientation
                 # differs but tucker is conv-only and chunks are Linear-only.
                 w1 = w.get("lokr_w1")
@@ -701,6 +737,10 @@ def try_load_loha(name, network_on_disk, lora_scale, *,
                 continue
             target_w = w
             if chunk is not None:
+                if "bias" in w:
+                    log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} weight-shaped bias on fused target skipped (unsupported)')
+                    skipped += 1
+                    continue
                 target_w = slice_dora_scale(w, chunk, fused_out=w["hada_w1_a"].shape[0])
                 if target_w is None:
                     log.warning(f'Network load: type=LoHA name="{name}" arch={arch_name} key={network_key} per-input DoRA on fused target skipped (unsupported)')
