@@ -22,7 +22,7 @@ loaded_model = None
 
 
 def load_custom(model_name: str):
-    log.debug(f'Video load: module=pipe repo="{model_name}" cls=Custom')
+    log.debug(f'Load video: module=pipe repo="{model_name}" cls=Custom')
     if 'veo-3.1' in model_name:
         from modules.video_models.google_veo import load_veo
         pipe = load_veo(model_name)
@@ -48,7 +48,7 @@ def load_model(selected: models_def.Model):
         # shared.sd_model auto-reloads the default checkpoint when model_data.sd_model is None,
         # which silently swaps the pipe class behind the name-based cache. Pipe-class mismatch
         # is the reliable signal that the cached name no longer maps to the cached object.
-        log.warning(f'Video load: cached model="{selected.name}" cls={type(shared.sd_model).__name__} mismatch forcing reload')
+        log.warning(f'Load video: cached model="{selected.name}" cls={type(shared.sd_model).__name__} mismatch forcing reload')
         loaded_model = None
     if loaded_model == selected.name:
         return ''
@@ -104,7 +104,7 @@ def load_model(selected: models_def.Model):
                 selected.te_folder = 'text_encoder'
                 selected.te_revision = None
 
-            log.debug(f'Video load: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("transformers")}')
+            log.debug(f'Load video: module=te repo="{selected.te or selected.repo}" folder="{selected.te_folder}" cls={selected.te_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("transformers")}')
             kwargs["text_encoder"] = selected.te_cls.from_pretrained(
                 pretrained_model_name_or_path=selected.te or selected.repo,
                 subfolder=selected.te_folder,
@@ -125,7 +125,7 @@ def load_model(selected: models_def.Model):
                 if dit_folder is not None and dit_folder not in kwargs:
                     # get a new quant arg on every loop to prevent the quant config classes getting entangled
                     load_args, quant_args = model_quant.get_dit_args({}, module='Model', device_map=True)
-                    log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("diffusers")}')
+                    log.debug(f'Load video: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} quant={model_quant.get_quant_type(quant_args)} loader={_loader("diffusers")}')
                     kwargs[dit_folder] = selected.dit_cls.from_pretrained(
                         pretrained_model_name_or_path=selected.dit or selected.repo,
                         subfolder=dit_folder,
@@ -136,7 +136,7 @@ def load_model(selected: models_def.Model):
                         **offline_args,
                     )
                 else:
-                    log.debug(f'Video load: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} loader={_loader("diffusers")} skip')
+                    log.debug(f'Load video: module=transformer repo="{selected.dit or selected.repo}" module="{dit_folder}" folder="{dit_folder}" cls={selected.dit_cls.__name__} loader={_loader("diffusers")} skip')
 
             if selected.dit_folder is None:
                 selected.dit_folder = ['transformer']
@@ -154,7 +154,10 @@ def load_model(selected: models_def.Model):
         if selected.repo_cls is None:
             shared.sd_model = load_custom(selected.repo)
         else:
-            log.debug(f'Video load: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
+            log.debug(f'Load video: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
+            print('HERE1')
+            sd_models.hf_prefetch_configs(selected.repo, {}, 'video')
+            print('HERE2')
             shared.sd_model = selected.repo_cls.from_pretrained(
                 pretrained_model_name_or_path=selected.repo,
                 revision=selected.repo_revision,
@@ -168,7 +171,7 @@ def load_model(selected: models_def.Model):
         errors.display(e, 'video')
 
     if shared.sd_model is None:
-        msg = f'Video load: model="{selected.name}" failed'
+        msg = f'Load video: model="{selected.name}" failed'
         log.error(msg)
         return msg
 
@@ -211,7 +214,7 @@ def load_model(selected: models_def.Model):
     sd_models.set_diffuser_offload(shared.sd_model)
 
     loaded_model = selected.name
-    msg = f'Video load: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'
+    msg = f'Load video: cls={shared.sd_model.__class__.__name__} model="{selected.name}" time={t1-t0:.2f}'
     log.info(msg)
     log.debug(f'Video hijacks: decode={decode} text={text} image={image} slicing={slicing} tiling={tiling} framewise={framewise}')
     shared.state.end(jobid)

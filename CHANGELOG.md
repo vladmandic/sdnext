@@ -1,8 +1,8 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-12
+## Update for 2026-07-13
 
-### Highlights for 2026-07-12
+### Highlights for 2026-07-13
 
 *What's New?* Full week(!) since there release, we're bringing a service pack update:  
 **Anima** has new *Aesthetic* and *Turbo* variants  
@@ -38,6 +38,7 @@ But also:
   - log view copy server log and copy client log buttons  
     copies current log to clipboard for easy sharing  
   - collapsible input & output panels for *video*, *caption*, *process* tabs
+  - video add immediate load
 - **Experimental**
   - support for `comfy_quant` models  
 - **Fixes**
@@ -50,6 +51,7 @@ But also:
   - server-info: handle multiple gpus
   - load: skip redundant model reload 
   - sdnq: fix hadamard on sdnq atten with sd15
+  - download: improved progress tracking
 
 ## Update for 2026-07-07
 

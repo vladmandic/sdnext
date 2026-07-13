@@ -331,7 +331,7 @@ def load_diffuser_initial(diffusers_load_config: dict, op='model'):
     return sd_model, checkpoint_info
 
 
-def hf_prefetch_configs(checkpoint_info: CheckpointInfo, diffusers_load_config: dict, op='model'):
+def hf_prefetch_configs(checkpoint_info: CheckpointInfo | str, diffusers_load_config: dict, op='model'):
     # diffusers pipeline downloads build subfolder config allow-patterns with os.path.join, and huggingface_hub>=1.22
     # matches patterns with fnmatchcase which does not normalize separators (huggingface/huggingface_hub#4435),
     # so on windows component config.json files are never downloaded and the incomplete snapshot
@@ -932,7 +932,9 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         if model_type is None:
             log.error(f'Load {op}: pipeline={shared.opts.diffusers_pipeline} not detected')
             return
+
         hf_prefetch_configs(checkpoint_info, diffusers_load_config, op)
+
         vae_file = None
         if model_type.startswith('Stable Diffusion') and (op == 'model' or op == 'refiner'): # preload vae for sd models
             vae_file, vae_source = sd_vae.resolve_vae(checkpoint_info.filename)

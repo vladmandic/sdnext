@@ -37,7 +37,7 @@ def getpipe(package, name, _default=None):
         cls = getattr(package, name, _default)
         return cls
     except Exception as e:
-        log.error(f'Video load: error loading class "{name}" from package "{package.__name__}": {e}')
+        log.error(f'Load video: error loading class "{name}" from package "{package.__name__}": {e}')
         return None
 
 

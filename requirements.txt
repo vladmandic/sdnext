@@ -30,7 +30,7 @@ requests==2.34.2
 tqdm==4.68.3
 accelerate==1.14.0
 einops==0.8.2
-huggingface_hub==1.22.0
+huggingface_hub==1.23.0
 hf_xet==1.5.1
 numpy==2.1.2
 pandas==2.3.1

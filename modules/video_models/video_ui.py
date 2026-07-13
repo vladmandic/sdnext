@@ -41,7 +41,7 @@ def model_change(engine, model):
 
 
 def model_load(engine, model):
-    debug(f'Video load: engine="{engine}" model="{model}"')
+    debug(f'Load video: engine="{engine}" model="{model}"')
     selected = get_selected(engine, model)
     yield f'Video model loading: {selected.name}'
     if selected:
