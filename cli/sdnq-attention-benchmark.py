@@ -231,6 +231,7 @@ conv_configs = [ # id, weights config (None = bf16 baseline), use conv quantized
     ("uint8-mm", dict(weights_dtype="uint8"), True),
 ]
 all_dequant_sweeps = ["groups", "svd", "hgroups", "toggles", "conv"]
+all_mm_backends = ["torch", "triton"]
 recommend_error_cap = 2.0 # a faster config is not recommended when it multiplies measured output error beyond this
 
 atten_settings = [
@@ -249,6 +250,8 @@ def parse_cli():
     parser.add_argument("--dequant-dtypes", type=str, default="all", help=f"comma-separated dequant dtype configs: {', '.join(dtype_id for dtype_id, _label, _cfg in dequant_dtype_configs)}; 'all' runs every one (default: %(default)s)")
     parser.add_argument("--dequant-variants", type=str, default="all", help=f"comma-separated svd/hadamard variants benched on {', '.join(dequant_variant_dtypes)}: {', '.join(variant_id for variant_id, _cfg in dequant_variant_configs)}; 'all' or 'none' (default: %(default)s)")
     parser.add_argument("--dequant-sweeps", type=str, default="all", help=f"comma-separated setting sweeps in the dequant section: {', '.join(all_dequant_sweeps)}; 'all' or 'none' (default: %(default)s)")
+    parser.add_argument("--mm-backends", type=str, default="none", help=f"comma-separated quantized-matmul backends to compare in one run: {', '.join(all_mm_backends)}; 'none' benches only the backend this device selects (default: %(default)s)")
+    parser.add_argument("--mm-rounds", type=int, default=2, help="alternating rounds per matmul backend, fastest kept, so clock drift cancels instead of favouring one backend (default: %(default)s)")
     parser.add_argument("--block-configs", type=str, default="all", help=f"comma-separated combined block configs: {', '.join(config_id for config_id, _w, _mm, _a in block_configs)}; 'all' runs every one (default: %(default)s)")
     parser.add_argument("--shapes", type=str, default=default_shapes, help=f"comma-separated attention shape presets: {', '.join(shape_presets)}; 'all' runs {', '.join(full_run)} (default: %(default)s)")
     parser.add_argument("--iters", type=int, default=12, help="minimum timed iterations per config, scaled up for fast kernels (default: %(default)s)")
@@ -662,6 +665,8 @@ def print_banner(selected, sections, args):
     elif "attention" in sections:
         lines.append(f"attention shapes: [cyan]{', '.join(selected)}[/cyan]  (available: {', '.join(shape_presets)}; pass --shapes to match the models you use)")
         lines.append("first run compiles triton kernels per shape and can take several minutes; repeat runs are much faster")
+    if args.mm_backends.strip().lower() not in {"none", ""} and "dequant" in sections:
+        lines.append(f"matmul backends compared in one run: [cyan]{args.mm_backends}[/cyan]  (swapped in-process, {args.mm_rounds} alternating rounds per dtype)")
     if args.save:
         lines.append(f"a plain-text copy of the results will be saved to [cyan]{args.save}[/cyan]")
     if args.json:
@@ -1547,6 +1552,170 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
     transcript.append(panel)
     torch_device_module.empty_cache()
     report["dequant_float_mm"] = dict(shape=shape_label, results=results)
+    return results
+
+
+# === quantized matmul backends ===
+#
+# The linear layers bind their scaled-mm function at import
+# (`from ...kernel_wrappers import int_scaled_mm_func`), so SDNQ_USE_TRITON_MM freezes the
+# backend for the process and a cross-process A/B carries clock drift into the comparison.
+# The call sites look the name up as a module global at call time, so rebinding it on the
+# consuming module switches backends in-process; the layer forwards are compile_func'd, so
+# every swap needs a dynamo reset or the traced graph keeps calling the previous function.
+#
+# The torch row is whatever kernel_wrappers bound when triton was not selected, captured
+# rather than reimplemented. Run without SDNQ_USE_TRITON_MM=1 to have it available: where
+# triton is the platform default (xpu, ipex, zluda, rdna2 and older) the torch fallbacks are
+# never defined and the row needs SDNQ_USE_TRITON_MM=0.
+
+mm_swap_targets = [
+    ("modules.sdnq.layers.linear.linear_int8", "int_scaled_mm_func"),
+    ("modules.sdnq.layers.linear.linear_uint8", "int_scaled_mm_func"),
+    ("modules.sdnq.layers.linear.linear_fp16", "fp_scaled_mm_func"),
+    ("modules.sdnq.layers.linear.linear_fp8", "fp8_scaled_mm_func"),
+]
+
+
+def mm_backend_bindings():
+    # {backend: {(module, attr): func}} for the backends bindable in this process, plus a
+    # note for any that are not
+    import importlib
+    bound = {}
+    for module_path, attr in mm_swap_targets:
+        try:
+            module = importlib.import_module(module_path)
+        except Exception:
+            continue
+        func = getattr(module, attr, None)
+        if func is not None:
+            bound[(module_path, attr)] = func
+    try:
+        from modules.sdnq.kernels.triton_scaled_mm import sdnq_scaled_mm
+    except Exception as e:
+        return {}, {"triton": f"triton scaled mm unavailable: {error_summary(e, 120)}"}
+
+    backends, unavailable = {}, {}
+    if bound and all(func is sdnq_scaled_mm for func in bound.values()):
+        unavailable["torch"] = "triton is the default matmul backend on this device; rerun with SDNQ_USE_TRITON_MM=0 to bind the torch fallbacks"
+    elif bound:
+        backends["torch"] = dict(bound)
+    backends["triton"] = {target: sdnq_scaled_mm for target in bound}
+    return backends, unavailable
+
+
+def apply_mm_backend(binding):
+    import importlib
+    for (module_path, attr), func in binding.items():
+        setattr(importlib.import_module(module_path), attr, func)
+    torch._dynamo.reset() # pylint: disable=protected-access # layer forwards are compiled: the traced graph pins the previous function
+
+
+def bench_mm_backends(shape_label, out_features, in_features, selected_dtypes, backends, iters, warmup, config_timeout=300, rounds=2):
+    # paired same-run comparison of the quantized-matmul backends: one quantized layer per
+    # dtype, benched through each backend in turn so both rows see the same weights and the
+    # same clock state. Round order alternates so monotonic drift cancels instead of
+    # accumulating into whichever backend runs second; each row keeps its fastest round.
+    available, unavailable = mm_backend_bindings()
+    selected = [name for name in backends if name in available]
+    for name in backends:
+        if name in unavailable:
+            emit(f"[yellow]matmul backend '{name}' not benchable: {unavailable[name]}[/yellow]")
+    if len(selected) < 2:
+        if selected:
+            emit(f"[yellow]matmul backend comparison needs two bindable backends, only '{selected[0]}' is available; skipping[/yellow]")
+        return {}
+    dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if selected_dtypes is None or dtype_id in selected_dtypes]
+    if not dtype_configs:
+        return {}
+    # the comparison only runs when the torch row is bindable, which means the process came up on
+    # it; restore it after the sweep so later sections measure the config the user actually runs
+    original_binding = available["torch"]
+
+    table = Table(box=box.SIMPLE_HEAVY)
+    table.add_column("weights")
+    for name in selected:
+        table.add_column(f"{name} mm", justify="right")
+    table.add_column("delta", justify="right")
+    table.add_column("out err", justify="right")
+    panel = Panel(
+        table,
+        title=f"quantized matmul backends, paired: {shape_label} {dtype_label()}",
+        subtitle=f"[dim]same layer and clock state, {rounds} alternating rounds, fastest kept; delta = {selected[-1]} vs {selected[0]}, negative = {selected[-1]} faster[/dim]",
+        box=ROUNDED_BOX, expand=False,
+    )
+
+    results = {}
+    progress, task = live_progress()
+    with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
+        weight = make_source_weight(out_features, in_features)
+        weight_fp32 = weight.to(torch.float32)
+        generator = torch.Generator(device=torch_device).manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device=torch_device, dtype=bench_dtype, generator=generator)
+        ref_out = fp32_linear_reference(x, weight_fp32)
+        for index, (dtype_id, label, cfg) in enumerate(dtype_configs, start=1):
+            def phase(step, current_label=label, current_index=index):
+                progress.update(task, description=f"mm backends {current_index}/{len(dtype_configs)}  {current_label}: {step}")
+            entry = dict(mm_dtype=None, backends={})
+            results[dtype_id] = entry
+            try:
+                phase("quantizing for quantized matmul")
+                layer, _quant_seconds = make_quantized_linear(weight, use_quantized_matmul=True, **cfg)
+                entry["mm_dtype"] = layer.sdnq_dequantizer.quantized_matmul_dtype
+            except Exception as e:
+                entry["error"] = error_summary(e, 200)
+                table.add_row(label, *["-"] * len(selected), "-", failure_text(e))
+                continue
+
+            def mm_fn(current=layer):
+                return current(x)
+
+            for round_index in range(rounds):
+                order = selected if round_index % 2 == 0 else list(reversed(selected))
+                for name in order:
+                    slot = entry["backends"].setdefault(name, dict(ms=None, err=None))
+                    if slot.get("error"):
+                        continue
+                    try:
+                        phase(f"{name} backend, round {round_index + 1}/{rounds}")
+                        apply_mm_backend(available[name])
+                        with time_limit(config_timeout, f"{label} {name} mm"):
+                            mm_fn()
+                            torch_device_module.synchronize()
+                        ms = bench(mm_fn, warmup, iters)
+                        if slot["ms"] is None or ms < slot["ms"]:
+                            slot["ms"] = ms
+                        if slot["err"] is None:
+                            slot["err"] = rel_err(mm_fn(), ref_out)
+                    except Exception as e:
+                        slot["error"] = error_summary(e, 200)
+                        torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
+            del layer
+
+            cells = []
+            for name in selected:
+                slot = entry["backends"].get(name, {})
+                cells.append(f"{slot['ms']:8.3f} ms" if slot.get("ms") else failure_text(RuntimeError(slot.get("error", "not run"))))
+            first, last = entry["backends"].get(selected[0], {}), entry["backends"].get(selected[-1], {})
+            if first.get("ms") and last.get("ms"):
+                delta = (last["ms"] - first["ms"]) / first["ms"] * 100
+                colour = "green" if delta < -3 else ("red" if delta > 3 else "dim")
+                entry["delta_pct"] = delta
+                delta_cell = f"[{colour}]{delta:+.1f}%[/{colour}]"
+            else:
+                delta_cell = "-"
+            errs = {slot.get("err") for slot in entry["backends"].values() if slot.get("err") is not None}
+            err_text = err_cell(max(errs)) if errs else "-"
+            if len(errs) > 1 and max(errs) - min(errs) > 1e-4:
+                err_text += " [yellow]differs[/yellow]" # backends must be numerically equivalent; a split here is a kernel bug
+            table.add_row(label, *cells, delta_cell, err_text)
+            live.update(panel)
+    console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
+    transcript.append(panel)
+
+    apply_mm_backend(original_binding)
+    torch_device_module.empty_cache()
+    report["dequant_mm_backends"] = dict(shape=shape_label, backends=selected, rounds=rounds, results=results)
     return results
 
 
@@ -2730,6 +2899,17 @@ def main():
         if unknown_sweeps:
             console.print(f"[red]unknown dequant sweep(s): {', '.join(unknown_sweeps)}; available: {', '.join(all_dequant_sweeps)}, all, none[/red]")
             sys.exit(1)
+    backends_arg = args.mm_backends.strip().lower()
+    if backends_arg in {"none", ""}:
+        selected_mm_backends = []
+    elif backends_arg == "all":
+        selected_mm_backends = list(all_mm_backends)
+    else:
+        selected_mm_backends = [s.strip() for s in args.mm_backends.split(",") if s.strip()]
+        unknown_backends = [s for s in selected_mm_backends if s not in all_mm_backends]
+        if unknown_backends:
+            console.print(f"[red]unknown matmul backend(s): {', '.join(unknown_backends)}; available: {', '.join(all_mm_backends)}, all, none[/red]")
+            sys.exit(1)
     if not load_sdnext():
         sys.exit(1)
     if args.dtype == "auto":
@@ -2781,6 +2961,8 @@ def main():
             first_label, first_out, first_in = dequant_shapes[0]
             first_results = dequant_results.get(first_label, {})
             float_mm_results = bench_float_mm_alternatives(first_label, first_out, first_in, first_results, selected_dtypes, args.iters, args.warmup, config_timeout=args.config_timeout)
+            if selected_mm_backends:
+                bench_mm_backends(first_label, first_out, first_in, selected_dtypes, selected_mm_backends, args.iters, args.warmup, config_timeout=args.config_timeout, rounds=args.mm_rounds)
             sweep_results = {}
             if "groups" in selected_sweeps:
                 sweep_results["groups"] = bench_group_sizes(first_label, first_out, first_in, first_results, selected_dtypes, args.iters, args.warmup, config_timeout=args.config_timeout)
