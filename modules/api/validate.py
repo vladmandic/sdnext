@@ -39,8 +39,9 @@ log_cost = {
 log_exclude_suffix = ['.css', '.js', '.ico', '.svg']
 log_exclude_prefix = ['/assets']
 
+
 class Limiter():
-    def __init__(self, limit):
+    def __init__(self, limit, subpath=None):
         import limits
         self.request_backend = limits.storage.MemoryStorage()
         self.request_limit = limit # default is 300 requests per minute
@@ -51,7 +52,8 @@ class Limiter():
         self.log_strategy = limits.strategies.FixedWindowRateLimiter(self.log_backend)
         self.log_limiter = limits.parse(f"{self.log_limit}/minute")
         self.summary = {}
-        log.info(f'API: limit={self.request_limit} strategy={self.request_strategy.__class__.__name__} backend={self.request_backend.__class__.__name__}')
+        self.subpath = subpath
+        log.info(f'API: limit={self.request_limit} strategy={self.request_strategy.__class__.__name__} backend={self.request_backend.__class__.__name__} subpath={self.subpath}')
 
 
     def stats(self):
@@ -86,7 +88,7 @@ class Limiter():
         return status
 
 
-limiter = Limiter(300)
+limiter = Limiter(0, None)
 
 
 def get_api_stats():
@@ -95,20 +97,23 @@ def get_api_stats():
 
 def validate_request(client, endpoint):
     global limiter # pylint: disable=global-statement
-    from modules.shared import opts
+    from modules.shared import opts, cmd_opts
     if opts.server_rate_limit != limiter.request_limit:
-        limiter = Limiter(opts.server_rate_limit)
+        limiter = Limiter(opts.server_rate_limit, cmd_opts.subpath)
     api = re.match(r"^[^?#&=]+", endpoint).group(0)
+    # if limiter.subpath is not None and not api.startswith(limiter.subpath):
+    #     log.warning(f'API: client={client} api={api} endpoint="{endpoint}" subpath={limiter.subpath} request outside of subpath')
+    if api.startswith(limiter.subpath):
+        api = api[len(limiter.subpath):]
     key = f"{client}:{api}"
     if key not in limiter.summary:
         limiter.summary[key] = 0
     limiter.summary[key] += 1
-    # import anyio
-    # _limiter = anyio.to_thread.current_default_thread_limiter()
-    # log.debug(f'FastAPI: threads={_limiter._total_tokens}')
     return limiter.check_request(client, api)
 
 
 def validate_log(client, endpoint):
     api = re.match(r"^[^?#&=]+", endpoint).group(0)
+    if api.startswith(limiter.subpath):
+        api = api[len(limiter.subpath):]
     return limiter.check_log(client, api)
