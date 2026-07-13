@@ -38,7 +38,7 @@ else:
     use_openvino_mm = bool(os.environ.get("SDNQ_USE_OPENVINO_MM", "0").lower() not in {"0", "false", "no"})
 
 if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
-    use_triton_mm = bool(is_rdna2_and_older or devices.backend == "zluda")
+    use_triton_mm = bool(is_rdna2_and_older or devices.backend in {"zluda", "ipex"})
 else:
     use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
 
@@ -68,7 +68,6 @@ if use_openvino_mm:
         from .kernels.openvino_mm import openvino_int_mm, openvino_fp_mm
         int_mm_func = openvino_int_mm
         fp_mm_func = openvino_fp_mm
-        fp8_mm_func = openvino_fp_mm
     except Exception:
         use_openvino_mm = False
 elif use_triton_mm:
@@ -77,11 +76,12 @@ elif use_triton_mm:
         from .kernels.triton_scaled_mm import sdnq_scaled_mm
         int_mm_func = sdnq_triton_mm
         fp_mm_func = sdnq_triton_mm
-        fp8_mm_func = sdnq_triton_mm
         int_scaled_mm_func = sdnq_scaled_mm
         fp_scaled_mm_func = sdnq_scaled_mm
-        fp8_scaled_mm_func = sdnq_scaled_mm
-        use_tensorwise_fp8_matmul = False
+        if is_fp8_mm_supported:
+            fp8_mm_func = sdnq_triton_mm
+            fp8_scaled_mm_func = sdnq_scaled_mm
+            use_tensorwise_fp8_matmul = False
     except Exception:
         use_triton_mm = False
 
