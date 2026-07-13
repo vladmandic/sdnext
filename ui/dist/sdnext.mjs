@@ -15978,6 +15978,14 @@ async function postStartup() {
   disconnectHintsObserver();
   logTimers();
 }
+async function updateSubpath() {
+  log("mountURL", window.opts.subpath);
+  if (window.opts.subpath?.length > 0) {
+    window.subpath = window.opts.subpath;
+    window.api = `${window.subpath}/sdapi/v1`;
+  }
+  log("API", { url: window.api });
+}
 async function initStartup() {
   const t0 = performance.now();
   log("initGradio", Math.round(t0 - appStartTime));
@@ -15998,12 +16006,7 @@ async function initStartup() {
   startupPromises.push(Promise.resolve(setupControlUI()));
   await reconnectUI();
   await waitForOpts();
-  log("mountURL", window.opts.subpath);
-  if (window.opts.subpath?.length > 0) {
-    window.subpath = window.opts.subpath;
-    window.api = `${window.subpath}/sdapi/v1`;
-  }
-  log("API", { url: window.api });
+  await updateSubpath();
   executeCallbacks(uiReadyCallbacks);
   if (window.waitForUiReady) await window.waitForUiReady();
   startupPromises.push(Promise.resolve(initLogMonitor()));

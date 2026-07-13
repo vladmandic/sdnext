@@ -31,6 +31,7 @@
   - civitai: restart download
   - sdnq: improve attention
   - api: add `/sdapi/v1/restart` endpoint
+  - server: strict sub-path mount and redirects for all endpoints
 - **UI**
   - improved server info panel  
     now shows loaded components, networks, etc.  

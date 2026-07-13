@@ -276,6 +276,7 @@ def mount_subpath(app):
     import gradio
     if not shared.opts.subpath.startswith('/'):
         shared.opts.subpath = f'/{shared.opts.subpath}'
+    shared.cmd_opts.subpath = shared.opts.subpath # update cmd_opts to match opts
     gradio.mount_gradio_app(app, shared.demo, path=shared.opts.subpath)
     log.info(f'Mounted: subpath="{shared.opts.subpath}"')
 

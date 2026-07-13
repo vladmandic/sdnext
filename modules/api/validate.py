@@ -69,8 +69,8 @@ class Limiter():
             return False
         status = self.request_strategy.hit(self.request_limiter, client, api, cost=cost)
         if not status and not quiet:
-            log.warning(f'API: client={client} api={api} rate limit exceeded')
             from fastapi.exceptions import HTTPException
+            log.warning(f'API: client={client} api={api} rate limit exceeded')
             raise HTTPException(status_code=429, detail=f"{client}:{api}: rate limit exceeded")
         return status
 
@@ -101,9 +101,8 @@ def validate_request(client, endpoint):
     if opts.server_rate_limit != limiter.request_limit:
         limiter = Limiter(opts.server_rate_limit, cmd_opts.subpath)
     api = re.match(r"^[^?#&=]+", endpoint).group(0)
-    # if limiter.subpath is not None and not api.startswith(limiter.subpath):
-    #     log.warning(f'API: client={client} api={api} endpoint="{endpoint}" subpath={limiter.subpath} request outside of subpath')
-    if api.startswith(limiter.subpath):
+
+    if (limiter.subpath is not None) and (len(limiter.subpath) > 0) and api.startswith(limiter.subpath): # strip subpath from api for rate limiting
         api = api[len(limiter.subpath):]
     key = f"{client}:{api}"
     if key not in limiter.summary:
@@ -111,9 +110,8 @@ def validate_request(client, endpoint):
     limiter.summary[key] += 1
     return limiter.check_request(client, api)
 
-
 def validate_log(client, endpoint):
     api = re.match(r"^[^?#&=]+", endpoint).group(0)
-    if api.startswith(limiter.subpath):
+    if (limiter.subpath is not None) and (len(limiter.subpath) > 0) and api.startswith(limiter.subpath): # strip subpath from api for logging
         api = api[len(limiter.subpath):]
     return limiter.check_log(client, api)
