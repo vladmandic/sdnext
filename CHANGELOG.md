@@ -6,7 +6,7 @@
 
 *What's New?* Full week(!) since there release, we're bringing a service pack update:  
 **Anima** has new *Aesthetic* and *Turbo* variants, **Joy Image Edit** has new *Plus* variant  
-But also:  
+*And also*:  
 - UI updates to Server info and Log viewers, more informative and allows easier sharing of info
 - Quite a few SDNQ improvements, both to quantization and attention
 - Continuing with enhanced support for 3rd party finetunes
@@ -19,7 +19,7 @@ But also:
 
 - **Models**
   - [Anima 1.0](https://civitai.com/models/2458426/anima?modelVersionId=3108569) new *Aesthetic* and *Turbo* variants  
-  - [Joy Image Edit]([jdopensource/JoyAI-Image-Edit-Plus-Diffusers](https://huggingface.co/jdopensource/JoyAI-Image-Edit-Plus-Diffusers)) new *Plus* variant that has multi-image-edit capabilities
+  - [Joy Image Edit](https://huggingface.co/jdopensource/JoyAI-Image-Edit-Plus-Diffusers) new *Plus* variant that has multi-image-edit capabilities
 - **Features**
   - loader: support loading secondary unet for models that have multiple unets  
     *networks panel -> toggle: load model as secondary model*  
