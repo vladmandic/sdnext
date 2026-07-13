@@ -71,6 +71,9 @@ transcript = [] # final tables and panels, written out by --save
 report = {} # structured results mirroring the tables, written out by --json
 compiled_dequantize_weight = None # tool-owned compiled variant, built on first use
 
+torch_device_module = torch.xpu if torch.xpu.is_available() else torch.cuda
+torch_device = "xpu" if torch.xpu.is_available() else "cuda"
+
 
 def dtype_label():
     return str(bench_dtype).replace("torch.", "")
@@ -282,8 +285,8 @@ def load_sdnext():
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if root not in sys.path:
         sys.path.insert(0, root)
-    if not torch.cuda.is_available():
-        console.print("[red]no cuda or rocm device available: sdnq attention requires a gpu with triton[/red]")
+    if not torch_device_module.is_available():
+        console.print("[red]no cuda, rocm or xpu device available: sdnq attention requires a gpu with triton[/red]")
         return False
     stock_sdpa = torch.nn.functional.scaled_dot_product_attention
     try:
@@ -309,7 +312,7 @@ def load_sdnext():
 def sage_attention():
     # mirror the backend selection from modules/attention.py: sm86 needs the cuda backend
     try:
-        if torch.cuda.get_device_capability(torch.device("cuda")) == (8, 6):
+        if torch_device_module.get_device_capability(torch.device(torch_device)) == (8, 6):
             from sageattention import sageattn_qk_int8_pv_fp16_cuda
             def sage_fn(q, k, v, scale):
                 return sageattn_qk_int8_pv_fp16_cuda(q=q, k=k, v=v, tensor_layout="HND", is_causal=False, sm_scale=scale, return_lse=False, pv_accum_dtype="fp32")
@@ -350,7 +353,7 @@ def sage_attention_fp16_accum():
     # (accumulator overflow risk on extreme activations); benched to quantify what that
     # choice costs in speed and buys in error
     try:
-        if torch.cuda.get_device_capability(torch.device("cuda")) != (8, 6):
+        if torch_device_module.get_device_capability(torch.device(torch_device)) != (8, 6):
             return None
         from sageattention import sageattn_qk_int8_pv_fp16_cuda
         def sage_fn(q, k, v, scale):
@@ -364,14 +367,14 @@ def make_qkv(batch, heads, tokens, head_dim, structured=True, kv_heads=None, kv_
     # structured keys carry a shared per-channel bias plus a few outlier channels, mimicking the
     # key statistics that motivate smoothing and rotation; absolute error varies by model
     # architecture while the relative ordering of configs holds
-    generator = torch.Generator(device="cuda").manual_seed(1234)
+    generator = torch.Generator(device=torch_device).manual_seed(1234)
     kv_heads = kv_heads or heads
     kv_tokens = kv_tokens or tokens
-    q = torch.randn(batch, heads, tokens, head_dim, device="cuda", dtype=bench_dtype, generator=generator)
-    k = torch.randn(batch, kv_heads, kv_tokens, head_dim, device="cuda", dtype=bench_dtype, generator=generator)
-    v = torch.randn(batch, kv_heads, kv_tokens, head_dim, device="cuda", dtype=bench_dtype, generator=generator)
+    q = torch.randn(batch, heads, tokens, head_dim, device=torch_device, dtype=bench_dtype, generator=generator)
+    k = torch.randn(batch, kv_heads, kv_tokens, head_dim, device=torch_device, dtype=bench_dtype, generator=generator)
+    v = torch.randn(batch, kv_heads, kv_tokens, head_dim, device=torch_device, dtype=bench_dtype, generator=generator)
     if structured:
-        k = k + torch.randn(1, kv_heads, 1, head_dim, device="cuda", dtype=bench_dtype, generator=generator) * 3.0
+        k = k + torch.randn(1, kv_heads, 1, head_dim, device=torch_device, dtype=bench_dtype, generator=generator) * 3.0
         k[..., [3, head_dim // 2, head_dim - 5]] *= 4.0
     return q, k, v
 
@@ -426,8 +429,8 @@ def cuda_context_alive():
     # a kernel fault (misaligned address, illegal memory access) is sticky: every later cuda
     # call in the process fails; detect it so sections abort cleanly instead of cascading
     try:
-        torch.zeros(1, device="cuda")
-        torch.cuda.synchronize()
+        torch.zeros(1, device=torch_device)
+        torch_device_module.synchronize()
         return True
     except Exception:
         return False
@@ -494,31 +497,31 @@ def bench(fn, warmup, iters, on_phase=None):
     if on_phase:
         on_phase("warmup")
     fn()
-    torch.cuda.synchronize()
+    torch_device_module.synchronize()
     started = time.perf_counter()
     fn()
-    torch.cuda.synchronize()
+    torch_device_module.synchronize()
     estimate = max(time.perf_counter() - started, 1e-6)
     # scale counts to a time budget so short kernels get enough activity to ramp gpu clocks
     warmup = min(max(warmup, int(0.2 / estimate)), 500)
     iters = min(max(iters, int(0.5 / estimate)), 500)
     for _ in range(warmup):
         fn()
-    torch.cuda.synchronize()
+    torch_device_module.synchronize()
     if on_phase:
         on_phase(f"timing {iters} iterations")
-    events = [(torch.cuda.Event(enable_timing=True), torch.cuda.Event(enable_timing=True)) for _ in range(iters)]
+    events = [(torch_device_module.Event(enable_timing=True), torch_device_module.Event(enable_timing=True)) for _ in range(iters)]
     for start, end in events:
         start.record()
         fn()
         end.record()
-    torch.cuda.synchronize()
+    torch_device_module.synchronize()
     times = sorted(start.elapsed_time(end) for start, end in events)
     return times[len(times) // 2]
 
 
 def free_vram_gb():
-    free, _total = torch.cuda.mem_get_info()
+    free, _total = torch_device_module.mem_get_info()
     return free / 1024**3
 
 
@@ -540,10 +543,10 @@ def fp8_failure_is_capability(detail):
 
 
 def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_result=None):
-    device = torch.device("cuda")
-    capability = torch.cuda.get_device_capability(device)
+    device = torch.device(torch_device)
+    capability = torch_device_module.get_device_capability(device)
     lines = [
-        f"device: [cyan]{torch.cuda.get_device_name(device)}[/cyan] capability={capability[0]}.{capability[1]}",
+        f"device: [cyan]{torch_device_module.get_device_name(device)}[/cyan] capability={capability}",
         f"torch: {torch.__version__}  triton: {triton_version() or 'not installed'}  sageattention: {package_version('sageattention') or 'not installed'}  flash-attn: {package_version('flash-attn') or 'not installed'}",
         f"benchmark dtype: {dtype_label()}",
     ]
@@ -584,8 +587,8 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
         lines.append(f"env overrides: {' '.join(overrides)}")
     emit(Panel("\n".join(lines), title="environment", box=ROUNDED_BOX))
     report["environment"] = dict(
-        device=torch.cuda.get_device_name(device),
-        capability=f"{capability[0]}.{capability[1]}",
+        device=torch_device_module.get_device_name(device),
+        capability=capability,
         torch=str(torch.__version__),
         triton=triton_version(),
         sageattention=package_version("sageattention"),
@@ -634,7 +637,7 @@ def probe_fp8():
                 status.update(f"probing float8 support: {name} matmul (a compile failure here is normal on older gpus)")
                 try:
                     out = sdnq_triton_atten(q, k, v, **kwargs)
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                     result[name] = (not bool(torch.isnan(out).any().item()), "compiles and runs")
                 except Exception as e:
                     result[name] = (False, f"{type(e).__name__}: {error_summary(e, 120)}")
@@ -654,7 +657,7 @@ def probe_compiled_prep():
     with console.status("probing compiled input prep (compiles on first run, cached afterwards)"):
         try:
             sdnq_triton_atten(q, k, v, matmul_dtype="auto", pv_matmul_dtype="auto")
-            torch.cuda.synchronize()
+            torch_device_module.synchronize()
             return "working", None
         except Exception as e:
             torch._dynamo.reset() # pylint: disable=protected-access # drop failed compile state
@@ -670,7 +673,7 @@ def probe_compiled_prep():
         atten_module.get_attn_inputs = torch.compile(inner, fullgraph=True, dynamic=False)
         try:
             sdnq_triton_atten(q, k, v, matmul_dtype="auto", pv_matmul_dtype="auto")
-            torch.cuda.synchronize()
+            torch_device_module.synchronize()
             static_ok = True
         except Exception:
             pass
@@ -683,8 +686,8 @@ def probe_compiled_prep():
 def make_source_weight(out_features, in_features, seed=1234):
     # structured weights with a few high-magnitude input channels, mimicking the outlier
     # statistics of real dit linears; keeps quantization error columns in a realistic range
-    generator = torch.Generator(device="cuda").manual_seed(seed)
-    weight = torch.randn(out_features, in_features, device="cuda", dtype=bench_dtype, generator=generator) * 0.02
+    generator = torch.Generator(device=torch_device).manual_seed(seed)
+    weight = torch.randn(out_features, in_features, device=torch_device, dtype=bench_dtype, generator=generator) * 0.02
     weight[:, [3, in_features // 2, in_features - 5]] *= 8.0
     return weight
 
@@ -716,7 +719,7 @@ class BenchBlock(torch.nn.Module):
 def make_block_master():
     # one master weight set shared by every block config, so all rows quantize identical weights
     hidden, heads, mlp_dim = block_geometry["hidden"], block_geometry["heads"], block_geometry["mlp_dim"]
-    block = BenchBlock(hidden, heads, mlp_dim, device="cuda", dtype=bench_dtype)
+    block = BenchBlock(hidden, heads, mlp_dim, device=torch_device, dtype=bench_dtype)
     with torch.no_grad():
         for seed, linear in enumerate((block.qkv, block.proj, block.up, block.down), start=1):
             linear.weight.copy_(make_source_weight(linear.out_features, linear.in_features, seed=seed))
@@ -727,7 +730,7 @@ def build_bench_block(master_sd, weights_cfg, use_mm, attention_spec):
     from modules.sdnq import SDNQConfig
     from modules.sdnq.quantizer import apply_sdnq_to_module
     hidden, heads, mlp_dim = block_geometry["hidden"], block_geometry["heads"], block_geometry["mlp_dim"]
-    block = BenchBlock(hidden, heads, mlp_dim, device="cuda", dtype=bench_dtype)
+    block = BenchBlock(hidden, heads, mlp_dim, device=torch_device, dtype=bench_dtype)
     block.load_state_dict(master_sd)
     block.eval()
     for param in block.parameters():
@@ -762,7 +765,7 @@ def block_storage_bytes(block):
     return total
 
 
-def make_quantized_linear(weight, weights_dtype, group_size=0, use_quantized_matmul=False, use_svd=False, use_hadamard=False, quantized_matmul_dtype=None, device="cuda", **config_kwargs):
+def make_quantized_linear(weight, weights_dtype, group_size=0, use_quantized_matmul=False, use_svd=False, use_hadamard=False, quantized_matmul_dtype=None, device=torch_device, **config_kwargs):
     # quantize through the same entry point model loading uses, so forward benches measure
     # the production wrapper classes and dequantizer configuration; returns the quantize wall
     # time, a one-shot measurement of what on-the-fly quantization pays per layer at load
@@ -773,10 +776,10 @@ def make_quantized_linear(weight, weights_dtype, group_size=0, use_quantized_mat
     with torch.no_grad():
         linear.weight.copy_(weight)
     config = SDNQConfig(weights_dtype=weights_dtype, group_size=group_size, use_quantized_matmul=use_quantized_matmul, use_svd=use_svd, use_hadamard=use_hadamard, quantized_matmul_dtype=quantized_matmul_dtype, add_skip_keys=False, **config_kwargs)
-    torch.cuda.synchronize()
+    torch_device_module.synchronize()
     started = time.perf_counter()
     layer, _config = sdnq_quantize_layer(linear, config, torch_dtype=bench_dtype, param_name="bench.weight")
-    torch.cuda.synchronize()
+    torch_device_module.synchronize()
     quant_seconds = time.perf_counter() - started
     if not hasattr(layer, "sdnq_dequantizer"):
         raise RuntimeError(f"sdnq did not quantize the layer to {weights_dtype}")
@@ -856,7 +859,7 @@ def probe_weight_dequant_compile():
                 layer, _quant_seconds = make_quantized_linear(make_source_weight(256, 256), name)
                 args, kwargs = dequant_args(layer)
                 out = get_compiled_dequantize_weight()(*args, **kwargs)
-                torch.cuda.synchronize()
+                torch_device_module.synchronize()
                 result[name] = (bool(torch.isfinite(out).all().item()), "compiles and runs")
             except Exception as e:
                 result[name] = (False, f"{type(e).__name__}: {error_summary(e, 120)}")
@@ -877,10 +880,10 @@ def run_correctness():
     checks.append(("causal", (q, k, v), dict(is_causal=True), {}))
     qg, kg, vg = make_qkv(2, 8, 512, 64, structured=False, kv_heads=2)
     checks.append(("gqa 8:2 heads", (qg, kg, vg), dict(enable_gqa=True), {}))
-    bool_mask = torch.zeros(2, 1, 1, 512, device="cuda", dtype=torch.bool)
+    bool_mask = torch.zeros(2, 1, 1, 512, device=torch_device, dtype=torch.bool)
     bool_mask[..., :384] = True
     checks.append(("bool key-padding mask", (q, k, v), dict(attn_mask=bool_mask), {}))
-    float_mask = torch.zeros(2, 1, 1, 512, device="cuda", dtype=bench_dtype)
+    float_mask = torch.zeros(2, 1, 1, 512, device=torch_device, dtype=bench_dtype)
     float_mask[..., 384:] = float("-inf")
     checks.append(("float additive mask", (q, k, v), dict(attn_mask=float_mask), {}))
     checks.append(("smooth k + hadamard", (q, k, v), {}, dict(smooth_k=True, use_hadamard=True)))
@@ -1012,7 +1015,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
         emit("[yellow]sd15: hadamard configs skipped, compiling hadamard with a non pow2 head dim currently hangs torch inductor[/yellow]")
     attn_mask = None
     if preset == "masked":
-        attn_mask = torch.zeros(batch, 1, 1, tokens, device="cuda", dtype=torch.bool)
+        attn_mask = torch.zeros(batch, 1, 1, tokens, device=torch_device, dtype=torch.bool)
         attn_mask[..., :int(tokens * 0.75)] = True
     sage = sage_attention()
     sage_fp16 = sage_attention_fp16_accum()
@@ -1163,9 +1166,9 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
         progress.update(task, description=f"{prefix}{shape_label}: preparing weights and bf16 baseline")
         weight = make_source_weight(out_features, in_features)
         weight_fp32 = weight.to(torch.float32)
-        generator = torch.Generator(device="cuda").manual_seed(42)
-        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
-        baseline = torch.nn.Linear(in_features, out_features, bias=False, device="cuda", dtype=bench_dtype)
+        generator = torch.Generator(device=torch_device).manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device=torch_device, dtype=bench_dtype, generator=generator)
+        baseline = torch.nn.Linear(in_features, out_features, bias=False, device=torch_device, dtype=bench_dtype)
         with torch.no_grad():
             baseline.weight.copy_(weight)
 
@@ -1225,7 +1228,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                     phase("compiling dequant")
                     with time_limit(config_timeout, label):
                         compiled_out = compiled_fn()
-                        torch.cuda.synchronize()
+                        torch_device_module.synchronize()
                     entry["compiled_ms"] = bench(compiled_fn, warmup, iters, on_phase=phase)
                     compiled_cell = f"{entry['compiled_ms']:8.3f} ms"
                     drift = rel_err(compiled_out, eager_out)
@@ -1253,7 +1256,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                 phase("timing linear forward, eager dequant")
                 dequantizer_module.dequantize_weight_compiled = dequantizer_module.dequantize_weight
                 fwd_fn()
-                torch.cuda.synchronize()
+                torch_device_module.synchronize()
                 entry["fwd_eager_ms"] = bench(fwd_fn, warmup, iters)
                 entry["fwd_err"] = rel_err(fwd_fn(), ref_out)
                 fwd_eager_cell = f"{entry['fwd_eager_ms']:8.3f} ms"
@@ -1267,7 +1270,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                 phase("compiling linear forward")
                 with time_limit(config_timeout, label):
                     fwd_fn()
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 phase("timing linear forward, compiled dequant")
                 entry["fwd_compiled_ms"] = bench(fwd_fn, warmup, iters)
                 fwd_compiled_cell = f"{entry['fwd_compiled_ms']:8.3f} ms"
@@ -1290,7 +1293,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                 phase("timing quantized matmul forward")
                 with time_limit(config_timeout, label):
                     mm_fn()
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 entry["mm_ms"] = bench(mm_fn, warmup, iters)
                 entry["mm_err"] = rel_err(mm_fn(), ref_out)
                 mm_cell = f"{entry['mm_ms']:8.3f} ms [dim]{entry['mm_dtype']}[/dim]"
@@ -1337,8 +1340,8 @@ def bench_dequant_variants(shape_label, out_features, in_features, plain_results
     with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
         weight = make_source_weight(out_features, in_features)
         weight_fp32 = weight.to(torch.float32)
-        generator = torch.Generator(device="cuda").manual_seed(42)
-        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        generator = torch.Generator(device=torch_device).manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device=torch_device, dtype=bench_dtype, generator=generator)
         added_plain = set()
         for index, (dtype_id, label, cfg, variant_id, variant_cfg) in enumerate(runs, start=1):
             row_label = f"{label} + {variant_id}"
@@ -1382,7 +1385,7 @@ def bench_dequant_variants(shape_label, out_features, in_features, plain_results
                 phase("compiling dequant")
                 with time_limit(config_timeout, row_label):
                     deq_out = deq_fn().to(torch.float32)
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 entry["compiled_ms"] = bench(deq_fn, warmup, iters, on_phase=phase)
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
                 plain_err = (plain_results.get(dtype_id) or {}).get("weight_err")
@@ -1391,7 +1394,7 @@ def bench_dequant_variants(shape_label, out_features, in_features, plain_results
                 phase("timing linear forward")
                 with time_limit(config_timeout, row_label):
                     fwd_fn()
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
                 table.add_row(
                     row_label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]),
@@ -1408,7 +1411,7 @@ def bench_dequant_variants(shape_label, out_features, in_features, plain_results
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
-    torch.cuda.empty_cache()
+    torch_device_module.empty_cache()
     report["dequant_variants"] = dict(shape=shape_label, results=results)
     return results
 
@@ -1434,8 +1437,8 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
     with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
         weight = make_source_weight(out_features, in_features)
         weight_fp32 = weight.to(torch.float32)
-        generator = torch.Generator(device="cuda").manual_seed(42)
-        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        generator = torch.Generator(device=torch_device).manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device=torch_device, dtype=bench_dtype, generator=generator)
         ref_out = fp32_linear_reference(x, weight_fp32)
         added_plain = set()
         for index, (dtype_id, label, cfg, mm_dtype) in enumerate(runs, start=1):
@@ -1471,7 +1474,7 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
                 phase("compiling quantized matmul forward")
                 with time_limit(config_timeout, row_label):
                     mm_fn()
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 phase("timing quantized matmul forward")
                 entry["mm_ms"] = bench(mm_fn, warmup, iters)
                 entry["mm_err"] = rel_err(mm_fn(), ref_out)
@@ -1484,7 +1487,7 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
-    torch.cuda.empty_cache()
+    torch_device_module.empty_cache()
     report["dequant_float_mm"] = dict(shape=shape_label, results=results)
     return results
 
@@ -1524,8 +1527,8 @@ def bench_group_sizes(shape_label, out_features, in_features, plain_results, sel
     with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
         weight = make_source_weight(out_features, in_features)
         weight_fp32 = weight.to(torch.float32)
-        generator = torch.Generator(device="cuda").manual_seed(42)
-        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        generator = torch.Generator(device=torch_device).manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device=torch_device, dtype=bench_dtype, generator=generator)
         ref_out = fp32_linear_reference(x, weight_fp32)
         for index, (dtype_id, label, cfg, group) in enumerate(runs, start=1):
             group_label = {0: "auto", -1: "row"}.get(group, str(group))
@@ -1558,7 +1561,7 @@ def bench_group_sizes(shape_label, out_features, in_features, plain_results, sel
                         svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
                     ).to(torch.float32)
                     fwd_fn()
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
                 del deq_out
                 entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
@@ -1580,7 +1583,7 @@ def bench_group_sizes(shape_label, out_features, in_features, plain_results, sel
                 phase("timing quantized matmul forward")
                 with time_limit(config_timeout, row_label):
                     mm_fn()
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 entry["mm_ms"] = bench(mm_fn, warmup, iters)
                 entry["mm_err"] = rel_err(mm_fn(), ref_out)
                 mm_suffix = f" [dim]{entry['mm_resolved']}[/dim]" if entry["mm_resolved"] != entry["resolved"] else ""
@@ -1597,7 +1600,7 @@ def bench_group_sizes(shape_label, out_features, in_features, plain_results, sel
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
-    torch.cuda.empty_cache()
+    torch_device_module.empty_cache()
     report["dequant_group_sizes"] = dict(shape=shape_label, results=results)
     return results
 
@@ -1624,8 +1627,8 @@ def bench_svd_ranks(shape_label, out_features, in_features, plain_results, selec
     with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
         weight = make_source_weight(out_features, in_features)
         weight_fp32 = weight.to(torch.float32)
-        generator = torch.Generator(device="cuda").manual_seed(42)
-        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        generator = torch.Generator(device=torch_device).manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device=torch_device, dtype=bench_dtype, generator=generator)
         added_plain = set()
         for index, (dtype_id, label, cfg, rank) in enumerate(runs, start=1):
             row_label = f"{label} + svd rank {rank}"
@@ -1654,7 +1657,7 @@ def bench_svd_ranks(shape_label, out_features, in_features, plain_results, selec
                         svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
                     ).to(torch.float32)
                     fwd_fn()
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
                 del deq_out
                 plain_err = plain.get("weight_err")
@@ -1669,7 +1672,7 @@ def bench_svd_ranks(shape_label, out_features, in_features, plain_results, selec
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
-    torch.cuda.empty_cache()
+    torch_device_module.empty_cache()
     report["dequant_svd_ranks"] = dict(shape=shape_label, results=results)
     return results
 
@@ -1695,8 +1698,8 @@ def bench_hadamard_groups(shape_label, out_features, in_features, plain_results,
     with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
         weight = make_source_weight(out_features, in_features)
         weight_fp32 = weight.to(torch.float32)
-        generator = torch.Generator(device="cuda").manual_seed(42)
-        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        generator = torch.Generator(device=torch_device).manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device=torch_device, dtype=bench_dtype, generator=generator)
         if plain.get("weight_err") is not None:
             plain_fwd = plain.get("fwd_ms")
             table.add_row("[dim]int8[/dim]", f"[dim]{quant_cell(plain.get('quant_s'))}[/dim]", f"[dim]{size_cell(plain['size_bytes'])}[/dim]", f"[dim]{plain['weight_err']:.5f}[/dim]", "[dim]x1.00[/dim]", f"[dim]{plain_fwd:8.3f} ms[/dim]" if plain_fwd else "-")
@@ -1721,7 +1724,7 @@ def bench_hadamard_groups(shape_label, out_features, in_features, plain_results,
                         svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
                     ).to(torch.float32)
                     fwd_fn()
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
                 del deq_out
                 plain_err = plain.get("weight_err")
@@ -1736,7 +1739,7 @@ def bench_hadamard_groups(shape_label, out_features, in_features, plain_results,
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
-    torch.cuda.empty_cache()
+    torch_device_module.empty_cache()
     report["dequant_hadamard_groups"] = dict(shape=shape_label, results=results)
     return results
 
@@ -1759,8 +1762,8 @@ def bench_quant_toggles(shape_label, out_features, in_features, plain_results, s
     with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
         weight = make_source_weight(out_features, in_features)
         weight_fp32 = weight.to(torch.float32)
-        generator = torch.Generator(device="cuda").manual_seed(42)
-        x = torch.randn(dequant_forward_tokens, in_features, device="cuda", dtype=bench_dtype, generator=generator)
+        generator = torch.Generator(device=torch_device).manual_seed(42)
+        x = torch.randn(dequant_forward_tokens, in_features, device=torch_device, dtype=bench_dtype, generator=generator)
         for index, (dtype_id, label, cfg) in enumerate(fp32_dtypes, start=1):
             row_label = f"{label} + fp32 dequant off"
             def phase(step, current_label=row_label, current_index=index):
@@ -1786,7 +1789,7 @@ def bench_quant_toggles(shape_label, out_features, in_features, plain_results, s
                         svd_up=getattr(layer, "svd_up", None), svd_down=getattr(layer, "svd_down", None),
                     ).to(torch.float32)
                     fwd_fn()
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 entry["weight_err"] = rel_err(deq_out, weight_fp32)
                 del deq_out
                 entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
@@ -1845,15 +1848,15 @@ def bench_quant_toggles(shape_label, out_features, in_features, plain_results, s
         results["gpu_quant_s"] = (plain_results.get("int8") or {}).get("quant_s")
     except Exception as e:
         results["cpu_quant_error"] = error_summary(e, 200)
-    torch.cuda.empty_cache()
+    torch_device_module.empty_cache()
     report["dequant_toggles"] = dict(shape=shape_label, results=results)
     return results
 
 
 def make_source_conv_weight(out_channels, in_channels, kernel, seed=1234):
     # conv analogue of make_source_weight: a few high-magnitude input channels
-    generator = torch.Generator(device="cuda").manual_seed(seed)
-    weight = torch.randn(out_channels, in_channels, kernel, kernel, device="cuda", dtype=bench_dtype, generator=generator) * 0.02
+    generator = torch.Generator(device=torch_device).manual_seed(seed)
+    weight = torch.randn(out_channels, in_channels, kernel, kernel, device=torch_device, dtype=bench_dtype, generator=generator) * 0.02
     weight[:, [1, in_channels // 2, in_channels - 2]] *= 8.0
     return weight
 
@@ -1875,14 +1878,14 @@ def make_quantized_conv(weight, weights_dtype, use_quantized_matmul=False):
     from modules.sdnq import SDNQConfig
     from modules.sdnq.quantizer import sdnq_quantize_layer
     out_channels, in_channels, kh, kw = weight.shape
-    conv = torch.nn.Conv2d(in_channels, out_channels, (kh, kw), padding=(kh // 2, kw // 2), bias=False, device="cuda", dtype=bench_dtype)
+    conv = torch.nn.Conv2d(in_channels, out_channels, (kh, kw), padding=(kh // 2, kw // 2), bias=False, device=torch_device, dtype=bench_dtype)
     with torch.no_grad():
         conv.weight.copy_(weight)
     config = SDNQConfig(weights_dtype=weights_dtype, quant_conv=True, use_quantized_matmul_conv=use_quantized_matmul, add_skip_keys=False)
-    torch.cuda.synchronize()
+    torch_device_module.synchronize()
     started = time.perf_counter()
     layer, _config = sdnq_quantize_layer(conv, config, torch_dtype=bench_dtype, param_name="bench.weight")
-    torch.cuda.synchronize()
+    torch_device_module.synchronize()
     quant_seconds = time.perf_counter() - started
     if not hasattr(layer, "sdnq_dequantizer"):
         raise RuntimeError(f"sdnq did not quantize the conv layer to {weights_dtype}")
@@ -1910,8 +1913,8 @@ def bench_conv_section(iters, warmup, config_timeout=300):
             progress.update(task, description=f"{shape_label}: preparing weights and fp32 reference")
             weight = make_source_conv_weight(out_channels, in_channels, kernel)
             weight_fp32 = weight.to(torch.float32)
-            generator = torch.Generator(device="cuda").manual_seed(42)
-            x = torch.randn(1, in_channels, px, px, device="cuda", dtype=bench_dtype, generator=generator)
+            generator = torch.Generator(device=torch_device).manual_seed(42)
+            x = torch.randn(1, in_channels, px, px, device=torch_device, dtype=bench_dtype, generator=generator)
             ref_out = fp32_conv_reference(x, weight_fp32, kernel // 2)
             for index, (config_id, weights_cfg, use_mm) in enumerate(conv_configs, start=1):
                 label = f"{dtype_label()} conv2d" if weights_cfg is None else f"{weights_cfg['weights_dtype']}{' + conv mm' if use_mm else ''}"
@@ -1922,7 +1925,7 @@ def bench_conv_section(iters, warmup, config_timeout=300):
                 progress.reset(task)
                 try:
                     if weights_cfg is None:
-                        layer = torch.nn.Conv2d(in_channels, out_channels, (kernel, kernel), padding=(kernel // 2, kernel // 2), bias=False, device="cuda", dtype=bench_dtype)
+                        layer = torch.nn.Conv2d(in_channels, out_channels, (kernel, kernel), padding=(kernel // 2, kernel // 2), bias=False, device=torch_device, dtype=bench_dtype)
                         with torch.no_grad():
                             layer.weight.copy_(weight)
                         entry["size_bytes"] = layer.weight.numel() * layer.weight.element_size()
@@ -1945,7 +1948,7 @@ def bench_conv_section(iters, warmup, config_timeout=300):
                     phase("timing conv forward")
                     with time_limit(config_timeout, label):
                         fwd_fn()
-                        torch.cuda.synchronize()
+                        torch_device_module.synchronize()
                     entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
                     entry["out_err"] = rel_err(fwd_fn(), ref_out)
                     if base_ms is None:
@@ -1959,7 +1962,7 @@ def bench_conv_section(iters, warmup, config_timeout=300):
             live.update(panel)
         console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
         transcript.append(panel)
-        torch.cuda.empty_cache()
+        torch_device_module.empty_cache()
         all_results[shape_label] = results
     report["dequant_conv"] = all_results
     return all_results
@@ -2010,9 +2013,9 @@ def bench_block_section(iters, warmup, config_timeout=300, selected=None):
     with Live(Group(panel, progress), console=console, refresh_per_second=4) as live:
         progress.update(task, description="block: building master weights and the fp32 reference")
         master = make_block_master()
-        generator = torch.Generator(device="cuda").manual_seed(7)
-        x = torch.randn(1, tokens, hidden, device="cuda", dtype=bench_dtype, generator=generator)
-        ref_block = BenchBlock(hidden, heads, mlp_dim, device="cuda", dtype=torch.float32)
+        generator = torch.Generator(device=torch_device).manual_seed(7)
+        x = torch.randn(1, tokens, hidden, device=torch_device, dtype=bench_dtype, generator=generator)
+        ref_block = BenchBlock(hidden, heads, mlp_dim, device=torch_device, dtype=torch.float32)
         ref_block.load_state_dict(master)
         ref_block.eval()
         def ref_attention(q, k, v):
@@ -2031,7 +2034,7 @@ def bench_block_section(iters, warmup, config_timeout=300, selected=None):
             torch.backends.cuda.matmul.allow_tf32 = tf32_matmul
             torch.backends.cudnn.allow_tf32 = tf32_cudnn
         del ref_block, x_fp32
-        torch.cuda.empty_cache()
+        torch_device_module.empty_cache()
 
         for index, (config_id, weights_cfg, use_mm, attention_spec) in enumerate(configs, start=1):
             label = block_label(weights_cfg, use_mm, attention_spec)
@@ -2052,7 +2055,7 @@ def bench_block_section(iters, warmup, config_timeout=300, selected=None):
                 phase("compiling")
                 with time_limit(config_timeout, label):
                     out = fn()
-                    torch.cuda.synchronize()
+                    torch_device_module.synchronize()
                 entry["ms"] = bench(fn, warmup, iters, on_phase=phase)
                 entry["err"] = rel_err(out, ref_out)
                 entry["max_err"] = max_token_err(out, ref_out)
@@ -2070,7 +2073,7 @@ def bench_block_section(iters, warmup, config_timeout=300, selected=None):
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
-    torch.cuda.empty_cache()
+    torch_device_module.empty_cache()
 
     notes = []
     sized = [(entry["label"], entry["ms"], entry["err"]) for entry in results.values() if entry.get("ms") and entry.get("err") is not None and math.isfinite(entry["err"])]
@@ -2709,7 +2712,7 @@ def main():
                 emit("[yellow]Dequantize using torch.compile is off in the current config: compiled fwd rows are measured with a tool-compiled dequant, matching the webui after enabling it[/yellow]")
             for index, (shape_label, out_features, in_features) in enumerate(dequant_shapes, start=1):
                 dequant_results[shape_label] = bench_dequant_shape(shape_label, out_features, in_features, args.iters, args.warmup, position=(index, len(dequant_shapes)), config_timeout=args.config_timeout, selected_dtypes=selected_dtypes)
-                torch.cuda.empty_cache()
+                torch_device_module.empty_cache()
             variant_results = {}
             if selected_variants:
                 first_label, first_out, first_in = dequant_shapes[0]
