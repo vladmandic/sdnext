@@ -526,8 +526,8 @@ def fp8_compile_gate_flag():
     # present and False on sdnq builds that gate fp8 storage weights to eager dequant on
     # gpus where triton cannot compile e4m3; absent on builds without the gate
     try:
-        from modules.sdnq import common as sdnq_common
-        return getattr(sdnq_common, "is_fp8_compile_supported", None)
+        from modules.sdnq import kernel_wrappers as sdnq_kernel_wrappers
+        return getattr(sdnq_kernel_wrappers, "is_fp8_compile_supported", None)
     except Exception:
         return None
 
@@ -617,6 +617,13 @@ def print_banner(selected, sections, args):
 def probe_fp8():
     # hardware probe, prep runs eager: fp8 kernel compile fails on pre-ada nvidia and
     # pre-rdna4/cdna3 amd; prep failures are dtype-independent and probed separately
+    try:
+        from modules.sdnq import kernel_wrappers as sdnq_kernel_wrappers
+        is_fp8_mm_supported = getattr(sdnq_kernel_wrappers, "is_fp8_mm_supported", True)
+    except Exception:
+        is_fp8_mm_supported = True
+    if not is_fp8_mm_supported:
+        return dict(qk=(False, "FP8 matmul is not supported in this architecture"), pv=(False, "FP8 matmul is not supported in this architecture"))
     q, k, v = make_qkv(1, 2, 256, 64, structured=False)
     result = {}
     dynamo_disable = getattr(torch._dynamo.config, "disable", False) # pylint: disable=protected-access
