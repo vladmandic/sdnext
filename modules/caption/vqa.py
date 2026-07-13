@@ -144,6 +144,16 @@ def is_thinking_model(model_name: str) -> bool:
     return any(indicator in model_lower for indicator in thinking_indicators)
 
 
+def check_linear_attention(model):
+    """Warn when a hybrid linear-attention model lacks its kernels and falls back to a per-token torch loop."""
+    model_type = getattr(getattr(model, 'config', None), 'model_type', '') or ''
+    if not model_type.startswith('qwen3_5'):
+        return
+    from transformers.utils.import_utils import is_flash_linear_attention_available
+    if not is_flash_linear_attention_available():
+        log.warning(f'LLM: cls={model.__class__.__name__} linear attention kernels missing: install="flash-linear-attention" impact="generation runs a slow torch fallback"')
+
+
 def truncate_b64_in_conversation(conversation, front_chars=50, tail_chars=50, threshold=200):
     """
     Deep copy a conversation structure and truncate long base64 image strings for logging.
@@ -565,6 +575,7 @@ class VQA:
                 self.model = sd_models_compile.compile_torch(self.model, apply_to_components=False, op="VQA")
             register_aux('vqa', self.model)
             set_attention(self.model)
+            check_linear_attention(self.model)
             self.loaded = repo
             devices.torch_gc()
 
