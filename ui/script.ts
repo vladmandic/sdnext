@@ -273,7 +273,7 @@ export async function deleteFile(filename) {
   if (!filename) return;
   // eslint-disable-next-line no-alert
   if (!confirm(`Are you sure you want to delete the object - This action cannot be undone? Object: ${filename}`)) return;
-  const res = await authFetch(`${window.api}/delete-file?file=${encodeURIComponent(filename)}`);
+  const res = await authFetch(`${window.api}/delete-file?file=${encodeURIComponent(filename)}`, { method: 'DELETE' });
   if (!res || res.status !== 200) {
     error('FileDelete', { file: filename, status: res?.status, statusText: res?.statusText });
     return;

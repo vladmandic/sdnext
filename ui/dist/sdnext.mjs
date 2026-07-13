@@ -10157,7 +10157,7 @@ async function initTableSorter() {
 async function deleteFile(filename) {
   if (!filename) return;
   if (!confirm(`Are you sure you want to delete the object - This action cannot be undone? Object: ${filename}`)) return;
-  const res = await authFetch(`${window.api}/delete-file?file=${encodeURIComponent(filename)}`);
+  const res = await authFetch(`${window.api}/delete-file?file=${encodeURIComponent(filename)}`, { method: "DELETE" });
   if (!res || res.status !== 200) {
     error("FileDelete", { file: filename, status: res?.status, statusText: res?.statusText });
     return;
@@ -14061,7 +14061,7 @@ async function initGalleryAutoRefresh() {
   galleryVisObserver.observe(galleryTab, { attributeFilter: ["class", "style"], attributeOldValue: true });
 }
 async function overlayDelete(evt) {
-  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`);
+  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`, { method: "DELETE" });
   evt.stopPropagation();
   if (!res || res.status !== 200) {
     error("galleryDelete", { file: currentImage, status: res?.status, statusText: res?.statusText });

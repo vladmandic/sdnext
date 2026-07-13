@@ -53,6 +53,8 @@
   - load: skip redundant model reload 
   - sdnq: fix hadamard on sdnq atten with sd15
   - download: improved progress tracking
+  - gallery: delete image
+  - gallery: save image
 
 ## Update for 2026-07-07
 

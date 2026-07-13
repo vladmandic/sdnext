@@ -1365,7 +1365,7 @@ async function initGalleryAutoRefresh() {
 }
 
 async function overlayDelete(evt) {
-  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`);
+  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`, { method: 'DELETE' });
   evt.stopPropagation();
   if (!res || res.status !== 200) {
     error('galleryDelete', { file: currentImage, status: res?.status, statusText: res?.statusText });
