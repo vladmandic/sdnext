@@ -5,7 +5,7 @@
 ### Highlights for 2026-07-13
 
 *What's New?* Full week(!) since there release, we're bringing a service pack update:  
-**Anima** has new *Aesthetic* and *Turbo* variants  
+**Anima** has new *Aesthetic* and *Turbo* variants, **Joy Image Edit** has new *Plus* variant  
 But also:  
 - UI updates to Server info and Log viewers, more informative and allows easier sharing of info
 - Quite a few SDNQ improvements, both to quantization and attention
@@ -15,10 +15,11 @@ But also:
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-07-12
+### Details for 2026-07-13
 
 - **Models**
   - [Anima 1.0](https://civitai.com/models/2458426/anima?modelVersionId=3108569) new *Aesthetic* and *Turbo* variants  
+  - [Joy Image Edit]([jdopensource/JoyAI-Image-Edit-Plus-Diffusers](https://huggingface.co/jdopensource/JoyAI-Image-Edit-Plus-Diffusers)) new *Plus* variant that has multi-image-edit capabilities
 - **Features**
   - loader: support loading secondary unet for models that have multiple unets  
     *networks panel -> toggle: load model as secondary model*  

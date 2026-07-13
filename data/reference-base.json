@@ -910,5 +910,13 @@
     "size": 46.86,
     "extras": "sampler: Default",
     "date": "2026 April"
+  },
+  "JoyAI Image Edit Plus": {
+    "path": "jdopensource/JoyAI-Image-Edit-Plus-Diffusers",
+    "preview": "jdopensource--JoyAI-Image-Edit-Diffusers.jpg",
+    "desc": "JoyAI Image Edit Plus is a Diffusers-native image editing model that combines a JoyImageEditPlus transformer with Qwen3-VL multimodal conditioning for instruction-guided edits.",
+    "size": 47.98,
+    "extras": "sampler: Default",
+    "date": "2026 July"
   }
 }
