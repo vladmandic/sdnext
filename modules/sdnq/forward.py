@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 
-from .common import dtype_dict, embedding_types, conv_types, conv_transpose_types, use_tensorwise_fp8_matmul
+from .common import dtype_dict, embedding_types, conv_types, conv_transpose_types
 
 
 def get_forward_func(layer_class_name: str, quantized_matmul_dtype: str, use_quantized_matmul: bool) -> Callable: # pylint: disable=inconsistent-return-statements
@@ -20,12 +20,8 @@ def get_forward_func(layer_class_name: str, quantized_matmul_dtype: str, use_qua
                     return quantized_conv_forward_int8_matmul
             else:
                 if dtype_dict[quantized_matmul_dtype]["num_bits"] == 8:
-                    if use_tensorwise_fp8_matmul:
-                        from .layers.conv.conv_fp8 import quantized_conv_forward_fp8_matmul
-                        return quantized_conv_forward_fp8_matmul
-                    else:
-                        from .layers.conv.conv_fp8_scaled import quantized_conv_forward_fp8_scaled_matmul
-                        return quantized_conv_forward_fp8_scaled_matmul
+                    from .layers.conv.conv_fp8 import quantized_conv_forward_fp8_matmul
+                    return quantized_conv_forward_fp8_matmul
                 else:
                     from .layers.conv.conv_fp16 import quantized_conv_forward_fp16_matmul
                     return quantized_conv_forward_fp16_matmul
@@ -53,12 +49,8 @@ def get_forward_func(layer_class_name: str, quantized_matmul_dtype: str, use_qua
                     return quantized_linear_forward_int8_matmul
             else:
                 if dtype_dict[quantized_matmul_dtype]["num_bits"] == 8:
-                    if use_tensorwise_fp8_matmul:
-                        from .layers.linear.linear_fp8 import quantized_linear_forward_fp8_matmul
-                        return quantized_linear_forward_fp8_matmul
-                    else:
-                        from .layers.linear.linear_fp8_scaled import quantized_linear_forward_fp8_scaled_matmul
-                        return quantized_linear_forward_fp8_scaled_matmul
+                    from .layers.linear.linear_fp8 import quantized_linear_forward_fp8_matmul
+                    return quantized_linear_forward_fp8_matmul
                 else:
                     from .layers.linear.linear_fp16 import quantized_linear_forward_fp16_matmul
                     return quantized_linear_forward_fp16_matmul

@@ -2,8 +2,8 @@
 
 import torch
 
-from ...common import compile_func, int_mm_func
-from ...dequantizer import dequantize_asymmetric
+from ...common import compile_func
+from ...kernel_wrappers import int_scaled_mm_func
 from ...quant_utils import quantize_uint_mm, rotate_hadamard, get_hadamard
 from ...packed_int import unpack_int
 
@@ -61,16 +61,16 @@ def uint8_matmul(
 
     input, input_scale, input_zero_point = quantize_uint_mm_input(input, dtype=scale.dtype)
     if zero_point is not None:
-        zero_bias = torch.sum(input, dim=-1, keepdim=True, dtype=torch.int32).to(input_scale.dtype).mul_(input_scale).mul(zero_point)
-        zero_bias.add_(torch.sum(weight, dim=0, keepdim=True, dtype=torch.int32).to(scale.dtype).mul_(scale).mul(input_zero_point))
+        zero_bias = torch.sum(input, dim=-1, keepdim=True, dtype=torch.int32).to(dtype=input_scale.dtype).mul_(input_scale).mul(zero_point)
+        zero_bias.add_(torch.sum(weight, dim=0, keepdim=True, dtype=torch.int32).to(dtype=scale.dtype).mul_(scale).mul(input_zero_point))
         zero_bias.add_(torch.mul(input_zero_point.mul_(input.shape[-1]), zero_point))
     else:
-        zero_bias = torch.sum(weight, dim=0, keepdim=True, dtype=torch.int32).to(scale.dtype).mul_(scale).mul(input_zero_point)
+        zero_bias = torch.sum(weight, dim=0, keepdim=True, dtype=torch.int32).to(dtype=scale.dtype).mul_(scale).mul(input_zero_point)
     if bias is not None:
         zero_bias.add_(bias)
 
     input, weight = check_mats(input, weight)
-    return dequantize_asymmetric(int_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale), scale, zero_bias, dtype=return_dtype, result_shape=output_shape)
+    return int_scaled_mm_func(input, weight, input_scale, scale, bias=zero_bias, out_dtype=return_dtype).view(output_shape)
 
 
 def quantized_linear_forward_uint8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:

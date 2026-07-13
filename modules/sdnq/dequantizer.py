@@ -5,7 +5,8 @@ from dataclasses import dataclass
 import torch
 
 from modules import devices
-from .common import dtype_dict, compile_func, use_contiguous_int8_mm, use_contiguous_fp16_mm, use_tensorwise_fp8_matmul, is_fp8_compile_supported
+from .common import dtype_dict, compile_func
+from .kernel_wrappers import use_contiguous_int8_mm, use_contiguous_fp16_mm, use_tensorwise_fp8_matmul, is_fp8_compile_supported
 from .quant_utils import quantize_int_mm, quantize_uint_mm, quantize_fp_mm, rotate_hadamard, get_hadamard
 from .packed_int import unpack_int
 from .packed_float import unpack_float

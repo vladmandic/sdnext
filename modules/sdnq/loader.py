@@ -3,7 +3,8 @@ import json
 import torch
 
 from modules import shared
-from .common import dtype_dict, is_fp8_mm_supported, use_tensorwise_fp8_matmul, check_torch_compile, linear_types
+from .common import dtype_dict, check_torch_compile, linear_types
+from .kernel_wrappers import is_fp8_mm_supported, use_tensorwise_fp8_matmul
 from .quantizer import QuantizationMethod, SDNQConfig, SDNQQuantizer, sdnq_post_load_quant
 from .quant_utils import prepare_weight_for_matmul, prepare_svd_for_matmul
 from .utils import get_quant_args_from_config, check_param_name_in

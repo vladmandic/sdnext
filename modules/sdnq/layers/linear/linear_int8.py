@@ -2,8 +2,8 @@
 
 import torch
 
-from ...common import compile_func, int_mm_func
-from ...dequantizer import dequantize_symmetric, dequantize_asymmetric
+from ...common import compile_func
+from ...kernel_wrappers import int_scaled_mm_func
 from ...quant_utils import quantize_int_mm, rotate_hadamard, get_hadamard
 from ...packed_int import unpack_int
 
@@ -64,12 +64,9 @@ def int8_matmul(
         if bias is not None:
             zero_bias.add_(bias)
         bias = zero_bias
-    input, weight = check_mats(input, weight)
 
-    if bias is not None:
-        return dequantize_asymmetric(int_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale), scale, bias, dtype=return_dtype, result_shape=output_shape)
-    else:
-        return dequantize_symmetric(int_mm_func(input, weight).to(dtype=input_scale.dtype).mul_(input_scale), scale, dtype=return_dtype, result_shape=output_shape)
+    input, weight = check_mats(input, weight)
+    return int_scaled_mm_func(input, weight, input_scale, scale, bias=bias, out_dtype=return_dtype).view(output_shape)
 
 
 def quantized_linear_forward_int8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:

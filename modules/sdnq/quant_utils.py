@@ -3,7 +3,8 @@
 import torch
 
 from modules import devices
-from .common import dtype_dict, use_contiguous_int8_mm, use_contiguous_fp16_mm, conv_types, conv_transpose_types
+from .common import dtype_dict, conv_types, conv_transpose_types
+from .kernel_wrappers import use_contiguous_int8_mm, use_contiguous_fp16_mm
 from .utils import is_pow2, is_pow4, next_power_of_2
 
 

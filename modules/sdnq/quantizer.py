@@ -23,8 +23,6 @@ from .common import (
     conv_types,
     conv_transpose_types,
     weights_dtype_order,
-    is_fp8_mm_supported,
-    use_tensorwise_fp8_matmul,
     check_torch_compile,
     compile_func,
 )
@@ -46,6 +44,7 @@ from .utils import (
     add_module_skip_keys,
 )
 
+from .kernel_wrappers import is_fp8_mm_supported, use_tensorwise_fp8_matmul
 from .dequantizer import SDNQDequantizer, dequantize_sdnq_model
 from .packed_int import pack_int
 from .packed_float import pack_float

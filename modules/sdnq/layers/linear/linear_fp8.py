@@ -3,7 +3,7 @@
 import torch
 
 from ...common import compile_func
-from ...dequantizer import dequantize_symmetric, dequantize_asymmetric
+from ...kernel_wrappers import fp8_scaled_mm_func
 from ...quant_utils import quantize_fp_mm, rotate_hadamard, get_hadamard
 from ...packed_float import unpack_float
 
@@ -36,6 +36,7 @@ def fp8_matmul(
         scale = scale.t()
     return_dtype = input.dtype
     output_shape = (*input.shape[:-1], weight.shape[-1])
+
     if hadamard is not None:
         input = rotate_hadamard(input, hadamard=hadamard)
     if svd_up is not None:
@@ -44,13 +45,10 @@ def fp8_matmul(
             bias = torch.addmm(bias.to(dtype=svd_down.dtype), torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
         else:
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
-    dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
+
     input, input_scale = quantize_fp_mm_input(input, dtype=scale.dtype)
     input, weight = check_mats(input, weight, allow_contiguous_mm=False)
-    if bias is not None:
-        return dequantize_asymmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=input_scale.dtype).mul_(input_scale), scale, bias, dtype=return_dtype, result_shape=output_shape)
-    else:
-        return dequantize_symmetric(torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=input_scale.dtype).mul_(input_scale), scale, dtype=return_dtype, result_shape=output_shape)
+    return fp8_scaled_mm_func(input, weight, input_scale, scale, bias=bias, out_dtype=return_dtype).view(output_shape)
 
 
 def quantized_linear_forward_fp8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:

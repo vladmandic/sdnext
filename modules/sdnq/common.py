@@ -1,11 +1,10 @@
 # pylint: disable=redefined-builtin,no-member,protected-access
 
 import os
-import sys
 import json
 import torch
 
-from modules import shared, devices
+from modules import shared
 
 sdnq_version = "0.2.2"
 sdnq_keys = {"weight", "scale", "zero_point", "svd_up", "svd_down"}
@@ -336,105 +335,11 @@ weights_dtype_order = [
     "uint16", "float16_e1m15fnu", "float16_e2m14fnu", "float16_e3m13fnu", "float16_e4m12fnu", "float16_e5m11fnu",
 ]
 
+
 use_torch_compile = shared.opts.sdnq_dequantize_compile # this setting requires a full restart of the webui to apply
 
 def check_torch_compile() -> bool: # dynamo can be disabled after startup
     return use_torch_compile and not torch._dynamo.config.disable # pylint: disable=protected-access
-
-
-if devices.backend == "rocm":
-    gfx_version = devices.get_hip_agent().gfx_version
-    is_rdna2_and_older = bool(gfx_version < 0x940 or (gfx_version < 0x1100 and gfx_version >= 0x1000))
-else:
-    is_rdna2_and_older = False
-
-if os.environ.get("SDNQ_ALLOW_FP8_MM", None) is None:
-    if devices.backend == "cuda":
-        is_fp8_mm_supported = bool(torch.cuda.get_device_capability(devices.device) >= (8,9))
-    elif devices.backend == "rocm":
-        gfx_version = devices.get_hip_agent().gfx_version
-        is_fp8_mm_supported = bool(gfx_version >= 0x1200 or (gfx_version >= 0x940 and gfx_version < 0x1000))
-    else:
-        is_fp8_mm_supported = False
-else:
-    is_fp8_mm_supported = os.environ.get("SDNQ_ALLOW_FP8_MM", "0").lower() not in {"0", "false", "no"}
-
-if os.environ.get("SDNQ_ALLOW_FP8_COMPILE", None) is None:
-    if devices.backend == "cuda" and "linux" in sys.platform:
-        is_fp8_compile_supported = bool(torch.cuda.get_device_capability(devices.device) >= (8,9)) # triton has no e4m3 conversions before sm_89
-    else:
-        is_fp8_compile_supported = True
-else:
-    is_fp8_compile_supported = os.environ.get("SDNQ_ALLOW_FP8_COMPILE", "0").lower() not in {"0", "false", "no"}
-
-if os.environ.get("SDNQ_USE_OPENVINO_MM", None) is None:
-    use_openvino_mm = bool(devices.backend in {"cpu", "openvino"})
-else:
-    use_openvino_mm = bool(os.environ.get("SDNQ_USE_OPENVINO_MM", "0").lower() not in {"0", "false", "no"})
-
-if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
-    use_triton_mm = bool(is_rdna2_and_older or devices.backend == "zluda")
-else:
-    use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
-
-if os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", None) is None:
-    # row-wise FP8 only exist on H100 hardware, sdnq will use software row-wise with tensorwise hardware with this setting
-    use_tensorwise_fp8_matmul = bool(devices.backend != "cuda" or (devices.backend == "cuda" and torch.cuda.get_device_capability(devices.device) < (9,0)))
-else:
-    use_tensorwise_fp8_matmul = os.environ.get("SDNQ_USE_TENSORWISE_FP8_MM", "0").lower() not in {"0", "false", "no"}
-
-
-fp_mm_func = None
-int_mm_func = None
-
-if use_openvino_mm:
-    try:
-        from .kernels.openvino_mm import openvino_int_mm, openvino_fp_mm
-        int_mm_func = openvino_int_mm
-        fp_mm_func = openvino_fp_mm
-    except Exception:
-        use_openvino_mm = False
-elif use_triton_mm:
-    try:
-        from .kernels.triton_mm import sdnq_triton_mm
-        int_mm_func = sdnq_triton_mm
-        fp_mm_func = sdnq_triton_mm
-    except Exception:
-        use_triton_mm = False
-
-if fp_mm_func is None and os.environ.get("SDNQ_USE_TRITON_MM", "1").lower() not in {"0", "false", "no"}:
-    try:
-        from .triton_mm import sdnq_triton_mm
-        fp_mm_func = sdnq_triton_mm
-    except Exception:
-        use_triton_mm = False
-
-if int_mm_func is None:
-    int_mm_func = torch._int_mm
-if fp_mm_func is None:
-    if devices.backend == "cuda":
-        def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
-            return torch.mm(x,y, out_dtype=torch.float32)
-    else:
-        def fp_mm_torch(x: torch.Tensor, y: torch.Tensor) -> torch.FloatTensor:
-            if y.dtype == torch.float8_e4m3fn:
-                fp16_scale = 4 * y.shape[-2]
-            else:
-                fp16_scale = 65536 * y.shape[-2]
-            in_scale = fp16_scale**0.5
-            x = x.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
-            y = y.to(dtype=torch.float32).div_(in_scale).to(dtype=torch.float16)
-            return torch.mm(x,y).to(dtype=torch.float32).mul_(fp16_scale)
-    fp_mm_func = fp_mm_torch
-
-
-if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
-    use_contiguous_int8_mm = bool(use_openvino_mm or is_rdna2_and_older or devices.backend in {"ipex", "mps", "openvino", "zluda"})
-    use_contiguous_fp16_mm = bool(use_contiguous_int8_mm or devices.backend == "rocm")
-else:
-    use_contiguous_int8_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
-    use_contiguous_fp16_mm = use_contiguous_int8_mm
-
 
 if use_torch_compile:
     if hasattr(torch._dynamo.config, "recompile_limit"):

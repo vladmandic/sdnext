@@ -1,3 +1,8 @@
+"""
+W4A8 fallback with Triton.
+This is intended as a template for future INT4 MM kernels as Triton has no support for INT4 hardware yet.
+"""
+
 import os
 import math
 import torch
@@ -20,8 +25,9 @@ matmul_configs = [
 
 @triton.autotune(configs=matmul_configs, key=["b_is_contiguous", "bias_ndim", "M_AT", "N_AT", "K_AT", "a_dtype", "out_dtype"], cache_results=True)
 @triton.jit
-def sdnq_triton_mm_kernel(
+def sdnq_scaled_mm_kernel(
     a_ptr, b_ptr, c_ptr, bias_ptr,
+    scale_a_ptr, scale_b_ptr,
     M: tl.constexpr,
     N: tl.constexpr,
     K: tl.constexpr,
@@ -84,42 +90,52 @@ def sdnq_triton_mm_kernel(
         accumulator = tl.dot(a, b, accumulator, out_dtype=accumulator_dtype)
         off_k += BLOCK_SIZE_K
 
+    scale_a_desc = tl.make_tensor_descriptor(base=scale_a_ptr, shape=(M,), strides=(1,), block_shape=(BLOCK_SIZE_M,))
+    scale_b_desc = tl.make_tensor_descriptor(base=scale_b_ptr, shape=(N,), strides=(1,), block_shape=(BLOCK_SIZE_N,))
+    scale_a = scale_a_desc.load([off_m])[:, None].to(tl.float32)
+    scale_b = scale_b_desc.load([off_n])[None, :].to(tl.float32)
+
     if bias_ndim == 1:
-        accumulator = accumulator.to(tl.float32)
+        accumulator = accumulator.to(tl.float32) * scale_a
         bias_desc = tl.make_tensor_descriptor(base=bias_ptr, shape=(N,), strides=(1,), block_shape=(BLOCK_SIZE_N,))
         bias = bias_desc.load([off_n])[None, :].to(tl.float32)
-        accumulator += bias
+        accumulator = tl.fma(accumulator, scale_b, bias)
     elif bias_ndim == 2:
-        accumulator = accumulator.to(tl.float32)
+        accumulator = accumulator.to(tl.float32) * scale_a
         bias_desc = tl.make_tensor_descriptor(base=bias_ptr, shape=(M, N), strides=(N, 1), block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N))
         bias = bias_desc.load([off_m, off_n]).to(tl.float32)
-        accumulator += bias
+        accumulator = tl.fma(accumulator, scale_b, bias)
+    else:
+        accumulator = accumulator.to(tl.float32) * scale_a * scale_b
 
     accumulator = accumulator.to(c_ptr.type.element_ty)
     c_desc = tl.make_tensor_descriptor(base=c_ptr, shape=(M, N), strides=(N, 1), block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N))
     c_desc.store([off_m, off_n], accumulator)
 
 
-def sdnq_triton_mm(
+def sdnq_scaled_mm(
     a: torch.Tensor,
     b: torch.Tensor,
+    scale_a: torch.Tensor,
+    scale_b: torch.Tensor,
     bias: torch.FloatTensor | None = None,
-    out_dtype: torch.dtype | None = None,
+    out_dtype: torch.dtype = torch.float32,
 ) -> torch.Tensor:
     assert a.shape[1] == b.shape[0], "Incompatible dimensions"
     assert a.is_contiguous(), "Matrix A must be contiguous"
+    assert scale_a.is_contiguous(), "Matrix A scale must be contiguous"
+    assert scale_b.is_contiguous(), "Matrix B scale must be contiguous"
     if bias is not None:
         assert bias.is_contiguous(), "Bias must be contiguous"
         assert bias.ndim in {1, 2}, "Bias must be 1D or 2D"
     M, K = a.shape
     K, N = b.shape
-    if out_dtype is None:
-        out_dtype = torch.int32 if a.dtype == torch.int8 else torch.float32
     c = torch.empty((M, N), device=a.device, dtype=out_dtype)
     def grid(META):
         return (triton.cdiv(M, META["BLOCK_SIZE_M"]) * triton.cdiv(N, META["BLOCK_SIZE_N"]), )
-    sdnq_triton_mm_kernel[grid](
+    sdnq_scaled_mm_kernel[grid](
         a, b, c, bias,
+        scale_a, scale_b,
         M, N, K,
         (1 if b.is_contiguous() else 0),
         (0 if bias is None else bias.ndim),

@@ -2,7 +2,7 @@
 
 import torch
 
-from ...common import use_contiguous_int8_mm, use_contiguous_fp16_mm
+from ...kernel_wrappers import use_contiguous_int8_mm, use_contiguous_fp16_mm
 
 
 def check_mats(input: torch.Tensor, weight: torch.Tensor, allow_contiguous_mm: bool = True) -> tuple[torch.Tensor, torch.Tensor]:

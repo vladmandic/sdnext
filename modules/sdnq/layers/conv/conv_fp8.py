@@ -3,6 +3,7 @@
 import torch
 
 from ...common import compile_func
+from ...kernel_wrappers import fp8_mm_func, fp8_scaled_mm_func
 from ...dequantizer import dequantize_symmetric, dequantize_asymmetric
 from ...quant_utils import rotate_hadamard, get_hadamard
 from ...packed_float import unpack_float
@@ -46,21 +47,20 @@ def conv_fp8_matmul(
 
     input, input_scale = quantize_fp_mm_input(input, dtype=scale.dtype)
     input, weight = check_mats(input, weight)
-    dummy_input_scale = torch.ones(1, device=input.device, dtype=torch.float32)
 
     if groups == 1:
-        result = torch._scaled_mm(input, weight, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=input_scale.dtype).mul_(input_scale)
+        result = fp8_scaled_mm_func(input, weight, input_scale, scale, bias=bias, out_dtype=return_dtype).view(mm_output_shape)
     else:
         weight = weight.view(weight.shape[0], groups, weight.shape[1] // groups)
         input = input.view(input.shape[0], groups, input.shape[1] // groups)
         result = []
         for i in range(groups):
-            result.append(torch._scaled_mm(input[:, i], weight[:, i], scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=input_scale.dtype))
-        result = torch.cat(result, dim=-1).mul_(input_scale)
-    if bias is not None:
-        dequantize_asymmetric(result, scale, bias, dtype=return_dtype, result_shape=mm_output_shape)
-    else:
-        dequantize_symmetric(result, scale, dtype=return_dtype, result_shape=mm_output_shape)
+            result.append(fp8_mm_func(input[:, i], weight[:, i]))
+        result = torch.cat(result, dim=-1).to(dtype=input_scale.dtype).mul_(input_scale)
+        if bias is not None:
+            result = dequantize_asymmetric(result, scale, bias, dtype=return_dtype, result_shape=mm_output_shape)
+        else:
+            result = dequantize_symmetric(result, scale, dtype=return_dtype, result_shape=mm_output_shape)
 
     if conv_type == 1:
         result = result.transpose_(1,2)

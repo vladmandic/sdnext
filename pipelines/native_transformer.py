@@ -825,7 +825,8 @@ def build_component_prequantized(
     from accelerate import init_empty_weights
     from accelerate.utils import set_module_tensor_to_device
     from diffusers.utils import get_module_from_name
-    from modules.sdnq.common import dtype_dict, check_torch_compile, is_fp8_compile_supported
+    from modules.sdnq.common import dtype_dict, check_torch_compile
+    from modules.sdnq.kernel_wrappers import is_fp8_compile_supported
     from modules.sdnq.quantizer import SDNQConfig, SDNQQuantizer
     from modules.sdnq.dequantizer import SDNQDequantizer
     from modules.sdnq.layers import get_sdnq_wrapper_class
