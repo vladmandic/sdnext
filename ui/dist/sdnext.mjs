@@ -13151,9 +13151,9 @@ function updateGalleryStyles() {
       padding: 4px;
       font-size: 1.2em;
       letter-spacing: 0.5em;
-      width: 140px;
       margin-top: calc(140px - 32px);
       opacity: 75%;
+      border-radius: var(--sd-border-radius);
     }
     :host(.gallery-file-selected) .gallery-file {
       box-shadow: 0 0 0 2px var(--sd-button-selected-color);
@@ -13203,6 +13203,10 @@ var SimpleProgressBar = class {
     if (total <= 0) return;
     this.hide();
     this.#max = total;
+    if (this.#monitoredSet.size >= this.#max) {
+      this.stop();
+      return;
+    }
     this.#interval = setInterval(() => this.update(this.#monitoredSet.size, this.#max), 100);
   }
   attachTo(element) {
@@ -13226,7 +13230,6 @@ var SimpleProgressBar = class {
   }
   stop() {
     clearInterval(this.#interval);
-    this.#interval = void 0;
     if (this.stats.count) {
       debug("gallery: thumbnail stats", this.stats);
       this.stats = { ...this.defaultStats };
@@ -13513,7 +13516,7 @@ Size: ${this.size.toLocaleString()} bytes
 Modified: ${this.mtime.toLocaleString()}`;
     this.title = img.title;
     const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase());
-    if (this.style.display !== "none") this.style.display = shouldDisplayBasedOnSearch ? "flex" : "none";
+    if (this.style.display !== "none") this.style.display = shouldDisplayBasedOnSearch ? "" : "none";
     this.shadow.appendChild(img);
     pb.stats.elapsed = (pb.stats.elapsed || 0) + Math.round(performance.now() - t0);
   }
@@ -13530,7 +13533,7 @@ async function handleSeparator(separator) {
     const fileDir = f.name.match(/(.*)[/\\]/);
     const fileDirPath = fileDir ? fileDir[1] : "";
     if (separator.title.length > 0 && fileDirPath === separator.title) {
-      f.style.display = nowHidden ? "none" : "unset";
+      f.style.display = nowHidden ? "none" : "";
     }
   }
 }
@@ -13763,15 +13766,15 @@ async function gallerySort(key) {
   const folderGroups = /* @__PURE__ */ new Map();
   for (const file of subfolderFiles) {
     const dir = getDirPath(file);
-    if (!folderGroups.has(dir)) {
-      folderGroups.set(dir, []);
-    }
+    if (!folderGroups.has(dir)) folderGroups.set(dir, []);
     folderGroups.get(dir).push(file);
   }
   sortMode = gallerySorter[currentSort];
   rootFiles.sort(sortMode.func);
   rootFiles.forEach((node) => fragment.appendChild(node));
-  const sortedFolderNames = Array.from(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
+  const folderNames = Array.from(folderGroups.keys());
+  const sortedFolderNames = currentSort.endsWith("A") ? folderNames.sort((a, b) => a.localeCompare(b)) : folderNames.sort((a, b) => b.localeCompare(a));
+  console.log("HERE", sortedFolderNames);
   for (const folderName of sortedFolderNames) {
     const files = folderGroups.get(folderName);
     files.sort(sortMode.func);

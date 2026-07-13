@@ -68,6 +68,17 @@ const gallerySorter = {
   modA: { name: 'Modified Descending', func: (b, a) => a.mtime - b.mtime },
   none: { name: 'None', func: undefined },
 };
+const folderSorter = {
+  nameA: { name: 'Name Ascending', func: (a, b) => a.name.localeCompare(b.name) },
+  nameD: { name: 'Name Descending', func: (b, a) => a.name.localeCompare(b.name) },
+  sizeD: { name: 'Size Ascending', func: (a, b) => a.size - b.size },
+  sizeA: { name: 'Size Descending', func: (b, a) => a.size - b.size },
+  resD: { name: 'Resolution Ascending', func: (a, b) => a.width * a.height - b.width * b.height },
+  resA: { name: 'Resolution Descending', func: (b, a) => a.width * a.height - b.width * b.height },
+  modD: { name: 'Modified Ascending', func: (a, b) => a.mtime - b.mtime },
+  modA: { name: 'Modified Descending', func: (b, a) => a.mtime - b.mtime },
+  none: { name: 'None', func: undefined },
+};
 
 let sortMode = gallerySorter.none;
 
@@ -230,9 +241,9 @@ function updateGalleryStyles() {
       padding: 4px;
       font-size: 1.2em;
       letter-spacing: 0.5em;
-      width: 140px;
       margin-top: calc(140px - 32px);
       opacity: 75%;
+      border-radius: var(--sd-border-radius);
     }
     :host(.gallery-file-selected) .gallery-file {
       box-shadow: 0 0 0 2px var(--sd-button-selected-color);
@@ -283,7 +294,6 @@ class SimpleProgressBar {
     this.#progress.style.backgroundColor = 'var(--sd-main-accent-color)';
     this.#textDiv.style.cssText = 'position:relative; margin:auto; width:max-content; height:100%;';
     this.#text.style.cssText = 'user-select:none; color:white;';
-
     this.#textDiv.append(this.#text);
     this.#container.append(this.#progress, this.#textDiv);
   }
@@ -292,6 +302,10 @@ class SimpleProgressBar {
     if (total <= 0) return;
     this.hide();
     this.#max = total;
+    if (this.#monitoredSet.size >= this.#max) {
+      this.stop();
+      return;
+    }
     this.#interval = setInterval(() => this.update(this.#monitoredSet.size, this.#max), 100);
   }
 
@@ -319,7 +333,7 @@ class SimpleProgressBar {
 
   stop() {
     clearInterval(this.#interval);
-    this.#interval = undefined;
+    // this.#interval = undefined;
     if (this.stats.count) {
       debug('gallery: thumbnail stats', this.stats);
       this.stats = { ...this.defaultStats };
@@ -634,7 +648,7 @@ class GalleryFile extends HTMLElement {
     img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
     this.title = img.title;
     const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase()); // Final visibility check based on search term.
-    if (this.style.display !== 'none') this.style.display = shouldDisplayBasedOnSearch ? 'flex' : 'none'; // Only proceed if not already hidden by a closed separator
+    if (this.style.display !== 'none') this.style.display = shouldDisplayBasedOnSearch ? '' : 'none'; // Only proceed if not already hidden by a closed separator
     this.shadow.appendChild(img);
     pb.stats.elapsed = (pb.stats.elapsed || 0) + Math.round(performance.now() - t0);
   }
@@ -679,7 +693,7 @@ async function handleSeparator(separator) {
     const fileDirPath = fileDir ? fileDir[1] : '';
 
     if (separator.title.length > 0 && fileDirPath === separator.title) {
-      f.style.display = nowHidden ? 'none' : 'unset';
+      f.style.display = nowHidden ? 'none' : '';
     }
   }
   // Note: Count is not updated here on manual toggle, as it reflects the total.
@@ -984,9 +998,7 @@ export async function gallerySort(key) {
   const folderGroups = new Map();
   for (const file of subfolderFiles) {
     const dir = getDirPath(file);
-    if (!folderGroups.has(dir)) {
-      folderGroups.set(dir, []);
-    }
+    if (!folderGroups.has(dir)) folderGroups.set(dir, []);
     folderGroups.get(dir).push(file);
   }
 
@@ -997,7 +1009,11 @@ export async function gallerySort(key) {
   rootFiles.forEach((node) => fragment.appendChild(node));
 
   // Sort folder names alphabetically, then sort files within each folder
-  const sortedFolderNames = Array.from<any>(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
+  // const sortedFolderNames = Array.from<any>(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
+  const folderNames = Array.from<string>(folderGroups.keys());
+  const sortedFolderNames = currentSort.endsWith('A') ? folderNames.sort((a, b) => a.localeCompare(b)) : folderNames.sort((a, b) => b.localeCompare(a));
+
+  console.log('HERE', sortedFolderNames);
   for (const folderName of sortedFolderNames) {
     const files = folderGroups.get(folderName);
     files.sort(sortMode.func);

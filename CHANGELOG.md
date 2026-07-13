@@ -55,6 +55,7 @@
   - download: improved progress tracking
   - gallery: delete image
   - gallery: save image
+  - standardui: gallery collapse sections
 
 ## Update for 2026-07-07
 
