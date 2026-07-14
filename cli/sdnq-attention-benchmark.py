@@ -594,8 +594,8 @@ def free_vram_gb():
 
 
 def fp8_compile_gate_flag():
-    # present and False on sdnq builds that gate fp8 storage weights to eager dequant on
-    # gpus where triton cannot compile e4m3; absent on builds without the gate
+    # False on gpus where sdnq upcasts e4m3 storage to the scale dtype before the compiled
+    # dequant, because triton cannot convert e4m3 there; absent on builds without the gate
     try:
         from modules.sdnq import kernel_wrappers as sdnq_kernel_wrappers
         return getattr(sdnq_kernel_wrappers, "is_fp8_compile_supported", None)
@@ -654,9 +654,9 @@ def print_environment(fp8_result, prep_status, prep_detail, weight_dequant_resul
         if e4m3_ok:
             lines.append("compiled weight dequant, float8_e4m3fn storage: [green]supported[/green]")
         else:
-            lines.append(f"compiled weight dequant, float8_e4m3fn storage: [red]fails on this gpu[/red] [dim]({escape(e4m3_detail)})[/dim]")
+            lines.append(f"compiled weight dequant, raw float8_e4m3fn storage: [red]fails on this gpu[/red] [dim]({escape(e4m3_detail)})[/dim]")
             if gate_flag is False:
-                lines.append("  this sdnq build gates fp8 storage weights to eager dequant, generation is safe (SDNQ_ALLOW_FP8_COMPILE overrides)")
+                lines.append(f"  sdnq upcasts e4m3 weights to {dtype_label()} before the compiled dequant, so generation is safe and the fp8 rows below are measured that way (SDNQ_ALLOW_FP8_COMPILE overrides)")
             elif gate_flag is None:
                 lines.append("  [red]this sdnq build has no fp8 compile gate: loading fp8 storage weights with Dequantize using torch.compile enabled fails at generation[/red]")
         e5m2_verdict = "[green]supported[/green]" if e5m2_ok else f"[red]fails[/red] [dim]({escape(e5m2_detail)})[/dim]"
@@ -896,10 +896,15 @@ def quant_cell(quant_seconds):
     return f"{quant_seconds * 1000.0:5.0f}ms" if quant_seconds is not None else "-"
 
 
-def dequant_args(layer):
+def dequant_args(layer, upcast_fp8=True):
     # mirror SDNQDequantizer.__call__'s marshaling so the direct compiled call below measures
-    # the same graph the instance would compile
+    # the same graph the instance would compile, including the e4m3 upcast sdnq applies before
+    # the compiled dequant on gpus where triton cannot convert it (pre sm_89).
+    # upcast_fp8=False keeps the hardware probe honest: it must compile the raw e4m3 weight
     deq = layer.sdnq_dequantizer
+    weight = layer.weight
+    if upcast_fp8 and weight.dtype == torch.float8_e4m3fn and fp8_compile_gate_flag() is False:
+        weight = weight.to(dtype=layer.scale.dtype)
     kwargs = dict(
         zero_point=getattr(layer, "zero_point", None),
         svd_up=getattr(layer, "svd_up", None),
@@ -909,7 +914,7 @@ def dequant_args(layer):
         quantized_weight_shape=deq.quantized_weight_shape,
         re_quantize_for_matmul=deq.re_quantize_for_matmul or deq.is_packed,
     )
-    return (deq.weights_dtype, layer.weight, layer.scale), kwargs
+    return (deq.weights_dtype, weight, layer.scale), kwargs
 
 
 def get_compiled_dequantize_weight():
@@ -928,27 +933,17 @@ def get_compiled_dequantize_weight():
     return compiled_dequantize_weight
 
 
-def dequant_gated_to_eager(weights_dtype):
-    # sdnq builds with the fp8 compile gate route e4m3 storage to eager dequant on gpus
-    # where triton cannot compile it; report instead of measuring a silently-eager row
-    try:
-        from modules.sdnq import dequantizer as dequantizer_module
-        gate = getattr(dequantizer_module, "skip_fp8_compile", None)
-        return bool(gate(weights_dtype)) if gate is not None else False
-    except Exception:
-        return False
-
-
 def probe_weight_dequant_compile():
     # compiled weight dequantization per fp8 storage dtype: triton before sm_89 lacks e4m3
-    # conversions, so compiled dequant of float8_e4m3fn storage crashes on ampere while e5m2
-    # is expected to compile; the verdicts show whether this build needs the fp8 compile gate
+    # conversions, so compiled dequant of raw float8_e4m3fn storage crashes on ampere while
+    # e5m2 is expected to compile; the verdicts show whether sdnq's e4m3 upcast is load-bearing
+    # on this gpu, so probe the raw weight rather than the upcast one the bench rows use
     result = {}
     for name in ("float8_e4m3fn", "float8_e5m2"):
         with console.status(f"probing compiled weight dequant: {name} storage (a compile failure here is expected for e4m3 on pre-ada nvidia)"):
             try:
                 layer, _quant_seconds = make_quantized_linear(make_source_weight(256, 256), name)
-                args, kwargs = dequant_args(layer)
+                args, kwargs = dequant_args(layer, upcast_fp8=False)
                 out = get_compiled_dequantize_weight()(*args, **kwargs)
                 torch_device_module.synchronize()
                 result[name] = (bool(torch.isfinite(out).all().item()), "compiles and runs")
@@ -1308,29 +1303,25 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                 del layer
                 continue
 
-            if dequant_gated_to_eager(cfg["weights_dtype"]):
-                compiled_cell = "[yellow]gated to eager[/yellow]"
-                entry["compiled_gated"] = True
-            else:
-                try:
-                    args, kwargs = dequant_args(layer)
-                    def compiled_fn(current_args=args, current_kwargs=kwargs):
-                        return get_compiled_dequantize_weight()(*current_args, **current_kwargs)
-                    phase("compiling dequant")
-                    with time_limit(config_timeout, label):
-                        compiled_out = compiled_fn()
-                        torch_device_module.synchronize()
-                    entry["compiled_ms"] = bench(compiled_fn, warmup, iters, on_phase=phase)
-                    compiled_cell = f"{entry['compiled_ms']:8.3f} ms"
-                    drift = rel_err(compiled_out, eager_out)
-                    if drift > 1e-3:
-                        notes.append(f"[yellow]{label}: compiled dequant differs from eager by {drift:.2e} relative[/yellow]")
-                        entry["compiled_drift"] = drift
-                    del compiled_out
-                except Exception as e:
-                    entry["compiled_error"] = error_summary(e, 200)
-                    compiled_cell = failure_text(e)
-                    reset_compiled_dequant()
+            try:
+                args, kwargs = dequant_args(layer)
+                def compiled_fn(current_args=args, current_kwargs=kwargs):
+                    return get_compiled_dequantize_weight()(*current_args, **current_kwargs)
+                phase("compiling dequant")
+                with time_limit(config_timeout, label):
+                    compiled_out = compiled_fn()
+                    torch_device_module.synchronize()
+                entry["compiled_ms"] = bench(compiled_fn, warmup, iters, on_phase=phase)
+                compiled_cell = f"{entry['compiled_ms']:8.3f} ms"
+                drift = rel_err(compiled_out, eager_out)
+                if drift > 1e-3:
+                    notes.append(f"[yellow]{label}: compiled vs eager dequant drift {drift:.2e}[/yellow]")
+                    entry["compiled_drift"] = drift
+                del compiled_out
+            except Exception as e:
+                entry["compiled_error"] = error_summary(e, 200)
+                compiled_cell = failure_text(e)
+                reset_compiled_dequant()
             del eager_out
 
             def fwd_fn(current=layer):
@@ -2752,9 +2743,9 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
         e5m2_ok = weight_dequant_result["float8_e5m2"][0]
         e4m3_ok = weight_dequant_result["float8_e4m3fn"][0]
         if not e4m3_ok and e5m2_ok:
-            notes.append("float8_e5m2 storage compiles on this gpu while float8_e4m3fn does not; a compile gate only needs to cover e4m3")
+            notes.append("compiled dequant: e5m2 compiles raw, e4m3 does not; sdnq's upcast covers e4m3")
         elif not e4m3_ok and not e5m2_ok:
-            notes.append("[yellow]neither fp8 storage dtype compiles on this gpu; both need the compile gate[/yellow]")
+            notes.append("[yellow]compiled dequant: neither fp8 dtype compiles raw; sdnq upcasts e4m3, e5m2 has no such path[/yellow]")
     fp8_mm_failed = [dtype_id for dtype_id, _label, _cfg in dequant_dtype_configs if entry(dtype_id).get("mm_error") and entry(dtype_id).get("mm_dtype") == "float8_e4m3fn"]
     if fp8_mm_failed:
         notes.append(f"[yellow]quantized matmul auto-selected float8_e4m3fn for {', '.join(fp8_mm_failed)} and failed on this gpu; set MatMul type explicitly to use quantized matmul with float weight dtypes[/yellow]")
