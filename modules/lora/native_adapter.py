@@ -1039,6 +1039,12 @@ def try_load_full(name, network_on_disk, lora_scale, *,
             if sd_module is None:
                 unmapped += 1
                 continue
+            # Loader-local stamping, same as try_load_norm: a full-weight extraction carries the
+            # norm weights too, and assign_network_names_to_compvis_modules puts norms in the
+            # mapping but never stamps network_layer_name on them, which is what the apply pass
+            # keys off. Without this they bind and then silently never apply.
+            if not getattr(sd_module, "network_layer_name", None):
+                sd_module.network_layer_name = network_key
             nw = network.NetworkWeights(network_key=network_key, sd_key=network_key, w=w, sd_module=sd_module)
             net.modules[network_key] = network_full.NetworkModuleFull(net, nw)
 

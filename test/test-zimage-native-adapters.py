@@ -125,6 +125,7 @@ MLP_HIDDEN = int(HIDDEN / 3 * 8)   # 256, matches ZImageTransformerBlock FeedFor
 ADALN_OUT = 4 * HIDDEN # 384, matches Z-Image adaLN_modulation
 N_LAYERS = 2           # main transformer blocks
 N_REFINER = 1          # noise_refiner / context_refiner blocks
+PATCH_KEY = "2-1"      # the single all_x_embedder / all_final_layer key both variants build
 
 
 # pylint: disable=attribute-defined-outside-init
@@ -184,6 +185,26 @@ def build_mock_transformer():
     transformer.layers = torch.nn.ModuleList([build_zimage_block(modulation=False) for _ in range(N_LAYERS)])
     transformer.noise_refiner = torch.nn.ModuleList([build_zimage_block(modulation=True) for _ in range(N_REFINER)])
     transformer.context_refiner = torch.nn.ModuleList([build_zimage_block(modulation=True) for _ in range(N_REFINER)])
+    # Non-block targets. all_x_embedder / all_final_layer are ModuleDicts keyed by
+    # "{patch_size}-{f_patch_size}"; both shipped variants build the single key below.
+    final_layer = _Holder()
+    final_layer.linear = torch.nn.Linear(HIDDEN, HIDDEN, bias=True)
+    final_layer.adaLN_modulation = torch.nn.Sequential(
+        torch.nn.SiLU(),
+        torch.nn.Linear(HIDDEN, ADALN_OUT, bias=True),
+    )
+    transformer.all_x_embedder = torch.nn.ModuleDict({PATCH_KEY: torch.nn.Linear(HIDDEN, HIDDEN, bias=True)})
+    transformer.all_final_layer = torch.nn.ModuleDict({PATCH_KEY: final_layer})
+    transformer.t_embedder = _Holder()
+    transformer.t_embedder.mlp = torch.nn.Sequential(
+        torch.nn.Linear(HIDDEN, HIDDEN, bias=True),
+        torch.nn.SiLU(),
+        torch.nn.Linear(HIDDEN, HIDDEN, bias=True),
+    )
+    transformer.cap_embedder = torch.nn.Sequential(
+        torch.nn.RMSNorm(HIDDEN),
+        torch.nn.Linear(HIDDEN, HIDDEN, bias=True),
+    )
     return transformer
 
 
@@ -653,6 +674,76 @@ def test_full_diff_chain():
     return True
 
 
+def test_full_stamps_norm_targets():
+    """A Full adapter on a norm target binds AND applies.
+
+    assign_network_names_to_compvis_modules puts norms in the mapping but never
+    stamps network_layer_name on them, and the apply pass keys off that
+    attribute: without loader-local stamping the module binds and then silently
+    never applies. Regression for the RedLSP extraction, which bound 308
+    modules and applied only 172.
+    """
+    sd = {
+        'diffusion_model.layers.0.attention_norm1.diff': torch.randn(HIDDEN),
+        'diffusion_model.layers.0.attention.q_norm.diff': torch.randn(HEAD_DIM),
+    }
+    net = _load_via(Z.try_load, sd)
+    assert net is not None and len(net.modules) == 2, f'got {sorted(net.modules) if net else None}'
+    expected = {'lora_transformer_layers_0_attention_norm1', 'lora_transformer_layers_0_attention_norm_q'}
+    assert set(net.modules) == expected, f'got {set(net.modules)}'
+    for key, mod in net.modules.items():
+        assert getattr(mod.sd_module, 'network_layer_name', None) == key, \
+            f'{key}: host module not stamped, the apply pass will skip it'
+    return True
+
+
+def test_resolve_targets_norm_aliases_and_extra():
+    """qk-norm renames and the ModuleDict-keyed non-block targets."""
+    cases = [
+        (('diffusion_model.', 'layers.0.attention.q_norm'), 'layers.0.attention.norm_q'),
+        (('diffusion_model.', 'layers.3.attention.k_norm'), 'layers.3.attention.norm_k'),
+        (('lora_unet_', 'layers_0_attention_q_norm'), 'layers_0_attention_norm_q'),
+        ((None, 'noise_refiner.0.attention.k_norm'), 'noise_refiner.0.attention.norm_k'),
+    ]
+    for (prefix, base), expected in cases:
+        targets = Z.resolve_targets(prefix, base)
+        assert targets == [(expected, None)], f'({prefix}, {base}) -> {targets}'
+    # the patch key comes from the live model's all_x_embedder ModuleDict
+    install_mock_pipe()
+    for base, expected in [
+        ('x_embedder', f'all_x_embedder.{PATCH_KEY}'),
+        ('final_layer.linear', f'all_final_layer.{PATCH_KEY}.linear'),
+        ('final_layer.adaLN_modulation.1', f'all_final_layer.{PATCH_KEY}.adaLN_modulation.1'),
+    ]:
+        targets = Z.resolve_targets('diffusion_model.', base)
+        assert targets == [(expected, None)], f'{base} -> {targets}'
+        kohya = Z.resolve_targets('lora_unet_', base.replace('.', '_'))
+        assert kohya == [(expected, None)], f'kohya {base} -> {kohya}'
+    return True
+
+
+def test_full_extra_modules_bind():
+    """x_embedder and final_layer bind through the ModuleDict paths."""
+    sd = {
+        'diffusion_model.x_embedder.diff': torch.randn(HIDDEN, HIDDEN),
+        'diffusion_model.final_layer.linear.diff': torch.randn(HIDDEN, HIDDEN),
+        'diffusion_model.final_layer.adaLN_modulation.1.diff': torch.randn(ADALN_OUT, HIDDEN),
+        'diffusion_model.t_embedder.mlp.0.diff': torch.randn(HIDDEN, HIDDEN),
+        'diffusion_model.cap_embedder.1.diff': torch.randn(HIDDEN, HIDDEN),
+    }
+    net = _load_via(Z.try_load, sd)
+    assert net is not None and len(net.modules) == 5, f'got {sorted(net.modules) if net else None}'
+    expected = {
+        f'lora_transformer_all_x_embedder_{PATCH_KEY}',
+        f'lora_transformer_all_final_layer_{PATCH_KEY}_linear',
+        f'lora_transformer_all_final_layer_{PATCH_KEY}_adaLN_modulation_1',
+        'lora_transformer_t_embedder_mlp_0',
+        'lora_transformer_cap_embedder_1',
+    }
+    assert set(net.modules) == expected, f'got {set(net.modules)}'
+    return True
+
+
 def test_loha_bfl_proj():
     """BFL LoHA on a non-fused proj target binds via NetworkModuleHada."""
     net = _load_via(Z.try_load_loha, sd_loha_bfl_proj())
@@ -768,7 +859,8 @@ def run_tests():
     t0 = time.time()
 
     log.warning('=== Parsing primitives ===')
-    for fn in [test_parse_key_all_prefixes, test_marker_disambiguation]:
+    for fn in [test_parse_key_all_prefixes, test_marker_disambiguation,
+               test_resolve_targets_norm_aliases_and_extra]:
         run_test(CAT_PARSE, fn)
 
     log.warning('=== Loaders ===')
@@ -785,6 +877,8 @@ def run_tests():
         test_lokr_legacy_fused_qkv_chunked,
         test_lokr_lycoris_prefix_passthrough,
         test_full_diff_chain,
+        test_full_stamps_norm_targets,
+        test_full_extra_modules_bind,
         test_loha_bfl_proj,
         test_loha_legacy_fused_qkv_chunked,
         test_oft_lycoris_no_npe,
