@@ -1,21 +1,21 @@
 # Change Log for SD.Next
 
-## Update for 2026-07-13
+## Update for 2026-07-14
 
-### Highlights for 2026-07-13
+### Highlights for 2026-07-14
 
 *What's New?* Full week(!) since there release, we're bringing a service pack update:  
 **Anima** has new *Aesthetic* and *Turbo* variants, **Joy Image Edit** has new *Plus* variant  
 *And also*:  
-- UI updates to Server info and Log viewers, more informative and allows easier sharing of info
-- Quite a few SDNQ improvements, both to quantization and attention
+- UI updates to *Server info* and *Log viewer*, more informative and allows easier sharing of info
+- Quite a few *SDNQ* improvements, both to quantization and attention
 - Continuing with enhanced support for 3rd party finetunes
 
 *Note*: As long as there are no major items in `#dev` branch, we will continue with weekly service updates, so stay tuned for more!  
 
 [Home](https://vladmandic.github.io/sdnext/) | [ChangeLog](https://github.com/vladmandic/automatic/blob/master/CHANGELOG.md) | [Docs](https://vladmandic.github.io/sdnext-docs/) | [Discord](https://discord.com/invite/sd-next-federal-batch-inspectors-1101998836328697867) | [Sponsor](https://github.com/sponsors/vladmandic)  
 
-### Details for 2026-07-13
+### Details for 2026-07-14
 
 - **Models**
   - [Anima 1.0](https://civitai.com/models/2458426/anima?modelVersionId=3108569) new *Aesthetic* and *Turbo* variants  
@@ -27,6 +27,7 @@
   - loader: support transformers from all-in-one safetensors  
   - loader: improve `fp8` model support
   - loader: improve `nvfp4` model support
+  - lora: additional lora types
   - civitai: improve search
   - civitai: restart download
   - sdnq: improve attention

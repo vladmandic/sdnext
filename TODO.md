@@ -16,6 +16,7 @@
 
 ### Unassigned
 
+- [Nunchaku Lite](https://github.com/huggingface/diffusers/pull/14100)
 - Processing -> Video capabilities
   - `RIFE` in processing
   - `SeedVR2` in processing
