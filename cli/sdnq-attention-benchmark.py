@@ -1385,7 +1385,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                 mm_cell = failure_text(e)
 
             if entry["fwd_err"] and entry["weight_err"] and abs(entry["fwd_err"] - entry["weight_err"]) > 0.2 * entry["weight_err"]:
-                notes.append(f"[yellow]{label}: forward output error {entry['fwd_err']:.5f} diverges from weight error {entry['weight_err']:.5f}[/yellow]")
+                notes.append(f"[yellow]{label}: fwd err {entry['fwd_err']:.5f} diverges from weight err {entry['weight_err']:.5f}[/yellow]")
             table.add_row(label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), eager_cell, compiled_cell, err_cell(entry["weight_err"]), fwd_eager_cell, fwd_compiled_cell, mm_cell, err_cell(entry["mm_err"]), speedup)
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
@@ -2328,15 +2328,15 @@ def bench_block_section(iters, warmup, config_timeout=300, selected=None):
         notes.append("speed/error frontier: " + ", ".join(f"{label} {ms:.2f}ms err {err:.4f}" for label, ms, err in frontier))
     growth = [entry["err4"] / entry["err"] for entry in results.values() if entry.get("err") and entry.get("err4") and math.isfinite(entry["err4"] / entry["err"])]
     if growth:
-        notes.append(f"output error grows x{sum(growth) / len(growth):.2f} on average over four stacked blocks; residual connections dampen compounding")
+        notes.append(f"four stacked blocks: error grows x{sum(growth) / len(growth):.2f} avg, residuals dampen compounding")
     weights_mode = str(getattr(shared.opts, "sdnq_quantize_weights_mode", ""))
     current_id = None
     if weights_mode == "int8" and getattr(shared.opts, "sdnq_use_quantized_matmul", False):
         current_id = "int8-mm-atten" if "SDNQ attention" in shared.opts.sdp_overrides else "int8-mm"
     if current_id and results.get(current_id, {}).get("ms"):
-        notes.append(f"the {results[current_id]['label']} row is what the current config runs for int8-quantized models")
+        notes.append(f"current config runs the {results[current_id]['label']} row for int8-quantized models")
     if any(entry.get("ms") for config_id, entry in results.items() if config_id.endswith("sagefp16")):
-        notes.append("sage fp16 accum is a benchmark-only baseline: no sdnext setting reaches it (sage is pinned to fp32 accumulation on sm86 and sage's own dispatch never selects fp16 accum elsewhere)")
+        notes.append("sage fp16 accum: benchmark-only, no sdnext setting reaches it (sage pins fp32 accum on sm86)")
     if notes:
         emit(Panel("\n".join(notes), title="block notes", box=ROUNDED_BOX))
     report["block"] = dict(geometry=dict(block_geometry), results=results)
@@ -2474,36 +2474,36 @@ def build_recommendations(all_results, fp8_result, prep_status):
     if base_ms and best_id is not None:
         best_ms = results[best_id]["ms"]
         if best_ms < base_ms * 0.95:
-            notes.append(f"sdnq attention is worth enabling on this gpu: {labels[best_id]} measured x{base_ms / best_ms:.2f} vs torch sdpa at {reference}")
+            notes.append(f"worth enabling: {labels[best_id]} measured x{base_ms / best_ms:.2f} vs torch sdpa at {reference}")
         else:
-            notes.append(f"[yellow]sdnq attention measured no speedup over torch sdpa on this gpu (best: {labels[best_id]} at x{base_ms / best_ms:.2f}); the sdp override costs performance here[/yellow]")
+            notes.append(f"[yellow]not worth enabling: best is {labels[best_id]} at x{base_ms / best_ms:.2f} vs torch sdpa, the sdp override costs performance here[/yellow]")
     # the individual setting rows above compose into one config; cite it as actually measured
     full_ms, full_err = measured(results, "full")
     if full_ms and base_ms and int8_ms:
-        stack_note = f"all options on together (smooth k + hadamard + int8 pv over int8 qk) measured x{base_ms / full_ms:.2f} vs torch sdpa"
+        stack_note = f"all options on (smooth k + hadamard + int8 pv over int8 qk): x{base_ms / full_ms:.2f} vs torch sdpa"
         if full_err is not None:
             stack_note += f", error {full_err:.5f}"
         if int8_err is not None:
             stack_note += f"; int8 qk alone x{base_ms / int8_ms:.2f}, error {int8_err:.5f}"
         notes.append(stack_note)
     if prep_status == "failing_dynamic":
-        notes.append("[red]the current environment fails at generation: torch compile cannot build the dynamic-shape input prep; numbers above were measured with the SDNQ_COMPILE_KWARGS='{\"dynamic\": false}' workaround applied, set it (verified working here) or install msvc build tools[/red]")
+        notes.append("[red]generation fails here: compile cannot build the dynamic-shape prep. fix: set SDNQ_COMPILE_KWARGS='{\"dynamic\": false}' (verified on this machine) or install msvc build tools; numbers above use that workaround[/red]")
     elif prep_status == "failing":
-        notes.append("[red]the current environment fails at generation: torch compile is broken; numbers above were measured with eager input prep, matching what you get after disabling Dequantize using torch.compile; alternatively install msvc build tools[/red]")
+        notes.append("[red]generation fails here: torch compile is broken. fix: disable Dequantize using torch.compile or install msvc build tools; numbers above use eager prep[/red]")
     if not fp8_result["qk"][0]:
         if fp8_failure_is_capability(fp8_result["qk"][1]):
-            notes.append("[red]float8_e4m3fn is unsupported on this gpu: selecting it in either dropdown fails generation with a compile error[/red]")
+            notes.append("[red]float8_e4m3fn unsupported on this gpu: selecting it in either dropdown fails generation[/red]")
         else:
-            notes.append("[red]float8_e4m3fn failed to compile in this environment: selecting it in either dropdown fails generation[/red]; the error is not the hardware-capability signature, so the fp8 rows above are missing for a torch or triton reason, not a gpu one")
+            notes.append("[red]float8_e4m3fn failed to compile here: selecting it in either dropdown fails generation[/red]; not the hardware signature, so a torch or triton issue rather than the gpu")
     sage_ms, _sage_err = measured(results, "sage")
     if sage_ms and int8_ms:
-        notes.append(f"sageattention comparison at {reference}: sdnq int8 {int8_ms:.2f} ms vs sage {sage_ms:.2f} ms; sdnq additionally covers masks, gqa and causal attention")
+        notes.append(f"vs sage at {reference}: sdnq int8 {int8_ms:.2f} ms, sage {sage_ms:.2f} ms; sdnq also covers masks, gqa, causal")
     sagefp16_ms, _sagefp16_err = measured(results, "sagefp16")
     if sagefp16_ms:
-        notes.append("sage fp16 accum is a benchmark-only baseline: no sdnext setting reaches it (sage is pinned to fp32 accumulation on sm86 and sage's own dispatch never selects fp16 accum elsewhere)")
+        notes.append("sage fp16 accum: benchmark-only, no sdnext setting reaches it (sage pins fp32 accum on sm86)")
     amdflash_ms, _amdflash_err = measured(results, "amdflash")
     if amdflash_ms and int8_ms:
-        notes.append(f"triton flash comparison at {reference}: sdnq int8 {int8_ms:.2f} ms vs triton flash {amdflash_ms:.2f} ms; sdnq additionally covers masks and its gain depends on this gpu's int8 throughput")
+        notes.append(f"vs triton flash at {reference}: sdnq int8 {int8_ms:.2f} ms, flash {amdflash_ms:.2f} ms; sdnq also covers masks, its gain tracks this gpu's int8 throughput")
     # cross-reference the combined block section when it ran in this invocation: kernel-scope
     # error buybacks can vanish at block output, and per-call costs differ inside a real block
     block_results = report.get("block", {}).get("results", {})
@@ -2522,12 +2522,12 @@ def build_recommendations(all_results, fp8_result, prep_status):
             if not buyback_seen:
                 cross_note += "; the kernel-scope error buybacks above did not change block output error at this image shape"
             notes.append(cross_note)
-    notes.append("* marks the best config per shape: lowest error among rows within 5% of the fastest sdnq time")
-    notes.append("the int8 qk row is what default settings run: MatMul type auto resolves to int8 and pv stays unquantized")
-    notes.append("the prep column is time spent quantizing q/k/v before the attention kernel, included in median time; it shrinks where torch compile can fuse it")
-    notes.append("[yellow]non pow2 head dims (sd 1.5): quantized matmul configs currently fail torch compile and hadamard hangs it; disable quantized matmul for sd 1.5 sessions or set SDNQ_COMPILE_KWARGS='{\"dynamic\": false}'[/yellow]")
-    notes.append("the six settings above apply on the next generation; toggling the 'SDNQ attention' SDP override requires a restart")
-    notes.append("errors are measured on synthetic tensors with outlier-heavy keys; real models, especially qk-normed dits, sit lower")
+    notes.append("*: best config per shape, lowest error among rows within 5% of the fastest sdnq time")
+    notes.append("default settings run the int8 qk row: MatMul auto resolves to int8, pv stays unquantized")
+    notes.append("prep: q/k/v quantization before the kernel, included in the median; shrinks where compile fuses it")
+    notes.append("[yellow]non pow2 head dims (sd 1.5): quantized matmul fails compile, hadamard hangs it; disable quantized matmul there or set SDNQ_COMPILE_KWARGS='{\"dynamic\": false}'[/yellow]")
+    notes.append("settings above apply on the next generation; the SDNQ attention SDP override needs a restart")
+    notes.append("errors use synthetic outlier-heavy keys; real models, especially qk-normed dits, sit lower")
     emit(Panel("\n".join(notes), title="notes", box=ROUNDED_BOX))
     report["recommendations_attention"] = dict(reference=reference, rows=[list(row) for row in rows], notes=notes)
 
@@ -2736,9 +2736,9 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
         notes.append(f"compiled dequant speedup vs eager at {reference}: {', '.join(speedups)}")
     fp8_entry, fp8sdnq_entry = entry("fp8"), entry("fp8sdnq")
     if fp8_entry.get("compiled_ms") and fp8sdnq_entry.get("compiled_ms"):
-        notes.append(f"fp8 storage: native float8_e4m3fn compiled measured {ratio_text(fp8sdnq_entry['compiled_ms'], fp8_entry['compiled_ms'])} vs the float8_e4m3fn_sdnq uint8 view")
+        notes.append(f"fp8 storage: native e4m3 compiled {ratio_text(fp8sdnq_entry['compiled_ms'], fp8_entry['compiled_ms'])} vs the float8_e4m3fn_sdnq uint8 view")
     elif fp8sdnq_entry.get("compiled_ms") and fp8_entry.get("eager_ms"):
-        notes.append(f"fp8 storage on this gpu: float8_e4m3fn_sdnq (uint8 view) compiled measured {ratio_text(fp8_entry['eager_ms'], fp8sdnq_entry['compiled_ms'])} vs eager float8_e4m3fn dequant, the fallback when e4m3 cannot compile")
+        notes.append(f"fp8 storage: float8_e4m3fn_sdnq (uint8 view) compiled {ratio_text(fp8_entry['eager_ms'], fp8sdnq_entry['compiled_ms'])} vs eager e4m3 dequant")
     if weight_dequant_result is not None:
         e5m2_ok = weight_dequant_result["float8_e5m2"][0]
         e4m3_ok = weight_dequant_result["float8_e4m3fn"][0]
@@ -2748,7 +2748,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
             notes.append("[yellow]compiled dequant: neither fp8 dtype compiles raw; sdnq upcasts e4m3, e5m2 has no such path[/yellow]")
     fp8_mm_failed = [dtype_id for dtype_id, _label, _cfg in dequant_dtype_configs if entry(dtype_id).get("mm_error") and entry(dtype_id).get("mm_dtype") == "float8_e4m3fn"]
     if fp8_mm_failed:
-        notes.append(f"[yellow]quantized matmul auto-selected float8_e4m3fn for {', '.join(fp8_mm_failed)} and failed on this gpu; set MatMul type explicitly to use quantized matmul with float weight dtypes[/yellow]")
+        notes.append(f"[yellow]quantized matmul auto-selected float8_e4m3fn for {', '.join(fp8_mm_failed)} and failed; set MatMul type explicitly for float weight dtypes[/yellow]")
         for dtype_id in fp8_mm_failed:
             alt_parts = []
             for alt_dtype in float_mm_alternative_dtypes:
@@ -2765,7 +2765,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
                     base_part += f" err {dequant_err:.5f}"
                 notes.append(f"{dtype_id} with MatMul type set explicitly: {', '.join(alt_parts)}; {base_part}")
     if base_ms and entry(mm_id).get("fwd_ms"):
-        notes.append(f"current quantization type {weights_mode}: the dequant-path forward costs {ratio_text(entry(mm_id)['fwd_ms'], base_ms)} vs a {dtype_label()} nn.Linear at {reference}")
+        notes.append(f"current quantization type {weights_mode}: dequant-path forward {ratio_text(entry(mm_id)['fwd_ms'], base_ms)} vs a {dtype_label()} nn.Linear at {reference}")
     # size/error frontier: the dtypes no other measured dtype beats on both axes at once
     sized = [(dtype_id, e["size_bytes"], e["weight_err"]) for dtype_id, _label, _cfg in dequant_dtype_configs for e in [entry(dtype_id)] if e.get("size_bytes") and e.get("weight_err")]
     frontier = sorted((c for c in sized if not any(o is not c and o[1] <= c[1] and o[2] <= c[2] for o in sized)), key=lambda c: c[1])
@@ -2815,7 +2815,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
     te_results = dequant_results.get(te_shape) or {} if te_shape else {}
     te_int8 = te_results.get("int8") or {}
     if te_int8.get("fwd_ms") and te_int8.get("mm_ms") and entry("int8").get("fwd_ms") and entry("int8").get("mm_ms"):
-        notes.append(f"text-encoder geometry ({te_shape}): int8 quantized mm {ratio_text(te_int8['fwd_ms'], te_int8['mm_ms'])} vs the dequant path, {ratio_text(entry('int8')['fwd_ms'], entry('int8')['mm_ms'])} at {reference}; the TE override dropdowns follow these numbers")
+        notes.append(f"text-encoder geometry ({te_shape}): int8 quantized mm {ratio_text(te_int8['fwd_ms'], te_int8['mm_ms'])} vs the dequant path, {ratio_text(entry('int8')['fwd_ms'], entry('int8')['mm_ms'])} at {reference}; the TE override dropdowns follow these")
     svd_sweep = sweeps.get("svd") or {}
     if svd_sweep and sweeps_at_reference:
         for dtype_id in svd_rank_sweep_dtypes:
@@ -2841,9 +2841,9 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
     cpu_quant_s = (sweeps.get("toggles") or {}).get("cpu_quant_s")
     gpu_quant_s = (sweeps.get("toggles") or {}).get("gpu_quant_s")
     if cpu_quant_s and gpu_quant_s:
-        notes.append(f"Quantize using GPU: one int8 layer at {dequant_shapes[0][0]} quantized in {quant_cell(gpu_quant_s).strip()} on gpu vs {quant_cell(cpu_quant_s).strip()} on cpu; scales linearly with layer count at load")
-    notes.append("weight err is the relative quantization error of the dequantized weight vs the fp32 original; forward outputs inherit it")
-    notes.append("errors are measured on synthetic weights with exaggerated outlier channels; rotation and svd gains are outlier-driven, so real models sit closer to plain quantization")
+        notes.append(f"Quantize using GPU: one int8 layer at {dequant_shapes[0][0]} takes {quant_cell(gpu_quant_s).strip()} on gpu vs {quant_cell(cpu_quant_s).strip()} on cpu; scales with layer count at load")
+    notes.append("weight err: relative error of the dequantized weight vs fp32; forward outputs inherit it")
+    notes.append("errors use synthetic outlier-heavy weights; rotation and svd gains are outlier-driven, real models gain less")
     if notes:
         emit(Panel("\n".join(notes), title="dequant notes", box=ROUNDED_BOX))
     report["recommendations_dequant"] = dict(reference=reference, rows=[list(row) for row in rows], notes=notes)
