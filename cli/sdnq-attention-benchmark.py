@@ -154,8 +154,8 @@ block_configs = [
 # fp8 configs run only on gpus where the float8 probe passes
 bench_configs = [
     ("base", "torch sdpa", None),
-    ("sage", "sageattention", None),
-    ("sagefp16", "sage fp16 accum", None),
+    ("sage", "sageattention", None), # label resolved to the dispatched kernel by sage_kernel_label
+    ("sagefp16", "sage int8 qk + fp16 pv, fp16 accum", None), # sm86 only
     ("amdflash", "triton flash (amd)", None),
     ("noquant", "sdnq, quantized matmul off", dict(do_quantize=False)),
     ("int8", "sdnq int8 qk", dict(matmul_dtype="auto", pv_matmul_dtype="auto")),
@@ -391,6 +391,31 @@ def sage_attention():
         return sage_fn
     except Exception:
         return None
+
+
+def sage_kernel_label():
+    # "sage" is a different kernel per gpu: sageattention's dispatch (core.py sageattn) picks the
+    # pv dtype and accumulator by arch and cuda version, and modules/attention.py forces the cuda
+    # fp16-pv kernel on sm86. name what ran so reports from different gpus stay comparable
+    try:
+        capability = torch_device_module.get_device_capability(torch.device(torch_device))
+        cuda_version = tuple(int(part) for part in (torch.version.cuda or "0.0").split(".")[:2])
+    except Exception:
+        return "sageattention"
+    fp8_accum = "fp32+fp16" if cuda_version >= (12, 8) else "fp32+fp32" # sageattention2++ needs cuda 12.8
+    if capability == (7, 5):
+        return "sage int8 qk + fp16 pv, triton"
+    if capability in {(8, 0), (8, 6), (8, 7)}:
+        return "sage int8 qk + fp16 pv, fp32 accum"
+    if capability == (9, 0):
+        return "sage int8 qk + fp8 pv, fp32+fp32 accum"
+    if capability in {(8, 9), (10, 0), (12, 0), (12, 1)}:
+        return f"sage int8 qk + fp8 pv, {fp8_accum} accum"
+    return "sageattention"
+
+
+def config_label(config_id, label):
+    return sage_kernel_label() if config_id == "sage" else label
 
 
 def amd_triton_flash():
@@ -1122,7 +1147,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
             continue
         if config_id == "fp8full" and not (fp8_result and fp8_result["qk"][0] and fp8_result["pv"][0]):
             continue
-        selected_configs.append((config_id, label, kwargs))
+        selected_configs.append((config_id, config_label(config_id, label), kwargs))
 
     def make_table():
         shape_table = Table(box=box.SIMPLE_HEAVY)
@@ -2469,7 +2494,7 @@ def build_recommendations(all_results, fp8_result, prep_status):
         emit("[dim]matmul type, pv matmul type, smooth k and hadamard only take effect when quantized matmul is enabled; their rows show what to pick if you enable it[/dim]")
 
     notes = []
-    labels = {config_id: label for config_id, label, _kwargs in bench_configs}
+    labels = {config_id: config_label(config_id, label) for config_id, label, _kwargs in bench_configs}
     best_id = best_config(results)
     if base_ms and best_id is not None:
         best_ms = results[best_id]["ms"]
