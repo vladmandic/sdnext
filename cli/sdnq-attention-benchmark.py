@@ -40,6 +40,7 @@ The first run of each shape includes triton autotune and torch.compile time; res
 cached on disk and reused by the webui for matching shapes.
 """
 
+import io
 import os
 import sys
 import json
@@ -48,6 +49,7 @@ import time
 import signal
 import logging
 import argparse
+import tempfile
 import importlib.metadata
 from contextlib import contextmanager
 
@@ -284,25 +286,45 @@ def triton_version():
 
 
 @contextmanager
-def suppress_console_output():
+def capture_console_output():
     # gate stdout and stderr at the fd level: covers python loggers regardless of their
-    # handler plumbing plus native-code writes (onnxruntime device discovery on wsl)
-    saved_stdout, saved_stderr = os.dup(1), os.dup(2)
-    devnull = os.open(os.devnull, os.O_WRONLY)
+    # handler plumbing plus native-code writes (onnxruntime device discovery on wsl).
+    # capture to a file rather than devnull: the sdnext bootstrap calls sys.exit on fatal
+    # startup errors (modules/loader.py, installer.py), so discarding this stream turns a
+    # startup failure into a silent process exit with nothing to debug.
+    # the python-level streams must move with the fds: on a windows console sys.stdout writes
+    # through the console api using the handle behind fd 1, so once fd 1 is a file the next
+    # print raises OSError 'the handle is invalid' and, with stderr equally broken, kills the
+    # interpreter before any handler or finally can run. buffer is deliberately left open:
+    # library loggers built during the import (transformers, torch) capture sys.stderr at
+    # handler construction and would raise on a closed stream long after the window closes
+    captured = {"text": ""}
+    buffer = io.StringIO()
+    saved_stdout_fd, saved_stderr_fd = os.dup(1), os.dup(2)
+    saved_stdout, saved_stderr = sys.stdout, sys.stderr
+    sink_fd, sink_path = tempfile.mkstemp(prefix="sdnq-bench-startup-", suffix=".log")
     try:
         sys.stdout.flush()
         sys.stderr.flush()
-        os.dup2(devnull, 1)
-        os.dup2(devnull, 2)
-        yield
+        os.dup2(sink_fd, 1)
+        os.dup2(sink_fd, 2)
+        sys.stdout, sys.stderr = buffer, buffer
+        yield captured
     finally:
-        sys.stdout.flush()
-        sys.stderr.flush()
-        os.dup2(saved_stdout, 1)
-        os.dup2(saved_stderr, 2)
-        os.close(devnull)
-        os.close(saved_stdout)
-        os.close(saved_stderr)
+        os.dup2(saved_stdout_fd, 1)
+        os.dup2(saved_stderr_fd, 2)
+        sys.stdout, sys.stderr = saved_stdout, saved_stderr
+        os.close(sink_fd)
+        os.close(saved_stdout_fd)
+        os.close(saved_stderr_fd)
+        native_text = ""
+        try:
+            with open(sink_path, "r", encoding="utf-8", errors="replace") as fh:
+                native_text = fh.read()
+            os.unlink(sink_path)
+        except OSError:
+            pass
+        captured["text"] = buffer.getvalue() + native_text
 
 
 def load_sdnext():
@@ -317,15 +339,21 @@ def load_sdnext():
     # the webui startup log (device detect, packages, settings validation) is noise here: the
     # environment panel reports the stack. the bootstrap reconfigures its loggers during
     # import and onnxruntime's device discovery warns from c++, so gate the os-level fds for
-    # the import window; failures still surface as exceptions printed after the gate lifts
+    # the import window; on failure the captured log is replayed after the gate lifts
     os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
     try:
-        with suppress_console_output():
+        with capture_console_output() as startup_log:
             from modules import shared as shared_module
             from modules import devices as devices_module
             from modules.sdnq.kernels.triton_atten import sdnq_triton_atten as atten
-    except Exception as e:
-        console.print(f"[red]failed to import the sdnq attention kernel: {e}[/red]")
+    except BaseException as e: # pylint: disable=broad-exception-caught # SystemExit is not an Exception: the bootstrap exits on a failed torch or library import
+        if isinstance(e, KeyboardInterrupt):
+            raise
+        detail = f"exited with code {e.code}" if isinstance(e, SystemExit) else f"{type(e).__name__}: {e}"
+        console.print(f"[red]sdnext failed to start: {detail}[/red]")
+        text = startup_log["text"].strip()
+        if text:
+            console.print(Panel(escape(text[-4000:]), title="sdnext startup log", box=ROUNDED_BOX))
         console.print("run from the sdnext root with the venv active; triton is required")
         return False
     # keep the sdnext loggers quiet after the bootstrap too, so stray log lines cannot tear
