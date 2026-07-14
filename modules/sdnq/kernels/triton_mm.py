@@ -38,9 +38,9 @@ def sdnq_triton_mm_kernel(
     GROUP_SIZE_M: tl.constexpr,
 ) -> None:
     pid = tl.program_id(axis=0)
-    num_pid_m: tl.constexpr = tl.cdiv(M, BLOCK_SIZE_M)
-    num_pid_n: tl.constexpr = tl.cdiv(N, BLOCK_SIZE_N)
-    num_pid_in_group: tl.constexpr = GROUP_SIZE_M * num_pid_n
+    num_pid_m = tl.cdiv(M, BLOCK_SIZE_M)
+    num_pid_n = tl.cdiv(N, BLOCK_SIZE_N)
+    num_pid_in_group = GROUP_SIZE_M * num_pid_n
     group_id = pid // num_pid_in_group
     first_pid_m = group_id * GROUP_SIZE_M
     group_size_m = min(num_pid_m - first_pid_m, GROUP_SIZE_M)
@@ -72,7 +72,7 @@ def sdnq_triton_mm_kernel(
         b_ptrs = b_ptr + (offs_k[:, None] + offs_bn[None, :] * K)
 
     off_k = 0
-    accumulator_dtype: tl.constexpr = tl.int32 if a_ptr.type.element_ty == tl.int8 else tl.float32
+    accumulator_dtype = tl.int32 if a_ptr.type.element_ty == tl.int8 else tl.float32
     accumulator = tl.zeros((BLOCK_SIZE_M, BLOCK_SIZE_N), dtype=accumulator_dtype)
     for _ in tl.range(0, tl.cdiv(K, BLOCK_SIZE_K)):
         a = a_desc.load([off_m, off_k])
