@@ -342,7 +342,7 @@ def get_device_properties(device=None):
         "multi_processor_count": device_prop.gpu_subslice_count,
     }
     if not hasattr(device_prop, "L2_cache_size"):
-        new_keys["L2_cache_size"] = cache_size_dict.get(getattr(device_prop, "device_id", 0x56A0), cache_size_dict[0x0000])
+        new_keys["L2_cache_size"] = getattr(device_prop, "last_level_cache_size", cache_size_dict.get(getattr(device_prop, "device_id", 0x56A0), cache_size_dict[0x0000]))
     return DeviceProperties(device_prop, new_keys)
 
 
