@@ -565,6 +565,22 @@ def test_oft_lycoris_no_npe():
     return True
 
 
+def test_full_diff_chain():
+    """Full-diff extraction loads through the chain (ERNIE has no fused targets)."""
+    sd = {
+        'diffusion_model.layers.0.self_attention.to_q.diff': torch.randn(HIDDEN, HIDDEN),
+        'diffusion_model.layers.0.self_attention.to_q.diff_b': torch.randn(HIDDEN),
+    }
+    net = _load_via(E.try_load, sd)
+    assert net is not None and len(net.modules) == 1, f'got {net.modules if net else None}'
+    assert 'lora_transformer_layers_0_self_attention_to_q' in net.modules, f'got {set(net.modules)}'
+    mod = next(iter(net.modules.values()))
+    updown, ex_bias = mod.calc_updown(mod.sd_module.weight)
+    assert tuple(updown.shape) == (HIDDEN, HIDDEN) and torch.isfinite(updown).all()
+    assert ex_bias is not None and tuple(ex_bias.shape) == (HIDDEN,)
+    return True
+
+
 # ============================================================
 # Tests - calc_updown shape sanity
 # ============================================================
@@ -635,6 +651,7 @@ def run_tests():
         test_lokr_bfl_self_attention,
         test_loha_bfl_mlp,
         test_oft_lycoris_no_npe,
+        test_full_diff_chain,
     ]:
         run_test(CAT_LOADER, fn)
 

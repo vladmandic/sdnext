@@ -25,6 +25,15 @@ class CivitFileHashes(BaseModel):
     blake3: str | None = Field(None, alias="BLAKE3")
 
 
+class CivitFileMetadata(BaseModel):
+    class Config:
+        allow_population_by_field_name = True
+    format: str | None = None
+    size: str | None = None
+    fp: str | None = None
+    quant_type: str | None = Field(None, alias="quantType")
+
+
 class CivitFile(BaseModel):
     class Config:
         allow_population_by_field_name = True
@@ -35,6 +44,10 @@ class CivitFile(BaseModel):
     hashes: CivitFileHashes = Field(default_factory=CivitFileHashes)
     download_url: str = Field("", alias="downloadUrl")
     primary: bool | None = None
+    metadata: CivitFileMetadata = Field(default_factory=CivitFileMetadata)
+    pickle_scan_result: str | None = Field(None, alias="pickleScanResult")
+    virus_scan_result: str | None = Field(None, alias="virusScanResult")
+    scanned_at: str | None = Field(None, alias="scannedAt")
 
 
 class CivitStats(BaseModel):
@@ -58,6 +71,8 @@ class CivitVersion(BaseModel):
     base_model: str = Field("Unknown", alias="baseModel")
     published_at: str | None = Field(None, alias="publishedAt")
     availability: str = "Unknown"
+    early_access_ends_at: str | None = Field(None, alias="earlyAccessEndsAt")
+    early_access_config: dict | None = Field(None, alias="earlyAccessConfig")
     description: str | None = None
     trained_words: list[str] = Field(default_factory=list, alias="trainedWords")
     stats: CivitStats = Field(default_factory=CivitStats)
@@ -65,6 +80,13 @@ class CivitVersion(BaseModel):
     images: list[CivitImage] = Field(default_factory=list)
     nsfw_level: int = Field(0, alias="nsfwLevel")
     download_url: str = Field("", alias="downloadUrl")
+
+    @validator('availability', pre=True)
+    def coerce_null_availability(cls, v): # pylint: disable=no-self-argument
+        # /model-versions/{id} serializes availability as null, which failed
+        # str validation and turned every version lookup into a 404. Fall back
+        # to the default instead of rejecting the whole version.
+        return "Unknown" if v in (None, "") else v
 
 
 class CivitCreator(BaseModel):

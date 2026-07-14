@@ -28,7 +28,7 @@ def load_model(engine: str, model: str):
     selected: models_def.Model = [m for m in models_def.models[engine] if m.name == model][0]
     # video_load owns the cache; pipe-class mismatch inside it invalidates the name-based hit
     # when Unload Models (or any external swap) silently replaced shared.sd_model.
-    log.info(f'Video load: engine="{engine}" selected="{model}" {selected}')
+    log.info(f'Load video: engine="{engine}" selected="{model}" {selected}')
     video_load.load_model(selected)
     t1 = time.time()
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
@@ -41,7 +41,7 @@ def load_upsample(upsample_pipe, upsample_repo_id):
     if upsample_pipe is None:
         t0 = time.time()
         from diffusers.pipelines.ltx.pipeline_ltx_latent_upsample import LTXLatentUpsamplePipeline
-        log.info(f'Video load: cls={LTXLatentUpsamplePipeline.__name__} repo="{upsample_repo_id}"')
+        log.info(f'Load video: cls={LTXLatentUpsamplePipeline.__name__} repo="{upsample_repo_id}"')
         upsample_pipe = LTXLatentUpsamplePipeline.from_pretrained(
             upsample_repo_id,
             vae=shared.sd_model.vae,
@@ -61,7 +61,7 @@ def load_upsample_2x(upsample_pipe, upsample_repo_id):
         from diffusers.pipelines.ltx2.pipeline_ltx2_latent_upsample import LTX2LatentUpsamplePipeline
         from diffusers.pipelines.ltx2.latent_upsampler import LTX2LatentUpsamplerModel
         from modules import sd_checkpoint
-        log.info(f'Video load: cls={LTX2LatentUpsamplePipeline.__name__} repo="{upsample_repo_id}"')
+        log.info(f'Load video: cls={LTX2LatentUpsamplePipeline.__name__} repo="{upsample_repo_id}"')
         latent_upsampler = LTX2LatentUpsamplerModel.from_pretrained(
             upsample_repo_id,
             subfolder='latent_upsampler',

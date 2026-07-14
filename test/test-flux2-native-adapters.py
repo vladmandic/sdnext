@@ -128,9 +128,10 @@ class _Holder(torch.nn.Module):
 def build_mock_transformer():
     """Build a torch.nn.Module mimicking Flux2's diffusers-side module tree.
 
-    Mirrors the paths in F2_SINGLE_MAP / F2_DOUBLE_MAP / F2_QKV_MAP plus the
-    RMSNorm targets inside attention so that try_load_norm has something to
-    bind. Sizes are scaled-down but proportional so chunking math is realistic.
+    Mirrors the paths in F2_SINGLE_MAP / F2_DOUBLE_MAP / F2_QKV_MAP /
+    F2_EXTRA_MAP plus the RMSNorm targets inside attention so that
+    try_load_norm has something to bind. Sizes are scaled-down but
+    proportional so chunking math is realistic.
     """
     transformer = _Holder()
     transformer.transformer_blocks = torch.nn.ModuleList()
@@ -163,6 +164,26 @@ def build_mock_transformer():
         sblock.attn.to_qkv_mlp_proj = torch.nn.Linear(HIDDEN, SINGLE_FUSED_OUT, bias=False)
         sblock.attn.to_out = torch.nn.Linear(SINGLE_OUT_IN, HIDDEN, bias=False)
         transformer.single_transformer_blocks.append(sblock)
+    # Non-block F2_EXTRA_MAP targets. Modulation/norm_out out-dims follow the
+    # real modules' expansion ratios (3x/6x per mod_param_sets, 2x for AdaLN).
+    transformer.x_embedder = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.context_embedder = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.time_guidance_embed = _Holder()
+    transformer.time_guidance_embed.timestep_embedder = _Holder()
+    transformer.time_guidance_embed.timestep_embedder.linear_1 = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.time_guidance_embed.timestep_embedder.linear_2 = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.time_guidance_embed.guidance_embedder = _Holder()
+    transformer.time_guidance_embed.guidance_embedder.linear_1 = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.time_guidance_embed.guidance_embedder.linear_2 = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.norm_out = _Holder()
+    transformer.norm_out.linear = torch.nn.Linear(HIDDEN, 2 * HIDDEN, bias=False)
+    transformer.proj_out = torch.nn.Linear(HIDDEN, HIDDEN, bias=False)
+    transformer.single_stream_modulation = _Holder()
+    transformer.single_stream_modulation.linear = torch.nn.Linear(HIDDEN, 3 * HIDDEN, bias=False)
+    transformer.double_stream_modulation_img = _Holder()
+    transformer.double_stream_modulation_img.linear = torch.nn.Linear(HIDDEN, 6 * HIDDEN, bias=False)
+    transformer.double_stream_modulation_txt = _Holder()
+    transformer.double_stream_modulation_txt.linear = torch.nn.Linear(HIDDEN, 6 * HIDDEN, bias=False)
     return transformer
 
 
@@ -308,6 +329,56 @@ def sd_lora_with_dora_scale():
     }
 
 
+def sd_lora_dora_fused_qkv():
+    """Kohya LoRA on fused img_attn.qkv with per-output dora_scale (LyCORIS wd_on_out=True)."""
+    return {
+        'lora_unet_double_blocks_0_img_attn_qkv.lora_down.weight': torch.randn(RANK_LORA, HIDDEN),
+        'lora_unet_double_blocks_0_img_attn_qkv.lora_up.weight':   torch.randn(3 * QKV_OUT, RANK_LORA),
+        'lora_unet_double_blocks_0_img_attn_qkv.alpha':            torch.tensor(float(RANK_LORA)),
+        'lora_unet_double_blocks_0_img_attn_qkv.dora_scale':       torch.rand(3 * QKV_OUT, 1) + 0.5,
+    }
+
+
+def sd_lora_diff_b_fused_qkv():
+    """Kohya LoRA on fused img_attn.qkv with a per-output diff_b bias delta."""
+    sd = dict(sd_lora_dora_fused_qkv())
+    del sd['lora_unet_double_blocks_0_img_attn_qkv.dora_scale']
+    sd['lora_unet_double_blocks_0_img_attn_qkv.diff_b'] = torch.randn(3 * QKV_OUT)
+    return sd
+
+
+def sd_lora_aitk_magnitude_dora(w_base):
+    """ai-toolkit DoRA save: lora_A/B + 1-D magnitude row norms, no alpha key.
+
+    Targets img_attn.proj -> attn.to_out.0, a square Linear (HIDDEN == QKV_OUT
+    in the mock): the case where a raw 1-D vector cannot be disambiguated
+    between per-output and per-input at apply time.
+    """
+    down = torch.randn(RANK_LORA, QKV_OUT)
+    up = torch.randn(HIDDEN, RANK_LORA)
+    magnitude = w_base.reshape(HIDDEN, -1).norm(dim=1)  # 1-D (out,)
+    return {
+        'diffusion_model.double_blocks.1.img_attn.proj.lora_A.weight': down,
+        'diffusion_model.double_blocks.1.img_attn.proj.lora_B.weight': up,
+        'diffusion_model.double_blocks.1.img_attn.proj.magnitude': magnitude,
+    }, down, up, magnitude
+
+
+def sd_lokr_dora_fused_qkv(per_input=False):
+    """Kohya LoKR on fused img_attn.qkv with a dora_scale companion.
+
+    ``per_input=True`` stores the wd_on_out=False orientation ``(1, in)``,
+    which has no exact per-chunk split and must be skipped by the loader.
+    """
+    sd = dict(sd_lokr_kohya_qkv())
+    if per_input:
+        ds = torch.rand(1, HIDDEN) + 0.5
+    else:
+        ds = torch.rand(3 * QKV_OUT, 1) + 0.5
+    sd['lora_unet_double_blocks_0_img_attn_qkv.dora_scale'] = ds
+    return sd
+
+
 def sd_lokr_bfl_proj():
     """BFL-format LoKR on a non-fused proj target."""
     return {
@@ -359,6 +430,35 @@ def sd_lokr_simpletuner_lycoris_style():
         'lycoris_transformer_blocks_0_attn_add_k_proj.lokr_w2': torch.randn(QKV_OUT // LOKR_W1_DIM, HIDDEN // LOKR_W1_DIM),
         'lycoris_transformer_blocks_0_attn_add_k_proj.alpha':   torch.tensor(float(LOKR_W1_DIM)),
     }
+
+
+def sd_lokr_bfl_extra_modules():
+    """BFL-format LoKR spanning every non-block target in F2_EXTRA_MAP.
+
+    Mirrors the ai-toolkit full-matrix layout (klein_snofs_v1_1): both factors
+    stored whole (lokr_w1/lokr_w2, no a/b decomposition) with the ~1e10
+    placeholder alpha. With no rank-decomposed factor the loader must leave
+    dim=None so the placeholder never scales the delta.
+    """
+    dims = {
+        'img_in': (HIDDEN, HIDDEN),
+        'txt_in': (HIDDEN, HIDDEN),
+        'time_in.in_layer': (HIDDEN, HIDDEN),
+        'time_in.out_layer': (HIDDEN, HIDDEN),
+        'guidance_in.in_layer': (HIDDEN, HIDDEN),
+        'guidance_in.out_layer': (HIDDEN, HIDDEN),
+        'final_layer.linear': (HIDDEN, HIDDEN),
+        'final_layer.adaLN_modulation.1': (2 * HIDDEN, HIDDEN),
+        'single_stream_modulation.lin': (3 * HIDDEN, HIDDEN),
+        'double_stream_modulation_img.lin': (6 * HIDDEN, HIDDEN),
+        'double_stream_modulation_txt.lin': (6 * HIDDEN, HIDDEN),
+    }
+    sd = {}
+    for base, (out_dim, in_dim) in dims.items():
+        sd[f'diffusion_model.{base}.lokr_w1'] = torch.randn(LOKR_W1_DIM, LOKR_W1_DIM)
+        sd[f'diffusion_model.{base}.lokr_w2'] = torch.randn(out_dim // LOKR_W1_DIM, in_dim // LOKR_W1_DIM)
+        sd[f'diffusion_model.{base}.alpha'] = torch.tensor(9999220736.0)
+    return sd
 
 
 def sd_loha_bfl_proj():
@@ -607,6 +707,21 @@ def test_resolve_targets_qkv_chunking():
     return True
 
 
+def test_resolve_targets_extra_modules():
+    """Every non-block F2_EXTRA_MAP target maps 1:1 (no chunk) in all three key forms."""
+    for bfl_base, diffusers_path in F.F2_EXTRA_MAP.items():
+        targets = F.resolve_targets('diffusion_model.', bfl_base)
+        assert targets == [(diffusers_path, None)], f'{bfl_base} -> {targets}'
+        targets = F.resolve_targets(None, bfl_base)
+        assert targets == [(diffusers_path, None)], f'bare {bfl_base} -> {targets}'
+        targets = F.resolve_targets('lora_unet_', bfl_base.replace('.', '_'))
+        assert targets == [(diffusers_path, None)], f'kohya {bfl_base} -> {targets}'
+    # guidance_in is a bare BFL prefix in its own right.
+    got = F.parse_key('guidance_in.in_layer.lora_A.weight', F.LORA_SUFFIXES)
+    assert got == (None, 'guidance_in.in_layer', 'lora_down.weight'), f'bare guidance_in parse -> {got}'
+    return True
+
+
 def test_parse_key_peft_wrapper_unwrap():
     """base_model.model. wrapper is stripped before format detection.
 
@@ -653,8 +768,9 @@ def test_parse_key_lycoris_prefix():
         got = F.parse_key(key, suffixes)
         assert got == expected, f'parse_key({key!r}) = {got}, expected {expected}'
 
-    # resolve_targets: the underscored path is returned verbatim (no chunk).
-    targets = F.resolve_targets('lycoris_', 'transformer_blocks_0_attn_add_k_proj')
+    # Resolution: lycoris_ is a universal passthrough handled upstream of the
+    # arch resolver, so the underscored path is returned verbatim (no chunk).
+    targets = F.native_adapter.resolve_group_targets(F.resolve_targets, 'lycoris_', 'transformer_blocks_0_attn_add_k_proj')
     assert targets == [('transformer_blocks_0_attn_add_k_proj', None)], f'targets={targets}'
     return True
 
@@ -846,6 +962,185 @@ def test_lora_dora_threading():
     return True
 
 
+def test_lora_dora_fused_qkv_sliced():
+    """Per-output dora_scale is sliced with the up-weight chunk and applies cleanly."""
+    net = _load_via(F.try_load_lora, sd_lora_dora_fused_qkv())
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    for nk, mod in net.modules.items():
+        assert mod.dora_scale is not None and mod.dora_scale.shape[0] == QKV_OUT, \
+            f'{nk}: dora_scale shape {tuple(mod.dora_scale.shape) if mod.dora_scale is not None else None}'
+        updown, _ex_bias = mod.calc_updown(mod.sd_module.weight)
+        assert_shape(updown, mod.sd_module.weight.shape, label=nk)
+        assert_finite(updown, label=nk)
+    return True
+
+
+def test_lokr_dora_fused_qkv_sliced():
+    """Per-output dora_scale rides the kron chunk; each module sees its own rows."""
+    net = _load_via(F.try_load_lokr, sd_lokr_dora_fused_qkv())
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    for nk, mod in net.modules.items():
+        assert isinstance(mod, network_lokr.NetworkModuleLokrChunk), f'{nk}: type={type(mod).__name__}'
+        assert mod.dora_scale is not None and mod.dora_scale.shape[0] == QKV_OUT, \
+            f'{nk}: dora_scale shape {tuple(mod.dora_scale.shape) if mod.dora_scale is not None else None}'
+        updown, _ex_bias = mod.calc_updown(mod.sd_module.weight)
+        assert_shape(updown, mod.sd_module.weight.shape, label=nk)
+        assert_finite(updown, label=nk)
+    return True
+
+
+def test_dora_per_input_fused_skipped():
+    """wd_on_out=False dora_scale on a fused target cannot be split; the group is skipped."""
+    net = _load_via(F.try_load_lokr, sd_lokr_dora_fused_qkv(per_input=True))
+    assert net is None, f'expected no modules, got {net.modules if net else None}'
+    return True
+
+
+def test_lora_diff_b_fused_qkv_sliced():
+    """Per-output diff_b slices with the chunk and flows out as ex_bias."""
+    net = _load_via(F.try_load_lora, sd_lora_diff_b_fused_qkv())
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    for nk, mod in net.modules.items():
+        assert mod.ex_bias is not None and mod.ex_bias.shape[0] == QKV_OUT, \
+            f'{nk}: ex_bias shape {tuple(mod.ex_bias.shape) if mod.ex_bias is not None else None}'
+        _updown, ex_bias = mod.calc_updown(mod.sd_module.weight)
+        assert ex_bias is not None and ex_bias.shape[0] == QKV_OUT, f'{nk}: applied ex_bias {ex_bias.shape if ex_bias is not None else None}'
+    return True
+
+
+def test_legacy_bias_fused_skipped():
+    """The legacy weight-shaped bias key has no partition on fused targets; group skipped."""
+    sd = dict(sd_lora_dora_fused_qkv())
+    del sd['lora_unet_double_blocks_0_img_attn_qkv.dora_scale']
+    sd['lora_unet_double_blocks_0_img_attn_qkv.bias'] = torch.randn(3 * QKV_OUT, HIDDEN)
+    net = _load_via(F.try_load_lora, sd)
+    assert net is None, f'expected skip, got {net.modules if net else None}'
+    return True
+
+
+def test_lora_aitk_magnitude_dora():
+    """ai-toolkit `magnitude` converts onto the dora_scale path, (out, 1)-shaped.
+
+    Numeric check on a square layer: with the raw 1-D vector the apply-time
+    orientation detection would fall to per-input and renormalize columns;
+    the (out, 1) reshape pins per-output. Reference: (W+D) * m/||W+D||_row - W
+    at scale 1 (ai-toolkit DoRA saves no alpha key).
+    """
+    torch.manual_seed(0)
+    w_base = torch.randn(HIDDEN, QKV_OUT)
+    sd, down, up, magnitude = sd_lora_aitk_magnitude_dora(w_base)
+    net = _load_via(F.try_load_lora, sd)
+    assert net is not None and len(net.modules) == 1, f'got {net.modules if net else None}'
+    mod = next(iter(net.modules.values()))
+    assert mod.dora_scale is not None and tuple(mod.dora_scale.shape) == (HIDDEN, 1), \
+        f'dora_scale shape {tuple(mod.dora_scale.shape) if mod.dora_scale is not None else None}'
+    updown, _ex_bias = mod.calc_updown(w_base.clone())
+    merged = w_base + up @ down
+    norm = merged.reshape(HIDDEN, -1).norm(dim=1).reshape(HIDDEN, 1) + torch.finfo(w_base.dtype).eps
+    ref = merged * (magnitude.reshape(HIDDEN, 1) / norm) - w_base
+    rel = ((updown - ref).norm() / (ref.norm() + 1e-12)).item()
+    assert torch.allclose(updown, ref, rtol=1e-4, atol=1e-5), f'rel err {rel:.4f}'
+    return True
+
+
+def test_lora_magnitude_fused_qkv_sliced():
+    """A fused-qkv magnitude vector converts, reshapes and slices per chunk."""
+    sd = dict(sd_lora_dora_fused_qkv())
+    del sd['lora_unet_double_blocks_0_img_attn_qkv.dora_scale']
+    sd['lora_unet_double_blocks_0_img_attn_qkv.magnitude'] = torch.rand(3 * QKV_OUT) + 0.5
+    net = _load_via(F.try_load_lora, sd)
+    assert net is not None and len(net.modules) == 3, f'got {net.modules if net else None}'
+    for nk, mod in net.modules.items():
+        assert mod.dora_scale is not None and tuple(mod.dora_scale.shape) == (QKV_OUT, 1), \
+            f'{nk}: dora_scale shape {tuple(mod.dora_scale.shape) if mod.dora_scale is not None else None}'
+    return True
+
+
+def test_lora_peft_magnitude_vector():
+    """PEFT/diffusers `lora_magnitude_vector` converts the same way."""
+    sd = {
+        'transformer.transformer_blocks.0.attn.to_q.lora_A.weight': torch.randn(RANK_LORA, HIDDEN),
+        'transformer.transformer_blocks.0.attn.to_q.lora_B.weight': torch.randn(QKV_OUT, RANK_LORA),
+        'transformer.transformer_blocks.0.attn.to_q.lora_magnitude_vector': torch.rand(QKV_OUT) + 0.5,
+    }
+    net = _load_via(F.try_load_lora, sd)
+    assert net is not None and len(net.modules) == 1, f'got {net.modules if net else None}'
+    mod = next(iter(net.modules.values()))
+    assert mod.dora_scale is not None and tuple(mod.dora_scale.shape) == (QKV_OUT, 1), \
+        f'dora_scale shape {tuple(mod.dora_scale.shape) if mod.dora_scale is not None else None}'
+    return True
+
+
+def test_lora_sparse_bias_residual():
+    """LyCORIS use_bias extraction triplet reconstructs into the dense-bias path.
+
+    Mirrors the extraction save exactly: residual sparsified COO with int16
+    indices, values from the weight-shaped remainder, alpha == rank (scale 1).
+    Reference: total delta = up @ down + residual.
+    """
+    torch.manual_seed(0)
+    down = torch.randn(RANK_LORA, QKV_OUT)
+    up = torch.randn(HIDDEN, RANK_LORA)
+    residual = torch.randn(HIDDEN, QKV_OUT)
+    residual[torch.rand_like(residual) < 0.98] = 0.0  # extraction sparsity default
+    sparse = residual.to_sparse().coalesce()
+    sd = {
+        'diffusion_model.double_blocks.1.img_attn.proj.lora_A.weight': down,
+        'diffusion_model.double_blocks.1.img_attn.proj.lora_B.weight': up,
+        'diffusion_model.double_blocks.1.img_attn.proj.alpha': torch.tensor(float(RANK_LORA)),
+        'diffusion_model.double_blocks.1.img_attn.proj.bias_indices': sparse.indices().to(torch.int16),
+        'diffusion_model.double_blocks.1.img_attn.proj.bias_values': sparse.values(),
+        'diffusion_model.double_blocks.1.img_attn.proj.bias_size': torch.tensor(residual.shape).to(torch.int16),
+    }
+    net = _load_via(F.try_load_lora, sd)
+    assert net is not None and len(net.modules) == 1, f'got {net.modules if net else None}'
+    mod = next(iter(net.modules.values()))
+    assert mod.bias is not None and mod.bias.is_sparse, f'bias={type(mod.bias)}'
+    w_base = torch.randn(HIDDEN, QKV_OUT)
+    updown, _ex_bias = mod.calc_updown(w_base)
+    ref = up @ down + residual
+    rel = ((updown - ref).norm() / (ref.norm() + 1e-12)).item()
+    assert torch.allclose(updown, ref, rtol=1e-4, atol=1e-5), f'rel err {rel:.4f}'
+    return True
+
+
+def test_lora_sparse_bias_fused_skipped():
+    """The sparse residual triplet on a fused target is skipped like dense bias."""
+    sd = dict(sd_lora_kohya_qkv())
+    residual = torch.zeros(3 * QKV_OUT, HIDDEN)
+    residual[0, 0] = 1.0
+    sparse = residual.to_sparse().coalesce()
+    base = 'lora_unet_double_blocks_0_img_attn_qkv'
+    sd[f'{base}.bias_indices'] = sparse.indices().to(torch.int16)
+    sd[f'{base}.bias_values'] = sparse.values()
+    sd[f'{base}.bias_size'] = torch.tensor(residual.shape).to(torch.int16)
+    net = _load_via(F.try_load_lora, sd)
+    assert net is None, f'expected skip, got {net.modules if net else None}'
+    return True
+
+
+def test_lokr_shape_mismatch_rejected():
+    """Kron dims that disagree with the module are rejected at load, not at apply."""
+    sd = sd_lokr_bfl_proj()
+    # Double the w2 in-dim: kron becomes (QKV_OUT, 2*HIDDEN) vs module (HIDDEN, QKV_OUT).
+    sd['diffusion_model.double_blocks.1.img_attn.proj.lokr_w2'] = \
+        torch.randn(QKV_OUT // LOKR_W1_DIM, 2 * (HIDDEN // LOKR_W1_DIM))
+    net = _load_via(F.try_load_lokr, sd)
+    assert net is None, f'expected mismatch rejection, got {net.modules if net else None}'
+    return True
+
+
+def test_lokr_fused_shape_mismatch_rejected():
+    """Fused kron rows must cover total*out; a 2-of-3 sized fused delta is rejected."""
+    sd = dict(sd_lokr_kohya_qkv())
+    # Kron rows 2*QKV_OUT instead of 3*QKV_OUT: no valid 3-way equal chunk.
+    sd['lora_unet_double_blocks_0_img_attn_qkv.lokr_w2'] = \
+        torch.randn((2 * QKV_OUT) // 8, HIDDEN // 4)
+    net = _load_via(F.try_load_lokr, sd)
+    assert net is None, f'expected mismatch rejection, got {net.modules if net else None}'
+    return True
+
+
 def test_lokr_bfl_non_fused():
     net = _load_via(F.try_load_lokr, sd_lokr_bfl_proj())
     assert net is not None and len(net.modules) == 1
@@ -881,6 +1176,28 @@ def test_lokr_simpletuner_lycoris_format():
     assert set(net.modules) == expected, f'got {set(net.modules)}'
     for mod in net.modules.values():
         assert isinstance(mod, network_lokr.NetworkModuleLokr)
+    return True
+
+
+def test_lokr_bfl_extra_modules_full_matrix():
+    """All non-block F2_EXTRA_MAP targets bind; placeholder alpha never scales.
+
+    Regression for the gap where resolve_targets only knew single_blocks /
+    double_blocks and silently dropped embedder / modulation / final-layer
+    groups as unmapped.
+    """
+    net = _load_via(F.try_load_lokr, sd_lokr_bfl_extra_modules())
+    bound = len(net.modules) if net else 0
+    assert net is not None and bound == len(F.F2_EXTRA_MAP), \
+        f'bound {bound}/{len(F.F2_EXTRA_MAP)}: {sorted(net.modules) if net else []}'
+    for nk, mod in net.modules.items():
+        assert isinstance(mod, network_lokr.NetworkModuleLokr) and not isinstance(mod, network_lokr.NetworkModuleLokrChunk), \
+            f'{nk}: type={type(mod).__name__}'
+        # Full-matrix factors leave dim unset; the ~1e10 placeholder alpha must be ignored.
+        assert mod.dim is None and mod.calc_scale() == 1.0, f'{nk}: dim={mod.dim} scale={mod.calc_scale()}'
+        updown, _ex_bias = mod.calc_updown(mod.sd_module.weight)
+        assert_shape(updown, mod.sd_module.weight.shape, label=nk)
+        assert_finite(updown, label=nk)
     return True
 
 
@@ -1156,6 +1473,45 @@ def test_full_calc_updown_shape():
     return True
 
 
+def test_dora_ordering_matches_lycoris():
+    """DoRA merge equals the LyCORIS forward reference at multiplier 1 and
+    lerps the full merged delta at other multipliers (ComfyUI semantics).
+
+    Reference mirrors lycoris locon forward + apply_weight_decompose with
+    wd_on_out=True: alpha/rank scales the diff BEFORE the row norms. Uses
+    alpha != rank (the kohya-style case the old decompose-before-scale
+    ordering got ~64% wrong).
+    """
+    torch.manual_seed(0)
+    alpha = 1.0
+    w_base = torch.randn(QKV_OUT, HIDDEN)
+    down = torch.randn(RANK_LORA, HIDDEN)
+    up = torch.randn(QKV_OUT, RANK_LORA)
+    dora = w_base.reshape(QKV_OUT, -1).norm(dim=1, keepdim=True)
+
+    def reference_delta(mult):
+        diff = (up @ down) * (alpha / RANK_LORA)
+        merged = w_base + diff
+        norm = merged.reshape(QKV_OUT, -1).norm(dim=1).reshape(QKV_OUT, 1) + torch.finfo(w_base.dtype).eps
+        return (merged * (dora / norm) - w_base) * mult
+
+    sd = {
+        'transformer.transformer_blocks.0.attn.to_q.lora_A.weight': down,
+        'transformer.transformer_blocks.0.attn.to_q.lora_B.weight': up,
+        'transformer.transformer_blocks.0.attn.to_q.alpha': torch.tensor(alpha),
+        'transformer.transformer_blocks.0.attn.to_q.dora_scale': dora,
+    }
+    for mult in (1.0, 0.5):
+        net = _load_via(F.try_load_lora, sd)
+        assert net is not None and len(net.modules) == 1
+        mod = make_network_for_module(next(iter(net.modules.values())), te_mul=mult, unet_mul=mult)
+        updown, _ex_bias = mod.calc_updown(w_base.clone())
+        ref = reference_delta(mult)
+        rel = ((updown - ref).norm() / (ref.norm() + 1e-12)).item()
+        assert torch.allclose(updown, ref, rtol=1e-4, atol=1e-5), f'mult={mult}: rel err {rel:.4f}'
+    return True
+
+
 # ============================================================
 # Tests — apply path / regressions in shared infra
 # ============================================================
@@ -1227,6 +1583,7 @@ def run_tests():
 
     log.warning('=== Parsing primitives ===')
     for fn in [test_parse_key_all_prefixes, test_resolve_targets_qkv_chunking,
+               test_resolve_targets_extra_modules,
                test_parse_key_peft_wrapper_unwrap, test_parse_key_lycoris_prefix,
                test_parse_key_bare_diffusers_and_peft_default,
                test_marker_disambiguation]:
@@ -1243,9 +1600,22 @@ def run_tests():
         test_lora_peft_saved_dreambooth_style,
         test_lora_peft_saved_diffusers_style,
         test_lora_dora_threading,
+        test_lora_dora_fused_qkv_sliced,
+        test_lokr_dora_fused_qkv_sliced,
+        test_dora_per_input_fused_skipped,
+        test_lora_diff_b_fused_qkv_sliced,
+        test_legacy_bias_fused_skipped,
+        test_lora_aitk_magnitude_dora,
+        test_lora_magnitude_fused_qkv_sliced,
+        test_lora_peft_magnitude_vector,
+        test_lora_sparse_bias_residual,
+        test_lora_sparse_bias_fused_skipped,
+        test_lokr_shape_mismatch_rejected,
+        test_lokr_fused_shape_mismatch_rejected,
         test_lokr_bfl_non_fused,
         test_lokr_kohya_fused_qkv_chunked,
         test_lokr_simpletuner_lycoris_format,
+        test_lokr_bfl_extra_modules_full_matrix,
         test_loha_bfl_non_fused,
         test_loha_kohya_fused_qkv_chunked,
         test_oft_kohya_non_fused,
@@ -1271,6 +1641,7 @@ def run_tests():
         test_ia3_calc_updown_shape,
         test_glora_calc_updown_shape,
         test_full_calc_updown_shape,
+        test_dora_ordering_matches_lycoris,
     ]:
         run_test(CAT_MATH, fn)
 

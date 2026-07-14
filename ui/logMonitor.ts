@@ -18,14 +18,15 @@ let logConnected = false;
 
 function dateToStr(ts: number): string {
   const dt = new Date(1000 * ts);
-  const year = dt.getFullYear();
-  const mo = String(dt.getMonth() + 1).padStart(2, '0');
-  const day = String(dt.getDate()).padStart(2, '0');
+  // const year = dt.getFullYear();
+  // const mo = String(dt.getMonth() + 1).padStart(2, '0');
+  // const day = String(dt.getDate()).padStart(2, '0');
   const hour = String(dt.getHours()).padStart(2, '0');
   const min = String(dt.getMinutes()).padStart(2, '0');
   const sec = String(dt.getSeconds()).padStart(2, '0');
   const ms = String(dt.getMilliseconds()).padStart(3, '0');
-  const s = `${year}-${mo}-${day} ${hour}:${min}:${sec}.${ms}`;
+  // const s = `${year}-${mo}-${day} ${hour}:${min}:${sec}.${ms}`;
+  const s = `${hour}:${min}:${sec}.${ms}`;
   return s;
 }
 
@@ -47,6 +48,23 @@ function parseLogLine(line: string): LogLine {
   };
 }
 
+async function clearErrors(): Promise<void> {
+  logWarnings = 0;
+  logErrors = 0;
+  log('clearErrors');
+}
+
+export async function initClearErrorsButton() {
+  const btnServerClear = document.getElementById('btn_console_log_server_clear');
+  if (btnServerClear) {
+    btnServerClear.onclick = async (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      clearErrors();
+    };
+  }
+}
+
 async function logMonitor() {
   const addLogLine = (line: string): void => {
     if (!logMonitorEl) logMonitorEl = document.getElementById('logMonitorData');
@@ -58,14 +76,13 @@ async function logMonitor() {
       const level = `<td style="color: var(--color-${l.level.toLowerCase()})">${l.level}</td>`;
       if (l.level === 'WARNING') logWarnings++;
       if (l.level === 'ERROR') logErrors++;
-      const module = `<td style="color: var(--neutral-400)">${l.module}</td>`;
+      const module = `<td style="color: #ffca68">${l.module}</td>`;
       const facilityText = l.facility.length > 20 ? `${l.facility.substring(0, 20)}...` : l.facility;
-      const facility = l.facility !== 'sd' ? `<td>${facilityText}</td>` : '<td></td>';
+      const facility = l.facility !== 'sd' ? `<td style="color: #ffca68">${facilityText}</td>` : '<td></td>';
       row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}${facility}${module}<td>${htmlEscape(l.msg)}</td>`;
       logMonitorEl.appendChild(row);
     } catch (err) {
-      error(`logMonitor: ${String(err)}`);
-      error(`logMonitor: ${line}`);
+      error('logMonitor', { error: String(err), line });
     }
   };
 
@@ -81,7 +98,11 @@ async function logMonitor() {
     const modenUIBtn = document.getElementById('btn_console');
     if (elWarn) elWarn.innerText = String(logWarnings);
     if (elErr) elErr.innerText = String(logErrors);
-    if (modenUIBtn) modenUIBtn.setAttribute('error-count', logErrors > 0 ? String(logErrors) : '');
+    if (modenUIBtn) {
+      modenUIBtn.setAttribute('error-count', logErrors > 0 ? String(logErrors) : '');
+      modenUIBtn.style.backgroundColor = logErrors > 0 ? 'var(--color-error)' : '';
+      modenUIBtn.title = `Log\nErrors ${logErrors}\nWarnings ${logWarnings}`;
+    }
   };
 
   const txtGallery = document.getElementById('txt2img_gallery');
@@ -111,6 +132,7 @@ async function logMonitor() {
   }
   if (!logMonitorEl) return;
   const atBottom = logMonitorEl.scrollHeight <= (logMonitorEl.scrollTop + logMonitorEl.clientHeight);
+
   try {
     const res = await authFetch(`${window.api}/log?clear=True`);
     if (res?.ok) {
@@ -119,52 +141,67 @@ async function logMonitor() {
       if (logMonitorEl && lines?.length > 0 && logMonitorEl.parentElement?.parentElement instanceof HTMLElement) {
         logMonitorEl.parentElement.parentElement.style.display = window.opts.logmonitor_show ? 'block' : 'none';
       }
-      for (const line of lines) addLogLine(line);
       if (!logConnected) {
         logConnected = true;
         xhrPost(`${window.api}/log`, { debug: 'connected' });
+        logErrors = 0; // reset error count on reconnect
       }
+      for (const line of lines) addLogLine(line);
     } else {
       logConnected = false;
       logErrors++;
-      addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Failed to fetch log: ${res?.status} ${res?.statusText}" }`);
+      if (res) addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Failed to fetch log: ${res?.status} ${res?.statusText}" }`);
+      else addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Server unreachable" }`);
     }
     cleanupLog(atBottom);
   } catch {
     logConnected = false;
     logErrors++;
-    addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Failed to fetch log: server unreachable" }`);
+    addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Server unreachable" }`);
     cleanupLog(atBottom);
   }
 }
 
 export async function initLogMonitor() {
-  const el = document.getElementsByTagName('footer')[0];
+  let el = document.getElementById('logMonitorPlaceholder');
+  const modernUi = Boolean(el);
+  if (!el) el = document.getElementsByTagName('footer')[0];
   if (!el) return;
   const t0 = performance.now();
   el.classList.add('log-monitor');
   const uiDisabled = Array.isArray(window.opts.ui_disabled) ? window.opts.ui_disabled : [];
   if (uiDisabled.includes('logs')) return;
-  el.innerHTML = `
-    <table id="logMonitor" style="width: 100%;">
-      <thead style="display: block; text-align: left; border-bottom: solid 1px var(--button-primary-border-color)">
-        <tr>
-          <th style="width: 144px">Time</th>
-          <th>Level</th>
-          <th style="width: 0"></th>
-          <th style="width: 154px">Module</th>
-          <th>Message</th>
-          <th style="position: absolute; right: 7em">Warnings <span id="logWarnings">0</span></th>
-          <th style="position: absolute; right: 1em">Errors <span id="logErrors">0</span></th>
-        </tr>
-      </thead>
-      <tbody id="logMonitorData" style="white-space: nowrap; height: 10vh; width: 100vw; display: block; overflow-x: hidden; overflow-y: scroll; color: var(--neutral-400)">
-      </tbody>
-    </table>
-  `;
+  if (modernUi) {
+    el.style.overflow = 'auto';
+    el.innerHTML = `
+      <table id="logMonitor" style="width: 100%;">
+        <tbody id="logMonitorData" style="white-space: nowrap; display: block">
+        </tbody>
+      </table>
+    `;
+  } else {
+    el.innerHTML = `
+      <table id="logMonitor" style="width: 100%;">
+        <thead style="display: block; text-align: left; border-bottom: solid 1px var(--button-primary-border-color)">
+          <tr>
+            <th style="width: 144px">Time</th>
+            <th>Level</th>
+            <th style="width: 0"></th>
+            <th style="width: 154px">Module</th>
+            <th>Message</th>
+            <th style="position: absolute; right: 7em">Warnings <span id="logWarnings">0</span></th>
+            <th style="position: absolute; right: 1em">Errors <span id="logErrors">0</span></th>
+          </tr>
+        </thead>
+        <tbody id="logMonitorData" style="white-space: nowrap; display: block; color: var(--neutral-400)">
+        </tbody>
+      </table>
+    `;
+  }
   el.style.display = 'none';
   authFetch(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
   logMonitor();
+  initClearErrorsButton();
   const t1 = performance.now();
   log('initLogMonitor', { show: window.opts.logmonitor_show, time: Math.round(t1 - t0) });
   timer('initLogMonitor', t1 - t0);

@@ -58,7 +58,7 @@ def get_call(cls):
     return signature.parameters
 
 
-def path_to_repo(checkpoint_info):
+def path_to_repo(checkpoint_info: CheckpointInfo | str):
     if isinstance(checkpoint_info, CheckpointInfo):
         if os.path.exists(checkpoint_info.path) and 'models--' not in checkpoint_info.path:
             return checkpoint_info.path # local models

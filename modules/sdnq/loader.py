@@ -3,7 +3,8 @@ import json
 import torch
 
 from modules import shared
-from .common import dtype_dict, is_fp8_mm_supported, use_tensorwise_fp8_matmul, check_torch_compile, linear_types
+from .common import dtype_dict, check_torch_compile, linear_types
+from .kernel_wrappers import is_fp8_mm_supported, use_tensorwise_fp8_matmul
 from .quantizer import QuantizationMethod, SDNQConfig, SDNQQuantizer, sdnq_post_load_quant
 from .quant_utils import prepare_weight_for_matmul, prepare_svd_for_matmul
 from .utils import get_quant_args_from_config, check_param_name_in
@@ -286,10 +287,10 @@ def apply_sdnq_options_to_module(
             if current_use_quantized_matmul is not None:
                 if current_use_quantized_matmul != module.sdnq_dequantizer.use_quantized_matmul:
                     if not module.sdnq_dequantizer.re_quantize_for_matmul and not dtype_dict[module.sdnq_dequantizer.weights_dtype]["is_packed"]:
-                        module.scale.t_()
-                        module.weight.t_()
+                        module.scale.data = module.scale.t_().contiguous()
+                        module.weight.data = module.weight.t_()
                         if module.zero_point is not None:
-                            module.zero_point.t_()
+                            module.zero_point.data = module.zero_point.t_().contiguous()
                         if current_use_quantized_matmul:
                             module.weight.data = prepare_weight_for_matmul(module.weight, matmul_dtype=module.sdnq_dequantizer.quantized_matmul_dtype)
                         else:

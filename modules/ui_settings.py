@@ -202,7 +202,7 @@ def run_settings_single(value, key, progress=False, force=False):
     shared.opts.save(silent=True)
     if key == 'sd_text_encoder':
         sd_models.reload_text_encoder() # apply the change now; reloads the model for encoders with no in-place swap
-    if key not in ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_te', 'sd_unet'] or force:
+    if key not in ['sd_model_checkpoint', 'sd_model_refiner', 'sd_vae', 'sd_te', 'sd_unet', 'sd_unet_secondary'] or force:
         log.debug(f'Setting changed: {key}="{value}" progress={progress} force={force}')
     return get_value_for_setting(key), shared.opts.dumpjson()
 
@@ -442,7 +442,7 @@ def create_quicksettings(interfaces):
         )
         button_set_refiner = gr.Button('Change refiner', elem_id='change_refiner', visible=False)
         button_set_refiner.click(
-            fn=lambda value, _: run_settings_single(value, key='sd_model_checkpoint'),
+            fn=lambda value, _: run_settings_single(value, key='sd_model_refiner'),
             _js="consumeDesiredCheckpointName",
             inputs=[shared.settings_components['sd_model_refiner'], dummy_component],
             outputs=[shared.settings_components['sd_model_refiner'], text_settings],
@@ -460,6 +460,13 @@ def create_quicksettings(interfaces):
             _js="consumeDesiredUNetName",
             inputs=[shared.settings_components["sd_unet"], dummy_component],
             outputs=[shared.settings_components["sd_unet"], text_settings],
+        )
+        button_set_unet_secondary = gr.Button("Change UNet secondary", elem_id="change_unet_secondary", visible=False)
+        button_set_unet_secondary.click(
+            fn=lambda value, _: run_settings_single(value, key="sd_unet_secondary"),
+            _js="consumeDesiredUNetName",
+            inputs=[shared.settings_components["sd_unet_secondary"], dummy_component],
+            outputs=[shared.settings_components["sd_unet_secondary"], text_settings],
         )
 
         def reference_submit(model):

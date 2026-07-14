@@ -102,7 +102,10 @@ async function createSplash() {
     .then((res) => res.text())
     .then((text) => {
       const clean = text.replace(/["]+/g, '');
-      log('getMOTD', clean);
+      const boldMatch = clean.match(/<b>(.*?)<\/b>/);
+      const boldText = boldMatch ? boldMatch[1] : clean;
+      if (boldMatch) log('getMOTD', { version: boldText });
+      else log('getMOTD', { text: clean });
       const motdEl = document.getElementById('motd');
       if (motdEl) motdEl.innerHTML = clean;
     })

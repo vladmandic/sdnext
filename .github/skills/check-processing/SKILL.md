@@ -27,7 +27,7 @@ Run workflow coverage in this order to keep checks focused and complete:
 2. `img2img`: `modules/ui_img2img.py` -> `modules/img2img.py` -> `modules/processing.py:process_images` -> `modules/processing_diffusers.py:process_diffusers`
 3. `control/process`: `modules/ui_control.py` -> `modules/control/run.py` (and related control processing entrypoints) -> `modules/processing.py:process_images` -> `modules/processing_diffusers.py:process_diffusers`
 4. `caption/process`: `modules/ui_caption.py` -> caption handler module(s) -> `modules/processing.py:process_images` and/or postprocess/caption execution module(s), depending on selected caption backend
-5. `video`: `modules/ui_video.py` -> `modules/video_models/video_run -> `modules/processing.py:process_images` and/or postprocess/video execution module(s), depending on implementation
+5. `video`: `modules/ui_video.py` -> `modules/video_models/video_run.py` -> `modules/processing.py:process_images` and/or postprocess/video execution module(s), depending on implementation
 
 Also validate script hooks when present:
 
@@ -40,8 +40,10 @@ Also validate script hooks when present:
 - `modules/ui_img2img.py`
 - `modules/img2img.py`
 - `modules/ui_control.py`
-- `modules/ui_caption.py` (and `modules/ui_captions.py` if present)
 - `modules/control/run.py`
+- `modules/ui_caption.py`
+- `modules/ui_video.py`
+- `modules/video_models/video_run.py`
 - `modules/processing.py`
 - `modules/processing_diffusers.py`
 - `modules/scripts_manager.py`
@@ -58,7 +60,7 @@ For each covered workflow, verify all three dimensions:
 
 ### 1. Build End-To-End Call Graph
 
-For each workflow (`txt2img`, `img2img`, `control`, `caption`):
+For each workflow (`txt2img`, `img2img`, `control`, `caption`, `video`):
 
 - Locate submit/click bindings in UI modules.
 - Capture the exact `inputs=[...]` list order and target function (`fn=...`).

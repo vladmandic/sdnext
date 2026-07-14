@@ -9883,6 +9883,7 @@ window.xhrPost = xhrPost;
 // ui/authWrap.ts
 var user;
 var token;
+var baseURL;
 async function getToken() {
   if (token === void 0 || user === void 0) {
     const res = await fetch(`${window.subpath}/token`);
@@ -9911,6 +9912,10 @@ async function authFetch(url2, options = {}) {
     if (navigator.onLine) {
       error("fetch", { status: res?.status || 503, url: url2, user, token, error: err });
     }
+  }
+  if (!baseURL) {
+    baseURL = window.location.origin;
+    log("origin", baseURL);
   }
   return res;
 }
@@ -10152,7 +10157,7 @@ async function initTableSorter() {
 async function deleteFile(filename) {
   if (!filename) return;
   if (!confirm(`Are you sure you want to delete the object - This action cannot be undone? Object: ${filename}`)) return;
-  const res = await authFetch(`${window.api}/delete-file?file=${encodeURIComponent(filename)}`);
+  const res = await authFetch(`${window.api}/delete-file?file=${encodeURIComponent(filename)}`, { method: "DELETE" });
   if (!res || res.status !== 200) {
     error("FileDelete", { file: filename, status: res?.status, statusText: res?.statusText });
     return;
@@ -10308,9 +10313,13 @@ async function setupControlUI() {
 
 // ui/extraNetworks.ts
 var activePromptTextarea = {};
+var selectedNetworks = {};
 var sortVal = -1;
 var totalCards = -1;
 var lastTab = "control";
+function getSelectedNetworks() {
+  return selectedNetworks;
+}
 var getENActiveTab = () => {
   let tabName = "";
   if (gradioApp().getElementById("txt2img_prompt")?.checkVisibility() || gradioApp().getElementById("txt2img_generate")?.checkVisibility()) tabName = "txt2img";
@@ -10539,6 +10548,7 @@ function sortExtraNetworks(fixed = "no") {
 }
 async function markSelectedCards(selected, page = "") {
   log("markSelectedCards", selected, page);
+  selectedNetworks[page] = selected;
   gradioApp().querySelectorAll(".extra-network-cards .card").forEach((el2) => {
     if (page.length > 0 && el2.dataset.page !== page) return;
     if (selected.includes(el2.dataset.name) || selected.includes(el2.dataset.short)) el2.classList.add("card-selected");
@@ -10851,6 +10861,7 @@ window.applyStyles = applyStyles;
 window.closeDetailsEN = closeDetailsEN;
 window.getENActivePage = getENActivePage;
 window.getCardDetails = getCardDetails;
+window.getSelectedNetworks = getSelectedNetworks;
 window.sortExtraNetworks = sortExtraNetworks;
 window.refeshDetailsEN = refeshDetailsEN;
 window.extraNetworksSearchButton = extraNetworksSearchButton;
@@ -10965,7 +10976,7 @@ var progressTimeout = 180;
 var startTimeout = 5;
 function setRefreshInterval() {
   refreshInterval = window.opts.live_preview_refresh_period || 500;
-  log("refreshInterval", document.visibilityState, refreshInterval);
+  log("refreshInterval", { visibile: document.visibilityState, interval: refreshInterval });
   document.addEventListener("visibilitychange", () => {
     if (window.opts.live_preview_require_focus !== false && document.hidden) refreshInterval = Math.max(2500, window.opts.live_preview_refresh_period || 1e3);
     else refreshInterval = window.opts.live_preview_refresh_period || 1e3;
@@ -11287,14 +11298,13 @@ function setFontSize(val, old) {
     rootStyle.setProperty("--text-xxl", `${nextSize + 3}px`);
     appliedFontSize = nextSize;
     const t1 = performance.now();
-    log("setFontSize", nextSize, `time=${Math.round(t1 - t0)}`);
-    timer("setFontSize", t1 - t0);
+    log("setFontSize", { size: nextSize, time: Math.round(t1 - t0) });
   });
 }
 function switchToTab(tab) {
   const tabs = Array.from(gradioApp().querySelectorAll("#tabs > .tab-nav > button"));
   const btn = tabs?.find((t) => t.innerText === tab);
-  log("switchToTab", tab);
+  log("switchToTab", { tab });
   if (btn) btn.click();
 }
 function switch_to_txt2img(...args) {
@@ -11662,8 +11672,12 @@ function getDesiredCheckpointName() {
 }
 function selectUNet(name) {
   desiredUNetName = name;
-  gradioApp().getElementById("change_unet").click();
-  log(`selectUNet: ${desiredUNetName}`);
+  const tabName = getENActiveTab();
+  const btnModel = gradioApp().getElementById(`${tabName}_extra_model`);
+  const isSecondary = btnModel && btnModel.classList.contains("toolbutton-selected");
+  if (isSecondary) gradioApp().getElementById("change_unet_secondary").click();
+  else gradioApp().getElementById("change_unet").click();
+  log(`selectUNet ${isSecondary ? "secondary" : "primary"}: ${desiredUNetName}`);
   markSelectedCards([desiredUNetName], "unet");
 }
 function selectReference(name) {
@@ -11988,14 +12002,11 @@ var logErrors = 0;
 var logConnected = false;
 function dateToStr(ts) {
   const dt = new Date(1e3 * ts);
-  const year = dt.getFullYear();
-  const mo = String(dt.getMonth() + 1).padStart(2, "0");
-  const day = String(dt.getDate()).padStart(2, "0");
   const hour = String(dt.getHours()).padStart(2, "0");
   const min = String(dt.getMinutes()).padStart(2, "0");
   const sec = String(dt.getSeconds()).padStart(2, "0");
   const ms = String(dt.getMilliseconds()).padStart(3, "0");
-  const s = `${year}-${mo}-${day} ${hour}:${min}:${sec}.${ms}`;
+  const s = `${hour}:${min}:${sec}.${ms}`;
   return s;
 }
 function htmlEscape(text) {
@@ -12014,6 +12025,21 @@ function parseLogLine(line) {
     msg: String(parsed.msg ?? "")
   };
 }
+async function clearErrors() {
+  logWarnings = 0;
+  logErrors = 0;
+  log("clearErrors");
+}
+async function initClearErrorsButton() {
+  const btnServerClear = document.getElementById("btn_console_log_server_clear");
+  if (btnServerClear) {
+    btnServerClear.onclick = async (evt) => {
+      evt.preventDefault();
+      evt.stopPropagation();
+      clearErrors();
+    };
+  }
+}
 async function logMonitor() {
   const addLogLine = (line) => {
     if (!logMonitorEl) logMonitorEl = document.getElementById("logMonitorData");
@@ -12024,14 +12050,13 @@ async function logMonitor() {
       const level = `<td style="color: var(--color-${l.level.toLowerCase()})">${l.level}</td>`;
       if (l.level === "WARNING") logWarnings++;
       if (l.level === "ERROR") logErrors++;
-      const module = `<td style="color: var(--neutral-400)">${l.module}</td>`;
+      const module = `<td style="color: #ffca68">${l.module}</td>`;
       const facilityText = l.facility.length > 20 ? `${l.facility.substring(0, 20)}...` : l.facility;
-      const facility = l.facility !== "sd" ? `<td>${facilityText}</td>` : "<td></td>";
+      const facility = l.facility !== "sd" ? `<td style="color: #ffca68">${facilityText}</td>` : "<td></td>";
       row.innerHTML = `<td>${dateToStr(l.created)}</td>${level}${facility}${module}<td>${htmlEscape(l.msg)}</td>`;
       logMonitorEl.appendChild(row);
     } catch (err) {
-      error(`logMonitor: ${String(err)}`);
-      error(`logMonitor: ${line}`);
+      error("logMonitor", { error: String(err), line });
     }
   };
   const cleanupLog = (atBottom2) => {
@@ -12046,7 +12071,13 @@ async function logMonitor() {
     const modenUIBtn = document.getElementById("btn_console");
     if (elWarn) elWarn.innerText = String(logWarnings);
     if (elErr) elErr.innerText = String(logErrors);
-    if (modenUIBtn) modenUIBtn.setAttribute("error-count", logErrors > 0 ? String(logErrors) : "");
+    if (modenUIBtn) {
+      modenUIBtn.setAttribute("error-count", logErrors > 0 ? String(logErrors) : "");
+      modenUIBtn.style.backgroundColor = logErrors > 0 ? "var(--color-error)" : "";
+      modenUIBtn.title = `Log
+Errors ${logErrors}
+Warnings ${logWarnings}`;
+    }
   };
   const txtGallery = document.getElementById("txt2img_gallery");
   if (txtGallery) txtGallery.style.height = window.opts.logmonitor_show ? "50vh" : "55vh";
@@ -12080,51 +12111,66 @@ async function logMonitor() {
       if (logMonitorEl && lines?.length > 0 && logMonitorEl.parentElement?.parentElement instanceof HTMLElement) {
         logMonitorEl.parentElement.parentElement.style.display = window.opts.logmonitor_show ? "block" : "none";
       }
-      for (const line of lines) addLogLine(line);
       if (!logConnected) {
         logConnected = true;
         xhrPost(`${window.api}/log`, { debug: "connected" });
+        logErrors = 0;
       }
+      for (const line of lines) addLogLine(line);
     } else {
       logConnected = false;
       logErrors++;
-      addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Failed to fetch log: ${res?.status} ${res?.statusText}" }`);
+      if (res) addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Failed to fetch log: ${res?.status} ${res?.statusText}" }`);
+      else addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Server unreachable" }`);
     }
     cleanupLog(atBottom);
   } catch {
     logConnected = false;
     logErrors++;
-    addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Failed to fetch log: server unreachable" }`);
+    addLogLine(`{ "created": ${Date.now()}, "level":"ERROR", "module":"logMonitor", "facility":"ui", "msg":"Server unreachable" }`);
     cleanupLog(atBottom);
   }
 }
 async function initLogMonitor() {
-  const el2 = document.getElementsByTagName("footer")[0];
+  let el2 = document.getElementById("logMonitorPlaceholder");
+  const modernUi = Boolean(el2);
+  if (!el2) el2 = document.getElementsByTagName("footer")[0];
   if (!el2) return;
   const t0 = performance.now();
   el2.classList.add("log-monitor");
   const uiDisabled = Array.isArray(window.opts.ui_disabled) ? window.opts.ui_disabled : [];
   if (uiDisabled.includes("logs")) return;
-  el2.innerHTML = `
-    <table id="logMonitor" style="width: 100%;">
-      <thead style="display: block; text-align: left; border-bottom: solid 1px var(--button-primary-border-color)">
-        <tr>
-          <th style="width: 144px">Time</th>
-          <th>Level</th>
-          <th style="width: 0"></th>
-          <th style="width: 154px">Module</th>
-          <th>Message</th>
-          <th style="position: absolute; right: 7em">Warnings <span id="logWarnings">0</span></th>
-          <th style="position: absolute; right: 1em">Errors <span id="logErrors">0</span></th>
-        </tr>
-      </thead>
-      <tbody id="logMonitorData" style="white-space: nowrap; height: 10vh; width: 100vw; display: block; overflow-x: hidden; overflow-y: scroll; color: var(--neutral-400)">
-      </tbody>
-    </table>
-  `;
+  if (modernUi) {
+    el2.style.overflow = "auto";
+    el2.innerHTML = `
+      <table id="logMonitor" style="width: 100%;">
+        <tbody id="logMonitorData" style="white-space: nowrap; display: block">
+        </tbody>
+      </table>
+    `;
+  } else {
+    el2.innerHTML = `
+      <table id="logMonitor" style="width: 100%;">
+        <thead style="display: block; text-align: left; border-bottom: solid 1px var(--button-primary-border-color)">
+          <tr>
+            <th style="width: 144px">Time</th>
+            <th>Level</th>
+            <th style="width: 0"></th>
+            <th style="width: 154px">Module</th>
+            <th>Message</th>
+            <th style="position: absolute; right: 7em">Warnings <span id="logWarnings">0</span></th>
+            <th style="position: absolute; right: 1em">Errors <span id="logErrors">0</span></th>
+          </tr>
+        </thead>
+        <tbody id="logMonitorData" style="white-space: nowrap; display: block; color: var(--neutral-400)">
+        </tbody>
+      </table>
+    `;
+  }
   el2.style.display = "none";
   authFetch(`${window.api}/start?agent=${encodeURI(navigator.userAgent)}`);
   logMonitor();
+  initClearErrorsButton();
   const t1 = performance.now();
   log("initLogMonitor", { show: window.opts.logmonitor_show, time: Math.round(t1 - t0) });
   timer("initLogMonitor", t1 - t0);
@@ -12183,7 +12229,7 @@ async function updateOpts(json_string) {
     else opts_tabs[meta.tab_name].saved_keys.add(opt);
   });
   const t2 = performance.now();
-  log("updateOpts", `settings=${Object.keys(new_opts).length} callbacks=${Math.round(t2 - t1)} apply=${Math.round(t1 - t0)}`);
+  log("updateOpts", { settings: Object.keys(new_opts).length, callbacks: Math.round(t2 - t1), apply: Math.round(t1 - t0) });
   timer("updateOpts", t2 - t0);
 }
 function showAllSettings() {
@@ -12926,7 +12972,6 @@ var minCleanupCount = 1e3;
 var minCleanupTime = 1e3 * 60 * 60;
 var folderStylesheet = new CSSStyleSheet();
 var fileStylesheet = new CSSStyleSheet();
-var iconStopwatch = String.fromCodePoint(9201);
 var separatorStates = /* @__PURE__ */ new Map();
 var el = {
   folders: void 0,
@@ -12940,6 +12985,13 @@ var el = {
 var cleanupTimers = {};
 var maintenanceTimers = {};
 var fetchQueue = [];
+var icons = {
+  Time: String.fromCodePoint(9201),
+  Folder: String.fromCodePoint(128448),
+  // or 128449;
+  Sort: String.fromCodePoint(8645),
+  Images: String.fromCodePoint(128461)
+};
 var SUPPORTED_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "tiff", "jp2", "jxl", "gif", "mp4", "mkv", "avi", "mjpeg", "mpg", "avr"];
 var gallerySorter = {
   nameA: { name: "Name Ascending", func: (a, b) => a.name.localeCompare(b.name) },
@@ -13099,9 +13151,9 @@ function updateGalleryStyles() {
       padding: 4px;
       font-size: 1.2em;
       letter-spacing: 0.5em;
-      width: 140px;
       margin-top: calc(140px - 32px);
       opacity: 75%;
+      border-radius: var(--sd-border-radius);
     }
     :host(.gallery-file-selected) .gallery-file {
       box-shadow: 0 0 0 2px var(--sd-button-selected-color);
@@ -13151,6 +13203,10 @@ var SimpleProgressBar = class {
     if (total <= 0) return;
     this.hide();
     this.#max = total;
+    if (this.#monitoredSet.size >= this.#max) {
+      this.stop();
+      return;
+    }
     this.#interval = setInterval(() => this.update(this.#monitoredSet.size, this.#max), 100);
   }
   attachTo(element) {
@@ -13174,7 +13230,6 @@ var SimpleProgressBar = class {
   }
   stop() {
     clearInterval(this.#interval);
-    this.#interval = void 0;
     if (this.stats.count) {
       debug("gallery: thumbnail stats", this.stats);
       this.stats = { ...this.defaultStats };
@@ -13461,7 +13516,7 @@ Size: ${this.size.toLocaleString()} bytes
 Modified: ${this.mtime.toLocaleString()}`;
     this.title = img.title;
     const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase());
-    if (this.style.display !== "none") this.style.display = shouldDisplayBasedOnSearch ? "flex" : "none";
+    if (this.style.display !== "none") this.style.display = shouldDisplayBasedOnSearch ? "" : "none";
     this.shadow.appendChild(img);
     pb.stats.elapsed = (pb.stats.elapsed || 0) + Math.round(performance.now() - t0);
   }
@@ -13478,7 +13533,7 @@ async function handleSeparator(separator) {
     const fileDir = f.name.match(/(.*)[/\\]/);
     const fileDirPath = fileDir ? fileDir[1] : "";
     if (separator.title.length > 0 && fileDirPath === separator.title) {
-      f.style.display = nowHidden ? "none" : "unset";
+      f.style.display = nowHidden ? "none" : "";
     }
   }
 }
@@ -13547,24 +13602,22 @@ async function addSeparators() {
 }
 var gallerySendImage = (_images) => [currentImage];
 window.gallerySendImage = gallerySendImage;
-function updateStatusWithSort(...messages) {
+function updateStatusLine(...messages) {
   if (!el.status) return;
   messages.unshift(["Sort", sortMode.name]);
   const fragment = document.createDocumentFragment();
   for (let i = 0; i < messages.length; i++) {
     const div = document.createElement("div");
     if (Array.isArray(messages[i])) {
-      const [text1, text2] = messages[i];
-      const tDiv1 = document.createElement("div");
-      tDiv1.innerText = `${text1}:`;
-      const tDiv2 = document.createElement("div");
-      tDiv2.innerText = text2;
-      tDiv2.title = text2;
-      div.append(tDiv1, tDiv2);
+      const [k, v] = messages[i];
+      const tDiv = document.createElement("div");
+      const ico = icons[k] || `${k}:`;
+      tDiv.innerText = `${ico} ${v}`;
+      div.append(tDiv);
     } else {
-      const tDiv1 = document.createElement("div");
-      tDiv1.innerText = messages[i];
-      div.append(tDiv1);
+      const tDiv = document.createElement("div");
+      tDiv.innerText = messages[i];
+      div.append(tDiv);
     }
     fragment.append(div);
   }
@@ -13643,7 +13696,7 @@ async function gallerySearch() {
         const isOpen = separatorStates.get(dirPath);
         f.style.display = !dirPath || isOpen ? "unset" : "none";
       });
-      updateStatusWithSort("Filter", "Cleared", ["Images", allFiles.length.toLocaleString()]);
+      updateStatusLine("Filter", "Cleared", ["Images", allFiles.length.toLocaleString()]);
       return;
     }
     let totalFound = 0;
@@ -13688,7 +13741,7 @@ async function gallerySearch() {
       f.style.display = fileMatches.has(f) ? "unset" : "none";
     }
     const t1 = performance.now();
-    updateStatusWithSort("Filter", ["Images", `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], `${iconStopwatch} ${Math.round(t1 - t0).toLocaleString()}ms`);
+    updateStatusLine("Filter", ["Images", `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], ["Time", `${Math.round(t1 - t0).toLocaleString()}ms`]);
     timer(`galleryFilter:${str}`, t1 - t0);
     refreshGallerySelection();
   }, 250);
@@ -13713,15 +13766,15 @@ async function gallerySort(key) {
   const folderGroups = /* @__PURE__ */ new Map();
   for (const file of subfolderFiles) {
     const dir = getDirPath(file);
-    if (!folderGroups.has(dir)) {
-      folderGroups.set(dir, []);
-    }
+    if (!folderGroups.has(dir)) folderGroups.set(dir, []);
     folderGroups.get(dir).push(file);
   }
   sortMode = gallerySorter[currentSort];
   rootFiles.sort(sortMode.func);
   rootFiles.forEach((node) => fragment.appendChild(node));
-  const sortedFolderNames = Array.from(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
+  const folderNames = Array.from(folderGroups.keys());
+  const sortedFolderNames = currentSort.endsWith("A") ? folderNames.sort((a, b) => a.localeCompare(b)) : folderNames.sort((a, b) => b.localeCompare(a));
+  console.log("HERE", sortedFolderNames);
   for (const folderName of sortedFolderNames) {
     const files = folderGroups.get(folderName);
     files.sort(sortMode.func);
@@ -13745,7 +13798,7 @@ async function gallerySort(key) {
   }
   const t1 = performance.now();
   log(`gallerySort: sort=${sortMode.name} len=${arr.length} time=${Math.floor(t1 - t0)}`);
-  updateStatusWithSort(["Images", arr.length.toLocaleString()], `${iconStopwatch} ${Math.round(t1 - t0).toLocaleString()}ms`);
+  updateStatusLine(["Images", arr.length.toLocaleString()], ["Time", `${Math.round(t1 - t0).toLocaleString()}ms`]);
   timer(`gallerySort:${sortMode.name}`, t1 - t0);
   refreshGallerySelection();
 }
@@ -13815,7 +13868,7 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
         log("galleryMaintenance", { folder, kept: keptGalleryHashes.size, deleted: delcount, time: Math.round(t1 - t0) });
         timer(`thumbnailDBCleanup:${folder}`, t1 - t0);
         currentGalleryFolder = null;
-        updateStatusWithSort("Thumbnail cache cleared");
+        updateStatusLine("Thumbnail cache cleared");
       }).catch((reason) => {
         SimpleFunctionQueue.abortLogger("thumbCacheCleanup", reason);
       }).finally(async () => {
@@ -13847,11 +13900,11 @@ window.clearCache = clearCache;
 async function fetchFilesHT(evt, controller) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
-  updateStatusWithSort(["Folder", evt.target.name], "in-progress");
+  updateStatusLine(["Folder", evt.target.name], "in-progress");
   let numFiles = 0;
   const res = await authFetch(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
   if (!res || res.status !== 200) {
-    updateStatusWithSort(["Folder", evt.target.name], ["Failed", res?.statusText || "No response"]);
+    updateStatusLine(["Folder", evt.target.name], ["Failed", res?.statusText || "No response"]);
     return;
   }
   const jsonData = await res.json();
@@ -13870,7 +13923,7 @@ async function fetchFilesHT(evt, controller) {
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} method=http time=${Math.floor(t1 - t0)}ms`);
   timer(`galleryFetch:${evt.target.name}`, t1 - t0);
-  updateStatusWithSort(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  updateStatusLine(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], ["Time", `${Math.floor(t1 - t0).toLocaleString()}ms`]);
   pb.start(numFiles);
   addSeparators();
   refreshGallerySelection();
@@ -13896,7 +13949,7 @@ async function fetchFilesWS(evt) {
     await fetchFilesHT(evt, controller);
     return;
   }
-  updateStatusWithSort(["Folder", evt.target.name]);
+  updateStatusLine(["Folder", evt.target.name]);
   const t0 = performance.now();
   let numFiles = 0;
   let t1 = performance.now();
@@ -13914,7 +13967,7 @@ async function fetchFilesWS(evt) {
         numFiles++;
         fragment.appendChild(file);
         if (numFiles % fragmentSize === 0) {
-          updateStatusWithSort(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], "in-progress", `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+          updateStatusLine(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], ["Status", "in-progress"], ["Time", `${Math.floor(t1 - t0).toLocaleString()}ms`]);
           el.files.appendChild(fragment);
           fragment = document.createDocumentFragment();
         }
@@ -13925,7 +13978,7 @@ async function fetchFilesWS(evt) {
     if (controller.signal.aborted) return;
     el.files.appendChild(fragment);
     log(`gallery: folder=${evt.target.name} num=${numFiles} method=ws time=${Math.floor(t1 - t0)}ms`);
-    updateStatusWithSort(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    updateStatusLine(["Folder", evt.target.name], ["Images", numFiles.toLocaleString()], ["Time", `${Math.floor(t1 - t0).toLocaleString()}ms`]);
     pb.start(numFiles);
     addSeparators();
     refreshGallerySelection();
@@ -14011,7 +14064,7 @@ async function initGalleryAutoRefresh() {
   galleryVisObserver.observe(galleryTab, { attributeFilter: ["class", "style"], attributeOldValue: true });
 }
 async function overlayDelete(evt) {
-  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`);
+  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`, { method: "DELETE" });
   evt.stopPropagation();
   if (!res || res.status !== 200) {
     error("galleryDelete", { file: currentImage, status: res?.status, statusText: res?.statusText });
@@ -15427,7 +15480,7 @@ async function getLocaleData(desiredLocale = null) {
     localeData.locale = desiredLocale || "en";
     localeData.prev = localeData.locale;
   }
-  log("getLocale", desiredLocale, localeData.locale);
+  log("getLocale", { lang: desiredLocale, locale: localeData.locale });
   let json = {};
   try {
     let res = await fetch(`${window.subpath}/file=ui/locale/locale_${localeData.locale}.json`);
@@ -15873,7 +15926,10 @@ async function createSplash() {
   monitorLog();
   await authFetch(`${window.api}/motd`).then((res) => res.text()).then((text) => {
     const clean = text.replace(/["]+/g, "");
-    log("getMOTD", clean);
+    const boldMatch = clean.match(/<b>(.*?)<\/b>/);
+    const boldText = boldMatch ? boldMatch[1] : clean;
+    if (boldMatch) log("getMOTD", { version: boldText });
+    else log("getMOTD", { text: clean });
     const motdEl = document.getElementById("motd");
     if (motdEl) motdEl.innerHTML = clean;
   }).catch((err) => error(`getMOTD: ${err}`));
@@ -15922,6 +15978,14 @@ async function postStartup() {
   disconnectHintsObserver();
   logTimers();
 }
+async function updateSubpath() {
+  log("mountURL", window.opts.subpath);
+  if (window.opts.subpath?.length > 0) {
+    window.subpath = window.opts.subpath;
+    window.api = `${window.subpath}/sdapi/v1`;
+  }
+  log("API", { url: window.api });
+}
 async function initStartup() {
   const t0 = performance.now();
   log("initGradio", Math.round(t0 - appStartTime));
@@ -15942,14 +16006,10 @@ async function initStartup() {
   startupPromises.push(Promise.resolve(setupControlUI()));
   await reconnectUI();
   await waitForOpts();
-  log("mountURL", window.opts.subpath);
-  if (window.opts.subpath?.length > 0) {
-    window.subpath = window.opts.subpath;
-    window.api = `${window.subpath}/sdapi/v1`;
-  }
-  startupPromises.push(initLogMonitor());
+  await updateSubpath();
   executeCallbacks(uiReadyCallbacks);
   if (window.waitForUiReady) await window.waitForUiReady();
+  startupPromises.push(Promise.resolve(initLogMonitor()));
   startupPromises.push(Promise.resolve(initGallery()));
   startupPromises.push(Promise.resolve(setRefreshInterval()));
   startupPromises.push(Promise.resolve(setupExtraNetworks()));
@@ -19127,12 +19187,12 @@ async function updateGPU() {
     }
     const gpuTbody = gpuTable.querySelector("tbody");
     if (!gpuTbody) return;
-    for (const gpu of data) {
-      let rows = `<tr><td>GPU</td><td>${gpu.name}</td></tr>`;
-      for (const item of Object.entries(gpu.data)) rows += `<tr><td>${item[0]}</td><td>${item[1]}</td></tr>`;
-      gpuTbody.innerHTML = rows;
-      if (gpu.chart && gpu.chart.length === 2) updateGPUChart(gpu.chart[0], gpu.chart[1]);
-    }
+    let gpu = { data: {} };
+    if (Array.isArray(data) && data.length >= 1) gpu = data[0];
+    let rows = `<tr><td style="color: var(--color-info)">GPU</td><td>${gpu.name || "unknown"}</td></tr>`;
+    for (const item of Object.entries(gpu.data)) rows += `<tr><td style="color: var(--color-info)">${item[0]}</td><td>${item[1]}</td></tr>`;
+    gpuTbody.innerHTML = rows;
+    if (gpu.chart && gpu.chart.length === 2) updateGPUChart(gpu.chart[0], gpu.chart[1]);
     gpuEl.style.display = "block";
   } catch (e) {
     error("updateGPU", e);
@@ -19146,7 +19206,7 @@ async function startGPU() {
   gpuEl.style.display = "block";
   if (gpuInterval) clearInterval(gpuInterval);
   const interval = window.opts?.gpu_monitor || 3e3;
-  log("startGPU", interval);
+  log("startGPUmonitor", interval);
   gpuInterval = setInterval(updateGPU, interval);
   updateGPU();
 }

@@ -66,12 +66,10 @@ def parse(infotext):
         return params
     params['Prompt'] = prompt if len(prompt) > 0 else None
     params['Negative prompt'] = negative if len(negative) > 0 else None
-    params['Template'] = template if len(template) > 0 else None
-    params['Negative template'] = negative_template if len(negative_template) > 0 else None
-    if params['Template'] == params['Prompt']:
-        params.pop('Template', None)
-    if params['Negative template'] == params['Negative prompt']:
-        params.pop('Negative template', None)
+    if len(template) > 0 and template != params['Prompt']:
+        params['Template'] = template
+    if len(negative_template) > 0 and negative_template != params['Negative prompt']:
+        params['Negative template'] = negative_template
     debug(f'Params: {params}')
 
     for key, val in params.copy().items():

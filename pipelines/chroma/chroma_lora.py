@@ -4,12 +4,15 @@ Runs when :func:`modules.lora.lora_overrides.get_method` returns ``'native'``
 (``lora_force_diffusers`` off and ``chroma`` in ``allow_native``).
 
 Entry points, one per family: :func:`try_load_lora` (plus DoRA),
-:func:`try_load_lokr`, :func:`try_load_loha`, :func:`try_load_oft`.
+:func:`try_load_lokr`, :func:`try_load_loha`, :func:`try_load_oft`,
+:func:`try_load_ia3`, :func:`try_load_glora`, :func:`try_load_norm`,
+:func:`try_load_full`.
 
 Recognized key prefixes: ``diffusion_model.``, ``transformer.``,
-``lora_unet_``, plus bare BFL paths (``double_blocks.`` / ``single_blocks.``)
-and bare diffusers paths (``transformer_blocks.`` /
-``single_transformer_blocks.`` / ``distilled_guidance_layer.``).
+``lora_unet_``, ``lycoris_``, plus bare BFL paths (``double_blocks.`` /
+``single_blocks.`` / ``img_in.`` / ``txt_in.`` / ``final_layer.`` /
+``distilled_guidance_layer.``) and bare diffusers paths
+(``transformer_blocks.`` / ``single_transformer_blocks.``).
 
 Chroma LoRAs are trained against the Flux block layout regardless of save
 format. The diffusers ``ChromaTransformer2DModel`` exposes split-attention
@@ -26,8 +29,11 @@ Fused weight handling:
 Chroma's modulation generator is the central ``distilled_guidance_layer``
 approximator (replacing Flux's per-block ``norm1.linear``). The pruned
 ``ChromaAdaLayerNormZeroPruned`` classes have no ``.linear`` submodule, so
-any ``_mod_lin`` / ``_modulation_lin`` keys land in ``unmapped``. LoRAs
-targeting the approximator pass through unchanged.
+any ``_mod_lin`` / ``_modulation_lin`` keys land in ``unmapped``. Approximator
+keys pass through verbatim except the MLP leaves, where BFL
+``layers.{i}.in_layer`` / ``out_layer`` rename to diffusers ``linear_1`` /
+``linear_2``. Non-block embedder and final-layer keys rename via
+``CHROMA_EXTRA_MAP``.
 """
 
 from modules.lora import native_adapter
@@ -38,11 +44,17 @@ from modules.lora.native_adapter import ChunkSpec
 
 KNOWN_PREFIXES = native_adapter.KNOWN_PREFIXES_DEFAULT
 
-BARE_FLUX_PREFIXES = ("double_blocks.", "single_blocks.")
+# distilled_guidance_layer. is deliberately a bare-BFL prefix, not a
+# bare-diffusers one: the resolver renames BFL MLP leaves (in_layer/out_layer)
+# and passes diffusers-named leaves (linear_1/linear_2, in_proj, out_proj,
+# norms.N) through verbatim, so both namings route correctly.
+BARE_FLUX_PREFIXES = (
+    "double_blocks.", "single_blocks.",
+    "img_in.", "txt_in.", "final_layer.", "distilled_guidance_layer.",
+)
 
 BARE_DIFFUSERS_PREFIXES = (
     "transformer_blocks.", "single_transformer_blocks.",
-    "distilled_guidance_layer.",
 )
 
 
@@ -61,11 +73,19 @@ LORA_SUFFIXES = native_adapter.LORA_SUFFIXES
 LOKR_SUFFIXES = native_adapter.LOKR_SUFFIXES
 LOHA_SUFFIXES = native_adapter.LOHA_SUFFIXES
 OFT_SUFFIXES = native_adapter.OFT_SUFFIXES
+IA3_SUFFIXES = native_adapter.IA3_SUFFIXES
+GLORA_SUFFIXES = native_adapter.GLORA_SUFFIXES
+NORM_SUFFIXES = native_adapter.NORM_SUFFIXES
+FULL_SUFFIXES = native_adapter.FULL_SUFFIXES
 
 LORA_MARKERS = native_adapter.LORA_MARKERS
 LOKR_MARKERS = native_adapter.LOKR_MARKERS
 LOHA_MARKERS = native_adapter.LOHA_MARKERS
 OFT_MARKERS = native_adapter.OFT_MARKERS
+IA3_MARKERS = native_adapter.IA3_MARKERS
+GLORA_MARKERS = native_adapter.GLORA_MARKERS
+NORM_MARKERS = native_adapter.NORM_MARKERS
+FULL_MARKERS = native_adapter.FULL_MARKERS
 
 SUFFIX_NORMALIZE = native_adapter.SUFFIX_NORMALIZE
 BARE_DIFFUSERS_PREFIX_USED = native_adapter.BARE_DIFFUSERS_PREFIX_USED
@@ -116,6 +136,13 @@ def resolve_targets(prefix_used, base):
 
 def _kohya_to_diffusers(base):
     """For kohya keys like ``double_blocks_0_img_attn_qkv`` or ``single_blocks_5_linear1``."""
+    extra = CHROMA_EXTRA_KOHYA_MAP.get(base)
+    if extra is not None:
+        return [(extra, None)]
+    if base.startswith("distilled_guidance_layer_layers_"):
+        for bfl_leaf, dif_leaf in GUIDANCE_LEAF_MAP.items():
+            if base.endswith("_" + bfl_leaf):
+                return [(base[:-len(bfl_leaf)] + dif_leaf, None)]
     if base.startswith("double_blocks_"):
         rest = base[len("double_blocks_"):]
         idx, _, suffix = rest.partition("_")
@@ -129,6 +156,14 @@ def _kohya_to_diffusers(base):
 
 def _bfl_to_diffusers(base):
     """For BFL dotted keys like ``double_blocks.0.img_attn.qkv``."""
+    extra = CHROMA_EXTRA_MAP.get(base)
+    if extra is not None:
+        return [(extra, None)]
+    if base.startswith("distilled_guidance_layer.layers."):
+        stem, _, leaf = base.rpartition(".")
+        mapped = GUIDANCE_LEAF_MAP.get(leaf)
+        if mapped is not None:
+            return [(f"{stem}.{mapped}", None)]
     parts = base.split(".")
     if len(parts) < 3:
         return [(base, None)]
@@ -140,6 +175,27 @@ def _bfl_to_diffusers(base):
     if block_type == "single_blocks":
         return _single_block_targets(block_idx, suffix_key)
     return [(base, None)]
+
+
+# Non-block BFL targets. Chroma prunes time_in/guidance_in/vector_in and the
+# final-layer adaLN modulation, so only the embedders and the final projection
+# need renames. None carry a block index, so the kohya form is derivable by
+# underscoring the BFL path.
+CHROMA_EXTRA_MAP = {
+    "img_in": "x_embedder",
+    "txt_in": "context_embedder",
+    "final_layer.linear": "proj_out",
+}
+
+CHROMA_EXTRA_KOHYA_MAP = {k.replace(".", "_"): v for k, v in CHROMA_EXTRA_MAP.items()}
+
+# distilled_guidance_layer MLP leaves: BFL in_layer/out_layer vs diffusers
+# PixArtAlphaTextProjection linear_1/linear_2. The other approximator leaves
+# (in_proj, out_proj, norms.N) share names on both sides and pass verbatim.
+GUIDANCE_LEAF_MAP = {
+    "in_layer": "linear_1",
+    "out_layer": "linear_2",
+}
 
 
 # Static non-fused renames (underscore-keyed for dispatch from either kohya or BFL paths).
@@ -228,9 +284,28 @@ def try_load_oft(name, network_on_disk, lora_scale):
     return native_adapter.try_load_oft(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
+def try_load_ia3(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_ia3(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_glora(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_glora(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_norm(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_norm(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_full(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_full(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
 def try_load(name, network_on_disk, lora_scale):
     """Run every Chroma family loader, merge any that match."""
     return native_adapter.try_load_chain(
         name, network_on_disk, lora_scale,
-        family_loaders=(try_load_lora, try_load_lokr, try_load_loha, try_load_oft),
+        family_loaders=(
+            try_load_lora, try_load_lokr, try_load_loha, try_load_oft,
+            try_load_ia3, try_load_glora, try_load_norm, try_load_full,
+        ),
     )

@@ -1,0 +1,8 @@
+allowBuilds:
+  '@google/genai': false
+  esbuild: true
+  protobufjs: false
+  unrs-resolver: false
+packages:
+  - "extensions-builtin/sdnext-modernui"
+  - "extensions-builtin/sdnext-kanvas"

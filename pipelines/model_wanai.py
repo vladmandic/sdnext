@@ -42,7 +42,7 @@ def load_wan(checkpoint_info, diffusers_load_config=None):
             boundary_ratio = 1000.0
         elif shared.opts.model_wan_stage == 'combined' or shared.opts.model_wan_stage == 'both':
             transformer = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer')
-            transformer_2 = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer_2')
+            transformer_2 = generic.load_transformer(repo_id, cls_name=transformer_cls, load_config=diffusers_load_config, subfolder='transformer_2', override_slot='secondary')
             # load with the checkpoint's boundary; the slider override is applied at runtime in set_pipeline_args
             boundary_ratio = None
         else:

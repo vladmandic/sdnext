@@ -7,12 +7,7 @@ device = None
 
 def get_gpu():
     import installer
-    res = {}
-    if len(installer.gpu_info) == 1:
-        return installer.gpu_info[0]
-    for i, item in enumerate(installer.gpu_info):
-        res[i] = item
-    return res
+    return installer.gpu_info
 
 
 def get_gpu_smi():

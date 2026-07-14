@@ -1,6 +1,7 @@
 import os
 import enum
 from collections import namedtuple
+import torch
 from modules import hashes, shared, sd_checkpoint
 
 
@@ -174,6 +175,16 @@ class NetworkModule:
                 self.shape = self.sd_module.weight.shape
         self.dim = None
         self.bias = weights.w.get("bias")
+        if self.bias is None and "bias_indices" in weights.w:
+            # LyCORIS extraction with use_bias: the sparse weight-shaped
+            # remainder of the SVD extraction ("bias" is historical naming),
+            # stored COO with int16 indices. Kept sparse; finalize_updown's
+            # dense += sparse materializes it per module at apply time.
+            self.bias = torch.sparse_coo_tensor(
+                weights.w["bias_indices"].to(torch.long),
+                weights.w["bias_values"],
+                tuple(weights.w["bias_size"]),
+            )
         self.alpha = weights.w["alpha"].item() if "alpha" in weights.w else None
         self.scale = weights.w["scale"].item() if "scale" in weights.w else None
         self.dora_scale = weights.w.get("dora_scale", None)
@@ -268,7 +279,13 @@ class NetworkModule:
         if ex_bias is not None:
             ex_bias = ex_bias * self.multiplier()
         if self.dora_scale is not None:
-            updown = self.apply_weight_decompose(updown, orig_weight)
+            # LyCORIS/ComfyUI convention: alpha/rank is baked into the diff
+            # before the decompose norm. The multiplier then lerps the full
+            # merged delta (ComfyUI semantics: 0 disables, 1 equals the
+            # trainer's output; LyCORIS weight-mode ratio interpolation is
+            # not used since it leaves the diff applied at multiplier 0).
+            updown = self.apply_weight_decompose(updown * self.calc_scale(), orig_weight)
+            return updown * self.multiplier(), ex_bias
         return updown * self.calc_scale() * self.multiplier(), ex_bias
 
     def calc_updown(self, target):

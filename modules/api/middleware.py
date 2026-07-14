@@ -9,12 +9,26 @@ import fastapi
 from starlette.responses import JSONResponse
 from fastapi import FastAPI, Request, Response
 from fastapi.exceptions import HTTPException
+from fastapi.responses import RedirectResponse
 from fastapi.encoders import jsonable_encoder
 from modules.logger import log
 import modules.errors as errors
 from modules.api.validate import validate_request, validate_log
 
 errors.install()
+
+
+def validate_subpath(endpoint: str, subpath: str | None):
+    if (subpath is not None) and (len(subpath) > 0) and (not endpoint.startswith(subpath)):
+        if not subpath.endswith('/'):
+            subpath = f'{subpath}/'
+        if endpoint.startswith('/'):
+            url = f'{subpath}{endpoint[1:]}'
+        else:
+            url = f'{subpath}{endpoint}'
+        log.trace(f'API: redirect subpath={subpath} url="{endpoint}" redirect="{url}"')
+        return RedirectResponse(url=url, status_code=308)
+    return None
 
 
 def setup_middleware(app: FastAPI, cmd_opts):
@@ -43,6 +57,11 @@ def setup_middleware(app: FastAPI, cmd_opts):
             endpoint = req.scope.get('path', 'err')
             client = req.scope.get('client', ('0:0.0.0', 0))[0]
             token = req.cookies.get("access-token") or req.cookies.get("access-token-unsecure")
+
+            redirect = validate_subpath(endpoint, cmd_opts.subpath)
+            if redirect:
+                return redirect
+
             validate_request(client, endpoint)
             if cmd_opts.api_log:
                 if not validate_log(client, endpoint):

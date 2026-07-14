@@ -20,5 +20,6 @@
   },
   "githubPullRequests.ignoredPullRequestBranches": [
     "master"
-  ]
+  ],
+  "chat.byokUtilityModelDefault": "mainAgent"
 }

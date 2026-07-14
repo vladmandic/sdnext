@@ -5,7 +5,8 @@ import triton
 import triton.language as tl
 
 from ..common import compile_func # pylint: disable=relative-beyond-top-level
-from ..quant_utils import quantize_int_mm, quantize_fp_mm, get_hadamard, apply_hadamard # pylint: disable=relative-beyond-top-level
+from ..quant_utils import quantize_int_mm, quantize_fp_mm, get_hadamard, get_hadamard_group_size, apply_hadamard # pylint: disable=relative-beyond-top-level
+from ..utils import is_pow2, next_power_of_2 # pylint: disable=relative-beyond-top-level
 
 
 min_block_size = int(os.environ.get("SDNQ_TRITON_ATTEN_MIN_BLOCK_SIZE", "256"))
@@ -173,15 +174,15 @@ def sdnq_attn_kernel(
                     p_scale = tl.max(p, 1)[:, None] * (1 / 127.0)
                     p_scale = tl.where(p_scale <= 2e-38, 1.0, p_scale)
                     p = tl.floor(p * (1 / p_scale) + 0.5).to(tl.int8)
-                    acc += tl.dot(p, v, out_dtype=tl.int32).to(tl.float32) * p_scale
+                    acc = tl.fma(tl.dot(p, v, out_dtype=tl.int32).to(tl.float32), p_scale, acc)
                 else:
                     p_scale = tl.max(p, 1)[:, None] * (1 / (65504.0 if v.dtype == tl.float16 else 448.0))
                     p_scale = tl.where(p_scale <= 2e-38, 1.0, p_scale)
                     p = (p * (1 / p_scale)).to(v.dtype)
-                    acc += tl.dot(p, v, out_dtype=tl.float32) * p_scale
+                    acc = tl.fma(tl.dot(p, v, out_dtype=tl.float32), p_scale, acc)
             else:
                 p = p.to(v.dtype)
-                acc += tl.dot(p, v, out_dtype=tl.float32)
+                acc = tl.dot(p, v, acc, out_dtype=tl.float32)
             m_i = m_ij
 
     l_i = 1 / l_i[:, None]
@@ -261,15 +262,15 @@ def get_attn_inputs(
         out_dtype = query.dtype
     if scale is None:
         scale = QHD ** -0.5
-    if not math.log(QHD, 2).is_integer():
-        query = torch.nn.functional.pad(query, (0, triton.next_power_of_2(QHD) - QHD))
-        key = torch.nn.functional.pad(key, (0, triton.next_power_of_2(KHD) - KHD))
-        value = torch.nn.functional.pad(value, (0, triton.next_power_of_2(VHD) - VHD))
+    if not is_pow2(QHD):
+        query = torch.nn.functional.pad(query, (0, next_power_of_2(QHD) - QHD))
+        key = torch.nn.functional.pad(key, (0, next_power_of_2(KHD) - KHD))
+        value = torch.nn.functional.pad(value, (0, next_power_of_2(VHD) - VHD))
     if attn_mask is not None:
         attn_mask = attn_mask.expand((QZ, QH, QN, KN))
-        if not math.log(KN, 2).is_integer():
+        if not is_pow2(KN):
             pad_value = float("-inf") if torch.is_floating_point(attn_mask) else 0
-            attn_mask = torch.nn.functional.pad(attn_mask, (0, triton.next_power_of_2(KN) - KN), value=pad_value)
+            attn_mask = torch.nn.functional.pad(attn_mask, (0, next_power_of_2(KN) - KN), value=pad_value)
         if attn_mask.dtype == torch.bool:
             attn_mask = attn_mask.to(dtype=torch.int8)
         attn_mask = attn_mask.contiguous()
@@ -302,14 +303,18 @@ def sdnq_triton_atten(
     do_quantize: bool = True,
     out_dtype: torch.dtype | None = None,
 ) -> torch.FloatTensor:
-    QZ, QH, QN, _ = query.shape
-    _, _, KN, _ = key.shape
+    QZ, QH, QN, QHD = query.shape
+    _, _, KN, KHD = key.shape
     _, _, VN, VHD = value.shape
 
-    if use_hadamard and matmul_dtype not in {None, "none", "no"}:
-        hadamard = get_hadamard(min(hadamard_group_size, query.shape[-1], key.shape[-1]), dtype=query.dtype, device=query.device)
-    else:
-        hadamard = None
+    hadamard = None
+    if use_hadamard and do_quantize and matmul_dtype not in {None, "none", "no"}:
+        hadamard_channel_size = next_power_of_2(min(QHD, KHD))
+        hadamard_group_size = min(hadamard_group_size, hadamard_channel_size)
+        use_hadamard, hadamard_group_size = get_hadamard_group_size(hadamard_channel_size, hadamard_group_size)
+        if use_hadamard:
+            hadamard = get_hadamard(hadamard_group_size, dtype=query.dtype, device=query.device)
+
     (
         query, query_scale,
         key, key_scale,
@@ -324,6 +329,7 @@ def sdnq_triton_atten(
         matmul_dtype=matmul_dtype, pv_matmul_dtype=pv_matmul_dtype,
         do_quantize=do_quantize, out_dtype=out_dtype,
     )
+
     def grid(META):
         return (triton.cdiv(QN, META["BLOCK_SIZE_M"]), QH, QZ)
     out = torch.empty((QZ, QH, QN, value.shape[-1]), dtype=out_dtype, device=query.device)
@@ -346,4 +352,4 @@ def sdnq_triton_atten(
     return out[..., :VHD]
 
 
-get_attn_inputs = compile_func(get_attn_inputs, dynamic=True)
+get_attn_inputs = compile_func(get_attn_inputs)

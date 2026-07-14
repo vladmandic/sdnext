@@ -4,9 +4,12 @@ from pathlib import Path
 from modules.logger import log
 
 
-# Map CivitAI model types to shared.opts directory settings and fallback subfolder names
+# Map CivitAI model types to shared.opts directory settings and fallback subfolder
+# names. 'Text Encoder' is a file type, not a model type: versions bundle companion
+# files, and clients route those by the file's own type.
 TYPE_MAP = {
     'Checkpoint': ('ckpt_dir', 'Stable-diffusion'),
+    'Text Encoder': ('te_dir', 'Text-encoder'),
     'TextualInversion': ('embeddings_dir', 'embeddings'),
     'Hypernetwork': ('hypernetwork_dir', 'hypernetworks'),
     'AestheticGradient': ('ckpt_dir', 'Stable-diffusion'),
@@ -58,6 +61,25 @@ def get_type_folder(model_type: str, base_model: str = '') -> Path:
         if configured:
             return Path(configured)
     return Path(paths.models_path) / fallback_dir
+
+
+def iter_type_roots() -> set[Path]:
+    """Every root folder downloads can resolve into, for maintenance sweeps."""
+    from modules import shared, paths
+    roots = set()
+    custom_json = getattr(shared.opts, 'civitai_save_type_folders', '') or ''
+    if custom_json.strip():
+        try:
+            import json
+            for folder in json.loads(custom_json).values():
+                p = Path(folder)
+                roots.add(p if p.is_absolute() else Path(paths.models_path) / folder)
+        except Exception:
+            pass
+    for opt_attr, fallback_dir in set(TYPE_MAP.values()) | {('unet_dir', 'UNET')}:
+        configured = (getattr(shared.opts, opt_attr, '') or '') if opt_attr else ''
+        roots.add(Path(configured) if configured else Path(paths.models_path) / fallback_dir)
+    return {r for r in roots if r.is_dir()}
 
 
 def resolve_save_path(model_type: str, model_name: str = "", base_model: str = "",

@@ -212,10 +212,11 @@
     "date": "2026 March"
   },
   "Anima 1.0 Turbo": {
-    "path": "vladmandic/Anima-1.0-Turbo",
-    "preview": "vladmandic--Anima-1.0-Turbo.jpg",
-    "desc": "Anima 1.0 Turbo with extended 1024-resolution training and expanded dataset coverage for less common artists. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
-    "date": "2026 May",
+    "path": "CalamitousFelicitousness/Anima-1.0-Turbo-Diffusers",
+    "preview": "CalamitousFelicitousness--Anima-1.0-Turbo-Diffusers.jpg",
+    "desc": "Anima 1.0 Turbo, distilled for fast generation with increased stability and a strong default style. A 2B parameter anime-focused text-to-image model based on modified Cosmos-Predict-2B with Qwen3-0.6B text encoder, created by CircleStone Labs and Comfy Org.",
+    "extras": "sampler: Default, cfg_scale: 1.0, steps: 10",
+    "date": "2026 July",
     "size": 4.99
   },
   "Meituan LongCat Image-Edit Turbo": {

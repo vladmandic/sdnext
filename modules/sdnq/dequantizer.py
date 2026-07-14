@@ -5,11 +5,16 @@ from dataclasses import dataclass
 import torch
 
 from modules import devices
-from .common import dtype_dict, compile_func, use_contiguous_int8_mm, use_contiguous_fp16_mm, use_tensorwise_fp8_matmul
+from .common import dtype_dict, compile_func
+from .kernel_wrappers import use_contiguous_int8_mm, use_contiguous_fp16_mm, use_tensorwise_fp8_matmul, is_fp8_compile_supported
 from .quant_utils import quantize_int_mm, quantize_uint_mm, quantize_fp_mm, rotate_hadamard, get_hadamard
 from .packed_int import unpack_int
 from .packed_float import unpack_float
 from .layers import SDNQLayer
+
+
+def skip_fp8_compile(weights_dtype: str) -> bool: # triton has no e4m3 conversions before sm_89, compiled dequant would crash
+    return not is_fp8_compile_supported and dtype_dict[weights_dtype]["storage_dtype"] == torch.float8_e4m3fn
 
 
 @devices.inference_context()
@@ -118,7 +123,7 @@ def re_quantize_int_mm(weight: torch.FloatTensor, matmul_dtype: str = "int8") ->
         weight, scale = quantize_int_mm(weight.t().contiguous(), dim=0, matmul_dtype=matmul_dtype)
     else:
         weight, scale = quantize_int_mm(weight.contiguous(), dim=-1, matmul_dtype=matmul_dtype)
-        weight, scale = weight.t_(), scale.t_()
+        weight, scale = weight.t_(), scale.t_().contiguous()
     return weight, scale
 
 
@@ -130,7 +135,7 @@ def re_quantize_uint_mm(weight: torch.FloatTensor, matmul_dtype: str = "uint8") 
         weight, scale, zero_point = quantize_uint_mm(weight.t().contiguous(), dim=0, matmul_dtype=matmul_dtype)
     else:
         weight, scale, zero_point = quantize_uint_mm(weight.contiguous(), dim=-1, matmul_dtype=matmul_dtype)
-        weight, scale, zero_point = weight.t_(), scale.t_(), zero_point.t_()
+        weight, scale, zero_point = weight.t_(), scale.t_().contiguous(), zero_point.t_().contiguous()
     return weight, scale, zero_point
 
 
@@ -142,7 +147,7 @@ def re_quantize_fp_mm(weight: torch.FloatTensor, matmul_dtype: str = "float8_e4m
         weight, scale = quantize_fp_mm(weight.t().contiguous(), dim=0, matmul_dtype=matmul_dtype)
     else:
         weight, scale = quantize_fp_mm(weight.contiguous(), dim=-1, matmul_dtype=matmul_dtype)
-        weight, scale = weight.t_(), scale.t_()
+        weight, scale = weight.t_(), scale.t_().contiguous()
     if not use_tensorwise_fp8_matmul and dtype_dict[matmul_dtype]["num_bits"] == 8:
         scale = scale.to(dtype=torch.float32)
     return weight, scale
@@ -272,10 +277,14 @@ class SDNQDequantizer:
         self.use_stochastic_rounding = use_stochastic_rounding
         self.use_hadamard = use_hadamard
         self.layer_class_name = layer_class_name
+        self.num_bits = dtype_dict[weights_dtype]["num_bits"]
         self.is_packed = dtype_dict[weights_dtype]["is_packed"]
-        self.is_unsigned = dtype_dict[weights_dtype]["is_unsigned"]
         self.is_integer = dtype_dict[weights_dtype]["is_integer"]
+        self.is_unsigned = dtype_dict[weights_dtype]["is_unsigned"]
+        self.num_bits_matmul = dtype_dict[quantized_matmul_dtype]["num_bits"]
+        self.is_packed_matmul = dtype_dict[quantized_matmul_dtype]["is_packed"]
         self.is_integer_matmul = dtype_dict[quantized_matmul_dtype]["is_integer"]
+        self.is_unsigned_matmul = dtype_dict[quantized_matmul_dtype]["is_unsigned"]
 
     @devices.inference_context()
     def re_quantize_matmul(
@@ -287,10 +296,12 @@ class SDNQDequantizer:
         svd_down: torch.FloatTensor | None = None,
         hadamard: torch.FloatTensor | None = None,
         non_hadamard: bool = True,
+        skip_compile: bool = False,
     ) -> tuple[torch.Tensor, torch.FloatTensor]: # pylint: disable=unused-argument
         if hadamard is None and self.use_hadamard and not non_hadamard:
             hadamard = get_hadamard(self.hadamard_group_size, dtype=self.result_dtype, device=weight.device)
-        return re_quantize_matmul_compiled(
+        re_quantize_matmul_func = re_quantize_matmul if skip_compile or skip_fp8_compile(self.weights_dtype) else re_quantize_matmul_compiled
+        return re_quantize_matmul_func(
             self.weights_dtype,
             weight,
             scale,
@@ -322,7 +333,7 @@ class SDNQDequantizer:
         if hadamard is None and self.use_hadamard and not non_hadamard:
             hadamard = get_hadamard(self.hadamard_group_size, dtype=dtype, device=weight.device)
         re_quantize_for_matmul = self.re_quantize_for_matmul or self.is_packed
-        dequantize_weight_func = dequantize_weight if skip_compile else dequantize_weight_compiled
+        dequantize_weight_func = dequantize_weight if skip_compile or skip_fp8_compile(self.weights_dtype) else dequantize_weight_compiled
         return dequantize_weight_func(
             self.weights_dtype,
             weight,

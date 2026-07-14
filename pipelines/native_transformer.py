@@ -19,15 +19,19 @@ from diffusers' ``SINGLE_FILE_LOADABLE_CLASSES`` table.
 Algorithm:
 
 1. Read the safetensors state dict (.gguf and .pth are rejected up front).
-2. Detect and strip one of the spec's known prefixes (raises on mixed prefixes).
-3. Check forbidden markers (catches structural mismatches like Cosmos 1.0 keys
+2. Drop keys belonging to known companion component families (all-in-one
+   exports bundle the text encoder and VAE under prefixes like
+   ``cond_stage_model.`` / ``first_stage_model.``; sdnext sources those
+   components elsewhere).
+3. Detect and strip one of the spec's known prefixes (raises on mixed prefixes).
+4. Check forbidden markers (catches structural mismatches like Cosmos 1.0 keys
    in a Cosmos 2.0 loader).
-4. Partition off sibling component keys (e.g. Anima's bundled ``llm_adapter.*``).
-5. Run the spec's converter if present (else pass through unchanged).
-6. Fetch ``<subfolder>/config.json`` from the base repo, instantiate via
+5. Partition off sibling component keys (e.g. Anima's bundled ``llm_adapter.*``).
+6. Run the spec's converter if present (else pass through unchanged).
+7. Fetch ``<subfolder>/config.json`` from the base repo, instantiate via
    ``cls.from_config``, ``load_state_dict(strict=False)``, validate, dtype-cast,
    quantize, and offload-place.
-7. Repeat the build for each populated sibling (no converter, no quant by
+8. Repeat the build for each populated sibling (no converter, no quant by
    default; sibling weights are read raw from the bundled file).
 
 Returns ``(transformer, sibling_components_dict)``. The dict is empty for
@@ -37,6 +41,7 @@ loading the adapter from the base repo.
 """
 
 import os
+import json
 import time
 from dataclasses import dataclass, field
 from typing import Callable
@@ -58,6 +63,20 @@ DEFAULT_ACCEPTABLE_MISSING: tuple[str, ...] = (
     "pos_embedder.",
     "learnable_pos_embed.",
 )
+DEFAULT_IGNORED_PREFIXES: tuple[str, ...] = (
+    "cond_stage_model.",
+    "conditioner.",
+    "first_stage_model.",
+    "text_encoders.",
+    "vae.",
+)
+COMFY_QUANT_MARKER = ".comfy_quant"
+COMFY_QUANT_FORMATS: dict[str, str] = {  # comfy_quant format string -> SDNQ weights_dtype
+    "int8_tensorwise": "int8",
+    "float8_e4m3fn": "float8_e4m3fn",
+    "nvfp4": "float4_e2m1fn",
+}
+NVFP4_GROUP_SIZE = 16  # fixed by the format definition; markers restate it
 
 
 class OverrideArchMismatch(Exception):
@@ -106,12 +125,23 @@ class TransformerSpec:
     ``acceptable_missing`` (buffer-only keys left at their init), these are
     zero-filled on load so the branch stays a no-op, matching a base model
     that ships the branch dormant (output projection all-zeros).
+
+    ``ignored_prefixes`` names companion component families (text encoder,
+    VAE) that all-in-one exports bundle alongside the transformer; their keys
+    are dropped before prefix detection rather than treated as a malformed
+    file.
+
+    ``converter_handles_quant`` runs the converter before comfy_quant
+    detection; such converters must translate marker/scale sidecar keys along
+    with the weights. Float-oriented converters keep the default.
     """
 
     cls: type
     subfolder: str = "transformer"
     prefixes: tuple[str, ...] = DEFAULT_PREFIXES
+    ignored_prefixes: tuple[str, ...] = DEFAULT_IGNORED_PREFIXES
     converter: Callable[[dict], dict] | None = None
+    converter_handles_quant: bool = False
     siblings: dict[str, SiblingSpec] = field(default_factory=dict)
     acceptable_missing: tuple[str, ...] = DEFAULT_ACCEPTABLE_MISSING
     zero_init_missing: tuple[str, ...] = ()
@@ -246,7 +276,12 @@ def load(
         quant_type = model_quant.get_quant_type(quant_args)
 
     state_dict = sd_models.read_state_dict(local_file, what="transformer")
+    metadata_layers = read_quantization_metadata(local_file)
+    state_dict = drop_companion_keys(state_dict, spec.ignored_prefixes, spec.cls.__name__)
     state_dict, detected_prefix = strip_prefix(state_dict, spec.prefixes, spec.cls.__name__)
+    if metadata_layers and detected_prefix:
+        # header metadata names mirror the file's tensor naming, so they carry the same prefix
+        metadata_layers = {name[len(detected_prefix):] if name.startswith(detected_prefix) else name: meta for name, meta in metadata_layers.items()}
     check_forbidden_markers(state_dict, spec.forbidden_markers, spec.cls.__name__, local_file)
     transformer_sd, sibling_sds = partition_siblings(state_dict, spec.siblings)
     del state_dict
@@ -274,6 +309,8 @@ def load(
         dtype=effective_dtype,
         modules_to_not_convert=modules_to_not_convert,
         modules_dtype_dict=modules_dtype_dict,
+        converter_handles_quant=spec.converter_handles_quant,
+        metadata_layers=metadata_layers,
         **kwargs,
     )
     del transformer_sd
@@ -307,6 +344,40 @@ def load(
     devices.torch_gc()
     log.debug(f"Load model: type={spec.cls.__name__} native_transformer time={time.time() - t0:.2f}")
     return transformer, loaded_siblings
+
+
+def drop_companion_keys(state_dict: dict, ignored_prefixes: tuple[str, ...], type_name: str) -> dict:
+    """Remove keys belonging to known non-transformer component families.
+
+    All-in-one exports bundle the text encoder and VAE alongside the
+    transformer under LDM/ComfyUI-style family prefixes (``cond_stage_model.``,
+    ``first_stage_model.``, ``text_encoders.``, ``vae.``). Only the transformer
+    (plus any spec-declared inline siblings) is wanted here; sdnext sources the
+    other components from the base repo or their own override dropdowns.
+    Dropped families are logged so the skip is visible in the load log.
+
+    Raises ValueError when nothing remains after filtering, meaning the
+    selected file holds no transformer at all.
+    """
+    if not ignored_prefixes:
+        return state_dict
+    dropped: dict[str, int] = {}
+    kept: dict = {}
+    for key, value in state_dict.items():
+        prefix = next((p for p in ignored_prefixes if key.startswith(p)), None)
+        if prefix is None:
+            kept[key] = value
+        else:
+            dropped[prefix] = dropped.get(prefix, 0) + 1
+    if not dropped:
+        return state_dict
+    counts = " ".join(f"{prefix.rstrip('.')}={count}" for prefix, count in dropped.items())
+    if not kept:
+        raise ValueError(
+            f"Load model: type={type_name} native_transformer has no transformer keys ({counts})"
+        )
+    log.info(f"Load model: type={type_name} native_transformer skipping bundled components: {counts}")
+    return kept
 
 
 def strip_prefix(state_dict: dict, prefixes: tuple[str, ...], type_name: str) -> tuple[dict, str]:
@@ -361,6 +432,225 @@ def check_forbidden_markers(
                 f"Load model: type={type_name} native_transformer rejects "
                 f'"{os.path.basename(local_file)}" ({description}; marker key {marker!r})'
             )
+
+
+def read_quantization_metadata(local_file: str) -> dict[str, dict] | None:
+    """Read per-layer quantization info from the safetensors header metadata.
+
+    Newer comfy_quant checkpoints record layer formats in the header
+    ``__metadata__`` under ``_quantization_metadata`` (a JSON string with a
+    ``layers`` map keyed by tensor naming) instead of per-layer marker
+    tensors. Returns the layers map, or ``None`` when the header carries no
+    such entry. Raises :class:`OverrideArchMismatch` when the entry is
+    present but malformed, so the caller's base-repo fallback engages.
+    """
+    from modules.model_probe import read_safetensors_header
+    try:
+        header = read_safetensors_header(local_file)
+    except Exception as e:
+        log.debug(f'Load model: file="{local_file}" header metadata unreadable ({e})')
+        return None
+    meta = (header.get("__metadata__") or {}).get("_quantization_metadata")
+    if meta is None:
+        return None
+    try:
+        parsed = json.loads(meta) if isinstance(meta, str) else meta
+        layers = parsed["layers"]
+    except Exception as e:
+        raise OverrideArchMismatch(
+            f'Load model: file="{local_file}" native_transformer _quantization_metadata '
+            f"is malformed ({type(e).__name__}: {e})"
+        ) from e
+    if not isinstance(layers, dict) or not all(isinstance(entry, dict) for entry in layers.values()):
+        raise OverrideArchMismatch(
+            f'Load model: file="{local_file}" native_transformer _quantization_metadata '
+            f"layers map is malformed"
+        )
+    return layers
+
+
+def transcode_quant_metadata(state_dict: dict, metadata_layers: dict[str, dict]) -> tuple[dict, str]:
+    """Synthesize per-layer marker tensors from header quantization metadata.
+
+    Header metadata and marker tensors describe the same per-layer format
+    dicts; converging on markers lets detection, converters, and remapping
+    handle both forms identically. Entries without a matching ``.weight``
+    (companion components filtered earlier) are skipped; existing markers
+    are overwritten by their header entry. Returns a new dict plus the
+    detection source (``header`` or ``both``) for logging.
+    """
+    sd = dict(state_dict)
+    had_markers = any(key.endswith(COMFY_QUANT_MARKER) for key in sd)
+    count = 0
+    for name, meta in metadata_layers.items():
+        if f"{name}.weight" not in sd:
+            continue
+        sd[f"{name}{COMFY_QUANT_MARKER}"] = torch.tensor(list(json.dumps(meta).encode("utf-8")), dtype=torch.uint8)
+        count += 1
+    if count == 0:
+        return state_dict, "markers"
+    return sd, "both" if had_markers else "header"
+
+
+def detect_comfy_quant(state_dict: dict, type_name: str) -> tuple[dict[str, dict], str] | None:
+    """Detect ``comfy_quant`` pre-quantized layers in a state dict.
+
+    ComfyUI-format quantized checkpoints mark each quantized layer with a
+    ``<name>.comfy_quant`` uint8 tensor whose bytes are a JSON object naming
+    the storage format, alongside a ``<name>.weight_scale`` tensor. Returns
+    a mapping of marked module names to their parsed marker JSON plus the
+    file's format string, or ``None`` when no markers are present. ConvRot
+    markers (``convrot``/``convrot_groupsize``) are accepted per layer: the
+    rotation is the same regular Hadamard SDNQ implements, so flagged layers
+    map onto ``use_hadamard`` (regular Hadamards only exist for power-of-4
+    group sizes). Raises :class:`OverrideArchMismatch` for
+    malformed markers, unsupported formats or group sizes, or a file mixing
+    formats across layers, so the caller's base-repo fallback engages.
+    """
+    marker_keys = [key for key in state_dict if key.endswith(COMFY_QUANT_MARKER)]
+    if not marker_keys:
+        return None
+    marked: dict[str, dict] = {}
+    formats: set[str] = set()
+    for key in marker_keys:
+        name = key[: -len(COMFY_QUANT_MARKER)]
+        try:
+            meta = json.loads(state_dict[key].cpu().numpy().tobytes())
+            fmt = meta["format"]
+        except Exception as e:
+            raise OverrideArchMismatch(
+                f"Load model: type={type_name} native_transformer comfy_quant marker "
+                f"for {name!r} is malformed ({type(e).__name__}: {e})"
+            ) from e
+        if meta.get("convrot"):
+            if fmt == "nvfp4":
+                raise OverrideArchMismatch(
+                    f"Load model: type={type_name} native_transformer comfy_quant layer "
+                    f"{name!r} combines nvfp4 with convrot, which the format does not define"
+                )
+            group_size = int(meta.get("convrot_groupsize", 256))
+            is_pow4 = group_size >= 4 and (group_size & (group_size - 1)) == 0 and (group_size.bit_length() & 1) == 1
+            if not is_pow4:
+                raise OverrideArchMismatch(
+                    f"Load model: type={type_name} native_transformer comfy_quant layer "
+                    f"{name!r} convrot_groupsize={group_size} is not a power of 4"
+                )
+        if fmt == "nvfp4" and int(meta.get("group_size", NVFP4_GROUP_SIZE)) != NVFP4_GROUP_SIZE:
+            raise OverrideArchMismatch(
+                f"Load model: type={type_name} native_transformer comfy_quant layer "
+                f"{name!r} nvfp4 group_size={meta.get('group_size')} is not {NVFP4_GROUP_SIZE}"
+            )
+        marked[name] = meta
+        formats.add(fmt)
+    unsupported = sorted(formats - set(COMFY_QUANT_FORMATS))
+    if unsupported:
+        log.error(
+            f'Load model: type={type_name} quant=comfy format={",".join(unsupported)} not supported '
+            f'(supported: {",".join(COMFY_QUANT_FORMATS)})'
+        )
+        raise OverrideArchMismatch(
+            f"Load model: type={type_name} native_transformer comfy_quant format "
+            f"{', '.join(unsupported)} not supported"
+        )
+    if len(formats) > 1:
+        raise OverrideArchMismatch(
+            f"Load model: type={type_name} native_transformer comfy_quant mixes formats "
+            f"across layers ({', '.join(sorted(formats))})"
+        )
+    return marked, next(iter(formats))
+
+
+def remap_comfy_quant(state_dict: dict, marked_names: set[str], defer_scales: bool = False) -> dict:
+    """Translate comfy_quant tensor naming to SDNQ naming.
+
+    Renames ``<name>.weight_scale`` to ``<name>.scale`` (reshaped to 2-D,
+    ``[]`` becomes ``[1, 1]``, since SDNQ transposes scales in place) and
+    drops the ``<name>.comfy_quant`` markers plus optional
+    ``<name>.input_scale`` activation-calibration sidecars (SDNQ re-derives
+    activation scales dynamically). With ``defer_scales`` the scale rename is
+    skipped: block-scaled formats (nvfp4) carry swizzled scale tensors whose
+    transform needs the layer dimensions, so the prequantized builder handles
+    them per layer. Returns a new dict; the input (which may be the cached
+    state dict) is not mutated.
+    """
+    scale_suffix = ".weight_scale"
+    input_scale_suffix = ".input_scale"
+    remapped: dict = {}
+    for key, value in state_dict.items():
+        if key.endswith(COMFY_QUANT_MARKER) and key[: -len(COMFY_QUANT_MARKER)] in marked_names:
+            continue
+        if key.endswith(input_scale_suffix) and key[: -len(input_scale_suffix)] in marked_names:
+            continue
+        if not defer_scales and key.endswith(scale_suffix) and key[: -len(scale_suffix)] in marked_names:
+            remapped[f"{key[: -len(scale_suffix)]}.scale"] = value.reshape(-1, 1)
+            continue
+        remapped[key] = value
+    return remapped
+
+
+def unswizzle_block_scales(scales: torch.Tensor, rows: int, groups: int) -> torch.Tensor:
+    """Invert the cuBLAS 2D block-scaling factor layout back to row-major
+    ``[rows, groups]``, dropping the tile alignment padding.
+
+    Block-scaled comfy_quant checkpoints store per-group scales pre-tiled for
+    the hardware kernels: the ``[roundup(rows, 128), roundup(groups, 4)]``
+    grid is rearranged into 32x16 tiles as described in
+    https://docs.nvidia.com/cuda/cublas/index.html#d-block-scaling-factors-layout
+    """
+    row_blocks = -(rows // -128)
+    col_blocks = -(groups // -4)
+    tiles = scales.reshape(-1, 32, 4, 4).transpose(1, 2)
+    tiles = tiles.reshape(row_blocks, col_blocks, 4, 32, 4).reshape(row_blocks, col_blocks, 128, 4)
+    return tiles.permute(0, 2, 1, 3).reshape(row_blocks * 128, col_blocks * 4)[:rows, :groups]
+
+
+def adopt_nvfp4_layer(sd: dict, name: str, linear: torch.nn.Linear, component_name: str, meta: dict) -> None:
+    """Rewrite one nvfp4 layer's tensors in place into SDNQ layout.
+
+    Slices tile-alignment padding off the packed weight, swaps the nibble
+    order (the container packs the even element into the high nibble, SDNQ
+    unpacks low-first), unswizzles the e4m3 block scales, and folds the fp32
+    global scale into them as ``[out, groups, 1]`` fp32 grouped scales.
+    """
+    out_features, in_features = linear.out_features, linear.in_features
+    if in_features % NVFP4_GROUP_SIZE != 0:
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} nvfp4 group size {NVFP4_GROUP_SIZE} does not divide in_features={in_features}"
+        )
+    orig_shape = meta.get("orig_shape")
+    if orig_shape is not None and tuple(orig_shape) != (out_features, in_features):
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} stores orig_shape={tuple(orig_shape)} but the model expects {(out_features, in_features)}"
+        )
+    weight = sd.get(f"{name}.weight")
+    scales = sd.pop(f"{name}.weight_scale", None)
+    global_scale = sd.pop(f"{name}.weight_scale_2", None)
+    if scales is None or global_scale is None:
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} is missing nvfp4 weight_scale/weight_scale_2 tensors"
+        )
+    packed_columns = in_features // 2
+    if weight is None or weight.ndim != 2 or weight.shape[0] < out_features or weight.shape[1] < packed_columns:
+        found = tuple(weight.shape) if weight is not None else "missing"
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} packed weight {found} cannot hold {(out_features, packed_columns)}"
+        )
+    groups = in_features // NVFP4_GROUP_SIZE
+    expected_scales = -(out_features // -128) * 128 * -(groups // -4) * 4
+    if scales.numel() != expected_scales:
+        raise OverrideArchMismatch(
+            f"Load model: transformer=native {component_name} comfy_quant marked module "
+            f"{name!r} block scales hold {scales.numel()} values, expected {expected_scales}"
+        )
+    weight = weight[:out_features, :packed_columns]
+    weight = torch.bitwise_or(torch.bitwise_left_shift(torch.bitwise_and(weight, 15), 4), torch.bitwise_right_shift(weight, 4))
+    scales = unswizzle_block_scales(scales, out_features, groups)
+    sd[f"{name}.weight"] = weight
+    sd[f"{name}.scale"] = scales.to(torch.float32).mul_(global_scale.to(torch.float32)).unsqueeze(-1)
 
 
 def partition_siblings(
@@ -500,6 +790,213 @@ def build_component_quantized(
     return component
 
 
+def build_component_prequantized(
+    *,
+    component_name: str,
+    state_dict: dict,
+    config: dict,
+    cls: type,
+    marker_meta: dict[str, dict],
+    comfy_format: str,
+    dtype,
+    acceptable_missing: tuple[str, ...],
+    zero_init_missing: tuple[str, ...] = (),
+    **kwargs,
+) -> object:
+    """Build a component from a comfy_quant pre-quantized state dict, mapping
+    the marked layers onto SDNQ layers without dequantizing.
+
+    The supported formats are subsets of SDNQ's symmetric quantization: same
+    dequant math (``weight * scale``, no zero point), so tensors are adopted
+    bit-exact. The 8-bit formats share the storage layout directly (unpacked
+    ``[out, in]``); convrot layers map onto SDNQ's Hadamard support, whose
+    identical regular Hadamard construction lets the dequantizer undo the
+    stored rotation; nvfp4 layers keep their packed 4-bit codes (nibble order
+    swapped once) and land on SDNQ's grouped quantization with the block and
+    global scales folded into fp32 per-group scales.
+    The file dictates which layers are quantized, independent of the user's
+    quantization settings, and floating-point SDNQ params are not cast to the
+    target dtype (the fp32 scales must survive). Layers are assembled in
+    canonical dequant layout; ``apply_sdnq_options_to_model`` then applies
+    the user's quantized-matmul settings, matching
+    ``modules.sdnq.loader.load_sdnq_model``.
+    """
+    import rich.progress as rp
+    from accelerate import init_empty_weights
+    from accelerate.utils import set_module_tensor_to_device
+    from diffusers.utils import get_module_from_name
+    from modules.sdnq.common import dtype_dict, check_torch_compile
+    from modules.sdnq.kernel_wrappers import is_fp8_compile_supported
+    from modules.sdnq.quantizer import SDNQConfig, SDNQQuantizer
+    from modules.sdnq.dequantizer import SDNQDequantizer
+    from modules.sdnq.layers import get_sdnq_wrapper_class
+    from modules.sdnq.forward import get_forward_func
+    from modules.sdnq.loader import apply_sdnq_options_to_model
+
+    weights_dtype = COMFY_QUANT_FORMATS[comfy_format]
+    matmul_dtype = "int8" if dtype_dict[weights_dtype]["is_integer"] else "float8_e4m3fn"
+    storage_dtype = dtype_dict[weights_dtype]["storage_dtype"]
+    target_dtype = dtype if dtype is not None else devices.dtype
+    is_nvfp4 = comfy_format == "nvfp4"
+    # on hardware where compiled graphs cannot touch e4m3 tensors, adopt fp8 weights
+    # through the uint8-backed codec: same values (NaN codes decode as +/-480), and
+    # compiled dequant beats the eager native-fp8 fallback by ~6x
+    remap_fp8_storage = weights_dtype == "float8_e4m3fn" and check_torch_compile() and not is_fp8_compile_supported
+    if remap_fp8_storage:
+        weights_dtype = "float8_e4m3fn_sdnq"
+    marked_names = set(marker_meta)
+    sd = remap_comfy_quant(state_dict, marked_names, defer_scales=is_nvfp4)
+
+    # Civitai relabels these containers freely; trust the marker only as far
+    # as the stored tensors actually match it.
+    for name in marked_names:
+        weight = sd.get(f"{name}.weight")
+        if weight is None or weight.dtype != storage_dtype:
+            found = weight.dtype if weight is not None else "missing"
+            raise OverrideArchMismatch(
+                f"Load model: transformer=native {component_name} comfy_quant format "
+                f"{comfy_format} expects {storage_dtype} weights but {name!r} has {found}"
+            )
+        if remap_fp8_storage:
+            sd[f"{name}.weight"] = weight.view(torch.uint8)
+
+    # layers flagged full_precision_matrix_mult stay on the dequant path even
+    # when the user enables quantized matmul (exact-name match on the config list)
+    full_precision_mm = [f"{name}.weight" for name in sorted(marked_names) if marker_meta[name].get("full_precision_matrix_mult")]
+    quantization_config = SDNQConfig(
+        weights_dtype=weights_dtype,
+        quantized_matmul_dtype=matmul_dtype,
+        group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
+        use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+        dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
+        add_skip_keys=False,
+        modules_to_not_convert=[],
+        modules_to_not_use_matmul=full_precision_mm,
+    )
+    quantizer = SDNQQuantizer(quantization_config, pre_quantized=True)
+    quantizer.torch_dtype = target_dtype
+
+    with init_empty_weights(include_buffers=False):
+        component = cls.from_config(config, **kwargs)
+
+    dequant_forward = get_forward_func("Linear", matmul_dtype, False)
+    for name in sorted(marked_names):
+        try:
+            parent, child = get_module_from_name(component, name)
+            linear = getattr(parent, child)
+        except (AttributeError, ValueError) as e:
+            raise OverrideArchMismatch(
+                f"Load model: transformer=native {component_name} comfy_quant marked "
+                f"module {name!r} not found in {cls.__name__}"
+            ) from e
+        if not isinstance(linear, torch.nn.Linear):
+            raise OverrideArchMismatch(
+                f"Load model: transformer=native {component_name} comfy_quant marked "
+                f"module {name!r} is {linear.__class__.__name__}, expected Linear"
+            )
+        # convrot weights are stored rotated by SDNQ's regular Hadamard; the dequantizer undoes it
+        use_hadamard = bool(marker_meta[name].get("convrot"))
+        hadamard_group_size = int(marker_meta[name].get("convrot_groupsize", 256)) if use_hadamard else 256
+        if use_hadamard and linear.in_features % hadamard_group_size != 0:
+            raise OverrideArchMismatch(
+                f"Load model: transformer=native {component_name} comfy_quant marked "
+                f"module {name!r} convrot_groupsize={hadamard_group_size} does not divide in_features={linear.in_features}"
+            )
+        if is_nvfp4:
+            adopt_nvfp4_layer(sd, name, linear, component_name, marker_meta[name])
+        layer_shape = torch.Size((linear.out_features, linear.in_features))
+        linear.sdnq_dequantizer = SDNQDequantizer(
+            result_dtype=target_dtype,
+            result_shape=layer_shape if is_nvfp4 else None,
+            original_shape=layer_shape,
+            original_stride=(linear.in_features, 1),
+            quantized_weight_shape=torch.Size((linear.out_features, linear.in_features // NVFP4_GROUP_SIZE, NVFP4_GROUP_SIZE)) if is_nvfp4 else layer_shape,
+            weights_dtype=weights_dtype,
+            quantized_matmul_dtype=matmul_dtype,
+            hadamard_group_size=hadamard_group_size,
+            group_size=NVFP4_GROUP_SIZE if is_nvfp4 else -1,
+            svd_rank=32,
+            svd_steps=8,
+            use_quantized_matmul=False,
+            re_quantize_for_matmul=is_nvfp4,
+            use_stochastic_rounding=False,
+            use_hadamard=use_hadamard,
+            layer_class_name="Linear",
+        )
+        wrapped = get_sdnq_wrapper_class(linear, dequant_forward)
+        wrapped.scale = torch.nn.Parameter(torch.empty((1, 1), dtype=torch.float32, device="meta"), requires_grad=False)
+        wrapped.zero_point = None
+        wrapped.svd_up = None
+        wrapped.svd_down = None
+        setattr(parent, child, wrapped)
+
+    target_device = (
+        devices.cpu if shared.opts.diffusers_offload_mode != "none"
+        else devices.device
+    )
+
+    expected_keys = set(component.state_dict().keys())
+    loaded_keys: set[str] = set()
+    unexpected: list[str] = []
+    total = len(sd)
+
+    pbar = rp.Progress(
+        rp.TextColumn(f'[cyan]Load {component_name}:'),
+        rp.BarColumn(),
+        rp.MofNCompleteColumn(),
+        rp.TaskProgressColumn(),
+        rp.TimeRemainingColumn(),
+        rp.TimeElapsedColumn(),
+        rp.TextColumn('[cyan]{task.description}'),
+        console=console,
+    )
+    with pbar:
+        task = pbar.add_task(total=total, description=cls.__name__)
+        for name, value in sd.items():
+            if name in expected_keys:
+                if quantizer.check_if_quantized_param(component, value, name):
+                    quantizer.create_quantized_param(component, value, name, target_device, dtype=target_dtype)
+                else:
+                    if torch.is_floating_point(value):
+                        value = value.to(target_dtype)
+                    set_module_tensor_to_device(component, name, target_device, value=value, dtype=target_dtype)
+                loaded_keys.add(name)
+            else:
+                unexpected.append(name)
+            pbar.update(task, advance=1)
+
+    missing = sorted(expected_keys - loaded_keys)
+    missing = materialize_zero_init(
+        component, missing, zero_init_missing, device=target_device, dtype=target_dtype
+    )
+    validate_state_dict_load(component_name, missing, unexpected, acceptable_missing)
+
+    component = quantizer._process_model_after_weight_loading(component)  # pylint: disable=protected-access
+    component = apply_sdnq_options_to_model(
+        component,
+        dtype=target_dtype,
+        dequantize_fp32=shared.opts.sdnq_dequantize_fp32,
+        use_quantized_matmul=shared.opts.sdnq_use_quantized_matmul,
+    )
+    return component
+
+
+def apply_converter(converter: Callable[[dict], dict], state_dict: dict, cls: type, component_name: str) -> dict:
+    """Run a spec converter, wrapping any failure as
+    :class:`OverrideArchMismatch` (with the original chained) so a wrong-arch
+    file degrades to the base-repo fallback instead of a raw converter crash.
+    """
+    log.debug(f'Load model: transformer=native {component_name} converter={converter.__name__} keys={len(state_dict)}')
+    try:
+        return converter(state_dict)
+    except Exception as e:
+        raise OverrideArchMismatch(
+            f"Load model: type={cls.__name__} native_transformer converter "
+            f"{converter.__name__} rejected the override ({type(e).__name__}: {e}); "
+            f"file does not look like a {cls.__name__} checkpoint"
+        ) from e
+
+
 def build_component(
     *,
     component_name: str,
@@ -514,16 +1011,24 @@ def build_component(
     dtype=None,
     modules_to_not_convert: list | None = None,
     modules_dtype_dict: dict | None = None,
+    converter_handles_quant: bool = False,
+    metadata_layers: dict[str, dict] | None = None,
     **kwargs,
 ) -> object:
     """Convert (if needed), instantiate, load weights, dtype-cast, quantize,
     and offload-place a single component. Raises on any hard failure.
 
-    For the transformer component under SDNQ, the per-tensor pre-mode path
-    in :func:`build_component_quantized` is used so quantization is applied
-    in flight (one layer's worth of bf16 in memory at a time). All other
-    cases (siblings, non-quantized loads, NVIDIAModelOptConfig, layerwise
-    quant) go through the standard load_state_dict + post-quantize path.
+    Transformer state dicts carrying ``comfy_quant`` markers dispatch
+    to :func:`build_component_prequantized` (``quant_args`` are bypassed: the
+    file is already quantized). ``metadata_layers`` (header-metadata quant
+    info) is transcoded into markers first, so both container forms share
+    one path; a ``converter_handles_quant`` converter runs
+    before that detection, float-oriented converters after it. Under SDNQ the
+    transformer uses the per-tensor pre-mode path in
+    :func:`build_component_quantized` so quantization is applied in flight.
+    All other cases (siblings, non-quantized loads, NVIDIAModelOptConfig,
+    layerwise quant) go through the standard load_state_dict + post-quantize
+    path.
 
     ``dtype`` overrides ``devices.dtype`` when supplied; otherwise the global
     default is used. ``modules_to_not_convert`` and ``modules_dtype_dict``
@@ -532,16 +1037,39 @@ def build_component(
     reach ``cls.from_config`` for both construction paths.
     """
     try:
+        quant_source = "markers"
+        if component_name == "transformer" and metadata_layers:
+            state_dict, quant_source = transcode_quant_metadata(state_dict, metadata_layers)
+
+        if converter is not None and converter_handles_quant and component_name == "transformer":
+            state_dict = apply_converter(converter, state_dict, cls, component_name)
+            converter = None  # consumed; must not run again on the non-comfy path below
+
+        comfy_quant = detect_comfy_quant(state_dict, cls.__name__) if component_name == "transformer" else None
+        if comfy_quant is not None:
+            marker_meta, comfy_format = comfy_quant
+            convrot_count = sum(1 for meta in marker_meta.values() if meta.get("convrot"))
+            log.info(
+                f'Load model: transformer=native {component_name} quant=comfy '
+                f'format={comfy_format} layers={len(marker_meta)} convrot={convrot_count} source={quant_source} keys={len(state_dict)} cls={cls.__name__}'
+            )
+            component = build_component_prequantized(
+                component_name=component_name,
+                state_dict=state_dict,
+                config=config,
+                cls=cls,
+                marker_meta=marker_meta,
+                comfy_format=comfy_format,
+                dtype=dtype,
+                acceptable_missing=acceptable_missing,
+                zero_init_missing=zero_init_missing,
+                **kwargs,
+            )
+            devices.torch_gc()
+            return component
+
         if converter is not None:
-            log.debug(f'Load model: transformer=native {component_name} converter={converter.__name__} keys={len(state_dict)}')
-            try:
-                sd = converter(state_dict)
-            except Exception as e:
-                raise OverrideArchMismatch(
-                    f"Load model: type={cls.__name__} native_transformer converter "
-                    f"{converter.__name__} rejected the override ({type(e).__name__}: {e}); "
-                    f"file does not look like a {cls.__name__} checkpoint"
-                ) from e
+            sd = apply_converter(converter, state_dict, cls, component_name)
         else:
             sd = state_dict
 

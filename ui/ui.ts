@@ -165,15 +165,14 @@ export function setFontSize(val, old) {
     rootStyle.setProperty('--text-xxl', `${nextSize + 3}px`);
     appliedFontSize = nextSize;
     const t1 = performance.now();
-    log('setFontSize', nextSize, `time=${Math.round(t1 - t0)}`);
-    timer('setFontSize', t1 - t0);
+    log('setFontSize', { size: nextSize, time: Math.round(t1 - t0) });
   });
 }
 
 function switchToTab(tab) {
   const tabs = Array.from<any>(gradioApp().querySelectorAll('#tabs > .tab-nav > button'));
   const btn = tabs?.find((t) => t.innerText === tab);
-  log('switchToTab', tab);
+  log('switchToTab', { tab });
   if (btn) btn.click();
 }
 
@@ -682,8 +681,12 @@ function getDesiredCheckpointName() {
 
 export function selectUNet(name) {
   desiredUNetName = name;
-  gradioApp().getElementById('change_unet').click();
-  log(`selectUNet: ${desiredUNetName}`);
+  const tabName = getENActiveTab();
+  const btnModel = gradioApp().getElementById(`${tabName}_extra_model`);
+  const isSecondary = btnModel && btnModel.classList.contains('toolbutton-selected');
+  if (isSecondary) gradioApp().getElementById('change_unet_secondary').click();
+  else gradioApp().getElementById('change_unet').click();
+  log(`selectUNet ${isSecondary ? 'secondary' : 'primary'}: ${desiredUNetName}`);
   markSelectedCards([desiredUNetName], 'unet');
 }
 

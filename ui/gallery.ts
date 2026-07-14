@@ -34,7 +34,6 @@ const minCleanupCount = 1000;
 const minCleanupTime = 1000 * 60 * 60; // 1 hour
 const folderStylesheet = new CSSStyleSheet();
 const fileStylesheet = new CSSStyleSheet();
-const iconStopwatch = String.fromCodePoint(9201);
 // Store separator states for the session
 const separatorStates = new Map();
 const el = {
@@ -49,10 +48,27 @@ const el = {
 const cleanupTimers = {};
 const maintenanceTimers = {};
 const fetchQueue = [];
+const icons = {
+  Time: String.fromCodePoint(9201),
+  Folder: String.fromCodePoint(128448), // or 128449;
+  Sort: String.fromCodePoint(8645),
+  Images: String.fromCodePoint(128461),
+};
 
 const SUPPORTED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'tiff', 'jp2', 'jxl', 'gif', 'mp4', 'mkv', 'avi', 'mjpeg', 'mpg', 'avr'];
 
 const gallerySorter = {
+  nameA: { name: 'Name Ascending', func: (a, b) => a.name.localeCompare(b.name) },
+  nameD: { name: 'Name Descending', func: (b, a) => a.name.localeCompare(b.name) },
+  sizeD: { name: 'Size Ascending', func: (a, b) => a.size - b.size },
+  sizeA: { name: 'Size Descending', func: (b, a) => a.size - b.size },
+  resD: { name: 'Resolution Ascending', func: (a, b) => a.width * a.height - b.width * b.height },
+  resA: { name: 'Resolution Descending', func: (b, a) => a.width * a.height - b.width * b.height },
+  modD: { name: 'Modified Ascending', func: (a, b) => a.mtime - b.mtime },
+  modA: { name: 'Modified Descending', func: (b, a) => a.mtime - b.mtime },
+  none: { name: 'None', func: undefined },
+};
+const folderSorter = {
   nameA: { name: 'Name Ascending', func: (a, b) => a.name.localeCompare(b.name) },
   nameD: { name: 'Name Descending', func: (b, a) => a.name.localeCompare(b.name) },
   sizeD: { name: 'Size Ascending', func: (a, b) => a.size - b.size },
@@ -225,9 +241,9 @@ function updateGalleryStyles() {
       padding: 4px;
       font-size: 1.2em;
       letter-spacing: 0.5em;
-      width: 140px;
       margin-top: calc(140px - 32px);
       opacity: 75%;
+      border-radius: var(--sd-border-radius);
     }
     :host(.gallery-file-selected) .gallery-file {
       box-shadow: 0 0 0 2px var(--sd-button-selected-color);
@@ -278,7 +294,6 @@ class SimpleProgressBar {
     this.#progress.style.backgroundColor = 'var(--sd-main-accent-color)';
     this.#textDiv.style.cssText = 'position:relative; margin:auto; width:max-content; height:100%;';
     this.#text.style.cssText = 'user-select:none; color:white;';
-
     this.#textDiv.append(this.#text);
     this.#container.append(this.#progress, this.#textDiv);
   }
@@ -287,6 +302,10 @@ class SimpleProgressBar {
     if (total <= 0) return;
     this.hide();
     this.#max = total;
+    if (this.#monitoredSet.size >= this.#max) {
+      this.stop();
+      return;
+    }
     this.#interval = setInterval(() => this.update(this.#monitoredSet.size, this.#max), 100);
   }
 
@@ -314,7 +333,7 @@ class SimpleProgressBar {
 
   stop() {
     clearInterval(this.#interval);
-    this.#interval = undefined;
+    // this.#interval = undefined;
     if (this.stats.count) {
       debug('gallery: thumbnail stats', this.stats);
       this.stats = { ...this.defaultStats };
@@ -629,7 +648,7 @@ class GalleryFile extends HTMLElement {
     img.title = `Folder: ${this.folder}\nFile: ${this.name}\nSize: ${this.size.toLocaleString()} bytes\nModified: ${this.mtime.toLocaleString()}`;
     this.title = img.title;
     const shouldDisplayBasedOnSearch = this.title.toLowerCase().includes(el.search.value.toLowerCase()); // Final visibility check based on search term.
-    if (this.style.display !== 'none') this.style.display = shouldDisplayBasedOnSearch ? 'flex' : 'none'; // Only proceed if not already hidden by a closed separator
+    if (this.style.display !== 'none') this.style.display = shouldDisplayBasedOnSearch ? '' : 'none'; // Only proceed if not already hidden by a closed separator
     this.shadow.appendChild(img);
     pb.stats.elapsed = (pb.stats.elapsed || 0) + Math.round(performance.now() - t0);
   }
@@ -674,7 +693,7 @@ async function handleSeparator(separator) {
     const fileDirPath = fileDir ? fileDir[1] : '';
 
     if (separator.title.length > 0 && fileDirPath === separator.title) {
-      f.style.display = nowHidden ? 'none' : 'unset';
+      f.style.display = nowHidden ? 'none' : '';
     }
   }
   // Note: Count is not updated here on manual toggle, as it reflects the total.
@@ -774,24 +793,22 @@ window.gallerySendImage = gallerySendImage;
  * @param  {...string|[string, string]} messages - Each can be either a string to use as-is, or an array of a string label and value
  * @returns {void}
  */
-function updateStatusWithSort(...messages) {
+function updateStatusLine(...messages) {
   if (!el.status) return;
   messages.unshift(['Sort', sortMode.name]);
   const fragment = document.createDocumentFragment();
   for (let i = 0; i < messages.length; i++) {
     const div = document.createElement('div');
     if (Array.isArray(messages[i])) {
-      const [text1, text2] = messages[i];
-      const tDiv1 = document.createElement('div');
-      tDiv1.innerText = `${text1}:`;
-      const tDiv2 = document.createElement('div');
-      tDiv2.innerText = text2;
-      tDiv2.title = text2;
-      div.append(tDiv1, tDiv2);
+      const [k, v] = messages[i];
+      const tDiv = document.createElement('div');
+      const ico = icons[k] || `${k}:`;
+      tDiv.innerText = `${ico} ${v}`;
+      div.append(tDiv);
     } else {
-      const tDiv1 = document.createElement('div');
-      tDiv1.innerText = messages[i];
-      div.append(tDiv1);
+      const tDiv = document.createElement('div');
+      tDiv.innerText = messages[i];
+      div.append(tDiv);
     }
     fragment.append(div);
   }
@@ -878,7 +895,7 @@ async function gallerySearch() {
         f.style.display = (!dirPath || isOpen) ? 'unset' : 'none';
       });
 
-      updateStatusWithSort('Filter', 'Cleared', ['Images', allFiles.length.toLocaleString()]);
+      updateStatusLine('Filter', 'Cleared', ['Images', allFiles.length.toLocaleString()]);
       return;
     }
 
@@ -936,7 +953,7 @@ async function gallerySearch() {
     }
 
     const t1 = performance.now();
-    updateStatusWithSort('Filter', ['Images', `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], `${iconStopwatch} ${Math.round(t1 - t0).toLocaleString()}ms`);
+    updateStatusLine('Filter', ['Images', `${totalFound.toLocaleString()} / ${allFiles.length.toLocaleString()}`], ['Time', `${Math.round(t1 - t0).toLocaleString()}ms`]);
     timer(`galleryFilter:${str}`, t1 - t0);
     refreshGallerySelection();
   }, 250);
@@ -981,9 +998,7 @@ export async function gallerySort(key) {
   const folderGroups = new Map();
   for (const file of subfolderFiles) {
     const dir = getDirPath(file);
-    if (!folderGroups.has(dir)) {
-      folderGroups.set(dir, []);
-    }
+    if (!folderGroups.has(dir)) folderGroups.set(dir, []);
     folderGroups.get(dir).push(file);
   }
 
@@ -994,7 +1009,11 @@ export async function gallerySort(key) {
   rootFiles.forEach((node) => fragment.appendChild(node));
 
   // Sort folder names alphabetically, then sort files within each folder
-  const sortedFolderNames = Array.from<any>(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
+  // const sortedFolderNames = Array.from<any>(folderGroups.keys()).sort((a, b) => a.localeCompare(b));
+  const folderNames = Array.from<string>(folderGroups.keys());
+  const sortedFolderNames = currentSort.endsWith('A') ? folderNames.sort((a, b) => a.localeCompare(b)) : folderNames.sort((a, b) => b.localeCompare(a));
+
+  console.log('HERE', sortedFolderNames);
   for (const folderName of sortedFolderNames) {
     const files = folderGroups.get(folderName);
     files.sort(sortMode.func);
@@ -1023,7 +1042,7 @@ export async function gallerySort(key) {
 
   const t1 = performance.now();
   log(`gallerySort: sort=${sortMode.name} len=${arr.length} time=${Math.floor(t1 - t0)}`);
-  updateStatusWithSort(['Images', arr.length.toLocaleString()], `${iconStopwatch} ${Math.round(t1 - t0).toLocaleString()}ms`);
+  updateStatusLine(['Images', arr.length.toLocaleString()], ['Time', `${Math.round(t1 - t0).toLocaleString()}ms`]);
   timer(`gallerySort:${sortMode.name}`, t1 - t0);
   refreshGallerySelection();
 }
@@ -1120,7 +1139,7 @@ async function thumbCacheCleanup(folder, imgCount, controller, force = false) {
           log('galleryMaintenance', { folder, kept: keptGalleryHashes.size, deleted: delcount, time: Math.round(t1 - t0) });
           timer(`thumbnailDBCleanup:${folder}`, t1 - t0);
           currentGalleryFolder = null;
-          updateStatusWithSort('Thumbnail cache cleared');
+          updateStatusLine('Thumbnail cache cleared');
         })
         .catch((reason) => {
           SimpleFunctionQueue.abortLogger('thumbCacheCleanup', reason);
@@ -1157,7 +1176,7 @@ function clearCacheIfDisabled(browser_cache) {
           .then(() => {
             log('thumbCacheCleanup', { time: Math.floor(performance.now() - t0) });
             currentGalleryFolder = null;
-            updateStatusWithSort('Thumbnail cache cleared');
+            updateStatusLine('Thumbnail cache cleared');
           })
           .catch((e) => {
             SimpleFunctionQueue.abortLogger('thumbCacheCleanup', e);
@@ -1183,12 +1202,12 @@ window.clearCache = clearCache;
 async function fetchFilesHT(evt, controller) {
   const t0 = performance.now();
   const fragment = document.createDocumentFragment();
-  updateStatusWithSort(['Folder', evt.target.name], 'in-progress');
+  updateStatusLine(['Folder', evt.target.name], 'in-progress');
   let numFiles = 0;
 
   const res = await authFetch(`${window.api}/browser/files?folder=${encodeURI(evt.target.name)}`);
   if (!res || res.status !== 200) {
-    updateStatusWithSort(['Folder', evt.target.name], ['Failed', res?.statusText || 'No response']);
+    updateStatusLine(['Folder', evt.target.name], ['Failed', res?.statusText || 'No response']);
     return;
   }
   const jsonData = await res.json();
@@ -1209,7 +1228,7 @@ async function fetchFilesHT(evt, controller) {
   const t1 = performance.now();
   log(`gallery: folder=${evt.target.name} num=${numFiles} method=http time=${Math.floor(t1 - t0)}ms`);
   timer(`galleryFetch:${evt.target.name}`, t1 - t0);
-  updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+  updateStatusLine(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], ['Time', `${Math.floor(t1 - t0).toLocaleString()}ms`]);
   pb.start(numFiles);
   addSeparators();
   refreshGallerySelection();
@@ -1238,7 +1257,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     await fetchFilesHT(evt, controller); // fallback to http
     return;
   }
-  updateStatusWithSort(['Folder', evt.target.name]);
+  updateStatusLine(['Folder', evt.target.name]);
   const t0 = performance.now();
   let numFiles = 0;
   let t1 = performance.now();
@@ -1257,7 +1276,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
         numFiles++;
         fragment.appendChild(file);
         if (numFiles % fragmentSize === 0) {
-          updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], 'in-progress', `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+          updateStatusLine(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], ['Status', 'in-progress'], ['Time', `${Math.floor(t1 - t0).toLocaleString()}ms`]);
           el.files.appendChild(fragment);
           fragment = document.createDocumentFragment();
         }
@@ -1269,7 +1288,7 @@ async function fetchFilesWS(evt) { // fetch file-by-file list over websockets
     el.files.appendChild(fragment);
     // gallerySort();
     log(`gallery: folder=${evt.target.name} num=${numFiles} method=ws time=${Math.floor(t1 - t0)}ms`);
-    updateStatusWithSort(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], `${iconStopwatch} ${Math.floor(t1 - t0).toLocaleString()}ms`);
+    updateStatusLine(['Folder', evt.target.name], ['Images', numFiles.toLocaleString()], ['Time', `${Math.floor(t1 - t0).toLocaleString()}ms`]);
     pb.start(numFiles);
     addSeparators();
     refreshGallerySelection();
@@ -1362,7 +1381,7 @@ async function initGalleryAutoRefresh() {
 }
 
 async function overlayDelete(evt) {
-  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`);
+  const res = await authFetch(`${window.api}/delete-image?file=${encodeURIComponent(currentImage)}`, { method: 'DELETE' });
   evt.stopPropagation();
   if (!res || res.status !== 200) {
     error('galleryDelete', { file: currentImage, status: res?.status, statusText: res?.statusText });

@@ -120,8 +120,7 @@ def load_anima(checkpoint_info, diffusers_load_config=None):
         repo_id,
         cls_name=transformers.Qwen3Model,
         load_config=diffusers_load_config,
-        subfolder="text_encoder",
-        allow_shared=False
+        subfolder="text_encoder"
     )
 
     if llm_adapter is None:

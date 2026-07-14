@@ -21,10 +21,16 @@ def load_transformer(
         modules_dtype_dict=None,
         use_safetensors=True,
         native_spec=None,
+        override_slot='primary',
         **kwargs):
 
     """Load a DiT transformer from the base repo, or from a user-selected
-    single file when the UNET dropdown (``shared.opts.sd_unet``) is set.
+    single file when the slot's UNET override dropdown is set.
+
+    ``override_slot`` selects which dropdown this call consumes: ``'primary'``
+    reads ``shared.opts.sd_unet``, ``'secondary'`` reads
+    ``shared.opts.sd_unet_secondary`` (dual-transformer arches give each
+    transformer its own slot).
 
     With ``native_spec`` set and a .safetensors override selected, dispatches
     to :func:`pipelines.native_transformer.load`. Without a spec, a single-file
@@ -69,14 +75,23 @@ def load_transformer(
             )
 
         local_file = None
+        override_name = None
         fallback = True
 
         from modules import sd_unet
-        if shared.opts.sd_unet is not None and shared.opts.sd_unet != 'Default':
-            if shared.opts.sd_unet not in list(sd_unet.unet_dict):
-                log.error(f'Load module: type=transformer file="{shared.opts.sd_unet}" not found')
-            elif os.path.exists(sd_unet.unet_dict[shared.opts.sd_unet]):
-                local_file = sd_unet.unet_dict[shared.opts.sd_unet]
+        if override_slot == 'primary':
+            override_opt, tracker_attr = 'sd_unet', 'loaded_unet'
+        elif override_slot == 'secondary':
+            override_opt, tracker_attr = 'sd_unet_secondary', 'loaded_unet_secondary'
+        else:
+            raise ValueError(f'load_transformer: unknown override_slot={override_slot}')
+        selected = getattr(shared.opts, override_opt, None)
+        if selected is not None and selected != 'Default':
+            if selected not in list(sd_unet.unet_dict):
+                log.error(f'Load module: type=transformer slot={override_slot} file="{selected}" not found')
+            elif os.path.exists(sd_unet.unet_dict[selected]):
+                local_file = sd_unet.unet_dict[selected]
+                override_name = selected
 
         if repo_id.startswith(shared.opts.ckpt_dir) and os.path.exists(repo_id):
             log.error(f'Load model: transformer="{repo_id}" is incorrectly placed in the checkpoints folder')
@@ -118,8 +133,8 @@ def load_transformer(
                 log.warning(f'Load model: transformer="{local_file}" override incompatible with cls={cls_name.__name__} ({e})')
                 if fallback:
                     log.warning(f'Load model: transformer="{local_file}" ignoring override and loading base transformer')
-                    shared.opts.data['sd_unet'] = 'Default'
-                    sd_unet.loaded_unet = None
+                    shared.opts.data[override_opt] = 'Default'
+                    setattr(sd_unet, tracker_attr, None)
                     transformer = load_from_repo()
 
         # 3. load safetensors with diffusers loader
@@ -141,6 +156,11 @@ def load_transformer(
         # incompatible override is dropped above)
         else:
             transformer = load_from_repo()
+
+        # mark the dropdown selection as loaded so the slot's onchange callback
+        # does not force a redundant full reload for an already-consumed override
+        if transformer is not None and override_name is not None and getattr(shared.opts, override_opt, None) == override_name:
+            setattr(sd_unet, tracker_attr, override_name)
 
         sd_models.allow_post_quant = False # we already handled it
         if shared.opts.diffusers_offload_mode != 'none' and transformer is not None:
@@ -166,12 +186,15 @@ def load_transformer(
         log.debug(f'Load model: transformer="{repo_id}" quant="{quant_type}" size={module_size:.3f} params={param_num:.3f} memory={module_memory}')
 
     try:
-        actual_dtype = transformer.dtype
-        if isinstance(actual_dtype, torch.dtype) and isinstance(dtype, torch.dtype) and actual_dtype != dtype:
-            force = shared.opts.force_dtype
-            log.warning(f'Load model: transformer="{repo_id}" dtype desired={dtype} actual={actual_dtype} force={force}')
-            if force:
-                transformer = transformer.to(dtype)
+        # quantized models legitimately report the storage dtype (e.g. fp8 comfy_quant
+        # adopted via SDNQ); the compute dtype lives in the dequantizers, not the params
+        if getattr(transformer, 'quantization_config', None) is None:
+            actual_dtype = transformer.dtype
+            if isinstance(actual_dtype, torch.dtype) and isinstance(dtype, torch.dtype) and actual_dtype != dtype:
+                force = shared.opts.force_dtype
+                log.warning(f'Load model: transformer="{repo_id}" dtype desired={dtype} actual={actual_dtype} force={force}')
+                if force:
+                    transformer = transformer.to(dtype)
     except Exception:
         pass
 

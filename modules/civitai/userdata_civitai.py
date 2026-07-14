@@ -96,13 +96,15 @@ class SearchHistory:
         except Exception as e:
             log.error(f'CivitAI search history save error: file={path} {e}')
 
-    def add(self, search_type: str, term: str):
+    def add(self, search_type: str, term: str, params: dict | None = None):
         with self._lock:
             entry = {
                 "type": search_type,
                 "term": term,
                 "timestamp": datetime.now().isoformat(),
             }
+            if params:
+                entry["params"] = params
             # Remove duplicate if same type+term exists
             self._entries = [e for e in self._entries if not (e.get('type') == search_type and e.get('term') == term)]
             self._entries.insert(0, entry)

@@ -1852,7 +1852,7 @@ background: var(--background-color)
 
 #tab-gallery-files gallery-file {
   /* Add a vertical gutter between items (left/right), matching existing small row spacing */
-  display: inline-block !important;
+  display: inline-block;
   margin-right: 0.2em;
   vertical-align: top; /* keep rows aligned on the top edge */
 }
@@ -2284,6 +2284,16 @@ div:has(>#tab-gallery-folders) {
 #civitai_token textarea:hover, #hf_token textarea:hover, #setting_huggingface_token textarea:hover,
 #civitai_token textarea:focus, #hf_token textarea:focus, #setting_huggingface_token textarea:focus {
   filter: blur(0);
+}
+
+#logMonitor {
+  width: stretch;
+}
+
+#logMonitorData {
+  height: 12vh;
+  overflow-y: scroll;
+  overflow-x: auto;
 }
 
 .disabled-look textarea {

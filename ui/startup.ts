@@ -57,6 +57,15 @@ async function postStartup() {
   logTimers();
 }
 
+async function updateSubpath() {
+  log('mountURL', window.opts.subpath);
+  if (window.opts.subpath?.length > 0) {
+    window.subpath = window.opts.subpath;
+    window.api = `${window.subpath}/sdapi/v1`;
+  }
+  log('API', { url: window.api });
+}
+
 async function initStartup() {
   const t0 = performance.now();
   log('initGradio', Math.round(t0 - appStartTime));
@@ -82,14 +91,7 @@ async function initStartup() {
   // reconnect server session
   await reconnectUI();
   await waitForOpts();
-
-  log('mountURL', window.opts.subpath);
-  if (window.opts.subpath?.length > 0) {
-    window.subpath = window.opts.subpath;
-    window.api = `${window.subpath}/sdapi/v1`;
-  }
-
-  startupPromises.push(initLogMonitor());
+  await updateSubpath();
 
   executeCallbacks(uiReadyCallbacks);
 
@@ -97,6 +99,7 @@ async function initStartup() {
   if (window.waitForUiReady) await window.waitForUiReady();
 
   // post startup tasks that may take longer but are not critical
+  startupPromises.push(Promise.resolve(initLogMonitor()));
   startupPromises.push(Promise.resolve(initGallery()));
   startupPromises.push(Promise.resolve(setRefreshInterval()));
   startupPromises.push(Promise.resolve(setupExtraNetworks()));

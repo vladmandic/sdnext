@@ -51,6 +51,10 @@ ANIMA_PREFIXES = (
     "diffusion_model.",
     "lora_te_",
     "lora_unet_",
+    # LyCORIS-standalone save format; resolved by the universal passthrough in
+    # native_adapter.resolve_group_targets and routed to lora_transformer_ by
+    # network_prefix_for's default arm.
+    "lycoris_",
 )
 
 

@@ -331,7 +331,7 @@ def load_diffuser_initial(diffusers_load_config: dict, op='model'):
     return sd_model, checkpoint_info
 
 
-def hf_prefetch_configs(checkpoint_info: CheckpointInfo, diffusers_load_config: dict, op='model'):
+def hf_prefetch_configs(checkpoint_info: CheckpointInfo | str, diffusers_load_config: dict, op='model'):
     # diffusers pipeline downloads build subfolder config allow-patterns with os.path.join, and huggingface_hub>=1.22
     # matches patterns with fnmatchcase which does not normalize separators (huggingface/huggingface_hub#4435),
     # so on windows component config.json files are never downloaded and the incomplete snapshot
@@ -496,8 +496,8 @@ def load_diffuser_force(detected_model_type: str, checkpoint_info: CheckpointInf
             sd_model = load_vibe(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['JoyEdit']:
-            from pipelines.model_joy import load_joy
-            sd_model = load_joy(checkpoint_info, diffusers_load_config)
+            from pipelines.model_joy import load_joyedit
+            sd_model = load_joyedit(checkpoint_info, diffusers_load_config)
             allow_post_quant = False
         elif model_type in ['Qwen']:
             from pipelines.model_qwen import load_qwen
@@ -932,7 +932,9 @@ def load_diffuser(checkpoint_info: CheckpointInfo | None = None, op='model', rev
         if model_type is None:
             log.error(f'Load {op}: pipeline={shared.opts.diffusers_pipeline} not detected')
             return
+
         hf_prefetch_configs(checkpoint_info, diffusers_load_config, op)
+
         vae_file = None
         if model_type.startswith('Stable Diffusion') and (op == 'model' or op == 'refiner'): # preload vae for sd models
             vae_file, vae_source = sd_vae.resolve_vae(checkpoint_info.filename)
@@ -1475,8 +1477,9 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
     loaded_ckpt = getattr(sd_model, 'sd_checkpoint_info', None) if sd_model is not None else None
     changed_checkpoint = loaded_ckpt is None or checkpoint_info is None or loaded_ckpt.filename != checkpoint_info.filename
     reset_unet = shared.opts.sd_unet not in (None, 'Default', 'None')
+    reset_unet_secondary = shared.opts.sd_unet_secondary not in (None, 'Default', 'None')
     reset_te = shared.opts.sd_text_encoder not in (None, 'Default', 'None')
-    if op == 'model' and sd_model is not None and changed_checkpoint and (reset_unet or reset_te):
+    if op == 'model' and sd_model is not None and changed_checkpoint and (reset_unet or reset_unet_secondary or reset_te):
         # compare detected model type, not pipeline class: custom-loader arches (e.g. Krea2) load as a
         # concrete class but detect as generic DiffusionPipeline, so a class compare would falsely reset
         # across same-arch checkpoints (Base vs Turbo). detect both sides so the comparison is symmetric.
@@ -1490,6 +1493,10 @@ def reload_model_weights(sd_model=None, info: CheckpointInfo | None = None, op='
                 log.info(f'Load model: type="{old_type}" changed="{new_type}" unet="{shared.opts.sd_unet}" set to default')
                 shared.opts.data["sd_unet"] = 'Default'
                 sd_unet.loaded_unet = None
+            if reset_unet_secondary:
+                log.info(f'Load model: type="{old_type}" changed="{new_type}" unet_secondary="{shared.opts.sd_unet_secondary}" set to default')
+                shared.opts.data["sd_unet_secondary"] = 'Default'
+                sd_unet.loaded_unet_secondary = None
             if reset_te:
                 log.info(f'Load model: type="{old_type}" changed="{new_type}" te="{shared.opts.sd_text_encoder}" set to default')
                 shared.opts.data["sd_text_encoder"] = 'Default'

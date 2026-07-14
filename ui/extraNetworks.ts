@@ -4,11 +4,16 @@ import { authFetch } from './authWrap';
 import { timer } from './timers';
 
 const activePromptTextarea = {};
+const selectedNetworks = {};
 let sortVal = -1;
 let totalCards = -1;
 let lastTab = 'control';
 
 // helpers
+
+export function getSelectedNetworks() {
+  return selectedNetworks;
+}
 
 export const getENActiveTab = () => {
   let tabName = '';
@@ -307,6 +312,7 @@ function refreshENInput(tabName) {
 
 export async function markSelectedCards(selected, page = '') {
   log('markSelectedCards', selected, page);
+  selectedNetworks[page] = selected;
   gradioApp().querySelectorAll('.extra-network-cards .card').forEach((el) => {
     if (page.length > 0 && el.dataset.page !== page) return; // filter by page
     if (selected.includes(el.dataset.name) || selected.includes(el.dataset.short)) el.classList.add('card-selected');
@@ -660,6 +666,7 @@ window.applyStyles = applyStyles;
 window.closeDetailsEN = closeDetailsEN;
 window.getENActivePage = getENActivePage;
 window.getCardDetails = getCardDetails;
+window.getSelectedNetworks = getSelectedNetworks;
 window.sortExtraNetworks = sortExtraNetworks;
 window.refeshDetailsEN = refeshDetailsEN;
 window.extraNetworksSearchButton = extraNetworksSearchButton;

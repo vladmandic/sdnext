@@ -15,7 +15,8 @@ produced by ``Flux2Transformer2DModel.save_lora_adapter()``). Diffusers-PEFT
 ``.lora_A.default.weight``) is stripped to match the standard suffix table.
 
 BFL/kohya keys are mapped to diffusers paths via ``F2_SINGLE_MAP`` /
-``F2_DOUBLE_MAP`` / ``F2_QKV_MAP``. Fused QKV in double_blocks emits three
+``F2_DOUBLE_MAP`` / ``F2_QKV_MAP`` / ``F2_EXTRA_MAP`` (non-block targets:
+embedders, modulation, final layer). Fused QKV in double_blocks emits three
 Q/K/V targets each carrying a :class:`modules.lora.native_adapter.ChunkSpec`
 that the generic loaders use to chunk the up-weight or instantiate the
 appropriate ``NetworkModule*Chunk`` variant.
@@ -55,11 +56,11 @@ from modules.lora.native_adapter import ChunkSpec
 
 # === Arch-specific prefix configuration ===
 
-KNOWN_PREFIXES = native_adapter.KNOWN_PREFIXES_DEFAULT + ("lycoris_",)
+KNOWN_PREFIXES = native_adapter.KNOWN_PREFIXES_DEFAULT
 
 BARE_FLUX_PREFIXES = (
     "single_blocks.", "double_blocks.", "img_in.", "txt_in.",
-    "final_layer.", "time_in.", "single_stream_modulation.",
+    "final_layer.", "time_in.", "guidance_in.", "single_stream_modulation.",
     "double_stream_modulation_",
 )
 
@@ -91,6 +92,28 @@ F2_QKV_MAP = {
     "img_attn.qkv": ("attn", ["to_q", "to_k", "to_v"]),
     "txt_attn.qkv": ("attn", ["add_q_proj", "add_k_proj", "add_v_proj"]),
 }
+
+# Non-block BFL targets: embedders, timestep/guidance MLPs, modulation and the
+# final layer. Exact-match on the full base. guidance_in resolves only on models
+# built with guidance_embeds (the module is absent otherwise and the group is
+# counted as unmapped).
+F2_EXTRA_MAP = {
+    "img_in": "x_embedder",
+    "txt_in": "context_embedder",
+    "time_in.in_layer": "time_guidance_embed.timestep_embedder.linear_1",
+    "time_in.out_layer": "time_guidance_embed.timestep_embedder.linear_2",
+    "guidance_in.in_layer": "time_guidance_embed.guidance_embedder.linear_1",
+    "guidance_in.out_layer": "time_guidance_embed.guidance_embedder.linear_2",
+    "final_layer.linear": "proj_out",
+    "final_layer.adaLN_modulation.1": "norm_out.linear",
+    "single_stream_modulation.lin": "single_stream_modulation.linear",
+    "double_stream_modulation_img.lin": "double_stream_modulation_img.linear",
+    "double_stream_modulation_txt.lin": "double_stream_modulation_txt.linear",
+}
+
+# Kohya underscores the full BFL path; non-block paths carry no index so the
+# kohya form is derivable.
+F2_EXTRA_KOHYA_MAP = {k.replace(".", "_"): v for k, v in F2_EXTRA_MAP.items()}
 
 # Kohya underscore suffix -> BFL dot suffix. Used to convert kohya key fragments
 # to look up F2_DOUBLE_MAP / F2_QKV_MAP.
@@ -160,31 +183,25 @@ def resolve_targets(prefix_used, base):
     """Return ``[(diffusers_path, ChunkSpec | None), ...]`` for a parsed group key.
 
     For ``lora_unet_`` prefix, applies ``KOHYA_SUFFIX_MAP`` then ``F2_*_MAP``.
-    For BFL / bare-BFL, applies ``F2_*_MAP`` directly. ``lycoris_`` is an
-    already-underscored diffusers path, returned verbatim. Unrecognized
-    prefixes return an empty list.
+    For BFL / bare-BFL, applies ``F2_*_MAP`` directly. Unrecognized prefixes
+    return an empty list.
 
-    Universal passthrough prefixes are handled upstream by
-    :func:`native_adapter.resolve_group_targets`.
+    Universal passthrough prefixes (including ``lycoris_``) are handled
+    upstream by :func:`native_adapter.resolve_group_targets`.
     """
     if prefix_used == "lora_unet_":
         return _kohya_to_diffusers_targets(base)
     if prefix_used in (None, "diffusion_model."):
         return _bfl_to_diffusers_targets(base)
-    if prefix_used == "lycoris_":
-        # base is an already-underscored diffusers path (e.g.
-        # 'transformer_blocks_0_attn_add_k_proj'). The caller's network_key
-        # construction does base.replace('.', '_'); for already-underscored
-        # paths that's a no-op, so the network_key matches the entry stamped
-        # by lora_convert.assign_network_names_to_compvis_modules
-        # (e.g. 'lora_transformer_transformer_blocks_0_attn_add_k_proj').
-        return [(base, None)]
     return []
 
 
 def _kohya_to_diffusers_targets(stripped):
     """For kohya keys like ``double_blocks_0_img_attn_proj`` or ``single_blocks_5_linear1``."""
     targets: list[tuple[str, ChunkSpec | None]] = []
+    extra = F2_EXTRA_KOHYA_MAP.get(stripped)
+    if extra is not None:
+        return [(extra, None)]
     if stripped.startswith("single_blocks_"):
         rest = stripped[len("single_blocks_"):]
         idx, _, suffix = rest.partition("_")
@@ -211,6 +228,9 @@ def _kohya_to_diffusers_targets(stripped):
 def _bfl_to_diffusers_targets(base):
     """For BFL keys like ``double_blocks.0.img_attn.proj`` or ``single_blocks.5.linear1``."""
     targets: list[tuple[str, ChunkSpec | None]] = []
+    extra = F2_EXTRA_MAP.get(base)
+    if extra is not None:
+        return [(extra, None)]
     parts = base.split(".")
     if len(parts) < 3:
         return targets

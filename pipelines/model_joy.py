@@ -5,7 +5,7 @@ from modules.logger import log
 from pipelines import generic
 
 
-def load_joy(checkpoint_info, diffusers_load_config=None):
+def load_joyedit(checkpoint_info, diffusers_load_config=None):
     if diffusers_load_config is None:
         diffusers_load_config = {}
     repo_id = sd_models.path_to_repo(checkpoint_info)
@@ -15,9 +15,13 @@ def load_joy(checkpoint_info, diffusers_load_config=None):
     log.debug(f'Load model: type=JoyImageEdit repo="{repo_id}" config={diffusers_load_config} offload={shared.opts.diffusers_offload_mode} dtype={devices.dtype} args={load_args}')
 
     from pipelines.joy import JOY_SPEC
+    if 'plus' in repo_id.lower():
+        dit_cls = diffusers.JoyImageEditPlusTransformer3DModel
+    else:
+        dit_cls = diffusers.JoyImageEditTransformer3DModel
     transformer = generic.load_transformer(
         repo_id,
-        cls_name=diffusers.JoyImageEditTransformer3DModel,
+        cls_name=dit_cls,
         load_config=diffusers_load_config,
         native_spec=JOY_SPEC,
     )
@@ -29,7 +33,11 @@ def load_joy(checkpoint_info, diffusers_load_config=None):
     if repo_id is None or repo_id.lower() == 'none':
         return None
 
-    pipe = diffusers.JoyImageEditPipeline.from_pretrained(
+    if 'plus' in repo_id.lower():
+        model_cls = diffusers.JoyImageEditPlusPipeline
+    else:
+        model_cls = diffusers.JoyImageEditPipeline
+    pipe = model_cls.from_pretrained(
         repo_id,
         cache_dir=shared.opts.diffusers_dir,
         transformer=transformer,
@@ -40,8 +48,8 @@ def load_joy(checkpoint_info, diffusers_load_config=None):
         'output_type': 'np',
     }
 
-    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['joy-image-edit'] = diffusers.JoyImageEditPipeline
-    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['joy-image-edit'] = diffusers.JoyImageEditPipeline
+    diffusers.pipelines.auto_pipeline.AUTO_TEXT2IMAGE_PIPELINES_MAPPING['joy-image-edit'] = model_cls
+    diffusers.pipelines.auto_pipeline.AUTO_IMAGE2IMAGE_PIPELINES_MAPPING['joy-image-edit'] = model_cls
 
     generic.load_vae_override(pipe, diffusers_load_config)
 

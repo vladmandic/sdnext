@@ -184,6 +184,7 @@ def load_model():
     shared.opts.onchange("sd_model_refiner", wrap_queued_call(lambda: modules.sd_models.reload_model_weights(op='refiner')), call=False)
     shared.opts.onchange("sd_vae", wrap_queued_call(lambda: modules.sd_vae.reload_vae_weights()), call=False)
     shared.opts.onchange("sd_unet", wrap_queued_call(lambda: modules.sd_unet.load_unet(shared.sd_model)), call=False)
+    shared.opts.onchange("sd_unet_secondary", wrap_queued_call(lambda: modules.sd_unet.load_unet_secondary(shared.sd_model)), call=False)
     shared.opts.onchange("sd_text_encoder", wrap_queued_call(lambda: modules.sd_models.reload_text_encoder()), call=False)
     shared.opts.onchange("temp_dir", modules.gr_tempdir.on_tmpdir_changed)
     timer.startup.record("onchange")
@@ -275,6 +276,7 @@ def mount_subpath(app):
     import gradio
     if not shared.opts.subpath.startswith('/'):
         shared.opts.subpath = f'/{shared.opts.subpath}'
+    shared.cmd_opts.subpath = shared.opts.subpath # update cmd_opts to match opts
     gradio.mount_gradio_app(app, shared.demo, path=shared.opts.subpath)
     log.info(f'Mounted: subpath="{shared.opts.subpath}"')
 

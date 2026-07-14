@@ -103,10 +103,31 @@ def get_search(
         base_models=bm_list, nsfw=nsfw, limit=limit, cursor=cursor,
         username=username, favorites=favorites, token=token,
     )
+    history_params = {k: v for k, v in {
+        'types': types,
+        'sort': sort,
+        'period': period,
+        'base_models': base_models,
+        'nsfw': nsfw,
+        'username': username,
+        'favorites': favorites,
+    }.items() if v}
     if query:
-        search_history.add('query', query)
+        search_history.add('query', query, history_params)
     elif tag:
-        search_history.add('tag', tag)
+        search_history.add('tag', tag, history_params)
+    elif history_params:
+        # Filter-only browse: label the entry with the filters themselves.
+        parts = [
+            types,
+            base_models,
+            'favorites' if favorites else (f'by {username}' if username else ''),
+            period,
+            sort,
+            'nsfw' if nsfw else '',
+        ]
+        label = ' · '.join(p for p in parts if p)
+        search_history.add('filter', label, history_params)
     return response.dict(by_alias=True)
 
 
@@ -232,6 +253,95 @@ def get_download_status():
     """Get the full download queue status."""
     from modules.civitai.download_civitai import download_manager
     return download_manager.status()
+
+
+peek_cache = None
+
+
+def peek_cache_get(file_id: int, url: str):
+    """Persistent probe cache keyed by civitai file id; content per id is
+    immutable, so entries never expire. A url hash guards against id reuse."""
+    global peek_cache  # pylint: disable=global-statement
+    import hashlib
+    from modules import paths
+    from modules.json_helpers import readfile
+    if peek_cache is None:
+        peek_cache = readfile(paths.civitai_probe_file, silent=True, lock=True, as_type='dict')
+    entry = peek_cache.get(str(file_id))
+    if entry and entry.get('url_hash') == hashlib.sha256(url.encode('utf-8')).hexdigest()[:16]:
+        return entry.get('response')
+    return None
+
+
+def peek_cache_put(file_id: int, url: str, response: dict):
+    import hashlib
+    from modules import paths
+    from modules.json_helpers import writefile
+    peek_cache[str(file_id)] = {
+        'url_hash': hashlib.sha256(url.encode('utf-8')).hexdigest()[:16],
+        'response': response,
+    }
+    writefile(peek_cache, paths.civitai_probe_file, silent=True, atomic=True)
+
+
+def get_peek_header(url: str, file_id: int = 0):
+    """Read a remote safetensors JSON header via ranged requests. Returns the
+    __metadata__ block plus a full model_probe analysis (architecture,
+    dtypes, quant scheme) without downloading the file."""
+    import json
+    import struct
+    from modules import shared
+    # civitai.red serves the same download service and rewrites downloadUrl to
+    # its own host; normalize so the guard, cache hash and fetch host agree.
+    url = url.replace('https://civitai.red/', 'https://civitai.com/', 1)
+    if not url.startswith('https://civitai.com/'):
+        return JSONResponse(content={"error": "only civitai urls are allowed"}, status_code=400)
+    if file_id:
+        cached = peek_cache_get(file_id, url)
+        if cached is not None:
+            return cached
+    base_headers = {}
+    token = getattr(shared.opts, 'civitai_token', '') or ''
+    if token:
+        base_headers['Authorization'] = f'Bearer {token}'
+
+    def read_range(start: int, end: int) -> bytes:
+        r = shared.req(url, headers={**base_headers, 'Range': f'bytes={start}-{end}'}, stream=True)
+        status = getattr(r, 'status_code', 500)
+        if status not in (200, 206):
+            raise RuntimeError(f'HTTP {status}')
+        want = end - start + 1
+        # A 200 reply means the server ignored the range and sends from byte 0.
+        need = end + 1 if status == 200 else want
+        buf = b''
+        try:
+            for chunk in r.iter_content(chunk_size=65536):
+                buf += chunk
+                if len(buf) >= need:
+                    break
+        finally:
+            r.close()
+        return buf[start:start + want] if status == 200 else buf[:want]
+
+    try:
+        prefix = read_range(0, 7)
+        if len(prefix) < 8:
+            return {"metadata": None, "error": "short read"}
+        header_len = struct.unpack('<Q', prefix)[0]
+        if header_len <= 0 or header_len > 16 * 1024 * 1024:
+            return {"metadata": None, "error": f"implausible header length: {header_len}"}
+        header = json.loads(read_range(8, 7 + header_len).decode('utf-8'))
+    except Exception as e:
+        return {"metadata": None, "error": str(e)}
+    from modules import model_probe
+    response = {
+        "metadata": header.get('__metadata__'),
+        "tensors": len([k for k in header if k != '__metadata__']),
+        "probe": model_probe.analyze_header(header),
+    }
+    if file_id:
+        peek_cache_put(file_id, url, response)
+    return response
 
 
 # ---------------------------------------------------------------------------
@@ -585,6 +695,7 @@ def register_api(api):
     api.add_api_route("/sdapi/v2/civitai/download", post_download, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/download/{download_id}/cancel", post_download_cancel, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/download/status", get_download_status, methods=["GET"], tags=["CivitAI"])
+    api.add_api_route("/sdapi/v2/civitai/peek-header", get_peek_header, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/settings", get_settings, methods=["GET"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/settings", post_settings, methods=["POST"], tags=["CivitAI"])
     api.add_api_route("/sdapi/v2/civitai/resolve-path", get_resolve_path, methods=["GET"], tags=["CivitAI"])

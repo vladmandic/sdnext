@@ -7,6 +7,7 @@ interface TokenResponse {
 
 let user: string | undefined;
 let token: string | undefined;
+let baseURL: string | undefined;
 
 export async function getToken(): Promise<{ user: string | undefined; token: string | undefined }> {
   if (token === undefined || user === undefined) {
@@ -37,6 +38,11 @@ export async function authFetch(url: RequestInfo | URL, options: RequestInit = {
     if (navigator.onLine) {
       error('fetch', { status: res?.status || 503, url, user, token, error: err });
     }
+  }
+  if (!baseURL) {
+    // baseURL = `${window.location.protocol}//${window.location.host}:${window.location.port}`;
+    baseURL = window.location.origin;
+    log('origin', baseURL);
   }
   return res;
 }

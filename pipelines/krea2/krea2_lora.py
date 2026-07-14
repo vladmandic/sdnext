@@ -63,9 +63,28 @@ def try_load_oft(name, network_on_disk, lora_scale):
     return native_adapter.try_load_oft(name, network_on_disk, lora_scale, **_BIND_KWARGS)
 
 
+def try_load_ia3(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_ia3(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_glora(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_glora(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_norm(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_norm(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
+def try_load_full(name, network_on_disk, lora_scale):
+    return native_adapter.try_load_full(name, network_on_disk, lora_scale, **_BIND_KWARGS)
+
+
 def try_load(name, network_on_disk, lora_scale):
     """Run every Krea 2 family loader, merge any that match."""
     return native_adapter.try_load_chain(
         name, network_on_disk, lora_scale,
-        family_loaders=(try_load_lora, try_load_lokr, try_load_loha, try_load_oft),
+        family_loaders=(
+            try_load_lora, try_load_lokr, try_load_loha, try_load_oft,
+            try_load_ia3, try_load_glora, try_load_norm, try_load_full,
+        ),
     )

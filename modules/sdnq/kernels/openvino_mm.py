@@ -15,25 +15,25 @@ for ov_device in core.get_available_devices():
     core.set_property(ov_device, {ov_hints.execution_mode: ov_hints.ExecutionMode.ACCURACY})
 
 
-def ov_mm(A: torch.Tensor, B: torch.Tensor, infer_request: ov.InferRequest, out_name: str) -> torch.FloatTensor:
+def ov_mm(A: torch.Tensor, B: torch.Tensor, infer_request: ov.InferRequest, out_name: str, out_dtype: torch.dtype = torch.float32) -> torch.FloatTensor:
     C = torch.empty((A.shape[0], B.shape[-1]), device="cpu", dtype=torch.float32)
     infer_request.set_tensor("A", ov.Tensor(A.detach().contiguous().to("cpu").numpy(), shared_memory=True))
     infer_request.set_tensor("B", ov.Tensor(B.detach().contiguous().to("cpu").numpy(), shared_memory=True))
     infer_request.set_tensor(out_name, ov.Tensor(C.numpy(), shared_memory=True))
     infer_request.infer()
-    C = C.to(A.device)
+    C = C.to(A.device, dtype=out_dtype)
     return C
 
 
 @torch.library.custom_op("sdnq::openvino_int_mm", mutates_args=())
-def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor) -> torch.Tensor:
+def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
     if "GPU" not in OV_DEVICE:
         cache_key = (OV_DEVICE, "int8", Tensor_A.shape, Tensor_B.shape)
     else:
         cache_key = (OV_DEVICE, "int8", None, None)
     infer_request, out_name = OV_COMPILED_CACHE.get(cache_key, (None, None))
     if infer_request is not None:
-        return ov_mm(Tensor_A, Tensor_B, infer_request, out_name)
+        return ov_mm(Tensor_A, Tensor_B, infer_request, out_name, out_dtype=out_dtype)
 
     if "GPU" not in OV_DEVICE:
         shape_a = ov.Shape(Tensor_A.shape)
@@ -75,15 +75,15 @@ def openvino_int_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor) -> torch.Ten
     out_name = ov_model.outputs[0]
 
     OV_COMPILED_CACHE[cache_key] = (infer_request, out_name)
-    return ov_mm(Tensor_A, Tensor_B, infer_request, out_name)
+    return ov_mm(Tensor_A, Tensor_B, infer_request, out_name, out_dtype=out_dtype)
 
 @openvino_int_mm.register_fake
-def openvino_int_mm_fake(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
-    return torch.mm(A.to(dtype=torch.float32), B.to(dtype=torch.float32))
+def openvino_int_mm_fake(A: torch.Tensor, B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
+    return torch.mm(A.to(dtype=torch.float32), B.to(dtype=torch.float32)).to(dtype=out_dtype)
 
 
 @torch.library.custom_op("sdnq::openvino_fp_mm", mutates_args=())
-def openvino_fp_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor) -> torch.Tensor:
+def openvino_fp_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
     mm_dtype = "fp16" if Tensor_B.dtype == torch.float16 else "fp8"
     if mm_dtype == "fp8":
         Tensor_A = Tensor_A.to(dtype=torch.float16)
@@ -94,7 +94,7 @@ def openvino_fp_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor) -> torch.Tens
         cache_key = (OV_DEVICE, mm_dtype, None, None)
     infer_request, out_name = OV_COMPILED_CACHE.get(cache_key, (None, None))
     if infer_request is not None:
-        return ov_mm(Tensor_A, Tensor_B, infer_request, out_name)
+        return ov_mm(Tensor_A, Tensor_B, infer_request, out_name, out_dtype=out_dtype)
 
     if "GPU" not in OV_DEVICE:
         shape_a = ov.Shape(Tensor_A.shape)
@@ -135,8 +135,8 @@ def openvino_fp_mm(Tensor_A: torch.Tensor, Tensor_B: torch.Tensor) -> torch.Tens
     out_name = ov_model.outputs[0]
 
     OV_COMPILED_CACHE[cache_key] = (infer_request, out_name)
-    return ov_mm(Tensor_A, Tensor_B, infer_request, out_name)
+    return ov_mm(Tensor_A, Tensor_B, infer_request, out_name, out_dtype=out_dtype)
 
 @openvino_fp_mm.register_fake
-def openvino_fp_mm_fake(A: torch.Tensor, B: torch.Tensor) -> torch.Tensor:
-    return torch.mm(A.to(dtype=torch.float32), B.to(dtype=torch.float32))
+def openvino_fp_mm_fake(A: torch.Tensor, B: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.Tensor:
+    return torch.mm(A.to(dtype=torch.float32), B.to(dtype=torch.float32)).to(dtype=out_dtype)

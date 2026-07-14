@@ -180,6 +180,8 @@ def save_files(js_data, files, html_info, index):
         if index < len(files):
             files = [files[index]]
             start_index = index
+        elif len(files) == 1:
+            start_index = 0
         else:
             log.error(f'Save: index={index} first={p.index_of_first_image} files={len(files)} out of range')
             files = []

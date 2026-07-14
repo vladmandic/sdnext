@@ -4,7 +4,7 @@ from modules import ui_sections, ui_symbols
 from modules.ui_components import ToolButton
 from modules.logger import log
 from modules.video_models.models_def import models
-from modules.ltx import ltx_process, ltx_capabilities
+from modules.ltx import ltx_process, ltx_capabilities, ltx_util
 
 
 debug = log.trace if os.environ.get('SD_VIDEO_DEBUG', None) is not None else lambda *args, **kwargs: None
@@ -63,6 +63,7 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
             with gr.Row():
                 ltx_models = [m.name for m in models['LTX Video']] if 'LTX Video' in models else ['None']
                 model = gr.Dropdown(label='LTX model', choices=ltx_models, value=ltx_models[0], elem_id="ltx_model")
+                btn_load = ToolButton(ui_symbols.loading, elem_id="video_model_load_ltx")
             with gr.Accordion(open=False, label='Size', elem_id='ltx_size_accordion'):
                 width, height = ui_sections.create_resolution_inputs('ltx', default_width=832, default_height=480)
                 with gr.Row():
@@ -118,6 +119,12 @@ def create_ui(prompt, negative, styles, overrides, mp4_fps, mp4_interpolate, mp4
                 video = gr.Video(label="Output", show_label=False, elem_id='ltx_output_video', elem_classes=['control-image'], height=512, autoplay=False)
             with gr.Row():
                 text = gr.HTML('', elem_id='ltx_generation_info', show_label=False)
+
+
+    def load_model(model_name: str):
+        ltx_util.load_model('LTX Video', model_name)
+
+    btn_load.click(fn=load_model, inputs=[model], outputs=[])
 
     model.change(
         fn=_model_change,
