@@ -139,9 +139,9 @@ def sdnq_attn_kernel(
             if qk_is_quantized:
                 k_scale = k_scale_desc.load([start_n])[None, :]
                 if q.dtype == tl.int8:
-                    qk = tl.dot(q, k, out_dtype=tl.int32).to(tl.float32) * q_scale * k_scale
+                    qk = tl.mul(tl.mul(tl.dot(q, k, out_dtype=tl.int32).to(tl.float32), q_scale), k_scale)
                 else:
-                    qk = tl.dot(q, k, out_dtype=tl.float32) * q_scale * k_scale
+                    qk = tl.mul(tl.mul(tl.dot(q, k, out_dtype=tl.float32), q_scale), k_scale)
             else:
                 qk = tl.dot(q, k, out_dtype=tl.float32)
 
@@ -171,14 +171,14 @@ def sdnq_attn_kernel(
                 v_scale = v_scale_desc.load([start_n])[None, :]
                 p *= v_scale
                 if v.dtype == tl.int8:
-                    p_scale = tl.max(p, 1)[:, None] * (1 / 127.0)
+                    p_scale = tl.mul(tl.max(p, 1)[:, None], (1 / 127.0))
                     p_scale = tl.where(p_scale <= 2e-38, 1.0, p_scale)
-                    p = tl.floor(p * (1 / p_scale) + 0.5).to(tl.int8)
+                    p = tl.floor(tl.fma(p, (1 / p_scale), 0.5)).to(tl.int8)
                     acc = tl.fma(tl.dot(p, v, out_dtype=tl.int32).to(tl.float32), p_scale, acc)
                 else:
-                    p_scale = tl.max(p, 1)[:, None] * (1 / (65504.0 if v.dtype == tl.float16 else 448.0))
+                    p_scale = tl.mul(tl.max(p, 1)[:, None], (1 / (65504.0 if v.dtype == tl.float16 else 448.0)))
                     p_scale = tl.where(p_scale <= 2e-38, 1.0, p_scale)
-                    p = (p * (1 / p_scale)).to(v.dtype)
+                    p = tl.mul(p, (1 / p_scale)).to(v.dtype)
                     acc = tl.fma(tl.dot(p, v, out_dtype=tl.float32), p_scale, acc)
             else:
                 p = p.to(v.dtype)

@@ -60,7 +60,7 @@ def int8_matmul(
 
     input, input_scale = quantize_int_mm_input(input, dtype=scale.dtype)
     if zero_point is not None:
-        zero_bias = torch.sum(input, dim=-1, keepdim=True, dtype=torch.int32).to(input_scale.dtype).mul_(input_scale).mul(zero_point)
+        zero_bias = torch.sum(input, dim=-1, keepdim=True, dtype=torch.int32).to(dtype=input_scale.dtype).mul_(input_scale).mul(zero_point)
         if bias is not None:
             zero_bias.add_(bias)
         bias = zero_bias

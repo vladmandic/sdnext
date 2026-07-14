@@ -1,8 +1,3 @@
-"""
-W4A8 fallback with Triton.
-This is intended as a template for future INT4 MM kernels as Triton has no support for INT4 hardware yet.
-"""
-
 import os
 import math
 import torch
@@ -96,17 +91,17 @@ def sdnq_scaled_mm_kernel(
     scale_b = scale_b_desc.load([off_n])[None, :].to(tl.float32)
 
     if bias_ndim == 1:
-        accumulator = accumulator.to(tl.float32) * scale_a
+        accumulator = tl.mul(accumulator.to(tl.float32), scale_a)
         bias_desc = tl.make_tensor_descriptor(base=bias_ptr, shape=(N,), strides=(1,), block_shape=(BLOCK_SIZE_N,))
         bias = bias_desc.load([off_n])[None, :].to(tl.float32)
         accumulator = tl.fma(accumulator, scale_b, bias)
     elif bias_ndim == 2:
-        accumulator = accumulator.to(tl.float32) * scale_a
+        accumulator = tl.mul(accumulator.to(tl.float32), scale_a)
         bias_desc = tl.make_tensor_descriptor(base=bias_ptr, shape=(M, N), strides=(N, 1), block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N))
         bias = bias_desc.load([off_m, off_n]).to(tl.float32)
         accumulator = tl.fma(accumulator, scale_b, bias)
     else:
-        accumulator = accumulator.to(tl.float32) * scale_a * scale_b
+        accumulator = tl.mul(tl.mul(accumulator.to(tl.float32), scale_a), scale_b)
 
     accumulator = accumulator.to(c_ptr.type.element_ty)
     c_desc = tl.make_tensor_descriptor(base=c_ptr, shape=(M, N), strides=(N, 1), block_shape=(BLOCK_SIZE_M, BLOCK_SIZE_N))
