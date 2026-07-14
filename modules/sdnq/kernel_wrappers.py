@@ -4,7 +4,7 @@ import os
 import sys
 import torch
 
-from modules import devices
+from modules import devices, shared
 
 
 if os.environ.get("SDNQ_ALLOW_FP8_MM", None) is None:
@@ -43,7 +43,7 @@ else:
     use_openvino_mm = bool(os.environ.get("SDNQ_USE_OPENVINO_MM", "0").lower() not in {"0", "false", "no"})
 
 if os.environ.get("SDNQ_USE_TRITON_MM", None) is None:
-    use_triton_mm = bool(not is_alchemist_or_igpu and (is_rdna2_and_older or devices.backend in {"zluda", "ipex", "xpu"}))
+    use_triton_mm = bool(not is_alchemist_or_igpu and (devices.backend in {"cuda", "rocm", "ipex", "xpu", "zluda"}))
 else:
     use_triton_mm = bool(os.environ.get("SDNQ_USE_TRITON_MM", "0").lower() not in {"0", "false", "no"})
 
@@ -102,11 +102,16 @@ elif use_triton_mm:
             fp8_mm_func = sdnq_triton_mm
             fp8_scaled_mm_func = sdnq_scaled_mm
             use_tensorwise_fp8_matmul = True
-    except Exception:
+    except Exception as e:
         use_triton_mm = False
+        shared.log.warning(f"SDNQ: Triton kernels are not available! Falling back to PyTorch Eager kernels. Error message: {e}")
 
 
-if fp_mm_func is None and not is_alchemist_or_igpu and os.environ.get("SDNQ_USE_TRITON_MM", "1").lower() not in {"0", "false", "no"}:
+if (
+    fp_mm_func is None and not is_alchemist_or_igpu
+    and devices.backend in {"cuda", "rocm", "ipex", "xpu", "zluda"}
+    and os.environ.get("SDNQ_USE_TRITON_MM", "1").lower() not in {"0", "false", "no"}
+):
     try:
         from .kernels.triton_mm import sdnq_triton_mm
         from .kernels.triton_scaled_mm import sdnq_scaled_mm
