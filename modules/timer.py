@@ -10,11 +10,11 @@ except Exception:
 
 
 class Timer:
-    def __init__(self):
+    def __init__(self, profile=False):
         self.start = time.time()
         self.records = {}
         self.total = 0
-        self.profile = False
+        self.profile = profile
 
     def elapsed(self, reset=True):
         end = time.time()
@@ -71,10 +71,14 @@ class Timer:
         return res
 
     def reset(self):
-        self.__init__()
+        self.records.clear()
+        self.__init__(self.profile)
 
 startup = Timer()
 process = Timer()
 launch = Timer()
 init = Timer()
 load = Timer()
+dynamo = Timer()
+compiler = Timer(profile=True)
+autotune = Timer(profile=True)

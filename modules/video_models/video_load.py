@@ -155,9 +155,7 @@ def load_model(selected: models_def.Model):
             shared.sd_model = load_custom(selected.repo)
         else:
             log.debug(f'Load video: module=pipe repo="{selected.repo}" cls={selected.repo_cls.__name__}')
-            print('HERE1')
             sd_models.hf_prefetch_configs(selected.repo, {}, 'video')
-            print('HERE2')
             shared.sd_model = selected.repo_cls.from_pretrained(
                 pretrained_model_name_or_path=selected.repo,
                 revision=selected.repo_revision,

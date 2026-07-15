@@ -4,6 +4,8 @@
 
 - **Compute**
   - torch: update to `2.13.0` for CUDA, ROCm, IPEX
+  - torch: explicitly set inductor and triton cache locations
+  - torch: log triton/dynamo/inductor timer stats
   - cuda: update to `13.2`
   - sdnq quantization optimizations
   - sdnq attention optimizations

@@ -80,6 +80,8 @@ def hijack_encode_prompt(*args, **kwargs):
         errors.display(e, 'Encode prompt')
     t1 = time.time()
     timer.process.add('te', t1-t0)
+    if t1 - t0 > 10:
+        log.warning(f'Encode: time={t1-t0:.3f} long encode prompt')
     shared.sd_model = sd_models.apply_balanced_offload(shared.sd_model)
     shared.state.end(jobid)
     # from modules import memstats

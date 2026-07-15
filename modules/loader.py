@@ -56,6 +56,9 @@ except Exception as e:
     report(f'scipy=={scipy.__version__ if scipy is not None else None}', e)
 timer.startup.record("scipy")
 
+inductor_cache = os.environ.setdefault("TORCHINDUCTOR_CACHE_DIR", os.path.join(os.path.expanduser("~"), ".cache", "inductor"))
+triton_cache = os.environ.setdefault("TRITON_CACHE_DIR", os.path.join(os.path.expanduser("~"), ".cache", "triton"))
+
 try:
     import atexit
     import torch._inductor.async_compile as ac

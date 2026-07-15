@@ -416,6 +416,27 @@ def process_samples(p: StableDiffusionProcessing, samples):
     return out_images, out_infotexts
 
 
+def print_stats():
+    log.debug(f'Processed: timers={timer.process.dct()}')
+    log.debug(f'Processed: memory={memstats.memory_stats()}')
+
+    if timer.compiler.get_total() > 0.0001:
+        log.debug(f'Processed: compile={timer.compiler.dct(min_time=0)}')
+        timer.compiler.reset()
+
+    if shared.opts.sdnq_dequantize_compile:
+        from modules.sdnq.timers import update_sdnq_attention_timers
+        update_sdnq_attention_timers()
+        if timer.autotune.get_total() > 0.0001:
+            log.debug(f'Processed: autotune={timer.autotune.dct(min_time=0)}')
+
+    if devices.triton_ok:
+        from modules.sd_models_compile import update_compile_times
+        update_compile_times()
+        if timer.dynamo.get_total() > 0.0001:
+            log.debug(f'Processed: dynamo={timer.dynamo.dct(min_time=1.0)}')
+
+
 def process_images_inner(p: StableDiffusionProcessing) -> Processed:
     if type(p.prompt) == list:
         assert len(p.prompt) > 0
@@ -570,10 +591,10 @@ def process_images_inner(p: StableDiffusionProcessing) -> Processed:
         p.scripts.postprocess(p, results)
     timer.process.record('post')
     p.ops = list(set(p.ops))
+
     if not p.disable_extra_networks:
         log.info(f'Processed: images={len(output_images)} its={(p.steps * len(output_images)) / (t1 - t0):.2f} ops={p.ops}')
-        log.debug(f'Processed: timers={timer.process.dct()}')
-        log.debug(f'Processed: memory={memstats.memory_stats()}')
+        print_stats()
 
     if shared.cmd_opts.lowvram or shared.cmd_opts.medvram:
         devices.torch_gc(force=True, reason='final')

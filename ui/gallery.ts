@@ -1013,7 +1013,6 @@ export async function gallerySort(key) {
   const folderNames = Array.from<string>(folderGroups.keys());
   const sortedFolderNames = currentSort.endsWith('A') ? folderNames.sort((a, b) => a.localeCompare(b)) : folderNames.sort((a, b) => b.localeCompare(a));
 
-  console.log('HERE', sortedFolderNames);
   for (const folderName of sortedFolderNames) {
     const files = folderGroups.get(folderName);
     files.sort(sortMode.func);
