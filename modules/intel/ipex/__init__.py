@@ -55,7 +55,6 @@ def ipex_init(): # pylint: disable=too-many-statements
                 pass
             # Replace cuda with xpu:
             torch.cuda.current_device = torch.xpu.current_device
-            torch.cuda.current_stream = torch.xpu.current_stream
             torch.cuda.device = torch.xpu.device
             torch.cuda.device_count = torch.xpu.device_count
             torch.cuda.device_of = torch.xpu.device_of
