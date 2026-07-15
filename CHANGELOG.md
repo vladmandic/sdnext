@@ -1,10 +1,18 @@
 # Change Log for SD.Next
 
+## Update for 2026-07-15
+
+- **Compute**
+  - torch: update to `2.13.0` for CUDA, ROCm, IPEX
+  - cuda: update to `13.2`
+  - sdnq quantization optimizations
+  - sdnq attention optimizations
+
 ## Update for 2026-07-14
 
 ### Highlights for 2026-07-14
 
-*What's New?* Full week(!) since there release, we're bringing a service pack update:  
+*What's New?* Full week(!) since the last release, we're bringing a service pack update:  
 **Anima** has new *Aesthetic* and *Turbo* variants, **Joy Image Edit** has new *Plus* variant  
 *And also*:  
 - UI updates to *Server info* and *Log viewer*, more informative and allows easier sharing of info
