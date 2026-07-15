@@ -26,6 +26,7 @@ def set_sdnq_attention():
         def sdpa_sdnq_atten(query: torch.FloatTensor, key: torch.FloatTensor, value: torch.FloatTensor, attn_mask: torch.Tensor | None = None, dropout_p: float = 0.0, is_causal: bool = False, scale: float | None = None, enable_gqa: bool = False, **kwargs) -> torch.FloatTensor:
             if (
                 query.device.type != "cpu"
+                and (query.shape[-2] >= 32 and key.shape[-2] >= 32 and value.shape[-2] >= 32)
                 and (query.shape[-2] >= 512 or key.shape[-2] >= 512) # Skip TE
                 and query.shape[-3] > 1 # Skip VAE
             ):
