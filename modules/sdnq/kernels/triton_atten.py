@@ -201,7 +201,7 @@ def quantize_attn(
     matmul_dtype: str = "int8",
     pv_matmul_dtype: str | None = None,
 ) -> tuple[torch.Tensor]:
-    if matmul_dtype in {"auto", "uint8"}:
+    if matmul_dtype in {"auto", "enabled", "uint8"}:
         matmul_dtype = "int8"
     if pv_matmul_dtype == "uint8":
         pv_matmul_dtype = "int8"
@@ -213,7 +213,7 @@ def quantize_attn(
             k = k.sub_(k.mean(dim=2, keepdim=True))
         else:
             k = k.sub(k.mean(dim=2, keepdim=True))
-    if matmul_dtype not in {None, "none", "no"}:
+    if matmul_dtype not in {None, "none", "no", "disabled"}:
         if hadamard is not None:
             q, use_hadamard, hadamard_group_size = apply_hadamard(q, group_size=hadamard_group_size, hadamard=hadamard, layer_class_name="Linear")
             if use_hadamard:
@@ -228,7 +228,7 @@ def quantize_attn(
         k_q = k.contiguous().to(dtype=q.dtype)
         q_scale = None
         k_scale = None
-    if pv_matmul_dtype not in {None, "auto", "none", "no"}:
+    if pv_matmul_dtype not in {None, "auto", "none", "no", "disabled"}:
         quantize_mm_func_pv = quantize_int_mm if pv_matmul_dtype.startswith("int") else quantize_fp_mm
         v_q, v_scale = quantize_mm_func_pv(v.contiguous().to(dtype=torch.float32), dim=-1, matmul_dtype=pv_matmul_dtype)
         v_scale = v_scale.squeeze(-1)
@@ -280,8 +280,8 @@ def get_attn_inputs(
         smooth_k=smooth_k,
         hadamard=hadamard,
         hadamard_group_size=hadamard_group_size,
-        matmul_dtype=matmul_dtype if do_quantize else "no",
-        pv_matmul_dtype=pv_matmul_dtype if do_quantize else "no",
+        matmul_dtype=matmul_dtype if do_quantize else "disabled",
+        pv_matmul_dtype=pv_matmul_dtype if do_quantize else "disabled",
     )
     return query, query_scale, key, key_scale, value, value_scale, attn_mask, scale, out_dtype
 
@@ -308,7 +308,7 @@ def sdnq_triton_atten(
     _, _, VN, VHD = value.shape
 
     hadamard = None
-    if use_hadamard and do_quantize and matmul_dtype not in {None, "none", "no"}:
+    if use_hadamard and do_quantize and matmul_dtype not in {None, "none", "no", "disabled"}:
         hadamard_channel_size = next_power_of_2(min(QHD, KHD))
         hadamard_group_size = min(hadamard_group_size, hadamard_channel_size)
         use_hadamard, hadamard_group_size = get_hadamard_group_size(hadamard_channel_size, hadamard_group_size)

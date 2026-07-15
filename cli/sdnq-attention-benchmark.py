@@ -237,7 +237,6 @@ all_mm_backends = ["torch", "triton"]
 recommend_error_cap = 2.0 # a faster config is not recommended when it multiplies measured output error beyond this
 
 atten_settings = [
-    ("sdnq_attention_use_quantized_matmul", "Use Quantized MatMul"),
     ("sdnq_attention_matmul_type", "MatMul type"),
     ("sdnq_attention_pv_matmul_type", "PV MatMul type"),
     ("sdnq_attention_smooth_k", "Use Smooth K"),
@@ -2356,7 +2355,7 @@ def bench_block_section(iters, warmup, config_timeout=300, selected=None):
         notes.append(f"four stacked blocks: error grows x{sum(growth) / len(growth):.2f} avg, residuals dampen compounding")
     weights_mode = str(getattr(shared.opts, "sdnq_quantize_weights_mode", ""))
     current_id = None
-    if weights_mode == "int8" and getattr(shared.opts, "sdnq_use_quantized_matmul", False):
+    if weights_mode == "int8" and getattr(shared.opts, "sdnq_quantize_matmul_mode", "disabled") != "disabled":
         current_id = "int8-mm-atten" if "SDNQ attention" in shared.opts.sdp_overrides else "int8-mm"
     if current_id and results.get(current_id, {}).get("ms"):
         notes.append(f"current config runs the {results[current_id]['label']} row for int8-quantized models")
@@ -2418,12 +2417,12 @@ def build_recommendations(all_results, fp8_result, prep_status):
                 quant_reason += f", error {int8_err:.5f} vs {noquant_err:.5f}; smooth k and hadamard below buy error back"
         else:
             quant_reason = f"unquantized sdnq measured x{int8_ms / noquant_ms:.2f} vs int8 qk with lower error; quantization prep outweighs the kernel gain on this gpu"
-        rows.append(("Use Quantized MatMul", current("sdnq_attention_use_quantized_matmul"), str(use_quantized), quant_reason))
+        rows.append(("Use Quantized MatMul", (current("sdnq_attention_matmul_type") != "disabled"), str(use_quantized), quant_reason))
     elif int8_ms and base_ms:
         use_quantized = base_ms / int8_ms >= 1.10
-        rows.append(("Use Quantized MatMul", current("sdnq_attention_use_quantized_matmul"), str(use_quantized), f"int8 qk measured x{base_ms / int8_ms:.2f} vs torch sdpa; unquantized sdnq row unavailable"))
+        rows.append(("Use Quantized MatMul", (current("sdnq_attention_matmul_type") != "disabled"), str(use_quantized), f"int8 qk measured x{base_ms / int8_ms:.2f} vs torch sdpa; unquantized sdnq row unavailable"))
     else:
-        rows.append(("Use Quantized MatMul", current("sdnq_attention_use_quantized_matmul"), "False", "int8 qk failed to run"))
+        rows.append(("Use Quantized MatMul", (current("sdnq_attention_matmul_type") != "disabled"), "False", "int8 qk failed to run"))
 
     qk_choice = "auto"
     qk_reason = "resolves to int8; uint8 remaps to int8"
@@ -2639,7 +2638,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
             mm_reason += f"; measured with MatMul type {best_sel}" if mm_entry.get("mm_ms") else f"; needs MatMul type {best_sel}, auto (float8_e4m3fn) failed on this gpu"
         if weights_mode not in mode_ids:
             mm_reason += f"; current quantization type {weights_mode} was not benchmarked, judged on int8"
-        rows.append(("Use quantized MatMul", current("sdnq_use_quantized_matmul"), str(recommend_mm), mm_reason))
+        rows.append(("Use quantized MatMul", current("sdnq_quantize_matmul_mode"), str(recommend_mm), mm_reason))
 
         type_parts = []
         for sel, resolved, ms, err in mm_candidates:
@@ -2655,7 +2654,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
 
     sweeps = sweep_results or {}
     sweeps_at_reference = reference == dequant_shapes[0][0]
-    mm_on = str(getattr(shared.opts, "sdnq_use_quantized_matmul", False)) == "True"
+    mm_on = getattr(shared.opts, "sdnq_quantize_matmul_mode", "disabled") != "disabled"
 
     # Group size: judged on the path the current config runs (mm cells when quantized matmul
     # is on); an explicit size must cut error meaningfully without real speed or size cost

@@ -1387,7 +1387,7 @@ class ComfyTestEnv:
         sdnq_common.is_fp8_compile_supported = self.fp8_compile_supported
         sdnq_common.check_torch_compile = lambda: not self.fp8_compile_supported
         self.orig_opts = {
-            'sdnq_use_quantized_matmul': shared.opts.sdnq_use_quantized_matmul,
+            'sdnq_use_quantized_matmul': (shared.opts.sdnq_quantize_matmul_mode != "disabled"),
             'sdnq_dequantize_fp32': shared.opts.sdnq_dequantize_fp32,
             'diffusers_offload_mode': shared.opts.diffusers_offload_mode,
         }

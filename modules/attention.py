@@ -38,7 +38,6 @@ def set_sdnq_attention():
                     smooth_k=shared.opts.sdnq_attention_smooth_k,
                     use_hadamard=shared.opts.sdnq_attention_use_hadamard,
                     hadamard_group_size=shared.opts.sdnq_attention_hadamard_group_size,
-                    do_quantize=shared.opts.sdnq_attention_use_quantized_matmul,
                 )
             else:
                 if enable_gqa:
