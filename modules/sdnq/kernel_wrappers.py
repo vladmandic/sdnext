@@ -5,6 +5,7 @@ import sys
 import torch
 
 from modules import devices, shared
+from .common import compile_func
 
 
 if os.environ.get("SDNQ_ALLOW_FP8_MM", None) is None:
@@ -56,9 +57,11 @@ else:
 if os.environ.get("SDNQ_USE_CONTIGUOUS_MM", None) is None:
     use_contiguous_int8_mm = bool(use_openvino_mm or is_rdna2_and_older or devices.backend in {"ipex", "xpu", "mps", "openvino", "zluda"})
     use_contiguous_fp16_mm = bool(use_contiguous_int8_mm or devices.backend == "rocm")
+    use_contiguous_fp8_mm = use_contiguous_fp16_mm
 else:
     use_contiguous_int8_mm = bool(os.environ.get("SDNQ_USE_CONTIGUOUS_MM", "0").lower() not in {"0", "false", "no"})
     use_contiguous_fp16_mm = use_contiguous_int8_mm
+    use_contiguous_fp8_mm = use_contiguous_fp16_mm
 
 
 def fp_mm_torch_cuda(a: torch.Tensor, b: torch.Tensor, out_dtype: torch.dtype = torch.float32) -> torch.FloatTensor:
@@ -140,6 +143,7 @@ if fp8_mm_func is None:
             dummy_input_scale = torch.ones(1, device=a.device, dtype=torch.float32)
             return torch._scaled_mm(a, b, scale_a=dummy_input_scale, scale_b=dummy_input_scale, bias=None, out_dtype=out_dtype)
         fp8_mm_func = fp8_mm_torch
+        use_contiguous_fp8_mm = False
     else:
         fp8_mm_func = fp_mm_torch
 
@@ -150,7 +154,7 @@ if int_scaled_mm_func is None:
             return int_mm_func(a,b, out_dtype=scale_a.dtype).mul_(scale_a).mul_(scale_b).to(dtype=out_dtype)
         else:
             return torch.addcmul(bias, int_mm_func(a,b, out_dtype=scale_a.dtype).mul_(scale_a), scale_b).to(dtype=out_dtype)
-    int_scaled_mm_func = int_scaled_mm_torch
+    int_scaled_mm_func = compile_func(int_scaled_mm_torch)
 
 
 if fp_scaled_mm_func is None:
@@ -159,7 +163,7 @@ if fp_scaled_mm_func is None:
             return fp_mm_func(a,b, out_dtype=scale_a.dtype).mul_(scale_a).mul_(scale_b).to(dtype=out_dtype)
         else:
             return torch.addcmul(bias, fp_mm_func(a,b, out_dtype=scale_a.dtype).mul_(scale_a), scale_b).to(dtype=out_dtype)
-    fp_scaled_mm_func = fp_scaled_mm_torch
+    fp_scaled_mm_func = compile_func(fp_scaled_mm_torch)
 
 
 if fp8_scaled_mm_func is None:
@@ -175,4 +179,4 @@ if fp8_scaled_mm_func is None:
                 return torch._scaled_mm(a, b, scale_a=scale_a, scale_b=scale_b, bias=None, out_dtype=out_dtype).add_(bias)
             else:
                 return torch._scaled_mm(a, b, scale_a=scale_a, scale_b=scale_b, bias=bias.to(dtype=out_dtype) if bias is not None else None, out_dtype=out_dtype)
-    fp8_scaled_mm_func = fp8_scaled_mm_torch
+    fp8_scaled_mm_func = compile_func(fp8_scaled_mm_torch)

@@ -48,7 +48,7 @@ def conv_fp16_matmul(
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
     input, input_scale = quantize_fp_mm_input(input, dtype=scale.dtype, matmul_dtype="float16")
-    input, weight = check_mats(input, weight)
+    input, weight = check_mats(input, weight, matmul_dtype="float16")
 
     if groups == 1:
         result = fp_scaled_mm_func(input, weight, input_scale, scale, bias=bias, out_dtype=return_dtype).view(mm_output_shape)
@@ -70,6 +70,7 @@ def conv_fp16_matmul(
         result = result.permute(0,3,1,2)
     elif conv_type == 3:
         result = result.permute(0,4,1,2,3)
+    result = result.contiguous()
     return result
 
 

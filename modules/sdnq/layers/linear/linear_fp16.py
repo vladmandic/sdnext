@@ -11,7 +11,7 @@ from .forward import check_mats
 from .linear_fp8 import quantize_fp_mm_input
 
 
-def fp16_matmul(
+def get_fp16_matmul_inputs(
     input: torch.FloatTensor,
     weight: torch.Tensor,
     scale: torch.FloatTensor,
@@ -40,8 +40,8 @@ def fp16_matmul(
             bias = torch.mm(torch.mm(input.to(dtype=svd_down.dtype), svd_down), svd_up)
 
     input, input_scale = quantize_fp_mm_input(input, dtype=scale.dtype, matmul_dtype="float16")
-    input, weight = check_mats(input, weight)
-    return fp_scaled_mm_func(input, weight, input_scale, scale, bias=bias, out_dtype=return_dtype).view(output_shape)
+    input, weight = check_mats(input, weight, matmul_dtype="float16")
+    return input, weight, input_scale, scale, bias, return_dtype, output_shape
 
 
 def quantized_linear_forward_fp16_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
@@ -58,7 +58,7 @@ def quantized_linear_forward_fp16_matmul(self, input: torch.FloatTensor) -> torc
     else:
         hadamard = None
 
-    return fp16_matmul(
+    input, weight, input_scale, scale, bias, return_dtype, output_shape = get_fp16_matmul_inputs(
         input, weight, scale,
         bias=self.bias,
         svd_up=self.svd_up,
@@ -67,6 +67,7 @@ def quantized_linear_forward_fp16_matmul(self, input: torch.FloatTensor) -> torc
         quantized_weight_shape=quantized_weight_shape,
         weights_dtype=self.sdnq_dequantizer.weights_dtype,
     )
+    return fp_scaled_mm_func(input, weight, input_scale, scale, bias=bias, out_dtype=return_dtype).view(output_shape)
 
 
-fp16_matmul = compile_func(fp16_matmul)
+get_fp16_matmul_inputs = compile_func(get_fp16_matmul_inputs)

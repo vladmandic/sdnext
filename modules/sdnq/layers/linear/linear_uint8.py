@@ -21,7 +21,7 @@ def quantize_uint_mm_input(input: torch.FloatTensor, dtype: torch.dtype | None =
     return input, input_scale, input_zero_point
 
 
-def uint8_matmul(
+def get_uint8_matmul_inputs(
     input: torch.FloatTensor,
     weight: torch.Tensor,
     scale: torch.FloatTensor,
@@ -69,8 +69,8 @@ def uint8_matmul(
     if bias is not None:
         zero_bias.add_(bias)
 
-    input, weight = check_mats(input, weight)
-    return int_scaled_mm_func(input, weight, input_scale, scale, bias=zero_bias, out_dtype=return_dtype).view(output_shape)
+    input, weight = check_mats(input, weight, matmul_dtype="uint8")
+    return input, weight, input_scale, scale, zero_bias, return_dtype, output_shape
 
 
 def quantized_linear_forward_uint8_matmul(self, input: torch.FloatTensor) -> torch.FloatTensor:
@@ -87,7 +87,7 @@ def quantized_linear_forward_uint8_matmul(self, input: torch.FloatTensor) -> tor
     else:
         hadamard = None
 
-    return uint8_matmul(
+    input, weight, input_scale, scale, zero_bias, return_dtype, output_shape = get_uint8_matmul_inputs(
         input, weight,
         scale, zero_point,
         bias=self.bias,
@@ -97,6 +97,7 @@ def quantized_linear_forward_uint8_matmul(self, input: torch.FloatTensor) -> tor
         quantized_weight_shape=quantized_weight_shape,
         weights_dtype=self.sdnq_dequantizer.weights_dtype,
     )
+    return int_scaled_mm_func(input, weight, input_scale, scale, bias=zero_bias, out_dtype=return_dtype).view(output_shape)
 
 
-uint8_matmul = compile_func(uint8_matmul)
+get_uint8_matmul_inputs = compile_func(get_uint8_matmul_inputs)

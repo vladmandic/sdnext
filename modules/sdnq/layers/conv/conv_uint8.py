@@ -65,7 +65,7 @@ def conv_uint8_matmul(
         zero_bias = torch.sum(weight, dim=0, keepdim=True, dtype=torch.int32).to(scale.dtype).mul_(scale).mul(input_zero_point)
     if bias is not None:
         zero_bias.add_(bias)
-    input, weight = check_mats(input, weight)
+    input, weight = check_mats(input, weight, matmul_dtype="uint8")
 
     if groups == 1:
         result = int_scaled_mm_func(input, weight, input_scale, scale, bias=zero_bias, out_dtype=return_dtype).view(mm_output_shape)
@@ -84,6 +84,7 @@ def conv_uint8_matmul(
         result = result.permute(0,3,1,2)
     elif conv_type == 3:
         result = result.permute(0,4,1,2,3)
+    result = result.contiguous()
     return result
 
 
