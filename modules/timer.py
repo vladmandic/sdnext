@@ -60,9 +60,12 @@ class Timer:
     def get_total(self):
         return sum(self.records.values())
 
-    def dct(self, min_time=default_min_time):
+    def dct(self, min_time=default_min_time, no_total=False):
         self.total = sum(self.records.values())
-        self.records['total'] = self.total
+        if no_total:
+            self.records.pop('total', None)
+        else:
+            self.records['total'] = self.total
         if self.profile:
             res = {k: round(v, 4) for k, v in self.records.items()}
         else:
@@ -80,5 +83,4 @@ launch = Timer()
 init = Timer()
 load = Timer()
 dynamo = Timer()
-compiler = Timer(profile=True)
 autotune = Timer(profile=True)

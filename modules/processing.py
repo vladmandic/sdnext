@@ -420,12 +420,8 @@ def print_stats():
     log.debug(f'Processed: timers={timer.process.dct()}')
     log.debug(f'Processed: memory={memstats.memory_stats()}')
 
-    if timer.compiler.get_total() > 0.0001:
-        log.debug(f'Processed: compile={timer.compiler.dct(min_time=0)}')
-        timer.compiler.reset()
-
     if shared.opts.sdnq_dequantize_compile:
-        from modules.sdnq.timers import update_sdnq_attention_timers
+        from modules.timer_sdnq import update_sdnq_attention_timers
         update_sdnq_attention_timers()
         if timer.autotune.get_total() > 0.0001:
             log.debug(f'Processed: autotune={timer.autotune.dct(min_time=0)}')
@@ -434,7 +430,7 @@ def print_stats():
         from modules.sd_models_compile import update_compile_times
         update_compile_times()
         if timer.dynamo.get_total() > 0.0001:
-            log.debug(f'Processed: dynamo={timer.dynamo.dct(min_time=1.0)}')
+            log.debug(f'Processed: dynamo={timer.dynamo.dct(min_time=2.0, no_total=True)}')
 
 
 def process_images_inner(p: StableDiffusionProcessing) -> Processed:

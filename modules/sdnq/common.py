@@ -345,7 +345,6 @@ def check_torch_compile() -> bool: # dynamo can be disabled after startup
 
 
 if use_torch_compile:
-    from modules.timer import compiler as compile_timer
     if hasattr(torch._dynamo.config, "recompile_limit"):
         torch._dynamo.config.recompile_limit = max(8192, getattr(torch._dynamo.config, "recompile_limit", 0))
     if hasattr(torch._dynamo.config, "cache_size_limit"):
@@ -365,10 +364,7 @@ if use_torch_compile:
         if os.environ.get("SDNQ_COMPILE_KWARGS", None) is not None:
             for key, value in json.loads(os.environ.get("SDNQ_COMPILE_KWARGS")).items():
                 kwargs[key] = value
-        t0 = time.time()
-        res = torch.compile(fn, **kwargs)
-        compile_timer.ts(fn.__name__, t0)
-        return res
+        return torch.compile(fn, **kwargs)
 else:
     def compile_func(fn, **kwargs): # pylint: disable=unused-argument
         return fn
