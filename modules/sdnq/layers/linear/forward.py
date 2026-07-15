@@ -6,7 +6,8 @@ from ...kernel_wrappers import use_contiguous_int8_mm, use_contiguous_fp16_mm, u
 
 
 def check_mats(input: torch.Tensor, weight: torch.Tensor, matmul_dtype: str = "int8") -> tuple[torch.Tensor, torch.Tensor]:
-    input = input.contiguous()
+    if input is not None:
+        input = input.contiguous()
     if (
         (use_contiguous_int8_mm and matmul_dtype in {"int8", "uint8"})
         or (use_contiguous_fp16_mm and matmul_dtype in {"fp16", "float16"})
