@@ -373,14 +373,14 @@ def openvino_post_compile(op="base"): # delete unet after OpenVINO compile
 
 
 def update_compile_times():
+    from modules.timer import dynamo
+    dynamo.reset()
     try:
         from torch._dynamo.utils import compile_times, reset_frame_count
         raw_str = compile_times()
         reset_frame_count()
     except Exception:
-        return {}
-    from modules.timer import dynamo
-    dynamo.reset()
+        return
     lines = raw_str.strip().split('\n')
     # parsed = []
     for line in lines:
