@@ -2,7 +2,6 @@
 
 import os
 import json
-import time
 import torch
 
 from modules import shared
