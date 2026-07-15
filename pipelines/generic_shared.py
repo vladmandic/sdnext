@@ -61,6 +61,12 @@ shared_te_map = {
         'target_repo': 'Disty0/FLUX.2-klein-9B-SDNQ-4bit-dynamic-svd-r32',
         'target_subfolder': 'text_encoder',
     },
+    'Qwen-3 9B SDNQ-Hadamard-UInt4': {
+        'cls': transformers.Qwen3ForCausalLM,
+        'identifier': '9b-sdnq-hadamard-uint4',
+        'target_repo': 'Disty0/FLUX.2-klein-9B-SDNQ-4bit-dynamic-svd-r32',
+        'target_subfolder': 'text_encoder',
+    },
     'Qwen-3 9B Base': {
         'cls': transformers.Qwen3ForCausalLM,
         'identifier': '9b',
