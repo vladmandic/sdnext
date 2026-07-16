@@ -29,8 +29,8 @@ q/k/v quantization cost outside the kernel, included in the median. Recommendati
 from measured comparisons only.
 
 Shape presets follow real model geometries: sd15, sdxl, sdxl-cross, qwen3-te (Anima TE),
-anima, flux2 (Klein), wan22 (A14B), ltx2 (LTX 2.3), plus masked and wan22-cfg presets. Run
-from the sdnext root with the venv active:
+anima, flux2 (Klein), krea2 (segment mask), wan22 (A14B), ltx2 (LTX 2.3), plus masked and
+wan22-cfg presets. Run from the sdnext root with the venv active:
     python cli/sdnq-attention-benchmark.py
     python cli/sdnq-attention-benchmark.py --shapes all --json results.json
     python cli/sdnq-attention-benchmark.py --sections dequant
@@ -102,15 +102,16 @@ shape_presets = {
     "qwen3-te": dict(batch=2, heads=16, kv_heads=8, tokens=512, head_dim=128, causal=True, desc="Qwen3 text encoder (Anima), causal gqa 16:8 heads, 512 token prompt"),
     "anima": dict(batch=1, heads=16, tokens=4096, head_dim=128, desc="Anima 1.0 self-attention at 1024px, one cfg pass"),
     "flux2": dict(batch=1, heads=32, tokens=4608, head_dim=128, desc="FLUX.2 Klein 9B joint attention at 1024px, 4096 image plus 512 text tokens"),
+    "krea2": dict(batch=1, heads=48, tokens=4608, head_dim=128, desc="Krea 2 12B joint attention at 1024px, 4096 image plus 512 text tokens (128 real), kv expanded from gqa 48:12, segment mask"),
     "wan22": dict(batch=1, heads=40, tokens=32760, head_dim=128, desc="Wan 2.2 A14B self-attention, 832x480 81 frames, one cfg pass"),
     "wan22-cfg": dict(batch=2, heads=40, tokens=32760, head_dim=128, desc="Wan 2.2 A14B self-attention, 832x480 81 frames, batched cfg"),
     "ltx2": dict(batch=1, heads=32, tokens=13376, head_dim=128, desc="LTX 2.3 self-attention, 1216x704 121 frames, one cfg pass"),
     "masked": dict(batch=1, heads=32, tokens=4608, head_dim=128, desc="FLUX.2 Klein shape with boolean key-padding mask, 25% of keys masked"),
 }
-full_run = ["sd15", "sdxl", "sdxl-cross", "qwen3-te", "anima", "flux2", "wan22", "ltx2"]
+full_run = ["sd15", "sdxl", "sdxl-cross", "qwen3-te", "anima", "flux2", "krea2", "wan22", "ltx2"]
 # settings advice comes from a self-attention shape with the full config set; cross-attention
 # and text-encoder shapes measure the hijack's cost there but would mislead as global advice
-recommendation_presets = ["flux2", "anima", "sdxl", "wan22", "ltx2", "sd15"]
+recommendation_presets = ["flux2", "krea2", "anima", "sdxl", "wan22", "ltx2", "sd15"]
 default_shapes = "sdxl,flux2"
 all_sections = ["attention", "dequant", "block"]
 
@@ -1209,9 +1210,18 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
     if preset == "sd15":
         emit("[yellow]sd15: hadamard configs skipped, compiling hadamard with a non pow2 head dim currently hangs torch inductor[/yellow]")
     attn_mask = None
+    mask_nan_guard = False
     if preset == "masked":
         attn_mask = torch.zeros(batch, 1, 1, tokens, device=torch_device, dtype=torch.bool)
         attn_mask[..., :int(tokens * 0.75)] = True
+    elif preset == "krea2":
+        # the transformer's segment_mask: text is padded to a fixed 512 tokens ahead of the
+        # image tokens and the padded tail is masked for queries and keys both, so padding
+        # query rows are fully masked and yield nan under sdpa (the model nan_to_num's them)
+        valid = torch.ones(batch, tokens, device=torch_device, dtype=torch.bool)
+        valid[:, 128:512] = False
+        attn_mask = valid.unsqueeze(1).unsqueeze(2) * valid.unsqueeze(1).unsqueeze(3)
+        mask_nan_guard = True
     sage = sage_attention()
     sage_fp16 = sage_attention_fp16_accum()
     amd_flash = amd_triton_flash()
@@ -1265,6 +1275,8 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
         q, k, v = make_qkv(batch, heads, tokens, head_dim, kv_heads=kv_heads, kv_tokens=kv_tokens)
         scale = head_dim ** -0.5
         ref = fp32_reference(q, k, v, attn_mask=attn_mask, is_causal=causal, enable_gqa=gqa)
+        if mask_nan_guard:
+            ref = torch.nan_to_num(ref)
         anchor_fn = None
         for index, (config_id, label, kwargs) in enumerate(selected_configs, start=1):
             def phase(step, current_label=label, current_index=index):
@@ -1289,7 +1301,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
                 progress.reset(task) # restart the elapsed clock so it times the current config
                 phase("compiling")
                 with time_limit(config_timeout, label):
-                    err = rel_err(fn(), ref)
+                    err = rel_err(torch.nan_to_num(fn()) if mask_nan_guard else fn(), ref)
                 ms, ms_sigma = bench_stats(fn, warmup, iters, on_phase=phase)
                 prep_cell = "-"
                 prep_ms = None
@@ -3166,8 +3178,9 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
 
 
 def save_report(path, args, sections, selected):
-    report["run"] = dict(timestamp=time.strftime("%Y-%m-%dT%H:%M:%S"), sections=sections, shapes=selected, iters=args.iters, warmup=args.warmup, dtype=dtype_label())
-    report["run"]["drift_sigma"] = None # filled after the bench sections run
+    run_info = dict(timestamp=time.strftime("%Y-%m-%dT%H:%M:%S"), sections=sections, shapes=selected, iters=args.iters, warmup=args.warmup, dtype=dtype_label())
+    run_info.update(report.get("run") or {}) # keep the drift fields main writes after the bench sections
+    report["run"] = run_info
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, default=str)
     console.print(f"structured results saved to {path}")
@@ -3334,7 +3347,7 @@ def main():
             if inner is not None: # swap in the eager prep; a disable toggle raises on torch 2.13+
                 atten_module.get_attn_inputs = inner
         all_results = {}
-        minimum_vram = {"wan22": 6.0, "wan22-cfg": 12.0, "ltx2": 3.0, "masked": 6.0}
+        minimum_vram = {"wan22": 6.0, "wan22-cfg": 12.0, "ltx2": 3.0, "masked": 6.0, "krea2": 8.0}
         for index, preset in enumerate(selected, start=1):
             needed = minimum_vram.get(preset, 2.0)
             if free_vram_gb() < needed:
@@ -3344,7 +3357,7 @@ def main():
         build_recommendations(all_results, fp8_result, prep_status, block_results=(report.get("block") or {}).get("results"))
 
     if drift_samples:
-        report["run"]["drift_sigma"] = run_drift_sigma()
+        report.setdefault("run", {})["drift_sigma"] = run_drift_sigma()
         report["run"]["drift_samples"] = len(drift_samples)
         emit(f"[dim]run drift: sentinel re-measurements moved {run_drift_sigma():.1%} rms across {len(drift_samples)} shape windows; verdicts fold this into their uncertainty[/dim]")
     flush_outputs()
