@@ -247,6 +247,9 @@ def apply_styles_to_extra(p, style: Style):
     extra.update(infotext.parse(style_extra))
     extra.pop('Prompt', None)
     extra.pop('Negative prompt', None)
+    if debug_enabled:
+        log.trace(f'Apply style extra: {extra}')
+
     params = []
     settings = []
     skipped = []

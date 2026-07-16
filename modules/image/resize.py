@@ -44,6 +44,10 @@ def resize_image(resize_mode: int, im: Image.Image | torch.Tensor, width: int, h
             scale = max(w / im.width, h / im.height)
         if scale > 1.0:
             upscalers = [x for x in shared.sd_upscalers if x.name.lower().replace('-', ' ') == upscaler_name.lower().replace('-', ' ')]
+            if len(upscalers) == 0: # do force-refresh before failing
+                from modules.modelloader import load_upscalers
+                load_upscalers()
+                upscalers = [x for x in shared.sd_upscalers if x.name.lower().replace('-', ' ') == upscaler_name.lower().replace('-', ' ')]
             if len(upscalers) > 0:
                 selected_upscaler: upscaler.UpscalerData = upscalers[0]
                 if selected_upscaler.name.lower().startswith('latent'):
@@ -51,7 +55,7 @@ def resize_image(resize_mode: int, im: Image.Image | torch.Tensor, width: int, h
                 else:
                     im = selected_upscaler.scaler.upscale(im, scale, selected_upscaler.name)
             else:
-                log.warning(f"Resize upscaler: invalid={upscaler_name} fallback=resample")
+                log.warning(f'Resize upscaler: invalid="{upscaler_name}" fallback=resample')
                 log.debug(f"Resize upscaler: available={[u.name for u in shared.sd_upscalers]}")
         if isinstance(im, Image.Image) and (im.width != w or im.height != h): # probably downsample after upscaler created larger image
             im = sharpfin.resize(im, (w, h))
