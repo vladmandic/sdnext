@@ -9,7 +9,7 @@ paths, probes float8 hardware support and the torch.compile input prep, and prin
 recommended values for the Compute Settings -> SDNQ Attention section.
 
 The dequant section builds real SDNQ linear layers per storage dtype (int8, uint4,
-float8_e4m3fn, float8_e4m3fn_sdnq, float4_e2m1fn) at Krea 2 and Qwen3 TE layer geometry and
+float8_e4m3fn, float8_e4m3fn_sdnq, float4_e2m1fn) at Flux.1, Krea 2 and Qwen3 TE layer geometry and
 measures eager vs compiled weight dequantization plus the full linear forward with and
 without quantized matmul, against a bf16 nn.Linear baseline. For float storage dtypes it
 also measures quantized matmul with the MatMul type set explicitly (int8, float16), since
@@ -117,7 +117,14 @@ all_sections = ["attention", "dequant", "block"]
 
 # combined block benchmark: a dit-style transformer block at krea 2 class geometry, so each row
 # measures a complete configuration of weights dtype x matmul path x attention end to end
-block_geometry = dict(hidden=3072, heads=24, mlp_dim=16384, tokens=4096)
+# generic dit-block geometries from the model transformer configs: flux.1 (3072 wide,
+# 24 heads, 4x gelu ff, 4096 image plus 512 text tokens) and krea 2 (6144 wide, 48 heads
+# after gqa expansion, swiglu at 16384, same joint sequence)
+block_geometries = {
+    "flux1": dict(hidden=3072, heads=24, mlp_dim=12288, tokens=4608),
+    "krea2": dict(hidden=6144, heads=48, mlp_dim=16384, tokens=4608),
+}
+block_geometry = block_geometries["flux1"] # active geometry; bench_block_section iterates
 block_attention_specs = {
     "sdpa": None, # stock torch sdpa
     "atten int8": dict(matmul_dtype="auto", pv_matmul_dtype="auto"),
@@ -178,12 +185,15 @@ external_config_ids = ("base", "sage", "sagefp16", "amdflash")
 # a non pow2 head dim currently hangs torch inductor
 preset_excluded_configs = {"sd15": {"hadamard", "smooth_hadamard", "full"}}
 
-# weight dequant benchmark geometry: krea 2 12b linear layers plus the qwen3 1.7b (anima te)
-# gate/up projection, so the te override settings get numbers at text-encoder geometry
+# weight dequant benchmark geometry from the model transformer configs: flux.1 attention
+# and feed-forward linears (3072 wide), the qwen3 1.7b (anima te) gate/up projection for
+# text-encoder geometry, and krea 2 12b linears (6144 wide: standalone wq, swiglu gate)
 dequant_shapes = [
-    ("qkv 6144x3072", 6144, 3072),
-    ("mlp 16384x3072", 16384, 3072),
+    ("flux1 attn 3072x3072", 3072, 3072),
+    ("flux1 mlp 12288x3072", 12288, 3072),
     ("te mlp 6144x2048", 6144, 2048),
+    ("krea2 wq 6144x6144", 6144, 6144),
+    ("krea2 mlp 16384x6144", 16384, 6144),
 ]
 dequant_forward_tokens = 4096 # rows of the forward-bench input, one 1024px image worth of tokens
 # id, label, sdnq config kwargs; int8 first: the ui default and the dominant pre-quantized format
@@ -2370,6 +2380,21 @@ def block_label(weights_cfg, use_mm, attention_spec):
 
 
 def bench_block_section(iters, warmup, config_timeout=300, selected=None):
+    global block_geometry # pylint: disable=global-statement
+    all_results = {}
+    for family, geometry in block_geometries.items():
+        block_geometry = geometry
+        results = bench_block_geometry(iters, warmup, config_timeout=config_timeout, selected=selected)
+        all_results[family] = results
+        report.setdefault("blocks", {})[family] = dict(geometry=dict(geometry), results=results)
+    # the first family also lands at the flat block key, which replays and the buyback
+    # veto fall back to when no family matches the reference shape
+    primary = next(iter(block_geometries))
+    report["block"] = report["blocks"][primary]
+    return all_results.get(primary, {})
+
+
+def bench_block_geometry(iters, warmup, config_timeout=300, selected=None):
     # each row is a complete configuration measured end to end through a dit block, because
     # component speedups and errors do not compose multiplicatively
     configs = [c for c in block_configs if selected is None or c[0] in selected]
@@ -2484,7 +2509,6 @@ def bench_block_section(iters, warmup, config_timeout=300, selected=None):
         notes.append("sage fp16 accum: benchmark-only, no sdnext setting reaches it (sage pins fp32 accum on sm86)")
     if notes:
         emit(Panel("\n".join(notes), title="block notes", box=ROUNDED_BOX))
-    report["block"] = dict(geometry=dict(block_geometry), results=results)
     return results
 
 
@@ -2504,7 +2528,7 @@ def best_config(results):
     return min(near_fastest, key=lambda item: item[2])[0]
 
 
-def build_recommendations(all_results, fp8_result, prep_status, block_results=None):
+def build_recommendations(all_results, fp8_result, prep_status, block_results=None, block_variants=None):
     # prefer an image dit shape with the full config set as reference, then the video shapes
     reference = None
     for preset in recommendation_presets:
@@ -2558,7 +2582,16 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
         use_quantized = False
         quant_reason = "int8 qk failed to run"
 
+    # buyback costs are judged at the block geometry matching the reference family when
+    # one was measured, so a krea2 verdict uses the krea2-width block
     block_rows = block_results or {}
+    block_geo = (report.get("block") or {}).get("geometry") or {}
+    if block_variants:
+        block_family = reference if reference in block_variants else next(iter(block_variants))
+        variant = block_variants.get(block_family) or {}
+        if variant.get("results"):
+            block_rows = variant["results"]
+            block_geo = variant.get("geometry") or {}
 
     def block_ms(config_id):
         return (block_rows.get(config_id) or {}).get("ms")
@@ -2575,7 +2608,6 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
         block_base_ms, block_toggle_ms = block_ms("int8-mm-atten"), block_ms(block_config_id)
         if block_base_ms and block_toggle_ms:
             cost = block_toggle_ms / block_base_ms - 1.0
-            block_geo = (report.get("block") or {}).get("geometry") or {}
             geo = f" ({block_geo['hidden']}-wide, hd{block_geo['hidden'] // block_geo['heads']})" if block_geo.get("hidden") and block_geo.get("heads") else ""
             return gain, cost, f"{cost:+.0%} at block scope{geo} with strided qkv ({kernel_cost:+.0%} on contiguous kernel tensors)"
         return gain, kernel_cost, f"{kernel_cost:+.0%} time"
@@ -2928,7 +2960,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
 
     # the te override is independent now, with its own dtype option; judge it at
     # text-encoder geometry using the dtype the te config would quantize with
-    te_shape = dequant_shapes[2][0] if len(dequant_shapes) > 2 else None
+    te_shape = next((label for label, _out, _in in dequant_shapes if label.startswith("te ")), None)
     te_weights_mode = str(getattr(shared.opts, "sdnq_quantize_weights_mode_te", "Same as model"))
     if te_weights_mode in {"Same as model", "default"}:
         te_weights_mode = weights_mode
@@ -3139,11 +3171,20 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
             conv_note_parts.append(f"{conv_shape_label} best conv mm {ratio_text(base_row['fwd_ms'], best_here['fwd_ms'])}")
     if len(conv_note_parts) > 1:
         notes.append(f"conv quantized matmul vs the {dtype_label()} conv by shape: " + "; ".join(conv_note_parts))
-    te_shape = dequant_shapes[2][0] if len(dequant_shapes) > 2 else None
+    te_shape = next((label for label, _out, _in in dequant_shapes if label.startswith("te ")), None)
     te_results = dequant_results.get(te_shape) or {} if te_shape else {}
     te_int8 = te_results.get("int8") or {}
     if te_int8.get("fwd_ms") and te_int8.get("mm_ms") and entry("int8").get("fwd_ms") and entry("int8").get("mm_ms"):
         notes.append(f"text-encoder geometry ({te_shape}): int8 quantized mm {ratio_text(te_int8['fwd_ms'], te_int8['mm_ms'])} vs the dequant path, {ratio_text(entry('int8')['fwd_ms'], entry('int8')['mm_ms'])} at {reference}")
+    krea2_parts = []
+    for krea2_label, _out, _in in dequant_shapes:
+        if not krea2_label.startswith("krea2 "):
+            continue
+        krea2_int8 = (dequant_results.get(krea2_label) or {}).get("int8") or {}
+        if krea2_int8.get("fwd_ms") and krea2_int8.get("mm_ms"):
+            krea2_parts.append(f"{krea2_label} {ratio_text(krea2_int8['fwd_ms'], krea2_int8['mm_ms'])}")
+    if krea2_parts and entry("int8").get("fwd_ms") and entry("int8").get("mm_ms"):
+        notes.append(f"krea 2 geometry: int8 quantized mm vs the dequant path {', '.join(krea2_parts)}; {ratio_text(entry('int8')['fwd_ms'], entry('int8')['mm_ms'])} at {reference}")
     svd_sweep = sweeps.get("svd") or {}
     if svd_sweep and sweeps_at_reference:
         for dtype_id in svd_rank_sweep_dtypes:
@@ -3354,7 +3395,7 @@ def main():
                 emit(f"[yellow]skipping {preset}: needs about {needed:.0f} gb free vram, {free_vram_gb():.1f} gb available[/yellow]")
                 continue
             all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.config_timeout, fp8_result=fp8_result)
-        build_recommendations(all_results, fp8_result, prep_status, block_results=(report.get("block") or {}).get("results"))
+        build_recommendations(all_results, fp8_result, prep_status, block_results=(report.get("block") or {}).get("results"), block_variants=report.get("blocks"))
 
     if drift_samples:
         report.setdefault("run", {})["drift_sigma"] = run_drift_sigma()
