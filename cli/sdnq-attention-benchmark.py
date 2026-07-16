@@ -13,7 +13,7 @@ float8_e4m3fn, float8_e4m3fn_sdnq, float4_e2m1fn) at Krea 2 and Qwen3 TE layer g
 measures eager vs compiled weight dequantization plus the full linear forward with and
 without quantized matmul, against a bf16 nn.Linear baseline. For float storage dtypes it
 also measures quantized matmul with the MatMul type set explicitly (int8, float16), since
-auto routes them to fp8 matmul, which not every gpu can run. Setting sweeps
+enabled routes them to fp8 matmul, which not every gpu can run. Setting sweeps
 (--dequant-sweeps) cover group size, svd rank, weight-side hadamard group size, dequantize
 full precision off, dynamic quantization, cpu quantize time and conv2d quantization. Probes
 whether compiled dequant of fp8 storage works on this GPU (triton before sm_89 lacks e4m3
@@ -1523,8 +1523,8 @@ def bench_dequant_variants(shape_label, out_features, in_features, plain_results
 
 
 def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_results, selected_dtypes, iters, warmup, config_timeout=300):
-    # explicit MatMul type for float storage dtypes: under auto these route quantized matmul to
-    # fp8, which not every gpu can run; measure what setting int8 or float16 costs instead
+    # explicit MatMul type for float storage dtypes: under enabled these route quantized matmul
+    # to fp8, which not every gpu can run; measure what setting int8 or float16 costs instead
     dtype_configs = [(dtype_id, label, cfg) for dtype_id, label, cfg in dequant_dtype_configs if dtype_id in float_mm_dtypes and (selected_dtypes is None or dtype_id in selected_dtypes)]
     if not dtype_configs:
         return {}
@@ -1535,7 +1535,7 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
     table.add_column("mm fwd", justify="right")
     table.add_column("out err", justify="right")
     table.add_column("vs dequant", justify="right")
-    panel = Panel(table, title=f"float weights, explicit MatMul type: {shape_label} {dtype_label()}", subtitle="[dim]quantized matmul with the MatMul type set explicitly; dequant path and auto rows repeated dimmed; vs dequant above x1.00 = faster than the dequant-path forward[/dim]", box=ROUNDED_BOX, expand=False)
+    panel = Panel(table, title=f"float weights, explicit MatMul type: {shape_label} {dtype_label()}", subtitle="[dim]quantized matmul with the MatMul type set explicitly; dequant path and enabled rows repeated dimmed; vs dequant above x1.00 = faster than the dequant-path forward[/dim]", box=ROUNDED_BOX, expand=False)
 
     results = {}
     runs = [(dtype_id, label, cfg, mm_dtype) for dtype_id, label, cfg in dtype_configs for mm_dtype in float_mm_alternative_dtypes]
@@ -1558,9 +1558,9 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
                 if fwd_ms:
                     table.add_row(f"[dim]{label} dequant path[/dim]", "-", f"[dim]{fwd_ms:8.3f} ms[/dim]", f"[dim]{plain['fwd_err']:.5f}[/dim]" if plain.get("fwd_err") else "-", "[dim]x1.00[/dim]")
                 if plain.get("mm_ms"):
-                    table.add_row(f"[dim]{label} + auto ({plain.get('mm_dtype')})[/dim]", "-", f"[dim]{plain['mm_ms']:8.3f} ms[/dim]", f"[dim]{plain['mm_err']:.5f}[/dim]" if plain.get("mm_err") else "-", f"[dim]{speedup_cell(fwd_ms, plain['mm_ms'])}[/dim]" if fwd_ms else "-")
+                    table.add_row(f"[dim]{label} + enabled ({plain.get('mm_dtype')})[/dim]", "-", f"[dim]{plain['mm_ms']:8.3f} ms[/dim]", f"[dim]{plain['mm_err']:.5f}[/dim]" if plain.get("mm_err") else "-", f"[dim]{speedup_cell(fwd_ms, plain['mm_ms'])}[/dim]" if fwd_ms else "-")
                 elif plain.get("mm_error"):
-                    table.add_row(f"[dim]{label} + auto ({plain.get('mm_dtype') or 'float8_e4m3fn'})[/dim]", "-", failure_text(RuntimeError(plain["mm_error"])), "-", "-")
+                    table.add_row(f"[dim]{label} + enabled ({plain.get('mm_dtype') or 'float8_e4m3fn'})[/dim]", "-", failure_text(RuntimeError(plain["mm_error"])), "-", "-")
             entry = dict(quant_s=None, mm_ms=None, mm_err=None, mm_dtype=None)
             results[f"{dtype_id}+{mm_dtype}"] = entry
             progress.reset(task)
@@ -2408,7 +2408,9 @@ def build_recommendations(all_results, fp8_result, prep_status):
         return str(getattr(shared.opts, key))
 
     rows = []
-    # compare against the unquantized sdnq row: quantization has to pay for its own prep
+    # the enable checkbox is gone: disable/enable live on the MatMul type dropdown itself,
+    # so one row carries both the is-it-worth-it verdict and the dtype choice; compare
+    # against the unquantized sdnq row: quantization has to pay for its own prep
     use_quantized = bool(int8_ms and noquant_ms and int8_ms < noquant_ms * 0.95)
     if int8_ms and noquant_ms:
         if use_quantized:
@@ -2417,15 +2419,15 @@ def build_recommendations(all_results, fp8_result, prep_status):
                 quant_reason += f", error {int8_err:.5f} vs {noquant_err:.5f}; smooth k and hadamard below buy error back"
         else:
             quant_reason = f"unquantized sdnq measured x{int8_ms / noquant_ms:.2f} vs int8 qk with lower error; quantization prep outweighs the kernel gain on this gpu"
-        rows.append(("Use Quantized MatMul", (current("sdnq_attention_matmul_type") != "disabled"), str(use_quantized), quant_reason))
     elif int8_ms and base_ms:
         use_quantized = base_ms / int8_ms >= 1.10
-        rows.append(("Use Quantized MatMul", (current("sdnq_attention_matmul_type") != "disabled"), str(use_quantized), f"int8 qk measured x{base_ms / int8_ms:.2f} vs torch sdpa; unquantized sdnq row unavailable"))
+        quant_reason = f"int8 qk measured x{base_ms / int8_ms:.2f} vs torch sdpa; unquantized sdnq row unavailable"
     else:
-        rows.append(("Use Quantized MatMul", (current("sdnq_attention_matmul_type") != "disabled"), "False", "int8 qk failed to run"))
+        use_quantized = False
+        quant_reason = "int8 qk failed to run"
 
-    qk_choice = "auto"
-    qk_reason = "resolves to int8; uint8 remaps to int8"
+    qk_choice = "enabled"
+    qk_reason = quant_reason + "; enabled resolves to int8, uint8 remaps to int8"
     fp8qk_ms, fp8qk_err = measured(results, "fp8qk")
     if fp8qk_ms and int8_ms:
         qk_compare = f"float8 qk measured x{int8_ms / fp8qk_ms:.2f} vs int8"
@@ -2433,29 +2435,39 @@ def build_recommendations(all_results, fp8_result, prep_status):
             qk_compare += f", error {fp8qk_err:.5f} vs {int8_err:.5f}"
         if fp8qk_ms < int8_ms * 0.95 and not (fp8qk_err and int8_err and fp8qk_err > int8_err * recommend_error_cap):
             qk_choice = "float8_e4m3fn"
-            qk_reason = qk_compare
+            qk_reason = quant_reason + "; " + qk_compare
         else:
             qk_reason += f"; {qk_compare}"
     elif fp8_result["qk"][0]:
         qk_reason += "; float8 compiles here but was not benchmarked at this shape"
+    if not use_quantized:
+        qk_choice = "disabled"
+        qk_reason = quant_reason
     rows.append(("MatMul type", current("sdnq_attention_matmul_type"), qk_choice, qk_reason))
 
+    # pv rows were measured on top of int8 qk, so a pv verdict only holds when qk
+    # quantization itself is recommended; note enabled means int8 pv on this dropdown
     int8pv_ms, int8pv_err = measured(results, "int8pv")
     fp8pv_ms, fp8pv_err = measured(results, "fp8pv")
     pv_measured = [(dtype, name, ms, err) for dtype, name, ms, err in [("float8_e4m3fn", "fp8", fp8pv_ms, fp8pv_err), ("int8", "int8", int8pv_ms, int8pv_err)] if ms]
     best_pv = min(pv_measured, key=lambda item: item[2]) if pv_measured else None
-    if best_pv and int8_ms and best_pv[2] < int8_ms * 0.95:
+    if use_quantized and best_pv and int8_ms and best_pv[2] < int8_ms * 0.95:
         pv_dtype, pv_name, pv_ms, pv_err = best_pv
         if pv_err and int8_err and pv_err > int8_err * recommend_error_cap:
-            rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "auto", f"{pv_name} pv is x{int8_ms / pv_ms:.2f} faster but multiplies error x{pv_err / int8_err:.1f}; auto keeps pv unquantized"))
+            rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled", f"{pv_name} pv is x{int8_ms / pv_ms:.2f} faster but multiplies error x{pv_err / int8_err:.1f}; disabled keeps pv unquantized"))
         else:
             pv_reason = f"{pv_name} pv measured x{int8_ms / pv_ms:.2f} over int8 qk alone"
             if pv_err and int8_err:
                 pv_reason += f", error {pv_err:.5f} vs {int8_err:.5f}"
             rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), pv_dtype, pv_reason))
     else:
-        pv_note = f"auto keeps pv unquantized; {' and '.join(name for _dtype, name, _ms, _err in pv_measured)} pv measured no gain here" if pv_measured else "auto keeps pv unquantized"
-        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "auto", pv_note))
+        if not use_quantized and pv_measured:
+            pv_note = "qk quantization is not recommended above; pv on an unquantized qk path was not measured"
+        elif pv_measured:
+            pv_note = f"disabled keeps pv unquantized; {' and '.join(name for _dtype, name, _ms, _err in pv_measured)} pv measured no gain here"
+        else:
+            pv_note = "disabled keeps pv unquantized"
+        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled", pv_note))
 
     smooth_ms, smooth_err = measured(results, "smooth")
     if smooth_ms and int8_ms and int8_err and smooth_err:
@@ -2490,7 +2502,7 @@ def build_recommendations(all_results, fp8_result, prep_status):
     else:
         emit("[green]current settings already match the recommendations[/green]")
     if not use_quantized:
-        emit("[dim]matmul type, pv matmul type, smooth k and hadamard only take effect when quantized matmul is enabled; their rows show what to pick if you enable it[/dim]")
+        emit("[dim]qk quantization is not worth it here, so MatMul type recommends disabled; the smooth k and hadamard rows show what to pick if it is enabled anyway[/dim]")
 
     notes = []
     labels = {config_id: config_label(config_id, label) for config_id, label, _kwargs in bench_configs}
@@ -2547,7 +2559,7 @@ def build_recommendations(all_results, fp8_result, prep_status):
                 cross_note += "; the kernel-scope error buybacks above did not change block output error at this image shape"
             notes.append(cross_note)
     notes.append("*: best config per shape, lowest error among rows within 5% of the fastest sdnq time")
-    notes.append("default settings run the int8 qk row: MatMul auto resolves to int8, pv stays unquantized")
+    notes.append("default settings run the int8 qk row: MatMul type enabled resolves to int8, pv stays disabled")
     notes.append("prep: q/k/v quantization before the kernel, included in the median; shrinks where compile fuses it")
     notes.append("[yellow]non pow2 head dims (sd 1.5): quantized matmul fails compile, hadamard hangs it; disable quantized matmul there or set SDNQ_COMPILE_KWARGS='{\"dynamic\": false}'[/yellow]")
     notes.append("settings above apply on the next generation; the SDNQ attention SDP override needs a restart")
@@ -2612,10 +2624,11 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
     def float_mm_entry(dtype_id, mm_dtype):
         return float_mm.get(f"{dtype_id}+{mm_dtype}") or {}
 
-    # candidate MatMul types for the current dtype: auto plus any measured explicit alternative
+    # the enable checkbox is gone: one row on the type dropdown carries the verdict;
+    # candidates are enabled (auto-resolved dtype) plus any measured explicit alternative
     mm_candidates = []
     if mm_entry.get("mm_ms"):
-        mm_candidates.append(("auto", mm_entry.get("mm_dtype"), mm_entry["mm_ms"], mm_entry.get("mm_err")))
+        mm_candidates.append(("enabled", mm_entry.get("mm_dtype"), mm_entry["mm_ms"], mm_entry.get("mm_err")))
     if mm_id in float_mm_dtypes:
         for alt_dtype in float_mm_alternative_dtypes:
             alt = float_mm_entry(mm_id, alt_dtype)
@@ -2634,23 +2647,40 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
             mm_reason += f", output error {best_err:.5f} vs {fwd_err:.5f}"
         if faster and not err_ok:
             mm_reason += f"; not recommended, the speedup multiplies output error beyond x{recommend_error_cap:.0f}"
-        if best_sel != "auto":
-            mm_reason += f"; measured with MatMul type {best_sel}" if mm_entry.get("mm_ms") else f"; needs MatMul type {best_sel}, auto (float8_e4m3fn) failed on this gpu"
         if weights_mode not in mode_ids:
             mm_reason += f"; current quantization type {weights_mode} was not benchmarked, judged on int8"
-        rows.append(("Use quantized MatMul", current("sdnq_quantize_matmul_mode"), str(recommend_mm), mm_reason))
-
         type_parts = []
         for sel, resolved, ms, err in mm_candidates:
-            sel_label = f"auto ({resolved})" if sel == "auto" else sel
+            sel_label = f"enabled ({resolved})" if sel == "enabled" else sel
             type_parts.append(f"{sel_label} {ms:.3f} ms err {err:.5f}" if err is not None else f"{sel_label} {ms:.3f} ms")
         if len(mm_candidates) > 1:
-            type_reason = f"lowest error within 5% of the fastest for {mm_id} weights: {', '.join(type_parts)}"
-        elif best_sel == "auto":
-            type_reason = f"auto resolves to {best_resolved} for {mm_id} weights"
+            mm_reason += f"; lowest error within 5% of the fastest: {', '.join(type_parts)}"
+        elif best_sel == "enabled":
+            mm_reason += f"; enabled resolves to {best_resolved} for {mm_id} weights"
         else:
-            type_reason = f"auto (float8_e4m3fn) failed on this gpu for {mm_id} weights; {', '.join(type_parts)}"
-        rows.append(("Quantized MatMul type", current("sdnq_quantize_matmul_mode"), best_sel, type_reason))
+            mm_reason += f"; enabled (float8_e4m3fn) failed on this gpu for {mm_id} weights"
+        rows.append(("Quantized MatMul type", current("sdnq_quantize_matmul_mode"), best_sel if recommend_mm else "disabled", mm_reason))
+
+    # the te override is independent now, with its own dtype option; judge it at
+    # text-encoder geometry using the dtype the te config would quantize with
+    te_shape = dequant_shapes[2][0] if len(dequant_shapes) > 2 else None
+    te_weights_mode = str(getattr(shared.opts, "sdnq_quantize_weights_mode_te", "Same as model"))
+    if te_weights_mode in {"Same as model", "default"}:
+        te_weights_mode = weights_mode
+    te_mm_id = mode_ids.get(te_weights_mode, "int8")
+    te_entry = ((dequant_results.get(te_shape) or {}).get(te_mm_id) or {}) if te_shape else {}
+    if te_entry.get("fwd_ms") and te_entry.get("mm_ms"):
+        te_fwd_err, te_mm_err = te_entry.get("fwd_err"), te_entry.get("mm_err")
+        te_err_ok = not (te_fwd_err and te_mm_err) or te_mm_err <= te_fwd_err * recommend_error_cap
+        te_faster = te_entry["mm_ms"] <= te_entry["fwd_ms"] * 0.90
+        te_choice = "enabled" if te_faster and te_err_ok else "disabled"
+        te_reason = f"{te_mm_id} quantized matmul measured {ratio_text(te_entry['fwd_ms'], te_entry['mm_ms'])} vs the dequant path at {te_shape}"
+        if te_fwd_err and te_mm_err:
+            te_reason += f", output error {te_mm_err:.5f} vs {te_fwd_err:.5f}"
+        if te_faster and not te_err_ok:
+            te_reason += f"; not recommended, the speedup multiplies output error beyond x{recommend_error_cap:.0f}"
+        te_reason += "; applies when text encoders are sdnq-quantized"
+        rows.append(("Quantized MatMul type for Text Encoders", current("sdnq_quantize_matmul_mode_te"), te_choice, te_reason))
 
     sweeps = sweep_results or {}
     sweeps_at_reference = reference == dequant_shapes[0][0]
@@ -2772,7 +2802,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
             notes.append("[yellow]compiled dequant: neither fp8 dtype compiles raw; sdnq upcasts e4m3, e5m2 has no such path[/yellow]")
     fp8_mm_failed = [dtype_id for dtype_id, _label, _cfg in dequant_dtype_configs if entry(dtype_id).get("mm_error") and entry(dtype_id).get("mm_dtype") == "float8_e4m3fn"]
     if fp8_mm_failed:
-        notes.append(f"[yellow]quantized matmul auto-selected float8_e4m3fn for {', '.join(fp8_mm_failed)} and failed; set MatMul type explicitly for float weight dtypes[/yellow]")
+        notes.append(f"[yellow]enabled quantized matmul auto-selects float8_e4m3fn for {', '.join(fp8_mm_failed)} and failed; set an explicit MatMul type for float weight dtypes[/yellow]")
         for dtype_id in fp8_mm_failed:
             alt_parts = []
             for alt_dtype in float_mm_alternative_dtypes:
@@ -2839,7 +2869,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
     te_results = dequant_results.get(te_shape) or {} if te_shape else {}
     te_int8 = te_results.get("int8") or {}
     if te_int8.get("fwd_ms") and te_int8.get("mm_ms") and entry("int8").get("fwd_ms") and entry("int8").get("mm_ms"):
-        notes.append(f"text-encoder geometry ({te_shape}): int8 quantized mm {ratio_text(te_int8['fwd_ms'], te_int8['mm_ms'])} vs the dequant path, {ratio_text(entry('int8')['fwd_ms'], entry('int8')['mm_ms'])} at {reference}; the TE override dropdowns follow these")
+        notes.append(f"text-encoder geometry ({te_shape}): int8 quantized mm {ratio_text(te_int8['fwd_ms'], te_int8['mm_ms'])} vs the dequant path, {ratio_text(entry('int8')['fwd_ms'], entry('int8')['mm_ms'])} at {reference}")
     svd_sweep = sweeps.get("svd") or {}
     if svd_sweep and sweeps_at_reference:
         for dtype_id in svd_rank_sweep_dtypes:
