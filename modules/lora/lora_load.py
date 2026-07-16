@@ -58,8 +58,6 @@ def load_safetensors(name, network_on_disk: network.NetworkOnDisk) -> network.Ne
 
     sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
     cached = lora_cache.get(name, None)
-    if l.debug:
-        log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" type=lora {"cached" if cached else ""}')
     if cached is not None:
         return cached
     native_module = _NATIVE_DISPATCH.get(shared.sd_model_type)
@@ -279,7 +277,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
         if network_on_disk is not None:
             shorthash = getattr(network_on_disk, 'shorthash', '').lower()
             if l.debug:
-                log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" hash="{shorthash}"')
+                log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" hash="{shorthash}" cached={name in lora_cache}')
             try:
                 lora_scale = te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier
                 lora_module = lora_modules[i] if lora_modules and len(lora_modules) > i else None
