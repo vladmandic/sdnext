@@ -172,10 +172,10 @@ bench_configs = [
 ]
 # external baselines are compared against but never starred or recommended as sdnq configs
 external_config_ids = ("base", "sage", "sagefp16", "amdflash")
-video_config_ids = ["base", "sage", "sagefp16", "amdflash", "noquant", "int8", "smooth", "hadamard", "fp16pv", "int8pv", "fp8pv", "full"]
-masked_config_ids = ["base", "noquant", "int8"]
-# hadamard configs excluded: compiling hadamard with a non pow2 head dim currently hangs torch inductor
-sd15_config_ids = ["base", "amdflash", "noquant", "int8", "smooth", "fp16pv", "int8pv", "fp8pv", "fp16qk", "fp8qk"]
+# every preset runs the full config list (availability gates still apply per config); only
+# hard technical exclusions live here, never runtime trims. sd15: compiling hadamard with
+# a non pow2 head dim currently hangs torch inductor
+preset_excluded_configs = {"sd15": {"hadamard", "smooth_hadamard", "full"}}
 
 # weight dequant benchmark geometry: krea 2 12b linear layers plus the qwen3 1.7b (anima te)
 # gate/up projection, so the te override settings get numbers at text-encoder geometry
@@ -1205,7 +1205,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
     causal = preset_cfg.get("causal", False)
     gqa = kv_heads != heads
     description = preset_cfg["desc"]
-    config_ids = {"wan22": video_config_ids, "wan22-cfg": video_config_ids, "ltx2": video_config_ids, "masked": masked_config_ids, "sd15": sd15_config_ids}.get(preset)
+    excluded_configs = preset_excluded_configs.get(preset, set())
     if preset == "sd15":
         emit("[yellow]sd15: hadamard configs skipped, compiling hadamard with a non pow2 head dim currently hangs torch inductor[/yellow]")
     attn_mask = None
@@ -1217,7 +1217,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
     amd_flash = amd_triton_flash()
     selected_configs = []
     for config_id, label, kwargs in bench_configs:
-        if config_ids is not None and config_id not in config_ids:
+        if config_id in excluded_configs:
             continue
         if config_id == "sage" and (sage is None or attn_mask is not None or head_dim not in {64, 96, 128} or kv_tokens != tokens or gqa or causal):
             continue
