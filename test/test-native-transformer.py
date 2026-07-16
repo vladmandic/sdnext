@@ -1371,27 +1371,29 @@ class ComfyTestEnv:
     def __enter__(self):
         from modules import model_quant, shared
         from modules.sdnq import common as sdnq_common
+        from modules.sdnq import kernel_wrappers
         self.shared = shared
         self.sdnq_common = sdnq_common
+        self.kernel_wrappers = kernel_wrappers
         self.orig_fetch = nt.fetch_component_config
         self.orig_get_dit = model_quant.get_dit_args
         self.orig_get_qtype = model_quant.get_quant_type
         self.orig_do_post = model_quant.do_post_load_quant
-        self.orig_fp8_supported = sdnq_common.is_fp8_compile_supported
+        self.orig_fp8_supported = kernel_wrappers.is_fp8_compile_supported
         self.orig_check_compile = sdnq_common.check_torch_compile
         self.model_quant = model_quant
         nt.fetch_component_config = lambda repo, sub: {'dim': self.dim}
         model_quant.get_dit_args = lambda *a, **k: ({}, {})
         model_quant.get_quant_type = lambda *a, **k: None
         model_quant.do_post_load_quant = lambda *a, **k: None
-        sdnq_common.is_fp8_compile_supported = self.fp8_compile_supported
+        kernel_wrappers.is_fp8_compile_supported = self.fp8_compile_supported
         sdnq_common.check_torch_compile = lambda: not self.fp8_compile_supported
         self.orig_opts = {
-            'sdnq_use_quantized_matmul': (shared.opts.sdnq_quantize_matmul_mode != "disabled"),
+            'sdnq_quantize_matmul_mode': shared.opts.sdnq_quantize_matmul_mode,
             'sdnq_dequantize_fp32': shared.opts.sdnq_dequantize_fp32,
             'diffusers_offload_mode': shared.opts.diffusers_offload_mode,
         }
-        shared.opts.data['sdnq_use_quantized_matmul'] = False
+        shared.opts.data['sdnq_quantize_matmul_mode'] = 'disabled'
         shared.opts.data['sdnq_dequantize_fp32'] = True
         shared.opts.data['diffusers_offload_mode'] = 'model'  # force CPU placement
         return self
@@ -1401,7 +1403,7 @@ class ComfyTestEnv:
         self.model_quant.get_dit_args = self.orig_get_dit
         self.model_quant.get_quant_type = self.orig_get_qtype
         self.model_quant.do_post_load_quant = self.orig_do_post
-        self.sdnq_common.is_fp8_compile_supported = self.orig_fp8_supported
+        self.kernel_wrappers.is_fp8_compile_supported = self.orig_fp8_supported
         self.sdnq_common.check_torch_compile = self.orig_check_compile
         for key, value in self.orig_opts.items():
             self.shared.opts.data[key] = value
