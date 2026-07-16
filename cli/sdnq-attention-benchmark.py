@@ -586,7 +586,12 @@ def time_limit(seconds, label):
         signal.signal(signal.SIGALRM, previous)
 
 
-def bench(fn, warmup, iters, on_phase=None):
+def bench_stats(fn, warmup, iters, on_phase=None):
+    """Time fn and return (median ms, relative sigma of that median).
+
+    The sigma covers within-sample dispersion only (IQR-based standard error of a
+    median); slow clock and thermal drift across a run is tracked separately by the
+    per-shape sentinel re-measurements and folded in at verdict time."""
     if on_phase:
         on_phase("warmup")
     fn()
@@ -610,7 +615,86 @@ def bench(fn, warmup, iters, on_phase=None):
         end.record()
     torch_device_module.synchronize()
     times = sorted(start.elapsed_time(end) for start, end in events)
-    return times[len(times) // 2]
+    n = len(times)
+    median = times[n // 2]
+    iqr = times[(3 * n) // 4] - times[n // 4]
+    # standard error of a median: 1.2533 * sigma / sqrt(n), robust sigma from IQR / 1.349
+    sigma_rel = (1.2533 * (iqr / 1.349) / math.sqrt(n)) / median if median > 0 else 0.0
+    return median, sigma_rel
+
+
+def bench(fn, warmup, iters, on_phase=None):
+    return bench_stats(fn, warmup, iters, on_phase)[0]
+
+
+drift_samples = [] # |ln ratio| of per-shape sentinel re-measurements; tracks run-level clock drift
+
+
+def record_drift(first_ms, repeat_ms):
+    if first_ms and repeat_ms:
+        drift_samples.append(abs(math.log(repeat_ms / first_ms)))
+
+
+def run_drift_sigma():
+    # rms of the sentinel deltas, floored so a lucky pair of samples cannot claim a
+    # noiseless run; replays of json files inject the stored value via drift_override
+    if drift_override is not None:
+        return drift_override
+    if not drift_samples:
+        return 0.0
+    rms = math.sqrt(sum(d * d for d in drift_samples) / len(drift_samples))
+    return min(max(rms, 0.005), 0.10)
+
+
+drift_override = None
+verdict_z = 1.28 # one-sided 90%: an on/off verdict is only stated when its margin test clears this
+# per-test z holding the family-wise confidence at 90% across k tested candidates (sidak)
+sidak_z = {1: 1.28, 2: 1.63, 3: 1.82, 4: 1.95}
+
+# the synthetic-tensor errors are seed-fixed math and land within a few percent across
+# nvidia, amd and intel gpus; a value outside its band means the measurement itself is
+# off (wrong dtype, broken kernel, degraded reference), not an interesting gpu
+error_sanity_bands = { # (shape, config) -> (low, high), bfloat16 runs only
+    ("anima", "smooth"): (0.0159, 0.0215),
+    ("sdxl", "smooth"): (0.0185, 0.0250),
+    ("anima", "noquant"): (0.0021, 0.0043),
+    ("sdxl", "noquant"): (0.0025, 0.0050),
+}
+
+
+def row_sigma(entry, key="ms"):
+    # relative sigma of one measured row: within-sample dispersion plus the run-level
+    # drift sampled by the sentinels; None when the row predates sigma capture, which
+    # drops the verdict back to a point-estimate test (old json replays)
+    boot = entry.get(f"{key}_sigma") if isinstance(entry, dict) else None
+    drift = run_drift_sigma()
+    if boot is None:
+        return drift or None
+    return math.sqrt(boot * boot + drift * drift)
+
+
+def pair_sigma(entry_a, key_a, entry_b, key_b):
+    sa, sb = row_sigma(entry_a, key_a), row_sigma(entry_b, key_b)
+    if sa is None and sb is None:
+        return None
+    return math.sqrt((sa or 0.0) ** 2 + (sb or 0.0) ** 2)
+
+
+def speed_verdict(new_ms, old_ms, sigma=None, margin=None, z=verdict_z):
+    """Three-zone test of "new beats old by the speed margin": returns 'faster',
+    'not_faster', or 'inconclusive' when the gap sits inside z*sigma of the margin.
+    Without a sigma the test degrades to the plain point-estimate threshold."""
+    if not (new_ms and old_ms):
+        return None
+    margin = margin if margin is not None else recommend_speed_margin
+    gap = math.log(old_ms / new_ms) + math.log(margin) # > 0 clears the margin
+    if sigma:
+        if gap > z * sigma:
+            return "faster"
+        if gap < -z * sigma:
+            return "not_faster"
+        return "inconclusive"
+    return "faster" if gap > 0 else "not_faster"
 
 
 def free_vram_gb():
@@ -1181,6 +1265,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
         q, k, v = make_qkv(batch, heads, tokens, head_dim, kv_heads=kv_heads, kv_tokens=kv_tokens)
         scale = head_dim ** -0.5
         ref = fp32_reference(q, k, v, attn_mask=attn_mask, is_causal=causal, enable_gqa=gqa)
+        anchor_fn = None
         for index, (config_id, label, kwargs) in enumerate(selected_configs, start=1):
             def phase(step, current_label=label, current_index=index):
                 progress.update(task, description=f"{prefix}config {current_index}/{len(selected_configs)}  {current_label}: {step}")
@@ -1205,7 +1290,7 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
                 phase("compiling")
                 with time_limit(config_timeout, label):
                     err = rel_err(fn(), ref)
-                ms = bench(fn, warmup, iters, on_phase=phase)
+                ms, ms_sigma = bench_stats(fn, warmup, iters, on_phase=phase)
                 prep_cell = "-"
                 prep_ms = None
                 if kwargs is not None: # time the input prep alone; included in the median
@@ -1217,7 +1302,9 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
                         pass
                 if base_ms is None:
                     base_ms = ms
-                results[config_id] = dict(ms=ms, err=err, prep_ms=prep_ms)
+                if config_id == "int8":
+                    anchor_fn = fn
+                results[config_id] = dict(ms=ms, ms_sigma=ms_sigma, err=err, prep_ms=prep_ms)
                 row = (label, f"{ms:8.3f} ms", prep_cell, speedup_cell(base_ms, ms), f"{err:.5f}")
                 rows.append((config_id, ms, row))
                 table.add_row(*row)
@@ -1226,6 +1313,15 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
                 row = (label, "-", "-", "-", failure_text(e))
                 rows.append((config_id, None, row))
                 table.add_row(*row)
+        # sentinel: re-time the anchor config minutes after its first measurement; the
+        # delta samples run-level clock drift, which feeds the verdict noise floor
+        anchor_first = (results.get("int8") or {}).get("ms")
+        if anchor_fn is not None and anchor_first:
+            try:
+                progress.update(task, description=f"{prefix}{preset}: drift sentinel, re-timing int8")
+                record_drift(anchor_first, bench(anchor_fn, warmup, iters))
+            except Exception:
+                pass
         # rebuild the table to star the best sdnq config when it beats the baseline
         best_id = best_config(results)
         if base_ms and best_id is not None and results[best_id]["ms"] < base_ms:
@@ -1239,6 +1335,11 @@ def bench_shape(preset, iters, warmup, position=None, config_timeout=300, fp8_re
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
+    if dtype_label() == "bfloat16":
+        for (band_shape, band_config), (band_low, band_high) in error_sanity_bands.items():
+            band_err = (results.get(band_config) or {}).get("err") if band_shape == preset else None
+            if band_err and not band_low <= band_err <= band_high:
+                emit(f"[yellow]measurement sanity: {preset} {band_config} error {band_err:.5f} sits outside the cross-gpu band [{band_low:.4f}, {band_high:.4f}]; treat this run's numbers with suspicion[/yellow]")
     report.setdefault("attention", {})[preset] = dict(geometry=geometry, results=results)
     return results
 
@@ -1287,10 +1388,10 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
             return baseline(x)
 
         ref_out = fp32_linear_reference(x, weight_fp32)
-        base_ms = bench(baseline_fn, warmup, iters)
+        base_ms, base_ms_sigma = bench_stats(baseline_fn, warmup, iters)
         base_err = rel_err(baseline_fn(), ref_out)
         base_bytes = baseline.weight.numel() * baseline.weight.element_size()
-        results["bf16"] = dict(fwd_ms=base_ms, fwd_err=base_err, size_bytes=base_bytes)
+        results["bf16"] = dict(fwd_ms=base_ms, fwd_ms_sigma=base_ms_sigma, fwd_err=base_err, size_bytes=base_bytes)
         table.add_row(f"{dtype_label()} nn.Linear", "-", size_cell(base_bytes), "-", "-", "-", f"{base_ms:8.3f} ms", "-", "-", "-", "x1.00")
 
         for index, (dtype_id, label, cfg) in enumerate(dtype_configs, start=1):
@@ -1319,7 +1420,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
             try:
                 phase("timing eager dequant")
                 eager_out = eager_fn().to(torch.float32)
-                entry["eager_ms"] = bench(eager_fn, warmup, iters)
+                entry["eager_ms"], entry["eager_ms_sigma"] = bench_stats(eager_fn, warmup, iters)
                 entry["weight_err"] = rel_err(eager_out, weight_fp32)
                 eager_cell = f"{entry['eager_ms']:8.3f} ms"
             except Exception as e:
@@ -1336,7 +1437,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                 with time_limit(config_timeout, label):
                     compiled_out = compiled_fn()
                     torch_device_module.synchronize()
-                entry["compiled_ms"] = bench(compiled_fn, warmup, iters, on_phase=phase)
+                entry["compiled_ms"], entry["compiled_ms_sigma"] = bench_stats(compiled_fn, warmup, iters, on_phase=phase)
                 compiled_cell = f"{entry['compiled_ms']:8.3f} ms"
                 drift = rel_err(compiled_out, eager_out)
                 if drift > 1e-3:
@@ -1364,7 +1465,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                 dequantizer_module.dequantize_weight_compiled = dequantizer_module.dequantize_weight
                 fwd_fn()
                 torch_device_module.synchronize()
-                entry["fwd_eager_ms"] = bench(fwd_fn, warmup, iters)
+                entry["fwd_eager_ms"], entry["fwd_eager_ms_sigma"] = bench_stats(fwd_fn, warmup, iters)
                 entry["fwd_err"] = rel_err(fwd_fn(), ref_out)
                 fwd_eager_cell = f"{entry['fwd_eager_ms']:8.3f} ms"
             except Exception as e:
@@ -1379,7 +1480,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                     fwd_fn()
                     torch_device_module.synchronize()
                 phase("timing linear forward, compiled dequant")
-                entry["fwd_compiled_ms"] = bench(fwd_fn, warmup, iters)
+                entry["fwd_compiled_ms"], entry["fwd_compiled_ms_sigma"] = bench_stats(fwd_fn, warmup, iters)
                 fwd_compiled_cell = f"{entry['fwd_compiled_ms']:8.3f} ms"
             except Exception as e:
                 entry["fwd_compiled_error"] = error_summary(e, 200)
@@ -1389,6 +1490,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
 
             fwd_ms = entry["fwd_compiled_ms"] if compile_on else entry["fwd_eager_ms"]
             entry["fwd_ms"] = fwd_ms # the mode the current config runs; recommendations and speedup key off it
+            entry["fwd_ms_sigma"] = entry.get("fwd_compiled_ms_sigma") if compile_on else entry.get("fwd_eager_ms_sigma")
             speedup = speedup_cell(base_ms, fwd_ms) if fwd_ms else "-"
 
             try:
@@ -1401,7 +1503,7 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
                 with time_limit(config_timeout, label):
                     mm_fn()
                     torch_device_module.synchronize()
-                entry["mm_ms"] = bench(mm_fn, warmup, iters)
+                entry["mm_ms"], entry["mm_ms_sigma"] = bench_stats(mm_fn, warmup, iters)
                 entry["mm_err"] = rel_err(mm_fn(), ref_out)
                 mm_cell = f"{entry['mm_ms']:8.3f} ms [dim]{entry['mm_dtype']}[/dim]"
                 del mm_layer
@@ -1412,6 +1514,12 @@ def bench_dequant_shape(shape_label, out_features, in_features, iters, warmup, p
             if entry["fwd_err"] and entry["weight_err"] and abs(entry["fwd_err"] - entry["weight_err"]) > 0.2 * entry["weight_err"]:
                 notes.append(f"[yellow]{label}: fwd err {entry['fwd_err']:.5f} diverges from weight err {entry['weight_err']:.5f}[/yellow]")
             table.add_row(label, quant_cell(entry["quant_s"]), size_cell(entry["size_bytes"]), eager_cell, compiled_cell, err_cell(entry["weight_err"]), fwd_eager_cell, fwd_compiled_cell, mm_cell, err_cell(entry["mm_err"]), speedup)
+        # sentinel: re-time the bf16 baseline to sample run-level clock drift for this shape window
+        try:
+            progress.update(task, description=f"{prefix}{shape_label}: drift sentinel, re-timing the {dtype_label()} baseline")
+            record_drift(base_ms, bench(baseline_fn, warmup, iters))
+        except Exception:
+            pass
         live.update(panel)
     console.line() # separate sections; Live's final frame also lacks a trailing newline when output is piped
     transcript.append(panel)
@@ -1583,7 +1691,7 @@ def bench_float_mm_alternatives(shape_label, out_features, in_features, plain_re
                     mm_fn()
                     torch_device_module.synchronize()
                 phase("timing quantized matmul forward")
-                entry["mm_ms"] = bench(mm_fn, warmup, iters)
+                entry["mm_ms"], entry["mm_ms_sigma"] = bench_stats(mm_fn, warmup, iters)
                 entry["mm_err"] = rel_err(mm_fn(), ref_out)
                 table.add_row(row_label, quant_cell(entry["quant_s"]), f"{entry['mm_ms']:8.3f} ms", err_cell(entry["mm_err"]), speedup_cell(fwd_ms, entry["mm_ms"]) if fwd_ms else "-")
             except Exception as e:
@@ -1855,7 +1963,7 @@ def bench_group_sizes(shape_label, out_features, in_features, plain_results, sel
                 with time_limit(config_timeout, row_label):
                     mm_fn()
                     torch_device_module.synchronize()
-                entry["mm_ms"] = bench(mm_fn, warmup, iters)
+                entry["mm_ms"], entry["mm_ms_sigma"] = bench_stats(mm_fn, warmup, iters)
                 entry["mm_err"] = rel_err(mm_fn(), ref_out)
                 mm_suffix = f" [dim]{entry['mm_resolved']}[/dim]" if entry["mm_resolved"] != entry["resolved"] else ""
                 mm_cell = f"{entry['mm_ms']:8.3f} ms{mm_suffix}"
@@ -2220,7 +2328,7 @@ def bench_conv_section(iters, warmup, config_timeout=300):
                     with time_limit(config_timeout, label):
                         fwd_fn()
                         torch_device_module.synchronize()
-                    entry["fwd_ms"] = bench(fwd_fn, warmup, iters)
+                    entry["fwd_ms"], entry["fwd_ms_sigma"] = bench_stats(fwd_fn, warmup, iters)
                     entry["out_err"] = rel_err(fwd_fn(), ref_out)
                     if base_ms is None:
                         base_ms = entry["fwd_ms"]
@@ -2327,7 +2435,7 @@ def bench_block_section(iters, warmup, config_timeout=300, selected=None):
                 with time_limit(config_timeout, label):
                     out = fn()
                     torch_device_module.synchronize()
-                entry["ms"] = bench(fn, warmup, iters, on_phase=phase)
+                entry["ms"], entry["ms_sigma"] = bench_stats(fn, warmup, iters, on_phase=phase)
                 entry["err"] = rel_err(out, ref_out)
                 entry["max_err"] = max_token_err(out, ref_out)
                 phase("measuring depth-4 error")
@@ -2412,13 +2520,19 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
     # verdicts are computed before any row is built: the smooth k and hadamard buybacks
     # feed a composition check on the qk verdict, since toggles that pass individually
     # can still lose to unquantized as a stack. compare against the unquantized sdnq row:
-    # quantization has to pay for its own prep and clear the shared speed margin
-    use_quantized = bool(int8_ms and noquant_ms and int8_ms < noquant_ms * recommend_speed_margin)
+    # quantization has to pay for its own prep and clear the shared speed margin, at this
+    # run's own measured noise level; too close to call keeps the current setting
+    qk_sigma = pair_sigma(results.get("int8") or {}, "ms", results.get("noquant") or {}, "ms")
+    qk_test = speed_verdict(int8_ms, noquant_ms, sigma=qk_sigma)
+    use_quantized = qk_test == "faster"
+    qk_inconclusive = qk_test == "inconclusive"
     if int8_ms and noquant_ms:
         if use_quantized:
             quant_reason = f"int8 qk measured x{noquant_ms / int8_ms:.2f} vs unquantized sdnq attention"
             if int8_err and noquant_err:
                 quant_reason += f", error {int8_err:.5f} vs {noquant_err:.5f}; smooth k and hadamard below buy error back"
+        elif qk_inconclusive:
+            quant_reason = f"int8 qk measured x{noquant_ms / int8_ms:.2f} vs unquantized sdnq attention, too close to the x{1 / recommend_speed_margin:.2f} margin to call at this run's noise (ratio sigma {qk_sigma:.1%}); keeping the current setting"
         elif int8_ms < noquant_ms:
             quant_reason = f"int8 qk measured only x{noquant_ms / int8_ms:.2f} vs unquantized sdnq attention, under the x{1 / recommend_speed_margin:.2f} margin the verdict requires"
             if int8_err and noquant_err:
@@ -2449,7 +2563,9 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
         block_base_ms, block_toggle_ms = block_ms("int8-mm-atten"), block_ms(block_config_id)
         if block_base_ms and block_toggle_ms:
             cost = block_toggle_ms / block_base_ms - 1.0
-            return gain, cost, f"{cost:+.0%} at block scope with strided qkv ({kernel_cost:+.0%} on contiguous kernel tensors)"
+            block_geo = (report.get("block") or {}).get("geometry") or {}
+            geo = f" ({block_geo['hidden']}-wide, hd{block_geo['hidden'] // block_geo['heads']})" if block_geo.get("hidden") and block_geo.get("heads") else ""
+            return gain, cost, f"{cost:+.0%} at block scope{geo} with strided qkv ({kernel_cost:+.0%} on contiguous kernel tensors)"
         return gain, kernel_cost, f"{kernel_cost:+.0%} time"
 
     smooth_gain, smooth_cost, smooth_cost_note = buyback_cost("smooth", "int8-mm-smooth")
@@ -2464,27 +2580,51 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
         hadamard_rec = hadamard_gain >= 1.3 and hadamard_cost <= 0.15
         hadamard_reason = f"int8 error x{hadamard_gain:.1f} lower for {hadamard_cost_note}; hangs torch compile on non pow2 head dims (SD 1.5)"
 
-    # composition check: the toggles recommended above must still beat unquantized as a stack
-    if use_quantized and noquant_ms:
-        combo_id, combo_label = {
-            (True, True): ("smooth_hadamard", "int8 qk + smooth + hadamard"),
-            (True, False): ("smooth", "int8 qk + smooth k"),
-            (False, True): ("hadamard", "int8 qk + hadamard"),
-            (False, False): ("int8", "int8 qk"),
-        }[(bool(smooth_rec), bool(hadamard_rec))]
-        combo_ms, _combo_err = measured(results, combo_id)
-        if combo_ms and not combo_ms < noquant_ms * recommend_speed_margin:
+    # composition check: the toggles recommended above must still beat unquantized as a
+    # stack; when the exact stack was not measured, predict it additively from the single
+    # toggle deltas (measured cross-vendor: additive to ~2% median with a +2% skew, so the
+    # prediction carries that correction plus a model sigma alongside the measurement noise)
+    additive_model_skew = 1.02
+    additive_model_sigma = 0.028
+
+    def stack_estimate(qk_ms, toggles):
+        deltas, measured_row = 0.0, results.get({(True, True): "smooth_hadamard", (True, False): "smooth", (False, True): "hadamard", (False, False): "int8"}[toggles]) or {}
+        if measured_row.get("ms"):
+            return measured_row["ms"], row_sigma(measured_row, "ms"), False
+        for on, toggle_id in ((toggles[0], "smooth"), (toggles[1], "hadamard")):
+            toggle_ms, _err = measured(results, toggle_id)
+            if on and toggle_ms and int8_ms:
+                deltas += toggle_ms - int8_ms
+        sigma = row_sigma(results.get("int8") or {}, "ms")
+        sigma = math.sqrt((sigma or 0.0) ** 2 + additive_model_sigma ** 2)
+        return (qk_ms + deltas) * additive_model_skew, sigma, True
+
+    composition_flip = False
+    if use_quantized and noquant_ms and int8_ms:
+        toggles = (bool(smooth_rec), bool(hadamard_rec))
+        combo_label = {(True, True): "int8 qk + smooth + hadamard", (True, False): "int8 qk + smooth k", (False, True): "int8 qk + hadamard", (False, False): "int8 qk"}[toggles]
+        combo_ms, combo_sigma, estimated = stack_estimate(int8_ms, toggles)
+        combo_sigma = math.sqrt((combo_sigma or 0.0) ** 2 + (row_sigma(results.get("noquant") or {}, "ms") or 0.0) ** 2) or None
+        stack_test = speed_verdict(combo_ms, noquant_ms, sigma=combo_sigma)
+        if combo_ms and stack_test != "faster":
             use_quantized = False
-            quant_reason = f"the recommended stack ({combo_label}) measured x{noquant_ms / combo_ms:.2f} vs unquantized sdnq attention; the error buybacks eat the qk gain on this gpu"
+            composition_flip = True
+            source = "estimated additively at" if estimated else "measured"
+            if stack_test == "inconclusive":
+                quant_reason = f"the recommended stack ({combo_label}) {source} x{noquant_ms / combo_ms:.2f} vs unquantized sdnq attention, too close to the margin to call; disabled until it clearly wins"
+            else:
+                quant_reason = f"the recommended stack ({combo_label}) {source} x{noquant_ms / combo_ms:.2f} vs unquantized sdnq attention; the error buybacks eat the qk gain on this gpu"
 
     # the verdict must not hinge on int8 alone: bare float8 qk can clear the margin on
     # gpus where int8 falls short, so it gets its own shot before disabling
     fp8qk_ms, fp8qk_err = measured(results, "fp8qk")
     fp8_rescue = False
-    if not use_quantized and noquant_ms and fp8qk_ms and fp8qk_ms < noquant_ms * recommend_speed_margin:
-        if not (fp8qk_err and int8_err and fp8qk_err > int8_err * recommend_error_cap):
+    if not use_quantized and not composition_flip and noquant_ms and fp8qk_ms:
+        fp8_sigma = pair_sigma(results.get("fp8qk") or {}, "ms", results.get("noquant") or {}, "ms")
+        if speed_verdict(fp8qk_ms, noquant_ms, sigma=fp8_sigma) == "faster" and not (fp8qk_err and int8_err and fp8qk_err > int8_err * recommend_error_cap):
             use_quantized = True
             fp8_rescue = True
+            qk_inconclusive = False
             quant_reason = f"float8 qk measured x{noquant_ms / fp8qk_ms:.2f} vs unquantized sdnq attention where the int8 path fell short"
             if fp8qk_err:
                 quant_reason += f", error {fp8qk_err:.5f}"
@@ -2506,34 +2646,56 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
             qk_reason += f"; {qk_compare}"
     elif fp8_result["qk"][0]:
         qk_reason += "; float8 compiles here but was not benchmarked at this shape"
-    if not use_quantized:
+    if qk_inconclusive:
+        qk_choice = current("sdnq_attention_matmul_type")
+        qk_reason = quant_reason
+    elif not use_quantized:
         qk_choice = "disabled"
         qk_reason = quant_reason
     rows.append(("MatMul type", current("sdnq_attention_matmul_type"), qk_choice, qk_reason))
 
     # pv rows were measured on top of int8 qk, so a pv verdict only holds when qk
-    # quantization itself is recommended; note enabled means int8 pv on this dropdown
-    int8pv_ms, int8pv_err = measured(results, "int8pv")
-    fp8pv_ms, fp8pv_err = measured(results, "fp8pv")
-    pv_measured = [(dtype, name, ms, err) for dtype, name, ms, err in [("float8_e4m3fn", "fp8", fp8pv_ms, fp8pv_err), ("int8", "int8", int8pv_ms, int8pv_err)] if ms]
-    best_pv = min(pv_measured, key=lambda item: item[2]) if pv_measured else None
-    if use_quantized and best_pv and int8_ms and best_pv[2] < int8_ms * recommend_speed_margin:
-        pv_dtype, pv_name, pv_ms, pv_err = best_pv
-        if pv_err and int8_err and pv_err > int8_err * recommend_error_cap:
-            rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled", f"{pv_name} pv is x{int8_ms / pv_ms:.2f} faster but multiplies error x{pv_err / int8_err:.1f}; disabled keeps pv unquantized"))
+    # quantization itself is recommended; note enabled means int8 pv on this dropdown.
+    # each candidate is tested against the margin independently at a sidak-adjusted z:
+    # picking the fastest first and testing it afterwards would bias toward enabling,
+    # since the minimum of several noisy rows sits low by selection
+    pv_candidates = []
+    for pv_dtype, pv_name, pv_id in (("float8_e4m3fn", "fp8", "fp8pv"), ("int8", "int8", "int8pv"), ("float16", "fp16", "fp16pv")):
+        pv_ms, pv_err = measured(results, pv_id)
+        if pv_ms:
+            pv_candidates.append((pv_dtype, pv_name, pv_id, pv_ms, pv_err))
+    if use_quantized and pv_candidates and int8_ms:
+        z_sel = sidak_z.get(len(pv_candidates), sidak_z[4])
+        pv_winners, pv_inconclusive = [], False
+        for pv_dtype, pv_name, pv_id, pv_ms, pv_err in pv_candidates:
+            pv_test = speed_verdict(pv_ms, int8_ms, sigma=pair_sigma(results.get(pv_id) or {}, "ms", results.get("int8") or {}, "ms"), z=z_sel)
+            if pv_test == "faster":
+                pv_winners.append((pv_dtype, pv_name, pv_ms, pv_err))
+            elif pv_test == "inconclusive":
+                pv_inconclusive = True
+        if pv_winners:
+            fastest_pv = min(ms for _d, _n, ms, _e in pv_winners)
+            near_fastest = [c for c in pv_winners if c[2] <= fastest_pv * 1.05]
+            pv_dtype, pv_name, pv_ms, pv_err = min(near_fastest, key=lambda c: c[3] if c[3] is not None else float("inf"))
+            if pv_err and int8_err and pv_err > int8_err * recommend_error_cap:
+                rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled", f"{pv_name} pv is x{int8_ms / pv_ms:.2f} faster but multiplies error x{pv_err / int8_err:.1f}; disabled keeps pv unquantized"))
+            else:
+                pv_reason = f"{pv_name} pv measured x{int8_ms / pv_ms:.2f} over int8 qk alone"
+                if pv_err and int8_err:
+                    pv_reason += f", error {pv_err:.5f} vs {int8_err:.5f}"
+                rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), pv_dtype, pv_reason))
+        elif pv_inconclusive:
+            rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), current("sdnq_attention_pv_matmul_type"), "the best pv candidate sits within this run's noise of the margin; keeping the current setting"))
         else:
-            pv_reason = f"{pv_name} pv measured x{int8_ms / pv_ms:.2f} over int8 qk alone"
-            if pv_err and int8_err:
-                pv_reason += f", error {pv_err:.5f} vs {int8_err:.5f}"
-            rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), pv_dtype, pv_reason))
+            rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled", f"disabled keeps pv unquantized; {' and '.join(name for _d, name, _i, _m, _e in pv_candidates)} pv measured no gain here"))
     else:
-        if not use_quantized and pv_measured:
+        if qk_inconclusive and pv_candidates:
+            pv_note = "the qk verdict above is inconclusive; pv follows it"
+        elif not use_quantized and pv_candidates:
             pv_note = "qk quantization is not recommended above; pv on an unquantized qk path was not measured"
-        elif pv_measured:
-            pv_note = f"disabled keeps pv unquantized; {' and '.join(name for _dtype, name, _ms, _err in pv_measured)} pv measured no gain here"
         else:
             pv_note = "disabled keeps pv unquantized"
-        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled", pv_note))
+        rows.append(("PV MatMul type", current("sdnq_attention_pv_matmul_type"), "disabled" if not qk_inconclusive else current("sdnq_attention_pv_matmul_type"), pv_note))
 
     if smooth_rec is not None:
         rows.append(("Use Smooth K", current("sdnq_attention_smooth_k"), str(smooth_rec), smooth_reason))
@@ -2560,9 +2722,10 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
         emit("[dim]qk quantization is not worth it here, so MatMul type recommends disabled; the smooth k and hadamard rows show what to pick if it is enabled anyway[/dim]")
 
     notes = []
-    # the verdict above is judged at the reference shape; flag self-attention dit shapes
-    # that disagree (cross and te shapes are prep-dominated and always lose, skip them)
-    qk_winners, qk_losers = [], []
+    # per-shape qk verdicts: the table above judges one reference shape, but the settings
+    # are global and workloads differ; a split gpu (video wins, image loses) shows here
+    # rather than being averaged away. cross and te shapes are prep-dominated, skip them
+    shape_verdicts = []
     for shape_label in recommendation_presets:
         shape_results = all_results.get(shape_label)
         if not shape_results:
@@ -2570,9 +2733,16 @@ def build_recommendations(all_results, fp8_result, prep_status, block_results=No
         shape_noquant_ms, _err = measured(shape_results, "noquant")
         shape_int8_ms, _err = measured(shape_results, "int8")
         if shape_noquant_ms and shape_int8_ms:
-            (qk_winners if shape_int8_ms < shape_noquant_ms * recommend_speed_margin else qk_losers).append(shape_label)
-    if qk_winners and qk_losers:
-        notes.append(f"[yellow]int8 qk beats unquantized by >=10% at {', '.join(qk_winners)} but not at {', '.join(qk_losers)}; the verdict follows the {reference} shape[/yellow]")
+            shape_test = speed_verdict(shape_int8_ms, shape_noquant_ms, sigma=pair_sigma(shape_results.get("int8") or {}, "ms", shape_results.get("noquant") or {}, "ms"))
+            word = {"faster": "enabled", "not_faster": "disabled", "inconclusive": "inconclusive"}[shape_test]
+            shape_verdicts.append((word, f"{shape_label} {word} (x{shape_noquant_ms / shape_int8_ms:.2f})"))
+    if len(shape_verdicts) > 1:
+        split = len({word for word, _text in shape_verdicts}) > 1
+        line = f"qk verdict by shape: {', '.join(text for _word, text in shape_verdicts)}"
+        if split:
+            notes.append(f"[yellow]{line}; settings are global, pick for the shapes you generate at[/yellow]")
+        else:
+            notes.append(line)
     labels = {config_id: config_label(config_id, label) for config_id, label, _kwargs in bench_configs}
     best_id = best_config(results)
     if base_ms and best_id is not None:
@@ -2674,12 +2844,17 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
     rows = []
     int8_eager, int8_compiled = entry("int8").get("eager_ms"), entry("int8").get("compiled_ms")
     if int8_eager and int8_compiled:
-        recommend_compile = int8_compiled <= int8_eager * recommend_speed_margin
+        compile_test = speed_verdict(int8_compiled, int8_eager, sigma=pair_sigma(entry("int8"), "compiled_ms", entry("int8"), "eager_ms"))
         compile_reason = f"int8 dequant measured {ratio_text(int8_eager, int8_compiled)} compiled vs eager"
         fwd_eager, fwd_compiled = entry("int8").get("fwd_eager_ms"), entry("int8").get("fwd_compiled_ms")
         if fwd_eager and fwd_compiled:
             compile_reason += f"; layer forward {fwd_compiled:.3f} vs {fwd_eager:.3f} ms"
-        rows.append(("Dequantize using torch.compile", current("sdnq_dequantize_compile"), str(recommend_compile), compile_reason))
+        if compile_test == "inconclusive":
+            compile_choice = current("sdnq_dequantize_compile")
+            compile_reason += "; too close to the margin to call at this run's noise, keeping the current setting"
+        else:
+            compile_choice = str(compile_test == "faster")
+        rows.append(("Dequantize using torch.compile", current("sdnq_dequantize_compile"), compile_choice, compile_reason))
     elif int8_eager:
         rows.append(("Dequantize using torch.compile", current("sdnq_dequantize_compile"), current("sdnq_dequantize_compile"), "compiled int8 dequant unavailable, keeping the current value"))
 
@@ -2712,12 +2887,13 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
         best_sel, best_resolved, best_ms, best_err = min(near_fastest, key=lambda c: c[3] if c[3] is not None else float("inf"))
         fwd_err = mm_entry.get("fwd_err")
         err_ok = not (fwd_err and best_err) or best_err <= fwd_err * recommend_error_cap
-        faster = best_ms <= mm_entry["fwd_ms"] * recommend_speed_margin
-        recommend_mm = faster and err_ok
+        best_entry = mm_entry if best_sel == "enabled" else float_mm_entry(mm_id, best_sel)
+        mm_test = speed_verdict(best_ms, mm_entry["fwd_ms"], sigma=pair_sigma(best_entry, "mm_ms", mm_entry, "fwd_ms"), z=sidak_z.get(len(mm_candidates), sidak_z[4]))
+        recommend_mm = mm_test == "faster" and err_ok
         mm_reason = f"{mm_id} quantized matmul ({best_resolved}) measured {ratio_text(mm_entry['fwd_ms'], best_ms)} vs the dequant path"
         if fwd_err and best_err:
             mm_reason += f", output error {best_err:.5f} vs {fwd_err:.5f}"
-        if faster and not err_ok:
+        if mm_test == "faster" and not err_ok:
             mm_reason += f"; not recommended, the speedup multiplies output error beyond x{recommend_error_cap:.0f}"
         if weights_mode not in mode_ids:
             mm_reason += f"; current quantization type {weights_mode} was not benchmarked, judged on int8"
@@ -2731,7 +2907,12 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
             mm_reason += f"; enabled resolves to {best_resolved} for {mm_id} weights"
         else:
             mm_reason += f"; enabled (float8_e4m3fn) failed on this gpu for {mm_id} weights"
-        rows.append(("Quantized MatMul type", current("sdnq_quantize_matmul_mode"), best_sel if recommend_mm else "disabled", mm_reason))
+        if mm_test == "inconclusive" and err_ok:
+            mm_choice = current("sdnq_quantize_matmul_mode")
+            mm_reason += "; too close to the margin to call at this run's noise, keeping the current setting"
+        else:
+            mm_choice = best_sel if recommend_mm else "disabled"
+        rows.append(("Quantized MatMul type", current("sdnq_quantize_matmul_mode"), mm_choice, mm_reason))
 
     # the te override is independent now, with its own dtype option; judge it at
     # text-encoder geometry using the dtype the te config would quantize with
@@ -2744,13 +2925,17 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
     if te_entry.get("fwd_ms") and te_entry.get("mm_ms"):
         te_fwd_err, te_mm_err = te_entry.get("fwd_err"), te_entry.get("mm_err")
         te_err_ok = not (te_fwd_err and te_mm_err) or te_mm_err <= te_fwd_err * recommend_error_cap
-        te_faster = te_entry["mm_ms"] <= te_entry["fwd_ms"] * recommend_speed_margin
-        te_choice = "enabled" if te_faster and te_err_ok else "disabled"
+        te_test = speed_verdict(te_entry["mm_ms"], te_entry["fwd_ms"], sigma=pair_sigma(te_entry, "mm_ms", te_entry, "fwd_ms"))
         te_reason = f"{te_mm_id} quantized matmul measured {ratio_text(te_entry['fwd_ms'], te_entry['mm_ms'])} vs the dequant path at {te_shape}"
         if te_fwd_err and te_mm_err:
             te_reason += f", output error {te_mm_err:.5f} vs {te_fwd_err:.5f}"
-        if te_faster and not te_err_ok:
+        if te_test == "faster" and not te_err_ok:
             te_reason += f"; not recommended, the speedup multiplies output error beyond x{recommend_error_cap:.0f}"
+        if te_test == "inconclusive" and te_err_ok:
+            te_choice = current("sdnq_quantize_matmul_mode_te")
+            te_reason += "; too close to the margin to call at this run's noise, keeping the current setting"
+        else:
+            te_choice = "enabled" if te_test == "faster" and te_err_ok else "disabled"
         te_reason += "; applies when text encoders are sdnq-quantized"
         rows.append(("Quantized MatMul type for Text Encoders", current("sdnq_quantize_matmul_mode_te"), te_choice, te_reason))
 
@@ -2828,7 +3013,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
             rows.append(("Quantize convolutional layers", current("sdnq_quantize_conv_layers"), str(conv_free), conv_reason))
         if conv_int8.get("fwd_ms") and conv_mm_rows:
             best_mm_id, best_mm = min(conv_mm_rows, key=lambda item: item[1]["fwd_ms"])
-            mm_faster = best_mm["fwd_ms"] <= conv_int8["fwd_ms"] * recommend_speed_margin
+            conv_mm_test = speed_verdict(best_mm["fwd_ms"], conv_int8["fwd_ms"], sigma=pair_sigma(best_mm, "fwd_ms", conv_int8, "fwd_ms"), z=sidak_z.get(len(conv_mm_rows), sidak_z[4]))
             mm_err_ok = not (best_mm.get("out_err") and conv_int8.get("out_err")) or best_mm["out_err"] <= conv_int8["out_err"] * recommend_error_cap
             conv_mm_reason = f"{best_mm_id} measured {best_mm['fwd_ms']:.3f} vs {conv_int8['fwd_ms']:.3f} ms for the int8 conv dequant path at {conv_shapes[0][0]}, output error {best_mm.get('out_err', 0):.5f} vs {conv_int8.get('out_err', 0):.5f}"
             other_base, _other_int8, other_mm_rows = conv_per_shape.get(conv_shapes[1][0], ({}, {}, [])) if len(conv_shapes) > 1 else ({}, {}, [])
@@ -2837,7 +3022,12 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
                 conv_mm_reason += f"; at {conv_shapes[1][0]} {other_best_id} measured {ratio_text(other_base['fwd_ms'], other_best['fwd_ms'])} vs the {dtype_label()} conv"
                 if other_best["fwd_ms"] > other_base["fwd_ms"] * 1.05:
                     conv_mm_reason += ", a slowdown; disable when quantizing vae-class convs"
-            rows.append(("Use quantized MatMul with conv", current("sdnq_use_quantized_matmul_conv"), str(mm_faster and mm_err_ok), conv_mm_reason))
+            if conv_mm_test == "inconclusive" and mm_err_ok:
+                conv_mm_choice = current("sdnq_use_quantized_matmul_conv")
+                conv_mm_reason += "; too close to the margin to call at this run's noise, keeping the current setting"
+            else:
+                conv_mm_choice = str(conv_mm_test == "faster" and mm_err_ok)
+            rows.append(("Use quantized MatMul with conv", current("sdnq_use_quantized_matmul_conv"), conv_mm_choice, conv_mm_reason))
 
     differing = 0
     for setting, current_value, recommended, reason in rows:
@@ -2977,6 +3167,7 @@ def build_dequant_recommendations(dequant_results, weight_dequant_result, varian
 
 def save_report(path, args, sections, selected):
     report["run"] = dict(timestamp=time.strftime("%Y-%m-%dT%H:%M:%S"), sections=sections, shapes=selected, iters=args.iters, warmup=args.warmup, dtype=dtype_label())
+    report["run"]["drift_sigma"] = None # filled after the bench sections run
     with open(path, "w", encoding="utf-8") as fh:
         json.dump(report, fh, indent=2, default=str)
     console.print(f"structured results saved to {path}")
@@ -3152,6 +3343,10 @@ def main():
             all_results[preset] = bench_shape(preset, args.iters, args.warmup, position=(index, len(selected)), config_timeout=args.config_timeout, fp8_result=fp8_result)
         build_recommendations(all_results, fp8_result, prep_status, block_results=(report.get("block") or {}).get("results"))
 
+    if drift_samples:
+        report["run"]["drift_sigma"] = run_drift_sigma()
+        report["run"]["drift_samples"] = len(drift_samples)
+        emit(f"[dim]run drift: sentinel re-measurements moved {run_drift_sigma():.1%} rms across {len(drift_samples)} shape windows; verdicts fold this into their uncertainty[/dim]")
     flush_outputs()
 
 
