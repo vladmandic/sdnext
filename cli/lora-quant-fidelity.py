@@ -161,6 +161,17 @@ def map_lora_modules(lora_path, arch_mod):
     return mapped, census, chunked
 
 
+def stamp_index(paths):
+    """Map each module path to its stamped form, the way the loader matches.
+
+    The loader compares ``network_prefix + path.replace('.', '_')`` against each
+    module's stamped ``network_layer_name``, so kohya-style ``lora_unet_`` keys
+    (whose base arrives already underscored) resolve fine there. Matching on the
+    stamped form reproduces that and keeps dotted bases working unchanged.
+    """
+    return {p.replace('.', '_'): p for p in paths}
+
+
 def make_stub(shape, dtype=torch.bfloat16):
     """Minimal sd_module standing in for a bf16 repo weight: the module classes key off its type and shape."""
     if len(shape) == 2:
@@ -282,11 +293,14 @@ def main():
     pre_quantized = model_config.get('quantization_config') is not None
 
     quant_layers, bf16_repo = {}, None
+    quant_stamps, bf16_stamps = {}, {}
     if pre_quantized:
         rprint(f'model: "{model_dir}" pre-quantized={pre_quantized}')
         quant_layers = load_quantized_model(model_dir, arch=args.arch, class_name=model_config.get('_class_name'))
+        quant_stamps = stamp_index(quant_layers)
     else:
         bf16_repo = Bf16Repo(model_dir)
+        bf16_stamps = stamp_index(k[:-len('.weight')] for k in bf16_repo.weight_map if k.endswith('.weight'))
         if args.dtype is None:
             rprint('model is not quantized and no --dtype given: loras apply exactly, nothing to analyze')
             return 0
@@ -305,7 +319,7 @@ def main():
         for path in keys:
             entries = mapped[path]
             if pre_quantized:
-                layer = quant_layers.get(path)
+                layer = quant_layers.get(path) or quant_layers.get(quant_stamps.get(path.replace('.', '_'), ''))
                 if layer is None:
                     unmatched.append(path)
                     continue
@@ -319,6 +333,8 @@ def main():
                 sd_module = layer
             else:
                 W = bf16_repo.get(f'{path}.weight')
+                if W is None:
+                    W = bf16_repo.get(f'{bf16_stamps.get(path.replace(".", "_"), "")}.weight')
                 if W is None:
                     unmatched.append(path)
                     continue
