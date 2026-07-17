@@ -23,6 +23,11 @@ for the per-model analyzer):
 - Robustness: factor removal restores onto the layer's current device after
   an offload-style move, and a shape-mismatched network stacked onto a
   factor-mode layer downgrades to the legacy path instead of raising.
+- Hosting: on sub-8-bit layers, non-factorable sets ride the side-channel as
+  a truncated svd of their calc_updown delta: low-rank content survives
+  whole, dense content beats the requantize floor by a wide margin, int8
+  and rank 0 keep the requantize path, removal stays bit-exact, and the
+  svd's random projections never touch the generation rng stream.
 
 All tensors are synthetic; no model files or running server required.
 
@@ -490,7 +495,7 @@ def test_mixed_family_transition_restores_base():
         real_report()
     lora_sdnq.report_fallbacks = capture_report
     try:
-        with mock_model(lin=layer, bystander=bystander):
+        with host_rank(0), mock_model(lin=layer, bystander=bystander): # pins the requantize fallback; hosted transitions are covered in the hosting category
             Wdq0 = dq(layer)
             activate(net_plain)
             assert hasattr(layer, 'sdnq_lora_svd_stash'), 'plain set must take the factor path'
@@ -527,7 +532,7 @@ def test_partial_coverage_layers_stay_independent():
     A2, B2, _ = make_delta(seed=5, sigma=3e-3)
     net_dora = make_net('dorafar', layer_dora, A2, B2, dora=True)
 
-    with mock_model(lin=layer_plain, other=layer_dora):
+    with host_rank(0), mock_model(lin=layer_plain, other=layer_dora): # pins the requantize fallback for the non-factorable layer
         Wdq0, Wdq0_dora = dq(layer_plain), dq(layer_dora)
         activate(net_plain, net_dora)
         assert hasattr(layer_plain, 'sdnq_lora_svd_stash') and getattr(layer_plain, 'network_weights_backup', None) is None, 'plain layer must stay on the factor path'
@@ -537,6 +542,111 @@ def test_partial_coverage_layers_stay_independent():
         activate()
         assert torch.equal(dq(layer_plain), Wdq0), 'factor layer must restore bit-exact'
         assert torch.equal(dq(layer_dora), Wdq0_dora), 'fallback layer must restore bit-exact'
+    return True
+
+
+CAT_HOST = category('hosting')
+
+
+@contextmanager
+def host_rank(rank):
+    old = getattr(shared.opts, 'lora_sdnq_host_rank', 0)
+    shared.opts.lora_sdnq_host_rank = rank
+    try:
+        yield
+    finally:
+        shared.opts.lora_sdnq_host_rank = old
+
+
+def make_dense_net(name, layer, D):
+    """A full-family (dense diff) network module: non-factorable by construction."""
+    from modules.lora import network_full
+    net = network.Network(name, MockNOD(name))
+    net.te_multiplier = 1.0
+    net.unet_multiplier = [1.0] * 3
+    nw = network.NetworkWeights(network_key=layer.network_layer_name, sd_key=layer.network_layer_name,
+                                w={'diff': D.cpu()}, sd_module=layer)
+    net.modules[layer.network_layer_name] = network_full.NetworkModuleFull(net, nw)
+    return net
+
+
+def test_hosted_low_rank_delta_is_kept():
+    layer = build_layer('uint4')
+    _A, _B, D = make_delta(sigma=3e-3)
+    net = make_dense_net('densenet', layer, D) # low-rank content in a non-factorable container
+    with host_rank(64), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'hosted set must ride the side-channel'
+        assert getattr(layer, 'network_weights_backup', None) is None, 'hosted layers must not take a weight backup'
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.95, f'rank-8 delta under cap 64 must be kept nearly whole: rho={rho:.4f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact'
+    return True
+
+
+def test_hosted_dense_delta_beats_requant():
+    layer = build_layer('uint4')
+    torch.manual_seed(3)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 3e-4 # full-rank, sub-step: requant erases it
+    requant_rho = rho_of(requant_effective(layer, D), D)
+    net = make_dense_net('densefull', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        hosted_rho = rho_of(dq(layer) - Wdq0, D)
+        assert hosted_rho > 0.4, f'hosted rho={hosted_rho:.3f}'
+        assert hosted_rho > requant_rho + 0.3, f'hosting must beat requant by a wide margin: {hosted_rho:.3f} vs {requant_rho:.3f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_hosted_skips_int8():
+    layer = build_layer('int8')
+    _A, _B, D = make_delta(sigma=3e-3)
+    net = make_dense_net('int8net', layer, D)
+    with host_rank(256), mock_model(lin=layer):
+        activate(net)
+        assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'int8 must keep the requantize path'
+        assert isinstance(getattr(layer, 'network_weights_backup', None), torch.Tensor), 'int8 fallback must take the backup'
+        activate()
+    return True
+
+
+def test_hosted_disabled_by_option():
+    layer = build_layer('uint4')
+    _A, _B, D = make_delta(sigma=3e-3)
+    net = make_dense_net('offnet', layer, D)
+    with host_rank(0), mock_model(lin=layer):
+        activate(net)
+        assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'rank 0 must disable hosting'
+        activate()
+    return True
+
+
+def test_hosted_transitions_and_rng_isolation():
+    layer = build_layer('uint4')
+    A, B, D = make_delta()
+    net_plain = make_net('plainh', layer, A, B)
+    _A2, _B2, D2 = make_delta(seed=9, sigma=3e-3)
+    net_dense = make_dense_net('denseh', layer, D2)
+    with host_rank(256), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        rng0 = torch.cuda.get_rng_state() if DEVICE.type == 'cuda' else torch.get_rng_state()
+        activate(net_dense) # hosted
+        rng1 = torch.cuda.get_rng_state() if DEVICE.type == 'cuda' else torch.get_rng_state()
+        assert torch.equal(rng0, rng1), 'hosting must not consume the generation rng stream'
+        assert hasattr(layer, 'sdnq_lora_svd_stash')
+        activate(net_plain) # exact replaces hosted
+        rho = rho_of(dq(layer) - Wdq0, D)
+        assert rho > 0.99, f'exact set after hosted set: rho={rho:.4f}'
+        activate(net_plain, net_dense) # mixed set hosts the combined delta
+        rho_mix = rho_of(dq(layer) - Wdq0, D + D2)
+        assert rho_mix > 0.9, f'mixed hosted rho={rho_mix:.4f}'
+        activate()
+        assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact'
     return True
 
 
@@ -573,7 +683,7 @@ def test_stacked_shape_mismatch_falls_back():
     prev_enl = l_common.extra_network_lora
     l_common.extra_network_lora = SimpleNamespace(errors={}) # the error path reports through the extra-networks registry
     try:
-        with mock_model(lin=layer):
+        with host_rank(0), mock_model(lin=layer):
             Wdq0 = dq(layer)
             activate(net_good)
             assert hasattr(layer, 'sdnq_lora_svd_stash')
@@ -603,6 +713,10 @@ def run_tests():
     log.warning('=== Set transitions ===')
     for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent]:
         run_test(CAT_TRANS, fn)
+    log.warning('=== Hosting ===')
+    for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
+               test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation]:
+        run_test(CAT_HOST, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
         run_test(CAT_ROBUST, fn)
