@@ -283,7 +283,7 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
     if deq.use_hadamard:
         down_h = rotate_hadamard(down_h, group_size=deq.hadamard_group_size)
     down_h = down_h.to(dtype=dtype)
-    lora_factor_cache.put(network_layer_name, up_h, down_h, energy, rms is not None)
+    up_h, down_h = lora_factor_cache.store(network_layer_name, up_h, down_h, energy, rms is not None)
     append_factors(self, ups + [up_h], downs + [down_h])
     hosted_layers.append((network_layer_name, energy, rms is not None))
     return True
