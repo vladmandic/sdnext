@@ -20,6 +20,9 @@ for the per-model analyzer):
   before re-entering the factor path, layers targeted by only some of the
   loaded networks stay independent, and untargeted quantized layers are not
   flagged as requantized.
+- Robustness: factor removal restores onto the layer's current device after
+  an offload-style move, and a shape-mismatched network stacked onto a
+  factor-mode layer downgrades to the legacy path instead of raising.
 
 All tensors are synthetic; no model files or running server required.
 
@@ -535,6 +538,52 @@ def test_partial_coverage_layers_stay_independent():
     return True
 
 
+CAT_ROBUST = category('robustness')
+
+
+def test_remove_factors_after_device_move():
+    layer = build_layer('uint4', use_svd=True) # checkpoint svd correction so the stash holds real tensors
+    A, B, _D = make_delta()
+    net = make_net('mover', layer, A, B)
+    with mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        orig_up = layer.svd_up.detach().clone()
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash')
+        layer.to('cpu') # offload moves registered params, never the stash tuple
+        activate()
+        assert layer.svd_up.device == layer.scale.device, f'restored svd must live on the layer device, got {layer.svd_up.device} vs {layer.scale.device}'
+        assert torch.equal(layer.svd_up, orig_up.to('cpu')), 'restored svd values must match the original factors'
+        layer.to(DEVICE)
+        assert torch.equal(dq(layer), Wdq0), 'round trip must restore bit-exact'
+    return True
+
+
+def test_stacked_shape_mismatch_falls_back():
+    from types import SimpleNamespace
+    layer = build_layer('uint4')
+    A, B, _D = make_delta()
+    net_good = make_net('good', layer, A, B)
+    torch.manual_seed(9)
+    A_bad = torch.randn(RANK, IN_F, device=DEVICE) * 0.01
+    B_bad = torch.randn(OUT_F // 2, RANK, device=DEVICE) * 0.01 # wrong out_features for this layer
+    net_bad = make_net('badshape', layer, A_bad, B_bad)
+    prev_enl = l_common.extra_network_lora
+    l_common.extra_network_lora = SimpleNamespace(errors={}) # the error path reports through the extra-networks registry
+    try:
+        with mock_model(lin=layer):
+            Wdq0 = dq(layer)
+            activate(net_good)
+            assert hasattr(layer, 'sdnq_lora_svd_stash')
+            activate(net_good, net_bad) # must not raise: a malformed stack downgrades the layer to the legacy path
+            assert not hasattr(layer, 'sdnq_lora_svd_stash'), 'shape-mismatched stack must leave factor mode'
+            activate()
+            assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact pristine'
+    finally:
+        l_common.extra_network_lora = prev_enl
+    return True
+
+
 def run_tests():
     t0 = time.time()
     log.warning('=== Erasure law ===')
@@ -552,6 +601,9 @@ def run_tests():
     log.warning('=== Set transitions ===')
     for fn in [test_mixed_family_transition_restores_base, test_partial_coverage_layers_stay_independent]:
         run_test(CAT_TRANS, fn)
+    log.warning('=== Robustness ===')
+    for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
+        run_test(CAT_ROBUST, fn)
 
     elapsed = time.time() - t0
     log.warning('=== Results ===')

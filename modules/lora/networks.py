@@ -90,6 +90,7 @@ def network_activate(include=None, exclude=None):
         with devices.inference_context(), pbar:
             wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
             applied_layers.clear()
+            lora_sdnq.fallback_layers.clear() # a raise mid-pass leaves stale entries behind
             backup_size = 0
             for component in modules.keys():
                 component_wanted = wanted_names if component in components else ()
