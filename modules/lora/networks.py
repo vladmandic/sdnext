@@ -3,6 +3,8 @@ import time
 import rich.progress as rp
 from modules.errorlimiter import limit_errors
 from modules.lora import lora_common as l
+from modules.lora import lora_overrides
+from modules.lora import lora_sdnq
 from modules.lora.lora_apply import network_apply_weights, network_apply_direct, network_backup_weights, network_calc_weights
 from modules import shared, devices, sd_models
 from modules.logger import log, console
@@ -53,6 +55,7 @@ def network_activate(include=None, exclude=None):
             net.unet_multiplier = pending['unet']
             net.dyn_dim = pending['dyn']
     t0 = time.time()
+    fuse = lora_overrides.fuse_native() # resolve once: backup and apply passes must agree
     with limit_errors("network_activate") as elimit:
         sd_model = getattr(shared.sd_model, "pipe", shared.sd_model)
         if shared.opts.diffusers_offload_mode == "sequential":
@@ -100,7 +103,20 @@ def network_activate(include=None, exclude=None):
                         continue
                     if group_offload and component not in group_stripped and group_will_mutate(module, network_layer_name, l.loaded_networks):
                         device = group_offload_strip(sd_model, component, group_stripped)
-                    backup_size += network_backup_weights(module, network_layer_name, component_wanted)
+                    if lora_sdnq.factor_candidate(module, network_layer_name, component_wanted):
+                        weights_backup = getattr(module, "network_weights_backup", None)
+                        if weights_backup is not None and not isinstance(weights_backup, bool):
+                            network_apply_weights(module, None, None, device=device) # an earlier non-factorable set requantized this layer, restore the pristine base before attaching factors
+                        applied = lora_sdnq.apply_factors(module, network_layer_name, component_wanted)
+                        if applied is not None: # exact path took the layer; None falls through to requantize
+                            if applied and component_wanted:
+                                applied_layers.append(network_layer_name)
+                                applied_weight += 1
+                            module.network_current_names = component_wanted
+                            if task is not None:
+                                pbar.update(task, advance=1)
+                            continue
+                    backup_size += network_backup_weights(module, network_layer_name, component_wanted, fuse)
                     if not component_wanted:
                         weights_backup = getattr(module, "network_weights_backup", None)
                         if weights_backup is None or isinstance(weights_backup, bool): # fuse mode has no tensor backup, restore stays with network_deactivate
@@ -110,7 +126,9 @@ def network_activate(include=None, exclude=None):
                         batch_updown, batch_ex_bias = None, None # restore-only pass, apply with no weights reverts to backup
                     else:
                         batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
-                    if shared.opts.lora_fuse_native:
+                        if batch_updown is not None:
+                            lora_sdnq.note_fallback(module, network_layer_name) # only layers whose quantized weight actually takes a delta
+                    if fuse:
                         weight_written, bias_written = network_apply_direct(module, batch_updown, batch_ex_bias, device=device)
                     else:
                         weight_written, bias_written = network_apply_weights(module, batch_updown, batch_ex_bias, device=device)
@@ -129,13 +147,14 @@ def network_activate(include=None, exclude=None):
             if task is not None and len(applied_layers) == 0:
                 pbar.remove_task(task) # hide progress bar for no action
     global native_active, refused_writes # pylint: disable=global-statement
+    lora_sdnq.report_fallbacks()
     native_active = len(l.loaded_networks) > 0
     refused_writes = refused
     l.timer.activate += time.time() - t0
     if refused > 0:
         log.error(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} weights={applied_weight} bias={applied_bias} refused={refused} network partially applied')
     if l.debug and len(l.loaded_networks) > 0:
-        log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} refused={refused} backup={round(backup_size/1024/1024/1024, 2)} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} device={device} time={l.timer.summary}')
+        log.debug(f'Network load: type=LoRA networks={[n.name for n in l.loaded_networks]} modules={active_components} layers={total} weights={applied_weight} bias={applied_bias} refused={refused} backup={round(backup_size/1024/1024/1024, 2)} fuse={fuse}:{shared.opts.lora_fuse_diffusers} device={device} time={l.timer.summary}')
     modules.clear()
     if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential" or len(group_stripped) > 0:
         sd_models.set_diffuser_offload(sd_model, op="model")
@@ -146,7 +165,8 @@ def network_deactivate(include=None, exclude=None):
         exclude = []
     if include is None:
         include = []
-    if not shared.opts.lora_fuse_native or shared.opts.lora_force_diffusers:
+    fuse = lora_overrides.fuse_native() # must match network_activate: backup mode restores in its restore-only pass instead
+    if not fuse or shared.opts.lora_force_diffusers:
         return
     if len(l.previously_loaded_networks) == 0:
         return
@@ -190,8 +210,14 @@ def network_deactivate(include=None, exclude=None):
                         continue
                     if group_offload and component not in group_stripped and group_will_mutate(module, network_layer_name, l.previously_loaded_networks):
                         device = group_offload_strip(sd_model, component, group_stripped)
+                    if lora_sdnq.remove_factors(module): # exact inverse for factor-mode layers, weights were never touched
+                        applied_layers.append(network_layer_name)
+                        module.network_current_names = ()
+                        if task is not None:
+                            pbar.update(task, advance=1)
+                        continue
                     batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, use_previous=True, elimit=elimit)
-                    if shared.opts.lora_fuse_native:
+                    if fuse:
                         weight_written, bias_written = network_apply_direct(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
                     else:
                         weight_written, bias_written = network_apply_weights(module, batch_updown, batch_ex_bias, device=device, deactivate=True)
@@ -206,7 +232,7 @@ def network_deactivate(include=None, exclude=None):
     if refused > 0:
         log.error(f'Network unload: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} unapply={len(applied_layers)} refused={refused} network partially removed')
     if l.debug and len(l.previously_loaded_networks) > 0:
-        log.debug(f'Network deactivate: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} refused={refused} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers} time={l.timer.summary}')
+        log.debug(f'Network deactivate: type=LoRA networks={[n.name for n in l.previously_loaded_networks]} modules={active_components} layers={total} apply={len(applied_layers)} refused={refused} fuse={fuse}:{shared.opts.lora_fuse_diffusers} time={l.timer.summary}')
     modules.clear()
     if len(applied_layers) > 0 or shared.opts.diffusers_offload_mode == "sequential" or len(group_stripped) > 0:
         sd_models.set_diffuser_offload(sd_model, op="model")
