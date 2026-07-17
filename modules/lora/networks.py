@@ -91,6 +91,7 @@ def network_activate(include=None, exclude=None):
             wanted_names = tuple((x.name, x.te_multiplier, x.unet_multiplier, x.dyn_dim) for x in l.loaded_networks) if len(l.loaded_networks) > 0 else ()
             applied_layers.clear()
             lora_sdnq.fallback_layers.clear() # a raise mid-pass leaves stale entries behind
+            lora_sdnq.hosted_layers.clear()
             backup_size = 0
             for component in modules.keys():
                 component_wanted = wanted_names if component in components else ()
@@ -109,7 +110,7 @@ def network_activate(include=None, exclude=None):
                         if weights_backup is not None and not isinstance(weights_backup, bool):
                             network_apply_weights(module, None, None, device=device) # an earlier non-factorable set requantized this layer, restore the pristine base before attaching factors
                         applied = lora_sdnq.apply_factors(module, network_layer_name, component_wanted)
-                        if applied is not None: # exact path took the layer; None falls through to requantize
+                        if applied is not None: # exact path took the layer; None falls through to hosting or requantize
                             if applied and component_wanted:
                                 applied_layers.append(network_layer_name)
                                 applied_weight += 1
@@ -117,6 +118,25 @@ def network_activate(include=None, exclude=None):
                             if task is not None:
                                 pbar.update(task, advance=1)
                             continue
+                    if lora_sdnq.host_candidate(module, network_layer_name, component_wanted):
+                        weights_backup = getattr(module, "network_weights_backup", None)
+                        if weights_backup is not None and not isinstance(weights_backup, bool):
+                            network_apply_weights(module, None, None, device=device) # the hosted delta is measured against the pristine base
+                        batch_updown, batch_ex_bias = network_calc_weights(module, network_layer_name, elimit=elimit)
+                        if batch_ex_bias is None: # bias deltas need the plain path; weight-only sets ride the side-channel without a weight backup
+                            hosted = lora_sdnq.apply_hosted(module, network_layer_name, batch_updown, component_wanted)
+                            if hosted is not None:
+                                if hosted and component_wanted:
+                                    applied_layers.append(network_layer_name)
+                                    applied_weight += 1
+                                module.network_current_names = component_wanted
+                                batch_updown, batch_ex_bias = None, None
+                                del batch_updown, batch_ex_bias
+                                if task is not None:
+                                    pbar.update(task, advance=1)
+                                continue
+                        batch_updown, batch_ex_bias = None, None
+                        del batch_updown, batch_ex_bias
                     backup_size += network_backup_weights(module, network_layer_name, component_wanted, fuse)
                     if not component_wanted:
                         weights_backup = getattr(module, "network_weights_backup", None)
