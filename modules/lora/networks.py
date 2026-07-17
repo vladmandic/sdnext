@@ -27,6 +27,8 @@ def network_activate(include=None, exclude=None):
         if shared.opts.diffusers_offload_mode == "sequential":
             sd_models.disable_offload(sd_model)
             sd_models.move_model(sd_model, device=devices.cpu)
+        elif shared.opts.diffusers_offload_mode == "balanced":
+            sd_model = sd_models.apply_balanced_offload(sd_model, force=True) # dispatched modules hold meta tensors backed by the offload map; rebuild them real on cpu with hooks intact before touching weights
         device = None
         modules = {}
         components = include if len(include) > 0 else default_components
@@ -132,6 +134,8 @@ def network_deactivate(include=None, exclude=None):
         if shared.opts.diffusers_offload_mode == "sequential":
             sd_models.disable_offload(sd_model)
             sd_models.move_model(sd_model, device=devices.cpu)
+        elif shared.opts.diffusers_offload_mode == "balanced":
+            sd_model = sd_models.apply_balanced_offload(sd_model, force=True) # dispatched modules hold meta tensors backed by the offload map; rebuild them real on cpu with hooks intact before touching weights
         modules = {}
 
         components = include if len(include) > 0 else ['text_encoder', 'text_encoder_2', 'text_encoder_3', 'unet', 'transformer', 'llm_adapter']

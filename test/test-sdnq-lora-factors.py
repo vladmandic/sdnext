@@ -423,12 +423,15 @@ def mock_model(**layers):
     model_data.sd_model = sd
     real_offload = sd_models.set_diffuser_offload
     sd_models.set_diffuser_offload = lambda *a, **k: None
+    real_balanced = sd_models.apply_balanced_offload
+    sd_models.apply_balanced_offload = lambda sd_model=None, **k: sd_model # mock pipes carry no offload state
     old_fuse = shared.opts.lora_fuse_native
     try:
         yield
     finally:
         shared.opts.lora_fuse_native = old_fuse
         sd_models.set_diffuser_offload = real_offload
+        sd_models.apply_balanced_offload = real_balanced
         l_common.loaded_networks.clear()
         l_common.previously_loaded_networks.clear()
 
