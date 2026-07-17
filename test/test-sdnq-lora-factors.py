@@ -10,9 +10,11 @@ for the per-model analyzer):
   floor on uint4, while int8 retains most of the delta. Guards against the
   erasure law silently changing.
 - The factor path (modules/lora/lora_sdnq.py) applies plain LoRA deltas
-  through the svd side-channel exactly, in both svd layouts, with exact
-  stacking, multiplier scaling and bit-exact removal, wired through the real
-  networks.network_activate / network_deactivate control flow.
+  through the svd side-channel exactly, in both svd layouts and across
+  quantization configs (hadamard on/off, checkpoint svd correction present
+  or absent), with exact stacking, multiplier scaling and bit-exact
+  removal, wired through the real networks.network_activate /
+  network_deactivate control flow.
 - Multi-LoRA set transitions keep the base pristine: a layer that fell back
   to requantize (mixed factorable/non-factorable set) restores from backup
   before re-entering the factor path, layers targeted by only some of the
@@ -94,13 +96,13 @@ def run_test(cat: str, fn):
         traceback.print_exc()
 
 
-def build_layer(weights_dtype='uint4', use_quantized_matmul=False, seed=0):
+def build_layer(weights_dtype='uint4', use_quantized_matmul=False, seed=0, use_hadamard=True, use_svd=False):
     torch.manual_seed(seed)
     lin = torch.nn.Linear(IN_F, OUT_F, bias=False, dtype=torch.bfloat16, device=DEVICE)
     with torch.no_grad():
         lin.weight.copy_(torch.randn(OUT_F, IN_F, device=DEVICE) * 0.04)
-    cfg = SDNQConfig(weights_dtype=weights_dtype, group_size=0, hadamard_group_size=256, use_hadamard=True,
-                     use_svd=False, use_quantized_matmul=use_quantized_matmul, dequantize_fp32=False,
+    cfg = SDNQConfig(weights_dtype=weights_dtype, group_size=0, hadamard_group_size=256, use_hadamard=use_hadamard,
+                     use_svd=use_svd, svd_rank=32, use_quantized_matmul=use_quantized_matmul, dequantize_fp32=False,
                      quantization_device=str(DEVICE), return_device=str(DEVICE))
     layer, _ = sdnq_quantize_layer(lin, cfg, torch_dtype=torch.bfloat16, param_name='test.weight')
     layer.network_layer_name = 'lora_transformer_test'
@@ -265,6 +267,41 @@ def test_dora_falls_back():
     l_common.loaded_networks.append(make_net('dora', layer, A, B, dora=True))
     assert lora_sdnq.factor_candidate(layer, layer.network_layer_name, (('dora', 1.0, 1.0, None),)) is False
     l_common.loaded_networks.clear()
+    return True
+
+
+def assert_factor_roundtrip(layer, tag):
+    """Apply-exact plus bit-exact removal on the given layer, whatever its quantization config."""
+    A, B, D = make_delta()
+    Wdq0 = dq(layer)
+    orig_up = layer.svd_up
+    l_common.loaded_networks.clear()
+    l_common.loaded_networks.append(make_net('one', layer, A, B))
+    wanted = (('one', 1.0, 1.0, None),)
+    assert lora_sdnq.factor_candidate(layer, layer.network_layer_name, wanted) is True, f'{tag}: not a factor candidate'
+    assert lora_sdnq.apply_factors(layer, layer.network_layer_name, wanted) is True, f'{tag}: apply failed'
+    E = dq(layer) - Wdq0
+    rho = rho_of(E, D)
+    resid = float((E - D).norm() / D.norm())
+    assert rho > 0.99 and resid < 0.2, f'{tag}: rho={rho:.4f} resid={resid:.4f}'
+    assert lora_sdnq.remove_factors(layer) and torch.equal(dq(layer), Wdq0), f'{tag}: remove not bit-exact'
+    assert layer.svd_up is orig_up, f'{tag}: original svd factors not restored'
+    l_common.loaded_networks.clear()
+
+
+def test_no_hadamard_checkpoint():
+    """Checkpoints quantized without hadamard: factors attach unrotated."""
+    assert_factor_roundtrip(build_layer('uint4', use_hadamard=False), 'plain')
+    assert_factor_roundtrip(build_layer('uint4', use_hadamard=False, use_quantized_matmul=True), 'matmul')
+    return True
+
+
+def test_checkpoint_svd_factors_preserved():
+    """Checkpoints quantized with their own svd correction keep it under apply/remove."""
+    layer = build_layer('uint4', use_svd=True)
+    assert layer.svd_up is not None, 'quantizer produced no svd correction'
+    assert_factor_roundtrip(layer, 'plain')
+    assert_factor_roundtrip(build_layer('uint4', use_svd=True, use_quantized_matmul=True), 'matmul')
     return True
 
 
@@ -504,7 +541,7 @@ def run_tests():
     for fn in [test_uint4_erases_substep_delta, test_int8_retains_delta]:
         run_test(CAT_LAW, fn)
     log.warning('=== Factor path ===')
-    for fn in [test_apply_exact_and_remove_bitexact, test_multiplier_and_alpha_scaling, test_stacking_two_networks, test_matmul_layout_transposed, test_dora_falls_back]:
+    for fn in [test_apply_exact_and_remove_bitexact, test_multiplier_and_alpha_scaling, test_stacking_two_networks, test_matmul_layout_transposed, test_dora_falls_back, test_no_hadamard_checkpoint, test_checkpoint_svd_factors_preserved]:
         run_test(CAT_FACTOR, fn)
     log.warning('=== Memory accounting ===')
     for fn in [test_factor_path_memory_is_factors_only, test_backup_mode_clones_full_quant_state, test_fuse_mode_marker_takes_no_memory]:
