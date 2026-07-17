@@ -690,6 +690,7 @@ def create_settings(cmd_opts):
         "lora_fuse_diffusers": OptionInfo(False, "LoRA diffusers fuse with model"),
         "lora_sdnq_host_rank": OptionInfo(256, "LoRA quantized host rank", gr.Slider, {"minimum": 0, "maximum": 1024, "step": 32}),
         "lora_sdnq_host_calib": OptionInfo(True, "LoRA quantized host calibration"),
+        "lora_sdnq_host_cache": OptionInfo(10, "LoRA quantized host cache", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
         "lora_apply_tags": OptionInfo(0, "LoRA auto-apply tags", gr.Slider, {"minimum": -1, "maximum": 32, "step": 1}),
         "lora_in_memory_limit": OptionInfo(1, "LoRA memory cache", gr.Slider, {"minimum": 0, "maximum": 32, "step": 1}),
         "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),

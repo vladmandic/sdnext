@@ -34,6 +34,9 @@ for the per-model analyzer):
   plain truncation bit-exact, and the capture hooks accumulate, persist
   and reload statistics correctly, gated by option, format width and
   model compile.
+- Factor cache: hosted factors replay bit-identically from the disk cache
+  without re-running the svd, a configuration change (multiplier) misses
+  and writes a separate entry, and budget 0 writes nothing.
 
 All tensors are synthetic; no model files or running server required.
 
@@ -808,6 +811,102 @@ def test_calib_capture_gates():
     return True
 
 
+CAT_FCACHE = category('factor-cache')
+
+
+@contextmanager
+def host_cache(gb, root):
+    from modules.lora import lora_factor_cache
+    old_gb = getattr(shared.opts, 'lora_sdnq_host_cache', 0)
+    old_root = lora_factor_cache.cache_root
+    shared.opts.lora_sdnq_host_cache = gb
+    lora_factor_cache.cache_root = root
+    lora_factor_cache.state.update(wn=None, sig=None, path=None, dirty=False, hits=0, misses=0)
+    lora_factor_cache.state['store'] = {}
+    try:
+        yield lora_factor_cache
+    finally:
+        shared.opts.lora_sdnq_host_cache = old_gb
+        lora_factor_cache.cache_root = old_root
+        lora_factor_cache.state.update(wn=None, sig=None, path=None, dirty=False, hits=0, misses=0)
+        lora_factor_cache.state['store'] = {}
+
+
+def cache_fixture(tmp, layer, name='cachenet', sigma=3e-4, seed=61):
+    """Dense net whose on-disk file exists (signature needs a stat-able path) plus a mock checkpoint identity."""
+    torch.manual_seed(seed)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * sigma
+    net = make_dense_net(name, layer, D)
+    lora_file = os.path.join(tmp, f'{name}.safetensors')
+    with open(lora_file, 'wb') as f:
+        f.write(b'0' * 64)
+    net.network_on_disk.filename = lora_file
+    from modules.modeldata import model_data
+    model_data.sd_model.sd_checkpoint_info = MockCheckpointInfo('test/cache-model')
+    return net, D
+
+
+def raise_no_svd(*_args, **_kwargs):
+    raise AssertionError('svd must not run on a cache hit')
+
+
+def test_factor_cache_roundtrip_bitexact():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            Wdq0 = dq(layer)
+            activate(net)
+            first_up = layer.svd_up.detach().clone()
+            first_down = layer.svd_down.detach().clone()
+            activate() # pass end flushed the entry; unload restores the base
+            files = os.listdir(os.path.join(tmp, 'cache'))
+            assert len(files) == 1, f'one cache entry expected, got {files}'
+            real_svd = torch.svd_lowrank
+            torch.svd_lowrank = raise_no_svd
+            try:
+                activate(net) # same configuration: must replay from disk without touching the svd
+            finally:
+                torch.svd_lowrank = real_svd
+            assert torch.equal(layer.svd_up, first_up), 'cache hit must replay bit-identical up factors'
+            assert torch.equal(layer.svd_down, first_down), 'cache hit must replay bit-identical down factors'
+            activate()
+            assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact'
+    return True
+
+
+def test_factor_cache_invalidates_on_multiplier():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(10, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            activate(net)
+            up_full = layer.svd_up.detach().clone()
+            activate()
+            net.te_multiplier = 0.7
+            net.unet_multiplier = [0.7] * 3
+            activate(net) # different multiplier: different signature, fresh svd, second entry
+            assert not torch.equal(layer.svd_up, up_full), 'multiplier change must produce different factors'
+            activate()
+            files = os.listdir(os.path.join(tmp, 'cache'))
+            assert len(files) == 2, f'two cache entries expected, got {files}'
+    return True
+
+
+def test_factor_cache_disabled_at_zero():
+    import tempfile
+    layer = build_layer('uint4')
+    with tempfile.TemporaryDirectory() as tmp:
+        with host_rank(64), host_cache(0, os.path.join(tmp, 'cache')), mock_model(lin=layer):
+            net, _D = cache_fixture(tmp, layer)
+            activate(net)
+            activate()
+            assert not os.path.isdir(os.path.join(tmp, 'cache')), 'budget 0 must write nothing'
+    return True
+
+
 CAT_ROBUST = category('robustness')
 
 
@@ -879,6 +978,9 @@ def run_tests():
     for fn in [test_calibrated_hosting_beats_plain, test_calibrated_low_rank_delta_survives, test_calib_option_off_matches_plain,
                test_calib_capture_persist_roundtrip, test_calib_capture_gates]:
         run_test(CAT_CALIB, fn)
+    log.warning('=== Factor cache ===')
+    for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier, test_factor_cache_disabled_at_zero]:
+        run_test(CAT_FCACHE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
         run_test(CAT_ROBUST, fn)
