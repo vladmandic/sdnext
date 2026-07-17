@@ -9,6 +9,7 @@ shared_te_map = {
         'cls': transformers.T5EncoderModel,
         'identifier': 'sdnq-uint4',
         'target_repo': 'Disty0/FLUX.1-dev-SDNQ-uint4-svd-r32',
+        'target_subfolder': 'text_encoder_2',
     },
     'T5-XXL Base': { # template
         'cls': transformers.T5EncoderModel, # desired model class, used as primary matching criteria
