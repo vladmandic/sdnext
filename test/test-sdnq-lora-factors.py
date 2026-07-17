@@ -28,6 +28,12 @@ for the per-model analyzer):
   whole, dense content beats the requantize floor by a wide margin, int8
   and rank 0 keep the requantize path, removal stays bit-exact, and the
   svd's random projections never touch the generation rng stream.
+- Calibration: per-channel activation statistics weight the hosted
+  truncation toward loud input channels for better output-space retention;
+  low-rank content still survives whole, disabling the option reproduces
+  plain truncation bit-exact, and the capture hooks accumulate, persist
+  and reload statistics correctly, gated by option, format width and
+  model compile.
 
 All tensors are synthetic; no model files or running server required.
 
@@ -648,6 +654,158 @@ def test_hosted_transitions_and_rng_isolation():
     return True
 
 
+CAT_CALIB = category('calibration')
+
+
+@contextmanager
+def host_calib(value):
+    old = getattr(shared.opts, 'lora_sdnq_host_calib', False)
+    shared.opts.lora_sdnq_host_calib = value
+    try:
+        yield
+    finally:
+        shared.opts.lora_sdnq_host_calib = old
+
+
+def test_calibrated_hosting_beats_plain():
+    layer = build_layer('uint4')
+    torch.manual_seed(11)
+    scale = torch.ones(IN_F, device=DEVICE)
+    scale[:32] = 40.0 # a few loud input channels, the shape real activations have
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 3e-4
+    X = torch.randn(1024, IN_F, device=DEVICE) * scale
+    Y = X @ D.t()
+    net = make_dense_net('calnet', layer, D)
+
+    def out_rho(E):
+        return float((X @ E.t()).flatten() @ Y.flatten() / Y.square().sum())
+
+    with host_rank(32), host_calib(True), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        activate(net)
+        plain = out_rho(dq(layer) - Wdq0)
+        activate()
+        layer.sdnq_calib_rms = scale.cpu() # statistics as the capture leaves them
+        activate(net)
+        weighted = out_rho(dq(layer) - Wdq0)
+        activate()
+        del layer.sdnq_calib_rms
+        assert torch.equal(dq(layer), Wdq0), 'unload must restore bit-exact'
+        assert weighted > plain + 0.2, f'calibrated hosting must beat plain in output space: {weighted:.3f} vs {plain:.3f}'
+    return True
+
+
+def test_calibrated_low_rank_delta_survives():
+    layer = build_layer('uint4')
+    _A, _B, D = make_delta(sigma=3e-3)
+    net = make_dense_net('calfull', layer, D)
+    with host_rank(64), host_calib(True), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        torch.manual_seed(21)
+        layer.sdnq_calib_rms = torch.rand(IN_F) * 10 + 0.1 # arbitrary positive statistics: unscale must round-trip
+        activate(net)
+        rho = rho_of(dq(layer) - Wdq0, D)
+        activate()
+        del layer.sdnq_calib_rms
+        assert rho > 0.95, f'rank-8 delta under weighted cap 64 must be kept nearly whole: rho={rho:.4f}'
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_calib_option_off_matches_plain():
+    layer = build_layer('uint4')
+    torch.manual_seed(31)
+    D = torch.randn(OUT_F, IN_F, device=DEVICE) * 3e-4
+    net = make_dense_net('caloff', layer, D)
+    with host_rank(64), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        with host_calib(False):
+            layer.sdnq_calib_rms = torch.rand(IN_F) + 0.5
+            activate(net)
+            off = dq(layer)
+            activate()
+        del layer.sdnq_calib_rms
+        with host_calib(True):
+            activate(net) # no statistics attribute: plain truncation
+            plain = dq(layer)
+            activate()
+        assert torch.equal(off, plain), 'option off must reproduce the uncalibrated truncation bit-exact'
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+class MockCheckpointInfo:
+    def __init__(self, name):
+        self.name = name
+
+
+class MockCalibSd:
+    def __init__(self, name, **layers):
+        self.transformer = MockHolder()
+        for attr, lyr in layers.items():
+            setattr(self.transformer, attr, lyr)
+        self.sd_checkpoint_info = MockCheckpointInfo(name)
+
+
+def test_calib_capture_persist_roundtrip():
+    import tempfile
+    from modules.lora import lora_calib
+    layer_a = build_layer('uint4', seed=41)
+    layer_b = build_layer('uint4', seed=42)
+    sd = MockCalibSd('test/calib-model', la=layer_a, lb=layer_b)
+    old_root, old_tokens = lora_calib.calib_root, lora_calib.TOKENS_DONE
+    with tempfile.TemporaryDirectory() as tmp, host_calib(True):
+        try:
+            lora_calib.calib_root = tmp
+            lora_calib.TOKENS_DONE = 2048
+            lora_calib.on_model_loaded(sd)
+            assert len(lora_calib.capture['handles']) == 2, 'both sub-8-bit linears must hook'
+            torch.manual_seed(51)
+            scale = torch.linspace(0.1, 4.0, IN_F, device=DEVICE)
+            xs = []
+            for _ in range(2): # exactly the completion threshold, so statistics cover every forward
+                x = (torch.randn(1024, IN_F, device=DEVICE) * scale).to(torch.bfloat16)
+                xs.append(x.float())
+                layer_a(x)
+                layer_b(x)
+            assert lora_calib.capture['complete'], 'capture must complete once enough tokens are seen'
+            path = lora_calib.calib_file('test/calib-model')
+            assert os.path.isfile(path), f'statistics must persist to {path}'
+            expected = torch.cat(xs).square().mean(dim=0).sqrt().cpu()
+            assert torch.allclose(layer_a.sdnq_calib_rms, expected, rtol=1e-3, atol=1e-5), 'streamed rms must match the seen activations'
+            del layer_a.sdnq_calib_rms, layer_b.sdnq_calib_rms
+            lora_calib.on_model_loaded(sd) # second load takes the cached path
+            assert len(lora_calib.capture['handles']) == 0, 'cached statistics must not re-attach capture hooks'
+            assert torch.allclose(layer_a.sdnq_calib_rms, expected, rtol=1e-3, atol=1e-5), 'reload must restore the persisted rms'
+            del layer_a.sdnq_calib_rms, layer_b.sdnq_calib_rms
+        finally:
+            lora_calib.calib_root, lora_calib.TOKENS_DONE = old_root, old_tokens
+            lora_calib.detach_capture()
+    return True
+
+
+def test_calib_capture_gates():
+    from modules.lora import lora_calib
+    sd_int8 = MockCalibSd('test/calib-int8', lin=build_layer('int8', seed=43))
+    with host_calib(True):
+        lora_calib.on_model_loaded(sd_int8)
+        assert len(lora_calib.capture['handles']) == 0, 'int8-only models have nothing to calibrate'
+    sd_u4 = MockCalibSd('test/calib-gates', lin=build_layer('uint4', seed=44))
+    with host_calib(False):
+        lora_calib.on_model_loaded(sd_u4)
+        assert len(lora_calib.capture['handles']) == 0, 'option off must disable capture'
+    old_compile = getattr(shared.opts, 'cuda_compile', None)
+    with host_calib(True):
+        shared.opts.cuda_compile = ['Model']
+        try:
+            lora_calib.on_model_loaded(sd_u4)
+            assert len(lora_calib.capture['handles']) == 0, 'model compile must disable capture'
+        finally:
+            shared.opts.cuda_compile = old_compile
+    lora_calib.detach_capture()
+    return True
+
+
 CAT_ROBUST = category('robustness')
 
 
@@ -715,6 +873,10 @@ def run_tests():
     for fn in [test_hosted_low_rank_delta_is_kept, test_hosted_dense_delta_beats_requant, test_hosted_skips_int8,
                test_hosted_disabled_by_option, test_hosted_transitions_and_rng_isolation]:
         run_test(CAT_HOST, fn)
+    log.warning('=== Calibration ===')
+    for fn in [test_calibrated_hosting_beats_plain, test_calibrated_low_rank_delta_survives, test_calib_option_off_matches_plain,
+               test_calib_capture_persist_roundtrip, test_calib_capture_gates]:
+        run_test(CAT_CALIB, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
         run_test(CAT_ROBUST, fn)

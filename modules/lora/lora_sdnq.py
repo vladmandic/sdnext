@@ -28,19 +28,23 @@ families' own ``calc_updown`` delta is truncated to its top singular
 directions and appended the same way. Truncation keeps the dominant part
 of the effect and drops an orthogonal residual, where requantize keeps
 only the grid extrema and adds grid-shift noise of the delta's own
-magnitude. At 8 bits and above requantize retains most of the delta, so
-hosting is skipped there and the requantize path remains.
+magnitude. When activation statistics for the checkpoint exist (see
+``lora_calib``), the truncation is channel-weighted to minimize output
+error instead of weight error. At 8 bits and above requantize retains
+most of the delta, so hosting is skipped there and the requantize path
+remains.
 """
 
 import torch
 
 from modules import devices, shared
+from modules.lora import lora_calib
 from modules.lora import lora_common as l
 from modules.logger import log
 
 
 fallback_layers: list[str] = []
-hosted_layers: list[tuple[str, float]] = []
+hosted_layers: list[tuple[str, float, bool]] = []
 
 
 def get_module_factors(module, device, dtype, original_shape=None):
@@ -198,8 +202,11 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
     The delta comes from the families' own ``calc_updown``, so every family
     and scaling quirk is included; factorable members are subtracted out and
     appended exactly so they never compete with the hosted remainder for
-    rank. Returns None when the delta cannot ride the channel (wrong shape);
-    the caller falls back to requantize.
+    rank. When per-checkpoint activation statistics exist (``lora_calib``),
+    input channels are weighted by their RMS before truncation so the kept
+    directions minimize output error rather than weight error. Returns None
+    when the delta cannot ride the channel (wrong shape); the caller falls
+    back to requantize.
     """
     from sdnq.quant_utils import rotate_hadamard
 
@@ -230,17 +237,26 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
 
     cap = int(shared.opts.lora_sdnq_host_rank)
     q = min(cap, *D.shape)
+    rms = lora_calib.rms_for(self)
+    if rms is not None and rms.shape[-1] == D.shape[-1]:
+        # scale input channels by their activation RMS so truncation minimizes output error rather than weight error
+        rms = rms.to(device=D.device, dtype=torch.float32).clamp(min=1e-8)
+        D = D.mul_(rms)
+    else:
+        rms = None
     # svd_lowrank draws random projections; fork so user generation seeds are untouched and re-applies are deterministic
     with torch.random.fork_rng(devices=[D.device] if D.device.type == 'cuda' else []):
         torch.manual_seed(0)
         U, S, V = torch.svd_lowrank(D, q=q, niter=2)
-    energy = float(S.square().sum() / D.square().sum().clamp(min=1e-30))
+    energy = float(S.square().sum() / D.square().sum().clamp(min=1e-30)) # captured fraction, in the weighted domain when calibrated
     up_h = (U * S).to(dtype=dtype)
     down_h = V.t()
+    if rms is not None:
+        down_h = down_h / rms # unscale in the original input basis, before any rotation
     if deq.use_hadamard:
         down_h = rotate_hadamard(down_h, group_size=deq.hadamard_group_size)
     append_factors(self, ups + [up_h], downs + [down_h.to(dtype=dtype)])
-    hosted_layers.append((network_layer_name, energy))
+    hosted_layers.append((network_layer_name, energy, rms is not None))
     return True
 
 
@@ -252,11 +268,12 @@ def note_fallback(self, network_layer_name):
 
 def report_fallbacks():
     if len(hosted_layers) > 0:
-        energies = sorted(e for _name, e in hosted_layers)
+        energies = sorted(e for _name, e, _c in hosted_layers)
         median = energies[len(energies) // 2]
-        log.info(f'Network load: type=LoRA quant=sdnq hosted={len(hosted_layers)} rank={int(shared.opts.lora_sdnq_host_rank)} energy={median:.2f} min={energies[0]:.2f} non-factorable networks hosted on the svd side-channel')
+        calibrated = sum(1 for _name, _e, c in hosted_layers if c)
+        log.info(f'Network load: type=LoRA quant=sdnq hosted={len(hosted_layers)} rank={int(shared.opts.lora_sdnq_host_rank)}{f" calib={calibrated}" if calibrated else ""} energy={median:.2f} min={energies[0]:.2f} non-factorable networks hosted on the svd side-channel')
         if l.debug:
-            log.debug(f'Network load: type=LoRA quant=sdnq hosted={[(n, round(e, 3)) for n, e in hosted_layers[:8]]}{"..." if len(hosted_layers) > 8 else ""}')
+            log.debug(f'Network load: type=LoRA quant=sdnq hosted={[(n, round(e, 3)) for n, e, _c in hosted_layers[:8]]}{"..." if len(hosted_layers) > 8 else ""}')
     hosted_layers.clear()
     if len(fallback_layers) > 0:
         log.warning(f'Network load: type=LoRA quant=sdnq layers={len(fallback_layers)} non-factorable networks requantized in place (reduced fidelity on quantized weights)')
