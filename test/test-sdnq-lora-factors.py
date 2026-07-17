@@ -863,6 +863,9 @@ def test_factor_cache_roundtrip_bitexact():
             activate() # pass end flushed the entry; unload restores the base
             files = os.listdir(os.path.join(tmp, 'cache'))
             assert len(files) == 1, f'one cache entry expected, got {files}'
+            bf16_bytes = (first_up.numel() + first_down.numel()) * 2
+            entry_bytes = os.path.getsize(os.path.join(tmp, 'cache', files[0]))
+            assert entry_bytes < bf16_bytes * 0.62 + 8192, f'int8 entry must be about half the bf16 factor bytes: {entry_bytes} vs {bf16_bytes}'
             real_svd = torch.svd_lowrank
             torch.svd_lowrank = raise_no_svd
             try:
@@ -892,6 +895,20 @@ def test_factor_cache_invalidates_on_multiplier():
             activate()
             files = os.listdir(os.path.join(tmp, 'cache'))
             assert len(files) == 2, f'two cache entries expected, got {files}'
+    return True
+
+
+def test_factor_cache_int8_quantization():
+    from modules.lora import lora_factor_cache as fc
+    torch.manual_seed(71)
+    t = torch.randn(64, 128, device=DEVICE) * torch.logspace(-3, 0, 64, device=DEVICE)[:, None] # rows spanning magnitudes
+    q, s = fc.quantize_rowwise(t)
+    assert q.dtype == torch.int8
+    dq = fc.dequantize_rowwise(q, s)
+    err = (dq - t).abs().max(dim=1).values
+    assert bool((err <= s.squeeze(1) * 0.51).all()), 'rowwise int8 error must stay within half a step'
+    cos = torch.nn.functional.cosine_similarity(dq.flatten(), t.flatten(), dim=0)
+    assert float(cos) > 0.99995, f'int8 roundtrip cosine {float(cos):.6f}'
     return True
 
 
@@ -979,7 +996,8 @@ def run_tests():
                test_calib_capture_persist_roundtrip, test_calib_capture_gates]:
         run_test(CAT_CALIB, fn)
     log.warning('=== Factor cache ===')
-    for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier, test_factor_cache_disabled_at_zero]:
+    for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier,
+               test_factor_cache_int8_quantization, test_factor_cache_disabled_at_zero]:
         run_test(CAT_FCACHE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:

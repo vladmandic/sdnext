@@ -8,11 +8,15 @@ statistics, so they are cached on disk keyed by exactly that identity and
 replayed bit-identically on the next apply of the same configuration.
 
 One safetensors file per configuration under ``data/lora-factor-cache``,
-holding every hosted layer's post-rotation factor pair. The
-``lora_sdnq_host_cache`` option is the size budget in GB (0 disables);
-least-recently-used entries are evicted past the budget. Any doubt about
-identity (unknown checkpoint, unreadable lora file, signature mismatch)
-disables caching for the pass rather than risking a stale hit.
+holding every hosted layer's post-rotation factor pair as rowwise int8
+with fp32 scales (measured fidelity-free in output space, half the bytes
+of bf16). Factors are quantized before first use: ``store`` returns the
+dequantized round-trip for the caller to apply, so a fresh compute and a
+later cache hit attach bit-identical tensors. The ``lora_sdnq_host_cache``
+option is the size budget in GB (0 disables); least-recently-used entries
+are evicted past the budget. Any doubt about identity (unknown checkpoint,
+unreadable lora file, signature mismatch) disables caching for the pass
+rather than risking a stale hit.
 """
 
 import os
@@ -75,45 +79,72 @@ def begin_pass(wanted_names):
         return
     key = hashlib.sha256(sig.encode()).hexdigest()[:24]
     path = os.path.join(cache_root, f'{key}.safetensors')
-    store = {}
+    entries = {}
     if os.path.isfile(path):
         try:
             from safetensors import safe_open
             with safe_open(path, framework='pt', device='cpu') as f:
-                if (f.metadata() or {}).get('sig') == sig:
+                meta = f.metadata() or {}
+                if meta.get('sig') == sig and meta.get('fmt') == '2':
                     for k in f.keys():
-                        store[k] = f.get_tensor(k)
+                        entries[k] = f.get_tensor(k)
             os.utime(path, None) # freshness for LRU eviction
         except Exception as e:
             log.debug(f'Network cache: read failed path="{path}" {e}')
-            store = {}
+            entries = {}
     state.update(sig=sig, path=path)
-    state['store'] = store
+    state['store'] = entries
+
+
+def quantize_rowwise(t):
+    t32 = t.detach().to(torch.float32)
+    scale = t32.abs().amax(dim=1, keepdim=True).clamp(min=1e-12) / 127.0
+    q = (t32 / scale).round().clamp(-127, 127).to(torch.int8)
+    return q, scale
+
+
+def dequantize_rowwise(q, scale):
+    # int8 * fp32 with a single fp32 rounding: identical on any device, so hit and miss replay the same values
+    return q.to(torch.float32) * scale
 
 
 def fetch(network_layer_name):
-    """Cached (up, down, energy, calibrated) for a layer, or None."""
+    """Cached (up, down, energy, calibrated) for a layer, or None; factors return as fp32."""
     if state['sig'] is None:
         return None
-    up = state['store'].get(f'{network_layer_name}.up')
-    down = state['store'].get(f'{network_layer_name}.down')
-    energy = state['store'].get(f'{network_layer_name}.energy')
-    calib = state['store'].get(f'{network_layer_name}.calib')
-    if up is None or down is None or energy is None or calib is None:
+    st = state['store']
+    up_q, up_s = st.get(f'{network_layer_name}.up_q'), st.get(f'{network_layer_name}.up_s')
+    down_q, down_s = st.get(f'{network_layer_name}.down_q'), st.get(f'{network_layer_name}.down_s')
+    energy = st.get(f'{network_layer_name}.energy')
+    calib = st.get(f'{network_layer_name}.calib')
+    if up_q is None or up_s is None or down_q is None or down_s is None or energy is None or calib is None:
         state['misses'] += 1
         return None
     state['hits'] += 1
-    return up, down, float(energy), bool(calib)
+    return dequantize_rowwise(up_q, up_s), dequantize_rowwise(down_q, down_s), float(energy), bool(calib)
 
 
-def put(network_layer_name, up, down, energy, calibrated):
+def store(network_layer_name, up, down, energy, calibrated):
+    """Quantize-before-use: returns the pair the caller must apply.
+
+    With caching inactive the inputs pass through untouched. Otherwise the
+    factors are stored as rowwise int8 and the dequantized round-trip comes
+    back, so the factors applied now and the factors a later hit replays are
+    the same tensors.
+    """
     if state['sig'] is None:
-        return
-    state['store'][f'{network_layer_name}.up'] = up.detach().to('cpu').contiguous()
-    state['store'][f'{network_layer_name}.down'] = down.detach().to('cpu').contiguous()
-    state['store'][f'{network_layer_name}.energy'] = torch.tensor(float(energy))
-    state['store'][f'{network_layer_name}.calib'] = torch.tensor(1 if calibrated else 0, dtype=torch.uint8)
+        return up, down
+    up_q, up_s = quantize_rowwise(up)
+    down_q, down_s = quantize_rowwise(down)
+    st = state['store']
+    st[f'{network_layer_name}.up_q'] = up_q.to('cpu').contiguous()
+    st[f'{network_layer_name}.up_s'] = up_s.to('cpu').contiguous()
+    st[f'{network_layer_name}.down_q'] = down_q.to('cpu').contiguous()
+    st[f'{network_layer_name}.down_s'] = down_s.to('cpu').contiguous()
+    st[f'{network_layer_name}.energy'] = torch.tensor(float(energy))
+    st[f'{network_layer_name}.calib'] = torch.tensor(1 if calibrated else 0, dtype=torch.uint8)
     state['dirty'] = True
+    return dequantize_rowwise(up_q, up_s).to(up.dtype), dequantize_rowwise(down_q, down_s).to(down.dtype)
 
 
 def evict():
@@ -147,7 +178,7 @@ def flush():
         from safetensors.torch import save_file
         os.makedirs(cache_root, exist_ok=True)
         tmp = state['path'] + '.tmp'
-        save_file(state['store'], tmp, metadata={'sig': state['sig']})
+        save_file(state['store'], tmp, metadata={'sig': state['sig'], 'fmt': '2'})
         os.replace(tmp, state['path'])
         evict()
     except Exception as e:
