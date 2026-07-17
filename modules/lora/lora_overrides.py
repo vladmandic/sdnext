@@ -77,13 +77,51 @@ def get_method(shorthash=''):
     return 'native', 'default'
 
 
+# Components a LoRA is fused into; a quantized one anywhere makes fusing unsafe.
+fuse_components = (
+    'transformer', 'transformer_2', 'unet', 'llm_adapter',
+    'text_encoder', 'text_encoder_2', 'text_encoder_3', 'text_encoder_4',
+)
+
+
+def is_quantized(module):
+    """Return True when ``module`` carries a quantization config.
+
+    ``config.quantization_config`` is read first: SDNQ sets both it and the plain
+    attribute when it quantizes in place, but a checkpoint that ships pre-quantized
+    only reaches the plain attribute through the diffusers ConfigMixin name proxy,
+    which is deprecated for removal.
+    """
+    if module is None:
+        return False
+    config = getattr(module, 'config', None)
+    if config is not None and getattr(config, 'quantization_config', None) is not None:
+        return True
+    return getattr(module, 'quantization_config', None) is not None
+
+
 def disable_fuse():
-    if hasattr(shared.sd_model, 'quantization_config'):
+    """Return True when fusing a network into model weights is unsafe.
+
+    Fusing keeps no pristine copy of the weight, so each apply and restore
+    round-trips it through its storage format. On quantized weights that is a
+    dequantize-add-requantize cycle per network swap whose error compounds.
+    """
+    sd_model = getattr(shared.sd_model, 'pipe', shared.sd_model)
+    if is_quantized(sd_model):
         return True
-    if hasattr(shared.sd_model, 'transformer') and hasattr(shared.sd_model.transformer, 'quantization_config'):
+    if any(is_quantized(getattr(sd_model, name, None)) for name in fuse_components):
         return True
-    if hasattr(shared.sd_model, 'transformer_2') and hasattr(shared.sd_model.transformer_2, 'quantization_config'):
-        return True
-    if hasattr(shared.sd_model, '_lora_partial'):
+    if hasattr(sd_model, '_lora_partial'):
         return True
     return shared.sd_model_type in fuse_ignore
+
+
+def fuse_native():
+    """Return True when the native apply path may fuse into model weights.
+
+    The single source of truth for the native fuse decision: it must agree across
+    the backup, activate and deactivate passes, since backup mode restores from a
+    stored tensor while fuse mode restores by subtracting the delta.
+    """
+    return shared.opts.lora_fuse_native and not disable_fuse()

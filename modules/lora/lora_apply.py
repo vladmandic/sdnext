@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 re_network_name = re.compile(r"(.*)\s*\([0-9a-fA-F]+\)")
 
 
-def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, wanted_names: tuple):
+def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.GroupNorm | torch.nn.LayerNorm | diffusers.models.lora.LoRACompatibleLinear | diffusers.models.lora.LoRACompatibleConv, network_layer_name: str, wanted_names: tuple, fuse: bool):
     backup_size = 0
     if len(l.loaded_networks) > 0 and network_layer_name is not None and any([net.modules.get(network_layer_name, None) for net in l.loaded_networks]): # noqa: C419 # pylint: disable=R1729
         t0 = time.time()
@@ -24,7 +24,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
         weights_backup = getattr(self, "network_weights_backup", None)
         bias_backup = getattr(self, "network_bias_backup", None)
         if weights_backup is not None or bias_backup is not None:
-            if (shared.opts.lora_fuse_native and not isinstance(weights_backup, bool)) or (not shared.opts.lora_fuse_native and isinstance(weights_backup, bool)): # invalidate so we can change direct/backup on-the-fly
+            if (fuse and not isinstance(weights_backup, bool)) or (not fuse and isinstance(weights_backup, bool)): # invalidate so we can change direct/backup on-the-fly
                 weights_backup = None
                 bias_backup = None
                 self.network_weights_backup = weights_backup
@@ -33,7 +33,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
         if weights_backup is None and wanted_names != (): # pylint: disable=C1803
             weight = getattr(self, 'weight', None)
             self.network_weights_backup = None
-            if shared.opts.lora_fuse_native:
+            if fuse:
                 self.network_weights_backup = True
             else:
                 self.network_weights_backup = weight.clone().to(devices.cpu)
@@ -53,7 +53,7 @@ def network_backup_weights(self: torch.nn.Conv2d | torch.nn.Linear | torch.nn.Gr
 
         if bias_backup is None:
             if getattr(self, 'bias', None) is not None:
-                if shared.opts.lora_fuse_native:
+                if fuse:
                     self.network_bias_backup = True
                 else:
                     bias_backup = self.bias.clone()

@@ -4,6 +4,7 @@ import diffusers
 from modules import shared, errors
 from modules.logger import log
 from modules.lora import network
+from modules.lora import lora_overrides
 from modules.lora import lora_common as l
 
 
@@ -54,7 +55,7 @@ def load_diffusers(name: str, network_on_disk: network.NetworkOnDisk, lora_scale
     t0 = time.time()
     name = name.replace(".", "_")
     sd_model: diffusers.DiffusionPipeline = getattr(shared.sd_model, "pipe", shared.sd_model)
-    log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" detected={network_on_disk.sd_version} method=diffusers reason={reason or "unknown"} scale={lora_scale} fuse={shared.opts.lora_fuse_native}:{shared.opts.lora_fuse_diffusers}')
+    log.debug(f'Network load: type=LoRA name="{name}" file="{network_on_disk.filename}" detected={network_on_disk.sd_version} method=diffusers reason={reason or "unknown"} scale={lora_scale} fuse={lora_overrides.fuse_native()}:{shared.opts.lora_fuse_diffusers}')
     if not hasattr(sd_model, 'load_lora_weights'):
         log.error(f'Network load: type=LoRA class={sd_model.__class__} does not implement load lora')
         return None
