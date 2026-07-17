@@ -287,9 +287,18 @@ def analyze_module(W_dq, deq_params, mods):
     E = W2 - W_dq
     rho = float(E.flatten() @ D.flatten() / nD.square())
     resid = float((E - D).norm() / nD)
+    if factor_eligible:
+        # the factor path stores the delta losslessly, but the dequantizer materializes
+        # base + factors in the result dtype (bf16 here), so realized fidelity floors at
+        # the same ULP rounding an unquantized bf16 model applies to a merged delta
+        base16 = W_dq.to(torch.bfloat16).float()
+        realized = (W_dq.to(torch.bfloat16) + D.to(torch.bfloat16)).float() - base16
+        applied_rho = float(realized.flatten() @ D.flatten() / nD.square())
+    else:
+        applied_rho = rho
     return dict(rank=getattr(mods[0], 'dim', None), rms_delta=float(D.pow(2).mean().sqrt()), rms_weight=float(W_dq.pow(2).mean().sqrt()),
                 step_ratio=step_ratio, crossers=crossers, requant_rho=rho, requant_resid=resid,
-                factor_eligible=factor_eligible, applied_rho=1.0 if factor_eligible else rho,
+                factor_eligible=factor_eligible, applied_rho=applied_rho,
                 delta_energy=float(nD.square()))
 
 
@@ -317,99 +326,111 @@ def main():
 
     report = {'model': model_dir, 'pre_quantized': pre_quantized, 'loras': []}
     worst_effective = 1.0
+    def write_report():
+        if args.json:
+            with open(args.json, 'w', encoding='utf-8') as f:
+                json.dump(report, f, indent=2)
+
     for lora_path in args.lora:
         lora_path = os.path.expanduser(lora_path)
-        mapped, census, chunked = map_lora_modules(lora_path, arch_mod)
-        net = network.Network(os.path.basename(lora_path), StubOnDisk(lora_path))
-        rows, unquantized, unmatched, failed, non_matrix = [], [], [], [], []
-        keys = sorted(mapped)
-        if not args.full and len(keys) > args.sample:
-            keys = keys[::max(1, len(keys) // args.sample)][:args.sample]
-        for path in keys:
-            entries = mapped[path]
-            if pre_quantized:
-                layer = quant_layers.get(path) or quant_layers.get(quant_stamps.get(path.replace('.', '_'), ''))
-                if layer is None:
-                    unmatched.append(path)
-                    continue
-                deq = getattr(layer, 'sdnq_dequantizer', None)
-                if deq is None:
-                    unquantized.append(path)
-                    continue
-                if len(deq.original_shape) != 2:
-                    non_matrix.append(path)
-                    continue
-                W_dq = deq(layer.weight, layer.scale, zero_point=layer.zero_point, svd_up=layer.svd_up, svd_down=layer.svd_down,
-                           skip_quantized_matmul=deq.use_quantized_matmul, dtype=torch.float32, skip_compile=True).to(device)
-                params = dict(weights_dtype=deq.weights_dtype, group_size=deq.group_size, hadamard_group_size=deq.hadamard_group_size,
-                              use_hadamard=deq.use_hadamard, use_svd=layer.svd_up is not None, svd_rank=deq.svd_rank, svd_steps=deq.svd_steps)
-                sd_module = layer
-            else:
-                W = bf16_repo.get(f'{path}.weight')
-                if W is None:
-                    W = bf16_repo.get(f'{bf16_stamps.get(path.replace(".", "_"), "")}.weight')
-                if W is None:
-                    unmatched.append(path)
-                    continue
-                if W.ndim != 2: # norm/scale targets (e.g. adaLN_modulation) are 1-D; the quantizer and the stub both expect a matrix
-                    non_matrix.append(path)
-                    continue
-                if args.dtype == 'bf16':
-                    W_dq = W.to(device, torch.bfloat16).float()
-                    params = dict(weights_dtype='bf16', group_size=0, hadamard_group_size=0, use_hadamard=False)
+        try:
+            mapped, census, chunked = map_lora_modules(lora_path, arch_mod)
+            net = network.Network(os.path.basename(lora_path), StubOnDisk(lora_path))
+            rows, unquantized, unmatched, failed, non_matrix = [], [], [], [], []
+            keys = sorted(mapped)
+            if not args.full and len(keys) > args.sample:
+                keys = keys[::max(1, len(keys) // args.sample)][:args.sample]
+            for path in keys:
+                entries = mapped[path]
+                if pre_quantized:
+                    layer = quant_layers.get(path) or quant_layers.get(quant_stamps.get(path.replace('.', '_'), ''))
+                    if layer is None:
+                        unmatched.append(path)
+                        continue
+                    deq = getattr(layer, 'sdnq_dequantizer', None)
+                    if deq is None:
+                        unquantized.append(path)
+                        continue
+                    if len(deq.original_shape) != 2:
+                        non_matrix.append(path)
+                        continue
+                    W_dq = deq(layer.weight, layer.scale, zero_point=layer.zero_point, svd_up=layer.svd_up, svd_down=layer.svd_down,
+                               skip_quantized_matmul=deq.use_quantized_matmul, dtype=torch.float32, skip_compile=True).to(device)
+                    params = dict(weights_dtype=deq.weights_dtype, group_size=deq.group_size, hadamard_group_size=deq.hadamard_group_size,
+                                  use_hadamard=deq.use_hadamard, use_svd=layer.svd_up is not None, svd_rank=deq.svd_rank, svd_steps=deq.svd_steps)
+                    sd_module = layer
                 else:
-                    deq0, data0 = sdnq_quantize_layer_weight(W.to(device, torch.float32), layer_class_name='Linear', weights_dtype=args.dtype,
-                                                             group_size=args.group, hadamard_group_size=args.hadamard_group, use_hadamard=args.hadamard_group > 0,
-                                                             use_svd=False, use_quantized_matmul=False, dequantize_fp32=False, torch_dtype=torch.bfloat16)
-                    W_dq = deq0(data0['weight'], data0['scale'], zero_point=data0['zero_point'], svd_up=None, svd_down=None, dtype=torch.float32, skip_compile=True)
-                    params = dict(weights_dtype=args.dtype, group_size=deq0.group_size, hadamard_group_size=deq0.hadamard_group_size, use_hadamard=deq0.use_hadamard)
-                sd_module = make_stub(W.shape)
-            try:
-                mods = [build_module(fam, path, w, net, sd_module) for fam, w in entries]
-                row = analyze_module(W_dq, params, mods)
-            except Exception as e: # a family the tool cannot rebuild must not read as a clean module
-                failed.append(f'{path}: {type(e).__name__}: {e}')
-                del W_dq
-                continue
-            row.update(module=path, dtype=params['weights_dtype'], family='+'.join(f for f, _w in entries))
-            rows.append(row)
-            del W_dq # the caching allocator reuses these; emptying it per module costs more than it saves
+                    W = bf16_repo.get(f'{path}.weight')
+                    if W is None:
+                        W = bf16_repo.get(f'{bf16_stamps.get(path.replace(".", "_"), "")}.weight')
+                    if W is None:
+                        unmatched.append(path)
+                        continue
+                    if W.ndim != 2: # norm/scale targets (e.g. adaLN_modulation) are 1-D; the quantizer and the stub both expect a matrix
+                        non_matrix.append(path)
+                        continue
+                    if args.dtype == 'bf16':
+                        W_dq = W.to(device, torch.bfloat16).float()
+                        params = dict(weights_dtype='bf16', group_size=0, hadamard_group_size=0, use_hadamard=False)
+                    else:
+                        deq0, data0 = sdnq_quantize_layer_weight(W.to(device, torch.float32), layer_class_name='Linear', weights_dtype=args.dtype,
+                                                                 group_size=args.group, hadamard_group_size=args.hadamard_group, use_hadamard=args.hadamard_group > 0,
+                                                                 use_svd=False, use_quantized_matmul=False, dequantize_fp32=False, torch_dtype=torch.bfloat16)
+                        W_dq = deq0(data0['weight'], data0['scale'], zero_point=data0['zero_point'], svd_up=None, svd_down=None, dtype=torch.float32, skip_compile=True)
+                        params = dict(weights_dtype=args.dtype, group_size=deq0.group_size, hadamard_group_size=deq0.hadamard_group_size, use_hadamard=deq0.use_hadamard)
+                    sd_module = make_stub(W.shape)
+                try:
+                    mods = [build_module(fam, path, w, net, sd_module) for fam, w in entries]
+                    row = analyze_module(W_dq, params, mods)
+                except Exception as e: # a family the tool cannot rebuild must not read as a clean module
+                    failed.append(f'{path}: {type(e).__name__}: {e}')
+                    del W_dq
+                    continue
+                row.update(module=path, dtype=params['weights_dtype'], family='+'.join(f for f, _w in entries))
+                rows.append(row)
+                del W_dq # the caching allocator reuses these; emptying it per module costs more than it saves
 
-        scored = [r for r in rows if r['applied_rho'] is not None] # zero-delta modules have no retention to report
-        applied = sorted(r['applied_rho'] for r in scored)
-        median_applied = applied[len(applied) // 2] if applied else None
-        energy = sum(r['delta_energy'] for r in scored)
-        weighted = (sum(r['applied_rho'] * r['delta_energy'] for r in scored) / energy) if energy > 0 else None
-        n_exact = sum(1 for r in scored if r['factor_eligible'])
-        fb = [r['requant_rho'] for r in scored if not r['factor_eligible']]
-        fb_median = sorted(fb)[len(fb) // 2] if fb else None
-        if median_applied is not None:
-            worst_effective = min(worst_effective, median_applied)
-        rprint(f'\nlora: "{os.path.basename(lora_path)}" families={census or "none"} targets={len(mapped)} analyzed={len(rows)} scored={len(scored)} exact={n_exact} fallback={len(fb)} unquantized={len(unquantized)} unmatched={len(unmatched)} non_matrix={len(non_matrix)} chunked={chunked} failed={len(failed)}')
-        if median_applied is None:
-            rprint('  no analyzable modules: nothing measured')
-        else:
-            rprint(f'  applied fidelity: median={median_applied:.3f} energy-weighted={weighted:.3f}' + (f'  (fallback modules land at median rho={fb_median:.3f})' if fb_median is not None else ''))
-        for f in failed[:3]:
-            rprint(f'  [red]could not rebuild[/red]: {f}')
-        if fb:
-            worst = sorted((r for r in rows if not r['factor_eligible']), key=lambda r: r['requant_rho'])[:5]
-            rprint('  lowest-retention modules:')
-            for r in worst:
-                grid = f'step-ratio={r["step_ratio"]:.3f} crossers={r["crossers"]*100:5.1f}%' if r['step_ratio'] is not None else 'unquantized reference'
-                rprint(f'    {r["module"]:48s} fam={r["family"]:5s} dtype={r["dtype"]} {grid} rho={r["requant_rho"]:.3f}')
-        n_targets = len(mapped)
-        del mapped, net
+            scored = [r for r in rows if r['applied_rho'] is not None] # zero-delta modules have no retention to report
+            applied = sorted(r['applied_rho'] for r in scored)
+            median_applied = applied[len(applied) // 2] if applied else None
+            energy = sum(r['delta_energy'] for r in scored)
+            weighted = (sum(r['applied_rho'] * r['delta_energy'] for r in scored) / energy) if energy > 0 else None
+            n_exact = sum(1 for r in scored if r['factor_eligible'])
+            fb = [r['requant_rho'] for r in scored if not r['factor_eligible']]
+            fb_median = sorted(fb)[len(fb) // 2] if fb else None
+            if median_applied is not None:
+                worst_effective = min(worst_effective, median_applied)
+            report['loras'].append({'file': lora_path, 'families': census, 'targets': len(mapped), 'unquantized': unquantized,
+                                    'unmatched': unmatched, 'non_matrix': non_matrix, 'chunked': chunked, 'failed': failed,
+                                    'exact_modules': n_exact, 'fallback_modules': len(fb), 'fallback_median_rho': fb_median,
+                                    'median_applied_rho': median_applied, 'weighted_applied_rho': weighted, 'modules': rows})
+            write_report() # rewrite per file so a crash keeps completed work
+            rprint(f'\nlora: "{os.path.basename(lora_path)}" families={census or "none"} targets={len(mapped)} analyzed={len(rows)} scored={len(scored)} exact={n_exact} fallback={len(fb)} unquantized={len(unquantized)} unmatched={len(unmatched)} non_matrix={len(non_matrix)} chunked={chunked} failed={len(failed)}')
+            if median_applied is None:
+                rprint('  no analyzable modules: nothing measured')
+            else:
+                rprint(f'  applied fidelity: median={median_applied:.3f} energy-weighted={weighted:.3f}' + (f'  (fallback modules land at median rho={fb_median:.3f})' if fb_median is not None else ''))
+            for f in failed[:3]:
+                rprint(f'  [red]could not rebuild[/red]: {f}')
+            if fb:
+                worst = sorted((r for r in scored if not r['factor_eligible']), key=lambda r: r['requant_rho'])[:5]
+                rprint('  lowest-retention modules:')
+                for r in worst:
+                    grid = f'step-ratio={r["step_ratio"]:.3f} crossers={r["crossers"]*100:5.1f}%' if r['step_ratio'] is not None else 'unquantized reference'
+                    rprint(f'    {r["module"]:48s} fam={r["family"]:5s} dtype={r["dtype"]} {grid} rho={r["requant_rho"]:.3f}')
+            del mapped, net
+        except KeyboardInterrupt:
+            raise
+        except Exception as e: # one broken file must not cost the rest of the batch
+            rprint(f'\n[red]lora failed[/red]: "{os.path.basename(lora_path)}" {type(e).__name__}: {e}')
+            report['loras'].append({'file': lora_path, 'error': f'{type(e).__name__}: {e}'})
+            write_report()
         if device.type == 'cuda':
             torch.cuda.empty_cache() # once per file, after its modules are done
-        report['loras'].append({'file': lora_path, 'families': census, 'targets': n_targets, 'unquantized': unquantized,
-                                'unmatched': unmatched, 'non_matrix': non_matrix, 'chunked': chunked, 'failed': failed,
-                                'exact_modules': n_exact, 'fallback_modules': len(fb), 'fallback_median_rho': fb_median,
-                                'median_applied_rho': median_applied, 'weighted_applied_rho': weighted, 'modules': rows})
 
+    report['complete'] = True
+    write_report()
     if args.json:
-        with open(args.json, 'w', encoding='utf-8') as f:
-            json.dump(report, f, indent=2)
         rprint(f'\nreport: "{args.json}"')
     if args.fail_under is not None and worst_effective < args.fail_under:
         rprint(f'FAIL: effective fidelity {worst_effective:.3f} < {args.fail_under}')
