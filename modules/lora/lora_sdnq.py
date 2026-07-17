@@ -16,7 +16,10 @@ extra columns of ``svd_up`` and rows of ``svd_down``; because the Hadamard
 rotation is block-diagonal, symmetric and self-inverse, storing ``A·H`` for
 the down factor makes the round trip exact: ``(B @ (A·H)) · H = B @ A``.
 Quantized weights are never touched, so apply and remove are exact and no
-weight backup is needed.
+weight backup is needed. The side-channel storage is lossless; realized
+fidelity floors at the compute dtype, because the dequantizer materializes
+``base + factors`` in the result dtype and a delta below its ULP of the
+base rounds exactly as it would on an unquantized model of that dtype.
 
 Only additive low-rank modules qualify (plain LoRA: no DoRA, no CP ``mid``,
 no LyCORIS dense-bias, no ``diff_b``). Layers with any non-factorable
@@ -33,7 +36,7 @@ from modules.logger import log
 fallback_layers: list[str] = []
 
 
-def get_module_factors(module, device, dtype):
+def get_module_factors(module, device, dtype, original_shape=None):
     """Return ``(up_eff, down)`` reproducing ``calc_updown`` exactly, or None.
 
     ``updown = up @ down * calc_scale() * multiplier()`` for a plain linear
@@ -50,6 +53,8 @@ def get_module_factors(module, device, dtype):
     down = module.down_model.weight
     if up.ndim != 2 or down.ndim != 2:
         return None
+    if original_shape is not None and (up.shape[0] != original_shape[0] or down.shape[1] != original_shape[-1]):
+        return None # factor_candidate skips shape checks for layers already in factor mode; recheck here so a malformed stack falls back instead of raising in cat
     dyn_dim = module.network.dyn_dim
     if dyn_dim is not None and up.shape[1] != dyn_dim:
         up = up[:, :dyn_dim]
@@ -96,6 +101,10 @@ def remove_factors(self):
     if stash is None:
         return False
     svd_up, svd_down = stash
+    device = self.scale.device # the stash tuple does not follow module device moves; restore onto wherever the layer lives now
+    if svd_up is not None and svd_up.device != device:
+        svd_up = torch.nn.Parameter(svd_up.to(device=device), requires_grad=False)
+        svd_down = torch.nn.Parameter(svd_down.to(device=device), requires_grad=False)
     self.svd_up = svd_up
     self.svd_down = svd_down
     del self.sdnq_lora_svd_stash
@@ -125,7 +134,7 @@ def apply_factors(self, network_layer_name, wanted_names, use_previous=False):
         module = net.modules.get(network_layer_name, None)
         if module is None:
             continue
-        factors = get_module_factors(module, devices.device, dtype)
+        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
         if factors is None:
             return None
         up_eff, down = factors
