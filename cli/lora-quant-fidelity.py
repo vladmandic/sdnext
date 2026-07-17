@@ -53,6 +53,7 @@ def parse_cli():
     parser.add_argument('--full', action='store_true', help='analyze every matched module')
     parser.add_argument('--json', default=None, help='write full report to this json file')
     parser.add_argument('--host-rank', type=int, default=256, help='svd hosting cap for non-factorable modules on sub-8-bit formats, mirroring lora_sdnq_host_rank; 0 scores the requantize path instead')
+    parser.add_argument('--calib', default=None, help='activation statistics file (data/sdnq-calib/*.safetensors): hosting truncation is then channel-weighted as with lora_sdnq_host_calib, and hosted rho is measured in the activation-weighted norm (the output-error proxy)')
     parser.add_argument('--fail-under', type=float, default=None, help='exit 2 when median applied fidelity of any lora is below this')
     return parser.parse_args()
 
@@ -251,13 +252,14 @@ class Bf16Repo:
         return f.get_tensor(key)
 
 
-def analyze_module(W_dq, deq_params, mods):
+def analyze_module(W_dq, deq_params, mods, calib_rms=None):
     """Return fidelity metrics for one quantized module and the adapters targeting it.
 
     Deltas come from each module's production calc_updown and sum the way the
     loader stacks them, so every family (and dora / dense-bias / diff_b variant)
     is measured as applied. A module is factor-path eligible only when every
-    contribution is a plain additive lora.
+    contribution is a plain additive lora. With ``calib_rms``, hosting mirrors
+    the calibrated production path and its rho is scored in the weighted norm.
     """
     D = None
     for mod in mods:
@@ -307,13 +309,23 @@ def analyze_module(W_dq, deq_params, mods):
             if dtype_dict[deq_params['weights_dtype']]['num_bits'] < 8:
                 # mirror lora_sdnq.apply_hosted: seeded svd truncation, realized through the bf16 materialize
                 q = min(cli_args.host_rank, *D.shape)
+                rms = None
+                if calib_rms is not None and calib_rms.shape[-1] == D.shape[-1]:
+                    rms = calib_rms.to(D.device, torch.float32).clamp(min=1e-8)
+                Dw = D * rms if rms is not None else D
                 with torch.random.fork_rng(devices=[D.device] if D.device.type == 'cuda' else []):
                     torch.manual_seed(0)
-                    U, S, V = torch.svd_lowrank(D, q=q, niter=2)
+                    U, S, V = torch.svd_lowrank(Dw, q=q, niter=2)
                 Dk = (U * S) @ V.t()
+                if rms is not None:
+                    Dk = Dk / rms
                 base16 = W_dq.to(torch.bfloat16).float()
                 realized = (W_dq.to(torch.bfloat16) + Dk.to(torch.bfloat16)).float() - base16
-                applied_rho = float(realized.flatten() @ D.flatten() / nD.square())
+                if rms is not None: # weighted norm: the diagonal-covariance output-error proxy the calibrated truncation optimizes
+                    Dr = D * rms
+                    applied_rho = float((realized * rms).flatten() @ Dr.flatten() / Dr.square().sum())
+                else:
+                    applied_rho = float(realized.flatten() @ D.flatten() / nD.square())
                 hosted = True
     return dict(rank=getattr(mods[0], 'dim', None), rms_delta=float(D.pow(2).mean().sqrt()), rms_weight=float(W_dq.pow(2).mean().sqrt()),
                 step_ratio=step_ratio, crossers=crossers, requant_rho=rho, requant_resid=resid,
@@ -343,6 +355,12 @@ def main():
             return 0
         rprint(f'model: "{model_dir}" simulating dtype={args.dtype} group={args.group} hadamard={args.hadamard_group}')
 
+    calib_stats = {}
+    if args.calib:
+        with safe_open(os.path.expanduser(args.calib), framework='pt', device='cpu') as f:
+            calib_stats = {k: f.get_tensor(k) for k in f.keys()}
+        rprint(f'calib: "{args.calib}" layers={len(calib_stats)}')
+
     report = {'model': model_dir, 'pre_quantized': pre_quantized, 'loras': []}
     worst_effective = 1.0
     def write_report():
@@ -361,8 +379,11 @@ def main():
                 keys = keys[::max(1, len(keys) // args.sample)][:args.sample]
             for path in keys:
                 entries = mapped[path]
+                lname = path
                 if pre_quantized:
-                    layer = quant_layers.get(path) or quant_layers.get(quant_stamps.get(path.replace('.', '_'), ''))
+                    if path not in quant_layers:
+                        lname = quant_stamps.get(path.replace('.', '_'), '')
+                    layer = quant_layers.get(lname)
                     if layer is None:
                         unmatched.append(path)
                         continue
@@ -400,7 +421,7 @@ def main():
                     sd_module = make_stub(W.shape)
                 try:
                     mods = [build_module(fam, path, w, net, sd_module) for fam, w in entries]
-                    row = analyze_module(W_dq, params, mods)
+                    row = analyze_module(W_dq, params, mods, calib_rms=calib_stats.get(lname))
                 except Exception as e: # a family the tool cannot rebuild must not read as a clean module
                     failed.append(f'{path}: {type(e).__name__}: {e}')
                     del W_dq
