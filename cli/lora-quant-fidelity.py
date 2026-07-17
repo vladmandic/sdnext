@@ -2,16 +2,22 @@
 """LoRA fidelity analyzer for quantized base models.
 
 Measures, in weight space, how faithfully a LoRA lands on an SDNQ-quantized
-model. For every LoRA-targeted module it reports where the delta sits relative
-to the quantization grid and what each apply path preserves:
+model. Every targeted module is rebuilt with the loader's own module class and
+its delta taken from the production ``calc_updown``, so all adapter families
+(LoRA, LoKR, LoHA, OFT, full, IA3, GLoRA, norm, plus DoRA and bias variants)
+are measured as they would actually apply:
 
-- requantize path (dequantize + add + requantize, the fallback for
-  non-factorable families): retention ``rho`` of the intended delta. On-grid
-  rounding erases sub-step deltas down to a ``2/group_size`` floor, so low-bit
-  formats (<=6 bits) typically show rho ~= 0.02-0.03.
-- factor path (plain LoRA riding the svd side-channel): exact by construction;
-  the tool verifies each module qualifies and flags families that fall back.
+- factor path (plain additive LoRA riding the svd side-channel): exact by
+  construction. Eligibility is decided by the loader's own predicate.
+- requantize path (dequantize + add + requantize, taken by every other
+  family): retention ``rho`` of the intended delta. On-grid rounding erases
+  sub-step deltas down to a ``2/group_size`` floor, so low-bit formats
+  (<=6 bits) typically show rho ~= 0.02-0.03.
 - unquantized modules: the LoRA applies exactly regardless.
+
+Reported fidelity is per-module ``applied_rho`` (1.0 when the module takes the
+factor path, measured rho when it falls back), summarized as a median and an
+energy-weighted mean over the file's modules.
 
 Works offline against a pre-quantized SDNQ repo (stored tensors + config) or
 a bf16 repo with simulated quantization settings, so a combination can be
@@ -36,13 +42,13 @@ def parse_cli():
     parser.add_argument('--model', required=True, help='model dir, transformer dir, or org/name repo id')
     parser.add_argument('--arch', default='generic', help='lora key resolver: a native arch (e.g. krea2, zimage, f2) or generic')
     parser.add_argument('--lora', required=True, nargs='+', help='lora safetensors file(s)')
-    parser.add_argument('--dtype', default=None, help='simulate quantization of a bf16 repo at this sdnq dtype (e.g. uint4, int8)')
+    parser.add_argument('--dtype', default=None, help='simulate quantization of a bf16 repo at this sdnq dtype (e.g. uint4, int8); bf16 measures the unquantized reference')
     parser.add_argument('--group', type=int, default=0, help='sdnq group_size for simulation')
     parser.add_argument('--hadamard-group', type=int, default=256, help='sdnq hadamard group for simulation')
     parser.add_argument('--sample', type=int, default=40, help='max modules analyzed per lora (evenly sampled)')
     parser.add_argument('--full', action='store_true', help='analyze every matched module')
     parser.add_argument('--json', default=None, help='write full report to this json file')
-    parser.add_argument('--fail-under', type=float, default=None, help='exit 2 when effective fidelity of any lora is below this')
+    parser.add_argument('--fail-under', type=float, default=None, help='exit 2 when median applied fidelity of any lora is below this')
     return parser.parse_args()
 
 
@@ -59,7 +65,7 @@ import torch # pylint: disable=wrong-import-position
 from safetensors import safe_open # pylint: disable=wrong-import-position
 from rich import print as rprint # pylint: disable=wrong-import-position
 
-from modules.lora import native_adapter # pylint: disable=wrong-import-position
+from modules.lora import native_adapter, network, network_lora, network_lokr, network_hada, network_oft, network_full, network_ia3, network_glora, network_norm, lora_sdnq # pylint: disable=wrong-import-position
 from modules.lora.lora_load import _NATIVE_DISPATCH # pylint: disable=wrong-import-position
 from modules.sdnq.quantizer import sdnq_quantize_layer_weight # pylint: disable=wrong-import-position
 from modules.sdnq.quant_utils import rotate_hadamard # pylint: disable=wrong-import-position
@@ -69,8 +75,29 @@ MODEL_ROOTS = [
     os.path.expanduser('~/database/models/huggingface'),
     os.path.expanduser('~/database/models/Diffusers'),
 ]
-FACTORABLE_SUFFIX = 'lora' # only plain lora groups are factor-path eligible
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
+# every adapter family the native loader can build, with the module class that owns its
+# apply-time math. deltas are taken from the production calc_updown so the tool cannot
+# drift from the loader, and eligibility is decided by the production predicate itself.
+FAMILY_SPECS = (
+    ('lora',  network_lora.NetworkModuleLora,  native_adapter.LORA_SUFFIXES,  native_adapter.LORA_MARKERS),
+    ('lokr',  network_lokr.NetworkModuleLokr,  native_adapter.LOKR_SUFFIXES,  native_adapter.LOKR_MARKERS),
+    ('loha',  network_hada.NetworkModuleHada,  native_adapter.LOHA_SUFFIXES,  native_adapter.LOHA_MARKERS),
+    ('oft',   network_oft.NetworkModuleOFT,    native_adapter.OFT_SUFFIXES,   native_adapter.OFT_MARKERS),
+    ('full',  network_full.NetworkModuleFull,  native_adapter.FULL_SUFFIXES,  native_adapter.FULL_MARKERS),
+    ('ia3',   network_ia3.NetworkModuleIa3,    native_adapter.IA3_SUFFIXES,   native_adapter.IA3_MARKERS),
+    ('glora', network_glora.NetworkModuleGLora, native_adapter.GLORA_SUFFIXES, native_adapter.GLORA_MARKERS),
+    ('norm',  network_norm.NetworkModuleNorm,  native_adapter.NORM_SUFFIXES,  native_adapter.NORM_MARKERS),
+)
+
+
+class StubOnDisk:
+    def __init__(self, path):
+        self.filename = path
+        self.name = os.path.splitext(os.path.basename(path))[0]
+        self.shorthash = ''
+        self.sd_version = 'unknown'
 
 
 def resolve_model_dir(spec):
@@ -101,28 +128,51 @@ def resolve_arch(name):
 
 
 def map_lora_modules(lora_path, arch_mod):
-    """Return {model_module_path: (down, up, alpha)} for the file's plain-lora groups plus a family census."""
+    """Return {model_module_path: (family, weights)} across every adapter family, plus a census.
+
+    Grouping mirrors the native loader: a family is only considered when its
+    marker is present, and groups resolve to model paths through the arch's own
+    resolver. Fused-split chunks are counted but not analyzed (their apply-time
+    math is arch-owned).
+    """
     with safe_open(lora_path, framework='pt', device='cpu') as f:
         state_dict = {k: f.get_tensor(k) for k in f.keys()}
     prefixes = getattr(arch_mod, 'KNOWN_PREFIXES', native_adapter.KNOWN_PREFIXES_DEFAULT)
     bare = getattr(arch_mod, 'BARE_DIFFUSERS_PREFIXES', ())
     resolve = getattr(arch_mod, 'resolve_targets', None) or (lambda prefix, base: [(base, None)])
-    families = {}
-    for fam, suffixes in (('lora', native_adapter.LORA_SUFFIXES), ('lokr', native_adapter.LOKR_SUFFIXES), ('loha', native_adapter.LOHA_SUFFIXES), ('oft', native_adapter.OFT_SUFFIXES)):
+    mapped, census, chunked = {}, {}, 0
+    for fam, _cls, suffixes, markers in FAMILY_SPECS:
+        if not native_adapter.has_marker(state_dict, markers):
+            continue
         groups = native_adapter.group_by_suffixes(state_dict, suffixes, prefixes=prefixes, bare_diffusers_prefixes=bare)
         if fam == 'lora':
             groups = {k: w for k, w in groups.items() if 'lora_down.weight' in w and 'lora_up.weight' in w}
         else:
-            groups = {k: w for k, w in groups.items() if native_adapter.has_marker({f'x.{s}': None for s in w}, getattr(native_adapter, f'{fam.upper()}_MARKERS'))}
-        families[fam] = groups
-    mapped = {}
-    for (prefix, base), w in families['lora'].items():
-        for path, chunk in native_adapter.resolve_group_targets(resolve, prefix, base):
-            if chunk is not None:
-                continue # fused-split groups are arch-handled; out of scope here
-            alpha = w.get('alpha')
-            mapped[path] = (w['lora_down.weight'], w['lora_up.weight'], float(alpha) if alpha is not None else None)
-    return mapped, {fam: len(g) for fam, g in families.items() if fam != 'lora' and len(g) > 0}
+            groups = {k: w for k, w in groups.items() if native_adapter.has_marker({f'x.{s}': None for s in w}, markers)}
+        if not groups:
+            continue
+        census[fam] = len(groups)
+        for (prefix, base), w in groups.items():
+            for path, chunk in native_adapter.resolve_group_targets(resolve, prefix, base):
+                if chunk is not None:
+                    chunked += 1
+                    continue
+                mapped.setdefault(path, []).append((fam, w)) # a module can carry several families; the loader applies each
+    return mapped, census, chunked
+
+
+def make_stub(shape, dtype=torch.bfloat16):
+    """Minimal sd_module standing in for a bf16 repo weight: the module classes key off its type and shape."""
+    if len(shape) == 2:
+        return torch.nn.Linear(shape[1], shape[0], bias=False, dtype=dtype, device='meta')
+    return torch.nn.Conv2d(shape[1], shape[0], shape[2:], bias=False, dtype=dtype, device='meta')
+
+
+def build_module(fam, path, w, net, sd_module):
+    """Instantiate the family's production NetworkModule for one target."""
+    cls = next(c for f, c, _s, _m in FAMILY_SPECS if f == fam)
+    weights = network.NetworkWeights(network_key=path, sd_key=path, w=w, sd_module=sd_module)
+    return cls(net, weights)
 
 
 def resolve_transformer_cls(arch, class_name):
@@ -164,6 +214,7 @@ class Bf16Repo:
 
     def __init__(self, model_dir):
         self.model_dir = model_dir
+        self.handles = {} # reopening a multi-gb shard per module dominates runtime over many loras
         index = os.path.join(model_dir, 'diffusion_pytorch_model.safetensors.index.json')
         if os.path.isfile(index):
             with open(index, encoding='utf-8') as f:
@@ -177,34 +228,49 @@ class Bf16Repo:
         shard = self.weight_map.get(key)
         if shard is None:
             return None
-        with safe_open(os.path.join(self.model_dir, shard), framework='pt', device='cpu') as f:
-            return f.get_tensor(key)
+        f = self.handles.get(shard)
+        if f is None:
+            f = safe_open(os.path.join(self.model_dir, shard), framework='pt', device='cpu')
+            self.handles[shard] = f
+        return f.get_tensor(key)
 
 
-def analyze_module(W_dq, deq_params, down, up, alpha):
-    """Return fidelity metrics for one quantized module and one lora delta."""
-    rank = down.shape[0]
-    scale = (alpha / rank) if alpha is not None else 1.0
-    D = (up.to(device, torch.float32) @ down.to(device, torch.float32)) * scale
-    kw = dict(layer_class_name='Linear', torch_dtype=torch.bfloat16, group_size=deq_params['group_size'],
-              hadamard_group_size=deq_params['hadamard_group_size'], use_hadamard=deq_params['use_hadamard'],
-              weights_dtype=deq_params['weights_dtype'], use_svd=False, use_quantized_matmul=False, dequantize_fp32=False)
-    deq2, data2 = sdnq_quantize_layer_weight(W_dq + D, **kw)
-    W2 = deq2(data2['weight'], data2['scale'], zero_point=data2['zero_point'], svd_up=None, svd_down=None, dtype=torch.float32, skip_compile=True)
-    E = W2 - W_dq
+def analyze_module(W_dq, deq_params, mods):
+    """Return fidelity metrics for one quantized module and the adapters targeting it.
+
+    Deltas come from each module's production calc_updown and sum the way the
+    loader stacks them, so every family (and dora / dense-bias / diff_b variant)
+    is measured as applied. A module is factor-path eligible only when every
+    contribution is a plain additive lora.
+    """
+    D = None
+    for mod in mods:
+        d = mod.calc_updown(W_dq)[0].to(device, torch.float32).reshape(W_dq.shape)
+        D = d if D is None else D + d
     nD = D.norm()
+    control = deq_params['weights_dtype'] == 'bf16' # unquantized reference: the delta just rounds into bf16
+    factor_eligible = (not control) and all(lora_sdnq.get_module_factors(m, device, torch.bfloat16) is not None for m in mods)
+    step_ratio, crossers = None, None
+    if control:
+        W2 = (W_dq + D).to(torch.bfloat16).float()
+    else:
+        kw = dict(layer_class_name='Linear', torch_dtype=torch.bfloat16, group_size=deq_params['group_size'],
+                  hadamard_group_size=deq_params['hadamard_group_size'], use_hadamard=deq_params['use_hadamard'],
+                  weights_dtype=deq_params['weights_dtype'], use_svd=False, use_quantized_matmul=False, dequantize_fp32=False)
+        deq2, data2 = sdnq_quantize_layer_weight(W_dq + D, **kw)
+        W2 = deq2(data2['weight'], data2['scale'], zero_point=data2['zero_point'], svd_up=None, svd_down=None, dtype=torch.float32, skip_compile=True)
+        Dh = rotate_hadamard(D, group_size=deq_params['hadamard_group_size']) if deq_params['use_hadamard'] else D
+        step = data2['scale'].float()
+        Dg = Dh.unflatten(-1, (step.shape[1], -1)) if step.ndim == 3 else Dh
+        step_ratio = float((Dg.abs() / step).mean())
+        crossers = float((Dg.abs() > step / 2).float().mean())
+    E = W2 - W_dq
     rho = float(E.flatten() @ D.flatten() / nD.square())
     resid = float((E - D).norm() / nD)
-    if deq_params['use_hadamard']:
-        Dh = rotate_hadamard(D, group_size=deq_params['hadamard_group_size'])
-    else:
-        Dh = D
-    step = data2['scale'].float()
-    Dg = Dh.unflatten(-1, (step.shape[1], -1)) if step.ndim == 3 else Dh
-    step_ratio = float((Dg.abs() / step).mean())
-    crossers = float((Dg.abs() > step / 2).float().mean())
-    return dict(rank=rank, rms_delta=float(D.pow(2).mean().sqrt()), rms_weight=float(W_dq.pow(2).mean().sqrt()),
-                step_ratio=step_ratio, crossers=crossers, requant_rho=rho, requant_resid=resid)
+    return dict(rank=getattr(mods[0], 'dim', None), rms_delta=float(D.pow(2).mean().sqrt()), rms_weight=float(W_dq.pow(2).mean().sqrt()),
+                step_ratio=step_ratio, crossers=crossers, requant_rho=rho, requant_resid=resid,
+                factor_eligible=factor_eligible, applied_rho=1.0 if factor_eligible else rho,
+                delta_energy=float(nD.square()))
 
 
 def main():
@@ -230,15 +296,14 @@ def main():
     worst_effective = 1.0
     for lora_path in args.lora:
         lora_path = os.path.expanduser(lora_path)
-        mapped, other_families = map_lora_modules(lora_path, arch_mod)
-        rows, unquantized, unmatched = [], [], []
+        mapped, census, chunked = map_lora_modules(lora_path, arch_mod)
+        net = network.Network(os.path.basename(lora_path), StubOnDisk(lora_path))
+        rows, unquantized, unmatched, failed = [], [], [], []
         keys = sorted(mapped)
         if not args.full and len(keys) > args.sample:
             keys = keys[::max(1, len(keys) // args.sample)][:args.sample]
         for path in keys:
-            down, up, alpha = mapped[path]
-            if down.ndim != 2 or up.ndim != 2:
-                continue
+            entries = mapped[path]
             if pre_quantized:
                 layer = quant_layers.get(path)
                 if layer is None:
@@ -251,38 +316,65 @@ def main():
                 W_dq = deq(layer.weight, layer.scale, zero_point=layer.zero_point, svd_up=layer.svd_up, svd_down=layer.svd_down,
                            skip_quantized_matmul=deq.use_quantized_matmul, dtype=torch.float32, skip_compile=True).to(device)
                 params = dict(weights_dtype=deq.weights_dtype, group_size=deq.group_size, hadamard_group_size=deq.hadamard_group_size, use_hadamard=deq.use_hadamard)
+                sd_module = layer
             else:
                 W = bf16_repo.get(f'{path}.weight')
                 if W is None:
                     unmatched.append(path)
                     continue
-                deq0, data0 = sdnq_quantize_layer_weight(W.to(device, torch.float32), layer_class_name='Linear', weights_dtype=args.dtype,
-                                                         group_size=args.group, hadamard_group_size=args.hadamard_group, use_hadamard=args.hadamard_group > 0,
-                                                         use_svd=False, use_quantized_matmul=False, dequantize_fp32=False, torch_dtype=torch.bfloat16)
-                W_dq = deq0(data0['weight'], data0['scale'], zero_point=data0['zero_point'], svd_up=None, svd_down=None, dtype=torch.float32, skip_compile=True)
-                params = dict(weights_dtype=args.dtype, group_size=deq0.group_size, hadamard_group_size=deq0.hadamard_group_size, use_hadamard=deq0.use_hadamard)
-            row = analyze_module(W_dq, params, down, up, alpha)
-            row['module'] = path
-            row['dtype'] = params['weights_dtype']
+                if args.dtype == 'bf16':
+                    W_dq = W.to(device, torch.bfloat16).float()
+                    params = dict(weights_dtype='bf16', group_size=0, hadamard_group_size=0, use_hadamard=False)
+                else:
+                    deq0, data0 = sdnq_quantize_layer_weight(W.to(device, torch.float32), layer_class_name='Linear', weights_dtype=args.dtype,
+                                                             group_size=args.group, hadamard_group_size=args.hadamard_group, use_hadamard=args.hadamard_group > 0,
+                                                             use_svd=False, use_quantized_matmul=False, dequantize_fp32=False, torch_dtype=torch.bfloat16)
+                    W_dq = deq0(data0['weight'], data0['scale'], zero_point=data0['zero_point'], svd_up=None, svd_down=None, dtype=torch.float32, skip_compile=True)
+                    params = dict(weights_dtype=args.dtype, group_size=deq0.group_size, hadamard_group_size=deq0.hadamard_group_size, use_hadamard=deq0.use_hadamard)
+                sd_module = make_stub(W.shape)
+            if W_dq.ndim != 2:
+                continue
+            try:
+                mods = [build_module(fam, path, w, net, sd_module) for fam, w in entries]
+                row = analyze_module(W_dq, params, mods)
+            except Exception as e: # a family the tool cannot rebuild must not read as a clean module
+                failed.append(f'{path}: {type(e).__name__}: {e}')
+                del W_dq
+                continue
+            row.update(module=path, dtype=params['weights_dtype'], family='+'.join(f for f, _w in entries))
             rows.append(row)
-            del W_dq
-            if device.type == 'cuda':
-                torch.cuda.empty_cache()
+            del W_dq # the caching allocator reuses these; emptying it per module costs more than it saves
 
-        rhos = sorted(r['requant_rho'] for r in rows)
-        median_rho = rhos[len(rhos) // 2] if rhos else 1.0
-        effective = 1.0 if len(other_families) == 0 else median_rho # factor path covers plain lora exactly
-        worst_effective = min(worst_effective, effective)
-        rprint(f'\nlora: "{os.path.basename(lora_path)}" targets={len(mapped)} analyzed={len(rows)} unquantized={len(unquantized)} unmatched={len(unmatched)} other_families={other_families or "none"}')
-        rprint(f'  requantize path: median rho={median_rho:.3f} (fallback families would land at this fidelity)')
-        rprint(f'  factor path:     {"exact (plain lora, all analyzed modules eligible)" if len(other_families) == 0 else "partial: non-lora families fall back to requantize"}')
-        if rows:
-            worst = sorted(rows, key=lambda r: r['requant_rho'])[:5]
-            rprint('  lowest-retention modules (requantize path):')
+        applied = sorted(r['applied_rho'] for r in rows)
+        median_applied = applied[len(applied) // 2] if applied else None
+        energy = sum(r['delta_energy'] for r in rows)
+        weighted = (sum(r['applied_rho'] * r['delta_energy'] for r in rows) / energy) if energy > 0 else None
+        n_exact = sum(1 for r in rows if r['factor_eligible'])
+        fb = [r['requant_rho'] for r in rows if not r['factor_eligible']]
+        fb_median = sorted(fb)[len(fb) // 2] if fb else None
+        if median_applied is not None:
+            worst_effective = min(worst_effective, median_applied)
+        rprint(f'\nlora: "{os.path.basename(lora_path)}" families={census or "none"} targets={len(mapped)} analyzed={len(rows)} exact={n_exact} fallback={len(fb)} unquantized={len(unquantized)} unmatched={len(unmatched)} chunked={chunked} failed={len(failed)}')
+        if median_applied is None:
+            rprint('  no analyzable modules: nothing measured')
+        else:
+            rprint(f'  applied fidelity: median={median_applied:.3f} energy-weighted={weighted:.3f}' + (f'  (fallback modules land at median rho={fb_median:.3f})' if fb_median is not None else ''))
+        for f in failed[:3]:
+            rprint(f'  [red]could not rebuild[/red]: {f}')
+        if fb:
+            worst = sorted((r for r in rows if not r['factor_eligible']), key=lambda r: r['requant_rho'])[:5]
+            rprint('  lowest-retention modules:')
             for r in worst:
-                rprint(f'    {r["module"]:52s} dtype={r["dtype"]} step-ratio={r["step_ratio"]:.3f} crossers={r["crossers"]*100:5.1f}% rho={r["requant_rho"]:.3f}')
-        report['loras'].append({'file': lora_path, 'targets': len(mapped), 'unquantized': unquantized, 'unmatched': unmatched,
-                                'other_families': other_families, 'median_requant_rho': median_rho, 'effective_fidelity': effective, 'modules': rows})
+                grid = f'step-ratio={r["step_ratio"]:.3f} crossers={r["crossers"]*100:5.1f}%' if r['step_ratio'] is not None else 'unquantized reference'
+                rprint(f'    {r["module"]:48s} fam={r["family"]:5s} dtype={r["dtype"]} {grid} rho={r["requant_rho"]:.3f}')
+        n_targets = len(mapped)
+        del mapped, net
+        if device.type == 'cuda':
+            torch.cuda.empty_cache() # once per file, after its modules are done
+        report['loras'].append({'file': lora_path, 'families': census, 'targets': n_targets, 'unquantized': unquantized,
+                                'unmatched': unmatched, 'chunked': chunked, 'failed': failed,
+                                'exact_modules': n_exact, 'fallback_modules': len(fb), 'fallback_median_rho': fb_median,
+                                'median_applied_rho': median_applied, 'weighted_applied_rho': weighted, 'modules': rows})
 
     if args.json:
         with open(args.json, 'w', encoding='utf-8') as f:
