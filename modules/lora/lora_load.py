@@ -307,7 +307,7 @@ def network_load(names, te_multipliers=None, unet_multipliers=None, dyn_dims=Non
             sd_model.embedding_db.load_diffusers_embedding(None, net.bundle_embeddings)
         net.te_multiplier = te_multipliers[i] if te_multipliers else shared.opts.extra_networks_default_multiplier
         net.unet_multiplier = unet_multipliers[i] if unet_multipliers else shared.opts.extra_networks_default_multiplier
-        net.dyn_dim = dyn_dims[i] if dyn_dims else shared.opts.extra_networks_default_multiplier
+        net.dyn_dim = dyn_dims[i] if dyn_dims else None # a multiplier is not a rank; float dyn_dim crashes every consumer that slices with it
         l.loaded_networks.append(net)
 
     while len(lora_cache) > shared.opts.lora_in_memory_limit:
