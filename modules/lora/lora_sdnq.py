@@ -38,7 +38,7 @@ remains.
 import torch
 
 from modules import devices, shared
-from modules.lora import lora_calib
+from modules.lora import lora_calib, lora_factor_cache
 from modules.lora import lora_common as l
 from modules.logger import log
 
@@ -218,9 +218,11 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
     appended exactly so they never compete with the hosted remainder for
     rank. When per-checkpoint activation statistics exist (``lora_calib``),
     input channels are weighted by their RMS before truncation so the kept
-    directions minimize output error rather than weight error. Returns None
-    when the delta cannot ride the channel (wrong shape); the caller falls
-    back to requantize.
+    directions minimize output error rather than weight error. Computed
+    factors are disk-cached per configuration (``lora_factor_cache``) and
+    replayed bit-identically on later applies. Returns None when the delta
+    cannot ride the channel (wrong shape); the caller falls back to
+    requantize.
     """
     from sdnq.quant_utils import rotate_hadamard
 
@@ -231,7 +233,11 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
     if updown is None or updown.ndim != 2 or tuple(updown.shape) != tuple(deq.original_shape):
         return None
     dtype = deq.result_dtype
-    D = updown.detach().to(devices.device, torch.float32)
+    cached = None
+    if not use_previous:
+        lora_factor_cache.begin_pass(wanted_names)
+        cached = lora_factor_cache.fetch(network_layer_name)
+    D = None if cached is not None else updown.detach().to(devices.device, torch.float32)
 
     ups, downs = [], []
     loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
@@ -243,11 +249,18 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
         if factors is None:
             continue
         up_eff, down = factors
-        D = D.sub_(up_eff.to(torch.float32) @ down.to(torch.float32)) # factorable members ride exactly; host only the remainder
+        if D is not None:
+            D = D.sub_(up_eff.to(torch.float32) @ down.to(torch.float32)) # factorable members ride exactly; host only the remainder
         if deq.use_hadamard:
             down = rotate_hadamard(down.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
         ups.append(up_eff)
         downs.append(down)
+
+    if cached is not None:
+        up_h, down_h, energy, calibrated = cached
+        append_factors(self, ups + [up_h.to(device=devices.device, dtype=dtype)], downs + [down_h.to(device=devices.device, dtype=dtype)])
+        hosted_layers.append((network_layer_name, energy, calibrated))
+        return True
 
     cap = int(shared.opts.lora_sdnq_host_rank)
     q = min(cap, *D.shape)
@@ -261,7 +274,7 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
     # svd_lowrank draws random projections; fork so user generation seeds are untouched and re-applies are deterministic
     with torch.random.fork_rng(devices=[D.device] if D.device.type == 'cuda' else []):
         torch.manual_seed(0)
-        U, S, V = torch.svd_lowrank(D, q=q, niter=2)
+        U, S, V = torch.svd_lowrank(D, q=q, niter=4)
     energy = float(S.square().sum() / D.square().sum().clamp(min=1e-30)) # captured fraction, in the weighted domain when calibrated
     up_h = (U * S).to(dtype=dtype)
     down_h = V.t()
@@ -269,7 +282,9 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
         down_h = down_h / rms # unscale in the original input basis, before any rotation
     if deq.use_hadamard:
         down_h = rotate_hadamard(down_h, group_size=deq.hadamard_group_size)
-    append_factors(self, ups + [up_h], downs + [down_h.to(dtype=dtype)])
+    down_h = down_h.to(dtype=dtype)
+    lora_factor_cache.put(network_layer_name, up_h, down_h, energy, rms is not None)
+    append_factors(self, ups + [up_h], downs + [down_h])
     hosted_layers.append((network_layer_name, energy, rms is not None))
     return True
 
@@ -281,6 +296,9 @@ def note_fallback(self, network_layer_name):
 
 
 def report_fallbacks():
+    hits, misses = lora_factor_cache.flush()
+    if hits > 0 or misses > 0:
+        log.info(f'Network load: type=LoRA quant=sdnq cache hits={hits} misses={misses}')
     if len(hosted_layers) > 0:
         energies = sorted(e for _name, e, _c in hosted_layers)
         median = energies[len(energies) // 2]

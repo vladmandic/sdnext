@@ -707,6 +707,7 @@ def create_settings(cmd_opts):
         "lora_sdnq_apply": OptionInfo("exact", "LoRA quantized apply method", gr.Radio, {"choices": ["exact", "requantize"]}),
         "lora_sdnq_host_rank": OptionInfo(256, "LoRA quantized host rank", gr.Slider, {"minimum": 0, "maximum": 1024, "step": 32}),
         "lora_sdnq_host_calib": OptionInfo(True, "LoRA quantized host calibration"),
+        "lora_sdnq_host_cache": OptionInfo(10, "LoRA quantized host cache", gr.Slider, {"minimum": 0, "maximum": 100, "step": 1}),
 
         "lora_meta_sep": OptionInfo("<h2>Metadata</h2>", "", gr.HTML),
         "lora_add_hashes_to_infotext": OptionInfo(False, "LoRA add hash info to metadata"),
