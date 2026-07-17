@@ -7,17 +7,21 @@ its delta taken from the production ``calc_updown``, so all adapter families
 (LoRA, LoKR, LoHA, OFT, full, IA3, GLoRA, norm, plus DoRA and bias variants)
 are measured as they would actually apply:
 
-- factor path (plain additive LoRA riding the svd side-channel): exact by
-  construction. Eligibility is decided by the loader's own predicate.
-- requantize path (dequantize + add + requantize, taken by every other
-  family): retention ``rho`` of the intended delta. On-grid rounding erases
-  sub-step deltas down to a ``2/group_size`` floor, so low-bit formats
-  (<=6 bits) typically show rho ~= 0.02-0.03.
+- factor path (plain additive LoRA riding the svd side-channel): storage is
+  lossless; the reported figure is the delta realized through the result-dtype
+  materialize, the same bf16 rounding an unquantized model applies.
+  Eligibility is decided by the loader's own predicate.
+- hosted path (non-factorable families on sub-8-bit formats): the seeded svd
+  truncation at ``--host-rank``, realized the same way.
+- requantize path (all other fallbacks): retention ``rho`` of the intended
+  delta. On-grid rounding erases sub-step deltas down to a ``2/group_size``
+  floor, so low-bit formats (<=6 bits) typically show rho ~= 0.02-0.03.
 - unquantized modules: the LoRA applies exactly regardless.
 
-Reported fidelity is per-module ``applied_rho`` (1.0 when the module takes the
-factor path, measured rho when it falls back), summarized as a median and an
-energy-weighted mean over the file's modules.
+Reported fidelity is per-module ``applied_rho`` (the measured figure for
+whichever path the loader would take), summarized as a median and an
+energy-weighted mean over the file's modules; ``requant_rho`` always carries
+the if-merged figure.
 
 Works offline against a pre-quantized SDNQ repo (stored tensors + config) or
 a bf16 repo with simulated quantization settings, so a combination can be
@@ -48,6 +52,7 @@ def parse_cli():
     parser.add_argument('--sample', type=int, default=40, help='max modules analyzed per lora (evenly sampled)')
     parser.add_argument('--full', action='store_true', help='analyze every matched module')
     parser.add_argument('--json', default=None, help='write full report to this json file')
+    parser.add_argument('--host-rank', type=int, default=256, help='svd hosting cap for non-factorable modules on sub-8-bit formats, mirroring lora_sdnq_host_rank; 0 scores the requantize path instead')
     parser.add_argument('--fail-under', type=float, default=None, help='exit 2 when median applied fidelity of any lora is below this')
     return parser.parse_args()
 
@@ -264,7 +269,7 @@ def analyze_module(W_dq, deq_params, mods):
     if float(nD) == 0.0: # an all-zero delta (some full-rank extractions carry empty .diff): retention is undefined, not erased
         return dict(rank=getattr(mods[0], 'dim', None), rms_delta=0.0, rms_weight=float(W_dq.pow(2).mean().sqrt()),
                     step_ratio=None, crossers=None, requant_rho=None, requant_resid=None,
-                    factor_eligible=factor_eligible, applied_rho=None, delta_energy=0.0)
+                    factor_eligible=factor_eligible, hosted=False, applied_rho=None, delta_energy=0.0)
     step_ratio, crossers = None, None
     if control:
         W2 = (W_dq + D).to(torch.bfloat16).float()
@@ -287,6 +292,7 @@ def analyze_module(W_dq, deq_params, mods):
     E = W2 - W_dq
     rho = float(E.flatten() @ D.flatten() / nD.square())
     resid = float((E - D).norm() / nD)
+    hosted = False
     if factor_eligible:
         # the factor path stores the delta losslessly, but the dequantizer materializes
         # base + factors in the result dtype (bf16 here), so realized fidelity floors at
@@ -296,9 +302,22 @@ def analyze_module(W_dq, deq_params, mods):
         applied_rho = float(realized.flatten() @ D.flatten() / nD.square())
     else:
         applied_rho = rho
+        if (not control) and cli_args.host_rank > 0:
+            from modules.sdnq.common import dtype_dict
+            if dtype_dict[deq_params['weights_dtype']]['num_bits'] < 8:
+                # mirror lora_sdnq.apply_hosted: seeded svd truncation, realized through the bf16 materialize
+                q = min(cli_args.host_rank, *D.shape)
+                with torch.random.fork_rng(devices=[D.device] if D.device.type == 'cuda' else []):
+                    torch.manual_seed(0)
+                    U, S, V = torch.svd_lowrank(D, q=q, niter=2)
+                Dk = (U * S) @ V.t()
+                base16 = W_dq.to(torch.bfloat16).float()
+                realized = (W_dq.to(torch.bfloat16) + Dk.to(torch.bfloat16)).float() - base16
+                applied_rho = float(realized.flatten() @ D.flatten() / nD.square())
+                hosted = True
     return dict(rank=getattr(mods[0], 'dim', None), rms_delta=float(D.pow(2).mean().sqrt()), rms_weight=float(W_dq.pow(2).mean().sqrt()),
                 step_ratio=step_ratio, crossers=crossers, requant_rho=rho, requant_resid=resid,
-                factor_eligible=factor_eligible, applied_rho=applied_rho,
+                factor_eligible=factor_eligible, hosted=hosted, applied_rho=applied_rho,
                 delta_energy=float(nD.square()))
 
 
