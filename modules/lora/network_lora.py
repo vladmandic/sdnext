@@ -34,20 +34,22 @@ class NetworkModuleLora(network.NetworkModule):
         # as a Linear. isinstance also catches the SDNQEmbedding / ScaledWordEmbedding subclasses.
         is_embedding = isinstance(self.sd_module, torch.nn.Embedding)
         is_conv = (typ in [torch.nn.Conv2d, diffusers_lora.LoRACompatibleConv]) or (self.sd_module.__class__.__name__ in ["SDNQConv2d", "QConv2d"]) or (typ.__name__ in ['downsampler_block', 'upsampler_block'])
+        # skip_init: the stored weight is copied over the whole parameter below, so the
+        # default random init is thrown away. It costs ~4x the copy on every module.
         if is_linear or is_embedding:
             weight = weight.reshape(weight.shape[0], -1)
-            module = torch.nn.Linear(weight.shape[1], weight.shape[0], bias=False)
+            module = torch.nn.utils.skip_init(torch.nn.Linear, weight.shape[1], weight.shape[0], bias=False)
         elif is_conv and (key == "lora_down.weight" or key == "dyn_up"):
             if len(weight.shape) == 2:
                 weight = weight.reshape(weight.shape[0], -1, 1, 1)
             if weight.shape[2] != 1 or weight.shape[3] != 1:
-                module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], self.sd_module.kernel_size, self.sd_module.stride, self.sd_module.padding, bias=False)
+                module = torch.nn.utils.skip_init(torch.nn.Conv2d, weight.shape[1], weight.shape[0], self.sd_module.kernel_size, self.sd_module.stride, self.sd_module.padding, bias=False)
             else:
-                module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], (1, 1), bias=False)
+                module = torch.nn.utils.skip_init(torch.nn.Conv2d, weight.shape[1], weight.shape[0], (1, 1), bias=False)
         elif is_conv and (key == "lora_mid.weight"):
-            module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], self.sd_module.kernel_size, self.sd_module.stride, self.sd_module.padding, bias=False)
+            module = torch.nn.utils.skip_init(torch.nn.Conv2d, weight.shape[1], weight.shape[0], self.sd_module.kernel_size, self.sd_module.stride, self.sd_module.padding, bias=False)
         elif is_conv and (key == "lora_up.weight" or key == "dyn_down"):
-            module = torch.nn.Conv2d(weight.shape[1], weight.shape[0], (1, 1), bias=False)
+            module = torch.nn.utils.skip_init(torch.nn.Conv2d, weight.shape[1], weight.shape[0], (1, 1), bias=False)
         else:
             raise AssertionError(f'Lora unsupported: key={key} layer={self.network_key} type={typ.__name__}')
         with torch.no_grad():
