@@ -76,7 +76,7 @@ modules.cmd_args.parsed, _ = modules.cmd_args.parser.parse_known_args([])
 
 from modules.errors import log   # pylint: disable=wrong-import-position
 from modules import shared, sd_models        # pylint: disable=wrong-import-position
-from modules.lora import network, network_lora, lora_sdnq, networks  # pylint: disable=wrong-import-position
+from modules.lora import network, network_lora, lora_sdnq, lora_stack, networks  # pylint: disable=wrong-import-position
 from modules.lora import lora_common as l_common   # pylint: disable=wrong-import-position
 from modules.sdnq.quantizer import sdnq_quantize_layer, SDNQConfig  # pylint: disable=wrong-import-position
 
@@ -929,6 +929,146 @@ def test_factor_cache_disabled_at_zero():
     return True
 
 
+CAT_STACK = category('stack-dense')
+
+
+@contextmanager
+def stack_mode(name, dens=None):
+    old_m = getattr(shared.opts, 'lora_stack_mode', 'sum')
+    old_d = getattr(shared.opts, 'lora_stack_density', 0.5)
+    shared.opts.lora_stack_mode = name
+    if dens is not None:
+        shared.opts.lora_stack_density = dens
+    try:
+        yield
+    finally:
+        shared.opts.lora_stack_mode = old_m
+        shared.opts.lora_stack_density = old_d
+
+
+def test_ties_sign_consensus_drops_conflicts():
+    with stack_mode('ties', dens=1.0): # density 1 disables the trim, isolating sign election
+        d1 = torch.tensor([[1.0, 1.0, -1.0]], device=DEVICE)
+        d2 = torch.tensor([[2.0, -0.5, -2.0]], device=DEVICE)
+        out = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_test')
+    expected = torch.tensor([[1.5, 1.0, -1.5]], device=DEVICE) # agree: mean; conflict: majority-mass side only
+    assert torch.allclose(out, expected), f'{out.tolist()}'
+    return True
+
+
+def test_dare_mask_is_deterministic_across_calls():
+    torch.manual_seed(21)
+    d1 = torch.randn(64, 96, device=DEVICE) * 1e-2
+    d2 = torch.randn(64, 96, device=DEVICE) * 1e-2
+    with stack_mode('dare_linear', dens=0.5):
+        out1 = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_test')
+        out2 = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_test')
+        other = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_other')
+    assert torch.equal(out1, out2), 'same layer and nets must draw the same masks'
+    assert not torch.equal(out1, other), 'a different layer must draw different masks'
+    return True
+
+
+def test_dare_rescales_by_inverse_density():
+    torch.manual_seed(22)
+    d1 = torch.randn(64, 96, device=DEVICE)
+    d2 = torch.randn(64, 96, device=DEVICE)
+    with stack_mode('dare_linear', dens=0.5):
+        out = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_test')
+    cands = torch.stack([torch.zeros_like(d1), 2 * d1, 2 * d2, 2 * d1 + 2 * d2])
+    nearest = (cands - out.unsqueeze(0)).abs().min(dim=0).values
+    assert float(nearest.max()) < 1e-5, 'every element must be a 1/density-rescaled subset sum'
+    zero_frac = float((out == 0).float().mean())
+    assert 0.1 < zero_frac < 0.45, f'both-dropped fraction {zero_frac} should sit near 0.25'
+    return True
+
+
+def test_magnitude_prune_keeps_top_density():
+    torch.manual_seed(23)
+    d1 = torch.randn(128, 64, device=DEVICE)
+    d2 = torch.zeros_like(d1) # inert second delta isolates the trim
+    with stack_mode('magnitude_prune', dens=0.25):
+        out = lora_stack.combine([('a', d1), ('b', d2)], 'lora_transformer_test')
+    kept = out != 0
+    frac = float(kept.float().mean())
+    assert 0.2 < frac < 0.3, f'kept fraction {frac}'
+    assert torch.equal(out[kept], d1[kept]), 'kept elements must pass through unchanged'
+    assert float(d1.abs()[~kept].max()) <= float(d1.abs()[kept].min()) + 1e-6, 'kept set must be the top magnitudes'
+    return True
+
+
+def test_dense_two_plain_loras_hosted_not_summed():
+    layer = build_layer('uint4')
+    A1, B1, D1 = make_delta(seed=31, sigma=1e-2)
+    A2, B2, D2 = make_delta(seed=32, sigma=1e-2)
+    n1 = make_net('td1', layer, A1, B1)
+    n2 = make_net('td2', layer, A2, B2)
+    with host_rank(64), mock_model(lin=layer):
+        Wdq0 = dq(layer)
+        with stack_mode('ties', dens=0.5):
+            activate(n1, n2)
+            # hosted at rank 64 leaves a rank-64 factor bucket; the exact concat of two rank-8 nets would leave 16
+            assert layer.svd_up.shape[1] == 64, f'dense mode must route a factorable pair to hosting, rank={layer.svd_up.shape[1]}'
+            eff = dq(layer) - Wdq0
+            activate()
+        assert torch.equal(dq(layer), Wdq0), 'removal must restore bit-exact'
+        with stack_mode('ties', dens=0.5):
+            ref = lora_stack.combine([('td1', D1), ('td2', D2)], 'lora_transformer_test')
+    s = D1 + D2
+    assert float((eff - s).norm() / s.norm()) > 0.05, 'ties result must differ from the plain sum'
+    assert rho_of(eff, ref) > 0.8, f'hosted ties delta must track the ties reference, rho={rho_of(eff, ref):.3f}' # rank-64 truncation of the densified delta keeps ~0.89
+    assert float((eff - ref).norm()) < float((eff - s).norm()), 'hosted result must sit closer to the ties reference than to the plain sum'
+    return True
+
+
+def test_single_net_ignores_dense_mode():
+    layer = build_layer('uint4')
+    A, B, D = make_delta(seed=33)
+    net = make_net('solo', layer, A, B)
+    with mock_model(lin=layer), stack_mode('ties', dens=0.5):
+        Wdq0 = dq(layer)
+        activate(net)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'single net must stay on the exact factor path'
+        assert rho_of(dq(layer) - Wdq0, D) > 0.99
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_te_layer_stays_plain_sum():
+    layer = build_layer('uint4')
+    layer.network_layer_name = 'lora_te_test'
+    A1, B1, D1 = make_delta(seed=34)
+    A2, B2, D2 = make_delta(seed=35)
+    n1 = make_net('te1', layer, A1, B1)
+    n2 = make_net('te2', layer, A2, B2)
+    with mock_model(lin=layer), stack_mode('ties', dens=0.5):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'te layers must stay on the exact concat path'
+        assert rho_of(dq(layer) - Wdq0, D1 + D2) > 0.99
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
+def test_sum_mode_keeps_exact_stacking():
+    layer = build_layer('uint4')
+    A1, B1, D1 = make_delta(seed=36)
+    A2, B2, D2 = make_delta(seed=37)
+    n1 = make_net('s1', layer, A1, B1)
+    n2 = make_net('s2', layer, A2, B2)
+    with mock_model(lin=layer), stack_mode('sum'):
+        Wdq0 = dq(layer)
+        activate(n1, n2)
+        assert hasattr(layer, 'sdnq_lora_svd_stash'), 'sum mode must keep the exact concat path'
+        assert layer.svd_up.shape[1] == 16, f'sum mode must concat exactly, rank={layer.svd_up.shape[1]}'
+        assert rho_of(dq(layer) - Wdq0, D1 + D2) > 0.99
+        activate()
+        assert torch.equal(dq(layer), Wdq0)
+    return True
+
+
 CAT_COMPILE = category('compile')
 
 
@@ -1100,6 +1240,11 @@ def run_tests():
     for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier,
                test_factor_cache_int8_quantization, test_factor_cache_disabled_at_zero]:
         run_test(CAT_FCACHE, fn)
+    log.warning('=== Stack modes: dense ===')
+    for fn in [test_ties_sign_consensus_drops_conflicts, test_dare_mask_is_deterministic_across_calls, test_dare_rescales_by_inverse_density,
+               test_magnitude_prune_keeps_top_density, test_dense_two_plain_loras_hosted_not_summed, test_single_net_ignores_dense_mode,
+               test_te_layer_stays_plain_sum, test_sum_mode_keeps_exact_stacking]:
+        run_test(CAT_STACK, fn)
     log.warning('=== Compile ===')
     for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse]:
         run_test(CAT_COMPILE, fn)

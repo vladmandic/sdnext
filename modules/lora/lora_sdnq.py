@@ -38,7 +38,7 @@ remains.
 import torch
 
 from modules import devices, shared
-from modules.lora import lora_calib, lora_factor_cache
+from modules.lora import lora_calib, lora_factor_cache, lora_stack
 from modules.lora import lora_common as l
 from modules.logger import log
 
@@ -100,6 +100,10 @@ def factor_candidate(self, network_layer_name, wanted_names, use_previous=False)
     """
     if getattr(self, 'sdnq_dequantizer', None) is None or self.__class__.__name__ != 'SDNQLinear':
         return False
+    if wanted_names != () and lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te'):
+        loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
+        if sum(1 for net in loaded if net.modules.get(network_layer_name, None) is not None) >= 2:
+            return False # dense stack modes combine dense deltas; the factor concat would sum
     if hasattr(self, 'sdnq_lora_svd_stash'):
         return True
     if wanted_names == ():  # nothing attached, nothing to remove
@@ -250,20 +254,22 @@ def apply_hosted(self, network_layer_name, updown, wanted_names, use_previous=Fa
 
     ups, downs = [], []
     loaded = l.loaded_networks if not use_previous else l.previously_loaded_networks
-    for net in loaded:
-        module = net.modules.get(network_layer_name, None)
-        if module is None:
-            continue
-        factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
-        if factors is None:
-            continue
-        up_eff, down = factors
-        if D is not None:
-            D = D.sub_(up_eff.to(torch.float32) @ down.to(torch.float32)) # factorable members ride exactly; host only the remainder
-        if deq.use_hadamard:
-            down = rotate_hadamard(down.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
-        ups.append(up_eff)
-        downs.append(down)
+    stack_dense = lora_stack.mode() in lora_stack.DENSE_MODES and not network_layer_name.startswith('lora_te')
+    if not stack_dense: # dense stack modes host the combined delta wholesale; the members' content is already inside it
+        for net in loaded:
+            module = net.modules.get(network_layer_name, None)
+            if module is None:
+                continue
+            factors = get_module_factors(module, devices.device, dtype, original_shape=deq.original_shape)
+            if factors is None:
+                continue
+            up_eff, down = factors
+            if D is not None:
+                D = D.sub_(up_eff.to(torch.float32) @ down.to(torch.float32)) # factorable members ride exactly; host only the remainder
+            if deq.use_hadamard:
+                down = rotate_hadamard(down.to(dtype=torch.float32), group_size=deq.hadamard_group_size).to(dtype=dtype)
+            ups.append(up_eff)
+            downs.append(down)
 
     if cached is not None:
         up_h, down_h, energy, calibrated = cached
