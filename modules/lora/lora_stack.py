@@ -78,10 +78,10 @@ def active_select(n_loaded):
     if m not in SELECT_MODES:
         return False
     if n_loaded != 2:
-        warn_once('select-count', f'Network stack: mode={m} networks={n_loaded} requires exactly 2, using sum')
+        warn_once('select-count', f'Network stack: mode={m} networks={n_loaded} required=2 fallback=sum')
         return False
     if select_blocked():
-        warn_once('select-compile', f'Network stack: mode={m} disabled with model compile, using sum')
+        warn_once('select-compile', f'Network stack: mode={m} compile=model fallback=sum')
         return False
     return True
 
@@ -290,7 +290,7 @@ def weight_selection(module, entry, winner):
     from modules.lora.lora_apply import network_apply_weights
     backup = getattr(module, 'network_weights_backup', None)
     if not isinstance(backup, torch.Tensor): # fuse mode keeps a bool sentinel, not a pristine copy
-        warn_once('select-nobackup', 'Network stack: select flip skipped, no weight backup')
+        warn_once('select-nobackup', 'Network stack: flip=skipped backup=none')
         return
     net = next((n for n in l.loaded_networks if n.name == entry['nets'][winner]), None)
     net_module = net.modules.get(entry['layer'], None) if net is not None else None

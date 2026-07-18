@@ -82,6 +82,7 @@ from modules.sdnq.quantizer import sdnq_quantize_layer, SDNQConfig  # pylint: di
 
 DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 OUT_F, IN_F, RANK = 512, 512, 8
+shared.opts.lora_stack_mode = 'sum' # suite baseline regardless of user config; stack tests set modes via their own context managers
 
 results: dict[str, dict] = {}
 
