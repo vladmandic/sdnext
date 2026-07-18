@@ -37,6 +37,11 @@ for the per-model analyzer):
 - Factor cache: hosted factors replay bit-identically from the disk cache
   without re-running the svd, a configuration change (multiplier) misses
   and writes a separate entry, and budget 0 writes nothing.
+- Compile: the factor add runs inside the single compiled dequant graph
+  (fullgraph, no breaks) and matches the eager result; factor ranks pad to
+  a fixed bucket ladder so set switches inside a bucket reuse the compiled
+  graph while a novel bucket compiles exactly once, and padding changes
+  the dequantized weight by nothing beyond reduction-order ulp.
 
 All tensors are synthetic; no model files or running server required.
 
@@ -1013,6 +1018,102 @@ def test_factor_cache_disabled_at_zero():
     return True
 
 
+CAT_COMPILE = category('compile')
+
+
+def dq_compiled(layer):
+    # the production entry: skip_compile left at its default so the shared compiled dequant runs
+    return layer.sdnq_dequantizer(layer.weight, layer.scale, zero_point=layer.zero_point,
+                                  svd_up=layer.svd_up, svd_down=layer.svd_down,
+                                  skip_quantized_matmul=layer.sdnq_dequantizer.use_quantized_matmul,
+                                  dtype=torch.float32)
+
+
+def graph_stats():
+    from torch._dynamo.utils import counters
+    return int(counters['stats']['unique_graphs']), sum(counters['graph_break'].values())
+
+
+def test_factor_add_inside_compiled_graph():
+    from sdnq.common import use_torch_compile
+    if not use_torch_compile:
+        return True # compile disabled at sdnq import (no triton); nothing to pin
+    import torch._dynamo
+    from torch._dynamo.utils import counters
+    layer = build_layer('uint4')
+    A, B, _D = make_delta()
+    dtype = layer.sdnq_dequantizer.result_dtype
+    torch._dynamo.reset()
+    counters.clear()
+    lora_sdnq.append_factors(layer, [B.to(dtype)], [A.to(dtype)])
+    W_c = dq_compiled(layer)
+    graphs, breaks = graph_stats()
+    assert breaks == 0, f'graph breaks in the compiled dequant: {breaks}'
+    assert graphs == 1, f'factor-bearing dequant must be one compiled region, got {graphs} graphs'
+    W_e = dq(layer)
+    assert torch.allclose(W_c, W_e, rtol=1e-3, atol=1e-4), f'compiled vs eager dequant diverged, max {float((W_c - W_e).abs().max()):.3e}'
+    lora_sdnq.remove_factors(layer)
+    return True
+
+
+def test_rank_bucket_graph_reuse():
+    from sdnq.common import use_torch_compile
+    if not use_torch_compile:
+        return True
+    import torch._dynamo
+    from torch._dynamo.utils import counters
+    import sdnq.common as sdnq_common
+    layer = build_layer('uint4', use_hadamard=False)
+    dtype = layer.sdnq_dequantizer.result_dtype
+    torch.manual_seed(13)
+    mk = lambda r: (torch.randn(OUT_F, r, device=DEVICE, dtype=dtype) * 0.01, torch.randn(r, IN_F, device=DEVICE, dtype=dtype) * 0.01)
+    B8, A8 = mk(8)
+    B6, A6 = mk(6)
+    B24, A24 = mk(24)
+
+    torch._dynamo.reset()
+    counters.clear()
+    lora_sdnq.append_factors(layer, [B8], [A8])
+    assert layer.svd_up.shape[1] == 8, f'rank 8 must bucket to 8, got {layer.svd_up.shape[1]}'
+    dq_compiled(layer)
+    g_first, _ = graph_stats()
+
+    lora_sdnq.remove_factors(layer)
+    lora_sdnq.append_factors(layer, [B6], [A6])
+    assert layer.svd_up.shape[1] == 8, f'rank 6 must pad to bucket 8, got {layer.svd_up.shape[1]}'
+    assert float(layer.svd_up[:, 6:].abs().sum()) == 0.0, 'pad columns must be exact zeros'
+    dq_compiled(layer)
+    g_same, _ = graph_stats()
+    assert g_same == g_first, f'same bucket must reuse the graph: {g_first} -> {g_same}'
+
+    lora_sdnq.remove_factors(layer)
+    lora_sdnq.append_factors(layer, [B24], [A24])
+    assert layer.svd_up.shape[1] == 32, f'rank 24 must pad to bucket 32, got {layer.svd_up.shape[1]}'
+    dq_compiled(layer)
+    g_novel, _ = graph_stats()
+    assert g_novel == g_first + 1, f'novel bucket must compile exactly one new graph: {g_first} -> {g_novel}'
+
+    lora_sdnq.remove_factors(layer)
+    lora_sdnq.append_factors(layer, [B8], [A8])
+    dq_compiled(layer)
+    g_back, _ = graph_stats()
+    assert g_back == g_novel, f'returning to a seen bucket must be free: {g_novel} -> {g_back}'
+
+    W_padded = dq(layer)
+    lora_sdnq.remove_factors(layer)
+    old_flag = sdnq_common.use_torch_compile
+    sdnq_common.use_torch_compile = False
+    try:
+        lora_sdnq.append_factors(layer, [B8], [A8])
+        assert layer.svd_up.shape[1] == 8
+        W_unpadded = dq(layer)
+    finally:
+        sdnq_common.use_torch_compile = old_flag
+        lora_sdnq.remove_factors(layer)
+    assert torch.allclose(W_padded, W_unpadded, rtol=0.0, atol=1e-6), f'padding must be inert beyond reduction-order ulp, max {float((W_padded - W_unpadded).abs().max()):.3e}'
+    return True
+
+
 CAT_ROBUST = category('robustness')
 
 
@@ -1090,6 +1191,9 @@ def run_tests():
     for fn in [test_factor_cache_roundtrip_bitexact, test_factor_cache_invalidates_on_multiplier,
                test_factor_cache_int8_quantization, test_factor_cache_disabled_at_zero]:
         run_test(CAT_FCACHE, fn)
+    log.warning('=== Compile ===')
+    for fn in [test_factor_add_inside_compiled_graph, test_rank_bucket_graph_reuse]:
+        run_test(CAT_COMPILE, fn)
     log.warning('=== Robustness ===')
     for fn in [test_remove_factors_after_device_move, test_stacked_shape_mismatch_falls_back]:
         run_test(CAT_ROBUST, fn)
