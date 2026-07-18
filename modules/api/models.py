@@ -552,6 +552,7 @@ class ResEmbeddings(BaseModel):
 class ResMemory(BaseModel):
     ram: dict = Field(title="RAM", description="System memory stats")
     cuda: dict = Field(title="CUDA", description="nVidia CUDA memory stats")
+    model: dict = Field(default={}, title="Model", description="Loaded model bytes per component and device")
 
 class ResScripts(BaseModel):
     txt2img: list[str] = Field(title="Txt2img", description="Titles of scripts (txt2img)")
